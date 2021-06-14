@@ -87,6 +87,7 @@ properties:
               - xlnx,zynqmp-zcu102-revA
               - xlnx,zynqmp-zcu102-revB
               - xlnx,zynqmp-zcu102-rev1.0
+              - xlnx,zynqmp-zcu102-rev1.1
           - const: xlnx,zynqmp-zcu102
           - const: xlnx,zynqmp
 
