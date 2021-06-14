@@ -26,6 +26,7 @@
 		rtc0 = &rtc;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		spi0 = &qspi;
 	};
 
 	chosen {
@@ -159,6 +160,19 @@
 &i2c1 {
 	clock-frequency = <400000>;
 	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	flash@0 {
+		compatible = "m25p80", "jedec,spi-nor"; /* 32MB */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>; /* also DUAL configuration possible */
+		spi-max-frequency = <108000000>; /* Based on DC1 spec */
+	};
 };
 
 &rtc {

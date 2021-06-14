@@ -28,6 +28,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &dcc;
+		spi0 = &qspi;
 	};
 
 	chosen {
@@ -435,6 +436,9 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <108000000>; /* Based on DC1 spec */
 	};
 };
 

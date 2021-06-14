@@ -30,6 +30,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &dcc;
+		spi0 = &qspi;
 	};
 
 	chosen {
@@ -932,6 +933,20 @@
 	/* pcie, sata, usb3, dp */
 	clocks = <&si5341 0 5>, <&si5341 0 3>, <&si5341 0 2>, <&si5341 0 0>;
 	clock-names = "ref0", "ref1", "ref2", "ref3";
+};
+
+&qspi {
+	status = "okay";
+	is-dual = <1>;
+	flash@0 {
+		compatible = "m25p80", "jedec,spi-nor"; /* 32MB */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>; /* FIXME also DUAL configuration possible */
+		spi-max-frequency = <108000000>; /* Based on DC1 spec */
+	};
 };
 
 &rtc {
