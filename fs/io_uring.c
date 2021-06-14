@@ -5998,7 +5998,7 @@ static u32 io_get_sequence(struct io_kiocb *req)
 	return ctx->cached_sq_head - nr_reqs;
 }
 
-static int io_req_defer(struct io_kiocb *req)
+static bool io_drain_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_defer_entry *de;
@@ -6008,27 +6008,29 @@ static int io_req_defer(struct io_kiocb *req)
 	/* Still need defer if there is pending req in defer list. */
 	if (likely(list_empty_careful(&ctx->defer_list) &&
 		!(req->flags & REQ_F_IO_DRAIN)))
-		return 0;
+		return false;
 
 	seq = io_get_sequence(req);
 	/* Still a chance to pass the sequence check */
 	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list))
-		return 0;
+		return false;
 
 	ret = io_req_prep_async(req);
 	if (ret)
 		return ret;
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL);
-	if (!de)
-		return -ENOMEM;
+	if (!de) {
+		io_req_complete_failed(req, ret);
+		return true;
+	}
 
 	spin_lock_irq(&ctx->completion_lock);
 	if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
 		spin_unlock_irq(&ctx->completion_lock);
 		kfree(de);
 		io_queue_async_work(req);
-		return -EIOCBQUEUED;
+		return true;
 	}
 
 	trace_io_uring_defer(ctx, req, req->user_data);
@@ -6036,7 +6038,7 @@ static int io_req_defer(struct io_kiocb *req)
 	de->seq = seq;
 	list_add_tail(&de->list, &ctx->defer_list);
 	spin_unlock_irq(&ctx->completion_lock);
-	return -EIOCBQUEUED;
+	return true;
 }
 
 static void io_clean_op(struct io_kiocb *req)
@@ -6447,21 +6449,18 @@ static void __io_queue_sqe(struct io_kiocb *req)
 
 static void io_queue_sqe(struct io_kiocb *req)
 {
-	int ret;
+	if (io_drain_req(req))
+		return;
 
-	ret = io_req_defer(req);
-	if (ret) {
-		if (ret != -EIOCBQUEUED) {
-fail_req:
-			io_req_complete_failed(req, ret);
-		}
-	} else if (req->flags & REQ_F_FORCE_ASYNC) {
-		ret = io_req_prep_async(req);
-		if (unlikely(ret))
-			goto fail_req;
-		io_queue_async_work(req);
-	} else {
+	if (likely(!(req->flags & REQ_F_FORCE_ASYNC))) {
 		__io_queue_sqe(req);
+	} else {
+		int ret = io_req_prep_async(req);
+
+		if (unlikely(ret))
+			io_req_complete_failed(req, ret);
+		else
+			io_queue_async_work(req);
 	}
 }
 
