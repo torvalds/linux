@@ -226,24 +226,41 @@ static void cal_camerarx_enable_irqs(struct cal_camerarx *phy)
 		CAL_CSI2_COMPLEXIO_IRQ_FIFO_OVR_MASK |
 		CAL_CSI2_COMPLEXIO_IRQ_SHORT_PACKET_MASK |
 		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
+	const u32 vc_err_mask =
+		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(0) |
+		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(1) |
+		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(2) |
+		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(3) |
+		CAL_CSI2_VC_IRQ_ECC_CORRECTION_IRQ_MASK(0) |
+		CAL_CSI2_VC_IRQ_ECC_CORRECTION_IRQ_MASK(1) |
+		CAL_CSI2_VC_IRQ_ECC_CORRECTION_IRQ_MASK(2) |
+		CAL_CSI2_VC_IRQ_ECC_CORRECTION_IRQ_MASK(3);
 
-	/* Enable CIO error IRQs. */
+	/* Enable CIO & VC error IRQs. */
 	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(0),
-		  CAL_HL_IRQ_CIO_MASK(phy->instance));
+		  CAL_HL_IRQ_CIO_MASK(phy->instance) |
+		  CAL_HL_IRQ_VC_MASK(phy->instance));
 	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance),
 		  cio_err_mask);
+	cal_write(phy->cal, CAL_CSI2_VC_IRQENABLE(phy->instance),
+		  vc_err_mask);
 }
 
 static void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
 {
 	/* Disable CIO error irqs */
 	cal_write(phy->cal, CAL_HL_IRQENABLE_CLR(0),
-		  CAL_HL_IRQ_CIO_MASK(phy->instance));
+		  CAL_HL_IRQ_CIO_MASK(phy->instance) |
+		  CAL_HL_IRQ_VC_MASK(phy->instance));
 	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance), 0);
+	cal_write(phy->cal, CAL_CSI2_VC_IRQENABLE(phy->instance), 0);
 }
 
 static void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
 {
+	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
+			1, CAL_CSI2_PPI_CTRL_ECC_EN_MASK);
+
 	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
 			1, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }

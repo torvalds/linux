@@ -576,6 +576,16 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 				cal_write(cal, CAL_CSI2_COMPLEXIO_IRQSTATUS(i),
 					  cio_stat);
 			}
+
+			if (status & CAL_HL_IRQ_VC_MASK(i)) {
+				u32 vc_stat = cal_read(cal, CAL_CSI2_VC_IRQSTATUS(i));
+
+				dev_err_ratelimited(cal->dev,
+						    "CIO%u VC error: %#08x\n",
+						    i, vc_stat);
+
+				cal_write(cal, CAL_CSI2_VC_IRQSTATUS(i), vc_stat);
+			}
 		}
 	}
 
