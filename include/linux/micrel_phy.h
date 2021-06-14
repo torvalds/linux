@@ -45,4 +45,17 @@
 #define MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW	0x104
 #define MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW	0x105
 
+/* Device specific MII_BMCR (Reg 0) bits */
+/* 1 = HP Auto MDI/MDI-X mode, 0 = Microchip Auto MDI/MDI-X mode */
+#define KSZ886X_BMCR_HP_MDIX			BIT(5)
+/* 1 = Force MDI (transmit on RXP/RXM pins), 0 = Normal operation
+ * (transmit on TXP/TXM pins)
+ */
+#define KSZ886X_BMCR_FORCE_MDI			BIT(4)
+/* 1 = Disable auto MDI-X */
+#define KSZ886X_BMCR_DISABLE_AUTO_MDIX		BIT(3)
+#define KSZ886X_BMCR_DISABLE_FAR_END_FAULT	BIT(2)
+#define KSZ886X_BMCR_DISABLE_TRANSMIT		BIT(1)
+#define KSZ886X_BMCR_DISABLE_LED		BIT(0)
+
 #endif /* _MICREL_PHY_H */

@@ -15,6 +15,7 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/micrel_phy.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
@@ -731,88 +732,88 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	u8 p = phy;
 
 	switch (reg) {
-	case PHY_REG_CTRL:
+	case MII_BMCR:
 		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
 		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
 		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		if (restart & PORT_PHY_LOOPBACK)
-			data |= PHY_LOOPBACK;
+			data |= BMCR_LOOPBACK;
 		if (ctrl & PORT_FORCE_100_MBIT)
-			data |= PHY_SPEED_100MBIT;
+			data |= BMCR_SPEED100;
 		if (ksz_is_ksz88x3(dev)) {
 			if ((ctrl & PORT_AUTO_NEG_ENABLE))
-				data |= PHY_AUTO_NEG_ENABLE;
+				data |= BMCR_ANENABLE;
 		} else {
 			if (!(ctrl & PORT_AUTO_NEG_DISABLE))
-				data |= PHY_AUTO_NEG_ENABLE;
+				data |= BMCR_ANENABLE;
 		}
 		if (restart & PORT_POWER_DOWN)
-			data |= PHY_POWER_DOWN;
+			data |= BMCR_PDOWN;
 		if (restart & PORT_AUTO_NEG_RESTART)
-			data |= PHY_AUTO_NEG_RESTART;
+			data |= BMCR_ANRESTART;
 		if (ctrl & PORT_FORCE_FULL_DUPLEX)
-			data |= PHY_FULL_DUPLEX;
+			data |= BMCR_FULLDPLX;
 		if (speed & PORT_HP_MDIX)
-			data |= PHY_HP_MDIX;
+			data |= KSZ886X_BMCR_HP_MDIX;
 		if (restart & PORT_FORCE_MDIX)
-			data |= PHY_FORCE_MDIX;
+			data |= KSZ886X_BMCR_FORCE_MDI;
 		if (restart & PORT_AUTO_MDIX_DISABLE)
-			data |= PHY_AUTO_MDIX_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_AUTO_MDIX;
 		if (restart & PORT_TX_DISABLE)
-			data |= PHY_TRANSMIT_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_TRANSMIT;
 		if (restart & PORT_LED_OFF)
-			data |= PHY_LED_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_LED;
 		break;
-	case PHY_REG_STATUS:
+	case MII_BMSR:
 		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
-		data = PHY_100BTX_FD_CAPABLE |
-		       PHY_100BTX_CAPABLE |
-		       PHY_10BT_FD_CAPABLE |
-		       PHY_10BT_CAPABLE |
-		       PHY_AUTO_NEG_CAPABLE;
+		data = BMSR_100FULL |
+		       BMSR_100HALF |
+		       BMSR_10FULL |
+		       BMSR_10HALF |
+		       BMSR_ANEGCAPABLE;
 		if (link & PORT_AUTO_NEG_COMPLETE)
-			data |= PHY_AUTO_NEG_ACKNOWLEDGE;
+			data |= BMSR_ANEGCOMPLETE;
 		if (link & PORT_STAT_LINK_GOOD)
-			data |= PHY_LINK_STATUS;
+			data |= BMSR_LSTATUS;
 		break;
-	case PHY_REG_ID_1:
+	case MII_PHYSID1:
 		data = KSZ8795_ID_HI;
 		break;
-	case PHY_REG_ID_2:
+	case MII_PHYSID2:
 		if (ksz_is_ksz88x3(dev))
 			data = KSZ8863_ID_LO;
 		else
 			data = KSZ8795_ID_LO;
 		break;
-	case PHY_REG_AUTO_NEGOTIATION:
+	case MII_ADVERTISE:
 		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
-		data = PHY_AUTO_NEG_802_3;
+		data = ADVERTISE_CSMA;
 		if (ctrl & PORT_AUTO_NEG_SYM_PAUSE)
-			data |= PHY_AUTO_NEG_SYM_PAUSE;
+			data |= ADVERTISE_PAUSE_CAP;
 		if (ctrl & PORT_AUTO_NEG_100BTX_FD)
-			data |= PHY_AUTO_NEG_100BTX_FD;
+			data |= ADVERTISE_100FULL;
 		if (ctrl & PORT_AUTO_NEG_100BTX)
-			data |= PHY_AUTO_NEG_100BTX;
+			data |= ADVERTISE_100HALF;
 		if (ctrl & PORT_AUTO_NEG_10BT_FD)
-			data |= PHY_AUTO_NEG_10BT_FD;
+			data |= ADVERTISE_10FULL;
 		if (ctrl & PORT_AUTO_NEG_10BT)
-			data |= PHY_AUTO_NEG_10BT;
+			data |= ADVERTISE_10HALF;
 		break;
-	case PHY_REG_REMOTE_CAPABILITY:
+	case MII_LPA:
 		ksz_pread8(dev, p, regs[P_REMOTE_STATUS], &link);
-		data = PHY_AUTO_NEG_802_3;
+		data = LPA_SLCT;
 		if (link & PORT_REMOTE_SYM_PAUSE)
-			data |= PHY_AUTO_NEG_SYM_PAUSE;
+			data |= LPA_PAUSE_CAP;
 		if (link & PORT_REMOTE_100BTX_FD)
-			data |= PHY_AUTO_NEG_100BTX_FD;
+			data |= LPA_100FULL;
 		if (link & PORT_REMOTE_100BTX)
-			data |= PHY_AUTO_NEG_100BTX;
+			data |= LPA_100HALF;
 		if (link & PORT_REMOTE_10BT_FD)
-			data |= PHY_AUTO_NEG_10BT_FD;
+			data |= LPA_10FULL;
 		if (link & PORT_REMOTE_10BT)
-			data |= PHY_AUTO_NEG_10BT;
-		if (data & ~PHY_AUTO_NEG_802_3)
-			data |= PHY_REMOTE_ACKNOWLEDGE_NOT;
+			data |= LPA_10HALF;
+		if (data & ~LPA_SLCT)
+			data |= LPA_LPACK;
 		break;
 	default:
 		processed = false;
@@ -830,14 +831,14 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	u8 p = phy;
 
 	switch (reg) {
-	case PHY_REG_CTRL:
+	case MII_BMCR:
 
 		/* Do not support PHY reset function. */
-		if (val & PHY_RESET)
+		if (val & BMCR_RESET)
 			break;
 		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
 		data = speed;
-		if (val & PHY_HP_MDIX)
+		if (val & KSZ886X_BMCR_HP_MDIX)
 			data |= PORT_HP_MDIX;
 		else
 			data &= ~PORT_HP_MDIX;
@@ -846,12 +847,12 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		data = ctrl;
 		if (ksz_is_ksz88x3(dev)) {
-			if ((val & PHY_AUTO_NEG_ENABLE))
+			if ((val & BMCR_ANENABLE))
 				data |= PORT_AUTO_NEG_ENABLE;
 			else
 				data &= ~PORT_AUTO_NEG_ENABLE;
 		} else {
-			if (!(val & PHY_AUTO_NEG_ENABLE))
+			if (!(val & BMCR_ANENABLE))
 				data |= PORT_AUTO_NEG_DISABLE;
 			else
 				data &= ~PORT_AUTO_NEG_DISABLE;
@@ -861,11 +862,11 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 				data |= PORT_AUTO_NEG_DISABLE;
 		}
 
-		if (val & PHY_SPEED_100MBIT)
+		if (val & BMCR_SPEED100)
 			data |= PORT_FORCE_100_MBIT;
 		else
 			data &= ~PORT_FORCE_100_MBIT;
-		if (val & PHY_FULL_DUPLEX)
+		if (val & BMCR_FULLDPLX)
 			data |= PORT_FORCE_FULL_DUPLEX;
 		else
 			data &= ~PORT_FORCE_FULL_DUPLEX;
@@ -873,38 +874,38 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
 		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
 		data = restart;
-		if (val & PHY_LED_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_LED)
 			data |= PORT_LED_OFF;
 		else
 			data &= ~PORT_LED_OFF;
-		if (val & PHY_TRANSMIT_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_TRANSMIT)
 			data |= PORT_TX_DISABLE;
 		else
 			data &= ~PORT_TX_DISABLE;
-		if (val & PHY_AUTO_NEG_RESTART)
+		if (val & BMCR_ANRESTART)
 			data |= PORT_AUTO_NEG_RESTART;
 		else
 			data &= ~(PORT_AUTO_NEG_RESTART);
-		if (val & PHY_POWER_DOWN)
+		if (val & BMCR_PDOWN)
 			data |= PORT_POWER_DOWN;
 		else
 			data &= ~PORT_POWER_DOWN;
-		if (val & PHY_AUTO_MDIX_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_AUTO_MDIX)
 			data |= PORT_AUTO_MDIX_DISABLE;
 		else
 			data &= ~PORT_AUTO_MDIX_DISABLE;
-		if (val & PHY_FORCE_MDIX)
+		if (val & KSZ886X_BMCR_FORCE_MDI)
 			data |= PORT_FORCE_MDIX;
 		else
 			data &= ~PORT_FORCE_MDIX;
-		if (val & PHY_LOOPBACK)
+		if (val & BMCR_LOOPBACK)
 			data |= PORT_PHY_LOOPBACK;
 		else
 			data &= ~PORT_PHY_LOOPBACK;
 		if (data != restart)
 			ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL], data);
 		break;
-	case PHY_REG_AUTO_NEGOTIATION:
+	case MII_ADVERTISE:
 		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
 		data = ctrl;
 		data &= ~(PORT_AUTO_NEG_SYM_PAUSE |
@@ -912,15 +913,15 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			  PORT_AUTO_NEG_100BTX |
 			  PORT_AUTO_NEG_10BT_FD |
 			  PORT_AUTO_NEG_10BT);
-		if (val & PHY_AUTO_NEG_SYM_PAUSE)
+		if (val & ADVERTISE_PAUSE_CAP)
 			data |= PORT_AUTO_NEG_SYM_PAUSE;
-		if (val & PHY_AUTO_NEG_100BTX_FD)
+		if (val & ADVERTISE_100FULL)
 			data |= PORT_AUTO_NEG_100BTX_FD;
-		if (val & PHY_AUTO_NEG_100BTX)
+		if (val & ADVERTISE_100HALF)
 			data |= PORT_AUTO_NEG_100BTX;
-		if (val & PHY_AUTO_NEG_10BT_FD)
+		if (val & ADVERTISE_10FULL)
 			data |= PORT_AUTO_NEG_10BT_FD;
-		if (val & PHY_AUTO_NEG_10BT)
+		if (val & ADVERTISE_10HALF)
 			data |= PORT_AUTO_NEG_10BT;
 		if (data != ctrl)
 			ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
