@@ -1249,21 +1249,8 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	 * Flip the polarity for the "CPU" end of a CODEC<->CODEC link
 	 * the component which has non_legacy_dai_naming is Codec
 	 */
-	inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
-	switch (dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
-		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
-		break;
-	}
+	inv_dai_fmt = snd_soc_daifmt_clock_provider_fliped(dai_fmt);
+
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
 
@@ -3016,6 +3003,29 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_aux_devs);
+
+unsigned int snd_soc_daifmt_clock_provider_fliped(unsigned int dai_fmt)
+{
+	unsigned int inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+
+	switch (dai_fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
+		break;
+	case SND_SOC_DAIFMT_CBP_CFC:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBC_CFP;
+		break;
+	case SND_SOC_DAIFMT_CBC_CFP:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBP_CFC;
+		break;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
+		break;
+	}
+
+	return inv_dai_fmt;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_fliped);
 
 unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
 {
