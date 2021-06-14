@@ -64,33 +64,37 @@ void add_mem_detect_block(u64 start, u64 end)
 
 static int __diag260(unsigned long rx1, unsigned long rx2)
 {
-	register unsigned long _rx1 asm("2") = rx1;
-	register unsigned long _rx2 asm("3") = rx2;
-	register unsigned long _ry asm("4") = 0x10; /* storage configuration */
-	int rc = -1;				    /* fail */
-	unsigned long reg1, reg2;
+	unsigned long reg1, reg2, ry;
+	union register_pair rx;
 	psw_t old;
+	int rc;
 
+	rx.even = rx1;
+	rx.odd	= rx2;
+	ry = 0x10; /* storage configuration */
+	rc = -1;   /* fail */
 	asm volatile(
 		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%0,%1\n"
-		"	st	%0,0(%[psw_pgm])\n"
-		"	st	%1,4(%[psw_pgm])\n"
-		"	larl	%0,1f\n"
-		"	stg	%0,8(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	diag	%[rx],%[ry],0x260\n"
 		"	ipm	%[rc]\n"
 		"	srl	%[rc],28\n"
 		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: "=&d" (reg1), "=&a" (reg2),
+		: [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  [rc] "+&d" (rc),
+		  [ry] "+&d" (ry),
 		  "+Q" (S390_lowcore.program_new_psw),
-		  "=Q" (old),
-		  [rc] "+&d" (rc), [ry] "+d" (_ry)
-		: [rx] "d" (_rx1), "d" (_rx2),
+		  "=Q" (old)
+		: [rx] "d" (rx.pair),
 		  [psw_old] "a" (&old),
 		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
 		: "cc", "memory");
-	return rc == 0 ? _ry : -1;
+	return rc == 0 ? ry : -1;
 }
 
 static int diag260(void)
