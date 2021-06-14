@@ -176,6 +176,12 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 	iter->should_be_locked = false;
 }
 
+static inline void bch2_btree_iter_set_pos_to_extent_start(struct btree_iter *iter)
+{
+	BUG_ON(!(iter->flags & BTREE_ITER_IS_EXTENTS));
+	iter->pos = bkey_start_pos(&iter->k);
+}
+
 static inline struct btree_iter *btree_iter_child(struct btree_iter *iter)
 {
 	return iter->child_idx == U8_MAX ? NULL

@@ -2611,7 +2611,8 @@ reassemble:
 			BUG_ON(ret);
 		}
 
-		ret =   bch2_trans_update(&trans, del, &delete, trigger_flags) ?:
+		ret =   bch2_btree_iter_traverse(del) ?:
+			bch2_trans_update(&trans, del, &delete, trigger_flags) ?:
 			bch2_trans_update(&trans, dst, copy.k, trigger_flags) ?:
 			bch2_trans_commit(&trans, &disk_res,
 					  &inode->ei_journal_seq,

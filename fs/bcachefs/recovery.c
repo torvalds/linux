@@ -509,16 +509,8 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 
 	iter = bch2_trans_get_node_iter(trans, id, k->k.p,
 					BTREE_MAX_DEPTH, level,
-					BTREE_ITER_INTENT);
-
-	/*
-	 * iter->flags & BTREE_ITER_IS_EXTENTS triggers the update path to run
-	 * extent_handle_overwrites() and extent_update_to_keys() - but we don't
-	 * want that here, journal replay is supposed to treat extents like
-	 * regular keys:
-	 */
-	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
-
+					BTREE_ITER_INTENT|
+					BTREE_ITER_NOT_EXTENTS);
 	ret   = bch2_btree_iter_traverse(iter) ?:
 		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
 	bch2_trans_iter_put(trans, iter);
@@ -546,7 +538,8 @@ static int __bch2_alloc_replay_key(struct btree_trans *trans, struct bkey_i *k)
 				   BTREE_ITER_CACHED|
 				   BTREE_ITER_CACHED_NOFILL|
 				   BTREE_ITER_INTENT);
-	ret = bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
+	ret   = bch2_btree_iter_traverse(iter) ?:
+		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
 	bch2_trans_iter_put(trans, iter);
 	return ret;
 }

@@ -142,7 +142,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 		goto err;
 
 	/* rewind iter to start of hole, if necessary: */
-	bch2_btree_iter_set_pos(reflink_iter, bkey_start_pos(k.k));
+	bch2_btree_iter_set_pos_to_extent_start(reflink_iter);
 
 	r_v = bch2_trans_kmalloc(trans, sizeof(__le64) + bkey_bytes(&orig->k));
 	ret = PTR_ERR_OR_ZERO(r_v);
@@ -257,10 +257,10 @@ s64 bch2_remap_range(struct bch_fs *c,
 		}
 
 		if (src_k.k->type != KEY_TYPE_reflink_p) {
+			bch2_btree_iter_set_pos_to_extent_start(src_iter);
+
 			bch2_bkey_buf_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
-
-			bch2_btree_iter_set_pos(src_iter, bkey_start_pos(src_k.k));
 
 			ret = bch2_make_extent_indirect(&trans, src_iter,
 						new_src.k);

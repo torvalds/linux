@@ -855,6 +855,10 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 			update_iter = bch2_trans_get_iter(trans, i->btree_id, update->k.p,
 							  BTREE_ITER_NOT_EXTENTS|
 							  BTREE_ITER_INTENT);
+			ret = bch2_btree_iter_traverse(update_iter);
+			if (ret)
+				goto out;
+
 			bch2_trans_update(trans, update_iter, update, i->trigger_flags);
 			bch2_trans_iter_put(trans, update_iter);
 		}
@@ -1039,6 +1043,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	int ret = 0;
 
 	BUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
+	BUG_ON(!iter->should_be_locked);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i)
@@ -1102,7 +1107,8 @@ int __bch2_btree_insert(struct btree_trans *trans,
 	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 
-	ret = bch2_trans_update(trans, iter, k, 0);
+	ret   = bch2_btree_iter_traverse(iter) ?:
+		bch2_trans_update(trans, iter, k, 0);
 	bch2_trans_iter_put(trans, iter);
 	return ret;
 }
@@ -1147,12 +1153,11 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 
 	iter = bch2_trans_get_iter(trans, id, start, BTREE_ITER_INTENT);
 retry:
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((bch2_trans_begin(trans),
+	       (k = bch2_btree_iter_peek(iter)).k) &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(iter->pos, end) < 0) {
 		struct bkey_i delete;
-
-		bch2_trans_begin(trans);
 
 		bkey_init(&delete.k);
 

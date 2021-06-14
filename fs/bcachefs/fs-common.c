@@ -85,7 +85,8 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 	inode_iter->snapshot = U32_MAX;
 	bch2_btree_iter_set_pos(inode_iter, SPOS(0, new_inode->bi_inum, U32_MAX));
 
-	ret = bch2_inode_write(trans, inode_iter, new_inode);
+	ret   = bch2_btree_iter_traverse(inode_iter) ?:
+		bch2_inode_write(trans, inode_iter, new_inode);
 err:
 	bch2_trans_iter_put(trans, inode_iter);
 	bch2_trans_iter_put(trans, dir_iter);

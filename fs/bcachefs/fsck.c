@@ -78,7 +78,8 @@ static int __write_inode(struct btree_trans *trans,
 		bch2_trans_get_iter(trans, BTREE_ID_inodes,
 				    SPOS(0, inode->bi_inum, snapshot),
 				    BTREE_ITER_INTENT);
-	int ret = bch2_inode_write(trans, inode_iter, inode);
+	int ret = bch2_btree_iter_traverse(inode_iter) ?:
+		bch2_inode_write(trans, inode_iter, inode);
 	bch2_trans_iter_put(trans, inode_iter);
 	return ret;
 }
@@ -305,7 +306,8 @@ static int hash_redo_key(struct btree_trans *trans,
 
 	bkey_init(&delete->k);
 	delete->k.p = k_iter->pos;
-	return  bch2_trans_update(trans, k_iter, delete, 0) ?:
+	return  bch2_btree_iter_traverse(k_iter) ?:
+		bch2_trans_update(trans, k_iter, delete, 0) ?:
 		bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode, tmp, 0);
 }
 
@@ -491,6 +493,7 @@ static int check_inode(struct btree_trans *trans,
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
+				bch2_btree_iter_traverse(iter) ?:
 				bch2_inode_write(trans, iter, &u));
 		if (ret)
 			bch_err(c, "error in fsck: error %i "
@@ -562,7 +565,8 @@ static int fix_overlapping_extent(struct btree_trans *trans,
 				   BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
 
 	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
-	ret   = bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN) ?:
+	ret   = bch2_btree_iter_traverse(iter) ?:
+		bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW);
@@ -886,6 +890,7 @@ retry:
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
+				bch2_btree_iter_traverse(iter) ?:
 				bch2_trans_update(&trans, iter, &n->k_i, 0));
 			kfree(n);
 			if (ret)
@@ -1338,6 +1343,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
+					      bch2_btree_iter_traverse(iter) ?:
 					bch2_inode_write(&trans, iter, &u));
 			if (ret)
 				bch_err(c, "error in fsck: error %i updating inode", ret);

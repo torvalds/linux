@@ -40,13 +40,8 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs, k.k.p,
 				   BTREE_ITER_INTENT);
 
-	ret = bch2_btree_iter_traverse(iter);
-	if (ret) {
-		bch_err(c, "lookup error in test_delete: %i", ret);
-		goto err;
-	}
-
 	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		bch2_btree_iter_traverse(iter) ?:
 		bch2_trans_update(&trans, iter, &k.k_i, 0));
 	if (ret) {
 		bch_err(c, "update error in test_delete: %i", ret);
@@ -55,7 +50,8 @@ static int test_delete(struct bch_fs *c, u64 nr)
 
 	pr_info("deleting once");
 	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-			 bch2_btree_delete_at(&trans, iter, 0));
+		bch2_btree_iter_traverse(iter) ?:
+		bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error (first) in test_delete: %i", ret);
 		goto err;
@@ -63,7 +59,8 @@ static int test_delete(struct bch_fs *c, u64 nr)
 
 	pr_info("deleting twice");
 	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-			 bch2_btree_delete_at(&trans, iter, 0));
+		bch2_btree_iter_traverse(iter) ?:
+		bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error (second) in test_delete: %i", ret);
 		goto err;
@@ -591,6 +588,7 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 			k.k.p = iter->pos;
 
 			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+				bch2_btree_iter_traverse(iter) ?:
 				bch2_trans_update(&trans, iter, &k.k_i, 0));
 			if (ret) {
 				bch_err(c, "update error in rand_mixed: %i", ret);
@@ -671,6 +669,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 		insert.k.p = iter->pos;
 
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			bch2_btree_iter_traverse(iter) ?:
 			bch2_trans_update(&trans, iter, &insert.k_i, 0));
 		if (ret) {
 			bch_err(c, "error in seq_insert: %i", ret);
@@ -719,6 +718,7 @@ static int seq_overwrite(struct bch_fs *c, u64 nr)
 		bkey_reassemble(&u.k_i, k);
 
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			bch2_btree_iter_traverse(iter) ?:
 			bch2_trans_update(&trans, iter, &u.k_i, 0));
 		if (ret) {
 			bch_err(c, "error in seq_overwrite: %i", ret);

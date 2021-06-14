@@ -104,6 +104,10 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 	unsigned nr_iters = 0;
 	int ret;
 
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		return ret;
+
 	*end = insert->k.p;
 
 	/* extent_update_to_keys(): */

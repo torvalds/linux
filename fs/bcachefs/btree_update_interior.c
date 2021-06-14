@@ -937,6 +937,8 @@ bch2_btree_update_start(struct btree_iter *iter, unsigned level,
 	int journal_flags = 0;
 	int ret = 0;
 
+	BUG_ON(!iter->should_be_locked);
+
 	if (flags & BTREE_INSERT_JOURNAL_RESERVED)
 		journal_flags |= JOURNAL_RES_GET_RESERVED;
 
