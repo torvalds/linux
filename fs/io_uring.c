@@ -351,6 +351,7 @@ struct io_ring_ctx {
 		unsigned int		drain_next: 1;
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
+		unsigned int		off_timeout_used: 1;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -1318,12 +1319,12 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 {
 	u32 seq;
 
-	if (list_empty(&ctx->timeout_list))
+	if (likely(!ctx->off_timeout_used))
 		return;
 
 	seq = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
 
-	do {
+	while (!list_empty(&ctx->timeout_list)) {
 		u32 events_needed, events_got;
 		struct io_kiocb *req = list_first_entry(&ctx->timeout_list,
 						struct io_kiocb, timeout.list);
@@ -1345,8 +1346,7 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 
 		list_del_init(&req->timeout.list);
 		io_kill_timeout(req, 0);
-	} while (!list_empty(&ctx->timeout_list));
-
+	}
 	ctx->cq_last_tm_flush = seq;
 }
 
@@ -5651,6 +5651,8 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		return -EINVAL;
 
 	req->timeout.off = off;
+	if (unlikely(off && !req->ctx->off_timeout_used))
+		req->ctx->off_timeout_used = true;
 
 	if (!req->async_data && io_alloc_async_data(req))
 		return -ENOMEM;
