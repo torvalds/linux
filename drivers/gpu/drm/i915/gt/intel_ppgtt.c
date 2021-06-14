@@ -146,9 +146,9 @@ int i915_ppgtt_init_hw(struct intel_gt *gt)
 
 	gtt_write_workarounds(gt);
 
-	if (IS_GEN(i915, 6))
+	if (GRAPHICS_VER(i915) == 6)
 		gen6_ppgtt_enable(gt);
-	else if (IS_GEN(i915, 7))
+	else if (GRAPHICS_VER(i915) == 7)
 		gen7_ppgtt_enable(gt);
 
 	return 0;
@@ -157,7 +157,7 @@ int i915_ppgtt_init_hw(struct intel_gt *gt)
 static struct i915_ppgtt *
 __ppgtt_create(struct intel_gt *gt)
 {
-	if (INTEL_GEN(gt->i915) < 8)
+	if (GRAPHICS_VER(gt->i915) < 8)
 		return gen6_ppgtt_create(gt);
 	else
 		return gen8_ppgtt_create(gt);
@@ -307,7 +307,7 @@ void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 	ppgtt->vm.dma = i915->drm.dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
 
-	dma_resv_init(&ppgtt->vm.resv);
+	dma_resv_init(&ppgtt->vm._resv);
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;

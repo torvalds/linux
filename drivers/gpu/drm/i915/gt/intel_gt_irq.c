@@ -194,14 +194,18 @@ void gen11_gt_irq_reset(struct intel_gt *gt)
 
 void gen11_gt_irq_postinstall(struct intel_gt *gt)
 {
-	const u32 irqs =
-		GT_CS_MASTER_ERROR_INTERRUPT |
-		GT_RENDER_USER_INTERRUPT |
-		GT_CONTEXT_SWITCH_INTERRUPT |
-		GT_WAIT_SEMAPHORE_INTERRUPT;
 	struct intel_uncore *uncore = gt->uncore;
-	const u32 dmask = irqs << 16 | irqs;
-	const u32 smask = irqs << 16;
+	u32 irqs = GT_RENDER_USER_INTERRUPT;
+	u32 dmask;
+	u32 smask;
+
+	if (!intel_uc_wants_guc_submission(&gt->uc))
+		irqs |= GT_CS_MASTER_ERROR_INTERRUPT |
+			GT_CONTEXT_SWITCH_INTERRUPT |
+			GT_WAIT_SEMAPHORE_INTERRUPT;
+
+	dmask = irqs << 16 | irqs;
+	smask = irqs << 16;
 
 	BUILD_BUG_ON(irqs & 0xffff0000);
 
@@ -395,7 +399,7 @@ void gen5_gt_irq_reset(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 
 	GEN3_IRQ_RESET(uncore, GT);
-	if (INTEL_GEN(gt->i915) >= 6)
+	if (GRAPHICS_VER(gt->i915) >= 6)
 		GEN3_IRQ_RESET(uncore, GEN6_PM);
 }
 
@@ -413,14 +417,14 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
-	if (IS_GEN(gt->i915, 5))
+	if (GRAPHICS_VER(gt->i915) == 5)
 		gt_irqs |= ILK_BSD_USER_INTERRUPT;
 	else
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 
 	GEN3_IRQ_INIT(uncore, GT, gt->gt_imr, gt_irqs);
 
-	if (INTEL_GEN(gt->i915) >= 6) {
+	if (GRAPHICS_VER(gt->i915) >= 6) {
 		/*
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.

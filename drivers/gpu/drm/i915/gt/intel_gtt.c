@@ -22,8 +22,11 @@ struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 	 * object underneath, with the idea that one object_lock() will lock
 	 * them all at once.
 	 */
-	if (!IS_ERR(obj))
-		obj->base.resv = &vm->resv;
+	if (!IS_ERR(obj)) {
+		obj->base.resv = i915_vm_resv_get(vm);
+		obj->shares_resv_from = vm;
+	}
+
 	return obj;
 }
 
@@ -40,8 +43,11 @@ struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 	 * object underneath, with the idea that one object_lock() will lock
 	 * them all at once.
 	 */
-	if (!IS_ERR(obj))
-		obj->base.resv = &vm->resv;
+	if (!IS_ERR(obj)) {
+		obj->base.resv = i915_vm_resv_get(vm);
+		obj->shares_resv_from = vm;
+	}
+
 	return obj;
 }
 
@@ -102,7 +108,7 @@ void __i915_vm_close(struct i915_address_space *vm)
 int i915_vm_lock_objects(struct i915_address_space *vm,
 			 struct i915_gem_ww_ctx *ww)
 {
-	if (vm->scratch[0]->base.resv == &vm->resv) {
+	if (vm->scratch[0]->base.resv == &vm->_resv) {
 		return i915_gem_object_lock(vm->scratch[0], ww);
 	} else {
 		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
@@ -118,6 +124,22 @@ void i915_address_space_fini(struct i915_address_space *vm)
 	mutex_destroy(&vm->mutex);
 }
 
+/**
+ * i915_vm_resv_release - Final struct i915_address_space destructor
+ * @kref: Pointer to the &i915_address_space.resv_ref member.
+ *
+ * This function is called when the last lock sharer no longer shares the
+ * &i915_address_space._resv lock.
+ */
+void i915_vm_resv_release(struct kref *kref)
+{
+	struct i915_address_space *vm =
+		container_of(kref, typeof(*vm), resv_ref);
+
+	dma_resv_fini(&vm->_resv);
+	kfree(vm);
+}
+
 static void __i915_vm_release(struct work_struct *work)
 {
 	struct i915_address_space *vm =
@@ -125,9 +147,8 @@ static void __i915_vm_release(struct work_struct *work)
 
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
-	dma_resv_fini(&vm->resv);
 
-	kfree(vm);
+	i915_vm_resv_put(vm);
 }
 
 void i915_vm_release(struct kref *kref)
@@ -144,6 +165,14 @@ void i915_vm_release(struct kref *kref)
 void i915_address_space_init(struct i915_address_space *vm, int subclass)
 {
 	kref_init(&vm->ref);
+
+	/*
+	 * Special case for GGTT that has already done an early
+	 * kref_init here.
+	 */
+	if (!kref_read(&vm->resv_ref))
+		kref_init(&vm->resv_ref);
+
 	INIT_RCU_WORK(&vm->rcu, __i915_vm_release);
 	atomic_set(&vm->open, 1);
 
@@ -170,7 +199,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 		might_alloc(GFP_KERNEL);
 		mutex_release(&vm->mutex.dep_map, _THIS_IP_);
 	}
-	dma_resv_init(&vm->resv);
+	dma_resv_init(&vm->_resv);
 
 	GEM_BUG_ON(!vm->total);
 	drm_mm_init(&vm->mm, 0, vm->total);
@@ -327,7 +356,7 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
-	else if (INTEL_GEN(i915) >= 9 && INTEL_GEN(i915) <= 11)
+	else if (GRAPHICS_VER(i915) >= 9 && GRAPHICS_VER(i915) <= 11)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
@@ -344,13 +373,13 @@ void gtt_write_workarounds(struct intel_gt *gt)
 	 * driver.
 	 */
 	if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_64K) &&
-	    INTEL_GEN(i915) <= 10)
+	    GRAPHICS_VER(i915) <= 10)
 		intel_uncore_rmw(uncore,
 				 GEN8_GAMW_ECO_DEV_RW_IA,
 				 0,
 				 GAMW_ECO_ENABLE_64K_IPS_FIELD);
 
-	if (IS_GEN_RANGE(i915, 8, 11)) {
+	if (IS_GRAPHICS_VER(i915, 8, 11)) {
 		bool can_use_gtt_cache = true;
 
 		/*
@@ -432,7 +461,7 @@ static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
 	/* for scanout with eLLC */
-	if (INTEL_GEN(i915) >= 9)
+	if (GRAPHICS_VER(i915) >= 9)
 		pat |= GEN8_PPAT(2, GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
 	else
 		pat |= GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
@@ -481,11 +510,11 @@ void setup_private_pat(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
 
-	GEM_BUG_ON(INTEL_GEN(i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(i915) < 8);
 
-	if (INTEL_GEN(i915) >= 12)
+	if (GRAPHICS_VER(i915) >= 12)
 		tgl_setup_private_ppat(uncore);
-	else if (INTEL_GEN(i915) >= 10)
+	else if (GRAPHICS_VER(i915) >= 10)
 		cnl_setup_private_ppat(uncore);
 	else if (IS_CHERRYVIEW(i915) || IS_GEN9_LP(i915))
 		chv_setup_private_ppat(uncore);

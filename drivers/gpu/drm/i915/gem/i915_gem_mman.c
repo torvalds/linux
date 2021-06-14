@@ -56,9 +56,16 @@ int
 i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_mmap *args = data;
 	struct drm_i915_gem_object *obj;
 	unsigned long addr;
+
+	/* mmap ioctl is disallowed for all platforms after TGL-LP.  This also
+	 * covers all platforms with local memory.
+	 */
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
+		return -EOPNOTSUPP;
 
 	if (args->flags & ~(I915_MMAP_WC))
 		return -EINVAL;
@@ -367,10 +374,11 @@ retry:
 		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	ret = io_mapping_map_user(&ggtt->iomap, area, area->vm_start +
-			(vma->ggtt_view.partial.offset << PAGE_SHIFT),
-			(ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
-			min_t(u64, vma->size, area->vm_end - area->vm_start));
+	ret = remap_io_mapping(area,
+			       area->vm_start + (vma->ggtt_view.partial.offset << PAGE_SHIFT),
+			       (ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
+			       min_t(u64, vma->size, area->vm_end - area->vm_start),
+			       &ggtt->iomap);
 	if (ret)
 		goto err_fence;
 
