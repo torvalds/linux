@@ -740,15 +740,33 @@ static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct cal_dev *cal = container_of(notifier, struct cal_dev, notifier);
 	unsigned int i;
-	int ret = 0;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-		if (cal->ctx[i])
-			cal_ctx_v4l2_register(cal->ctx[i]);
+		if (!cal->ctx[i])
+			continue;
+
+		ret = cal_ctx_v4l2_register(cal->ctx[i]);
+		if (ret)
+			goto err_ctx_unreg;
 	}
 
-	if (cal_mc_api)
-		ret = v4l2_device_register_subdev_nodes(&cal->v4l2_dev);
+	if (!cal_mc_api)
+		return 0;
+
+	ret = v4l2_device_register_subdev_nodes(&cal->v4l2_dev);
+	if (ret)
+		goto err_ctx_unreg;
+
+	return 0;
+
+err_ctx_unreg:
+	for (; i > 0; --i) {
+		if (!cal->ctx[i - 1])
+			continue;
+
+		cal_ctx_v4l2_unregister(cal->ctx[i - 1]);
+	}
 
 	return ret;
 }
