@@ -184,9 +184,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
-			clock_8t49n287: clock-generator@6c { /* 8T49N287 - u182 */
-				reg = <0x6c>;
-			};
+			/* 8T49N287 - u182 */
 		};
 
 		i2c@2 {

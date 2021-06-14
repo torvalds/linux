@@ -475,9 +475,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
-			si5382: clock-generator@69 { /* SI5382 - u48 */
-				reg = <0x69>;
-			};
+			/* SI5382 - u48 */
 		};
 		i2c@5 {
 			#address-cells = <1>;
