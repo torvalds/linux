@@ -7059,14 +7059,36 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	return READ_ONCE(rings->cq.head) == READ_ONCE(rings->cq.tail) ? ret : 0;
 }
 
-static void io_free_file_tables(struct io_file_table *table, unsigned nr_files)
+static void io_free_page_table(void **table, size_t size)
 {
-	unsigned i, nr_tables = DIV_ROUND_UP(nr_files, IORING_MAX_FILES_TABLE);
+	unsigned i, nr_tables = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	for (i = 0; i < nr_tables; i++)
-		kfree(table->files[i]);
-	kfree(table->files);
-	table->files = NULL;
+		kfree(table[i]);
+	kfree(table);
+}
+
+static void **io_alloc_page_table(size_t size)
+{
+	unsigned i, nr_tables = DIV_ROUND_UP(size, PAGE_SIZE);
+	size_t init_size = size;
+	void **table;
+
+	table = kcalloc(nr_tables, sizeof(*table), GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	for (i = 0; i < nr_tables; i++) {
+		unsigned int this_size = min(size, PAGE_SIZE);
+
+		table[i] = kzalloc(this_size, GFP_KERNEL);
+		if (!table[i]) {
+			io_free_page_table(table, init_size);
+			return NULL;
+		}
+		size -= this_size;
+	}
+	return table;
 }
 
 static inline void io_rsrc_ref_lock(struct io_ring_ctx *ctx)
@@ -7193,6 +7215,22 @@ static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, rsrc_put_fn *do_put,
 	init_completion(&data->done);
 	*pdata = data;
 	return 0;
+}
+
+static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
+{
+	size_t size = nr_files * sizeof(struct io_fixed_file);
+
+	table->files = (struct io_fixed_file **)io_alloc_page_table(size);
+	return !!table->files;
+}
+
+static void io_free_file_tables(struct io_file_table *table, unsigned nr_files)
+{
+	size_t size = nr_files * sizeof(struct io_fixed_file);
+
+	io_free_page_table((void **)table->files, size);
+	table->files = NULL;
 }
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -7455,31 +7493,6 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 	return 0;
 }
 #endif
-
-static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
-{
-	unsigned i, nr_tables = DIV_ROUND_UP(nr_files, IORING_MAX_FILES_TABLE);
-
-	table->files = kcalloc(nr_tables, sizeof(*table->files), GFP_KERNEL);
-	if (!table->files)
-		return false;
-
-	for (i = 0; i < nr_tables; i++) {
-		unsigned int this_files = min(nr_files, IORING_MAX_FILES_TABLE);
-
-		table->files[i] = kcalloc(this_files, sizeof(*table->files[i]),
-					GFP_KERNEL);
-		if (!table->files[i])
-			break;
-		nr_files -= this_files;
-	}
-
-	if (i == nr_tables)
-		return true;
-
-	io_free_file_tables(table, nr_tables * IORING_MAX_FILES_TABLE);
-	return false;
-}
 
 static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 {
