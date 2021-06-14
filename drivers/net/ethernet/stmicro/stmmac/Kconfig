@@ -66,6 +66,18 @@ config DWMAC_ANARION
 
 	  This selects the Anarion SoC glue layer support for the stmmac driver.
 
+config DWMAC_INGENIC
+	tristate "Ingenic MAC support"
+	default MACH_INGENIC
+	depends on OF && HAS_IOMEM && (MACH_INGENIC || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for ethernet controller on Ingenic SoCs.
+
+	  This selects Ingenic SoCs glue layer support for the stmmac
+	  device driver. This driver is used on for the Ingenic SoCs
+	  MAC ethernet controller.
+
 config DWMAC_IPQ806X
 	tristate "QCA IPQ806x DWMAC support"
 	default ARCH_QCOM
