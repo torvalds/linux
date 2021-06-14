@@ -38,42 +38,42 @@
 
 /* general Interrupt control/status reg in vendor specific block. */
 #define MII_KSZPHY_INTCS			0x1B
-#define	KSZPHY_INTCS_JABBER			BIT(15)
-#define	KSZPHY_INTCS_RECEIVE_ERR		BIT(14)
-#define	KSZPHY_INTCS_PAGE_RECEIVE		BIT(13)
-#define	KSZPHY_INTCS_PARELLEL			BIT(12)
-#define	KSZPHY_INTCS_LINK_PARTNER_ACK		BIT(11)
-#define	KSZPHY_INTCS_LINK_DOWN			BIT(10)
-#define	KSZPHY_INTCS_REMOTE_FAULT		BIT(9)
-#define	KSZPHY_INTCS_LINK_UP			BIT(8)
-#define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP |\
+#define KSZPHY_INTCS_JABBER			BIT(15)
+#define KSZPHY_INTCS_RECEIVE_ERR		BIT(14)
+#define KSZPHY_INTCS_PAGE_RECEIVE		BIT(13)
+#define KSZPHY_INTCS_PARELLEL			BIT(12)
+#define KSZPHY_INTCS_LINK_PARTNER_ACK		BIT(11)
+#define KSZPHY_INTCS_LINK_DOWN			BIT(10)
+#define KSZPHY_INTCS_REMOTE_FAULT		BIT(9)
+#define KSZPHY_INTCS_LINK_UP			BIT(8)
+#define KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP |\
 						KSZPHY_INTCS_LINK_DOWN)
-#define	KSZPHY_INTCS_LINK_DOWN_STATUS		BIT(2)
-#define	KSZPHY_INTCS_LINK_UP_STATUS		BIT(0)
-#define	KSZPHY_INTCS_STATUS			(KSZPHY_INTCS_LINK_DOWN_STATUS |\
+#define KSZPHY_INTCS_LINK_DOWN_STATUS		BIT(2)
+#define KSZPHY_INTCS_LINK_UP_STATUS		BIT(0)
+#define KSZPHY_INTCS_STATUS			(KSZPHY_INTCS_LINK_DOWN_STATUS |\
 						 KSZPHY_INTCS_LINK_UP_STATUS)
 
 /* PHY Control 1 */
-#define	MII_KSZPHY_CTRL_1			0x1e
+#define MII_KSZPHY_CTRL_1			0x1e
 
 /* PHY Control 2 / PHY Control (if no PHY Control 1) */
-#define	MII_KSZPHY_CTRL_2			0x1f
-#define	MII_KSZPHY_CTRL				MII_KSZPHY_CTRL_2
+#define MII_KSZPHY_CTRL_2			0x1f
+#define MII_KSZPHY_CTRL				MII_KSZPHY_CTRL_2
 /* bitmap of PHY register to set interrupt mode */
 #define KSZPHY_CTRL_INT_ACTIVE_HIGH		BIT(9)
 #define KSZPHY_RMII_REF_CLK_SEL			BIT(7)
 
 /* Write/read to/from extended registers */
-#define MII_KSZPHY_EXTREG                       0x0b
-#define KSZPHY_EXTREG_WRITE                     0x8000
+#define MII_KSZPHY_EXTREG			0x0b
+#define KSZPHY_EXTREG_WRITE			0x8000
 
-#define MII_KSZPHY_EXTREG_WRITE                 0x0c
-#define MII_KSZPHY_EXTREG_READ                  0x0d
+#define MII_KSZPHY_EXTREG_WRITE			0x0c
+#define MII_KSZPHY_EXTREG_READ			0x0d
 
 /* Extended registers */
-#define MII_KSZPHY_CLK_CONTROL_PAD_SKEW         0x104
-#define MII_KSZPHY_RX_DATA_PAD_SKEW             0x105
-#define MII_KSZPHY_TX_DATA_PAD_SKEW             0x106
+#define MII_KSZPHY_CLK_CONTROL_PAD_SKEW		0x104
+#define MII_KSZPHY_RX_DATA_PAD_SKEW		0x105
+#define MII_KSZPHY_TX_DATA_PAD_SKEW		0x106
 
 #define PS_TO_REG				200
 
