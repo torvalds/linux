@@ -3548,13 +3548,32 @@ static int mtip_block_initialize(struct driver_data *dd)
 		goto protocol_init_error;
 	}
 
-	dd->disk = alloc_disk_node(MTIP_MAX_MINORS, dd->numa_node);
-	if (dd->disk  == NULL) {
+	memset(&dd->tags, 0, sizeof(dd->tags));
+	dd->tags.ops = &mtip_mq_ops;
+	dd->tags.nr_hw_queues = 1;
+	dd->tags.queue_depth = MTIP_MAX_COMMAND_SLOTS;
+	dd->tags.reserved_tags = 1;
+	dd->tags.cmd_size = sizeof(struct mtip_cmd);
+	dd->tags.numa_node = dd->numa_node;
+	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE;
+	dd->tags.driver_data = dd;
+	dd->tags.timeout = MTIP_NCQ_CMD_TIMEOUT_MS;
+
+	rv = blk_mq_alloc_tag_set(&dd->tags);
+	if (rv) {
 		dev_err(&dd->pdev->dev,
-			"Unable to allocate gendisk structure\n");
-		rv = -EINVAL;
-		goto alloc_disk_error;
+			"Unable to allocate request queue\n");
+		goto block_queue_alloc_tag_error;
 	}
+
+	dd->disk = blk_mq_alloc_disk(&dd->tags, dd);
+	if (IS_ERR(dd->disk)) {
+		dev_err(&dd->pdev->dev,
+			"Unable to allocate request queue\n");
+		rv = -ENOMEM;
+		goto block_queue_alloc_init_error;
+	}
+	dd->queue		= dd->disk->queue;
 
 	rv = ida_alloc(&rssd_index_ida, GFP_KERNEL);
 	if (rv < 0)
@@ -3576,36 +3595,6 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->index		= index;
 
 	mtip_hw_debugfs_init(dd);
-
-	memset(&dd->tags, 0, sizeof(dd->tags));
-	dd->tags.ops = &mtip_mq_ops;
-	dd->tags.nr_hw_queues = 1;
-	dd->tags.queue_depth = MTIP_MAX_COMMAND_SLOTS;
-	dd->tags.reserved_tags = 1;
-	dd->tags.cmd_size = sizeof(struct mtip_cmd);
-	dd->tags.numa_node = dd->numa_node;
-	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE;
-	dd->tags.driver_data = dd;
-	dd->tags.timeout = MTIP_NCQ_CMD_TIMEOUT_MS;
-
-	rv = blk_mq_alloc_tag_set(&dd->tags);
-	if (rv) {
-		dev_err(&dd->pdev->dev,
-			"Unable to allocate request queue\n");
-		goto block_queue_alloc_tag_error;
-	}
-
-	/* Allocate the request queue. */
-	dd->queue = blk_mq_init_queue(&dd->tags);
-	if (IS_ERR(dd->queue)) {
-		dev_err(&dd->pdev->dev,
-			"Unable to allocate request queue\n");
-		rv = -ENOMEM;
-		goto block_queue_alloc_init_error;
-	}
-
-	dd->disk->queue		= dd->queue;
-	dd->queue->queuedata	= dd;
 
 skip_create_disk:
 	/* Initialize the protocol layer. */
@@ -3671,23 +3660,17 @@ start_service_thread:
 kthread_run_error:
 	/* Delete our gendisk. This also removes the device from /dev */
 	del_gendisk(dd->disk);
-
 read_capacity_error:
 init_hw_cmds_error:
-	blk_cleanup_queue(dd->queue);
-block_queue_alloc_init_error:
-	blk_mq_free_tag_set(&dd->tags);
-block_queue_alloc_tag_error:
 	mtip_hw_debugfs_exit(dd);
 disk_index_error:
 	ida_free(&rssd_index_ida, index);
-
 ida_get_error:
-	put_disk(dd->disk);
-
-alloc_disk_error:
+	blk_cleanup_disk(dd->disk);
+block_queue_alloc_init_error:
+	blk_mq_free_tag_set(&dd->tags);
+block_queue_alloc_tag_error:
 	mtip_hw_exit(dd); /* De-initialize the protocol layer. */
-
 protocol_init_error:
 	return rv;
 }
