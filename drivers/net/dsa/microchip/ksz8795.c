@@ -6,6 +6,7 @@
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
@@ -729,6 +730,7 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	u8 restart, speed, ctrl, link;
 	const u8 *regs = ksz8->regs;
 	int processed = true;
+	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
 
@@ -815,6 +817,22 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= LPA_10HALF;
 		if (data & ~LPA_SLCT)
 			data |= LPA_LPACK;
+		break;
+	case PHY_REG_LINK_MD:
+		ksz_pread8(dev, p, REG_PORT_LINK_MD_CTRL, &val1);
+		ksz_pread8(dev, p, REG_PORT_LINK_MD_RESULT, &val2);
+		if (val1 & PORT_START_CABLE_DIAG)
+			data |= PHY_START_CABLE_DIAG;
+
+		if (val1 & PORT_CABLE_10M_SHORT)
+			data |= PHY_CABLE_10M_SHORT;
+
+		data |= FIELD_PREP(PHY_CABLE_DIAG_RESULT_M,
+				FIELD_GET(PORT_CABLE_DIAG_RESULT_M, val1));
+
+		data |= FIELD_PREP(PHY_CABLE_FAULT_COUNTER_M,
+				(FIELD_GET(PORT_CABLE_FAULT_COUNTER_H, val1) << 8) |
+				FIELD_GET(PORT_CABLE_FAULT_COUNTER_L, val2));
 		break;
 	case PHY_REG_PHY_CTRL:
 		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
@@ -931,6 +949,10 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			data |= PORT_AUTO_NEG_10BT;
 		if (data != ctrl)
 			ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
+		break;
+	case PHY_REG_LINK_MD:
+		if (val & PHY_START_CABLE_DIAG)
+			ksz_port_cfg(dev, p, REG_PORT_LINK_MD_CTRL, PORT_START_CABLE_DIAG, true);
 		break;
 	default:
 		break;
