@@ -635,7 +635,7 @@ static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
 	mutex_lock(&phy->mutex);
 
 	/* No transcoding, source and sink codes must match. */
-	if (code->pad == CAL_CAMERARX_PAD_SOURCE) {
+	if (cal_rx_pad_is_source(code->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
 
 		if (code->index > 0) {
@@ -676,7 +676,7 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 	mutex_lock(&phy->mutex);
 
 	/* No transcoding, source and sink formats must match. */
-	if (fse->pad == CAL_CAMERARX_PAD_SOURCE) {
+	if (cal_rx_pad_is_source(fse->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
 
 		fmt = cal_camerarx_get_pad_format(phy, sd_state,
@@ -738,7 +738,7 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 	unsigned int bpp;
 
 	/* No transcoding, source and sink formats must match. */
-	if (format->pad == CAL_CAMERARX_PAD_SOURCE)
+	if (cal_rx_pad_is_source(format->pad))
 		return cal_camerarx_sd_get_fmt(sd, sd_state, format);
 
 	/*
@@ -771,7 +771,7 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 	*fmt = format->format;
 
 	fmt = cal_camerarx_get_pad_format(phy, sd_state,
-					  CAL_CAMERARX_PAD_SOURCE,
+					  CAL_CAMERARX_PAD_FIRST_SOURCE,
 					  format->which);
 	*fmt = format->format;
 
@@ -834,6 +834,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	struct platform_device *pdev = to_platform_device(cal->dev);
 	struct cal_camerarx *phy;
 	struct v4l2_subdev *sd;
+	unsigned int i;
 	int ret;
 
 	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
@@ -876,7 +877,8 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	sd->dev = cal->dev;
 
 	phy->pads[CAL_CAMERARX_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
-	phy->pads[CAL_CAMERARX_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	for (i = CAL_CAMERARX_PAD_FIRST_SOURCE; i < CAL_CAMERARX_NUM_PADS; ++i)
+		phy->pads[i].flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.ops = &cal_camerarx_media_ops;
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(phy->pads),
 				     phy->pads);

@@ -687,8 +687,13 @@ static void cal_release_buffers(struct cal_ctx *ctx,
 static int cal_video_check_format(struct cal_ctx *ctx)
 {
 	const struct v4l2_mbus_framefmt *format;
+	struct media_pad *remote_pad;
 
-	format = &ctx->phy->formats[CAL_CAMERARX_PAD_SOURCE];
+	remote_pad = media_entity_remote_pad(&ctx->pad);
+	if (!remote_pad)
+		return -ENODEV;
+
+	format = &ctx->phy->formats[remote_pad->index];
 
 	if (ctx->fmtinfo->code != format->code ||
 	    ctx->v_fmt.fmt.pix.height != format->height ||
@@ -943,7 +948,7 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 	}
 
 	ret = media_create_pad_link(&ctx->phy->subdev.entity,
-				    CAL_CAMERARX_PAD_SOURCE,
+				    CAL_CAMERARX_PAD_FIRST_SOURCE,
 				    &vfd->entity, 0,
 				    MEDIA_LNK_FL_IMMUTABLE |
 				    MEDIA_LNK_FL_ENABLED);
