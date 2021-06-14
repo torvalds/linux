@@ -218,7 +218,7 @@ struct nvmet_subsys {
 
 	struct xarray		namespaces;
 	unsigned int		nr_namespaces;
-	unsigned int		max_nsid;
+	u32			max_nsid;
 	u16			cntlid_min;
 	u16			cntlid_max;
 
