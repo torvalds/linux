@@ -404,7 +404,7 @@ out:
 	return rc;
 }
 
-static struct sja1105_regs sja1105et_regs = {
+static const struct sja1105_regs sja1105et_regs = {
 	.device_id = 0x0,
 	.prod_id = 0x100BC3,
 	.status = 0x1,
@@ -440,7 +440,7 @@ static struct sja1105_regs sja1105et_regs = {
 	.mdio_100base_t1 = SJA1105_RSV_ADDR,
 };
 
-static struct sja1105_regs sja1105pqrs_regs = {
+static const struct sja1105_regs sja1105pqrs_regs = {
 	.device_id = 0x0,
 	.prod_id = 0x100BC3,
 	.status = 0x1,
@@ -479,7 +479,7 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.mdio_100base_t1 = SJA1105_RSV_ADDR,
 };
 
-static struct sja1105_regs sja1110_regs = {
+static const struct sja1105_regs sja1110_regs = {
 	.device_id = SJA1110_SPI_ADDR(0x0),
 	.prod_id = SJA1110_ACU_ADDR(0xf00),
 	.status = SJA1110_SPI_ADDR(0x4),
