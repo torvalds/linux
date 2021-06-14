@@ -3,15 +3,9 @@
 # Wireless WAN device configuration
 #
 
-menuconfig WWAN
-	bool "Wireless WAN"
-	help
-	  This section contains Wireless WAN configuration for WWAN framework
-	  and drivers.
+menu "Wireless WAN"
 
-if WWAN
-
-config WWAN_CORE
+config WWAN
 	tristate "WWAN Driver Core"
 	help
 	  Say Y here if you want to use the WWAN driver core. This driver
@@ -20,9 +14,10 @@ config WWAN_CORE
 	  To compile this driver as a module, choose M here: the module will be
 	  called wwan.
 
+if WWAN
+
 config WWAN_HWSIM
 	tristate "Simulated WWAN device"
-	depends on WWAN_CORE
 	help
 	  This driver is a developer testing tool that can be used to test WWAN
 	  framework.
@@ -32,7 +27,6 @@ config WWAN_HWSIM
 
 config MHI_WWAN_CTRL
 	tristate "MHI WWAN control driver for QCOM-based PCIe modems"
-	select WWAN_CORE
 	depends on MHI_BUS
 	help
 	  MHI WWAN CTRL allows QCOM-based PCIe modems to expose different modem
@@ -46,7 +40,6 @@ config MHI_WWAN_CTRL
 
 config IOSM
 	tristate "IOSM Driver for Intel M.2 WWAN Device"
-	select WWAN_CORE
 	depends on INTEL_IOMMU
 	help
 	  This driver enables Intel M.2 WWAN Device communication.
@@ -57,3 +50,5 @@ config IOSM
 	  If unsure, say N.
 
 endif # WWAN
+
+endmenu

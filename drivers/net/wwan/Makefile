@@ -3,7 +3,7 @@
 # Makefile for the Linux WWAN device drivers.
 #
 
-obj-$(CONFIG_WWAN_CORE) += wwan.o
+obj-$(CONFIG_WWAN) += wwan.o
 wwan-objs += wwan_core.o
 
 obj-$(CONFIG_WWAN_HWSIM) += wwan_hwsim.o
