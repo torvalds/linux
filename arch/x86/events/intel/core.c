@@ -6015,7 +6015,13 @@ __init int intel_pmu_init(void)
 		tsx_attr = hsw_tsx_events_attrs;
 		intel_pmu_pebs_data_source_skl(pmem);
 
-		if (boot_cpu_has(X86_FEATURE_TSX_FORCE_ABORT)) {
+		/*
+		 * Processors with CPUID.RTM_ALWAYS_ABORT have TSX deprecated by default.
+		 * TSX force abort hooks are not required on these systems. Only deploy
+		 * workaround when microcode has not enabled X86_FEATURE_RTM_ALWAYS_ABORT.
+		 */
+		if (boot_cpu_has(X86_FEATURE_TSX_FORCE_ABORT) &&
+		   !boot_cpu_has(X86_FEATURE_RTM_ALWAYS_ABORT)) {
 			x86_pmu.flags |= PMU_FL_TFA;
 			x86_pmu.get_event_constraints = tfa_get_event_constraints;
 			x86_pmu.enable_all = intel_tfa_pmu_enable_all;
