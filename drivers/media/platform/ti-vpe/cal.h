@@ -220,6 +220,7 @@ struct cal_ctx {
 	u8			index;
 	u8			cport;
 	u8			csi2_ctx;
+	u8			pix_proc;
 };
 
 extern unsigned int cal_debug;
