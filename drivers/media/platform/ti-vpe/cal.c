@@ -1188,10 +1188,8 @@ static int cal_remove(struct platform_device *pdev)
 
 	cal_media_unregister(cal);
 
-	for (i = 0; i < ARRAY_SIZE(cal->phy); i++) {
-		if (cal->phy[i])
-			cal_camerarx_disable(cal->phy[i]);
-	}
+	for (i = 0; i < cal->data->num_csi2_phy; i++)
+		cal_camerarx_disable(cal->phy[i]);
 
 	cal_media_cleanup(cal);
 
