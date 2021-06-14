@@ -269,6 +269,9 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 		err = PTR_ERR(nsim_dev->nodes_ddir);
 		goto err_out;
 	}
+	debugfs_create_bool("fail_trap_counter_get", 0600,
+			    nsim_dev->ddir,
+			    &nsim_dev->fail_trap_counter_get);
 	nsim_udp_tunnels_debugfs_create(nsim_dev);
 	return 0;
 
@@ -563,6 +566,7 @@ struct nsim_trap_data {
 	struct delayed_work trap_report_dw;
 	struct nsim_trap_item *trap_items_arr;
 	u64 *trap_policers_cnt_arr;
+	u64 trap_pkt_cnt;
 	struct nsim_dev *nsim_dev;
 	spinlock_t trap_lock;	/* Protects trap_items_arr */
 };
@@ -1203,6 +1207,23 @@ static int nsim_rate_node_parent_set(struct devlink_rate *child,
 	return 0;
 }
 
+static int
+nsim_dev_devlink_trap_hw_counter_get(struct devlink *devlink,
+				     const struct devlink_trap *trap,
+				     u64 *p_drops)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	u64 *cnt;
+
+	if (nsim_dev->fail_trap_counter_get)
+		return -EINVAL;
+
+	cnt = &nsim_dev->trap_data->trap_pkt_cnt;
+	*p_drops = (*cnt)++;
+
+	return 0;
+}
+
 static const struct devlink_ops nsim_dev_devlink_ops = {
 	.eswitch_mode_set = nsim_devlink_eswitch_mode_set,
 	.eswitch_mode_get = nsim_devlink_eswitch_mode_get,
@@ -1226,6 +1247,7 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.rate_node_del = nsim_rate_node_del,
 	.rate_leaf_parent_set = nsim_rate_leaf_parent_set,
 	.rate_node_parent_set = nsim_rate_node_parent_set,
+	.trap_drop_counter_get = nsim_dev_devlink_trap_hw_counter_get,
 };
 
 #define NSIM_DEV_MAX_MACS_DEFAULT 32

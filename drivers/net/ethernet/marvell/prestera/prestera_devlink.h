@@ -20,4 +20,7 @@ void prestera_devlink_port_clear(struct prestera_port *port);
 
 struct devlink_port *prestera_devlink_get_port(struct net_device *dev);
 
+void prestera_devlink_trap_report(struct prestera_port *port,
+				  struct sk_buff *skb, u8 cpu_code);
+
 #endif /* _PRESTERA_DEVLINK_H_ */

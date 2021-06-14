@@ -1348,6 +1348,16 @@ struct devlink_ops {
 				     enum devlink_trap_action action,
 				     struct netlink_ext_ack *extack);
 	/**
+	 * @trap_drop_counter_get: Trap drop counter get function.
+	 *
+	 * Should be used by device drivers to report number of packets
+	 * that have been dropped, and cannot be passed to the devlink
+	 * subsystem by the underlying device.
+	 */
+	int (*trap_drop_counter_get)(struct devlink *devlink,
+				     const struct devlink_trap *trap,
+				     u64 *p_drops);
+	/**
 	 * @trap_policer_init: Trap policer initialization function.
 	 *
 	 * Should be used by device drivers to initialize the trap policer in
