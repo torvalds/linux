@@ -3253,7 +3253,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 	return true;
 }
 
-static int io_iter_do_read(struct io_kiocb *req, struct iov_iter *iter)
+static inline int io_iter_do_read(struct io_kiocb *req, struct iov_iter *iter)
 {
 	if (req->file->f_op->read_iter)
 		return call_read_iter(req->file, &req->rw.kiocb, iter);
