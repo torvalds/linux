@@ -199,16 +199,6 @@ int alt_pr_register(struct device *dev, void __iomem *reg_base)
 }
 EXPORT_SYMBOL_GPL(alt_pr_register);
 
-void alt_pr_unregister(struct device *dev)
-{
-	struct fpga_manager *mgr = dev_get_drvdata(dev);
-
-	dev_dbg(dev, "%s\n", __func__);
-
-	fpga_mgr_unregister(mgr);
-}
-EXPORT_SYMBOL_GPL(alt_pr_unregister);
-
 MODULE_AUTHOR("Matthew Gerlach <matthew.gerlach@linux.intel.com>");
 MODULE_DESCRIPTION("Altera Partial Reconfiguration IP Core");
 MODULE_LICENSE("GPL v2");
