@@ -325,7 +325,7 @@ static void nxp_c45_reconstruct_ts(struct timespec64 *ts,
 {
 	ts->tv_nsec = hwts->nsec;
 	if ((ts->tv_sec & TS_SEC_MASK) < (hwts->sec & TS_SEC_MASK))
-		ts->tv_sec -= BIT(2);
+		ts->tv_sec -= TS_SEC_MASK + 1;
 	ts->tv_sec &= ~TS_SEC_MASK;
 	ts->tv_sec |= hwts->sec & TS_SEC_MASK;
 }
