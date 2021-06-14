@@ -1041,7 +1041,7 @@ static void io_uring_del_tctx_node(unsigned long index);
 static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
-static void io_uring_cancel_sqpoll(struct io_sq_data *sqd);
+static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
 
 static bool io_cqring_fill_event(struct io_ring_ctx *ctx, u64 user_data,
@@ -6926,7 +6926,7 @@ static int io_sq_thread(void *data)
 		timeout = jiffies + sqd->sq_thread_idle;
 	}
 
-	io_uring_cancel_sqpoll(sqd);
+	io_uring_cancel_generic(true, sqd);
 	sqd->thread = NULL;
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		io_ring_set_wakeup_flag(ctx);
@@ -9102,21 +9102,6 @@ static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 	return percpu_counter_sum(&tctx->inflight);
 }
 
-static void io_uring_try_cancel(bool cancel_all)
-{
-	struct io_uring_task *tctx = current->io_uring;
-	struct io_tctx_node *node;
-	unsigned long index;
-
-	xa_for_each(&tctx->xa, index, node) {
-		struct io_ring_ctx *ctx = node->ctx;
-
-		/* sqpoll task will cancel all its requests */
-		if (!ctx->sq_data)
-			io_uring_try_cancel_requests(ctx, current, cancel_all);
-	}
-}
-
 static void io_uring_drop_tctx_refs(struct task_struct *task)
 {
 	struct io_uring_task *tctx = task->io_uring;
@@ -9127,59 +9112,24 @@ static void io_uring_drop_tctx_refs(struct task_struct *task)
 	put_task_struct_many(task, refs);
 }
 
-/* should only be called by SQPOLL task */
-static void io_uring_cancel_sqpoll(struct io_sq_data *sqd)
+/*
+ * Find any io_uring ctx that this task has registered or done IO on, and cancel
+ * requests. @sqd should be not-null IIF it's an SQPOLL thread cancellation.
+ */
+static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_ring_ctx *ctx;
 	s64 inflight;
 	DEFINE_WAIT(wait);
 
+	WARN_ON_ONCE(sqd && sqd->thread != current);
+
 	if (!current->io_uring)
 		return;
 	if (tctx->io_wq)
 		io_wq_exit_start(tctx->io_wq);
 
-	WARN_ON_ONCE(!sqd || sqd->thread != current);
-
-	io_uring_drop_tctx_refs(current);
-	atomic_inc(&tctx->in_idle);
-	do {
-		/* read completions before cancelations */
-		inflight = tctx_inflight(tctx, false);
-		if (!inflight)
-			break;
-		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
-			io_uring_try_cancel_requests(ctx, current, true);
-
-		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
-		/*
-		 * If we've seen completions, retry without waiting. This
-		 * avoids a race where a completion comes in before we did
-		 * prepare_to_wait().
-		 */
-		if (inflight == tctx_inflight(tctx, false))
-			schedule();
-		finish_wait(&tctx->wait, &wait);
-	} while (1);
-	atomic_dec(&tctx->in_idle);
-}
-
-/*
- * Find any io_uring fd that this task has registered or done IO on, and cancel
- * requests.
- */
-void __io_uring_cancel(struct files_struct *files)
-{
-	struct io_uring_task *tctx = current->io_uring;
-	DEFINE_WAIT(wait);
-	s64 inflight;
-	bool cancel_all = !files;
-
-	if (tctx->io_wq)
-		io_wq_exit_start(tctx->io_wq);
-
-	/* make sure overflow events are dropped */
 	io_uring_drop_tctx_refs(current);
 	atomic_inc(&tctx->in_idle);
 	do {
@@ -9187,9 +9137,25 @@ void __io_uring_cancel(struct files_struct *files)
 		inflight = tctx_inflight(tctx, !cancel_all);
 		if (!inflight)
 			break;
-		io_uring_try_cancel(cancel_all);
-		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
 
+		if (!sqd) {
+			struct io_tctx_node *node;
+			unsigned long index;
+
+			xa_for_each(&tctx->xa, index, node) {
+				/* sqpoll task will cancel all its requests */
+				if (node->ctx->sq_data)
+					continue;
+				io_uring_try_cancel_requests(node->ctx, current,
+							     cancel_all);
+			}
+		} else {
+			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
+				io_uring_try_cancel_requests(ctx, current,
+							     cancel_all);
+		}
+
+		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
 		/*
 		 * If we've seen completions, retry without waiting. This
 		 * avoids a race where a completion comes in before we did
@@ -9206,6 +9172,11 @@ void __io_uring_cancel(struct files_struct *files)
 		/* for exec all current's requests should be gone, kill tctx */
 		__io_uring_free(current);
 	}
+}
+
+void __io_uring_cancel(struct files_struct *files)
+{
+	io_uring_cancel_generic(!files, NULL);
 }
 
 static void *io_uring_validate_mmap_request(struct file *file,
