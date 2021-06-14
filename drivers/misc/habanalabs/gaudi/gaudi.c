@@ -1814,6 +1814,7 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	hdev->supports_sync_stream = true;
 	hdev->supports_coresight = true;
 	hdev->supports_staged_submission = true;
+	hdev->supports_wait_for_multi_cs = true;
 
 	gaudi_set_pci_memory_regions(hdev);
 

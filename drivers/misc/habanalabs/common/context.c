@@ -229,7 +229,17 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
-/* this function shall be called with cs_lock locked */
+/*
+ * hl_ctx_get_fence_locked - get CS fence under CS lock
+ *
+ * @ctx: pointer to the context structure.
+ * @seq: CS sequences number
+ *
+ * @return valid fence pointer on success, NULL if fence is gone, otherwise
+ *         error pointer.
+ *
+ * NOTE: this function shall be called with cs_lock locked
+ */
 static struct hl_fence *hl_ctx_get_fence_locked(struct hl_ctx *ctx, u64 seq)
 {
 	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
@@ -259,6 +269,16 @@ struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 	return fence;
 }
 
+/*
+ * hl_ctx_get_fences - get multiple CS fences under the same CS lock
+ *
+ * @ctx: pointer to the context structure.
+ * @seq_arr: array of CS sequences to wait for
+ * @fence: fence array to store the CS fences
+ * @arr_len: length of seq_arr and fence_arr
+ *
+ * @return 0 on success, otherwise non 0 error code
+ */
 int hl_ctx_get_fences(struct hl_ctx *ctx, u64 *seq_arr,
 				struct hl_fence **fence, u32 arr_len)
 {

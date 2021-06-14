@@ -1297,6 +1297,10 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto user_interrupts_fini;
 
+
+	/* initialize completion structure for multi CS wait */
+	hl_multi_cs_completion_init(hdev);
+
 	/*
 	 * Initialize the H/W queues. Must be done before hw_init, because
 	 * there the addresses of the kernel queue are being written to the

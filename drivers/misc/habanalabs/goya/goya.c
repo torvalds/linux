@@ -958,6 +958,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	hdev->supports_coresight = true;
 	hdev->supports_soft_reset = true;
 	hdev->allow_external_soft_reset = true;
+	hdev->supports_wait_for_multi_cs = false;
 
 	goya_set_pci_memory_regions(hdev);
 

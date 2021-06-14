@@ -735,11 +735,18 @@ union hl_cs_args {
 
 #define HL_WAIT_CS_FLAGS_INTERRUPT	0x2
 #define HL_WAIT_CS_FLAGS_INTERRUPT_MASK 0xFFF00000
+#define HL_WAIT_CS_FLAGS_MULTI_CS	0x4
+
+#define HL_WAIT_MULTI_CS_LIST_MAX_LEN	32
 
 struct hl_wait_cs_in {
 	union {
 		struct {
-			/* Command submission sequence number */
+			/*
+			 * In case of wait_cs holds the CS sequence number.
+			 * In case of wait for multi CS hold a user pointer to
+			 * an array of CS sequence numbers
+			 */
 			__u64 seq;
 			/* Absolute timeout to wait for command submission
 			 * in microseconds
@@ -767,12 +774,17 @@ struct hl_wait_cs_in {
 
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
+
 	/* HL_WAIT_CS_FLAGS_*
 	 * If HL_WAIT_CS_FLAGS_INTERRUPT is set, this field should include
 	 * interrupt id according to HL_WAIT_CS_FLAGS_INTERRUPT_MASK, in order
 	 * not to specify an interrupt id ,set mask to all 1s.
 	 */
 	__u32 flags;
+
+	/* Multi CS API info- valid entries in multi-CS array */
+	__u8 seq_arr_len;
+	__u8 pad[7];
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -789,8 +801,15 @@ struct hl_wait_cs_out {
 	__u32 status;
 	/* HL_WAIT_CS_STATUS_FLAG* */
 	__u32 flags;
-	/* valid only if HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD is set */
+	/*
+	 * valid only if HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD is set
+	 * for wait_cs: timestamp of CS completion
+	 * for wait_multi_cs: timestamp of FIRST CS completion
+	 */
 	__s64 timestamp_nsec;
+	/* multi CS completion bitmap */
+	__u32 cs_completion_map;
+	__u32 pad;
 };
 
 union hl_wait_cs_args {

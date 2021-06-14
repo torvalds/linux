@@ -585,7 +585,8 @@ struct asic_fixed_properties {
  * @cs_sequence: sequence of the corresponding command submission
  * @error: mark this fence with error
  * @timestamp: timestamp upon completion
- *
+ * @stream_map: streams bitmap to represent all streams that multi cs is
+ *              waiting on
  */
 struct hl_fence {
 	struct completion	completion;
@@ -593,6 +594,7 @@ struct hl_fence {
 	u64			cs_sequence;
 	int			error;
 	ktime_t			timestamp;
+	u8			stream_map;
 };
 
 /**
@@ -2235,6 +2237,58 @@ struct hl_mmu_funcs {
 };
 
 /**
+ * number of user contexts allowed to call wait_for_multi_cs ioctl in
+ * parallel
+ */
+#define MULTI_CS_MAX_USER_CTX	2
+
+/**
+ * struct multi_cs_completion - multi CS wait completion.
+ * @completion: completion of any of the CS in the list
+ * @lock: spinlock for the completion structure
+ * @timestamp: timestamp for the multi-CS completion
+ * @used: 1 if in use, otherwise 0
+ * @stream_map: bitmap of all HW/external queues streams on which the multi-CS
+ *              is waiting
+ */
+struct multi_cs_completion {
+	struct completion	completion;
+	spinlock_t		lock;
+	s64			timestamp;
+	u8			used;
+	u8			stream_map;
+};
+
+/**
+ * struct multi_cs_data - internal data for multi CS call
+ * @ctx: pointer to the context structure
+ * @fence_arr: array of fences of all CSs
+ * @seq_arr: array of CS sequence numbers
+ * @timeout_us: timeout in usec for waiting for CS to complete
+ * @timestamp: timestamp of first completed CS
+ * @wait_status: wait for CS status
+ * @completion_bitmap: bitmap of completed CSs (1- completed, otherwise 0)
+ * @arr_len: fence_arr and seq_arr array length
+ * @stream_map: bitmap of all HW/external queues streams on which the multi-CS
+ *              is waiting
+ * @gone_cs: indication of gone CS (1- there was gone CS, otherwise 0)
+ * @update_ts: update timestamp. 1- update the timestamp, otherwise 0.
+ */
+struct multi_cs_data {
+	struct hl_ctx	*ctx;
+	struct hl_fence	**fence_arr;
+	u64		*seq_arr;
+	s64		timeout_us;
+	s64		timestamp;
+	long		wait_status;
+	u32		completion_bitmap;
+	u8		arr_len;
+	u8		stream_map;
+	u8		gone_cs;
+	u8		update_ts;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -2300,6 +2354,7 @@ struct hl_mmu_funcs {
  * @fw_loader: FW loader manager.
  * @pci_mem_region: array of memory regions in the PCI
  * @state_dump_specs: constants and dictionaries needed to dump system state.
+ * @multi_cs_completion: array of multi-CS completion.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2376,6 +2431,7 @@ struct hl_mmu_funcs {
  *                        halted. We can't halt it again because the COMMS
  *                        protocol will throw an error. Relevant only for
  *                        cases where Linux was not loaded to device CPU
+ * @supports_wait_for_multi_cs: true if wait for multi CS is supported
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2446,6 +2502,9 @@ struct hl_device {
 
 	struct hl_state_dump_specs	state_dump_specs;
 
+	struct multi_cs_completion	multi_cs_completion[
+							MULTI_CS_MAX_USER_CTX];
+
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
@@ -2495,6 +2554,7 @@ struct hl_device {
 	u8				curr_reset_cause;
 	u8				skip_reset_on_timeout;
 	u8				device_cpu_is_halted;
+	u8				supports_wait_for_multi_cs;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
@@ -2701,6 +2761,7 @@ bool cs_needs_completion(struct hl_cs *cs);
 bool cs_needs_timeout(struct hl_cs *cs);
 bool is_staged_cs_last_exists(struct hl_device *hdev, struct hl_cs *cs);
 struct hl_cs *hl_staged_cs_find_first(struct hl_device *hdev, u64 cs_seq);
+void hl_multi_cs_completion_init(struct hl_device *hdev);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 void gaudi_set_asic_funcs(struct hl_device *hdev);
