@@ -427,8 +427,8 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 		nxp_c45_process_txts(priv, &hwts);
 	}
 
-	nxp_c45_ptp_gettimex64(&priv->caps, &ts, NULL);
 	while ((skb = skb_dequeue(&priv->rx_queue)) != NULL) {
+		nxp_c45_ptp_gettimex64(&priv->caps, &ts, NULL);
 		ts_raw = __be32_to_cpu(NXP_C45_SKB_CB(skb)->header->reserved2);
 		hwts.sec = ts_raw >> 30;
 		hwts.nsec = ts_raw & GENMASK(29, 0);
