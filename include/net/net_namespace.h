@@ -186,6 +186,7 @@ void net_ns_get_ownership(const struct net *net, kuid_t *uid, kgid_t *gid);
 void net_ns_barrier(void);
 
 struct ns_common *get_net_ns(struct ns_common *ns);
+struct net *get_net_ns_by_fd(int fd);
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
@@ -210,13 +211,17 @@ static inline struct ns_common *get_net_ns(struct ns_common *ns)
 {
 	return ERR_PTR(-EINVAL);
 }
+
+static inline struct net *get_net_ns_by_fd(int fd)
+{
+	return ERR_PTR(-EINVAL);
+}
 #endif /* CONFIG_NET_NS */
 
 
 extern struct list_head net_namespace_list;
 
 struct net *get_net_ns_by_pid(pid_t pid);
-struct net *get_net_ns_by_fd(int fd);
 
 #ifdef CONFIG_SYSCTL
 void ipx_register_sysctl(void);
