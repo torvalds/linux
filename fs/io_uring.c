@@ -356,6 +356,8 @@ struct io_ring_ctx {
 
 	/* submission data */
 	struct {
+		struct mutex		uring_lock;
+
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
 		 * mmapped by the application using the IORING_OFF_SQES offset.
@@ -392,11 +394,6 @@ struct io_ring_ctx {
 		unsigned		sq_thread_idle;
 	} ____cacheline_aligned_in_smp;
 
-	struct {
-		struct mutex		uring_lock;
-		wait_queue_head_t	cq_wait;
-	} ____cacheline_aligned_in_smp;
-
 	/* IRQ completion list, under ->completion_lock */
 	struct list_head	locked_free_list;
 	unsigned int		locked_free_nr;
@@ -412,12 +409,13 @@ struct io_ring_ctx {
 	struct {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
-		atomic_t		cq_timeouts;
-		unsigned		cq_last_tm_flush;
-		unsigned		cq_extra;
-		struct wait_queue_head	poll_wait;
-		struct fasync_struct	*cq_fasync;
 		struct eventfd_ctx	*cq_ev_fd;
+		struct wait_queue_head	poll_wait;
+		struct wait_queue_head	cq_wait;
+		unsigned		cq_extra;
+		atomic_t		cq_timeouts;
+		struct fasync_struct	*cq_fasync;
+		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
