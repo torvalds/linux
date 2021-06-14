@@ -939,8 +939,10 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 	}
 	clp->cl_cb_client = client;
 	clp->cl_cb_cred = cred;
+	rcu_read_lock();
 	trace_nfsd_cb_setup(clp, rpc_peeraddr2str(client, RPC_DISPLAY_NETID),
 			    args.authflavor);
+	rcu_read_unlock();
 	return 0;
 }
 
