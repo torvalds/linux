@@ -551,7 +551,7 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
 
 /**
  * fpga_mgr_create - create and initialize an FPGA manager struct
- * @dev:	fpga manager device from pdev
+ * @parent:	fpga manager device from pdev
  * @name:	fpga manager name
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
@@ -561,7 +561,7 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
  *
  * Return: pointer to struct fpga_manager or NULL
  */
-struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
+struct fpga_manager *fpga_mgr_create(struct device *parent, const char *name,
 				     const struct fpga_manager_ops *mops,
 				     void *priv)
 {
@@ -571,12 +571,12 @@ struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
 	if (!mops || !mops->write_complete || !mops->state ||
 	    !mops->write_init || (!mops->write && !mops->write_sg) ||
 	    (mops->write && mops->write_sg)) {
-		dev_err(dev, "Attempt to register without fpga_manager_ops\n");
+		dev_err(parent, "Attempt to register without fpga_manager_ops\n");
 		return NULL;
 	}
 
 	if (!name || !strlen(name)) {
-		dev_err(dev, "Attempt to register with no name!\n");
+		dev_err(parent, "Attempt to register with no name!\n");
 		return NULL;
 	}
 
@@ -597,8 +597,8 @@ struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
 	device_initialize(&mgr->dev);
 	mgr->dev.class = fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
-	mgr->dev.parent = dev;
-	mgr->dev.of_node = dev->of_node;
+	mgr->dev.parent = parent;
+	mgr->dev.of_node = parent->of_node;
 	mgr->dev.id = id;
 
 	ret = dev_set_name(&mgr->dev, "fpga%d", id);
@@ -636,7 +636,7 @@ static void devm_fpga_mgr_release(struct device *dev, void *res)
 
 /**
  * devm_fpga_mgr_create - create and initialize a managed FPGA manager struct
- * @dev:	fpga manager device from pdev
+ * @parent:	fpga manager device from pdev
  * @name:	fpga manager name
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
@@ -651,7 +651,7 @@ static void devm_fpga_mgr_release(struct device *dev, void *res)
  *
  * Return: pointer to struct fpga_manager or NULL
  */
-struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
+struct fpga_manager *devm_fpga_mgr_create(struct device *parent, const char *name,
 					  const struct fpga_manager_ops *mops,
 					  void *priv)
 {
@@ -661,13 +661,13 @@ struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
 	if (!dr)
 		return NULL;
 
-	dr->mgr = fpga_mgr_create(dev, name, mops, priv);
+	dr->mgr = fpga_mgr_create(parent, name, mops, priv);
 	if (!dr->mgr) {
 		devres_free(dr);
 		return NULL;
 	}
 
-	devres_add(dev, dr);
+	devres_add(parent, dr);
 
 	return dr->mgr;
 }
