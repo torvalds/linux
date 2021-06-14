@@ -58,13 +58,6 @@
 	};
 };
 
-&psgtr {
-	status = "okay";
-	/* dp, usb3, sata */
-	clocks = <&clock_si5338_0>, <&clock_si5338_2>, <&clock_si5338_3>;
-	clock-names = "ref1", "ref2", "ref3";
-};
-
 &fpd_dma_chan1 {
 	status = "okay";
 };
@@ -338,6 +331,13 @@
 			power-source = <IO_STANDARD_LVCMOS18>;
 		};
 	};
+};
+
+&psgtr {
+	status = "okay";
+	/* dp, usb3, sata */
+	clocks = <&clock_si5338_0>, <&clock_si5338_2>, <&clock_si5338_3>;
+	clock-names = "ref1", "ref2", "ref3";
 };
 
 &qspi {
