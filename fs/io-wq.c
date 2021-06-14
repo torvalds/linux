@@ -565,10 +565,7 @@ loop:
 
 	if (test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		raw_spin_lock_irq(&wqe->lock);
-		if (!wq_list_empty(&wqe->work_list))
-			io_worker_handle_work(worker);
-		else
-			raw_spin_unlock_irq(&wqe->lock);
+		io_worker_handle_work(worker);
 	}
 
 	io_worker_exit(worker);
