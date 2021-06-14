@@ -285,6 +285,11 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	u32 val;
 	int ret;
 
+	if (phy->enable_count > 0) {
+		phy->enable_count++;
+		return 0;
+	}
+
 	link_freq = cal_camerarx_get_ext_link_freq(phy);
 	if (link_freq < 0)
 		return link_freq;
@@ -409,12 +414,17 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/* Finally, enable the PHY Protocol Interface (PPI). */
 	cal_camerarx_ppi_enable(phy);
 
+	phy->enable_count++;
+
 	return 0;
 }
 
 static void cal_camerarx_stop(struct cal_camerarx *phy)
 {
 	int ret;
+
+	if (--phy->enable_count > 0)
+		return;
 
 	cal_camerarx_ppi_disable(phy);
 

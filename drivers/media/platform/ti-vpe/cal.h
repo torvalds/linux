@@ -167,8 +167,11 @@ struct cal_camerarx {
 	/*
 	 * Lock for camerarx ops. Protects:
 	 * - formats
+	 * - enable_count
 	 */
 	struct mutex		mutex;
+
+	unsigned int		enable_count;
 };
 
 struct cal_dev {
