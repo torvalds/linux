@@ -352,6 +352,7 @@ struct io_ring_ctx {
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
 		unsigned int		off_timeout_used: 1;
+		unsigned int		drain_used: 1;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -1299,9 +1300,9 @@ static void io_kill_timeout(struct io_kiocb *req, int status)
 	}
 }
 
-static void __io_queue_deferred(struct io_ring_ctx *ctx)
+static void io_queue_deferred(struct io_ring_ctx *ctx)
 {
-	do {
+	while (!list_empty(&ctx->defer_list)) {
 		struct io_defer_entry *de = list_first_entry(&ctx->defer_list,
 						struct io_defer_entry, list);
 
@@ -1310,17 +1311,12 @@ static void __io_queue_deferred(struct io_ring_ctx *ctx)
 		list_del_init(&de->list);
 		io_req_task_queue(de->req);
 		kfree(de);
-	} while (!list_empty(&ctx->defer_list));
+	}
 }
 
 static void io_flush_timeouts(struct io_ring_ctx *ctx)
 {
-	u32 seq;
-
-	if (likely(!ctx->off_timeout_used))
-		return;
-
-	seq = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
+	u32 seq = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
 
 	while (!list_empty(&ctx->timeout_list)) {
 		u32 events_needed, events_got;
@@ -1350,13 +1346,14 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 
 static void io_commit_cqring(struct io_ring_ctx *ctx)
 {
-	io_flush_timeouts(ctx);
-
+	if (unlikely(ctx->off_timeout_used || ctx->drain_used)) {
+		if (ctx->off_timeout_used)
+			io_flush_timeouts(ctx);
+		if (ctx->drain_used)
+			io_queue_deferred(ctx);
+	}
 	/* order cqe stores with ring update */
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
-
-	if (unlikely(!list_empty(&ctx->defer_list)))
-		__io_queue_deferred(ctx);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)
@@ -6447,9 +6444,9 @@ static void __io_queue_sqe(struct io_kiocb *req)
 		io_queue_linked_timeout(linked_timeout);
 }
 
-static void io_queue_sqe(struct io_kiocb *req)
+static inline void io_queue_sqe(struct io_kiocb *req)
 {
-	if (io_drain_req(req))
+	if (unlikely(req->ctx->drain_used) && io_drain_req(req))
 		return;
 
 	if (likely(!(req->flags & REQ_F_FORCE_ASYNC))) {
@@ -6573,6 +6570,23 @@ fail_req:
 		io_req_complete_failed(req, ret);
 		return ret;
 	}
+
+	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
+		ctx->drain_used = true;
+
+		/*
+		 * Taking sequential execution of a link, draining both sides
+		 * of the link also fullfils IOSQE_IO_DRAIN semantics for all
+		 * requests in the link. So, it drains the head and the
+		 * next after the link request. The last one is done via
+		 * drain_next flag to persist the effect across calls.
+		 */
+		if (link->head) {
+			link->head->flags |= REQ_F_IO_DRAIN;
+			ctx->drain_next = 1;
+		}
+	}
+
 	ret = io_req_prep(req, sqe);
 	if (unlikely(ret))
 		goto fail_req;
@@ -6591,17 +6605,6 @@ fail_req:
 	if (link->head) {
 		struct io_kiocb *head = link->head;
 
-		/*
-		 * Taking sequential execution of a link, draining both sides
-		 * of the link also fullfils IOSQE_IO_DRAIN semantics for all
-		 * requests in the link. So, it drains the head and the
-		 * next after the link request. The last one is done via
-		 * drain_next flag to persist the effect across calls.
-		 */
-		if (req->flags & REQ_F_IO_DRAIN) {
-			head->flags |= REQ_F_IO_DRAIN;
-			ctx->drain_next = 1;
-		}
 		ret = io_req_prep_async(req);
 		if (unlikely(ret))
 			goto fail_req;
