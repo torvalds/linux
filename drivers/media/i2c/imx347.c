@@ -8,6 +8,7 @@
  * V0.0X01.0X01 add conversion gain control
  * V0.0X01.0X02 add debug interface for conversion gain control
  * V0.0X01.0X03 support enum sensor fmt
+ * V0.0X01.0X04 fix setting flow error according to datasheet and fix hdr gain error
  */
 
 #include <linux/clk.h>
@@ -29,7 +30,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -53,6 +54,14 @@
 #define IMX347_REG_CTRL_MODE		0x3000
 #define IMX347_MODE_SW_STANDBY		BIT(0)
 #define IMX347_MODE_STREAMING		0x0
+
+#define IMX347_REG_MASTER_MODE		0x3002
+#define IMX347_MASTER_MODE_STOP		BIT(0)
+#define IMX347_MASTER_MODE_START	0x0
+
+#define IMX347_REG_RESTART_MODE		0x3004
+#define IMX347_RESTART_MODE_START	0x04
+#define IMX347_RESTART_MODE_STOP	0x0
 
 #define IMX347_GAIN_SWITCH_REG		0x3019
 
@@ -164,6 +173,7 @@ struct imx347_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u8 bpp;
 };
 
 struct imx347 {
@@ -172,11 +182,9 @@ struct imx347 {
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
 	struct regulator_bulk_data supplies[IMX347_NUM_SUPPLIES];
-
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
-
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -213,8 +221,6 @@ static const struct regval imx347_global_regs[] = {
 };
 
 static const struct regval imx347_linear_10bit_2688x1520_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
 	{0x3018, 0x00},
@@ -252,6 +258,7 @@ static const struct regval imx347_linear_10bit_2688x1520_regs[] = {
 	{0x319E, 0x01},
 	{0x31A1, 0x00},
 	{0x31D7, 0x00},
+	{0x3200, 0x11},/* Each frame gain adjustment disabed in linear mode */
 	{0x3202, 0x02},
 	{0x3288, 0x22},
 	{0x328A, 0x02},
@@ -314,7 +321,6 @@ static const struct regval imx347_linear_10bit_2688x1520_regs[] = {
 	{0x3794, 0xFE},
 	{0x3795, 0x06},
 	{0x3796, 0x7F},
-	{0x3200, 0x11},
 	{0x3798, 0xBF},
 	{0x3A01, 0x01},
 	{0x3A18, 0x8F},
@@ -331,8 +337,6 @@ static const struct regval imx347_linear_10bit_2688x1520_regs[] = {
 };
 
 static const struct regval imx347_hdr_2x_10bit_2688x1520_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
 	{0x3018, 0x00},
@@ -370,6 +374,7 @@ static const struct regval imx347_hdr_2x_10bit_2688x1520_regs[] = {
 	{0x319E, 0x01},
 	{0x31A1, 0x00},
 	{0x31D7, 0x01},
+	{0x3200, 0x10},/* Each frame gain adjustment EN in hdr mode */
 	{0x3202, 0x02},
 	{0x3288, 0x22},
 	{0x328A, 0x02},
@@ -432,7 +437,6 @@ static const struct regval imx347_hdr_2x_10bit_2688x1520_regs[] = {
 	{0x3794, 0xFE},
 	{0x3795, 0x06},
 	{0x3796, 0x7F},
-	{0x3200, 0x00},
 	{0x3798, 0xBF},
 	{0x3A01, 0x03},
 	{0x3A18, 0x8F},
@@ -449,8 +453,6 @@ static const struct regval imx347_hdr_2x_10bit_2688x1520_regs[] = {
 };
 
 static const struct regval imx347_linear_12bit_2688x1520_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
 	{0x300C, 0x3B},
 	{0x300D, 0x2A},
 	{0x3018, 0x04},
@@ -488,6 +490,7 @@ static const struct regval imx347_linear_12bit_2688x1520_regs[] = {
 	{0x319E, 0x02},
 	{0x31A1, 0x00},
 	{0x31D7, 0x00},
+	{0x3200, 0x11},/* Each frame gain adjustment disabed in linear mode */
 	{0x3202, 0x02},
 	{0x3288, 0x22},
 	{0x328A, 0x02},
@@ -550,7 +553,6 @@ static const struct regval imx347_linear_12bit_2688x1520_regs[] = {
 	{0x3794, 0xFE},
 	{0x3795, 0x06},
 	{0x3796, 0x7F},
-	{0x3200, 0x11},
 	{0x3798, 0xBF},
 	{0x3A01, 0x03},
 	{0x3A18, 0x6F},
@@ -567,8 +569,6 @@ static const struct regval imx347_linear_12bit_2688x1520_regs[] = {
 };
 
 static const struct regval imx347_hdr_2x_12bit_2688x1520_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
 	{0x300C, 0x3B},
 	{0x300D, 0x2A},
 	{0x3018, 0x04},
@@ -606,6 +606,7 @@ static const struct regval imx347_hdr_2x_12bit_2688x1520_regs[] = {
 	{0x319E, 0x02},
 	{0x31A1, 0x00},
 	{0x31D7, 0x01},
+	{0x3200, 0x10},/* Each frame gain adjustment EN in hdr mode */
 	{0x3202, 0x02},
 	{0x3288, 0x22},
 	{0x328A, 0x02},
@@ -668,7 +669,6 @@ static const struct regval imx347_hdr_2x_12bit_2688x1520_regs[] = {
 	{0x3794, 0xFE},
 	{0x3795, 0x06},
 	{0x3796, 0x7F},
-	{0x3200, 0x11},
 	{0x3798, 0xBF},
 	{0x3A01, 0x03},
 	{0x3A18, 0x6F},
@@ -711,6 +711,7 @@ static const struct imx347_mode supported_modes[] = {
 		.reg_list = imx347_linear_10bit_2688x1520_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.bpp = 10,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
@@ -729,6 +730,7 @@ static const struct imx347_mode supported_modes[] = {
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+		.bpp = 10,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
@@ -744,6 +746,7 @@ static const struct imx347_mode supported_modes[] = {
 		.reg_list = imx347_linear_12bit_2688x1520_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.bpp = 12,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
@@ -762,6 +765,7 @@ static const struct imx347_mode supported_modes[] = {
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+		.bpp = 12,
 	},
 };
 
@@ -1057,10 +1061,10 @@ static void imx347_get_module_inf(struct imx347 *imx347,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX347_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx347->module_name,
+	strscpy(inf->base.sensor, IMX347_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx347->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx347->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx347->len_name, sizeof(inf->base.lens));
 }
 
 static int imx347_set_hdrae(struct imx347 *imx347,
@@ -1383,7 +1387,6 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
-	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
@@ -1399,21 +1402,12 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = imx347_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
-		kfree(inf);
-		break;
-	case RKMODULE_AWB_CFG:
-		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
-		if (!cfg) {
-			ret = -ENOMEM;
-			return ret;
+			if (ret)
+				ret = -EFAULT;
 		}
-
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = imx347_ioctl(sd, cmd, cfg);
-		kfree(cfg);
+		kfree(inf);
 		break;
 	case RKMODULE_GET_HDR_CFG:
 		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
@@ -1423,8 +1417,11 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = imx347_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1434,9 +1431,12 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdr, up, sizeof(*hdr));
-		if (!ret)
-			ret = imx347_ioctl(sd, cmd, hdr);
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+
+		ret = imx347_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1446,21 +1446,25 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-		if (!ret)
-			ret = imx347_ioctl(sd, cmd, hdrae);
+		if (copy_from_user(hdrae, up, sizeof(*hdrae))) {
+			kfree(hdrae);
+			return -EFAULT;
+		}
+
+		ret = imx347_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
-		ret = copy_from_user(&cg, up, sizeof(cg));
-		if (!ret)
-			ret = imx347_ioctl(sd, cmd, &cg);
+		if (copy_from_user(&cg, up, sizeof(cg)))
+			return -EFAULT;
+
+		ret = imx347_ioctl(sd, cmd, &cg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret) {
-			ret = imx347_ioctl(sd, cmd, &stream);
-		}
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = imx347_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1476,10 +1480,8 @@ static int imx347_init_conversion_gain(struct imx347 *imx347)
 	int ret = 0;
 	struct i2c_client *client = imx347->client;
 
-	ret = imx347_write_reg(client,
-		IMX347_GAIN_SWITCH_REG,
-		IMX347_REG_VALUE_08BIT,
-		0X00);
+	ret = imx347_write_reg(client, IMX347_GAIN_SWITCH_REG,
+			       IMX347_REG_VALUE_08BIT, 0x00);
 	if (!ret)
 		g_isHCG = false;
 	return ret;
@@ -1508,15 +1510,36 @@ static int __imx347_start_stream(struct imx347 *imx347)
 			return ret;
 		}
 	}
-	return imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
-				IMX347_REG_VALUE_08BIT, 0);
+
+	ret = imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
+			       IMX347_REG_VALUE_08BIT, IMX347_MODE_STREAMING);
+	ret |= imx347_write_reg(imx347->client, IMX347_REG_MASTER_MODE,
+				IMX347_REG_VALUE_08BIT, IMX347_MASTER_MODE_START);
+	return ret;
 }
 
 static int __imx347_stop_stream(struct imx347 *imx347)
 {
+	int ret = 0;
+	u32 value = 0;
+
 	imx347->has_init_exp = false;
-	return imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
-				IMX347_REG_VALUE_08BIT, 1);
+	ret = imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
+			       IMX347_REG_VALUE_08BIT, IMX347_MODE_SW_STANDBY);
+	ret |= imx347_write_reg(imx347->client, IMX347_REG_MASTER_MODE,
+				IMX347_REG_VALUE_08BIT, IMX347_MASTER_MODE_STOP);
+
+	ret |= imx347_read_reg(imx347->client, IMX347_REG_RESTART_MODE,
+			       IMX347_REG_VALUE_08BIT, &value);
+	dev_dbg(&imx347->client->dev, "reg 0x3004 = 0x%x\n", value);
+	if (value == 0x00) {
+		ret |= imx347_write_reg(imx347->client, IMX347_REG_RESTART_MODE,
+					IMX347_REG_VALUE_08BIT, IMX347_RESTART_MODE_START);
+		ret |= imx347_write_reg(imx347->client, IMX347_REG_RESTART_MODE,
+					IMX347_REG_VALUE_08BIT, IMX347_RESTART_MODE_STOP);
+	}
+
+	return ret;
 }
 
 static int imx347_s_stream(struct v4l2_subdev *sd, int on)
@@ -1524,6 +1547,10 @@ static int imx347_s_stream(struct v4l2_subdev *sd, int on)
 	struct imx347 *imx347 = to_imx347(sd);
 	struct i2c_client *client = imx347->client;
 	int ret = 0;
+
+	dev_dbg(&imx347->client->dev, "s_stream: %d. %dx%d, hdr: %d, bpp: %d\n",
+		on, imx347->cur_mode->width, imx347->cur_mode->height,
+		imx347->cur_mode->hdr_mode, imx347->cur_mode->bpp);
 
 	mutex_lock(&imx347->mutex);
 	on = !!on;
