@@ -325,7 +325,7 @@ static void nxp_c45_reconstruct_ts(struct timespec64 *ts,
 {
 	ts->tv_nsec = hwts->nsec;
 	if ((ts->tv_sec & TS_SEC_MASK) < (hwts->sec & TS_SEC_MASK))
-		ts->tv_sec -= BIT(2);
+		ts->tv_sec -= TS_SEC_MASK + 1;
 	ts->tv_sec &= ~TS_SEC_MASK;
 	ts->tv_sec |= hwts->sec & TS_SEC_MASK;
 }
@@ -427,8 +427,8 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 		nxp_c45_process_txts(priv, &hwts);
 	}
 
-	nxp_c45_ptp_gettimex64(&priv->caps, &ts, NULL);
 	while ((skb = skb_dequeue(&priv->rx_queue)) != NULL) {
+		nxp_c45_ptp_gettimex64(&priv->caps, &ts, NULL);
 		ts_raw = __be32_to_cpu(NXP_C45_SKB_CB(skb)->header->reserved2);
 		hwts.sec = ts_raw >> 30;
 		hwts.nsec = ts_raw & GENMASK(29, 0);
@@ -1035,6 +1035,12 @@ static int nxp_c45_config_init(struct phy_device *phydev)
 		return ret;
 	}
 
+	/* Bug workaround for SJA1110 rev B: enable write access
+	 * to MDIO_MMD_PMAPMD
+	 */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x01F8, 1);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x01F9, 2);
+
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PHY_CONFIG,
 			 PHY_CONFIG_AUTO);
 
@@ -1090,7 +1096,7 @@ static int nxp_c45_probe(struct phy_device *phydev)
 				   VEND1_PORT_ABILITIES);
 	ptp_ability = !!(ptp_ability & PTP_ABILITY);
 	if (!ptp_ability) {
-		phydev_info(phydev, "the phy does not support PTP");
+		phydev_dbg(phydev, "the phy does not support PTP");
 		goto no_ptp_support;
 	}
 
