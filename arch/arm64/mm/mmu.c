@@ -228,7 +228,7 @@ static void init_pmd(pud_t *pudp, unsigned long addr, unsigned long end,
 		next = pmd_addr_end(addr, end);
 
 		/* try section mapping first */
-		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
+		if (((addr | next | phys) & ~PMD_MASK) == 0 &&
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pmd_set_huge(pmdp, phys, prot);
 
