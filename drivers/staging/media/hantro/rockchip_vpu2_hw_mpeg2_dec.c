@@ -80,8 +80,8 @@
 #define VDPU_REG_MV_ACCURACY_BWD(v)	((v) ? BIT(1) : 0)
 
 static void
-rk3399_vpu_mpeg2_dec_set_quantisation(struct hantro_dev *vpu,
-				      struct hantro_ctx *ctx)
+rockchip_vpu2_mpeg2_dec_set_quantisation(struct hantro_dev *vpu,
+					 struct hantro_ctx *ctx)
 {
 	struct v4l2_ctrl_mpeg2_quantisation *q;
 
@@ -91,12 +91,12 @@ rk3399_vpu_mpeg2_dec_set_quantisation(struct hantro_dev *vpu,
 }
 
 static void
-rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
-				 struct hantro_ctx *ctx,
-				 struct vb2_buffer *src_buf,
-				 struct vb2_buffer *dst_buf,
-				 const struct v4l2_ctrl_mpeg2_sequence *seq,
-				 const struct v4l2_ctrl_mpeg2_picture *pic)
+rockchip_vpu2_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
+				    struct hantro_ctx *ctx,
+				    struct vb2_buffer *src_buf,
+				    struct vb2_buffer *dst_buf,
+				    const struct v4l2_ctrl_mpeg2_sequence *seq,
+				    const struct v4l2_ctrl_mpeg2_picture *pic)
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
@@ -148,7 +148,7 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
 	vdpu_write_relaxed(vpu, backward_addr, VDPU_REG_REFER3_BASE);
 }
 
-int rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
+int rockchip_vpu2_mpeg2_dec_run(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
@@ -233,11 +233,10 @@ int rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 	      VDPU_REG_MV_ACCURACY_BWD(1);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(136));
 
-	rk3399_vpu_mpeg2_dec_set_quantisation(vpu, ctx);
+	rockchip_vpu2_mpeg2_dec_set_quantisation(vpu, ctx);
 
-	rk3399_vpu_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
-					 &dst_buf->vb2_buf,
-					 seq, pic);
+	rockchip_vpu2_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
+					    &dst_buf->vb2_buf, seq, pic);
 
 	/* Kick the watchdog and start decoding */
 	hantro_end_prepare_run(ctx);

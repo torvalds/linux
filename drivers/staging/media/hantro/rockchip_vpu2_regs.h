@@ -6,8 +6,8 @@
  *	Alpha Lin <alpha.lin@rock-chips.com>
  */
 
-#ifndef RK3399_VPU_REGS_H_
-#define RK3399_VPU_REGS_H_
+#ifndef ROCKCHIP_VPU2_REGS_H_
+#define ROCKCHIP_VPU2_REGS_H_
 
 /* Encoder registers. */
 #define VEPU_REG_VP8_QUT_1ST(i)			(0x000 + ((i) * 0x24))
@@ -597,4 +597,4 @@
 #define     VDPU_REG_PRED_FLT_PRED_BC_TAP_4_3(x)	(((x) & 0x3ff) << 12)
 #define     VDPU_REG_PRED_FLT_PRED_BC_TAP_5_0(x)	(((x) & 0x3ff) << 2)
 
-#endif /* RK3399_VPU_REGS_H_ */
+#endif /* ROCKCHIP_VPU2_REGS_H_ */
