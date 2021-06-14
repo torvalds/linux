@@ -40,14 +40,12 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_EDIROL	0x000040ab
 #define VEN_PRESONUS	0x00000a92
 #define VEN_BRIDGECO	0x000007f5
-#define VEN_MACKIE1	0x0000000f
-#define VEN_MACKIE2	0x00000ff2
+#define VEN_MACKIE	0x00000ff2
 #define VEN_STANTON	0x00001260
 #define VEN_TASCAM	0x0000022e
 #define VEN_BEHRINGER	0x00001564
 #define VEN_APOGEE	0x000003db
 #define VEN_ESI		0x00000f1b
-#define VEN_ACOUSTIC	0x00000002
 #define VEN_CME		0x0000000a
 #define VEN_PHONIC	0x00001496
 #define VEN_LYNX	0x000019e5
@@ -56,8 +54,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_TERRATEC	0x00000aac
 #define VEN_YAMAHA	0x0000a0de
 #define VEN_FOCUSRITE	0x0000130e
-#define VEN_MAUDIO1	0x00000d6c
-#define VEN_MAUDIO2	0x000007f5
+#define VEN_MAUDIO	0x00000d6c
 #define VEN_DIGIDESIGN	0x00a07e
 
 #define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
@@ -161,7 +158,7 @@ check_audiophile_booted(struct fw_unit *unit)
 
 static int detect_quirks(struct snd_bebob *bebob, const struct ieee1394_device_id *entry)
 {
-	if (entry->vendor_id == VEN_MAUDIO1) {
+	if (entry->vendor_id == VEN_MAUDIO) {
 		switch (entry->model_id) {
 		case MODEL_MAUDIO_PROFIRELIGHTBRIDGE:
 			// M-Audio ProFire Lightbridge has a quirk to transfer packets with
@@ -194,7 +191,7 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	if (entry->vendor_id == VEN_FOCUSRITE &&
 	    entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)
 		spec = get_saffire_spec(unit);
-	else if (entry->vendor_id == VEN_MAUDIO1 &&
+	else if (entry->vendor_id == VEN_MAUDIO &&
 		 entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH &&
 		 !check_audiophile_booted(unit))
 		spec = NULL;
@@ -202,7 +199,8 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 		spec = (const struct snd_bebob_spec *)entry->driver_data;
 
 	if (spec == NULL) {
-		if (entry->vendor_id == VEN_MAUDIO1 || entry->vendor_id == VEN_MAUDIO2)
+		// To boot up M-Audio models.
+		if (entry->vendor_id == VEN_MAUDIO || entry->vendor_id == VEN_BRIDGECO)
 			return snd_bebob_maudio_load_firmware(unit);
 		else
 			return -ENODEV;
@@ -282,7 +280,7 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	if (err < 0)
 		goto error;
 
-	if (entry->vendor_id == VEN_MAUDIO1 &&
+	if (entry->vendor_id == VEN_MAUDIO &&
 	    (entry->model_id == MODEL_MAUDIO_FW1814 || entry->model_id == MODEL_MAUDIO_PROJECTMIX)) {
 		// This is a workaround. This bus reset seems to have an effect to make devices
 		// correctly handling transactions. Without this, the devices have gap_count
@@ -348,6 +346,22 @@ static const struct snd_bebob_spec spec_normal = {
 	.meter	= NULL
 };
 
+#define SPECIFIER_1394TA	0x00a02d
+
+// The immediate entry for version in unit directory differs depending on models:
+//  * 0x010001
+//  * 0x014001
+#define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
+{ \
+	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
+			  IEEE1394_MATCH_MODEL_ID | \
+			  IEEE1394_MATCH_SPECIFIER_ID, \
+	.vendor_id	= vendor, \
+	.model_id	= model, \
+	.specifier_id	= SPECIFIER_1394TA, \
+	.driver_data	= (kernel_ulong_t)data \
+}
+
 static const struct ieee1394_device_id bebob_id_table[] = {
 	/* Edirol, FA-66 */
 	SND_BEBOB_DEV_ENTRY(VEN_EDIROL, 0x00010049, &spec_normal),
@@ -364,9 +378,9 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* BridgeCo, Audio5 */
 	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010049, &spec_normal),
 	/* Mackie, Onyx 1220/1620/1640 (Firewire I/O Card) */
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE2, 0x00010065, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010065, &spec_normal),
 	// Mackie, d.2 (optional Firewire card with DM1000).
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE1, 0x00010067, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010067, &spec_normal),
 	/* Stanton, ScratchAmp */
 	SND_BEBOB_DEV_ENTRY(VEN_STANTON, 0x00000001, &spec_normal),
 	/* Tascam, IF-FW DM */
@@ -388,17 +402,20 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x01eeee, &spec_normal),
 	/* ESI, Quatafire610 */
 	SND_BEBOB_DEV_ENTRY(VEN_ESI, 0x00010064, &spec_normal),
-	/* AcousticReality, eARMasterOne */
-	SND_BEBOB_DEV_ENTRY(VEN_ACOUSTIC, 0x00000002, &spec_normal),
+	// AcousticReality, eARMasterOne. Terratec OEM.
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* CME, MatrixKFW */
 	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000, &spec_normal),
-	/* Phonic, Helix Board 12 MkII */
+	// Phonic Helix Board 12 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00050000, &spec_normal),
-	/* Phonic, Helix Board 18 MkII */
+	// Phonic Helix Board 18 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00060000, &spec_normal),
-	/* Phonic, Helix Board 24 MkII */
+	// Phonic Helix Board 24 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00070000, &spec_normal),
-	/* Phonic, Helix Board 12 Universal/18 Universal/24 Universal */
+	// Phonic FireFly 808 FireWire.
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00080000, &spec_normal),
+	// Phonic FireFly 202, 302, 808 Universal.
+	// Phinic Helix Board 12/18/24 FireWire, 12/18/24 Universal
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00000000, &spec_normal),
 	/* Lynx, Aurora 8/16 (LT-FW) */
 	SND_BEBOB_DEV_ENTRY(VEN_LYNX, 0x00000001, &spec_normal),
@@ -425,42 +442,30 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* Focusrite, SaffirePro 26 I/O */
 	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, 0x00000003, &saffirepro_26_spec),
 	/* Focusrite, SaffirePro 10 I/O */
-	{
-		// The combination of vendor_id and model_id is the same as the
-		// same as the one of Liquid Saffire 56.
-		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
-				  IEEE1394_MATCH_MODEL_ID |
-				  IEEE1394_MATCH_SPECIFIER_ID |
-				  IEEE1394_MATCH_VERSION,
-		.vendor_id	= VEN_FOCUSRITE,
-		.model_id	= 0x000006,
-		.specifier_id	= 0x00a02d,
-		.version	= 0x010001,
-		.driver_data	= (kernel_ulong_t)&saffirepro_10_spec,
-	},
+	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, 0x000006, &saffirepro_10_spec),
 	/* Focusrite, Saffire(no label and LE) */
 	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, MODEL_FOCUSRITE_SAFFIRE_BOTH,
 			    &saffire_spec),
-	/* M-Audio, Firewire 410 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010058, NULL),	/* bootloader */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010046, &maudio_fw410_spec),
+	// M-Audio, Firewire 410. The vendor field is left as BridgeCo. AG.
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010058, NULL),
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010046, &maudio_fw410_spec),
 	/* M-Audio, Firewire Audiophile */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_AUDIOPHILE_BOTH,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_AUDIOPHILE_BOTH,
 			    &maudio_audiophile_spec),
 	/* M-Audio, Firewire Solo */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010062, &maudio_solo_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010062, &maudio_solo_spec),
 	/* M-Audio, Ozonic */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x0000000a, &maudio_ozonic_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x0000000a, &maudio_ozonic_spec),
 	/* M-Audio NRV10 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010081, &maudio_nrv10_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010081, &maudio_nrv10_spec),
 	/* M-Audio, ProFireLightbridge */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROFIRELIGHTBRIDGE, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_PROFIRELIGHTBRIDGE, &spec_normal),
 	/* Firewire 1814 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010070, NULL),	/* bootloader */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_FW1814,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010070, NULL),	/* bootloader */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_FW1814,
 			    &maudio_special_spec),
 	/* M-Audio ProjectMix */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROJECTMIX,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_PROJECTMIX,
 			    &maudio_special_spec),
 	/* Digidesign Mbox 2 Pro */
 	SND_BEBOB_DEV_ENTRY(VEN_DIGIDESIGN, 0x0000a9, &spec_normal),
@@ -474,11 +479,6 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/*  Infrasonic, Windy6 */
 	/*  Mackie, Digital X Bus x.200 */
 	/*  Mackie, Digital X Bus x.400 */
-	/*  Phonic, HB 12 */
-	/*  Phonic, HB 24 */
-	/*  Phonic, HB 18 */
-	/*  Phonic, FireFly 202 */
-	/*  Phonic, FireFly 302 */
 	/*  Rolf Spuler, Firewire Guitar */
 	{}
 };

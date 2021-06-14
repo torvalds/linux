@@ -253,13 +253,4 @@ extern const struct snd_bebob_spec maudio_special_spec;
 int snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814);
 int snd_bebob_maudio_load_firmware(struct fw_unit *unit);
 
-#define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
-{ \
-	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
-			  IEEE1394_MATCH_MODEL_ID, \
-	.vendor_id	= vendor, \
-	.model_id	= model, \
-	.driver_data	= (kernel_ulong_t)data \
-}
-
 #endif
