@@ -43,43 +43,34 @@ DECLARE_RWSEM(nvmet_ana_sem);
 
 inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 {
-	u16 status;
-
 	switch (errno) {
 	case 0:
-		status = NVME_SC_SUCCESS;
-		break;
+		return NVME_SC_SUCCESS;
 	case -ENOSPC:
 		req->error_loc = offsetof(struct nvme_rw_command, length);
-		status = NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
-		break;
+		return NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
 	case -EREMOTEIO:
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
-		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
-		break;
+		return  NVME_SC_LBA_RANGE | NVME_SC_DNR;
 	case -EOPNOTSUPP:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		switch (req->cmd->common.opcode) {
 		case nvme_cmd_dsm:
 		case nvme_cmd_write_zeroes:
-			status = NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
-			break;
+			return NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
 		default:
-			status = NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 		break;
 	case -ENODATA:
 		req->error_loc = offsetof(struct nvme_rw_command, nsid);
-		status = NVME_SC_ACCESS_DENIED;
-		break;
+		return NVME_SC_ACCESS_DENIED;
 	case -EIO:
 		fallthrough;
 	default:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
-		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+		return NVME_SC_INTERNAL | NVME_SC_DNR;
 	}
-
-	return status;
 }
 
 u16 nvmet_report_invalid_opcode(struct nvmet_req *req)
