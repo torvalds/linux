@@ -29,7 +29,7 @@
 #include <media/videobuf2-v4l2.h>
 
 #define CAL_MODULE_NAME			"cal"
-#define CAL_NUM_CONTEXT			2
+#define CAL_MAX_NUM_CONTEXT		8
 #define CAL_NUM_CSI2_PORTS		2
 
 /*
@@ -182,7 +182,8 @@ struct cal_dev {
 	/* Camera Core Module handle */
 	struct cal_camerarx	*phy[CAL_NUM_CSI2_PORTS];
 
-	struct cal_ctx		*ctx[CAL_NUM_CONTEXT];
+	u32 num_contexts;
+	struct cal_ctx		*ctx[CAL_MAX_NUM_CONTEXT];
 
 	struct media_device	mdev;
 	struct v4l2_device	v4l2_dev;
