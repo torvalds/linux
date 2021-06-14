@@ -1029,7 +1029,7 @@ static const struct io_op_def io_op_defs[] = {
 };
 
 static bool io_disarm_next(struct io_kiocb *req);
-static void io_uring_del_task_file(unsigned long index);
+static void io_uring_del_tctx_node(unsigned long index);
 static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
@@ -8714,7 +8714,7 @@ static void io_tctx_exit_cb(struct callback_head *cb)
 	 * node. It'll be removed by the end of cancellation, just ignore it.
 	 */
 	if (!atomic_read(&tctx->in_idle))
-		io_uring_del_task_file((unsigned long)work->ctx);
+		io_uring_del_tctx_node((unsigned long)work->ctx);
 	complete(&work->completion);
 }
 
@@ -8967,7 +8967,7 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 	}
 }
 
-static int __io_uring_add_task_file(struct io_ring_ctx *ctx)
+static int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_tctx_node *node;
@@ -9004,19 +9004,19 @@ static int __io_uring_add_task_file(struct io_ring_ctx *ctx)
 /*
  * Note that this task has used io_uring. We use it for cancelation purposes.
  */
-static inline int io_uring_add_task_file(struct io_ring_ctx *ctx)
+static inline int io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
 
 	if (likely(tctx && tctx->last == ctx))
 		return 0;
-	return __io_uring_add_task_file(ctx);
+	return __io_uring_add_tctx_node(ctx);
 }
 
 /*
  * Remove this io_uring_file -> task mapping.
  */
-static void io_uring_del_task_file(unsigned long index)
+static void io_uring_del_tctx_node(unsigned long index)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_tctx_node *node;
@@ -9046,7 +9046,7 @@ static void io_uring_clean_tctx(struct io_uring_task *tctx)
 	unsigned long index;
 
 	xa_for_each(&tctx->xa, index, node)
-		io_uring_del_task_file(index);
+		io_uring_del_tctx_node(index);
 	if (wq) {
 		/*
 		 * Must be after io_uring_del_task_file() (removes nodes under
@@ -9330,7 +9330,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		}
 		submitted = to_submit;
 	} else if (to_submit) {
-		ret = io_uring_add_task_file(ctx);
+		ret = io_uring_add_tctx_node(ctx);
 		if (unlikely(ret))
 			goto out;
 		mutex_lock(&ctx->uring_lock);
@@ -9540,7 +9540,7 @@ static int io_uring_install_fd(struct io_ring_ctx *ctx, struct file *file)
 	if (fd < 0)
 		return fd;
 
-	ret = io_uring_add_task_file(ctx);
+	ret = io_uring_add_tctx_node(ctx);
 	if (ret) {
 		put_unused_fd(fd);
 		return ret;
