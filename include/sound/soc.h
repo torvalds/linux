@@ -1235,6 +1235,20 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname);
 
 unsigned int snd_soc_daifmt_clock_provider_fliped(unsigned int dai_fmt);
 unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame);
+
+unsigned int snd_soc_daifmt_parse_format(struct device_node *np, const char *prefix);
+unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
+						     const char *prefix,
+						     struct device_node **bitclkmaster,
+						     struct device_node **framemaster);
+#define snd_soc_daifmt_parse_clock_provider_as_bitmap(np, prefix)	\
+	snd_soc_daifmt_parse_clock_provider_raw(np, prefix, NULL, NULL)
+#define snd_soc_daifmt_parse_clock_provider_as_phandle			\
+	snd_soc_daifmt_parse_clock_provider_raw
+#define snd_soc_daifmt_parse_clock_provider_as_flag(np, prefix)		\
+	snd_soc_daifmt_clock_provider_from_bitmap(			\
+		snd_soc_daifmt_parse_clock_provider_as_bitmap(np, prefix))
+
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
 				     struct device_node **bitclkmaster,

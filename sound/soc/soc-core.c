@@ -3029,6 +3029,11 @@ EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_fliped);
 
 unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
 {
+	/*
+	 * bit_frame is return value from
+	 *	snd_soc_daifmt_parse_clock_provider_raw()
+	 */
+
 	/* Codec base */
 	switch (bit_frame) {
 	case 0x11:
@@ -3044,6 +3049,125 @@ unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_from_bitmap);
+
+unsigned int snd_soc_daifmt_parse_format(struct device_node *np,
+					 const char *prefix)
+{
+	int ret, i;
+	char prop[128];
+	unsigned int format = 0;
+	int bit, frame;
+	const char *str;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_fmt_table[] = {
+		{ "i2s",	SND_SOC_DAIFMT_I2S },
+		{ "right_j",	SND_SOC_DAIFMT_RIGHT_J },
+		{ "left_j",	SND_SOC_DAIFMT_LEFT_J },
+		{ "dsp_a",	SND_SOC_DAIFMT_DSP_A },
+		{ "dsp_b",	SND_SOC_DAIFMT_DSP_B },
+		{ "ac97",	SND_SOC_DAIFMT_AC97 },
+		{ "pdm",	SND_SOC_DAIFMT_PDM},
+		{ "msb",	SND_SOC_DAIFMT_MSB },
+		{ "lsb",	SND_SOC_DAIFMT_LSB },
+	};
+
+	if (!prefix)
+		prefix = "";
+
+	/*
+	 * check "dai-format = xxx"
+	 * or    "[prefix]format = xxx"
+	 * SND_SOC_DAIFMT_FORMAT_MASK area
+	 */
+	ret = of_property_read_string(np, "dai-format", &str);
+	if (ret < 0) {
+		snprintf(prop, sizeof(prop), "%sformat", prefix);
+		ret = of_property_read_string(np, prop, &str);
+	}
+	if (ret == 0) {
+		for (i = 0; i < ARRAY_SIZE(of_fmt_table); i++) {
+			if (strcmp(str, of_fmt_table[i].name) == 0) {
+				format |= of_fmt_table[i].val;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * check "[prefix]continuous-clock"
+	 * SND_SOC_DAIFMT_CLOCK_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%scontinuous-clock", prefix);
+	if (of_property_read_bool(np, prop))
+		format |= SND_SOC_DAIFMT_CONT;
+	else
+		format |= SND_SOC_DAIFMT_GATED;
+
+	/*
+	 * check "[prefix]bitclock-inversion"
+	 * check "[prefix]frame-inversion"
+	 * SND_SOC_DAIFMT_INV_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-inversion", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+
+	snprintf(prop, sizeof(prop), "%sframe-inversion", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+
+	switch ((bit << 4) + frame) {
+	case 0x11:
+		format |= SND_SOC_DAIFMT_IB_IF;
+		break;
+	case 0x10:
+		format |= SND_SOC_DAIFMT_IB_NF;
+		break;
+	case 0x01:
+		format |= SND_SOC_DAIFMT_NB_IF;
+		break;
+	default:
+		/* SND_SOC_DAIFMT_NB_NF is default */
+		break;
+	}
+
+	return format;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_format);
+
+unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
+						     const char *prefix,
+						     struct device_node **bitclkmaster,
+						     struct device_node **framemaster)
+{
+	char prop[128];
+	unsigned int bit, frame;
+
+	if (!prefix)
+		prefix = "";
+
+	/*
+	 * check "[prefix]bitclock-master"
+	 * check "[prefix]frame-master"
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-master", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+	if (bit && bitclkmaster)
+		*bitclkmaster = of_parse_phandle(np, prop, 0);
+
+	snprintf(prop, sizeof(prop), "%sframe-master", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+	if (frame && framemaster)
+		*framemaster = of_parse_phandle(np, prop, 0);
+
+	/*
+	 * return bitmap.
+	 * It will be parameter of
+	 *	snd_soc_daifmt_clock_provider_from_bitmap()
+	 */
+	return (bit << 4) + frame;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_clock_provider_raw);
 
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
