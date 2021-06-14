@@ -1916,7 +1916,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			   unsigned flags)
 {
 	struct bkey_s_c	old;
-	int ret;
+	int iter_flags, ret;
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
@@ -1924,7 +1924,13 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
+	iter_flags = iter->flags & BTREE_ITER_WITH_UPDATES;
+	iter->flags &= ~BTREE_ITER_WITH_UPDATES;
+
 	old = bch2_btree_iter_peek_slot(iter);
+
+	iter->flags |= iter_flags;
+
 	ret = bkey_err(old);
 	if (ret)
 		return ret;
