@@ -8,6 +8,7 @@ title: Bosch BMA255 and Similar Accelerometers
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
+  - Stephan Gerhold <stephan@gerhold.net>
 
 description:
   3 axis accelerometers with varying range and I2C or SPI
@@ -16,6 +17,7 @@ description:
 properties:
   compatible:
     enum:
+      # bmc150-accel driver in Linux
       - bosch,bma222
       - bosch,bma222e
       - bosch,bma250e
@@ -25,6 +27,13 @@ properties:
       - bosch,bma280
       - bosch,bmc150_accel
       - bosch,bmi055_accel
+
+      # bma180 driver in Linux
+      - bosch,bma023
+      - bosch,bma150
+      - bosch,bma180
+      - bosch,bma250
+      - bosch,smb380
 
   reg:
     maxItems: 1
