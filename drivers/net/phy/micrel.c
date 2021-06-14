@@ -20,6 +20,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
@@ -52,6 +53,18 @@
 #define KSZPHY_INTCS_LINK_UP_STATUS		BIT(0)
 #define KSZPHY_INTCS_STATUS			(KSZPHY_INTCS_LINK_DOWN_STATUS |\
 						 KSZPHY_INTCS_LINK_UP_STATUS)
+
+/* LinkMD Control/Status */
+#define KSZ8081_LMD				0x1d
+#define KSZ8081_LMD_ENABLE_TEST			BIT(15)
+#define KSZ8081_LMD_STAT_NORMAL			0
+#define KSZ8081_LMD_STAT_OPEN			1
+#define KSZ8081_LMD_STAT_SHORT			2
+#define KSZ8081_LMD_STAT_FAIL			3
+#define KSZ8081_LMD_STAT_MASK			GENMASK(14, 13)
+/* Short cable (<10 meter) has been detected by LinkMD */
+#define KSZ8081_LMD_SHORT_INDICATOR		BIT(12)
+#define KSZ8081_LMD_DELTA_TIME_MASK		GENMASK(8, 0)
 
 /* PHY Control 1 */
 #define MII_KSZPHY_CTRL_1			0x1e
@@ -1363,6 +1376,167 @@ static int kszphy_probe(struct phy_device *phydev)
 	return 0;
 }
 
+static int ksz886x_cable_test_start(struct phy_device *phydev)
+{
+	if (phydev->dev_flags & MICREL_KSZ8_P1_ERRATA)
+		return -EOPNOTSUPP;
+
+	/* If autoneg is enabled, we won't be able to test cross pair
+	 * short. In this case, the PHY will "detect" a link and
+	 * confuse the internal state machine - disable auto neg here.
+	 * If autoneg is disabled, we should set the speed to 10mbit.
+	 */
+	return phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE | BMCR_SPEED100);
+}
+
+static int ksz886x_cable_test_result_trans(u16 status)
+{
+	switch (FIELD_GET(KSZ8081_LMD_STAT_MASK, status)) {
+	case KSZ8081_LMD_STAT_NORMAL:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case KSZ8081_LMD_STAT_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case KSZ8081_LMD_STAT_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case KSZ8081_LMD_STAT_FAIL:
+		fallthrough;
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static bool ksz886x_cable_test_failed(u16 status)
+{
+	return FIELD_GET(KSZ8081_LMD_STAT_MASK, status) ==
+		KSZ8081_LMD_STAT_FAIL;
+}
+
+static bool ksz886x_cable_test_fault_length_valid(u16 status)
+{
+	switch (FIELD_GET(KSZ8081_LMD_STAT_MASK, status)) {
+	case KSZ8081_LMD_STAT_OPEN:
+		fallthrough;
+	case KSZ8081_LMD_STAT_SHORT:
+		return true;
+	}
+	return false;
+}
+
+static int ksz886x_cable_test_fault_length(u16 status)
+{
+	int dt;
+
+	/* According to the data sheet the distance to the fault is
+	 * DELTA_TIME * 0.4 meters.
+	 */
+	dt = FIELD_GET(KSZ8081_LMD_DELTA_TIME_MASK, status);
+
+	return (dt * 400) / 10;
+}
+
+static int ksz886x_cable_test_wait_for_completion(struct phy_device *phydev)
+{
+	int val, ret;
+
+	ret = phy_read_poll_timeout(phydev, KSZ8081_LMD, val,
+				    !(val & KSZ8081_LMD_ENABLE_TEST),
+				    30000, 100000, true);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int ksz886x_cable_test_one_pair(struct phy_device *phydev, int pair)
+{
+	static const int ethtool_pair[] = {
+		ETHTOOL_A_CABLE_PAIR_A,
+		ETHTOOL_A_CABLE_PAIR_B,
+	};
+	int ret, val, mdix;
+
+	/* There is no way to choice the pair, like we do one ksz9031.
+	 * We can workaround this limitation by using the MDI-X functionality.
+	 */
+	if (pair == 0)
+		mdix = ETH_TP_MDI;
+	else
+		mdix = ETH_TP_MDI_X;
+
+	switch (phydev->phy_id & MICREL_PHY_ID_MASK) {
+	case PHY_ID_KSZ8081:
+		ret = ksz8081_config_mdix(phydev, mdix);
+		break;
+	case PHY_ID_KSZ886X:
+		ret = ksz886x_config_mdix(phydev, mdix);
+		break;
+	default:
+		ret = -ENODEV;
+	}
+
+	if (ret)
+		return ret;
+
+	/* Now we are ready to fire. This command will send a 100ns pulse
+	 * to the pair.
+	 */
+	ret = phy_write(phydev, KSZ8081_LMD, KSZ8081_LMD_ENABLE_TEST);
+	if (ret)
+		return ret;
+
+	ret = ksz886x_cable_test_wait_for_completion(phydev);
+	if (ret)
+		return ret;
+
+	val = phy_read(phydev, KSZ8081_LMD);
+	if (val < 0)
+		return val;
+
+	if (ksz886x_cable_test_failed(val))
+		return -EAGAIN;
+
+	ret = ethnl_cable_test_result(phydev, ethtool_pair[pair],
+				      ksz886x_cable_test_result_trans(val));
+	if (ret)
+		return ret;
+
+	if (!ksz886x_cable_test_fault_length_valid(val))
+		return 0;
+
+	return ethnl_cable_test_fault_length(phydev, ethtool_pair[pair],
+					     ksz886x_cable_test_fault_length(val));
+}
+
+static int ksz886x_cable_test_get_status(struct phy_device *phydev,
+					 bool *finished)
+{
+	unsigned long pair_mask = 0x3;
+	int retries = 20;
+	int pair, ret;
+
+	*finished = false;
+
+	/* Try harder if link partner is active */
+	while (pair_mask && retries--) {
+		for_each_set_bit(pair, &pair_mask, 4) {
+			ret = ksz886x_cable_test_one_pair(phydev, pair);
+			if (ret == -EAGAIN)
+				continue;
+			if (ret < 0)
+				return ret;
+			clear_bit(pair, &pair_mask);
+		}
+		/* If link partner is in autonegotiation mode it will send 2ms
+		 * of FLPs with at least 6ms of silence.
+		 * Add 2ms sleep to have better chances to hit this silence.
+		 */
+		if (pair_mask)
+			msleep(2);
+	}
+
+	*finished = true;
+
+	return ret;
+}
+
 static struct phy_driver ksphy_driver[] = {
 {
 	.phy_id		= PHY_ID_KS8737,
@@ -1469,6 +1643,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ8081,
 	.name		= "Micrel KSZ8081 or KSZ8091",
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	.flags		= PHY_POLL_CABLE_TEST,
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ksz8081_type,
 	.probe		= kszphy_probe,
@@ -1483,6 +1658,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= kszphy_suspend,
 	.resume		= kszphy_resume,
+	.cable_test_start	= ksz886x_cable_test_start,
+	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
 	.phy_id		= PHY_ID_KSZ8061,
 	.name		= "Micrel KSZ8061",
@@ -1571,11 +1748,14 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8851 Ethernet MAC or KSZ886X Switch",
 	/* PHY_BASIC_FEATURES */
+	.flags		= PHY_POLL_CABLE_TEST,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= ksz886x_config_aneg,
 	.read_status	= ksz886x_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
+	.cable_test_start	= ksz886x_cable_test_start,
+	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
 	.name		= "Micrel KSZ87XX Switch",
 	/* PHY_BASIC_FEATURES */

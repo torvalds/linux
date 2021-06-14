@@ -970,6 +970,18 @@ static enum dsa_tag_protocol ksz8_get_tag_protocol(struct dsa_switch *ds,
 		DSA_TAG_PROTO_KSZ9893 : DSA_TAG_PROTO_KSZ8795;
 }
 
+static u32 ksz8_sw_get_phy_flags(struct dsa_switch *ds, int port)
+{
+	/* Silicon Errata Sheet (DS80000830A):
+	 * Port 1 does not work with LinkMD Cable-Testing.
+	 * Port 1 does not respond to received PAUSE control frames.
+	 */
+	if (!port)
+		return MICREL_KSZ8_P1_ERRATA;
+
+	return 0;
+}
+
 static void ksz8_get_strings(struct dsa_switch *ds, int port,
 			     u32 stringset, uint8_t *buf)
 {
@@ -1503,6 +1515,7 @@ unsupported:
 
 static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_tag_protocol	= ksz8_get_tag_protocol,
+	.get_phy_flags		= ksz8_sw_get_phy_flags,
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
