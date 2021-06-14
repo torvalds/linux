@@ -1417,7 +1417,6 @@ static void query_fast_reg_mode(struct rtrs_clt_sess *sess)
 	sess->max_pages_per_mr =
 		min3(sess->max_pages_per_mr, (u32)max_pages_per_mr,
 		     ib_dev->attrs.max_fast_reg_page_list_len);
-	sess->max_send_sge = ib_dev->attrs.max_send_sge;
 }
 
 static bool rtrs_clt_change_state_get_old(struct rtrs_clt_sess *sess,
@@ -1573,7 +1572,7 @@ static void destroy_con(struct rtrs_clt_con *con)
 static int create_con_cq_qp(struct rtrs_clt_con *con)
 {
 	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
-	u32 max_send_wr, max_recv_wr, cq_size;
+	u32 max_send_wr, max_recv_wr, cq_size, max_send_sge;
 	int err, cq_vector;
 	struct rtrs_msg_rkey_rsp *rsp;
 
@@ -1587,6 +1586,7 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 		 */
 		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
 		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
+		max_send_sge = 1;
 		/* We must be the first here */
 		if (WARN_ON(sess->s.dev))
 			return -EINVAL;
@@ -1625,25 +1625,27 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 		max_recv_wr =
 			min_t(int, sess->s.dev->ib_dev->attrs.max_qp_wr,
 			      sess->queue_depth * 3 + 1);
+		max_send_sge = sess->clt->max_segments + 1;
 	}
+	cq_size = max_send_wr + max_recv_wr;
 	/* alloc iu to recv new rkey reply when server reports flags set */
 	if (sess->flags & RTRS_MSG_NEW_RKEY_F || con->c.cid == 0) {
-		con->rsp_ius = rtrs_iu_alloc(max_recv_wr, sizeof(*rsp),
+		con->rsp_ius = rtrs_iu_alloc(cq_size, sizeof(*rsp),
 					      GFP_KERNEL, sess->s.dev->ib_dev,
 					      DMA_FROM_DEVICE,
 					      rtrs_clt_rdma_done);
 		if (!con->rsp_ius)
 			return -ENOMEM;
-		con->queue_size = max_recv_wr;
+		con->queue_size = cq_size;
 	}
 	cq_size = max_send_wr + max_recv_wr;
 	cq_vector = con->cpu % sess->s.dev->ib_dev->num_comp_vectors;
 	if (con->c.cid >= sess->s.irq_con_num)
-		err = rtrs_cq_qp_create(&sess->s, &con->c, sess->max_send_sge,
+		err = rtrs_cq_qp_create(&sess->s, &con->c, max_send_sge,
 					cq_vector, cq_size, max_send_wr,
 					max_recv_wr, IB_POLL_DIRECT);
 	else
-		err = rtrs_cq_qp_create(&sess->s, &con->c, sess->max_send_sge,
+		err = rtrs_cq_qp_create(&sess->s, &con->c, max_send_sge,
 					cq_vector, cq_size, max_send_wr,
 					max_recv_wr, IB_POLL_SOFTIRQ);
 	/*
