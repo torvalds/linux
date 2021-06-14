@@ -1090,7 +1090,7 @@ static int nxp_c45_probe(struct phy_device *phydev)
 				   VEND1_PORT_ABILITIES);
 	ptp_ability = !!(ptp_ability & PTP_ABILITY);
 	if (!ptp_ability) {
-		phydev_info(phydev, "the phy does not support PTP");
+		phydev_dbg(phydev, "the phy does not support PTP");
 		goto no_ptp_support;
 	}
 
