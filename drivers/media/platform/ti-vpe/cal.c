@@ -294,7 +294,7 @@ static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 {
 	u32 val;
 
-	val = cal_read(ctx->cal, CAL_CSI2_CTX0(ctx->index));
+	val = cal_read(ctx->cal, CAL_CSI2_CTX(ctx->phy->instance, ctx->csi2_ctx));
 	cal_set_field(&val, ctx->cport, CAL_CSI2_CTX_CPORT_MASK);
 	/*
 	 * DT type: MIPI CSI-2 Specs
@@ -310,9 +310,10 @@ static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 	cal_set_field(&val, CAL_CSI2_CTX_ATT_PIX, CAL_CSI2_CTX_ATT_MASK);
 	cal_set_field(&val, CAL_CSI2_CTX_PACK_MODE_LINE,
 		      CAL_CSI2_CTX_PACK_MODE_MASK);
-	cal_write(ctx->cal, CAL_CSI2_CTX0(ctx->index), val);
-	ctx_dbg(3, ctx, "CAL_CSI2_CTX0(%d) = 0x%08x\n", ctx->index,
-		cal_read(ctx->cal, CAL_CSI2_CTX0(ctx->index)));
+	cal_write(ctx->cal, CAL_CSI2_CTX(ctx->phy->instance, ctx->csi2_ctx), val);
+	ctx_dbg(3, ctx, "CAL_CSI2_CTX(%u, %u) = 0x%08x\n",
+		ctx->phy->instance, ctx->csi2_ctx,
+		cal_read(ctx->cal, CAL_CSI2_CTX(ctx->phy->instance, ctx->csi2_ctx)));
 }
 
 static void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
@@ -853,6 +854,7 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	ctx->cal = cal;
 	ctx->phy = cal->phy[inst];
 	ctx->index = inst;
+	ctx->csi2_ctx = inst;
 	ctx->cport = inst;
 
 	ret = cal_ctx_v4l2_init(ctx);

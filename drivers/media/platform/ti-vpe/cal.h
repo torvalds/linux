@@ -219,6 +219,7 @@ struct cal_ctx {
 	struct vb2_queue	vb_vidq;
 	u8			index;
 	u8			cport;
+	u8			csi2_ctx;
 };
 
 extern unsigned int cal_debug;
