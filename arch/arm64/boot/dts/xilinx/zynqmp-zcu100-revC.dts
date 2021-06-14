@@ -111,13 +111,13 @@
 		io-channels = <&u35 0>, <&u35 1>, <&u35 2>, <&u35 3>;
 	};
 
-	si5335a_0: clk26 {
+	si5335_0: si5335_0 { /* clk0_usb - u23 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <26000000>;
 	};
 
-	si5335a_1: clk27 {
+	si5335_1: si5335_1 { /* clk1_dp - u23 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
@@ -459,8 +459,9 @@
 };
 
 &psgtr {
-	/* usb3, dps */
-	clocks = <&si5335a_0>, <&si5335a_1>;
+	status = "okay";
+	/* usb3, dp */
+	clocks = <&si5335_0>, <&si5335_1>;
 	clock-names = "ref0", "ref1";
 };
 
