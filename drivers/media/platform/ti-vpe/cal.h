@@ -217,8 +217,8 @@ struct cal_ctx {
 
 	unsigned int		sequence;
 	struct vb2_queue	vb_vidq;
-	unsigned int		index;
-	unsigned int		cport;
+	u8			index;
+	u8			cport;
 };
 
 extern unsigned int cal_debug;
