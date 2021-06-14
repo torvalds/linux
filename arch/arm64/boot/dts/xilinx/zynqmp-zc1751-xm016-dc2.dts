@@ -127,6 +127,32 @@
 	};
 };
 
+&nand0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nand0_default>;
+	arasan,has-mdma;
+
+	nand@0 {
+		reg = <0x0>;
+		#address-cells = <0x2>;
+		#size-cells = <0x1>;
+		nand-ecc-mode = "soft";
+		nand-ecc-algo = "bch";
+		nand-rb = <0>;
+		label = "main-storage-0";
+	};
+	nand@1 {
+		reg = <0x1>;
+		#address-cells = <0x2>;
+		#size-cells = <0x1>;
+		nand-ecc-mode = "soft";
+		nand-ecc-algo = "bch";
+		nand-rb = <0>;
+		label = "main-storage-1";
+	};
+};
+
 &pinctrl0 {
 	status = "okay";
 	pinctrl_can0_default: can0-default {
