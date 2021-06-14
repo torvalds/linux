@@ -121,7 +121,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 	workspace->strm.total_in = 0;
 	workspace->strm.total_out = 0;
 
-	out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+	out_page = alloc_page(GFP_NOFS);
 	if (out_page == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -202,7 +202,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+			out_page = alloc_page(GFP_NOFS);
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -240,7 +240,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+			out_page = alloc_page(GFP_NOFS);
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
