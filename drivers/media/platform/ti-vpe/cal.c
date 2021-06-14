@@ -908,11 +908,6 @@ static int cal_media_init(struct cal_dev *cal)
  */
 static void cal_media_cleanup(struct cal_dev *cal)
 {
-	unsigned int i;
-
-	for (i = 0; i < cal->num_contexts; i++)
-		cal_ctx_v4l2_cleanup(cal->ctx[i]);
-
 	v4l2_device_unregister(&cal->v4l2_dev);
 	media_device_cleanup(&cal->mdev);
 
@@ -929,7 +924,7 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	struct cal_ctx *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(cal->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
@@ -946,6 +941,13 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 		return NULL;
 
 	return ctx;
+}
+
+static void cal_ctx_destroy(struct cal_ctx *ctx)
+{
+	cal_ctx_v4l2_cleanup(ctx);
+
+	kfree(ctx);
 }
 
 static const struct of_device_id cal_of_match[] = {
@@ -1162,7 +1164,7 @@ static int cal_probe(struct platform_device *pdev)
 
 error_context:
 	for (i = 0; i < cal->num_contexts; i++)
-		cal_ctx_v4l2_cleanup(cal->ctx[i]);
+		cal_ctx_destroy(cal->ctx[i]);
 
 error_camerarx:
 	for (i = 0; i < cal->data->num_csi2_phy; i++)
@@ -1191,10 +1193,13 @@ static int cal_remove(struct platform_device *pdev)
 	for (i = 0; i < cal->data->num_csi2_phy; i++)
 		cal_camerarx_disable(cal->phy[i]);
 
-	cal_media_cleanup(cal);
+	for (i = 0; i < cal->num_contexts; i++)
+		cal_ctx_destroy(cal->ctx[i]);
 
 	for (i = 0; i < cal->data->num_csi2_phy; i++)
 		cal_camerarx_destroy(cal->phy[i]);
+
+	cal_media_cleanup(cal);
 
 	if (ret >= 0)
 		pm_runtime_put_sync(&pdev->dev);
