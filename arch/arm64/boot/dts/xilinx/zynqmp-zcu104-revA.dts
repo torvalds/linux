@@ -417,10 +417,6 @@
 	};
 };
 
-&rtc {
-	status = "okay";
-};
-
 &psgtr {
 	status = "okay";
 	/* nc, sata, usb3, dp */
@@ -439,6 +435,10 @@
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <108000000>; /* Based on DC1 spec */
 	};
+};
+
+&rtc {
+	status = "okay";
 };
 
 &sata {
