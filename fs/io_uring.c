@@ -6685,8 +6685,8 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
  */
 static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 {
-	u32 *sq_array = ctx->sq_array;
 	unsigned head, mask = ctx->sq_entries - 1;
+	unsigned sq_idx = ctx->cached_sq_head++ & mask;
 
 	/*
 	 * The cached sq head (or cq tail) serves two purposes:
@@ -6696,7 +6696,7 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 	 * 2) allows the kernel side to track the head on its own, even
 	 *    though the application is the one updating it.
 	 */
-	head = READ_ONCE(sq_array[ctx->cached_sq_head++ & mask]);
+	head = READ_ONCE(ctx->sq_array[sq_idx]);
 	if (likely(head < ctx->sq_entries))
 		return &ctx->sq_sqes[head];
 
