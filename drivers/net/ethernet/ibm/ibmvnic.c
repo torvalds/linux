@@ -95,7 +95,7 @@ static union sub_crq *ibmvnic_next_scrq(struct ibmvnic_adapter *,
 					struct ibmvnic_sub_crq_queue *);
 static int ibmvnic_poll(struct napi_struct *napi, int data);
 static void send_query_map(struct ibmvnic_adapter *adapter);
-static int send_request_map(struct ibmvnic_adapter *, dma_addr_t, __be32, u8);
+static int send_request_map(struct ibmvnic_adapter *, dma_addr_t, u32, u8);
 static int send_request_unmap(struct ibmvnic_adapter *, u8);
 static int send_login(struct ibmvnic_adapter *adapter);
 static void send_query_cap(struct ibmvnic_adapter *adapter);
