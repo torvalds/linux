@@ -88,6 +88,7 @@ struct cal_format_info {
 	u32	code;
 	/* Bits per pixel */
 	u8	bpp;
+	bool	meta;
 };
 
 /* buffer for one video frame */

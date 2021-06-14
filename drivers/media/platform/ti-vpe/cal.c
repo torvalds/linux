@@ -473,14 +473,17 @@ int cal_ctx_prepare(struct cal_ctx *ctx)
 {
 	int ret;
 
-	ret = cal_reserve_pix_proc(ctx->cal);
-	if (ret < 0) {
-		ctx_err(ctx, "Failed to reserve pix proc: %d\n", ret);
-		return ret;
-	}
+	ctx->use_pix_proc = !ctx->fmtinfo->meta;
 
-	ctx->pix_proc = ret;
-	ctx->use_pix_proc = true;
+	if (ctx->use_pix_proc) {
+		ret = cal_reserve_pix_proc(ctx->cal);
+		if (ret < 0) {
+			ctx_err(ctx, "Failed to reserve pix proc: %d\n", ret);
+			return ret;
+		}
+
+		ctx->pix_proc = ret;
+	}
 
 	return 0;
 }
