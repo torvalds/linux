@@ -102,8 +102,8 @@ static const struct cal_format_info *find_format_by_code(struct cal_ctx *ctx,
 	return NULL;
 }
 
-static int cal_enum_fmt_vid_cap(struct file *file, void  *priv,
-				struct v4l2_fmtdesc *f)
+static int cal_legacy_enum_fmt_vid_cap(struct file *file, void *priv,
+				       struct v4l2_fmtdesc *f)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_format_info *fmtinfo;
@@ -189,8 +189,8 @@ static void cal_calc_format_size(struct cal_ctx *ctx,
 		f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
 }
 
-static int cal_try_fmt_vid_cap(struct file *file, void *priv,
-			       struct v4l2_format *f)
+static int cal_legacy_try_fmt_vid_cap(struct file *file, void *priv,
+				      struct v4l2_format *f)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_format_info *fmtinfo;
@@ -249,8 +249,8 @@ static int cal_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int cal_s_fmt_vid_cap(struct file *file, void *priv,
-			     struct v4l2_format *f)
+static int cal_legacy_s_fmt_vid_cap(struct file *file, void *priv,
+				    struct v4l2_format *f)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	struct vb2_queue *q = &ctx->vb_vidq;
@@ -266,7 +266,7 @@ static int cal_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ret = cal_try_fmt_vid_cap(file, priv, f);
+	ret = cal_legacy_try_fmt_vid_cap(file, priv, f);
 	if (ret < 0)
 		return ret;
 
@@ -300,8 +300,8 @@ static int cal_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int cal_enum_framesizes(struct file *file, void *fh,
-			       struct v4l2_frmsizeenum *fsize)
+static int cal_legacy_enum_framesizes(struct file *file, void *fh,
+				      struct v4l2_frmsizeenum *fsize)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_format_info *fmtinfo;
@@ -337,8 +337,8 @@ static int cal_enum_framesizes(struct file *file, void *fh,
 	return 0;
 }
 
-static int cal_enum_input(struct file *file, void *priv,
-			  struct v4l2_input *inp)
+static int cal_legacy_enum_input(struct file *file, void *priv,
+				 struct v4l2_input *inp)
 {
 	if (inp->index > 0)
 		return -EINVAL;
@@ -348,20 +348,20 @@ static int cal_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int cal_g_input(struct file *file, void *priv, unsigned int *i)
+static int cal_legacy_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	*i = 0;
 	return 0;
 }
 
-static int cal_s_input(struct file *file, void *priv, unsigned int i)
+static int cal_legacy_s_input(struct file *file, void *priv, unsigned int i)
 {
 	return i > 0 ? -EINVAL : 0;
 }
 
 /* timeperframe is arbitrary and continuous */
-static int cal_enum_frameintervals(struct file *file, void *priv,
-				   struct v4l2_frmivalenum *fival)
+static int cal_legacy_enum_frameintervals(struct file *file, void *priv,
+					  struct v4l2_frmivalenum *fival)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_format_info *fmtinfo;
@@ -388,27 +388,27 @@ static int cal_enum_frameintervals(struct file *file, void *priv,
 	return 0;
 }
 
-static int cal_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
+static int cal_legacy_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 
 	return v4l2_g_parm_cap(video_devdata(file), ctx->phy->source, a);
 }
 
-static int cal_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
+static int cal_legacy_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 
 	return v4l2_s_parm_cap(video_devdata(file), ctx->phy->source, a);
 }
 
-static const struct v4l2_ioctl_ops cal_ioctl_video_ops = {
+static const struct v4l2_ioctl_ops cal_ioctl_legacy_ops = {
 	.vidioc_querycap      = cal_querycap,
-	.vidioc_enum_fmt_vid_cap  = cal_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap  = cal_legacy_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = cal_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap   = cal_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap     = cal_s_fmt_vid_cap,
-	.vidioc_enum_framesizes   = cal_enum_framesizes,
+	.vidioc_try_fmt_vid_cap   = cal_legacy_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = cal_legacy_s_fmt_vid_cap,
+	.vidioc_enum_framesizes   = cal_legacy_enum_framesizes,
 	.vidioc_reqbufs       = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs   = vb2_ioctl_create_bufs,
 	.vidioc_prepare_buf   = vb2_ioctl_prepare_buf,
@@ -416,17 +416,17 @@ static const struct v4l2_ioctl_ops cal_ioctl_video_ops = {
 	.vidioc_qbuf          = vb2_ioctl_qbuf,
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_expbuf        = vb2_ioctl_expbuf,
-	.vidioc_enum_input    = cal_enum_input,
-	.vidioc_g_input       = cal_g_input,
-	.vidioc_s_input       = cal_s_input,
-	.vidioc_enum_frameintervals = cal_enum_frameintervals,
+	.vidioc_enum_input    = cal_legacy_enum_input,
+	.vidioc_g_input       = cal_legacy_g_input,
+	.vidioc_s_input       = cal_legacy_s_input,
+	.vidioc_enum_frameintervals = cal_legacy_enum_frameintervals,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
 	.vidioc_log_status    = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-	.vidioc_g_parm		= cal_g_parm,
-	.vidioc_s_parm		= cal_s_parm,
+	.vidioc_g_parm		= cal_legacy_g_parm,
+	.vidioc_s_parm		= cal_legacy_s_parm,
 };
 
 /* ------------------------------------------------------------------
@@ -968,7 +968,7 @@ int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 	vfd->queue = q;
 	snprintf(vfd->name, sizeof(vfd->name), "CAL output %u", ctx->dma_ctx);
 	vfd->release = video_device_release_empty;
-	vfd->ioctl_ops = cal_mc_api ? &cal_ioctl_mc_ops : &cal_ioctl_video_ops;
+	vfd->ioctl_ops = cal_mc_api ? &cal_ioctl_mc_ops : &cal_ioctl_legacy_ops;
 	vfd->lock = &ctx->mutex;
 	video_set_drvdata(vfd, ctx);
 
