@@ -16,15 +16,15 @@ description:
 properties:
   compatible:
     enum:
-      - bosch,bmc150_accel
-      - bosch,bmi055_accel
+      - bosch,bma222
+      - bosch,bma222e
+      - bosch,bma250e
       - bosch,bma253
       - bosch,bma254
       - bosch,bma255
-      - bosch,bma250e
-      - bosch,bma222
-      - bosch,bma222e
       - bosch,bma280
+      - bosch,bmc150_accel
+      - bosch,bmi055_accel
 
   reg:
     maxItems: 1
