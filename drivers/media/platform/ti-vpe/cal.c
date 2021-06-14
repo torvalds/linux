@@ -409,8 +409,6 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 		      CAL_WR_DMA_CTRL_YSIZE_MASK);
 	cal_set_field(&val, CAL_WR_DMA_CTRL_DTAG_PIX_DAT,
 		      CAL_WR_DMA_CTRL_DTAG_MASK);
-	cal_set_field(&val, CAL_WR_DMA_CTRL_MODE_CONST,
-		      CAL_WR_DMA_CTRL_MODE_MASK);
 	cal_set_field(&val, CAL_WR_DMA_CTRL_PATTERN_LINEAR,
 		      CAL_WR_DMA_CTRL_PATTERN_MASK);
 	cal_set_field(&val, 1, CAL_WR_DMA_CTRL_STALL_RD_MASK);
@@ -440,6 +438,15 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 void cal_ctx_set_dma_addr(struct cal_ctx *ctx, dma_addr_t addr)
 {
 	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->dma_ctx), addr);
+}
+
+static void cal_ctx_wr_dma_enable(struct cal_ctx *ctx)
+{
+	u32 val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx));
+
+	cal_set_field(&val, CAL_WR_DMA_CTRL_MODE_CONST,
+		      CAL_WR_DMA_CTRL_MODE_MASK);
+	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx), val);
 }
 
 static void cal_ctx_wr_dma_disable(struct cal_ctx *ctx)
@@ -500,6 +507,8 @@ void cal_ctx_start(struct cal_ctx *ctx)
 		  CAL_HL_IRQ_WDMA_END_MASK(ctx->dma_ctx));
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(2),
 		  CAL_HL_IRQ_WDMA_START_MASK(ctx->dma_ctx));
+
+	cal_ctx_wr_dma_enable(ctx);
 }
 
 void cal_ctx_stop(struct cal_ctx *ctx)
