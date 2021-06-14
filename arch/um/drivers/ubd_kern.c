@@ -825,7 +825,6 @@ static void ubd_device_release(struct device *dev)
 {
 	struct ubd *ubd_dev = dev_get_drvdata(dev);
 
-	blk_cleanup_queue(ubd_dev->queue);
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
 	*ubd_dev = ((struct ubd) DEFAULT_UBD);
 }
@@ -865,17 +864,12 @@ static const struct attribute_group *ubd_attr_groups[] = {
 	NULL,
 };
 
-static int ubd_disk_register(int major, u64 size, int unit,
-			     struct gendisk **disk_out)
+static void ubd_disk_register(int major, u64 size, int unit,
+			      struct gendisk *disk)
 {
-	struct gendisk *disk;
-
-	disk = alloc_disk(1 << UBD_SHIFT);
-	if(disk == NULL)
-		return -ENOMEM;
-
 	disk->major = major;
 	disk->first_minor = unit << UBD_SHIFT;
+	disk->minors = 1 << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
 	sprintf(disk->disk_name, "ubd%c", 'a' + unit);
@@ -889,9 +883,6 @@ static int ubd_disk_register(int major, u64 size, int unit,
 	disk->private_data = &ubd_devs[unit];
 	disk->queue = ubd_devs[unit].queue;
 	device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
-
-	*disk_out = disk;
-	return 0;
 }
 
 #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
@@ -903,6 +894,7 @@ static const struct blk_mq_ops ubd_mq_ops = {
 static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
+	struct gendisk *disk;
 	int err = 0;
 
 	if(ubd_dev->file == NULL)
@@ -927,32 +919,24 @@ static int ubd_add(int n, char **error_out)
 	if (err)
 		goto out;
 
-	ubd_dev->queue = blk_mq_init_queue(&ubd_dev->tag_set);
-	if (IS_ERR(ubd_dev->queue)) {
-		err = PTR_ERR(ubd_dev->queue);
+	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, ubd_dev);
+	if (IS_ERR(disk)) {
+		err = PTR_ERR(disk);
 		goto out_cleanup_tags;
 	}
+	ubd_dev->queue = disk->queue;
 
-	ubd_dev->queue->queuedata = ubd_dev;
 	blk_queue_write_cache(ubd_dev->queue, true, false);
-
 	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
 	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
-	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, &ubd_gendisk[n]);
-	if(err){
-		*error_out = "Failed to register device";
-		goto out_cleanup_tags;
-	}
-
-	err = 0;
-out:
-	return err;
+	ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+	ubd_gendisk[n] = disk;
+	return 0;
 
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
-	if (!(IS_ERR(ubd_dev->queue)))
-		blk_cleanup_queue(ubd_dev->queue);
-	goto out;
+out:
+	return err;
 }
 
 static int ubd_config(char *str, char **error_out)
@@ -1055,7 +1039,7 @@ static int ubd_remove(int n, char **error_out)
 	ubd_gendisk[n] = NULL;
 	if(disk != NULL){
 		del_gendisk(disk);
-		put_disk(disk);
+		blk_cleanup_disk(disk);
 	}
 
 	err = 0;
