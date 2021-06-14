@@ -371,7 +371,6 @@ struct io_ring_ctx {
 		struct io_uring_sqe	*sq_sqes;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
-		unsigned long		sq_check_overflow;
 		struct list_head	defer_list;
 
 		/*
@@ -408,13 +407,14 @@ struct io_ring_ctx {
 	struct wait_queue_head	sqo_sq_wait;
 	struct list_head	sqd_list;
 
+	unsigned long		check_cq_overflow;
+
 	struct {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		atomic_t		cq_timeouts;
 		unsigned		cq_last_tm_flush;
 		unsigned		cq_extra;
-		unsigned long		cq_check_overflow;
 		struct wait_queue_head	cq_wait;
 		struct fasync_struct	*cq_fasync;
 		struct eventfd_ctx	*cq_ev_fd;
@@ -1464,8 +1464,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 
 	all_flushed = list_empty(&ctx->cq_overflow_list);
 	if (all_flushed) {
-		clear_bit(0, &ctx->sq_check_overflow);
-		clear_bit(0, &ctx->cq_check_overflow);
+		clear_bit(0, &ctx->check_cq_overflow);
 		ctx->rings->sq_flags &= ~IORING_SQ_CQ_OVERFLOW;
 	}
 
@@ -1481,7 +1480,7 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 {
 	bool ret = true;
 
-	if (test_bit(0, &ctx->cq_check_overflow)) {
+	if (test_bit(0, &ctx->check_cq_overflow)) {
 		/* iopoll syncs against uring_lock, not completion_lock */
 		if (ctx->flags & IORING_SETUP_IOPOLL)
 			mutex_lock(&ctx->uring_lock);
@@ -1544,8 +1543,7 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 		return false;
 	}
 	if (list_empty(&ctx->cq_overflow_list)) {
-		set_bit(0, &ctx->sq_check_overflow);
-		set_bit(0, &ctx->cq_check_overflow);
+		set_bit(0, &ctx->check_cq_overflow);
 		ctx->rings->sq_flags |= IORING_SQ_CQ_OVERFLOW;
 	}
 	ocqe->cqe.user_data = user_data;
@@ -2391,7 +2389,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	 * If we do, we can potentially be spinning for commands that
 	 * already triggered a CQE (eg in error).
 	 */
-	if (test_bit(0, &ctx->cq_check_overflow))
+	if (test_bit(0, &ctx->check_cq_overflow))
 		__io_cqring_overflow_flush(ctx, false);
 	if (io_cqring_events(ctx))
 		goto out;
@@ -6965,7 +6963,7 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 	 * Cannot safely flush overflowed CQEs from here, ensure we wake up
 	 * the task, and the next invocation will do it.
 	 */
-	if (io_should_wake(iowq) || test_bit(0, &iowq->ctx->cq_check_overflow))
+	if (io_should_wake(iowq) || test_bit(0, &iowq->ctx->check_cq_overflow))
 		return autoremove_wake_function(curr, mode, wake_flags, key);
 	return -1;
 }
@@ -6993,7 +6991,7 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	if (ret || io_should_wake(iowq))
 		return ret;
 	/* let the caller flush overflows, retry */
-	if (test_bit(0, &ctx->cq_check_overflow))
+	if (test_bit(0, &ctx->check_cq_overflow))
 		return 1;
 
 	*timeout = schedule_timeout(*timeout);
@@ -8704,7 +8702,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	 * Users may get EPOLLIN meanwhile seeing nothing in cqring, this
 	 * pushs them to do the flush.
 	 */
-	if (io_cqring_events(ctx) || test_bit(0, &ctx->cq_check_overflow))
+	if (io_cqring_events(ctx) || test_bit(0, &ctx->check_cq_overflow))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
