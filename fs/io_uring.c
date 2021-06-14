@@ -100,6 +100,10 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+#define IO_RSRC_TAG_TABLE_SHIFT	9
+#define IO_RSRC_TAG_TABLE_MAX	(1U << IO_RSRC_TAG_TABLE_SHIFT)
+#define IO_RSRC_TAG_TABLE_MASK	(IO_RSRC_TAG_TABLE_MAX - 1)
+
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
@@ -243,7 +247,8 @@ typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
-	u64				*tags;
+	u64				**tags;
+	unsigned int			nr;
 	rsrc_put_fn			*do_put;
 	atomic_t			refs;
 	struct completion		done;
@@ -7177,9 +7182,20 @@ static int io_rsrc_ref_quiesce(struct io_rsrc_data *data, struct io_ring_ctx *ct
 	return ret;
 }
 
+static u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)
+{
+	unsigned int off = idx & IO_RSRC_TAG_TABLE_MASK;
+	unsigned int table_idx = idx >> IO_RSRC_TAG_TABLE_SHIFT;
+
+	return &data->tags[table_idx][off];
+}
+
 static void io_rsrc_data_free(struct io_rsrc_data *data)
 {
-	kvfree(data->tags);
+	size_t size = data->nr * sizeof(data->tags[0][0]);
+
+	if (data->tags)
+		io_free_page_table((void **)data->tags, size);
 	kfree(data);
 }
 
@@ -7188,33 +7204,37 @@ static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, rsrc_put_fn *do_put,
 			      struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
+	int ret = -ENOMEM;
 	unsigned i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	data->tags = kvcalloc(nr, sizeof(*data->tags), GFP_KERNEL);
+	data->tags = (u64 **)io_alloc_page_table(nr * sizeof(data->tags[0][0]));
 	if (!data->tags) {
 		kfree(data);
 		return -ENOMEM;
 	}
+
+	data->nr = nr;
+	data->ctx = ctx;
+	data->do_put = do_put;
 	if (utags) {
+		ret = -EFAULT;
 		for (i = 0; i < nr; i++) {
-			if (copy_from_user(&data->tags[i], &utags[i],
-					   sizeof(data->tags[i]))) {
-				io_rsrc_data_free(data);
-				return -EFAULT;
-			}
+			if (copy_from_user(io_get_tag_slot(data, i), &utags[i],
+					   sizeof(data->tags[i])))
+				goto fail;
 		}
 	}
 
 	atomic_set(&data->refs, 1);
-	data->ctx = ctx;
-	data->do_put = do_put;
 	init_completion(&data->done);
 	*pdata = data;
 	return 0;
+fail:
+	io_rsrc_data_free(data);
+	return ret;
 }
 
 static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
@@ -7683,7 +7703,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		/* allow sparse sets */
 		if (fd == -1) {
 			ret = -EINVAL;
-			if (unlikely(ctx->file_data->tags[i]))
+			if (unlikely(*io_get_tag_slot(ctx->file_data, i)))
 				goto out_fput;
 			continue;
 		}
@@ -7781,7 +7801,7 @@ static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 	if (!prsrc)
 		return -ENOMEM;
 
-	prsrc->tag = data->tags[idx];
+	prsrc->tag = *io_get_tag_slot(data, idx);
 	prsrc->rsrc = rsrc;
 	list_add(&prsrc->list, &node->rsrc_list);
 	return 0;
@@ -7851,7 +7871,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			data->tags[up->offset + done] = tag;
+			*io_get_tag_slot(data, up->offset + done) = tag;
 			io_fixed_file_set(file_slot, file);
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
@@ -8437,7 +8457,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
-		if (!iov.iov_base && data->tags[i]) {
+		if (!iov.iov_base && *io_get_tag_slot(data, i)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -8510,7 +8530,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		}
 
 		ctx->user_bufs[i] = imu;
-		ctx->buf_data->tags[offset] = tag;
+		*io_get_tag_slot(ctx->buf_data, offset) = tag;
 	}
 
 	if (needs_switch)
