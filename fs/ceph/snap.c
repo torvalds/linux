@@ -846,10 +846,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 	}
 	spin_unlock(&mdsc->snap_flush_lock);
 
-	if (session) {
-		mutex_unlock(&session->s_mutex);
-		ceph_put_mds_session(session);
-	}
+	ceph_put_mds_session(session);
 	dout("flush_snaps done\n");
 }
 

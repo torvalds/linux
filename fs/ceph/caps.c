@@ -1531,7 +1531,7 @@ static inline int __send_flush_snap(struct inode *inode,
  * asynchronously back to the MDS once sync writes complete and dirty
  * data is written out.
  *
- * Called under i_ceph_lock.  Takes s_mutex as needed.
+ * Called under i_ceph_lock.
  */
 static void __ceph_flush_snaps(struct ceph_inode_info *ci,
 			       struct ceph_mds_session *session)
@@ -1653,7 +1653,6 @@ retry:
 	mds = ci->i_auth_cap->session->s_mds;
 	if (session && session->s_mds != mds) {
 		dout(" oops, wrong session %p mutex\n", session);
-		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
 		session = NULL;
 	}
@@ -1662,10 +1661,6 @@ retry:
 		mutex_lock(&mdsc->mutex);
 		session = __ceph_lookup_mds_session(mdsc, mds);
 		mutex_unlock(&mdsc->mutex);
-		if (session) {
-			dout(" inverting session/ino locks on %p\n", session);
-			mutex_lock(&session->s_mutex);
-		}
 		goto retry;
 	}
 
@@ -1677,12 +1672,10 @@ retry:
 out:
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (psession) {
+	if (psession)
 		*psession = session;
-	} else if (session) {
-		mutex_unlock(&session->s_mutex);
+	else
 		ceph_put_mds_session(session);
-	}
 	/* we flushed them all; remove this inode from the queue */
 	spin_lock(&mdsc->snap_flush_lock);
 	list_del_init(&ci->i_snap_flush_item);
