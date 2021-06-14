@@ -125,9 +125,7 @@ static const struct block_device_operations ubd_blops = {
 };
 
 /* Protected by ubd_lock */
-static int fake_major = UBD_MAJOR;
 static struct gendisk *ubd_gendisk[MAX_DEV];
-static struct gendisk *fake_gendisk[MAX_DEV];
 
 #ifdef CONFIG_BLK_DEV_UBD_SYNC
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 1, .c = 0, \
@@ -197,54 +195,19 @@ struct ubd {
 /* Protected by ubd_lock */
 static struct ubd ubd_devs[MAX_DEV] = { [0 ... MAX_DEV - 1] = DEFAULT_UBD };
 
-/* Only changed by fake_ide_setup which is a setup */
-static int fake_ide = 0;
-static struct proc_dir_entry *proc_ide_root = NULL;
-static struct proc_dir_entry *proc_ide = NULL;
-
 static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 				 const struct blk_mq_queue_data *bd);
 
-static void make_proc_ide(void)
-{
-	proc_ide_root = proc_mkdir("ide", NULL);
-	proc_ide = proc_mkdir("ide0", proc_ide_root);
-}
-
-static int fake_ide_media_proc_show(struct seq_file *m, void *v)
-{
-	seq_puts(m, "disk\n");
-	return 0;
-}
-
-static void make_ide_entries(const char *dev_name)
-{
-	struct proc_dir_entry *dir, *ent;
-	char name[64];
-
-	if(proc_ide_root == NULL) make_proc_ide();
-
-	dir = proc_mkdir(dev_name, proc_ide);
-	if(!dir) return;
-
-	ent = proc_create_single("media", S_IRUGO, dir,
-			fake_ide_media_proc_show);
-	if(!ent) return;
-	snprintf(name, sizeof(name), "ide0/%s", dev_name);
-	proc_symlink(dev_name, proc_ide_root, name);
-}
-
 static int fake_ide_setup(char *str)
 {
-	fake_ide = 1;
+	pr_warn("The fake_ide option has been removed\n");
 	return 1;
 }
-
 __setup("fake_ide", fake_ide_setup);
 
 __uml_help(fake_ide_setup,
 "fake_ide\n"
-"    Create ide0 entries that map onto ubd devices.\n\n"
+"    Obsolete stub.\n\n"
 );
 
 static int parse_unit(char **ptr)
@@ -296,20 +259,8 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 			return err;
 		}
 
-		mutex_lock(&ubd_lock);
-		if (fake_major != UBD_MAJOR) {
-			*error_out = "Can't assign a fake major twice";
-			goto out1;
-		}
-
-		fake_major = major;
-
-		printk(KERN_INFO "Setting extra ubd major number to %d\n",
-		       major);
-		err = 0;
-	out1:
-		mutex_unlock(&ubd_lock);
-		return err;
+		pr_warn("fake major not supported any more\n");
+		return 0;
 	}
 
 	n = parse_unit(&str);
@@ -917,7 +868,6 @@ static const struct attribute_group *ubd_attr_groups[] = {
 static int ubd_disk_register(int major, u64 size, int unit,
 			     struct gendisk **disk_out)
 {
-	struct device *parent = NULL;
 	struct gendisk *disk;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
@@ -928,24 +878,17 @@ static int ubd_disk_register(int major, u64 size, int unit,
 	disk->first_minor = unit << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
-	if (major == UBD_MAJOR)
-		sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-	else
-		sprintf(disk->disk_name, "ubd_fake%d", unit);
+	sprintf(disk->disk_name, "ubd%c", 'a' + unit);
 
-	/* sysfs register (not for ide fake devices) */
-	if (major == UBD_MAJOR) {
-		ubd_devs[unit].pdev.id   = unit;
-		ubd_devs[unit].pdev.name = DRIVER_NAME;
-		ubd_devs[unit].pdev.dev.release = ubd_device_release;
-		dev_set_drvdata(&ubd_devs[unit].pdev.dev, &ubd_devs[unit]);
-		platform_device_register(&ubd_devs[unit].pdev);
-		parent = &ubd_devs[unit].pdev.dev;
-	}
+	ubd_devs[unit].pdev.id   = unit;
+	ubd_devs[unit].pdev.name = DRIVER_NAME;
+	ubd_devs[unit].pdev.dev.release = ubd_device_release;
+	dev_set_drvdata(&ubd_devs[unit].pdev.dev, &ubd_devs[unit]);
+	platform_device_register(&ubd_devs[unit].pdev);
 
 	disk->private_data = &ubd_devs[unit];
 	disk->queue = ubd_devs[unit].queue;
-	device_add_disk(parent, disk, ubd_attr_groups);
+	device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
 
 	*disk_out = disk;
 	return 0;
@@ -1000,17 +943,6 @@ static int ubd_add(int n, char **error_out)
 		*error_out = "Failed to register device";
 		goto out_cleanup_tags;
 	}
-
-	if (fake_major != UBD_MAJOR)
-		ubd_disk_register(fake_major, ubd_dev->size, n,
-				  &fake_gendisk[n]);
-
-	/*
-	 * Perhaps this should also be under the "if (fake_major)" above
-	 * using the fake_disk->disk_name
-	 */
-	if (fake_ide)
-		make_ide_entries(ubd_gendisk[n]->disk_name);
 
 	err = 0;
 out:
@@ -1126,12 +1058,6 @@ static int ubd_remove(int n, char **error_out)
 		put_disk(disk);
 	}
 
-	if(fake_gendisk[n] != NULL){
-		del_gendisk(fake_gendisk[n]);
-		put_disk(fake_gendisk[n]);
-		fake_gendisk[n] = NULL;
-	}
-
 	err = 0;
 	platform_device_unregister(&ubd_dev->pdev);
 out:
@@ -1187,14 +1113,6 @@ static int __init ubd_init(void)
 
 	if (register_blkdev(UBD_MAJOR, "ubd"))
 		return -1;
-
-	if (fake_major != UBD_MAJOR) {
-		char name[sizeof("ubd_nnn\0")];
-
-		snprintf(name, sizeof(name), "ubd_%d", fake_major);
-		if (register_blkdev(fake_major, "ubd"))
-			return -1;
-	}
 
 	irq_req_buffer = kmalloc_array(UBD_REQ_BUFFER_SIZE,
 				       sizeof(struct io_thread_req *),
