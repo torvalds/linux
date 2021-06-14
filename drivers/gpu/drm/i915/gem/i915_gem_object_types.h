@@ -61,10 +61,26 @@ struct drm_i915_gem_object_ops {
 		     const struct drm_i915_gem_pread *arg);
 	int (*pwrite)(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *arg);
+	u64 (*mmap_offset)(struct drm_i915_gem_object *obj);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
+
+	/**
+	 * adjust_lru - notify that the madvise value was updated
+	 * @obj: The gem object
+	 *
+	 * The madvise value may have been updated, or object was recently
+	 * referenced so act accordingly (Perhaps changing an LRU list etc).
+	 */
+	void (*adjust_lru)(struct drm_i915_gem_object *obj);
+
+	/**
+	 * delayed_free - Override the default delayed free implementation
+	 */
+	void (*delayed_free)(struct drm_i915_gem_object *obj);
 	void (*release)(struct drm_i915_gem_object *obj);
 
+	const struct vm_operations_struct *mmap_ops;
 	const char *name; /* friendly name for debug, e.g. lockdep classes */
 };
 
@@ -187,12 +203,14 @@ struct drm_i915_gem_object {
 #define I915_BO_ALLOC_VOLATILE   BIT(1)
 #define I915_BO_ALLOC_STRUCT_PAGE BIT(2)
 #define I915_BO_ALLOC_CPU_CLEAR  BIT(3)
+#define I915_BO_ALLOC_USER       BIT(4)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_STRUCT_PAGE | \
-			     I915_BO_ALLOC_CPU_CLEAR)
-#define I915_BO_READONLY         BIT(4)
-#define I915_TILING_QUIRK_BIT    5 /* unknown swizzling; do not release! */
+			     I915_BO_ALLOC_CPU_CLEAR | \
+			     I915_BO_ALLOC_USER)
+#define I915_BO_READONLY         BIT(5)
+#define I915_TILING_QUIRK_BIT    6 /* unknown swizzling; do not release! */
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -309,6 +327,12 @@ struct drm_i915_gem_object {
 		 */
 		bool dirty:1;
 	} mm;
+
+	struct {
+		struct sg_table *cached_io_st;
+		struct i915_gem_object_page_iter get_io_page;
+		bool created:1;
+	} ttm;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
