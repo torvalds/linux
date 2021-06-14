@@ -1749,7 +1749,8 @@ static void dsa_slave_phylink_fixed_state(struct phylink_config *config,
 }
 
 /* slave device setup *******************************************************/
-static int dsa_slave_phy_connect(struct net_device *slave_dev, int addr)
+static int dsa_slave_phy_connect(struct net_device *slave_dev, int addr,
+				 u32 flags)
 {
 	struct dsa_port *dp = dsa_slave_to_port(slave_dev);
 	struct dsa_switch *ds = dp->ds;
@@ -1759,6 +1760,8 @@ static int dsa_slave_phy_connect(struct net_device *slave_dev, int addr)
 		netdev_err(slave_dev, "no phy at %d\n", addr);
 		return -ENODEV;
 	}
+
+	slave_dev->phydev->dev_flags |= flags;
 
 	return phylink_connect_phy(dp->pl, slave_dev->phydev);
 }
@@ -1804,7 +1807,7 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 		/* We could not connect to a designated PHY or SFP, so try to
 		 * use the switch internal MDIO bus instead
 		 */
-		ret = dsa_slave_phy_connect(slave_dev, dp->index);
+		ret = dsa_slave_phy_connect(slave_dev, dp->index, phy_flags);
 		if (ret) {
 			netdev_err(slave_dev,
 				   "failed to connect to port %d: %d\n",
