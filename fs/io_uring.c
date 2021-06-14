@@ -2525,9 +2525,14 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
  * find it from a io_do_iopoll() thread before the issuer is done
  * accessing the kiocb cookie.
  */
-static void io_iopoll_req_issued(struct io_kiocb *req, bool in_async)
+static void io_iopoll_req_issued(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	const bool in_async = io_wq_current_is_worker();
+
+	/* workqueue context doesn't hold uring_lock, grab it now */
+	if (unlikely(in_async))
+		mutex_lock(&ctx->uring_lock);
 
 	/*
 	 * Track whether we have multiple files in our lists. This will impact
@@ -2554,14 +2559,19 @@ static void io_iopoll_req_issued(struct io_kiocb *req, bool in_async)
 	else
 		list_add_tail(&req->inflight_entry, &ctx->iopoll_list);
 
-	/*
-	 * If IORING_SETUP_SQPOLL is enabled, sqes are either handled in sq thread
-	 * task context or in io worker task context. If current task context is
-	 * sq thread, we don't need to check whether should wake up sq thread.
-	 */
-	if (in_async && (ctx->flags & IORING_SETUP_SQPOLL) &&
-	    wq_has_sleeper(&ctx->sq_data->wait))
-		wake_up(&ctx->sq_data->wait);
+	if (unlikely(in_async)) {
+		/*
+		 * If IORING_SETUP_SQPOLL is enabled, sqes are either handle
+		 * in sq thread task context or in io worker task context. If
+		 * current task context is sq thread, we don't need to check
+		 * whether should wake up sq thread.
+		 */
+		if ((ctx->flags & IORING_SETUP_SQPOLL) &&
+		    wq_has_sleeper(&ctx->sq_data->wait))
+			wake_up(&ctx->sq_data->wait);
+
+		mutex_unlock(&ctx->uring_lock);
+	}
 }
 
 static inline void io_state_file_put(struct io_submit_state *state)
@@ -6215,23 +6225,11 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (creds)
 		revert_creds(creds);
-
 	if (ret)
 		return ret;
-
 	/* If the op doesn't have a file, we're not polling for it */
-	if ((ctx->flags & IORING_SETUP_IOPOLL) && req->file) {
-		const bool in_async = io_wq_current_is_worker();
-
-		/* workqueue context doesn't hold uring_lock, grab it now */
-		if (in_async)
-			mutex_lock(&ctx->uring_lock);
-
-		io_iopoll_req_issued(req, in_async);
-
-		if (in_async)
-			mutex_unlock(&ctx->uring_lock);
-	}
+	if ((ctx->flags & IORING_SETUP_IOPOLL) && req->file)
+		io_iopoll_req_issued(req);
 
 	return 0;
 }
