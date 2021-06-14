@@ -364,6 +364,7 @@ struct io_ring_ctx {
 		 * array.
 		 */
 		u32			*sq_array;
+		struct io_uring_sqe	*sq_sqes;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
 		unsigned		sq_thread_idle;
@@ -373,8 +374,6 @@ struct io_ring_ctx {
 		struct list_head	defer_list;
 		struct list_head	timeout_list;
 		struct list_head	cq_overflow_list;
-
-		struct io_uring_sqe	*sq_sqes;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
