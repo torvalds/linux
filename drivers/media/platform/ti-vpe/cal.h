@@ -223,6 +223,8 @@ struct cal_ctx {
 	u8			cport;
 	u8			csi2_ctx;
 	u8			pix_proc;
+	u8			vc;
+	u8			datatype;
 
 	bool			use_pix_proc;
 };
