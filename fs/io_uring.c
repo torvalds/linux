@@ -370,7 +370,6 @@ struct io_ring_ctx {
 		struct io_uring_sqe	*sq_sqes;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
-		unsigned		cached_sq_dropped;
 		unsigned long		sq_check_overflow;
 		struct list_head	defer_list;
 
@@ -5994,13 +5993,11 @@ static u32 io_get_sequence(struct io_kiocb *req)
 {
 	struct io_kiocb *pos;
 	struct io_ring_ctx *ctx = req->ctx;
-	u32 total_submitted, nr_reqs = 0;
+	u32 nr_reqs = 0;
 
 	io_for_each_link(pos, req)
 		nr_reqs++;
-
-	total_submitted = ctx->cached_sq_head - ctx->cached_sq_dropped;
-	return total_submitted - nr_reqs;
+	return ctx->cached_sq_head - nr_reqs;
 }
 
 static int io_req_defer(struct io_kiocb *req)
@@ -6701,8 +6698,9 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 		return &ctx->sq_sqes[head];
 
 	/* drop invalid entries */
-	ctx->cached_sq_dropped++;
-	WRITE_ONCE(ctx->rings->sq_dropped, ctx->cached_sq_dropped);
+	ctx->cq_extra--;
+	WRITE_ONCE(ctx->rings->sq_dropped,
+		   READ_ONCE(ctx->rings->sq_dropped) + 1);
 	return NULL;
 }
 
