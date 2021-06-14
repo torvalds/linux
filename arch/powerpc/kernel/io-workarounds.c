@@ -55,7 +55,6 @@ static struct iowa_bus *iowa_pci_find(unsigned long vaddr, unsigned long paddr)
 #ifdef CONFIG_PPC_INDIRECT_MMIO
 struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 {
-	unsigned hugepage_shift;
 	struct iowa_bus *bus;
 	int token;
 
@@ -65,22 +64,13 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		bus = &iowa_busses[token - 1];
 	else {
 		unsigned long vaddr, paddr;
-		pte_t *ptep;
 
 		vaddr = (unsigned long)PCI_FIX_ADDR(addr);
 		if (vaddr < PHB_IO_BASE || vaddr >= PHB_IO_END)
 			return NULL;
-		/*
-		 * We won't find huge pages here (iomem). Also can't hit
-		 * a page table free due to init_mm
-		 */
-		ptep = find_init_mm_pte(vaddr, &hugepage_shift);
-		if (ptep == NULL)
-			paddr = 0;
-		else {
-			WARN_ON(hugepage_shift);
-			paddr = pte_pfn(*ptep) << PAGE_SHIFT;
-		}
+
+		paddr = ppc_find_vmap_phys(vaddr);
+
 		bus = iowa_pci_find(vaddr, paddr);
 
 		if (bus == NULL)

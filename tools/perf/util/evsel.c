@@ -428,6 +428,7 @@ struct evsel *evsel__clone(struct evsel *orig)
 	evsel->auto_merge_stats = orig->auto_merge_stats;
 	evsel->collect_stat = orig->collect_stat;
 	evsel->weak_group = orig->weak_group;
+	evsel->use_config_name = orig->use_config_name;
 
 	if (evsel__copy_config_terms(evsel, orig) < 0)
 		goto out_err;
