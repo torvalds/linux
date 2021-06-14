@@ -54,14 +54,16 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	}
 
 	pr_info("deleting once");
-	ret = bch2_btree_delete_at(&trans, iter, 0);
+	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			 bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error (first) in test_delete: %i", ret);
 		goto err;
 	}
 
 	pr_info("deleting twice");
-	ret = bch2_btree_delete_at(&trans, iter, 0);
+	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			 bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error (second) in test_delete: %i", ret);
 		goto err;
@@ -101,7 +103,8 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 
 	bch2_journal_flush_all_pins(&c->journal);
 
-	ret = bch2_btree_delete_at(&trans, iter, 0);
+	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			 bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error in test_delete_written: %i", ret);
 		goto err;

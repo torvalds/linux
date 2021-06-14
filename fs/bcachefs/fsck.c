@@ -761,7 +761,7 @@ retry:
 				mode_to_type(w.inode.bi_mode),
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
 						       k), buf))) {
-			ret = lockrestart_do(&trans,
+			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 					bch2_btree_delete_at(&trans, iter, 0));
 			if (ret)
 				goto err;
