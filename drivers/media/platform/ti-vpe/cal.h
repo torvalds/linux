@@ -217,7 +217,7 @@ struct cal_ctx {
 
 	unsigned int		sequence;
 	struct vb2_queue	vb_vidq;
-	u8			index;
+	u8			dma_ctx;
 	u8			cport;
 	u8			csi2_ctx;
 	u8			pix_proc;
@@ -238,11 +238,11 @@ extern bool cal_mc_api;
 	dev_err((cal)->dev, fmt, ##arg)
 
 #define ctx_dbg(level, ctx, fmt, arg...)				\
-	cal_dbg(level, (ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
+	cal_dbg(level, (ctx)->cal, "ctx%u: " fmt, (ctx)->dma_ctx, ##arg)
 #define ctx_info(ctx, fmt, arg...)					\
-	cal_info((ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
+	cal_info((ctx)->cal, "ctx%u: " fmt, (ctx)->dma_ctx, ##arg)
 #define ctx_err(ctx, fmt, arg...)					\
-	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
+	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->dma_ctx, ##arg)
 
 #define phy_dbg(level, phy, fmt, arg...)				\
 	cal_dbg(level, (phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)

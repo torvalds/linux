@@ -372,7 +372,7 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 	unsigned int stride = ctx->v_fmt.fmt.pix.bytesperline;
 	u32 val;
 
-	val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
+	val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx));
 	cal_set_field(&val, ctx->cport, CAL_WR_DMA_CTRL_CPORT_MASK);
 	cal_set_field(&val, ctx->v_fmt.fmt.pix.height,
 		      CAL_WR_DMA_CTRL_YSIZE_MASK);
@@ -383,16 +383,16 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 	cal_set_field(&val, CAL_WR_DMA_CTRL_PATTERN_LINEAR,
 		      CAL_WR_DMA_CTRL_PATTERN_MASK);
 	cal_set_field(&val, 1, CAL_WR_DMA_CTRL_STALL_RD_MASK);
-	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->index), val);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->index,
-		cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index)));
+	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx), val);
+	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->dma_ctx,
+		cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx)));
 
-	cal_write_field(ctx->cal, CAL_WR_DMA_OFST(ctx->index),
+	cal_write_field(ctx->cal, CAL_WR_DMA_OFST(ctx->dma_ctx),
 			stride / 16, CAL_WR_DMA_OFST_MASK);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_OFST(%d) = 0x%08x\n", ctx->index,
-		cal_read(ctx->cal, CAL_WR_DMA_OFST(ctx->index)));
+	ctx_dbg(3, ctx, "CAL_WR_DMA_OFST(%d) = 0x%08x\n", ctx->dma_ctx,
+		cal_read(ctx->cal, CAL_WR_DMA_OFST(ctx->dma_ctx)));
 
-	val = cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index));
+	val = cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->dma_ctx));
 	/* 64 bit word means no skipping */
 	cal_set_field(&val, 0, CAL_WR_DMA_XSIZE_XSKIP_MASK);
 	/*
@@ -401,23 +401,23 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 	 * written per line.
 	 */
 	cal_set_field(&val, stride / 8, CAL_WR_DMA_XSIZE_MASK);
-	cal_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index), val);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->index,
-		cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index)));
+	cal_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->dma_ctx), val);
+	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->dma_ctx,
+		cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->dma_ctx)));
 }
 
 void cal_ctx_set_dma_addr(struct cal_ctx *ctx, dma_addr_t addr)
 {
-	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->index), addr);
+	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->dma_ctx), addr);
 }
 
 static void cal_ctx_wr_dma_disable(struct cal_ctx *ctx)
 {
-	u32 val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
+	u32 val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx));
 
 	cal_set_field(&val, CAL_WR_DMA_CTRL_MODE_DIS,
 		      CAL_WR_DMA_CTRL_MODE_MASK);
-	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->index), val);
+	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->dma_ctx), val);
 }
 
 static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
@@ -452,9 +452,9 @@ void cal_ctx_start(struct cal_ctx *ctx)
 
 	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(1),
-		  CAL_HL_IRQ_MASK(ctx->index));
+		  CAL_HL_IRQ_MASK(ctx->dma_ctx));
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(2),
-		  CAL_HL_IRQ_MASK(ctx->index));
+		  CAL_HL_IRQ_MASK(ctx->dma_ctx));
 }
 
 void cal_ctx_stop(struct cal_ctx *ctx)
@@ -478,9 +478,9 @@ void cal_ctx_stop(struct cal_ctx *ctx)
 
 	/* Disable IRQ_WDMA_END and IRQ_WDMA_START. */
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(1),
-		  CAL_HL_IRQ_MASK(ctx->index));
+		  CAL_HL_IRQ_MASK(ctx->dma_ctx));
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(2),
-		  CAL_HL_IRQ_MASK(ctx->index));
+		  CAL_HL_IRQ_MASK(ctx->dma_ctx));
 
 	ctx->dma.state = CAL_DMA_STOPPED;
 }
@@ -853,7 +853,7 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 
 	ctx->cal = cal;
 	ctx->phy = cal->phy[inst];
-	ctx->index = inst;
+	ctx->dma_ctx = inst;
 	ctx->csi2_ctx = inst;
 	ctx->cport = inst;
 	ctx->pix_proc = inst;

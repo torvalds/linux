@@ -899,7 +899,7 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret) {
 		ctx_err(ctx, "Failed to create media link for context %u\n",
-			ctx->index);
+			ctx->dma_ctx);
 		video_unregister_device(vfd);
 		return ret;
 	}
@@ -951,7 +951,7 @@ int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 			 | (cal_mc_api ? V4L2_CAP_IO_MC : 0);
 	vfd->v4l2_dev = &ctx->cal->v4l2_dev;
 	vfd->queue = q;
-	snprintf(vfd->name, sizeof(vfd->name), "CAL output %u", ctx->index);
+	snprintf(vfd->name, sizeof(vfd->name), "CAL output %u", ctx->dma_ctx);
 	vfd->release = video_device_release_empty;
 	vfd->ioctl_ops = cal_mc_api ? &cal_ioctl_mc_ops : &cal_ioctl_video_ops;
 	vfd->lock = &ctx->mutex;
