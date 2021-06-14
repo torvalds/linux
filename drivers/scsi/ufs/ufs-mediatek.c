@@ -603,9 +603,21 @@ static void ufs_mtk_get_controller_version(struct ufs_hba *hba)
 
 	ret = ufshcd_dme_get(hba, UIC_ARG_MIB(PA_LOCALVERINFO), &ver);
 	if (!ret) {
-		if (ver >= UFS_UNIPRO_VER_1_8)
+		if (ver >= UFS_UNIPRO_VER_1_8) {
 			host->hw_ver.major = 3;
+			/*
+			 * Fix HCI version for some platforms with
+			 * incorrect version
+			 */
+			if (hba->ufs_version < ufshci_version(3, 0))
+				hba->ufs_version = ufshci_version(3, 0);
+		}
 	}
+}
+
+static u32 ufs_mtk_get_ufs_hci_version(struct ufs_hba *hba)
+{
+	return hba->ufs_version;
 }
 
 /**
@@ -1048,6 +1060,7 @@ static void ufs_mtk_event_notify(struct ufs_hba *hba,
 static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.name                = "mediatek.ufshci",
 	.init                = ufs_mtk_init,
+	.get_ufs_hci_version = ufs_mtk_get_ufs_hci_version,
 	.setup_clocks        = ufs_mtk_setup_clocks,
 	.hce_enable_notify   = ufs_mtk_hce_enable_notify,
 	.link_startup_notify = ufs_mtk_link_startup_notify,

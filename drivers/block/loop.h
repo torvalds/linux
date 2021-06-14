@@ -22,6 +22,7 @@ enum {
 	Lo_unbound,
 	Lo_bound,
 	Lo_rundown,
+	Lo_deleting,
 };
 
 struct loop_func_table;

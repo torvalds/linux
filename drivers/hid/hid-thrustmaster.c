@@ -312,7 +312,7 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 	}
 
 	tm_wheel->change_request = kzalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
-	if (!tm_wheel->model_request) {
+	if (!tm_wheel->change_request) {
 		ret = -ENOMEM;
 		goto error5;
 	}

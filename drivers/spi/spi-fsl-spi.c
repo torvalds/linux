@@ -440,6 +440,7 @@ static int fsl_spi_setup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct fsl_spi_reg __iomem *reg_base;
+	bool initial_setup = false;
 	int retval;
 	u32 hw_mode;
 	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
@@ -452,6 +453,7 @@ static int fsl_spi_setup(struct spi_device *spi)
 		if (!cs)
 			return -ENOMEM;
 		spi_set_ctldata(spi, cs);
+		initial_setup = true;
 	}
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
@@ -475,6 +477,8 @@ static int fsl_spi_setup(struct spi_device *spi)
 	retval = fsl_spi_setup_transfer(spi, NULL);
 	if (retval < 0) {
 		cs->hw_mode = hw_mode; /* Restore settings */
+		if (initial_setup)
+			kfree(cs);
 		return retval;
 	}
 

@@ -1103,10 +1103,9 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_start data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->session_len = data.session_len;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
@@ -1215,10 +1214,9 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_update_data data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->hdr_len = data.hdr_len;
 	params->trans_len = data.trans_len;
