@@ -4,6 +4,7 @@
 #include <net/devlink.h>
 
 #include "prestera_devlink.h"
+#include "prestera_hw.h"
 
 /* All driver-specific traps must be documented in
  * Documentation/networking/devlink/prestera.rst
@@ -34,6 +35,15 @@ enum {
 	DEVLINK_PRESTERA_TRAP_ID_SSH,
 	DEVLINK_PRESTERA_TRAP_ID_TELNET,
 	DEVLINK_PRESTERA_TRAP_ID_ICMP,
+	DEVLINK_PRESTERA_TRAP_ID_MET_RED,
+	DEVLINK_PRESTERA_TRAP_ID_IP_SIP_IS_ZERO,
+	DEVLINK_PRESTERA_TRAP_ID_IP_UC_DIP_DA_MISMATCH,
+	DEVLINK_PRESTERA_TRAP_ID_ILLEGAL_IPV4_HDR,
+	DEVLINK_PRESTERA_TRAP_ID_ILLEGAL_IP_ADDR,
+	DEVLINK_PRESTERA_TRAP_ID_INVALID_SA,
+	DEVLINK_PRESTERA_TRAP_ID_LOCAL_PORT,
+	DEVLINK_PRESTERA_TRAP_ID_PORT_NO_VLAN,
+	DEVLINK_PRESTERA_TRAP_ID_RXDMA_DROP,
 };
 
 #define DEVLINK_PRESTERA_TRAP_NAME_ARP_BC \
@@ -84,6 +94,24 @@ enum {
 	"telnet"
 #define DEVLINK_PRESTERA_TRAP_NAME_ICMP \
 	"icmp"
+#define DEVLINK_PRESTERA_TRAP_NAME_RXDMA_DROP \
+	"rxdma_drop"
+#define DEVLINK_PRESTERA_TRAP_NAME_PORT_NO_VLAN \
+	"port_no_vlan"
+#define DEVLINK_PRESTERA_TRAP_NAME_LOCAL_PORT \
+	"local_port"
+#define DEVLINK_PRESTERA_TRAP_NAME_INVALID_SA \
+	"invalid_sa"
+#define DEVLINK_PRESTERA_TRAP_NAME_ILLEGAL_IP_ADDR \
+	"illegal_ip_addr"
+#define DEVLINK_PRESTERA_TRAP_NAME_ILLEGAL_IPV4_HDR \
+	"illegal_ipv4_hdr"
+#define DEVLINK_PRESTERA_TRAP_NAME_IP_UC_DIP_DA_MISMATCH \
+	"ip_uc_dip_da_mismatch"
+#define DEVLINK_PRESTERA_TRAP_NAME_IP_SIP_IS_ZERO \
+	"ip_sip_is_zero"
+#define DEVLINK_PRESTERA_TRAP_NAME_MET_RED \
+	"met_red"
 
 struct prestera_trap {
 	struct devlink_trap trap;
@@ -125,6 +153,12 @@ struct prestera_trap_data {
 			    DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			    PRESTERA_TRAP_METADATA)
 
+#define PRESTERA_TRAP_DRIVER_DROP(_id, _group_id)			      \
+	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_PRESTERA_TRAP_ID_##_id,	      \
+			    DEVLINK_PRESTERA_TRAP_NAME_##_id,		      \
+			    DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
+			    PRESTERA_TRAP_METADATA)
+
 static const struct devlink_trap_group prestera_trap_groups_arr[] = {
 	/* No policer is associated with following groups (policerid == 0)*/
 	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
@@ -142,6 +176,7 @@ static const struct devlink_trap_group prestera_trap_groups_arr[] = {
 	DEVLINK_TRAP_GROUP_GENERIC(DHCP, 0),
 	DEVLINK_TRAP_GROUP_GENERIC(BGP, 0),
 	DEVLINK_TRAP_GROUP_GENERIC(LOCAL_DELIVERY, 0),
+	DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS, 0),
 };
 
 /* Initialize trap list, as well as associate CPU code with them. */
@@ -271,9 +306,50 @@ static struct prestera_trap prestera_trap_items_arr[] = {
 		.trap = PRESTERA_TRAP_DRIVER_CONTROL(ICMP, LOCAL_DELIVERY),
 		.cpu_code = 209,
 	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(RXDMA_DROP, BUFFER_DROPS),
+		.cpu_code = 37,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(PORT_NO_VLAN, L2_DROPS),
+		.cpu_code = 39,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(LOCAL_PORT, L2_DROPS),
+		.cpu_code = 56,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(INVALID_SA, L2_DROPS),
+		.cpu_code = 60,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(ILLEGAL_IP_ADDR, L3_DROPS),
+		.cpu_code = 136,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(ILLEGAL_IPV4_HDR, L3_DROPS),
+		.cpu_code = 137,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(IP_UC_DIP_DA_MISMATCH,
+						  L3_DROPS),
+		.cpu_code = 138,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(IP_SIP_IS_ZERO, L3_DROPS),
+		.cpu_code = 145,
+	},
+	{
+		.trap = PRESTERA_TRAP_DRIVER_DROP(MET_RED, BUFFER_DROPS),
+		.cpu_code = 185,
+	},
 };
 
 static void prestera_devlink_traps_fini(struct prestera_switch *sw);
+
+static int prestera_drop_counter_get(struct devlink *devlink,
+				     const struct devlink_trap *trap,
+				     u64 *p_drops);
 
 static int prestera_dl_info_get(struct devlink *dl,
 				struct devlink_info_req *req,
@@ -311,6 +387,7 @@ static const struct devlink_ops prestera_dl_ops = {
 	.info_get = prestera_dl_info_get,
 	.trap_init = prestera_trap_init,
 	.trap_action_set = prestera_trap_action_set,
+	.trap_drop_counter_get = prestera_drop_counter_get,
 };
 
 struct prestera_switch *prestera_devlink_alloc(void)
@@ -529,6 +606,20 @@ static int prestera_trap_action_set(struct devlink *devlink,
 {
 	/* Currently, driver does not support trap action altering */
 	return -EOPNOTSUPP;
+}
+
+static int prestera_drop_counter_get(struct devlink *devlink,
+				     const struct devlink_trap *trap,
+				     u64 *p_drops)
+{
+	struct prestera_switch *sw = devlink_priv(devlink);
+	enum prestera_hw_cpu_code_cnt_t cpu_code_type =
+		PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP;
+	struct prestera_trap *prestera_trap =
+		container_of(trap, struct prestera_trap, trap);
+
+	return prestera_hw_cpu_code_counters_get(sw, prestera_trap->cpu_code,
+						 cpu_code_type, p_drops);
 }
 
 static void prestera_devlink_traps_fini(struct prestera_switch *sw)

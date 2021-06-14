@@ -89,6 +89,11 @@ enum {
 	PRESTERA_STP_FORWARD,
 };
 
+enum prestera_hw_cpu_code_cnt_t {
+	PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP = 0,
+	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
+};
+
 struct prestera_switch;
 struct prestera_port;
 struct prestera_port_stats;
@@ -193,5 +198,11 @@ int prestera_hw_fdb_flush_lag(struct prestera_switch *sw, u16 lag_id,
 			      u32 mode);
 int prestera_hw_fdb_flush_lag_vlan(struct prestera_switch *sw,
 				   u16 lag_id, u16 vid, u32 mode);
+
+/* HW trap/drop counters API */
+int
+prestera_hw_cpu_code_counters_get(struct prestera_switch *sw, u8 code,
+				  enum prestera_hw_cpu_code_cnt_t counter_type,
+				  u64 *packet_count);
 
 #endif /* _PRESTERA_HW_H_ */
