@@ -816,6 +816,11 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 		if (data & ~LPA_SLCT)
 			data |= LPA_LPACK;
 		break;
+	case PHY_REG_PHY_CTRL:
+		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		if (link & PORT_MDIX_STATUS)
+			data |= KSZ886X_CTRL_MDIX_STAT;
+		break;
 	default:
 		processed = false;
 		break;

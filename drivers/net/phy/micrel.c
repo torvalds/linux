@@ -1045,6 +1045,92 @@ static int ksz8873mll_config_aneg(struct phy_device *phydev)
 	return 0;
 }
 
+static int ksz886x_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	u16 val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI:
+		val = KSZ886X_BMCR_DISABLE_AUTO_MDIX;
+		break;
+	case ETH_TP_MDI_X:
+		/* Note: The naming of the bit KSZ886X_BMCR_FORCE_MDI is bit
+		 * counter intuitive, the "-X" in "1 = Force MDI" in the data
+		 * sheet seems to be missing:
+		 * 1 = Force MDI (sic!) (transmit on RX+/RX- pins)
+		 * 0 = Normal operation (transmit on TX+/TX- pins)
+		 */
+		val = KSZ886X_BMCR_DISABLE_AUTO_MDIX | KSZ886X_BMCR_FORCE_MDI;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return phy_modify(phydev, MII_BMCR,
+			  KSZ886X_BMCR_HP_MDIX | KSZ886X_BMCR_FORCE_MDI |
+			  KSZ886X_BMCR_DISABLE_AUTO_MDIX,
+			  KSZ886X_BMCR_HP_MDIX | val);
+}
+
+static int ksz886x_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_config_aneg(phydev);
+	if (ret)
+		return ret;
+
+	/* The MDI-X configuration is automatically changed by the PHY after
+	 * switching from autoneg off to on. So, take MDI-X configuration under
+	 * own control and set it after autoneg configuration was done.
+	 */
+	return ksz886x_config_mdix(phydev, phydev->mdix_ctrl);
+}
+
+static int ksz886x_mdix_update(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+
+	if (ret & KSZ886X_BMCR_DISABLE_AUTO_MDIX) {
+		if (ret & KSZ886X_BMCR_FORCE_MDI)
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+		else
+			phydev->mdix_ctrl = ETH_TP_MDI;
+	} else {
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	}
+
+	ret = phy_read(phydev, MII_KSZPHY_CTRL);
+	if (ret < 0)
+		return ret;
+
+	/* Same reverse logic as KSZ886X_BMCR_FORCE_MDI */
+	if (ret & KSZ886X_CTRL_MDIX_STAT)
+		phydev->mdix = ETH_TP_MDI_X;
+	else
+		phydev->mdix = ETH_TP_MDI;
+
+	return 0;
+}
+
+static int ksz886x_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz886x_mdix_update(phydev);
+	if (ret < 0)
+		return ret;
+
+	return genphy_read_status(phydev);
+}
+
 static int kszphy_get_sset_count(struct phy_device *phydev)
 {
 	return ARRAY_SIZE(kszphy_hw_stats);
@@ -1397,6 +1483,8 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ8851 Ethernet MAC or KSZ886X Switch",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= kszphy_config_init,
+	.config_aneg	= ksz886x_config_aneg,
+	.read_status	= ksz886x_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
