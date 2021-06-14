@@ -601,12 +601,18 @@ cal_camerarx_get_pad_format(struct cal_camerarx *phy,
 static int cal_camerarx_sd_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	int ret = 0;
+
+	mutex_lock(&phy->mutex);
 
 	if (enable)
-		return cal_camerarx_start(phy);
+		ret = cal_camerarx_start(phy);
+	else
+		cal_camerarx_stop(phy);
 
-	cal_camerarx_stop(phy);
-	return 0;
+	mutex_unlock(&phy->mutex);
+
+	return ret;
 }
 
 static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
@@ -614,27 +620,36 @@ static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	int ret = 0;
+
+	mutex_lock(&phy->mutex);
 
 	/* No transcoding, source and sink codes must match. */
 	if (code->pad == CAL_CAMERARX_PAD_SOURCE) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		if (code->index > 0)
-			return -EINVAL;
+		if (code->index > 0) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		fmt = cal_camerarx_get_pad_format(phy, sd_state,
 						  CAL_CAMERARX_PAD_SINK,
 						  code->which);
 		code->code = fmt->code;
-		return 0;
+	} else {
+		if (code->index >= cal_num_formats) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		code->code = cal_formats[code->index].code;
 	}
 
-	if (code->index >= cal_num_formats)
-		return -EINVAL;
+out:
+	mutex_unlock(&phy->mutex);
 
-	code->code = cal_formats[code->index].code;
-
-	return 0;
+	return ret;
 }
 
 static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
@@ -643,9 +658,12 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 {
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
 	const struct cal_format_info *fmtinfo;
+	int ret = 0;
 
 	if (fse->index > 0)
 		return -EINVAL;
+
+	mutex_lock(&phy->mutex);
 
 	/* No transcoding, source and sink formats must match. */
 	if (fse->pad == CAL_CAMERARX_PAD_SOURCE) {
@@ -654,27 +672,32 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 		fmt = cal_camerarx_get_pad_format(phy, sd_state,
 						  CAL_CAMERARX_PAD_SINK,
 						  fse->which);
-		if (fse->code != fmt->code)
-			return -EINVAL;
+		if (fse->code != fmt->code) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		fse->min_width = fmt->width;
 		fse->max_width = fmt->width;
 		fse->min_height = fmt->height;
 		fse->max_height = fmt->height;
+	} else {
+		fmtinfo = cal_format_by_code(fse->code);
+		if (!fmtinfo) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		return 0;
+		fse->min_width = CAL_MIN_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
+		fse->max_width = CAL_MAX_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
+		fse->min_height = CAL_MIN_HEIGHT_LINES;
+		fse->max_height = CAL_MAX_HEIGHT_LINES;
 	}
 
-	fmtinfo = cal_format_by_code(fse->code);
-	if (!fmtinfo)
-		return -EINVAL;
+out:
+	mutex_unlock(&phy->mutex);
 
-	fse->min_width = CAL_MIN_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
-	fse->max_width = CAL_MAX_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
-	fse->min_height = CAL_MIN_HEIGHT_LINES;
-	fse->max_height = CAL_MAX_HEIGHT_LINES;
-
-	return 0;
+	return ret;
 }
 
 static int cal_camerarx_sd_get_fmt(struct v4l2_subdev *sd,
@@ -684,9 +707,13 @@ static int cal_camerarx_sd_get_fmt(struct v4l2_subdev *sd,
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
 	struct v4l2_mbus_framefmt *fmt;
 
+	mutex_lock(&phy->mutex);
+
 	fmt = cal_camerarx_get_pad_format(phy, sd_state, format->pad,
 					  format->which);
 	format->format = *fmt;
+
+	mutex_unlock(&phy->mutex);
 
 	return 0;
 }
@@ -725,6 +752,9 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 	format->format.field = V4L2_FIELD_NONE;
 
 	/* Store the format and propagate it to the source pad. */
+
+	mutex_lock(&phy->mutex);
+
 	fmt = cal_camerarx_get_pad_format(phy, sd_state,
 					  CAL_CAMERARX_PAD_SINK,
 					  format->which);
@@ -734,6 +764,8 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 					  CAL_CAMERARX_PAD_SOURCE,
 					  format->which);
 	*fmt = format->format;
+
+	mutex_unlock(&phy->mutex);
 
 	return 0;
 }
@@ -801,6 +833,8 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	phy->cal = cal;
 	phy->instance = instance;
 
+	mutex_init(&phy->mutex);
+
 	phy->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						(instance == 0) ?
 						"cal_rx_core0" :
@@ -864,5 +898,6 @@ void cal_camerarx_destroy(struct cal_camerarx *phy)
 	media_entity_cleanup(&phy->subdev.entity);
 	of_node_put(phy->source_ep_node);
 	of_node_put(phy->source_node);
+	mutex_destroy(&phy->mutex);
 	kfree(phy);
 }
