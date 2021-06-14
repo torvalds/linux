@@ -364,6 +364,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci0_default>;
 	bus-width = <8>;
+	xlnx,mio-bank = <0>;
 };
 
 /* SD1 with level shifter */
@@ -371,6 +372,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci1_default>;
+	xlnx,mio-bank = <1>;
 };
 
 &uart0 {

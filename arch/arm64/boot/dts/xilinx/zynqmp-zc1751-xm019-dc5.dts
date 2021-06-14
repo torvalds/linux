@@ -407,6 +407,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci0_default>;
 	no-1-8-v;
+	xlnx,mio-bank = <0>;
 };
 
 &ttc0 {
