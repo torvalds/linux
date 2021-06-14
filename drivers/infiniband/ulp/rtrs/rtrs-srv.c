@@ -1656,7 +1656,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 		 * + 2 for drain and heartbeat
 		 */
 		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
-		max_recv_wr = SERVICE_CON_QUEUE_DEPTH + 2;
+		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
 		cq_size = max_send_wr + max_recv_wr;
 	} else {
 		/*

@@ -1579,10 +1579,11 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 	lockdep_assert_held(&con->con_mutex);
 	if (con->c.cid == 0) {
 		/*
-		 * One completion for each receive and two for each send
-		 * (send request + registration)
+		 * Two (request + registration) completion for send
+		 * Two for recv if always_invalidate is set on server
+		 * or one for recv.
 		 * + 2 for drain and heartbeat
-		 * in case qp gets into error state
+		 * in case qp gets into error state.
 		 */
 		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
 		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
