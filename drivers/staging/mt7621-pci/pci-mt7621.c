@@ -86,10 +86,7 @@ struct mt7621_pcie_port {
 /**
  * struct mt7621_pcie - PCIe host information
  * @base: IO Mapped Register Base
- * @io: IO resource
- * @mem: pointer to non-prefetchable memory resource
  * @dev: Pointer to PCIe device
- * @io_map_base: virtual memory base address for io
  * @ports: pointer to PCIe port information
  * @resets_inverted: depends on chip revision
  * reset lines are inverted.
@@ -97,9 +94,6 @@ struct mt7621_pcie_port {
 struct mt7621_pcie {
 	void __iomem *base;
 	struct device *dev;
-	struct resource io;
-	struct resource *mem;
-	unsigned long io_map_base;
 	struct list_head ports;
 	bool resets_inverted;
 };
@@ -213,11 +207,18 @@ static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 		reset_control_assert(port->pcie_rst);
 }
 
-static void setup_cm_memory_region(struct mt7621_pcie *pcie)
+static int setup_cm_memory_region(struct pci_host_bridge *host)
 {
-	struct resource *mem_resource = pcie->mem;
+	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 	struct device *dev = pcie->dev;
+	struct resource_entry *entry;
 	resource_size_t mask;
+
+	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
+	if (!entry) {
+		dev_err(dev, "Cannot get memory resource\n");
+		return -EINVAL;
+	}
 
 	if (mips_cps_numiocu(0)) {
 		/*
@@ -225,63 +226,14 @@ static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 		 * 0s (e.g. 0xffef), so it would be great to warn if that's
 		 * about to happen
 		 */
-		mask = ~(mem_resource->end - mem_resource->start);
+		mask = ~(entry->res->end - entry->res->start);
 
-		write_gcr_reg1_base(mem_resource->start);
+		write_gcr_reg1_base(entry->res->start);
 		write_gcr_reg1_mask(mask | CM_GCR_REGn_MASK_CMTGT_IOCU0);
 		dev_info(dev, "PCI coherence region base: 0x%08llx, mask/settings: 0x%08llx\n",
 			 (unsigned long long)read_gcr_reg1_base(),
 			 (unsigned long long)read_gcr_reg1_mask());
 	}
-}
-
-static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
-{
-	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
-	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	struct of_pci_range_parser parser;
-	struct resource_entry *entry;
-	struct of_pci_range range;
-	LIST_HEAD(res);
-
-	if (of_pci_range_parser_init(&parser, node)) {
-		dev_err(dev, "missing \"ranges\" property\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * IO_SPACE_LIMIT for MIPS is 0xffff but this platform uses IO at
-	 * upper address 0x001e160000. of_pci_range_to_resource does not work
-	 * well for MIPS platforms that don't define PCI_IOBASE, so set the IO
-	 * resource manually instead.
-	 */
-	for_each_of_pci_range(&parser, &range) {
-		switch (range.flags & IORESOURCE_TYPE_BITS) {
-		case IORESOURCE_IO:
-			pcie->io_map_base =
-				(unsigned long)ioremap(range.cpu_addr,
-						       range.size);
-			pcie->io.name = node->full_name;
-			pcie->io.flags = range.flags;
-			pcie->io.start = range.cpu_addr;
-			pcie->io.end = range.cpu_addr + range.size - 1;
-			pcie->io.parent = pcie->io.child = pcie->io.sibling = NULL;
-			set_io_port_base(pcie->io_map_base);
-			break;
-		}
-	}
-
-	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
-	if (!entry) {
-		dev_err(dev, "Cannot get memory resource");
-		return -EINVAL;
-	}
-
-	pcie->mem = entry->res;
-	pci_add_resource(&res, &pcie->io);
-	pci_add_resource(&res, entry->res);
-	list_splice_init(&res, &host->windows);
 
 	return 0;
 }
@@ -510,15 +462,23 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 	write_config(pcie, slot, PCIE_FTS_NUM, val);
 }
 
-static int mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
+static int mt7621_pcie_enable_ports(struct pci_host_bridge *host)
 {
+	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port;
+	struct resource_entry *entry;
 	int err;
+
+	entry = resource_list_first_type(&host->windows, IORESOURCE_IO);
+	if (!entry) {
+		dev_err(dev, "Cannot get io resource\n");
+		return -EINVAL;
+	}
 
 	/* Setup MEMWIN and IOWIN */
 	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
-	pcie_write(pcie, pcie->io.start, RALINK_PCI_IOBASE);
+	pcie_write(pcie, entry->res->start, RALINK_PCI_IOBASE);
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
@@ -581,25 +541,19 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = mt7621_pci_parse_request_of_pci_ranges(bridge);
-	if (err) {
-		dev_err(dev, "Error requesting pci resources from ranges");
-		goto remove_resets;
-	}
-
-	/* set resources limits */
-	ioport_resource.start = pcie->io.start;
-	ioport_resource.end = pcie->io.end;
-
 	mt7621_pcie_init_ports(pcie);
 
-	err = mt7621_pcie_enable_ports(pcie);
+	err = mt7621_pcie_enable_ports(bridge);
 	if (err) {
 		dev_err(dev, "Error enabling pcie ports\n");
 		goto remove_resets;
 	}
 
-	setup_cm_memory_region(pcie);
+	err = setup_cm_memory_region(bridge);
+	if (err) {
+		dev_err(dev, "Error setting up iocu mem regions\n");
+		goto remove_resets;
+	}
 
 	return mt7621_pcie_register_host(bridge);
 
