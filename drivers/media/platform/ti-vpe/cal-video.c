@@ -881,22 +881,57 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	return 0;
 }
 
+static int cal_ctx_v4l2_init_mc_format(struct cal_ctx *ctx)
+{
+	const struct cal_format_info *fmtinfo;
+	struct v4l2_pix_format *pix_fmt = &ctx->v_fmt.fmt.pix;
+
+	fmtinfo = cal_format_by_code(MEDIA_BUS_FMT_UYVY8_2X8);
+	if (!fmtinfo)
+		return -EINVAL;
+
+	pix_fmt->width = 640;
+	pix_fmt->height = 480;
+	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	pix_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	pix_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
+	pix_fmt->xfer_func = V4L2_XFER_FUNC_SRGB;
+	pix_fmt->pixelformat = fmtinfo->fourcc;
+
+	ctx->v_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	/* Save current format */
+	cal_calc_format_size(ctx, fmtinfo, &ctx->v_fmt);
+	ctx->fmtinfo = fmtinfo;
+
+	return 0;
+}
+
 int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 {
 	struct video_device *vfd = &ctx->vdev;
 	int ret;
 
-	ret = cal_ctx_v4l2_init_formats(ctx);
-	if (ret)
-		return ret;
-
 	if (!cal_mc_api) {
 		struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
+
+		ret = cal_ctx_v4l2_init_formats(ctx);
+		if (ret) {
+			ctx_err(ctx, "Failed to init formats: %d\n", ret);
+			return ret;
+		}
 
 		ret = v4l2_ctrl_add_handler(hdl, ctx->phy->source->ctrl_handler,
 					    NULL, true);
 		if (ret < 0) {
 			ctx_err(ctx, "Failed to add source ctrl handler\n");
+			return ret;
+		}
+	} else {
+		ret = cal_ctx_v4l2_init_mc_format(ctx);
+		if (ret) {
+			ctx_err(ctx, "Failed to init format: %d\n", ret);
 			return ret;
 		}
 	}
