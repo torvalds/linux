@@ -928,6 +928,59 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *dbi, int dc,
 	return 0;
 }
 
+static int mipi_dbi_typec1_command_read(struct mipi_dbi *dbi, u8 *cmd,
+					u8 *data, size_t len)
+{
+	struct spi_device *spi = dbi->spi;
+	u32 speed_hz = min_t(u32, MIPI_DBI_MAX_SPI_READ_SPEED,
+			     spi->max_speed_hz / 2);
+	struct spi_transfer tr[2] = {
+		{
+			.speed_hz = speed_hz,
+			.bits_per_word = 9,
+			.tx_buf = dbi->tx_buf9,
+			.len = 2,
+		}, {
+			.speed_hz = speed_hz,
+			.bits_per_word = 8,
+			.len = len,
+			.rx_buf = data,
+		},
+	};
+	struct spi_message m;
+	u16 *dst16;
+	int ret;
+
+	if (!len)
+		return -EINVAL;
+
+	if (!spi_is_bpw_supported(spi, 9)) {
+		/*
+		 * FIXME: implement something like mipi_dbi_spi1e_transfer() but
+		 * for reads using emulation.
+		 */
+		dev_err(&spi->dev,
+			"reading on host not supporting 9 bpw not yet implemented\n");
+		return -EOPNOTSUPP;
+	}
+
+	/*
+	 * Turn the 8bit command into a 16bit version of the command in the
+	 * buffer. Only 9 bits of this will be used when executing the actual
+	 * transfer.
+	 */
+	dst16 = dbi->tx_buf9;
+	dst16[0] = *cmd;
+
+	spi_message_init_with_transfers(&m, tr, ARRAY_SIZE(tr));
+	ret = spi_sync(spi, &m);
+
+	if (!ret)
+		MIPI_DBI_DEBUG_COMMAND(*cmd, data, len);
+
+	return ret;
+}
+
 static int mipi_dbi_typec1_command(struct mipi_dbi *dbi, u8 *cmd,
 				   u8 *parameters, size_t num)
 {
@@ -935,7 +988,7 @@ static int mipi_dbi_typec1_command(struct mipi_dbi *dbi, u8 *cmd,
 	int ret;
 
 	if (mipi_dbi_command_is_read(dbi, *cmd))
-		return -EOPNOTSUPP;
+		return mipi_dbi_typec1_command_read(dbi, cmd, parameters, num);
 
 	MIPI_DBI_DEBUG_COMMAND(*cmd, parameters, num);
 
