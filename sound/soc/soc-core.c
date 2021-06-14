@@ -3017,6 +3017,24 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname)
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_aux_devs);
 
+unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
+{
+	/* Codec base */
+	switch (bit_frame) {
+	case 0x11:
+		return SND_SOC_DAIFMT_CBP_CFP;
+	case 0x10:
+		return SND_SOC_DAIFMT_CBP_CFC;
+	case 0x01:
+		return SND_SOC_DAIFMT_CBC_CFP;
+	default:
+		return SND_SOC_DAIFMT_CBC_CFC;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_from_bitmap);
+
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
 				     struct device_node **bitclkmaster,
@@ -3115,20 +3133,7 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	if (frame && framemaster)
 		*framemaster = of_parse_phandle(np, prop, 0);
 
-	switch ((bit << 4) + frame) {
-	case 0x11:
-		format |= SND_SOC_DAIFMT_CBM_CFM;
-		break;
-	case 0x10:
-		format |= SND_SOC_DAIFMT_CBM_CFS;
-		break;
-	case 0x01:
-		format |= SND_SOC_DAIFMT_CBS_CFM;
-		break;
-	default:
-		format |= SND_SOC_DAIFMT_CBS_CFS;
-		break;
-	}
+	format |= snd_soc_daifmt_clock_provider_from_bitmap((bit << 4) + frame);
 
 	return format;
 }
