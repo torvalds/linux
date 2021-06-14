@@ -489,7 +489,7 @@
 
 		device_type = "pci";
 
-		ranges = <0x02000000 0 0x00000000 0x60000000 0 0x10000000>, /* pci memory */
+		ranges = <0x02000000 0 0x60000000 0x60000000 0 0x10000000>, /* pci memory */
 			 <0x01000000 0 0x00000000 0x1e160000 0 0x00010000>; /* io space */
 
 		#interrupt-cells = <1>;
