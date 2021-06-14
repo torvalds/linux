@@ -7555,14 +7555,13 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 
 		if (prsrc->tag) {
 			bool lock_ring = ctx->flags & IORING_SETUP_IOPOLL;
-			unsigned long flags;
 
 			io_ring_submit_lock(ctx, lock_ring);
-			spin_lock_irqsave(&ctx->completion_lock, flags);
+			spin_lock_irq(&ctx->completion_lock);
 			io_cqring_fill_event(ctx, prsrc->tag, 0, 0);
 			ctx->cq_extra++;
 			io_commit_cqring(ctx);
-			spin_unlock_irqrestore(&ctx->completion_lock, flags);
+			spin_unlock_irq(&ctx->completion_lock);
 			io_cqring_ev_posted(ctx);
 			io_ring_submit_unlock(ctx, lock_ring);
 		}
