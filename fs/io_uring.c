@@ -394,7 +394,7 @@ struct io_ring_ctx {
 
 	struct {
 		struct mutex		uring_lock;
-		wait_queue_head_t	wait;
+		wait_queue_head_t	cq_wait;
 	} ____cacheline_aligned_in_smp;
 
 	/* IRQ completion list, under ->completion_lock */
@@ -415,7 +415,7 @@ struct io_ring_ctx {
 		atomic_t		cq_timeouts;
 		unsigned		cq_last_tm_flush;
 		unsigned		cq_extra;
-		struct wait_queue_head	cq_wait;
+		struct wait_queue_head	poll_wait;
 		struct fasync_struct	*cq_fasync;
 		struct eventfd_ctx	*cq_ev_fd;
 	} ____cacheline_aligned_in_smp;
@@ -1178,13 +1178,13 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ctx->flags = p->flags;
 	init_waitqueue_head(&ctx->sqo_sq_wait);
 	INIT_LIST_HEAD(&ctx->sqd_list);
-	init_waitqueue_head(&ctx->cq_wait);
+	init_waitqueue_head(&ctx->poll_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	init_completion(&ctx->ref_comp);
 	xa_init_flags(&ctx->io_buffers, XA_FLAGS_ALLOC1);
 	xa_init_flags(&ctx->personalities, XA_FLAGS_ALLOC1);
 	mutex_init(&ctx->uring_lock);
-	init_waitqueue_head(&ctx->wait);
+	init_waitqueue_head(&ctx->cq_wait);
 	spin_lock_init(&ctx->completion_lock);
 	INIT_LIST_HEAD(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
@@ -1404,14 +1404,14 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 	/* see waitqueue_active() comment */
 	smp_mb();
 
-	if (waitqueue_active(&ctx->wait))
-		wake_up(&ctx->wait);
+	if (waitqueue_active(&ctx->cq_wait))
+		wake_up(&ctx->cq_wait);
 	if (ctx->sq_data && waitqueue_active(&ctx->sq_data->wait))
 		wake_up(&ctx->sq_data->wait);
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
-	if (waitqueue_active(&ctx->cq_wait)) {
-		wake_up_interruptible(&ctx->cq_wait);
+	if (waitqueue_active(&ctx->poll_wait)) {
+		wake_up_interruptible(&ctx->poll_wait);
 		kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 	}
 }
@@ -1422,13 +1422,13 @@ static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 	smp_mb();
 
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		if (waitqueue_active(&ctx->wait))
-			wake_up(&ctx->wait);
+		if (waitqueue_active(&ctx->cq_wait))
+			wake_up(&ctx->cq_wait);
 	}
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
-	if (waitqueue_active(&ctx->cq_wait)) {
-		wake_up_interruptible(&ctx->cq_wait);
+	if (waitqueue_active(&ctx->poll_wait)) {
+		wake_up_interruptible(&ctx->poll_wait);
 		kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 	}
 }
@@ -7056,10 +7056,10 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			ret = -EBUSY;
 			break;
 		}
-		prepare_to_wait_exclusive(&ctx->wait, &iowq.wq,
+		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, &timeout);
-		finish_wait(&ctx->wait, &iowq.wq);
+		finish_wait(&ctx->cq_wait, &iowq.wq);
 		cond_resched();
 	} while (ret > 0);
 
@@ -8680,7 +8680,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	struct io_ring_ctx *ctx = file->private_data;
 	__poll_t mask = 0;
 
-	poll_wait(file, &ctx->cq_wait, wait);
+	poll_wait(file, &ctx->poll_wait, wait);
 	/*
 	 * synchronizes with barrier from wq_has_sleeper call in
 	 * io_commit_cqring
