@@ -427,6 +427,7 @@ static int surface_dtx_open(struct inode *inode, struct file *file)
 	 */
 	if (test_bit(SDTX_DEVICE_SHUTDOWN_BIT, &ddev->flags)) {
 		up_write(&ddev->client_lock);
+		mutex_destroy(&client->read_lock);
 		sdtx_device_put(client->ddev);
 		kfree(client);
 		return -ENODEV;

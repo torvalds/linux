@@ -67,9 +67,7 @@ properties:
     maxItems: 1
 
   clock-names:
-    maxItems: 1
-    items:
-      - const: fck
+    const: fck
 
   resets:
     maxItems: 1

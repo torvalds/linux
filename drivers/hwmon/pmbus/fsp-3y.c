@@ -37,6 +37,8 @@ struct fsp3y_data {
 	struct pmbus_driver_info info;
 	int chip;
 	int page;
+
+	bool vout_linear_11;
 };
 
 #define to_fsp3y_data(x) container_of(x, struct fsp3y_data, info)
@@ -108,11 +110,9 @@ static int fsp3y_read_byte_data(struct i2c_client *client, int page, int reg)
 	int rv;
 
 	/*
-	 * YH5151-E outputs vout in linear11. The conversion is done when
-	 * reading. Here, we have to inject pmbus_core with the correct
-	 * exponent (it is -6).
+	 * Inject an exponent for non-compliant YH5151-E.
 	 */
-	if (data->chip == yh5151e && reg == PMBUS_VOUT_MODE)
+	if (data->vout_linear_11 && reg == PMBUS_VOUT_MODE)
 		return 0x1A;
 
 	rv = set_page(client, page);
@@ -161,10 +161,9 @@ static int fsp3y_read_word_data(struct i2c_client *client, int page, int phase, 
 		return rv;
 
 	/*
-	 * YH-5151E is non-compliant and outputs output voltages in linear11
-	 * instead of linear16.
+	 * Handle YH-5151E non-compliant linear11 vout voltage.
 	 */
-	if (data->chip == yh5151e && reg == PMBUS_READ_VOUT)
+	if (data->vout_linear_11 && reg == PMBUS_READ_VOUT)
 		rv = sign_extend32(rv, 10) & 0xffff;
 
 	return rv;
@@ -255,6 +254,25 @@ static int fsp3y_probe(struct i2c_client *client)
 	data->page = rv;
 
 	data->info = fsp3y_info[data->chip];
+
+	/*
+	 * YH-5151E sometimes reports vout in linear11 and sometimes in
+	 * linear16. This depends on the exact individual piece of hardware. One
+	 * YH-5151E can use linear16 and another might use linear11 instead.
+	 *
+	 * The format can be recognized by reading VOUT_MODE - if it doesn't
+	 * report a valid exponent, then vout uses linear11. Otherwise, the
+	 * device is compliant and uses linear16.
+	 */
+	data->vout_linear_11 = false;
+	if (data->chip == yh5151e) {
+		rv = i2c_smbus_read_byte_data(client, PMBUS_VOUT_MODE);
+		if (rv < 0)
+			return rv;
+
+		if (rv == 0xFF)
+			data->vout_linear_11 = true;
+	}
 
 	return pmbus_do_probe(client, &data->info);
 }

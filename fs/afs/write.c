@@ -730,7 +730,7 @@ static int afs_writepages_region(struct address_space *mapping,
 			return ret;
 		}
 
-		start += ret * PAGE_SIZE;
+		start += ret;
 
 		cond_resched();
 	} while (wbc->nr_to_write > 0);

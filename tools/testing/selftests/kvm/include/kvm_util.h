@@ -43,6 +43,7 @@ enum vm_guest_mode {
 	VM_MODE_P40V48_4K,
 	VM_MODE_P40V48_64K,
 	VM_MODE_PXXV48_4K,	/* For 48bits VA but ANY bits PA */
+	VM_MODE_P47V64_4K,
 	NUM_VM_MODES,
 };
 
@@ -60,7 +61,7 @@ enum vm_guest_mode {
 
 #elif defined(__s390x__)
 
-#define VM_MODE_DEFAULT			VM_MODE_P52V48_4K
+#define VM_MODE_DEFAULT			VM_MODE_P47V64_4K
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 16)
 
@@ -285,10 +286,11 @@ struct kvm_vm *vm_create_default_with_vcpus(uint32_t nr_vcpus, uint64_t extra_me
 					    uint32_t num_percpu_pages, void *guest_code,
 					    uint32_t vcpuids[]);
 
-/* Like vm_create_default_with_vcpus, but accepts mode as a parameter */
+/* Like vm_create_default_with_vcpus, but accepts mode and slot0 memory as a parameter */
 struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
-				    uint64_t extra_mem_pages, uint32_t num_percpu_pages,
-				    void *guest_code, uint32_t vcpuids[]);
+				    uint64_t slot0_mem_pages, uint64_t extra_mem_pages,
+				    uint32_t num_percpu_pages, void *guest_code,
+				    uint32_t vcpuids[]);
 
 /*
  * Adds a vCPU with reasonable defaults (e.g. a stack)

@@ -1907,7 +1907,7 @@ static int ssam_ssh_event_disable(struct ssam_controller *ctrl,
 {
 	int status;
 
-	status = __ssam_ssh_event_request(ctrl, reg, reg.cid_enable, id, flags);
+	status = __ssam_ssh_event_request(ctrl, reg, reg.cid_disable, id, flags);
 
 	if (status < 0 && status != -EINVAL) {
 		ssam_err(ctrl,

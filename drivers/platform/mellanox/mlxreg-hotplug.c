@@ -683,13 +683,13 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, priv->irq,
 			       mlxreg_hotplug_irq_handler, IRQF_TRIGGER_FALLING
-			       | IRQF_SHARED | IRQF_NO_AUTOEN,
-			       "mlxreg-hotplug", priv);
+			       | IRQF_SHARED, "mlxreg-hotplug", priv);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", err);
 		return err;
 	}
 
+	disable_irq(priv->irq);
 	spin_lock_init(&priv->lock);
 	INIT_DELAYED_WORK(&priv->dwork_irq, mlxreg_hotplug_work_handler);
 	dev_set_drvdata(&pdev->dev, priv);

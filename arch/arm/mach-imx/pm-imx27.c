@@ -12,6 +12,7 @@
 #include <linux/suspend.h>
 #include <linux/io.h>
 
+#include "common.h"
 #include "hardware.h"
 
 static int mx27_suspend_enter(suspend_state_t state)
