@@ -19,8 +19,6 @@
 	compatible = "xlnx,zynqmp-zc1751", "xlnx,zynqmp";
 
 	aliases {
-		can0 = &can0;
-		can1 = &can1;
 		ethernet0 = &gem2;
 		i2c0 = &i2c0;
 		rtc0 = &rtc;
