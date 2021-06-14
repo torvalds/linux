@@ -313,7 +313,7 @@ ATTRIBUTE_GROUPS(fpga_bridge);
 
 /**
  * fpga_bridge_create - create and initialize a struct fpga_bridge
- * @dev:	FPGA bridge device from pdev
+ * @parent:	FPGA bridge device from pdev
  * @name:	FPGA bridge name
  * @br_ops:	pointer to structure of fpga bridge ops
  * @priv:	FPGA bridge private data
@@ -323,7 +323,7 @@ ATTRIBUTE_GROUPS(fpga_bridge);
  *
  * Return: struct fpga_bridge or NULL
  */
-struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
+struct fpga_bridge *fpga_bridge_create(struct device *parent, const char *name,
 				       const struct fpga_bridge_ops *br_ops,
 				       void *priv)
 {
@@ -331,7 +331,7 @@ struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
 	int id, ret;
 
 	if (!name || !strlen(name)) {
-		dev_err(dev, "Attempt to register with no name!\n");
+		dev_err(parent, "Attempt to register with no name!\n");
 		return NULL;
 	}
 
@@ -353,8 +353,8 @@ struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
 	device_initialize(&bridge->dev);
 	bridge->dev.groups = br_ops->groups;
 	bridge->dev.class = fpga_bridge_class;
-	bridge->dev.parent = dev;
-	bridge->dev.of_node = dev->of_node;
+	bridge->dev.parent = parent;
+	bridge->dev.of_node = parent->of_node;
 	bridge->dev.id = id;
 
 	ret = dev_set_name(&bridge->dev, "br%d", id);
@@ -392,7 +392,7 @@ static void devm_fpga_bridge_release(struct device *dev, void *res)
 
 /**
  * devm_fpga_bridge_create - create and init a managed struct fpga_bridge
- * @dev:	FPGA bridge device from pdev
+ * @parent:	FPGA bridge device from pdev
  * @name:	FPGA bridge name
  * @br_ops:	pointer to structure of fpga bridge ops
  * @priv:	FPGA bridge private data
@@ -408,7 +408,7 @@ static void devm_fpga_bridge_release(struct device *dev, void *res)
  *  Return: struct fpga_bridge or NULL
  */
 struct fpga_bridge
-*devm_fpga_bridge_create(struct device *dev, const char *name,
+*devm_fpga_bridge_create(struct device *parent, const char *name,
 			 const struct fpga_bridge_ops *br_ops, void *priv)
 {
 	struct fpga_bridge **ptr, *bridge;
@@ -417,12 +417,12 @@ struct fpga_bridge
 	if (!ptr)
 		return NULL;
 
-	bridge = fpga_bridge_create(dev, name, br_ops, priv);
+	bridge = fpga_bridge_create(parent, name, br_ops, priv);
 	if (!bridge) {
 		devres_free(ptr);
 	} else {
 		*ptr = bridge;
-		devres_add(dev, ptr);
+		devres_add(parent, ptr);
 	}
 
 	return bridge;
