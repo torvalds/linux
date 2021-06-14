@@ -403,17 +403,6 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 	cal_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index), val);
 	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->index,
 		cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index)));
-
-	val = cal_read(ctx->cal, CAL_CTRL);
-	cal_set_field(&val, CAL_CTRL_BURSTSIZE_BURST128,
-		      CAL_CTRL_BURSTSIZE_MASK);
-	cal_set_field(&val, 0xF, CAL_CTRL_TAGCNT_MASK);
-	cal_set_field(&val, CAL_CTRL_POSTED_WRITES_NONPOSTED,
-		      CAL_CTRL_POSTED_WRITES_MASK);
-	cal_set_field(&val, 0xFF, CAL_CTRL_MFLAGL_MASK);
-	cal_set_field(&val, 0xFF, CAL_CTRL_MFLAGH_MASK);
-	cal_write(ctx->cal, CAL_CTRL, val);
-	ctx_dbg(3, ctx, "CAL_CTRL = 0x%08x\n", cal_read(ctx->cal, CAL_CTRL));
 }
 
 void cal_ctx_set_dma_addr(struct cal_ctx *ctx, dma_addr_t addr)
@@ -1127,6 +1116,7 @@ static int cal_runtime_resume(struct device *dev)
 {
 	struct cal_dev *cal = dev_get_drvdata(dev);
 	unsigned int i;
+	u32 val;
 
 	if (cal->data->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
 		/*
@@ -1142,6 +1132,17 @@ static int cal_runtime_resume(struct device *dev)
 	 * CAMERARAX or context.
 	 */
 	cal_write(cal, CAL_HL_IRQENABLE_SET(0), CAL_HL_IRQ_OCPO_ERR_MASK);
+
+	val = cal_read(cal, CAL_CTRL);
+	cal_set_field(&val, CAL_CTRL_BURSTSIZE_BURST128,
+		      CAL_CTRL_BURSTSIZE_MASK);
+	cal_set_field(&val, 0xf, CAL_CTRL_TAGCNT_MASK);
+	cal_set_field(&val, CAL_CTRL_POSTED_WRITES_NONPOSTED,
+		      CAL_CTRL_POSTED_WRITES_MASK);
+	cal_set_field(&val, 0xff, CAL_CTRL_MFLAGL_MASK);
+	cal_set_field(&val, 0xff, CAL_CTRL_MFLAGH_MASK);
+	cal_write(cal, CAL_CTRL, val);
+	cal_dbg(3, cal, "CAL_CTRL = 0x%08x\n", cal_read(cal, CAL_CTRL));
 
 	return 0;
 }
