@@ -122,11 +122,11 @@ u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len)
 	return 0;
 }
 
-static unsigned int nvmet_max_nsid(struct nvmet_subsys *subsys)
+static u32 nvmet_max_nsid(struct nvmet_subsys *subsys)
 {
-	unsigned long nsid = 0;
 	struct nvmet_ns *cur;
 	unsigned long idx;
+	u32 nsid = 0;
 
 	xa_for_each(&subsys->namespaces, idx, cur)
 		nsid = cur->nsid;
