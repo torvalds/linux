@@ -326,13 +326,16 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			irps5401_43: irps54012@43 { /* IRPS5401 - u53 check these */
+			irps5401_43: irps5401@43 { /* IRPS5401 - u53 check these */
+				compatible = "infineon,irps5401";
 				reg = <0x43>;
 			};
-			irps5401_44: irps54012@44 { /* IRPS5401 - u55 */
+			irps5401_44: irps5401@44 { /* IRPS5401 - u55 */
+				compatible = "infineon,irps5401";
 				reg = <0x44>;
 			};
-			irps5401_45: irps54012@45 { /* IRPS5401 - u57 */
+			irps5401_45: irps5401@45 { /* IRPS5401 - u57 */
+				compatible = "infineon,irps5401";
 				reg = <0x45>;
 			};
 			/* u68 IR38064 +0 */
