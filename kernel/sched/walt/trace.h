@@ -881,9 +881,11 @@ TRACE_EVENT(sched_cpu_util,
 		__field(int,		reserved)
 		__field(int,		high_irq_load)
 		__field(unsigned int,	nr_rtg_high_prio_tasks)
+		__field(u64,	prs_gprs)
 	),
 
 	TP_fast_assign(
+		struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
 		__entry->cpu		= cpu;
 		__entry->nr_running	= cpu_rq(cpu)->nr_running;
 		__entry->cpu_util	= cpu_util(cpu);
@@ -898,15 +900,16 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->reserved		= is_reserved(cpu);
 		__entry->high_irq_load		= sched_cpu_high_irqload(cpu);
 		__entry->nr_rtg_high_prio_tasks	= walt_nr_rtg_high_prio(cpu);
+		__entry->prs_gprs	= wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%u capacity=%u capacity_orig=%u idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%u capacity=%u capacity_orig=%u idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util,
 		__entry->cpu_util_cum, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig,
 		__entry->idle_exit_latency, __entry->irqload, __entry->online,
 		__entry->inactive, __entry->reserved, __entry->high_irq_load,
-		__entry->nr_rtg_high_prio_tasks)
+		__entry->nr_rtg_high_prio_tasks, __entry->prs_gprs)
 );
 
 TRACE_EVENT(sched_compute_energy,
@@ -915,10 +918,11 @@ TRACE_EVENT(sched_compute_energy,
 		unsigned long eval_energy,
 		unsigned long prev_energy,
 		unsigned long best_energy,
-		unsigned long best_energy_cpu),
+		unsigned long best_energy_cpu,
+		struct compute_energy_output *o),
 
 	TP_ARGS(p, eval_cpu, eval_energy, prev_energy, best_energy,
-		best_energy_cpu),
+		best_energy_cpu, o),
 
 	TP_STRUCT__entry(
 		__field(int,		pid)
@@ -930,6 +934,18 @@ TRACE_EVENT(sched_compute_energy,
 		__field(unsigned long,	eval_energy)
 		__field(int,		best_energy_cpu)
 		__field(unsigned long,	best_energy)
+		__field(unsigned int,	cluster_first_cpu0)
+		__field(unsigned int,	cluster_first_cpu1)
+		__field(unsigned int,	cluster_first_cpu2)
+		__field(unsigned long,	s0)
+		__field(unsigned long,	s1)
+		__field(unsigned long,	s2)
+		__field(unsigned long,	m0)
+		__field(unsigned long,	m1)
+		__field(unsigned long,	m2)
+		__field(u16,	c0)
+		__field(u16,	c1)
+		__field(u16,	c2)
 	),
 
 	TP_fast_assign(
@@ -942,12 +958,27 @@ TRACE_EVENT(sched_compute_energy,
 		__entry->eval_energy		= eval_energy;
 		__entry->best_energy_cpu	= best_energy_cpu;
 		__entry->best_energy		= best_energy;
+		__entry->cluster_first_cpu0	= o->cluster_first_cpu[0];
+		__entry->cluster_first_cpu1	= o->cluster_first_cpu[1];
+		__entry->cluster_first_cpu2	= o->cluster_first_cpu[2];
+		__entry->s0	= o->sum_util[0];
+		__entry->s1	= o->sum_util[1];
+		__entry->s2	= o->sum_util[2];
+		__entry->m0	= o->max_util[0];
+		__entry->m1	= o->max_util[1];
+		__entry->m2	= o->max_util[2];
+		__entry->c0	= o->cost[0];
+		__entry->c1	= o->cost[1];
+		__entry->c2	= o->cost[2];
 	),
 
-	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d prev_energy=%lu eval_cpu=%d eval_energy=%lu best_energy_cpu=%d best_energy=%lu",
+	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d prev_energy=%lu eval_cpu=%d eval_energy=%lu best_energy_cpu=%d best_energy=%lu, fcpu s m c = %u %u %u %u, %u %u %u %u, %u %u %u %u",
 		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu,
 		__entry->prev_energy, __entry->eval_cpu, __entry->eval_energy,
-		__entry->best_energy_cpu, __entry->best_energy)
+		__entry->best_energy_cpu, __entry->best_energy,
+		__entry->cluster_first_cpu0, __entry->s0, __entry->m0, __entry->c0,
+		__entry->cluster_first_cpu1, __entry->s1, __entry->m1, __entry->c1,
+		__entry->cluster_first_cpu2, __entry->s2, __entry->m2, __entry->c2)
 )
 
 TRACE_EVENT(sched_task_util,

@@ -497,7 +497,8 @@ cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_ds
  * a capacity state satisfying the max utilization of the domain.
  */
 static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
-				unsigned long max_util, unsigned long sum_util)
+				unsigned long max_util, unsigned long sum_util,
+				struct compute_energy_output *output, unsigned int x)
 {
 	unsigned long scale_cpu;
 	int cpu;
@@ -563,6 +564,12 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 		max_util = 1023;
 
 	wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	if (output) {
+		output->cost[x] = wrq->cluster->util_to_cost[max_util];
+		output->max_util[x] = max_util;
+		output->sum_util[x] = sum_util;
+	}
 	return wrq->cluster->util_to_cost[max_util] * sum_util / scale_cpu;
 }
 
@@ -574,7 +581,8 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
  * task.
  */
 static long
-walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, u64 *prs)
+walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, u64 *prs,
+		struct compute_energy_output *output, unsigned int x)
 {
 	struct cpumask *pd_mask = perf_domain_span(pd);
 	unsigned long max_util = 0, sum_util = 0;
@@ -602,21 +610,28 @@ walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *p
 
 	max_util = scale_demand(max_util);
 	sum_util = scale_demand(sum_util);
-	return walt_em_cpu_energy(pd->em_pd, max_util, sum_util);
+
+	if (output)
+		output->cluster_first_cpu[x] = cpumask_first(pd_mask);
+
+	return walt_em_cpu_energy(pd->em_pd, max_util, sum_util, output, x);
 }
 
 static inline long
 walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd,
-			cpumask_t *candidates, u64 *prs)
+			cpumask_t *candidates, u64 *prs, struct compute_energy_output *output)
 {
 	long energy = 0;
+	unsigned int x = 0;
 
 	for (; pd; pd = pd->next) {
 		struct cpumask *pd_mask = perf_domain_span(pd);
 
 		if (cpumask_intersects(candidates, pd_mask)
-				|| cpumask_test_cpu(task_cpu(p), pd_mask))
-			energy += walt_pd_compute_energy(p, dst_cpu, pd, prs);
+				|| cpumask_test_cpu(task_cpu(p), pd_mask)) {
+			energy += walt_pd_compute_energy(p, dst_cpu, pd, prs, output, x);
+			x++;
+		}
 	}
 
 	return energy;
@@ -673,6 +688,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int start_cpu, order_index, end_index;
 	int max_cap_cpu = -1;
 	bool energy_eval_needed = true;
+	struct compute_energy_output output;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, &p->cpus_mask))
@@ -750,20 +766,38 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (p->state == TASK_WAKING)
 		delta = task_util(p);
 
-	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta))
-		prev_energy = best_energy =
-			walt_compute_energy(p, prev_cpu, pd, candidates, fbt_env.prs);
-	else
+	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta)) {
+		if (trace_sched_compute_energy_enabled()) {
+			memset(&output, 0, sizeof(output));
+			prev_energy = walt_compute_energy(p, prev_cpu, pd, candidates, fbt_env.prs,
+					&output);
+		} else {
+			prev_energy = walt_compute_energy(p, prev_cpu, pd, candidates, fbt_env.prs,
+					NULL);
+		}
+
+		best_energy = prev_energy;
+		trace_sched_compute_energy(p, prev_cpu, prev_energy, 0, 0, 0, &output);
+	} else {
 		prev_energy = best_energy = ULONG_MAX;
+	}
 
 	/* Select the best candidate energy-wise. */
 	for_each_cpu(cpu, candidates) {
 		if (cpu == prev_cpu)
 			continue;
 
-		cur_energy = walt_compute_energy(p, cpu, pd, candidates, fbt_env.prs);
+		if (trace_sched_compute_energy_enabled()) {
+			memset(&output, 0, sizeof(output));
+			cur_energy = walt_compute_energy(p, cpu, pd, candidates, fbt_env.prs,
+					&output);
+		} else {
+			cur_energy = walt_compute_energy(p, cpu, pd, candidates, fbt_env.prs,
+					NULL);
+		}
+
 		trace_sched_compute_energy(p, cpu, cur_energy,
-			prev_energy, best_energy, best_energy_cpu);
+			prev_energy, best_energy, best_energy_cpu, &output);
 
 		if (cur_energy < best_energy) {
 			best_energy = cur_energy;

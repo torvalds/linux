@@ -894,4 +894,10 @@ extern __read_mostly unsigned int walt_scale_demand_divisor;
 #define scale_demand(d) ((d)/walt_scale_demand_divisor)
 
 void create_util_to_cost(void);
+struct compute_energy_output {
+	unsigned long	sum_util[MAX_CLUSTERS];
+	unsigned long	max_util[MAX_CLUSTERS];
+	u16		cost[MAX_CLUSTERS];
+	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
+};
 #endif /* _WALT_H */
