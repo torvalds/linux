@@ -6043,6 +6043,7 @@ static int set_nx_huge_pages_recovery_ratio(const char *val, const struct kernel
 
 static void kvm_recover_nx_lpages(struct kvm *kvm)
 {
+	unsigned long nx_lpage_splits = kvm->stat.nx_lpage_splits;
 	int rcu_idx;
 	struct kvm_mmu_page *sp;
 	unsigned int ratio;
@@ -6054,7 +6055,7 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 	write_lock(&kvm->mmu_lock);
 
 	ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
-	to_zap = ratio ? DIV_ROUND_UP(kvm->stat.nx_lpage_splits, ratio) : 0;
+	to_zap = ratio ? DIV_ROUND_UP(nx_lpage_splits, ratio) : 0;
 	for ( ; to_zap; --to_zap) {
 		if (list_empty(&kvm->arch.lpage_disallowed_mmu_pages))
 			break;
