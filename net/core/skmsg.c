@@ -824,7 +824,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(sk_psock_msg_verdict);
 
-static int sk_psock_skb_redirect(struct sk_buff *skb)
+static int sk_psock_skb_redirect(struct sk_psock *from, struct sk_buff *skb)
 {
 	struct sk_psock *psock_other;
 	struct sock *sk_other;
@@ -861,11 +861,12 @@ static int sk_psock_skb_redirect(struct sk_buff *skb)
 	return 0;
 }
 
-static void sk_psock_tls_verdict_apply(struct sk_buff *skb, struct sock *sk, int verdict)
+static void sk_psock_tls_verdict_apply(struct sk_buff *skb,
+				       struct sk_psock *from, int verdict)
 {
 	switch (verdict) {
 	case __SK_REDIRECT:
-		sk_psock_skb_redirect(skb);
+		sk_psock_skb_redirect(from, skb);
 		break;
 	case __SK_PASS:
 	case __SK_DROP:
@@ -889,7 +890,7 @@ int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb)
 		ret = sk_psock_map_verd(ret, skb_bpf_redirect_fetch(skb));
 		skb->sk = NULL;
 	}
-	sk_psock_tls_verdict_apply(skb, psock->sk, ret);
+	sk_psock_tls_verdict_apply(skb, psock, ret);
 	rcu_read_unlock();
 	return ret;
 }
@@ -936,7 +937,7 @@ static int sk_psock_verdict_apply(struct sk_psock *psock, struct sk_buff *skb,
 		}
 		break;
 	case __SK_REDIRECT:
-		err = sk_psock_skb_redirect(skb);
+		err = sk_psock_skb_redirect(psock, skb);
 		break;
 	case __SK_DROP:
 	default:
