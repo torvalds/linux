@@ -6,3 +6,12 @@
 
 #include "rk3568-evb1-ddr4-v10.dtsi"
 #include "rk3568-linux.dtsi"
+#include <dt-bindings/display/rockchip_vop.h>
+
+&vp0 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+};
+
+&vp1 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER1>;
+};
