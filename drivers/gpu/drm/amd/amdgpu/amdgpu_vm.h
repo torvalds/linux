@@ -152,13 +152,6 @@ struct amdgpu_vm_bo_base {
 	bool				moved;
 };
 
-struct amdgpu_vm_pt {
-	struct amdgpu_vm_bo_base	base;
-
-	/* array of page tables, one for each directory entry */
-	struct amdgpu_vm_pt		*entries;
-};
-
 /* provided by hw blocks that can write ptes, e.g., sdma */
 struct amdgpu_vm_pte_funcs {
 	/* number of dw to reserve per operation */
@@ -284,7 +277,7 @@ struct amdgpu_vm {
 	struct list_head        done;
 
 	/* contains the page directory */
-	struct amdgpu_vm_pt     root;
+	struct amdgpu_vm_bo_base     root;
 	struct dma_fence	*last_update;
 
 	/* Scheduler entities for page table updates */
