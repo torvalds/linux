@@ -28,7 +28,7 @@ extern char _end[];
 extern unsigned char _compressed_start[];
 extern unsigned char _compressed_end[];
 
-#ifdef CONFIG_HAVE_KERNEL_BZIP2
+#ifdef CONFIG_KERNEL_BZIP2
 #define BOOT_HEAP_SIZE	0x400000
 #else
 #define BOOT_HEAP_SIZE	0x10000
