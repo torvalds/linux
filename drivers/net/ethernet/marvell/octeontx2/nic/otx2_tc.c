@@ -15,6 +15,7 @@
 #include <net/tc_act/tc_vlan.h>
 #include <net/ipv6.h>
 
+#include "cn10k.h"
 #include "otx2_common.h"
 
 /* Egress rate limiting definitions */
@@ -675,6 +676,87 @@ static int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
 	}
 }
 
+static int otx2_tc_ingress_matchall_install(struct otx2_nic *nic,
+					    struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct flow_action *actions = &cls->rule->action;
+	struct flow_action_entry *entry;
+	u64 rate;
+	int err;
+
+	err = otx2_tc_validate_flow(nic, actions, extack);
+	if (err)
+		return err;
+
+	if (nic->flags & OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only one ingress MATCHALL ratelimitter can be offloaded");
+		return -ENOMEM;
+	}
+
+	entry = &cls->rule->action.entries[0];
+	switch (entry->id) {
+	case FLOW_ACTION_POLICE:
+		/* Ingress ratelimiting is not supported on OcteonTx2 */
+		if (is_dev_otx2(nic->pdev)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Ingress policing not supported on this platform");
+			return -EOPNOTSUPP;
+		}
+
+		err = cn10k_alloc_matchall_ipolicer(nic);
+		if (err)
+			return err;
+
+		/* Convert to bits per second */
+		rate = entry->police.rate_bytes_ps * 8;
+		err = cn10k_set_matchall_ipolicer_rate(nic, entry->police.burst, rate);
+		if (err)
+			return err;
+		nic->flags |= OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED;
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only police action supported with Ingress MATCHALL offload");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int otx2_tc_ingress_matchall_delete(struct otx2_nic *nic,
+					   struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	int err;
+
+	if (nic->flags & OTX2_FLAG_INTF_DOWN) {
+		NL_SET_ERR_MSG_MOD(extack, "Interface not initialized");
+		return -EINVAL;
+	}
+
+	err = cn10k_free_matchall_ipolicer(nic);
+	nic->flags &= ~OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED;
+	return err;
+}
+
+static int otx2_setup_tc_ingress_matchall(struct otx2_nic *nic,
+					  struct tc_cls_matchall_offload *cls_matchall)
+{
+	switch (cls_matchall->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return otx2_tc_ingress_matchall_install(nic, cls_matchall);
+	case TC_CLSMATCHALL_DESTROY:
+		return otx2_tc_ingress_matchall_delete(nic, cls_matchall);
+	case TC_CLSMATCHALL_STATS:
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int otx2_setup_tc_block_ingress_cb(enum tc_setup_type type,
 					  void *type_data, void *cb_priv)
 {
@@ -686,6 +768,8 @@ static int otx2_setup_tc_block_ingress_cb(enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return otx2_setup_tc_cls_flower(nic, type_data);
+	case TC_SETUP_CLSMATCHALL:
+		return otx2_setup_tc_ingress_matchall(nic, type_data);
 	default:
 		break;
 	}

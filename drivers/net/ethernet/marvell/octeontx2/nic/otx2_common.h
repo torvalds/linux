@@ -180,6 +180,7 @@ struct otx2_hw {
 
 	/* NIX */
 	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	u16			matchall_ipolicer;
 
 	/* HW settings, coalescing etc */
 	u16			rx_chan_base;
@@ -327,6 +328,7 @@ struct otx2_nic {
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 #define OTX2_FLAG_TC_FLOWER_SUPPORT		BIT_ULL(11)
 #define OTX2_FLAG_TC_MATCHALL_EGRESS_ENABLED	BIT_ULL(12)
+#define OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED	BIT_ULL(13)
 	u64			flags;
 
 	struct otx2_qset	qset;
