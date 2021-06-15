@@ -444,31 +444,21 @@
 };
 
 &pinctrl {
-	/*
-	 * This extends the MC0 default config to include DAT32DIR
-	 * which is used by this machine. If we don't do this the
-	 * SD card does not work.
-	 */
 	sdi0 {
 		mc0_a_1_default {
-			default_mux {
-				function = "mc0";
-				/* This machine uses the DAT31 pin */
-				groups = "mc0_a_1", "mc0dat31dir_a_1";
-			};
-			default_cfg5 {
-				pins = "GPIO21_AB3"; /* DAT31DIR */
-				ste,config = <&out_hi>;
+			default_cfg1 {
+				/* GPIO18, 19 & 20 unused so pull down */
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
 
-	/* The unused FBCLK needs to be pulled down on this machine */
+	/* This is a reset line for the eMMC */
 	sdi2 {
 		mc2_a_1_default {
 			default_cfg2 {
 				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_pd>;
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
