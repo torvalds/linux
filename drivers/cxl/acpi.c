@@ -145,6 +145,30 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	return 0;
 }
 
+static int add_root_nvdimm_bridge(struct device *match, void *data)
+{
+	struct cxl_decoder *cxld;
+	struct cxl_port *root_port = data;
+	struct cxl_nvdimm_bridge *cxl_nvb;
+	struct device *host = root_port->dev.parent;
+
+	if (!is_root_decoder(match))
+		return 0;
+
+	cxld = to_cxl_decoder(match);
+	if (!(cxld->flags & CXL_DECODER_F_PMEM))
+		return 0;
+
+	cxl_nvb = devm_cxl_add_nvdimm_bridge(host, root_port);
+	if (IS_ERR(cxl_nvb)) {
+		dev_dbg(host, "failed to register pmem\n");
+		return PTR_ERR(cxl_nvb);
+	}
+	dev_dbg(host, "%s: add: %s\n", dev_name(&root_port->dev),
+		dev_name(&cxl_nvb->dev));
+	return 1;
+}
+
 static int cxl_acpi_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -166,8 +190,17 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	 * Root level scanned with host-bridge as dports, now scan host-bridges
 	 * for their role as CXL uports to their CXL-capable PCIe Root Ports.
 	 */
-	return bus_for_each_dev(adev->dev.bus, NULL, root_port,
-				add_host_bridge_uport);
+	rc = bus_for_each_dev(adev->dev.bus, NULL, root_port,
+			      add_host_bridge_uport);
+	if (rc)
+		return rc;
+
+	if (IS_ENABLED(CONFIG_CXL_PMEM))
+		rc = device_for_each_child(&root_port->dev, root_port,
+					   add_root_nvdimm_bridge);
+	if (rc < 0)
+		return rc;
+	return 0;
 }
 
 static const struct acpi_device_id cxl_acpi_ids[] = {

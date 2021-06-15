@@ -4,6 +4,7 @@
 #ifndef __CXL_H__
 #define __CXL_H__
 
+#include <linux/libnvdimm.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
@@ -202,6 +203,23 @@ struct cxl_decoder {
 	struct cxl_dport *target[];
 };
 
+
+enum cxl_nvdimm_brige_state {
+	CXL_NVB_NEW,
+	CXL_NVB_DEAD,
+	CXL_NVB_ONLINE,
+	CXL_NVB_OFFLINE,
+};
+
+struct cxl_nvdimm_bridge {
+	struct device dev;
+	struct cxl_port *port;
+	struct nvdimm_bus *nvdimm_bus;
+	struct nvdimm_bus_descriptor nd_desc;
+	struct work_struct state_work;
+	enum cxl_nvdimm_brige_state state;
+};
+
 /**
  * struct cxl_port - logical collection of upstream port devices and
  *		     downstream port devices to construct a CXL memory
@@ -247,6 +265,7 @@ int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 		  resource_size_t component_reg_phys);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
+bool is_root_decoder(struct device *dev);
 struct cxl_decoder *
 devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
 		     resource_size_t base, resource_size_t len,
@@ -287,7 +306,12 @@ int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
 #define cxl_driver_register(x) __cxl_driver_register(x, THIS_MODULE, KBUILD_MODNAME)
 void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 
+#define CXL_DEVICE_NVDIMM_BRIDGE 1
+
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"
 
+struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev);
+struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
+						     struct cxl_port *port);
 #endif /* __CXL_H__ */
