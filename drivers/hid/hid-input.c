@@ -567,6 +567,16 @@ static void hidinput_update_battery(struct hid_device *dev, int value)
 }
 #endif	/* CONFIG_HID_BATTERY_STRENGTH */
 
+static bool hidinput_field_in_collection(struct hid_device *device, struct hid_field *field,
+					 unsigned int type, unsigned int usage)
+{
+	struct hid_collection *collection;
+
+	collection = &device->collection[field->usage->collection_index];
+
+	return collection->type == type && collection->usage == usage;
+}
+
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
@@ -631,6 +641,18 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 					code += BTN_GAMEPAD;
 				else
 					code += BTN_TRIGGER_HAPPY - 0x10;
+				break;
+		case HID_CP_CONSUMER_CONTROL:
+				if (hidinput_field_in_collection(device, field,
+								 HID_COLLECTION_NAMED_ARRAY,
+								 HID_CP_PROGRAMMABLEBUTTONS)) {
+					if (code <= 0x1d)
+						code += KEY_MACRO1;
+					else
+						code += BTN_TRIGGER_HAPPY - 0x1e;
+				} else {
+					goto ignore;
+				}
 				break;
 		default:
 			switch (field->physical) {
