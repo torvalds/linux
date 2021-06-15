@@ -23,20 +23,3 @@ void handle_txrpt_ccx_88e(struct adapter *adapter, u8 *buf)
 					RTW_SCTX_DONE_CCX_PKT_FAIL);
 	}
 }
-
-void _dbg_dump_tx_info(struct adapter *padapter, int frame_tag,
-		       struct tx_desc *ptxdesc)
-{
-	u8 dmp_txpkt;
-	bool dump_txdesc = false;
-
-	rtw_hal_get_def_var(padapter, HAL_DEF_DBG_DUMP_TXPKT, &(dmp_txpkt));
-
-	if (dmp_txpkt == 1) {/* dump txdesc for data frame */
-		if ((frame_tag & 0x0f) == DATA_FRAMETAG)
-			dump_txdesc = true;
-	} else if (dmp_txpkt == 2) {/* dump txdesc for mgnt frame */
-		if ((frame_tag & 0x0f) == MGNT_FRAMETAG)
-			dump_txdesc = true;
-	}
-}
