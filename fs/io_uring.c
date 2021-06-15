@@ -5997,10 +5997,30 @@ static u32 io_get_sequence(struct io_kiocb *req)
 
 static bool io_drain_req(struct io_kiocb *req)
 {
+	struct io_kiocb *pos;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_defer_entry *de;
 	int ret;
 	u32 seq;
+
+	/*
+	 * If we need to drain a request in the middle of a link, drain the
+	 * head request and the next request/link after the current link.
+	 * Considering sequential execution of links, IOSQE_IO_DRAIN will be
+	 * maintained for every request of our link.
+	 */
+	if (ctx->drain_next) {
+		req->flags |= REQ_F_IO_DRAIN;
+		ctx->drain_next = false;
+	}
+	/* not interested in head, start from the first linked */
+	io_for_each_link(pos, req->link) {
+		if (pos->flags & REQ_F_IO_DRAIN) {
+			ctx->drain_next = true;
+			req->flags |= REQ_F_IO_DRAIN;
+			break;
+		}
+	}
 
 	/* Still need defer if there is pending req in defer list. */
 	if (likely(list_empty_careful(&ctx->defer_list) &&
@@ -6522,6 +6542,8 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
 	    !io_op_defs[req->opcode].buffer_select)
 		return -EOPNOTSUPP;
+	if (unlikely(sqe_flags & IOSQE_IO_DRAIN))
+		ctx->drain_active = true;
 
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
@@ -6573,22 +6595,6 @@ fail_req:
 		return ret;
 	}
 
-	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
-		ctx->drain_active = true;
-
-		/*
-		 * Taking sequential execution of a link, draining both sides
-		 * of the link also fullfils IOSQE_IO_DRAIN semantics for all
-		 * requests in the link. So, it drains the head and the
-		 * next after the link request. The last one is done via
-		 * drain_next flag to persist the effect across calls.
-		 */
-		if (link->head) {
-			link->head->flags |= REQ_F_IO_DRAIN;
-			ctx->drain_next = 1;
-		}
-	}
-
 	ret = io_req_prep(req, sqe);
 	if (unlikely(ret))
 		goto fail_req;
@@ -6620,10 +6626,6 @@ fail_req:
 			io_queue_sqe(head);
 		}
 	} else {
-		if (unlikely(ctx->drain_next)) {
-			req->flags |= REQ_F_IO_DRAIN;
-			ctx->drain_next = 0;
-		}
 		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
 			link->head = req;
 			link->last = req;
