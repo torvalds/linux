@@ -16,6 +16,7 @@ struct mlx5_eq_param {
 	u8             irq_index;
 	int            nent;
 	u64            mask[4];
+	cpumask_var_t  affinity;
 };
 
 struct mlx5_eq *

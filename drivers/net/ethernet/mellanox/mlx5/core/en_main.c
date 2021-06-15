@@ -5114,7 +5114,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	mlx5e_set_netdev_mtu_boundaries(priv);
 	mlx5e_set_dev_port_mtu(priv);
 
-	mlx5_lag_add(mdev, netdev);
+	mlx5_lag_add_netdev(mdev, netdev);
 
 	mlx5e_enable_async_events(priv);
 	mlx5e_enable_blocking_events(priv);
@@ -5162,7 +5162,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 		priv->en_trap = NULL;
 	}
 	mlx5e_disable_async_events(priv);
-	mlx5_lag_remove(mdev);
+	mlx5_lag_remove_netdev(mdev, priv->netdev);
 	mlx5_vxlan_reset_to_default(mdev->vxlan);
 }
 
