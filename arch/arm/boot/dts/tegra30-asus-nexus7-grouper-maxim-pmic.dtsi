@@ -182,4 +182,13 @@
 		enable-active-high;
 		vin-supply = <&vdd_3v3_sys>;
 	};
+
+	pmc@7000e400 {
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <4>;
+			nvidia,bus-addr = <0x3c>;
+			nvidia,reg-addr = <0x41>;
+			nvidia,reg-data = <0xe0>;
+		};
+	};
 };

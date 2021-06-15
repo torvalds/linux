@@ -283,7 +283,7 @@
 		reg = <0x0 0x60007000 0x0 0x1000>;
 	};
 
-	actmon@6000c800 {
+	actmon: actmon@6000c800 {
 		compatible = "nvidia,tegra124-actmon";
 		reg = <0x0 0x6000c800 0x0 0x400>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -295,6 +295,7 @@
 		operating-points-v2 = <&emc_bw_dfs_opp_table>;
 		interconnects = <&mc TEGRA124_MC_MPCORER &emc>;
 		interconnect-names = "cpu-read";
+		#cooling-cells = <2>;
 	};
 
 	gpio: gpio@6000d000 {
