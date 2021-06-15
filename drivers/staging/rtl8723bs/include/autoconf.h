@@ -40,11 +40,5 @@
  */
 #define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
 
-/*
- * Debug Related Config
- */
-
-#define DBG	0	/*  for ODM & BTCOEX debug */
-
 /* define DBG_XMIT_BUF */
 /* define DBG_XMIT_BUF_EXT */
