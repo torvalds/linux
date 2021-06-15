@@ -951,7 +951,11 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 				       rcu_dereference(iter->sptep));
 	}
 
-	if (!prefault)
+	/*
+	 * Increase pf_fixed in both RET_PF_EMULATE and RET_PF_FIXED to be
+	 * consistent with legacy MMU behavior.
+	 */
+	if (ret != RET_PF_SPURIOUS)
 		vcpu->stat.pf_fixed++;
 
 	return ret;
