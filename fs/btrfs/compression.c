@@ -172,10 +172,9 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 		/* Hash through the page sector by sector */
 		for (pg_offset = 0; pg_offset < bytes_left;
 		     pg_offset += sectorsize) {
-			kaddr = kmap_atomic(page);
+			kaddr = page_address(page);
 			crypto_shash_digest(shash, kaddr + pg_offset,
 					    sectorsize, csum);
-			kunmap_atomic(kaddr);
 
 			if (memcmp(&csum, cb_sum, csum_size) != 0) {
 				btrfs_print_data_csum_error(inode, disk_start,
