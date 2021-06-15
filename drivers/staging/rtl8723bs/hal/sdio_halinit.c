@@ -560,11 +560,6 @@ static void _InitRFType(struct adapter *padapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 
-#if	DISABLE_BB_RF
-	pHalData->rf_chip	= RF_PSEUDO_11N;
-	return;
-#endif
-
 	pHalData->rf_chip	= RF_6052;
 
 	pHalData->rf_type = RF_1T1R;
@@ -1035,11 +1030,7 @@ static void _ReadRFType(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
-#if DISABLE_BB_RF
-	pHalData->rf_chip = RF_PSEUDO_11N;
-#else
 	pHalData->rf_chip = RF_6052;
-#endif
 }
 
 

@@ -1656,9 +1656,6 @@ void PHY_IQCalibrate_8723B(
 	if (bSingleTone || bCarrierSuppression)
 		return;
 
-#if DISABLE_BB_RF
-	return;
-#endif
 	if (pDM_Odm->RFCalibrateInfo.bIQKInProgress)
 		return;
 
@@ -1844,10 +1841,6 @@ void PHY_LCCalibrate_8723B(struct dm_odm_t *pDM_Odm)
 {
 	bool		bSingleTone = false, bCarrierSuppression = false;
 	u32 		timeout = 2000, timecount = 0;
-
-#if DISABLE_BB_RF
-	return;
-#endif
 
 	if (!(pDM_Odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;

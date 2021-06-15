@@ -12,16 +12,7 @@
  * Auto Config Section
  */
 #define LPS_RPWM_WAIT_MS 300
-#ifndef DISABLE_BB_RF
-#define DISABLE_BB_RF	0
-#endif
 
-#if DISABLE_BB_RF
-	#define HAL_MAC_ENABLE	0
-	#define HAL_BB_ENABLE		0
-	#define HAL_RF_ENABLE		0
-#else
-	#define HAL_MAC_ENABLE	1
-	#define HAL_BB_ENABLE		1
-	#define HAL_RF_ENABLE		1
-#endif
+#define HAL_MAC_ENABLE	1
+#define HAL_BB_ENABLE	1
+#define HAL_RF_ENABLE	1

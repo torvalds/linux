@@ -53,10 +53,6 @@ u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
 	u32 OriginalValue, BitShift;
 
-#if (DISABLE_BB_RF == 1)
-	return 0;
-#endif
-
 	OriginalValue = rtw_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
 
@@ -87,10 +83,6 @@ void PHY_SetBBReg_8723B(
 {
 	/* u16 BBWaitCounter	= 0; */
 	u32 OriginalValue, BitShift;
-
-#if (DISABLE_BB_RF == 1)
-	return;
-#endif
 
 	if (BitMask != bMaskDWord) { /* if not "double word" write */
 		OriginalValue = rtw_read32(Adapter, RegAddr);
@@ -252,10 +244,6 @@ u32 PHY_QueryRFReg_8723B(
 {
 	u32 Original_Value, BitShift;
 
-#if (DISABLE_BB_RF == 1)
-	return 0;
-#endif
-
 	Original_Value = phy_RFSerialRead_8723B(Adapter, eRFPath, RegAddr);
 	BitShift =  phy_CalculateBitShift(BitMask);
 
@@ -284,10 +272,6 @@ void PHY_SetRFReg_8723B(
 )
 {
 	u32 Original_Value, BitShift;
-
-#if (DISABLE_BB_RF == 1)
-	return;
-#endif
 
 	/*  RF data is 12 bits only */
 	if (BitMask != bRFRegOffsetMask) {
