@@ -9,6 +9,8 @@
 
 #include <drv_types.h>
 
+#define LPS_RPWM_WAIT_MS	300
+
 /*  Some variables can't get from outsrc BT-Coex, */
 /*  so we need to save here */
 struct bt_coexist {
