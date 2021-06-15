@@ -1019,13 +1019,15 @@ static void arasan_dt_read_clk_phase(struct device *dev,
 	struct device_node *np = dev->of_node;
 
 	u32 clk_phase[2] = {0};
+	int ret;
 
 	/*
 	 * Read Tap Delay values from DT, if the DT does not contain the
 	 * Tap Values then use the pre-defined values.
 	 */
-	if (of_property_read_variable_u32_array(np, prop, &clk_phase[0],
-						2, 0)) {
+	ret = of_property_read_variable_u32_array(np, prop, &clk_phase[0],
+						  2, 0);
+	if (ret < 0) {
 		dev_dbg(dev, "Using predefined clock phase for %s = %d %d\n",
 			prop, clk_data->clk_phase_in[timing],
 			clk_data->clk_phase_out[timing]);
