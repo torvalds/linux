@@ -1712,7 +1712,7 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 		struct qcm_process_device *qpd)
 {
 	int retval;
-	struct queue *q, *next;
+	struct queue *q;
 	struct kernel_queue *kq, *kq_next;
 	struct mqd_manager *mqd_mgr;
 	struct device_process_node *cur, *next_dpn;
@@ -1769,6 +1769,19 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 		qpd->reset_wavefronts = false;
 	}
 
+	/* Lastly, free mqd resources.
+	 * Do free_mqd() after dqm_unlock to avoid circular locking.
+	 */
+	while (!list_empty(&qpd->queues_list)) {
+		q = list_first_entry(&qpd->queues_list, struct queue, list);
+		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+				q->properties.type)];
+		list_del(&q->list);
+		qpd->queue_count--;
+		dqm_unlock(dqm);
+		mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
+		dqm_lock(dqm);
+	}
 	dqm_unlock(dqm);
 
 	/* Outside the DQM lock because under the DQM lock we can't do
@@ -1776,17 +1789,6 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	 */
 	if (found)
 		kfd_dec_compute_active(dqm->dev);
-
-	/* Lastly, free mqd resources.
-	 * Do free_mqd() after dqm_unlock to avoid circular locking.
-	 */
-	list_for_each_entry_safe(q, next, &qpd->queues_list, list) {
-		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
-				q->properties.type)];
-		list_del(&q->list);
-		qpd->queue_count--;
-		mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
-	}
 
 	return retval;
 }
