@@ -93,11 +93,6 @@ static int vcn_v3_0_early_init(void *handle)
 		adev->vcn.harvest_config = 0;
 		adev->vcn.num_enc_rings = 1;
 
-	if (adev->asic_type == CHIP_BEIGE_GOBY) {
-		adev->vcn.num_vcn_inst = 1;
-		adev->vcn.num_enc_rings = 0;
-	}
-
 	} else {
 		if (adev->asic_type == CHIP_SIENNA_CICHLID) {
 			u32 harvest;
