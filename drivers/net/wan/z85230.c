@@ -74,6 +74,7 @@
 static inline int z8530_read_port(unsigned long p)
 {
 	u8 r=inb(Z8530_PORT_OF(p));
+
 	if(p&Z8530_PORT_SLEEP)	/* gcc should figure this out efficiently ! */
 		udelay(5);
 	return r;
@@ -133,6 +134,7 @@ static inline u8 read_zsreg(struct z8530_channel *c, u8 reg)
 static inline u8 read_zsdata(struct z8530_channel *c)
 {
 	u8 r;
+
 	r=z8530_read_port(c->dataio);
 	return r;
 }
@@ -653,6 +655,7 @@ static void z8530_tx_clear(struct z8530_channel *c)
 static void z8530_status_clear(struct z8530_channel *chan)
 {
 	u8 status=read_zsreg(chan, R0);
+
 	if(status&TxEOM)
 		write_zsctrl(chan, ERR_RES);
 	write_zsctrl(chan, RES_EXT_INT);
@@ -1360,6 +1363,7 @@ int z8530_channel_load(struct z8530_channel *c, u8 *rtable)
 	while(*rtable!=255)
 	{
 		int reg=*rtable++;
+
 		if(reg>0x0F)
 			write_zsreg(c, R15, c->regs[15]|1);
 		write_zsreg(c, reg&0x0F, *rtable);
@@ -1401,6 +1405,7 @@ EXPORT_SYMBOL(z8530_channel_load);
 static void z8530_tx_begin(struct z8530_channel *c)
 {
 	unsigned long flags;
+
 	if(c->tx_skb)
 		return;
 		
@@ -1672,6 +1677,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 static inline int spans_boundary(struct sk_buff *skb)
 {
 	unsigned long a=(unsigned long)skb->data;
+
 	a^=(a+skb->len);
 	if(a&0x00010000)	/* If the 64K bit is different.. */
 		return 1;
