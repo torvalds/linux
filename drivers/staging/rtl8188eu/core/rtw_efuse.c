@@ -234,16 +234,9 @@ static void efuse_read_phymap_from_txpktbuf(
 		hi32 = usb_read32(adapter, REG_PKTBUF_DBG_DATA_H);
 
 		if (i == 0) {
-			u8 lenc[2];
-			u16 lenbak, aaabak;
-			u16 aaa;
+			usb_read8(adapter, REG_PKTBUF_DBG_DATA_L);
+			usb_read8(adapter, REG_PKTBUF_DBG_DATA_L + 1);
 
-			lenc[0] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L);
-			lenc[1] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L + 1);
-
-			aaabak = le16_to_cpup((__le16 *)lenc);
-			lenbak = le16_to_cpu(*((__le16 *)lenc));
-			aaa = le16_to_cpup((__le16 *)&lo32);
 			len = le16_to_cpu(*((__le16 *)&lo32));
 
 			limit = min_t(u16, len - 2, limit);
