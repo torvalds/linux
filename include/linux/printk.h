@@ -174,12 +174,12 @@ asmlinkage __printf(1, 0)
 int vprintk(const char *fmt, va_list args);
 
 asmlinkage __printf(1, 2) __cold
-int printk(const char *fmt, ...);
+int _printk(const char *fmt, ...);
 
 /*
  * Special printk facility for scheduler/timekeeping use only, _DO_NOT_USE_ !
  */
-__printf(1, 2) __cold int printk_deferred(const char *fmt, ...);
+__printf(1, 2) __cold int _printk_deferred(const char *fmt, ...);
 
 /*
  * Please don't use printk_ratelimit(), because it shares ratelimiting state
@@ -218,12 +218,12 @@ int vprintk(const char *s, va_list args)
 	return 0;
 }
 static inline __printf(1, 2) __cold
-int printk(const char *s, ...)
+int _printk(const char *s, ...)
 {
 	return 0;
 }
 static inline __printf(1, 2) __cold
-int printk_deferred(const char *s, ...)
+int _printk_deferred(const char *s, ...)
 {
 	return 0;
 }
@@ -347,6 +347,93 @@ extern int kptr_restrict;
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
 #endif
+
+struct module;
+
+#ifdef CONFIG_PRINTK_INDEX
+struct pi_entry {
+	const char *fmt;
+	const char *func;
+	const char *file;
+	unsigned int line;
+
+	/*
+	 * While printk and pr_* have the level stored in the string at compile
+	 * time, some subsystems dynamically add it at runtime through the
+	 * format string. For these dynamic cases, we allow the subsystem to
+	 * tell us the level at compile time.
+	 *
+	 * NULL indicates that the level, if any, is stored in fmt.
+	 */
+	const char *level;
+
+	/*
+	 * The format string used by various subsystem specific printk()
+	 * wrappers to prefix the message.
+	 *
+	 * Note that the static prefix defined by the pr_fmt() macro is stored
+	 * directly in the message format (@fmt), not here.
+	 */
+	const char *subsys_fmt_prefix;
+} __packed;
+
+#define __printk_index_emit(_fmt, _level, _subsys_fmt_prefix)		\
+	do {								\
+		if (__builtin_constant_p(_fmt) && __builtin_constant_p(_level)) { \
+			/*
+			 * We check __builtin_constant_p multiple times here
+			 * for the same input because GCC will produce an error
+			 * if we try to assign a static variable to fmt if it
+			 * is not a constant, even with the outer if statement.
+			 */						\
+			static const struct pi_entry _entry		\
+			__used = {					\
+				.fmt = __builtin_constant_p(_fmt) ? (_fmt) : NULL, \
+				.func = __func__,			\
+				.file = __FILE__,			\
+				.line = __LINE__,			\
+				.level = __builtin_constant_p(_level) ? (_level) : NULL, \
+				.subsys_fmt_prefix = _subsys_fmt_prefix,\
+			};						\
+			static const struct pi_entry *_entry_ptr	\
+			__used __section(".printk_index") = &_entry;	\
+		}							\
+	} while (0)
+
+#else /* !CONFIG_PRINTK_INDEX */
+#define __printk_index_emit(...) do {} while (0)
+#endif /* CONFIG_PRINTK_INDEX */
+
+/*
+ * Some subsystems have their own custom printk that applies a va_format to a
+ * generic format, for example, to include a device number or other metadata
+ * alongside the format supplied by the caller.
+ *
+ * In order to store these in the way they would be emitted by the printk
+ * infrastructure, the subsystem provides us with the start, fixed string, and
+ * any subsequent text in the format string.
+ *
+ * We take a variable argument list as pr_fmt/dev_fmt/etc are sometimes passed
+ * as multiple arguments (eg: `"%s: ", "blah"`), and we must only take the
+ * first one.
+ *
+ * subsys_fmt_prefix must be known at compile time, or compilation will fail
+ * (since this is a mistake). If fmt or level is not known at compile time, no
+ * index entry will be made (since this can legitimately happen).
+ */
+#define printk_index_subsys_emit(subsys_fmt_prefix, level, fmt, ...) \
+	__printk_index_emit(fmt, level, subsys_fmt_prefix)
+
+#define printk_index_wrap(_p_func, _fmt, ...)				\
+	({								\
+		__printk_index_emit(_fmt, NULL, NULL);			\
+		_p_func(_fmt, ##__VA_ARGS__);				\
+	})
+
+
+#define printk(fmt, ...) printk_index_wrap(_printk, fmt, ##__VA_ARGS__)
+#define printk_deferred(fmt, ...)					\
+	printk_index_wrap(_printk_deferred, fmt, ##__VA_ARGS__)
 
 /**
  * pr_emerg - Print an emergency-level message
