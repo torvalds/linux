@@ -665,7 +665,7 @@ static inline void hypervisor_ppn_add(PPN64 pfn)
 	unsigned long eax, ebx, ecx, edx, si = 0, di = 0;
 
 	VMW_PORT(VMW_PORT_CMD_MKSGS_ADD_PPN,
-		pfn, si, di,
+		(unsigned long)pfn, si, di,
 		0,
 		VMW_HYPERVISOR_MAGIC,
 		eax, ebx, ecx, edx, si, di);
@@ -682,7 +682,7 @@ static inline void hypervisor_ppn_remove(PPN64 pfn)
 	unsigned long eax, ebx, ecx, edx, si = 0, di = 0;
 
 	VMW_PORT(VMW_PORT_CMD_MKSGS_REMOVE_PPN,
-		pfn, si, di,
+		(unsigned long)pfn, si, di,
 		0,
 		VMW_HYPERVISOR_MAGIC,
 		eax, ebx, ecx, edx, si, di);
@@ -1115,7 +1115,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	arg->id = slot;
 
-	DRM_DEV_INFO(dev->dev, "pid=%d arg.description='%.*s' id=%lu\n", current->pid, (int)desc_len, pdesc->description, slot);
+	DRM_DEV_INFO(dev->dev, "pid=%d arg.description='%.*s' id=%zu\n", current->pid, (int)desc_len, pdesc->description, slot);
 
 	return 0;
 
@@ -1163,7 +1163,7 @@ int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
 	if (slot >= ARRAY_SIZE(dev_priv->mksstat_user_pids))
 		return -EINVAL;
 
-	DRM_DEV_INFO(dev->dev, "pid=%d arg.id=%lu\n", current->pid, slot);
+	DRM_DEV_INFO(dev->dev, "pid=%d arg.id=%zu\n", current->pid, slot);
 
 	pgid = task_pgrp_vnr(current);
 	pid = atomic_cmpxchg(&dev_priv->mksstat_user_pids[slot], pgid, MKSSTAT_PID_RESERVED);

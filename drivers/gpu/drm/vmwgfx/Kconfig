@@ -25,6 +25,7 @@ config DRM_VMWGFX_FBCON
 config DRM_VMWGFX_MKSSTATS
 	bool "Enable mksGuestStats instrumentation of vmwgfx by default"
 	depends on DRM_VMWGFX
+	depends on X86
 	default n
 	help
 	   Choose this option to instrument the kernel driver for mksGuestStats.
