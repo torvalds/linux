@@ -65,7 +65,6 @@ properties:
       The APB clock and at least one video clock are mandatory, the audio clock
       is optional.
     minItems: 2
-    maxItems: 4
     items:
       - description: dp_apb_clk is the APB clock
       - description: dp_aud_clk is the Audio clock
@@ -78,13 +77,11 @@ properties:
   clock-names:
     oneOf:
       - minItems: 2
-        maxItems: 3
         items:
           - const: dp_apb_clk
           - enum: [ dp_vtc_pixel_clk_in, dp_live_video_in_clk ]
           - enum: [ dp_vtc_pixel_clk_in, dp_live_video_in_clk ]
       - minItems: 3
-        maxItems: 4
         items:
           - const: dp_apb_clk
           - const: dp_aud_clk
@@ -116,7 +113,6 @@ properties:
     maxItems: 2
   phy-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: dp-phy0
       - const: dp-phy1

@@ -28,7 +28,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: usbh
       - const: usb_ref

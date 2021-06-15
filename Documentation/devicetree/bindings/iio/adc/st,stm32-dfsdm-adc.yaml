@@ -38,14 +38,12 @@ properties:
           dfsdm clock can also feed CLKOUT, when CLKOUT is used.
       - description: audio clock can be used as an alternate to feed CLKOUT.
     minItems: 1
-    maxItems: 2
 
   clock-names:
     items:
       - const: dfsdm
       - const: audio
     minItems: 1
-    maxItems: 2
 
   "#address-cells":
     const: 1

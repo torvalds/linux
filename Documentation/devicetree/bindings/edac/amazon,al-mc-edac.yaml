@@ -30,14 +30,12 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 2
     items:
       - description: uncorrectable error interrupt
       - description: correctable error interrupt
 
   interrupt-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: ue
       - const: ce

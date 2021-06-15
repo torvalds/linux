@@ -24,7 +24,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: Bus Clock
       - description: Module Clock

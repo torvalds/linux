@@ -116,7 +116,6 @@ properties:
       list, in the specified order, each representing the corresponding
       internal RAM memory region.
     minItems: 1
-    maxItems: 3
     items:
       - const: l2ram
       - const: l1pram

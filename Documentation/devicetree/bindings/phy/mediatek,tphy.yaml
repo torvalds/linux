@@ -131,7 +131,6 @@ patternProperties:
 
       clocks:
         minItems: 1
-        maxItems: 2
         items:
           - description: Reference clock, (HS is 48Mhz, SS/P is 24~27Mhz)
           - description: Reference clock of analog phy
@@ -141,7 +140,6 @@ patternProperties:
 
       clock-names:
         minItems: 1
-        maxItems: 2
         items:
           - const: ref
           - const: da_ref

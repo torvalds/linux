@@ -30,14 +30,12 @@ properties:
       - description: usb irq from max3420
       - description: vbus detection irq
     minItems: 1
-    maxItems: 2
 
   interrupt-names:
     items:
       - const: udc
       - const: vbus
     minItems: 1
-    maxItems: 2
 
   spi-max-frequency:
     maximum: 26000000

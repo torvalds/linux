@@ -28,7 +28,6 @@ properties:
 
   gpios:
     minItems: 2
-    maxItems: 3
     items:
       - description: MDC
       - description: MDIO

@@ -36,7 +36,6 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 3
     items:
       - description: phy config clock
       - description: 19.2 MHz ref clk
@@ -44,7 +43,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 3
     items:
       - const: cfg_ahb
       - const: ref

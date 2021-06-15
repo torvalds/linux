@@ -48,14 +48,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: switch's main clock
       - description: dividing of the switch core clock
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: sw_switch
       - const: sw_switch_mdiv

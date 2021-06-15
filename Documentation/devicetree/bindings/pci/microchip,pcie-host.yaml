@@ -26,14 +26,12 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 2
     items:
       - description: PCIe host controller
       - description: builtin MSI controller
 
   interrupt-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: pcie
       - const: msi

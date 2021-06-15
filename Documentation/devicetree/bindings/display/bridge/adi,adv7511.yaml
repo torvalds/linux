@@ -39,7 +39,6 @@ properties:
       Names of maps with programmable addresses. It can contain any map
       needing a non-default address.
     minItems: 1
-    maxItems: 4
     items:
       - const: main
       - const: edid

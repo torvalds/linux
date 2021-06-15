@@ -35,7 +35,6 @@ properties:
       - description: output interrupt 6
       - description: output interrupt 7
     minItems: 1
-    maxItems: 8
 
   clocks:
     maxItems: 1
