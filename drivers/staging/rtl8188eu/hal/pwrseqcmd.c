@@ -74,10 +74,8 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
 					else
 						udelay(10);
 
-					if (poll_count++ > max_poll_count) {
-						DBG_88E("Fail to polling Offset[%#x]\n", offset);
+					if (poll_count++ > max_poll_count)
 						return false;
-					}
 				} while (!poll_bit);
 				break;
 			case PWR_CMD_DELAY:
