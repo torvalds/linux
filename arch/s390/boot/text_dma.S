@@ -127,6 +127,8 @@ restart_part2:
 	larl	%r4,.Lprefix		# Restore prefix register
 	spx	0(%r4)
 	larl	%r4,.Lcontinue_psw	# Restore PSW flags
+	larl	%r2,.Lcontinue
+	stg	%r2,8(%r4)
 	lpswe	0(%r4)
 .Lcontinue:
 	BR_EX_DMA_r14
@@ -139,7 +141,7 @@ ENDPROC(_diag308_reset_dma)
 
 .align 8
 .Lcontinue_psw:
-	.quad	0,.Lcontinue
+	.quad	0,0
 
 .align 8
 .Lctlreg0:
