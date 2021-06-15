@@ -978,14 +978,11 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 			   union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
-	u16 reason;
 	struct adapter *padapter = netdev_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
 	if (!mlme)
 		return -1;
-
-	reason = mlme->reason_code;
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
