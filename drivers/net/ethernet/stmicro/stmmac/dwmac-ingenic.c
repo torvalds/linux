@@ -263,6 +263,7 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 	mac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "mode-reg");
 	if (IS_ERR(mac->regmap)) {
 		dev_err(&pdev->dev, "%s: Failed to get syscon regmap\n", __func__);
+		ret = PTR_ERR(mac->regmap);
 		goto err_remove_config_dt;
 	}
 
