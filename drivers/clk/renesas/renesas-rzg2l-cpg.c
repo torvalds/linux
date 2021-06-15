@@ -297,7 +297,7 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	default:
 		goto fail;
-	};
+	}
 
 	if (IS_ERR_OR_NULL(clk))
 		goto fail;
