@@ -85,29 +85,4 @@ extern u32 GlobalDebugLevel;
 		}							\
 	} while (0)
 
-int proc_get_drv_version(char *page, char **start,
-			 off_t offset, int count,
-			 int *eof, void *data);
-
-int proc_get_write_reg(char *page, char **start,
-		       off_t offset, int count,
-		       int *eof, void *data);
-
-int proc_set_write_reg(struct file *file, const char __user *buffer,
-		       unsigned long count, void *data);
-int proc_get_read_reg(char *page, char **start,
-		      off_t offset, int count,
-		      int *eof, void *data);
-
-int proc_set_read_reg(struct file *file, const char __user *buffer,
-		      unsigned long count, void *data);
-
-int proc_get_adapter_state(char *page, char **start,
-			   off_t offset, int count,
-			   int *eof, void *data);
-
-int proc_get_best_channel(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
 #endif	/* __RTW_DEBUG_H__ */
