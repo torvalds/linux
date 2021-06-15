@@ -42,8 +42,7 @@
 static int pci_clock_freq = 33000000;
 #define CLOCK_BASE pci_clock_freq
 
-/*
- *      PLX PCI9052 local configuration and shared runtime registers.
+/*      PLX PCI9052 local configuration and shared runtime registers.
  *      This structure can be used to access 9052 registers (memory mapped).
  */
 typedef struct {
