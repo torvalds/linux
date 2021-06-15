@@ -429,12 +429,11 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  */
 int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid, bool poll)
 {
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 	struct nvmf_connect_data *data;
 	union nvme_result res;
 	int ret;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.connect.opcode = nvme_fabrics_command;
 	cmd.connect.fctype = nvme_fabrics_type_connect;
 	cmd.connect.qid = cpu_to_le16(qid);
