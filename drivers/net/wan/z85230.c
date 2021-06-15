@@ -1531,10 +1531,9 @@ static void z8530_rx_done(struct z8530_channel *c)
 		RT_UNLOCK;
 
 		c->skb2 = dev_alloc_skb(c->mtu);
-		if (!c->skb2)
-			netdev_warn(c->netdevice, "memory squeeze\n");
-		else
+		if (c->skb2)
 			skb_put(c->skb2, c->mtu);
+
 		c->netdevice->stats.rx_packets++;
 		c->netdevice->stats.rx_bytes += ct;
 	}
