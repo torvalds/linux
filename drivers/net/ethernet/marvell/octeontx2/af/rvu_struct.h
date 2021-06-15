@@ -679,6 +679,13 @@ enum NIX_RX_BAND_PROF_ACTIONRESULT_E {
 	NIX_RX_BAND_PROF_ACTIONRESULT_RED = 0x2,
 };
 
+enum nix_band_prof_pc_mode {
+	NIX_RX_PC_MODE_VLAN = 0,
+	NIX_RX_PC_MODE_DSCP = 1,
+	NIX_RX_PC_MODE_GEN = 2,
+	NIX_RX_PC_MODE_RSVD = 3,
+};
+
 /* NIX ingress policer bandwidth profile structure */
 struct nix_bandprof_s {
 	uint64_t pc_mode                     :  2; /* W0 */

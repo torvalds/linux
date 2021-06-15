@@ -4365,10 +4365,10 @@ int rvu_mbox_handler_nix_bandprof_free(struct rvu *rvu,
 	return 0;
 }
 
-static int nix_aq_context_read(struct rvu *rvu, struct nix_hw *nix_hw,
-			       struct nix_cn10k_aq_enq_req *aq_req,
-			       struct nix_cn10k_aq_enq_rsp *aq_rsp,
-			       u16 pcifunc, u8 ctype, u32 qidx)
+int nix_aq_context_read(struct rvu *rvu, struct nix_hw *nix_hw,
+			struct nix_cn10k_aq_enq_req *aq_req,
+			struct nix_cn10k_aq_enq_rsp *aq_rsp,
+			u16 pcifunc, u8 ctype, u32 qidx)
 {
 	memset(aq_req, 0, sizeof(struct nix_cn10k_aq_enq_req));
 	aq_req->hdr.pcifunc = pcifunc;
