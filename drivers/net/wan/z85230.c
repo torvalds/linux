@@ -191,7 +191,6 @@ u8 z8530_dead_port[]=
 {
 	255
 };
-
 EXPORT_SYMBOL(z8530_dead_port);
 
 /*
@@ -221,7 +220,6 @@ u8 z8530_hdlc_kilostream[]=
 	9,	NV|MIE|NORESET,
 	255
 };
-
 EXPORT_SYMBOL(z8530_hdlc_kilostream);
 
 /*
@@ -248,7 +246,6 @@ u8 z8530_hdlc_kilostream_85230[]=
 	
 	255
 };
-
 EXPORT_SYMBOL(z8530_hdlc_kilostream_85230);
 
 /**
@@ -474,7 +471,6 @@ struct z8530_irqhandler z8530_sync = {
 	.tx = z8530_tx,
 	.status = z8530_status,
 };
-
 EXPORT_SYMBOL(z8530_sync);
 
 /**
@@ -667,7 +663,6 @@ struct z8530_irqhandler z8530_nop = {
 	.tx = z8530_tx_clear,
 	.status = z8530_status_clear,
 };
-
 EXPORT_SYMBOL(z8530_nop);
 
 /**
@@ -747,7 +742,6 @@ irqreturn_t z8530_interrupt(int irq, void *dev_id)
 	locker=0;
 	return IRQ_HANDLED;
 }
-
 EXPORT_SYMBOL(z8530_interrupt);
 
 static const u8 reg_init[16]=
@@ -792,7 +786,6 @@ int z8530_sync_open(struct net_device *dev, struct z8530_channel *c)
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_open);
 
 /**
@@ -821,7 +814,6 @@ int z8530_sync_close(struct net_device *dev, struct z8530_channel *c)
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_close);
 
 /**
@@ -945,7 +937,6 @@ int z8530_sync_dma_open(struct net_device *dev, struct z8530_channel *c)
 	
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_dma_open);
 
 /**
@@ -1015,7 +1006,6 @@ int z8530_sync_dma_close(struct net_device *dev, struct z8530_channel *c)
 
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_dma_close);
 
 /**
@@ -1116,7 +1106,6 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 	
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_txdma_open);
 
 /**
@@ -1176,7 +1165,6 @@ int z8530_sync_txdma_close(struct net_device *dev, struct z8530_channel *c)
 	spin_unlock_irqrestore(c->lock, cflags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_txdma_close);
 
 /*
@@ -1210,7 +1198,6 @@ void z8530_describe(struct z8530_dev *dev, char *mapping, unsigned long io)
 		Z8530_PORT_OF(io),
 		dev->irq);
 }
-
 EXPORT_SYMBOL(z8530_describe);
 
 /*
@@ -1312,7 +1299,6 @@ int z8530_init(struct z8530_dev *dev)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(z8530_init);
 
 /**
@@ -1340,7 +1326,6 @@ int z8530_shutdown(struct z8530_dev *dev)
 	spin_unlock_irqrestore(&dev->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_shutdown);
 
 /**
@@ -1385,7 +1370,6 @@ int z8530_channel_load(struct z8530_channel *c, u8 *rtable)
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_channel_load);
 
 /**
@@ -1526,7 +1510,6 @@ void z8530_null_rx(struct z8530_channel *c, struct sk_buff *skb)
 {
 	dev_kfree_skb_any(skb);
 }
-
 EXPORT_SYMBOL(z8530_null_rx);
 
 /**
@@ -1738,7 +1721,6 @@ netdev_tx_t z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 	
 	return NETDEV_TX_OK;
 }
-
 EXPORT_SYMBOL(z8530_queue_xmit);
 
 /*
