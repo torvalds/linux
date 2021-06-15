@@ -354,9 +354,7 @@ static void z8530_rx(struct z8530_channel *c)
 					/* printk("crc error\n"); */
 				}
 				/* Shove the frame upstream */
-			}
-			else
-			{
+			} else {
 				/*	Drop the lock for RX processing, or
 		 		 *	there are deadlocks
 		 		 */
@@ -489,9 +487,7 @@ static void z8530_dma_rx(struct z8530_channel *chan)
 		}		
 		write_zsctrl(chan, ERR_RES);
 		write_zsctrl(chan, RES_H_IUS);
-	}
-	else
-	{
+	} else {
 		/* DMA is off right now, drain the slow way */
 		z8530_rx(chan);
 	}	
@@ -1379,9 +1375,7 @@ static void z8530_tx_begin(struct z8530_channel *c)
 			release_dma_lock(flags);
 		}
 		c->txcount=0;
-	}
-	else
-	{
+	} else {
 		c->txcount=c->tx_skb->len;
 
 		if(c->dma_tx)
@@ -1412,9 +1406,7 @@ static void z8530_tx_begin(struct z8530_channel *c)
 			release_dma_lock(flags);
 			write_zsctrl(c, RES_EOM_L);
 			write_zsreg(c, R5, c->regs[R5]|TxENAB);
-		}
-		else
-		{
+		} else {
 			/* ABUNDER off */
 			write_zsreg(c, R10, c->regs[10]);
 			write_zsctrl(c, RES_Tx_CRC);
@@ -1530,12 +1522,12 @@ static void z8530_rx_done(struct z8530_channel *c)
 			 * from passing
 			 */
 			write_zsreg(c, R0, RES_Rx_CRC);
-		}
-		else
+		} else {
 			/* Can't occur as we dont reenable the DMA irq until
 			 * after the flip is done
 			 */
 			netdev_warn(c->netdevice, "DMA flip overrun!\n");
+		}
 
 		release_dma_lock(flags);
 
@@ -1661,9 +1653,9 @@ netdev_tx_t z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 		c->tx_next_ptr=c->tx_dma_buf[c->tx_dma_used];
 		c->tx_dma_used^=1;	/* Flip temp buffer */
 		skb_copy_from_linear_data(skb, c->tx_next_ptr, skb->len);
+	} else {
+		c->tx_next_ptr = skb->data;
 	}
-	else
-		c->tx_next_ptr=skb->data;	
 	RT_LOCK;
 	c->tx_next_skb=skb;
 	RT_UNLOCK;
