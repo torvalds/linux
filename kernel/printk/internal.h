@@ -57,6 +57,8 @@ bool printk_percpu_data_ready(void);
 
 void defer_console_output(void);
 
+u16 printk_parse_prefix(const char *text, int *level,
+			enum printk_info_flags *flags);
 #else
 
 /*
