@@ -30,7 +30,7 @@
 
 #include "vmwgfx_drv.h"
 
-#include "device_include/svga3d_caps.h"
+#include "device_include/svga_reg.h"
 
 int vmw_devcaps_create(struct vmw_private *vmw);
 void vmw_devcaps_destroy(struct vmw_private *vmw);

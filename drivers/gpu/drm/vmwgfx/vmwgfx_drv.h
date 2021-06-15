@@ -491,7 +491,7 @@ struct vmw_private {
 	resource_size_t io_start;
 	resource_size_t vram_start;
 	resource_size_t vram_size;
-	resource_size_t prim_bb_mem;
+	resource_size_t max_primary_mem;
 	void __iomem *rmmio;
 	u32 *fifo_mem;
 	resource_size_t fifo_mem_size;

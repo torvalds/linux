@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 2015 VMware, Inc.
+ * Copyright 2015-2021 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -23,8 +23,9 @@
  * SOFTWARE.
  *
  **********************************************************/
-#ifndef _SVGA_TYPES_H_
-#define _SVGA_TYPES_H_
+#ifndef VM_BASIC_TYPES_H
+#define VM_BASIC_TYPES_H
+
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <asm/page.h>
@@ -49,6 +50,13 @@ typedef bool Bool;
 #define MAX_UINT16 U16_MAX
 
 #define CONST64U(x) x##ULL
+
+#ifndef MBYTES_SHIFT
+#define MBYTES_SHIFT 20
+#endif
+#ifndef MBYTES_2_BYTES
+#define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << MBYTES_SHIFT)
+#endif
 
 /*
  * MKS Guest Stats types

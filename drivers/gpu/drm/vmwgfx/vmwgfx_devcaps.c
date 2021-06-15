@@ -31,8 +31,8 @@
 
 
 struct svga_3d_compat_cap {
-	SVGA3dCapsRecordHeader header;
-	SVGA3dCapPair pairs[SVGA3D_DEVCAP_MAX];
+	SVGA3dFifoCapsRecordHeader header;
+	SVGA3dFifoCapPair pairs[SVGA3D_DEVCAP_MAX];
 };
 
 
@@ -64,14 +64,14 @@ static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
 	if (size < pair_offset)
 		return -EINVAL;
 
-	max_size = (size - pair_offset) / sizeof(SVGA3dCapPair);
+	max_size = (size - pair_offset) / sizeof(SVGA3dFifoCapPair);
 
 	if (max_size > SVGA3D_DEVCAP_MAX)
 		max_size = SVGA3D_DEVCAP_MAX;
 
 	compat_cap->header.length =
-		(pair_offset + max_size * sizeof(SVGA3dCapPair)) / sizeof(u32);
-	compat_cap->header.type = SVGA3DCAPS_RECORD_DEVCAPS;
+		(pair_offset + max_size * sizeof(SVGA3dFifoCapPair)) / sizeof(u32);
+	compat_cap->header.type = SVGA3D_FIFO_CAPS_RECORD_DEVCAPS;
 
 	for (i = 0; i < max_size; ++i) {
 		compat_cap->pairs[i][0] = i;

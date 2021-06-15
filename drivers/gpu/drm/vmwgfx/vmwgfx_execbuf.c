@@ -2365,7 +2365,7 @@ static int vmw_cmd_dx_set_rendertargets(struct vmw_private *dev_priv,
 		sizeof(SVGA3dRenderTargetViewId);
 	int ret;
 
-	if (num_rt_view > SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS) {
+	if (num_rt_view > SVGA3D_DX_MAX_RENDER_TARGETS) {
 		VMW_DEBUG_USER("Invalid DX Rendertarget binding.\n");
 		return -EINVAL;
 	}

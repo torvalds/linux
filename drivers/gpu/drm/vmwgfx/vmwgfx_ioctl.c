@@ -58,7 +58,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = vmw_fifo_caps(dev_priv);
 		break;
 	case DRM_VMW_PARAM_MAX_FB_SIZE:
-		param->value = dev_priv->prim_bb_mem;
+		param->value = dev_priv->max_primary_mem;
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{

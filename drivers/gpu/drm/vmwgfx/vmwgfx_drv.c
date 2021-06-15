@@ -891,9 +891,8 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 			mem_size *= 3;
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
-		dev_priv->prim_bb_mem =
-			vmw_read(dev_priv,
-				 SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM);
+		dev_priv->max_primary_mem =
+			vmw_read(dev_priv, SVGA_REG_MAX_PRIMARY_MEM);
 		dev_priv->max_mob_size =
 			vmw_read(dev_priv, SVGA_REG_MOB_MAX_SIZE);
 		dev_priv->stdu_max_width =
@@ -912,7 +911,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	} else {
 		dev_priv->texture_max_width = 8192;
 		dev_priv->texture_max_height = 8192;
-		dev_priv->prim_bb_mem = dev_priv->vram_size;
+		dev_priv->max_primary_mem = dev_priv->vram_size;
 	}
 
 	vmw_print_capabilities(dev_priv->capabilities);
@@ -936,7 +935,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 			 (unsigned)dev_priv->memory_size / 1024);
 	}
 	DRM_INFO("Maximum display memory size is %llu kiB\n",
-		 (uint64_t)dev_priv->prim_bb_mem / 1024);
+		 (uint64_t)dev_priv->max_primary_mem / 1024);
 
 	/* Need mmio memory to check for fifo pitchlock cap. */
 	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) &&

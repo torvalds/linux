@@ -844,7 +844,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
 	size_t cmd_size, view_id_size;
 	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
 
-	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS);
+	vmw_collect_view_ids(cbs, loc, SVGA3D_DX_MAX_RENDER_TARGETS);
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
@@ -1440,7 +1440,7 @@ u32 vmw_binding_dirtying(enum vmw_ctx_binding_type binding_type)
 static void vmw_binding_build_asserts(void)
 {
 	BUILD_BUG_ON(SVGA3D_NUM_SHADERTYPE_DX10 != 3);
-	BUILD_BUG_ON(SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS > SVGA3D_RT_MAX);
+	BUILD_BUG_ON(SVGA3D_DX_MAX_RENDER_TARGETS > SVGA3D_RT_MAX);
 	BUILD_BUG_ON(sizeof(uint32) != sizeof(u32));
 
 	/*

@@ -37,14 +37,14 @@
 
 #ifdef CONFIG_64BIT
 #define VMW_PPN_SIZE 8
-#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH64_0
-#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH64_1
-#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH64_2
+#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PT64_0
+#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PT64_1
+#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PT64_2
 #else
 #define VMW_PPN_SIZE 4
-#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PTDEPTH_0
-#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PTDEPTH_1
-#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PTDEPTH_2
+#define VMW_MOBFMT_PTDEPTH_0 SVGA3D_MOBFMT_PT_0
+#define VMW_MOBFMT_PTDEPTH_1 SVGA3D_MOBFMT_PT_1
+#define VMW_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PT_2
 #endif
 
 /*
@@ -70,20 +70,20 @@ struct vmw_mob {
  * @page_table:     Pointer to a struct vmw_mob holding the page table.
  */
 static const struct vmw_otable pre_dx_tables[] = {
-	{VMWGFX_NUM_MOB * SVGA3D_OTABLE_MOB_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SURFACE * SVGA3D_OTABLE_SURFACE_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SCREEN_TARGET * SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE,
+	{VMWGFX_NUM_MOB * sizeof(SVGAOTableMobEntry), NULL, true},
+	{VMWGFX_NUM_GB_SURFACE * sizeof(SVGAOTableSurfaceEntry), NULL, true},
+	{VMWGFX_NUM_GB_CONTEXT * sizeof(SVGAOTableContextEntry), NULL, true},
+	{VMWGFX_NUM_GB_SHADER * sizeof(SVGAOTableShaderEntry), NULL, true},
+	{VMWGFX_NUM_GB_SCREEN_TARGET * sizeof(SVGAOTableScreenTargetEntry),
 	 NULL, VMWGFX_ENABLE_SCREEN_TARGET_OTABLE}
 };
 
 static const struct vmw_otable dx_tables[] = {
-	{VMWGFX_NUM_MOB * SVGA3D_OTABLE_MOB_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SURFACE * SVGA3D_OTABLE_SURFACE_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE, NULL, true},
-	{VMWGFX_NUM_GB_SCREEN_TARGET * SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE,
+	{VMWGFX_NUM_MOB * sizeof(SVGAOTableMobEntry), NULL, true},
+	{VMWGFX_NUM_GB_SURFACE * sizeof(SVGAOTableSurfaceEntry), NULL, true},
+	{VMWGFX_NUM_GB_CONTEXT * sizeof(SVGAOTableContextEntry), NULL, true},
+	{VMWGFX_NUM_GB_SHADER * sizeof(SVGAOTableShaderEntry), NULL, true},
+	{VMWGFX_NUM_GB_SCREEN_TARGET * sizeof(SVGAOTableScreenTargetEntry),
 	 NULL, VMWGFX_ENABLE_SCREEN_TARGET_OTABLE},
 	{VMWGFX_NUM_DXCONTEXT * sizeof(SVGAOTableDXContextEntry), NULL, true},
 };
@@ -155,7 +155,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 			goto out_no_populate;
 
 		vmw_mob_pt_setup(mob, iter, otable->size >> PAGE_SHIFT);
-		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
+		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PT_1;
 	}
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
@@ -636,7 +636,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 		vmw_mob_pt_setup(mob, data_iter, num_data_pages);
 		pt_set_up = true;
-		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
+		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PT_1;
 	}
 
 	vmw_fifo_resource_inc(dev_priv);
