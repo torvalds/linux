@@ -515,8 +515,14 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-display5-tianma-tm070-1280x768.dtb \
 	imx6q-dmo-edmqmx6.dtb \
 	imx6q-dms-ba16.dtb \
+	imx6q-ds.dtb \
 	imx6q-emcon-avari.dtb \
 	imx6q-evi.dtb \
+	imx6dl-b105pv2.dtb \
+	imx6dl-b105v2.dtb \
+	imx6dl-b125v2.dtb \
+	imx6dl-b125pv2.dtb \
+	imx6dl-b155v2.dtb \
 	imx6q-gk802.dtb \
 	imx6q-gw51xx.dtb \
 	imx6q-gw52xx.dtb \
@@ -727,7 +733,8 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx28-m28evk.dtb \
 	imx28-sps1.dtb \
 	imx28-ts4600.dtb \
-	imx28-tx28.dtb
+	imx28-tx28.dtb \
+	imx28-xea.dtb
 dtb-$(CONFIG_ARCH_NOMADIK) += \
 	ste-nomadik-s8815.dtb \
 	ste-nomadik-nhk15.dtb
