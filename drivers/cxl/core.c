@@ -767,8 +767,81 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL_GPL(cxl_map_device_regs);
 
+/**
+ * __cxl_driver_register - register a driver for the cxl bus
+ * @cxl_drv: cxl driver structure to attach
+ * @owner: owning module/driver
+ * @modname: KBUILD_MODNAME for parent driver
+ */
+int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
+			  const char *modname)
+{
+	if (!cxl_drv->probe) {
+		pr_debug("%s ->probe() must be specified\n", modname);
+		return -EINVAL;
+	}
+
+	if (!cxl_drv->name) {
+		pr_debug("%s ->name must be specified\n", modname);
+		return -EINVAL;
+	}
+
+	if (!cxl_drv->id) {
+		pr_debug("%s ->id must be specified\n", modname);
+		return -EINVAL;
+	}
+
+	cxl_drv->drv.bus = &cxl_bus_type;
+	cxl_drv->drv.owner = owner;
+	cxl_drv->drv.mod_name = modname;
+	cxl_drv->drv.name = cxl_drv->name;
+
+	return driver_register(&cxl_drv->drv);
+}
+EXPORT_SYMBOL_GPL(__cxl_driver_register);
+
+void cxl_driver_unregister(struct cxl_driver *cxl_drv)
+{
+	driver_unregister(&cxl_drv->drv);
+}
+EXPORT_SYMBOL_GPL(cxl_driver_unregister);
+
+static int cxl_device_id(struct device *dev)
+{
+	return 0;
+}
+
+static int cxl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	return add_uevent_var(env, "MODALIAS=" CXL_MODALIAS_FMT,
+			      cxl_device_id(dev));
+}
+
+static int cxl_bus_match(struct device *dev, struct device_driver *drv)
+{
+	return cxl_device_id(dev) == to_cxl_drv(drv)->id;
+}
+
+static int cxl_bus_probe(struct device *dev)
+{
+	return to_cxl_drv(dev->driver)->probe(dev);
+}
+
+static int cxl_bus_remove(struct device *dev)
+{
+	struct cxl_driver *cxl_drv = to_cxl_drv(dev->driver);
+
+	if (cxl_drv->remove)
+		cxl_drv->remove(dev);
+	return 0;
+}
+
 struct bus_type cxl_bus_type = {
 	.name = "cxl",
+	.uevent = cxl_bus_uevent,
+	.match = cxl_bus_match,
+	.probe = cxl_bus_probe,
+	.remove = cxl_bus_remove,
 };
 EXPORT_SYMBOL_GPL(cxl_bus_type);
 

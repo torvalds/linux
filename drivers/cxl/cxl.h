@@ -268,4 +268,26 @@ devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
 }
 
 extern struct bus_type cxl_bus_type;
+
+struct cxl_driver {
+	const char *name;
+	int (*probe)(struct device *dev);
+	void (*remove)(struct device *dev);
+	struct device_driver drv;
+	int id;
+};
+
+static inline struct cxl_driver *to_cxl_drv(struct device_driver *drv)
+{
+	return container_of(drv, struct cxl_driver, drv);
+}
+
+int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
+			  const char *modname);
+#define cxl_driver_register(x) __cxl_driver_register(x, THIS_MODULE, KBUILD_MODNAME)
+void cxl_driver_unregister(struct cxl_driver *cxl_drv);
+
+#define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
+#define CXL_MODALIAS_FMT "cxl:t%d"
+
 #endif /* __CXL_H__ */
