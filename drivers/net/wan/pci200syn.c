@@ -279,7 +279,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 	}
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
-	if (card == NULL) {
+	if (!card) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;
@@ -310,9 +310,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 	ramphys = pci_resource_start(pdev,3) & PCI_BASE_ADDRESS_MEM_MASK;
 	card->rambase = pci_ioremap_bar(pdev, 3);
 
-	if (card->plxbase == NULL ||
-	    card->scabase == NULL ||
-	    card->rambase == NULL) {
+	if (!card->plxbase || !card->scabase || !card->rambase) {
 		pr_err("ioremap() failed\n");
 		pci200_pci_remove_one(pdev);
 		return -EFAULT;
