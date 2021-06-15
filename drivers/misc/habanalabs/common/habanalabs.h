@@ -894,6 +894,7 @@ struct pci_mem_region {
  * @preboot_version_offset_reg: SRAM offset to preboot version register
  * @boot_fit_version_offset_reg: SRAM offset to boot fit version register
  * @sram_offset_mask: mask for getting offset into the SRAM
+ * @cpu_reset_wait_msec: used when setting WFE via kmd_msg_to_cpu_reg
  */
 struct static_fw_load_mgr {
 	u64 preboot_version_max_off;
@@ -908,6 +909,7 @@ struct static_fw_load_mgr {
 	u32 preboot_version_offset_reg;
 	u32 boot_fit_version_offset_reg;
 	u32 sram_offset_mask;
+	u32 cpu_reset_wait_msec;
 };
 
 /**
@@ -2199,6 +2201,10 @@ struct hl_mmu_funcs {
  *                    triggered, and cleared after it is shared with preboot.
  * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
  *                         complete instead.
+ * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
+ *                        halted. We can't halt it again because the COMMS
+ *                        protocol will throw an error. Relevant only for
+ *                        cases where Linux was not loaded to device CPU
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2315,6 +2321,7 @@ struct hl_device {
 	u8				supports_staged_submission;
 	u8				curr_reset_cause;
 	u8				skip_reset_on_timeout;
+	u8				device_cpu_is_halted;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
@@ -2596,6 +2603,8 @@ int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 		u16 *pll_freq_arr);
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
+void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev);
+void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev);
 int hl_fw_init_cpu(struct hl_device *hdev);
 int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 				u32 sts_boot_dev_sts0_reg,

@@ -1934,45 +1934,6 @@ static void gaudi_disable_msi(struct hl_device *hdev)
 	gaudi->hw_cap_initialized &= ~HW_CAP_MSI;
 }
 
-static void gaudi_ask_hard_reset_without_linux(struct hl_device *hdev)
-{
-	int rc;
-
-	if (hdev->asic_prop.dynamic_fw_load) {
-		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_RST_DEV, 0, false,
-				hdev->fw_loader.cpu_timeout);
-		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
-	} else {
-		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_RST_DEV);
-	}
-}
-
-static void gaudi_ask_halt_machine_without_linux(struct hl_device *hdev)
-{
-	struct gaudi_device *gaudi = hdev->asic_specific;
-	int rc;
-
-	if (gaudi && gaudi->device_cpu_is_halted)
-		return;
-
-	/* Stop device CPU to make sure nothing bad happens */
-	if (hdev->asic_prop.dynamic_fw_load) {
-		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, true,
-				hdev->fw_loader.cpu_timeout);
-		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
-	} else {
-		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
-		msleep(GAUDI_CPU_RESET_WAIT_MSEC);
-	}
-
-	if (gaudi)
-		gaudi->device_cpu_is_halted = true;
-}
-
 static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -3859,6 +3820,9 @@ static void gaudi_init_static_firmware_loader(struct hl_device *hdev)
 	static_loader->preboot_version_offset_reg = mmPREBOOT_VER_OFFSET;
 	static_loader->boot_fit_version_offset_reg = mmUBOOT_VER_OFFSET;
 	static_loader->sram_offset_mask = ~(lower_32_bits(SRAM_BASE_ADDR));
+	static_loader->cpu_reset_wait_msec = hdev->pldm ?
+			GAUDI_PLDM_RESET_WAIT_MSEC :
+			GAUDI_CPU_RESET_WAIT_MSEC;
 }
 
 static void gaudi_init_firmware_loader(struct hl_device *hdev)
@@ -4151,9 +4115,9 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 			gaudi_irq_map_table[GAUDI_EVENT_HALT_MACHINE].cpu_id);
 	} else {
 		if (hdev->asic_prop.hard_reset_done_by_fw)
-			gaudi_ask_hard_reset_without_linux(hdev);
+			hl_fw_ask_hard_reset_without_linux(hdev);
 		else
-			gaudi_ask_halt_machine_without_linux(hdev);
+			hl_fw_ask_halt_machine_without_linux(hdev);
 	}
 
 	if (driver_performs_reset) {
@@ -4228,7 +4192,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 
 		memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
 
-		gaudi->device_cpu_is_halted = false;
+		hdev->device_cpu_is_halted = false;
 	}
 }
 

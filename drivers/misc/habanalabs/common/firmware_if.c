@@ -972,6 +972,47 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
 	return rc;
 }
 
+void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
+{
+	struct static_fw_load_mgr *static_loader =
+			&hdev->fw_loader.static_loader;
+	int rc;
+
+	if (hdev->asic_prop.dynamic_fw_load) {
+		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
+				COMMS_RST_DEV, 0, false,
+				hdev->fw_loader.cpu_timeout);
+		if (rc)
+			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
+	} else {
+		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_RST_DEV);
+	}
+}
+
+void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
+{
+	struct static_fw_load_mgr *static_loader =
+			&hdev->fw_loader.static_loader;
+	int rc;
+
+	if (hdev->device_cpu_is_halted)
+		return;
+
+	/* Stop device CPU to make sure nothing bad happens */
+	if (hdev->asic_prop.dynamic_fw_load) {
+		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
+				COMMS_GOTO_WFE, 0, true,
+				hdev->fw_loader.cpu_timeout);
+		if (rc)
+			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+	} else {
+		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
+		msleep(static_loader->cpu_reset_wait_msec);
+	}
+
+	hdev->device_cpu_is_halted = true;
+}
+
 static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 {
 	/* Some of the status codes below are deprecated in newer f/w
