@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include "cxl.h"
+#include "mem.h"
 
 /**
  * DOC: cxl core
@@ -730,6 +731,89 @@ err:
 }
 EXPORT_SYMBOL_GPL(devm_cxl_add_nvdimm_bridge);
 
+static void cxl_nvdimm_release(struct device *dev)
+{
+	struct cxl_nvdimm *cxl_nvd = to_cxl_nvdimm(dev);
+
+	kfree(cxl_nvd);
+}
+
+static const struct attribute_group *cxl_nvdimm_attribute_groups[] = {
+	&cxl_base_attribute_group,
+	NULL,
+};
+
+static const struct device_type cxl_nvdimm_type = {
+	.name = "cxl_nvdimm",
+	.release = cxl_nvdimm_release,
+	.groups = cxl_nvdimm_attribute_groups,
+};
+
+bool is_cxl_nvdimm(struct device *dev)
+{
+	return dev->type == &cxl_nvdimm_type;
+}
+EXPORT_SYMBOL_GPL(is_cxl_nvdimm);
+
+struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, !is_cxl_nvdimm(dev),
+			  "not a cxl_nvdimm device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_nvdimm, dev);
+}
+EXPORT_SYMBOL_GPL(to_cxl_nvdimm);
+
+static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
+{
+	struct cxl_nvdimm *cxl_nvd;
+	struct device *dev;
+
+	cxl_nvd = kzalloc(sizeof(*cxl_nvd), GFP_KERNEL);
+	if (!cxl_nvd)
+		return ERR_PTR(-ENOMEM);
+
+	dev = &cxl_nvd->dev;
+	cxl_nvd->cxlmd = cxlmd;
+	device_initialize(dev);
+	device_set_pm_not_required(dev);
+	dev->parent = &cxlmd->dev;
+	dev->bus = &cxl_bus_type;
+	dev->type = &cxl_nvdimm_type;
+
+	return cxl_nvd;
+}
+
+int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
+{
+	struct cxl_nvdimm *cxl_nvd;
+	struct device *dev;
+	int rc;
+
+	cxl_nvd = cxl_nvdimm_alloc(cxlmd);
+	if (IS_ERR(cxl_nvd))
+		return PTR_ERR(cxl_nvd);
+
+	dev = &cxl_nvd->dev;
+	rc = dev_set_name(dev, "pmem%d", cxlmd->id);
+	if (rc)
+		goto err;
+
+	rc = device_add(dev);
+	if (rc)
+		goto err;
+
+	dev_dbg(host, "%s: register %s\n", dev_name(dev->parent),
+		dev_name(dev));
+
+	return devm_add_action_or_reset(host, unregister_dev, dev);
+
+err:
+	put_device(dev);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(devm_cxl_add_nvdimm);
+
 /**
  * cxl_probe_device_regs() - Detect CXL Device register blocks
  * @dev: Host device of the @base mapping
@@ -929,6 +1013,8 @@ static int cxl_device_id(struct device *dev)
 {
 	if (dev->type == &cxl_nvdimm_bridge_type)
 		return CXL_DEVICE_NVDIMM_BRIDGE;
+	if (dev->type == &cxl_nvdimm_type)
+		return CXL_DEVICE_NVDIMM;
 	return 0;
 }
 

@@ -220,6 +220,12 @@ struct cxl_nvdimm_bridge {
 	enum cxl_nvdimm_brige_state state;
 };
 
+struct cxl_nvdimm {
+	struct device dev;
+	struct cxl_memdev *cxlmd;
+	struct nvdimm *nvdimm;
+};
+
 /**
  * struct cxl_port - logical collection of upstream port devices and
  *		     downstream port devices to construct a CXL memory
@@ -306,7 +312,8 @@ int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
 #define cxl_driver_register(x) __cxl_driver_register(x, THIS_MODULE, KBUILD_MODNAME)
 void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 
-#define CXL_DEVICE_NVDIMM_BRIDGE 1
+#define CXL_DEVICE_NVDIMM_BRIDGE	1
+#define CXL_DEVICE_NVDIMM		2
 
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"
@@ -314,4 +321,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev);
 struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 						     struct cxl_port *port);
+struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
+bool is_cxl_nvdimm(struct device *dev);
+int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
 #endif /* __CXL_H__ */

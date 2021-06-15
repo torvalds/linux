@@ -1332,7 +1332,8 @@ err:
 	return ERR_PTR(rc);
 }
 
-static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+static struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
+					      struct cxl_mem *cxlm)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
@@ -1341,7 +1342,7 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 
 	cxlmd = cxl_memdev_alloc(cxlm);
 	if (IS_ERR(cxlmd))
-		return PTR_ERR(cxlmd);
+		return cxlmd;
 
 	dev = &cxlmd->dev;
 	rc = dev_set_name(dev, "mem%d", cxlmd->id);
@@ -1359,8 +1360,10 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	if (rc)
 		goto err;
 
-	return devm_add_action_or_reset(dev->parent, cxl_memdev_unregister,
-					cxlmd);
+	rc = devm_add_action_or_reset(host, cxl_memdev_unregister, cxlmd);
+	if (rc)
+		return ERR_PTR(rc);
+	return cxlmd;
 
 err:
 	/*
@@ -1369,7 +1372,7 @@ err:
 	 */
 	cxl_memdev_shutdown(cxlmd);
 	put_device(dev);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 static int cxl_xfer_log(struct cxl_mem *cxlm, uuid_t *uuid, u32 size, u8 *out)
@@ -1580,6 +1583,7 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 
 static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct cxl_memdev *cxlmd;
 	struct cxl_mem *cxlm;
 	int rc;
 
@@ -1607,7 +1611,14 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	return cxl_mem_add_memdev(cxlm);
+	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlm);
+	if (IS_ERR(cxlmd))
+		return PTR_ERR(cxlmd);
+
+	if (range_len(&cxlm->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+		rc = devm_cxl_add_nvdimm(&pdev->dev, cxlmd);
+
+	return rc;
 }
 
 static const struct pci_device_id cxl_mem_pci_tbl[] = {
