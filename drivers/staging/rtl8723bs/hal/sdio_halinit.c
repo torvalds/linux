@@ -683,29 +683,23 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  <Roger_Notes> Current Channel will be updated again later. */
 	pHalData->CurrentChannel = 6;
 
-#if (HAL_MAC_ENABLE == 1)
 	ret = PHY_MACConfig8723B(padapter);
 	if (ret != _SUCCESS)
 		return ret;
-#endif
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
-#if (HAL_BB_ENABLE == 1)
 	ret = PHY_BBConfig8723B(padapter);
 	if (ret != _SUCCESS)
 		return ret;
-#endif
 
 	/*  If RF is on, we need to init RF. Otherwise, skip the procedure. */
 	/*  We need to follow SU method to change the RF cfg.txt. Default disable RF TX/RX mode. */
 	/* if (pHalData->eRFPowerState == eRfOn) */
 	{
-#if (HAL_RF_ENABLE == 1)
 		ret = PHY_RFConfig8723B(padapter);
 		if (ret != _SUCCESS)
 			return ret;
-#endif
 	}
 
 	/*  */
