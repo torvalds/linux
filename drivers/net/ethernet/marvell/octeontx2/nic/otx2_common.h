@@ -372,6 +372,7 @@ struct otx2_nic {
 
 	struct otx2_flow_config	*flow_cfg;
 	struct otx2_tc_info	tc_info;
+	unsigned long		rq_bmap;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)

@@ -42,11 +42,14 @@ struct otx2_tc_flow_stats {
 struct otx2_tc_flow {
 	struct rhash_head		node;
 	unsigned long			cookie;
-	u16				entry;
 	unsigned int			bitpos;
 	struct rcu_head			rcu;
 	struct otx2_tc_flow_stats	stats;
 	spinlock_t			lock; /* lock for stats */
+	u16				rq;
+	u16				entry;
+	u16				leaf_profile;
+	bool				is_act_police;
 };
 
 static void otx2_get_egress_burst_cfg(u32 burst, u32 *burst_exp,
@@ -221,15 +224,72 @@ static int otx2_tc_egress_matchall_delete(struct otx2_nic *nic,
 	return err;
 }
 
+static int otx2_tc_act_set_police(struct otx2_nic *nic,
+				  struct otx2_tc_flow *node,
+				  struct flow_cls_offload *f,
+				  u64 rate, u32 burst, u32 mark,
+				  struct npc_install_flow_req *req, bool pps)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct otx2_hw *hw = &nic->hw;
+	int rq_idx, rc;
+
+	rq_idx = find_first_zero_bit(&nic->rq_bmap, hw->rx_queues);
+	if (rq_idx >= hw->rx_queues) {
+		NL_SET_ERR_MSG_MOD(extack, "Police action rules exceeded");
+		return -EINVAL;
+	}
+
+	mutex_lock(&nic->mbox.lock);
+
+	rc = cn10k_alloc_leaf_profile(nic, &node->leaf_profile);
+	if (rc) {
+		mutex_unlock(&nic->mbox.lock);
+		return rc;
+	}
+
+	rc = cn10k_set_ipolicer_rate(nic, node->leaf_profile, burst, rate, pps);
+	if (rc)
+		goto free_leaf;
+
+	rc = cn10k_map_unmap_rq_policer(nic, rq_idx, node->leaf_profile, true);
+	if (rc)
+		goto free_leaf;
+
+	mutex_unlock(&nic->mbox.lock);
+
+	req->match_id = mark & 0xFFFFULL;
+	req->index = rq_idx;
+	req->op = NIX_RX_ACTIONOP_UCAST;
+	set_bit(rq_idx, &nic->rq_bmap);
+	node->is_act_police = true;
+	node->rq = rq_idx;
+
+	return 0;
+
+free_leaf:
+	if (cn10k_free_leaf_profile(nic, node->leaf_profile))
+		netdev_err(nic->netdev,
+			   "Unable to free leaf bandwidth profile(%d)\n",
+			   node->leaf_profile);
+	mutex_unlock(&nic->mbox.lock);
+	return rc;
+}
+
 static int otx2_tc_parse_actions(struct otx2_nic *nic,
 				 struct flow_action *flow_action,
 				 struct npc_install_flow_req *req,
-				 struct flow_cls_offload *f)
+				 struct flow_cls_offload *f,
+				 struct otx2_tc_flow *node)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct flow_action_entry *act;
 	struct net_device *target;
 	struct otx2_nic *priv;
+	u32 burst, mark = 0;
+	u8 nr_police = 0;
+	bool pps;
+	u64 rate;
 	int i;
 
 	if (!flow_action_has_entries(flow_action)) {
@@ -262,15 +322,51 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 			/* use RX_VTAG_TYPE7 which is initialized to strip vlan tag */
 			req->vtag0_type = NIX_AF_LFX_RX_VTAG_TYPE7;
 			break;
+		case FLOW_ACTION_POLICE:
+			/* Ingress ratelimiting is not supported on OcteonTx2 */
+			if (is_dev_otx2(nic->pdev)) {
+				NL_SET_ERR_MSG_MOD(extack,
+					"Ingress policing not supported on this platform");
+				return -EOPNOTSUPP;
+			}
+
+			if (act->police.rate_bytes_ps > 0) {
+				rate = act->police.rate_bytes_ps * 8;
+				burst = act->police.burst;
+			} else if (act->police.rate_pkt_ps > 0) {
+				/* The algorithm used to calculate rate
+				 * mantissa, exponent values for a given token
+				 * rate (token can be byte or packet) requires
+				 * token rate to be mutiplied by 8.
+				 */
+				rate = act->police.rate_pkt_ps * 8;
+				burst = act->police.burst_pkt;
+				pps = true;
+			}
+			nr_police++;
+			break;
+		case FLOW_ACTION_MARK:
+			mark = act->mark;
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
 	}
 
+	if (nr_police > 1) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "rate limit police offload requires a single action");
+		return -EOPNOTSUPP;
+	}
+
+	if (nr_police)
+		return otx2_tc_act_set_police(nic, node, f, rate, burst,
+					      mark, req, pps);
+
 	return 0;
 }
 
-static int otx2_tc_prepare_flow(struct otx2_nic *nic,
+static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 				struct flow_cls_offload *f,
 				struct npc_install_flow_req *req)
 {
@@ -467,7 +563,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 			req->features |= BIT_ULL(NPC_SPORT_SCTP);
 	}
 
-	return otx2_tc_parse_actions(nic, &rule->action, req, f);
+	return otx2_tc_parse_actions(nic, &rule->action, req, f, node);
 }
 
 static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry)
@@ -502,6 +598,7 @@ static int otx2_tc_del_flow(struct otx2_nic *nic,
 {
 	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *flow_node;
+	int err;
 
 	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
@@ -510,6 +607,27 @@ static int otx2_tc_del_flow(struct otx2_nic *nic,
 		netdev_err(nic->netdev, "tc flow not found for cookie 0x%lx\n",
 			   tc_flow_cmd->cookie);
 		return -EINVAL;
+	}
+
+	if (flow_node->is_act_police) {
+		mutex_lock(&nic->mbox.lock);
+
+		err = cn10k_map_unmap_rq_policer(nic, flow_node->rq,
+						 flow_node->leaf_profile, false);
+		if (err)
+			netdev_err(nic->netdev,
+				   "Unmapping RQ %d & profile %d failed\n",
+				   flow_node->rq, flow_node->leaf_profile);
+
+		err = cn10k_free_leaf_profile(nic, flow_node->leaf_profile);
+		if (err)
+			netdev_err(nic->netdev,
+				   "Unable to free leaf bandwidth profile(%d)\n",
+				   flow_node->leaf_profile);
+
+		__clear_bit(flow_node->rq, &nic->rq_bmap);
+
+		mutex_unlock(&nic->mbox.lock);
 	}
 
 	otx2_del_mcam_flow_entry(nic, flow_node->entry);
@@ -531,11 +649,17 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	struct netlink_ext_ack *extack = tc_flow_cmd->common.extack;
 	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *new_node, *old_node;
-	struct npc_install_flow_req *req;
-	int rc;
+	struct npc_install_flow_req *req, dummy;
+	int rc, err;
 
 	if (!(nic->flags & OTX2_FLAG_TC_FLOWER_SUPPORT))
 		return -ENOMEM;
+
+	if (bitmap_full(tc_info->tc_entries_bitmap, nic->flow_cfg->tc_max_flows)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Not enough MCAM space to add the flow");
+		return -ENOMEM;
+	}
 
 	/* allocate memory for the new flow and it's node */
 	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
@@ -544,17 +668,11 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	spin_lock_init(&new_node->lock);
 	new_node->cookie = tc_flow_cmd->cookie;
 
-	mutex_lock(&nic->mbox.lock);
-	req = otx2_mbox_alloc_msg_npc_install_flow(&nic->mbox);
-	if (!req) {
-		mutex_unlock(&nic->mbox.lock);
-		return -ENOMEM;
-	}
+	memset(&dummy, 0, sizeof(struct npc_install_flow_req));
 
-	rc = otx2_tc_prepare_flow(nic, tc_flow_cmd, req);
+	rc = otx2_tc_prepare_flow(nic, new_node, tc_flow_cmd, &dummy);
 	if (rc) {
-		otx2_mbox_reset(&nic->mbox.mbox, 0);
-		mutex_unlock(&nic->mbox.lock);
+		kfree_rcu(new_node, rcu);
 		return rc;
 	}
 
@@ -565,13 +683,16 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	if (old_node)
 		otx2_tc_del_flow(nic, tc_flow_cmd);
 
-	if (bitmap_full(tc_info->tc_entries_bitmap, nic->flow_cfg->tc_max_flows)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Not enough MCAM space to add the flow");
-		otx2_mbox_reset(&nic->mbox.mbox, 0);
+	mutex_lock(&nic->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_install_flow(&nic->mbox);
+	if (!req) {
 		mutex_unlock(&nic->mbox.lock);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto free_leaf;
 	}
+
+	memcpy(&dummy.hdr, &req->hdr, sizeof(struct mbox_msghdr));
+	memcpy(req, &dummy, sizeof(struct npc_install_flow_req));
 
 	new_node->bitpos = find_first_zero_bit(tc_info->tc_entries_bitmap,
 					       nic->flow_cfg->tc_max_flows);
@@ -587,7 +708,8 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to install MCAM flow entry");
 		mutex_unlock(&nic->mbox.lock);
-		goto out;
+		kfree_rcu(new_node, rcu);
+		goto free_leaf;
 	}
 	mutex_unlock(&nic->mbox.lock);
 
@@ -597,12 +719,35 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	if (rc) {
 		otx2_del_mcam_flow_entry(nic, req->entry);
 		kfree_rcu(new_node, rcu);
-		goto out;
+		goto free_leaf;
 	}
 
 	set_bit(new_node->bitpos, tc_info->tc_entries_bitmap);
 	tc_info->num_entries++;
-out:
+
+	return 0;
+
+free_leaf:
+	if (new_node->is_act_police) {
+		mutex_lock(&nic->mbox.lock);
+
+		err = cn10k_map_unmap_rq_policer(nic, new_node->rq,
+						 new_node->leaf_profile, false);
+		if (err)
+			netdev_err(nic->netdev,
+				   "Unmapping RQ %d & profile %d failed\n",
+				   new_node->rq, new_node->leaf_profile);
+		err = cn10k_free_leaf_profile(nic, new_node->leaf_profile);
+		if (err)
+			netdev_err(nic->netdev,
+				   "Unable to free leaf bandwidth profile(%d)\n",
+				   new_node->leaf_profile);
+
+		__clear_bit(new_node->rq, &nic->rq_bmap);
+
+		mutex_unlock(&nic->mbox.lock);
+	}
+
 	return rc;
 }
 
@@ -863,6 +1008,9 @@ static const struct rhashtable_params tc_flow_ht_params = {
 int otx2_init_tc(struct otx2_nic *nic)
 {
 	struct otx2_tc_info *tc = &nic->tc_info;
+
+	/* Exclude receive queue 0 being used for police action */
+	set_bit(0, &nic->rq_bmap);
 
 	tc->flow_ht_params = tc_flow_ht_params;
 	return rhashtable_init(&tc->flow_table, &tc->flow_ht_params);
