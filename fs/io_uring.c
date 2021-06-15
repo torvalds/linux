@@ -7230,8 +7230,10 @@ static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, rsrc_put_fn *do_put,
 	if (utags) {
 		ret = -EFAULT;
 		for (i = 0; i < nr; i++) {
-			if (copy_from_user(io_get_tag_slot(data, i), &utags[i],
-					   sizeof(data->tags[i])))
+			u64 *tag_slot = io_get_tag_slot(data, i);
+
+			if (copy_from_user(tag_slot, &utags[i],
+					   sizeof(*tag_slot)))
 				goto fail;
 		}
 	}
