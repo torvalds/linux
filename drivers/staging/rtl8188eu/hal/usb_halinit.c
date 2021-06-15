@@ -1657,7 +1657,7 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 				do {
 					if (!(usb_read32(Adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
 						break;
-				} while (trycnt--);
+				} while (--trycnt);
 
 				/* RQPN Load 0 */
 				usb_write16(Adapter, REG_RQPN_NPQ, 0x0);
