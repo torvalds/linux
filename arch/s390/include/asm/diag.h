@@ -309,6 +309,7 @@ int diag26c(void *req, void *resp, enum diag26c_sc subcode);
 
 struct hypfs_diag0c_entry;
 
+/* This struct must contain only pointers/references into the text DMA section. */
 struct diag_ops {
 	int (*diag210)(struct diag210 *addr);
 	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
@@ -319,4 +320,11 @@ struct diag_ops {
 
 extern struct diag_ops diag_dma_ops;
 extern struct diag210 *__diag210_tmp_dma;
+
+int _diag210_dma(struct diag210 *addr);
+int _diag26c_dma(void *req, void *resp, enum diag26c_sc subcode);
+int _diag14_dma(unsigned long rx, unsigned long ry1, unsigned long subcode);
+void _diag0c_dma(struct hypfs_diag0c_entry *entry);
+void _diag308_reset_dma(void);
+
 #endif /* _ASM_S390_DIAG_H */

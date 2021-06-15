@@ -94,17 +94,64 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
 
+/*
+ * Some code and data needs to stay below 2 GB, even when the kernel would be
+ * relocated above 2 GB, because it has to use 31 bit addresses.
+ * Such code and data is part of the .dma section.
+ */
+unsigned long __dma_ref __sdma = __pa(&_sdma);
+unsigned long __dma_ref __edma = __pa(&_edma);
+unsigned long __dma_ref __stext_dma = __pa(&_stext_dma);
+unsigned long __dma_ref __etext_dma = __pa(&_etext_dma);
+struct exception_table_entry __dma_ref *__start_dma_ex_table = _start_dma_ex_table;
+struct exception_table_entry __dma_ref *__stop_dma_ex_table = _stop_dma_ex_table;
+
+/*
+ * Control registers CR2, CR5 and CR15 are initialized with addresses
+ * of tables that must be placed below 2G which is handled by the DMA
+ * sections.
+ * Because the DMA sections are relocated below 2G at startup,
+ * the content of control registers CR2, CR5 and CR15 must be updated
+ * with new addresses after the relocation. The initial initialization of
+ * control registers occurs in head64.S and then gets updated again after DMA
+ * relocation. We must access the relevant DMA tables indirectly via
+ * pointers placed in the .dma.refs linker section. Those pointers get
+ * updated automatically during DMA relocation and always contain a valid
+ * address within DMA sections.
+ */
+
+static __dma_data u32 __ctl_duct_dma[16] __aligned(64);
+
+static __dma_data u64 __ctl_aste_dma[8] __aligned(64) = {
+	[1] = 0xffffffffffffffff
+};
+
+static __dma_data u32 __ctl_duald_dma[32] __aligned(128) = {
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0,
+	0x80000000, 0, 0, 0
+};
+
+static __dma_data u32 __ctl_linkage_stack_dma[8] __aligned(64) = {
+	0, 0, 0x89000000, 0,
+	0, 0, 0x8a000000, 0
+};
+
+static u64 __dma_ref *__ctl_aste = __ctl_aste_dma;
+static u32 __dma_ref *__ctl_duald = __ctl_duald_dma;
+static u32 __dma_ref *__ctl_linkage_stack = __ctl_linkage_stack_dma;
+static u32 __dma_ref *__ctl_duct = __ctl_duct_dma;
+
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
 struct mem_detect_info __bootdata(mem_detect);
 struct initrd_data __bootdata(initrd_data);
 
-struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
-struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
-unsigned long __bootdata_preserved(__stext_dma);
-unsigned long __bootdata_preserved(__etext_dma);
-unsigned long __bootdata_preserved(__sdma);
-unsigned long __bootdata_preserved(__edma);
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
@@ -753,7 +800,6 @@ static void __init reserve_kernel(void)
 	memblock_reserve(0, HEAD_END);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
-	memblock_reserve(__sdma, __edma - __sdma);
 }
 
 static void __init setup_memory(void)
@@ -771,6 +817,53 @@ static void __init setup_memory(void)
 
 	/* Only cosmetics */
 	memblock_enforce_memory_limit(memblock_end_of_DRAM());
+}
+
+static void __init relocate_dma_section(void)
+{
+	unsigned long dma_addr, dma_size;
+	long dma_offset;
+	long *ptr;
+
+	/* Allocate a new DMA capable memory region */
+	dma_size = __edma - __sdma;
+	pr_info("Relocating DMA section of size 0x%08lx\n", dma_size);
+	dma_addr = (unsigned long)memblock_alloc_low(dma_size, PAGE_SIZE);
+	if (!dma_addr)
+		panic("Failed to allocate memory for DMA section\n");
+	dma_offset = dma_addr - __sdma;
+
+	/* Move original DMA section to the new one */
+	memmove((void *)dma_addr, (void *)__sdma, dma_size);
+	/* Zero out the old DMA section to catch invalid accesses within it */
+	memset((void *)__sdma, 0, dma_size);
+
+	/* Update all DMA region references */
+	for (ptr = _start_dma_refs; ptr != _end_dma_refs; ptr++)
+		*ptr += dma_offset;
+}
+
+/* This must be called after DMA relocation */
+static void __init setup_cr(void)
+{
+	union ctlreg2 cr2;
+	union ctlreg5 cr5;
+	union ctlreg15 cr15;
+
+	__ctl_duct[1] = (unsigned long)__ctl_aste;
+	__ctl_duct[2] = (unsigned long)__ctl_aste;
+	__ctl_duct[4] = (unsigned long)__ctl_duald;
+
+	/* Update control registers CR2, CR5 and CR15 */
+	__ctl_store(cr2.val, 2, 2);
+	__ctl_store(cr5.val, 5, 5);
+	__ctl_store(cr15.val, 15, 15);
+	cr2.ducto = (unsigned long)__ctl_duct >> 6;
+	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
+	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
+	__ctl_load(cr2.val, 2, 2);
+	__ctl_load(cr5.val, 5, 5);
+	__ctl_load(cr15.val, 15, 15);
 }
 
 /*
@@ -1060,6 +1153,9 @@ void __init setup_arch(char **cmdline_p)
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
+
+	relocate_dma_section();
+	setup_cr();
 
 	setup_uv();
 	setup_memory_end();

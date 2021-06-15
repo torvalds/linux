@@ -14,6 +14,7 @@
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
 #include <asm/sections.h>
+#include "entry.h"
 
 struct diag_stat {
 	unsigned int counter[NR_DIAG_STAT];
@@ -50,8 +51,16 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };
 
-struct diag_ops __bootdata_preserved(diag_dma_ops);
-struct diag210 *__bootdata_preserved(__diag210_tmp_dma);
+struct diag_ops __dma_ref diag_dma_ops = {
+	.diag210 = _diag210_dma,
+	.diag26c = _diag26c_dma,
+	.diag14 = _diag14_dma,
+	.diag0c = _diag0c_dma,
+	.diag308_reset = _diag308_reset_dma
+};
+
+static struct diag210 _diag210_tmp_dma __section(".dma.data");
+struct diag210 __dma_ref *__diag210_tmp_dma = &_diag210_tmp_dma;
 
 static int show_diag_stat(struct seq_file *m, void *v)
 {

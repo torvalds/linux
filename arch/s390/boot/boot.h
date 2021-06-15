@@ -26,10 +26,6 @@ extern int vmalloc_size_set;
 extern int kaslr_enabled;
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
-extern char _sdma[], _edma[];
-extern char _stext_dma[], _etext_dma[];
-extern struct exception_table_entry _start_dma_ex_table[];
-extern struct exception_table_entry _stop_dma_ex_table[];
 extern char _decompressor_syms_start[], _decompressor_syms_end[];
 extern char _stack_start[], _stack_end[];
 
