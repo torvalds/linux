@@ -6823,6 +6823,13 @@ bool dpcd_write_128b_132b_sst_payload_allocation_table(
 		/// Leave req_slot_count = 0 if allocate is false.
 	}
 
+	proposed_table->stream_count = 1; /// Always 1 stream for SST
+	proposed_table->stream_allocations[0].slot_count = req_slot_count;
+	proposed_table->stream_allocations[0].vcp_id = vc_id;
+
+	if (link->aux_access_disabled)
+		return true;
+
 	/// Write DPCD 2C0 = 1 to start updating
 	update_status.bits.VC_PAYLOAD_TABLE_UPDATED = 1;
 	core_link_write_dpcd(
@@ -6890,10 +6897,6 @@ bool dpcd_write_128b_132b_sst_payload_allocation_table(
 		// TODO - DP2.0 Payload: Read and log the payload table from downstream branch
 	}
 
-	proposed_table->stream_count = 1; /// Always 1 stream for SST
-	proposed_table->stream_allocations[0].slot_count = req_slot_count;
-	proposed_table->stream_allocations[0].vcp_id = vc_id;
-
 	return result;
 }
 
@@ -6909,6 +6912,8 @@ bool dpcd_poll_for_allocation_change_trigger(struct dc_link *link)
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 	union lane_align_status_updated lane_status_updated;
 
+	if (link->aux_access_disabled)
+		return true;
 	for (i = 0; i < act_retries; i++) {
 		get_lane_status(link, link->cur_link_settings.lane_count, dpcd_lane_status, &lane_status_updated);
 
