@@ -1261,6 +1261,7 @@
   kfree_const
   kfree_sensitive
   kfree_skb
+  kfree_skb_list
   kick_all_cpus_sync
   kill_anon_super
   kill_fasync
@@ -2916,6 +2917,9 @@
   xa_find_after
   xa_load
   xa_store
+  __xfrm_decode_session
+  xfrm_lookup
+  xfrm_output
   xhci_alloc_command
   xhci_alloc_erst
   xhci_free_command
