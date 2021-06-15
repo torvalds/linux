@@ -1561,6 +1561,25 @@ config SERIAL_LITEUART_CONSOLE
 	  and warnings and which allows logins in single user mode).
 	  Otherwise, say 'N'.
 
+config SERIAL_CORTINA_ACCESS
+	tristate "Cortina-Access serial port support"
+	select SERIAL_CORE
+	help
+	  This driver is for Cortina-Access SoC's UART. If you have a machine
+	  based on the Cortina-Access SoC and wish to use the serial port,
+	  say 'Y' here. Otherwise, say 'N'.
+
+config SERIAL_CORTINA_ACCESS_CONSOLE
+	bool "Console on Cortina-ACCESS serial port"
+	depends on SERIAL_CORTINA_ACCESS=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Say 'Y' here if you wish to use Cortina-Access UART as the system
+	  console. (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode)
+	  /dev/ttyS* is default device node.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO
