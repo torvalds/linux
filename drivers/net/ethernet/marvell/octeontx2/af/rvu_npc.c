@@ -2556,7 +2556,7 @@ int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
 	 */
 	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES) {
 		dev_err(rvu->dev,
-			"%s: %d Non-contiguous MCAM entries requested is morethan max (%d) allowed\n",
+			"%s: %d Non-contiguous MCAM entries requested is more than max (%d) allowed\n",
 			__func__, req->count, NPC_MAX_NONCONTIG_ENTRIES);
 		return NPC_MCAM_INVALID_REQ;
 	}
