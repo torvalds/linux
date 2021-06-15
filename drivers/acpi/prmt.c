@@ -50,7 +50,7 @@ struct prm_context_buffer {
 #pragma pack()
 
 
-LIST_HEAD(prm_module_list);
+static LIST_HEAD(prm_module_list);
 
 struct prm_handler_info {
 	guid_t guid;
