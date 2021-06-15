@@ -980,3 +980,9 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 	kfree(kc);
 }
 EXPORT_SYMBOL(dm_kcopyd_client_destroy);
+
+void dm_kcopyd_client_flush(struct dm_kcopyd_client *kc)
+{
+	flush_workqueue(kc->kcopyd_wq);
+}
+EXPORT_SYMBOL(dm_kcopyd_client_flush);

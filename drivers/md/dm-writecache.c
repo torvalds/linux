@@ -1812,6 +1812,11 @@ static void writecache_writeback(struct work_struct *work)
 	struct writeback_list wbl;
 	unsigned long n_walked;
 
+	if (!WC_MODE_PMEM(wc)) {
+		/* Wait for any active kcopyd work on behalf of ssd writeback */
+		dm_kcopyd_client_flush(wc->dm_kcopyd);
+	}
+
 	wc_lock(wc);
 restart:
 	if (writecache_has_error(wc)) {
