@@ -363,8 +363,13 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	nvdimm_bus->dev.groups = nd_desc->attr_groups;
 	nvdimm_bus->dev.bus = &nvdimm_bus_type;
 	nvdimm_bus->dev.of_node = nd_desc->of_node;
-	dev_set_name(&nvdimm_bus->dev, "ndbus%d", nvdimm_bus->id);
-	rc = device_register(&nvdimm_bus->dev);
+	device_initialize(&nvdimm_bus->dev);
+	device_set_pm_not_required(&nvdimm_bus->dev);
+	rc = dev_set_name(&nvdimm_bus->dev, "ndbus%d", nvdimm_bus->id);
+	if (rc)
+		goto err;
+
+	rc = device_add(&nvdimm_bus->dev);
 	if (rc) {
 		dev_dbg(&nvdimm_bus->dev, "registration failed: %d\n", rc);
 		goto err;
@@ -525,6 +530,7 @@ void __nd_device_register(struct device *dev)
 		set_dev_node(dev, to_nd_region(dev)->numa_node);
 
 	dev->bus = &nvdimm_bus_type;
+	device_set_pm_not_required(dev);
 	if (dev->parent) {
 		get_device(dev->parent);
 		if (dev_to_node(dev) == NUMA_NO_NODE)
@@ -717,18 +723,41 @@ const struct attribute_group nd_numa_attribute_group = {
 	.is_visible = nd_numa_attr_visible,
 };
 
+static void ndctl_release(struct device *dev)
+{
+	kfree(dev);
+}
+
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
 	dev_t devt = MKDEV(nvdimm_bus_major, nvdimm_bus->id);
 	struct device *dev;
+	int rc;
 
-	dev = device_create(nd_class, &nvdimm_bus->dev, devt, nvdimm_bus,
-			"ndctl%d", nvdimm_bus->id);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+	device_initialize(dev);
+	device_set_pm_not_required(dev);
+	dev->class = nd_class;
+	dev->parent = &nvdimm_bus->dev;
+	dev->devt = devt;
+	dev->release = ndctl_release;
+	rc = dev_set_name(dev, "ndctl%d", nvdimm_bus->id);
+	if (rc)
+		goto err;
 
-	if (IS_ERR(dev))
-		dev_dbg(&nvdimm_bus->dev, "failed to register ndctl%d: %ld\n",
-				nvdimm_bus->id, PTR_ERR(dev));
-	return PTR_ERR_OR_ZERO(dev);
+	rc = device_add(dev);
+	if (rc) {
+		dev_dbg(&nvdimm_bus->dev, "failed to register ndctl%d: %d\n",
+				nvdimm_bus->id, rc);
+		goto err;
+	}
+	return 0;
+
+err:
+	put_device(dev);
+	return rc;
 }
 
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus)
