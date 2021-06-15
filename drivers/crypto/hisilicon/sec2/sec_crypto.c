@@ -2290,7 +2290,7 @@ static int sec_aead_soft_crypto(struct sec_ctx *ctx,
 
 	/* Kunpeng920 aead mode not support input 0 size */
 	if (!a_ctx->fallback_aead_tfm) {
-		dev_err(dev, "aead fallbcak tfm is NULL!\n");
+		dev_err(dev, "aead fallback tfm is NULL!\n");
 		return -EINVAL;
 	}
 
