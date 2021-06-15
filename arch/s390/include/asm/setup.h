@@ -60,8 +60,6 @@
 #include <asm/types.h>
 
 #define IPL_DEVICE	(*(unsigned long *)  (IPL_DEVICE_OFFSET))
-#define OLDMEM_BASE	(*(unsigned long *)  (OLDMEM_BASE_OFFSET))
-#define OLDMEM_SIZE	(*(unsigned long *)  (OLDMEM_SIZE_OFFSET))
 #define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
 
 struct parmarea {
@@ -163,6 +161,12 @@ struct initrd_data {
 	unsigned long size;
 };
 extern struct initrd_data initrd_data;
+
+struct oldmem_data {
+	unsigned long start;
+	unsigned long size;
+};
+extern struct oldmem_data oldmem_data;
 
 static inline u32 gen_lpswe(unsigned long addr)
 {

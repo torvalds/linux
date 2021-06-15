@@ -111,6 +111,7 @@ EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);
+struct oldmem_data __bootdata_preserved(oldmem_data);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -255,7 +256,7 @@ static void __init setup_zfcpdump(void)
 {
 	if (!is_ipl_type_dump())
 		return;
-	if (OLDMEM_BASE)
+	if (oldmem_data.start)
 		return;
 	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
 	console_loglevel = 2;
@@ -611,9 +612,9 @@ static void __init reserve_crashkernel(void)
 		return;
 	}
 
-	low = crash_base ?: OLDMEM_BASE;
+	low = crash_base ?: oldmem_data.start;
 	high = low + crash_size;
-	if (low >= OLDMEM_BASE && high <= OLDMEM_BASE + OLDMEM_SIZE) {
+	if (low >= oldmem_data.start && high <= oldmem_data.start + oldmem_data.size) {
 		/* The crashkernel fits into OLDMEM, reuse OLDMEM */
 		crash_base = low;
 	} else {
@@ -640,7 +641,7 @@ static void __init reserve_crashkernel(void)
 	if (register_memory_notifier(&kdump_mem_nb))
 		return;
 
-	if (!OLDMEM_BASE && MACHINE_IS_VM)
+	if (!oldmem_data.start && MACHINE_IS_VM)
 		diag10_range(PFN_DOWN(crash_base), PFN_DOWN(crash_size));
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;

@@ -69,7 +69,7 @@ static int is_prot_virt_host_capable(void)
 	if (!test_facility(158))
 		return 0;
 	/* disable if kdump */
-	if (OLDMEM_BASE)
+	if (oldmem_data.start)
 		return 0;
 	/* disable if stand-alone dump */
 	if (ipl_block_valid && is_ipl_block_dump())

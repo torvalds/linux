@@ -27,6 +27,7 @@ struct initrd_data __bootdata(initrd_data);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);
+struct oldmem_data __bootdata_preserved(oldmem_data);
 
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
@@ -165,9 +166,9 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 	ident_map_size = min(ident_map_size, 1UL << MAX_PHYSMEM_BITS);
 
 #ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE) {
+	if (oldmem_data.start) {
 		kaslr_enabled = 0;
-		ident_map_size = min(ident_map_size, OLDMEM_SIZE);
+		ident_map_size = min(ident_map_size, oldmem_data.size);
 	} else if (ipl_block_valid && is_ipl_block_dump()) {
 		kaslr_enabled = 0;
 		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size)
@@ -286,6 +287,8 @@ void startup_kernel(void)
 
 	initrd_data.start = parmarea.initrd_start;
 	initrd_data.size = parmarea.initrd_size;
+	oldmem_data.start = parmarea.oldmem_base;
+	oldmem_data.size = parmarea.oldmem_size;
 
 	setup_lpp();
 	store_ipl_parmblock();
