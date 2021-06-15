@@ -1018,7 +1018,7 @@ static void arasan_dt_read_clk_phase(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 
-	int clk_phase[2] = {0};
+	u32 clk_phase[2] = {0};
 
 	/*
 	 * Read Tap Delay values from DT, if the DT does not contain the
