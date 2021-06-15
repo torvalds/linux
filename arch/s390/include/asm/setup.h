@@ -59,9 +59,6 @@
 #include <asm/lowcore.h>
 #include <asm/types.h>
 
-#define IPL_DEVICE	(*(unsigned long *)  (IPL_DEVICE_OFFSET))
-#define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
-
 struct parmarea {
 	unsigned long ipl_device;			/* 0x10400 */
 	unsigned long initrd_start;			/* 0x10408 */
