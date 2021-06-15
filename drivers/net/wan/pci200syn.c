@@ -58,8 +58,6 @@ typedef struct {
 	u32 init_ctrl;		/* 50h : EEPROM ctrl, Init Ctrl, etc */
 }plx9052;
 
-
-
 typedef struct port_s {
 	struct napi_struct napi;
 	struct net_device *netdev;
@@ -76,8 +74,6 @@ typedef struct port_s {
 	u8 chan;		/* physical port # - 0 or 1 */
 }port_t;
 
-
-
 typedef struct card_s {
 	u8 __iomem *rambase;	/* buffer memory base (virtual) */
 	u8 __iomem *scabase;	/* SCA memory base (virtual) */
@@ -89,7 +85,6 @@ typedef struct card_s {
 
 	port_t ports[2];
 }card_t;
-
 
 #define get_port(card, port)	     (&card->ports[port])
 #define sca_flush(card)		     (sca_in(IER0, card))
@@ -111,7 +106,6 @@ static inline void new_memcpy_toio(char __iomem *dest, char *src, int length)
 #define memcpy_toio new_memcpy_toio
 
 #include "hd64572.c"
-
 
 static void pci200_set_iface(port_t *port)
 {
@@ -151,8 +145,6 @@ static void pci200_set_iface(port_t *port)
 	sca_set_port(port);
 }
 
-
-
 static int pci200_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -167,8 +159,6 @@ static int pci200_open(struct net_device *dev)
 	return 0;
 }
 
-
-
 static int pci200_close(struct net_device *dev)
 {
 	sca_close(dev);
@@ -176,8 +166,6 @@ static int pci200_close(struct net_device *dev)
 	hdlc_close(dev);
 	return 0;
 }
-
-
 
 static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -232,8 +220,6 @@ static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return hdlc_ioctl(dev, ifr, cmd);
 	}
 }
-
-
 
 static void pci200_pci_remove_one(struct pci_dev *pdev)
 {
@@ -407,14 +393,11 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 	return 0;
 }
 
-
-
 static const struct pci_device_id pci200_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_PLX,
 	  PCI_DEVICE_ID_PLX_PCI200SYN, 0, 0, 0 },
 	{ 0, }
 };
-
 
 static struct pci_driver pci200_pci_driver = {
 	.name		= "PCI200SYN",
@@ -422,7 +405,6 @@ static struct pci_driver pci200_pci_driver = {
 	.probe		= pci200_pci_init_one,
 	.remove		= pci200_pci_remove_one,
 };
-
 
 static int __init pci200_init_module(void)
 {
@@ -432,8 +414,6 @@ static int __init pci200_init_module(void)
 	}
 	return pci_register_driver(&pci200_pci_driver);
 }
-
-
 
 static void __exit pci200_cleanup_module(void)
 {
