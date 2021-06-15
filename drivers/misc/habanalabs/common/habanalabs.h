@@ -2089,7 +2089,7 @@ struct hl_mmu_funcs {
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
  * @cs_mirror_lock: protects cs_mirror_list.
- * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
+ * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CBs.
  * @event_queue: event queue for IRQ from CPU-CP.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: Host <-> CPU-CP shared memory CPU address.
