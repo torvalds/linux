@@ -362,12 +362,11 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
  */
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 {
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 	union nvme_result res;
 	struct nvmf_connect_data *data;
 	int ret;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.connect.opcode = nvme_fabrics_command;
 	cmd.connect.fctype = nvme_fabrics_type_connect;
 	cmd.connect.qid = 0;
