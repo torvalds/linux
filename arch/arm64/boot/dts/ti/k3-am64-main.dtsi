@@ -694,6 +694,90 @@
 		ti,mbox-num-fifos = <16>;
 	};
 
+	main_r5fss0: r5fss@78000000 {
+		compatible = "ti,am64-r5fss";
+		ti,cluster-mode = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x78000000 0x00 0x78000000 0x10000>,
+			 <0x78100000 0x00 0x78100000 0x10000>,
+			 <0x78200000 0x00 0x78200000 0x08000>,
+			 <0x78300000 0x00 0x78300000 0x08000>;
+		power-domains = <&k3_pds 119 TI_SCI_PD_EXCLUSIVE>;
+
+		main_r5fss0_core0: r5f@78000000 {
+			compatible = "ti,am64-r5f";
+			reg = <0x78000000 0x00010000>,
+			      <0x78100000 0x00010000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <121>;
+			ti,sci-proc-ids = <0x01 0xff>;
+			resets = <&k3_reset 121 1>;
+			firmware-name = "am64-main-r5f0_0-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+
+		main_r5fss0_core1: r5f@78200000 {
+			compatible = "ti,am64-r5f";
+			reg = <0x78200000 0x00008000>,
+			      <0x78300000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <122>;
+			ti,sci-proc-ids = <0x02 0xff>;
+			resets = <&k3_reset 122 1>;
+			firmware-name = "am64-main-r5f0_1-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+	};
+
+	main_r5fss1: r5fss@78400000 {
+		compatible = "ti,am64-r5fss";
+		ti,cluster-mode = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x78400000 0x00 0x78400000 0x10000>,
+			 <0x78500000 0x00 0x78500000 0x10000>,
+			 <0x78600000 0x00 0x78600000 0x08000>,
+			 <0x78700000 0x00 0x78700000 0x08000>;
+		power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
+
+		main_r5fss1_core0: r5f@78400000 {
+			compatible = "ti,am64-r5f";
+			reg = <0x78400000 0x00010000>,
+			      <0x78500000 0x00010000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <123>;
+			ti,sci-proc-ids = <0x06 0xff>;
+			resets = <&k3_reset 123 1>;
+			firmware-name = "am64-main-r5f1_0-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+
+		main_r5fss1_core1: r5f@78600000 {
+			compatible = "ti,am64-r5f";
+			reg = <0x78600000 0x00008000>,
+			      <0x78700000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <124>;
+			ti,sci-proc-ids = <0x07 0xff>;
+			resets = <&k3_reset 124 1>;
+			firmware-name = "am64-main-r5f1_1-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+	};
+
 	serdes_wiz0: wiz@f000000 {
 		compatible = "ti,am64-wiz-10g";
 		#address-cells = <1>;
