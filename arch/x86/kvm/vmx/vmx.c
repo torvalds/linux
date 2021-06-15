@@ -7723,6 +7723,12 @@ static __init int hardware_setup(void)
 	    !cpu_has_vmx_invept_global())
 		enable_ept = 0;
 
+	/* NX support is required for shadow paging. */
+	if (!enable_ept && !boot_cpu_has(X86_FEATURE_NX)) {
+		pr_err_ratelimited("kvm: NX (Execute Disable) not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!cpu_has_vmx_ept_ad_bits() || !enable_ept)
 		enable_ept_ad_bits = 0;
 
