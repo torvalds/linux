@@ -296,6 +296,13 @@ struct nix_txvlan {
 	struct mutex rsrc_lock; /* Serialize resource alloc/free */
 };
 
+struct nix_ipolicer {
+	struct rsrc_bmap band_prof;
+	u16 *pfvf_map;
+	u16 *match_id;
+	u16 *ref_count;
+};
+
 struct nix_hw {
 	int blkaddr;
 	struct rvu *rvu;
@@ -305,6 +312,7 @@ struct nix_hw {
 	struct nix_mark_format mark_format;
 	struct nix_lso lso;
 	struct nix_txvlan txvlan;
+	struct nix_ipolicer *ipolicer;
 };
 
 /* RVU block's capabilities or functionality,
@@ -322,6 +330,7 @@ struct hw_cap {
 	bool	nix_rx_multicast;	 /* Rx packet replication support */
 	bool	per_pf_mbox_regs; /* PF mbox specified in per PF registers ? */
 	bool	programmable_chans; /* Channels programmable ? */
+	bool	ipolicer;
 };
 
 struct rvu_hwinfo {
@@ -672,6 +681,8 @@ int rvu_get_next_nix_blkaddr(struct rvu *rvu, int blkaddr);
 void rvu_nix_reset_mac(struct rvu_pfvf *pfvf, int pcifunc);
 int nix_get_struct_ptrs(struct rvu *rvu, u16 pcifunc,
 			struct nix_hw **nix_hw, int *blkaddr);
+int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
+				 u16 rq_idx, u16 match_id);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
