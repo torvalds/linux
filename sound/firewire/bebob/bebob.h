@@ -76,8 +76,8 @@ struct snd_bebob_spec {
 };
 
 enum snd_bebob_quirk {
-	SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC,
-	SND_BEBOB_QUIRK_WRONG_DBC,
+	SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC = (1 << 0),
+	SND_BEBOB_QUIRK_WRONG_DBC		  = (1 << 1),
 };
 
 struct snd_bebob {
