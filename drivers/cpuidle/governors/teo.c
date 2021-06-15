@@ -312,7 +312,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	/* Check if there is any choice in the first place. */
 	if (drv->state_count < 2) {
-		idx = 0;;
+		idx = 0;
 		goto end;
 	}
 	if (!dev->states_usage[0].disable) {
