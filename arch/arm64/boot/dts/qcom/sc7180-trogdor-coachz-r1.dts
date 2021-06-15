@@ -10,8 +10,26 @@
 #include "sc7180-trogdor-coachz.dtsi"
 
 / {
-	model = "Google CoachZ (rev1)";
-	compatible = "google,coachz-rev1", "qcom,sc7180";
+	model = "Google CoachZ (rev1 - 2)";
+	compatible = "google,coachz-rev1", "google,coachz-rev2", "qcom,sc7180";
+};
+
+/*
+ * CoachZ rev1 is stuffed with a 47k NTC as charger thermistor which currently
+ * is not supported by the PM6150 ADC driver. Disable the charger thermal zone
+ * to avoid using bogus temperature values.
+ */
+&charger_thermal {
+	status = "disabled";
+};
+
+/*
+ * CoachZ rev1 is stuffed with a 47k NTC as thermistor for skin temperature,
+ * which currently is not supported by the PM6150 ADC driver. Disable the
+ * skin temperature thermal zone to avoid using bogus temperature values.
+ */
+&skin_temp_thermal {
+	status = "disabled";
 };
 
 &tlmm {

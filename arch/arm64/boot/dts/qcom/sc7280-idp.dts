@@ -7,11 +7,19 @@
 
 /dts-v1/;
 
+#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pmr735b.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
 #include "sc7280.dtsi"
+#include "pm7325.dtsi"
+#include "pmr735a.dtsi"
+#include "pm8350c.dtsi"
+#include "pmk8350.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. sc7280 IDP platform";
-	compatible = "qcom,sc7280-idp", "qcom,sc7280";
+	compatible = "qcom,sc7280-idp", "google,senor", "qcom,sc7280";
 
 	aliases {
 		serial0 = &uart5;
@@ -232,6 +240,32 @@
 			regulator-max-microvolt = <904000>;
 		};
 	};
+};
+
+&pmk8350_vadc {
+		pm8350_die_temp {
+			reg = <PM8350_ADC7_DIE_TEMP>;
+			label = "pm8350_die_temp";
+			qcom,pre-scaling = <1 1>;
+		};
+
+		pmk8350_die_temp {
+			reg = <PMK8350_ADC7_DIE_TEMP>;
+			label = "pmk8350_die_temp";
+			qcom,pre-scaling = <1 1>;
+		};
+
+		pmr735a_die_temp {
+			reg = <PMR735A_ADC7_DIE_TEMP>;
+			label = "pmr735a_die_temp";
+			qcom,pre-scaling = <1 1>;
+		};
+
+		pmr735b_die_temp {
+			reg = <PMR735B_ADC7_DIE_TEMP>;
+			label = "pmr735b_die_temp";
+			qcom,pre-scaling = <1 1>;
+		};
 };
 
 &qupv3_id_0 {
