@@ -2123,6 +2123,7 @@ static void format_interrupt(void)
 	switch (interpret_errors()) {
 	case 1:
 		cont->error();
+		break;
 	case 2:
 		break;
 	case 0:
@@ -2330,7 +2331,6 @@ static void rw_interrupt(void)
 	if (!drive_state[current_drive].first_read_date)
 		drive_state[current_drive].first_read_date = jiffies;
 
-	nr_sectors = 0;
 	ssize = DIV_ROUND_UP(1 << raw_cmd->cmd[SIZECODE], 4);
 
 	if (reply_buffer[ST1] & ST1_EOC)
