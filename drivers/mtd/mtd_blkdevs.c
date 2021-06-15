@@ -419,6 +419,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	if (tr->discard) {
 		blk_queue_flag_set(QUEUE_FLAG_DISCARD, new->rq);
 		blk_queue_max_discard_sectors(new->rq, UINT_MAX);
+		new->rq->limits.discard_granularity = tr->blksize;
 	}
 
 	gd->queue = new->rq;
