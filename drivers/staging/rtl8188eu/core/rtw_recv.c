@@ -189,7 +189,6 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 
 	while ((pending_frame = rtw_alloc_recvframe(&adapter->recvpriv.uc_swdec_pending_queue))) {
 		rtw_free_recvframe(pending_frame, &adapter->recvpriv.free_recv_queue);
-		netdev_dbg(adapter->pnetdev, "dequeue uc_swdec_pending_queue\n");
 		cnt++;
 	}
 
@@ -229,7 +228,6 @@ static int recvframe_chkmic(struct adapter *adapter,
 					res = _FAIL;
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 						 ("\n %s: didn't install group key!!!!!!!!!!\n", __func__));
-					netdev_dbg(adapter->pnetdev, "didn't install group key!!!!!!!!!!\n");
 					goto exit;
 				}
 				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
@@ -318,14 +316,8 @@ static int recvframe_chkmic(struct adapter *adapter,
 				if ((prxattrib->bdecrypted) && (brpt_micerror)) {
 					rtw_handle_tkip_mic_err(adapter, (u8)is_multicast_ether_addr(prxattrib->ra));
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted=%d ", prxattrib->bdecrypted));
-					netdev_dbg(adapter->pnetdev,
-						   "mic error :prxattrib->bdecrypted=%d\n",
-						   prxattrib->bdecrypted);
 				} else {
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted=%d ", prxattrib->bdecrypted));
-					netdev_dbg(adapter->pnetdev,
-						   "mic error :prxattrib->bdecrypted=%d\n",
-						   prxattrib->bdecrypted);
 				}
 				res = _FAIL;
 			} else {
@@ -365,9 +357,6 @@ static struct recv_frame *decryptor(struct adapter *padapter,
 		prxattrib->key_index = (((iv[3]) >> 6) & 0x3);
 
 		if (prxattrib->key_index > WEP_KEYS) {
-			netdev_dbg(padapter->pnetdev,
-				   "prxattrib->key_index(%d)>WEP_KEYS\n", prxattrib->key_index);
-
 			switch (prxattrib->encrypt) {
 			case _WEP40_:
 			case _WEP104_:
@@ -745,12 +734,8 @@ static int ap2sta_data_frame(struct adapter *adapter,
 				 (" %s:  compare BSSID fail ; BSSID=%pM\n", __func__, (pattrib->bssid)));
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("mybssid=%pM\n", (mybssid)));
 
-			if (!mcast) {
-				netdev_dbg(adapter->pnetdev,
-					   "issue_deauth to the nonassociated ap=%pM for the reason(7)\n",
-					   (pattrib->bssid));
+			if (!mcast)
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
-			}
 
 			ret = _FAIL;
 			goto exit;
@@ -783,13 +768,8 @@ static int ap2sta_data_frame(struct adapter *adapter,
 	} else {
 		if (!memcmp(myhwaddr, pattrib->dst, ETH_ALEN) && !mcast) {
 			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get sta_info */
-			if (!*psta) {
-				netdev_dbg(adapter->pnetdev,
-					   "issue_deauth to the ap =%pM for the reason(7)\n",
-					   (pattrib->bssid));
-
+			if (!*psta)
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
-			}
 		}
 
 		ret = _FAIL;
@@ -821,8 +801,6 @@ static int sta2ap_data_frame(struct adapter *adapter,
 		*psta = rtw_get_stainfo(pstapriv, pattrib->src);
 		if (!*psta) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("can't get psta under AP_MODE; drop pkt\n"));
-			netdev_dbg(adapter->pnetdev,
-				   "issue_deauth to sta=%pM for the reason(7)\n", (pattrib->src));
 
 			issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 
@@ -848,8 +826,6 @@ static int sta2ap_data_frame(struct adapter *adapter,
 			ret = RTW_RX_HANDLED;
 			goto exit;
 		}
-		netdev_dbg(adapter->pnetdev,
-			   "issue_deauth to sta=%pM for the reason(7)\n", (pattrib->src));
 		issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 		ret = RTW_RX_HANDLED;
 		goto exit;
@@ -914,7 +890,6 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			return _FAIL;
 
 		if (psta->state & WIFI_STA_ALIVE_CHK_STATE) {
-			netdev_dbg(padapter->pnetdev, "alive check-rx ps-poll\n");
 			psta->expire_to = pstapriv->expire_to;
 			psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
 		}
@@ -958,18 +933,11 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 				}
 			} else {
 				if (pstapriv->tim_bitmap & BIT(psta->aid)) {
-					if (psta->sleepq_len == 0) {
-						netdev_dbg(padapter->pnetdev,
-							   "no buffered packets to xmit\n");
-
+					if (psta->sleepq_len == 0)
 						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
 						issue_nulldata(padapter, psta->hwaddr, 0, 0, 0);
-					} else {
-						netdev_dbg(padapter->pnetdev,
-							   "error!psta->sleepq_len=%d\n",
-							   psta->sleepq_len);
+					else
 						psta->sleepq_len = 0;
-					}
 
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
@@ -1518,12 +1486,8 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 		/* Offset 12 denote 2 mac address */
 		nSubframe_Length = get_unaligned_be16(pdata + 12);
 
-		if (a_len < (ETH_HLEN + nSubframe_Length)) {
-			netdev_dbg(padapter->pnetdev,
-				   "nRemain_Length is %d and nSubframe_Length is : %d\n",
-				   a_len, nSubframe_Length);
+		if (a_len < (ETH_HLEN + nSubframe_Length))
 			goto exit;
-		}
 
 		/* move the data point to data content */
 		pdata += ETH_HLEN;
@@ -1531,23 +1495,16 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 
 		/* Allocate new skb for releasing to upper layer */
 		sub_skb = dev_alloc_skb(nSubframe_Length + 12);
-		if (!sub_skb) {
-			netdev_dbg(padapter->pnetdev,
-				   "dev_alloc_skb() Fail!!! , nr_subframes=%d\n",
-				   nr_subframes);
+		if (!sub_skb)
 			break;
-		}
 
 		skb_reserve(sub_skb, 12);
 		skb_put_data(sub_skb, pdata, nSubframe_Length);
 
 		subframes[nr_subframes++] = sub_skb;
 
-		if (nr_subframes >= MAX_SUBFRAME_COUNT) {
-			netdev_dbg(padapter->pnetdev,
-				   "ParseSubframe(): Too many Subframes! Packets dropped!\n");
+		if (nr_subframes >= MAX_SUBFRAME_COUNT)
 			break;
-		}
 
 		pdata += nSubframe_Length;
 		a_len -= nSubframe_Length;
@@ -1952,11 +1909,8 @@ static int recv_func(struct adapter *padapter, struct recv_frame *rframe)
 	if (check_fwstate(mlmepriv, WIFI_STATION_STATE) && psecuritypriv->busetkipkey) {
 		struct recv_frame *pending_frame;
 
-		while ((pending_frame = rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue))) {
-			if (recv_func_posthandle(padapter, pending_frame) == _SUCCESS)
-				netdev_dbg(padapter->pnetdev,
-					   "dequeue uc_swdec_pending_queue\n");
-		}
+		while ((pending_frame = rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue)))
+			recv_func_posthandle(padapter, pending_frame);
 	}
 
 	ret = recv_func_prehandle(padapter, rframe);
@@ -1970,8 +1924,6 @@ static int recv_func(struct adapter *padapter, struct recv_frame *rframe)
 		    !is_wep_enc(psecuritypriv->dot11PrivacyAlgrthm) &&
 		    !psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
-			netdev_dbg(padapter->pnetdev,
-				   "no key, enqueue uc_swdec_pending_queue\n");
 			goto exit;
 		}
 
