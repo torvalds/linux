@@ -104,7 +104,7 @@ static void gt_compare_set(unsigned long delta, int periodic)
 	counter += delta;
 	ctrl = readl(gt_base + GT_CONTROL);
 	ctrl &= ~(GT_CONTROL_COMP_ENABLE | GT_CONTROL_IRQ_ENABLE |
-		  GT_CONTROL_AUTO_INC | GT_CONTROL_AUTO_INC);
+		  GT_CONTROL_AUTO_INC);
 	ctrl |= GT_CONTROL_TIMER_ENABLE;
 	writel_relaxed(ctrl, gt_base + GT_CONTROL);
 	writel_relaxed(lower_32_bits(counter), gt_base + GT_COMP0);
