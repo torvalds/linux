@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/adi,adv7533.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADV7533/35 HDMI Encoders
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description: |
+  The ADV7533 and ADV7535 are HDMI audio and video transmitters
+  compatible with HDMI 1.4 and DVI 1.0. They support color space
+  conversion, S/PDIF, CEC and HDCP. The transmitter input is MIPI DSI.
+
+properties:
+  compatible:
+    enum:
+      - adi,adv7533
+      - adi,adv7535
+
+  reg:
+    description: |
+      I2C slave addresses.
+
+      The ADV7533/35 internal registers are split into four pages
+      exposed through different I2C addresses, creating four register
+      maps. Each map has it own I2C address and acts as a standard slave
+      device on the I2C bus. The main address is mandatory, others are
+      optional and revert to defaults if not specified.
+    minItems: 1
+    maxItems: 4
+
+  reg-names:
+    description:
+      Names of maps with programmable addresses. It can contain any map
+      needing a non-default address.
+    minItems: 1
+    items:
+      - const: main
+      - const: edid
+      - const: cec
+      - const: packet
+
+  clocks:
+    description: Reference to the CEC clock.
+    maxItems: 1
+
+  clock-names:
+    const: cec
+
+  interrupts:
+    maxItems: 1
+
+  pd-gpios:
+    description: GPIO connected to the power down signal.
+    maxItems: 1
+
+  avdd-supply:
+    description: A 1.8V supply that powers up the AVDD pin.
+
+  dvdd-supply:
+    description: A 1.8V supply that powers up the DVDD pin.
+
+  pvdd-supply:
+    description: A 1.8V supply that powers up the PVDD pin.
+
+  a2vdd-supply:
+    description: A 1.8V supply that powers up the A2VDD pin.
+
+  v3p3-supply:
+    description: A 3.3V supply that powers up the V3P3 pin.
+
+  v1p2-supply:
+    description:
+      A supply that powers up the V1P2 pin. It can be either 1.2V
+      or 1.8V for ADV7533 but only 1.8V for ADV7535.
+
+  adi,disable-timing-generator:
+    description:
+      Disables the internal timing generator. The chip will rely on the
+      sync signals in the DSI data lanes, rather than generating its own
+      timings for HDMI output.
+    type: boolean
+
+  adi,dsi-lanes:
+    description: Number of DSI data lanes connected to the DSI host.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2, 3, 4 ]
+
+  ports:
+    description:
+      The ADV7533/35 has two video ports and one audio port. This node
+      models their connections as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
+      Documentation/devicetree/bindings/graph.txt
+    type: object
+    properties:
+      port@0:
+        description:
+          Video port for the DSI input. The remote endpoint phandle
+          should be a reference to a valid mipi_dsi_host_device.
+        type: object
+
+      port@1:
+        description: Video port for the HDMI output.
+        type: object
+
+      port@2:
+        description: Audio port for the HDMI output.
+        type: object
+
+required:
+  - compatible
+  - reg
+  - ports
+  - adi,dsi-lanes
+  - avdd-supply
+  - dvdd-supply
+  - pvdd-supply
+  - a2vdd-supply
+  - v3p3-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c@e6500000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        reg = <0 0xe6500000>;
+
+        adv7533: hdmi@39 {
+            compatible = "adi,adv7533";
+            /*
+             * The EDID page will be accessible on address 0x66 on the I2C
+             * bus. All other maps continue to use their default addresses.
+             */
+            reg = <0x39>, <0x66>;
+            reg-names = "main", "edid";
+            interrupt-parent = <&gpio3>;
+            interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
+            clocks = <&cec_clock>;
+            clock-names = "cec";
+            adi,dsi-lanes = <4>;
+            avdd-supply = <&v1v8>;
+            dvdd-supply = <&v1v8>;
+            pvdd-supply = <&v1v8>;
+            a2vdd-supply = <&v1v8>;
+            v3p3-supply = <&v3v3>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    adv7533_in: endpoint {
+                        remote-endpoint = <&dsi_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    adv7533_out: endpoint {
+                        remote-endpoint = <&hdmi_connector_in>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+                    codec_endpoint: endpoint {
+                        remote-endpoint = <&i2s0_cpu_endpoint>;
+                    };
+                };
+            };
+        };
+    };
+
+...
