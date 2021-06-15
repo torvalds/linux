@@ -7088,7 +7088,7 @@ static void **io_alloc_page_table(size_t size)
 		return NULL;
 
 	for (i = 0; i < nr_tables; i++) {
-		unsigned int this_size = min(size, PAGE_SIZE);
+		unsigned int this_size = min_t(size_t, size, PAGE_SIZE);
 
 		table[i] = kzalloc(this_size, GFP_KERNEL);
 		if (!table[i]) {
