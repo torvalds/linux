@@ -1022,6 +1022,9 @@ struct rq {
 	u64			idle_stamp;
 	u64			avg_idle;
 
+	unsigned long		wake_stamp;
+	u64			wake_avg_idle;
+
 	/* This is used to determine avg_idle's max value */
 	u64			max_idle_balance_cost;
 
