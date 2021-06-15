@@ -119,6 +119,7 @@ static void i915_ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
 
 	ttm_tt_destroy_common(bdev, ttm);
+	ttm_tt_fini(ttm);
 	kfree(i915_tt);
 }
 
@@ -214,6 +215,7 @@ static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 
 	if (likely(obj)) {
 		/* This releases all gem object bindings to the backend. */
+		i915_ttm_free_cached_io_st(obj);
 		__i915_gem_free_object(obj);
 	}
 }
