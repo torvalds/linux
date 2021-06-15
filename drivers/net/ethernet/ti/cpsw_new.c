@@ -373,8 +373,8 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		cpts_rx_timestamp(cpsw->cpts, skb);
 	skb->protocol = eth_type_trans(skb, ndev);
 
-	/* unmap page as no netstack skb page recycling */
-	page_pool_release_page(pool, page);
+	/* mark skb for recycling */
+	skb_mark_for_recycle(skb, page, pool);
 	netif_receive_skb(skb);
 
 	ndev->stats.rx_bytes += len;
