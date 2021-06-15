@@ -25,8 +25,3 @@
 	#define HAL_BB_ENABLE		1
 	#define HAL_RF_ENABLE		1
 #endif
-
-/*
- * Platform dependent
- */
-#define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
