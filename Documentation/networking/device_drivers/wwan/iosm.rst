@@ -40,7 +40,7 @@ MBIM control channel userspace ABI
 ----------------------------------
 
 /dev/wwan0mbim0 character device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The driver exposes an MBIM interface to the MBIM function by implementing
 MBIM WWAN Port. The userspace end of the control channel pipe is a
 /dev/wwan0mbim0 character device. Application shall use this interface for
@@ -52,12 +52,12 @@ The userspace application is responsible for all control message fragmentation
 and defragmentation as per MBIM specification.
 
 /dev/wwan0mbim0 write()
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 The MBIM control messages from the management application must not exceed the
 negotiated control message size.
 
 /dev/wwan0mbim0 read()
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 The management application must accept control messages of up the negotiated
 control message size.
 
@@ -65,7 +65,7 @@ MBIM data channel userspace ABI
 -------------------------------
 
 wwan0-X network device
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 The IOSM driver exposes IP link interface "wwan0-X" of type "wwan" for IP
 traffic. Iproute network utility is used for creating "wwan0-X" network
 interface and for associating it with MBIM IP session. The Driver supports
