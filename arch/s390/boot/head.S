@@ -274,11 +274,11 @@ iplstart:
 .Lcpuid:.fill	8,1,0
 
 #
-# startup-code at 0x10000, running in absolute addressing mode
+# normal startup-code, running in absolute addressing mode
 # this is called either by the ipl loader or directly by PSW restart
 # or linload or SALIPL
 #
-	.org	0x10000
+	.org	STARTUP_NORMAL_OFFSET
 SYM_CODE_START(startup)
 	j	startup_normal
 	.org	EP_OFFSET
@@ -291,9 +291,9 @@ SYM_CODE_START(startup)
 	.ascii	EP_STRING
 	.byte	0x00,0x01
 #
-# kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
+# kdump startup-code, running in 64 bit absolute addressing mode
 #
-	.org	0x10010
+	.org	STARTUP_KDUMP_OFFSET
 	j	startup_kdump
 SYM_CODE_END(startup)
 SYM_CODE_START_LOCAL(startup_normal)
