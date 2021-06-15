@@ -1698,7 +1698,6 @@ static void sa_aead_dma_in_callback(void *data)
 	size_t pl, ml;
 	int i;
 	int err = 0;
-	u16 auth_len;
 	u32 *mdptr;
 
 	sa_sync_from_device(rxd);
@@ -1711,13 +1710,10 @@ static void sa_aead_dma_in_callback(void *data)
 	for (i = 0; i < (authsize / 4); i++)
 		mdptr[i + 4] = swab32(mdptr[i + 4]);
 
-	auth_len = req->assoclen + req->cryptlen;
-
 	if (rxd->enc) {
 		scatterwalk_map_and_copy(&mdptr[4], req->dst, start, authsize,
 					 1);
 	} else {
-		auth_len -= authsize;
 		start -= authsize;
 		scatterwalk_map_and_copy(auth_tag, req->src, start, authsize,
 					 0);
