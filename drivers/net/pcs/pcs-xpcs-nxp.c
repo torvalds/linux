@@ -152,13 +152,13 @@ static int nxp_sja1110_pma_config(struct dw_xpcs *xpcs,
 	/* Enable TX and RX PLLs and circuits.
 	 * Release reset of PMA to enable data flow to/from PCS.
 	 */
-	val = xpcs_read(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE);
-	if (val < 0)
-		return val;
+	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE);
+	if (ret < 0)
+		return ret;
 
-	val &= ~(SJA1110_TXPLL_PD | SJA1110_TXPD | SJA1110_RXCH_PD |
-		 SJA1110_RXBIAS_PD | SJA1110_RESET_SER_EN |
-		 SJA1110_RESET_SER | SJA1110_RESET_DES);
+	val = ret & ~(SJA1110_TXPLL_PD | SJA1110_TXPD | SJA1110_RXCH_PD |
+		      SJA1110_RXBIAS_PD | SJA1110_RESET_SER_EN |
+		      SJA1110_RESET_SER | SJA1110_RESET_DES);
 	val |= SJA1110_RXPKDETEN | SJA1110_RCVEN;
 
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE, val);
