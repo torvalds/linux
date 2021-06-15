@@ -525,8 +525,7 @@ static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 
 	i2s->soc_info = device_get_match_data(dev);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2s->base = devm_ioremap_resource(dev, mem);
+	i2s->base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(i2s->base))
 		return PTR_ERR(i2s->base);
 
