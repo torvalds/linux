@@ -66,6 +66,16 @@ properties:
 
           power-supply: true
 
+          resets:
+            description: |
+              A number of phandles to resets that need to be asserted during
+              power-up sequencing of the domain. The resets belong to devices
+              located inside the power domain, which need to be held in reset
+              across the power-up sequence. So no means to specify what each
+              reset is in a generic power-domain binding.
+            minItems: 1
+            maxItems: 4
+
         required:
           - '#power-domain-cells'
           - reg
