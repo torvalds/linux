@@ -63,16 +63,15 @@ u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status)
 /* Refresh PCI Translations */
 static inline u8 __rpcit(u64 fn, u64 addr, u64 range, u8 *status)
 {
-	register u64 __addr asm("2") = addr;
-	register u64 __range asm("3") = range;
+	union register_pair addr_range = {.even = addr, .odd = range};
 	u8 cc;
 
 	asm volatile (
-		"	.insn	rre,0xb9d30000,%[fn],%[addr]\n"
+		"	.insn	rre,0xb9d30000,%[fn],%[addr_range]\n"
 		"	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
 		: [cc] "=d" (cc), [fn] "+d" (fn)
-		: [addr] "d" (__addr), "d" (__range)
+		: [addr_range] "d" (addr_range.pair)
 		: "cc");
 	*status = fn >> 24 & 0xff;
 	return cc;
@@ -113,21 +112,19 @@ int __zpci_set_irq_ctrl(u16 ctl, u8 isc, union zpci_sic_iib *iib)
 /* PCI Load */
 static inline int ____pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 {
-	register u64 __req asm("2") = req;
-	register u64 __offset asm("3") = offset;
+	union register_pair req_off = {.even = req, .odd = offset};
 	int cc = -ENXIO;
 	u64 __data;
 
 	asm volatile (
-		"	.insn	rre,0xb9d20000,%[data],%[req]\n"
+		"	.insn	rre,0xb9d20000,%[data],%[req_off]\n"
 		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [data] "=d" (__data), [req] "+d" (__req)
-		:  "d" (__offset)
-		: "cc");
-	*status = __req >> 24 & 0xff;
+		: [cc] "+d" (cc), [data] "=d" (__data),
+		  [req_off] "+&d" (req_off.pair) :: "cc");
+	*status = req_off.even >> 24 & 0xff;
 	*data = __data;
 	return cc;
 }
@@ -173,21 +170,19 @@ static inline int zpci_load_fh(u64 *data, const volatile void __iomem *addr,
 
 static inline int __pcilg_mio(u64 *data, u64 ioaddr, u64 len, u8 *status)
 {
-	register u64 addr asm("2") = ioaddr;
-	register u64 r3 asm("3") = len;
+	union register_pair ioaddr_len = {.even = ioaddr, .odd = len};
 	int cc = -ENXIO;
 	u64 __data;
 
 	asm volatile (
-		"       .insn   rre,0xb9d60000,%[data],%[ioaddr]\n"
+		"       .insn   rre,0xb9d60000,%[data],%[ioaddr_len]\n"
 		"0:     ipm     %[cc]\n"
 		"       srl     %[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [data] "=d" (__data), "+d" (r3)
-		: [ioaddr] "d" (addr)
-		: "cc");
-	*status = r3 >> 24 & 0xff;
+		: [cc] "+d" (cc), [data] "=d" (__data),
+		  [ioaddr_len] "+&d" (ioaddr_len.pair) :: "cc");
+	*status = ioaddr_len.odd >> 24 & 0xff;
 	*data = __data;
 	return cc;
 }
@@ -211,20 +206,19 @@ EXPORT_SYMBOL_GPL(zpci_load);
 /* PCI Store */
 static inline int __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 {
-	register u64 __req asm("2") = req;
-	register u64 __offset asm("3") = offset;
+	union register_pair req_off = {.even = req, .odd = offset};
 	int cc = -ENXIO;
 
 	asm volatile (
-		"	.insn	rre,0xb9d00000,%[data],%[req]\n"
+		"	.insn	rre,0xb9d00000,%[data],%[req_off]\n"
 		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [req] "+d" (__req)
-		: "d" (__offset), [data] "d" (data)
+		: [cc] "+d" (cc), [req_off] "+&d" (req_off.pair)
+		: [data] "d" (data)
 		: "cc");
-	*status = __req >> 24 & 0xff;
+	*status = req_off.even >> 24 & 0xff;
 	return cc;
 }
 
@@ -257,20 +251,19 @@ static inline int zpci_store_fh(const volatile void __iomem *addr, u64 data,
 
 static inline int __pcistg_mio(u64 data, u64 ioaddr, u64 len, u8 *status)
 {
-	register u64 addr asm("2") = ioaddr;
-	register u64 r3 asm("3") = len;
+	union register_pair ioaddr_len = {.even = ioaddr, .odd = len};
 	int cc = -ENXIO;
 
 	asm volatile (
-		"       .insn   rre,0xb9d40000,%[data],%[ioaddr]\n"
+		"       .insn   rre,0xb9d40000,%[data],%[ioaddr_len]\n"
 		"0:     ipm     %[cc]\n"
 		"       srl     %[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), "+d" (r3)
-		: [data] "d" (data), [ioaddr] "d" (addr)
-		: "cc");
-	*status = r3 >> 24 & 0xff;
+		: [cc] "+d" (cc), [ioaddr_len] "+&d" (ioaddr_len.pair)
+		: [data] "d" (data)
+		: "cc", "memory");
+	*status = ioaddr_len.odd >> 24 & 0xff;
 	return cc;
 }
 
