@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <asm/setup.h>
+#include <asm/processor.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
