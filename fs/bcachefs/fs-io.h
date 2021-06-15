@@ -31,7 +31,8 @@ ssize_t bch2_write_iter(struct kiocb *, struct iov_iter *);
 
 int bch2_fsync(struct file *, loff_t, loff_t, int);
 
-int bch2_truncate(struct bch_inode_info *, struct iattr *);
+int bch2_truncate(struct mnt_idmap *,
+		  struct bch_inode_info *, struct iattr *);
 long bch2_fallocate_dispatch(struct file *, int, loff_t, loff_t);
 
 loff_t bch2_remap_file_range(struct file *, loff_t, struct file *,
