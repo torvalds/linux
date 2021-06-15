@@ -137,6 +137,7 @@ static int mip6_rthdr_offset(struct sk_buff *skb, u8 **nexthdr, int type)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6)
 static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prevhdr)
 {
 	switch (x->type->proto) {
@@ -151,6 +152,7 @@ static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prev
 
 	return ip6_find_1stfragopt(skb, prevhdr);
 }
+#endif
 
 /* Add encapsulation header.
  *
