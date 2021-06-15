@@ -6,7 +6,6 @@
  ******************************************************************************/
 #ifndef __DRV_CONF_H__
 #define __DRV_CONF_H__
-#include "autoconf.h"
 
 #define DYNAMIC_CAMID_ALLOC
 

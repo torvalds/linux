@@ -15,7 +15,6 @@
 #define __DRV_TYPES_H__
 
 #include <linux/sched/signal.h>
-#include <autoconf.h>
 #include <basic_types.h>
 #include <osdep_service.h>
 #include <rtw_byteorder.h>
