@@ -223,15 +223,17 @@ static int otx2_tc_egress_matchall_delete(struct otx2_nic *nic,
 
 static int otx2_tc_parse_actions(struct otx2_nic *nic,
 				 struct flow_action *flow_action,
-				 struct npc_install_flow_req *req)
+				 struct npc_install_flow_req *req,
+				 struct flow_cls_offload *f)
 {
+	struct netlink_ext_ack *extack = f->common.extack;
 	struct flow_action_entry *act;
 	struct net_device *target;
 	struct otx2_nic *priv;
 	int i;
 
 	if (!flow_action_has_entries(flow_action)) {
-		netdev_info(nic->netdev, "no tc actions specified");
+		NL_SET_ERR_MSG_MOD(extack, "no tc actions specified");
 		return -EINVAL;
 	}
 
@@ -248,8 +250,8 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 			priv = netdev_priv(target);
 			/* npc_install_flow_req doesn't support passing a target pcifunc */
 			if (rvu_get_pf(nic->pcifunc) != rvu_get_pf(priv->pcifunc)) {
-				netdev_info(nic->netdev,
-					    "can't redirect to other pf/vf\n");
+				NL_SET_ERR_MSG_MOD(extack,
+						   "can't redirect to other pf/vf");
 				return -EOPNOTSUPP;
 			}
 			req->vf = priv->pcifunc & RVU_PFVF_FUNC_MASK;
@@ -272,6 +274,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 				struct flow_cls_offload *f,
 				struct npc_install_flow_req *req)
 {
+	struct netlink_ext_ack *extack = f->common.extack;
 	struct flow_msg *flow_spec = &req->packet;
 	struct flow_msg *flow_mask = &req->mask;
 	struct flow_dissector *dissector;
@@ -336,7 +339,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 
 		flow_rule_match_eth_addrs(rule, &match);
 		if (!is_zero_ether_addr(match.mask->src)) {
-			netdev_err(nic->netdev, "src mac match not supported\n");
+			NL_SET_ERR_MSG_MOD(extack, "src mac match not supported");
 			return -EOPNOTSUPP;
 		}
 
@@ -354,11 +357,11 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 		flow_rule_match_ip(rule, &match);
 		if ((ntohs(flow_spec->etype) != ETH_P_IP) &&
 		    match.mask->tos) {
-			netdev_err(nic->netdev, "tos not supported\n");
+			NL_SET_ERR_MSG_MOD(extack, "tos not supported");
 			return -EOPNOTSUPP;
 		}
 		if (match.mask->ttl) {
-			netdev_err(nic->netdev, "ttl not supported\n");
+			NL_SET_ERR_MSG_MOD(extack, "ttl not supported");
 			return -EOPNOTSUPP;
 		}
 		flow_spec->tos = match.key->tos;
@@ -414,8 +417,8 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 
 		if (ipv6_addr_loopback(&match.key->dst) ||
 		    ipv6_addr_loopback(&match.key->src)) {
-			netdev_err(nic->netdev,
-				   "Flow matching on IPv6 loopback addr is not supported\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Flow matching IPv6 loopback addr not supported");
 			return -EOPNOTSUPP;
 		}
 
@@ -464,7 +467,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic,
 			req->features |= BIT_ULL(NPC_SPORT_SCTP);
 	}
 
-	return otx2_tc_parse_actions(nic, &rule->action, req);
+	return otx2_tc_parse_actions(nic, &rule->action, req, f);
 }
 
 static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry)
@@ -525,6 +528,7 @@ static int otx2_tc_del_flow(struct otx2_nic *nic,
 static int otx2_tc_add_flow(struct otx2_nic *nic,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
+	struct netlink_ext_ack *extack = tc_flow_cmd->common.extack;
 	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *new_node, *old_node;
 	struct npc_install_flow_req *req;
@@ -562,7 +566,8 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 		otx2_tc_del_flow(nic, tc_flow_cmd);
 
 	if (bitmap_full(tc_info->tc_entries_bitmap, nic->flow_cfg->tc_max_flows)) {
-		netdev_err(nic->netdev, "Not enough MCAM space to add the flow\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Not enough MCAM space to add the flow");
 		otx2_mbox_reset(&nic->mbox.mbox, 0);
 		mutex_unlock(&nic->mbox.lock);
 		return -ENOMEM;
@@ -580,7 +585,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	/* Send message to AF */
 	rc = otx2_sync_mbox_msg(&nic->mbox);
 	if (rc) {
-		netdev_err(nic->netdev, "Failed to install MCAM flow entry\n");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to install MCAM flow entry");
 		mutex_unlock(&nic->mbox.lock);
 		goto out;
 	}
