@@ -705,15 +705,23 @@ static void flush_stashed_error_work(struct work_struct *work)
 	 * ext4 error handling code during handling of previous errors.
 	 */
 	if (!sb_rdonly(sbi->s_sb) && journal) {
+		struct buffer_head *sbh = sbi->s_sbh;
 		handle = jbd2_journal_start(journal, 1);
 		if (IS_ERR(handle))
 			goto write_directly;
-		if (jbd2_journal_get_write_access(handle, sbi->s_sbh)) {
+		if (jbd2_journal_get_write_access(handle, sbh)) {
 			jbd2_journal_stop(handle);
 			goto write_directly;
 		}
 		ext4_update_super(sbi->s_sb);
-		if (jbd2_journal_dirty_metadata(handle, sbi->s_sbh)) {
+		if (buffer_write_io_error(sbh) || !buffer_uptodate(sbh)) {
+			ext4_msg(sbi->s_sb, KERN_ERR, "previous I/O error to "
+				 "superblock detected");
+			clear_buffer_write_io_error(sbh);
+			set_buffer_uptodate(sbh);
+		}
+
+		if (jbd2_journal_dirty_metadata(handle, sbh)) {
 			jbd2_journal_stop(handle);
 			goto write_directly;
 		}
