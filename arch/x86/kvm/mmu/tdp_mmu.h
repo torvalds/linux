@@ -31,7 +31,7 @@ static inline bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, int as_id,
 }
 static inline bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	gfn_t end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level);
+	gfn_t end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level + 1);
 
 	/*
 	 * Don't allow yielding, as the caller may have a flush pending.  Note,
