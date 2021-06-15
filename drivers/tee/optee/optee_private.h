@@ -53,6 +53,7 @@ struct optee_call_queue {
 
 struct optee_notif {
 	u_int max_key;
+	struct tee_context *ctx;
 	/* Serializes access to the elements below in this struct */
 	spinlock_t lock;
 	struct list_head db;
@@ -88,6 +89,7 @@ struct optee_smc {
 	optee_invoke_fn *invoke_fn;
 	void *memremaped_shm;
 	u32 sec_caps;
+	unsigned int notif_irq;
 };
 
 /**
