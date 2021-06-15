@@ -4,15 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-
-/*
- * Automatically generated C config: don't edit
- */
-
-/*
- * Functions Config
- */
-
 #ifndef CONFIG_WIRELESS_EXT
 #error CONFIG_WIRELESS_EXT needs to be enabled for this driver to work
 #endif
@@ -39,6 +30,3 @@
  * Platform dependent
  */
 #define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
-
-/* define DBG_XMIT_BUF */
-/* define DBG_XMIT_BUF_EXT */
