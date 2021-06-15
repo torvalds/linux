@@ -974,7 +974,7 @@ struct dmub_dig_transmitter_control_data_v1_7 {
 	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
 	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
 	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
-	uint8_t reserved0; /**< For future use */
+	uint8_t HPO_instance; /**< HPO instance (0: inst0, 1: inst1) */
 	uint8_t reserved1; /**< For future use */
 	uint8_t reserved2[3]; /**< For future use */
 	uint32_t reserved3[11]; /**< For future use */
