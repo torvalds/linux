@@ -843,12 +843,14 @@ static void sk_psock_skb_redirect(struct sk_buff *skb)
 	 * a socket that is in this state so we drop the skb.
 	 */
 	if (!psock_other || sock_flag(sk_other, SOCK_DEAD)) {
+		skb_bpf_redirect_clear(skb);
 		kfree_skb(skb);
 		return;
 	}
 	spin_lock_bh(&psock_other->ingress_lock);
 	if (!sk_psock_test_state(psock_other, SK_PSOCK_TX_ENABLED)) {
 		spin_unlock_bh(&psock_other->ingress_lock);
+		skb_bpf_redirect_clear(skb);
 		kfree_skb(skb);
 		return;
 	}
