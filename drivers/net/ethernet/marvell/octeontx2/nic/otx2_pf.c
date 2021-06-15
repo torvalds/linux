@@ -1461,6 +1461,9 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	otx2_free_cq_res(pf);
 
+	/* Free all ingress bandwidth profiles allocated */
+	cn10k_free_all_ipolicers(pf);
+
 	mutex_lock(&mbox->lock);
 	/* Reset NIX LF */
 	free_req = otx2_mbox_alloc_msg_nix_lf_free(mbox);

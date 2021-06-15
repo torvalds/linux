@@ -184,6 +184,14 @@ int rvu_rsrc_free_count(struct rsrc_bmap *rsrc)
 	return (rsrc->max - used);
 }
 
+bool is_rsrc_free(struct rsrc_bmap *rsrc, int id)
+{
+	if (!rsrc->bmap)
+		return false;
+
+	return !test_bit(id, rsrc->bmap);
+}
+
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 {
 	rsrc->bmap = kcalloc(BITS_TO_LONGS(rsrc->max),
