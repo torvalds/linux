@@ -92,6 +92,7 @@ typedef struct card_s {
 static inline void new_memcpy_toio(char __iomem *dest, char *src, int length)
 {
 	int len;
+
 	do {
 		len = length > 256 ? 256 : length;
 		memcpy_toio(dest, src, len);
@@ -148,8 +149,8 @@ static void pci200_set_iface(port_t *port)
 static int pci200_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-
 	int result = hdlc_open(dev);
+
 	if (result)
 		return result;
 
@@ -366,6 +367,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 		port_t *port = &card->ports[i];
 		struct net_device *dev = port->netdev;
 		hdlc_device *hdlc = dev_to_hdlc(dev);
+
 		port->chan = i;
 
 		spin_lock_init(&port->lock);
