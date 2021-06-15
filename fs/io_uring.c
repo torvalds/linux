@@ -352,7 +352,7 @@ struct io_ring_ctx {
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
 		unsigned int		off_timeout_used: 1;
-		unsigned int		drain_used: 1;
+		unsigned int		drain_active: 1;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -1346,10 +1346,10 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 
 static void io_commit_cqring(struct io_ring_ctx *ctx)
 {
-	if (unlikely(ctx->off_timeout_used || ctx->drain_used)) {
+	if (unlikely(ctx->off_timeout_used || ctx->drain_active)) {
 		if (ctx->off_timeout_used)
 			io_flush_timeouts(ctx);
-		if (ctx->drain_used)
+		if (ctx->drain_active)
 			io_queue_deferred(ctx);
 	}
 	/* order cqe stores with ring update */
@@ -6004,8 +6004,10 @@ static bool io_drain_req(struct io_kiocb *req)
 
 	/* Still need defer if there is pending req in defer list. */
 	if (likely(list_empty_careful(&ctx->defer_list) &&
-		!(req->flags & REQ_F_IO_DRAIN)))
+		!(req->flags & REQ_F_IO_DRAIN))) {
+		ctx->drain_active = false;
 		return false;
+	}
 
 	seq = io_get_sequence(req);
 	/* Still a chance to pass the sequence check */
@@ -6446,7 +6448,7 @@ static void __io_queue_sqe(struct io_kiocb *req)
 
 static inline void io_queue_sqe(struct io_kiocb *req)
 {
-	if (unlikely(req->ctx->drain_used) && io_drain_req(req))
+	if (unlikely(req->ctx->drain_active) && io_drain_req(req))
 		return;
 
 	if (likely(!(req->flags & REQ_F_FORCE_ASYNC))) {
@@ -6572,7 +6574,7 @@ fail_req:
 	}
 
 	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
-		ctx->drain_used = true;
+		ctx->drain_active = true;
 
 		/*
 		 * Taking sequential execution of a link, draining both sides
