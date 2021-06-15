@@ -1767,8 +1767,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	u8 bxmitok = false;
 	int issue = 0;
 	int poll = 0;
-	unsigned long start = jiffies;
-	u32 passing_time;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
 	do {
@@ -1785,7 +1783,6 @@ unsigned int send_beacon(struct adapter *padapter)
 		return _FAIL;
 	if (!bxmitok)
 		return _FAIL;
-	passing_time = jiffies_to_msecs(jiffies - start);
 
 	return _SUCCESS;
 }
@@ -2756,7 +2753,7 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 	u16 capab_info;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info *pstat;
-	unsigned char reassoc, *p, *pos, *wpa_ie;
+	unsigned char *p, *pos, *wpa_ie;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
 	int i, wpa_ie_len, left;
 	unsigned char supportRate[16];
@@ -2776,13 +2773,10 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		return _FAIL;
 
 	frame_type = GetFrameSubType(pframe);
-	if (frame_type == IEEE80211_STYPE_ASSOC_REQ) {
-		reassoc = 0;
+	if (frame_type == IEEE80211_STYPE_ASSOC_REQ)
 		ie_offset = _ASOCREQ_IE_OFFSET_;
-	} else { /*  IEEE80211_STYPE_REASSOC_REQ */
-		reassoc = 1;
+	else /*  IEEE80211_STYPE_REASSOC_REQ */
 		ie_offset = _REASOCREQ_IE_OFFSET_;
-	}
 
 	if (pkt_len < IEEE80211_3ADDR_LEN + ie_offset)
 		return _FAIL;
@@ -3397,7 +3391,7 @@ static unsigned int OnAction_back(struct adapter *padapter,
 	struct recv_reorder_ctrl *preorder_ctrl;
 	unsigned char *frame_body;
 	unsigned char category, action;
-	unsigned short tid, status, reason_code = 0;
+	unsigned short tid, status;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 *pframe = precv_frame->pkt->data;
@@ -3449,7 +3443,6 @@ static unsigned int OnAction_back(struct adapter *padapter,
 			if ((frame_body[3] & BIT(3)) == 0) {
 				psta->htpriv.agg_enable_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
 				psta->htpriv.candidate_tid_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
-				reason_code = get_unaligned_le16(&frame_body[4]);
 			} else if ((frame_body[3] & BIT(3)) == BIT(3)) {
 				tid = (frame_body[3] >> 4) & 0x0F;
 				preorder_ctrl =  &psta->recvreorder_ctrl[tid];
