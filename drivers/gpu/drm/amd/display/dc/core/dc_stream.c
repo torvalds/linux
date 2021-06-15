@@ -221,6 +221,9 @@ struct dc_stream_status *dc_stream_get_status_from_state(
 {
 	uint8_t i;
 
+	if (state == NULL)
+		return NULL;
+
 	for (i = 0; i < state->stream_count; i++) {
 		if (stream == state->streams[i])
 			return &state->stream_status[i];
