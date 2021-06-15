@@ -851,12 +851,12 @@ int z8530_sync_dma_open(struct net_device *dev, struct z8530_channel *c)
 		return -EMSGSIZE;
 	 
 	c->rx_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->rx_buf[0]==NULL)
+	if (!c->rx_buf[0])
 		return -ENOBUFS;
 	c->rx_buf[1]=c->rx_buf[0]+PAGE_SIZE/2;
 	
 	c->tx_dma_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->tx_dma_buf[0]==NULL)
+	if (!c->tx_dma_buf[0])
 	{
 		free_page((unsigned long)c->rx_buf[0]);
 		c->rx_buf[0]=NULL;
@@ -1039,7 +1039,7 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 		return -EMSGSIZE;
 	 
 	c->tx_dma_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->tx_dma_buf[0]==NULL)
+	if (!c->tx_dma_buf[0])
 		return -ENOBUFS;
 
 	c->tx_dma_buf[1] = c->tx_dma_buf[0] + PAGE_SIZE/2;
@@ -1397,7 +1397,7 @@ static void z8530_tx_begin(struct z8530_channel *c)
 	c->tx_next_skb=NULL;
 	c->tx_ptr=c->tx_next_ptr;
 	
-	if(c->tx_skb==NULL)
+	if (!c->tx_skb)
 	{
 		/* Idle on */
 		if(c->dma_tx)
@@ -1486,7 +1486,7 @@ static void z8530_tx_done(struct z8530_channel *c)
 	struct sk_buff *skb;
 
 	/* Actually this can happen.*/
-	if (c->tx_skb == NULL)
+	if (!c->tx_skb)
 		return;
 
 	skb = c->tx_skb;
@@ -1589,7 +1589,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		 */
 
 		skb = dev_alloc_skb(ct);
-		if (skb == NULL) {
+		if (!skb) {
 			c->netdevice->stats.rx_dropped++;
 			netdev_warn(c->netdevice, "Memory squeeze\n");
 		} else {
@@ -1630,7 +1630,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		RT_UNLOCK;
 
 		c->skb2 = dev_alloc_skb(c->mtu);
-		if (c->skb2 == NULL)
+		if (!c->skb2)
 			netdev_warn(c->netdevice, "memory squeeze\n");
 		else
 			skb_put(c->skb2, c->mtu);
