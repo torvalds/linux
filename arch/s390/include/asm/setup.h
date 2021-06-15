@@ -60,8 +60,6 @@
 #include <asm/types.h>
 
 #define IPL_DEVICE	(*(unsigned long *)  (IPL_DEVICE_OFFSET))
-#define INITRD_START	(*(unsigned long *)  (INITRD_START_OFFSET))
-#define INITRD_SIZE	(*(unsigned long *)  (INITRD_SIZE_OFFSET))
 #define OLDMEM_BASE	(*(unsigned long *)  (OLDMEM_BASE_OFFSET))
 #define OLDMEM_SIZE	(*(unsigned long *)  (OLDMEM_SIZE_OFFSET))
 #define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
@@ -159,6 +157,12 @@ static inline unsigned long kaslr_offset(void)
 }
 
 extern int is_full_image;
+
+struct initrd_data {
+	unsigned long start;
+	unsigned long size;
+};
+extern struct initrd_data initrd_data;
 
 static inline u32 gen_lpswe(unsigned long addr)
 {

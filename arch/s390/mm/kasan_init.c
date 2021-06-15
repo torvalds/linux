@@ -300,7 +300,7 @@ void __init kasan_early_init(void)
 	pgalloc_low = round_up((unsigned long)_end, _SEGMENT_SIZE);
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
 		initrd_end =
-		    round_up(INITRD_START + INITRD_SIZE, _SEGMENT_SIZE);
+		    round_up(initrd_data.start + initrd_data.size, _SEGMENT_SIZE);
 		pgalloc_low = max(pgalloc_low, initrd_end);
 	}
 

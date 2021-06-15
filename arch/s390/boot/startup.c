@@ -23,6 +23,7 @@ unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata(ident_map_size);
 int __bootdata(is_full_image) = 1;
+struct initrd_data __bootdata(initrd_data);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);
@@ -86,12 +87,12 @@ static void rescue_initrd(unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD))
 		return;
-	if (!INITRD_START || !INITRD_SIZE)
+	if (!initrd_data.start || !initrd_data.size)
 		return;
-	if (addr <= INITRD_START)
+	if (addr <= initrd_data.start)
 		return;
-	memmove((void *)addr, (void *)INITRD_START, INITRD_SIZE);
-	INITRD_START = addr;
+	memmove((void *)addr, (void *)initrd_data.start, initrd_data.size);
+	initrd_data.start = addr;
 }
 
 static void copy_bootdata(void)
@@ -282,6 +283,9 @@ void startup_kernel(void)
 	unsigned long random_lma;
 	unsigned long safe_addr;
 	void *img;
+
+	initrd_data.start = parmarea.initrd_start;
+	initrd_data.size = parmarea.initrd_size;
 
 	setup_lpp();
 	store_ipl_parmblock();

@@ -97,6 +97,7 @@ unsigned long int_hwcap = 0;
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
 struct mem_detect_info __bootdata(mem_detect);
+struct initrd_data __bootdata(initrd_data);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
 struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
@@ -658,11 +659,11 @@ static void __init reserve_crashkernel(void)
 static void __init reserve_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (!INITRD_START || !INITRD_SIZE)
+	if (!initrd_data.start || !initrd_data.size)
 		return;
-	initrd_start = INITRD_START;
-	initrd_end = initrd_start + INITRD_SIZE;
-	memblock_reserve(INITRD_START, INITRD_SIZE);
+	initrd_start = initrd_data.start;
+	initrd_end = initrd_start + initrd_data.size;
+	memblock_reserve(initrd_data.start, initrd_data.size);
 #endif
 }
 
@@ -732,10 +733,10 @@ static void __init memblock_add_mem_detect_info(void)
 static void __init check_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (INITRD_START && INITRD_SIZE &&
-	    !memblock_is_region_memory(INITRD_START, INITRD_SIZE)) {
+	if (initrd_data.start && initrd_data.size &&
+	    !memblock_is_region_memory(initrd_data.start, initrd_data.size)) {
 		pr_err("The initial RAM disk does not fit into the memory\n");
-		memblock_free(INITRD_START, INITRD_SIZE);
+		memblock_free(initrd_data.start, initrd_data.size);
 		initrd_start = initrd_end = 0;
 	}
 #endif
