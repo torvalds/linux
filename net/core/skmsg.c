@@ -824,7 +824,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(sk_psock_msg_verdict);
 
-static void sk_psock_skb_redirect(struct sk_buff *skb)
+static int sk_psock_skb_redirect(struct sk_buff *skb)
 {
 	struct sk_psock *psock_other;
 	struct sock *sk_other;
@@ -835,7 +835,7 @@ static void sk_psock_skb_redirect(struct sk_buff *skb)
 	 */
 	if (unlikely(!sk_other)) {
 		kfree_skb(skb);
-		return;
+		return -EIO;
 	}
 	psock_other = sk_psock(sk_other);
 	/* This error indicates the socket is being torn down or had another
@@ -845,19 +845,20 @@ static void sk_psock_skb_redirect(struct sk_buff *skb)
 	if (!psock_other || sock_flag(sk_other, SOCK_DEAD)) {
 		skb_bpf_redirect_clear(skb);
 		kfree_skb(skb);
-		return;
+		return -EIO;
 	}
 	spin_lock_bh(&psock_other->ingress_lock);
 	if (!sk_psock_test_state(psock_other, SK_PSOCK_TX_ENABLED)) {
 		spin_unlock_bh(&psock_other->ingress_lock);
 		skb_bpf_redirect_clear(skb);
 		kfree_skb(skb);
-		return;
+		return -EIO;
 	}
 
 	skb_queue_tail(&psock_other->ingress_skb, skb);
 	schedule_work(&psock_other->work);
 	spin_unlock_bh(&psock_other->ingress_lock);
+	return 0;
 }
 
 static void sk_psock_tls_verdict_apply(struct sk_buff *skb, struct sock *sk, int verdict)
@@ -894,14 +895,15 @@ int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(sk_psock_tls_strp_read);
 
-static void sk_psock_verdict_apply(struct sk_psock *psock,
-				   struct sk_buff *skb, int verdict)
+static int sk_psock_verdict_apply(struct sk_psock *psock, struct sk_buff *skb,
+				  int verdict)
 {
 	struct sock *sk_other;
-	int err = -EIO;
+	int err = 0;
 
 	switch (verdict) {
 	case __SK_PASS:
+		err = -EIO;
 		sk_other = psock->sk;
 		if (sock_flag(sk_other, SOCK_DEAD) ||
 		    !sk_psock_test_state(psock, SK_PSOCK_TX_ENABLED)) {
@@ -934,13 +936,15 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 		}
 		break;
 	case __SK_REDIRECT:
-		sk_psock_skb_redirect(skb);
+		err = sk_psock_skb_redirect(skb);
 		break;
 	case __SK_DROP:
 	default:
 out_free:
 		kfree_skb(skb);
 	}
+
+	return err;
 }
 
 static void sk_psock_write_space(struct sock *sk)
@@ -1107,7 +1111,8 @@ static int sk_psock_verdict_recv(read_descriptor_t *desc, struct sk_buff *skb,
 		ret = sk_psock_map_verd(ret, skb_bpf_redirect_fetch(skb));
 		skb->sk = NULL;
 	}
-	sk_psock_verdict_apply(psock, skb, ret);
+	if (sk_psock_verdict_apply(psock, skb, ret) < 0)
+		len = 0;
 out:
 	rcu_read_unlock();
 	return len;
