@@ -51,6 +51,8 @@ static int cxl_device_id(struct device *dev)
 	}
 	if (is_cxl_memdev(dev))
 		return CXL_DEVICE_MEMORY_EXPANDER;
+	if (dev->type == CXL_REGION_TYPE())
+		return CXL_DEVICE_REGION;
 	return 0;
 }
 
@@ -1864,8 +1866,14 @@ static __init int cxl_core_init(void)
 	if (rc)
 		goto err_bus;
 
+	rc = cxl_region_init();
+	if (rc)
+		goto err_region;
+
 	return 0;
 
+err_region:
+	bus_unregister(&cxl_bus_type);
 err_bus:
 	destroy_workqueue(cxl_bus_wq);
 err_wq:
@@ -1875,6 +1883,7 @@ err_wq:
 
 static void cxl_core_exit(void)
 {
+	cxl_region_exit();
 	bus_unregister(&cxl_bus_type);
 	destroy_workqueue(cxl_bus_wq);
 	cxl_memdev_exit();
