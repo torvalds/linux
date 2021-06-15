@@ -9,6 +9,7 @@
 #include <linux/component.h>
 #include <sound/soc.h>
 #include <linux/pm_runtime.h>
+#include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/soundwire/sdw.h>
@@ -176,8 +177,19 @@ static int wcd9380_interrupt_callback(struct sdw_slave *slave,
 				      struct sdw_slave_intr_status *status)
 {
 	struct wcd938x_sdw_priv *wcd = dev_get_drvdata(&slave->dev);
+	struct irq_domain *slave_irq = wcd->slave_irq;
+	struct regmap *regmap = dev_get_regmap(&slave->dev, NULL);
+	u32 sts1, sts2, sts3;
 
-	return wcd938x_handle_sdw_irq(wcd);
+	do {
+		handle_nested_irq(irq_find_mapping(slave_irq, 0));
+		regmap_read(regmap, WCD938X_DIGITAL_INTR_STATUS_0, &sts1);
+		regmap_read(regmap, WCD938X_DIGITAL_INTR_STATUS_1, &sts2);
+		regmap_read(regmap, WCD938X_DIGITAL_INTR_STATUS_2, &sts3);
+
+	} while (sts1 || sts2 || sts3);
+
+	return IRQ_HANDLED;
 }
 
 static struct sdw_slave_ops wcd9380_slave_ops = {
@@ -239,16 +251,10 @@ static int wcd9380_probe(struct sdw_slave *pdev,
 					SDW_SCP_INT1_PARITY;
 	pdev->prop.lane_control_support = true;
 	if (wcd->is_tx) {
-		struct regmap *rm;
-
 		pdev->prop.source_ports = GENMASK(WCD938X_MAX_SWR_PORTS, 0);
 		pdev->prop.src_dpn_prop = wcd938x_dpn_prop;
 		wcd->ch_info = &wcd938x_sdw_tx_ch_info[0];
 		pdev->prop.wake_capable = true;
-
-		rm = devm_regmap_init_sdw(pdev, &wcd938x_regmap_config);
-		if (IS_ERR(rm))
-			return PTR_ERR(rm);
 	} else {
 		pdev->prop.sink_ports = GENMASK(WCD938X_MAX_SWR_PORTS, 0);
 		pdev->prop.sink_dpn_prop = wcd938x_dpn_prop;

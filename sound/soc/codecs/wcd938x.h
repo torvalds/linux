@@ -663,10 +663,8 @@ struct wcd938x_sdw_priv {
 	int num_ports;
 	bool is_tx;
 	struct wcd938x_priv *wcd938x;
+	struct irq_domain *slave_irq;
 };
-
-extern struct regmap_config wcd938x_regmap_config;
-int wcd938x_handle_sdw_irq(struct wcd938x_sdw_priv *priv);
 
 #if IS_ENABLED(CONFIG_SND_SOC_WCD938X_SDW)
 int wcd938x_sdw_free(struct wcd938x_sdw_priv *wcd,
