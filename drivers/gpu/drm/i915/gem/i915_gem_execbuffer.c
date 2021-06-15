@@ -922,6 +922,23 @@ err:
 	return err;
 }
 
+static int eb_lock_vmas(struct i915_execbuffer *eb)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < eb->buffer_count; i++) {
+		struct eb_vma *ev = &eb->vma[i];
+		struct i915_vma *vma = ev->vma;
+
+		err = i915_gem_object_lock(vma->obj, &eb->ww);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int eb_validate_vmas(struct i915_execbuffer *eb)
 {
 	unsigned int i;
@@ -929,14 +946,14 @@ static int eb_validate_vmas(struct i915_execbuffer *eb)
 
 	INIT_LIST_HEAD(&eb->unbound);
 
+	err = eb_lock_vmas(eb);
+	if (err)
+		return err;
+
 	for (i = 0; i < eb->buffer_count; i++) {
 		struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 		struct eb_vma *ev = &eb->vma[i];
 		struct i915_vma *vma = ev->vma;
-
-		err = i915_gem_object_lock(vma->obj, &eb->ww);
-		if (err)
-			return err;
 
 		err = eb_pin_vma(eb, entry, ev);
 		if (err == -EDEADLK)
