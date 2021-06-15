@@ -2063,7 +2063,9 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev)
 		return;
 
 	if (strnstr(ctx->vbios_version, "D16406",
-		    sizeof(ctx->vbios_version)))
+		    sizeof(ctx->vbios_version)) ||
+		strnstr(ctx->vbios_version, "D36002",
+			sizeof(ctx->vbios_version)))
 		adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__GFX);
 }
 
