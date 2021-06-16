@@ -24,8 +24,8 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x00 0x70000000 0x200000>;
 
-		tfa-sram@0 {
-			reg = <0x0 0x20000>;
+		tfa-sram@1c0000 {
+			reg = <0x1c0000 0x20000>;
 		};
 
 		dmsc-sram@1e0000 {
