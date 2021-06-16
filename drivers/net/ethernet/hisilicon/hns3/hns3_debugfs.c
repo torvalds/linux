@@ -392,6 +392,56 @@ static void hns3_dbg_fill_content(char *content, u16 len,
 	*pos++ = '\0';
 }
 
+static const struct hns3_dbg_item tx_spare_info_items[] = {
+	{ "QUEUE_ID", 2 },
+	{ "COPYBREAK", 2 },
+	{ "LEN", 7 },
+	{ "NTU", 4 },
+	{ "NTC", 4 },
+	{ "LTC", 4 },
+	{ "DMA", 17 },
+};
+
+static void hns3_dbg_tx_spare_info(struct hns3_enet_ring *ring, char *buf,
+				   int len, u32 ring_num, int *pos)
+{
+	char data_str[ARRAY_SIZE(tx_spare_info_items)][HNS3_DBG_DATA_STR_LEN];
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+	char *result[ARRAY_SIZE(tx_spare_info_items)];
+	char content[HNS3_DBG_INFO_LEN];
+	u32 i, j;
+
+	if (!tx_spare) {
+		*pos += scnprintf(buf + *pos, len - *pos,
+				  "tx spare buffer is not enabled\n");
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tx_spare_info_items); i++)
+		result[i] = &data_str[i][0];
+
+	*pos += scnprintf(buf + *pos, len - *pos, "tx spare buffer info\n");
+	hns3_dbg_fill_content(content, sizeof(content), tx_spare_info_items,
+			      NULL, ARRAY_SIZE(tx_spare_info_items));
+	*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+
+	for (i = 0; i < ring_num; i++) {
+		j = 0;
+		sprintf(result[j++], "%8u", i);
+		sprintf(result[j++], "%9u", ring->tx_copybreak);
+		sprintf(result[j++], "%3u", tx_spare->len);
+		sprintf(result[j++], "%3u", tx_spare->next_to_use);
+		sprintf(result[j++], "%3u", tx_spare->next_to_clean);
+		sprintf(result[j++], "%3u", tx_spare->last_to_clean);
+		sprintf(result[j++], "%pad", &tx_spare->dma);
+		hns3_dbg_fill_content(content, sizeof(content),
+				      tx_spare_info_items,
+				      (const char **)result,
+				      ARRAY_SIZE(tx_spare_info_items));
+		*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+	}
+}
+
 static const struct hns3_dbg_item rx_queue_info_items[] = {
 	{ "QUEUE_ID", 2 },
 	{ "BD_NUM", 2 },
@@ -592,6 +642,8 @@ static int hns3_dbg_tx_queue_info(struct hnae3_handle *h,
 				      ARRAY_SIZE(tx_queue_info_items));
 		pos += scnprintf(buf + pos, len - pos, "%s", content);
 	}
+
+	hns3_dbg_tx_spare_info(ring, buf, len, h->kinfo.num_tqps, &pos);
 
 	return 0;
 }

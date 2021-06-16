@@ -46,6 +46,9 @@ static const struct hns3_stats hns3_txq_stats[] = {
 	HNS3_TQP_STAT("tso_err", tx_tso_err),
 	HNS3_TQP_STAT("over_max_recursion", over_max_recursion),
 	HNS3_TQP_STAT("hw_limitation", hw_limitation),
+	HNS3_TQP_STAT("bounce", tx_bounce),
+	HNS3_TQP_STAT("spare_full", tx_spare_full),
+	HNS3_TQP_STAT("copy_bits_err", copy_bits_err),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)
@@ -1592,6 +1595,50 @@ static int hns3_set_priv_flags(struct net_device *netdev, u32 pflags)
 	return 0;
 }
 
+static int hns3_get_tunable(struct net_device *netdev,
+			    const struct ethtool_tunable *tuna,
+			    void *data)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_TX_COPYBREAK:
+		/* all the tx rings have the same tx_copybreak */
+		*(u32 *)data = priv->tx_copybreak;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
+static int hns3_set_tunable(struct net_device *netdev,
+			    const struct ethtool_tunable *tuna,
+			    const void *data)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i, ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_TX_COPYBREAK:
+		priv->tx_copybreak = *(u32 *)data;
+
+		for (i = 0; i < h->kinfo.num_tqps; i++)
+			priv->ring[i].tx_copybreak = priv->tx_copybreak;
+
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 #define HNS3_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_USECS |		\
 				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
 				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
@@ -1635,6 +1682,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.set_msglevel = hns3_set_msglevel,
 	.get_priv_flags = hns3_get_priv_flags,
 	.set_priv_flags = hns3_set_priv_flags,
+	.get_tunable = hns3_get_tunable,
+	.set_tunable = hns3_set_tunable,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
@@ -1674,6 +1723,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_priv_flags = hns3_get_priv_flags,
 	.set_priv_flags = hns3_set_priv_flags,
 	.get_ts_info = hns3_get_ts_info,
+	.get_tunable = hns3_get_tunable,
+	.set_tunable = hns3_set_tunable,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
