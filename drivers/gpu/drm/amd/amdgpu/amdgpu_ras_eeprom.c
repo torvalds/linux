@@ -572,36 +572,3 @@ inline uint32_t amdgpu_ras_eeprom_max_record_count(void)
 {
 	return RAS_MAX_RECORD_COUNT;
 }
-
-/* Used for testing if bugs encountered */
-#if 0
-void amdgpu_ras_eeprom_test(struct amdgpu_ras_eeprom_control *control)
-{
-	int i;
-	struct eeprom_table_record *recs = kcalloc(1, sizeof(*recs), GFP_KERNEL);
-
-	if (!recs)
-		return;
-
-	for (i = 0; i < 1 ; i++) {
-		recs[i].address = 0xdeadbeef;
-		recs[i].retired_page = i;
-	}
-
-	if (!amdgpu_ras_eeprom_write(control, recs, 1)) {
-
-		memset(recs, 0, sizeof(*recs) * 1);
-
-		control->next_addr = RAS_RECORD_START;
-
-		if (!amdgpu_ras_eeprom_read(control, recs)) {
-			for (i = 0; i < 1; i++)
-				DRM_INFO("rec.address :0x%llx, rec.retired_page :%llu",
-					 recs[i].address, recs[i].retired_page);
-		} else
-			DRM_ERROR("Failed in reading from table");
-
-	} else
-		DRM_ERROR("Failed in writing to table");
-}
-#endif

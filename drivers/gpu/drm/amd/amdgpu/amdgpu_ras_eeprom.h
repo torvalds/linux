@@ -103,6 +103,4 @@ int amdgpu_ras_eeprom_write(struct amdgpu_ras_eeprom_control *control,
 
 inline uint32_t amdgpu_ras_eeprom_max_record_count(void);
 
-void amdgpu_ras_eeprom_test(struct amdgpu_ras_eeprom_control *control);
-
 #endif // _AMDGPU_RAS_EEPROM_H
