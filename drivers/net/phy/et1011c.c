@@ -73,10 +73,10 @@ static int et1011c_read_status(struct phy_device *phydev)
 					ET1011C_GIGABIT_SPEED) {
 			val = phy_read(phydev, ET1011C_CONFIG_REG);
 			val &= ~ET1011C_TX_FIFO_MASK;
-			phy_write(phydev, ET1011C_CONFIG_REG, val\
-					| ET1011C_GMII_INTERFACE\
-					| ET1011C_SYS_CLK_EN\
-					| ET1011C_TX_FIFO_DEPTH_16);
+			phy_write(phydev, ET1011C_CONFIG_REG, val |
+					  ET1011C_GMII_INTERFACE |
+					  ET1011C_SYS_CLK_EN |
+					  ET1011C_TX_FIFO_DEPTH_16);
 
 		}
 	}

@@ -170,9 +170,9 @@ static ushort gpio_tab[GPIO_TABLE_SIZE] = {
 module_param(chosen_phy, int, 0444);
 module_param_array(gpio_tab, ushort, NULL, 0444);
 
-MODULE_PARM_DESC(chosen_phy, \
+MODULE_PARM_DESC(chosen_phy,
 	"The address of the PHY to use for the ancillary clock features");
-MODULE_PARM_DESC(gpio_tab, \
+MODULE_PARM_DESC(gpio_tab,
 	"Which GPIO line to use for which purpose: cal,perout,extts1,...,extts6");
 
 static void dp83640_gpio_defaults(struct ptp_pin_desc *pd)
