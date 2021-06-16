@@ -800,7 +800,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 (char *)ctl_skb->skb->data, ctl_skb->skb->len);
 
 	/* Move the head of the ring to the next empty descriptor */
-	 ch->head_blk_ctl = ctl_skb->next;
+	ch->head_blk_ctl = ctl_skb->next;
 
 	/* Commit all previous writes and set descriptors to VALID */
 	wmb();

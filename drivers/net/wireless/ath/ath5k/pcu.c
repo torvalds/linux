@@ -855,7 +855,7 @@ ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
 }
 
 /**
- * at5k_hw_stop_rx_pcu() - Stop RX engine
+ * ath5k_hw_stop_rx_pcu() - Stop RX engine
  * @ah: The &struct ath5k_hw
  *
  * Stops RX engine on PCU
