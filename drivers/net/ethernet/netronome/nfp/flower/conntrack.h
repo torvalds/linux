@@ -9,6 +9,26 @@
 
 #define NFP_FL_CT_NO_TUN	0xff
 
+#define COMPARE_UNMASKED_FIELDS(__match1, __match2, __out)	\
+	do {							\
+		typeof(__match1) _match1 = (__match1);		\
+		typeof(__match2) _match2 = (__match2);		\
+		bool *_out = (__out);		\
+		int i, size = sizeof(*(_match1).key);		\
+		char *k1, *m1, *k2, *m2;			\
+		*_out = false;					\
+		k1 = (char *)_match1.key;			\
+		m1 = (char *)_match1.mask;			\
+		k2 = (char *)_match2.key;			\
+		m2 = (char *)_match2.mask;			\
+		for (i = 0; i < size; i++)			\
+			if ((k1[i] & m1[i] & m2[i]) ^		\
+			    (k2[i] & m1[i] & m2[i])) {		\
+				*_out = true;			\
+				break;				\
+			}					\
+	} while (0)						\
+
 extern const struct rhashtable_params nfp_zone_table_params;
 extern const struct rhashtable_params nfp_ct_map_params;
 extern const struct rhashtable_params nfp_tc_ct_merge_params;

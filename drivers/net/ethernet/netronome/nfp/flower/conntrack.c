@@ -75,7 +75,177 @@ bool is_post_ct_flow(struct flow_cls_offload *flow)
 static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			      struct nfp_fl_ct_flow_entry *entry2)
 {
+	unsigned int ovlp_keys = entry1->rule->match.dissector->used_keys &
+				 entry2->rule->match.dissector->used_keys;
+	bool out;
+
+	/* check the overlapped fields one by one, the unmasked part
+	 * should not conflict with each other.
+	 */
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match1, match2;
+
+		flow_rule_match_control(entry1->rule, &match1);
+		flow_rule_match_control(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match1, match2;
+
+		flow_rule_match_basic(entry1->rule, &match1);
+		flow_rule_match_basic(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match1, match2;
+
+		flow_rule_match_ipv4_addrs(entry1->rule, &match1);
+		flow_rule_match_ipv4_addrs(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		struct flow_match_ipv6_addrs match1, match2;
+
+		flow_rule_match_ipv6_addrs(entry1->rule, &match1);
+		flow_rule_match_ipv6_addrs(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match1, match2;
+
+		flow_rule_match_ports(entry1->rule, &match1);
+		flow_rule_match_ports(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match1, match2;
+
+		flow_rule_match_eth_addrs(entry1->rule, &match1);
+		flow_rule_match_eth_addrs(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match1, match2;
+
+		flow_rule_match_vlan(entry1->rule, &match1);
+		flow_rule_match_vlan(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_match_mpls match1, match2;
+
+		flow_rule_match_mpls(entry1->rule, &match1);
+		flow_rule_match_mpls(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_match_tcp match1, match2;
+
+		flow_rule_match_tcp(entry1->rule, &match1);
+		flow_rule_match_tcp(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_match_ip match1, match2;
+
+		flow_rule_match_ip(entry1->rule, &match1);
+		flow_rule_match_ip(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match1, match2;
+
+		flow_rule_match_enc_keyid(entry1->rule, &match1);
+		flow_rule_match_enc_keyid(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match1, match2;
+
+		flow_rule_match_enc_ipv4_addrs(entry1->rule, &match1);
+		flow_rule_match_enc_ipv4_addrs(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
+		struct flow_match_ipv6_addrs match1, match2;
+
+		flow_rule_match_enc_ipv6_addrs(entry1->rule, &match1);
+		flow_rule_match_enc_ipv6_addrs(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_match_control match1, match2;
+
+		flow_rule_match_enc_control(entry1->rule, &match1);
+		flow_rule_match_enc_control(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IP)) {
+		struct flow_match_ip match1, match2;
+
+		flow_rule_match_enc_ip(entry1->rule, &match1);
+		flow_rule_match_enc_ip(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
+	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+		struct flow_match_enc_opts match1, match2;
+
+		flow_rule_match_enc_opts(entry1->rule, &match1);
+		flow_rule_match_enc_opts(entry2->rule, &match2);
+		COMPARE_UNMASKED_FIELDS(match1, match2, &out);
+		if (out)
+			goto check_failed;
+	}
+
 	return 0;
+
+check_failed:
+	return -EINVAL;
 }
 
 static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
