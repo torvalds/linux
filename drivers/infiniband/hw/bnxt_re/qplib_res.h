@@ -45,12 +45,6 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 #define CHIP_NUM_57504		0x1751
 #define CHIP_NUM_57502		0x1752
 
-enum bnxt_qplib_wqe_mode {
-	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
-	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
-	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02
-};
-
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
 	/* Other modes to follow here */
