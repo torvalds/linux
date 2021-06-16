@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
-#include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/of_gpio.h>
 #include <linux/of.h>
