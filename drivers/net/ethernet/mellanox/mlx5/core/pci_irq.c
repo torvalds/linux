@@ -214,6 +214,7 @@ static struct mlx5_irq *irq_request(struct mlx5_irq_pool *pool, int i)
 		err = -ENOMEM;
 		goto err_cpumask;
 	}
+	irq->pool = pool;
 	kref_init(&irq->kref);
 	irq->index = i;
 	err = xa_err(xa_store(&pool->irqs, irq->index, irq, GFP_KERNEL));
@@ -222,7 +223,6 @@ static struct mlx5_irq *irq_request(struct mlx5_irq_pool *pool, int i)
 			      irq->index, err);
 		goto err_xa;
 	}
-	irq->pool = pool;
 	return irq;
 err_xa:
 	free_cpumask_var(irq->mask);
