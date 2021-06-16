@@ -440,6 +440,7 @@ irq_pool_alloc(struct mlx5_core_dev *dev, int start, int size, char *name,
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 	pool->dev = dev;
+	mutex_init(&pool->lock);
 	xa_init_flags(&pool->irqs, XA_FLAGS_ALLOC);
 	pool->xa_num_irqs.min = start;
 	pool->xa_num_irqs.max = start + size - 1;
@@ -448,7 +449,6 @@ irq_pool_alloc(struct mlx5_core_dev *dev, int start, int size, char *name,
 			 name);
 	pool->min_threshold = min_threshold * MLX5_EQ_REFS_PER_IRQ;
 	pool->max_threshold = max_threshold * MLX5_EQ_REFS_PER_IRQ;
-	mutex_init(&pool->lock);
 	mlx5_core_dbg(dev, "pool->name = %s, pool->size = %d, pool->start = %d",
 		      name, size, start);
 	return pool;
@@ -462,6 +462,7 @@ static void irq_pool_free(struct mlx5_irq_pool *pool)
 	xa_for_each(&pool->irqs, index, irq)
 		irq_release(&irq->kref);
 	xa_destroy(&pool->irqs);
+	mutex_destroy(&pool->lock);
 	kvfree(pool);
 }
 
