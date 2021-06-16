@@ -733,6 +733,10 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
 		return;
 
+	/* Wa_16011303918:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+		return;
+
 	/*
 	 * DC3CO Exit time 200us B.Spec 49196
 	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
@@ -958,6 +962,14 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not enabled, PSR2 SDP indication do not fit in hblank\n");
+		return false;
+	}
+
+	/* Wa_16011303918:adlp */
+	if (crtc_state->vrr.enable &&
+	    IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, not compatible with HW stepping + VRR\n");
 		return false;
 	}
 
