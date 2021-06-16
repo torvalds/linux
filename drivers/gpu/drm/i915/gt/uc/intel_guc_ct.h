@@ -31,13 +31,15 @@ struct intel_guc;
  * @lock: protects access to the commands buffer and buffer descriptor
  * @desc: pointer to the buffer descriptor
  * @cmds: pointer to the commands buffer
- * @size: size of the commands buffer
+ * @size: size of the commands buffer in dwords
+ * @broken: flag to indicate if descriptor data is broken
  */
 struct intel_guc_ct_buffer {
 	spinlock_t lock;
 	struct guc_ct_buffer_desc *desc;
 	u32 *cmds;
 	u32 size;
+	bool broken;
 };
 
 
@@ -59,7 +61,7 @@ struct intel_guc_ct {
 	struct tasklet_struct receive_tasklet;
 
 	struct {
-		u32 last_fence; /* last fence used to send request */
+		u16 last_fence; /* last fence used to send request */
 
 		spinlock_t lock; /* protects pending requests list */
 		struct list_head pending; /* requests waiting for response */

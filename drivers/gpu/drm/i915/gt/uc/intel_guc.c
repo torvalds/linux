@@ -219,24 +219,19 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 
 	BUILD_BUG_ON(!CRASH_BUFFER_SIZE);
 	BUILD_BUG_ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
-	BUILD_BUG_ON(!DPC_BUFFER_SIZE);
-	BUILD_BUG_ON(!IS_ALIGNED(DPC_BUFFER_SIZE, UNIT));
-	BUILD_BUG_ON(!ISR_BUFFER_SIZE);
-	BUILD_BUG_ON(!IS_ALIGNED(ISR_BUFFER_SIZE, UNIT));
+	BUILD_BUG_ON(!DEBUG_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(DEBUG_BUFFER_SIZE, UNIT));
 
 	BUILD_BUG_ON((CRASH_BUFFER_SIZE / UNIT - 1) >
 			(GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT));
-	BUILD_BUG_ON((DPC_BUFFER_SIZE / UNIT - 1) >
-			(GUC_LOG_DPC_MASK >> GUC_LOG_DPC_SHIFT));
-	BUILD_BUG_ON((ISR_BUFFER_SIZE / UNIT - 1) >
-			(GUC_LOG_ISR_MASK >> GUC_LOG_ISR_SHIFT));
+	BUILD_BUG_ON((DEBUG_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_DEBUG_MASK >> GUC_LOG_DEBUG_SHIFT));
 
 	flags = GUC_LOG_VALID |
 		GUC_LOG_NOTIFY_ON_HALF_FULL |
 		FLAG |
 		((CRASH_BUFFER_SIZE / UNIT - 1) << GUC_LOG_CRASH_SHIFT) |
-		((DPC_BUFFER_SIZE / UNIT - 1) << GUC_LOG_DPC_SHIFT) |
-		((ISR_BUFFER_SIZE / UNIT - 1) << GUC_LOG_ISR_SHIFT) |
+		((DEBUG_BUFFER_SIZE / UNIT - 1) << GUC_LOG_DEBUG_SHIFT) |
 		(offset << GUC_LOG_BUF_ADDR_SHIFT);
 
 	#undef UNIT
@@ -376,29 +371,27 @@ void intel_guc_fini(struct intel_guc *guc)
 /*
  * This function implements the MMIO based host to GuC interface.
  */
-int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
+int intel_guc_send_mmio(struct intel_guc *guc, const u32 *request, u32 len,
 			u32 *response_buf, u32 response_buf_size)
 {
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
-	u32 status;
+	u32 header;
 	int i;
 	int ret;
 
 	GEM_BUG_ON(!len);
 	GEM_BUG_ON(len > guc->send_regs.count);
 
-	/* We expect only action code */
-	GEM_BUG_ON(*action & ~INTEL_GUC_MSG_CODE_MASK);
-
-	/* If CT is available, we expect to use MMIO only during init/fini */
-	GEM_BUG_ON(*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
-		   *action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
+	GEM_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, request[0]) != GUC_HXG_ORIGIN_HOST);
+	GEM_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_TYPE, request[0]) != GUC_HXG_TYPE_REQUEST);
 
 	mutex_lock(&guc->send_mutex);
 	intel_uncore_forcewake_get(uncore, guc->send_regs.fw_domains);
 
+retry:
 	for (i = 0; i < len; i++)
-		intel_uncore_write(uncore, guc_send_reg(guc, i), action[i]);
+		intel_uncore_write(uncore, guc_send_reg(guc, i), request[i]);
 
 	intel_uncore_posting_read(uncore, guc_send_reg(guc, i - 1));
 
@@ -410,30 +403,74 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	 */
 	ret = __intel_wait_for_register_fw(uncore,
 					   guc_send_reg(guc, 0),
-					   INTEL_GUC_MSG_TYPE_MASK,
-					   INTEL_GUC_MSG_TYPE_RESPONSE <<
-					   INTEL_GUC_MSG_TYPE_SHIFT,
-					   10, 10, &status);
-	/* If GuC explicitly returned an error, convert it to -EIO */
-	if (!ret && !INTEL_GUC_MSG_IS_RESPONSE_SUCCESS(status))
-		ret = -EIO;
+					   GUC_HXG_MSG_0_ORIGIN,
+					   FIELD_PREP(GUC_HXG_MSG_0_ORIGIN,
+						      GUC_HXG_ORIGIN_GUC),
+					   10, 10, &header);
+	if (unlikely(ret)) {
+timeout:
+		drm_err(&i915->drm, "mmio request %#x: no reply %x\n",
+			request[0], header);
+		goto out;
+	}
 
-	if (ret) {
-		DRM_ERROR("MMIO: GuC action %#x failed with error %d %#x\n",
-			  action[0], ret, status);
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
+#define done ({ header = intel_uncore_read(uncore, guc_send_reg(guc, 0)); \
+		FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) != GUC_HXG_ORIGIN_GUC || \
+		FIELD_GET(GUC_HXG_MSG_0_TYPE, header) != GUC_HXG_TYPE_NO_RESPONSE_BUSY; })
+
+		ret = wait_for(done, 1000);
+		if (unlikely(ret))
+			goto timeout;
+		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
+				       GUC_HXG_ORIGIN_GUC))
+			goto proto;
+#undef done
+	}
+
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
+		u32 reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, header);
+
+		drm_dbg(&i915->drm, "mmio request %#x: retrying, reason %u\n",
+			request[0], reason);
+		goto retry;
+	}
+
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_RESPONSE_FAILURE) {
+		u32 hint = FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, header);
+		u32 error = FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, header);
+
+		drm_err(&i915->drm, "mmio request %#x: failure %x/%u\n",
+			request[0], error, hint);
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) != GUC_HXG_TYPE_RESPONSE_SUCCESS) {
+proto:
+		drm_err(&i915->drm, "mmio request %#x: unexpected reply %#x\n",
+			request[0], header);
+		ret = -EPROTO;
 		goto out;
 	}
 
 	if (response_buf) {
-		int count = min(response_buf_size, guc->send_regs.count - 1);
+		int count = min(response_buf_size, guc->send_regs.count);
 
-		for (i = 0; i < count; i++)
+		GEM_BUG_ON(!count);
+
+		response_buf[0] = header;
+
+		for (i = 1; i < count; i++)
 			response_buf[i] = intel_uncore_read(uncore,
-							    guc_send_reg(guc, i + 1));
-	}
+							    guc_send_reg(guc, i));
 
-	/* Use data from the GuC response as our return value */
-	ret = INTEL_GUC_MSG_TO_DATA(status);
+		/* Use number of copied dwords as our return value */
+		ret = count;
+	} else {
+		/* Use data from the GuC response as our return value */
+		ret = FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, header);
+	}
 
 out:
 	intel_uncore_forcewake_put(uncore, guc->send_regs.fw_domains);
