@@ -1005,13 +1005,16 @@ static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 {
 	struct hns3_tx_spare *tx_spare;
 	struct page *page;
+	u32 alloc_size;
 	dma_addr_t dma;
 	int order;
 
-	if (!tx_spare_buf_size)
+	alloc_size = tx_spare_buf_size ? tx_spare_buf_size :
+		     ring->tqp->handle->kinfo.tx_spare_buf_size;
+	if (!alloc_size)
 		return;
 
-	order = get_order(tx_spare_buf_size);
+	order = get_order(alloc_size);
 	tx_spare = devm_kzalloc(ring_to_dev(ring), sizeof(*tx_spare),
 				GFP_KERNEL);
 	if (!tx_spare) {
