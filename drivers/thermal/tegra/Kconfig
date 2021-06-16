@@ -18,4 +18,11 @@ config TEGRA_BPMP_THERMAL
 	  Enable this option for support for sensing system temperature of NVIDIA
 	  Tegra systems-on-chip with the BPMP coprocessor (Tegra186).
 
+config TEGRA30_TSENSOR
+	tristate "Tegra30 Thermal Sensor"
+	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
+	help
+	  Enable this option to support thermal management of NVIDIA Tegra30
+	  system-on-chip.
+
 endmenu
