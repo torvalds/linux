@@ -159,13 +159,6 @@ enum HNAE3_PF_CAP_BITS {
 #define ring_ptr_move_bw(ring, p) \
 	((ring)->p = ((ring)->p - 1 + (ring)->desc_num) % (ring)->desc_num)
 
-enum hns_desc_type {
-	DESC_TYPE_UNKNOWN,
-	DESC_TYPE_SKB,
-	DESC_TYPE_FRAGLIST_SKB,
-	DESC_TYPE_PAGE,
-};
-
 struct hnae3_handle;
 
 struct hnae3_queue {
