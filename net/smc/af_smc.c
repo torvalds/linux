@@ -529,15 +529,17 @@ static void smc_stat_inc_fback_rsn_cnt(struct smc_sock *smc,
 
 static void smc_stat_fallback(struct smc_sock *smc)
 {
-	mutex_lock(&smc_stat_fback_rsn);
+	struct net *net = sock_net(&smc->sk);
+
+	mutex_lock(&net->smc.mutex_fback_rsn);
 	if (smc->listen_smc) {
-		smc_stat_inc_fback_rsn_cnt(smc, fback_rsn.srv);
-		fback_rsn.srv_fback_cnt++;
+		smc_stat_inc_fback_rsn_cnt(smc, net->smc.fback_rsn->srv);
+		net->smc.fback_rsn->srv_fback_cnt++;
 	} else {
-		smc_stat_inc_fback_rsn_cnt(smc, fback_rsn.clnt);
-		fback_rsn.clnt_fback_cnt++;
+		smc_stat_inc_fback_rsn_cnt(smc, net->smc.fback_rsn->clnt);
+		net->smc.fback_rsn->clnt_fback_cnt++;
 	}
-	mutex_unlock(&smc_stat_fback_rsn);
+	mutex_unlock(&net->smc.mutex_fback_rsn);
 }
 
 static void smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
@@ -568,10 +570,11 @@ static int smc_connect_fallback(struct smc_sock *smc, int reason_code)
 static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code,
 					u8 version)
 {
+	struct net *net = sock_net(&smc->sk);
 	int rc;
 
 	if (reason_code < 0) { /* error, fallback is not possible */
-		this_cpu_inc(smc_stats->clnt_hshake_err_cnt);
+		this_cpu_inc(net->smc.smc_stats->clnt_hshake_err_cnt);
 		if (smc->sk.sk_state == SMC_INIT)
 			sock_put(&smc->sk); /* passive closing */
 		return reason_code;
@@ -579,7 +582,7 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code,
 	if (reason_code != SMC_CLC_DECL_PEERDECL) {
 		rc = smc_clc_send_decline(smc, reason_code, version);
 		if (rc < 0) {
-			this_cpu_inc(smc_stats->clnt_hshake_err_cnt);
+			this_cpu_inc(net->smc.smc_stats->clnt_hshake_err_cnt);
 			if (smc->sk.sk_state == SMC_INIT)
 				sock_put(&smc->sk); /* passive closing */
 			return rc;
@@ -1027,7 +1030,7 @@ static int __smc_connect(struct smc_sock *smc)
 	if (rc)
 		goto vlan_cleanup;
 
-	SMC_STAT_CLNT_SUCC_INC(aclc);
+	SMC_STAT_CLNT_SUCC_INC(sock_net(smc->clcsock->sk), aclc);
 	smc_connect_ism_vlan_cleanup(smc, ini);
 	kfree(buf);
 	kfree(ini);
@@ -1343,8 +1346,9 @@ static void smc_listen_out_connected(struct smc_sock *new_smc)
 static void smc_listen_out_err(struct smc_sock *new_smc)
 {
 	struct sock *newsmcsk = &new_smc->sk;
+	struct net *net = sock_net(newsmcsk);
 
-	this_cpu_inc(smc_stats->srv_hshake_err_cnt);
+	this_cpu_inc(net->smc.smc_stats->srv_hshake_err_cnt);
 	if (newsmcsk->sk_state == SMC_INIT)
 		sock_put(&new_smc->sk); /* passive closing */
 	newsmcsk->sk_state = SMC_CLOSED;
@@ -1813,7 +1817,7 @@ static void smc_listen_work(struct work_struct *work)
 	}
 	smc_conn_save_peer_info(new_smc, cclc);
 	smc_listen_out_connected(new_smc);
-	SMC_STAT_SERV_SUCC_INC(ini);
+	SMC_STAT_SERV_SUCC_INC(sock_net(newclcsock->sk), ini);
 	goto out_free;
 
 out_unlock:
@@ -2242,7 +2246,7 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		    sk->sk_state != SMC_LISTEN &&
 		    sk->sk_state != SMC_CLOSED) {
 			if (val) {
-				SMC_STAT_INC(!smc->conn.lnk, ndly_cnt);
+				SMC_STAT_INC(smc, ndly_cnt);
 				mod_delayed_work(smc->conn.lgr->tx_wq,
 						 &smc->conn.tx_work, 0);
 			}
@@ -2253,7 +2257,7 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		    sk->sk_state != SMC_LISTEN &&
 		    sk->sk_state != SMC_CLOSED) {
 			if (!val) {
-				SMC_STAT_INC(!smc->conn.lnk, cork_cnt);
+				SMC_STAT_INC(smc, cork_cnt);
 				mod_delayed_work(smc->conn.lgr->tx_wq,
 						 &smc->conn.tx_work, 0);
 			}
@@ -2383,7 +2387,7 @@ static ssize_t smc_sendpage(struct socket *sock, struct page *page,
 		rc = kernel_sendpage(smc->clcsock, page, offset,
 				     size, flags);
 	} else {
-		SMC_STAT_INC(!smc->conn.lnk, sendpage_cnt);
+		SMC_STAT_INC(smc, sendpage_cnt);
 		rc = sock_no_sendpage(sock, page, offset, size, flags);
 	}
 
@@ -2434,7 +2438,7 @@ static ssize_t smc_splice_read(struct socket *sock, loff_t *ppos,
 			flags = MSG_DONTWAIT;
 		else
 			flags = 0;
-		SMC_STAT_INC(!smc->conn.lnk, splice_cnt);
+		SMC_STAT_INC(smc, splice_cnt);
 		rc = smc_rx_recvmsg(smc, NULL, pipe, len, flags);
 	}
 out:
@@ -2523,6 +2527,16 @@ static void __net_exit smc_net_exit(struct net *net)
 	smc_pnet_net_exit(net);
 }
 
+static __net_init int smc_net_stat_init(struct net *net)
+{
+	return smc_stats_init(net);
+}
+
+static void __net_exit smc_net_stat_exit(struct net *net)
+{
+	smc_stats_exit(net);
+}
+
 static struct pernet_operations smc_net_ops = {
 	.init = smc_net_init,
 	.exit = smc_net_exit,
@@ -2530,11 +2544,20 @@ static struct pernet_operations smc_net_ops = {
 	.size = sizeof(struct smc_net),
 };
 
+static struct pernet_operations smc_net_stat_ops = {
+	.init = smc_net_stat_init,
+	.exit = smc_net_stat_exit,
+};
+
 static int __init smc_init(void)
 {
 	int rc;
 
 	rc = register_pernet_subsys(&smc_net_ops);
+	if (rc)
+		return rc;
+
+	rc = register_pernet_subsys(&smc_net_stat_ops);
 	if (rc)
 		return rc;
 
@@ -2558,16 +2581,10 @@ static int __init smc_init(void)
 	if (!smc_close_wq)
 		goto out_alloc_hs_wq;
 
-	rc = smc_stats_init();
-	if (rc) {
-		pr_err("%s: smc_stats_init fails with %d\n", __func__, rc);
-		goto out_alloc_wqs;
-	}
-
 	rc = smc_core_init();
 	if (rc) {
 		pr_err("%s: smc_core_init fails with %d\n", __func__, rc);
-		goto out_smc_stat;
+		goto out_alloc_wqs;
 	}
 
 	rc = smc_llc_init();
@@ -2619,8 +2636,6 @@ out_proto:
 	proto_unregister(&smc_proto);
 out_core:
 	smc_core_exit();
-out_smc_stat:
-	smc_stats_exit();
 out_alloc_wqs:
 	destroy_workqueue(smc_close_wq);
 out_alloc_hs_wq:
@@ -2643,11 +2658,11 @@ static void __exit smc_exit(void)
 	smc_ib_unregister_client();
 	destroy_workqueue(smc_close_wq);
 	destroy_workqueue(smc_hs_wq);
-	smc_stats_exit();
 	proto_unregister(&smc_proto6);
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
 	smc_nl_exit();
+	unregister_pernet_subsys(&smc_net_stat_ops);
 	unregister_pernet_subsys(&smc_net_ops);
 	rcu_barrier();
 }

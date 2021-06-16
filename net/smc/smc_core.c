@@ -2058,8 +2058,8 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		/* check for reusable slot in the link group */
 		buf_desc = smc_buf_get_slot(bufsize_short, lock, buf_list);
 		if (buf_desc) {
-			SMC_STAT_RMB_SIZE(is_smcd, is_rmb, bufsize);
-			SMC_STAT_BUF_REUSE(is_smcd, is_rmb);
+			SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
+			SMC_STAT_BUF_REUSE(smc, is_smcd, is_rmb);
 			memset(buf_desc->cpu_addr, 0, bufsize);
 			break; /* found reusable slot */
 		}
@@ -2074,13 +2074,13 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		if (IS_ERR(buf_desc)) {
 			if (!is_dgraded) {
 				is_dgraded = true;
-				SMC_STAT_RMB_DOWNGRADED(is_smcd, is_rmb);
+				SMC_STAT_RMB_DOWNGRADED(smc, is_smcd, is_rmb);
 			}
 			continue;
 		}
 
-		SMC_STAT_RMB_ALLOC(is_smcd, is_rmb);
-		SMC_STAT_RMB_SIZE(is_smcd, is_rmb, bufsize);
+		SMC_STAT_RMB_ALLOC(smc, is_smcd, is_rmb);
+		SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
 		buf_desc->used = 1;
 		mutex_lock(lock);
 		list_add(&buf_desc->list, buf_list);

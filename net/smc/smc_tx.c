@@ -47,7 +47,7 @@ static void smc_tx_write_space(struct sock *sk)
 	/* similar to sk_stream_write_space */
 	if (atomic_read(&smc->conn.sndbuf_space) && sock) {
 		if (test_bit(SOCK_NOSPACE, &sock->flags))
-			SMC_STAT_RMB_TX_FULL(!smc->conn.lnk);
+			SMC_STAT_RMB_TX_FULL(smc, !smc->conn.lnk);
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 		rcu_read_lock();
 		wq = rcu_dereference(sk->sk_wq);
@@ -155,13 +155,13 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 	}
 
 	if (len > conn->sndbuf_desc->len)
-		SMC_STAT_RMB_TX_SIZE_SMALL(!conn->lnk);
+		SMC_STAT_RMB_TX_SIZE_SMALL(smc, !conn->lnk);
 
 	if (len > conn->peer_rmbe_size)
-		SMC_STAT_RMB_TX_PEER_SIZE_SMALL(!conn->lnk);
+		SMC_STAT_RMB_TX_PEER_SIZE_SMALL(smc, !conn->lnk);
 
 	if (msg->msg_flags & MSG_OOB)
-		SMC_STAT_INC(!conn->lnk, urg_data_cnt);
+		SMC_STAT_INC(smc, urg_data_cnt);
 
 	while (msg_data_left(msg)) {
 		if (sk->sk_state == SMC_INIT)
@@ -432,7 +432,9 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
 	/* cf. snd_wnd */
 	rmbespace = atomic_read(&conn->peer_rmbe_space);
 	if (rmbespace <= 0) {
-		SMC_STAT_RMB_TX_PEER_FULL(!conn->lnk);
+		struct smc_sock *smc = container_of(conn, struct smc_sock,
+						    conn);
+		SMC_STAT_RMB_TX_PEER_FULL(smc, !conn->lnk);
 		return 0;
 	}
 	smc_curs_copy(&prod, &conn->local_tx_ctrl.prod, conn);

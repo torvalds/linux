@@ -18,24 +18,28 @@
 #include "smc_netlink.h"
 #include "smc_stats.h"
 
-/* serialize fallback reason statistic gathering */
-DEFINE_MUTEX(smc_stat_fback_rsn);
-struct smc_stats __percpu *smc_stats;	/* per cpu counters for SMC */
-struct smc_stats_reason fback_rsn;
-
-int __init smc_stats_init(void)
+int smc_stats_init(struct net *net)
 {
-	memset(&fback_rsn, 0, sizeof(fback_rsn));
-	smc_stats = alloc_percpu(struct smc_stats);
-	if (!smc_stats)
-		return -ENOMEM;
-
+	net->smc.fback_rsn = kzalloc(sizeof(*net->smc.fback_rsn), GFP_KERNEL);
+	if (!net->smc.fback_rsn)
+		goto err_fback;
+	net->smc.smc_stats = alloc_percpu(struct smc_stats);
+	if (!net->smc.smc_stats)
+		goto err_stats;
+	mutex_init(&net->smc.mutex_fback_rsn);
 	return 0;
+
+err_stats:
+	kfree(net->smc.fback_rsn);
+err_fback:
+	return -ENOMEM;
 }
 
-void smc_stats_exit(void)
+void smc_stats_exit(struct net *net)
 {
-	free_percpu(smc_stats);
+	kfree(net->smc.fback_rsn);
+	if (net->smc.smc_stats)
+		free_percpu(net->smc.smc_stats);
 }
 
 static int smc_nl_fill_stats_rmb_data(struct sk_buff *skb,
@@ -256,6 +260,7 @@ int smc_nl_get_stats(struct sk_buff *skb,
 		     struct netlink_callback *cb)
 {
 	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	struct net *net = sock_net(skb->sk);
 	struct smc_stats *stats;
 	struct nlattr *attrs;
 	int cpu, i, size;
@@ -279,7 +284,7 @@ int smc_nl_get_stats(struct sk_buff *skb,
 		goto erralloc;
 	size = sizeof(*stats) / sizeof(u64);
 	for_each_possible_cpu(cpu) {
-		src = (u64 *)per_cpu_ptr(smc_stats, cpu);
+		src = (u64 *)per_cpu_ptr(net->smc.smc_stats, cpu);
 		sum = (u64 *)stats;
 		for (i = 0; i < size; i++)
 			*(sum++) += *(src++);
@@ -318,6 +323,7 @@ static int smc_nl_get_fback_details(struct sk_buff *skb,
 				    bool is_srv)
 {
 	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	struct net *net = sock_net(skb->sk);
 	int cnt_reported = cb_ctx->pos[2];
 	struct smc_stats_fback *trgt_arr;
 	struct nlattr *attrs;
@@ -325,9 +331,9 @@ static int smc_nl_get_fback_details(struct sk_buff *skb,
 	void *nlh;
 
 	if (is_srv)
-		trgt_arr = &fback_rsn.srv[0];
+		trgt_arr = &net->smc.fback_rsn->srv[0];
 	else
-		trgt_arr = &fback_rsn.clnt[0];
+		trgt_arr = &net->smc.fback_rsn->clnt[0];
 	if (!trgt_arr[pos].fback_code)
 		return -ENODATA;
 	nlh = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
@@ -342,11 +348,11 @@ static int smc_nl_get_fback_details(struct sk_buff *skb,
 		goto errattr;
 	if (!cnt_reported) {
 		if (nla_put_u64_64bit(skb, SMC_NLA_FBACK_STATS_SRV_CNT,
-				      fback_rsn.srv_fback_cnt,
+				      net->smc.fback_rsn->srv_fback_cnt,
 				      SMC_NLA_FBACK_STATS_PAD))
 			goto errattr;
 		if (nla_put_u64_64bit(skb, SMC_NLA_FBACK_STATS_CLNT_CNT,
-				      fback_rsn.clnt_fback_cnt,
+				      net->smc.fback_rsn->clnt_fback_cnt,
 				      SMC_NLA_FBACK_STATS_PAD))
 			goto errattr;
 		cnt_reported = 1;
@@ -375,12 +381,13 @@ errmsg:
 int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	struct net *net = sock_net(skb->sk);
 	int rc_srv = 0, rc_clnt = 0, k;
 	int skip_serv = cb_ctx->pos[1];
 	int snum = cb_ctx->pos[0];
 	bool is_srv = true;
 
-	mutex_lock(&smc_stat_fback_rsn);
+	mutex_lock(&net->smc.mutex_fback_rsn);
 	for (k = 0; k < SMC_MAX_FBACK_RSN_CNT; k++) {
 		if (k < snum)
 			continue;
@@ -399,7 +406,7 @@ int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb)
 		if (rc_clnt == ENODATA && rc_srv == ENODATA)
 			break;
 	}
-	mutex_unlock(&smc_stat_fback_rsn);
+	mutex_unlock(&net->smc.mutex_fback_rsn);
 	cb_ctx->pos[1] = skip_serv;
 	cb_ctx->pos[0] = k;
 	return skb->len;
