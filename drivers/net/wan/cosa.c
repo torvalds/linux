@@ -976,7 +976,7 @@ static struct fasync_struct *fasync[256] = { NULL, };
 /* To be done ... */
 static int cosa_fasync(struct inode *inode, struct file *file, int on)
 {
-        int port = iminor(inode);
+	int port = iminor(inode);
 
 	return fasync_helper(inode, file, on, &fasync[port]);
 }
@@ -1338,7 +1338,7 @@ static void cosa_kick(struct cosa_data *cosa)
 	udelay(100);
 	cosa_putstatus(cosa, 0);
 	udelay(100);
-	(void) cosa_getdata8(cosa);
+	(void)cosa_getdata8(cosa);
 	udelay(100);
 	cosa_putdata8(cosa, 0);
 	udelay(100);
@@ -1739,7 +1739,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 #ifdef DEBUG_IO
 			debug_status_out(cosa, SR_TX_INT_ENA);
 			debug_data_out(cosa, ((cosa->txchan << 5) & 0xe0) |
-                                ((cosa->txsize >> 8) & 0x1f));
+				       ((cosa->txsize >> 8) & 0x1f));
 			debug_data_in(cosa, cosa_getdata8(cosa));
 #else
 			cosa_getdata8(cosa);
@@ -1762,8 +1762,8 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			| (cosa->txsize & 0x1fff));
 #ifdef DEBUG_IO
 		debug_status_out(cosa, SR_TX_INT_ENA);
-		debug_data_out(cosa, ((cosa->txchan << 13) & 0xe000)
-                        | (cosa->txsize & 0x1fff));
+		debug_data_out(cosa, ((cosa->txchan << 13) & 0xe000) |
+			       (cosa->txsize & 0x1fff));
 		debug_data_in(cosa, cosa_getdata8(cosa));
 		debug_status_out(cosa, 0);
 #else
