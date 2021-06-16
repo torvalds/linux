@@ -76,9 +76,7 @@ static u64 of_bus_default_map(__be32 *addr, const __be32 *range,
 	s  = of_read_number(range + na + pna, ns);
 	da = of_read_number(addr, na);
 
-	pr_debug("default map, cp=%llx, s=%llx, da=%llx\n",
-		 (unsigned long long)cp, (unsigned long long)s,
-		 (unsigned long long)da);
+	pr_debug("default map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
 
 	if (da < cp || da >= (cp + s))
 		return OF_BAD_ADDR;
@@ -184,9 +182,7 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 	s  = of_read_number(range + na + pna, ns);
 	da = of_read_number(addr + 1, na - 1);
 
-	pr_debug("PCI map, cp=%llx, s=%llx, da=%llx\n",
-		 (unsigned long long)cp, (unsigned long long)s,
-		 (unsigned long long)da);
+	pr_debug("PCI map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
 
 	if (da < cp || da >= (cp + s))
 		return OF_BAD_ADDR;
@@ -299,9 +295,7 @@ static u64 of_bus_isa_map(__be32 *addr, const __be32 *range, int na, int ns,
 	s  = of_read_number(range + na + pna, ns);
 	da = of_read_number(addr + 1, na - 1);
 
-	pr_debug("ISA map, cp=%llx, s=%llx, da=%llx\n",
-		 (unsigned long long)cp, (unsigned long long)s,
-		 (unsigned long long)da);
+	pr_debug("ISA map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
 
 	if (da < cp || da >= (cp + s))
 		return OF_BAD_ADDR;
@@ -456,7 +450,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 
  finish:
 	of_dump_addr("parent translation for:", addr, pna);
-	pr_debug("with offset: %llx\n", (unsigned long long)offset);
+	pr_debug("with offset: %llx\n", offset);
 
 	/* Translate it into parent bus space */
 	return pbus->translate(addr, offset, pna);

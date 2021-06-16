@@ -900,8 +900,7 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
 	phys_initrd_start = start;
 	phys_initrd_size = end - start;
 
-	pr_debug("initrd_start=0x%llx  initrd_end=0x%llx\n",
-		 (unsigned long long)start, (unsigned long long)end);
+	pr_debug("initrd_start=0x%llx  initrd_end=0x%llx\n", start, end);
 }
 #else
 static inline void early_init_dt_check_for_initrd(unsigned long node)
@@ -1027,8 +1026,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 
 		if (size == 0)
 			continue;
-		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
-		    (unsigned long long)size);
+		pr_debug(" - %llx, %llx\n", base, size);
 
 		early_init_dt_add_memory_arch(base, size);
 
