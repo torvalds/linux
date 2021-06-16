@@ -316,7 +316,7 @@ static bool ipoib_is_dev_match_addr_rcu(const struct sockaddr *addr,
 	return false;
 }
 
-/**
+/*
  * Find the master net_device on top of the given net_device.
  * @dev: base IPoIB net_device
  *
@@ -361,8 +361,9 @@ static int ipoib_upper_walk(struct net_device *upper,
 }
 
 /**
- * Find a net_device matching the given address, which is an upper device of
- * the given net_device.
+ * ipoib_get_net_dev_match_addr - Find a net_device matching
+ * the given address, which is an upper device of the given net_device.
+ *
  * @addr: IP address to look for.
  * @dev: base IPoIB net_device
  *

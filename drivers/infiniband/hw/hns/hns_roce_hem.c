@@ -1082,7 +1082,7 @@ static bool hem_list_is_bottom_bt(int hopnum, int bt_level)
 	return bt_level >= (hopnum ? hopnum - 1 : hopnum);
 }
 
-/**
+/*
  * calc base address entries num
  * @hopnum: num of mutihop addressing
  * @bt_level: base address table level
@@ -1115,7 +1115,7 @@ static u32 hem_list_calc_ba_range(int hopnum, int bt_level, int unit)
 	return step;
 }
 
-/**
+/*
  * calc the root ba entries which could cover all regions
  * @regions: buf region array
  * @region_cnt: array size of @regions

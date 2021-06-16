@@ -2397,10 +2397,10 @@ accept_wait:
 		spin_unlock_bh(&np->np_thread_lock);
 		isert_dbg("np_thread_state %d\n",
 			 np->np_thread_state);
-		/**
+		/*
 		 * No point in stalling here when np_thread
 		 * is in state RESET/SHUTDOWN/EXIT - bail
-		 **/
+		 */
 		return -ENODEV;
 	}
 	spin_unlock_bh(&np->np_thread_lock);

@@ -915,7 +915,7 @@ static inline void path_it_deinit(struct path_it *it)
 }
 
 /**
- * rtrs_clt_init_req() Initialize an rtrs_clt_io_req holding information
+ * rtrs_clt_init_req() - Initialize an rtrs_clt_io_req holding information
  * about an inflight IO.
  * The user buffer holding user control message (not data) is copied into
  * the corresponding buffer of rtrs_iu (req->iu->buf), which later on will
@@ -1221,7 +1221,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 }
 
 /**
- * rtrs_clt_failover_req() Try to find an active path for a failed request
+ * rtrs_clt_failover_req() - Try to find an active path for a failed request
  * @clt: clt context
  * @fail_req: a failed io request.
  */

@@ -1308,7 +1308,7 @@ int rtrs_srv_get_sess_name(struct rtrs_srv *srv, char *sessname, size_t len)
 EXPORT_SYMBOL(rtrs_srv_get_sess_name);
 
 /**
- * rtrs_srv_get_sess_qdepth() - Get rtrs_srv qdepth.
+ * rtrs_srv_get_queue_depth() - Get rtrs_srv qdepth.
  * @srv:	Session
  */
 int rtrs_srv_get_queue_depth(struct rtrs_srv *srv)
