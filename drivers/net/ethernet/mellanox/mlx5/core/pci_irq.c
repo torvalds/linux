@@ -28,13 +28,13 @@
 #define MLX5_EQ_REFS_PER_IRQ (2)
 
 struct mlx5_irq {
-	u32 index;
 	struct atomic_notifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
-	struct kref kref;
-	int irqn;
 	struct mlx5_irq_pool *pool;
+	struct kref kref;
+	u32 index;
+	int irqn;
 };
 
 struct mlx5_irq_pool {
