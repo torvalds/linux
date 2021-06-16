@@ -312,3 +312,95 @@ errnest:
 errmsg:
 	return skb->len;
 }
+
+static int smc_nl_get_fback_details(struct sk_buff *skb,
+				    struct netlink_callback *cb, int pos,
+				    bool is_srv)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	int cnt_reported = cb_ctx->pos[2];
+	struct smc_stats_fback *trgt_arr;
+	struct nlattr *attrs;
+	int rc = 0;
+	void *nlh;
+
+	if (is_srv)
+		trgt_arr = &fback_rsn.srv[0];
+	else
+		trgt_arr = &fback_rsn.clnt[0];
+	if (!trgt_arr[pos].fback_code)
+		return -ENODATA;
+	nlh = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &smc_gen_nl_family, NLM_F_MULTI,
+			  SMC_NETLINK_GET_FBACK_STATS);
+	if (!nlh)
+		goto errmsg;
+	attrs = nla_nest_start(skb, SMC_GEN_FBACK_STATS);
+	if (!attrs)
+		goto errout;
+	if (nla_put_u8(skb, SMC_NLA_FBACK_STATS_TYPE, is_srv))
+		goto errattr;
+	if (!cnt_reported) {
+		if (nla_put_u64_64bit(skb, SMC_NLA_FBACK_STATS_SRV_CNT,
+				      fback_rsn.srv_fback_cnt,
+				      SMC_NLA_FBACK_STATS_PAD))
+			goto errattr;
+		if (nla_put_u64_64bit(skb, SMC_NLA_FBACK_STATS_CLNT_CNT,
+				      fback_rsn.clnt_fback_cnt,
+				      SMC_NLA_FBACK_STATS_PAD))
+			goto errattr;
+		cnt_reported = 1;
+	}
+
+	if (nla_put_u32(skb, SMC_NLA_FBACK_STATS_RSN_CODE,
+			trgt_arr[pos].fback_code))
+		goto errattr;
+	if (nla_put_u16(skb, SMC_NLA_FBACK_STATS_RSN_CNT,
+			trgt_arr[pos].count))
+		goto errattr;
+
+	cb_ctx->pos[2] = cnt_reported;
+	nla_nest_end(skb, attrs);
+	genlmsg_end(skb, nlh);
+	return rc;
+
+errattr:
+	nla_nest_cancel(skb, attrs);
+errout:
+	genlmsg_cancel(skb, nlh);
+errmsg:
+	return -EMSGSIZE;
+}
+
+int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	int rc_srv = 0, rc_clnt = 0, k;
+	int skip_serv = cb_ctx->pos[1];
+	int snum = cb_ctx->pos[0];
+	bool is_srv = true;
+
+	mutex_lock(&smc_stat_fback_rsn);
+	for (k = 0; k < SMC_MAX_FBACK_RSN_CNT; k++) {
+		if (k < snum)
+			continue;
+		if (!skip_serv) {
+			rc_srv = smc_nl_get_fback_details(skb, cb, k, is_srv);
+			if (rc_srv && rc_srv != ENODATA)
+				break;
+		} else {
+			skip_serv = 0;
+		}
+		rc_clnt = smc_nl_get_fback_details(skb, cb, k, !is_srv);
+		if (rc_clnt && rc_clnt != ENODATA) {
+			skip_serv = 1;
+			break;
+		}
+		if (rc_clnt == ENODATA && rc_srv == ENODATA)
+			break;
+	}
+	mutex_unlock(&smc_stat_fback_rsn);
+	cb_ctx->pos[1] = skip_serv;
+	cb_ctx->pos[0] = k;
+	return skb->len;
+}

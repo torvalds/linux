@@ -248,6 +248,7 @@ do { \
 while (0)
 
 int smc_nl_get_stats(struct sk_buff *skb, struct netlink_callback *cb);
+int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb);
 int smc_stats_init(void) __init;
 void smc_stats_exit(void);
 
