@@ -1379,18 +1379,27 @@ static int download(struct cosa_data *cosa, const char __user *microcode, int le
 {
 	int i;
 
-	if (put_wait_data(cosa, 'w') == -1) return -1;
+	if (put_wait_data(cosa, 'w') == -1)
+		return -1;
 	if ((i=get_wait_data(cosa)) != 'w') { printk("dnld: 0x%04x\n",i); return -2;}
-	if (get_wait_data(cosa) != '=') return -3;
+	if (get_wait_data(cosa) != '=')
+		return -3;
 
-	if (puthexnumber(cosa, address) < 0) return -4;
-	if (put_wait_data(cosa, ' ') == -1) return -10;
-	if (get_wait_data(cosa) != ' ') return -11;
-	if (get_wait_data(cosa) != '=') return -12;
+	if (puthexnumber(cosa, address) < 0)
+		return -4;
+	if (put_wait_data(cosa, ' ') == -1)
+		return -10;
+	if (get_wait_data(cosa) != ' ')
+		return -11;
+	if (get_wait_data(cosa) != '=')
+		return -12;
 
-	if (puthexnumber(cosa, address+length-1) < 0) return -13;
-	if (put_wait_data(cosa, ' ') == -1) return -18;
-	if (get_wait_data(cosa) != ' ') return -19;
+	if (puthexnumber(cosa, address + length - 1) < 0)
+		return -13;
+	if (put_wait_data(cosa, ' ') == -1)
+		return -18;
+	if (get_wait_data(cosa) != ' ')
+		return -19;
 
 	while (length--) {
 		char c;
@@ -1405,9 +1414,12 @@ static int download(struct cosa_data *cosa, const char __user *microcode, int le
 		microcode++;
 	}
 
-	if (get_wait_data(cosa) != '\r') return -21;
-	if (get_wait_data(cosa) != '\n') return -22;
-	if (get_wait_data(cosa) != '.') return -23;
+	if (get_wait_data(cosa) != '\r')
+		return -21;
+	if (get_wait_data(cosa) != '\n')
+		return -22;
+	if (get_wait_data(cosa) != '.')
+		return -23;
 #if 0
 	printk(KERN_DEBUG "cosa%d: download completed.\n", cosa->num);
 #endif
@@ -1420,18 +1432,28 @@ static int download(struct cosa_data *cosa, const char __user *microcode, int le
  */
 static int startmicrocode(struct cosa_data *cosa, int address)
 {
-	if (put_wait_data(cosa, 'g') == -1) return -1;
-	if (get_wait_data(cosa) != 'g') return -2;
-	if (get_wait_data(cosa) != '=') return -3;
+	if (put_wait_data(cosa, 'g') == -1)
+		return -1;
+	if (get_wait_data(cosa) != 'g')
+		return -2;
+	if (get_wait_data(cosa) != '=')
+		return -3;
 
-	if (puthexnumber(cosa, address) < 0) return -4;
-	if (put_wait_data(cosa, '\r') == -1) return -5;
+	if (puthexnumber(cosa, address) < 0)
+		return -4;
+	if (put_wait_data(cosa, '\r') == -1)
+		return -5;
 	
-	if (get_wait_data(cosa) != '\r') return -6;
-	if (get_wait_data(cosa) != '\r') return -7;
-	if (get_wait_data(cosa) != '\n') return -8;
-	if (get_wait_data(cosa) != '\r') return -9;
-	if (get_wait_data(cosa) != '\n') return -10;
+	if (get_wait_data(cosa) != '\r')
+		return -6;
+	if (get_wait_data(cosa) != '\r')
+		return -7;
+	if (get_wait_data(cosa) != '\n')
+		return -8;
+	if (get_wait_data(cosa) != '\r')
+		return -9;
+	if (get_wait_data(cosa) != '\n')
+		return -10;
 #if 0
 	printk(KERN_DEBUG "cosa%d: microcode started\n", cosa->num);
 #endif
@@ -1448,18 +1470,28 @@ static int startmicrocode(struct cosa_data *cosa, int address)
  */
 static int readmem(struct cosa_data *cosa, char __user *microcode, int length, int address)
 {
-	if (put_wait_data(cosa, 'r') == -1) return -1;
-	if ((get_wait_data(cosa)) != 'r') return -2;
-	if ((get_wait_data(cosa)) != '=') return -3;
+	if (put_wait_data(cosa, 'r') == -1)
+		return -1;
+	if ((get_wait_data(cosa)) != 'r')
+		return -2;
+	if ((get_wait_data(cosa)) != '=')
+		return -3;
 
-	if (puthexnumber(cosa, address) < 0) return -4;
-	if (put_wait_data(cosa, ' ') == -1) return -5;
-	if (get_wait_data(cosa) != ' ') return -6;
-	if (get_wait_data(cosa) != '=') return -7;
+	if (puthexnumber(cosa, address) < 0)
+		return -4;
+	if (put_wait_data(cosa, ' ') == -1)
+		return -5;
+	if (get_wait_data(cosa) != ' ')
+		return -6;
+	if (get_wait_data(cosa) != '=')
+		return -7;
 
-	if (puthexnumber(cosa, address+length-1) < 0) return -8;
-	if (put_wait_data(cosa, ' ') == -1) return -9;
-	if (get_wait_data(cosa) != ' ') return -10;
+	if (puthexnumber(cosa, address + length - 1) < 0)
+		return -8;
+	if (put_wait_data(cosa, ' ') == -1)
+		return -9;
+	if (get_wait_data(cosa) != ' ')
+		return -10;
 
 	while (length--) {
 		char c;
@@ -1480,9 +1512,12 @@ static int readmem(struct cosa_data *cosa, char __user *microcode, int length, i
 		microcode++;
 	}
 
-	if (get_wait_data(cosa) != '\r') return -21;
-	if (get_wait_data(cosa) != '\n') return -22;
-	if (get_wait_data(cosa) != '.') return -23;
+	if (get_wait_data(cosa) != '\r')
+		return -21;
+	if (get_wait_data(cosa) != '\n')
+		return -22;
+	if (get_wait_data(cosa) != '.')
+		return -23;
 #if 0
 	printk(KERN_DEBUG "cosa%d: readmem completed.\n", cosa->num);
 #endif
@@ -1744,7 +1779,8 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 		while (!(cosa_getstatus(cosa)&SR_TX_RDY)) {
 			count++;
 			udelay(10);
-			if (count > 1000) break;
+			if (count > 1000)
+				break;
 		}
 		pr_info("status %x\n", cosa_getstatus(cosa));
 		pr_info("ready after %d loops\n", count);
@@ -1753,7 +1789,8 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 		count = 0;
 		while (!(cosa_getstatus(cosa)&SR_TX_RDY)) {
 			count++;
-			if (count > 1000) break;
+			if (count > 1000)
+				break;
 			udelay(10);
 		}
 		pr_info("ready after %d loops\n", count);
