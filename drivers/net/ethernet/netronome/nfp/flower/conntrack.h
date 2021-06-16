@@ -12,6 +12,7 @@
 extern const struct rhashtable_params nfp_zone_table_params;
 extern const struct rhashtable_params nfp_ct_map_params;
 extern const struct rhashtable_params nfp_tc_ct_merge_params;
+extern const struct rhashtable_params nfp_nft_ct_merge_params;
 
 /**
  * struct nfp_fl_ct_zone_entry - Zone entry containing conntrack flow information
@@ -31,6 +32,9 @@ extern const struct rhashtable_params nfp_tc_ct_merge_params;
  *
  * @nft_flows_list:	The list of nft relatednfp_fl_ct_flow_entry entries
  * @nft_flows_count:	Keep count of the number of nft_flow entries
+ *
+ * @nft_merge_tb:	The table of merged tc+nft flows
+ * @nft_merge_count:	Keep count of the number of merged tc+nft entries
  */
 struct nfp_fl_ct_zone_entry {
 	u16 zone;
@@ -50,6 +54,9 @@ struct nfp_fl_ct_zone_entry {
 
 	struct list_head nft_flows_list;
 	unsigned int nft_flows_count;
+
+	struct rhashtable nft_merge_tb;
+	unsigned int nft_merge_count;
 };
 
 enum ct_entry_type {
@@ -104,6 +111,32 @@ struct nfp_fl_ct_tc_merge {
 	struct nfp_fl_ct_flow_entry *pre_ct_parent;
 	struct nfp_fl_ct_flow_entry *post_ct_parent;
 	struct list_head children;
+};
+
+/**
+ * struct nfp_fl_nft_tc_merge - Merge of tc_merge flows with nft flow
+ * @netdev:		Ingress netdev name
+ * @cookie:		Flow cookie, combination of tc_merge and nft cookies
+ * @hash_node:		Used by the hashtable
+ * @zt:	Reference to the zone table this belongs to
+ * @nft_flow_list:	This entry is part of a nft_flows_list
+ * @tc_merge_list:	This entry is part of a ct_merge_list
+ * @tc_m_parent:	The tc_merge parent
+ * @nft_parent:	The nft_entry parent
+ * @tc_flower_cookie:	The cookie of the flow offloaded to the nfp
+ * @flow_pay:	Reference to the offloaded flow struct
+ */
+struct nfp_fl_nft_tc_merge {
+	struct net_device *netdev;
+	unsigned long cookie[3];
+	struct rhash_head hash_node;
+	struct nfp_fl_ct_zone_entry *zt;
+	struct list_head nft_flow_list;
+	struct list_head tc_merge_list;
+	struct nfp_fl_ct_tc_merge *tc_m_parent;
+	struct nfp_fl_ct_flow_entry *nft_parent;
+	unsigned long tc_flower_cookie;
+	struct nfp_fl_payload *flow_pay;
 };
 
 /**

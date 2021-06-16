@@ -11,6 +11,14 @@ const struct rhashtable_params nfp_tc_ct_merge_params = {
 	.automatic_shrinking	= true,
 };
 
+const struct rhashtable_params nfp_nft_ct_merge_params = {
+	.head_offset		= offsetof(struct nfp_fl_nft_tc_merge,
+					   hash_node),
+	.key_len		= sizeof(unsigned long) * 3,
+	.key_offset		= offsetof(struct nfp_fl_nft_tc_merge, cookie),
+	.automatic_shrinking	= true,
+};
+
 /**
  * get_hashentry() - Wrapper around hashtable lookup.
  * @ht:		hashtable where entry could be found
@@ -171,6 +179,10 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	if (err)
 		goto err_tc_merge_tb_init;
 
+	err = rhashtable_init(&zt->nft_merge_tb, &nfp_nft_ct_merge_params);
+	if (err)
+		goto err_nft_merge_tb_init;
+
 	if (wildcarded) {
 		priv->ct_zone_wc = zt;
 	} else {
@@ -184,6 +196,8 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	return zt;
 
 err_zone_insert:
+	rhashtable_destroy(&zt->nft_merge_tb);
+err_nft_merge_tb_init:
 	rhashtable_destroy(&zt->tc_merge_tb);
 err_tc_merge_tb_init:
 	kfree(zt);
