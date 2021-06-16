@@ -719,7 +719,7 @@ static char *cosa_net_setup_rx(struct channel_data *chan, int size)
 	 */
 	kfree_skb(chan->rx_skb);
 	chan->rx_skb = dev_alloc_skb(size);
-	if (chan->rx_skb == NULL) {
+	if (!chan->rx_skb) {
 		pr_notice("%s: Memory squeeze, dropping packet\n", chan->name);
 		chan->netdev->stats.rx_dropped++;
 		return NULL;
@@ -783,7 +783,7 @@ static ssize_t cosa_read(struct file *file,
 		return -ERESTARTSYS;
 	
 	chan->rxdata = kmalloc(COSA_MTU, GFP_DMA|GFP_KERNEL);
-	if (chan->rxdata == NULL) {
+	if (!chan->rxdata) {
 		mutex_unlock(&chan->rlock);
 		return -ENOMEM;
 	}
@@ -861,7 +861,7 @@ static ssize_t cosa_write(struct file *file,
 	
 	/* Allocate the buffer */
 	kbuf = kmalloc(count, GFP_KERNEL|GFP_DMA);
-	if (kbuf == NULL) {
+	if (!kbuf) {
 		up(&chan->wsem);
 		return -ENOMEM;
 	}
