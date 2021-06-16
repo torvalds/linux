@@ -5,11 +5,11 @@
 
 #define pr_fmt(fmt) "ACPI: " fmt
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
-#include <linux/acpi.h>
 
 #include "internal.h"
 
