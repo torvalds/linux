@@ -53,7 +53,7 @@ static const struct regulator_ops sy7636a_vcom_volt_ops = {
 	.get_status = sy7636a_get_status,
 };
 
-struct regulator_desc desc = {
+static const struct regulator_desc desc = {
 	.name = "vcom",
 	.id = 0,
 	.ops = &sy7636a_vcom_volt_ops,
@@ -61,7 +61,7 @@ struct regulator_desc desc = {
 	.owner = THIS_MODULE,
 	.enable_reg = SY7636A_REG_OPERATION_MODE_CRL,
 	.enable_mask = SY7636A_OPERATION_MODE_CRL_ONOFF,
-	.poll_enabled_time	= SY7636A_POLL_ENABLED_TIME,
+	.poll_enabled_time = SY7636A_POLL_ENABLED_TIME,
 	.regulators_node = of_match_ptr("regulators"),
 	.of_match = of_match_ptr("vcom"),
 };
