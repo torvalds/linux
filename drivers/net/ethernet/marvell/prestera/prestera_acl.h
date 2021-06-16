@@ -36,6 +36,7 @@ struct prestera_acl_ruleset;
 struct prestera_flow_block_binding {
 	struct list_head list;
 	struct prestera_port *port;
+	int span_id;
 };
 
 struct prestera_flow_block {

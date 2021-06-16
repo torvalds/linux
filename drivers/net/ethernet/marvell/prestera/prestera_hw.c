@@ -56,6 +56,11 @@ enum prestera_cmd_type_t {
 
 	PRESTERA_CMD_TYPE_STP_PORT_SET = 0x1000,
 
+	PRESTERA_CMD_TYPE_SPAN_GET = 0x1100,
+	PRESTERA_CMD_TYPE_SPAN_BIND = 0x1101,
+	PRESTERA_CMD_TYPE_SPAN_UNBIND = 0x1102,
+	PRESTERA_CMD_TYPE_SPAN_RELEASE = 0x1103,
+
 	PRESTERA_CMD_TYPE_CPU_CODE_COUNTERS_GET = 0x2000,
 
 	PRESTERA_CMD_TYPE_ACK = 0x10000,
@@ -376,6 +381,18 @@ struct prestera_msg_acl_ruleset_resp {
 	struct prestera_msg_ret ret;
 	u16 id;
 };
+
+struct prestera_msg_span_req {
+	struct prestera_msg_cmd cmd;
+	u32 port;
+	u32 dev;
+	u8 id;
+} __packed __aligned(4);
+
+struct prestera_msg_span_resp {
+	struct prestera_msg_ret ret;
+	u8 id;
+} __packed __aligned(4);
 
 struct prestera_msg_stp_req {
 	struct prestera_msg_cmd cmd;
@@ -1052,6 +1069,58 @@ int prestera_hw_acl_port_unbind(const struct prestera_port *port,
 	};
 
 	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_ACL_PORT_UNBIND,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id)
+{
+	struct prestera_msg_span_resp resp;
+	struct prestera_msg_span_req req = {
+		.port = port->hw_id,
+		.dev = port->dev_id,
+	};
+	int err;
+
+	err = prestera_cmd_ret(port->sw, PRESTERA_CMD_TYPE_SPAN_GET,
+			       &req.cmd, sizeof(req), &resp.ret, sizeof(resp));
+	if (err)
+		return err;
+
+	*span_id = resp.id;
+
+	return 0;
+}
+
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id)
+{
+	struct prestera_msg_span_req req = {
+		.port = port->hw_id,
+		.dev = port->dev_id,
+		.id = span_id,
+	};
+
+	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_SPAN_BIND,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_span_unbind(const struct prestera_port *port)
+{
+	struct prestera_msg_span_req req = {
+		.port = port->hw_id,
+		.dev = port->dev_id,
+	};
+
+	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_SPAN_UNBIND,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id)
+{
+	struct prestera_msg_span_req req = {
+		.id = span_id
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_SPAN_RELEASE,
 			    &req.cmd, sizeof(req));
 }
 

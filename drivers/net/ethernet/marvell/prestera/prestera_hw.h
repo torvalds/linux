@@ -188,6 +188,12 @@ int prestera_hw_acl_port_bind(const struct prestera_port *port,
 int prestera_hw_acl_port_unbind(const struct prestera_port *port,
 				u16 ruleset_id);
 
+/* SPAN API */
+int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
+int prestera_hw_span_unbind(const struct prestera_port *port);
+int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
+
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
 				       enum prestera_event_type type,

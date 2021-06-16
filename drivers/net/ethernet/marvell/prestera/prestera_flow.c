@@ -7,9 +7,24 @@
 #include "prestera.h"
 #include "prestera_acl.h"
 #include "prestera_flow.h"
+#include "prestera_span.h"
 #include "prestera_flower.h"
 
 static LIST_HEAD(prestera_block_cb_list);
+
+static int prestera_flow_block_mall_cb(struct prestera_flow_block *block,
+				       struct tc_cls_matchall_offload *f)
+{
+	switch (f->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return prestera_span_replace(block, f);
+	case TC_CLSMATCHALL_DESTROY:
+		prestera_span_destroy(block);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
 static int prestera_flow_block_flower_cb(struct prestera_flow_block *block,
 					 struct flow_cls_offload *f)
@@ -38,6 +53,8 @@ static int prestera_flow_block_cb(enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return prestera_flow_block_flower_cb(block, type_data);
+	case TC_SETUP_CLSMATCHALL:
+		return prestera_flow_block_mall_cb(block, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -142,6 +159,8 @@ static void prestera_setup_flow_block_unbind(struct prestera_port *port,
 		return;
 
 	block = flow_block_cb_priv(block_cb);
+
+	prestera_span_destroy(block);
 
 	err = prestera_acl_block_unbind(block, port);
 	if (err)

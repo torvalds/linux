@@ -6,6 +6,7 @@
 #include "prestera.h"
 #include "prestera_hw.h"
 #include "prestera_acl.h"
+#include "prestera_span.h"
 
 struct prestera_acl {
 	struct prestera_switch *sw;
@@ -127,6 +128,7 @@ int prestera_acl_block_bind(struct prestera_flow_block *block,
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
 	if (!binding)
 		return -ENOMEM;
+	binding->span_id = PRESTERA_SPAN_INVALID_ID;
 	binding->port = port;
 
 	err = prestera_hw_acl_port_bind(port, block->ruleset->id);

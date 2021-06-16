@@ -172,6 +172,7 @@ struct prestera_event {
 };
 
 struct prestera_switchdev;
+struct prestera_span;
 struct prestera_rxtx;
 struct prestera_trap_data;
 struct prestera_acl;
@@ -181,6 +182,7 @@ struct prestera_switch {
 	struct prestera_switchdev *swdev;
 	struct prestera_rxtx *rxtx;
 	struct prestera_acl *acl;
+	struct prestera_span *span;
 	struct list_head event_handlers;
 	struct notifier_block netdev_nb;
 	struct prestera_trap_data *trap_data;

@@ -14,6 +14,7 @@
 #include "prestera_hw.h"
 #include "prestera_acl.h"
 #include "prestera_flow.h"
+#include "prestera_span.h"
 #include "prestera_rxtx.h"
 #include "prestera_devlink.h"
 #include "prestera_ethtool.h"
@@ -845,6 +846,10 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		goto err_acl_init;
 
+	err = prestera_span_init(sw);
+	if (err)
+		goto err_span_init;
+
 	err = prestera_devlink_register(sw);
 	if (err)
 		goto err_dl_register;
@@ -864,6 +869,8 @@ err_ports_create:
 err_lag_init:
 	prestera_devlink_unregister(sw);
 err_dl_register:
+	prestera_span_fini(sw);
+err_span_init:
 	prestera_acl_fini(sw);
 err_acl_init:
 	prestera_event_handlers_unregister(sw);
@@ -883,6 +890,7 @@ static void prestera_switch_fini(struct prestera_switch *sw)
 	prestera_destroy_ports(sw);
 	prestera_lag_fini(sw);
 	prestera_devlink_unregister(sw);
+	prestera_span_fini(sw);
 	prestera_acl_fini(sw);
 	prestera_event_handlers_unregister(sw);
 	prestera_rxtx_switch_fini(sw);
