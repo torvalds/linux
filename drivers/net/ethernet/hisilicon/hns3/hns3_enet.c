@@ -1412,39 +1412,14 @@ out_hw_tx_csum:
 	return 0;
 }
 
-static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
-			  unsigned int size, unsigned int type)
+static int hns3_fill_desc(struct hns3_enet_ring *ring, dma_addr_t dma,
+			  unsigned int size)
 {
 #define HNS3_LIKELY_BD_NUM	1
 
-	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
-	struct device *dev = ring_to_dev(ring);
-	skb_frag_t *frag;
 	unsigned int frag_buf_num;
 	int k, sizeoflast;
-	dma_addr_t dma;
-
-	if (type & (DESC_TYPE_FRAGLIST_SKB | DESC_TYPE_SKB)) {
-		struct sk_buff *skb = (struct sk_buff *)priv;
-
-		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
-	} else {
-		frag = (skb_frag_t *)priv;
-		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
-	}
-
-	if (unlikely(dma_mapping_error(dev, dma))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
-		return -ENOMEM;
-	}
-
-	desc_cb->priv = priv;
-	desc_cb->length = size;
-	desc_cb->dma = dma;
-	desc_cb->type = type;
 
 	if (likely(size <= HNS3_MAX_BD_SIZE)) {
 		desc->addr = cpu_to_le64(dma);
@@ -1478,6 +1453,47 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	}
 
 	return frag_buf_num;
+}
+
+static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
+				  unsigned int type)
+{
+	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct device *dev = ring_to_dev(ring);
+	unsigned int size;
+	dma_addr_t dma;
+
+	if (type & (DESC_TYPE_FRAGLIST_SKB | DESC_TYPE_SKB)) {
+		struct sk_buff *skb = (struct sk_buff *)priv;
+
+		size = skb_headlen(skb);
+		if (!size)
+			return 0;
+
+		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
+	} else {
+		skb_frag_t *frag = (skb_frag_t *)priv;
+
+		size = skb_frag_size(frag);
+		if (!size)
+			return 0;
+
+		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
+	}
+
+	if (unlikely(dma_mapping_error(dev, dma))) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.sw_err_cnt++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	desc_cb->priv = priv;
+	desc_cb->length = size;
+	desc_cb->dma = dma;
+	desc_cb->type = type;
+
+	return hns3_fill_desc(ring, dma, size);
 }
 
 static unsigned int hns3_skb_bd_num(struct sk_buff *skb, unsigned int *bd_size,
@@ -1736,26 +1752,19 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 				 struct sk_buff *skb, unsigned int type)
 {
-	unsigned int size = skb_headlen(skb);
 	struct sk_buff *frag_skb;
 	int i, ret, bd_num = 0;
 
-	if (size) {
-		ret = hns3_fill_desc(ring, skb, size, type);
-		if (unlikely(ret < 0))
-			return ret;
+	ret = hns3_map_and_fill_desc(ring, skb, type);
+	if (unlikely(ret < 0))
+		return ret;
 
-		bd_num += ret;
-	}
+	bd_num += ret;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		size = skb_frag_size(frag);
-		if (!size)
-			continue;
-
-		ret = hns3_fill_desc(ring, frag, size, DESC_TYPE_PAGE);
+		ret = hns3_map_and_fill_desc(ring, frag, DESC_TYPE_PAGE);
 		if (unlikely(ret < 0))
 			return ret;
 
