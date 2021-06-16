@@ -281,10 +281,26 @@ static int isst_if_get_platform_info(void __user *argp)
 struct isst_if_cpu_info {
 	/* For BUS 0 and BUS 1 only, which we need for PUNIT interface */
 	int bus_info[2];
+	struct pci_dev *pci_dev[2];
 	int punit_cpu_id;
 };
 
 static struct isst_if_cpu_info *isst_cpu_info;
+
+static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
+{
+	int bus_number;
+
+	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
+	    cpu >= num_possible_cpus())
+		return NULL;
+
+	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
+	if (bus_number < 0)
+		return NULL;
+
+	return pci_get_domain_bus_and_slot(0, bus_number, PCI_DEVFN(dev, fn));
+}
 
 /**
  * isst_if_get_pci_dev() - Get the PCI device instance for a CPU
@@ -300,17 +316,18 @@ static struct isst_if_cpu_info *isst_cpu_info;
  */
 struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
 {
-	int bus_number;
+	struct pci_dev *pci_dev;
 
 	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
 	    cpu >= num_possible_cpus())
 		return NULL;
 
-	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
-	if (bus_number < 0)
-		return NULL;
+	pci_dev = isst_cpu_info[cpu].pci_dev[bus_no];
 
-	return pci_get_domain_bus_and_slot(0, bus_number, PCI_DEVFN(dev, fn));
+	if (pci_dev && pci_dev->devfn == PCI_DEVFN(dev, fn))
+		return pci_dev;
+
+	return _isst_if_get_pci_dev(cpu, bus_no, dev, fn);
 }
 EXPORT_SYMBOL_GPL(isst_if_get_pci_dev);
 
@@ -327,6 +344,8 @@ static int isst_if_cpu_online(unsigned int cpu)
 	} else {
 		isst_cpu_info[cpu].bus_info[0] = data & 0xff;
 		isst_cpu_info[cpu].bus_info[1] = (data >> 8) & 0xff;
+		isst_cpu_info[cpu].pci_dev[0] = _isst_if_get_pci_dev(cpu, 0, 0, 1);
+		isst_cpu_info[cpu].pci_dev[1] = _isst_if_get_pci_dev(cpu, 1, 30, 1);
 	}
 
 	ret = rdmsrl_safe(MSR_THREAD_ID_INFO, &data);
