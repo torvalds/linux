@@ -112,9 +112,6 @@ struct reset_bulk_data	{
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
 
-#define FAKE_MIN_VOL			100000
-#define FAKE_MAX_VOL			3300000
-
 struct rk_pcie {
 	struct dw_pcie			*pci;
 	enum rk_pcie_device_mode	mode;
@@ -1460,12 +1457,6 @@ static int rk_pcie_enable_power(struct rk_pcie *rk_pcie)
 	if (IS_ERR(rk_pcie->vpcie3v3))
 		return ret;
 
-	ret = regulator_set_voltage(rk_pcie->vpcie3v3, FAKE_MAX_VOL, FAKE_MAX_VOL);
-	if (ret) {
-		dev_err(dev, "fail to set vpcie3v3 regulator\n");
-		return ret;
-	}
-
 	ret = regulator_enable(rk_pcie->vpcie3v3);
 	if (ret)
 		dev_err(dev, "fail to enable vpcie3v3 regulator\n");
@@ -1480,12 +1471,6 @@ static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
 
 	if (IS_ERR(rk_pcie->vpcie3v3))
 		return ret;
-
-	ret = regulator_set_voltage(rk_pcie->vpcie3v3, FAKE_MIN_VOL, FAKE_MIN_VOL);
-	if (ret) {
-		dev_err(dev, "fail to set vpcie3v3 regulator\n");
-		return ret;
-	}
 
 	ret = regulator_disable(rk_pcie->vpcie3v3);
 	if (ret)
