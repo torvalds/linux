@@ -337,7 +337,8 @@ static int xrs700x_port_add_bpdu_ipf(struct dsa_switch *ds, int port)
  * This is required to correctly populate the HSR/PRP node_table.
  * Leave the policy disabled, it will be enabled as needed.
  */
-static int xrs700x_port_add_hsrsup_ipf(struct dsa_switch *ds, int port)
+static int xrs700x_port_add_hsrsup_ipf(struct dsa_switch *ds, int port,
+				       int fwdport)
 {
 	struct xrs700x *priv = ds->priv;
 	unsigned int val = 0;
@@ -367,6 +368,9 @@ static int xrs700x_port_add_hsrsup_ipf(struct dsa_switch *ds, int port)
 	ret = regmap_write(priv->regmap, XRS_ETH_ADDR_FWD_MIRROR(port, 1), val);
 	if (ret)
 		return ret;
+
+	if (fwdport >= 0)
+		val |= BIT(fwdport);
 
 	/* Allow must be set prevent duplicate discard */
 	ret = regmap_write(priv->regmap, XRS_ETH_ADDR_FWD_ALLOW(port, 1), val);
@@ -403,10 +407,6 @@ static int xrs700x_port_setup(struct dsa_switch *ds, int port)
 
 	if (!cpu_port) {
 		ret = xrs700x_port_add_bpdu_ipf(ds, port);
-		if (ret)
-			return ret;
-
-		ret = xrs700x_port_add_hsrsup_ipf(ds, port);
 		if (ret)
 			return ret;
 	}
@@ -562,6 +562,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	struct net_device *slave;
 	int ret, i, hsr_pair[2];
 	enum hsr_version ver;
+	bool fwd = false;
 
 	ret = hsr_get_version(hsr, &ver);
 	if (ret)
@@ -607,6 +608,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	if (ver == HSR_V1) {
 		val &= ~BIT(partner->index);
 		val &= ~BIT(port);
+		fwd = true;
 	}
 	val &= ~BIT(dsa_upstream_port(ds, port));
 	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(partner->index), val);
@@ -616,10 +618,19 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 			    XRS_PORT_FORWARDING);
 	regmap_fields_write(priv->ps_forward, port, XRS_PORT_FORWARDING);
 
-	/* Enable inbound policy added by xrs700x_port_add_hsrsup_ipf()
-	 * which allows HSR/PRP supervision forwarding to the CPU port without
-	 * discarding duplicates.
+	/* Enable inbound policy which allows HSR/PRP supervision forwarding
+	 * to the CPU port without discarding duplicates. Continue to
+	 * forward to redundant ports when in HSR mode while discarding
+	 * duplicates.
 	 */
+	ret = xrs700x_port_add_hsrsup_ipf(ds, partner->index, fwd ? port : -1);
+	if (ret)
+		return ret;
+
+	ret = xrs700x_port_add_hsrsup_ipf(ds, port, fwd ? partner->index : -1);
+	if (ret)
+		return ret;
+
 	regmap_update_bits(priv->regmap,
 			   XRS_ETH_ADDR_CFG(partner->index, 1), 1, 1);
 	regmap_update_bits(priv->regmap, XRS_ETH_ADDR_CFG(port, 1), 1, 1);
