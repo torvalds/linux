@@ -36,7 +36,7 @@ To make running these tests (and reading the results) easier, KUnit offers
 results. This provides a quick way of running KUnit tests during development,
 without requiring a virtual machine or separate hardware.
 
-Get started now: :doc:`start`
+Get started now: Documentation/dev-tools/kunit/start.rst
 
 Why KUnit?
 ==========
@@ -88,9 +88,9 @@ it takes to read their test log?
 How do I use it?
 ================
 
-*   :doc:`start` - for new users of KUnit
-*   :doc:`tips` - for short examples of best practices
-*   :doc:`usage` - for a more detailed explanation of KUnit features
-*   :doc:`api/index` - for the list of KUnit APIs used for testing
-*   :doc:`kunit-tool` - for more information on the kunit_tool helper script
-*   :doc:`faq` - for answers to some common questions about KUnit
+*   Documentation/dev-tools/kunit/start.rst - for new users of KUnit
+*   Documentation/dev-tools/kunit/tips.rst - for short examples of best practices
+*   Documentation/dev-tools/kunit/usage.rst - for a more detailed explanation of KUnit features
+*   Documentation/dev-tools/kunit/api/index.rst - for the list of KUnit APIs used for testing
+*   Documentation/dev-tools/kunit/kunit-tool.rst - for more information on the kunit_tool helper script
+*   Documentation/dev-tools/kunit/faq.rst - for answers to some common questions about KUnit
