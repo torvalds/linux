@@ -69,6 +69,7 @@
 #define OV490_ISP_VSIZE_LOW		0x80820062
 #define OV490_ISP_VSIZE_HIGH		0x80820063
 
+#define OV10640_PID_TIMEOUT		20
 #define OV10640_ID_HIGH			0xa6
 #define OV10640_CHIP_ID			0x300a
 #define OV10640_PIXEL_RATE		55000000
@@ -329,10 +330,8 @@ static const struct v4l2_subdev_ops rdacm21_subdev_ops = {
 	.pad		= &rdacm21_subdev_pad_ops,
 };
 
-static int ov10640_initialize(struct rdacm21_device *dev)
+static void ov10640_power_up(struct rdacm21_device *dev)
 {
-	u8 val;
-
 	/* Enable GPIO0#0 (reset) and GPIO1#0 (pwdn) as output lines. */
 	ov490_write_reg(dev, OV490_GPIO_SEL0, OV490_GPIO0);
 	ov490_write_reg(dev, OV490_GPIO_SEL1, OV490_SPWDN0);
@@ -347,18 +346,35 @@ static int ov10640_initialize(struct rdacm21_device *dev)
 	usleep_range(1500, 3000);
 	ov490_write_reg(dev, OV490_GPIO_OUTPUT_VALUE0, OV490_GPIO0);
 	usleep_range(3000, 5000);
+}
+
+static int ov10640_check_id(struct rdacm21_device *dev)
+{
+	unsigned int i;
+	u8 val;
 
 	/* Read OV10640 ID to test communications. */
-	ov490_write_reg(dev, OV490_SCCB_SLAVE0_DIR, OV490_SCCB_SLAVE_READ);
-	ov490_write_reg(dev, OV490_SCCB_SLAVE0_ADDR_HIGH, OV10640_CHIP_ID >> 8);
-	ov490_write_reg(dev, OV490_SCCB_SLAVE0_ADDR_LOW, OV10640_CHIP_ID & 0xff);
+	for (i = 0; i < OV10640_PID_TIMEOUT; ++i) {
+		ov490_write_reg(dev, OV490_SCCB_SLAVE0_DIR,
+				OV490_SCCB_SLAVE_READ);
+		ov490_write_reg(dev, OV490_SCCB_SLAVE0_ADDR_HIGH,
+				OV10640_CHIP_ID >> 8);
+		ov490_write_reg(dev, OV490_SCCB_SLAVE0_ADDR_LOW,
+				OV10640_CHIP_ID & 0xff);
 
-	/* Trigger SCCB slave transaction and give it some time to complete. */
-	ov490_write_reg(dev, OV490_HOST_CMD, OV490_HOST_CMD_TRIGGER);
-	usleep_range(1000, 1500);
+		/*
+		 * Trigger SCCB slave transaction and give it some time
+		 * to complete.
+		 */
+		ov490_write_reg(dev, OV490_HOST_CMD, OV490_HOST_CMD_TRIGGER);
+		usleep_range(1000, 1500);
 
-	ov490_read_reg(dev, OV490_SCCB_SLAVE0_DIR, &val);
-	if (val != OV10640_ID_HIGH) {
+		ov490_read_reg(dev, OV490_SCCB_SLAVE0_DIR, &val);
+		if (val == OV10640_ID_HIGH)
+			break;
+		usleep_range(1000, 1500);
+	}
+	if (i == OV10640_PID_TIMEOUT) {
 		dev_err(dev->dev, "OV10640 ID mismatch: (0x%02x)\n", val);
 		return -ENODEV;
 	}
@@ -373,6 +389,8 @@ static int ov490_initialize(struct rdacm21_device *dev)
 	u8 pid, ver, val;
 	unsigned int i;
 	int ret;
+
+	ov10640_power_up(dev);
 
 	/*
 	 * Read OV490 Id to test communications. Give it up to 40msec to
@@ -411,7 +429,7 @@ static int ov490_initialize(struct rdacm21_device *dev)
 		return -ENODEV;
 	}
 
-	ret = ov10640_initialize(dev);
+	ret = ov10640_check_id(dev);
 	if (ret)
 		return ret;
 
