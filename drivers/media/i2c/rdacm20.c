@@ -473,6 +473,19 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 	if (ret)
 		return ret;
 
+	/*
+	 * Hold OV10635 in reset during max9271 configuration. The reset signal
+	 * has to be asserted for at least 200 microseconds.
+	 */
+	ret = max9271_enable_gpios(&dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
+
+	ret = max9271_clear_gpios(&dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
+	usleep_range(200, 500);
+
 	ret = max9271_configure_gmsl_link(&dev->serializer);
 	if (ret)
 		return ret;
@@ -487,22 +500,14 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 	dev->serializer.client->addr = dev->addrs[0];
 
 	/*
-	 * Reset the sensor by cycling the OV10635 reset signal connected to the
-	 * MAX9271 GPIO1 and verify communication with the OV10635.
+	 * Release ov10635 from reset and initialize it. The image sensor
+	 * requires at least 2048 XVCLK cycles (85 micro-seconds at 24MHz)
+	 * before being available. Stay safe and wait up to 500 micro-seconds.
 	 */
-	ret = max9271_enable_gpios(&dev->serializer, MAX9271_GPIO1OUT);
-	if (ret)
-		return ret;
-
-	ret = max9271_clear_gpios(&dev->serializer, MAX9271_GPIO1OUT);
-	if (ret)
-		return ret;
-	usleep_range(10000, 15000);
-
 	ret = max9271_set_gpios(&dev->serializer, MAX9271_GPIO1OUT);
 	if (ret)
 		return ret;
-	usleep_range(10000, 15000);
+	usleep_range(100, 500);
 
 again:
 	ret = ov10635_read16(dev, OV10635_PID);
