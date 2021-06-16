@@ -255,16 +255,12 @@ static int param_get_trace_state(char *buffer, const struct kernel_param *kp)
 {
 	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED))
 		return sprintf(buffer, "disable\n");
-	else {
-		if (acpi_gbl_trace_method_name) {
-			if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT)
-				return sprintf(buffer, "method-once\n");
-			else
-				return sprintf(buffer, "method\n");
-		} else
-			return sprintf(buffer, "enable\n");
-	}
-	return 0;
+	if (!acpi_gbl_trace_method_name)
+		return sprintf(buffer, "enable\n");
+	if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT)
+		return sprintf(buffer, "method-once\n");
+	else
+		return sprintf(buffer, "method\n");
 }
 
 module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
