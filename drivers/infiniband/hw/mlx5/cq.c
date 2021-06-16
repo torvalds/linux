@@ -725,7 +725,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		return -EFAULT;
 
 	if ((ucmd.flags & ~(MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD |
-			    MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX)))
+			    MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX |
+			    MLX5_IB_CREATE_CQ_FLAGS_REAL_TIME_TS)))
 		return -EINVAL;
 
 	if ((ucmd.cqe_size != 64 && ucmd.cqe_size != 128) ||
@@ -825,6 +826,9 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 
 		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
+
+	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_REAL_TIME_TS)
+		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_REAL_TIME_TS;
 
 	MLX5_SET(create_cq_in, *cqb, uid, context->devx_uid);
 	return 0;

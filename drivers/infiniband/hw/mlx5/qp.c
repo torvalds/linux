@@ -1180,8 +1180,16 @@ static bool fr_supported(int ts_cap)
 }
 
 static int get_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
-			 bool fr_sup)
+			 bool fr_sup, bool rt_sup)
 {
+	if (cq->private_flags & MLX5_IB_CQ_PR_FLAGS_REAL_TIME_TS) {
+		if (!rt_sup) {
+			mlx5_ib_dbg(dev,
+				    "Real time TS format is not supported\n");
+			return -EOPNOTSUPP;
+		}
+		return MLX5_TIMESTAMP_FORMAT_REAL_TIME;
+	}
 	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION) {
 		if (!fr_sup) {
 			mlx5_ib_dbg(dev,
@@ -1198,14 +1206,16 @@ static int get_rq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *recv_cq)
 {
 	u8 ts_cap = MLX5_CAP_GEN(dev->mdev, rq_ts_format);
 
-	return get_ts_format(dev, recv_cq, fr_supported(ts_cap));
+	return get_ts_format(dev, recv_cq, fr_supported(ts_cap),
+			     rt_supported(ts_cap));
 }
 
 static int get_sq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
 {
 	u8 ts_cap = MLX5_CAP_GEN(dev->mdev, sq_ts_format);
 
-	return get_ts_format(dev, send_cq, fr_supported(ts_cap));
+	return get_ts_format(dev, send_cq, fr_supported(ts_cap),
+			     rt_supported(ts_cap));
 }
 
 static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
@@ -1213,17 +1223,27 @@ static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
 {
 	u8 ts_cap = MLX5_CAP_ROCE(dev->mdev, qp_ts_format);
 	bool fr_sup = fr_supported(ts_cap);
+	bool rt_sup = rt_supported(ts_cap);
 	u8 default_ts = fr_sup ? MLX5_TIMESTAMP_FORMAT_FREE_RUNNING :
 				 MLX5_TIMESTAMP_FORMAT_DEFAULT;
 	int send_ts_format =
-		send_cq ? get_ts_format(dev, send_cq, fr_sup) :
+		send_cq ? get_ts_format(dev, send_cq, fr_sup, rt_sup) :
 			  default_ts;
 	int recv_ts_format =
-		recv_cq ? get_ts_format(dev, recv_cq, fr_sup) :
+		recv_cq ? get_ts_format(dev, recv_cq, fr_sup, rt_sup) :
 			  default_ts;
 
 	if (send_ts_format < 0 || recv_ts_format < 0)
 		return -EOPNOTSUPP;
+
+	if (send_ts_format != MLX5_TIMESTAMP_FORMAT_DEFAULT &&
+	    recv_ts_format != MLX5_TIMESTAMP_FORMAT_DEFAULT &&
+	    send_ts_format != recv_ts_format) {
+		mlx5_ib_dbg(
+			dev,
+			"The send ts_format does not match the receive ts_format\n");
+		return -EOPNOTSUPP;
+	}
 
 	return send_ts_format == default_ts ? recv_ts_format : send_ts_format;
 }
