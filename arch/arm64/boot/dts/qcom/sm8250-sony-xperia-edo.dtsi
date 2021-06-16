@@ -47,6 +47,26 @@
 		};
 	};
 
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		/*
+		 * Camera focus (light press) and camera snapshot (full press)
+		 * seem not to work properly.. Adding the former one stalls the CPU
+		 * and the latter kills the volume down key for whatever reason. In any
+		 * case, they are both on &pm8150b_gpios: camera focus(2), camera snapshot(1).
+		 */
+
+		vol-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&pm8150_gpios 1 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			gpio-key,wakeup;
+		};
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -434,6 +454,16 @@
 	/* Qcom SMB1390_slave @ 18 */
 	/* HALO HL6111R Qi charger @ 25 */
 	/* Richwave RTC6226 FM Radio Receiver @ 64 */
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+
+	linux,code = <KEY_VOLUMEUP>;
 };
 
 &qupv3_id_0 {

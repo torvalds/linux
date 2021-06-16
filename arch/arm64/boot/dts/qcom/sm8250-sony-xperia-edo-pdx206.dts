@@ -18,6 +18,17 @@
 	stride = <(1080 * 4)>;
 };
 
+&gpio_keys {
+	g-assist-key {
+		label = "Google Assistant Key";
+		linux,code = <KEY_LEFTMETA>;
+		gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;
+		debounce-interval = <15>;
+		linux,can-disable;
+		gpio-key,wakeup;
+	};
+};
+
 &vreg_l2f_1p3 {
 	regulator-min-microvolt = <1200000>;
 	regulator-max-microvolt = <1200000>;
