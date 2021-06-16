@@ -175,11 +175,7 @@ static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
 	/* Will do for now. Our pinned objects are still on TTM's LRU lists */
-	if (!i915_gem_object_evictable(obj))
-		return false;
-
-	/* This isn't valid with a buddy allocator */
-	return ttm_bo_eviction_valuable(bo, place);
+	return i915_gem_object_evictable(obj);
 }
 
 static void i915_ttm_evict_flags(struct ttm_buffer_object *bo,
@@ -654,19 +650,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	static struct lock_class_key lock_class;
 	struct drm_i915_private *i915 = mem->i915;
 	enum ttm_bo_type bo_type;
-	size_t alignment = 0;
 	int ret;
-
-	/* Adjust alignment to GPU- and CPU huge page sizes. */
-
-	if (mem->is_range_manager) {
-		if (size >= SZ_1G)
-			alignment = SZ_1G >> PAGE_SHIFT;
-		else if (size >= SZ_2M)
-			alignment = SZ_2M >> PAGE_SHIFT;
-		else if (size >= SZ_64K)
-			alignment = SZ_64K >> PAGE_SHIFT;
-	}
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &i915_gem_ttm_obj_ops, &lock_class, flags);
@@ -688,7 +672,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	 */
 	obj->base.vma_node.driver_private = i915_gem_to_ttm(obj);
 	ret = ttm_bo_init(&i915->bdev, i915_gem_to_ttm(obj), size,
-			  bo_type, &i915_sys_placement, alignment,
+			  bo_type, &i915_sys_placement, 1,
 			  true, NULL, NULL, i915_ttm_bo_destroy);
 
 	if (!ret)
