@@ -149,6 +149,7 @@ bool hugetlb_reserve_pages(struct inode *inode, long from, long to,
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 						long freed);
 bool isolate_huge_page(struct page *page, struct list_head *list);
+int get_hwpoison_huge_page(struct page *page, bool *hugetlb);
 void putback_active_hugepage(struct page *page);
 void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
 void free_huge_page(struct page *page);
@@ -337,6 +338,11 @@ static inline pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
 static inline bool isolate_huge_page(struct page *page, struct list_head *list)
 {
 	return false;
+}
+
+static inline int get_hwpoison_huge_page(struct page *page, bool *hugetlb)
+{
+	return 0;
 }
 
 static inline void putback_active_hugepage(struct page *page)
