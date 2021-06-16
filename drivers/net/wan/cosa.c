@@ -355,7 +355,8 @@ static int __init cosa_init(void)
 			goto out;
 		}
 	} else {
-		if (!(cosa_major=register_chrdev(0, "cosa", &cosa_fops))) {
+		cosa_major = register_chrdev(0, "cosa", &cosa_fops);
+		if (!cosa_major) {
 			pr_warn("unable to register chardev\n");
 			err = -EIO;
 			goto out;
@@ -563,7 +564,8 @@ static int cosa_probe(int base, int irq, int dma)
 		sema_init(&chan->wsem, 1);
 
 		/* Register the network interface */
-		if (!(chan->netdev = alloc_hdlcdev(chan))) {
+		chan->netdev = alloc_hdlcdev(chan);
+		if (!chan->netdev) {
 			pr_warn("%s: alloc_hdlcdev failed\n", chan->name);
 			err = -ENOMEM;
 			goto err_hdlcdev;
@@ -925,15 +927,15 @@ static int cosa_open(struct inode *inode, struct file *file)
 	int ret = 0;
 
 	mutex_lock(&cosa_chardev_mutex);
-	if ((n=iminor(file_inode(file))>>CARD_MINOR_BITS)
-		>= nr_cards) {
+	n = iminor(file_inode(file)) >> CARD_MINOR_BITS;
+	if (n >= nr_cards) {
 		ret = -ENODEV;
 		goto out;
 	}
 	cosa = cosa_cards+n;
 
-	if ((n=iminor(file_inode(file))
-		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels) {
+	n = iminor(file_inode(file)) & ((1 << CARD_MINOR_BITS) - 1);
+	if (n >= cosa->nchannels) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1095,7 +1097,8 @@ static inline int cosa_start(struct cosa_data *cosa, int address)
 		return -EPERM;
 	}
 	cosa->firmware_status &= ~COSA_FW_RESET;
-	if ((i=startmicrocode(cosa, address)) < 0) {
+	i = startmicrocode(cosa, address);
+	if (i < 0) {
 		pr_notice("cosa%d: start microcode at 0x%04x failed: %d\n",
 			  cosa->num, address, i);
 		return -EIO;
@@ -1475,7 +1478,8 @@ static int readmem(struct cosa_data *cosa, char __user *microcode, int length, i
 		char c;
 		int i;
 
-		if ((i=get_wait_data(cosa)) == -1) {
+		i = get_wait_data(cosa);
+		if (i == -1) {
 			pr_info("0x%04x bytes remaining\n", length);
 			return -11;
 		}
@@ -1523,9 +1527,10 @@ static int cosa_reset_and_read_id(struct cosa_data *cosa, char *idstring)
 	 * the port returns '\r', '\n' or '\x2e' permanently.
 	 */
 	for (i=0; i<COSA_MAX_ID_STRING-1; i++, prev=curr) {
-		if ((curr = get_wait_data(cosa)) == -1) {
+		curr = get_wait_data(cosa);
+		if (curr == -1)
 			return -1;
-		}
+
 		curr &= 0xff;
 		if (curr != '\r' && curr != '\n' && curr != 0x2e)
 			idstring[id++] = curr;
