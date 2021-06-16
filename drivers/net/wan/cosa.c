@@ -238,14 +238,14 @@ MODULE_LICENSE("GPL");
 #define cosa_inw  inw
 #endif
 
-#define is_8bit(cosa)		(!(cosa->datareg & 0x08))
+#define is_8bit(cosa)		(!((cosa)->datareg & 0x08))
 
-#define cosa_getstatus(cosa)	(cosa_inb(cosa->statusreg))
-#define cosa_putstatus(cosa, stat)	(cosa_outb(stat, cosa->statusreg))
-#define cosa_getdata16(cosa)	(cosa_inw(cosa->datareg))
-#define cosa_getdata8(cosa)	(cosa_inb(cosa->datareg))
-#define cosa_putdata16(cosa, dt)	(cosa_outw(dt, cosa->datareg))
-#define cosa_putdata8(cosa, dt)	(cosa_outb(dt, cosa->datareg))
+#define cosa_getstatus(cosa)	(cosa_inb((cosa)->statusreg))
+#define cosa_putstatus(cosa, stat)	(cosa_outb(stat, (cosa)->statusreg))
+#define cosa_getdata16(cosa)	(cosa_inw((cosa)->datareg))
+#define cosa_getdata8(cosa)	(cosa_inb((cosa)->datareg))
+#define cosa_putdata16(cosa, dt)	(cosa_outw(dt, (cosa)->datareg))
+#define cosa_putdata8(cosa, dt)	(cosa_outb(dt, (cosa)->datareg))
 
 /* Initialization stuff */
 static int cosa_probe(int ioaddr, int irq, int dma);
