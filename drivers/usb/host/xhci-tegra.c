@@ -1454,12 +1454,16 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		return PTR_ERR(tegra->padctl);
 
 	np = of_parse_phandle(pdev->dev.of_node, "nvidia,xusb-padctl", 0);
-	if (!np)
-		return -ENODEV;
+	if (!np) {
+		err = -ENODEV;
+		goto put_padctl;
+	}
 
 	tegra->padctl_irq = of_irq_get(np, 0);
-	if (tegra->padctl_irq <= 0)
-		return (tegra->padctl_irq == 0) ? -ENODEV : tegra->padctl_irq;
+	if (tegra->padctl_irq <= 0) {
+		err = (tegra->padctl_irq == 0) ? -ENODEV : tegra->padctl_irq;
+		goto put_padctl;
+	}
 
 	tegra->host_clk = devm_clk_get(&pdev->dev, "xusb_host");
 	if (IS_ERR(tegra->host_clk)) {
