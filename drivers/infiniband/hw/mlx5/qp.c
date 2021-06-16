@@ -1173,69 +1173,59 @@ static void destroy_flow_rule_vport_sq(struct mlx5_ib_sq *sq)
 	sq->flow_rule = NULL;
 }
 
-static int get_rq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
+static bool fr_supported(int ts_cap)
 {
-	bool fr_supported =
-		MLX5_CAP_GEN(dev->mdev, rq_ts_format) ==
-			MLX5_RQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING ||
-		MLX5_CAP_GEN(dev->mdev, rq_ts_format) ==
-			MLX5_RQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
+	return ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING ||
+	       ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
+}
 
-	if (send_cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION) {
-		if (!fr_supported) {
-			mlx5_ib_dbg(dev, "Free running TS format is not supported\n");
+static int get_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
+			 bool fr_sup)
+{
+	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION) {
+		if (!fr_sup) {
+			mlx5_ib_dbg(dev,
+				    "Free running TS format is not supported\n");
 			return -EOPNOTSUPP;
 		}
-		return MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
+		return MLX5_TIMESTAMP_FORMAT_FREE_RUNNING;
 	}
-	return fr_supported ? MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING :
-			      MLX5_RQC_TIMESTAMP_FORMAT_DEFAULT;
+	return fr_sup ? MLX5_TIMESTAMP_FORMAT_FREE_RUNNING :
+			MLX5_TIMESTAMP_FORMAT_DEFAULT;
+}
+
+static int get_rq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *recv_cq)
+{
+	u8 ts_cap = MLX5_CAP_GEN(dev->mdev, rq_ts_format);
+
+	return get_ts_format(dev, recv_cq, fr_supported(ts_cap));
 }
 
 static int get_sq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
 {
-	bool fr_supported =
-		MLX5_CAP_GEN(dev->mdev, sq_ts_format) ==
-			MLX5_SQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING ||
-		MLX5_CAP_GEN(dev->mdev, sq_ts_format) ==
-			MLX5_SQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
+	u8 ts_cap = MLX5_CAP_GEN(dev->mdev, sq_ts_format);
 
-	if (send_cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION) {
-		if (!fr_supported) {
-			mlx5_ib_dbg(dev, "Free running TS format is not supported\n");
-			return -EOPNOTSUPP;
-		}
-		return MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
-	}
-	return fr_supported ? MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING :
-			      MLX5_SQC_TIMESTAMP_FORMAT_DEFAULT;
+	return get_ts_format(dev, send_cq, fr_supported(ts_cap));
 }
 
 static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
 			    struct mlx5_ib_cq *recv_cq)
 {
-	bool fr_supported =
-		MLX5_CAP_ROCE(dev->mdev, qp_ts_format) ==
-			MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING ||
-		MLX5_CAP_ROCE(dev->mdev, qp_ts_format) ==
-			MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
-	int ts_format = fr_supported ? MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING :
-				       MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT;
+	u8 ts_cap = MLX5_CAP_ROCE(dev->mdev, qp_ts_format);
+	bool fr_sup = fr_supported(ts_cap);
+	u8 default_ts = fr_sup ? MLX5_TIMESTAMP_FORMAT_FREE_RUNNING :
+				 MLX5_TIMESTAMP_FORMAT_DEFAULT;
+	int send_ts_format =
+		send_cq ? get_ts_format(dev, send_cq, fr_sup) :
+			  default_ts;
+	int recv_ts_format =
+		recv_cq ? get_ts_format(dev, recv_cq, fr_sup) :
+			  default_ts;
 
-	if (recv_cq &&
-	    recv_cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION)
-		ts_format = MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING;
-
-	if (send_cq &&
-	    send_cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION)
-		ts_format = MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING;
-
-	if (ts_format == MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING &&
-	    !fr_supported) {
-		mlx5_ib_dbg(dev, "Free running TS format is not supported\n");
+	if (send_ts_format < 0 || recv_ts_format < 0)
 		return -EOPNOTSUPP;
-	}
-	return ts_format;
+
+	return send_ts_format == default_ts ? recv_ts_format : send_ts_format;
 }
 
 static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
