@@ -453,7 +453,7 @@
 
 	cd-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default", "sleep";
-	pinctrl-1 = <&sdc2_default_state &sdc2_card_det_n>;
+	pinctrl-0 = <&sdc2_default_state &sdc2_card_det_n>;
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
 	vmmc-supply = <&vreg_l9c_2p9>;
 	vqmmc-supply = <&vreg_l6c_2p9>;
