@@ -128,13 +128,19 @@ static unsigned int rt6160_get_mode(struct regulator_dev *rdev)
 static int rt6160_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
 	struct regmap *regmap = rdev_get_regmap(rdev);
+	unsigned int suspend_vsel_reg;
 	int vsel;
 
 	vsel = regulator_map_voltage_linear(rdev, uV, uV);
 	if (vsel < 0)
 		return vsel;
 
-	return regmap_update_bits(regmap, rdev->desc->vsel_reg,
+	if (rdev->desc->vsel_reg == RT6160_REG_VSELL)
+		suspend_vsel_reg = RT6160_REG_VSELH;
+	else
+		suspend_vsel_reg = RT6160_REG_VSELL;
+
+	return regmap_update_bits(regmap, suspend_vsel_reg,
 				  RT6160_VSEL_MASK, vsel);
 }
 
