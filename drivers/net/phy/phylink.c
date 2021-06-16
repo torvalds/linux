@@ -182,7 +182,8 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 			pl->link_config.duplex = DUPLEX_FULL;
 
 		/* We treat the "pause" and "asym-pause" terminology as
-		 * defining the link partner's ability. */
+		 * defining the link partner's ability.
+		 */
 		if (fwnode_property_read_bool(fixed_node, "pause"))
 			__set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 				  pl->link_config.lp_advertising);
@@ -685,7 +686,8 @@ static void phylink_resolve(struct work_struct *w)
 			phylink_mac_pcs_get_state(pl, &link_state);
 
 			/* If we have a phy, the "up" state is the union of
-			 * both the PHY and the MAC */
+			 * both the PHY and the MAC
+			 */
 			if (pl->phydev)
 				link_state.link &= pl->phy_state.link;
 
@@ -694,7 +696,8 @@ static void phylink_resolve(struct work_struct *w)
 				link_state.interface = pl->phy_state.interface;
 
 				/* If we have a PHY, we need to update with
-				 * the PHY flow control bits. */
+				 * the PHY flow control bits.
+				 */
 				link_state.pause = pl->phy_state.pause;
 				mac_config = true;
 			}
