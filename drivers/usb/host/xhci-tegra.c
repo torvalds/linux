@@ -1755,6 +1755,7 @@ put_hcd:
 put_powerdomains:
 	tegra_xusb_powerdomain_remove(&pdev->dev, tegra);
 put_padctl:
+	of_node_put(np);
 	tegra_xusb_padctl_put(tegra->padctl);
 	return err;
 }
