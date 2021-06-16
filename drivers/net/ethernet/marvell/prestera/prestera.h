@@ -67,9 +67,12 @@ struct prestera_lag {
 	u16 lag_id;
 };
 
+struct prestera_flow_block;
+
 struct prestera_port {
 	struct net_device *dev;
 	struct prestera_switch *sw;
+	struct prestera_flow_block *flow_block;
 	struct devlink_port dl_port;
 	struct list_head lag_member;
 	struct prestera_lag *lag;
@@ -171,11 +174,13 @@ struct prestera_event {
 struct prestera_switchdev;
 struct prestera_rxtx;
 struct prestera_trap_data;
+struct prestera_acl;
 
 struct prestera_switch {
 	struct prestera_device *dev;
 	struct prestera_switchdev *swdev;
 	struct prestera_rxtx *rxtx;
+	struct prestera_acl *acl;
 	struct list_head event_handlers;
 	struct notifier_block netdev_nb;
 	struct prestera_trap_data *trap_data;

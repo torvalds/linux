@@ -100,6 +100,7 @@ struct prestera_port_stats;
 struct prestera_port_caps;
 enum prestera_event_type;
 struct prestera_event;
+struct prestera_acl_rule;
 
 typedef void (*prestera_event_cb_t)
 	(struct prestera_switch *sw, struct prestera_event *evt, void *arg);
@@ -170,6 +171,22 @@ int prestera_hw_bridge_create(struct prestera_switch *sw, u16 *bridge_id);
 int prestera_hw_bridge_delete(struct prestera_switch *sw, u16 bridge_id);
 int prestera_hw_bridge_port_add(struct prestera_port *port, u16 bridge_id);
 int prestera_hw_bridge_port_delete(struct prestera_port *port, u16 bridge_id);
+
+/* ACL API */
+int prestera_hw_acl_ruleset_create(struct prestera_switch *sw,
+				   u16 *ruleset_id);
+int prestera_hw_acl_ruleset_del(struct prestera_switch *sw,
+				u16 ruleset_id);
+int prestera_hw_acl_rule_add(struct prestera_switch *sw,
+			     struct prestera_acl_rule *rule,
+			     u32 *rule_id);
+int prestera_hw_acl_rule_del(struct prestera_switch *sw, u32 rule_id);
+int prestera_hw_acl_rule_stats_get(struct prestera_switch *sw,
+				   u32 rule_id, u64 *packets, u64 *bytes);
+int prestera_hw_acl_port_bind(const struct prestera_port *port,
+			      u16 ruleset_id);
+int prestera_hw_acl_port_unbind(const struct prestera_port *port,
+				u16 ruleset_id);
 
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
