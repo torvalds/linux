@@ -418,6 +418,9 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 			dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	}
 
+	if (intel_dp->psr.req_psr2_sdp_prior_scanline)
+		dpcd_val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
+
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
@@ -584,6 +587,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_IO_BUFFER_WAKE(7);
 		val |= EDP_PSR2_FAST_WAKE(7);
 	}
+
+	if (intel_dp->psr.req_psr2_sdp_prior_scanline)
+		val |= EDP_PSR2_SU_SDP_SCANLINE;
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		/* WA 1408330847 */
@@ -814,6 +820,29 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 	return true;
 }
 
+static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_dp,
+							struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode = &crtc_state->uapi.adjusted_mode;
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 hblank_total, hblank_ns, req_ns;
+
+	hblank_total = adjusted_mode->crtc_hblank_end - adjusted_mode->crtc_hblank_start;
+	hblank_ns = div_u64(1000000ULL * hblank_total, adjusted_mode->crtc_clock);
+
+	/* From spec: (72 / number of lanes) * 1000 / symbol clock frequency MHz */
+	req_ns = (72 / crtc_state->lane_count) * 1000 / (crtc_state->port_clock / 1000);
+
+	if ((hblank_ns - req_ns) > 100)
+		return true;
+
+	if (DISPLAY_VER(dev_priv) < 13 || intel_dp->edp_dpcd[0] < DP_EDP_14b)
+		return false;
+
+	crtc_state->req_psr2_sdp_prior_scanline = true;
+	return true;
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -923,6 +952,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			    crtc_hdisplay, crtc_vdisplay,
 			    psr_max_h, psr_max_v);
+		return false;
+	}
+
+	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, PSR2 SDP indication do not fit in hblank\n");
 		return false;
 	}
 
@@ -1173,6 +1208,8 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_dp->psr.dc3co_exit_delay = val;
 	intel_dp->psr.dc3co_exitline = crtc_state->dc3co_exitline;
 	intel_dp->psr.psr2_sel_fetch_enabled = crtc_state->enable_psr2_sel_fetch;
+	intel_dp->psr.req_psr2_sdp_prior_scanline =
+		crtc_state->req_psr2_sdp_prior_scanline;
 
 	if (!psr_interrupt_error_check(intel_dp))
 		return;
