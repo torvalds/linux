@@ -2109,16 +2109,56 @@ static int acpi_dev_get_first_consumer_dev_cb(struct acpi_dep_data *dep, void *d
 	return 0;
 }
 
+struct acpi_scan_clear_dep_work {
+	struct work_struct work;
+	struct acpi_device *adev;
+};
+
+static void acpi_scan_clear_dep_fn(struct work_struct *work)
+{
+	struct acpi_scan_clear_dep_work *cdw;
+
+	cdw = container_of(work, struct acpi_scan_clear_dep_work, work);
+
+	acpi_scan_lock_acquire();
+	acpi_bus_attach(cdw->adev, true);
+	acpi_scan_lock_release();
+
+	acpi_dev_put(cdw->adev);
+	kfree(cdw);
+}
+
+static bool acpi_scan_clear_dep_queue(struct acpi_device *adev)
+{
+	struct acpi_scan_clear_dep_work *cdw;
+
+	if (adev->dep_unmet)
+		return false;
+
+	cdw = kmalloc(sizeof(*cdw), GFP_KERNEL);
+	if (!cdw)
+		return false;
+
+	cdw->adev = adev;
+	INIT_WORK(&cdw->work, acpi_scan_clear_dep_fn);
+	/*
+	 * Since the work function may block on the lock until the entire
+	 * initial enumeration of devices is complete, put it into the unbound
+	 * workqueue.
+	 */
+	queue_work(system_unbound_wq, &cdw->work);
+
+	return true;
+}
+
 static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
 {
-	struct acpi_device *adev;
-
-	acpi_bus_get_device(dep->consumer, &adev);
+	struct acpi_device *adev = acpi_bus_get_acpi_device(dep->consumer);
 
 	if (adev) {
 		adev->dep_unmet--;
-		if (!adev->dep_unmet)
-			acpi_bus_attach(adev, true);
+		if (!acpi_scan_clear_dep_queue(adev))
+			acpi_dev_put(adev);
 	}
 
 	list_del(&dep->node);
