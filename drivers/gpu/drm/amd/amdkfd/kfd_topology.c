@@ -1222,6 +1222,28 @@ static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
 	}
 }
 
+static void kfd_set_iolink_non_coherent(struct kfd_topology_device *to_dev,
+		struct kfd_iolink_properties *outbound_link,
+		struct kfd_iolink_properties *inbound_link)
+{
+	/* CPU -> GPU with PCIe */
+	if (!to_dev->gpu &&
+	    inbound_link->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
+		inbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
+
+	if (to_dev->gpu) {
+		/* GPU <-> GPU with PCIe and
+		 * Vega20 with XGMI
+		 */
+		if (inbound_link->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS ||
+		    (inbound_link->iolink_type == CRAT_IOLINK_TYPE_XGMI &&
+		    to_dev->gpu->device_info->asic_family == CHIP_VEGA20)) {
+			outbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
+			inbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
+		}
+	}
+}
+
 static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *link, *inbound_link;
@@ -1247,6 +1269,7 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 
 			inbound_link->flags = CRAT_IOLINK_FLAGS_ENABLED;
 			kfd_set_iolink_no_atomics(peer_dev, dev, inbound_link);
+			kfd_set_iolink_non_coherent(peer_dev, link, inbound_link);
 		}
 	}
 }
