@@ -633,23 +633,32 @@ static int acpi_device_set_name(struct acpi_device *device,
 	return 0;
 }
 
+static int acpi_tie_acpi_dev(struct acpi_device *adev)
+{
+	acpi_handle handle = adev->handle;
+	acpi_status status;
+
+	if (!handle)
+		return 0;
+
+	status = acpi_attach_data(handle, acpi_scan_drop_device, adev);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_err(handle, "Unable to attach device data\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))
 {
 	struct acpi_device_bus_id *acpi_device_bus_id;
 	int result;
 
-	if (device->handle) {
-		acpi_status status;
-
-		status = acpi_attach_data(device->handle, acpi_scan_drop_device,
-					  device);
-		if (ACPI_FAILURE(status)) {
-			acpi_handle_err(device->handle,
-					"Unable to attach device data\n");
-			return -ENODEV;
-		}
-	}
+	result = acpi_tie_acpi_dev(device);
+	if (result)
+		return result;
 
 	/*
 	 * Linkage
