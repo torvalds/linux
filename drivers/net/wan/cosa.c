@@ -1845,11 +1845,11 @@ reject:		/* Reject the packet */
 	disable_dma(cosa->dma);
 	clear_dma_ff(cosa->dma);
 	set_dma_mode(cosa->dma, DMA_MODE_READ);
-	if (cosa_dma_able(cosa->rxchan, cosa->rxbuf, cosa->rxsize & 0x1fff)) {
+	if (cosa_dma_able(cosa->rxchan, cosa->rxbuf, cosa->rxsize & 0x1fff))
 		set_dma_addr(cosa->dma, virt_to_bus(cosa->rxbuf));
-	} else {
+	else
 		set_dma_addr(cosa->dma, virt_to_bus(cosa->bouncebuf));
-	}
+
 	set_dma_count(cosa->dma, (cosa->rxsize&0x1fff));
 	enable_dma(cosa->dma);
 	release_dma_lock(flags);
