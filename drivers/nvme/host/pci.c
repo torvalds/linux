@@ -307,13 +307,12 @@ static void nvme_dbbuf_free(struct nvme_queue *nvmeq)
 
 static void nvme_dbbuf_set(struct nvme_dev *dev)
 {
-	struct nvme_command c;
+	struct nvme_command c = { };
 	unsigned int i;
 
 	if (!dev->dbbuf_dbs)
 		return;
 
-	memset(&c, 0, sizeof(c));
 	c.dbbuf.opcode = nvme_admin_dbbuf;
 	c.dbbuf.prp1 = cpu_to_le64(dev->dbbuf_dbs_dma_addr);
 	c.dbbuf.prp2 = cpu_to_le64(dev->dbbuf_eis_dma_addr);
@@ -1112,9 +1111,8 @@ static void nvme_pci_submit_async_event(struct nvme_ctrl *ctrl)
 {
 	struct nvme_dev *dev = to_nvme_dev(ctrl);
 	struct nvme_queue *nvmeq = &dev->queues[0];
-	struct nvme_command c;
+	struct nvme_command c = { };
 
-	memset(&c, 0, sizeof(c));
 	c.common.opcode = nvme_admin_async_event;
 	c.common.command_id = NVME_AQ_BLK_MQ_DEPTH;
 	nvme_submit_cmd(nvmeq, &c, true);
@@ -1122,9 +1120,8 @@ static void nvme_pci_submit_async_event(struct nvme_ctrl *ctrl)
 
 static int adapter_delete_queue(struct nvme_dev *dev, u8 opcode, u16 id)
 {
-	struct nvme_command c;
+	struct nvme_command c = { };
 
-	memset(&c, 0, sizeof(c));
 	c.delete_queue.opcode = opcode;
 	c.delete_queue.qid = cpu_to_le16(id);
 
@@ -1134,7 +1131,7 @@ static int adapter_delete_queue(struct nvme_dev *dev, u8 opcode, u16 id)
 static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
 		struct nvme_queue *nvmeq, s16 vector)
 {
-	struct nvme_command c;
+	struct nvme_command c = { };
 	int flags = NVME_QUEUE_PHYS_CONTIG;
 
 	if (!test_bit(NVMEQ_POLLED, &nvmeq->flags))
@@ -1144,7 +1141,6 @@ static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
 	 * Note: we (ab)use the fact that the prp fields survive if no data
 	 * is attached to the request.
 	 */
-	memset(&c, 0, sizeof(c));
 	c.create_cq.opcode = nvme_admin_create_cq;
 	c.create_cq.prp1 = cpu_to_le64(nvmeq->cq_dma_addr);
 	c.create_cq.cqid = cpu_to_le16(qid);
@@ -1159,7 +1155,7 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 						struct nvme_queue *nvmeq)
 {
 	struct nvme_ctrl *ctrl = &dev->ctrl;
-	struct nvme_command c;
+	struct nvme_command c = { };
 	int flags = NVME_QUEUE_PHYS_CONTIG;
 
 	/*
@@ -1174,7 +1170,6 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 	 * Note: we (ab)use the fact that the prp fields survive if no data
 	 * is attached to the request.
 	 */
-	memset(&c, 0, sizeof(c));
 	c.create_sq.opcode = nvme_admin_create_sq;
 	c.create_sq.prp1 = cpu_to_le64(nvmeq->sq_dma_addr);
 	c.create_sq.sqid = cpu_to_le16(qid);
@@ -1255,7 +1250,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	struct nvme_queue *nvmeq = iod->nvmeq;
 	struct nvme_dev *dev = nvmeq->dev;
 	struct request *abort_req;
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 	u32 csts = readl(dev->bar + NVME_REG_CSTS);
 
 	/* If PCI error recovery process is happening, we cannot reset or
@@ -1335,7 +1330,6 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	}
 	iod->aborted = 1;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.abort.opcode = nvme_admin_abort_cmd;
 	cmd.abort.cid = req->tag;
 	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
@@ -1886,10 +1880,9 @@ static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 {
 	u32 host_mem_size = dev->host_mem_size >> NVME_CTRL_PAGE_SHIFT;
 	u64 dma_addr = dev->host_mem_descs_dma;
-	struct nvme_command c;
+	struct nvme_command c = { };
 	int ret;
 
-	memset(&c, 0, sizeof(c));
 	c.features.opcode	= nvme_admin_set_features;
 	c.features.fid		= cpu_to_le32(NVME_FEAT_HOST_MEM_BUF);
 	c.features.dword11	= cpu_to_le32(bits);
@@ -2263,9 +2256,8 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 {
 	struct request_queue *q = nvmeq->dev->ctrl.admin_q;
 	struct request *req;
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.delete_queue.opcode = opcode;
 	cmd.delete_queue.qid = cpu_to_le16(nvmeq->qid);
 
