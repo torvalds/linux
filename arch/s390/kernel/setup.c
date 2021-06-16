@@ -797,7 +797,7 @@ static void __init reserve_kernel(void)
 {
 	unsigned long start_pfn = PFN_UP(__pa(_end));
 
-	memblock_reserve(0, HEAD_END);
+	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
 }
