@@ -117,10 +117,10 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 	return true;
 }
 
-static void __encode_table_header_to_buff(struct amdgpu_ras_eeprom_table_header *hdr,
-					  unsigned char *buff)
+static void __encode_table_header_to_buf(struct amdgpu_ras_eeprom_table_header *hdr,
+					 unsigned char *buf)
 {
-	uint32_t *pp = (uint32_t *) buff;
+	uint32_t *pp = (uint32_t *) buf;
 
 	pp[0] = cpu_to_le32(hdr->header);
 	pp[1] = cpu_to_le32(hdr->version);
@@ -129,10 +129,10 @@ static void __encode_table_header_to_buff(struct amdgpu_ras_eeprom_table_header 
 	pp[4] = cpu_to_le32(hdr->checksum);
 }
 
-static void __decode_table_header_from_buff(struct amdgpu_ras_eeprom_table_header *hdr,
-					  unsigned char *buff)
+static void __decode_table_header_from_buf(struct amdgpu_ras_eeprom_table_header *hdr,
+					   unsigned char *buf)
 {
-	uint32_t *pp = (uint32_t *)buff;
+	u32 *pp = (uint32_t *) buf;
 
 	hdr->header	      = le32_to_cpu(pp[0]);
 	hdr->version	      = le32_to_cpu(pp[1]);
@@ -142,18 +142,18 @@ static void __decode_table_header_from_buff(struct amdgpu_ras_eeprom_table_heade
 }
 
 static int __write_table_header(struct amdgpu_ras_eeprom_control *control,
-				unsigned char *buff)
+				unsigned char *buf)
 {
 	int ret = 0;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 
-	__encode_table_header_to_buff(&control->tbl_hdr, buff);
+	__encode_table_header_to_buf(&control->tbl_hdr, buf);
 
 	/* i2c may be unstable in gpu reset */
 	down_read(&adev->reset_sem);
 	ret = amdgpu_eeprom_write(&adev->pm.smu_i2c,
 				  control->i2c_address + RAS_HDR_START,
-				  buff, RAS_TABLE_HEADER_SIZE);
+				  buf, RAS_TABLE_HEADER_SIZE);
 	up_read(&adev->reset_sem);
 
 	if (ret < 1)
@@ -240,15 +240,15 @@ static int amdgpu_ras_eeprom_correct_header_tag(
 	struct amdgpu_ras_eeprom_control *control,
 	uint32_t header)
 {
-	unsigned char buff[RAS_TABLE_HEADER_SIZE];
+	unsigned char buf[RAS_TABLE_HEADER_SIZE];
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	int ret = 0;
 
-	memset(buff, 0, RAS_TABLE_HEADER_SIZE);
+	memset(buf, 0, RAS_TABLE_HEADER_SIZE);
 
 	mutex_lock(&control->tbl_mutex);
 	hdr->header = header;
-	ret = __write_table_header(control, buff);
+	ret = __write_table_header(control, buf);
 	mutex_unlock(&control->tbl_mutex);
 
 	return ret;
@@ -256,7 +256,7 @@ static int amdgpu_ras_eeprom_correct_header_tag(
 
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 {
-	unsigned char buff[RAS_TABLE_HEADER_SIZE] = { 0 };
+	unsigned char buf[RAS_TABLE_HEADER_SIZE] = { 0 };
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	int ret = 0;
 
@@ -269,7 +269,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 
 	__update_tbl_checksum(control, NULL, 0);
 	control->next_addr = RAS_RECORD_START;
-	ret = __write_table_header(control, buff);
+	ret = __write_table_header(control, buf);
 
 	mutex_unlock(&control->tbl_mutex);
 
@@ -282,7 +282,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 {
 	int ret = 0;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	unsigned char buff[RAS_TABLE_HEADER_SIZE] = { 0 };
+	unsigned char buf[RAS_TABLE_HEADER_SIZE] = { 0 };
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
@@ -303,13 +303,13 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	/* Read/Create table header from EEPROM address 0 */
 	ret = amdgpu_eeprom_read(&adev->pm.smu_i2c,
 				 control->i2c_address + RAS_HDR_START,
-				 buff, RAS_TABLE_HEADER_SIZE);
+				 buf, RAS_TABLE_HEADER_SIZE);
 	if (ret < 1) {
 		DRM_ERROR("Failed to read EEPROM table header, ret:%d", ret);
 		return ret;
 	}
 
-	__decode_table_header_from_buff(hdr, buff);
+	__decode_table_header_from_buf(hdr, buf);
 
 	if (hdr->header == RAS_TABLE_HDR_VAL) {
 		control->num_recs = (hdr->tbl_size - RAS_TABLE_HEADER_SIZE) /
@@ -341,57 +341,57 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	return ret > 0 ? 0 : -EIO;
 }
 
-static void __encode_table_record_to_buff(struct amdgpu_ras_eeprom_control *control,
-					  struct eeprom_table_record *record,
-					  unsigned char *buff)
+static void __encode_table_record_to_buf(struct amdgpu_ras_eeprom_control *control,
+					 struct eeprom_table_record *record,
+					 unsigned char *buf)
 {
 	__le64 tmp = 0;
 	int i = 0;
 
 	/* Next are all record fields according to EEPROM page spec in LE foramt */
-	buff[i++] = record->err_type;
+	buf[i++] = record->err_type;
 
-	buff[i++] = record->bank;
+	buf[i++] = record->bank;
 
 	tmp = cpu_to_le64(record->ts);
-	memcpy(buff + i, &tmp, 8);
+	memcpy(buf + i, &tmp, 8);
 	i += 8;
 
 	tmp = cpu_to_le64((record->offset & 0xffffffffffff));
-	memcpy(buff + i, &tmp, 6);
+	memcpy(buf + i, &tmp, 6);
 	i += 6;
 
-	buff[i++] = record->mem_channel;
-	buff[i++] = record->mcumc_id;
+	buf[i++] = record->mem_channel;
+	buf[i++] = record->mcumc_id;
 
 	tmp = cpu_to_le64((record->retired_page & 0xffffffffffff));
-	memcpy(buff + i, &tmp, 6);
+	memcpy(buf + i, &tmp, 6);
 }
 
-static void __decode_table_record_from_buff(struct amdgpu_ras_eeprom_control *control,
-					    struct eeprom_table_record *record,
-					    unsigned char *buff)
+static void __decode_table_record_from_buf(struct amdgpu_ras_eeprom_control *control,
+					   struct eeprom_table_record *record,
+					   unsigned char *buf)
 {
 	__le64 tmp = 0;
 	int i =  0;
 
 	/* Next are all record fields according to EEPROM page spec in LE foramt */
-	record->err_type = buff[i++];
+	record->err_type = buf[i++];
 
-	record->bank = buff[i++];
+	record->bank = buf[i++];
 
-	memcpy(&tmp, buff + i, 8);
+	memcpy(&tmp, buf + i, 8);
 	record->ts = le64_to_cpu(tmp);
 	i += 8;
 
-	memcpy(&tmp, buff + i, 6);
+	memcpy(&tmp, buf + i, 6);
 	record->offset = (le64_to_cpu(tmp) & 0xffffffffffff);
 	i += 6;
 
-	record->mem_channel = buff[i++];
-	record->mcumc_id = buff[i++];
+	record->mem_channel = buf[i++];
+	record->mcumc_id = buf[i++];
 
-	memcpy(&tmp, buff + i,  6);
+	memcpy(&tmp, buf + i,  6);
 	record->retired_page = (le64_to_cpu(tmp) & 0xffffffffffff);
 }
 
@@ -440,7 +440,7 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 				  const u32 num, bool write)
 {
 	int i, ret = 0;
-	unsigned char *buffs, *buff;
+	unsigned char *bufs, *buf;
 	struct eeprom_table_record *record;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -448,8 +448,8 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 	if (!__is_ras_eeprom_supported(adev))
 		return 0;
 
-	buffs = kcalloc(num, RAS_TABLE_RECORD_SIZE, GFP_KERNEL);
-	if (!buffs)
+	bufs = kcalloc(num, RAS_TABLE_RECORD_SIZE, GFP_KERNEL);
+	if (!bufs)
 		return -ENOMEM;
 
 	mutex_lock(&control->tbl_mutex);
@@ -485,27 +485,27 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 	 * 256b
 	 */
 	for (i = 0; i < num; i++) {
-		buff = &buffs[i * RAS_TABLE_RECORD_SIZE];
+		buf = &bufs[i * RAS_TABLE_RECORD_SIZE];
 		record = &records[i];
 
 		control->next_addr = __correct_eeprom_dest_address(control->next_addr);
 
 		/* EEPROM table content is stored in LE format */
 		if (write)
-			__encode_table_record_to_buff(control, record, buff);
+			__encode_table_record_to_buf(control, record, buf);
 
 		/* i2c may be unstable in gpu reset */
 		down_read(&adev->reset_sem);
 		ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c,
 					 control->i2c_address + control->next_addr,
-					 buff, RAS_TABLE_RECORD_SIZE, !write);
+					 buf, RAS_TABLE_RECORD_SIZE, !write);
 		up_read(&adev->reset_sem);
 
 		if (ret < 1) {
 			DRM_ERROR("Failed to process EEPROM table records, ret:%d", ret);
 
 			/* TODO Restore prev next EEPROM address ? */
-			goto free_buff;
+			goto free_buf;
 		}
 		/*
 		 * The destination EEPROM address might need to be corrected to account
@@ -516,10 +516,10 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 
 	if (!write) {
 		for (i = 0; i < num; i++) {
-			buff = &buffs[i * RAS_TABLE_RECORD_SIZE];
+			buf = &bufs[i * RAS_TABLE_RECORD_SIZE];
 			record = &records[i];
 
-			__decode_table_record_from_buff(control, record, buff);
+			__decode_table_record_from_buf(control, record, buf);
 		}
 	}
 
@@ -539,15 +539,15 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 			control->num_recs * RAS_TABLE_RECORD_SIZE;
 
 		__update_tbl_checksum(control, records, num);
-		__write_table_header(control, buffs);
+		__write_table_header(control, bufs);
 	} else if (!__verify_tbl_checksum(control, records, num)) {
 		DRM_WARN("EEPROM Table checksum mismatch!");
 		/* TODO Uncomment when EEPROM read/write is relliable */
 		/* ret = -EIO; */
 	}
 
-free_buff:
-	kfree(buffs);
+free_buf:
+	kfree(bufs);
 
 	mutex_unlock(&control->tbl_mutex);
 
