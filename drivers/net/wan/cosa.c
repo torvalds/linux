@@ -468,11 +468,11 @@ static int cosa_probe(int base, int irq, int dma)
 	}
 
 	/* Test the validity of identification string */
-	if (!strncmp(cosa->id_string, "SRP", 3))
+	if (!strncmp(cosa->id_string, "SRP", 3)) {
 		cosa->type = "srp";
-	else if (!strncmp(cosa->id_string, "COSA", 4))
+	} else if (!strncmp(cosa->id_string, "COSA", 4)) {
 		cosa->type = is_8bit(cosa)? "cosa8": "cosa16";
-	else {
+	} else {
 /* Print a warning only if we are not autoprobing */
 #ifndef COSA_ISA_AUTOPROBE
 		pr_info("valid signature not found at 0x%x\n", base);
