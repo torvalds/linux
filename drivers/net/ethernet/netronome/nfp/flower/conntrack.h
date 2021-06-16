@@ -152,4 +152,10 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
  * @entry:	Flow entry to cleanup
  */
 void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry);
+
+/**
+ * nfp_fl_ct_del_flow() - Handle flow_del callbacks for conntrack
+ * @ct_map_ent:	ct map entry for the flow that needs deleting
+ */
+int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent);
 #endif

@@ -424,8 +424,7 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	if (priv->ct_zone_wc)
 		nfp_ct_merge_tc_entries(ct_entry, priv->ct_zone_wc, zt);
 
-	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack action not supported");
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
@@ -487,6 +486,37 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 		nfp_ct_merge_tc_entries(ct_entry, zt, zt);
 	}
 
-	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack match not supported");
-	return -EOPNOTSUPP;
+	return 0;
+}
+
+int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
+{
+	struct nfp_fl_ct_flow_entry *ct_entry;
+	struct nfp_fl_ct_zone_entry *zt;
+	struct rhashtable *m_table;
+
+	zt = ct_map_ent->ct_entry->zt;
+	ct_entry = ct_map_ent->ct_entry;
+	m_table = &zt->priv->ct_map_table;
+
+	switch (ct_entry->type) {
+	case CT_TYPE_PRE_CT:
+		zt->pre_ct_count--;
+		rhashtable_remove_fast(m_table, &ct_map_ent->hash_node,
+				       nfp_ct_map_params);
+		nfp_fl_ct_clean_flow_entry(ct_entry);
+		kfree(ct_map_ent);
+		break;
+	case CT_TYPE_POST_CT:
+		zt->post_ct_count--;
+		rhashtable_remove_fast(m_table, &ct_map_ent->hash_node,
+				       nfp_ct_map_params);
+		nfp_fl_ct_clean_flow_entry(ct_entry);
+		kfree(ct_map_ent);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
