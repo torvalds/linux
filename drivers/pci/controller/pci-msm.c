@@ -1021,6 +1021,11 @@ static u32 msm_pcie_cesta_map[MAX_MAP_IDX][MAX_POWER_STATE] = {
 };
 
 #if IS_ENABLED(CONFIG_I2C)
+struct pcie_i2c_reg_update {
+	u32 offset;
+	u32 val;
+};
+
 /* i2c control interface for a i2c client device */
 struct pcie_i2c_ctrl {
 	struct i2c_client *client;
@@ -1031,6 +1036,8 @@ struct pcie_i2c_ctrl {
 	u32 ep_reset_gpio_mask;
 	u32 *dump_regs;
 	u32 dump_reg_count;
+	struct pcie_i2c_reg_update *reg_update;
+	u32 reg_update_count;
 
 	/* client specific callbacks */
 	int (*client_i2c_read)(struct i2c_client *client, u32 reg_addr,
@@ -1039,6 +1046,7 @@ struct pcie_i2c_ctrl {
 				u32 val);
 	int (*client_i2c_reset)(struct pcie_i2c_ctrl *i2c_ctrl, bool reset);
 	void (*client_i2c_dump_regs)(struct pcie_i2c_ctrl *i2c_ctrl);
+	void (*client_i2c_de_emphasis_wa)(struct pcie_i2c_ctrl *i2c_ctrl);
 };
 
 enum i2c_client_id {
@@ -5963,6 +5971,28 @@ static void ntn3_dump_regs(struct pcie_i2c_ctrl *i2c_ctrl)
 			  pcie_dev->rc_idx, i2c_ctrl->dump_regs[i], val);
 	}
 }
+
+static void ntn3_de_emphasis_wa(struct pcie_i2c_ctrl *i2c_ctrl)
+{
+	int i, val;
+	struct msm_pcie_dev_t *pcie_dev = container_of(i2c_ctrl,
+						       struct msm_pcie_dev_t,
+						       i2c_ctrl);
+
+	PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 reg update\n", pcie_dev->rc_idx);
+
+	for (i = 0; i < i2c_ctrl->reg_update_count; i++) {
+		i2c_ctrl->client_i2c_write(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
+					   i2c_ctrl->reg_update[i].val);
+		/*Read to make sure writes are completed*/
+		i2c_ctrl->client_i2c_read(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
+					   &val);
+		PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 reg off:0x%x wr_val:0x%x rd_val:0x%x\n",
+			pcie_dev->rc_idx, i2c_ctrl->reg_update[i].offset,
+			i2c_ctrl->reg_update[i].val, val);
+	}
+
+}
 #endif
 
 static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
@@ -6070,6 +6100,11 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 	usleep_range(dev->perst_delay_us_min, dev->perst_delay_us_max);
 
 	ep_up_timeout = jiffies + usecs_to_jiffies(EP_UP_TIMEOUT_US);
+
+#if IS_ENABLED(CONFIG_I2C)
+	if (dev->i2c_ctrl.client && dev->i2c_ctrl.client_i2c_de_emphasis_wa)
+		dev->i2c_ctrl.client_i2c_de_emphasis_wa(&dev->i2c_ctrl);
+#endif
 
 	ret = msm_pcie_link_train(dev);
 	if (ret)
@@ -8224,6 +8259,25 @@ static int msm_pcie_i2c_ctrl_init(struct msm_pcie_dev_t *pcie_dev)
 			i2c_ctrl->dump_reg_count = 0;
 	}
 
+	of_get_property(i2c_client_node, "reg_update", &size);
+
+	if (size) {
+		i2c_ctrl->reg_update = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!i2c_ctrl->reg_update) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		i2c_ctrl->reg_update_count = size / sizeof(*i2c_ctrl->reg_update);
+
+		ret = of_property_read_u32_array(i2c_client_node,
+						"reg_update",
+						(unsigned int *)i2c_ctrl->reg_update,
+						size/sizeof(i2c_ctrl->reg_update->offset));
+		if (ret)
+			i2c_ctrl->reg_update_count = 0;
+	}
+
 	return 0;
 
 err:
@@ -9792,6 +9846,7 @@ static int pcie_i2c_ctrl_probe(struct i2c_client *client,
 		i2c_ctrl->client_i2c_write = ntn3_i2c_write;
 		i2c_ctrl->client_i2c_reset = ntn3_ep_reset_ctrl;
 		i2c_ctrl->client_i2c_dump_regs = ntn3_dump_regs;
+		i2c_ctrl->client_i2c_de_emphasis_wa = ntn3_de_emphasis_wa;
 	} else {
 		dev_err(&client->dev, "invalid client id %d\n", client_id);
 	}
