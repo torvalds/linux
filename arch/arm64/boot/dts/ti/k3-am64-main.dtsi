@@ -24,8 +24,8 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x00 0x70000000 0x200000>;
 
-		atf-sram@0 {
-			reg = <0x0 0x1a000>;
+		tfa-sram@0 {
+			reg = <0x0 0x20000>;
 		};
 	};
 
