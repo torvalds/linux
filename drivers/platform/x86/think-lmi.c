@@ -873,6 +873,7 @@ static const struct wmi_device_id tlmi_id_table[] = {
 	{ .guid_string = LENOVO_BIOS_SETTING_GUID },
 	{ }
 };
+MODULE_DEVICE_TABLE(wmi, tlmi_id_table);
 
 static struct wmi_driver tlmi_driver = {
 	.driver = {
