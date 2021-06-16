@@ -15,7 +15,7 @@
 void
 efc_d_send_prli_rsp(struct efc_node *node, u16 ox_id)
 {
-	u32 rc = EFC_SCSI_CALL_COMPLETE;
+	int rc = EFC_SCSI_CALL_COMPLETE;
 	struct efc *efc = node->efc;
 
 	node->ls_acc_oxid = ox_id;
