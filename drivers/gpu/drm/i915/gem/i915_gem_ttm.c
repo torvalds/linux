@@ -672,9 +672,9 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	 */
 	obj->base.vma_node.driver_private = i915_gem_to_ttm(obj);
 	ret = ttm_bo_init(&i915->bdev, i915_gem_to_ttm(obj), size,
-			  bo_type, &i915_sys_placement, 1,
+			  bo_type, &i915_sys_placement,
+			  mem->min_page_size >> PAGE_SHIFT,
 			  true, NULL, NULL, i915_ttm_bo_destroy);
-
 	if (!ret)
 		obj->ttm.created = true;
 

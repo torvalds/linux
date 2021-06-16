@@ -28,7 +28,7 @@ static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 	struct sg_table *pages;
 	int err;
 
-	flags = I915_ALLOC_MIN_PAGE_SIZE;
+	flags = 0;
 	if (obj->flags & I915_BO_ALLOC_CONTIGUOUS)
 		flags |= TTM_PL_FLAG_CONTIGUOUS;
 

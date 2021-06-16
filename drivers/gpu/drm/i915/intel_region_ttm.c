@@ -167,7 +167,7 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	int ret;
 
 	mock_bo.base.size = size;
-	mock_bo.page_alignment = 1;
+	mock_bo.page_alignment = mem->min_page_size >> PAGE_SHIFT;
 	place.flags = flags;
 
 	ret = man->func->alloc(man, &mock_bo, &place, &res);
