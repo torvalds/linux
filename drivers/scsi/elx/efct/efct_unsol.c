@@ -342,7 +342,7 @@ efct_dispatch_fcp_cmd(struct efct_node *node, struct efc_hw_sequence *seq)
 	struct fc_frame_header *fchdr = seq->header->dma.virt;
 	struct fcp_cmnd	*cmnd = NULL;
 	struct efct_io *io = NULL;
-	u32 lun = U32_MAX;
+	u32 lun;
 
 	if (!seq->payload) {
 		efc_log_err(efct, "Sequence payload is NULL.\n");
