@@ -542,7 +542,34 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val |= EDP_PSR2_FRAME_BEFORE_SU(intel_dp->psr.sink_sync_latency + 1);
 	val |= intel_psr2_get_tp_time(intel_dp);
 
-	if (DISPLAY_VER(dev_priv) >= 12) {
+	/* Wa_22012278275:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_D1)) {
+		static const u8 map[] = {
+			2, /* 5 lines */
+			1, /* 6 lines */
+			0, /* 7 lines */
+			3, /* 8 lines */
+			6, /* 9 lines */
+			5, /* 10 lines */
+			4, /* 11 lines */
+			7, /* 12 lines */
+		};
+		/*
+		 * Still using the default IO_BUFFER_WAKE and FAST_WAKE, see
+		 * comments bellow for more information
+		 */
+		u32 tmp, lines = 7;
+
+		val |= TGL_EDP_PSR2_BLOCK_COUNT_NUM_2;
+
+		tmp = map[lines - TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES];
+		tmp = tmp << TGL_EDP_PSR2_IO_BUFFER_WAKE_SHIFT;
+		val |= tmp;
+
+		tmp = map[lines - TGL_EDP_PSR2_FAST_WAKE_MIN_LINES];
+		tmp = tmp << TGL_EDP_PSR2_FAST_WAKE_MIN_SHIFT;
+		val |= tmp;
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		/*
 		 * TODO: 7 lines of IO_BUFFER_WAKE and FAST_WAKE are default
 		 * values from BSpec. In order to setting an optimal power
