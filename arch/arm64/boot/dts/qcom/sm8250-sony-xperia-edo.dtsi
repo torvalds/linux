@@ -118,6 +118,10 @@
 	};
 };
 
+&adsp {
+	status = "okay";
+};
+
 &apps_rsc {
 	pm8150-rpmh-regulators {
 		compatible = "qcom,pm8150-rpmh-regulators";
@@ -410,6 +414,10 @@
 	};
 };
 
+&cdsp {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -514,6 +522,10 @@
 	bus-width = <4>;
 	no-sdio;
 	no-emmc;
+};
+
+&slpi {
+	status = "okay";
 };
 
 &tlmm {
