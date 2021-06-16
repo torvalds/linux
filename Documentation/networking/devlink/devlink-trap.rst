@@ -497,6 +497,7 @@ drivers:
 
   * :doc:`netdevsim`
   * :doc:`mlxsw`
+  * :doc:`prestera`
 
 .. _Generic-Packet-Trap-Groups:
 

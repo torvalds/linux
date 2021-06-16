@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=====================
+========================
 prestera devlink support
-=====================
+========================
 
 This document describes the devlink features implemented by the ``prestera``
 device driver.
