@@ -1045,6 +1045,7 @@ struct intel_crtc_state {
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
 	u32 dc3co_exitline;
+	u16 su_y_granularity;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -1502,7 +1503,8 @@ struct intel_psr {
 	ktime_t last_exit;
 	bool sink_not_reliable;
 	bool irq_aux_error;
-	u16 su_x_granularity;
+	u16 su_w_granularity;
+	u16 su_y_granularity;
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;

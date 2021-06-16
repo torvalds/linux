@@ -265,32 +265,44 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 	return val;
 }
 
-static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
+static void intel_dp_get_su_granularity(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	u16 val;
 	ssize_t r;
+	u16 w;
+	u8 y;
 
-	/*
-	 * Returning the default X granularity if granularity not required or
-	 * if DPCD read fails
-	 */
-	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED))
-		return 4;
+	/* If sink don't have specific granularity requirements set legacy ones */
+	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED)) {
+		/* As PSR2 HW sends full lines, we do not care about x granularity */
+		w = 4;
+		y = 4;
+		goto exit;
+	}
 
-	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &w, 2);
 	if (r != 2)
 		drm_dbg_kms(&i915->drm,
 			    "Unable to read DP_PSR2_SU_X_GRANULARITY\n");
-
 	/*
 	 * Spec says that if the value read is 0 the default granularity should
 	 * be used instead.
 	 */
-	if (r != 2 || val == 0)
-		val = 4;
+	if (r != 2 || w == 0)
+		w = 4;
 
-	return val;
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_Y_GRANULARITY, &y, 1);
+	if (r != 1) {
+		drm_dbg_kms(&i915->drm,
+			    "Unable to read DP_PSR2_SU_Y_GRANULARITY\n");
+		y = 4;
+	}
+	if (y == 0)
+		y = 1;
+
+exit:
+	intel_dp->psr.su_w_granularity = w;
+	intel_dp->psr.su_y_granularity = y;
 }
 
 void intel_psr_init_dpcd(struct intel_dp *intel_dp)
@@ -346,8 +358,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		if (intel_dp->psr.sink_psr2_support) {
 			intel_dp->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
-			intel_dp->psr.su_x_granularity =
-				intel_dp_get_su_x_granulartiy(intel_dp);
+			intel_dp_get_su_granularity(intel_dp);
 		}
 	}
 }
@@ -742,6 +753,40 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	return crtc_state->enable_psr2_sel_fetch = true;
 }
 
+static bool psr2_granularity_check(struct intel_dp *intel_dp,
+				   struct intel_crtc_state *crtc_state)
+{
+	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
+	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
+	u16 y_granularity = 0;
+
+	/* PSR2 HW only send full lines so we only need to validate the width */
+	if (crtc_hdisplay % intel_dp->psr.su_w_granularity)
+		return false;
+
+	if (crtc_vdisplay % intel_dp->psr.su_y_granularity)
+		return false;
+
+	/* HW tracking is only aligned to 4 lines */
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return intel_dp->psr.su_y_granularity == 4;
+
+	/*
+	 * For SW tracking we can adjust the y to match sink requirement if
+	 * multiple of 4
+	 */
+	if (intel_dp->psr.su_y_granularity <= 2)
+		y_granularity = 4;
+	else if ((intel_dp->psr.su_y_granularity % 4) == 0)
+		y_granularity = intel_dp->psr.su_y_granularity;
+
+	if (y_granularity == 0 || crtc_vdisplay % y_granularity)
+		return false;
+
+	crtc_state->su_y_granularity = y_granularity;
+	return true;
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -824,19 +869,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/*
-	 * HW sends SU blocks of size four scan lines, which means the starting
-	 * X coordinate and Y granularity requirements will always be met. We
-	 * only need to validate the SU block width is a multiple of
-	 * x granularity.
-	 */
-	if (crtc_hdisplay % intel_dp->psr.su_x_granularity) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
-			    crtc_hdisplay, intel_dp->psr.su_x_granularity);
-		return false;
-	}
-
 	if (HAS_PSR2_SEL_FETCH(dev_priv)) {
 		if (!intel_psr2_sel_fetch_config_valid(intel_dp, crtc_state) &&
 		    !HAS_PSR_HW_TRACKING(dev_priv)) {
@@ -850,6 +882,11 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B1)) {
 		drm_dbg_kms(&dev_priv->drm, "PSR2 HW tracking is not supported this Display stepping\n");
+		return false;
+	}
+
+	if (!psr2_granularity_check(intel_dp, crtc_state)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 not enabled, SU granularity not compatible\n");
 		return false;
 	}
 
@@ -1432,6 +1469,16 @@ static void clip_area_update(struct drm_rect *overlap_damage_area,
 		overlap_damage_area->y2 = damage_area->y2;
 }
 
+static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *crtc_state,
+						struct drm_rect *pipe_clip)
+{
+	const u16 y_alignment = crtc_state->su_y_granularity;
+
+	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
+	if (pipe_clip->y2 % y_alignment)
+		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
+}
+
 int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
@@ -1540,10 +1587,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if (full_update)
 		goto skip_sel_fetch_set_loop;
 
-	/* It must be aligned to 4 lines */
-	pipe_clip.y1 -= pipe_clip.y1 % 4;
-	if (pipe_clip.y2 % 4)
-		pipe_clip.y2 = ((pipe_clip.y2 / 4) + 1) * 4;
+	intel_psr2_sel_fetch_pipe_alignment(crtc_state, &pipe_clip);
 
 	/*
 	 * Now that we have the pipe damaged area check if it intersect with
