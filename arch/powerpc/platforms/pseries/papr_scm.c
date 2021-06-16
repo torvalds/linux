@@ -18,6 +18,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/papr_pdsm.h>
 #include <asm/mce.h>
+#include <asm/unaligned.h>
 
 #define BIND_ANY_ADDR (~0ul)
 
@@ -1047,8 +1048,9 @@ static int papr_scm_probe(struct platform_device *pdev)
 	u32 drc_index, metadata_size;
 	u64 blocks, block_size;
 	struct papr_scm_priv *p;
+	u8 uuid_raw[UUID_SIZE];
 	const char *uuid_str;
-	u64 uuid[2];
+	uuid_t uuid;
 	int rc;
 
 	/* check we have all the required DT properties */
@@ -1090,16 +1092,23 @@ static int papr_scm_probe(struct platform_device *pdev)
 	p->is_volatile = !of_property_read_bool(dn, "ibm,cache-flush-required");
 
 	/* We just need to ensure that set cookies are unique across */
-	uuid_parse(uuid_str, (uuid_t *) uuid);
+	uuid_parse(uuid_str, &uuid);
+
 	/*
-	 * cookie1 and cookie2 are not really little endian
-	 * we store a little endian representation of the
-	 * uuid str so that we can compare this with the label
-	 * area cookie irrespective of the endian config with which
-	 * the kernel is built.
+	 * The cookie1 and cookie2 are not really little endian.
+	 * We store a raw buffer representation of the
+	 * uuid string so that we can compare this with the label
+	 * area cookie irrespective of the endian configuration
+	 * with which the kernel is built.
+	 *
+	 * Historically we stored the cookie in the below format.
+	 * for a uuid string 72511b67-0b3b-42fd-8d1d-5be3cae8bcaa
+	 *	cookie1 was 0xfd423b0b671b5172
+	 *	cookie2 was 0xaabce8cae35b1d8d
 	 */
-	p->nd_set.cookie1 = cpu_to_le64(uuid[0]);
-	p->nd_set.cookie2 = cpu_to_le64(uuid[1]);
+	export_uuid(uuid_raw, &uuid);
+	p->nd_set.cookie1 = get_unaligned_le64(&uuid_raw[0]);
+	p->nd_set.cookie2 = get_unaligned_le64(&uuid_raw[8]);
 
 	/* might be zero */
 	p->metadata_size = metadata_size;
