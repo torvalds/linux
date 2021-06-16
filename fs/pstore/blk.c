@@ -108,6 +108,17 @@ struct bdev_info {
 	_##name_;						\
 })
 
+#define verify_size(name, alignsize, enabled) {			\
+	long _##name_;						\
+	if (enabled)						\
+		_##name_ = check_size(name, alignsize);		\
+	else							\
+		_##name_ = 0;					\
+	/* Synchronize module parameters with resuls. */	\
+	name = _##name_ / 1024;					\
+	pstore_zone_info->name = _##name_;			\
+}
+
 static int __register_pstore_device(struct pstore_device_info *dev)
 {
 	int ret;
@@ -143,21 +154,10 @@ static int __register_pstore_device(struct pstore_device_info *dev)
 	if (!dev->flags)
 		dev->flags = UINT_MAX;
 
-#define verify_size(name, alignsize, enabled) {				\
-		long _##name_;						\
-		if (enabled)						\
-			_##name_ = check_size(name, alignsize);		\
-		else							\
-			_##name_ = 0;					\
-		name = _##name_ / 1024;					\
-		pstore_zone_info->name = _##name_;			\
-	}
-
 	verify_size(kmsg_size, 4096, dev->flags & PSTORE_FLAGS_DMESG);
 	verify_size(pmsg_size, 4096, dev->flags & PSTORE_FLAGS_PMSG);
 	verify_size(console_size, 4096, dev->flags & PSTORE_FLAGS_CONSOLE);
 	verify_size(ftrace_size, 4096, dev->flags & PSTORE_FLAGS_FTRACE);
-#undef verify_size
 
 	pstore_zone_info->total_size = dev->total_size;
 	pstore_zone_info->max_reason = max_reason;
