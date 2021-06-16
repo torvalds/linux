@@ -165,6 +165,7 @@ config SND_FIREWIRE_MOTU
 	select SND_HWDEP
 	help
 	 Say Y here to enable support for FireWire devices which MOTU produced:
+	  * 828
 	  * 828mk2
 	  * Traveler
 	  * Ultralite
