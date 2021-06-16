@@ -246,10 +246,10 @@ static int amdgpu_ras_eeprom_correct_header_tag(
 
 	memset(buf, 0, RAS_TABLE_HEADER_SIZE);
 
-	mutex_lock(&control->tbl_mutex);
+	mutex_lock(&control->ras_tbl_mutex);
 	hdr->header = header;
 	ret = __write_table_header(control, buf);
-	mutex_unlock(&control->tbl_mutex);
+	mutex_unlock(&control->ras_tbl_mutex);
 
 	return ret;
 }
@@ -260,7 +260,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	int ret = 0;
 
-	mutex_lock(&control->tbl_mutex);
+	mutex_lock(&control->ras_tbl_mutex);
 
 	hdr->header = RAS_TABLE_HDR_VAL;
 	hdr->version = RAS_TABLE_VER;
@@ -271,7 +271,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	control->next_addr = RAS_RECORD_START;
 	ret = __write_table_header(control, buf);
 
-	mutex_unlock(&control->tbl_mutex);
+	mutex_unlock(&control->ras_tbl_mutex);
 
 	return ret;
 
@@ -298,7 +298,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	if (!__get_eeprom_i2c_addr(adev, control))
 		return -EINVAL;
 
-	mutex_init(&control->tbl_mutex);
+	mutex_init(&control->ras_tbl_mutex);
 
 	/* Read/Create table header from EEPROM address 0 */
 	ret = amdgpu_eeprom_read(&adev->pm.smu_i2c,
@@ -312,17 +312,17 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	__decode_table_header_from_buf(hdr, buf);
 
 	if (hdr->header == RAS_TABLE_HDR_VAL) {
-		control->num_recs = (hdr->tbl_size - RAS_TABLE_HEADER_SIZE) /
+		control->ras_num_recs = (hdr->tbl_size - RAS_TABLE_HEADER_SIZE) /
 				    RAS_TABLE_RECORD_SIZE;
 		control->tbl_byte_sum = __calc_hdr_byte_sum(control);
 		control->next_addr = RAS_RECORD_START;
 
 		DRM_DEBUG_DRIVER("Found existing EEPROM table with %d records",
-				 control->num_recs);
+				 control->ras_num_recs);
 
 	} else if ((hdr->header == RAS_TABLE_HDR_BAD) &&
 			(amdgpu_bad_page_threshold != 0)) {
-		if (ras->bad_page_cnt_threshold > control->num_recs) {
+		if (ras->bad_page_cnt_threshold > control->ras_num_recs) {
 			dev_info(adev->dev, "Using one valid bigger bad page "
 				"threshold and correcting eeprom header tag.\n");
 			ret = amdgpu_ras_eeprom_correct_header_tag(control,
@@ -452,7 +452,7 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 	if (!bufs)
 		return -ENOMEM;
 
-	mutex_lock(&control->tbl_mutex);
+	mutex_lock(&control->ras_tbl_mutex);
 
 	/*
 	 * If saved bad pages number exceeds the bad page threshold for
@@ -466,10 +466,10 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 	 * further check.
 	 */
 	if (write && (amdgpu_bad_page_threshold != 0) &&
-		((control->num_recs + num) >= ras->bad_page_cnt_threshold)) {
+		((control->ras_num_recs + num) >= ras->bad_page_cnt_threshold)) {
 		dev_warn(adev->dev,
 			"Saved bad pages(%d) reaches threshold value(%d).\n",
-			control->num_recs + num, ras->bad_page_cnt_threshold);
+			control->ras_num_recs + num, ras->bad_page_cnt_threshold);
 		control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
 	}
 
@@ -531,12 +531,12 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 		 *
 		 * TODO - Check the assumption is correct
 		 */
-		control->num_recs += num;
-		control->num_recs %= RAS_MAX_RECORD_COUNT;
+		control->ras_num_recs += num;
+		control->ras_num_recs %= RAS_MAX_RECORD_COUNT;
 		control->tbl_hdr.tbl_size += RAS_TABLE_RECORD_SIZE * num;
 		if (control->tbl_hdr.tbl_size > RAS_TBL_SIZE_BYTES)
 			control->tbl_hdr.tbl_size = RAS_TABLE_HEADER_SIZE +
-			control->num_recs * RAS_TABLE_RECORD_SIZE;
+			control->ras_num_recs * RAS_TABLE_RECORD_SIZE;
 
 		__update_tbl_checksum(control, records, num);
 		__write_table_header(control, bufs);
@@ -549,7 +549,7 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 free_buf:
 	kfree(bufs);
 
-	mutex_unlock(&control->tbl_mutex);
+	mutex_unlock(&control->ras_tbl_mutex);
 
 	return ret == num ? 0 : -EIO;
 }

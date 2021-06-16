@@ -1818,11 +1818,11 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 
 	control = &con->eeprom_control;
 	data = con->eh_data;
-	save_count = data->count - control->num_recs;
+	save_count = data->count - control->ras_num_recs;
 	/* only new entries are saved */
 	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_write(control,
-					    &data->bps[control->num_recs],
+					    &data->bps[control->ras_num_recs],
 					    save_count)) {
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
@@ -1846,18 +1846,18 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	int ret;
 
 	/* no bad page record, skip eeprom access */
-	if (control->num_recs == 0 || amdgpu_bad_page_threshold == 0)
+	if (control->ras_num_recs == 0 || amdgpu_bad_page_threshold == 0)
 		return 0;
 
-	bps = kcalloc(control->num_recs, sizeof(*bps), GFP_KERNEL);
+	bps = kcalloc(control->ras_num_recs, sizeof(*bps), GFP_KERNEL);
 	if (!bps)
 		return -ENOMEM;
 
-	ret = amdgpu_ras_eeprom_read(control, bps, control->num_recs);
+	ret = amdgpu_ras_eeprom_read(control, bps, control->ras_num_recs);
 	if (ret)
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
 	else
-		ret = amdgpu_ras_add_bad_pages(adev, bps, control->num_recs);
+		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs);
 
 	kfree(bps);
 	return ret;
@@ -1974,13 +1974,13 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	if (exc_err_limit || ret)
 		goto free;
 
-	if (con->eeprom_control.num_recs) {
+	if (con->eeprom_control.ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			goto free;
 
 		if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
-			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.num_recs);
+			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
 	}
 
 	return 0;

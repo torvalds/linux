@@ -40,14 +40,27 @@ struct amdgpu_ras_eeprom_table_header {
 	uint32_t first_rec_offset;
 	uint32_t tbl_size;
 	uint32_t checksum;
-}__attribute__((__packed__));
+} __packed;
 
 struct amdgpu_ras_eeprom_control {
 	struct amdgpu_ras_eeprom_table_header tbl_hdr;
-	u32 i2c_address; /* Base I2C 19-bit memory address */
+
+	/* Base I2C EEPPROM 19-bit memory address,
+	 * where the table is located. For more information,
+	 * see top of amdgpu_eeprom.c.
+	 */
+	u32 i2c_address;
+
 	uint32_t next_addr;
-	unsigned int num_recs;
-	struct mutex tbl_mutex;
+
+	/* Number of records in the table.
+	 */
+	unsigned int ras_num_recs;
+
+	/* Protect table access via this mutex.
+	 */
+	struct mutex ras_tbl_mutex;
+
 	u8 tbl_byte_sum;
 };
 
@@ -74,10 +87,10 @@ struct eeprom_table_record {
 
 	unsigned char mem_channel;
 	unsigned char mcumc_id;
-}__attribute__((__packed__));
+} __packed;
 
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
-			bool *exceed_err_limit);
+			   bool *exceed_err_limit);
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control);
 
 bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev);
