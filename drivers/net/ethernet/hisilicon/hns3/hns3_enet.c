@@ -3525,7 +3525,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 
 static bool hns3_can_reuse_page(struct hns3_desc_cb *cb)
 {
-	return (page_count(cb->priv) - cb->pagecnt_bias) == 1;
+	return page_count(cb->priv) == cb->pagecnt_bias;
 }
 
 static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
@@ -3533,40 +3533,40 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 				struct hns3_desc_cb *desc_cb)
 {
 	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
+	u32 frag_offset = desc_cb->page_offset + pull_len;
 	int size = le16_to_cpu(desc->rx.size);
 	u32 truesize = hns3_buf_size(ring);
+	u32 frag_size = size - pull_len;
 
-	desc_cb->pagecnt_bias--;
-	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize);
+	/* Avoid re-using remote or pfmem page */
+	if (unlikely(!dev_page_is_reusable(desc_cb->priv)))
+		goto out;
 
-	/* Avoid re-using remote and pfmemalloc pages, or the stack is still
-	 * using the page when page_offset rollback to zero, flag default
-	 * unreuse
+	/* Stack is not using and current page_offset is non-zero, we can
+	 * reuse from the zero offset.
 	 */
-	if (!dev_page_is_reusable(desc_cb->priv) ||
-	    (!desc_cb->page_offset && !hns3_can_reuse_page(desc_cb))) {
-		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
-		return;
-	}
-
-	/* Move offset up to the next cache line */
-	desc_cb->page_offset += truesize;
-
-	if (desc_cb->page_offset + truesize <= hns3_page_size(ring)) {
-		desc_cb->reuse_flag = 1;
-	} else if (hns3_can_reuse_page(desc_cb)) {
-		desc_cb->reuse_flag = 1;
+	if (desc_cb->page_offset && hns3_can_reuse_page(desc_cb)) {
 		desc_cb->page_offset = 0;
-	} else if (desc_cb->pagecnt_bias) {
-		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
-		return;
+		desc_cb->reuse_flag = 1;
+	} else if (desc_cb->page_offset + truesize * 2 <=
+		   hns3_page_size(ring)) {
+		desc_cb->page_offset += truesize;
+		desc_cb->reuse_flag = 1;
 	}
+
+out:
+	desc_cb->pagecnt_bias--;
 
 	if (unlikely(!desc_cb->pagecnt_bias)) {
 		page_ref_add(desc_cb->priv, USHRT_MAX);
 		desc_cb->pagecnt_bias = USHRT_MAX;
 	}
+
+	skb_add_rx_frag(skb, i, desc_cb->priv, frag_offset,
+			frag_size, truesize);
+
+	if (unlikely(!desc_cb->reuse_flag))
+		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
 }
 
 static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
