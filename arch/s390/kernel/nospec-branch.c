@@ -99,6 +99,7 @@ early_param("spectre_v2", spectre_v2_setup_early);
 static void __init_or_module __nospec_revert(s32 *start, s32 *end)
 {
 	enum { BRCL_EXPOLINE, BRASL_EXPOLINE } type;
+	static const u8 branch[] = { 0x47, 0x00, 0x07, 0x00 };
 	u8 *instr, *thunk, *br;
 	u8 insnbuf[6];
 	s32 *epo;
@@ -128,7 +129,7 @@ static void __init_or_module __nospec_revert(s32 *start, s32 *end)
 		if ((br[0] & 0xbf) != 0x07 || (br[1] & 0xf0) != 0xf0)
 			continue;
 
-		memcpy(insnbuf + 2, (char[]) { 0x47, 0x00, 0x07, 0x00 }, 4);
+		memcpy(insnbuf + 2, branch, sizeof(branch));
 		switch (type) {
 		case BRCL_EXPOLINE:
 			insnbuf[0] = br[0];
