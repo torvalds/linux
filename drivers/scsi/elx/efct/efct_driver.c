@@ -372,7 +372,7 @@ efct_request_firmware_update(struct efct *efct)
 		efct_fw_reset(efct);
 		break;
 	default:
-		efc_log_info(efct, "Unexected value change_status:%d\n",
+		efc_log_info(efct, "Unexpected value change_status:%d\n",
 			     fw_change_status);
 		break;
 	}
