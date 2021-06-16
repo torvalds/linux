@@ -1112,6 +1112,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
 			     IGNORE_PSR2_HW_TRACKING : 0);
+
+	/* Wa_16011168373:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	    intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv,
+			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+			     TRANS_SET_CONTEXT_LATENCY_MASK,
+			     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -1288,6 +1296,13 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
+
+	/* Wa_16011168373:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	    intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv,
+			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+			     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
