@@ -7782,7 +7782,6 @@ int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 			   int idx, bool sleep_ok)
 {
 	struct fw_vi_mac_exact *p;
-	u8 addr[] = {0, 0, 0, 0, 0, 0};
 	struct fw_vi_mac_cmd c;
 	int ret = 0;
 	u32 exact;
@@ -7799,7 +7798,7 @@ int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 	p = c.u.exact;
 	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
 				      FW_VI_MAC_CMD_IDX_V(idx));
-	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	eth_zero_addr(p->macaddr);
 	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
 	return ret;
 }
