@@ -809,14 +809,19 @@ static int m88e1111_config_init_rgmii_delays(struct phy_device *phydev)
 {
 	int delay;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII_ID:
 		delay = MII_M1111_RGMII_RX_DELAY | MII_M1111_RGMII_TX_DELAY;
-	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
 		delay = MII_M1111_RGMII_RX_DELAY;
-	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		delay = MII_M1111_RGMII_TX_DELAY;
-	} else {
+		break;
+	default:
 		delay = 0;
+		break;
 	}
 
 	return phy_modify(phydev, MII_M1111_PHY_EXT_CR,
