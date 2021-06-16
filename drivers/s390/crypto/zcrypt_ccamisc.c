@@ -330,7 +330,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 			struct {
 				u16 toklen;
 				u16 tokattr;
-				u8  tok[0];
+				u8  tok[];
 				/* ... some more data ... */
 			} keyblock;
 		} lv3;
@@ -471,7 +471,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 			struct {
 				u16 toklen;
 				u16 tokattr;
-				u8  tok[0];
+				u8  tok[];
 				/* ... some more data ... */
 			} keyblock;
 		} lv3;
@@ -596,7 +596,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			u16 len;
 			u16 attr_len;
 			u16 attr_flags;
-			u8  token[0];	      /* cca secure key token */
+			u8  token[];	      /* cca secure key token */
 		} lv2;
 	} __packed * preqparm;
 	struct uskrepparm {
