@@ -1426,8 +1426,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tegra->regs = devm_ioremap_resource(&pdev->dev, regs);
+	tegra->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(tegra->regs))
 		return PTR_ERR(tegra->regs);
 
