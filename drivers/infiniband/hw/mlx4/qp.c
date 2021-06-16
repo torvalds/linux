@@ -3144,7 +3144,7 @@ static int build_mlx_header(struct mlx4_ib_qp *qp, const struct ib_ud_wr *wr,
 		mlx->sched_prio = cpu_to_be16(pcp);
 
 		ether_addr_copy(sqp->ud_header.eth.smac_h, ah->av.eth.s_mac);
-		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac, 6);
+		ether_addr_copy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac);
 		memcpy(&ctrl->srcrb_flags16[0], ah->av.eth.mac, 2);
 		memcpy(&ctrl->imm, ah->av.eth.mac + 2, 4);
 
