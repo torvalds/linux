@@ -26,8 +26,6 @@ static struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 };
 #undef E
 
-#undef E
-
 static char mem_loads_name[100];
 static bool mem_loads_name__init;
 
