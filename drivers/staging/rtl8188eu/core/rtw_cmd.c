@@ -72,16 +72,11 @@ static int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
 {
 	unsigned long irqL;
 
-	if (!obj)
-		goto exit;
-
 	spin_lock_irqsave(&queue->lock, irqL);
 
 	list_add_tail(&obj->list, &queue->queue);
 
 	spin_unlock_irqrestore(&queue->lock, irqL);
-
-exit:
 
 	return _SUCCESS;
 }
