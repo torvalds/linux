@@ -456,6 +456,30 @@
 	/* Richwave RTC6226 FM Radio Receiver @ 64 */
 };
 
+&pcie0 {
+	status = "okay";
+};
+
+&pcie0_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
+&pcie2 {
+	status = "okay";
+
+	pinctrl-0 = <&pcie2_default_state &mdm2ap_default &ap2mdm_default>;
+};
+
+&pcie2_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
 &pon_pwrkey {
 	status = "okay";
 };
@@ -513,6 +537,20 @@
 			drive-strength = <16>;
 			bias-pull-up;
 		};
+	};
+
+	mdm2ap_default: mdm2ap-default {
+		pins = "gpio1", "gpio3";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	ap2mdm_default: ap2mdm-default {
+		pins = "gpio56", "gpio57";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
 	};
 
 	sdc2_card_det_n: sd-card-det-n {
