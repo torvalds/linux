@@ -166,6 +166,7 @@ config SND_FIREWIRE_MOTU
 	help
 	 Say Y here to enable support for FireWire devices which MOTU produced:
 	  * 828
+	  * 896
 	  * 828mk2
 	  * Traveler
 	  * Ultralite
