@@ -2101,13 +2101,12 @@ static int acpi_dev_get_first_consumer_dev_cb(struct acpi_dep_data *dep, void *d
 	struct acpi_device *adev;
 
 	adev = acpi_bus_get_acpi_device(dep->consumer);
-	if (!adev)
-		/* If we don't find an adev then we want to continue parsing */
-		return 0;
-
-	*(struct acpi_device **)data = adev;
-
-	return 1;
+	if (adev) {
+		*(struct acpi_device **)data = adev;
+		return 1;
+	}
+	/* Continue parsing if the device object is not present. */
+	return 0;
 }
 
 static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
