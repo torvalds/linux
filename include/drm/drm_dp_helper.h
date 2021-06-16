@@ -1950,6 +1950,11 @@ struct drm_dp_aux {
 	 * The @transfer() function must only modify the reply field of
 	 * the &drm_dp_aux_msg structure. The retry logic and i2c
 	 * helpers assume this is the case.
+	 *
+	 * Also note that this callback can be called no matter the
+	 * state @dev is in. Drivers that need that device to be powered
+	 * to perform this operation will first need to make sure it's
+	 * been properly enabled.
 	 */
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
