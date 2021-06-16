@@ -121,8 +121,8 @@ static irqreturn_t megaraid_isr(int, void *);
 
 static void megaraid_mbox_dpc(unsigned long);
 
-static ssize_t megaraid_sysfs_show_app_hndl(struct device *, struct device_attribute *attr, char *);
-static ssize_t megaraid_sysfs_show_ldnum(struct device *, struct device_attribute *attr, char *);
+static ssize_t megaraid_mbox_app_hndl_show(struct device *, struct device_attribute *attr, char *);
+static ssize_t megaraid_mbox_ld_show(struct device *, struct device_attribute *attr, char *);
 
 static int megaraid_cmm_register(adapter_t *);
 static int megaraid_cmm_unregister(adapter_t *);
@@ -302,8 +302,7 @@ static struct pci_driver megaraid_pci_driver = {
 // definitions for the device attributes for exporting logical drive number
 // for a scsi address (Host, Channel, Id, Lun)
 
-static DEVICE_ATTR(megaraid_mbox_app_hndl, S_IRUSR, megaraid_sysfs_show_app_hndl,
-		   NULL);
+static DEVICE_ATTR_ADMIN_RO(megaraid_mbox_app_hndl);
 
 // Host template initializer for megaraid mbox sysfs device attributes
 static struct device_attribute *megaraid_shost_attrs[] = {
@@ -312,7 +311,7 @@ static struct device_attribute *megaraid_shost_attrs[] = {
 };
 
 
-static DEVICE_ATTR(megaraid_mbox_ld, S_IRUSR, megaraid_sysfs_show_ldnum, NULL);
+static DEVICE_ATTR_ADMIN_RO(megaraid_mbox_ld);
 
 // Host template initializer for megaraid mbox sysfs device attributes
 static struct device_attribute *megaraid_sdev_attrs[] = {
@@ -3961,7 +3960,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 
 /**
- * megaraid_sysfs_show_app_hndl - display application handle for this adapter
+ * megaraid_mbox_app_hndl_show - display application handle for this adapter
  * @dev		: class device object representation for the host
  * @attr	: device attribute (unused)
  * @buf		: buffer to send data to
@@ -3971,8 +3970,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
  * handle, since we do not interface with applications directly.
  */
 static ssize_t
-megaraid_sysfs_show_app_hndl(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+megaraid_mbox_app_hndl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	adapter_t	*adapter = (adapter_t *)SCSIHOST2ADAP(shost);
@@ -3985,7 +3983,7 @@ megaraid_sysfs_show_app_hndl(struct device *dev, struct device_attribute *attr,
 
 
 /**
- * megaraid_sysfs_show_ldnum - display the logical drive number for this device
+ * megaraid_mbox_ld_show - display the logical drive number for this device
  * @dev		: device object representation for the scsi device
  * @attr	: device attribute to show
  * @buf		: buffer to send data to
@@ -4000,7 +3998,7 @@ megaraid_sysfs_show_app_hndl(struct device *dev, struct device_attribute *attr,
  *   <int>     <int>       <int>            <int>
  */
 static ssize_t
-megaraid_sysfs_show_ldnum(struct device *dev, struct device_attribute *attr, char *buf)
+megaraid_mbox_ld_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	adapter_t	*adapter = (adapter_t *)SCSIHOST2ADAP(sdev->host);
