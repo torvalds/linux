@@ -1264,12 +1264,14 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 		break;
 
 	case J1939_ETP_CMD_RTS:
-	case J1939_TP_CMD_RTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_RTS:
 		abort = J1939_XTP_ABORT_BUSY;
 		break;
 
 	case J1939_ETP_CMD_CTS:
-	case J1939_TP_CMD_CTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_CTS:
 		abort = J1939_XTP_ABORT_ECTS_UNXPECTED_PGN;
 		break;
 
@@ -1278,7 +1280,8 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 		break;
 
 	case J1939_ETP_CMD_EOMA:
-	case J1939_TP_CMD_EOMA: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_EOMA:
 		abort = J1939_XTP_ABORT_OTHER;
 		break;
 
@@ -1793,7 +1796,8 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 			break;
 		fallthrough;
 	case J1939_TP_CMD_BAM:
-	case J1939_TP_CMD_CTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_CTS:
 		if (skcb->addr.type != J1939_ETP)
 			break;
 		fallthrough;
@@ -1996,7 +2000,8 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 		extd = J1939_ETP;
 		fallthrough;
 	case J1939_TP_CMD_BAM:
-	case J1939_TP_CMD_RTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_RTS:
 		if (skcb->addr.type != extd)
 			return;
 
