@@ -274,14 +274,14 @@ static char *chrdev_setup_rx(struct channel_data *channel, int size);
 static int chrdev_rx_done(struct channel_data *channel);
 static int chrdev_tx_done(struct channel_data *channel, int size);
 static ssize_t cosa_read(struct file *file,
-	char __user *buf, size_t count, loff_t *ppos);
+			 char __user *buf, size_t count, loff_t *ppos);
 static ssize_t cosa_write(struct file *file,
-	const char __user *buf, size_t count, loff_t *ppos);
+			  const char __user *buf, size_t count, loff_t *ppos);
 static unsigned int cosa_poll(struct file *file, poll_table *poll);
 static int cosa_open(struct inode *inode, struct file *file);
 static int cosa_release(struct inode *inode, struct file *file);
 static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg);
+			       unsigned long arg);
 #ifdef COSA_FASYNC_WORKING
 static int cosa_fasync(struct inode *inode, struct file *file, int on);
 #endif
@@ -655,7 +655,7 @@ static int cosa_net_open(struct net_device *dev)
 }
 
 static netdev_tx_t cosa_net_tx(struct sk_buff *skb,
-				     struct net_device *dev)
+			       struct net_device *dev)
 {
 	struct channel_data *chan = dev_to_chan(dev);
 
@@ -762,7 +762,7 @@ static int cosa_net_tx_done(struct channel_data *chan, int size)
 /*---------- Character device ---------- */
 
 static ssize_t cosa_read(struct file *file,
-	char __user *buf, size_t count, loff_t *ppos)
+			 char __user *buf, size_t count, loff_t *ppos)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
@@ -836,7 +836,7 @@ static int chrdev_rx_done(struct channel_data *chan)
 }
 
 static ssize_t cosa_write(struct file *file,
-	const char __user *buf, size_t count, loff_t *ppos)
+			  const char __user *buf, size_t count, loff_t *ppos)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct channel_data *chan = file->private_data;
@@ -1123,7 +1123,8 @@ static inline int cosa_gettype(struct cosa_data *cosa, char __user *string)
 }
 
 static int cosa_ioctl_common(struct cosa_data *cosa,
-	struct channel_data *channel, unsigned int cmd, unsigned long arg)
+			     struct channel_data *channel, unsigned int cmd,
+			     unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 
@@ -1181,7 +1182,7 @@ static int cosa_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
+			       unsigned long arg)
 {
 	struct channel_data *channel = file->private_data;
 	struct cosa_data *cosa;
@@ -1684,11 +1685,12 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 
 		cosa->txsize = cosa->chan[cosa->txchan].txsize;
 		if (cosa_dma_able(cosa->chan+cosa->txchan,
-			cosa->chan[cosa->txchan].txbuf, cosa->txsize)) {
+				  cosa->chan[cosa->txchan].txbuf,
+				  cosa->txsize)) {
 			cosa->txbuf = cosa->chan[cosa->txchan].txbuf;
 		} else {
 			memcpy(cosa->bouncebuf, cosa->chan[cosa->txchan].txbuf,
-				cosa->txsize);
+			       cosa->txsize);
 			cosa->txbuf = cosa->bouncebuf;
 		}
 	}
