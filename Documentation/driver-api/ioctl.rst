@@ -34,7 +34,7 @@ _IO/_IOR/_IOW/_IOWR
 
 type
    An 8-bit number, often a character literal, specific to a subsystem
-   or driver, and listed in :doc:`../userspace-api/ioctl/ioctl-number`
+   or driver, and listed in Documentation/userspace-api/ioctl/ioctl-number.rst
 
 nr
   An 8-bit number identifying the specific command, unique for a give
