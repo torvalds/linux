@@ -78,11 +78,122 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	return 0;
 }
 
+static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
+				  struct nfp_fl_ct_flow_entry *post_ct_entry,
+				  struct nfp_fl_ct_flow_entry *nft_entry)
+{
+	return 0;
+}
+
+static int nfp_ct_check_meta(struct nfp_fl_ct_flow_entry *post_ct_entry,
+			     struct nfp_fl_ct_flow_entry *nft_entry)
+{
+	return 0;
+}
+
+static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
+{
+	return 0;
+}
+
+static int nfp_fl_ct_del_offload(struct nfp_app *app, unsigned long cookie,
+				 struct net_device *netdev)
+{
+	return 0;
+}
+
+static int nfp_ct_do_nft_merge(struct nfp_fl_ct_zone_entry *zt,
+			       struct nfp_fl_ct_flow_entry *nft_entry,
+			       struct nfp_fl_ct_tc_merge *tc_m_entry)
+{
+	struct nfp_fl_ct_flow_entry *post_ct_entry, *pre_ct_entry;
+	struct nfp_fl_nft_tc_merge *nft_m_entry;
+	unsigned long new_cookie[3];
+	int err;
+
+	pre_ct_entry = tc_m_entry->pre_ct_parent;
+	post_ct_entry = tc_m_entry->post_ct_parent;
+
+	err = nfp_ct_merge_act_check(pre_ct_entry, post_ct_entry, nft_entry);
+	if (err)
+		return err;
+
+	/* Check that the two tc flows are also compatible with
+	 * the nft entry. No need to check the pre_ct and post_ct
+	 * entries as that was already done during pre_merge.
+	 * The nft entry does not have a netdev or chain populated, so
+	 * skip this check.
+	 */
+	err = nfp_ct_merge_check(pre_ct_entry, nft_entry);
+	if (err)
+		return err;
+	err = nfp_ct_merge_check(post_ct_entry, nft_entry);
+	if (err)
+		return err;
+	err = nfp_ct_check_meta(post_ct_entry, nft_entry);
+	if (err)
+		return err;
+
+	/* Combine tc_merge and nft cookies for this cookie. */
+	new_cookie[0] = tc_m_entry->cookie[0];
+	new_cookie[1] = tc_m_entry->cookie[1];
+	new_cookie[2] = nft_entry->cookie;
+	nft_m_entry = get_hashentry(&zt->nft_merge_tb,
+				    &new_cookie,
+				    nfp_nft_ct_merge_params,
+				    sizeof(*nft_m_entry));
+
+	if (IS_ERR(nft_m_entry))
+		return PTR_ERR(nft_m_entry);
+
+	/* nft_m_entry already present, not merging again */
+	if (!memcmp(&new_cookie, nft_m_entry->cookie, sizeof(new_cookie)))
+		return 0;
+
+	memcpy(&nft_m_entry->cookie, &new_cookie, sizeof(new_cookie));
+	nft_m_entry->zt = zt;
+	nft_m_entry->tc_m_parent = tc_m_entry;
+	nft_m_entry->nft_parent = nft_entry;
+	nft_m_entry->tc_flower_cookie = 0;
+	/* Copy the netdev from one the pre_ct entry. When the tc_m_entry was created
+	 * it only combined them if the netdevs were the same, so can use any of them.
+	 */
+	nft_m_entry->netdev = pre_ct_entry->netdev;
+
+	/* Add this entry to the tc_m_list and nft_flow lists */
+	list_add(&nft_m_entry->tc_merge_list, &tc_m_entry->children);
+	list_add(&nft_m_entry->nft_flow_list, &nft_entry->children);
+
+	/* Generate offload structure and send to nfp */
+	err = nfp_fl_ct_add_offload(nft_m_entry);
+	if (err)
+		goto err_nft_ct_offload;
+
+	err = rhashtable_insert_fast(&zt->nft_merge_tb, &nft_m_entry->hash_node,
+				     nfp_nft_ct_merge_params);
+	if (err)
+		goto err_nft_ct_merge_insert;
+
+	zt->nft_merge_count++;
+
+	return err;
+
+err_nft_ct_merge_insert:
+	nfp_fl_ct_del_offload(zt->priv->app, nft_m_entry->tc_flower_cookie,
+			      nft_m_entry->netdev);
+err_nft_ct_offload:
+	list_del(&nft_m_entry->tc_merge_list);
+	list_del(&nft_m_entry->nft_flow_list);
+	kfree(nft_m_entry);
+	return err;
+}
+
 static int nfp_ct_do_tc_merge(struct nfp_fl_ct_zone_entry *zt,
 			      struct nfp_fl_ct_flow_entry *ct_entry1,
 			      struct nfp_fl_ct_flow_entry *ct_entry2)
 {
 	struct nfp_fl_ct_flow_entry *post_ct_entry, *pre_ct_entry;
+	struct nfp_fl_ct_flow_entry *nft_entry, *nft_tmp;
 	struct nfp_fl_ct_tc_merge *m_entry;
 	unsigned long new_cookie[2];
 	int err;
@@ -133,6 +244,12 @@ static int nfp_ct_do_tc_merge(struct nfp_fl_ct_zone_entry *zt,
 	if (err)
 		goto err_ct_tc_merge_insert;
 	zt->tc_merge_count++;
+
+	/* Merge with existing nft flows */
+	list_for_each_entry_safe(nft_entry, nft_tmp, &zt->nft_flows_list,
+				 list_node) {
+		nfp_ct_do_nft_merge(zt, nft_entry, m_entry);
+	}
 
 	return 0;
 
@@ -321,8 +438,57 @@ err_pre_ct_rule:
 	return ERR_PTR(err);
 }
 
+static void cleanup_nft_merge_entry(struct nfp_fl_nft_tc_merge *m_entry)
+{
+	struct nfp_fl_ct_zone_entry *zt;
+	int err;
+
+	zt = m_entry->zt;
+
+	/* Flow is in HW, need to delete */
+	if (m_entry->tc_flower_cookie) {
+		err = nfp_fl_ct_del_offload(zt->priv->app, m_entry->tc_flower_cookie,
+					    m_entry->netdev);
+		if (err)
+			return;
+	}
+
+	WARN_ON_ONCE(rhashtable_remove_fast(&zt->nft_merge_tb,
+					    &m_entry->hash_node,
+					    nfp_nft_ct_merge_params));
+	zt->nft_merge_count--;
+	list_del(&m_entry->tc_merge_list);
+	list_del(&m_entry->nft_flow_list);
+
+	kfree(m_entry);
+}
+
 static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
 {
+	struct nfp_fl_nft_tc_merge *m_entry, *tmp;
+
+	/* These post entries are parts of two lists, one is a list of nft_entries
+	 * and the other is of from a list of tc_merge structures. Iterate
+	 * through the relevant list and cleanup the entries.
+	 */
+
+	if (is_nft_flow) {
+		/* Need to iterate through list of nft_flow entries*/
+		struct nfp_fl_ct_flow_entry *ct_entry = entry;
+
+		list_for_each_entry_safe(m_entry, tmp, &ct_entry->children,
+					 nft_flow_list) {
+			cleanup_nft_merge_entry(m_entry);
+		}
+	} else {
+		/* Need to iterate through list of tc_merged_flow entries*/
+		struct nfp_fl_ct_tc_merge *ct_entry = entry;
+
+		list_for_each_entry_safe(m_entry, tmp, &ct_entry->children,
+					 tc_merge_list) {
+			cleanup_nft_merge_entry(m_entry);
+		}
+	}
 }
 
 static void nfp_del_tc_merge_entry(struct nfp_fl_ct_tc_merge *m_ent)
@@ -423,6 +589,26 @@ nfp_ct_merge_tc_entries(struct nfp_fl_ct_flow_entry *ct_entry1,
 				 list_node) {
 		nfp_ct_do_tc_merge(zt_dst, ct_entry2, ct_entry1);
 	}
+}
+
+static void
+nfp_ct_merge_nft_with_tc(struct nfp_fl_ct_flow_entry *nft_entry,
+			 struct nfp_fl_ct_zone_entry *zt)
+{
+	struct nfp_fl_ct_tc_merge *tc_merge_entry;
+	struct rhashtable_iter iter;
+
+	rhashtable_walk_enter(&zt->tc_merge_tb, &iter);
+	rhashtable_walk_start(&iter);
+	while ((tc_merge_entry = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(tc_merge_entry))
+			continue;
+		rhashtable_walk_stop(&iter);
+		nfp_ct_do_nft_merge(zt, nft_entry, tc_merge_entry);
+		rhashtable_walk_start(&iter);
+	}
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
 }
 
 int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
@@ -568,6 +754,7 @@ nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offl
 			ct_entry->type = CT_TYPE_NFT;
 			list_add(&ct_entry->list_node, &zt->nft_flows_list);
 			zt->nft_flows_count++;
+			nfp_ct_merge_nft_with_tc(ct_entry, zt);
 		}
 		return 0;
 	case FLOW_CLS_DESTROY:
