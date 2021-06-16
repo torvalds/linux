@@ -1186,7 +1186,7 @@ static bool wcd938x_writeable_register(struct device *dev, unsigned int reg)
 static bool wcd938x_volatile_register(struct device *dev, unsigned int reg)
 {
 	if (reg <= WCD938X_BASE_ADDRESS)
-		return 0;
+		return false;
 
 	if (reg == WCD938X_DIGITAL_SWR_TX_CLK_RATE)
 		return true;
