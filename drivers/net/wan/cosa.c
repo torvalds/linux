@@ -995,6 +995,7 @@ static int cosa_fasync(struct inode *inode, struct file *file, int on)
 static inline int cosa_reset(struct cosa_data *cosa)
 {
 	char idstring[COSA_MAX_ID_STRING];
+
 	if (cosa->usage > 1)
 		pr_info("cosa%d: WARNING: reset requested with cosa->usage > 1 (%d). Odd things may happen.\n",
 			cosa->num, cosa->usage);
@@ -1109,6 +1110,7 @@ static inline int cosa_start(struct cosa_data *cosa, int address)
 static inline int cosa_getidstr(struct cosa_data *cosa, char __user *string)
 {
 	int l = strlen(cosa->id_string)+1;
+
 	if (copy_to_user(string, cosa->id_string, l))
 		return -EFAULT;
 	return l;
@@ -1118,6 +1120,7 @@ static inline int cosa_getidstr(struct cosa_data *cosa, char __user *string)
 static inline int cosa_gettype(struct cosa_data *cosa, char __user *string)
 {
 	int l = strlen(cosa->type)+1;
+
 	if (copy_to_user(string, cosa->type, l))
 		return -EFAULT;
 	return l;
@@ -1127,6 +1130,7 @@ static int cosa_ioctl_common(struct cosa_data *cosa,
 	struct channel_data *channel, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
+
 	switch (cmd) {
 	case COSAIORSET:	/* Reset the device */
 		if (!capable(CAP_NET_ADMIN))
@@ -1172,6 +1176,7 @@ static int cosa_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	int rv;
 	struct channel_data *chan = dev_to_chan(dev);
+
 	rv = cosa_ioctl_common(chan->cosa, chan, cmd,
 			       (unsigned long)ifr->ifr_data);
 	if (rv != -ENOIOCTLCMD)
@@ -1356,6 +1361,7 @@ static int cosa_dma_able(struct channel_data *chan, char *buf, int len)
 {
 	static int count;
 	unsigned long b = (unsigned long)buf;
+
 	if (b+len >= MAX_DMA_ADDRESS)
 		return 0;
 	if ((b^ (b+len)) & 0x10000) {
@@ -1468,6 +1474,7 @@ static int readmem(struct cosa_data *cosa, char __user *microcode, int length, i
 	while (length--) {
 		char c;
 		int i;
+
 		if ((i=get_wait_data(cosa)) == -1) {
 			pr_info("0x%04x bytes remaining\n", length);
 			return -11;
@@ -1545,6 +1552,7 @@ static int get_wait_data(struct cosa_data *cosa)
 		/* read data and return them */
 		if (cosa_getstatus(cosa) & SR_RX_RDY) {
 			short r;
+
 			r = cosa_getdata8(cosa);
 #if 0
 			pr_info("get_wait_data returning after %d retries\n",
@@ -1568,6 +1576,7 @@ static int get_wait_data(struct cosa_data *cosa)
 static int put_wait_data(struct cosa_data *cosa, int data)
 {
 	int retries = 1000;
+
 	while (--retries) {
 		/* read data and return them */
 		if (cosa_getstatus(cosa) & SR_TX_RDY) {
@@ -1659,6 +1668,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 	if (!test_bit(IRQBIT, &cosa->rxtx)) {
 		/* flow control, see the comment above */
 		int i=0;
+
 		if (!cosa->txbitmap) {
 			pr_warn("%s: No channel wants data in TX IRQ. Expect DMA timeout.\n",
 				cosa->name);
@@ -1743,6 +1753,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 	if (cosa->busmaster) {
 		unsigned long addr = virt_to_bus(cosa->txbuf);
 		int count=0;
+
 		pr_info("busmaster IRQ\n");
 		while (!(cosa_getstatus(cosa)&SR_TX_RDY)) {
 			count++;
@@ -1873,6 +1884,7 @@ reject:		/* Reject the packet */
 static inline void eot_interrupt(struct cosa_data *cosa, int status)
 {
 	unsigned long flags, flags1;
+
 	spin_lock_irqsave(&cosa->lock, flags);
 	flags1 = claim_dma_lock();
 	disable_dma(cosa->dma);
@@ -1880,6 +1892,7 @@ static inline void eot_interrupt(struct cosa_data *cosa, int status)
 	release_dma_lock(flags1);
 	if (test_bit(TXBIT, &cosa->rxtx)) {
 		struct channel_data *chan = cosa->chan+cosa->txchan;
+
 		if (chan->tx_done)
 			if (chan->tx_done(chan, cosa->txsize))
 				clear_bit(chan->num, &cosa->txbitmap);
@@ -1887,6 +1900,7 @@ static inline void eot_interrupt(struct cosa_data *cosa, int status)
 #ifdef DEBUG_DATA
 	{
 		int i;
+
 		pr_info("cosa%dc%d: done rx(0x%x)",
 			cosa->num, cosa->rxchan->num, cosa->rxsize);
 		for (i=0; i<cosa->rxsize; i++)
@@ -1970,6 +1984,7 @@ again:
 static void debug_status_in(struct cosa_data *cosa, int status)
 {
 	char *s;
+
 	switch (status & SR_CMD_FROM_SRP_MASK) {
 	case SR_UP_REQUEST:
 		s = "RX_REQ";
