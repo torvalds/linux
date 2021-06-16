@@ -122,9 +122,9 @@ struct channel_data {
 };
 
 /* cosa->firmware_status bits */
-#define COSA_FW_RESET		(1<<0)	/* Is the ROM monitor active? */
-#define COSA_FW_DOWNLOAD	(1<<1)	/* Is the microcode downloaded? */
-#define COSA_FW_START		(1<<2)	/* Is the microcode running? */
+#define COSA_FW_RESET		BIT(0)	/* Is the ROM monitor active? */
+#define COSA_FW_DOWNLOAD	BIT(1)	/* Is the microcode downloaded? */
+#define COSA_FW_START		BIT(2)	/* Is the microcode running? */
 
 struct cosa_data {
 	int num;			/* Card number */
