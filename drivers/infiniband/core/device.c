@@ -887,15 +887,8 @@ static void ib_policy_change_task(struct work_struct *work)
 
 		rdma_for_each_port (dev, i) {
 			u64 sp;
-			int ret = ib_get_cached_subnet_prefix(dev,
-							      i,
-							      &sp);
-
-			WARN_ONCE(ret,
-				  "ib_get_cached_subnet_prefix err: %d, this should never happen here\n",
-				  ret);
-			if (!ret)
-				ib_security_cache_change(dev, i, sp);
+			ib_get_cached_subnet_prefix(dev, i, &sp);
+			ib_security_cache_change(dev, i, sp);
 		}
 	}
 	up_read(&devices_rwsem);

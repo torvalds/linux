@@ -212,7 +212,7 @@ int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
 			     struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack);
 
-int ib_get_cached_subnet_prefix(struct ib_device *device,
+void ib_get_cached_subnet_prefix(struct ib_device *device,
 				u32 port_num,
 				u64 *sn_pfx);
 

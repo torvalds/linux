@@ -1069,19 +1069,14 @@ int ib_get_cached_pkey(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_pkey);
 
-int ib_get_cached_subnet_prefix(struct ib_device *device, u32 port_num,
+void ib_get_cached_subnet_prefix(struct ib_device *device, u32 port_num,
 				u64 *sn_pfx)
 {
 	unsigned long flags;
 
-	if (!rdma_is_port_valid(device, port_num))
-		return -EINVAL;
-
 	read_lock_irqsave(&device->cache_lock, flags);
 	*sn_pfx = device->port_data[port_num].cache.subnet_prefix;
 	read_unlock_irqrestore(&device->cache_lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_get_cached_subnet_prefix);
 

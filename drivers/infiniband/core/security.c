@@ -72,7 +72,7 @@ static int get_pkey_and_subnet_prefix(struct ib_port_pkey *pp,
 	if (ret)
 		return ret;
 
-	ret = ib_get_cached_subnet_prefix(dev, pp->port_num, subnet_prefix);
+	ib_get_cached_subnet_prefix(dev, pp->port_num, subnet_prefix);
 
 	return ret;
 }
@@ -664,10 +664,7 @@ static int ib_security_pkey_access(struct ib_device *dev,
 	if (ret)
 		return ret;
 
-	ret = ib_get_cached_subnet_prefix(dev, port_num, &subnet_prefix);
-
-	if (ret)
-		return ret;
+	ib_get_cached_subnet_prefix(dev, port_num, &subnet_prefix);
 
 	return security_ib_pkey_access(sec, subnet_prefix, pkey);
 }
