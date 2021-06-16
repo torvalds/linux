@@ -1859,35 +1859,6 @@ struct drm_dp_aux_cec {
 
 /**
  * struct drm_dp_aux - DisplayPort AUX channel
- * @name: user-visible name of this AUX channel and the I2C-over-AUX adapter
- * @ddc: I2C adapter that can be used for I2C-over-AUX communication
- * @dev: pointer to struct device that is the parent for this AUX channel
- * @drm_dev: pointer to the &drm_device that owns this AUX channel. Beware, this
- * may be %NULL before drm_dp_aux_register() has been called.
- * @crtc: backpointer to the crtc that is currently using this AUX channel
- * @hw_mutex: internal mutex used for locking transfers
- * @crc_work: worker that captures CRCs for each frame
- * @crc_count: counter of captured frame CRCs
- * @transfer: transfers a message representing a single AUX transaction
- *
- * The @dev field should be set to a pointer to the device that implements the
- * AUX channel. As well, the @drm_dev field should be set to the &drm_device
- * that will be using this AUX channel as early as possible. For many graphics
- * drivers this should happen before drm_dp_aux_init(), however it's perfectly
- * fine to set this field later so long as it's assigned before calling
- * drm_dp_aux_register().
- *
- * The @name field may be used to specify the name of the I2C adapter. If set to
- * %NULL, dev_name() of @dev will be used.
- *
- * Drivers provide a hardware-specific implementation of how transactions are
- * executed via the @transfer() function. A pointer to a &drm_dp_aux_msg
- * structure describing the transaction is passed into this function. Upon
- * success, the implementation should return the number of payload bytes that
- * were transferred, or a negative error-code on failure. Helpers propagate
- * errors from the @transfer() function, with the exception of the %-EBUSY
- * error, which causes a transaction to be retried. On a short, helpers will
- * return %-EPROTO to make it simpler to check for failure.
  *
  * An AUX channel can also be used to transport I2C messages to a sink. A
  * typical application of that is to access an EDID that's present in the sink
@@ -1898,22 +1869,87 @@ struct drm_dp_aux_cec {
  * transfers by default; if a partial response is received, the adapter will
  * drop down to the size given by the partial response for this transaction
  * only.
- *
- * Note that the aux helper code assumes that the @transfer() function only
- * modifies the reply field of the &drm_dp_aux_msg structure. The retry logic
- * and i2c helpers assume this is the case.
  */
 struct drm_dp_aux {
+	/**
+	 * @name: user-visible name of this AUX channel and the
+	 * I2C-over-AUX adapter.
+	 *
+	 * It's also used to specify the name of the I2C adapter. If set
+	 * to %NULL, dev_name() of @dev will be used.
+	 */
 	const char *name;
+
+	/**
+	 * @ddc: I2C adapter that can be used for I2C-over-AUX
+	 * communication
+	 */
 	struct i2c_adapter ddc;
+
+	/**
+	 * @dev: pointer to struct device that is the parent for this
+	 * AUX channel.
+	 */
 	struct device *dev;
+
+	/**
+	 * @drm_dev: pointer to the &drm_device that owns this AUX channel.
+	 * Beware, this may be %NULL before drm_dp_aux_register() has been
+	 * called.
+	 *
+	 * It should be set to the &drm_device that will be using this AUX
+	 * channel as early as possible. For many graphics drivers this should
+	 * happen before drm_dp_aux_init(), however it's perfectly fine to set
+	 * this field later so long as it's assigned before calling
+	 * drm_dp_aux_register().
+	 */
 	struct drm_device *drm_dev;
+
+	/**
+	 * @crtc: backpointer to the crtc that is currently using this
+	 * AUX channel
+	 */
 	struct drm_crtc *crtc;
+
+	/**
+	 * @hw_mutex: internal mutex used for locking transfers.
+	 */
 	struct mutex hw_mutex;
+
+	/**
+	 * @crc_work: worker that captures CRCs for each frame
+	 */
 	struct work_struct crc_work;
+
+	/**
+	 * @crc_count: counter of captured frame CRCs
+	 */
 	u8 crc_count;
+
+	/**
+	 * @transfer: transfers a message representing a single AUX
+	 * transaction.
+	 *
+	 * This is a hardware-specific implementation of how
+	 * transactions are executed that the drivers must provide.
+	 *
+	 * A pointer to a &drm_dp_aux_msg structure describing the
+	 * transaction is passed into this function. Upon success, the
+	 * implementation should return the number of payload bytes that
+	 * were transferred, or a negative error-code on failure.
+	 *
+	 * Helpers will propagate these errors, with the exception of
+	 * the %-EBUSY error, which causes a transaction to be retried.
+	 * On a short, helpers will return %-EPROTO to make it simpler
+	 * to check for failure.
+	 *
+	 * The @transfer() function must only modify the reply field of
+	 * the &drm_dp_aux_msg structure. The retry logic and i2c
+	 * helpers assume this is the case.
+	 */
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
+
 	/**
 	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.
 	 */
