@@ -19,6 +19,9 @@ const struct rhashtable_params nfp_nft_ct_merge_params = {
 	.automatic_shrinking	= true,
 };
 
+static struct flow_action_entry *get_flow_act(struct flow_rule *rule,
+					      enum flow_action_id act_id);
+
 /**
  * get_hashentry() - Wrapper around hashtable lookup.
  * @ht:		hashtable where entry could be found
@@ -258,7 +261,31 @@ static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
 static int nfp_ct_check_meta(struct nfp_fl_ct_flow_entry *post_ct_entry,
 			     struct nfp_fl_ct_flow_entry *nft_entry)
 {
-	return 0;
+	struct flow_dissector *dissector = post_ct_entry->rule->match.dissector;
+	struct flow_action_entry *ct_met;
+	struct flow_match_ct ct;
+	int i;
+
+	ct_met = get_flow_act(nft_entry->rule, FLOW_ACTION_CT_METADATA);
+	if (ct_met && (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT))) {
+		u32 *act_lbl;
+
+		act_lbl = ct_met->ct_metadata.labels;
+		flow_rule_match_ct(post_ct_entry->rule, &ct);
+		for (i = 0; i < 4; i++) {
+			if ((ct.key->ct_labels[i] & ct.mask->ct_labels[i]) ^
+			    (act_lbl[i] & ct.mask->ct_labels[i]))
+				return -EINVAL;
+		}
+
+		if ((ct.key->ct_mark & ct.mask->ct_mark) ^
+		    (ct_met->ct_metadata.mark & ct.mask->ct_mark))
+			return -EINVAL;
+
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
@@ -727,13 +754,13 @@ void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry)
 	kfree(entry);
 }
 
-static struct flow_action_entry *get_flow_act(struct flow_cls_offload *flow,
+static struct flow_action_entry *get_flow_act(struct flow_rule *rule,
 					      enum flow_action_id act_id)
 {
 	struct flow_action_entry *act = NULL;
 	int i;
 
-	flow_action_for_each(i, act, &flow->rule->action) {
+	flow_action_for_each(i, act, &rule->action) {
 		if (act->id == act_id)
 			return act;
 	}
@@ -791,14 +818,14 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	struct nfp_fl_ct_zone_entry *zt;
 	int err;
 
-	ct_act = get_flow_act(flow, FLOW_ACTION_CT);
+	ct_act = get_flow_act(flow->rule, FLOW_ACTION_CT);
 	if (!ct_act) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: Conntrack action empty in conntrack offload");
 		return -EOPNOTSUPP;
 	}
 
-	ct_goto = get_flow_act(flow, FLOW_ACTION_GOTO);
+	ct_goto = get_flow_act(flow->rule, FLOW_ACTION_GOTO);
 	if (!ct_goto) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: Conntrack requires ACTION_GOTO");
