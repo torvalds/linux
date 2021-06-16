@@ -194,8 +194,9 @@ static struct
 nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 					 struct net_device *netdev,
 					 struct flow_cls_offload *flow,
-					 struct netlink_ext_ack *extack)
+					 bool is_nft, struct netlink_ext_ack *extack)
 {
+	struct nf_flow_match *nft_match = NULL;
 	struct nfp_fl_ct_flow_entry *entry;
 	struct nfp_fl_ct_map_entry *map;
 	struct flow_action_entry *act;
@@ -205,17 +206,39 @@ nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
-	entry->zt = zt;
-	entry->netdev = netdev;
-	entry->cookie = flow->cookie;
 	entry->rule = flow_rule_alloc(flow->rule->action.num_entries);
 	if (!entry->rule) {
 		err = -ENOMEM;
-		goto err_pre_ct_act;
+		goto err_pre_ct_rule;
 	}
-	entry->rule->match.dissector = flow->rule->match.dissector;
-	entry->rule->match.mask = flow->rule->match.mask;
-	entry->rule->match.key = flow->rule->match.key;
+
+	/* nft flows gets destroyed after callback return, so need
+	 * to do a full copy instead of just a reference.
+	 */
+	if (is_nft) {
+		nft_match = kzalloc(sizeof(*nft_match), GFP_KERNEL);
+		if (!nft_match) {
+			err = -ENOMEM;
+			goto err_pre_ct_act;
+		}
+		memcpy(&nft_match->dissector, flow->rule->match.dissector,
+		       sizeof(nft_match->dissector));
+		memcpy(&nft_match->mask, flow->rule->match.mask,
+		       sizeof(nft_match->mask));
+		memcpy(&nft_match->key, flow->rule->match.key,
+		       sizeof(nft_match->key));
+		entry->rule->match.dissector = &nft_match->dissector;
+		entry->rule->match.mask = &nft_match->mask;
+		entry->rule->match.key = &nft_match->key;
+	} else {
+		entry->rule->match.dissector = flow->rule->match.dissector;
+		entry->rule->match.mask = flow->rule->match.mask;
+		entry->rule->match.key = flow->rule->match.key;
+	}
+
+	entry->zt = zt;
+	entry->netdev = netdev;
+	entry->cookie = flow->cookie;
 	entry->chain_index = flow->common.chain_index;
 	entry->tun_offset = NFP_FL_CT_NO_TUN;
 
@@ -276,8 +299,10 @@ err_ct_flow_insert:
 	if (entry->tun_offset != NFP_FL_CT_NO_TUN)
 		kfree(entry->rule->action.entries[entry->tun_offset].tunnel);
 err_pre_ct_tun_cp:
-	kfree(entry->rule);
+	kfree(nft_match);
 err_pre_ct_act:
+	kfree(entry->rule);
+err_pre_ct_rule:
 	kfree(entry);
 	return ERR_PTR(err);
 }
@@ -339,6 +364,15 @@ void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry)
 
 	if (entry->tun_offset != NFP_FL_CT_NO_TUN)
 		kfree(entry->rule->action.entries[entry->tun_offset].tunnel);
+
+	if (entry->type == CT_TYPE_NFT) {
+		struct nf_flow_match *nft_match;
+
+		nft_match = container_of(entry->rule->match.dissector,
+					 struct nf_flow_match, dissector);
+		kfree(nft_match);
+	}
+
 	kfree(entry->rule);
 	kfree(entry);
 }
@@ -419,7 +453,7 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	}
 
 	/* Add entry to pre_ct_list */
-	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, extack);
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, false, extack);
 	if (IS_ERR(ct_entry))
 		return PTR_ERR(ct_entry);
 	ct_entry->type = CT_TYPE_PRE_CT;
@@ -464,7 +498,7 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 	}
 
 	/* Add entry to post_ct_list */
-	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, extack);
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, false, extack);
 	if (IS_ERR(ct_entry))
 		return PTR_ERR(ct_entry);
 
@@ -516,7 +550,7 @@ nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offl
 		ct_map_ent = rhashtable_lookup_fast(&zt->priv->ct_map_table, &flow->cookie,
 						    nfp_ct_map_params);
 		if (!ct_map_ent) {
-			ct_entry = nfp_fl_ct_add_flow(zt, NULL, flow, extack);
+			ct_entry = nfp_fl_ct_add_flow(zt, NULL, flow, true, extack);
 			ct_entry->type = CT_TYPE_NFT;
 			list_add(&ct_entry->list_node, &zt->nft_flows_list);
 			zt->nft_flows_count++;
