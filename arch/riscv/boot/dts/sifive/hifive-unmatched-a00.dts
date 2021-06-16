@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 SiFive, Inc */
 
 #include "fu740-c000.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 /* Clock frequency (in Hz) of the PCB crystal for rtcclk */
@@ -228,6 +229,7 @@
 		spi-max-frequency = <20000000>;
 		voltage-ranges = <3300 3300>;
 		disable-wp;
+		gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
 	};
 };
 
