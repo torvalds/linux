@@ -27,6 +27,14 @@
 		tfa-sram@0 {
 			reg = <0x0 0x20000>;
 		};
+
+		dmsc-sram@1e0000 {
+			reg = <0x1e0000 0x1c000>;
+		};
+
+		sproxy-sram@1fc000 {
+			reg = <0x1fc000 0x4000>;
+		};
 	};
 
 	main_conf: syscon@43000000 {
