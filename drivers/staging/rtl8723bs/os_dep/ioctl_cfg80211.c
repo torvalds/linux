@@ -229,7 +229,6 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	size_t len, bssinf_len = 0;
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
-	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	struct wireless_dev *wdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -310,7 +309,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	/* pmlmeext->mgnt_seq++; */
 
 	if (pnetwork->network.Reserved[0] == 1) { /*  WIFI_BEACON */
-		memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
+		eth_broadcast_addr(pwlanhdr->addr1);
 		SetFrameSubType(pbuf, WIFI_BEACON);
 	} else {
 		memcpy(pwlanhdr->addr1, myid(&(padapter->eeprompriv)), ETH_ALEN);
@@ -960,7 +959,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	memset(param, 0, param_len);
 
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(param->sta_addr);
 
 	switch (params->cipher) {
 	case IW_AUTH_CIPHER_NONE:
