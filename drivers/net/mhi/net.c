@@ -382,7 +382,7 @@ static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
 	dev_set_drvdata(&mhi_dev->dev, NULL);
 }
 
-const struct wwan_ops mhi_wwan_ops = {
+static const struct wwan_ops mhi_wwan_ops = {
 	.owner = THIS_MODULE,
 	.priv_size = sizeof(struct mhi_net_dev),
 	.setup = mhi_net_setup,
