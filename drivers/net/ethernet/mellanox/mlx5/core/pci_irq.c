@@ -251,8 +251,11 @@ int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 
 int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 {
+	int err = 0;
+
+	err = atomic_notifier_chain_unregister(&irq->nh, nb);
 	irq_put(irq);
-	return atomic_notifier_chain_unregister(&irq->nh, nb);
+	return err;
 }
 
 struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq *irq)
