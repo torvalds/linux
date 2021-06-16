@@ -462,7 +462,18 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	/* Samsung touchscreen @ 48 */
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <39 0x2008>;
+		/* It's "vddio" downstream but it works anyway! */
+		vdd-supply = <&vreg_l1c_1p8>;
+		avdd-supply = <&vreg_l10c_3p3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+	};
 };
 
 &i2c15 {
@@ -568,6 +579,14 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	ts_int_default: ts-int-default {
+		pins = "gpio39";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disabled;
+		input-enable;
 	};
 
 	ap2mdm_default: ap2mdm-default {
