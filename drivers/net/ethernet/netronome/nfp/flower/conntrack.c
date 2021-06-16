@@ -251,10 +251,129 @@ check_failed:
 	return -EINVAL;
 }
 
+static int nfp_ct_check_mangle_merge(struct flow_action_entry *a_in,
+				     struct flow_rule *rule)
+{
+	enum flow_action_mangle_base htype = a_in->mangle.htype;
+	u32 offset = a_in->mangle.offset;
+
+	switch (htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS))
+			return -EOPNOTSUPP;
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
+			struct flow_match_ip match;
+
+			flow_rule_match_ip(rule, &match);
+			if (offset == offsetof(struct iphdr, ttl) &&
+			    match.mask->ttl)
+				return -EOPNOTSUPP;
+			if (offset == round_down(offsetof(struct iphdr, tos), 4) &&
+			    match.mask->tos)
+				return -EOPNOTSUPP;
+		}
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+			struct flow_match_ipv4_addrs match;
+
+			flow_rule_match_ipv4_addrs(rule, &match);
+			if (offset == offsetof(struct iphdr, saddr) &&
+			    match.mask->src)
+				return -EOPNOTSUPP;
+			if (offset == offsetof(struct iphdr, daddr) &&
+			    match.mask->dst)
+				return -EOPNOTSUPP;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
+			struct flow_match_ip match;
+
+			flow_rule_match_ip(rule, &match);
+			if (offset == round_down(offsetof(struct ipv6hdr, hop_limit), 4) &&
+			    match.mask->ttl)
+				return -EOPNOTSUPP;
+			/* for ipv6, tos and flow_lbl are in the same word */
+			if (offset == round_down(offsetof(struct ipv6hdr, flow_lbl), 4) &&
+			    match.mask->tos)
+				return -EOPNOTSUPP;
+		}
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+			struct flow_match_ipv6_addrs match;
+
+			flow_rule_match_ipv6_addrs(rule, &match);
+			if (offset >= offsetof(struct ipv6hdr, saddr) &&
+			    offset < offsetof(struct ipv6hdr, daddr) &&
+			    memchr_inv(&match.mask->src, 0, sizeof(match.mask->src)))
+				return -EOPNOTSUPP;
+			if (offset >= offsetof(struct ipv6hdr, daddr) &&
+			    offset < sizeof(struct ipv6hdr) &&
+			    memchr_inv(&match.mask->dst, 0, sizeof(match.mask->dst)))
+				return -EOPNOTSUPP;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+		/* currently only can modify ports */
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS))
+			return -EOPNOTSUPP;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
 				  struct nfp_fl_ct_flow_entry *post_ct_entry,
 				  struct nfp_fl_ct_flow_entry *nft_entry)
 {
+	struct flow_action_entry *act;
+	int err, i;
+
+	/* Check for pre_ct->action conflicts */
+	flow_action_for_each(i, act, &pre_ct_entry->rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_MANGLE:
+			err = nfp_ct_check_mangle_merge(act, nft_entry->rule);
+			if (err)
+				return err;
+			err = nfp_ct_check_mangle_merge(act, post_ct_entry->rule);
+			if (err)
+				return err;
+			break;
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_POP:
+		case FLOW_ACTION_VLAN_MANGLE:
+		case FLOW_ACTION_MPLS_PUSH:
+		case FLOW_ACTION_MPLS_POP:
+		case FLOW_ACTION_MPLS_MANGLE:
+			return -EOPNOTSUPP;
+		default:
+			break;
+		}
+	}
+
+	/* Check for nft->action conflicts */
+	flow_action_for_each(i, act, &nft_entry->rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_MANGLE:
+			err = nfp_ct_check_mangle_merge(act, post_ct_entry->rule);
+			if (err)
+				return err;
+			break;
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_POP:
+		case FLOW_ACTION_VLAN_MANGLE:
+		case FLOW_ACTION_MPLS_PUSH:
+		case FLOW_ACTION_MPLS_POP:
+		case FLOW_ACTION_MPLS_MANGLE:
+			return -EOPNOTSUPP;
+		default:
+			break;
+		}
+	}
 	return 0;
 }
 
