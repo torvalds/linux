@@ -621,8 +621,8 @@ static const struct acpi_gpio_mapping ssam_acpi_gpios[] = {
 
 static int ssam_serial_hub_probe(struct serdev_device *serdev)
 {
+	struct acpi_device *ssh = ACPI_COMPANION(&serdev->dev);
 	struct ssam_controller *ctrl;
-	acpi_handle *ssh = ACPI_HANDLE(&serdev->dev);
 	acpi_status astatus;
 	int status;
 
@@ -652,7 +652,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	if (status)
 		goto err_devopen;
 
-	astatus = ssam_serdev_setup_via_acpi(ssh, serdev);
+	astatus = ssam_serdev_setup_via_acpi(ssh->handle, serdev);
 	if (ACPI_FAILURE(astatus)) {
 		status = -ENXIO;
 		goto err_devinit;
@@ -706,7 +706,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	 *       For now let's thus default power/wakeup to false.
 	 */
 	device_set_wakeup_capable(&serdev->dev, true);
-	acpi_walk_dep_device_list(ssh);
+	acpi_dev_clear_dependencies(ssh);
 
 	return 0;
 
