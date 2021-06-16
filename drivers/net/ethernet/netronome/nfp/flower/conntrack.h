@@ -28,6 +28,9 @@ extern const struct rhashtable_params nfp_tc_ct_merge_params;
  *
  * @tc_merge_tb:	The table of merged tc flows
  * @tc_merge_count:	Keep count of the number of merged tc entries
+ *
+ * @nft_flows_list:	The list of nft relatednfp_fl_ct_flow_entry entries
+ * @nft_flows_count:	Keep count of the number of nft_flow entries
  */
 struct nfp_fl_ct_zone_entry {
 	u16 zone;
@@ -44,6 +47,9 @@ struct nfp_fl_ct_zone_entry {
 
 	struct rhashtable tc_merge_tb;
 	unsigned int tc_merge_count;
+
+	struct list_head nft_flows_list;
+	unsigned int nft_flows_count;
 };
 
 enum ct_entry_type {

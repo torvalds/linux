@@ -165,6 +165,7 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	/* init the various hash tables and lists*/
 	INIT_LIST_HEAD(&zt->pre_ct_list);
 	INIT_LIST_HEAD(&zt->post_ct_list);
+	INIT_LIST_HEAD(&zt->nft_flows_list);
 
 	err = rhashtable_init(&zt->tc_merge_tb, &nfp_tc_ct_merge_params);
 	if (err)
@@ -500,13 +501,31 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 static int
 nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offload *flow)
 {
+	struct nfp_fl_ct_map_entry *ct_map_ent;
+	struct nfp_fl_ct_flow_entry *ct_entry;
+	struct netlink_ext_ack *extack = NULL;
+
 	ASSERT_RTNL();
 
+	extack = flow->common.extack;
 	switch (flow->command) {
 	case FLOW_CLS_REPLACE:
+		/* Netfilter can request offload multiple times for the same
+		 * flow - protect against adding duplicates.
+		 */
+		ct_map_ent = rhashtable_lookup_fast(&zt->priv->ct_map_table, &flow->cookie,
+						    nfp_ct_map_params);
+		if (!ct_map_ent) {
+			ct_entry = nfp_fl_ct_add_flow(zt, NULL, flow, extack);
+			ct_entry->type = CT_TYPE_NFT;
+			list_add(&ct_entry->list_node, &zt->nft_flows_list);
+			zt->nft_flows_count++;
+		}
 		return 0;
 	case FLOW_CLS_DESTROY:
-		return 0;
+		ct_map_ent = rhashtable_lookup_fast(&zt->priv->ct_map_table, &flow->cookie,
+						    nfp_ct_map_params);
+		return nfp_fl_ct_del_flow(ct_map_ent);
 	case FLOW_CLS_STATS:
 		return 0;
 	default:
@@ -533,11 +552,29 @@ int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data, void *cb
 	return err;
 }
 
+static void
+nfp_fl_ct_clean_nft_entries(struct nfp_fl_ct_zone_entry *zt)
+{
+	struct nfp_fl_ct_flow_entry *nft_entry, *ct_tmp;
+	struct nfp_fl_ct_map_entry *ct_map_ent;
+
+	list_for_each_entry_safe(nft_entry, ct_tmp, &zt->nft_flows_list,
+				 list_node) {
+		ct_map_ent = rhashtable_lookup_fast(&zt->priv->ct_map_table,
+						    &nft_entry->cookie,
+						    nfp_ct_map_params);
+		nfp_fl_ct_del_flow(ct_map_ent);
+	}
+}
+
 int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 {
 	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct nfp_fl_ct_zone_entry *zt;
 	struct rhashtable *m_table;
+
+	if (!ct_map_ent)
+		return -ENOENT;
 
 	zt = ct_map_ent->ct_entry->zt;
 	ct_entry = ct_map_ent->ct_entry;
@@ -566,6 +603,7 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 						     nfp_fl_ct_handle_nft_flow,
 						     zt);
 			zt->nft = NULL;
+			nfp_fl_ct_clean_nft_entries(zt);
 		}
 		break;
 	case CT_TYPE_POST_CT:
@@ -575,6 +613,12 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 		nfp_fl_ct_clean_flow_entry(ct_entry);
 		kfree(ct_map_ent);
 		break;
+	case CT_TYPE_NFT:
+		zt->nft_flows_count--;
+		rhashtable_remove_fast(m_table, &ct_map_ent->hash_node,
+				       nfp_ct_map_params);
+		nfp_fl_ct_clean_flow_entry(ct_map_ent->ct_entry);
+		kfree(ct_map_ent);
 	default:
 		break;
 	}
