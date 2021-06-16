@@ -22,6 +22,7 @@
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
 #include <linux/net.h>
+#include <linux/rfkill.h>
 #include <net/regulatory.h>
 
 /**
@@ -4943,6 +4944,7 @@ struct wiphy_iftype_akm_suites {
  *	configuration through the %NL80211_TID_CONFIG_ATTR_RETRY_SHORT and
  *	%NL80211_TID_CONFIG_ATTR_RETRY_LONG attributes
  * @sar_capa: SAR control capabilities
+ * @rfkill: a pointer to the rfkill structure
  */
 struct wiphy {
 	struct mutex mtx;
@@ -5084,6 +5086,8 @@ struct wiphy {
 	u8 max_data_retry_count;
 
 	const struct cfg80211_sar_capa *sar_capa;
+
+	struct rfkill *rfkill;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -6659,7 +6663,10 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
  * wiphy_rfkill_stop_polling - stop polling rfkill
  * @wiphy: the wiphy
  */
-void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+static inline void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	rfkill_pause_polling(wiphy->rfkill);
+}
 
 /**
  * DOC: Vendor commands

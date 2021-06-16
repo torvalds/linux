@@ -13041,7 +13041,7 @@ static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (wdev_running(wdev))
 		return 0;
 
-	if (rfkill_blocked(rdev->rfkill))
+	if (rfkill_blocked(rdev->wiphy.rfkill))
 		return -ERFKILL;
 
 	err = rdev_start_p2p_device(rdev, wdev);
@@ -13083,7 +13083,7 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (wdev_running(wdev))
 		return -EEXIST;
 
-	if (rfkill_blocked(rdev->rfkill))
+	if (rfkill_blocked(rdev->wiphy.rfkill))
 		return -ERFKILL;
 
 	if (!info->attrs[NL80211_ATTR_NAN_MASTER_PREF])

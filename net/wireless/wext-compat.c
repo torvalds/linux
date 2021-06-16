@@ -902,7 +902,7 @@ static int cfg80211_wext_siwtxpower(struct net_device *dev,
 
 	/* only change when not disabling */
 	if (!data->txpower.disabled) {
-		rfkill_set_sw_state(rdev->rfkill, false);
+		rfkill_set_sw_state(rdev->wiphy.rfkill, false);
 
 		if (data->txpower.fixed) {
 			/*
@@ -927,7 +927,7 @@ static int cfg80211_wext_siwtxpower(struct net_device *dev,
 			}
 		}
 	} else {
-		if (rfkill_set_sw_state(rdev->rfkill, true))
+		if (rfkill_set_sw_state(rdev->wiphy.rfkill, true))
 			schedule_work(&rdev->rfkill_block);
 		return 0;
 	}
@@ -963,7 +963,7 @@ static int cfg80211_wext_giwtxpower(struct net_device *dev,
 
 	/* well... oh well */
 	data->txpower.fixed = 1;
-	data->txpower.disabled = rfkill_blocked(rdev->rfkill);
+	data->txpower.disabled = rfkill_blocked(rdev->wiphy.rfkill);
 	data->txpower.value = val;
 	data->txpower.flags = IW_TXPOW_DBM;
 

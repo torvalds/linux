@@ -532,11 +532,11 @@ use_default_name:
 	wiphy_net_set(&rdev->wiphy, &init_net);
 
 	rdev->rfkill_ops.set_block = cfg80211_rfkill_set_block;
-	rdev->rfkill = rfkill_alloc(dev_name(&rdev->wiphy.dev),
-				   &rdev->wiphy.dev, RFKILL_TYPE_WLAN,
-				   &rdev->rfkill_ops, rdev);
+	rdev->wiphy.rfkill = rfkill_alloc(dev_name(&rdev->wiphy.dev),
+					  &rdev->wiphy.dev, RFKILL_TYPE_WLAN,
+					  &rdev->rfkill_ops, rdev);
 
-	if (!rdev->rfkill) {
+	if (!rdev->wiphy.rfkill) {
 		wiphy_free(&rdev->wiphy);
 		return NULL;
 	}
@@ -985,10 +985,10 @@ int wiphy_register(struct wiphy *wiphy)
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
 
-	res = rfkill_register(rdev->rfkill);
+	res = rfkill_register(rdev->wiphy.rfkill);
 	if (res) {
-		rfkill_destroy(rdev->rfkill);
-		rdev->rfkill = NULL;
+		rfkill_destroy(rdev->wiphy.rfkill);
+		rdev->wiphy.rfkill = NULL;
 		wiphy_unregister(&rdev->wiphy);
 		return res;
 	}
@@ -1004,17 +1004,9 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy)
 	if (!rdev->ops->rfkill_poll)
 		return;
 	rdev->rfkill_ops.poll = cfg80211_rfkill_poll;
-	rfkill_resume_polling(rdev->rfkill);
+	rfkill_resume_polling(wiphy->rfkill);
 }
 EXPORT_SYMBOL(wiphy_rfkill_start_polling);
-
-void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
-{
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-
-	rfkill_pause_polling(rdev->rfkill);
-}
-EXPORT_SYMBOL(wiphy_rfkill_stop_polling);
 
 void wiphy_unregister(struct wiphy *wiphy)
 {
@@ -1027,8 +1019,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 		wiphy_unlock(&rdev->wiphy);
 		__count == 0; }));
 
-	if (rdev->rfkill)
-		rfkill_unregister(rdev->rfkill);
+	if (rdev->wiphy.rfkill)
+		rfkill_unregister(rdev->wiphy.rfkill);
 
 	rtnl_lock();
 	wiphy_lock(&rdev->wiphy);
@@ -1080,7 +1072,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 {
 	struct cfg80211_internal_bss *scan, *tmp;
 	struct cfg80211_beacon_registration *reg, *treg;
-	rfkill_destroy(rdev->rfkill);
+	rfkill_destroy(rdev->wiphy.rfkill);
 	list_for_each_entry_safe(reg, treg, &rdev->beacon_registrations, list) {
 		list_del(&reg->list);
 		kfree(reg);
@@ -1102,7 +1094,7 @@ void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
-	if (rfkill_set_hw_state_reason(rdev->rfkill, blocked, reason))
+	if (rfkill_set_hw_state_reason(wiphy->rfkill, blocked, reason))
 		schedule_work(&rdev->rfkill_block);
 }
 EXPORT_SYMBOL(wiphy_rfkill_set_hw_state_reason);
@@ -1495,7 +1487,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					     wdev->use_4addr, 0))
 			return notifier_from_errno(-EOPNOTSUPP);
 
-		if (rfkill_blocked(rdev->rfkill))
+		if (rfkill_blocked(rdev->wiphy.rfkill))
 			return notifier_from_errno(-ERFKILL);
 		break;
 	default:
