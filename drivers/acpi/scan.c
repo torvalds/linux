@@ -2139,9 +2139,9 @@ static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
  * negative value is returned by the callback then the loop is broken and that
  * value is returned as the final error.
  */
-int acpi_walk_dep_device_list(acpi_handle handle,
-			      int (*callback)(struct acpi_dep_data *, void *),
-			      void *data)
+static int acpi_walk_dep_device_list(acpi_handle handle,
+				int (*callback)(struct acpi_dep_data *, void *),
+				void *data)
 {
 	struct acpi_dep_data *dep, *tmp;
 	int ret = 0;
@@ -2158,7 +2158,6 @@ int acpi_walk_dep_device_list(acpi_handle handle,
 
 	return ret > 0 ? 0 : ret;
 }
-EXPORT_SYMBOL_GPL(acpi_walk_dep_device_list);
 
 /**
  * acpi_dev_clear_dependencies - Inform consumers that the device is now active
