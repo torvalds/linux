@@ -2817,6 +2817,18 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		ice_ptp_process_ts(pf);
 	}
 
+	if (oicr & PFINT_OICR_TSYN_EVNT_M) {
+		u8 tmr_idx = hw->func_caps.ts_func_info.tmr_index_owned;
+		u32 gltsyn_stat = rd32(hw, GLTSYN_STAT(tmr_idx));
+
+		/* Save EVENTs from GTSYN register */
+		pf->ptp.ext_ts_irq |= gltsyn_stat & (GLTSYN_STAT_EVENT0_M |
+						     GLTSYN_STAT_EVENT1_M |
+						     GLTSYN_STAT_EVENT2_M);
+		ena_mask &= ~PFINT_OICR_TSYN_EVNT_M;
+		kthread_queue_work(pf->ptp.kworker, &pf->ptp.extts_work);
+	}
+
 #define ICE_AUX_CRIT_ERR (PFINT_OICR_PE_CRITERR_M | PFINT_OICR_HMC_ERR_M | PFINT_OICR_PE_PUSH_M)
 	if (oicr & ICE_AUX_CRIT_ERR) {
 		struct iidc_event *event;

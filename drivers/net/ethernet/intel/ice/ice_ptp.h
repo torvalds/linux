@@ -9,6 +9,21 @@
 
 #include "ice_ptp_hw.h"
 
+enum ice_ptp_pin {
+	GPIO_20 = 0,
+	GPIO_21,
+	GPIO_22,
+	GPIO_23,
+	NUM_ICE_PTP_PIN
+};
+
+struct ice_perout_channel {
+	bool ena;
+	u32 gpio_pin;
+	u64 period;
+	u64 start_time;
+};
+
 /* The ice hardware captures Tx hardware timestamps in the PHY. The timestamp
  * is stored in a buffer of registers. Depending on the specific hardware,
  * this buffer might be shared across multiple PHY ports.
@@ -82,12 +97,18 @@ struct ice_ptp_port {
 	struct ice_ptp_tx tx;
 };
 
+#define GLTSYN_TGT_H_IDX_MAX		4
+
 /**
  * struct ice_ptp - data used for integrating with CONFIG_PTP_1588_CLOCK
  * @port: data for the PHY port initialization procedure
  * @work: delayed work function for periodic tasks
+ * @extts_work: work function for handling external Tx timestamps
  * @cached_phc_time: a cached copy of the PHC time for timestamp extension
+ * @ext_ts_chan: the external timestamp channel in use
+ * @ext_ts_irq: the external timestamp IRQ in use
  * @kworker: kwork thread for handling periodic work
+ * @perout_channels: periodic output data
  * @info: structure defining PTP hardware capabilities
  * @clock: pointer to registered PTP clock device
  * @tstamp_config: hardware timestamping configuration
@@ -95,8 +116,12 @@ struct ice_ptp_port {
 struct ice_ptp {
 	struct ice_ptp_port port;
 	struct kthread_delayed_work work;
+	struct kthread_work extts_work;
 	u64 cached_phc_time;
+	u8 ext_ts_chan;
+	u8 ext_ts_irq;
 	struct kthread_worker *kworker;
+	struct ice_perout_channel perout_channels[GLTSYN_TGT_H_IDX_MAX];
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	struct hwtstamp_config tstamp_config;
@@ -114,6 +139,24 @@ struct ice_ptp {
 
 #define PTP_SHARED_CLK_IDX_VALID	BIT(31)
 #define ICE_PTP_TS_VALID		BIT(0)
+
+/* Per-channel register definitions */
+#define GLTSYN_AUX_OUT(_chan, _idx)	(GLTSYN_AUX_OUT_0(_idx) + ((_chan) * 8))
+#define GLTSYN_AUX_IN(_chan, _idx)	(GLTSYN_AUX_IN_0(_idx) + ((_chan) * 8))
+#define GLTSYN_CLKO(_chan, _idx)	(GLTSYN_CLKO_0(_idx) + ((_chan) * 8))
+#define GLTSYN_TGT_L(_chan, _idx)	(GLTSYN_TGT_L_0(_idx) + ((_chan) * 16))
+#define GLTSYN_TGT_H(_chan, _idx)	(GLTSYN_TGT_H_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_L(_chan, _idx)	(GLTSYN_EVNT_L_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_H(_chan, _idx)	(GLTSYN_EVNT_H_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_H_IDX_MAX		3
+
+/* Pin definitions for PTP PPS out */
+#define PPS_CLK_GEN_CHAN		3
+#define PPS_CLK_SRC_CHAN		2
+#define PPS_PIN_INDEX			5
+#define TIME_SYNC_PIN_INDEX		4
+#define E810_N_EXT_TS			3
+#define E810_N_PER_OUT			4
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 struct ice_pf;
