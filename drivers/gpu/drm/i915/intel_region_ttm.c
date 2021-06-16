@@ -68,7 +68,7 @@ int intel_region_to_ttm_type(const struct intel_memory_region *mem)
 }
 
 static struct ttm_resource *
-intel_region_ttm_node_reserve(struct intel_memory_region *mem,
+intel_region_ttm_resource_reserve(struct intel_memory_region *mem,
 			      resource_size_t offset,
 			      resource_size_t size)
 {
@@ -100,12 +100,12 @@ intel_region_ttm_node_reserve(struct intel_memory_region *mem,
 }
 
 /**
- * intel_region_ttm_node_free - Free a node allocated from a resource manager
- * @mem: The region the node was allocated from.
- * @node: The opaque node representing an allocation.
+ * intel_region_ttm_resource_free - Free a resource allocated from a resource manager
+ * @mem: The region the resource was allocated from.
+ * @res: The opaque resource representing an allocation.
  */
-void intel_region_ttm_node_free(struct intel_memory_region *mem,
-				struct ttm_resource *res)
+void intel_region_ttm_resource_free(struct intel_memory_region *mem,
+				    struct ttm_resource *res)
 {
 	struct ttm_resource_manager *man = mem->region_private;
 
@@ -113,8 +113,8 @@ void intel_region_ttm_node_free(struct intel_memory_region *mem,
 }
 
 static const struct intel_memory_region_private_ops priv_ops = {
-	.reserve = intel_region_ttm_node_reserve,
-	.free = intel_region_ttm_node_free,
+	.reserve = intel_region_ttm_resource_reserve,
+	.free = intel_region_ttm_resource_free,
 };
 
 int intel_region_ttm_init(struct intel_memory_region *mem)
@@ -157,10 +157,10 @@ void intel_region_ttm_fini(struct intel_memory_region *mem)
 }
 
 /**
- * intel_region_ttm_node_to_st - Convert an opaque TTM resource manager node
+ * intel_region_ttm_resource_to_st - Convert an opaque TTM resource manager resource
  * to an sg_table.
  * @mem: The memory region.
- * @node: The resource manager node obtained from the TTM resource manager.
+ * @res: The resource manager resource obtained from the TTM resource manager.
  *
  * The gem backends typically use sg-tables for operations on the underlying
  * io_memory. So provide a way for the backends to translate the
@@ -168,8 +168,8 @@ void intel_region_ttm_fini(struct intel_memory_region *mem)
  *
  * Return: A malloced sg_table on success, an error pointer on failure.
  */
-struct sg_table *intel_region_ttm_node_to_st(struct intel_memory_region *mem,
-					     struct ttm_resource *res)
+struct sg_table *intel_region_ttm_resource_to_st(struct intel_memory_region *mem,
+						 struct ttm_resource *res)
 {
 	struct ttm_range_mgr_node *range_node =
 		container_of(res, typeof(*range_node), base);
@@ -196,9 +196,9 @@ struct sg_table *intel_region_ttm_node_to_st(struct intel_memory_region *mem,
  * Return: A valid pointer on success, an error pointer on failure.
  */
 struct ttm_resource *
-intel_region_ttm_node_alloc(struct intel_memory_region *mem,
-			    resource_size_t size,
-			    unsigned int flags)
+intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
+				resource_size_t size,
+				unsigned int flags)
 {
 	struct ttm_resource_manager *man = mem->region_private;
 	struct ttm_place place = {};

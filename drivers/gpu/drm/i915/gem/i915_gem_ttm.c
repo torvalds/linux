@@ -327,7 +327,7 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 	if (man->use_tt)
 		return i915_ttm_tt_get_st(bo->ttm);
 
-	return intel_region_ttm_node_to_st(obj->mm.region, res);
+	return intel_region_ttm_resource_to_st(obj->mm.region, res);
 }
 
 static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
