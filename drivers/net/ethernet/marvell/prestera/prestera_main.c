@@ -12,6 +12,9 @@
 
 #include "prestera.h"
 #include "prestera_hw.h"
+#include "prestera_acl.h"
+#include "prestera_flow.h"
+#include "prestera_span.h"
 #include "prestera_rxtx.h"
 #include "prestera_devlink.h"
 #include "prestera_ethtool.h"
@@ -200,10 +203,25 @@ static void prestera_port_stats_update(struct work_struct *work)
 			   msecs_to_jiffies(PRESTERA_STATS_DELAY_MS));
 }
 
+static int prestera_port_setup_tc(struct net_device *dev,
+				  enum tc_setup_type type,
+				  void *type_data)
+{
+	struct prestera_port *port = netdev_priv(dev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return prestera_flow_block_setup(port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops prestera_netdev_ops = {
 	.ndo_open = prestera_port_open,
 	.ndo_stop = prestera_port_close,
 	.ndo_start_xmit = prestera_port_xmit,
+	.ndo_setup_tc = prestera_port_setup_tc,
 	.ndo_change_mtu = prestera_port_change_mtu,
 	.ndo_get_stats64 = prestera_port_get_stats64,
 	.ndo_set_mac_address = prestera_port_set_mac_address,
@@ -298,7 +316,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	if (err)
 		goto err_dl_port_register;
 
-	dev->features |= NETIF_F_NETNS_LOCAL;
+	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_HW_TC;
 	dev->netdev_ops = &prestera_netdev_ops;
 	dev->ethtool_ops = &prestera_ethtool_ops;
 
@@ -824,6 +842,14 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		goto err_handlers_register;
 
+	err = prestera_acl_init(sw);
+	if (err)
+		goto err_acl_init;
+
+	err = prestera_span_init(sw);
+	if (err)
+		goto err_span_init;
+
 	err = prestera_devlink_register(sw);
 	if (err)
 		goto err_dl_register;
@@ -843,6 +869,10 @@ err_ports_create:
 err_lag_init:
 	prestera_devlink_unregister(sw);
 err_dl_register:
+	prestera_span_fini(sw);
+err_span_init:
+	prestera_acl_fini(sw);
+err_acl_init:
 	prestera_event_handlers_unregister(sw);
 err_handlers_register:
 	prestera_rxtx_switch_fini(sw);
@@ -860,6 +890,8 @@ static void prestera_switch_fini(struct prestera_switch *sw)
 	prestera_destroy_ports(sw);
 	prestera_lag_fini(sw);
 	prestera_devlink_unregister(sw);
+	prestera_span_fini(sw);
+	prestera_acl_fini(sw);
 	prestera_event_handlers_unregister(sw);
 	prestera_rxtx_switch_fini(sw);
 	prestera_switchdev_fini(sw);
