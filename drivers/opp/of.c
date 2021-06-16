@@ -197,21 +197,8 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		required_opp_tables[i] = _find_table_of_opp_np(required_np);
 		of_node_put(required_np);
 
-		if (IS_ERR(required_opp_tables[i])) {
+		if (IS_ERR(required_opp_tables[i]))
 			lazy = true;
-			continue;
-		}
-
-		/*
-		 * We only support genpd's OPPs in the "required-opps" for now,
-		 * as we don't know how much about other cases. Error out if the
-		 * required OPP doesn't belong to a genpd.
-		 */
-		if (!required_opp_tables[i]->is_genpd) {
-			dev_err(dev, "required-opp doesn't belong to genpd: %pOF\n",
-				required_np);
-			goto free_required_tables;
-		}
 	}
 
 	/* Let's do the linking later on */
@@ -378,13 +365,6 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 	struct device_node *required_np, *opp_np, *required_table_np;
 	struct dev_pm_opp *opp;
 	int i, ret;
-
-	/*
-	 * We only support genpd's OPPs in the "required-opps" for now,
-	 * as we don't know much about other cases.
-	 */
-	if (!new_table->is_genpd)
-		return;
 
 	mutex_lock(&opp_table_lock);
 
@@ -873,7 +853,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 		return ERR_PTR(-ENOMEM);
 
 	ret = _read_opp_key(new_opp, opp_table, np, &rate_not_available);
-	if (ret < 0 && !opp_table->is_genpd) {
+	if (ret < 0) {
 		dev_err(dev, "%s: opp key field not found\n", __func__);
 		goto free_opp;
 	}
