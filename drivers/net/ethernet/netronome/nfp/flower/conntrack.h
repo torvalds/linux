@@ -4,6 +4,7 @@
 #ifndef __NFP_FLOWER_CONNTRACK_H__
 #define __NFP_FLOWER_CONNTRACK_H__ 1
 
+#include <net/netfilter/nf_flow_table.h>
 #include "main.h"
 
 #define NFP_FL_CT_NO_TUN	0xff
@@ -158,4 +159,14 @@ void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry);
  * @ct_map_ent:	ct map entry for the flow that needs deleting
  */
 int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent);
+
+/**
+ * nfp_fl_ct_handle_nft_flow() - Handle flower flow callbacks for nft table
+ * @type:	Type provided by callback
+ * @type_data:	Callback data
+ * @cb_priv:	Pointer to data provided when registering the callback, in this
+ *		case it's the zone table.
+ */
+int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data,
+			      void *cb_priv);
 #endif

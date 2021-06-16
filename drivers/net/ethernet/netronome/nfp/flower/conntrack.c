@@ -384,6 +384,7 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	struct flow_action_entry *ct_act, *ct_goto;
 	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct nfp_fl_ct_zone_entry *zt;
+	int err;
 
 	ct_act = get_flow_act(flow, FLOW_ACTION_CT);
 	if (!ct_act) {
@@ -406,8 +407,15 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 		return PTR_ERR(zt);
 	}
 
-	if (!zt->nft)
+	if (!zt->nft) {
 		zt->nft = ct_act->ct.flow_table;
+		err = nf_flow_table_offload_add_cb(zt->nft, nfp_fl_ct_handle_nft_flow, zt);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "offload error: Could not register nft_callback");
+			return err;
+		}
+	}
 
 	/* Add entry to pre_ct_list */
 	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, extack);
@@ -489,6 +497,42 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 	return 0;
 }
 
+static int
+nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offload *flow)
+{
+	ASSERT_RTNL();
+
+	switch (flow->command) {
+	case FLOW_CLS_REPLACE:
+		return 0;
+	case FLOW_CLS_DESTROY:
+		return 0;
+	case FLOW_CLS_STATS:
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data, void *cb_priv)
+{
+	struct flow_cls_offload *flow = type_data;
+	struct nfp_fl_ct_zone_entry *zt = cb_priv;
+	int err = -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		rtnl_lock();
+		err = nfp_fl_ct_offload_nft_flow(zt, flow);
+		rtnl_unlock();
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return err;
+}
+
 int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 {
 	struct nfp_fl_ct_flow_entry *ct_entry;
@@ -506,6 +550,23 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 				       nfp_ct_map_params);
 		nfp_fl_ct_clean_flow_entry(ct_entry);
 		kfree(ct_map_ent);
+
+		/* If this is the last pre_ct_rule it means that it is
+		 * very likely that the nft table will be cleaned up next,
+		 * as this happens on the removal of the last act_ct flow.
+		 * However we cannot deregister the callback on the removal
+		 * of the last nft flow as this runs into a deadlock situation.
+		 * So deregister the callback on removal of the last pre_ct flow
+		 * and remove any remaining nft flow entries. We also cannot
+		 * save this state and delete the callback later since the
+		 * nft table would already have been freed at that time.
+		 */
+		if (!zt->pre_ct_count) {
+			nf_flow_table_offload_del_cb(zt->nft,
+						     nfp_fl_ct_handle_nft_flow,
+						     zt);
+			zt->nft = NULL;
+		}
 		break;
 	case CT_TYPE_POST_CT:
 		zt->post_ct_count--;
