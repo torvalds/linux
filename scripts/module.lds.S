@@ -33,6 +33,7 @@ SECTIONS {
 
 	__patchable_function_entries : { *(__patchable_function_entries) }
 
+#ifdef CONFIG_LTO_CLANG
 	/*
 	 * With CONFIG_LTO_CLANG, LLD always enables -fdata-sections and
 	 * -ffunction-sections, which increases the size of the final module.
@@ -49,8 +50,10 @@ SECTIONS {
 	}
 
 	.rodata : {
+		*(.rodata.._start)
 		*(.rodata .rodata.[0-9a-zA-Z_]*)
 		*(.rodata..L*)
+		*(.rodata.._end)
 	}
 
 #ifdef CONFIG_CFI_CLANG
@@ -59,12 +62,15 @@ SECTIONS {
 	 * .text section, and that the section is aligned to page size.
 	 */
 	.text : ALIGN(PAGE_SIZE) {
+		*(.text.._start)
 		*(.text.__cfi_check)
 		*(.text .text.[0-9a-zA-Z_]*)
 		__cfi_jt_start = .;
 		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)
 		__cfi_jt_end = .;
+		*(.text.._end)
 	}
+#endif
 #endif
 }
 

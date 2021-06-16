@@ -50,6 +50,18 @@
 #ifndef R_AARCH64_ABS64
 #define R_AARCH64_ABS64			257
 #endif
+#ifndef R_AARCH64_PREL64
+#define R_AARCH64_PREL64		260
+#endif
+#ifndef R_AARCH64_PREL32
+#define R_AARCH64_PREL32		261
+#endif
+#ifndef R_AARCH64_PREL16
+#define R_AARCH64_PREL16		262
+#endif
+#ifndef R_AARCH64_PLT32
+#define R_AARCH64_PLT32			314
+#endif
 #ifndef R_AARCH64_LD_PREL_LO19
 #define R_AARCH64_LD_PREL_LO19		273
 #endif
@@ -370,6 +382,12 @@ static void emit_rela_section(Elf64_Shdr *sh_rela)
 		 */
 		case R_AARCH64_ABS64:
 			emit_rela_abs64(rela, sh_orig_name);
+			break;
+		/* Allow position-relative data relocations. */
+		case R_AARCH64_PREL64:
+		case R_AARCH64_PREL32:
+		case R_AARCH64_PREL16:
+		case R_AARCH64_PLT32:
 			break;
 		/* Allow relocations to generate PC-relative addressing. */
 		case R_AARCH64_LD_PREL_LO19:

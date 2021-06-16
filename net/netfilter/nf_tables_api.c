@@ -3263,8 +3263,10 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 			if (n == NFT_RULE_MAXEXPRS)
 				goto err1;
 			err = nf_tables_expr_parse(&ctx, tmp, &info[n]);
-			if (err < 0)
+			if (err < 0) {
+				NL_SET_BAD_ATTR(extack, tmp);
 				goto err1;
+			}
 			size += info[n].ops->size;
 			n++;
 		}

@@ -18,6 +18,7 @@ android/abi_gki_aarch64_generic
 android/abi_gki_aarch64_exynos
 android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_xiaomi
+android/abi_gki_aarch64_fips140
 "
 
 FILES="${FILES}
