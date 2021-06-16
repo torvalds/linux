@@ -28,6 +28,8 @@ struct sg_table *intel_region_ttm_node_to_st(struct intel_memory_region *mem,
 void intel_region_ttm_node_free(struct intel_memory_region *mem,
 				struct ttm_resource *node);
 
+int intel_region_to_ttm_type(const struct intel_memory_region *mem);
+
 struct ttm_device_funcs *i915_ttm_driver(void);
 
 #ifdef CONFIG_DRM_I915_SELFTEST
