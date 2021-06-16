@@ -337,7 +337,7 @@ static void debug_status_in(struct cosa_data *cosa, int status);
 static void debug_status_out(struct cosa_data *cosa, int status);
 #endif
 
-static inline struct channel_data* dev_to_chan(struct net_device *dev)
+static inline struct channel_data *dev_to_chan(struct net_device *dev)
 {
 	return (struct channel_data *)dev_to_hdlc(dev)->priv;
 }
