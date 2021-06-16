@@ -60,6 +60,8 @@ MODULE_PARM_DESC(sgl_threshold,
 		"Use SGLs when average request segment size is larger or equal to "
 		"this size. Use 0 to disable SGLs.");
 
+#define NVME_PCI_MIN_QUEUE_SIZE 2
+#define NVME_PCI_MAX_QUEUE_SIZE 4095
 static int io_queue_depth_set(const char *val, const struct kernel_param *kp);
 static const struct kernel_param_ops io_queue_depth_ops = {
 	.set = io_queue_depth_set,
@@ -68,7 +70,7 @@ static const struct kernel_param_ops io_queue_depth_ops = {
 
 static unsigned int io_queue_depth = 1024;
 module_param_cb(io_queue_depth, &io_queue_depth_ops, &io_queue_depth, 0644);
-MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2");
+MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2 and < 4096");
 
 static int io_queue_count_set(const char *val, const struct kernel_param *kp)
 {
@@ -157,14 +159,8 @@ struct nvme_dev {
 
 static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
 {
-	int ret;
-	u32 n;
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret != 0 || n < 2)
-		return -EINVAL;
-
-	return param_set_uint(val, kp);
+	return param_set_uint_minmax(val, kp, NVME_PCI_MIN_QUEUE_SIZE,
+			NVME_PCI_MAX_QUEUE_SIZE);
 }
 
 static inline unsigned int sq_idx(unsigned int qid, u32 stride)
