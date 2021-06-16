@@ -1383,11 +1383,10 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 
 	ASSERT_RTNL();
 
-	if (pl->phydev) {
+	if (pl->phydev)
 		phy_ethtool_ksettings_get(pl->phydev, kset);
-	} else {
+	else
 		kset->base.port = pl->link_port;
-	}
 
 	linkmode_copy(kset->link_modes.supported, pl->supported);
 
