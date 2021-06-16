@@ -163,13 +163,12 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 }
 #endif
 
-static void rmnet_map_complement_ipv4_txporthdr_csum_field(void *iphdr)
+static void rmnet_map_complement_ipv4_txporthdr_csum_field(struct iphdr *ip4h)
 {
-	struct iphdr *ip4h = (struct iphdr *)iphdr;
 	void *txphdr;
 	u16 *csum;
 
-	txphdr = iphdr + ip4h->ihl * 4;
+	txphdr = ip4h + ip4h->ihl * 4;
 
 	if (ip4h->protocol == IPPROTO_TCP || ip4h->protocol == IPPROTO_UDP) {
 		csum = (u16 *)rmnet_map_get_csum_field(ip4h->protocol, txphdr);
@@ -198,13 +197,13 @@ rmnet_map_ipv4_ul_csum_header(struct iphdr *iphdr,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static void rmnet_map_complement_ipv6_txporthdr_csum_field(void *ip6hdr)
+static void
+rmnet_map_complement_ipv6_txporthdr_csum_field(struct ipv6hdr *ip6h)
 {
-	struct ipv6hdr *ip6h = (struct ipv6hdr *)ip6hdr;
 	void *txphdr;
 	u16 *csum;
 
-	txphdr = ip6hdr + sizeof(struct ipv6hdr);
+	txphdr = ip6h + sizeof(struct ipv6hdr);
 
 	if (ip6h->nexthdr == IPPROTO_TCP || ip6h->nexthdr == IPPROTO_UDP) {
 		csum = (u16 *)rmnet_map_get_csum_field(ip6h->nexthdr, txphdr);
