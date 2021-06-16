@@ -80,6 +80,18 @@ static int max9271_pclk_detect(struct max9271_device *dev)
 	return -EIO;
 }
 
+void max9271_wake_up(struct max9271_device *dev)
+{
+	/*
+	 * Use the chip default address as this function has to be called
+	 * before any other one.
+	 */
+	dev->client->addr = MAX9271_DEFAULT_ADDR;
+	i2c_smbus_read_byte(dev->client);
+	usleep_range(5000, 8000);
+}
+EXPORT_SYMBOL_GPL(max9271_wake_up);
+
 int max9271_set_serial_link(struct max9271_device *dev, bool enable)
 {
 	int ret;

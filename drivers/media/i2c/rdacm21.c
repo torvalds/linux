@@ -450,10 +450,7 @@ static int rdacm21_initialize(struct rdacm21_device *dev)
 {
 	int ret;
 
-	/* Verify communication with the MAX9271: ping to wakeup. */
-	dev->serializer.client->addr = MAX9271_DEFAULT_ADDR;
-	i2c_smbus_read_byte(dev->serializer.client);
-	usleep_range(3000, 5000);
+	max9271_wake_up(&dev->serializer);
 
 	/* Enable reverse channel and disable the serial link. */
 	ret = max9271_set_serial_link(&dev->serializer, false);

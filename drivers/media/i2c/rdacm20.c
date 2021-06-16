@@ -455,9 +455,7 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 	unsigned int retry = 3;
 	int ret;
 
-	/* Verify communication with the MAX9271: ping to wakeup. */
-	dev->serializer->client->addr = MAX9271_DEFAULT_ADDR;
-	i2c_smbus_read_byte(dev->serializer->client);
+	max9271_wake_up(dev->serializer);
 
 	/* Serial link disabled during config as it needs a valid pixel clock. */
 	ret = max9271_set_serial_link(dev->serializer, false);
