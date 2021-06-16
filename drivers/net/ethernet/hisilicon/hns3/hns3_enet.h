@@ -299,6 +299,16 @@ struct __packed hns3_desc {
 	};
 };
 
+enum hns3_desc_type {
+	DESC_TYPE_UNKNOWN		= 0,
+	DESC_TYPE_SKB			= 1 << 0,
+	DESC_TYPE_FRAGLIST_SKB		= 1 << 1,
+	DESC_TYPE_PAGE			= 1 << 2,
+	DESC_TYPE_BOUNCE_ALL		= 1 << 3,
+	DESC_TYPE_BOUNCE_HEAD		= 1 << 4,
+	DESC_TYPE_SGL_SKB		= 1 << 5,
+};
+
 struct hns3_desc_cb {
 	dma_addr_t dma; /* dma address of this desc */
 	void *buf;      /* cpu addr for a desc */
@@ -398,6 +408,12 @@ struct ring_stats {
 			u64 tx_tso_err;
 			u64 over_max_recursion;
 			u64 hw_limitation;
+			u64 tx_bounce;
+			u64 tx_spare_full;
+			u64 copy_bits_err;
+			u64 tx_sgl;
+			u64 skb2sgl_err;
+			u64 map_sg_err;
 		};
 		struct {
 			u64 rx_pkts;
@@ -411,9 +427,20 @@ struct ring_stats {
 			u64 csum_complete;
 			u64 rx_multicast;
 			u64 non_reuse_pg;
+			u64 frag_alloc_err;
+			u64 frag_alloc;
 		};
 		__le16 csum;
 	};
+};
+
+struct hns3_tx_spare {
+	dma_addr_t dma;
+	void *buf;
+	u32 next_to_use;
+	u32 next_to_clean;
+	u32 last_to_clean;
+	u32 len;
 };
 
 struct hns3_enet_ring {
@@ -438,18 +465,29 @@ struct hns3_enet_ring {
 	 * next_to_use
 	 */
 	int next_to_clean;
-	union {
-		int last_to_use;	/* last idx used by xmit */
-		u32 pull_len;		/* memcpy len for current rx packet */
-	};
-	u32 frag_num;
-	void *va; /* first buffer address for current packet */
-
 	u32 flag;          /* ring attribute */
 
 	int pending_buf;
-	struct sk_buff *skb;
-	struct sk_buff *tail_skb;
+	union {
+		/* for Tx ring */
+		struct {
+			u32 fd_qb_tx_sample;
+			int last_to_use;        /* last idx used by xmit */
+			u32 tx_copybreak;
+			struct hns3_tx_spare *tx_spare;
+		};
+
+		/* for Rx ring */
+		struct {
+			u32 pull_len;   /* memcpy len for current rx packet */
+			u32 rx_copybreak;
+			u32 frag_num;
+			/* first buffer address for current packet */
+			unsigned char *va;
+			struct sk_buff *skb;
+			struct sk_buff *tail_skb;
+		};
+	};
 } ____cacheline_internodealigned_in_smp;
 
 enum hns3_flow_level_range {
@@ -533,6 +571,8 @@ struct hns3_nic_priv {
 
 	struct hns3_enet_coalesce tx_coal;
 	struct hns3_enet_coalesce rx_coal;
+	u32 tx_copybreak;
+	u32 rx_copybreak;
 };
 
 union l3_hdr_info {

@@ -384,6 +384,7 @@ struct hclge_cfg {
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
 	u32 numa_node_map;
+	u32 tx_spare_buf_size;
 	u16 speed_ability;
 	u16 umv_space;
 };
@@ -848,6 +849,7 @@ struct hclge_dev {
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
 	u16 vf_rss_size_max;		/* HW defined VF max RSS task queue */
 	u16 pf_rss_size_max;		/* HW defined PF max RSS task queue */
+	u32 tx_spare_buf_size;		/* HW defined TX spare buffer size */
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */

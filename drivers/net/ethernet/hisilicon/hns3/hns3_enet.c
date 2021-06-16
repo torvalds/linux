@@ -53,6 +53,19 @@ static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, " Network interface message level setting");
 
+static unsigned int tx_spare_buf_size;
+module_param(tx_spare_buf_size, uint, 0400);
+MODULE_PARM_DESC(tx_spare_buf_size, "Size used to allocate tx spare buffer");
+
+static unsigned int tx_sgl = 1;
+module_param(tx_sgl, uint, 0600);
+MODULE_PARM_DESC(tx_sgl, "Minimum number of frags when using dma_map_sg() to optimize the IOMMU mapping");
+
+#define HNS3_SGL_SIZE(nfrag)	(sizeof(struct scatterlist) * (nfrag) +	\
+				 sizeof(struct sg_table))
+#define HNS3_MAX_SGL_SIZE	ALIGN(HNS3_SGL_SIZE(HNS3_MAX_TSO_BD_NUM),\
+				      dma_get_cache_alignment())
+
 #define DEFAULT_MSG_LEVEL (NETIF_MSG_PROBE | NETIF_MSG_LINK | \
 			   NETIF_MSG_IFDOWN | NETIF_MSG_IFUP)
 
@@ -941,6 +954,204 @@ void hns3_request_update_promisc_mode(struct hnae3_handle *handle)
 		ops->request_update_promisc_mode(handle);
 }
 
+static u32 hns3_tx_spare_space(struct hns3_enet_ring *ring)
+{
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+	u32 ntc, ntu;
+
+	/* This smp_load_acquire() pairs with smp_store_release() in
+	 * hns3_tx_spare_update() called in tx desc cleaning process.
+	 */
+	ntc = smp_load_acquire(&tx_spare->last_to_clean);
+	ntu = tx_spare->next_to_use;
+
+	if (ntc > ntu)
+		return ntc - ntu - 1;
+
+	/* The free tx buffer is divided into two part, so pick the
+	 * larger one.
+	 */
+	return (ntc > (tx_spare->len - ntu) ? ntc :
+			(tx_spare->len - ntu)) - 1;
+}
+
+static void hns3_tx_spare_update(struct hns3_enet_ring *ring)
+{
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+
+	if (!tx_spare ||
+	    tx_spare->last_to_clean == tx_spare->next_to_clean)
+		return;
+
+	/* This smp_store_release() pairs with smp_load_acquire() in
+	 * hns3_tx_spare_space() called in xmit process.
+	 */
+	smp_store_release(&tx_spare->last_to_clean,
+			  tx_spare->next_to_clean);
+}
+
+static bool hns3_can_use_tx_bounce(struct hns3_enet_ring *ring,
+				   struct sk_buff *skb,
+				   u32 space)
+{
+	u32 len = skb->len <= ring->tx_copybreak ? skb->len :
+				skb_headlen(skb);
+
+	if (len > ring->tx_copybreak)
+		return false;
+
+	if (ALIGN(len, dma_get_cache_alignment()) > space) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.tx_spare_full++;
+		u64_stats_update_end(&ring->syncp);
+		return false;
+	}
+
+	return true;
+}
+
+static bool hns3_can_use_tx_sgl(struct hns3_enet_ring *ring,
+				struct sk_buff *skb,
+				u32 space)
+{
+	if (skb->len <= ring->tx_copybreak || !tx_sgl ||
+	    (!skb_has_frag_list(skb) &&
+	     skb_shinfo(skb)->nr_frags < tx_sgl))
+		return false;
+
+	if (space < HNS3_MAX_SGL_SIZE) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.tx_spare_full++;
+		u64_stats_update_end(&ring->syncp);
+		return false;
+	}
+
+	return true;
+}
+
+static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
+{
+	struct hns3_tx_spare *tx_spare;
+	struct page *page;
+	u32 alloc_size;
+	dma_addr_t dma;
+	int order;
+
+	alloc_size = tx_spare_buf_size ? tx_spare_buf_size :
+		     ring->tqp->handle->kinfo.tx_spare_buf_size;
+	if (!alloc_size)
+		return;
+
+	order = get_order(alloc_size);
+	tx_spare = devm_kzalloc(ring_to_dev(ring), sizeof(*tx_spare),
+				GFP_KERNEL);
+	if (!tx_spare) {
+		/* The driver still work without the tx spare buffer */
+		dev_warn(ring_to_dev(ring), "failed to allocate hns3_tx_spare\n");
+		return;
+	}
+
+	page = alloc_pages_node(dev_to_node(ring_to_dev(ring)),
+				GFP_KERNEL, order);
+	if (!page) {
+		dev_warn(ring_to_dev(ring), "failed to allocate tx spare pages\n");
+		devm_kfree(ring_to_dev(ring), tx_spare);
+		return;
+	}
+
+	dma = dma_map_page(ring_to_dev(ring), page, 0,
+			   PAGE_SIZE << order, DMA_TO_DEVICE);
+	if (dma_mapping_error(ring_to_dev(ring), dma)) {
+		dev_warn(ring_to_dev(ring), "failed to map pages for tx spare\n");
+		put_page(page);
+		devm_kfree(ring_to_dev(ring), tx_spare);
+		return;
+	}
+
+	tx_spare->dma = dma;
+	tx_spare->buf = page_address(page);
+	tx_spare->len = PAGE_SIZE << order;
+	ring->tx_spare = tx_spare;
+}
+
+/* Use hns3_tx_spare_space() to make sure there is enough buffer
+ * before calling below function to allocate tx buffer.
+ */
+static void *hns3_tx_spare_alloc(struct hns3_enet_ring *ring,
+				 unsigned int size, dma_addr_t *dma,
+				 u32 *cb_len)
+{
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+	u32 ntu = tx_spare->next_to_use;
+
+	size = ALIGN(size, dma_get_cache_alignment());
+	*cb_len = size;
+
+	/* Tx spare buffer wraps back here because the end of
+	 * freed tx buffer is not enough.
+	 */
+	if (ntu + size > tx_spare->len) {
+		*cb_len += (tx_spare->len - ntu);
+		ntu = 0;
+	}
+
+	tx_spare->next_to_use = ntu + size;
+	if (tx_spare->next_to_use == tx_spare->len)
+		tx_spare->next_to_use = 0;
+
+	*dma = tx_spare->dma + ntu;
+
+	return tx_spare->buf + ntu;
+}
+
+static void hns3_tx_spare_rollback(struct hns3_enet_ring *ring, u32 len)
+{
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+
+	if (len > tx_spare->next_to_use) {
+		len -= tx_spare->next_to_use;
+		tx_spare->next_to_use = tx_spare->len - len;
+	} else {
+		tx_spare->next_to_use -= len;
+	}
+}
+
+static void hns3_tx_spare_reclaim_cb(struct hns3_enet_ring *ring,
+				     struct hns3_desc_cb *cb)
+{
+	struct hns3_tx_spare *tx_spare = ring->tx_spare;
+	u32 ntc = tx_spare->next_to_clean;
+	u32 len = cb->length;
+
+	tx_spare->next_to_clean += len;
+
+	if (tx_spare->next_to_clean >= tx_spare->len) {
+		tx_spare->next_to_clean -= tx_spare->len;
+
+		if (tx_spare->next_to_clean) {
+			ntc = 0;
+			len = tx_spare->next_to_clean;
+		}
+	}
+
+	/* This tx spare buffer is only really reclaimed after calling
+	 * hns3_tx_spare_update(), so it is still safe to use the info in
+	 * the tx buffer to do the dma sync or sg unmapping after
+	 * tx_spare->next_to_clean is moved forword.
+	 */
+	if (cb->type & (DESC_TYPE_BOUNCE_HEAD | DESC_TYPE_BOUNCE_ALL)) {
+		dma_addr_t dma = tx_spare->dma + ntc;
+
+		dma_sync_single_for_cpu(ring_to_dev(ring), dma, len,
+					DMA_TO_DEVICE);
+	} else {
+		struct sg_table *sgt = tx_spare->buf + ntc;
+
+		dma_unmap_sg(ring_to_dev(ring), sgt->sgl, sgt->orig_nents,
+			     DMA_TO_DEVICE);
+	}
+}
+
 static int hns3_set_tso(struct sk_buff *skb, u32 *paylen_fdop_ol4cs,
 			u16 *mss, u32 *type_cs_vlan_tso, u32 *send_bytes)
 {
@@ -1412,40 +1623,14 @@ out_hw_tx_csum:
 	return 0;
 }
 
-static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
-			  unsigned int size, enum hns_desc_type type)
+static int hns3_fill_desc(struct hns3_enet_ring *ring, dma_addr_t dma,
+			  unsigned int size)
 {
 #define HNS3_LIKELY_BD_NUM	1
 
-	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
-	struct device *dev = ring_to_dev(ring);
-	skb_frag_t *frag;
 	unsigned int frag_buf_num;
 	int k, sizeoflast;
-	dma_addr_t dma;
-
-	if (type == DESC_TYPE_FRAGLIST_SKB ||
-	    type == DESC_TYPE_SKB) {
-		struct sk_buff *skb = (struct sk_buff *)priv;
-
-		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
-	} else {
-		frag = (skb_frag_t *)priv;
-		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
-	}
-
-	if (unlikely(dma_mapping_error(dev, dma))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
-		return -ENOMEM;
-	}
-
-	desc_cb->priv = priv;
-	desc_cb->length = size;
-	desc_cb->dma = dma;
-	desc_cb->type = type;
 
 	if (likely(size <= HNS3_MAX_BD_SIZE)) {
 		desc->addr = cpu_to_le64(dma);
@@ -1479,6 +1664,52 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	}
 
 	return frag_buf_num;
+}
+
+static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
+				  unsigned int type)
+{
+	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct device *dev = ring_to_dev(ring);
+	unsigned int size;
+	dma_addr_t dma;
+
+	if (type & (DESC_TYPE_FRAGLIST_SKB | DESC_TYPE_SKB)) {
+		struct sk_buff *skb = (struct sk_buff *)priv;
+
+		size = skb_headlen(skb);
+		if (!size)
+			return 0;
+
+		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
+	} else if (type & DESC_TYPE_BOUNCE_HEAD) {
+		/* Head data has been filled in hns3_handle_tx_bounce(),
+		 * just return 0 here.
+		 */
+		return 0;
+	} else {
+		skb_frag_t *frag = (skb_frag_t *)priv;
+
+		size = skb_frag_size(frag);
+		if (!size)
+			return 0;
+
+		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
+	}
+
+	if (unlikely(dma_mapping_error(dev, dma))) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.sw_err_cnt++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	desc_cb->priv = priv;
+	desc_cb->length = size;
+	desc_cb->dma = dma;
+	desc_cb->type = type;
+
+	return hns3_fill_desc(ring, dma, size);
 }
 
 static unsigned int hns3_skb_bd_num(struct sk_buff *skb, unsigned int *bd_size,
@@ -1704,6 +1935,7 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 
 	for (i = 0; i < ring->desc_num; i++) {
 		struct hns3_desc *desc = &ring->desc[ring->next_to_use];
+		struct hns3_desc_cb *desc_cb;
 
 		memset(desc, 0, sizeof(*desc));
 
@@ -1714,52 +1946,44 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 		/* rollback one */
 		ring_ptr_move_bw(ring, next_to_use);
 
-		if (!ring->desc_cb[ring->next_to_use].dma)
+		desc_cb = &ring->desc_cb[ring->next_to_use];
+
+		if (!desc_cb->dma)
 			continue;
 
 		/* unmap the descriptor dma address */
-		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB ||
-		    ring->desc_cb[ring->next_to_use].type ==
-		    DESC_TYPE_FRAGLIST_SKB)
-			dma_unmap_single(dev,
-					 ring->desc_cb[ring->next_to_use].dma,
-					ring->desc_cb[ring->next_to_use].length,
-					DMA_TO_DEVICE);
-		else if (ring->desc_cb[ring->next_to_use].length)
-			dma_unmap_page(dev,
-				       ring->desc_cb[ring->next_to_use].dma,
-				       ring->desc_cb[ring->next_to_use].length,
+		if (desc_cb->type & (DESC_TYPE_SKB | DESC_TYPE_FRAGLIST_SKB))
+			dma_unmap_single(dev, desc_cb->dma, desc_cb->length,
+					 DMA_TO_DEVICE);
+		else if (desc_cb->type &
+			 (DESC_TYPE_BOUNCE_HEAD | DESC_TYPE_BOUNCE_ALL))
+			hns3_tx_spare_rollback(ring, desc_cb->length);
+		else if (desc_cb->length)
+			dma_unmap_page(dev, desc_cb->dma, desc_cb->length,
 				       DMA_TO_DEVICE);
 
-		ring->desc_cb[ring->next_to_use].length = 0;
-		ring->desc_cb[ring->next_to_use].dma = 0;
-		ring->desc_cb[ring->next_to_use].type = DESC_TYPE_UNKNOWN;
+		desc_cb->length = 0;
+		desc_cb->dma = 0;
+		desc_cb->type = DESC_TYPE_UNKNOWN;
 	}
 }
 
 static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
-				 struct sk_buff *skb, enum hns_desc_type type)
+				 struct sk_buff *skb, unsigned int type)
 {
-	unsigned int size = skb_headlen(skb);
 	struct sk_buff *frag_skb;
 	int i, ret, bd_num = 0;
 
-	if (size) {
-		ret = hns3_fill_desc(ring, skb, size, type);
-		if (unlikely(ret < 0))
-			return ret;
+	ret = hns3_map_and_fill_desc(ring, skb, type);
+	if (unlikely(ret < 0))
+		return ret;
 
-		bd_num += ret;
-	}
+	bd_num += ret;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		size = skb_frag_size(frag);
-		if (!size)
-			continue;
-
-		ret = hns3_fill_desc(ring, frag, size, DESC_TYPE_PAGE);
+		ret = hns3_map_and_fill_desc(ring, frag, DESC_TYPE_PAGE);
 		if (unlikely(ret < 0))
 			return ret;
 
@@ -1811,6 +2035,141 @@ static void hns3_tsyn(struct net_device *netdev, struct sk_buff *skb,
 	desc->tx.bdtp_fe_sc_vld_ra_ri |= cpu_to_le16(BIT(HNS3_TXD_TSYN_B));
 }
 
+static int hns3_handle_tx_bounce(struct hns3_enet_ring *ring,
+				 struct sk_buff *skb)
+{
+	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	unsigned int type = DESC_TYPE_BOUNCE_HEAD;
+	unsigned int size = skb_headlen(skb);
+	dma_addr_t dma;
+	int bd_num = 0;
+	u32 cb_len;
+	void *buf;
+	int ret;
+
+	if (skb->len <= ring->tx_copybreak) {
+		size = skb->len;
+		type = DESC_TYPE_BOUNCE_ALL;
+	}
+
+	/* hns3_can_use_tx_bounce() is called to ensure the below
+	 * function can always return the tx buffer.
+	 */
+	buf = hns3_tx_spare_alloc(ring, size, &dma, &cb_len);
+
+	ret = skb_copy_bits(skb, 0, buf, size);
+	if (unlikely(ret < 0)) {
+		hns3_tx_spare_rollback(ring, cb_len);
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.copy_bits_err++;
+		u64_stats_update_end(&ring->syncp);
+		return ret;
+	}
+
+	desc_cb->priv = skb;
+	desc_cb->length = cb_len;
+	desc_cb->dma = dma;
+	desc_cb->type = type;
+
+	bd_num += hns3_fill_desc(ring, dma, size);
+
+	if (type == DESC_TYPE_BOUNCE_HEAD) {
+		ret = hns3_fill_skb_to_desc(ring, skb,
+					    DESC_TYPE_BOUNCE_HEAD);
+		if (unlikely(ret < 0))
+			return ret;
+
+		bd_num += ret;
+	}
+
+	dma_sync_single_for_device(ring_to_dev(ring), dma, size,
+				   DMA_TO_DEVICE);
+
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.tx_bounce++;
+	u64_stats_update_end(&ring->syncp);
+	return bd_num;
+}
+
+static int hns3_handle_tx_sgl(struct hns3_enet_ring *ring,
+			      struct sk_buff *skb)
+{
+	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	u32 nfrag = skb_shinfo(skb)->nr_frags + 1;
+	struct sg_table *sgt;
+	int i, bd_num = 0;
+	dma_addr_t dma;
+	u32 cb_len;
+	int nents;
+
+	if (skb_has_frag_list(skb))
+		nfrag = HNS3_MAX_TSO_BD_NUM;
+
+	/* hns3_can_use_tx_sgl() is called to ensure the below
+	 * function can always return the tx buffer.
+	 */
+	sgt = hns3_tx_spare_alloc(ring, HNS3_SGL_SIZE(nfrag),
+				  &dma, &cb_len);
+
+	/* scatterlist follows by the sg table */
+	sgt->sgl = (struct scatterlist *)(sgt + 1);
+	sg_init_table(sgt->sgl, nfrag);
+	nents = skb_to_sgvec(skb, sgt->sgl, 0, skb->len);
+	if (unlikely(nents < 0)) {
+		hns3_tx_spare_rollback(ring, cb_len);
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.skb2sgl_err++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	sgt->orig_nents = nents;
+	sgt->nents = dma_map_sg(ring_to_dev(ring), sgt->sgl, sgt->orig_nents,
+				DMA_TO_DEVICE);
+	if (unlikely(!sgt->nents)) {
+		hns3_tx_spare_rollback(ring, cb_len);
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.map_sg_err++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	desc_cb->priv = skb;
+	desc_cb->length = cb_len;
+	desc_cb->dma = dma;
+	desc_cb->type = DESC_TYPE_SGL_SKB;
+
+	for (i = 0; i < sgt->nents; i++)
+		bd_num += hns3_fill_desc(ring, sg_dma_address(sgt->sgl + i),
+					 sg_dma_len(sgt->sgl + i));
+
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.tx_sgl++;
+	u64_stats_update_end(&ring->syncp);
+
+	return bd_num;
+}
+
+static int hns3_handle_desc_filling(struct hns3_enet_ring *ring,
+				    struct sk_buff *skb)
+{
+	u32 space;
+
+	if (!ring->tx_spare)
+		goto out;
+
+	space = hns3_tx_spare_space(ring);
+
+	if (hns3_can_use_tx_sgl(ring, skb, space))
+		return hns3_handle_tx_sgl(ring, skb);
+
+	if (hns3_can_use_tx_bounce(ring, skb, space))
+		return hns3_handle_tx_bounce(ring, skb);
+
+out:
+	return hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
+}
+
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -1857,7 +2216,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
 	 * need to be notified to the hw.
 	 */
-	ret = hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
+	ret = hns3_handle_desc_filling(ring, skb);
 	if (unlikely(ret <= 0))
 		goto fill_err;
 
@@ -2059,6 +2418,9 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			tx_drop += ring->stats.tx_tso_err;
 			tx_drop += ring->stats.over_max_recursion;
 			tx_drop += ring->stats.hw_limitation;
+			tx_drop += ring->stats.copy_bits_err;
+			tx_drop += ring->stats.skb2sgl_err;
+			tx_drop += ring->stats.map_sg_err;
 			tx_errors += ring->stats.sw_err_cnt;
 			tx_errors += ring->stats.tx_vlan_err;
 			tx_errors += ring->stats.tx_l4_proto_err;
@@ -2066,6 +2428,9 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			tx_errors += ring->stats.tx_tso_err;
 			tx_errors += ring->stats.over_max_recursion;
 			tx_errors += ring->stats.hw_limitation;
+			tx_errors += ring->stats.copy_bits_err;
+			tx_errors += ring->stats.skb2sgl_err;
+			tx_errors += ring->stats.map_sg_err;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -2859,7 +3224,8 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 static void hns3_free_buffer(struct hns3_enet_ring *ring,
 			     struct hns3_desc_cb *cb, int budget)
 {
-	if (cb->type == DESC_TYPE_SKB)
+	if (cb->type & (DESC_TYPE_SKB | DESC_TYPE_BOUNCE_HEAD |
+			DESC_TYPE_BOUNCE_ALL | DESC_TYPE_SGL_SKB))
 		napi_consume_skb(cb->priv, budget);
 	else if (!HNAE3_IS_TX_RING(ring) && cb->pagecnt_bias)
 		__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
@@ -2880,12 +3246,15 @@ static int hns3_map_buffer(struct hns3_enet_ring *ring, struct hns3_desc_cb *cb)
 static void hns3_unmap_buffer(struct hns3_enet_ring *ring,
 			      struct hns3_desc_cb *cb)
 {
-	if (cb->type == DESC_TYPE_SKB || cb->type == DESC_TYPE_FRAGLIST_SKB)
+	if (cb->type & (DESC_TYPE_SKB | DESC_TYPE_FRAGLIST_SKB))
 		dma_unmap_single(ring_to_dev(ring), cb->dma, cb->length,
 				 ring_to_dma_dir(ring));
-	else if (cb->length)
+	else if ((cb->type & DESC_TYPE_PAGE) && cb->length)
 		dma_unmap_page(ring_to_dev(ring), cb->dma, cb->length,
 			       ring_to_dma_dir(ring));
+	else if (cb->type & (DESC_TYPE_BOUNCE_ALL | DESC_TYPE_BOUNCE_HEAD |
+			     DESC_TYPE_SGL_SKB))
+		hns3_tx_spare_reclaim_cb(ring, cb);
 }
 
 static void hns3_buffer_detach(struct hns3_enet_ring *ring, int i)
@@ -3037,7 +3406,9 @@ static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
 
 		desc_cb = &ring->desc_cb[ntc];
 
-		if (desc_cb->type == DESC_TYPE_SKB) {
+		if (desc_cb->type & (DESC_TYPE_SKB | DESC_TYPE_BOUNCE_ALL |
+				     DESC_TYPE_BOUNCE_HEAD |
+				     DESC_TYPE_SGL_SKB)) {
 			(*pkts)++;
 			(*bytes) += desc_cb->send_bytes;
 		}
@@ -3060,6 +3431,9 @@ static bool hns3_nic_reclaim_desc(struct hns3_enet_ring *ring,
 	 * ring_space called by hns3_nic_net_xmit.
 	 */
 	smp_store_release(&ring->next_to_clean, ntc);
+
+	hns3_tx_spare_update(ring);
+
 	return true;
 }
 
@@ -3151,7 +3525,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 
 static bool hns3_can_reuse_page(struct hns3_desc_cb *cb)
 {
-	return (page_count(cb->priv) - cb->pagecnt_bias) == 1;
+	return page_count(cb->priv) == cb->pagecnt_bias;
 }
 
 static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
@@ -3159,40 +3533,62 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 				struct hns3_desc_cb *desc_cb)
 {
 	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
+	u32 frag_offset = desc_cb->page_offset + pull_len;
 	int size = le16_to_cpu(desc->rx.size);
 	u32 truesize = hns3_buf_size(ring);
+	u32 frag_size = size - pull_len;
 
-	desc_cb->pagecnt_bias--;
-	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize);
+	/* Avoid re-using remote or pfmem page */
+	if (unlikely(!dev_page_is_reusable(desc_cb->priv)))
+		goto out;
 
-	/* Avoid re-using remote and pfmemalloc pages, or the stack is still
-	 * using the page when page_offset rollback to zero, flag default
-	 * unreuse
+	/* Stack is not using and current page_offset is non-zero, we can
+	 * reuse from the zero offset.
 	 */
-	if (!dev_page_is_reusable(desc_cb->priv) ||
-	    (!desc_cb->page_offset && !hns3_can_reuse_page(desc_cb))) {
-		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
-		return;
-	}
-
-	/* Move offset up to the next cache line */
-	desc_cb->page_offset += truesize;
-
-	if (desc_cb->page_offset + truesize <= hns3_page_size(ring)) {
-		desc_cb->reuse_flag = 1;
-	} else if (hns3_can_reuse_page(desc_cb)) {
-		desc_cb->reuse_flag = 1;
+	if (desc_cb->page_offset && hns3_can_reuse_page(desc_cb)) {
 		desc_cb->page_offset = 0;
-	} else if (desc_cb->pagecnt_bias) {
-		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
+		desc_cb->reuse_flag = 1;
+	} else if (desc_cb->page_offset + truesize * 2 <=
+		   hns3_page_size(ring)) {
+		desc_cb->page_offset += truesize;
+		desc_cb->reuse_flag = 1;
+	} else if (frag_size <= ring->rx_copybreak) {
+		void *frag = napi_alloc_frag(frag_size);
+
+		if (unlikely(!frag)) {
+			u64_stats_update_begin(&ring->syncp);
+			ring->stats.frag_alloc_err++;
+			u64_stats_update_end(&ring->syncp);
+
+			hns3_rl_err(ring_to_netdev(ring),
+				    "failed to allocate rx frag\n");
+			goto out;
+		}
+
+		desc_cb->reuse_flag = 1;
+		memcpy(frag, desc_cb->buf + frag_offset, frag_size);
+		skb_add_rx_frag(skb, i, virt_to_page(frag),
+				offset_in_page(frag), frag_size, frag_size);
+
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.frag_alloc++;
+		u64_stats_update_end(&ring->syncp);
 		return;
 	}
+
+out:
+	desc_cb->pagecnt_bias--;
 
 	if (unlikely(!desc_cb->pagecnt_bias)) {
 		page_ref_add(desc_cb->priv, USHRT_MAX);
 		desc_cb->pagecnt_bias = USHRT_MAX;
 	}
+
+	skb_add_rx_frag(skb, i, desc_cb->priv, frag_offset,
+			frag_size, truesize);
+
+	if (unlikely(!desc_cb->reuse_flag))
+		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
 }
 
 static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
@@ -4240,10 +4636,13 @@ static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 		ring = &priv->ring[q->tqp_index];
 		desc_num = priv->ae_handle->kinfo.num_tx_desc;
 		ring->queue_index = q->tqp_index;
+		ring->tx_copybreak = priv->tx_copybreak;
+		ring->last_to_use = 0;
 	} else {
 		ring = &priv->ring[q->tqp_index + queue_num];
 		desc_num = priv->ae_handle->kinfo.num_rx_desc;
 		ring->queue_index = q->tqp_index;
+		ring->rx_copybreak = priv->rx_copybreak;
 	}
 
 	hnae3_set_bit(ring->flag, HNAE3_RING_TYPE_B, ring_type);
@@ -4257,7 +4656,6 @@ static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 	ring->desc_num = desc_num;
 	ring->next_to_use = 0;
 	ring->next_to_clean = 0;
-	ring->last_to_use = 0;
 }
 
 static void hns3_queue_to_ring(struct hnae3_queue *tqp,
@@ -4317,6 +4715,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 		ret = hns3_alloc_ring_buffers(ring);
 		if (ret)
 			goto out_with_desc;
+	} else {
+		hns3_init_tx_spare_buffer(ring);
 	}
 
 	return 0;
@@ -4339,9 +4739,18 @@ void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->next_to_use = 0;
 	ring->last_to_use = 0;
 	ring->pending_buf = 0;
-	if (ring->skb) {
+	if (!HNAE3_IS_TX_RING(ring) && ring->skb) {
 		dev_kfree_skb_any(ring->skb);
 		ring->skb = NULL;
+	} else if (HNAE3_IS_TX_RING(ring) && ring->tx_spare) {
+		struct hns3_tx_spare *tx_spare = ring->tx_spare;
+
+		dma_unmap_page(ring_to_dev(ring), tx_spare->dma, tx_spare->len,
+			       DMA_TO_DEVICE);
+		free_pages((unsigned long)tx_spare->buf,
+			   get_order(tx_spare->len));
+		devm_kfree(ring_to_dev(ring), tx_spare);
+		ring->tx_spare = NULL;
 	}
 }
 
