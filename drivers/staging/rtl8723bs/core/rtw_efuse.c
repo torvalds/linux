@@ -249,9 +249,8 @@ bool		bPseudoTest)
 	u8 bResult;
 	u8 readbyte;
 
-	if (bPseudoTest) {
+	if (bPseudoTest)
 		return Efuse_Read1ByteFromFakeContent(padapter, addr, data);
-	}
 
 	/*  <20130121, Kordan> For SMIC EFUSE specificatoin. */
 	/* 0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8]) */
@@ -291,9 +290,8 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	u8 bResult = false;
 	u32 efuseValue = 0;
 
-	if (bPseudoTest) {
+	if (bPseudoTest)
 		return Efuse_Write1ByteToFakeContent(padapter, addr, data);
-	}
 
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
@@ -319,11 +317,10 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 		tmpidx++;
 	}
 
-	if (tmpidx < 100) {
+	if (tmpidx < 100)
 		bResult = true;
-	} else {
+	else
 		bResult = false;
-	}
 
 	/*  disable Efuse program enable */
 	PHY_SetMacReg(padapter, EFUSE_TEST, BIT(11), 0);
