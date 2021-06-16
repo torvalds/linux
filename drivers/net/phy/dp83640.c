@@ -615,6 +615,7 @@ static void prune_rx_ts(struct dp83640_private *dp83640)
 static void enable_broadcast(struct phy_device *phydev, int init_page, int on)
 {
 	int val;
+
 	phy_write(phydev, PAGESEL, 0);
 	val = phy_read(phydev, PHYCR2);
 	if (on)

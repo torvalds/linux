@@ -46,8 +46,8 @@ MODULE_LICENSE("GPL");
 
 static int et1011c_config_aneg(struct phy_device *phydev)
 {
-	int ctl = 0;
-	ctl = phy_read(phydev, MII_BMCR);
+	int ctl = phy_read(phydev, MII_BMCR);
+
 	if (ctl < 0)
 		return ctl;
 	ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 | BMCR_SPEED1000 |
@@ -60,9 +60,10 @@ static int et1011c_config_aneg(struct phy_device *phydev)
 
 static int et1011c_read_status(struct phy_device *phydev)
 {
+	static int speed;
 	int ret;
 	u32 val;
-	static int speed;
+
 	ret = genphy_read_status(phydev);
 
 	if (speed != phydev->speed) {
