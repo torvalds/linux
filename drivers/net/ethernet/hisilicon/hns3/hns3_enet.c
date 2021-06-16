@@ -3552,6 +3552,28 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 		   hns3_page_size(ring)) {
 		desc_cb->page_offset += truesize;
 		desc_cb->reuse_flag = 1;
+	} else if (frag_size <= ring->rx_copybreak) {
+		void *frag = napi_alloc_frag(frag_size);
+
+		if (unlikely(!frag)) {
+			u64_stats_update_begin(&ring->syncp);
+			ring->stats.frag_alloc_err++;
+			u64_stats_update_end(&ring->syncp);
+
+			hns3_rl_err(ring_to_netdev(ring),
+				    "failed to allocate rx frag\n");
+			goto out;
+		}
+
+		desc_cb->reuse_flag = 1;
+		memcpy(frag, desc_cb->buf + frag_offset, frag_size);
+		skb_add_rx_frag(skb, i, virt_to_page(frag),
+				offset_in_page(frag), frag_size, frag_size);
+
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.frag_alloc++;
+		u64_stats_update_end(&ring->syncp);
+		return;
 	}
 
 out:
@@ -4620,6 +4642,7 @@ static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 		ring = &priv->ring[q->tqp_index + queue_num];
 		desc_num = priv->ae_handle->kinfo.num_rx_desc;
 		ring->queue_index = q->tqp_index;
+		ring->rx_copybreak = priv->rx_copybreak;
 	}
 
 	hnae3_set_bit(ring->flag, HNAE3_RING_TYPE_B, ring_type);

@@ -450,6 +450,7 @@ static const struct hns3_dbg_item rx_queue_info_items[] = {
 	{ "HEAD", 2 },
 	{ "FBDNUM", 2 },
 	{ "PKTNUM", 2 },
+	{ "COPYBREAK", 2 },
 	{ "RING_EN", 2 },
 	{ "RX_RING_EN", 2 },
 	{ "BASE_ADDR", 10 },
@@ -481,6 +482,7 @@ static void hns3_dump_rx_queue_info(struct hns3_enet_ring *ring,
 
 	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_PKTNUM_RECORD_REG));
+	sprintf(result[j++], "%9u", ring->rx_copybreak);
 
 	sprintf(result[j++], "%7s", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_EN_REG) ? "on" : "off");

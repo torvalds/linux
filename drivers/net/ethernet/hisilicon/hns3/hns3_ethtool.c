@@ -71,6 +71,8 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 	HNS3_TQP_STAT("csum_complete", csum_complete),
 	HNS3_TQP_STAT("multicast", rx_multicast),
 	HNS3_TQP_STAT("non_reuse_pg", non_reuse_pg),
+	HNS3_TQP_STAT("frag_alloc_err", frag_alloc_err),
+	HNS3_TQP_STAT("frag_alloc", frag_alloc),
 };
 
 #define HNS3_PRIV_FLAGS_LEN ARRAY_SIZE(hns3_priv_flags)
@@ -1610,6 +1612,9 @@ static int hns3_get_tunable(struct net_device *netdev,
 		/* all the tx rings have the same tx_copybreak */
 		*(u32 *)data = priv->tx_copybreak;
 		break;
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1632,6 +1637,13 @@ static int hns3_set_tunable(struct net_device *netdev,
 
 		for (i = 0; i < h->kinfo.num_tqps; i++)
 			priv->ring[i].tx_copybreak = priv->tx_copybreak;
+
+		break;
+	case ETHTOOL_RX_COPYBREAK:
+		priv->rx_copybreak = *(u32 *)data;
+
+		for (i = h->kinfo.num_tqps; i < h->kinfo.num_tqps * 2; i++)
+			priv->ring[i].rx_copybreak = priv->rx_copybreak;
 
 		break;
 	default:

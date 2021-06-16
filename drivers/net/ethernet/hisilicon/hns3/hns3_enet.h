@@ -427,6 +427,8 @@ struct ring_stats {
 			u64 csum_complete;
 			u64 rx_multicast;
 			u64 non_reuse_pg;
+			u64 frag_alloc_err;
+			u64 frag_alloc;
 		};
 		__le16 csum;
 	};
@@ -478,6 +480,7 @@ struct hns3_enet_ring {
 		/* for Rx ring */
 		struct {
 			u32 pull_len;   /* memcpy len for current rx packet */
+			u32 rx_copybreak;
 			u32 frag_num;
 			/* first buffer address for current packet */
 			unsigned char *va;
@@ -569,6 +572,7 @@ struct hns3_nic_priv {
 	struct hns3_enet_coalesce tx_coal;
 	struct hns3_enet_coalesce rx_coal;
 	u32 tx_copybreak;
+	u32 rx_copybreak;
 };
 
 union l3_hdr_info {
