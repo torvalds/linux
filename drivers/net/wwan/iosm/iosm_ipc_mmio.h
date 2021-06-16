@@ -121,16 +121,6 @@ void ipc_mmio_set_contex_info_addr(struct iosm_mmio *ipc_mmio,
 				   phys_addr_t addr);
 
 /**
- * ipc_mmio_get_cp_version - Write context info and AP memory range addresses.
- *			     This needs to be called when CP is in
- *			     IPC_MEM_DEVICE_IPC_INIT state
- * @ipc_mmio:	Pointer to mmio instance
- *
- * Returns: cp version else failure value on error
- */
-int ipc_mmio_get_cp_version(struct iosm_mmio *ipc_mmio);
-
-/**
  * ipc_mmio_get_cp_version - Get the CP IPC version
  * @ipc_mmio:	Pointer to mmio instance
  *
