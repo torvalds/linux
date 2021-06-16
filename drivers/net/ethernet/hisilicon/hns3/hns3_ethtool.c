@@ -49,6 +49,9 @@ static const struct hns3_stats hns3_txq_stats[] = {
 	HNS3_TQP_STAT("bounce", tx_bounce),
 	HNS3_TQP_STAT("spare_full", tx_spare_full),
 	HNS3_TQP_STAT("copy_bits_err", copy_bits_err),
+	HNS3_TQP_STAT("sgl", tx_sgl),
+	HNS3_TQP_STAT("skb2sgl_err", skb2sgl_err),
+	HNS3_TQP_STAT("map_sg_err", map_sg_err),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)
