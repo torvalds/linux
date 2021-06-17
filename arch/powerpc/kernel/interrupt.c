@@ -50,7 +50,7 @@ static inline bool exit_must_hard_disable(void)
  * restartable is true then EE/RI can be left on because interrupts are handled
  * with a restart sequence.
  */
-static notrace __always_inline bool prep_irq_for_kernel_enabled_exit(bool restartable)
+static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 {
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();
@@ -77,29 +77,14 @@ static notrace __always_inline bool prep_irq_for_kernel_enabled_exit(bool restar
 
 static notrace __always_inline bool prep_irq_for_user_exit(void)
 {
+	bool ret;
+
 	user_enter_irqoff();
-	/* This must be done with RI=1 because tracing may touch vmaps */
-	trace_hardirqs_on();
-
-#ifdef CONFIG_PPC32
-	__hard_EE_RI_disable();
-#else
-	if (exit_must_hard_disable())
-		__hard_EE_RI_disable();
-
-	/* This pattern matches prep_irq_for_idle */
-	if (unlikely(lazy_irq_pending_nocheck())) {
-		if (exit_must_hard_disable()) {
-			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-			__hard_RI_enable();
-		}
-		trace_hardirqs_off();
+	ret = prep_irq_for_enabled_exit(true);
+	if (!ret)
 		user_exit_irqoff();
 
-		return false;
-	}
-#endif
-	return true;
+	return ret;
 }
 
 /* Has to run notrace because it is entered not completely "reconciled" */
@@ -469,7 +454,7 @@ again:
 		 * Stack store exit can't be restarted because the interrupt
 		 * stack frame might have been clobbered.
 		 */
-		if (!prep_irq_for_kernel_enabled_exit(unlikely(stack_store))) {
+		if (!prep_irq_for_enabled_exit(unlikely(stack_store))) {
 			/*
 			 * Replay pending soft-masked interrupts now. Don't
 			 * just local_irq_enabe(); local_irq_disable(); because
