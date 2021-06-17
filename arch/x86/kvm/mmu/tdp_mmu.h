@@ -86,9 +86,10 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
 static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return kvm->arch.tdp_mmu_enabled; }
 static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return sp->tdp_mmu_page; }
 
-static inline bool is_tdp_mmu_root(hpa_t hpa)
+static inline bool is_tdp_mmu(struct kvm_mmu *mmu)
 {
 	struct kvm_mmu_page *sp;
+	hpa_t hpa = mmu->root_hpa;
 
 	if (WARN_ON(!VALID_PAGE(hpa)))
 		return false;
@@ -104,7 +105,7 @@ static inline bool kvm_mmu_init_tdp_mmu(struct kvm *kvm) { return false; }
 static inline void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm) {}
 static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return false; }
 static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return false; }
-static inline bool is_tdp_mmu_root(hpa_t hpa) { return false; }
+static inline bool is_tdp_mmu(struct kvm_mmu *mmu) { return false; }
 #endif
 
 #endif /* __KVM_X86_MMU_TDP_MMU_H */
