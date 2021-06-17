@@ -3098,7 +3098,7 @@ static void gfar_hw_init(struct gfar_private *priv)
 
 	/* Zero out the rmon mib registers if it has them */
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
-		memset_io(&(regs->rmon), 0, sizeof(struct rmon_mib));
+		memset_io(&regs->rmon, 0, offsetof(struct rmon_mib, car1));
 
 		/* Mask off the CAM interrupts */
 		gfar_write(&regs->rmon.cam1, 0xffffffff);
