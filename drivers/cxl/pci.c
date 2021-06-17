@@ -1441,8 +1441,9 @@ static int cxl_mem_create_range_info(struct cxl_mem *cxlm)
 	if (cxlm->partition_align_bytes == 0) {
 		cxlm->ram_range.start = 0;
 		cxlm->ram_range.end = cxlm->volatile_only_bytes - 1;
-		cxlm->pmem_range.start = 0;
-		cxlm->pmem_range.end = cxlm->persistent_only_bytes - 1;
+		cxlm->pmem_range.start = cxlm->volatile_only_bytes;
+		cxlm->pmem_range.end = cxlm->volatile_only_bytes +
+					cxlm->persistent_only_bytes - 1;
 		return 0;
 	}
 
@@ -1466,15 +1467,12 @@ static int cxl_mem_create_range_info(struct cxl_mem *cxlm)
 			cxlm->next_volatile_bytes,
 			cxlm->next_persistent_bytes);
 
-	/*
-	 * TODO: enumerate DPA map, as 'ram' and 'pmem' do not alias.
-	 * For now, only the capacity is exported in sysfs
-	 */
 	cxlm->ram_range.start = 0;
 	cxlm->ram_range.end = cxlm->active_volatile_bytes - 1;
 
-	cxlm->pmem_range.start = 0;
-	cxlm->pmem_range.end = cxlm->active_persistent_bytes - 1;
+	cxlm->pmem_range.start = cxlm->active_volatile_bytes;
+	cxlm->pmem_range.end = cxlm->active_volatile_bytes +
+				cxlm->active_persistent_bytes - 1;
 
 	return 0;
 }
