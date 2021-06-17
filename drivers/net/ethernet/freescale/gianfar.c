@@ -274,32 +274,21 @@ static void gfar_configure_coalescing_all(struct gfar_private *priv)
 	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 }
 
-static struct net_device_stats *gfar_get_stats(struct net_device *dev)
+static void gfar_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long rx_packets = 0, rx_bytes = 0, rx_dropped = 0;
-	unsigned long tx_packets = 0, tx_bytes = 0;
 	int i;
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		rx_packets += priv->rx_queue[i]->stats.rx_packets;
-		rx_bytes   += priv->rx_queue[i]->stats.rx_bytes;
-		rx_dropped += priv->rx_queue[i]->stats.rx_dropped;
+		stats->rx_packets += priv->rx_queue[i]->stats.rx_packets;
+		stats->rx_bytes   += priv->rx_queue[i]->stats.rx_bytes;
+		stats->rx_dropped += priv->rx_queue[i]->stats.rx_dropped;
 	}
-
-	dev->stats.rx_packets = rx_packets;
-	dev->stats.rx_bytes   = rx_bytes;
-	dev->stats.rx_dropped = rx_dropped;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		tx_bytes += priv->tx_queue[i]->stats.tx_bytes;
-		tx_packets += priv->tx_queue[i]->stats.tx_packets;
+		stats->tx_bytes += priv->tx_queue[i]->stats.tx_bytes;
+		stats->tx_packets += priv->tx_queue[i]->stats.tx_packets;
 	}
-
-	dev->stats.tx_bytes   = tx_bytes;
-	dev->stats.tx_packets = tx_packets;
-
-	return &dev->stats;
 }
 
 /* Set the appropriate hash bit for the given addr */
@@ -3157,7 +3146,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_set_rx_mode = gfar_set_multi,
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
-	.ndo_get_stats = gfar_get_stats,
+	.ndo_get_stats64 = gfar_get_stats64,
 	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = gfar_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
