@@ -6,6 +6,7 @@
 
 #include <linux/crc32c.h>
 #include <linux/crypto.h>
+#include <linux/xxhash.h>
 #include <linux/key.h>
 #include <linux/random.h>
 #include <linux/scatterlist.h>
@@ -26,6 +27,7 @@
 struct bch2_checksum_state {
 	union {
 		u64 seed;
+		struct xxh64_state h64state;
 	};
 	unsigned int type;
 };
@@ -44,6 +46,9 @@ static void bch2_checksum_init(struct bch2_checksum_state *state)
 	case BCH_CSUM_CRC64_NONZERO:
 		state->seed = U64_MAX;
 		break;
+	case BCH_CSUM_XXHASH:
+		xxh64_reset(&state->h64state, 0);
+		break;
 	default:
 		BUG();
 	}
@@ -60,6 +65,8 @@ static u64 bch2_checksum_final(const struct bch2_checksum_state *state)
 		return state->seed ^ U32_MAX;
 	case BCH_CSUM_CRC64_NONZERO:
 		return state->seed ^ U64_MAX;
+	case BCH_CSUM_XXHASH:
+		return xxh64_digest(&state->h64state);
 	default:
 		BUG();
 	}
@@ -77,6 +84,9 @@ static void bch2_checksum_update(struct bch2_checksum_state *state, const void *
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC64:
 		state->seed = crc64_be(state->seed, data, len);
+		break;
+	case BCH_CSUM_XXHASH:
+		xxh64_update(&state->h64state, data, len);
 		break;
 	default:
 		BUG();
@@ -155,6 +165,7 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 	case BCH_CSUM_CRC32C_NONZERO:
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC32C:
+	case BCH_CSUM_XXHASH:
 	case BCH_CSUM_CRC64: {
 		struct bch2_checksum_state state;
 
@@ -206,6 +217,7 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 	case BCH_CSUM_CRC32C_NONZERO:
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC32C:
+	case BCH_CSUM_XXHASH:
 	case BCH_CSUM_CRC64: {
 		struct bch2_checksum_state state;
 
