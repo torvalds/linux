@@ -197,12 +197,12 @@ __setup("ftrace=", set_cmdline_ftrace);
 
 static int __init set_ftrace_dump_on_oops(char *str)
 {
-	if (*str++ != '=' || !*str) {
+	if (*str++ != '=' || !*str || !strcmp("1", str)) {
 		ftrace_dump_on_oops = DUMP_ALL;
 		return 1;
 	}
 
-	if (!strcmp("orig_cpu", str)) {
+	if (!strcmp("orig_cpu", str) || !strcmp("2", str)) {
 		ftrace_dump_on_oops = DUMP_ORIG;
                 return 1;
         }
