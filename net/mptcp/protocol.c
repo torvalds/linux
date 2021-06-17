@@ -1308,6 +1308,18 @@ static bool mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk)
 	return __mptcp_alloc_tx_skb(sk, ssk, sk->sk_allocation);
 }
 
+/* note: this always recompute the csum on the whole skb, even
+ * if we just appended a single frag. More status info needed
+ */
+static void mptcp_update_data_checksum(struct sk_buff *skb, int added)
+{
+	struct mptcp_ext *mpext = mptcp_get_ext(skb);
+	__wsum csum = ~csum_unfold(mpext->csum);
+	int offset = skb->len - added;
+
+	mpext->csum = csum_fold(csum_block_add(csum, skb_checksum(skb, offset, added, 0), offset));
+}
+
 static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 			      struct mptcp_data_frag *dfrag,
 			      struct mptcp_sendmsg_info *info)
@@ -1402,10 +1414,14 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	if (zero_window_probe) {
 		mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
 		mpext->frozen = 1;
-		ret = 0;
+		if (READ_ONCE(msk->csum_enabled))
+			mptcp_update_data_checksum(tail, ret);
 		tcp_push_pending_frames(ssk);
+		return 0;
 	}
 out:
+	if (READ_ONCE(msk->csum_enabled))
+		mptcp_update_data_checksum(tail, ret);
 	mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
 	return ret;
 }
