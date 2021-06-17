@@ -375,7 +375,8 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	u8 *out;
 	unsigned int len = req_len, nak_len = 0, rej_len = 0;
 
-	if (!(out = kmalloc(len, GFP_ATOMIC))) {
+	out = kmalloc(len, GFP_ATOMIC);
+	if (!out) {
 		dev->stats.rx_dropped++;
 		return;	/* out of memory, ignore CR packet */
 	}
