@@ -6184,6 +6184,11 @@ enum rate_control_capabilities {
 	 * otherwise the NSS difference doesn't bother us.
 	 */
 	RATE_CTRL_CAPA_VHT_EXT_NSS_BW = BIT(0),
+	/**
+	 * @RATE_CTRL_CAPA_AMPDU_TRIGGER:
+	 * mac80211 should start A-MPDU sessions on tx
+	 */
+	RATE_CTRL_CAPA_AMPDU_TRIGGER = BIT(1),
 };
 
 struct rate_control_ops {

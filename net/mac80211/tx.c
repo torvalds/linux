@@ -3949,6 +3949,29 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 }
 EXPORT_SYMBOL(ieee80211_txq_schedule_start);
 
+static void
+ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+		     struct sta_info *sta,
+		     struct sk_buff *skb)
+{
+	struct rate_control_ref *ref = sdata->local->rate_ctrl;
+	u16 tid;
+
+	if (!ref || !(ref->ops->capa & RATE_CTRL_CAPA_AMPDU_TRIGGER))
+		return;
+
+	if (!sta || !sta->sta.ht_cap.ht_supported ||
+	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
+	    skb->protocol == sdata->control_port_protocol)
+		return;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	if (likely(sta->ampdu_mlme.tid_tx[tid]))
+		return;
+
+	ieee80211_start_tx_ba_session(&sta->sta, tid, 0);
+}
+
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
 				  u32 info_flags,
@@ -3978,6 +4001,8 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 		skb_set_queue_mapping(skb, queue);
 		skb_get_hash(skb);
 	}
+
+	ieee80211_aggr_check(sdata, sta, skb);
 
 	if (sta) {
 		struct ieee80211_fast_tx *fast_tx;
@@ -4241,6 +4266,8 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 		goto out_free;
 
 	memset(info, 0, sizeof(*info));
+
+	ieee80211_aggr_check(sdata, sta, skb);
 
 	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
