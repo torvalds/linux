@@ -109,6 +109,8 @@
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
 				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
 				IOSQE_BUFFER_SELECT)
+#define IO_REQ_CLEAN_FLAGS (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP | \
+				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS)
 
 #define IO_TCTX_REFS_CACHE_NR	(1U << 10)
 
@@ -1627,8 +1629,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 
 static inline bool io_req_needs_clean(struct io_kiocb *req)
 {
-	return req->flags & (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP |
-				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS);
+	return req->flags & IO_REQ_CLEAN_FLAGS;
 }
 
 static void io_req_complete_state(struct io_kiocb *req, long res,
@@ -6080,7 +6081,6 @@ static void io_clean_op(struct io_kiocb *req)
 			kfree(req->sr_msg.kbuf);
 			break;
 		}
-		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
 
 	if (req->flags & REQ_F_NEED_CLEANUP) {
@@ -6121,7 +6121,6 @@ static void io_clean_op(struct io_kiocb *req)
 			putname(req->unlink.filename);
 			break;
 		}
-		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
 	if ((req->flags & REQ_F_POLLED) && req->apoll) {
 		kfree(req->apoll->double_poll);
@@ -6132,12 +6131,11 @@ static void io_clean_op(struct io_kiocb *req)
 		struct io_uring_task *tctx = req->task->io_uring;
 
 		atomic_dec(&tctx->inflight_tracked);
-		req->flags &= ~REQ_F_INFLIGHT;
 	}
-	if (req->flags & REQ_F_CREDS) {
+	if (req->flags & REQ_F_CREDS)
 		put_cred(req->creds);
-		req->flags &= ~REQ_F_CREDS;
-	}
+
+	req->flags &= ~IO_REQ_CLEAN_FLAGS;
 }
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
