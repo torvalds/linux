@@ -1216,6 +1216,7 @@ static void i915_gem_ww_ctx_unlock_all(struct i915_gem_ww_ctx *ww)
 	while ((obj = list_first_entry_or_null(&ww->obj_list, struct drm_i915_gem_object, obj_link))) {
 		list_del(&obj->obj_link);
 		i915_gem_object_unlock(obj);
+		i915_gem_object_put(obj);
 	}
 }
 
@@ -1223,6 +1224,7 @@ void i915_gem_ww_unlock_single(struct drm_i915_gem_object *obj)
 {
 	list_del(&obj->obj_link);
 	i915_gem_object_unlock(obj);
+	i915_gem_object_put(obj);
 }
 
 void i915_gem_ww_ctx_fini(struct i915_gem_ww_ctx *ww)
@@ -1247,6 +1249,8 @@ int __must_check i915_gem_ww_ctx_backoff(struct i915_gem_ww_ctx *ww)
 
 	if (!ret)
 		list_add_tail(&ww->contended->obj_link, &ww->obj_list);
+	else
+		i915_gem_object_put(ww->contended);
 
 	ww->contended = NULL;
 
