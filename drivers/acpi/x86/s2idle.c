@@ -309,14 +309,15 @@ static void lpi_check_constraints(void)
 	}
 }
 
-static void acpi_sleep_run_lps0_dsm(unsigned int func)
+static void acpi_sleep_run_lps0_dsm(unsigned int func, unsigned int func_mask, guid_t dsm_guid)
 {
 	union acpi_object *out_obj;
 
-	if (!(lps0_dsm_func_mask & (1 << func)))
+	if (!(func_mask & (1 << func)))
 		return;
 
-	out_obj = acpi_evaluate_dsm(lps0_device_handle, &lps0_dsm_guid, rev_id, func, NULL);
+	out_obj = acpi_evaluate_dsm(lps0_device_handle, &dsm_guid,
+					rev_id, func, NULL);
 	ACPI_FREE(out_obj);
 
 	acpi_handle_debug(lps0_device_handle, "_DSM function %u evaluation %s\n",
@@ -412,11 +413,15 @@ int acpi_s2idle_prepare_late(void)
 		lpi_check_constraints();
 
 	if (acpi_s2idle_vendor_amd()) {
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF_AMD);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY_AMD);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF_AMD,
+				lps0_dsm_func_mask, lps0_dsm_guid);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY_AMD,
+				lps0_dsm_func_mask, lps0_dsm_guid);
 	} else {
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF,
+				lps0_dsm_func_mask, lps0_dsm_guid);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY,
+				lps0_dsm_func_mask, lps0_dsm_guid);
 	}
 
 	return 0;
@@ -428,11 +433,15 @@ void acpi_s2idle_restore_early(void)
 		return;
 
 	if (acpi_s2idle_vendor_amd()) {
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT_AMD);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON_AMD);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT_AMD,
+				lps0_dsm_func_mask, lps0_dsm_guid);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON_AMD,
+				lps0_dsm_func_mask, lps0_dsm_guid);
 	} else {
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT,
+				lps0_dsm_func_mask, lps0_dsm_guid);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON,
+				lps0_dsm_func_mask, lps0_dsm_guid);
 	}
 }
 
