@@ -303,9 +303,6 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	if (WARN_ON(!pc))
-		return -ENODEV;
-
 	err = clk_prepare_enable(pc->clk);
 	if (err < 0)
 		return err;
