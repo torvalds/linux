@@ -78,6 +78,7 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_DISABLE_SRD = 1,
 	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
 	DSM_FUNC_11AX_ENABLEMENT = 6,
+	DSM_FUNC_ENABLE_UNII4_CHAN = 7
 };
 
 enum iwl_dsm_values_srd {
