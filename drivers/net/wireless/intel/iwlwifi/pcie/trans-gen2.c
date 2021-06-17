@@ -240,6 +240,75 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 	return 0;
 }
 
+static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	char *buf = trans_pcie->rf_name;
+	size_t buflen = sizeof(trans_pcie->rf_name);
+	size_t pos;
+	u32 version;
+
+	if (buf[0])
+		return;
+
+	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF):
+		pos = scnprintf(buf, buflen, "JF");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_GF):
+		pos = scnprintf(buf, buflen, "GF");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_GF4):
+		pos = scnprintf(buf, buflen, "GF4");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR):
+		pos = scnprintf(buf, buflen, "HR");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR1):
+		pos = scnprintf(buf, buflen, "HR1");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
+		pos = scnprintf(buf, buflen, "HRCDB");
+		break;
+	default:
+		return;
+	}
+
+	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR):
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR1):
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
+		version = iwl_read_prph(trans, CNVI_MBOX_C);
+		switch (version) {
+		case 0x20000:
+			pos += scnprintf(buf + pos, buflen - pos, " B3");
+			break;
+		case 0x120000:
+			pos += scnprintf(buf + pos, buflen - pos, " B5");
+			break;
+		default:
+			pos += scnprintf(buf + pos, buflen - pos,
+					 " (0x%x)", version);
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	pos += scnprintf(buf + pos, buflen - pos, ", rfid=0x%x",
+			 trans->hw_rf_id);
+
+	IWL_INFO(trans, "Detected RF %s\n", buf);
+
+	/*
+	 * also add a \n for debugfs - need to do it after printing
+	 * since our IWL_INFO machinery wants to see a static \n at
+	 * the end of the string
+	 */
+	pos += scnprintf(buf + pos, buflen - pos, "\n");
+}
+
 void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -263,6 +332,8 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_enable_interrupts(trans);
 	mutex_lock(&trans_pcie->mutex);
 	iwl_pcie_check_hw_rf_kill(trans);
+
+	iwl_pcie_get_rf_name(trans);
 	mutex_unlock(&trans_pcie->mutex);
 }
 

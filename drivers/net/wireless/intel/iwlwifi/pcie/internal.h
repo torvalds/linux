@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2003-2015, 2018-2020 Intel Corporation
+ * Copyright (C) 2003-2015, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -317,6 +317,7 @@ struct cont_rec {
  * @alloc_page_lock: spinlock for the page allocator
  * @alloc_page: allocated page to still use parts of
  * @alloc_page_used: how much of the allocated page was already used (bytes)
+ * @rf_name: name/version of the CRF, if any
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -409,6 +410,8 @@ struct iwl_trans_pcie {
 	bool fw_reset_handshake;
 	bool fw_reset_done;
 	wait_queue_head_t fw_reset_waitq;
+
+	char rf_name[32];
 };
 
 static inline struct iwl_trans_pcie *

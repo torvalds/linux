@@ -2848,11 +2848,28 @@ static ssize_t iwl_dbgfs_monitor_data_read(struct file *file,
 	return bytes_copied;
 }
 
+static ssize_t iwl_dbgfs_rf_read(struct file *file,
+				 char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (!trans_pcie->rf_name[0])
+		return -ENODEV;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       trans_pcie->rf_name,
+				       strlen(trans_pcie->rf_name));
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(rfkill);
+DEBUGFS_READ_FILE_OPS(rf);
+
 static const struct file_operations iwl_dbgfs_tx_queue_ops = {
 	.owner = THIS_MODULE,
 	.open = iwl_dbgfs_tx_queue_open,
@@ -2879,6 +2896,7 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(fh_reg, dir, 0400);
 	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
 	DEBUGFS_ADD_FILE(monitor_data, dir, 0400);
+	DEBUGFS_ADD_FILE(rf, dir, 0400);
 }
 
 static void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans)
