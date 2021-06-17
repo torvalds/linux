@@ -2810,6 +2810,8 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	msk->token = subflow_req->token;
 	msk->subflow = NULL;
 	WRITE_ONCE(msk->fully_established, false);
+	if (mp_opt->csum_reqd)
+		WRITE_ONCE(msk->csum_enabled, true);
 
 	msk->write_seq = subflow_req->idsn + 1;
 	msk->snd_nxt = msk->write_seq;
