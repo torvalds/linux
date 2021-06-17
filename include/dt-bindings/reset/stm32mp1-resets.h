@@ -7,6 +7,7 @@
 #ifndef _DT_BINDINGS_STM32MP1_RESET_H_
 #define _DT_BINDINGS_STM32MP1_RESET_H_
 
+#define MCU_HOLD_BOOT_R	2144
 #define LTDC_R		3072
 #define DSI_R		3076
 #define DDRPERFM_R	3080
@@ -117,5 +118,6 @@
 #define RST_SCMI0_RNG1		8
 #define RST_SCMI0_MDMA		9
 #define RST_SCMI0_MCU		10
+#define RST_SCMI0_MCU_HOLD_BOOT	11
 
 #endif /* _DT_BINDINGS_STM32MP1_RESET_H_ */
