@@ -141,7 +141,7 @@ struct sg_table *intel_region_ttm_resource_to_st(struct intel_memory_region *mem
 
 #ifdef CONFIG_DRM_I915_SELFTEST
 /**
- * intel_region_ttm_node_alloc - Allocate memory resources from a region
+ * intel_region_ttm_resource_alloc - Allocate memory resources from a region
  * @mem: The memory region,
  * @size: The requested size in bytes
  * @flags: Allocation flags
@@ -150,8 +150,8 @@ struct sg_table *intel_region_ttm_resource_to_st(struct intel_memory_region *mem
  * memory from standalone TTM range managers, without the TTM eviction
  * functionality. Don't use if you are not completely sure that's the
  * case. The returned opaque node can be converted to an sg_table using
- * intel_region_ttm_node_to_st(), and can be freed using
- * intel_region_ttm_node_free().
+ * intel_region_ttm_resource_to_st(), and can be freed using
+ * intel_region_ttm_resource_free().
  *
  * Return: A valid pointer on success, an error pointer on failure.
  */
@@ -177,14 +177,6 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 }
 
 #endif
-
-void intel_region_ttm_node_free(struct intel_memory_region *mem,
-				struct ttm_resource *res)
-{
-	struct ttm_resource_manager *man = mem->region_private;
-
-	man->func->free(man, res);
-}
 
 /**
  * intel_region_ttm_resource_free - Free a resource allocated from a resource manager
