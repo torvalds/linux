@@ -28,6 +28,7 @@ struct mlx5_esw_bridge_fdb_entry {
 	struct list_head list;
 	struct list_head vlan_list;
 	u16 vport_num;
+	u16 esw_owner_vhca_id;
 	u16 flags;
 
 	struct mlx5_flow_handle *ingress_handle;
@@ -47,6 +48,8 @@ struct mlx5_esw_bridge_vlan {
 
 struct mlx5_esw_bridge_port {
 	u16 vport_num;
+	u16 esw_owner_vhca_id;
+	struct mlx5_esw_bridge *bridge;
 	struct xarray vlans;
 };
 

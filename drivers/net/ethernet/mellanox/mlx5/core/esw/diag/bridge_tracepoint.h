@@ -85,11 +85,15 @@ DECLARE_EVENT_CLASS(mlx5_esw_bridge_port_template,
 		    TP_ARGS(port),
 		    TP_STRUCT__entry(
 			    __field(u16, vport_num)
+			    __field(u16, esw_owner_vhca_id)
 			    ),
 		    TP_fast_assign(
 			    __entry->vport_num = port->vport_num;
+			    __entry->esw_owner_vhca_id = port->esw_owner_vhca_id;
 			    ),
-		    TP_printk("vport_num=%hu", __entry->vport_num)
+		    TP_printk("vport_num=%hu esw_owner_vhca_id=%hu",
+			      __entry->vport_num,
+			      __entry->esw_owner_vhca_id)
 	);
 
 DEFINE_EVENT(mlx5_esw_bridge_port_template,
