@@ -3103,6 +3103,9 @@ static void gfar_hw_init(struct gfar_private *priv)
 		/* Mask off the CAM interrupts */
 		gfar_write(&regs->rmon.cam1, 0xffffffff);
 		gfar_write(&regs->rmon.cam2, 0xffffffff);
+		/* Clear the CAR registers (w1c style) */
+		gfar_write(&regs->rmon.car1, 0xffffffff);
+		gfar_write(&regs->rmon.car2, 0xffffffff);
 	}
 
 	/* Initialize ECNTRL */
