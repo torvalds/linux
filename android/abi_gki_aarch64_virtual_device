@@ -1233,6 +1233,8 @@
 # required by virtio_pci.ko
   irq_set_affinity_hint
   pci_alloc_irq_vectors_affinity
+  pci_disable_sriov
+  pci_enable_sriov
   pci_find_capability
   pci_find_ext_capability
   pci_find_next_capability
@@ -1242,6 +1244,7 @@
   pci_irq_vector
   pci_release_selected_regions
   pci_request_selected_regions
+  pci_vfs_assigned
   synchronize_irq
   virtio_device_freeze
   virtio_device_restore
