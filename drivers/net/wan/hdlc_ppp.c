@@ -102,12 +102,12 @@ static struct sk_buff_head tx_queue; /* used when holding the spin lock */
 
 static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr);
 
-static inline struct ppp* get_ppp(struct net_device *dev)
+static inline struct ppp *get_ppp(struct net_device *dev)
 {
 	return (struct ppp *)dev_to_hdlc(dev)->state;
 }
 
-static inline struct proto* get_proto(struct net_device *dev, u16 pid)
+static inline struct proto *get_proto(struct net_device *dev, u16 pid)
 {
 	struct ppp *ppp = get_ppp(dev);
 
@@ -123,7 +123,7 @@ static inline struct proto* get_proto(struct net_device *dev, u16 pid)
 	}
 }
 
-static inline const char* proto_name(u16 pid)
+static inline const char *proto_name(u16 pid)
 {
 	switch (pid) {
 	case PID_LCP:
@@ -139,7 +139,7 @@ static inline const char* proto_name(u16 pid)
 
 static __be16 ppp_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 
 	if (skb->len < sizeof(struct hdlc_header))
 		return htons(ETH_P_HDLC);
@@ -171,7 +171,7 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
-	data = (struct hdlc_header*)skb->data;
+	data = (struct hdlc_header *)skb->data;
 
 	data->address = HDLC_ADDR_ALLSTATIONS;
 	data->control = HDLC_CTRL_UI;
@@ -432,7 +432,7 @@ err_out:
 
 static int ppp_rx(struct sk_buff *skb)
 {
-	struct hdlc_header *hdr = (struct hdlc_header*)skb->data;
+	struct hdlc_header *hdr = (struct hdlc_header *)skb->data;
 	struct net_device *dev = skb->dev;
 	struct ppp *ppp = get_ppp(dev);
 	struct proto *proto;
@@ -490,7 +490,7 @@ static int ppp_rx(struct sk_buff *skb)
 	if (pid == PID_LCP)
 		switch (cp->code) {
 		case LCP_PROTO_REJ:
-			pid = ntohs(*(__be16*)skb->data);
+			pid = ntohs(*(__be16 *)skb->data);
 			if (pid == PID_LCP || pid == PID_IPCP ||
 			    pid == PID_IPV6CP)
 				ppp_cp_event(dev, pid, RXJ_BAD, 0, 0,
