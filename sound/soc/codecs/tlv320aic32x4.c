@@ -48,6 +48,7 @@ struct aic32x4_priv {
 
 	struct aic32x4_setup_data *setup;
 	struct device *dev;
+	enum aic32x4_type type;
 };
 
 static int aic32x4_reset_adc(struct snd_soc_dapm_widget *w,
@@ -1198,6 +1199,8 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		return -ENOMEM;
 
 	aic32x4->dev = dev;
+	aic32x4->type = (enum aic32x4_type)dev_get_drvdata(dev);
+
 	dev_set_drvdata(dev, aic32x4);
 
 	if (pdata) {
