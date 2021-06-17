@@ -2484,7 +2484,7 @@ static void goya_init_static_firmware_loader(struct hl_device *hdev)
 	static_loader->boot_err1_reg = mmCPU_BOOT_ERR1;
 	static_loader->preboot_version_offset_reg = mmPREBOOT_VER_OFFSET;
 	static_loader->boot_fit_version_offset_reg = mmUBOOT_VER_OFFSET;
-	static_loader->sram_offset_mask = ~((u32)SRAM_BASE_ADDR);
+	static_loader->sram_offset_mask = ~(lower_32_bits(SRAM_BASE_ADDR));
 }
 
 static void goya_init_firmware_loader(struct hl_device *hdev)
