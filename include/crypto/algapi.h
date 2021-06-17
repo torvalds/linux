@@ -96,6 +96,15 @@ struct scatter_walk {
 	unsigned int offset;
 };
 
+struct crypto_attr_alg {
+	char name[CRYPTO_MAX_ALG_NAME];
+};
+
+struct crypto_attr_type {
+	u32 type;
+	u32 mask;
+};
+
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);

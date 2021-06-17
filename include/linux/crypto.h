@@ -643,27 +643,6 @@ struct crypto_comp {
 	struct crypto_tfm base;
 };
 
-enum {
-	CRYPTOA_UNSPEC,
-	CRYPTOA_ALG,
-	CRYPTOA_TYPE,
-	__CRYPTOA_MAX,
-};
-
-#define CRYPTOA_MAX (__CRYPTOA_MAX - 1)
-
-/* Maximum number of (rtattr) parameters for each template. */
-#define CRYPTO_MAX_ATTRS 32
-
-struct crypto_attr_alg {
-	char name[CRYPTO_MAX_ALG_NAME];
-};
-
-struct crypto_attr_type {
-	u32 type;
-	u32 mask;
-};
-
 /* 
  * Transform user interface.
  */
