@@ -120,21 +120,6 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 #define DPU_IRQ_REG(irq_idx)	(irq_idx / 32)
 #define DPU_IRQ_MASK(irq_idx)	(BIT(irq_idx % 32))
 
-static void dpu_hw_intr_clear_intr_status_nolock(struct dpu_hw_intr *intr,
-		int irq_idx)
-{
-	int reg_idx;
-
-	if (!intr)
-		return;
-
-	reg_idx = DPU_IRQ_REG(irq_idx);
-	DPU_REG_WRITE(&intr->hw, dpu_intr_set[reg_idx].clr_off, DPU_IRQ_MASK(irq_idx));
-
-	/* ensure register writes go through */
-	wmb();
-}
-
 /**
  * dpu_core_irq_callback_handler - dispatch core interrupts
  * @arg:		private data of callback handler
@@ -202,8 +187,6 @@ irqreturn_t dpu_core_irq(struct dpu_kms *dpu_kms)
 			irq_idx = DPU_IRQ_IDX(reg_idx, bit - 1);
 
 			dpu_core_irq_callback_handler(dpu_kms, irq_idx);
-
-			dpu_hw_intr_clear_intr_status_nolock(intr, irq_idx);
 
 			/*
 			 * When callback finish, clear the irq_status
