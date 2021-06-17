@@ -1888,48 +1888,43 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx)
 	percpu_ref_put(&ctx->refs);
 }
 
-static bool __tctx_task_work(struct io_uring_task *tctx)
-{
-	struct io_ring_ctx *ctx = NULL;
-	struct io_wq_work_list list;
-	struct io_wq_work_node *node;
-
-	if (wq_list_empty(&tctx->task_list))
-		return false;
-
-	spin_lock_irq(&tctx->task_lock);
-	list = tctx->task_list;
-	INIT_WQ_LIST(&tctx->task_list);
-	spin_unlock_irq(&tctx->task_lock);
-
-	node = list.first;
-	while (node) {
-		struct io_wq_work_node *next = node->next;
-		struct io_kiocb *req;
-
-		req = container_of(node, struct io_kiocb, io_task_work.node);
-		if (req->ctx != ctx) {
-			ctx_flush_and_put(ctx);
-			ctx = req->ctx;
-			percpu_ref_get(&ctx->refs);
-		}
-
-		req->task_work.func(&req->task_work);
-		node = next;
-	}
-
-	ctx_flush_and_put(ctx);
-	return list.first != NULL;
-}
-
 static void tctx_task_work(struct callback_head *cb)
 {
-	struct io_uring_task *tctx = container_of(cb, struct io_uring_task, task_work);
+	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
+						  task_work);
 
 	clear_bit(0, &tctx->task_state);
 
-	while (__tctx_task_work(tctx))
+	while (!wq_list_empty(&tctx->task_list)) {
+		struct io_ring_ctx *ctx = NULL;
+		struct io_wq_work_list list;
+		struct io_wq_work_node *node;
+
+		spin_lock_irq(&tctx->task_lock);
+		list = tctx->task_list;
+		INIT_WQ_LIST(&tctx->task_list);
+		spin_unlock_irq(&tctx->task_lock);
+
+		node = list.first;
+		while (node) {
+			struct io_wq_work_node *next = node->next;
+			struct io_kiocb *req = container_of(node, struct io_kiocb,
+							    io_task_work.node);
+
+			if (req->ctx != ctx) {
+				ctx_flush_and_put(ctx);
+				ctx = req->ctx;
+				percpu_ref_get(&ctx->refs);
+			}
+			req->task_work.func(&req->task_work);
+			node = next;
+		}
+
+		ctx_flush_and_put(ctx);
+		if (!list.first)
+			break;
 		cond_resched();
+	}
 }
 
 static int io_req_task_work_add(struct io_kiocb *req)
