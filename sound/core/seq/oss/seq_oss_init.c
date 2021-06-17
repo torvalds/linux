@@ -94,11 +94,10 @@ snd_seq_oss_create_client(void)
 	port_callback.event_input = receive_announce;
 	port->kernel = &port_callback;
 	
-	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port);
-	system_port = port->addr.port;
-	if (system_port >= 0) {
+	if (call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port) >= 0) {
 		struct snd_seq_port_subscribe subs;
 
+		system_port = port->addr.port;
 		memset(&subs, 0, sizeof(subs));
 		subs.sender.client = SNDRV_SEQ_CLIENT_SYSTEM;
 		subs.sender.port = SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE;
