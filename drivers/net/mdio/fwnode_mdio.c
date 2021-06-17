@@ -65,7 +65,7 @@ int fwnode_mdiobus_phy_device_register(struct mii_bus *mdio,
 	 * can be looked up later
 	 */
 	fwnode_handle_get(child);
-	phy->mdio.dev.fwnode = child;
+	device_set_node(&phy->mdio.dev, child);
 
 	/* All data is now stored in the phy struct;
 	 * register it

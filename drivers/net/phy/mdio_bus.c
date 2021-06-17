@@ -459,8 +459,7 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 			continue;
 
 		if (addr == mdiodev->addr) {
-			dev->of_node = child;
-			dev->fwnode = of_fwnode_handle(child);
+			device_set_node(dev, of_fwnode_handle(child));
 			return;
 		}
 	}
