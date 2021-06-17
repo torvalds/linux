@@ -650,15 +650,11 @@ static int acpi_tie_acpi_dev(struct acpi_device *adev)
 	return 0;
 }
 
-int acpi_device_add(struct acpi_device *device,
-		    void (*release)(struct device *))
+static int __acpi_device_add(struct acpi_device *device,
+			     void (*release)(struct device *))
 {
 	struct acpi_device_bus_id *acpi_device_bus_id;
 	int result;
-
-	result = acpi_tie_acpi_dev(device);
-	if (result)
-		return result;
 
 	/*
 	 * Linkage
@@ -746,6 +742,17 @@ err_unlock:
 	acpi_detach_data(device->handle, acpi_scan_drop_device);
 
 	return result;
+}
+
+int acpi_device_add(struct acpi_device *adev, void (*release)(struct device *))
+{
+	int ret;
+
+	ret = acpi_tie_acpi_dev(adev);
+	if (ret)
+		return ret;
+
+	return __acpi_device_add(adev, release);
 }
 
 /* --------------------------------------------------------------------------
@@ -1675,14 +1682,10 @@ static void acpi_scan_dep_init(struct acpi_device *adev)
 {
 	struct acpi_dep_data *dep;
 
-	mutex_lock(&acpi_dep_list_lock);
-
 	list_for_each_entry(dep, &acpi_dep_list, node) {
 		if (dep->consumer == adev->handle)
 			adev->dep_unmet++;
 	}
-
-	mutex_unlock(&acpi_dep_list_lock);
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
@@ -1701,6 +1704,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type, bool dep_init)
 {
 	struct acpi_device *device;
+	bool release_dep_lock = false;
 	int result;
 
 	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
@@ -1714,16 +1718,31 @@ static int acpi_add_single_object(struct acpi_device **child,
 	 * this must be done before the get power-/wakeup_dev-flags calls.
 	 */
 	if (type == ACPI_BUS_TYPE_DEVICE || type == ACPI_BUS_TYPE_PROCESSOR) {
-		if (dep_init)
+		if (dep_init) {
+			mutex_lock(&acpi_dep_list_lock);
+			/*
+			 * Hold the lock until the acpi_tie_acpi_dev() call
+			 * below to prevent concurrent acpi_scan_clear_dep()
+			 * from deleting a dependency list entry without
+			 * updating dep_unmet for the device.
+			 */
+			release_dep_lock = true;
 			acpi_scan_dep_init(device);
-
+		}
 		acpi_scan_init_status(device);
 	}
 
 	acpi_bus_get_power_flags(device);
 	acpi_bus_get_wakeup_device_flags(device);
 
-	result = acpi_device_add(device, acpi_device_release);
+	result = acpi_tie_acpi_dev(device);
+
+	if (release_dep_lock)
+		mutex_unlock(&acpi_dep_list_lock);
+
+	if (!result)
+		result = __acpi_device_add(device, acpi_device_release);
+
 	if (result) {
 		acpi_device_release(&device->dev);
 		return result;
