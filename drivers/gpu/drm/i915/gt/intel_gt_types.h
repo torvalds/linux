@@ -32,6 +32,26 @@ struct i915_ggtt;
 struct intel_engine_cs;
 struct intel_uncore;
 
+struct intel_mmio_range {
+	u32 start;
+	u32 end;
+};
+
+/*
+ * The hardware has multiple kinds of multicast register ranges that need
+ * special register steering (and future platforms are expected to add
+ * additional types).
+ *
+ * During driver startup, we initialize the steering control register to
+ * direct reads to a slice/subslice that are valid for the 'subslice' class
+ * of multicast registers.  If another type of steering does not have any
+ * overlap in valid steering targets with 'subslice' style registers, we will
+ * need to explicitly re-steer reads of registers of the other type.
+ */
+enum intel_steering_type {
+	NUM_STEERING_TYPES
+};
+
 enum intel_submission_method {
 	INTEL_SUBMISSION_RING,
 	INTEL_SUBMISSION_ELSP,
@@ -147,6 +167,8 @@ struct intel_gt {
 	struct i915_vma *scratch;
 
 	struct intel_migrate migrate;
+
+	const struct intel_mmio_range *steering_table[NUM_STEERING_TYPES];
 
 	struct intel_gt_info {
 		intel_engine_mask_t engine_mask;

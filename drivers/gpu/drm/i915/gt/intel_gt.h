@@ -75,6 +75,14 @@ static inline bool intel_gt_is_wedged(const struct intel_gt *gt)
 	return unlikely(test_bit(I915_WEDGED, &gt->reset.flags));
 }
 
+static inline bool intel_gt_needs_read_steering(struct intel_gt *gt,
+						enum intel_steering_type type)
+{
+	return gt->steering_table[type];
+}
+
+u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg);
+
 void intel_gt_info_print(const struct intel_gt_info *info,
 			 struct drm_printer *p);
 

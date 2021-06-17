@@ -1248,8 +1248,9 @@ wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 }
 
 static void
-wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
+wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	enum forcewake_domains fw;
 	unsigned long flags;
 	struct i915_wa *wa;
@@ -1264,13 +1265,16 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		if (wa->clr)
-			intel_uncore_rmw_fw(uncore, wa->reg, wa->clr, wa->set);
-		else
-			intel_uncore_write_fw(uncore, wa->reg, wa->set);
+		u32 val, old = 0;
+
+		/* open-coded rmw due to steering */
+		old = wa->clr ? intel_gt_read_register_fw(gt, wa->reg) : 0;
+		val = (old & ~wa->clr) | wa->set;
+		if (val != old || !wa->clr)
+			intel_uncore_write_fw(uncore, wa->reg, val);
+
 		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-			wa_verify(wa,
-				  intel_uncore_read_fw(uncore, wa->reg),
+			wa_verify(wa, intel_gt_read_register_fw(gt, wa->reg),
 				  wal->name, "application");
 	}
 
@@ -1280,28 +1284,39 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 
 void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(gt->uncore, &gt->i915->gt_wa_list);
+	wa_list_apply(gt, &gt->i915->gt_wa_list);
 }
 
-static bool wa_list_verify(struct intel_uncore *uncore,
+static bool wa_list_verify(struct intel_gt *gt,
 			   const struct i915_wa_list *wal,
 			   const char *from)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	struct i915_wa *wa;
+	enum forcewake_domains fw;
+	unsigned long flags;
 	unsigned int i;
 	bool ok = true;
 
+	fw = wal_get_fw_for_rmw(uncore, wal);
+
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw);
+
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		ok &= wa_verify(wa,
-				intel_uncore_read(uncore, wa->reg),
+				intel_gt_read_register_fw(gt, wa->reg),
 				wal->name, from);
+
+	intel_uncore_forcewake_put__locked(uncore, fw);
+	spin_unlock_irqrestore(&uncore->lock, flags);
 
 	return ok;
 }
 
 bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 {
-	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
+	return wa_list_verify(gt, &gt->i915->gt_wa_list, from);
 }
 
 __maybe_unused
@@ -2084,7 +2099,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 {
-	wa_list_apply(engine->uncore, &engine->wa_list);
+	wa_list_apply(engine->gt, &engine->wa_list);
 }
 
 struct mcr_range {

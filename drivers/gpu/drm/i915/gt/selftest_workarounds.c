@@ -1147,7 +1147,7 @@ verify_wa_lists(struct intel_gt *gt, struct wa_lists *lists,
 	enum intel_engine_id id;
 	bool ok = true;
 
-	ok &= wa_list_verify(gt->uncore, &lists->gt_wa_list, str);
+	ok &= wa_list_verify(gt, &lists->gt_wa_list, str);
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;

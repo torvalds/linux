@@ -701,6 +701,90 @@ void intel_gt_driver_late_release(struct intel_gt *gt)
 	intel_engines_free(gt);
 }
 
+/**
+ * intel_gt_reg_needs_read_steering - determine whether a register read
+ *     requires explicit steering
+ * @gt: GT structure
+ * @reg: the register to check steering requirements for
+ * @type: type of multicast steering to check
+ *
+ * Determines whether @reg needs explicit steering of a specific type for
+ * reads.
+ *
+ * Returns false if @reg does not belong to a register range of the given
+ * steering type, or if the default (subslice-based) steering IDs are suitable
+ * for @type steering too.
+ */
+static bool intel_gt_reg_needs_read_steering(struct intel_gt *gt,
+					     i915_reg_t reg,
+					     enum intel_steering_type type)
+{
+	const u32 offset = i915_mmio_reg_offset(reg);
+	const struct intel_mmio_range *entry;
+
+	if (likely(!intel_gt_needs_read_steering(gt, type)))
+		return false;
+
+	for (entry = gt->steering_table[type]; entry->end; entry++) {
+		if (offset >= entry->start && offset <= entry->end)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * intel_gt_get_valid_steering - determines valid IDs for a class of MCR steering
+ * @gt: GT structure
+ * @type: multicast register type
+ * @sliceid: Slice ID returned
+ * @subsliceid: Subslice ID returned
+ *
+ * Determines sliceid and subsliceid values that will steer reads
+ * of a specific multicast register class to a valid value.
+ */
+static void intel_gt_get_valid_steering(struct intel_gt *gt,
+					enum intel_steering_type type,
+					u8 *sliceid, u8 *subsliceid)
+{
+	switch (type) {
+	default:
+		MISSING_CASE(type);
+		*sliceid = 0;
+		*subsliceid = 0;
+	}
+}
+
+/**
+ * intel_gt_read_register_fw - reads a GT register with support for multicast
+ * @gt: GT structure
+ * @reg: register to read
+ *
+ * This function will read a GT register.  If the register is a multicast
+ * register, the read will be steered to a valid instance (i.e., one that
+ * isn't fused off or powered down by power gating).
+ *
+ * Returns the value from a valid instance of @reg.
+ */
+u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg)
+{
+	int type;
+	u8 sliceid, subsliceid;
+
+	for (type = 0; type < NUM_STEERING_TYPES; type++) {
+		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
+			intel_gt_get_valid_steering(gt, type, &sliceid,
+						    &subsliceid);
+			return intel_uncore_read_with_mcr_steering_fw(gt->uncore,
+								      reg,
+								      sliceid,
+								      subsliceid);
+		}
+	}
+
+	return intel_uncore_read_fw(gt->uncore, reg);
+}
+
 void intel_gt_info_print(const struct intel_gt_info *info,
 			 struct drm_printer *p)
 {
