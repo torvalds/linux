@@ -7,6 +7,8 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
+#include <linux/mod_devicetable.h>
 
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
@@ -376,3 +378,4 @@ module_platform_driver(hid_hinge_platform_driver);
 MODULE_DESCRIPTION("HID Sensor INTEL Hinge");
 MODULE_AUTHOR("Ye Xiang <xiang.ye@intel.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

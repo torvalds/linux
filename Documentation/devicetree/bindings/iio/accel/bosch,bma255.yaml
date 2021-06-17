@@ -18,6 +18,8 @@ properties:
     enum:
       - bosch,bmc150_accel
       - bosch,bmi055_accel
+      - bosch,bma253
+      - bosch,bma254
       - bosch,bma255
       - bosch,bma250e
       - bosch,bma222
@@ -31,7 +33,12 @@ properties:
   vddio-supply: true
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+    description: |
+      The first interrupt listed must be the one connected to the INT1 pin,
+      the second (optional) interrupt listed must be the one connected to the
+      INT2 pin (if available).
 
   mount-matrix:
     description: an optional 3x3 mounting rotation matrix.

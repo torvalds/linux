@@ -1406,8 +1406,6 @@ static int adis16480_probe(struct spi_device *spi)
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, indio_dev);
-
 	st = iio_priv(indio_dev);
 
 	st->chip_info = &adis16480_chip_info[id->driver_data];

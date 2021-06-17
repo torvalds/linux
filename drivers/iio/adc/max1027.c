@@ -430,8 +430,6 @@ static int max1027_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	spi_set_drvdata(spi, indio_dev);
-
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 	st->info = &max1027_chip_info_tbl[spi_get_device_id(spi)->driver_data];

@@ -1328,7 +1328,6 @@ static int adis16475_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
 
 	st->info = device_get_match_data(&spi->dev);
 	if (!st->info)

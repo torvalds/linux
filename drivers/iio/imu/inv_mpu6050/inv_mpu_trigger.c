@@ -173,11 +173,9 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 
 	if (enable) {
 		scan = inv_scan_query(indio_dev);
-		result = pm_runtime_get_sync(pdev);
-		if (result < 0) {
-			pm_runtime_put_noidle(pdev);
+		result = pm_runtime_resume_and_get(pdev);
+		if (result)
 			return result;
-		}
 		/*
 		 * In case autosuspend didn't trigger, turn off first not
 		 * required sensors.
