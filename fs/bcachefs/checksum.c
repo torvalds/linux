@@ -16,53 +16,68 @@
 #include <crypto/skcipher.h>
 #include <keys/user-type.h>
 
-static u64 bch2_checksum_init(unsigned type)
+/*
+ * bch2_checksum state is an abstraction of the checksum state calculated over different pages.
+ * it features page merging without having the checksum algorithm lose its state.
+ * for native checksum aglorithms (like crc), a default seed value will do.
+ * for hash-like algorithms, a state needs to be stored
+ */
+
+struct bch2_checksum_state {
+	union {
+		u64 seed;
+	};
+	unsigned int type;
+};
+
+static void bch2_checksum_init(struct bch2_checksum_state *state)
 {
-	switch (type) {
+	switch (state->type) {
 	case BCH_CSUM_NONE:
-		return 0;
-	case BCH_CSUM_CRC32C_NONZERO:
-		return U32_MAX;
-	case BCH_CSUM_CRC64_NONZERO:
-		return U64_MAX;
 	case BCH_CSUM_CRC32C:
-		return 0;
 	case BCH_CSUM_CRC64:
-		return 0;
+		state->seed = 0;
+		break;
+	case BCH_CSUM_CRC32C_NONZERO:
+		state->seed = U32_MAX;
+		break;
+	case BCH_CSUM_CRC64_NONZERO:
+		state->seed = U64_MAX;
+		break;
 	default:
 		BUG();
 	}
 }
 
-static u64 bch2_checksum_final(unsigned type, u64 crc)
+static u64 bch2_checksum_final(const struct bch2_checksum_state *state)
 {
-	switch (type) {
+	switch (state->type) {
 	case BCH_CSUM_NONE:
-		return 0;
-	case BCH_CSUM_CRC32C_NONZERO:
-		return crc ^ U32_MAX;
-	case BCH_CSUM_CRC64_NONZERO:
-		return crc ^ U64_MAX;
 	case BCH_CSUM_CRC32C:
-		return crc;
 	case BCH_CSUM_CRC64:
-		return crc;
+		return state->seed;
+	case BCH_CSUM_CRC32C_NONZERO:
+		return state->seed ^ U32_MAX;
+	case BCH_CSUM_CRC64_NONZERO:
+		return state->seed ^ U64_MAX;
 	default:
 		BUG();
 	}
 }
 
-static u64 bch2_checksum_update(unsigned type, u64 crc, const void *data, size_t len)
+static void bch2_checksum_update(struct bch2_checksum_state *state, const void *data, size_t len)
 {
-	switch (type) {
+	switch (state->type) {
 	case BCH_CSUM_NONE:
-		return 0;
+		return;
 	case BCH_CSUM_CRC32C_NONZERO:
 	case BCH_CSUM_CRC32C:
-		return crc32c(crc, data, len);
+		state->seed = crc32c(state->seed, data, len);
+		break;
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC64:
-		return crc64_be(crc, data, len);
+		state->seed = crc64_be(state->seed, data, len);
+		break;
 	default:
 		BUG();
 	}
@@ -141,12 +156,14 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC32C:
 	case BCH_CSUM_CRC64: {
-		u64 crc = bch2_checksum_init(type);
+		struct bch2_checksum_state state;
 
-		crc = bch2_checksum_update(type, crc, data, len);
-		crc = bch2_checksum_final(type, crc);
+		state.type = type;
 
-		return (struct bch_csum) { .lo = cpu_to_le64(crc) };
+		bch2_checksum_init(&state);
+		bch2_checksum_update(&state, data, len);
+
+		return (struct bch_csum) { .lo = cpu_to_le64(bch2_checksum_final(&state)) };
 	}
 
 	case BCH_CSUM_CHACHA20_POLY1305_80:
@@ -190,23 +207,23 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC32C:
 	case BCH_CSUM_CRC64: {
-		u64 crc = bch2_checksum_init(type);
+		struct bch2_checksum_state state;
+
+		state.type = type;
+		bch2_checksum_init(&state);
 
 #ifdef CONFIG_HIGHMEM
 		__bio_for_each_segment(bv, bio, *iter, *iter) {
 			void *p = kmap_atomic(bv.bv_page) + bv.bv_offset;
-			crc = bch2_checksum_update(type,
-				crc, p, bv.bv_len);
+			bch2_checksum_update(&state, p, bv.bv_len);
 			kunmap_atomic(p);
 		}
 #else
 		__bio_for_each_bvec(bv, bio, *iter, *iter)
-			crc = bch2_checksum_update(type, crc,
-				page_address(bv.bv_page) + bv.bv_offset,
+			bch2_checksum_update(&state, page_address(bv.bv_page) + bv.bv_offset,
 				bv.bv_len);
 #endif
-		crc = bch2_checksum_final(type, crc);
-		return (struct bch_csum) { .lo = cpu_to_le64(crc) };
+		return (struct bch_csum) { .lo = cpu_to_le64(bch2_checksum_final(&state)) };
 	}
 
 	case BCH_CSUM_CHACHA20_POLY1305_80:
@@ -284,16 +301,22 @@ void bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 				    struct bch_csum b, size_t b_len)
 {
+	struct bch2_checksum_state state;
+
+	state.type = type;
+	bch2_checksum_init(&state);
+	state.seed = a.lo;
+
 	BUG_ON(!bch2_checksum_mergeable(type));
 
 	while (b_len) {
 		unsigned b = min_t(unsigned, b_len, PAGE_SIZE);
 
-		a.lo = bch2_checksum_update(type, a.lo,
+		bch2_checksum_update(&state,
 				page_address(ZERO_PAGE(0)), b);
 		b_len -= b;
 	}
-
+	a.lo = bch2_checksum_final(&state);
 	a.lo ^= b.lo;
 	a.hi ^= b.hi;
 	return a;
