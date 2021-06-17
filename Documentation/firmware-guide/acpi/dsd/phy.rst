@@ -27,7 +27,8 @@ network interfaces that have PHYs connected to MAC via MDIO bus.
 During the MDIO bus driver initialization, PHYs on this bus are probed
 using the _ADR object as shown below and are registered on the MDIO bus.
 
-::
+.. code-block:: none
+
       Scope(\_SB.MDI0)
       {
         Device(PHY1) {
@@ -60,7 +61,9 @@ component (PHYs on the MDIO bus).
 a) Silicon Component
 This node describes the MDIO controller, MDI0
 ---------------------------------------------
-::
+
+.. code-block:: none
+
 	Scope(_SB)
 	{
 	  Device(MDI0) {
@@ -80,7 +83,9 @@ This node describes the MDIO controller, MDI0
 b) Platform Component
 The PHY1 and PHY2 nodes represent the PHYs connected to MDIO bus MDI0
 ---------------------------------------------------------------------
-::
+
+.. code-block:: none
+
 	Scope(\_SB.MDI0)
 	{
 	  Device(PHY1) {
@@ -98,7 +103,9 @@ DSDT entries representing MAC nodes
 Below are the MAC nodes where PHY nodes are referenced.
 phy-mode and phy-handle are used as explained earlier.
 ------------------------------------------------------
-::
+
+.. code-block:: none
+
 	Scope(\_SB.MCE0.PR17)
 	{
 	  Name (_DSD, Package () {
