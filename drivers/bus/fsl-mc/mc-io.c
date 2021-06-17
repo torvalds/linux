@@ -50,7 +50,7 @@ static void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
 }
 
 /**
- * Creates an MC I/O object
+ * fsl_create_mc_io() - Creates an MC I/O object
  *
  * @dev: device to be associated with the MC I/O object
  * @mc_portal_phys_addr: physical address of the MC portal to use
@@ -123,7 +123,7 @@ error_destroy_mc_io:
 }
 
 /**
- * Destroys an MC I/O object
+ * fsl_destroy_mc_io() - Destroys an MC I/O object
  *
  * @mc_io: MC I/O object to destroy
  */
