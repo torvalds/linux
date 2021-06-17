@@ -3678,10 +3678,9 @@ static int vxge_config_vpaths(struct vxge_hw_device_config *device_config,
 			driver_config->vpath_per_dev = 1;
 
 		for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++)
-			if (!vxge_bVALn(vpath_mask, i, 1))
-				continue;
-			else
+			if (vxge_bVALn(vpath_mask, i, 1))
 				default_no_vpath++;
+
 		if (default_no_vpath < driver_config->vpath_per_dev)
 			driver_config->vpath_per_dev = default_no_vpath;
 
