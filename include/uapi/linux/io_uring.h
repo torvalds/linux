@@ -306,6 +306,10 @@ enum {
 	IORING_REGISTER_BUFFERS2		= 15,
 	IORING_REGISTER_BUFFERS_UPDATE		= 16,
 
+	/* set/clear io-wq thread affinities */
+	IORING_REGISTER_IOWQ_AFF		= 17,
+	IORING_UNREGISTER_IOWQ_AFF		= 18,
+
 	/* this goes last */
 	IORING_REGISTER_LAST
 };

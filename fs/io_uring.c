@@ -9983,6 +9983,43 @@ static int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	return -EINVAL;
 }
 
+static int io_register_iowq_aff(struct io_ring_ctx *ctx, void __user *arg,
+				unsigned len)
+{
+	struct io_uring_task *tctx = current->io_uring;
+	cpumask_var_t new_mask;
+	int ret;
+
+	if (!tctx || !tctx->io_wq)
+		return -EINVAL;
+
+	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpumask_clear(new_mask);
+	if (len > cpumask_size())
+		len = cpumask_size();
+
+	if (copy_from_user(new_mask, arg, len)) {
+		free_cpumask_var(new_mask);
+		return -EFAULT;
+	}
+
+	ret = io_wq_cpu_affinity(tctx->io_wq, new_mask);
+	free_cpumask_var(new_mask);
+	return ret;
+}
+
+static int io_unregister_iowq_aff(struct io_ring_ctx *ctx)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	if (!tctx || !tctx->io_wq)
+		return -EINVAL;
+
+	return io_wq_cpu_affinity(tctx->io_wq, NULL);
+}
+
 static bool io_register_op_must_quiesce(int op)
 {
 	switch (op) {
@@ -9998,6 +10035,8 @@ static bool io_register_op_must_quiesce(int op)
 	case IORING_REGISTER_FILES_UPDATE2:
 	case IORING_REGISTER_BUFFERS2:
 	case IORING_REGISTER_BUFFERS_UPDATE:
+	case IORING_REGISTER_IOWQ_AFF:
+	case IORING_UNREGISTER_IOWQ_AFF:
 		return false;
 	default:
 		return true;
@@ -10136,6 +10175,18 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	case IORING_REGISTER_BUFFERS_UPDATE:
 		ret = io_register_rsrc_update(ctx, arg, nr_args,
 					      IORING_RSRC_BUFFER);
+		break;
+	case IORING_REGISTER_IOWQ_AFF:
+		ret = -EINVAL;
+		if (!arg || !nr_args)
+			break;
+		ret = io_register_iowq_aff(ctx, arg, nr_args);
+		break;
+	case IORING_UNREGISTER_IOWQ_AFF:
+		ret = -EINVAL;
+		if (arg || nr_args)
+			break;
+		ret = io_unregister_iowq_aff(ctx);
 		break;
 	default:
 		ret = -EINVAL;
