@@ -125,7 +125,7 @@ rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
 						 core->flag, &priv->rmw_lock);
 
 	if (IS_ERR(clk_hw))
-		return NULL;
+		return ERR_CAST(clk_hw);
 
 	return clk_hw->clk;
 }
