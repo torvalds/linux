@@ -23,18 +23,6 @@
 		};
 	};
 
-	hub_5v: regulator-hub_5v {
-		compatible = "regulator-fixed";
-		regulator-name = "HUB_5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc_5v>;
-
-		/* Connected to the Hub CHIPENABLE, LOW sets low power state */
-		gpio = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
 	sound {
 		model = "ODROID-C4";
 	};
@@ -57,9 +45,4 @@
 
 &ir {
 	linux,rc-map-name = "rc-odroid";
-};
-
-&usb2_phy1 {
-	/* Enable the hub which is connected to this port */
-	phy-supply = <&hub_5v>;
 };
