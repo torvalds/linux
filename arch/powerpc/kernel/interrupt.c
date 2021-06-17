@@ -46,35 +46,7 @@ static inline bool exit_must_hard_disable(void)
  * This should be called with local irqs disabled, but if they were previously
  * enabled when the interrupt handler returns (indicating a process-context /
  * synchronous interrupt) then irqs_enabled should be true.
- */
-static notrace __always_inline bool prep_irq_for_user_exit(void)
-{
-	user_enter_irqoff();
-	/* This must be done with RI=1 because tracing may touch vmaps */
-	trace_hardirqs_on();
-
-#ifdef CONFIG_PPC32
-	__hard_EE_RI_disable();
-#else
-	if (exit_must_hard_disable())
-		__hard_EE_RI_disable();
-
-	/* This pattern matches prep_irq_for_idle */
-	if (unlikely(lazy_irq_pending_nocheck())) {
-		if (exit_must_hard_disable()) {
-			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-			__hard_RI_enable();
-		}
-		trace_hardirqs_off();
-		user_exit_irqoff();
-
-		return false;
-	}
-#endif
-	return true;
-}
-
-/*
+ *
  * restartable is true then EE/RI can be left on because interrupts are handled
  * with a restart sequence.
  */
@@ -96,6 +68,33 @@ static notrace __always_inline bool prep_irq_for_kernel_enabled_exit(bool restar
 			__hard_RI_enable();
 		}
 		trace_hardirqs_off();
+
+		return false;
+	}
+#endif
+	return true;
+}
+
+static notrace __always_inline bool prep_irq_for_user_exit(void)
+{
+	user_enter_irqoff();
+	/* This must be done with RI=1 because tracing may touch vmaps */
+	trace_hardirqs_on();
+
+#ifdef CONFIG_PPC32
+	__hard_EE_RI_disable();
+#else
+	if (exit_must_hard_disable())
+		__hard_EE_RI_disable();
+
+	/* This pattern matches prep_irq_for_idle */
+	if (unlikely(lazy_irq_pending_nocheck())) {
+		if (exit_must_hard_disable()) {
+			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+			__hard_RI_enable();
+		}
+		trace_hardirqs_off();
+		user_exit_irqoff();
 
 		return false;
 	}
