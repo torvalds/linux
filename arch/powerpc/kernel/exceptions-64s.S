@@ -591,6 +591,36 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	__GEN_COMMON_BODY \name
 .endm
 
+.macro SEARCH_RESTART_TABLE
+#ifdef CONFIG_RELOCATABLE
+	mr	r12,r2
+	ld	r2,PACATOC(r13)
+	LOAD_REG_ADDR(r9, __start___restart_table)
+	LOAD_REG_ADDR(r10, __stop___restart_table)
+	mr	r2,r12
+#else
+	LOAD_REG_IMMEDIATE_SYM(r9, r12, __start___restart_table)
+	LOAD_REG_IMMEDIATE_SYM(r10, r12, __stop___restart_table)
+#endif
+300:
+	cmpd	r9,r10
+	beq	302f
+	ld	r12,0(r9)
+	cmpld	r11,r12
+	blt	301f
+	ld	r12,8(r9)
+	cmpld	r11,r12
+	bge	301f
+	ld	r12,16(r9)
+	b	303f
+301:
+	addi	r9,r9,24
+	b	300b
+302:
+	li	r12,0
+303:
+.endm
+
 /*
  * Restore all registers including H/SRR0/1 saved in a stack frame of a
  * standard exception.
@@ -2646,6 +2676,7 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 	mtmsrd	r9,1
 
 	kuap_kernel_restore r9, r10
+
 	EXCEPTION_RESTORE_REGS hsrr=0
 	RFI_TO_KERNEL
 
@@ -2702,6 +2733,16 @@ masked_interrupt:
 	.else
 	stb	r9,PACASRR_VALID(r13)
 	.endif
+
+	SEARCH_RESTART_TABLE
+	cmpdi	r12,0
+	beq	3f
+	.if \hsrr
+	mtspr	SPRN_HSRR0,r12
+	.else
+	mtspr	SPRN_SRR0,r12
+	.endif
+3:
 
 	ld	r9,PACA_EXGEN+EX_CTR(r13)
 	mtctr	r9

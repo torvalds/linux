@@ -73,6 +73,11 @@
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>
 
+#ifdef CONFIG_PPC64
+extern char __end_soft_masked[];
+unsigned long search_kernel_restart_table(unsigned long addr);
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 static inline void srr_regs_clobbered(void)
 {
@@ -268,6 +273,14 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 	 * nmi does not call nap_adjust_return because nmi should not create
 	 * new work to do (must use irq_work for that).
 	 */
+
+#ifdef CONFIG_PPC64
+	if (arch_irq_disabled_regs(regs)) {
+		unsigned long rst = search_kernel_restart_table(regs->nip);
+		if (rst)
+			regs_set_return_ip(regs, rst);
+	}
+#endif
 
 #ifdef CONFIG_PPC64
 	if (nmi_disables_ftrace(regs))
