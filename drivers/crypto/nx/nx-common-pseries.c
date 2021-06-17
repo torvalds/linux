@@ -1231,6 +1231,12 @@ static int __init nx842_pseries_init(void)
 		return ret;
 	}
 
+	ret = vas_register_api_pseries(THIS_MODULE, VAS_COP_TYPE_GZIP,
+				       "nx-gzip");
+
+	if (ret)
+		pr_err("NX-GZIP is not supported. Returned=%d\n", ret);
+
 	return 0;
 }
 
@@ -1240,6 +1246,8 @@ static void __exit nx842_pseries_exit(void)
 {
 	struct nx842_devdata *old_devdata;
 	unsigned long flags;
+
+	vas_unregister_api_pseries();
 
 	crypto_unregister_alg(&nx842_pseries_alg);
 
