@@ -95,5 +95,9 @@ struct cxl_mem {
 
 	struct range pmem_range;
 	struct range ram_range;
+	u64 total_bytes;
+	u64 volatile_only_bytes;
+	u64 persistent_only_bytes;
+	u64 partition_align_bytes;
 };
 #endif /* __CXL_MEM_H__ */

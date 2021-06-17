@@ -64,6 +64,15 @@ enum opcode {
 	CXL_MBOX_OP_MAX			= 0x10000
 };
 
+/*
+ * CXL 2.0 - Memory capacity multiplier
+ * See Section 8.2.9.5
+ *
+ * Volatile, Persistent, and Partition capacities are specified to be in
+ * multiples of 256MB - define a multiplier to convert to/from bytes.
+ */
+#define CXL_CAPACITY_MULTIPLIER SZ_256M
+
 /**
  * struct mbox_cmd - A command to be submitted to hardware.
  * @opcode: (input) The command set and command submitted to hardware.
@@ -1350,16 +1359,37 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 	if (rc < 0)
 		return rc;
 
+	cxlm->total_bytes = le64_to_cpu(id.total_capacity);
+	cxlm->total_bytes *= CXL_CAPACITY_MULTIPLIER;
+
+	cxlm->volatile_only_bytes = le64_to_cpu(id.volatile_capacity);
+	cxlm->volatile_only_bytes *= CXL_CAPACITY_MULTIPLIER;
+
+	cxlm->persistent_only_bytes = le64_to_cpu(id.persistent_capacity);
+	cxlm->persistent_only_bytes *= CXL_CAPACITY_MULTIPLIER;
+
+	cxlm->partition_align_bytes = le64_to_cpu(id.partition_align);
+	cxlm->partition_align_bytes *= CXL_CAPACITY_MULTIPLIER;
+
+	dev_dbg(&cxlm->pdev->dev, "Identify Memory Device\n"
+		"     total_bytes = %#llx\n"
+		"     volatile_only_bytes = %#llx\n"
+		"     persistent_only_bytes = %#llx\n"
+		"     partition_align_bytes = %#llx\n",
+			cxlm->total_bytes,
+			cxlm->volatile_only_bytes,
+			cxlm->persistent_only_bytes,
+			cxlm->partition_align_bytes);
+
 	/*
 	 * TODO: enumerate DPA map, as 'ram' and 'pmem' do not alias.
 	 * For now, only the capacity is exported in sysfs
 	 */
 	cxlm->ram_range.start = 0;
-	cxlm->ram_range.end = le64_to_cpu(id.volatile_capacity) * SZ_256M - 1;
+	cxlm->ram_range.end = cxlm->volatile_only_bytes - 1;
 
 	cxlm->pmem_range.start = 0;
-	cxlm->pmem_range.end =
-		le64_to_cpu(id.persistent_capacity) * SZ_256M - 1;
+	cxlm->pmem_range.end = cxlm->persistent_only_bytes - 1;
 
 	cxlm->lsa_size = le32_to_cpu(id.lsa_size);
 	memcpy(cxlm->firmware_version, id.fw_revision, sizeof(id.fw_revision));
