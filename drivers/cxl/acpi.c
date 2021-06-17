@@ -10,6 +10,126 @@
 
 static struct acpi_table_header *acpi_cedt;
 
+/* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
+#define CFMWS_INTERLEAVE_WAYS(x)	(1 << (x)->interleave_ways)
+#define CFMWS_INTERLEAVE_GRANULARITY(x)	((x)->granularity + 8)
+
+static unsigned long cfmws_to_decoder_flags(int restrictions)
+{
+	unsigned long flags = 0;
+
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE2)
+		flags |= CXL_DECODER_F_TYPE2;
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE3)
+		flags |= CXL_DECODER_F_TYPE3;
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_VOLATILE)
+		flags |= CXL_DECODER_F_RAM;
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_PMEM)
+		flags |= CXL_DECODER_F_PMEM;
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_FIXED)
+		flags |= CXL_DECODER_F_LOCK;
+
+	return flags;
+}
+
+static int cxl_acpi_cfmws_verify(struct device *dev,
+				 struct acpi_cedt_cfmws *cfmws)
+{
+	int expected_len;
+
+	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO) {
+		dev_err(dev, "CFMWS Unsupported Interleave Arithmetic\n");
+		return -EINVAL;
+	}
+
+	if (!IS_ALIGNED(cfmws->base_hpa, SZ_256M)) {
+		dev_err(dev, "CFMWS Base HPA not 256MB aligned\n");
+		return -EINVAL;
+	}
+
+	if (!IS_ALIGNED(cfmws->window_size, SZ_256M)) {
+		dev_err(dev, "CFMWS Window Size not 256MB aligned\n");
+		return -EINVAL;
+	}
+
+	expected_len = struct_size((cfmws), interleave_targets,
+				   CFMWS_INTERLEAVE_WAYS(cfmws));
+
+	if (cfmws->header.length < expected_len) {
+		dev_err(dev, "CFMWS length %d less than expected %d\n",
+			cfmws->header.length, expected_len);
+		return -EINVAL;
+	}
+
+	if (cfmws->header.length > expected_len)
+		dev_dbg(dev, "CFMWS length %d greater than expected %d\n",
+			cfmws->header.length, expected_len);
+
+	return 0;
+}
+
+static void cxl_add_cfmws_decoders(struct device *dev,
+				   struct cxl_port *root_port)
+{
+	struct acpi_cedt_cfmws *cfmws;
+	struct cxl_decoder *cxld;
+	acpi_size len, cur = 0;
+	void *cedt_subtable;
+	unsigned long flags;
+	int rc;
+
+	len = acpi_cedt->length - sizeof(*acpi_cedt);
+	cedt_subtable = acpi_cedt + 1;
+
+	while (cur < len) {
+		struct acpi_cedt_header *c = cedt_subtable + cur;
+
+		if (c->type != ACPI_CEDT_TYPE_CFMWS) {
+			cur += c->length;
+			continue;
+		}
+
+		cfmws = cedt_subtable + cur;
+
+		if (cfmws->header.length < sizeof(*cfmws)) {
+			dev_warn_once(dev,
+				      "CFMWS entry skipped:invalid length:%u\n",
+				      cfmws->header.length);
+			cur += c->length;
+			continue;
+		}
+
+		rc = cxl_acpi_cfmws_verify(dev, cfmws);
+		if (rc) {
+			dev_err(dev, "CFMWS range %#llx-%#llx not registered\n",
+				cfmws->base_hpa, cfmws->base_hpa +
+				cfmws->window_size - 1);
+			cur += c->length;
+			continue;
+		}
+
+		flags = cfmws_to_decoder_flags(cfmws->restrictions);
+		cxld = devm_cxl_add_decoder(dev, root_port,
+					    CFMWS_INTERLEAVE_WAYS(cfmws),
+					    cfmws->base_hpa, cfmws->window_size,
+					    CFMWS_INTERLEAVE_WAYS(cfmws),
+					    CFMWS_INTERLEAVE_GRANULARITY(cfmws),
+					    CXL_DECODER_EXPANDER,
+					    flags);
+
+		if (IS_ERR(cxld)) {
+			dev_err(dev, "Failed to add decoder for %#llx-%#llx\n",
+				cfmws->base_hpa, cfmws->base_hpa +
+				cfmws->window_size - 1);
+		} else {
+			dev_dbg(dev, "add: %s range %#llx-%#llx\n",
+				dev_name(&cxld->dev), cfmws->base_hpa,
+				 cfmws->base_hpa + cfmws->window_size - 1);
+		}
+		cur += c->length;
+	}
+}
+
 static struct acpi_cedt_chbs *cxl_acpi_match_chbs(struct device *dev, u32 uid)
 {
 	struct acpi_cedt_chbs *chbs, *chbs_match = NULL;
@@ -272,6 +392,8 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 			      add_host_bridge_dport);
 	if (rc)
 		goto out;
+
+	cxl_add_cfmws_decoders(host, root_port);
 
 	/*
 	 * Root level scanned with host-bridge as dports, now scan host-bridges
