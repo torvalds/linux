@@ -1894,8 +1894,6 @@ static void tctx_task_work(struct callback_head *cb)
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
 
-	clear_bit(0, &tctx->task_state);
-
 	while (1) {
 		struct io_wq_work_node *node;
 
@@ -1917,8 +1915,14 @@ static void tctx_task_work(struct callback_head *cb)
 			req->task_work.func(&req->task_work);
 			node = next;
 		}
-		if (wq_list_empty(&tctx->task_list))
-			break;
+		if (wq_list_empty(&tctx->task_list)) {
+			clear_bit(0, &tctx->task_state);
+			if (wq_list_empty(&tctx->task_list))
+				break;
+			/* another tctx_task_work() is enqueued, yield */
+			if (test_and_set_bit(0, &tctx->task_state))
+				break;
+		}
 		cond_resched();
 	}
 
