@@ -30,10 +30,13 @@
 
 #include "../kernel/head.h"
 
-unsigned long kernel_virt_addr = KERNEL_LINK_ADDR;
-EXPORT_SYMBOL(kernel_virt_addr);
+struct kernel_mapping kernel_map __ro_after_init;
+EXPORT_SYMBOL(kernel_map);
 #ifdef CONFIG_XIP_KERNEL
-#define kernel_virt_addr       (*((unsigned long *)XIP_FIXUP(&kernel_virt_addr)))
+#define kernel_map	(*(struct kernel_mapping *)XIP_FIXUP(&kernel_map))
+#endif
+
+#ifdef CONFIG_XIP_KERNEL
 extern char _xiprom[], _exiprom[];
 #endif
 
@@ -211,25 +214,6 @@ static struct pt_alloc_ops _pt_ops __initdata;
 #define pt_ops _pt_ops
 #endif
 
-/* Offset between linear mapping virtual address and kernel load address */
-unsigned long va_pa_offset __ro_after_init;
-EXPORT_SYMBOL(va_pa_offset);
-#ifdef CONFIG_XIP_KERNEL
-#define va_pa_offset   (*((unsigned long *)XIP_FIXUP(&va_pa_offset)))
-#endif
-/* Offset between kernel mapping virtual address and kernel load address */
-#ifdef CONFIG_64BIT
-unsigned long va_kernel_pa_offset __ro_after_init;
-EXPORT_SYMBOL(va_kernel_pa_offset);
-#endif
-#ifdef CONFIG_XIP_KERNEL
-#define va_kernel_pa_offset    (*((unsigned long *)XIP_FIXUP(&va_kernel_pa_offset)))
-#endif
-unsigned long va_kernel_xip_pa_offset __ro_after_init;
-EXPORT_SYMBOL(va_kernel_xip_pa_offset);
-#ifdef CONFIG_XIP_KERNEL
-#define va_kernel_xip_pa_offset        (*((unsigned long *)XIP_FIXUP(&va_kernel_xip_pa_offset)))
-#endif
 unsigned long pfn_base __ro_after_init;
 EXPORT_SYMBOL(pfn_base);
 
@@ -345,7 +329,7 @@ static pmd_t *__init get_pmd_virt_late(phys_addr_t pa)
 
 static phys_addr_t __init alloc_pmd_early(uintptr_t va)
 {
-	BUG_ON((va - kernel_virt_addr) >> PGDIR_SHIFT);
+	BUG_ON((va - kernel_map.virt_addr) >> PGDIR_SHIFT);
 
 	return (uintptr_t)early_pmd;
 }
@@ -510,36 +494,24 @@ static __init pgprot_t pgprot_from_va(uintptr_t va)
 #error "setup_vm() is called from head.S before relocate so it should not use absolute addressing."
 #endif
 
-static uintptr_t load_pa __initdata;
-uintptr_t load_sz;
 #ifdef CONFIG_XIP_KERNEL
-#define load_pa        (*((uintptr_t *)XIP_FIXUP(&load_pa)))
-#define load_sz        (*((uintptr_t *)XIP_FIXUP(&load_sz)))
-#endif
-
-#ifdef CONFIG_XIP_KERNEL
-static uintptr_t xiprom __initdata;
-static uintptr_t xiprom_sz __initdata;
-#define xiprom_sz      (*((uintptr_t *)XIP_FIXUP(&xiprom_sz)))
-#define xiprom         (*((uintptr_t *)XIP_FIXUP(&xiprom)))
-
 static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size,
 					    __always_unused bool early)
 {
 	uintptr_t va, end_va;
 
 	/* Map the flash resident part */
-	end_va = kernel_virt_addr + xiprom_sz;
-	for (va = kernel_virt_addr; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + kernel_map.xiprom_sz;
+	for (va = kernel_map.virt_addr; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   xiprom + (va - kernel_virt_addr),
+				   kernel_map.xiprom + (va - kernel_map.virt_addr),
 				   map_size, PAGE_KERNEL_EXEC);
 
 	/* Map the data in RAM */
-	end_va = kernel_virt_addr + XIP_OFFSET + load_sz;
-	for (va = kernel_virt_addr + XIP_OFFSET; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + XIP_OFFSET + kernel_map.size;
+	for (va = kernel_map.virt_addr + XIP_OFFSET; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   load_pa + (va - (kernel_virt_addr + XIP_OFFSET)),
+				   kernel_map.phys_addr + (va - (kernel_map.virt_addr + XIP_OFFSET)),
 				   map_size, PAGE_KERNEL);
 }
 #else
@@ -548,10 +520,10 @@ static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size,
 {
 	uintptr_t va, end_va;
 
-	end_va = kernel_virt_addr + load_sz;
-	for (va = kernel_virt_addr; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + kernel_map.size;
+	for (va = kernel_map.virt_addr; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   load_pa + (va - kernel_virt_addr),
+				   kernel_map.phys_addr + (va - kernel_map.virt_addr),
 				   map_size,
 				   early ?
 					PAGE_KERNEL_EXEC : pgprot_from_va(va));
@@ -566,25 +538,27 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	pmd_t fix_bmap_spmd, fix_bmap_epmd;
 #endif
 
+	kernel_map.virt_addr = KERNEL_LINK_ADDR;
+
 #ifdef CONFIG_XIP_KERNEL
-	xiprom = (uintptr_t)CONFIG_XIP_PHYS_ADDR;
-	xiprom_sz = (uintptr_t)(&_exiprom) - (uintptr_t)(&_xiprom);
+	kernel_map.xiprom = (uintptr_t)CONFIG_XIP_PHYS_ADDR;
+	kernel_map.xiprom_sz = (uintptr_t)(&_exiprom) - (uintptr_t)(&_xiprom);
 
-	load_pa = (uintptr_t)CONFIG_PHYS_RAM_BASE;
-	load_sz = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
+	kernel_map.phys_addr = (uintptr_t)CONFIG_PHYS_RAM_BASE;
+	kernel_map.size = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
 
-	va_kernel_xip_pa_offset = kernel_virt_addr - xiprom;
+	kernel_map.va_kernel_xip_pa_offset = kernel_map.virt_addr - kernel_map.xiprom;
 #else
-	load_pa = (uintptr_t)(&_start);
-	load_sz = (uintptr_t)(&_end) - load_pa;
+	kernel_map.phys_addr = (uintptr_t)(&_start);
+	kernel_map.size = (uintptr_t)(&_end) - kernel_map.phys_addr;
 #endif
 
-	va_pa_offset = PAGE_OFFSET - load_pa;
+	kernel_map.va_pa_offset = PAGE_OFFSET - kernel_map.phys_addr;
 #ifdef CONFIG_64BIT
-	va_kernel_pa_offset = kernel_virt_addr - load_pa;
+	kernel_map.va_kernel_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr;
 #endif
 
-	pfn_base = PFN_DOWN(load_pa);
+	pfn_base = PFN_DOWN(kernel_map.phys_addr);
 
 	/*
 	 * Enforce boot alignment requirements of RV32 and
@@ -594,7 +568,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 	/* Sanity check alignment and size */
 	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
-	BUG_ON((load_pa % map_size) != 0);
+	BUG_ON((kernel_map.phys_addr % map_size) != 0);
 
 	pt_ops.alloc_pte = alloc_pte_early;
 	pt_ops.get_pte_virt = get_pte_virt_early;
@@ -611,19 +585,19 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	create_pmd_mapping(fixmap_pmd, FIXADDR_START,
 			   (uintptr_t)fixmap_pte, PMD_SIZE, PAGE_TABLE);
 	/* Setup trampoline PGD and PMD */
-	create_pgd_mapping(trampoline_pg_dir, kernel_virt_addr,
+	create_pgd_mapping(trampoline_pg_dir, kernel_map.virt_addr,
 			   (uintptr_t)trampoline_pmd, PGDIR_SIZE, PAGE_TABLE);
 #ifdef CONFIG_XIP_KERNEL
-	create_pmd_mapping(trampoline_pmd, kernel_virt_addr,
-			   xiprom, PMD_SIZE, PAGE_KERNEL_EXEC);
+	create_pmd_mapping(trampoline_pmd, kernel_map.virt_addr,
+			   kernel_map.xiprom, PMD_SIZE, PAGE_KERNEL_EXEC);
 #else
-	create_pmd_mapping(trampoline_pmd, kernel_virt_addr,
-			   load_pa, PMD_SIZE, PAGE_KERNEL_EXEC);
+	create_pmd_mapping(trampoline_pmd, kernel_map.virt_addr,
+			   kernel_map.phys_addr, PMD_SIZE, PAGE_KERNEL_EXEC);
 #endif
 #else
 	/* Setup trampoline PGD */
-	create_pgd_mapping(trampoline_pg_dir, kernel_virt_addr,
-			   load_pa, PGDIR_SIZE, PAGE_KERNEL_EXEC);
+	create_pgd_mapping(trampoline_pg_dir, kernel_map.virt_addr,
+			   kernel_map.phys_addr, PGDIR_SIZE, PAGE_KERNEL_EXEC);
 #endif
 
 	/*

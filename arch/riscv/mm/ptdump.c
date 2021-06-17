@@ -379,7 +379,7 @@ static int __init ptdump_init(void)
 	address_markers[PAGE_OFFSET_NR].start_address = PAGE_OFFSET;
 #ifdef CONFIG_64BIT
 	address_markers[MODULES_MAPPING_NR].start_address = MODULES_VADDR;
-	address_markers[KERNEL_MAPPING_NR].start_address = kernel_virt_addr;
+	address_markers[KERNEL_MAPPING_NR].start_address = kernel_map.virt_addr;
 #endif
 
 	kernel_ptd_info.base_addr = KERN_VIRT_START;

@@ -79,46 +79,52 @@ typedef struct page *pgtable_t;
 #endif
 
 #ifdef CONFIG_MMU
-extern unsigned long va_pa_offset;
-#ifdef CONFIG_64BIT
-extern unsigned long va_kernel_pa_offset;
-#endif
-extern unsigned long va_kernel_xip_pa_offset;
 extern unsigned long pfn_base;
-extern uintptr_t load_sz;
 #define ARCH_PFN_OFFSET		(pfn_base)
 #else
-#define va_pa_offset		0
-#ifdef CONFIG_64BIT
-#define va_kernel_pa_offset	0
-#endif
-#define va_kernel_xip_pa_offset 0
 #define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
 #endif /* CONFIG_MMU */
 
-extern unsigned long kernel_virt_addr;
+struct kernel_mapping {
+	unsigned long virt_addr;
+	uintptr_t phys_addr;
+	uintptr_t size;
+	/* Offset between linear mapping virtual address and kernel load address */
+	unsigned long va_pa_offset;
+#ifdef CONFIG_64BIT
+	/* Offset between kernel mapping virtual address and kernel load address */
+	unsigned long va_kernel_pa_offset;
+#endif
+	unsigned long va_kernel_xip_pa_offset;
+#ifdef CONFIG_XIP_KERNEL
+	uintptr_t xiprom;
+	uintptr_t xiprom_sz;
+#endif
+};
+
+extern struct kernel_mapping kernel_map;
 
 #ifdef CONFIG_64BIT
 #define is_kernel_mapping(x)	\
-	((x) >= kernel_virt_addr && (x) < (kernel_virt_addr + load_sz))
+	((x) >= kernel_map.virt_addr && (x) < (kernel_map.virt_addr + kernel_map.size))
 #define is_linear_mapping(x)	\
-	((x) >= PAGE_OFFSET && (x) < kernel_virt_addr)
+	((x) >= PAGE_OFFSET && (x) < kernel_map.virt_addr)
 
-#define linear_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + va_pa_offset))
+#define linear_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + kernel_map.va_pa_offset))
 #define kernel_mapping_pa_to_va(y)	({						\
 	unsigned long _y = y;								\
 	(_y >= CONFIG_PHYS_RAM_BASE) ?							\
-		(void *)((unsigned long)(_y) + va_kernel_pa_offset + XIP_OFFSET) :	\
-		(void *)((unsigned long)(_y) + va_kernel_xip_pa_offset);		\
+		(void *)((unsigned long)(_y) + kernel_map.va_kernel_pa_offset + XIP_OFFSET) :	\
+		(void *)((unsigned long)(_y) + kernel_map.va_kernel_xip_pa_offset);		\
 	})
 #define __pa_to_va_nodebug(x)		linear_mapping_pa_to_va(x)
 
-#define linear_mapping_va_to_pa(x)	((unsigned long)(x) - va_pa_offset)
+#define linear_mapping_va_to_pa(x)	((unsigned long)(x) - kernel_map.va_pa_offset)
 #define kernel_mapping_va_to_pa(y) ({						\
 	unsigned long _y = y;							\
-	(_y < kernel_virt_addr + XIP_OFFSET) ?					\
-		((unsigned long)(_y) - va_kernel_xip_pa_offset) :		\
-		((unsigned long)(_y) - va_kernel_pa_offset - XIP_OFFSET);	\
+	(_y < kernel_map.virt_addr + XIP_OFFSET) ?					\
+		((unsigned long)(_y) - kernel_map.va_kernel_xip_pa_offset) :		\
+		((unsigned long)(_y) - kernel_map.va_kernel_pa_offset - XIP_OFFSET);	\
 	})
 
 #define __va_to_pa_nodebug(x)	({						\
@@ -128,12 +134,12 @@ extern unsigned long kernel_virt_addr;
 	})
 #else
 #define is_kernel_mapping(x)	\
-	((x) >= kernel_virt_addr && (x) < (kernel_virt_addr + load_sz))
+	((x) >= kernel_map.virt_addr && (x) < (kernel_map.virt_addr + kernel_map.size))
 #define is_linear_mapping(x)	\
 	((x) >= PAGE_OFFSET)
 
-#define __pa_to_va_nodebug(x)  ((void *)((unsigned long) (x) + va_pa_offset))
-#define __va_to_pa_nodebug(x)  ((unsigned long)(x) - va_pa_offset)
+#define __pa_to_va_nodebug(x)  ((void *)((unsigned long) (x) + kernel_map.va_pa_offset))
+#define __va_to_pa_nodebug(x)  ((unsigned long)(x) - kernel_map.va_pa_offset)
 #endif /* CONFIG_64BIT */
 
 #ifdef CONFIG_DEBUG_VIRTUAL
