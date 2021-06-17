@@ -5231,8 +5231,8 @@ static int of_get_nand_secure_regions(struct nand_chip *chip)
 	int nr_elem, i, j;
 
 	nr_elem = of_property_count_elems_of_size(dn, "secure-regions", sizeof(u64));
-	if (!nr_elem)
-		return 0;
+	if (nr_elem <= 0)
+		return nr_elem;
 
 	chip->nr_secure_regions = nr_elem / 2;
 	chip->secure_regions = kcalloc(chip->nr_secure_regions, sizeof(*chip->secure_regions),
