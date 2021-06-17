@@ -1897,15 +1897,13 @@ static void tctx_task_work(struct callback_head *cb)
 	clear_bit(0, &tctx->task_state);
 
 	while (!wq_list_empty(&tctx->task_list)) {
-		struct io_wq_work_list list;
 		struct io_wq_work_node *node;
 
 		spin_lock_irq(&tctx->task_lock);
-		list = tctx->task_list;
+		node = tctx->task_list.first;
 		INIT_WQ_LIST(&tctx->task_list);
 		spin_unlock_irq(&tctx->task_lock);
 
-		node = list.first;
 		while (node) {
 			struct io_wq_work_node *next = node->next;
 			struct io_kiocb *req = container_of(node, struct io_kiocb,
@@ -1919,9 +1917,6 @@ static void tctx_task_work(struct callback_head *cb)
 			req->task_work.func(&req->task_work);
 			node = next;
 		}
-
-		if (!list.first)
-			break;
 		cond_resched();
 	}
 
