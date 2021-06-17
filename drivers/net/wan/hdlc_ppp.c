@@ -219,10 +219,9 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cp_header) + magic_len + len);
-	if (!skb) {
-		netdev_warn(dev, "out of memory in ppp_tx_cp()\n");
+	if (!skb)
 		return;
-	}
+
 	skb_reserve(skb, sizeof(struct hdlc_header));
 
 	cp = skb_put(skb, sizeof(struct cp_header));
