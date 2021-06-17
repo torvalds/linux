@@ -438,8 +438,6 @@ extern irqreturn_t vas_fault_handler(int irq, void *dev_id);
 extern void vas_return_credit(struct vas_window *window, bool tx);
 extern struct vas_window *vas_pswid_to_window(struct vas_instance *vinst,
 						uint32_t pswid);
-extern void vas_win_paste_addr(struct vas_window *window, u64 *addr,
-					int *len);
 
 static inline int vas_window_pid(struct vas_window *window)
 {
