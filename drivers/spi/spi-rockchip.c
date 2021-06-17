@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/devinfo.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/pm_runtime.h>
@@ -149,6 +150,8 @@
 
 /* sclk_out: spi master internal logic in rk3x can support 50Mhz */
 #define MAX_SCLK_OUT				50000000U
+/* max sclk of driver strength 4mA */
+#define IO_DRIVER_4MA_MAX_SCLK_OUT	24000000U
 
 /*
  * SPI_CTRLR1 is 16-bits, so we should support lengths of 0xffff + 1. However,
@@ -187,6 +190,7 @@ struct rockchip_spi {
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
+	struct pinctrl_state *high_speed_state;
 	bool slave_abort;
 };
 
@@ -529,6 +533,19 @@ static void rockchip_spi_config(struct rockchip_spi *rs,
 			dmacr |= RF_DMA_EN;
 	}
 
+	/*
+	 * If speed is larger than IO_DRIVER_4MA_MAX_SCLK_OUT,
+	 * set higher driver strength.
+	 */
+	if (rs->high_speed_state) {
+		if (rs->freq > IO_DRIVER_4MA_MAX_SCLK_OUT)
+			pinctrl_select_state(rs->dev->pins->p,
+					     rs->high_speed_state);
+		else
+			pinctrl_select_state(rs->dev->pins->p,
+					     rs->dev->pins->default_state);
+	}
+
 	writel_relaxed(cr0, rs->regs + ROCKCHIP_SPI_CTRLR0);
 	writel_relaxed(cr1, rs->regs + ROCKCHIP_SPI_CTRLR1);
 
@@ -625,6 +642,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	u32 rsd_nsecs;
 	bool slave_mode;
+	struct pinctrl *pinctrl = NULL;
 
 	slave_mode = of_property_read_bool(np, "spi-slave");
 
@@ -770,6 +788,15 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->dma_addr_tx = mem->start + ROCKCHIP_SPI_TXDR;
 		rs->dma_addr_rx = mem->start + ROCKCHIP_SPI_RXDR;
 		ctlr->can_dma = rockchip_spi_can_dma;
+	}
+
+	pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (!IS_ERR(pinctrl)) {
+		rs->high_speed_state = pinctrl_lookup_state(pinctrl, "high_speed");
+		if (IS_ERR_OR_NULL(rs->high_speed_state)) {
+			dev_warn(&pdev->dev, "no high_speed pinctrl state\n");
+			rs->high_speed_state = NULL;
+		}
 	}
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
