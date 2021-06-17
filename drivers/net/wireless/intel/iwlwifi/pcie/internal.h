@@ -111,10 +111,6 @@ struct iwl_rx_completion_desc {
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
  * @used_bd: driver's pointer to buffer of used receive buffer descriptors (rbd)
  * @used_bd_dma: physical address of buffer of used receive buffer descriptors (rbd)
- * @tr_tail: driver's pointer to the transmission ring tail buffer
- * @tr_tail_dma: physical address of the buffer for the transmission ring tail
- * @cr_tail: driver's pointer to the completion ring tail buffer
- * @cr_tail_dma: physical address of the buffer for the completion ring tail
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -142,10 +138,6 @@ struct iwl_rxq {
 		struct iwl_rx_completion_desc *cd;
 	};
 	dma_addr_t used_bd_dma;
-	__le16 *tr_tail;
-	dma_addr_t tr_tail_dma;
-	__le16 *cr_tail;
-	dma_addr_t cr_tail_dma;
 	u32 read;
 	u32 write;
 	u32 free_count;
@@ -532,9 +524,6 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 	}
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
-
-#define IWL_NUM_OF_COMPLETION_RINGS	31
-#define IWL_NUM_OF_TRANSFER_RINGS	527
 
 static inline int iwl_pcie_get_num_sections(const struct fw_img *fw,
 					    int start)

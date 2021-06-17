@@ -138,8 +138,15 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	/* Allocate prph information
 	 * currently we don't assign to the prph info anything, but it would get
-	 * assigned later */
-	prph_info = dma_alloc_coherent(trans->dev, sizeof(*prph_info),
+	 * assigned later
+	 *
+	 * We also use the second half of this page to give the device some
+	 * dummy TR/CR tail pointers - which shouldn't be necessary as we don't
+	 * use this, but the hardware still reads/writes there and we can't let
+	 * it go do that with a NULL pointer.
+	 */
+	BUILD_BUG_ON(sizeof(*prph_info) > PAGE_SIZE / 2);
+	prph_info = dma_alloc_coherent(trans->dev, PAGE_SIZE,
 				       &trans_pcie->prph_info_dma_addr,
 				       GFP_KERNEL);
 	if (!prph_info) {
@@ -166,13 +173,9 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->cr_head_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->rb_stts_dma);
 	ctxt_info_gen3->tr_tail_idx_arr_base_addr =
-		cpu_to_le64(trans_pcie->rxq->tr_tail_dma);
+		cpu_to_le64(trans_pcie->prph_info_dma_addr + PAGE_SIZE / 2);
 	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
-		cpu_to_le64(trans_pcie->rxq->cr_tail_dma);
-	ctxt_info_gen3->cr_idx_arr_size =
-		cpu_to_le16(IWL_NUM_OF_COMPLETION_RINGS);
-	ctxt_info_gen3->tr_idx_arr_size =
-		cpu_to_le16(IWL_NUM_OF_TRANSFER_RINGS);
+		cpu_to_le64(trans_pcie->prph_info_dma_addr + 3 * PAGE_SIZE / 4);
 	ctxt_info_gen3->mtr_base_addr =
 		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
@@ -216,10 +219,8 @@ err_free_ctxt_info:
 			  trans_pcie->ctxt_info_dma_addr);
 	trans_pcie->ctxt_info_gen3 = NULL;
 err_free_prph_info:
-	dma_free_coherent(trans->dev,
-			  sizeof(*prph_info),
-			prph_info,
-			trans_pcie->prph_info_dma_addr);
+	dma_free_coherent(trans->dev, PAGE_SIZE, prph_info,
+			  trans_pcie->prph_info_dma_addr);
 
 err_free_prph_scratch:
 	dma_free_coherent(trans->dev,
@@ -251,8 +252,7 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans)
 	trans_pcie->prph_scratch_dma_addr = 0;
 	trans_pcie->prph_scratch = NULL;
 
-	dma_free_coherent(trans->dev, sizeof(*trans_pcie->prph_info),
-			  trans_pcie->prph_info,
+	dma_free_coherent(trans->dev, PAGE_SIZE, trans_pcie->prph_info,
 			  trans_pcie->prph_info_dma_addr);
 	trans_pcie->prph_info_dma_addr = 0;
 	trans_pcie->prph_info = NULL;
