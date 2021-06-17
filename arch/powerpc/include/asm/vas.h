@@ -10,8 +10,6 @@
 #include <asm/icswx.h>
 #include <uapi/asm/vas-api.h>
 
-struct vas_window;
-
 /*
  * Min and max FIFO sizes are based on Version 1.05 Section 3.1.4.25
  * (Local FIFO Size Register) of the VAS workbook.
@@ -61,6 +59,18 @@ struct vas_user_win_ref {
 	struct pid *pid;	/* PID of owner */
 	struct pid *tgid;	/* Thread group ID of owner */
 	struct mm_struct *mm;	/* Linux process mm_struct */
+};
+
+/*
+ * Common VAS window struct on PowerNV and PowerVM
+ */
+struct vas_window {
+	u32 winid;
+	u32 wcreds_max;	/* Window credits */
+	enum vas_cop_type cop;
+	struct vas_user_win_ref task_ref;
+	char *dbgname;
+	struct dentry *dbgdir;
 };
 
 /*

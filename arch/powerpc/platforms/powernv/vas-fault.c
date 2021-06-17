@@ -68,7 +68,7 @@ irqreturn_t vas_fault_thread_fn(int irq, void *data)
 	struct vas_instance *vinst = data;
 	struct coprocessor_request_block *crb, *entry;
 	struct coprocessor_request_block buf;
-	struct vas_window *window;
+	struct pnv_vas_window *window;
 	unsigned long flags;
 	void *fifo;
 
@@ -153,7 +153,7 @@ irqreturn_t vas_fault_thread_fn(int irq, void *data)
 			 * NX sees faults only with user space windows.
 			 */
 			if (window->user_win)
-				vas_update_csb(crb, &window->task_ref);
+				vas_update_csb(crb, &window->vas_win.task_ref);
 			else
 				WARN_ON_ONCE(!window->user_win);
 
@@ -199,6 +199,7 @@ irqreturn_t vas_fault_handler(int irq, void *dev_id)
 int vas_setup_fault_window(struct vas_instance *vinst)
 {
 	struct vas_rx_win_attr attr;
+	struct vas_window *win;
 
 	vinst->fault_fifo_size = VAS_FAULT_WIN_FIFO_SIZE;
 	vinst->fault_fifo = kzalloc(vinst->fault_fifo_size, GFP_KERNEL);
@@ -227,18 +228,17 @@ int vas_setup_fault_window(struct vas_instance *vinst)
 	attr.lnotify_pid = mfspr(SPRN_PID);
 	attr.lnotify_tid = mfspr(SPRN_PID);
 
-	vinst->fault_win = vas_rx_win_open(vinst->vas_id, VAS_COP_TYPE_FAULT,
-					&attr);
-
-	if (IS_ERR(vinst->fault_win)) {
-		pr_err("VAS: Error %ld opening FaultWin\n",
-			PTR_ERR(vinst->fault_win));
+	win = vas_rx_win_open(vinst->vas_id, VAS_COP_TYPE_FAULT, &attr);
+	if (IS_ERR(win)) {
+		pr_err("VAS: Error %ld opening FaultWin\n", PTR_ERR(win));
 		kfree(vinst->fault_fifo);
-		return PTR_ERR(vinst->fault_win);
+		return PTR_ERR(win);
 	}
 
+	vinst->fault_win = container_of(win, struct pnv_vas_window, vas_win);
+
 	pr_devel("VAS: Created FaultWin %d, LPID/PID/TID [%d/%d/%d]\n",
-			vinst->fault_win->winid, attr.lnotify_lpid,
+			vinst->fault_win->vas_win.winid, attr.lnotify_lpid,
 			attr.lnotify_pid, attr.lnotify_tid);
 
 	return 0;
