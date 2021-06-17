@@ -182,10 +182,8 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 		return ERR_CAST(parent);
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
-	if (!pll_clk) {
-		clk = ERR_PTR(-ENOMEM);
-		return NULL;
-	}
+	if (!pll_clk)
+		return ERR_PTR(-ENOMEM);
 
 	parent_name = __clk_get_name(parent);
 	init.name = core->name;
