@@ -79,6 +79,8 @@ unsigned long search_kernel_restart_table(unsigned long addr);
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
+DECLARE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
+
 static inline void srr_regs_clobbered(void)
 {
 	local_paca->srr_valid = 0;

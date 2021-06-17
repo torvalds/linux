@@ -58,7 +58,7 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
 	extrdi.	r10, r12, 1, (63-MSR_TS_T_LG) /* transaction active? */
-	bne	.Ltabort_syscall
+	bne	tabort_syscall
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
 	SCV_INTERRUPT_TO_KERNEL
@@ -116,9 +116,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bl	system_call_exception
 
 .Lsyscall_vectored_\name\()_exit:
-	addi    r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r5,1 /* scv */
 	bl	syscall_exit_prepare
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+.Lsyscall_vectored_\name\()_rst_start:
+	lbz	r11,PACAIRQHAPPENED(r13)
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	bne-	syscall_vectored_\name\()_restart
+	li	r11,IRQS_ENABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	li	r11,0
+	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
 
 	ld	r2,_CCR(r1)
 	ld	r4,_NIP(r1)
@@ -168,8 +177,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	b	.	/* prevent speculative execution */
 
 .Lsyscall_vectored_\name\()_restore_regs:
-	li	r3,0
-	mtmsrd	r3,1
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r5
 
@@ -187,9 +194,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	REST_2GPRS(12, r1)
 	ld	r1,GPR1(r1)
 	RFI_TO_USER
+.Lsyscall_vectored_\name\()_rst_end:
+
+syscall_vectored_\name\()_restart:
+	GET_PACA(r13)
+	ld	r1,PACA_EXIT_SAVE_R1(r13)
+	ld	r2,PACATOC(r13)
+	ld	r3,RESULT(r1)
+	addi	r4,r1,STACK_FRAME_OVERHEAD
+	li	r11,IRQS_ALL_DISABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	bl	syscall_exit_restart
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+	b	.Lsyscall_vectored_\name\()_rst_start
+
+RESTART_TABLE(.Lsyscall_vectored_\name\()_rst_start, .Lsyscall_vectored_\name\()_rst_end, syscall_vectored_\name\()_restart)
+
 .endm
 
 system_call_vectored common 0x3000
+
 /*
  * We instantiate another entry copy for the SIGILL variant, with TRAP=0x7ff0
  * which is tested by system_call_exception when r0 is -1 (as set by vector
@@ -222,7 +246,7 @@ _ASM_NOKPROBE_SYMBOL(system_call_common)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
 	extrdi.	r10, r12, 1, (63-MSR_TS_T_LG) /* transaction active? */
-	bne	.Ltabort_syscall
+	bne	tabort_syscall
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
 	mr	r10,r1
@@ -292,9 +316,18 @@ END_BTB_FLUSH_SECTION
 	bl	system_call_exception
 
 .Lsyscall_exit:
-	addi    r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r5,0 /* !scv */
 	bl	syscall_exit_prepare
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+.Lsyscall_rst_start:
+	lbz	r11,PACAIRQHAPPENED(r13)
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	bne-	syscall_restart
+	li	r11,IRQS_ENABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	li	r11,0
+	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
 
 	ld	r2,_CCR(r1)
 	ld	r6,_LINK(r1)
@@ -361,9 +394,24 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	REST_8GPRS(4, r1)
 	ld	r12,GPR12(r1)
 	b	.Lsyscall_restore_regs_cont
+.Lsyscall_rst_end:
+
+syscall_restart:
+	GET_PACA(r13)
+	ld	r1,PACA_EXIT_SAVE_R1(r13)
+	ld	r2,PACATOC(r13)
+	ld	r3,RESULT(r1)
+	addi	r4,r1,STACK_FRAME_OVERHEAD
+	li	r11,IRQS_ALL_DISABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	bl	syscall_exit_restart
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+	b	.Lsyscall_rst_start
+
+RESTART_TABLE(.Lsyscall_rst_start, .Lsyscall_rst_end, syscall_restart)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-.Ltabort_syscall:
+tabort_syscall:
 	/* Firstly we need to enable TM in the kernel */
 	mfmsr	r10
 	li	r9, 1
@@ -427,8 +475,10 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	ld	r5,_MSR(r1)
 	andi.	r0,r5,MSR_PR
 #ifdef CONFIG_PPC_BOOK3S
-	bne	.Lfast_user_interrupt_return_amr_srr
-	kuap_kernel_restore r3, r4
+	beq	1f
+	kuap_user_restore r3, r4
+	b	.Lfast_user_interrupt_return_srr
+1:	kuap_kernel_restore r3, r4
 	andi.	r0,r5,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return_srr
@@ -452,18 +502,18 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 	bl	interrupt_exit_user_prepare
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs_\srr
+.Lrestore_nvgprs_\srr\()_cont:
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+.Linterrupt_return_\srr\()_user_rst_start:
+	lbz	r11,PACAIRQHAPPENED(r13)
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	bne-	interrupt_return_\srr\()_user_restart
+	li	r11,IRQS_ENABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	li	r11,0
+	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
 
-#ifdef CONFIG_PPC_BOOK3S
-.Lfast_user_interrupt_return_amr_\srr\():
-	kuap_user_restore r3, r4
-#endif
 .Lfast_user_interrupt_return_\srr\():
-
-BEGIN_FTR_SECTION
-	ld	r10,_PPR(r1)
-	mtspr	SPRN_PPR,r10
-END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
-
 #ifdef CONFIG_PPC_BOOK3S
 	.ifc \srr,srr
 	lbz	r4,PACASRR_VALID(r13)
@@ -492,6 +542,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 #endif
 	.endif
 	DEBUG_SRR_VALID \srr
+
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	lbz	r4,PACAIRQSOFTMASK(r13)
+	tdnei	r4,IRQS_ENABLED
+#endif
+
+BEGIN_FTR_SECTION
+	ld	r10,_PPR(r1)
+	mtspr	SPRN_PPR,r10
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
@@ -524,15 +584,43 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	HRFI_TO_USER
 	.endif
 	b	.	/* prevent speculative execution */
+.Linterrupt_return_\srr\()_user_rst_end:
 
 .Lrestore_nvgprs_\srr\():
 	REST_NVGPRS(r1)
-	b	.Lfast_user_interrupt_return_\srr
+	b	.Lrestore_nvgprs_\srr\()_cont
+
+interrupt_return_\srr\()_user_restart:
+	GET_PACA(r13)
+	ld	r1,PACA_EXIT_SAVE_R1(r13)
+	ld	r2,PACATOC(r13)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	li	r11,IRQS_ALL_DISABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	bl	interrupt_exit_user_restart
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+	b	.Linterrupt_return_\srr\()_user_rst_start
+
+RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr\()_user_rst_end, interrupt_return_\srr\()_user_restart)
 
 	.balign IFETCH_ALIGN_BYTES
 .Lkernel_interrupt_return_\srr\():
+.Linterrupt_return_\srr\()_kernel:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	interrupt_exit_kernel_prepare
+
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+.Linterrupt_return_\srr\()_kernel_rst_start:
+	ld	r11,SOFTE(r1)
+	cmpwi	r11,IRQS_ENABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	bne	1f
+	lbz	r11,PACAIRQHAPPENED(r13)
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	bne-	interrupt_return_\srr\()_kernel_restart
+	li	r11,0
+	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
+1:
 
 .Lfast_kernel_interrupt_return_\srr\():
 	cmpdi	cr1,r3,0
@@ -627,6 +715,21 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	HRFI_TO_KERNEL
 	.endif
 	b	.	/* prevent speculative execution */
+.Linterrupt_return_\srr\()_kernel_rst_end:
+
+interrupt_return_\srr\()_kernel_restart:
+	GET_PACA(r13)
+	ld	r1,PACA_EXIT_SAVE_R1(r13)
+	ld	r2,PACATOC(r13)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	li	r11,IRQS_ALL_DISABLED
+	stb	r11,PACAIRQSOFTMASK(r13)
+	bl	interrupt_exit_kernel_restart
+	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
+	b	.Linterrupt_return_\srr\()_kernel_rst_start
+
+RESTART_TABLE(.Linterrupt_return_\srr\()_kernel_rst_start, .Linterrupt_return_\srr\()_kernel_rst_end, interrupt_return_\srr\()_kernel_restart)
+
 .endm
 
 interrupt_return_macro srr

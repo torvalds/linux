@@ -18,8 +18,17 @@
  * PACA flags in paca->irq_happened.
  *
  * This bits are set when interrupts occur while soft-disabled
- * and allow a proper replay. Additionally, PACA_IRQ_HARD_DIS
- * is set whenever we manually hard disable.
+ * and allow a proper replay.
+ *
+ * The PACA_IRQ_HARD_DIS is set whenever we hard disable. It is almost
+ * always in synch with the MSR[EE] state, except:
+ * - A window in interrupt entry, where hardware disables MSR[EE] and that
+ *   must be "reconciled" with the soft mask state.
+ * - NMI interrupts that hit in awkward places, until they fix the state.
+ * - When local irqs are being enabled and state is being fixed up.
+ * - When returning from an interrupt there are some windows where this
+ *   can become out of synch, but gets fixed before the RFI or before
+ *   executing the next user instruction (see arch/powerpc/kernel/interrupt.c).
  */
 #define PACA_IRQ_HARD_DIS	0x01
 #define PACA_IRQ_DBELL		0x02

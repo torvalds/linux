@@ -17,6 +17,7 @@
 #include <linux/stop_machine.h>
 #include <asm/cputable.h>
 #include <asm/code-patching.h>
+#include <asm/interrupt.h>
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -225,6 +226,9 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 		                                           : "unknown");
 }
 
+static bool stf_exit_reentrant = false;
+static bool rfi_exit_reentrant = false;
+
 static int __do_stf_barrier_fixups(void *data)
 {
 	enum stf_barrier_type *types = data;
@@ -239,11 +243,27 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 {
 	/*
 	 * The call to the fallback entry flush, and the fallback/sync-ori exit
-	 * flush can not be safely patched in/out while other CPUs are executing
-	 * them. So call __do_stf_barrier_fixups() on one CPU while all other CPUs
-	 * spin in the stop machine core with interrupts hard disabled.
+	 * flush can not be safely patched in/out while other CPUs are
+	 * executing them. So call __do_stf_barrier_fixups() on one CPU while
+	 * all other CPUs spin in the stop machine core with interrupts hard
+	 * disabled.
+	 *
+	 * The branch to mark interrupt exits non-reentrant is enabled first,
+	 * then stop_machine runs which will ensure all CPUs are out of the
+	 * low level interrupt exit code before patching. After the patching,
+	 * if allowed, then flip the branch to allow fast exits.
 	 */
+	static_branch_enable(&interrupt_exit_not_reentrant);
+
 	stop_machine(__do_stf_barrier_fixups, &types, NULL);
+
+	if ((types & STF_BARRIER_FALLBACK) || (types & STF_BARRIER_SYNC_ORI))
+		stf_exit_reentrant = false;
+	else
+		stf_exit_reentrant = true;
+
+	if (stf_exit_reentrant && rfi_exit_reentrant)
+		static_branch_disable(&interrupt_exit_not_reentrant);
 }
 
 void do_uaccess_flush_fixups(enum l1d_flush_type types)
@@ -409,8 +429,9 @@ void do_entry_flush_fixups(enum l1d_flush_type types)
 	stop_machine(__do_entry_flush_fixups, &types, NULL);
 }
 
-void do_rfi_flush_fixups(enum l1d_flush_type types)
+static int __do_rfi_flush_fixups(void *data)
 {
+	enum l1d_flush_type types = *(enum l1d_flush_type *)data;
 	unsigned int instrs[3], *dest;
 	long *start, *end;
 	int i;
@@ -453,6 +474,29 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
 						: "unknown");
+
+	return 0;
+}
+
+void do_rfi_flush_fixups(enum l1d_flush_type types)
+{
+	/*
+	 * stop_machine gets all CPUs out of the interrupt exit handler same
+	 * as do_stf_barrier_fixups. do_rfi_flush_fixups patching can run
+	 * without stop_machine, so this could be achieved with a broadcast
+	 * IPI instead, but this matches the stf sequence.
+	 */
+	static_branch_enable(&interrupt_exit_not_reentrant);
+
+	stop_machine(__do_rfi_flush_fixups, &types, NULL);
+
+	if (types & L1D_FLUSH_FALLBACK)
+		rfi_exit_reentrant = false;
+	else
+		rfi_exit_reentrant = true;
+
+	if (stf_exit_reentrant && rfi_exit_reentrant)
+		static_branch_disable(&interrupt_exit_not_reentrant);
 }
 
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
