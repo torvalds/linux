@@ -194,8 +194,9 @@ CLOSE_FIXED_SECTION(first_256B)
 
 /* This value is used to mark exception frames on the stack. */
 	.section ".toc","aw"
+/* This value is used to mark exception frames on the stack. */
 exception_marker:
-	.tc	ID_72656773_68657265[TC],0x7265677368657265
+	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
 	.previous
 
 /*
@@ -210,6 +211,8 @@ OPEN_TEXT_SECTION(0x100)
 #endif
 
 USE_TEXT_SECTION()
+
+#include "interrupt_64.S"
 
 #ifdef CONFIG_PPC_BOOK3E
 /*
