@@ -510,30 +510,32 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 		goto out_trans_fail;
 	}
 
+	/* Unstuff, if required, and allocate backing blocks for page */
+	if (gfs2_is_stuffed(ip)) {
+		err = gfs2_unstuff_dinode(ip, NULL);
+		if (err) {
+			ret = block_page_mkwrite_return(err);
+			goto out_trans_end;
+		}
+	}
+
 	lock_page(page);
 	/* If truncated, we must retry the operation, we may have raced
 	 * with the glock demotion code.
 	 */
 	if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
 		ret = VM_FAULT_NOPAGE;
-		goto out_trans_end;
+		goto out_page_locked;
 	}
 
-	/* Unstuff, if required, and allocate backing blocks for page */
-	if (gfs2_is_stuffed(ip)) {
-		err = gfs2_unstuff_dinode(ip, page);
-		if (err) {
-			ret = block_page_mkwrite_return(err);
-			goto out_trans_end;
-		}
-	}
 	err = gfs2_allocate_page_backing(page, length);
 	if (err)
 		ret = block_page_mkwrite_return(err);
 
-out_trans_end:
+out_page_locked:
 	if (ret != VM_FAULT_LOCKED)
 		unlock_page(page);
+out_trans_end:
 	gfs2_trans_end(sdp);
 out_trans_fail:
 	gfs2_inplace_release(ip);
