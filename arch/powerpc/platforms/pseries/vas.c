@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/machdep.h>
 #include <asm/hvcall.h>
 #include <asm/plpar_wrappers.h>
@@ -25,6 +26,7 @@ static struct vas_all_caps caps_all;
 static bool copypaste_feat;
 
 static struct vas_caps vascaps[VAS_MAX_FEAT_TYPE];
+static DEFINE_MUTEX(vas_pseries_mutex);
 
 static long hcall_return_busy_check(long rc)
 {
@@ -151,6 +153,227 @@ int h_query_vas_capabilities(const u64 hcall, u8 query_type, u64 result)
 			hcall, rc, query_type, result);
 	return -EIO;
 }
+EXPORT_SYMBOL_GPL(h_query_vas_capabilities);
+
+/*
+ * Allocate window and setup IRQ mapping.
+ */
+static int allocate_setup_window(struct pseries_vas_window *txwin,
+				 u64 *domain, u8 wintype)
+{
+	int rc;
+
+	rc = h_allocate_vas_window(txwin, domain, wintype, DEF_WIN_CREDS);
+	if (rc)
+		return rc;
+
+	txwin->vas_win.wcreds_max = DEF_WIN_CREDS;
+
+	return 0;
+}
+
+static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
+					      enum vas_cop_type cop_type)
+{
+	long domain[PLPAR_HCALL9_BUFSIZE] = {VAS_DEFAULT_DOMAIN_ID};
+	struct vas_cop_feat_caps *cop_feat_caps;
+	struct vas_caps *caps;
+	struct pseries_vas_window *txwin;
+	int rc;
+
+	txwin = kzalloc(sizeof(*txwin), GFP_KERNEL);
+	if (!txwin)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * A VAS window can have many credits which means that many
+	 * requests can be issued simultaneously. But the hypervisor
+	 * restricts one credit per window.
+	 * The hypervisor introduces 2 different types of credits:
+	 * Default credit type (Uses normal priority FIFO):
+	 *	A limited number of credits are assigned to partitions
+	 *	based on processor entitlement. But these credits may be
+	 *	over-committed on a system depends on whether the CPUs
+	 *	are in shared or dedicated modes - that is, more requests
+	 *	may be issued across the system than NX can service at
+	 *	once which can result in paste command failure (RMA_busy).
+	 *	Then the process has to resend requests or fall-back to
+	 *	SW compression.
+	 * Quality of Service (QoS) credit type (Uses high priority FIFO):
+	 *	To avoid NX HW contention, the system admins can assign
+	 *	QoS credits for each LPAR so that this partition is
+	 *	guaranteed access to NX resources. These credits are
+	 *	assigned to partitions via the HMC.
+	 *	Refer PAPR for more information.
+	 *
+	 * Allocate window with QoS credits if user requested. Otherwise
+	 * default credits are used.
+	 */
+	if (flags & VAS_TX_WIN_FLAG_QOS_CREDIT)
+		caps = &vascaps[VAS_GZIP_QOS_FEAT_TYPE];
+	else
+		caps = &vascaps[VAS_GZIP_DEF_FEAT_TYPE];
+
+	cop_feat_caps = &caps->caps;
+
+	if (atomic_inc_return(&cop_feat_caps->used_lpar_creds) >
+			atomic_read(&cop_feat_caps->target_lpar_creds)) {
+		pr_err("Credits are not available to allocate window\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (vas_id == -1) {
+		/*
+		 * The user space is requesting to allocate a window on
+		 * a VAS instance where the process is executing.
+		 * On PowerVM, domain values are passed to the hypervisor
+		 * to select VAS instance. Useful if the process is
+		 * affinity to NUMA node.
+		 * The hypervisor selects VAS instance if
+		 * VAS_DEFAULT_DOMAIN_ID (-1) is passed for domain values.
+		 * The h_allocate_vas_window hcall is defined to take a
+		 * domain values as specified by h_home_node_associativity,
+		 * So no unpacking needs to be done.
+		 */
+		rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, domain,
+				  VPHN_FLAG_VCPU, smp_processor_id());
+		if (rc != H_SUCCESS) {
+			pr_err("H_HOME_NODE_ASSOCIATIVITY error: %d\n", rc);
+			goto out;
+		}
+	}
+
+	/*
+	 * Allocate / Deallocate window hcalls and setup / free IRQs
+	 * have to be protected with mutex.
+	 * Open VAS window: Allocate window hcall and setup IRQ
+	 * Close VAS window: Deallocate window hcall and free IRQ
+	 *	The hypervisor waits until all NX requests are
+	 *	completed before closing the window. So expects OS
+	 *	to handle NX faults, means IRQ can be freed only
+	 *	after the deallocate window hcall is returned.
+	 * So once the window is closed with deallocate hcall before
+	 * the IRQ is freed, it can be assigned to new allocate
+	 * hcall with the same fault IRQ by the hypervisor. It can
+	 * result in setup IRQ fail for the new window since the
+	 * same fault IRQ is not freed by the OS before.
+	 */
+	mutex_lock(&vas_pseries_mutex);
+	rc = allocate_setup_window(txwin, (u64 *)&domain[0],
+				   cop_feat_caps->win_type);
+	mutex_unlock(&vas_pseries_mutex);
+	if (rc)
+		goto out;
+
+	/*
+	 * Modify window and it is ready to use.
+	 */
+	rc = h_modify_vas_window(txwin);
+	if (!rc)
+		rc = get_vas_user_win_ref(&txwin->vas_win.task_ref);
+	if (rc)
+		goto out_free;
+
+	vas_user_win_add_mm_context(&txwin->vas_win.task_ref);
+	txwin->win_type = cop_feat_caps->win_type;
+	mutex_lock(&vas_pseries_mutex);
+	list_add(&txwin->win_list, &caps->list);
+	mutex_unlock(&vas_pseries_mutex);
+
+	return &txwin->vas_win;
+
+out_free:
+	h_deallocate_vas_window(txwin->vas_win.winid);
+out:
+	atomic_dec(&cop_feat_caps->used_lpar_creds);
+	kfree(txwin);
+	return ERR_PTR(rc);
+}
+
+static u64 vas_paste_address(struct vas_window *vwin)
+{
+	struct pseries_vas_window *win;
+
+	win = container_of(vwin, struct pseries_vas_window, vas_win);
+	return win->win_addr;
+}
+
+static int deallocate_free_window(struct pseries_vas_window *win)
+{
+	int rc = 0;
+
+	rc = h_deallocate_vas_window(win->vas_win.winid);
+
+	return rc;
+}
+
+static int vas_deallocate_window(struct vas_window *vwin)
+{
+	struct pseries_vas_window *win;
+	struct vas_cop_feat_caps *caps;
+	int rc = 0;
+
+	if (!vwin)
+		return -EINVAL;
+
+	win = container_of(vwin, struct pseries_vas_window, vas_win);
+
+	/* Should not happen */
+	if (win->win_type >= VAS_MAX_FEAT_TYPE) {
+		pr_err("Window (%u): Invalid window type %u\n",
+				vwin->winid, win->win_type);
+		return -EINVAL;
+	}
+
+	caps = &vascaps[win->win_type].caps;
+	mutex_lock(&vas_pseries_mutex);
+	rc = deallocate_free_window(win);
+	if (rc) {
+		mutex_unlock(&vas_pseries_mutex);
+		return rc;
+	}
+
+	list_del(&win->win_list);
+	atomic_dec(&caps->used_lpar_creds);
+	mutex_unlock(&vas_pseries_mutex);
+
+	put_vas_user_win_ref(&vwin->task_ref);
+	mm_context_remove_vas_window(vwin->task_ref.mm);
+
+	kfree(win);
+	return 0;
+}
+
+static const struct vas_user_win_ops vops_pseries = {
+	.open_win	= vas_allocate_window,	/* Open and configure window */
+	.paste_addr	= vas_paste_address,	/* To do copy/paste */
+	.close_win	= vas_deallocate_window, /* Close window */
+};
+
+/*
+ * Supporting only nx-gzip coprocessor type now, but this API code
+ * extended to other coprocessor types later.
+ */
+int vas_register_api_pseries(struct module *mod, enum vas_cop_type cop_type,
+			     const char *name)
+{
+	int rc;
+
+	if (!copypaste_feat)
+		return -ENOTSUPP;
+
+	rc = vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(vas_register_api_pseries);
+
+void vas_unregister_api_pseries(void)
+{
+	vas_unregister_coproc_api();
+}
+EXPORT_SYMBOL_GPL(vas_unregister_api_pseries);
 
 /*
  * Get the specific capabilities based on the feature type.

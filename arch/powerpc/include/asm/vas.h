@@ -254,6 +254,10 @@ struct vas_all_caps {
 	u64     feat_type;
 };
 
+int h_query_vas_capabilities(const u64 hcall, u8 query_type, u64 result);
+int vas_register_api_pseries(struct module *mod,
+			     enum vas_cop_type cop_type, const char *name);
+void vas_unregister_api_pseries(void);
 #endif
 
 /*
