@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "NVIDIA Tegra thermal drivers"
-depends on ARCH_TEGRA
+depends on ARCH_TEGRA || COMPILE_TEST
 
 config TEGRA_SOCTHERM
 	tristate "Tegra SOCTHERM thermal management"
