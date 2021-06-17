@@ -1519,8 +1519,7 @@ efct_hw_command_cancel(struct efct_hw *hw)
 				       struct efct_command_ctx, list_entry);
 
 		efc_log_debug(hw->os, "hung command %08x\n",
-			      !ctx ? U32_MAX :
-			      (!ctx->buf ? U32_MAX : *((u32 *)ctx->buf)));
+			      !ctx ? U32_MAX : *((u32 *)ctx->buf));
 		spin_unlock_irqrestore(&hw->cmd_lock, flags);
 		rc = efct_hw_command_process(hw, -1, mqe, SLI4_BMBX_SIZE);
 		spin_lock_irqsave(&hw->cmd_lock, flags);
