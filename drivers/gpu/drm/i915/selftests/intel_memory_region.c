@@ -15,12 +15,13 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
-#include "gem/i915_gem_object_blt.h"
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "i915_buddy.h"
+#include "gt/intel_migrate.h"
 #include "i915_memcpy.h"
 #include "i915_ttm_buddy_manager.h"
 #include "selftests/igt_flush_test.h"
@@ -808,6 +809,7 @@ static int igt_lmem_write_cpu(void *arg)
 		PAGE_SIZE - 64,
 	};
 	struct intel_engine_cs *engine;
+	struct i915_request *rq;
 	u32 *vaddr;
 	u32 sz;
 	u32 i;
@@ -834,15 +836,20 @@ static int igt_lmem_write_cpu(void *arg)
 		goto out_put;
 	}
 
+	i915_gem_object_lock(obj, NULL);
 	/* Put the pages into a known state -- from the gpu for added fun */
 	intel_engine_pm_get(engine);
-	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
-	intel_engine_pm_put(engine);
-	if (err)
-		goto out_unpin;
+	err = intel_context_migrate_clear(engine->gt->migrate.context, NULL,
+					  obj->mm.pages->sgl, I915_CACHE_NONE,
+					  true, 0xdeadbeaf, &rq);
+	if (rq) {
+		dma_resv_add_excl_fence(obj->base.resv, &rq->fence);
+		i915_request_put(rq);
+	}
 
-	i915_gem_object_lock(obj, NULL);
-	err = i915_gem_object_set_to_wc_domain(obj, true);
+	intel_engine_pm_put(engine);
+	if (!err)
+		err = i915_gem_object_set_to_wc_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err)
 		goto out_unpin;
