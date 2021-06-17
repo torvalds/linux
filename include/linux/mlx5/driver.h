@@ -542,6 +542,10 @@ struct mlx5_core_roce {
 enum {
 	MLX5_PRIV_FLAGS_DISABLE_IB_ADEV = 1 << 0,
 	MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV = 1 << 1,
+	/* Set during device detach to block any further devices
+	 * creation/deletion on drivers rescan. Unset during device attach.
+	 */
+	MLX5_PRIV_FLAGS_DETACH = 1 << 2,
 };
 
 struct mlx5_adev {
