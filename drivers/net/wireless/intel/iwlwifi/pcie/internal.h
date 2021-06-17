@@ -109,8 +109,8 @@ struct iwl_rx_completion_desc {
  *	Address size is 32 bit in pre-9000 devices and 64 bit in 9000 devices.
  *	In AX210 devices it is a pointer to a list of iwl_rx_transfer_desc's
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
- * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
- * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
+ * @used_bd: driver's pointer to buffer of used receive buffer descriptors (rbd)
+ * @used_bd_dma: physical address of buffer of used receive buffer descriptors (rbd)
  * @tr_tail: driver's pointer to the transmission ring tail buffer
  * @tr_tail_dma: physical address of the buffer for the transmission ring tail
  * @cr_tail: driver's pointer to the completion ring tail buffer
