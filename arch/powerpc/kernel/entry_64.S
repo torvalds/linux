@@ -635,51 +635,57 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	 * touched, no exit work created, then this can be used.
 	 */
 	.balign IFETCH_ALIGN_BYTES
-	.globl fast_interrupt_return
-fast_interrupt_return:
-_ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
+	.globl fast_interrupt_return_srr
+fast_interrupt_return_srr:
+_ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	kuap_check_amr r3, r4
 	ld	r5,_MSR(r1)
 	andi.	r0,r5,MSR_PR
 #ifdef CONFIG_PPC_BOOK3S
-	bne	.Lfast_user_interrupt_return_amr
+	bne	.Lfast_user_interrupt_return_amr_srr
 	kuap_kernel_restore r3, r4
 	andi.	r0,r5,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
-	bne+	.Lfast_kernel_interrupt_return
+	bne+	.Lfast_kernel_interrupt_return_srr
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
 	b	. /* should not get here */
 #else
-	bne	.Lfast_user_interrupt_return
-	b	.Lfast_kernel_interrupt_return
+	bne	.Lfast_user_interrupt_return_srr
+	b	.Lfast_kernel_interrupt_return_srr
 #endif
 
+.macro interrupt_return_macro srr
 	.balign IFETCH_ALIGN_BYTES
-	.globl interrupt_return
-interrupt_return:
-_ASM_NOKPROBE_SYMBOL(interrupt_return)
+	.globl interrupt_return_\srr
+interrupt_return_\srr\():
+_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 	ld	r4,_MSR(r1)
 	andi.	r0,r4,MSR_PR
-	beq	.Lkernel_interrupt_return
+	beq	.Lkernel_interrupt_return_\srr
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	interrupt_exit_user_prepare
 	cmpdi	r3,0
-	bne-	.Lrestore_nvgprs
+	bne-	.Lrestore_nvgprs_\srr
 
 #ifdef CONFIG_PPC_BOOK3S
-.Lfast_user_interrupt_return_amr:
+.Lfast_user_interrupt_return_amr_\srr\():
 	kuap_user_restore r3, r4
 #endif
-.Lfast_user_interrupt_return:
+.Lfast_user_interrupt_return_\srr\():
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
 BEGIN_FTR_SECTION
 	ld	r10,_PPR(r1)
 	mtspr	SPRN_PPR,r10
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+	.ifc \srr,srr
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+	.else
+	mtspr	SPRN_HSRR0,r11
+	mtspr	SPRN_HSRR1,r12
+	.endif
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
@@ -706,24 +712,33 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	REST_GPR(6, r1)
 	REST_GPR(0, r1)
 	REST_GPR(1, r1)
+	.ifc \srr,srr
 	RFI_TO_USER
+	.else
+	HRFI_TO_USER
+	.endif
 	b	.	/* prevent speculative execution */
 
-.Lrestore_nvgprs:
+.Lrestore_nvgprs_\srr\():
 	REST_NVGPRS(r1)
-	b	.Lfast_user_interrupt_return
+	b	.Lfast_user_interrupt_return_\srr
 
 	.balign IFETCH_ALIGN_BYTES
-.Lkernel_interrupt_return:
+.Lkernel_interrupt_return_\srr\():
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	interrupt_exit_kernel_prepare
 
-.Lfast_kernel_interrupt_return:
+.Lfast_kernel_interrupt_return_\srr\():
 	cmpdi	cr1,r3,0
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
+	.ifc \srr,srr
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+	.else
+	mtspr	SPRN_HSRR0,r11
+	mtspr	SPRN_HSRR1,r12
+	.endif
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
@@ -757,7 +772,11 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	REST_GPR(6, r1)
 	REST_GPR(0, r1)
 	REST_GPR(1, r1)
+	.ifc \srr,srr
 	RFI_TO_KERNEL
+	.else
+	HRFI_TO_KERNEL
+	.endif
 	b	.	/* prevent speculative execution */
 
 1:	/*
@@ -777,8 +796,18 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	std	r9,0(r1) /* perform store component of stdu */
 	ld	r9,PACA_EXGEN+0(r13)
 
+	.ifc \srr,srr
 	RFI_TO_KERNEL
+	.else
+	HRFI_TO_KERNEL
+	.endif
 	b	.	/* prevent speculative execution */
+.endm
+
+interrupt_return_macro srr
+#ifdef CONFIG_PPC_BOOK3S
+interrupt_return_macro hsrr
+#endif
 
 #ifdef CONFIG_PPC_RTAS
 /*
