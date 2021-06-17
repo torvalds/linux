@@ -75,18 +75,6 @@ static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 	return true;
 }
 
-static notrace __always_inline bool prep_irq_for_user_exit(void)
-{
-	bool ret;
-
-	user_enter_irqoff();
-	ret = prep_irq_for_enabled_exit(true);
-	if (!ret)
-		user_exit_irqoff();
-
-	return ret;
-}
-
 /* Has to run notrace because it is entered not completely "reconciled" */
 notrace long system_call_exception(long r3, long r4, long r5,
 				   long r6, long r7, long r8,
@@ -276,7 +264,9 @@ again:
 		}
 	}
 
-	if (!prep_irq_for_user_exit()) {
+	user_enter_irqoff();
+	if (!prep_irq_for_enabled_exit(true)) {
+		user_exit_irqoff();
 		local_irq_enable();
 		local_irq_disable();
 		goto again;
