@@ -32,6 +32,9 @@ static const struct acpi_device_id lps0_device_ids[] = {
 	{"", },
 };
 
+/* Microsoft platform agnostic UUID */
+#define ACPI_LPS0_DSM_UUID_MICROSOFT      "11e00d56-ce64-47ce-837b-1f898f9aa461"
+
 #define ACPI_LPS0_DSM_UUID	"c4eb40a0-6cd2-11e2-bcfd-0800200c9a66"
 
 #define ACPI_LPS0_GET_DEVICE_CONSTRAINTS	1
@@ -39,6 +42,8 @@ static const struct acpi_device_id lps0_device_ids[] = {
 #define ACPI_LPS0_SCREEN_ON	4
 #define ACPI_LPS0_ENTRY		5
 #define ACPI_LPS0_EXIT		6
+#define ACPI_LPS0_MS_ENTRY      7
+#define ACPI_LPS0_MS_EXIT       8
 
 /* AMD */
 #define ACPI_LPS0_DSM_UUID_AMD      "e3f32452-febc-43ce-9039-932122d37721"
@@ -50,6 +55,9 @@ static const struct acpi_device_id lps0_device_ids[] = {
 static acpi_handle lps0_device_handle;
 static guid_t lps0_dsm_guid;
 static int lps0_dsm_func_mask;
+
+static guid_t lps0_dsm_guid_microsoft;
+static int lps0_dsm_func_mask_microsoft;
 
 /* Device constraint entry structure */
 struct lpi_device_info {
@@ -366,14 +374,18 @@ static int lps0_device_attach(struct acpi_device *adev,
 		rev_id = 0;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
+		lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
+					ACPI_LPS0_DSM_UUID_MICROSOFT, rev_id,
+					&lps0_dsm_guid_microsoft);
 	} else {
 		rev_id = 1;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID, rev_id, &lps0_dsm_guid);
+		lps0_dsm_func_mask_microsoft = -EINVAL;
 	}
 
-	if (lps0_dsm_func_mask < 0)
-		return 0;//function eval failed
+	if (lps0_dsm_func_mask < 0 && lps0_dsm_func_mask_microsoft < 0)
+		return 0; //function evaluation failed
 
 	lps0_device_handle = adev->handle;
 
@@ -412,7 +424,14 @@ int acpi_s2idle_prepare_late(void)
 	if (pm_debug_messages_on)
 		lpi_check_constraints();
 
-	if (acpi_s2idle_vendor_amd()) {
+	if (lps0_dsm_func_mask_microsoft > 0) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_MS_EXIT,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+	} else if (acpi_s2idle_vendor_amd()) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF_AMD,
 				lps0_dsm_func_mask, lps0_dsm_guid);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY_AMD,
@@ -432,7 +451,14 @@ void acpi_s2idle_restore_early(void)
 	if (!lps0_device_handle || sleep_no_lps0)
 		return;
 
-	if (acpi_s2idle_vendor_amd()) {
+	if (lps0_dsm_func_mask_microsoft > 0) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_MS_ENTRY,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+	} else if (acpi_s2idle_vendor_amd()) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT_AMD,
 				lps0_dsm_func_mask, lps0_dsm_guid);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON_AMD,
