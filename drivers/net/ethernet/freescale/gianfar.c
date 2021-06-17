@@ -289,6 +289,29 @@ static void gfar_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *s
 		stats->tx_bytes += priv->tx_queue[i]->stats.tx_bytes;
 		stats->tx_packets += priv->tx_queue[i]->stats.tx_packets;
 	}
+
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+		struct rmon_mib __iomem *rmon = &priv->gfargrp[0].regs->rmon;
+		unsigned long flags;
+		u32 rdrp, car, car_before;
+		u64 rdrp_offset;
+
+		spin_lock_irqsave(&priv->rmon_overflow.lock, flags);
+		car = gfar_read(&rmon->car1) & CAR1_C1RDR;
+		do {
+			car_before = car;
+			rdrp = gfar_read(&rmon->rdrp);
+			car = gfar_read(&rmon->car1) & CAR1_C1RDR;
+		} while (car != car_before);
+		if (car) {
+			priv->rmon_overflow.rdrp++;
+			gfar_write(&rmon->car1, car);
+		}
+		rdrp_offset = priv->rmon_overflow.rdrp;
+		spin_unlock_irqrestore(&priv->rmon_overflow.lock, flags);
+
+		stats->rx_missed_errors = rdrp + (rdrp_offset << 16);
+	}
 }
 
 /* Set the appropriate hash bit for the given addr */
@@ -379,7 +402,8 @@ static void gfar_ints_enable(struct gfar_private *priv)
 	for (i = 0; i < priv->num_grps; i++) {
 		struct gfar __iomem *regs = priv->gfargrp[i].regs;
 		/* Unmask the interrupts we look for */
-		gfar_write(&regs->imask, IMASK_DEFAULT);
+		gfar_write(&regs->imask,
+			   IMASK_DEFAULT | priv->rmon_overflow.imask);
 	}
 }
 
@@ -2287,7 +2311,7 @@ static irqreturn_t gfar_receive(int irq, void *grp_id)
 	if (likely(napi_schedule_prep(&grp->napi_rx))) {
 		spin_lock_irqsave(&grp->grplock, flags);
 		imask = gfar_read(&grp->regs->imask);
-		imask &= IMASK_RX_DISABLED;
+		imask &= IMASK_RX_DISABLED | grp->priv->rmon_overflow.imask;
 		gfar_write(&grp->regs->imask, imask);
 		spin_unlock_irqrestore(&grp->grplock, flags);
 		__napi_schedule(&grp->napi_rx);
@@ -2311,7 +2335,7 @@ static irqreturn_t gfar_transmit(int irq, void *grp_id)
 	if (likely(napi_schedule_prep(&grp->napi_tx))) {
 		spin_lock_irqsave(&grp->grplock, flags);
 		imask = gfar_read(&grp->regs->imask);
-		imask &= IMASK_TX_DISABLED;
+		imask &= IMASK_TX_DISABLED | grp->priv->rmon_overflow.imask;
 		gfar_write(&grp->regs->imask, imask);
 		spin_unlock_irqrestore(&grp->grplock, flags);
 		__napi_schedule(&grp->napi_tx);
@@ -2681,6 +2705,18 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 			schedule_work(&priv->reset_task);
 		}
 		netif_dbg(priv, tx_err, dev, "Transmit Error\n");
+	}
+	if (events & IEVENT_MSRO) {
+		struct rmon_mib __iomem *rmon = &regs->rmon;
+		u32 car;
+
+		spin_lock(&priv->rmon_overflow.lock);
+		car = gfar_read(&rmon->car1) & CAR1_C1RDR;
+		if (car) {
+			priv->rmon_overflow.rdrp++;
+			gfar_write(&rmon->car1, car);
+		}
+		spin_unlock(&priv->rmon_overflow.lock);
 	}
 	if (events & IEVENT_BSY) {
 		dev->stats.rx_over_errors++;
@@ -3258,6 +3294,14 @@ static int gfar_probe(struct platform_device *ofdev)
 	set_bit(GFAR_DOWN, &priv->state);
 
 	gfar_hw_init(priv);
+
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+		struct rmon_mib __iomem *rmon = &priv->gfargrp[0].regs->rmon;
+
+		spin_lock_init(&priv->rmon_overflow.lock);
+		priv->rmon_overflow.imask = IMASK_MSRO;
+		gfar_write(&rmon->cam1, gfar_read(&rmon->cam1) & ~CAM1_M1RDR);
+	}
 
 	/* Carrier starts down, phylib will bring it up */
 	netif_carrier_off(dev);

@@ -663,6 +663,15 @@ struct rmon_mib
 	u32	cam2;	/* 0x.73c - Carry Mask Register Two */
 };
 
+struct rmon_overflow {
+	/* lock for synchronization of the rdrp field of this struct, and
+	 * CAR1/CAR2 registers
+	 */
+	spinlock_t lock;
+	u32	imask;
+	u64	rdrp;
+};
+
 struct gfar_extra_stats {
 	atomic64_t rx_alloc_err;
 	atomic64_t rx_large;
@@ -1150,6 +1159,7 @@ struct gfar_private {
 
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
+	struct rmon_overflow rmon_overflow;
 
 	/* PHY stuff */
 	phy_interface_t interface;
