@@ -160,6 +160,7 @@ struct vas_tx_win_attr {
 	bool rx_win_ord_mode;
 };
 
+#ifdef CONFIG_PPC_POWERNV
 /*
  * Helper to map a chip id to VAS id.
  * For POWER9, this is a 1:1 mapping. In the future this maybe a 1:N
@@ -225,6 +226,35 @@ int vas_paste_crb(struct vas_window *win, int offset, bool re);
 int vas_register_api_powernv(struct module *mod, enum vas_cop_type cop_type,
 			     const char *name);
 void vas_unregister_api_powernv(void);
+#endif
+
+#ifdef CONFIG_PPC_PSERIES
+
+/* VAS Capabilities */
+#define VAS_GZIP_QOS_FEAT	0x1
+#define VAS_GZIP_DEF_FEAT	0x2
+#define VAS_GZIP_QOS_FEAT_BIT	PPC_BIT(VAS_GZIP_QOS_FEAT) /* Bit 1 */
+#define VAS_GZIP_DEF_FEAT_BIT	PPC_BIT(VAS_GZIP_DEF_FEAT) /* Bit 2 */
+
+/* NX Capabilities */
+#define VAS_NX_GZIP_FEAT	0x1
+#define VAS_NX_GZIP_FEAT_BIT	PPC_BIT(VAS_NX_GZIP_FEAT) /* Bit 1 */
+
+/*
+ * These structs are used to retrieve overall VAS capabilities that
+ * the hypervisor provides.
+ */
+struct hv_vas_all_caps {
+	__be64  descriptor;
+	__be64  feat_type;
+} __packed __aligned(0x1000);
+
+struct vas_all_caps {
+	u64     descriptor;
+	u64     feat_type;
+};
+
+#endif
 
 /*
  * Register / unregister coprocessor type to VAS API which will be exported
