@@ -197,6 +197,7 @@ enum iwl_mvm_smps_type_request {
 	IWL_MVM_SMPS_REQ_BT_COEX,
 	IWL_MVM_SMPS_REQ_TT,
 	IWL_MVM_SMPS_REQ_PROT,
+	IWL_MVM_SMPS_REQ_FW,
 	NUM_IWL_MVM_SMPS_REQ,
 };
 
@@ -992,6 +993,8 @@ struct iwl_mvm {
 	 * real temperature that is received from the fw
 	 */
 	bool temperature_test;  /* Debug test temperature is enabled */
+
+	bool fw_static_smps_request;
 
 	unsigned long bt_coex_last_tcm_ts;
 	struct iwl_mvm_tcm tcm;
@@ -1832,6 +1835,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				enum ieee80211_smps_mode smps_request);
 bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt);
+void iwl_mvm_apply_fw_smps_request(struct ieee80211_vif *vif);
 
 /* Low latency */
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
