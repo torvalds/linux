@@ -376,9 +376,9 @@ static void tegra_smmu_enable(struct tegra_smmu *smmu, unsigned int swgroup,
 		if (client->swgroup != swgroup)
 			continue;
 
-		value = smmu_readl(smmu, client->smmu.reg);
-		value |= BIT(client->smmu.bit);
-		smmu_writel(smmu, value, client->smmu.reg);
+		value = smmu_readl(smmu, client->regs.smmu.reg);
+		value |= BIT(client->regs.smmu.bit);
+		smmu_writel(smmu, value, client->regs.smmu.reg);
 	}
 }
 
@@ -404,9 +404,9 @@ static void tegra_smmu_disable(struct tegra_smmu *smmu, unsigned int swgroup,
 		if (client->swgroup != swgroup)
 			continue;
 
-		value = smmu_readl(smmu, client->smmu.reg);
-		value &= ~BIT(client->smmu.bit);
-		smmu_writel(smmu, value, client->smmu.reg);
+		value = smmu_readl(smmu, client->regs.smmu.reg);
+		value &= ~BIT(client->regs.smmu.bit);
+		smmu_writel(smmu, value, client->regs.smmu.reg);
 	}
 }
 
@@ -1042,9 +1042,9 @@ static int tegra_smmu_clients_show(struct seq_file *s, void *data)
 		const struct tegra_mc_client *client = &smmu->soc->clients[i];
 		const char *status;
 
-		value = smmu_readl(smmu, client->smmu.reg);
+		value = smmu_readl(smmu, client->regs.smmu.reg);
 
-		if (value & BIT(client->smmu.bit))
+		if (value & BIT(client->regs.smmu.bit))
 			status = "yes";
 		else
 			status = "no";
