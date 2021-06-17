@@ -163,10 +163,6 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	/* DO NOT TOUCH THIS SETTING */
-	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	if (clock == 0)
 		return;
@@ -186,9 +182,11 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	extra &= ~BIT(0);
 	sdhci_writel(host, extra, DWCMSHC_HOST_CTRL3);
 
-	if (clock <= 400000) {
-		/* Disable DLL to reset sample clock */
+	if (clock <= 52000000) {
+		/* Disable DLL and reset both of sample and drive clock */
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 		return;
 	}
 
@@ -196,6 +194,15 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writel(host, BIT(1), DWCMSHC_EMMC_DLL_CTRL);
 	udelay(1);
 	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
+
+	/*
+	 * We shouldn't set DLL_RXCLK_NO_INVERTER for identify mode but
+	 * we must set it in higher speed mode.
+	 */
+	extra = DWCMSHC_EMMC_DLL_DLYENA |
+		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	/* Init DLL settings */
 	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
