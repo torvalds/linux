@@ -30,6 +30,10 @@
 #include "test_migrate_reuseport.skel.h"
 #include "network_helpers.h"
 
+#ifndef TCP_FASTOPEN_CONNECT
+#define TCP_FASTOPEN_CONNECT 30
+#endif
+
 #define IFINDEX_LO 1
 
 #define NR_SERVERS 5
