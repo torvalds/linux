@@ -49,7 +49,7 @@ static const struct acpi_device_id lps0_device_ids[] = {
 
 static acpi_handle lps0_device_handle;
 static guid_t lps0_dsm_guid;
-static char lps0_dsm_func_mask;
+static int lps0_dsm_func_mask;
 
 /* Device constraint entry structure */
 struct lpi_device_info {
@@ -70,15 +70,7 @@ struct lpi_constraints {
 	int min_dstate;
 };
 
-/* AMD */
-/* Device constraint entry structure */
-struct lpi_device_info_amd {
-	int revision;
-	int count;
-	union acpi_object *package;
-};
-
-/* Constraint package structure */
+/* AMD Constraint package structure */
 struct lpi_device_constraint_amd {
 	char *name;
 	int enabled;
@@ -99,11 +91,11 @@ static void lpi_device_get_constraints_amd(void)
 					  rev_id, ACPI_LPS0_GET_DEVICE_CONSTRAINTS,
 					  NULL, ACPI_TYPE_PACKAGE);
 
-	if (!out_obj)
-		return;
-
 	acpi_handle_debug(lps0_device_handle, "_DSM function 1 eval %s\n",
 			  out_obj ? "successful" : "failed");
+
+	if (!out_obj)
+		return;
 
 	for (i = 0; i < out_obj->package.count; i++) {
 		union acpi_object *package = &out_obj->package.elements[i];
@@ -336,11 +328,33 @@ static bool acpi_s2idle_vendor_amd(void)
 	return boot_cpu_data.x86_vendor == X86_VENDOR_AMD;
 }
 
+static int validate_dsm(acpi_handle handle, const char *uuid, int rev, guid_t *dsm_guid)
+{
+	union acpi_object *obj;
+	int ret = -EINVAL;
+
+	guid_parse(uuid, dsm_guid);
+	obj = acpi_evaluate_dsm(handle, dsm_guid, rev, 0, NULL);
+
+	/* Check if the _DSM is present and as expected. */
+	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length == 0 ||
+	    obj->buffer.length > sizeof(u32)) {
+		acpi_handle_debug(handle,
+				"_DSM UUID %s rev %d function 0 evaluation failed\n", uuid, rev);
+		goto out;
+	}
+
+	ret = *(int *)obj->buffer.pointer;
+	acpi_handle_debug(handle, "_DSM UUID %s rev %d function mask: 0x%x\n", uuid, rev, ret);
+
+out:
+	ACPI_FREE(obj);
+	return ret;
+}
+
 static int lps0_device_attach(struct acpi_device *adev,
 			      const struct acpi_device_id *not_used)
 {
-	union acpi_object *out_obj;
-
 	if (lps0_device_handle)
 		return 0;
 
@@ -348,28 +362,17 @@ static int lps0_device_attach(struct acpi_device *adev,
 		return 0;
 
 	if (acpi_s2idle_vendor_amd()) {
-		guid_parse(ACPI_LPS0_DSM_UUID_AMD, &lps0_dsm_guid);
-		out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 0, 0, NULL);
 		rev_id = 0;
+		lps0_dsm_func_mask = validate_dsm(adev->handle,
+					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
 	} else {
-		guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
-		out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
 		rev_id = 1;
+		lps0_dsm_func_mask = validate_dsm(adev->handle,
+					ACPI_LPS0_DSM_UUID, rev_id, &lps0_dsm_guid);
 	}
 
-	/* Check if the _DSM is present and as expected. */
-	if (!out_obj || out_obj->type != ACPI_TYPE_BUFFER) {
-		acpi_handle_debug(adev->handle,
-				  "_DSM function 0 evaluation failed\n");
-		return 0;
-	}
-
-	lps0_dsm_func_mask = *(char *)out_obj->buffer.pointer;
-
-	ACPI_FREE(out_obj);
-
-	acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
-			  lps0_dsm_func_mask);
+	if (lps0_dsm_func_mask < 0)
+		return 0;//function eval failed
 
 	lps0_device_handle = adev->handle;
 
