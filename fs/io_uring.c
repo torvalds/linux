@@ -851,6 +851,8 @@ struct io_kiocb {
 	struct hlist_node		hash_node;
 	struct async_poll		*apoll;
 	struct io_wq_work		work;
+	const struct cred 		*creds;
+
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 };
@@ -1234,8 +1236,8 @@ static void io_prep_async_work(struct io_kiocb *req)
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!req->work.creds)
-		req->work.creds = get_current_cred();
+	if (!req->creds)
+		req->creds = get_current_cred();
 
 	req->work.list.next = NULL;
 	req->work.flags = 0;
@@ -1745,9 +1747,9 @@ static void io_dismantle_req(struct io_kiocb *req)
 		percpu_ref_put(req->fixed_rsrc_refs);
 	if (req->async_data)
 		kfree(req->async_data);
-	if (req->work.creds) {
-		put_cred(req->work.creds);
-		req->work.creds = NULL;
+	if (req->creds) {
+		put_cred(req->creds);
+		req->creds = NULL;
 	}
 }
 
@@ -6139,8 +6141,8 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
-	if (req->work.creds && req->work.creds != current_cred())
-		creds = override_creds(req->work.creds);
+	if (req->creds && req->creds != current_cred())
+		creds = override_creds(req->creds);
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -6532,7 +6534,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	atomic_set(&req->refs, 2);
 	req->task = current;
 	req->result = 0;
-	req->work.creds = NULL;
+	req->creds = NULL;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
@@ -6550,10 +6552,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
-		req->work.creds = xa_load(&ctx->personalities, personality);
-		if (!req->work.creds)
+		req->creds = xa_load(&ctx->personalities, personality);
+		if (!req->creds)
 			return -EINVAL;
-		get_cred(req->work.creds);
+		get_cred(req->creds);
 	}
 	state = &ctx->submit_state;
 
