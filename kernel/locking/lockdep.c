@@ -4626,7 +4626,7 @@ static int check_wait_context(struct task_struct *curr, struct held_lock *next)
 	short curr_inner;
 	int depth;
 
-	if (!curr->lockdep_depth || !next_inner || next->trylock)
+	if (!next_inner || next->trylock)
 		return 0;
 
 	if (!next_outer)
