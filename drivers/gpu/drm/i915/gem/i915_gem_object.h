@@ -14,6 +14,7 @@
 #include "display/intel_frontbuffer.h"
 #include "i915_gem_object_types.h"
 #include "i915_gem_gtt.h"
+#include "i915_gem_ww.h"
 #include "i915_vma_types.h"
 
 /*

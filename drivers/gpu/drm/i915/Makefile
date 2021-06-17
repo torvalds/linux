@@ -166,6 +166,7 @@ i915-y += \
 	  i915_cmd_parser.o \
 	  i915_gem_evict.o \
 	  i915_gem_gtt.o \
+	  i915_gem_ww.o \
 	  i915_gem.o \
 	  i915_globals.o \
 	  i915_query.o \
