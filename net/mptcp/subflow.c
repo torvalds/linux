@@ -900,8 +900,10 @@ static enum mapping_status validate_data_csum(struct sock *ssk, struct sk_buff *
 	header.csum = 0;
 
 	csum = csum_partial(&header, sizeof(header), subflow->map_data_csum);
-	if (unlikely(csum_fold(csum)))
+	if (unlikely(csum_fold(csum))) {
+		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_DATACSUMERR);
 		return subflow->mp_join ? MAPPING_INVALID : MAPPING_DUMMY;
+	}
 
 	return MAPPING_OK;
 }
