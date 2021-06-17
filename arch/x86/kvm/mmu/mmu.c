@@ -3608,7 +3608,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 		return reserved;
 	}
 
-	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+	if (is_tdp_mmu_root(vcpu->arch.mmu->root_hpa))
 		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, &root);
 	else
 		leaf = get_walk(vcpu, addr, sptes, &root);
@@ -3780,6 +3780,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			     bool prefault, int max_level, bool is_tdp)
 {
+	bool is_tdp_mmu_fault = is_tdp_mmu_root(vcpu->arch.mmu->root_hpa);
 	bool write = error_code & PFERR_WRITE_MASK;
 	bool map_writable;
 
@@ -3792,7 +3793,7 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (page_fault_handle_page_track(vcpu, error_code, gfn))
 		return RET_PF_EMULATE;
 
-	if (!is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa)) {
+	if (!is_tdp_mmu_fault) {
 		r = fast_page_fault(vcpu, gpa, error_code);
 		if (r != RET_PF_INVALID)
 			return r;
@@ -3814,7 +3815,7 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 
 	r = RET_PF_RETRY;
 
-	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+	if (is_tdp_mmu_fault)
 		read_lock(&vcpu->kvm->mmu_lock);
 	else
 		write_lock(&vcpu->kvm->mmu_lock);
@@ -3825,7 +3826,7 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (r)
 		goto out_unlock;
 
-	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+	if (is_tdp_mmu_fault)
 		r = kvm_tdp_mmu_map(vcpu, gpa, error_code, map_writable, max_level,
 				    pfn, prefault);
 	else
@@ -3833,7 +3834,7 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 				 prefault, is_tdp);
 
 out_unlock:
-	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+	if (is_tdp_mmu_fault)
 		read_unlock(&vcpu->kvm->mmu_lock);
 	else
 		write_unlock(&vcpu->kvm->mmu_lock);

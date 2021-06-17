@@ -86,12 +86,10 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
 static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return kvm->arch.tdp_mmu_enabled; }
 static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return sp->tdp_mmu_page; }
 
-static inline bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
+static inline bool is_tdp_mmu_root(hpa_t hpa)
 {
 	struct kvm_mmu_page *sp;
 
-	if (!is_tdp_mmu_enabled(kvm))
-		return false;
 	if (WARN_ON(!VALID_PAGE(hpa)))
 		return false;
 
