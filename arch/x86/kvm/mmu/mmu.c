@@ -2859,9 +2859,6 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	gfn_t base_gfn = gfn;
 
-	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
-		return RET_PF_RETRY;
-
 	level = kvm_mmu_hugepage_adjust(vcpu, gfn, max_level, &pfn,
 					huge_page_disallowed, &req_level);
 
@@ -3602,11 +3599,6 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	struct rsvd_bits_validate *rsvd_check;
 	int root, leaf, level;
 	bool reserved = false;
-
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa)) {
-		*sptep = 0ull;
-		return reserved;
-	}
 
 	if (is_tdp_mmu(vcpu->arch.mmu))
 		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, &root);
