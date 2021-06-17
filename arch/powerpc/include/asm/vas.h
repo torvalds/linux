@@ -5,6 +5,9 @@
 
 #ifndef _ASM_POWERPC_VAS_H
 #define _ASM_POWERPC_VAS_H
+#include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
+#include <asm/icswx.h>
 #include <uapi/asm/vas-api.h>
 
 struct vas_window;
@@ -50,6 +53,17 @@ enum vas_cop_type {
 };
 
 /*
+ * User space VAS windows are opened by tasks and take references
+ * to pid and mm until windows are closed.
+ * Stores pid, mm, and tgid for each window.
+ */
+struct vas_user_win_ref {
+	struct pid *pid;	/* PID of owner */
+	struct pid *tgid;	/* Thread group ID of owner */
+	struct mm_struct *mm;	/* Linux process mm_struct */
+};
+
+/*
  * User space window operations used for powernv and powerVM
  */
 struct vas_user_win_ops {
@@ -58,6 +72,31 @@ struct vas_user_win_ops {
 	u64 (*paste_addr)(struct vas_window *);
 	int (*close_win)(struct vas_window *);
 };
+
+static inline void put_vas_user_win_ref(struct vas_user_win_ref *ref)
+{
+	/* Drop references to pid, tgid, and mm */
+	put_pid(ref->pid);
+	put_pid(ref->tgid);
+	if (ref->mm)
+		mmdrop(ref->mm);
+}
+
+static inline void vas_user_win_add_mm_context(struct vas_user_win_ref *ref)
+{
+	mm_context_add_vas_window(ref->mm);
+	/*
+	 * Even a process that has no foreign real address mapping can
+	 * use an unpaired COPY instruction (to no real effect). Issue
+	 * CP_ABORT to clear any pending COPY and prevent a covert
+	 * channel.
+	 *
+	 * __switch_to() will issue CP_ABORT on future context switches
+	 * if process / thread has any open VAS window (Use
+	 * current->mm->context.vas_windows).
+	 */
+	asm volatile(PPC_CP_ABORT);
+}
 
 /*
  * Receive window attributes specified by the (in-kernel) owner of window.
@@ -190,4 +229,5 @@ int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
 			    const struct vas_user_win_ops *vops);
 void vas_unregister_coproc_api(void);
 
+int get_vas_user_win_ref(struct vas_user_win_ref *task_ref);
 #endif /* __ASM_POWERPC_VAS_H */
