@@ -136,7 +136,6 @@ i915-y += $(gt-y)
 gem-y += \
 	gem/i915_gem_busy.o \
 	gem/i915_gem_clflush.o \
-	gem/i915_gem_client_blt.o \
 	gem/i915_gem_context.o \
 	gem/i915_gem_create.o \
 	gem/i915_gem_dmabuf.o \
@@ -281,6 +280,7 @@ i915-y += i915_perf.o
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
+	gem/selftests/i915_gem_client_blt.o \
 	gem/selftests/igt_gem_utils.o \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
