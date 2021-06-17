@@ -400,6 +400,8 @@ struct mptcp_subflow_context {
 	u32	map_subflow_seq;
 	u32	ssn_offset;
 	u32	map_data_len;
+	__wsum	map_data_csum;
+	u32	map_csum_len;
 	u32	request_mptcp : 1,  /* send MP_CAPABLE */
 		request_join : 1,   /* send MP_JOIN */
 		request_bkup : 1,
@@ -409,6 +411,8 @@ struct mptcp_subflow_context {
 		pm_notified : 1,    /* PM hook called for established status */
 		conn_finished : 1,
 		map_valid : 1,
+		map_csum_reqd : 1,
+		map_data_fin : 1,
 		mpc_map : 1,
 		backup : 1,
 		send_mp_prio : 1,
