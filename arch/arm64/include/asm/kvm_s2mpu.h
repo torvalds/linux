@@ -57,9 +57,24 @@ enum s2mpu_version {
 };
 
 enum s2mpu_power_state {
-	S2MPU_POWER_ALWAYS_ON,
+	S2MPU_POWER_ALWAYS_ON = 0,
 	S2MPU_POWER_ON,
 	S2MPU_POWER_OFF,
 };
+
+struct s2mpu {
+	phys_addr_t pa;
+	void __iomem *va;
+	u32 version;
+	enum s2mpu_power_state power_state;
+	u32 power_domain_id;
+	u32 context_cfg_valid_vid;
+};
+
+extern size_t kvm_nvhe_sym(kvm_hyp_nr_s2mpus);
+#define kvm_hyp_nr_s2mpus kvm_nvhe_sym(kvm_hyp_nr_s2mpus)
+
+extern struct s2mpu *kvm_nvhe_sym(kvm_hyp_s2mpus);
+#define kvm_hyp_s2mpus kvm_nvhe_sym(kvm_hyp_s2mpus)
 
 #endif /* __ARM64_KVM_S2MPU_H__ */
