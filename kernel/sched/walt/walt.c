@@ -4211,11 +4211,13 @@ static void walt_init_tg_pointers(void)
 	rcu_read_unlock();
 }
 
-static void walt_init(void)
+static void walt_init(struct work_struct *work)
 {
 	struct ctl_table_header *hdr;
 	static atomic_t already_inited = ATOMIC_INIT(0);
 	int i;
+
+	might_sleep();
 
 	if (atomic_cmpxchg(&already_inited, 0, 1))
 		return;
@@ -4252,9 +4254,10 @@ static void walt_init(void)
 	}
 }
 
+static DECLARE_WORK(walt_init_work, walt_init);
 static void android_vh_update_topology_flags_workfn(void *unused, void *unused2)
 {
-	walt_init();
+	schedule_work(&walt_init_work);
 }
 
 #define WALT_VENDOR_DATA_SIZE_TEST(wstruct, kstruct)		\
@@ -4272,7 +4275,7 @@ static int walt_module_init(void)
 			android_vh_update_topology_flags_workfn, NULL);
 
 	if (topology_update_done)
-		walt_init();
+		schedule_work(&walt_init_work);
 
 	return 0;
 }
