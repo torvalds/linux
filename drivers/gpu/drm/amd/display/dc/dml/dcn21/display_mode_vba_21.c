@@ -2267,7 +2267,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					&locals->UrgentBurstFactorLumaPre[k],
 					&locals->UrgentBurstFactorChroma[k],
 					&locals->UrgentBurstFactorChromaPre[k],
-					&locals->NotEnoughUrgentLatencyHiding,
+					&locals->NotEnoughUrgentLatencyHiding[0][0],
 					&locals->NotEnoughUrgentLatencyHidingPre);
 
 			if (mode_lib->vba.UseUrgentBurstBandwidth == false) {
@@ -2300,7 +2300,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		}
 		mode_lib->vba.FractionOfUrgentBandwidth = MaxTotalRDBandwidthNoUrgentBurst / mode_lib->vba.ReturnBW;
 
-		if (MaxTotalRDBandwidth <= mode_lib->vba.ReturnBW && locals->NotEnoughUrgentLatencyHiding == 0 && locals->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
+		if (MaxTotalRDBandwidth <= mode_lib->vba.ReturnBW && locals->NotEnoughUrgentLatencyHiding[0][0] == 0 &&
+				locals->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
 				&& !DestinationLineTimesForPrefetchLessThan2)
 			mode_lib->vba.PrefetchModeSupported = true;
 		else {
@@ -4821,7 +4822,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							&locals->UrgentBurstFactorLumaPre[k],
 							&locals->UrgentBurstFactorChroma[k],
 							&locals->UrgentBurstFactorChromaPre[k],
-							&locals->NotEnoughUrgentLatencyHiding,
+							&locals->NotEnoughUrgentLatencyHiding[0][0],
 							&locals->NotEnoughUrgentLatencyHidingPre);
 
 					if (mode_lib->vba.UseUrgentBurstBandwidth == false) {
@@ -4848,13 +4849,13 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 				locals->BandwidthWithoutPrefetchSupported[i][0] = true;
 				if (mode_lib->vba.MaximumReadBandwidthWithoutPrefetch > locals->ReturnBWPerState[i][0]
-						|| locals->NotEnoughUrgentLatencyHiding == 1) {
+						|| locals->NotEnoughUrgentLatencyHiding[0][0] == 1) {
 					locals->BandwidthWithoutPrefetchSupported[i][0] = false;
 				}
 
 				locals->PrefetchSupported[i][j] = true;
 				if (mode_lib->vba.MaximumReadBandwidthWithPrefetch > locals->ReturnBWPerState[i][0]
-						|| locals->NotEnoughUrgentLatencyHiding == 1
+						|| locals->NotEnoughUrgentLatencyHiding[0][0] == 1
 						|| locals->NotEnoughUrgentLatencyHidingPre == 1) {
 					locals->PrefetchSupported[i][j] = false;
 				}

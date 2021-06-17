@@ -2596,7 +2596,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			}
 		}
 
-		v->NotEnoughUrgentLatencyHiding = false;
+		v->NotEnoughUrgentLatencyHiding[0][0] = false;
 		v->NotEnoughUrgentLatencyHidingPre = false;
 
 		for (k = 0; k < v->NumberOfActivePlanes; ++k) {
@@ -2681,7 +2681,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			if (v->VRatioPrefetchY[k] > 4 || v->VRatioPrefetchC[k] > 4)
 				VRatioPrefetchMoreThan4 = true;
 			if (v->NoUrgentLatencyHiding[k] == true)
-				v->NotEnoughUrgentLatencyHiding = true;
+				v->NotEnoughUrgentLatencyHiding[0][0] = true;
 
 			if (v->NoUrgentLatencyHidingPre[k] == true)
 				v->NotEnoughUrgentLatencyHidingPre = true;
@@ -2689,7 +2689,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		v->FractionOfUrgentBandwidth = MaxTotalRDBandwidthNoUrgentBurst / v->ReturnBW;
 
 
-		if (MaxTotalRDBandwidth <= v->ReturnBW && v->NotEnoughUrgentLatencyHiding == 0 && v->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
+		if (MaxTotalRDBandwidth <= v->ReturnBW && v->NotEnoughUrgentLatencyHiding[0][0] == 0
+				&& v->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
 				&& !DestinationLineTimesForPrefetchLessThan2)
 			v->PrefetchModeSupported = true;
 		else {
@@ -2794,8 +2795,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		}
 
 		v->VStartupLines = v->VStartupLines + 1;
-		v->PrefetchAndImmediateFlipSupported = (v->PrefetchModeSupported == true && ((!v->ImmediateFlipSupport && !v->HostVMEnable && v->ImmediateFlipRequirement != dm_immediate_flip_required) || v->ImmediateFlipSupported)) ? true : false;
-
+		v->PrefetchModeSupported = (v->PrefetchModeSupported == true && ((!v->ImmediateFlipSupport &&
+				!v->HostVMEnable && v->ImmediateFlipRequirement[0] != dm_immediate_flip_required) ||
+				v->ImmediateFlipSupported)) ? true : false;
 	} while (!v->PrefetchModeSupported && v->VStartupLines <= v->MaximumMaxVStartupLines);
 	ASSERT(v->PrefetchModeSupported);
 
@@ -4753,7 +4755,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				v->HostVMMinPageSize,
 				v->HostVMMaxNonCachedPageTableLevels,
 				v->DynamicMetadataVMEnabled,
-				v->ImmediateFlipRequirement,
+				v->ImmediateFlipRequirement[0],
 				v->ProgressiveToInterlaceUnitInOPP,
 				v->MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation,
 				v->PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
@@ -5164,7 +5166,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					v->NextMaxVStartup = v->NextMaxVStartup - 1;
 				}
 			} while (!((v->PrefetchSupported[i][j] == true && v->DynamicMetadataSupported[i][j] == true && v->VRatioInPrefetchSupported[i][j] == true
-					&& ((v->HostVMEnable == false && v->ImmediateFlipRequirement != dm_immediate_flip_required)
+					&& ((v->HostVMEnable == false && v->ImmediateFlipRequirement[0] != dm_immediate_flip_required)
 							|| v->ImmediateFlipSupportedForState[i][j] == true))
 					|| (v->NextMaxVStartup == v->MaxMaxVStartup[i][j] && NextPrefetchModeState > MaxPrefetchMode)));
 
@@ -5305,7 +5307,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					&& ViewportExceedsSurface == 0 && v->PrefetchSupported[i][j] == 1 && v->DynamicMetadataSupported[i][j] == 1
 					&& v->TotalVerticalActiveBandwidthSupport[i][j] == 1 && v->VRatioInPrefetchSupported[i][j] == 1
 					&& v->PTEBufferSizeNotExceeded[i][j] == 1 && v->NonsupportedDSCInputBPC == 0
-					&& ((v->HostVMEnable == 0 && v->ImmediateFlipRequirement != dm_immediate_flip_required)
+					&& ((v->HostVMEnable == 0 && v->ImmediateFlipRequirement[0] != dm_immediate_flip_required)
 							|| v->ImmediateFlipSupportedForState[i][j] == true)) {
 				v->ModeSupport[i][j] = true;
 			} else {
