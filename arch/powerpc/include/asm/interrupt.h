@@ -146,8 +146,13 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		 * CT_WARN_ON comes here via program_check_exception,
 		 * so avoid recursion.
 		 */
-		if (TRAP(regs) != INTERRUPT_PROGRAM)
+		if (TRAP(regs) != INTERRUPT_PROGRAM) {
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+			BUG_ON(regs->nip < (unsigned long)__end_soft_masked);
+		}
+		/* Move this under a debugging check */
+		if (arch_irq_disabled_regs(regs))
+			BUG_ON(search_kernel_restart_table(regs->nip));
 	}
 #endif
 
@@ -238,8 +243,8 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !(regs->msr & MSR_PR) &&
-				regs->nip < (unsigned long)__end_interrupts) {
-		// Kernel code running below __end_interrupts is
+				regs->nip < (unsigned long)__end_soft_masked) {
+		// Kernel code running below __end_soft_masked is
 		// implicitly soft-masked.
 		regs->softe = IRQS_ALL_DISABLED;
 	}

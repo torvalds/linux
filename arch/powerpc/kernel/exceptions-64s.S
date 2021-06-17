@@ -430,10 +430,13 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 		andi.	r10,r12,MSR_PR
 		bne	2f
 
-		/* Kernel code running below __end_interrupts is implicitly
-		 * soft-masked */
-		LOAD_HANDLER(r10, __end_interrupts)
+		/*
+		 * Kernel code running below __end_soft_masked is implicitly
+		 * soft-masked
+		 */
+		LOAD_HANDLER(r10, __end_soft_masked)
 		cmpld	r11,r10
+
 		li	r10,IMASK
 		blt-	1f
 
@@ -751,17 +754,17 @@ __start_interrupts:
  * scv instructions enter the kernel without changing EE, RI, ME, or HV.
  * In particular, this means we can take a maskable interrupt at any point
  * in the scv handler, which is unlike any other interrupt. This is solved
- * by treating the instruction addresses below __end_interrupts as being
+ * by treating the instruction addresses below __end_soft_masked as being
  * soft-masked.
  *
  * AIL-0 mode scv exceptions go to 0x17000-0x17fff, but we set AIL-3 and
  * ensure scv is never executed with relocation off, which means AIL-0
  * should never happen.
  *
- * Before leaving the below __end_interrupts text, at least of the following
- * must be true:
+ * Before leaving the following inside-__end_soft_masked text, at least of the
+ * following must be true:
  * - MSR[PR]=1 (i.e., return to userspace)
- * - MSR_EE|MSR_RI is set (no reentrant exceptions)
+ * - MSR_EE|MSR_RI is clear (no reentrant exceptions)
  * - Standard kernel environment is set up (stack, paca, etc)
  *
  * Call convention:
@@ -2957,7 +2960,7 @@ MASKED_INTERRUPT hsrr=1
 
 USE_FIXED_SECTION(virt_trampolines)
 	/*
-	 * All code below __end_interrupts is treated as soft-masked. If
+	 * All code below __end_soft_masked is treated as soft-masked. If
 	 * any code runs here with MSR[EE]=1, it must then cope with pending
 	 * soft interrupt being raised (i.e., by ensuring it is replayed).
 	 *

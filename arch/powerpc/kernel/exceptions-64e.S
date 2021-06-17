@@ -342,7 +342,17 @@ ret_from_mc_except:
 #define PROLOG_ADDITION_MASKABLE_GEN(n)					    \
 	lbz	r10,PACAIRQSOFTMASK(r13);	/* are irqs soft-masked? */ \
 	andi.	r10,r10,IRQS_DISABLED;	/* yes -> go out of line */ \
-	bne	masked_interrupt_book3e_##n
+	bne	masked_interrupt_book3e_##n;				    \
+	/* Kernel code below __end_soft_masked is implicitly masked */	    \
+	andi.	r10,r11,MSR_PR;						    \
+	bne	1f;			/* user -> not masked */	    \
+	std	r14,PACA_EXGEN+EX_R14(r13);				    \
+	LOAD_REG_IMMEDIATE_SYM(r14, r10, __end_soft_masked);		    \
+	mfspr	r10,SPRN_SRR0;						    \
+	cmpld	r10,r14;						    \
+	ld	r14,PACA_EXGEN+EX_R14(r13);				    \
+	blt	masked_interrupt_book3e_##n;				    \
+1:
 
 /*
  * Additional regs must be re-loaded from paca before EXCEPTION_COMMON* is
