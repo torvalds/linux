@@ -6092,8 +6092,8 @@ static void io_clean_op(struct io_kiocb *req)
 		case IORING_OP_WRITE_FIXED:
 		case IORING_OP_WRITE: {
 			struct io_async_rw *io = req->async_data;
-			if (io->free_iovec)
-				kfree(io->free_iovec);
+
+			kfree(io->free_iovec);
 			break;
 			}
 		case IORING_OP_RECVMSG:
