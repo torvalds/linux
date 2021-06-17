@@ -41,6 +41,7 @@ static const char *const code_names[CP_CODES] = {
 	"0", "ConfReq", "ConfAck", "ConfNak", "ConfRej", "TermReq",
 	"TermAck", "CodeRej", "ProtoRej", "EchoReq", "EchoReply", "Discard"
 };
+
 static char debug_buffer[64 + 3 * DEBUG_CP];
 #endif
 
@@ -90,6 +91,7 @@ static const char *const state_names[STATES] = {
 	"Closed", "Stopped", "Stopping", "ReqSent", "AckRecv", "AckSent",
 	"Opened"
 };
+
 static const char *const event_names[EVENTS] = {
 	"Start", "Stop", "TO+", "TO-", "RCR+", "RCR-", "RCA", "RCN",
 	"RTR", "RTA", "RUC", "RXJ+", "RXJ-"
@@ -194,6 +196,7 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 static void ppp_tx_flush(void)
 {
 	struct sk_buff *skb;
+
 	while ((skb = skb_dequeue(&tx_queue)) != NULL)
 		dev_queue_xmit(skb);
 }
@@ -616,6 +619,7 @@ static void ppp_start(struct net_device *dev)
 
 	for (i = 0; i < IDX_COUNT; i++) {
 		struct proto *proto = &ppp->protos[i];
+
 		proto->dev = dev;
 		timer_setup(&proto->timer, ppp_timer, 0);
 		proto->state = CLOSED;
