@@ -129,6 +129,82 @@ err_free_src:
 	return err;
 }
 
+static int clear(struct intel_migrate *migrate,
+		 int (*fn)(struct intel_migrate *migrate,
+			   struct i915_gem_ww_ctx *ww,
+			   struct drm_i915_gem_object *obj,
+			   u32 value,
+			   struct i915_request **out),
+		 u32 sz, struct rnd_state *prng)
+{
+	struct drm_i915_private *i915 = migrate->context->engine->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_request *rq;
+	struct i915_gem_ww_ctx ww;
+	u32 *vaddr;
+	int err = 0;
+	int i;
+
+	obj = create_lmem_or_internal(i915, sz);
+	if (IS_ERR(obj))
+		return 0;
+
+	for_i915_gem_ww(&ww, err, true) {
+		err = i915_gem_object_lock(obj, &ww);
+		if (err)
+			continue;
+
+		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+		if (IS_ERR(vaddr)) {
+			err = PTR_ERR(vaddr);
+			continue;
+		}
+
+		for (i = 0; i < sz / sizeof(u32); i++)
+			vaddr[i] = ~i;
+		i915_gem_object_flush_map(obj);
+
+		err = fn(migrate, &ww, obj, sz, &rq);
+		if (!err)
+			continue;
+
+		if (err != -EDEADLK && err != -EINTR && err != -ERESTARTSYS)
+			pr_err("%ps failed, size: %u\n", fn, sz);
+		if (rq) {
+			i915_request_wait(rq, 0, HZ);
+			i915_request_put(rq);
+		}
+		i915_gem_object_unpin_map(obj);
+	}
+	if (err)
+		goto err_out;
+
+	if (rq) {
+		if (i915_request_wait(rq, 0, HZ) < 0) {
+			pr_err("%ps timed out, size: %u\n", fn, sz);
+			err = -ETIME;
+		}
+		i915_request_put(rq);
+	}
+
+	for (i = 0; !err && i < sz / PAGE_SIZE; i++) {
+		int x = i * 1024 + i915_prandom_u32_max_state(1024, prng);
+
+		if (vaddr[x] != sz) {
+			pr_err("%ps failed, size: %u, offset: %zu\n",
+			       fn, sz, x * sizeof(u32));
+			igt_hexdump(vaddr + i * 1024, 4096);
+			err = -EINVAL;
+		}
+	}
+
+	i915_gem_object_unpin_map(obj);
+err_out:
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
 static int __migrate_copy(struct intel_migrate *migrate,
 			  struct i915_gem_ww_ctx *ww,
 			  struct drm_i915_gem_object *src,
@@ -169,6 +245,44 @@ global_copy(struct intel_migrate *migrate, u32 sz, struct rnd_state *prng)
 	return copy(migrate, __global_copy, sz, prng);
 }
 
+static int __migrate_clear(struct intel_migrate *migrate,
+			   struct i915_gem_ww_ctx *ww,
+			   struct drm_i915_gem_object *obj,
+			   u32 value,
+			   struct i915_request **out)
+{
+	return intel_migrate_clear(migrate, ww, NULL,
+				   obj->mm.pages->sgl,
+				   obj->cache_level,
+				   i915_gem_object_is_lmem(obj),
+				   value, out);
+}
+
+static int __global_clear(struct intel_migrate *migrate,
+			  struct i915_gem_ww_ctx *ww,
+			  struct drm_i915_gem_object *obj,
+			  u32 value,
+			  struct i915_request **out)
+{
+	return intel_context_migrate_clear(migrate->context, NULL,
+					   obj->mm.pages->sgl,
+					   obj->cache_level,
+					   i915_gem_object_is_lmem(obj),
+					   value, out);
+}
+
+static int
+migrate_clear(struct intel_migrate *migrate, u32 sz, struct rnd_state *prng)
+{
+	return clear(migrate, __migrate_clear, sz, prng);
+}
+
+static int
+global_clear(struct intel_migrate *migrate, u32 sz, struct rnd_state *prng)
+{
+	return clear(migrate, __global_clear, sz, prng);
+}
+
 static int live_migrate_copy(void *arg)
 {
 	struct intel_migrate *migrate = arg;
@@ -182,6 +296,28 @@ static int live_migrate_copy(void *arg)
 		err = migrate_copy(migrate, sizes[i], &prng);
 		if (err == 0)
 			err = global_copy(migrate, sizes[i], &prng);
+		i915_gem_drain_freed_objects(i915);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int live_migrate_clear(void *arg)
+{
+	struct intel_migrate *migrate = arg;
+	struct drm_i915_private *i915 = migrate->context->engine->i915;
+	I915_RND_STATE(prng);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+		int err;
+
+		err = migrate_clear(migrate, sizes[i], &prng);
+		if (err == 0)
+			err = global_clear(migrate, sizes[i], &prng);
+
 		i915_gem_drain_freed_objects(i915);
 		if (err)
 			return err;
@@ -271,12 +407,39 @@ static int thread_global_copy(void *arg)
 	return threaded_migrate(arg, __thread_global_copy, 0);
 }
 
+static int __thread_migrate_clear(void *arg)
+{
+	struct threaded_migrate *tm = arg;
+
+	return migrate_clear(tm->migrate, 2 * CHUNK_SZ, &tm->prng);
+}
+
+static int __thread_global_clear(void *arg)
+{
+	struct threaded_migrate *tm = arg;
+
+	return global_clear(tm->migrate, 2 * CHUNK_SZ, &tm->prng);
+}
+
+static int thread_migrate_clear(void *arg)
+{
+	return threaded_migrate(arg, __thread_migrate_clear, 0);
+}
+
+static int thread_global_clear(void *arg)
+{
+	return threaded_migrate(arg, __thread_global_clear, 0);
+}
+
 int intel_migrate_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_migrate_copy),
+		SUBTEST(live_migrate_clear),
 		SUBTEST(thread_migrate_copy),
+		SUBTEST(thread_migrate_clear),
 		SUBTEST(thread_global_copy),
+		SUBTEST(thread_global_clear),
 	};
 	struct intel_migrate m;
 	int err;

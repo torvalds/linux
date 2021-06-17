@@ -488,6 +488,114 @@ out_ce:
 	return err;
 }
 
+static int emit_clear(struct i915_request *rq, int size, u32 value)
+{
+	const int gen = INTEL_GEN(rq->engine->i915);
+	u32 instance = rq->engine->instance;
+	u32 *cs;
+
+	GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
+
+	cs = intel_ring_begin(rq, gen >= 8 ? 8 : 6);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	if (gen >= 8) {
+		*cs++ = XY_COLOR_BLT_CMD | BLT_WRITE_RGBA | (7 - 2);
+		*cs++ = BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | PAGE_SIZE;
+		*cs++ = 0;
+		*cs++ = size >> PAGE_SHIFT << 16 | PAGE_SIZE / 4;
+		*cs++ = 0; /* offset */
+		*cs++ = instance;
+		*cs++ = value;
+		*cs++ = MI_NOOP;
+	} else {
+		GEM_BUG_ON(instance);
+		*cs++ = XY_COLOR_BLT_CMD | BLT_WRITE_RGBA | (6 - 2);
+		*cs++ = BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | PAGE_SIZE;
+		*cs++ = 0;
+		*cs++ = size >> PAGE_SHIFT << 16 | PAGE_SIZE / 4;
+		*cs++ = 0;
+		*cs++ = value;
+	}
+
+	intel_ring_advance(rq, cs);
+	return 0;
+}
+
+int
+intel_context_migrate_clear(struct intel_context *ce,
+			    struct dma_fence *await,
+			    struct scatterlist *sg,
+			    enum i915_cache_level cache_level,
+			    bool is_lmem,
+			    u32 value,
+			    struct i915_request **out)
+{
+	struct sgt_dma it = sg_sgt(sg);
+	struct i915_request *rq;
+	int err;
+
+	*out = NULL;
+
+	GEM_BUG_ON(ce->ring->size < SZ_64K);
+
+	do {
+		int len;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out_ce;
+		}
+
+		if (await) {
+			err = i915_request_await_dma_fence(rq, await);
+			if (err)
+				goto out_rq;
+
+			if (rq->engine->emit_init_breadcrumb) {
+				err = rq->engine->emit_init_breadcrumb(rq);
+				if (err)
+					goto out_rq;
+			}
+
+			await = NULL;
+		}
+
+		/* The PTE updates + clear must not be interrupted. */
+		err = emit_no_arbitration(rq);
+		if (err)
+			goto out_rq;
+
+		len = emit_pte(rq, &it, cache_level, is_lmem, 0, CHUNK_SZ);
+		if (len <= 0) {
+			err = len;
+			goto out_rq;
+		}
+
+		err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+		if (err)
+			goto out_rq;
+
+		err = emit_clear(rq, len, value);
+
+		/* Arbitration is re-enabled between requests. */
+out_rq:
+		if (*out)
+			i915_request_put(*out);
+		*out = i915_request_get(rq);
+		i915_request_add(rq);
+		if (err || !it.sg || !sg_dma_len(it.sg))
+			break;
+
+		cond_resched();
+	} while (1);
+
+out_ce:
+	return err;
+}
+
 int intel_migrate_copy(struct intel_migrate *m,
 		       struct i915_gem_ww_ctx *ww,
 		       struct dma_fence *await,
@@ -519,6 +627,41 @@ int intel_migrate_copy(struct intel_migrate *m,
 					 src, src_cache_level, src_is_lmem,
 					 dst, dst_cache_level, dst_is_lmem,
 					 out);
+
+	intel_context_unpin(ce);
+out:
+	intel_context_put(ce);
+	return err;
+}
+
+int
+intel_migrate_clear(struct intel_migrate *m,
+		    struct i915_gem_ww_ctx *ww,
+		    struct dma_fence *await,
+		    struct scatterlist *sg,
+		    enum i915_cache_level cache_level,
+		    bool is_lmem,
+		    u32 value,
+		    struct i915_request **out)
+{
+	struct intel_context *ce;
+	int err;
+
+	*out = NULL;
+	if (!m->context)
+		return -ENODEV;
+
+	ce = intel_migrate_create_context(m);
+	if (IS_ERR(ce))
+		ce = intel_context_get(m->context);
+	GEM_BUG_ON(IS_ERR(ce));
+
+	err = intel_context_pin_ww(ce, ww);
+	if (err)
+		goto out;
+
+	err = intel_context_migrate_clear(ce, await, sg, cache_level,
+					  is_lmem, value, out);
 
 	intel_context_unpin(ce);
 out:
