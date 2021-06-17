@@ -162,8 +162,8 @@ extern unsigned long vectors_base;
  * Physical start and end address of the kernel sections. These addresses are
  * 2MB-aligned to match the section mappings placed over the kernel.
  */
-extern phys_addr_t kernel_sec_start;
-extern phys_addr_t kernel_sec_end;
+extern u32 kernel_sec_start;
+extern u32 kernel_sec_end;
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
