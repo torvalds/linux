@@ -3531,3 +3531,72 @@ void kmsg_dump_rewind(struct kmsg_dump_iter *iter)
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 
 #endif
+
+#ifdef CONFIG_SMP
+static atomic_t printk_cpulock_owner = ATOMIC_INIT(-1);
+static atomic_t printk_cpulock_nested = ATOMIC_INIT(0);
+
+/**
+ * __printk_wait_on_cpu_lock() - Busy wait until the printk cpu-reentrant
+ *                               spinning lock is not owned by any CPU.
+ *
+ * Context: Any context.
+ */
+void __printk_wait_on_cpu_lock(void)
+{
+	do {
+		cpu_relax();
+	} while (atomic_read(&printk_cpulock_owner) != -1);
+}
+EXPORT_SYMBOL(__printk_wait_on_cpu_lock);
+
+/**
+ * __printk_cpu_trylock() - Try to acquire the printk cpu-reentrant
+ *                          spinning lock.
+ *
+ * If no processor has the lock, the calling processor takes the lock and
+ * becomes the owner. If the calling processor is already the owner of the
+ * lock, this function succeeds immediately.
+ *
+ * Context: Any context. Expects interrupts to be disabled.
+ * Return: 1 on success, otherwise 0.
+ */
+int __printk_cpu_trylock(void)
+{
+	int cpu;
+	int old;
+
+	cpu = smp_processor_id();
+
+	old = atomic_cmpxchg(&printk_cpulock_owner, -1, cpu);
+	if (old == -1) {
+		/* This CPU is now the owner. */
+		return 1;
+	} else if (old == cpu) {
+		/* This CPU is already the owner. */
+		atomic_inc(&printk_cpulock_nested);
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__printk_cpu_trylock);
+
+/**
+ * __printk_cpu_unlock() - Release the printk cpu-reentrant spinning lock.
+ *
+ * The calling processor must be the owner of the lock.
+ *
+ * Context: Any context. Expects interrupts to be disabled.
+ */
+void __printk_cpu_unlock(void)
+{
+	if (atomic_read(&printk_cpulock_nested)) {
+		atomic_dec(&printk_cpulock_nested);
+		return;
+	}
+
+	atomic_set(&printk_cpulock_owner, -1);
+}
+EXPORT_SYMBOL(__printk_cpu_unlock);
+#endif /* CONFIG_SMP */
