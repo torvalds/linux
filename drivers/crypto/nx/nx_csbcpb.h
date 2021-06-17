@@ -140,8 +140,8 @@ struct cop_status_block {
 	u8 crb_seq_number;
 	u8 completion_code;
 	u8 completion_extension;
-	u32 processed_byte_count;
-	u64 address;
+	__be32 processed_byte_count;
+	__be64 address;
 } __packed;
 
 /* Nest accelerator workbook section 4.4 */
