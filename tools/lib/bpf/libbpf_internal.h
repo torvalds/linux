@@ -11,6 +11,9 @@
 
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
+#include <linux/err.h>
+#include "libbpf_legacy.h"
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
@@ -27,6 +30,12 @@
 
 #ifndef R_BPF_64_64
 #define R_BPF_64_64 1
+#endif
+#ifndef R_BPF_64_ABS64
+#define R_BPF_64_ABS64 2
+#endif
+#ifndef R_BPF_64_ABS32
+#define R_BPF_64_ABS32 3
 #endif
 #ifndef R_BPF_64_32
 #define R_BPF_64_32 10
@@ -434,5 +443,55 @@ int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ct
 int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
+
+extern enum libbpf_strict_mode libbpf_mode;
+
+/* handle direct returned errors */
+static inline int libbpf_err(int ret)
+{
+	if (ret < 0)
+		errno = -ret;
+	return ret;
+}
+
+/* handle errno-based (e.g., syscall or libc) errors according to libbpf's
+ * strict mode settings
+ */
+static inline int libbpf_err_errno(int ret)
+{
+	if (libbpf_mode & LIBBPF_STRICT_DIRECT_ERRS)
+		/* errno is already assumed to be set on error */
+		return ret < 0 ? -errno : ret;
+
+	/* legacy: on error return -1 directly and don't touch errno */
+	return ret;
+}
+
+/* handle error for pointer-returning APIs, err is assumed to be < 0 always */
+static inline void *libbpf_err_ptr(int err)
+{
+	/* set errno on error, this doesn't break anything */
+	errno = -err;
+
+	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
+		return NULL;
+
+	/* legacy: encode err as ptr */
+	return ERR_PTR(err);
+}
+
+/* handle pointer-returning APIs' error handling */
+static inline void *libbpf_ptr(void *ret)
+{
+	/* set errno on error, this doesn't break anything */
+	if (IS_ERR(ret))
+		errno = -PTR_ERR(ret);
+
+	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
+		return IS_ERR(ret) ? NULL : ret;
+
+	/* legacy: pass-through original pointer */
+	return ret;
+}
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

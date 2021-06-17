@@ -84,6 +84,7 @@ Other
    :maxdepth: 1
 
    ringbuf
+   llvm_reloc
 
 .. Links:
 .. _networking-filter: ../networking/filter.rst

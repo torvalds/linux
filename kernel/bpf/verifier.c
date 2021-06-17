@@ -47,7 +47,7 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
  * - unreachable insns exist (shouldn't be a forest. program = one function)
  * - out of bounds or malformed jumps
  * The second pass is all possible path descent from the 1st insn.
- * Since it's analyzing all pathes through the program, the length of the
+ * Since it's analyzing all paths through the program, the length of the
  * analysis is limited to 64k insn, which may be hit even if total number of
  * insn is less then 4K, but there are too many branches that change stack/regs.
  * Number of 'branches to be analyzed' is limited to 1k
@@ -132,7 +132,7 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
  * If it's ok, then verifier allows this BPF_CALL insn and looks at
  * .ret_type which is RET_PTR_TO_MAP_VALUE_OR_NULL, so it sets
  * R0->type = PTR_TO_MAP_VALUE_OR_NULL which means bpf_map_lookup_elem() function
- * returns ether pointer to map value or NULL.
+ * returns either pointer to map value or NULL.
  *
  * When type PTR_TO_MAP_VALUE_OR_NULL passes through 'if (reg != 0) goto +off'
  * insn, the register holding that pointer in the true branch changes state to
@@ -2616,7 +2616,7 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 		if (dst_reg != BPF_REG_FP) {
 			/* The backtracking logic can only recognize explicit
 			 * stack slot address like [fp - 8]. Other spill of
-			 * scalar via different register has to be conervative.
+			 * scalar via different register has to be conservative.
 			 * Backtrack from here and mark all registers as precise
 			 * that contributed into 'reg' being a constant.
 			 */
@@ -9059,7 +9059,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 	    !prog->aux->attach_func_proto->type)
 		return 0;
 
-	/* eBPF calling convetion is such that R0 is used
+	/* eBPF calling convention is such that R0 is used
 	 * to return the value from eBPF program.
 	 * Make sure that it's readable at this time
 	 * of bpf_exit, which means that program wrote
@@ -9850,7 +9850,7 @@ static void clean_verifier_state(struct bpf_verifier_env *env,
  * Since the verifier pushes the branch states as it sees them while exploring
  * the program the condition of walking the branch instruction for the second
  * time means that all states below this branch were already explored and
- * their final liveness markes are already propagated.
+ * their final liveness marks are already propagated.
  * Hence when the verifier completes the search of state list in is_state_visited()
  * we can call this clean_live_states() function to mark all liveness states
  * as REG_LIVE_DONE to indicate that 'parent' pointers of 'struct bpf_reg_state'
@@ -12470,7 +12470,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			prog->aux->max_pkt_offset = MAX_PACKET_OFF;
 
 			/* mark bpf_tail_call as different opcode to avoid
-			 * conditional branch in the interpeter for every normal
+			 * conditional branch in the interpreter for every normal
 			 * call and to prevent accidental JITing by JIT compiler
 			 * that doesn't support bpf_tail_call yet
 			 */

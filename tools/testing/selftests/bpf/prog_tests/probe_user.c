@@ -15,7 +15,7 @@ void test_probe_user(void)
 	static const int zero = 0;
 
 	obj = bpf_object__open_file(obj_file, &opts);
-	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
 	kprobe_prog = bpf_object__find_program_by_title(obj, prog_name);
@@ -33,11 +33,8 @@ void test_probe_user(void)
 		goto cleanup;
 
 	kprobe_link = bpf_program__attach(kprobe_prog);
-	if (CHECK(IS_ERR(kprobe_link), "attach_kprobe",
-		  "err %ld\n", PTR_ERR(kprobe_link))) {
-		kprobe_link = NULL;
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe"))
 		goto cleanup;
-	}
 
 	memset(&curr, 0, sizeof(curr));
 	in->sin_family = AF_INET;

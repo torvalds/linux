@@ -353,8 +353,7 @@ static void fastopen_estab(void)
 		return;
 
 	link = bpf_program__attach_cgroup(skel->progs.estab, cg_fd);
-	if (CHECK(IS_ERR(link), "attach_cgroup(estab)", "err: %ld\n",
-		  PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_cgroup(estab)"))
 		return;
 
 	if (sk_fds_connect(&sk_fds, true)) {
@@ -398,8 +397,7 @@ static void syncookie_estab(void)
 		return;
 
 	link = bpf_program__attach_cgroup(skel->progs.estab, cg_fd);
-	if (CHECK(IS_ERR(link), "attach_cgroup(estab)", "err: %ld\n",
-		  PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_cgroup(estab)"))
 		return;
 
 	if (sk_fds_connect(&sk_fds, false)) {
@@ -431,8 +429,7 @@ static void fin(void)
 		return;
 
 	link = bpf_program__attach_cgroup(skel->progs.estab, cg_fd);
-	if (CHECK(IS_ERR(link), "attach_cgroup(estab)", "err: %ld\n",
-		  PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_cgroup(estab)"))
 		return;
 
 	if (sk_fds_connect(&sk_fds, false)) {
@@ -471,8 +468,7 @@ static void __simple_estab(bool exprm)
 		return;
 
 	link = bpf_program__attach_cgroup(skel->progs.estab, cg_fd);
-	if (CHECK(IS_ERR(link), "attach_cgroup(estab)", "err: %ld\n",
-		  PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_cgroup(estab)"))
 		return;
 
 	if (sk_fds_connect(&sk_fds, false)) {
@@ -509,8 +505,7 @@ static void misc(void)
 		return;
 
 	link = bpf_program__attach_cgroup(misc_skel->progs.misc_estab, cg_fd);
-	if (CHECK(IS_ERR(link), "attach_cgroup(misc_estab)", "err: %ld\n",
-		  PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_cgroup(misc_estab)"))
 		return;
 
 	if (sk_fds_connect(&sk_fds, false)) {

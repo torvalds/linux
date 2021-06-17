@@ -713,6 +713,7 @@ static int do_skeleton(int argc, char **argv)
 		#ifndef %2$s						    \n\
 		#define %2$s						    \n\
 									    \n\
+		#include <errno.h>					    \n\
 		#include <stdlib.h>					    \n\
 		#include <bpf/libbpf.h>					    \n\
 									    \n\
@@ -793,18 +794,23 @@ static int do_skeleton(int argc, char **argv)
 		%1$s__open_opts(const struct bpf_object_open_opts *opts)    \n\
 		{							    \n\
 			struct %1$s *obj;				    \n\
+			int err;					    \n\
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
-			if (!obj)					    \n\
+			if (!obj) {					    \n\
+				errno = ENOMEM;				    \n\
 				return NULL;				    \n\
-			if (%1$s__create_skeleton(obj))			    \n\
-				goto err;				    \n\
-			if (bpf_object__open_skeleton(obj->skeleton, opts)) \n\
-				goto err;				    \n\
+			}						    \n\
+									    \n\
+			err = %1$s__create_skeleton(obj);		    \n\
+			err = err ?: bpf_object__open_skeleton(obj->skeleton, opts);\n\
+			if (err)					    \n\
+				goto err_out;				    \n\
 									    \n\
 			return obj;					    \n\
-		err:							    \n\
+		err_out:						    \n\
 			%1$s__destroy(obj);				    \n\
+			errno = -err;					    \n\
 			return NULL;					    \n\
 		}							    \n\
 									    \n\
@@ -824,12 +830,15 @@ static int do_skeleton(int argc, char **argv)
 		%1$s__open_and_load(void)				    \n\
 		{							    \n\
 			struct %1$s *obj;				    \n\
+			int err;					    \n\
 									    \n\
 			obj = %1$s__open();				    \n\
 			if (!obj)					    \n\
 				return NULL;				    \n\
-			if (%1$s__load(obj)) {				    \n\
+			err = %1$s__load(obj);				    \n\
+			if (err) {					    \n\
 				%1$s__destroy(obj);			    \n\
+				errno = -err;				    \n\
 				return NULL;				    \n\
 			}						    \n\
 			return obj;					    \n\
@@ -860,7 +869,7 @@ static int do_skeleton(int argc, char **argv)
 									    \n\
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
 			if (!s)						    \n\
-				return -1;				    \n\
+				goto err;				    \n\
 			obj->skeleton = s;				    \n\
 									    \n\
 			s->sz = sizeof(*s);				    \n\
@@ -949,7 +958,7 @@ static int do_skeleton(int argc, char **argv)
 			return 0;					    \n\
 		err:							    \n\
 			bpf_object__destroy_skeleton(s);		    \n\
-			return -1;					    \n\
+			return -ENOMEM;					    \n\
 		}							    \n\
 									    \n\
 		#endif /* %s */						    \n\
