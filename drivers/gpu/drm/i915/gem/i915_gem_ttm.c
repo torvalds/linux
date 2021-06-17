@@ -15,6 +15,9 @@
 #include "gem/i915_gem_ttm.h"
 #include "gem/i915_gem_mman.h"
 
+#include "gt/intel_migrate.h"
+#include "gt/intel_engine_pm.h"
+
 #define I915_PL_LMEM0 TTM_PL_PRIV
 #define I915_PL_SYSTEM TTM_PL_SYSTEM
 #define I915_PL_STOLEN TTM_PL_VRAM
@@ -326,6 +329,62 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 	return intel_region_ttm_resource_to_st(obj->mm.region, res);
 }
 
+static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
+			       struct ttm_resource *dst_mem,
+			       struct sg_table *dst_st)
+{
+	struct drm_i915_private *i915 = container_of(bo->bdev, typeof(*i915),
+						     bdev);
+	struct ttm_resource_manager *src_man =
+		ttm_manager_type(bo->bdev, bo->resource->mem_type);
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	struct sg_table *src_st;
+	struct i915_request *rq;
+	int ret;
+
+	if (!i915->gt.migrate.context)
+		return -EINVAL;
+
+	if (!bo->ttm || !ttm_tt_is_populated(bo->ttm)) {
+		if (bo->type == ttm_bo_type_kernel)
+			return -EINVAL;
+
+		if (bo->ttm &&
+		    !(bo->ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC))
+			return 0;
+
+		intel_engine_pm_get(i915->gt.migrate.context->engine);
+		ret = intel_context_migrate_clear(i915->gt.migrate.context, NULL,
+						  dst_st->sgl, I915_CACHE_NONE,
+						  dst_mem->mem_type >= I915_PL_LMEM0,
+						  0, &rq);
+
+		if (!ret && rq) {
+			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
+			i915_request_put(rq);
+		}
+		intel_engine_pm_put(i915->gt.migrate.context->engine);
+	} else {
+		src_st = src_man->use_tt ? i915_ttm_tt_get_st(bo->ttm) :
+						obj->ttm.cached_io_st;
+
+		intel_engine_pm_get(i915->gt.migrate.context->engine);
+		ret = intel_context_migrate_copy(i915->gt.migrate.context,
+						 NULL, src_st->sgl, I915_CACHE_NONE,
+						 bo->resource->mem_type >= I915_PL_LMEM0,
+						 dst_st->sgl, I915_CACHE_NONE,
+						 dst_mem->mem_type >= I915_PL_LMEM0,
+						 &rq);
+		if (!ret && rq) {
+			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
+			i915_request_put(rq);
+		}
+		intel_engine_pm_put(i915->gt.migrate.context->engine);
+	}
+
+	return ret;
+}
+
 static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 			 struct ttm_operation_ctx *ctx,
 			 struct ttm_resource *dst_mem,
@@ -376,19 +435,22 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	if (IS_ERR(dst_st))
 		return PTR_ERR(dst_st);
 
-	/* If we start mapping GGTT, we can no longer use man::use_tt here. */
-	dst_iter = dst_man->use_tt ?
-		ttm_kmap_iter_tt_init(&_dst_iter.tt, bo->ttm) :
-		ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
-					 dst_st, dst_reg->region.start);
+	ret = i915_ttm_accel_move(bo, dst_mem, dst_st);
+	if (ret) {
+		/* If we start mapping GGTT, we can no longer use man::use_tt here. */
+		dst_iter = dst_man->use_tt ?
+			ttm_kmap_iter_tt_init(&_dst_iter.tt, bo->ttm) :
+			ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
+						 dst_st, dst_reg->region.start);
 
-	src_iter = src_man->use_tt ?
-		ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
-		ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
-					 obj->ttm.cached_io_st,
-					 src_reg->region.start);
+		src_iter = src_man->use_tt ?
+			ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
+			ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
+						 obj->ttm.cached_io_st,
+						 src_reg->region.start);
 
-	ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
+		ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
+	}
 	ttm_bo_move_sync_cleanup(bo, dst_mem);
 	i915_ttm_free_cached_io_st(obj);
 
