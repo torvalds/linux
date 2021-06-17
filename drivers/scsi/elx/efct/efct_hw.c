@@ -1044,8 +1044,8 @@ efct_hw_init(struct efct_hw *hw)
 	 */
 	hw->wq_reqtag_pool = efct_hw_reqtag_pool_alloc(hw);
 	if (!hw->wq_reqtag_pool) {
-		efc_log_err(hw->os, "efct_hw_reqtag_init failed %d\n", rc);
-		return rc;
+		efc_log_err(hw->os, "efct_hw_reqtag_pool_alloc failed\n");
+		return -ENOMEM;
 	}
 
 	rc = efct_hw_setup_io(hw);
