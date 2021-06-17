@@ -516,11 +516,6 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return ((__pmd_to_phys(pmd) & PMD_MASK) >> PAGE_SHIFT);
 }
 
-static inline pmd_t mk_pmd(struct page *page, pgprot_t prot)
-{
-	return pfn_pmd(page_to_pfn(page), prot);
-}
-
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
 	return pte_pmd(pte_modify(pmd_pte(pmd), newprot));

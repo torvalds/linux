@@ -79,6 +79,8 @@ static inline unsigned long _pmd_pfn(pmd_t pmd)
 	return pmd_val(pmd) >> _PAGE_PFN_SHIFT;
 }
 
+#define mk_pmd(page, prot)    pfn_pmd(page_to_pfn(page), prot)
+
 #define pmd_ERROR(e) \
 	pr_err("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
 
