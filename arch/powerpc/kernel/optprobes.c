@@ -106,7 +106,7 @@ static void optimized_callback(struct optimized_kprobe *op,
 		kprobes_inc_nmissed_count(&op->kp);
 	} else {
 		__this_cpu_write(current_kprobe, &op->kp);
-		regs->nip = (unsigned long)op->kp.addr;
+		regs_set_return_ip(regs, (unsigned long)op->kp.addr);
 		get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
 		opt_pre_handler(&op->kp, regs);
 		__this_cpu_write(current_kprobe, NULL);

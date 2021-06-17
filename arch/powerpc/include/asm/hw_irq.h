@@ -389,7 +389,15 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 	return !(regs->msr & MSR_EE);
 }
 
-static inline void may_hard_irq_enable(void) { }
+static inline bool may_hard_irq_enable(void)
+{
+	return false;
+}
+
+static inline void do_hard_irq_enable(void)
+{
+	BUILD_BUG();
+}
 
 static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned long val)
 {

@@ -64,6 +64,30 @@ exception_marker:
 	.section	".text"
 	.align 7
 
+.macro DEBUG_SRR_VALID srr
+#ifdef CONFIG_PPC_RFI_SRR_DEBUG
+	.ifc \srr,srr
+	mfspr	r11,SPRN_SRR0
+	ld	r12,_NIP(r1)
+100:	tdne	r11,r12
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
+	mfspr	r11,SPRN_SRR1
+	ld	r12,_MSR(r1)
+100:	tdne	r11,r12
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
+	.else
+	mfspr	r11,SPRN_HSRR0
+	ld	r12,_NIP(r1)
+100:	tdne	r11,r12
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
+	mfspr	r11,SPRN_HSRR1
+	ld	r12,_MSR(r1)
+100:	tdne	r11,r12
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
+	.endif
+#endif
+.endm
+
 #ifdef CONFIG_PPC_BOOK3S
 .macro system_call_vectored name trapnr
 	.globl system_call_vectored_\name
@@ -286,6 +310,11 @@ END_BTB_FLUSH_SECTION
 	ld	r11,exception_marker@toc(r2)
 	std	r11,-16(r10)		/* "regshere" marker */
 
+#ifdef CONFIG_PPC_BOOK3S
+	li	r11,1
+	stb	r11,PACASRR_VALID(r13)
+#endif
+
 	/*
 	 * We always enter kernel from userspace with irq soft-mask enabled and
 	 * nothing pending. system_call_exception() will call
@@ -306,17 +335,26 @@ END_BTB_FLUSH_SECTION
 	bl	syscall_exit_prepare
 
 	ld	r2,_CCR(r1)
+	ld	r6,_LINK(r1)
+	mtlr	r6
+
+#ifdef CONFIG_PPC_BOOK3S
+	lbz	r4,PACASRR_VALID(r13)
+	cmpdi	r4,0
+	bne	1f
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
+#endif
 	ld	r4,_NIP(r1)
 	ld	r5,_MSR(r1)
-	ld	r6,_LINK(r1)
+	mtspr	SPRN_SRR0,r4
+	mtspr	SPRN_SRR1,r5
+1:
+	DEBUG_SRR_VALID srr
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
-
-	mtspr	SPRN_SRR0,r4
-	mtspr	SPRN_SRR1,r5
-	mtlr	r6
 
 	cmpdi	r3,0
 	bne	.Lsyscall_restore_regs
@@ -673,19 +711,40 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 	kuap_user_restore r3, r4
 #endif
 .Lfast_user_interrupt_return_\srr\():
-	ld	r11,_NIP(r1)
-	ld	r12,_MSR(r1)
+
 BEGIN_FTR_SECTION
 	ld	r10,_PPR(r1)
 	mtspr	SPRN_PPR,r10
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
+#ifdef CONFIG_PPC_BOOK3S
+	.ifc \srr,srr
+	lbz	r4,PACASRR_VALID(r13)
+	.else
+	lbz	r4,PACAHSRR_VALID(r13)
+	.endif
+	cmpdi	r4,0
+	li	r4,0
+	bne	1f
+#endif
+	ld	r11,_NIP(r1)
+	ld	r12,_MSR(r1)
 	.ifc \srr,srr
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+1:
+#ifdef CONFIG_PPC_BOOK3S
+	stb	r4,PACASRR_VALID(r13)
+#endif
 	.else
 	mtspr	SPRN_HSRR0,r11
 	mtspr	SPRN_HSRR1,r12
+1:
+#ifdef CONFIG_PPC_BOOK3S
+	stb	r4,PACAHSRR_VALID(r13)
+#endif
 	.endif
+	DEBUG_SRR_VALID \srr
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
@@ -730,15 +789,34 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 .Lfast_kernel_interrupt_return_\srr\():
 	cmpdi	cr1,r3,0
+#ifdef CONFIG_PPC_BOOK3S
+	.ifc \srr,srr
+	lbz	r4,PACASRR_VALID(r13)
+	.else
+	lbz	r4,PACAHSRR_VALID(r13)
+	.endif
+	cmpdi	r4,0
+	li	r4,0
+	bne	1f
+#endif
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
 	.ifc \srr,srr
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+1:
+#ifdef CONFIG_PPC_BOOK3S
+	stb	r4,PACASRR_VALID(r13)
+#endif
 	.else
 	mtspr	SPRN_HSRR0,r11
 	mtspr	SPRN_HSRR1,r12
+1:
+#ifdef CONFIG_PPC_BOOK3S
+	stb	r4,PACAHSRR_VALID(r13)
+#endif
 	.endif
+	DEBUG_SRR_VALID \srr
 
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */

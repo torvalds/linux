@@ -62,7 +62,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 	autask->saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
-	regs->nip = current->utask->xol_vaddr;
+	regs_set_return_ip(regs, current->utask->xol_vaddr);
 
 	user_enable_single_step(current);
 	return 0;
@@ -119,7 +119,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * support doesn't exist and have to fix-up the next instruction
 	 * to be executed.
 	 */
-	regs->nip = (unsigned long)ppc_inst_next((void *)utask->vaddr, auprobe->insn);
+	regs_set_return_ip(regs, (unsigned long)ppc_inst_next((void *)utask->vaddr, auprobe->insn));
 
 	user_disable_single_step(current);
 	return 0;

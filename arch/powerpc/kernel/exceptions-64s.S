@@ -485,6 +485,20 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 	std	r0,GPR0(r1)		/* save r0 in stackframe	*/
 	std	r10,GPR1(r1)		/* save r1 in stackframe	*/
 
+	/* Mark our [H]SRRs valid for return */
+	li	r10,1
+	.if IHSRR_IF_HVMODE
+	BEGIN_FTR_SECTION
+	stb	r10,PACAHSRR_VALID(r13)
+	FTR_SECTION_ELSE
+	stb	r10,PACASRR_VALID(r13)
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif IHSRR
+	stb	r10,PACAHSRR_VALID(r13)
+	.else
+	stb	r10,PACASRR_VALID(r13)
+	.endif
+
 	.if ISET_RI
 	li	r10,MSR_RI
 	mtmsrd	r10,1			/* Set MSR_RI */
@@ -584,10 +598,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 .macro EXCEPTION_RESTORE_REGS hsrr=0
 	/* Move original SRR0 and SRR1 into the respective regs */
 	ld	r9,_MSR(r1)
+	li	r10,0
 	.if \hsrr
 	mtspr	SPRN_HSRR1,r9
+	stb	r10,PACAHSRR_VALID(r13)
 	.else
 	mtspr	SPRN_SRR1,r9
+	stb	r10,PACASRR_VALID(r13)
 	.endif
 	ld	r9,_NIP(r1)
 	.if \hsrr
@@ -1718,6 +1735,8 @@ EXC_COMMON_BEGIN(hdecrementer_common)
 	 *
 	 * Be careful to avoid touching the kernel stack.
 	 */
+	li	r10,0
+	stb	r10,PACAHSRR_VALID(r13)
 	ld	r10,PACA_EXGEN+EX_CTR(r13)
 	mtctr	r10
 	mtcrf	0x80,r9
@@ -2513,6 +2532,8 @@ BEGIN_FTR_SECTION
 	ld	r10,PACA_EXGEN+EX_CFAR(r13)
 	mtspr	SPRN_CFAR,r10
 END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
+	li	r10,0
+	stb	r10,PACAHSRR_VALID(r13)
 	ld	r10,PACA_EXGEN+EX_R10(r13)
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r12,PACA_EXGEN+EX_R12(r13)
@@ -2673,6 +2694,12 @@ masked_interrupt:
 	ori	r11,r11,PACA_IRQ_HARD_DIS
 	stb	r11,PACAIRQHAPPENED(r13)
 2:	/* done */
+	li	r10,0
+	.if \hsrr
+	stb	r10,PACAHSRR_VALID(r13)
+	.else
+	stb	r10,PACASRR_VALID(r13)
+	.endif
 	ld	r10,PACA_EXGEN+EX_CTR(r13)
 	mtctr	r10
 	mtcrf	0x80,r9

@@ -710,7 +710,7 @@ update_regs:
 illegal:
 	if (have_e500_cpu_a005_erratum) {
 		/* according to e500 cpu a005 erratum, reissue efp inst */
-		regs->nip -= 4;
+		regs_add_return_ip(regs, -4);
 		pr_debug("re-issue efp inst: %08lx\n", speinsn);
 		return 0;
 	}

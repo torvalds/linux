@@ -190,6 +190,10 @@ int main(void)
 	OFFSET(PACATOC, paca_struct, kernel_toc);
 	OFFSET(PACAKBASE, paca_struct, kernelbase);
 	OFFSET(PACAKMSR, paca_struct, kernel_msr);
+#ifdef CONFIG_PPC_BOOK3S_64
+	OFFSET(PACAHSRR_VALID, paca_struct, hsrr_valid);
+	OFFSET(PACASRR_VALID, paca_struct, srr_valid);
+#endif
 	OFFSET(PACAIRQSOFTMASK, paca_struct, irq_soft_mask);
 	OFFSET(PACAIRQHAPPENED, paca_struct, irq_happened);
 	OFFSET(PACA_FTRACE_ENABLED, paca_struct, ftrace_enabled);

@@ -32,6 +32,7 @@
 #include <asm/rtas.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <asm/interrupt.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -1792,6 +1793,8 @@ static int prom_rtas_hcall(uint64_t args)
 	asm volatile("sc 1\n" : "=r" (arg1) :
 			"r" (arg1),
 			"r" (arg2) :);
+	srr_regs_clobbered();
+
 	return arg1;
 }
 

@@ -11,6 +11,6 @@ void override_function_with_return(struct pt_regs *regs)
 	 * function in the kernel/module, captured on a kprobe. We don't need
 	 * to worry about 32-bit userspace on a 64-bit kernel.
 	 */
-	regs->nip = regs->link;
+	regs_set_return_ip(regs, regs->link);
 }
 NOKPROBE_SYMBOL(override_function_with_return);

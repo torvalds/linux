@@ -168,6 +168,10 @@ struct paca_struct {
 #ifdef CONFIG_PPC_BOOK3E
 	u16 trap_save;			/* Used when bad stack is encountered */
 #endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	u8 hsrr_valid;			/* HSRRs set for HRFID */
+	u8 srr_valid;			/* SRRs set for RFID */
+#endif
 	u8 irq_soft_mask;		/* mask for irq soft masking */
 	u8 irq_happened;		/* irq happened while soft-disabled */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */

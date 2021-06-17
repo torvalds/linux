@@ -479,14 +479,14 @@ static long restore_user_regs(struct pt_regs *regs,
 
 	/* if doing signal return, restore the previous little-endian mode */
 	if (sig)
-		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+		regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
 #ifdef CONFIG_ALTIVEC
 	/*
 	 * Force the process to reload the altivec registers from
 	 * current->thread when it next does altivec instructions
 	 */
-	regs->msr &= ~MSR_VEC;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VEC);
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		unsafe_copy_from_user(&current->thread.vr_state, &sr->mc_vregs,
@@ -508,7 +508,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	 * Force the process to reload the VSX registers from
 	 * current->thread when it next does VSX instruction.
 	 */
-	regs->msr &= ~MSR_VSX;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VSX);
 	if (msr & MSR_VSX) {
 		/*
 		 * Restore altivec registers from the stack to a local
@@ -524,12 +524,12 @@ static long restore_user_regs(struct pt_regs *regs,
 	 * force the process to reload the FP registers from
 	 * current->thread when it next does FP instructions
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1));
 
 #ifdef CONFIG_SPE
 	/* force the process to reload the spe registers from
 	   current->thread when it next does spe instructions */
-	regs->msr &= ~MSR_SPE;
+	regs_set_return_msr(regs, regs->msr & ~MSR_SPE);
 	if (msr & MSR_SPE) {
 		/* restore spe registers from the stack */
 		unsafe_copy_from_user(current->thread.evr, &sr->mc_vregs,
@@ -580,9 +580,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	unsafe_get_user(msr, &sr->mc_gregs[PT_MSR], failed);
 
 	/* Restore the previous little-endian mode */
-	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
-	regs->msr &= ~MSR_VEC;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VEC);
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		unsafe_copy_from_user(&current->thread.ckvr_state, &sr->mc_vregs,
@@ -601,11 +601,11 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		mtspr(SPRN_VRSAVE, current->thread.ckvrsave);
 
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1));
 
 	unsafe_copy_fpr_from_user(current, &sr->mc_fregs, failed);
 
-	regs->msr &= ~MSR_VSX;
+	regs_set_return_msr(regs, regs->msr & ~MSR_VSX);
 	if (msr & MSR_VSX) {
 		/*
 		 * Restore altivec registers from the stack to a local
@@ -672,7 +672,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	 *
 	 * Pull in the MSR TM bits from the user context
 	 */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK));
 	/* Now, recheckpoint.  This loads up all of the checkpointed (older)
 	 * registers, including FP and V[S]Rs.  After recheckpointing, the
 	 * transactional versions should be loaded.
@@ -687,11 +687,11 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));
 	if (msr & MSR_FP) {
 		load_fp_state(&current->thread.fp_state);
-		regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+		regs_set_return_msr(regs, regs->msr | (MSR_FP | current->thread.fpexc_mode));
 	}
 	if (msr & MSR_VEC) {
 		load_vr_state(&current->thread.vr_state);
-		regs->msr |= MSR_VEC;
+		regs_set_return_msr(regs, regs->msr | MSR_VEC);
 	}
 
 	preempt_enable();
@@ -801,10 +801,10 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[4] = (unsigned long)&frame->info;
 	regs->gpr[5] = (unsigned long)&frame->uc;
 	regs->gpr[6] = (unsigned long)frame;
-	regs->nip = (unsigned long) ksig->ka.sa.sa_handler;
+	regs_set_return_ip(regs, (unsigned long) ksig->ka.sa.sa_handler);
 	/* enter the signal handler in native-endian mode */
-	regs->msr &= ~MSR_LE;
-	regs->msr |= (MSR_KERNEL & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (MSR_KERNEL & MSR_LE));
+
 	return 0;
 
 failed:
@@ -889,10 +889,10 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = ksig->sig;
 	regs->gpr[4] = (unsigned long) sc;
-	regs->nip = (unsigned long)ksig->ka.sa.sa_handler;
+	regs_set_return_ip(regs, (unsigned long) ksig->ka.sa.sa_handler);
 	/* enter the signal handler in native-endian mode */
-	regs->msr &= ~MSR_LE;
-	regs->msr |= (MSR_KERNEL & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (MSR_KERNEL & MSR_LE));
+
 	return 0;
 
 failed:
@@ -1142,7 +1142,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 * set, and recheckpoint was not called. This avoid
 		 * hitting a TM Bad thing at RFID
 		 */
-		regs->msr &= ~MSR_TS_MASK;
+		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 	}
 	/* Fall through, for non-TM restore */
 #endif
@@ -1231,7 +1231,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	   affect the contents of these registers.  After this point,
 	   failure is a problem, anyway, and it's very unlikely unless
 	   the user is really doing something wrong. */
-	regs->msr = new_msr;
+	regs_set_return_msr(regs, new_msr);
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	current->thread.debug.dbcr0 = new_dbcr0;
 #endif

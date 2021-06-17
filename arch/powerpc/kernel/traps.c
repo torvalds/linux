@@ -428,7 +428,7 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	return;
 
 nonrecoverable:
-	regs->msr &= ~MSR_RI;
+	regs_set_return_msr(regs, regs->msr & ~MSR_RI);
 #endif
 }
 DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
@@ -550,8 +550,8 @@ static inline int check_io_access(struct pt_regs *regs)
 			printk(KERN_DEBUG "%s bad port %lx at %p\n",
 			       (*nip & 0x100)? "OUT to": "IN from",
 			       regs->gpr[rb] - _IO_BASE, nip);
-			regs->msr |= MSR_RI;
-			regs->nip = extable_fixup(entry);
+			regs_set_return_msr(regs, regs->msr | MSR_RI);
+			regs_set_return_ip(regs, extable_fixup(entry));
 			return 1;
 		}
 	}
@@ -587,8 +587,8 @@ static inline int check_io_access(struct pt_regs *regs)
 #define REASON_BOUNDARY		SRR1_BOUNDARY
 
 #define single_stepping(regs)	((regs)->msr & MSR_SE)
-#define clear_single_step(regs)	((regs)->msr &= ~MSR_SE)
-#define clear_br_trace(regs)	((regs)->msr &= ~MSR_BE)
+#define clear_single_step(regs)	(regs_set_return_msr((regs), (regs)->msr & ~MSR_SE))
+#define clear_br_trace(regs)	(regs_set_return_msr((regs), (regs)->msr & ~MSR_BE))
 #endif
 
 #define inst_length(reason)	(((reason) & REASON_PREFIXED) ? 8 : 4)
@@ -1032,7 +1032,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 #endif /* !__LITTLE_ENDIAN__ */
 
 	/* Go to next instruction */
-	regs->nip += 4;
+	regs_add_return_ip(regs, 4);
 }
 #endif /* CONFIG_VSX */
 
@@ -1477,7 +1477,7 @@ static void do_program_check(struct pt_regs *regs)
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			return;
 		}
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
@@ -1539,7 +1539,7 @@ static void do_program_check(struct pt_regs *regs)
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
 		switch (emulate_instruction(regs)) {
 		case 0:
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			emulate_single_step(regs);
 			return;
 		case -EFAULT:
@@ -1567,7 +1567,7 @@ DEFINE_INTERRUPT_HANDLER(program_check_exception)
  */
 DEFINE_INTERRUPT_HANDLER(emulation_assist_interrupt)
 {
-	regs->msr |= REASON_ILLEGAL;
+	regs_set_return_msr(regs, regs->msr | REASON_ILLEGAL);
 	do_program_check(regs);
 }
 
@@ -1594,7 +1594,7 @@ DEFINE_INTERRUPT_HANDLER(alignment_exception)
 
 	if (fixed == 1) {
 		/* skip over emulated instruction */
-		regs->nip += inst_length(reason);
+		regs_add_return_ip(regs, inst_length(reason));
 		emulate_single_step(regs);
 		return;
 	}
@@ -1660,7 +1660,7 @@ static void tm_unavailable(struct pt_regs *regs)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (user_mode(regs)) {
 		current->thread.load_tm++;
-		regs->msr |= MSR_TM;
+		regs_set_return_msr(regs, regs->msr | MSR_TM);
 		tm_enable();
 		tm_restore_sprs(&current->thread);
 		return;
@@ -1752,7 +1752,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 				pr_err("DSCR based mfspr emulation failed\n");
 				return;
 			}
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			emulate_single_step(regs);
 		}
 		return;
@@ -1949,7 +1949,7 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 	 */
 	if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
 			       current->thread.debug.dbcr1))
-		regs->msr |= MSR_DE;
+		regs_set_return_msr(regs, regs->msr | MSR_DE);
 	else
 		/* Make sure the IDM flag is off */
 		current->thread.debug.dbcr0 &= ~DBCR0_IDM;
@@ -1970,7 +1970,7 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 	 * instead of stopping here when hitting a BT
 	 */
 	if (debug_status & DBSR_BT) {
-		regs->msr &= ~MSR_DE;
+		regs_set_return_msr(regs, regs->msr & ~MSR_DE);
 
 		/* Disable BT */
 		mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_BT);
@@ -1981,7 +1981,7 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 		if (user_mode(regs)) {
 			current->thread.debug.dbcr0 &= ~DBCR0_BT;
 			current->thread.debug.dbcr0 |= DBCR0_IDM | DBCR0_IC;
-			regs->msr |= MSR_DE;
+			regs_set_return_msr(regs, regs->msr | MSR_DE);
 			return;
 		}
 
@@ -1995,7 +1995,7 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 		if (debugger_sstep(regs))
 			return;
 	} else if (debug_status & DBSR_IC) { 	/* Instruction complete */
-		regs->msr &= ~MSR_DE;
+		regs_set_return_msr(regs, regs->msr & ~MSR_DE);
 
 		/* Disable instruction completion */
 		mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
@@ -2017,7 +2017,7 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 			current->thread.debug.dbcr0 &= ~DBCR0_IC;
 			if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
 					       current->thread.debug.dbcr1))
-				regs->msr |= MSR_DE;
+				regs_set_return_msr(regs, regs->msr | MSR_DE);
 			else
 				/* Make sure the IDM bit is off */
 				current->thread.debug.dbcr0 &= ~DBCR0_IDM;
@@ -2045,7 +2045,7 @@ DEFINE_INTERRUPT_HANDLER(altivec_assist_exception)
 	PPC_WARN_EMULATED(altivec, regs);
 	err = emulate_altivec(regs);
 	if (err == 0) {
-		regs->nip += 4;		/* skip emulated instruction */
+		regs_add_return_ip(regs, 4); /* skip emulated instruction */
 		emulate_single_step(regs);
 		return;
 	}
@@ -2110,7 +2110,7 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointException)
 
 	err = do_spe_mathemu(regs);
 	if (err == 0) {
-		regs->nip += 4;		/* skip emulated instruction */
+		regs_add_return_ip(regs, 4); /* skip emulated instruction */
 		emulate_single_step(regs);
 		return;
 	}
@@ -2141,10 +2141,10 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
 		giveup_spe(current);
 	preempt_enable();
 
-	regs->nip -= 4;
+	regs_add_return_ip(regs, -4);
 	err = speround_handler(regs);
 	if (err == 0) {
-		regs->nip += 4;		/* skip emulated instruction */
+		regs_add_return_ip(regs, 4); /* skip emulated instruction */
 		emulate_single_step(regs);
 		return;
 	}

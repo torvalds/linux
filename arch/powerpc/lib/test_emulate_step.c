@@ -1609,6 +1609,7 @@ static int __init emulate_compute_instr(struct pt_regs *regs,
 	if (!regs || !ppc_inst_val(instr))
 		return -EINVAL;
 
+	/* This is not a return frame regs */
 	regs->nip = patch_site_addr(&patch__exec_instr);
 
 	analysed = analyse_instr(&op, regs, instr);

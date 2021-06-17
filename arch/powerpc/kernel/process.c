@@ -96,7 +96,8 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 	if (tsk == current && tsk->thread.regs &&
 	    MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
 	    !test_thread_flag(TIF_RESTORE_TM)) {
-		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
+		regs_set_return_msr(&tsk->thread.ckpt_regs,
+						tsk->thread.regs->msr);
 		set_thread_flag(TIF_RESTORE_TM);
 	}
 }
@@ -161,7 +162,7 @@ static void __giveup_fpu(struct task_struct *tsk)
 	msr &= ~(MSR_FP|MSR_FE0|MSR_FE1);
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-	tsk->thread.regs->msr = msr;
+	regs_set_return_msr(tsk->thread.regs, msr);
 }
 
 void giveup_fpu(struct task_struct *tsk)
@@ -244,7 +245,7 @@ static void __giveup_altivec(struct task_struct *tsk)
 	msr &= ~MSR_VEC;
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-	tsk->thread.regs->msr = msr;
+	regs_set_return_msr(tsk->thread.regs, msr);
 }
 
 void giveup_altivec(struct task_struct *tsk)
@@ -559,7 +560,7 @@ void notrace restore_math(struct pt_regs *regs)
 
 		msr_check_and_clear(new_msr);
 
-		regs->msr |= new_msr | fpexc_mode;
+		regs_set_return_msr(regs, regs->msr | new_msr | fpexc_mode);
 	}
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -1114,7 +1115,7 @@ void restore_tm_state(struct pt_regs *regs)
 #endif
 	restore_math(regs);
 
-	regs->msr |= msr_diff;
+	regs_set_return_msr(regs, regs->msr | msr_diff);
 }
 
 #else /* !CONFIG_PPC_TRANSACTIONAL_MEM */
@@ -1257,13 +1258,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 
 	/*
-	 * Call restore_sprs() before calling _switch(). If we move it after
-	 * _switch() then we miss out on calling it for new tasks. The reason
-	 * for this is we manually create a stack frame for new tasks that
-	 * directly returns through ret_from_fork() or
+	 * Call restore_sprs() and set_return_regs_changed() before calling
+	 * _switch(). If we move it after _switch() then we miss out on calling
+	 * it for new tasks. The reason for this is we manually create a stack
+	 * frame for new tasks that directly returns through ret_from_fork() or
 	 * ret_from_kernel_thread(). See copy_thread() for details.
 	 */
 	restore_sprs(old_thread, new_thread);
+
+	set_return_regs_changed(); /* _switch changes stack (and regs) */
 
 #ifdef CONFIG_PPC32
 	kuap_assert_locked();
@@ -1850,13 +1853,14 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 			}
 			regs->gpr[2] = toc;
 		}
-		regs->nip = entry;
-		regs->msr = MSR_USER64;
+		regs_set_return_ip(regs, entry);
+		regs_set_return_msr(regs, MSR_USER64);
 	} else {
-		regs->nip = start;
 		regs->gpr[2] = 0;
-		regs->msr = MSR_USER32;
+		regs_set_return_ip(regs, start);
+		regs_set_return_msr(regs, MSR_USER32);
 	}
+
 #endif
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
@@ -1887,7 +1891,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
-
 }
 EXPORT_SYMBOL(start_thread);
 
@@ -1935,9 +1938,10 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 	if (val > PR_FP_EXC_PRECISE)
 		return -EINVAL;
 	tsk->thread.fpexc_mode = __pack_fe01(val);
-	if (regs != NULL && (regs->msr & MSR_FP) != 0)
-		regs->msr = (regs->msr & ~(MSR_FE0|MSR_FE1))
-			| tsk->thread.fpexc_mode;
+	if (regs != NULL && (regs->msr & MSR_FP) != 0) {
+		regs_set_return_msr(regs, (regs->msr & ~(MSR_FE0|MSR_FE1))
+						| tsk->thread.fpexc_mode);
+	}
 	return 0;
 }
 
@@ -1983,9 +1987,9 @@ int set_endian(struct task_struct *tsk, unsigned int val)
 		return -EINVAL;
 
 	if (val == PR_ENDIAN_BIG)
-		regs->msr &= ~MSR_LE;
+		regs_set_return_msr(regs, regs->msr & ~MSR_LE);
 	else if (val == PR_ENDIAN_LITTLE || val == PR_ENDIAN_PPC_LITTLE)
-		regs->msr |= MSR_LE;
+		regs_set_return_msr(regs, regs->msr | MSR_LE);
 	else
 		return -EINVAL;
 
