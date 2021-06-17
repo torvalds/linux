@@ -367,6 +367,11 @@ struct netfs_cache_ops {
 			       loff_t *_data_start, size_t *_data_len);
 };
 
+/* High-level write API */
+ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
+			    struct netfs_group *netfs_group);
+
+/* Address operations API */
 struct readahead_control;
 void netfs_readahead(struct readahead_control *);
 int netfs_read_folio(struct file *, struct folio *);

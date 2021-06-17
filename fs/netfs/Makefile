@@ -2,6 +2,7 @@
 
 netfs-y := \
 	buffered_read.o \
+	buffered_write.o \
 	io.o \
 	iterator.o \
 	locking.o \

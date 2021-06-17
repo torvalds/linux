@@ -125,6 +125,7 @@ static void netfs_rreq_unmark_after_write(struct netfs_io_request *rreq,
 			if (have_unlocked && folio_index(folio) <= unlocked)
 				continue;
 			unlocked = folio_index(folio);
+			trace_netfs_folio(folio, netfs_folio_trace_end_copy);
 			folio_end_fscache(folio);
 			have_unlocked = true;
 		}

@@ -23,6 +23,8 @@
  * buffered_read.c
  */
 void netfs_rreq_unlock_folios(struct netfs_io_request *rreq);
+int netfs_prefetch_for_write(struct file *file, struct folio *folio,
+			     size_t offset, size_t len);
 
 /*
  * io.c

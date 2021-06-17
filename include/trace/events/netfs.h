@@ -19,6 +19,7 @@
 	EM(netfs_read_trace_expanded,		"EXPANDED ")	\
 	EM(netfs_read_trace_readahead,		"READAHEAD")	\
 	EM(netfs_read_trace_readpage,		"READPAGE ")	\
+	EM(netfs_read_trace_prefetch_for_write,	"PREFETCHW")	\
 	E_(netfs_read_trace_write_begin,	"WRITEBEGN")
 
 #define netfs_write_traces					\
@@ -100,6 +101,31 @@
 	EM(netfs_sreq_trace_put_work,		"PUT WORK   ")	\
 	E_(netfs_sreq_trace_put_terminated,	"PUT TERM   ")
 
+#define netfs_folio_traces					\
+	/* The first few correspond to enum netfs_how_to_modify */	\
+	EM(netfs_folio_is_uptodate,		"mod-uptodate")	\
+	EM(netfs_just_prefetch,			"mod-prefetch")	\
+	EM(netfs_whole_folio_modify,		"mod-whole-f")	\
+	EM(netfs_modify_and_clear,		"mod-n-clear")	\
+	EM(netfs_streaming_write,		"mod-streamw")	\
+	EM(netfs_streaming_write_cont,		"mod-streamw+")	\
+	EM(netfs_flush_content,			"flush")	\
+	EM(netfs_streaming_filled_page,		"mod-streamw-f") \
+	EM(netfs_streaming_cont_filled_page,	"mod-streamw-f+") \
+	/* The rest are for writeback */			\
+	EM(netfs_folio_trace_clear,		"clear")	\
+	EM(netfs_folio_trace_clear_s,		"clear-s")	\
+	EM(netfs_folio_trace_clear_g,		"clear-g")	\
+	EM(netfs_folio_trace_copy_to_cache,	"copy")		\
+	EM(netfs_folio_trace_end_copy,		"end-copy")	\
+	EM(netfs_folio_trace_kill,		"kill")		\
+	EM(netfs_folio_trace_mkwrite,		"mkwrite")	\
+	EM(netfs_folio_trace_mkwrite_plus,	"mkwrite+")	\
+	EM(netfs_folio_trace_redirty,		"redirty")	\
+	EM(netfs_folio_trace_redirtied,		"redirtied")	\
+	EM(netfs_folio_trace_store,		"store")	\
+	E_(netfs_folio_trace_store_plus,	"store+")
+
 #ifndef __NETFS_DECLARE_TRACE_ENUMS_ONCE_ONLY
 #define __NETFS_DECLARE_TRACE_ENUMS_ONCE_ONLY
 
@@ -115,6 +141,7 @@ enum netfs_sreq_trace { netfs_sreq_traces } __mode(byte);
 enum netfs_failure { netfs_failures } __mode(byte);
 enum netfs_rreq_ref_trace { netfs_rreq_ref_traces } __mode(byte);
 enum netfs_sreq_ref_trace { netfs_sreq_ref_traces } __mode(byte);
+enum netfs_folio_trace { netfs_folio_traces } __mode(byte);
 
 #endif
 
@@ -135,6 +162,7 @@ netfs_sreq_traces;
 netfs_failures;
 netfs_rreq_ref_traces;
 netfs_sreq_ref_traces;
+netfs_folio_traces;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -333,6 +361,51 @@ TRACE_EVENT(netfs_sreq_ref,
 		      __entry->subreq,
 		      __print_symbolic(__entry->what, netfs_sreq_ref_traces),
 		      __entry->ref)
+	    );
+
+TRACE_EVENT(netfs_folio,
+	    TP_PROTO(struct folio *folio, enum netfs_folio_trace why),
+
+	    TP_ARGS(folio, why),
+
+	    TP_STRUCT__entry(
+		    __field(ino_t,			ino)
+		    __field(pgoff_t,			index)
+		    __field(unsigned int,		nr)
+		    __field(enum netfs_folio_trace,	why)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->ino = folio->mapping->host->i_ino;
+		    __entry->why = why;
+		    __entry->index = folio_index(folio);
+		    __entry->nr = folio_nr_pages(folio);
+			   ),
+
+	    TP_printk("i=%05lx ix=%05lx-%05lx %s",
+		      __entry->ino, __entry->index, __entry->index + __entry->nr - 1,
+		      __print_symbolic(__entry->why, netfs_folio_traces))
+	    );
+
+TRACE_EVENT(netfs_write_iter,
+	    TP_PROTO(const struct kiocb *iocb, const struct iov_iter *from),
+
+	    TP_ARGS(iocb, from),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned long long,		start		)
+		    __field(size_t,			len		)
+		    __field(unsigned int,		flags		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->start	= iocb->ki_pos;
+		    __entry->len	= iov_iter_count(from);
+		    __entry->flags	= iocb->ki_flags;
+			   ),
+
+	    TP_printk("WRITE-ITER s=%llx l=%zx f=%x",
+		      __entry->start, __entry->len, __entry->flags)
 	    );
 
 TRACE_EVENT(netfs_write,
