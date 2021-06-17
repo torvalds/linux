@@ -103,10 +103,8 @@ int diMount(struct inode *ipimap)
 	 */
 	/* allocate the in-memory inode map control structure. */
 	imap = kmalloc(sizeof(struct inomap), GFP_KERNEL);
-	if (imap == NULL) {
-		jfs_err("diMount: kmalloc returned NULL!");
+	if (imap == NULL)
 		return -ENOMEM;
-	}
 
 	/* read the on-disk inode map control structure. */
 
