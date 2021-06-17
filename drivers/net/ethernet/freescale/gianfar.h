@@ -913,8 +913,8 @@ enum {
  * Per TX queue stats
  */
 struct tx_q_stats {
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
+	u64 tx_packets;
+	u64 tx_bytes;
 };
 
 /**
@@ -963,9 +963,9 @@ struct gfar_priv_tx_q {
  * Per RX queue stats
  */
 struct rx_q_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long rx_dropped;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
 };
 
 struct gfar_rx_buff {
