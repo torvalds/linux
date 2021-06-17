@@ -86,6 +86,7 @@ void __init disable_tracing_selftest(const char *reason)
 /* Pipe tracepoints to printk */
 struct trace_iterator *tracepoint_print_iter;
 int tracepoint_printk;
+static bool tracepoint_printk_stop_on_boot __initdata;
 static DEFINE_STATIC_KEY_FALSE(tracepoint_printk_key);
 
 /* For tracers that don't implement custom flags */
@@ -255,6 +256,13 @@ static int __init set_tracepoint_printk(char *str)
 	return 1;
 }
 __setup("tp_printk", set_tracepoint_printk);
+
+static int __init set_tracepoint_printk_stop(char *str)
+{
+	tracepoint_printk_stop_on_boot = true;
+	return 1;
+}
+__setup("tp_printk_stop_on_boot", set_tracepoint_printk_stop);
 
 unsigned long long ns2usecs(u64 nsec)
 {
@@ -9578,6 +9586,8 @@ static __init int tracer_init_tracefs(void)
 	return 0;
 }
 
+fs_initcall(tracer_init_tracefs);
+
 static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {
@@ -9998,7 +10008,7 @@ void __init trace_init(void)
 	trace_event_init();
 }
 
-__init static int clear_boot_tracer(void)
+__init static void clear_boot_tracer(void)
 {
 	/*
 	 * The default tracer at boot buffer is an init section.
@@ -10008,26 +10018,21 @@ __init static int clear_boot_tracer(void)
 	 * about to be freed.
 	 */
 	if (!default_bootup_tracer)
-		return 0;
+		return;
 
 	printk(KERN_INFO "ftrace bootup tracer '%s' not registered.\n",
 	       default_bootup_tracer);
 	default_bootup_tracer = NULL;
-
-	return 0;
 }
 
-fs_initcall(tracer_init_tracefs);
-late_initcall_sync(clear_boot_tracer);
-
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-__init static int tracing_set_default_clock(void)
+__init static void tracing_set_default_clock(void)
 {
 	/* sched_clock_stable() is determined in late_initcall */
 	if (!trace_boot_clock && !sched_clock_stable()) {
 		if (security_locked_down(LOCKDOWN_TRACEFS)) {
 			pr_warn("Can not set tracing clock due to lockdown\n");
-			return -EPERM;
+			return;
 		}
 
 		printk(KERN_WARNING
@@ -10037,8 +10042,21 @@ __init static int tracing_set_default_clock(void)
 		       "on the kernel command line\n");
 		tracing_set_clock(&global_trace, "global");
 	}
+}
+#else
+static inline void tracing_set_default_clock(void) { }
+#endif
 
+__init static int late_trace_init(void)
+{
+	if (tracepoint_printk && tracepoint_printk_stop_on_boot) {
+		static_key_disable(&tracepoint_printk_key.key);
+		tracepoint_printk = 0;
+	}
+
+	tracing_set_default_clock();
+	clear_boot_tracer();
 	return 0;
 }
-late_initcall_sync(tracing_set_default_clock);
-#endif
+
+late_initcall_sync(late_trace_init);
