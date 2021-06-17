@@ -945,71 +945,37 @@ cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
+icl_wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
 	unsigned int slice, subslice;
-	u32 l3_en, mcr, mcr_mask;
+	u32 mcr, mcr_mask;
 
-	GEM_BUG_ON(GRAPHICS_VER(i915) < 10);
+	GEM_BUG_ON(GRAPHICS_VER(i915) < 11);
+	GEM_BUG_ON(hweight8(sseu->slice_mask) > 1);
+	slice = 0;
 
 	/*
-	 * WaProgramMgsrForL3BankSpecificMmioReads: cnl,icl
-	 * L3Banks could be fused off in single slice scenario. If that is
-	 * the case, we might need to program MCR select to a valid L3Bank
-	 * by default, to make sure we correctly read certain registers
-	 * later on (in the range 0xB100 - 0xB3FF).
-	 *
-	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl,icl
-	 * Before any MMIO read into slice/subslice specific registers, MCR
-	 * packet control register needs to be programmed to point to any
-	 * enabled s/ss pair. Otherwise, incorrect values will be returned.
-	 * This means each subsequent MMIO read will be forwarded to an
-	 * specific s/ss combination, but this is OK since these registers
-	 * are consistent across s/ss in almost all cases. In the rare
-	 * occasions, such as INSTDONE, where this value is dependent
-	 * on s/ss combo, the read should be done with read_subslice_reg.
-	 *
-	 * Since GEN8_MCR_SELECTOR contains dual-purpose bits which select both
-	 * to which subslice, or to which L3 bank, the respective mmio reads
-	 * will go, we have to find a common index which works for both
-	 * accesses.
-	 *
-	 * Case where we cannot find a common index fortunately should not
-	 * happen in production hardware, so we only emit a warning instead of
-	 * implementing something more complex that requires checking the range
-	 * of every MMIO read.
+	 * Although a platform may have subslices, we need to always steer
+	 * reads to the lowest instance that isn't fused off.  When Render
+	 * Power Gating is enabled, grabbing forcewake will only power up a
+	 * single subslice (the "minconfig") if there isn't a real workload
+	 * that needs to be run; this means that if we steer register reads to
+	 * one of the higher subslices, we run the risk of reading back 0's or
+	 * random garbage.
 	 */
+	subslice = __ffs(intel_sseu_get_subslices(sseu, slice));
 
-	if (GRAPHICS_VER(i915) >= 10 && is_power_of_2(sseu->slice_mask)) {
-		u32 l3_fuse =
-			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3) &
-			GEN10_L3BANK_MASK;
+	/*
+	 * If the subslice we picked above also steers us to a valid L3 bank,
+	 * then we can just rely on the default steering and won't need to
+	 * worry about explicitly re-steering L3BANK reads later.
+	 */
+	if (i915->gt.info.l3bank_mask & BIT(subslice))
+		i915->gt.steering_table[L3BANK] = NULL;
 
-		drm_dbg(&i915->drm, "L3 fuse = %x\n", l3_fuse);
-		l3_en = ~(l3_fuse << GEN10_L3BANK_PAIR_COUNT | l3_fuse);
-	} else {
-		l3_en = ~0;
-	}
-
-	slice = fls(sseu->slice_mask) - 1;
-	subslice = fls(l3_en & intel_sseu_get_subslices(sseu, slice));
-	if (!subslice) {
-		drm_warn(&i915->drm,
-			 "No common index found between subslice mask %x and L3 bank mask %x!\n",
-			 intel_sseu_get_subslices(sseu, slice), l3_en);
-		subslice = fls(l3_en);
-		drm_WARN_ON(&i915->drm, !subslice);
-	}
-	subslice--;
-
-	if (GRAPHICS_VER(i915) >= 11) {
-		mcr = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
-		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
-	} else {
-		mcr = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
-		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
-	}
+	mcr = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
+	mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
 
 	drm_dbg(&i915->drm, "MCR slice/subslice = %x\n", mcr);
 
@@ -1019,8 +985,6 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 cnl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	wa_init_mcr(i915, wal);
-
 	/* WaInPlaceDecompressionHang:cnl */
 	wa_write_or(wal,
 		    GEN9_GAMT_ECO_REG_RW_IA,
@@ -1030,7 +994,7 @@ cnl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	wa_init_mcr(i915, wal);
+	icl_wa_init_mcr(i915, wal);
 
 	/* WaInPlaceDecompressionHang:icl */
 	wa_write_or(wal,
@@ -1112,7 +1076,7 @@ static void
 gen12_gt_workarounds_init(struct drm_i915_private *i915,
 			  struct i915_wa_list *wal)
 {
-	wa_init_mcr(i915, wal);
+	icl_wa_init_mcr(i915, wal);
 
 	/* Wa_14011060649:tgl,rkl,dg1,adls,adl-p */
 	wa_14011060649(i915, wal);

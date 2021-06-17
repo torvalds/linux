@@ -49,6 +49,8 @@ struct intel_mmio_range {
  * need to explicitly re-steer reads of registers of the other type.
  */
 enum intel_steering_type {
+	L3BANK,
+
 	NUM_STEERING_TYPES
 };
 
@@ -176,6 +178,8 @@ struct intel_gt {
 
 		/* Media engine access to SFC per instance */
 		u8 vdbox_sfc_access;
+
+		u32 l3bank_mask;
 
 		/* Slice/subslice/EU info */
 		struct sseu_dev_info sseu;
