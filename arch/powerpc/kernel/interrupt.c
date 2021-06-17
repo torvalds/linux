@@ -243,11 +243,10 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
-static notrace unsigned long syscall_exit_prepare_main(unsigned long r3,
-						       struct pt_regs *regs)
+static notrace unsigned long
+interrupt_exit_user_prepare_main(unsigned long ret, struct pt_regs *regs)
 {
 	unsigned long ti_flags;
-	unsigned long ret = 0;
 
 again:
 	ti_flags = READ_ONCE(current_thread_info()->flags);
@@ -365,7 +364,7 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 	}
 
 	local_irq_disable();
-	ret |= syscall_exit_prepare_main(r3, regs);
+	ret = interrupt_exit_user_prepare_main(ret, regs);
 
 #ifdef CONFIG_PPC64
 	regs->exit_result = ret;
@@ -397,7 +396,7 @@ notrace unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *reg
 
 	BUG_ON(!user_mode(regs));
 
-	regs->exit_result |= syscall_exit_prepare_main(r3, regs);
+	regs->exit_result = interrupt_exit_user_prepare_main(regs->exit_result, regs);
 
 	return regs->exit_result;
 }
