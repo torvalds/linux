@@ -512,7 +512,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 
 	/* Unstuff, if required, and allocate backing blocks for page */
 	if (gfs2_is_stuffed(ip)) {
-		err = gfs2_unstuff_dinode(ip, NULL);
+		err = gfs2_unstuff_dinode(ip);
 		if (err) {
 			ret = block_page_mkwrite_return(err);
 			goto out_trans_end;
@@ -981,7 +981,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 
 	if (gfs2_is_stuffed(ip)) {
-		error = gfs2_unstuff_dinode(ip, NULL);
+		error = gfs2_unstuff_dinode(ip);
 		if (unlikely(error))
 			goto out;
 	}
