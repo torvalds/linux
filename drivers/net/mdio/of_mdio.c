@@ -51,6 +51,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 static int of_mdiobus_register_device(struct mii_bus *mdio,
 				      struct device_node *child, u32 addr)
 {
+	struct fwnode_handle *fwnode = of_fwnode_handle(child);
 	struct mdio_device *mdiodev;
 	int rc;
 
@@ -61,9 +62,8 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
 	 */
-	of_node_get(child);
-	mdiodev->dev.of_node = child;
-	mdiodev->dev.fwnode = of_fwnode_handle(child);
+	fwnode_handle_get(fwnode);
+	device_set_node(&mdiodev->dev, fwnode);
 
 	/* All data is now stored in the mdiodev struct; register it. */
 	rc = mdio_device_register(mdiodev);
@@ -162,8 +162,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	 * the device tree are populated after the bus has been registered */
 	mdio->phy_mask = ~0;
 
-	mdio->dev.of_node = np;
-	mdio->dev.fwnode = of_fwnode_handle(np);
+	device_set_node(&mdio->dev, of_fwnode_handle(np));
 
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
