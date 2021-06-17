@@ -41,7 +41,7 @@
 static const struct pci_device_id ath11k_pci_id_table[] = {
 	{ PCI_VDEVICE(QCOM, QCA6390_DEVICE_ID) },
 	{ PCI_VDEVICE(QCOM, WCN6855_DEVICE_ID) },
-	/* TODO: add QCN9074_DEVICE_ID) once firmware issues are resolved */
+	{ PCI_VDEVICE(QCOM, QCN9074_DEVICE_ID) },
 	{0}
 };
 
