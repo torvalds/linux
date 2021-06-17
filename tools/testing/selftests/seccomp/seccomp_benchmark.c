@@ -145,9 +145,13 @@ int main(int argc, char *argv[])
 
 	setbuf(stdout, NULL);
 
+	printf("Running on:\n");
+	system("uname -a");
+
 	printf("Current BPF sysctl settings:\n");
-	system("sysctl net.core.bpf_jit_enable");
-	system("sysctl net.core.bpf_jit_harden");
+	/* Avoid using "sysctl" which may not be installed. */
+	system("grep -H . /proc/sys/net/core/bpf_jit_enable");
+	system("grep -H . /proc/sys/net/core/bpf_jit_harden");
 
 	if (argc > 1)
 		samples = strtoull(argv[1], NULL, 0);
