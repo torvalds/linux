@@ -40,6 +40,8 @@ enum dpu_hw_intr_reg {
  * @save_irq_status:  array of IRQ status reg storage created during init
  * @total_irqs: total number of irq_idx mapped in the hw_interrupts
  * @irq_lock:         spinlock for accessing IRQ resources
+ * @irq_cb_tbl:       array of IRQ callbacks lists
+ * @irq_counts:       array of IRQ counts
  */
 struct dpu_hw_intr {
 	struct dpu_hw_blk_reg_map hw;
@@ -48,6 +50,9 @@ struct dpu_hw_intr {
 	u32 total_irqs;
 	spinlock_t irq_lock;
 	unsigned long irq_mask;
+
+	struct list_head *irq_cb_tbl;
+	atomic_t *irq_counts;
 };
 
 /**
