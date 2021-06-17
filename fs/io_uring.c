@@ -718,6 +718,7 @@ enum {
 	REQ_F_COMPLETE_INLINE_BIT,
 	REQ_F_REISSUE_BIT,
 	REQ_F_DONT_REISSUE_BIT,
+	REQ_F_CREDS_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_ASYNC_READ_BIT,
 	REQ_F_ASYNC_WRITE_BIT,
@@ -771,6 +772,8 @@ enum {
 	REQ_F_ASYNC_WRITE	= BIT(REQ_F_ASYNC_WRITE_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
+	/* has creds assigned */
+	REQ_F_CREDS		= BIT(REQ_F_CREDS_BIT),
 };
 
 struct async_poll {
@@ -1236,8 +1239,10 @@ static void io_prep_async_work(struct io_kiocb *req)
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!req->creds)
+	if (!(req->flags & REQ_F_CREDS)) {
+		req->flags |= REQ_F_CREDS;
 		req->creds = get_current_cred();
+	}
 
 	req->work.list.next = NULL;
 	req->work.flags = 0;
@@ -1623,7 +1628,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 static inline bool io_req_needs_clean(struct io_kiocb *req)
 {
 	return req->flags & (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP |
-				REQ_F_POLLED | REQ_F_INFLIGHT);
+				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS);
 }
 
 static void io_req_complete_state(struct io_kiocb *req, long res,
@@ -1747,10 +1752,6 @@ static void io_dismantle_req(struct io_kiocb *req)
 		percpu_ref_put(req->fixed_rsrc_refs);
 	if (req->async_data)
 		kfree(req->async_data);
-	if (req->creds) {
-		put_cred(req->creds);
-		req->creds = NULL;
-	}
 }
 
 /* must to be called somewhat shortly after putting a request */
@@ -6133,6 +6134,10 @@ static void io_clean_op(struct io_kiocb *req)
 		atomic_dec(&tctx->inflight_tracked);
 		req->flags &= ~REQ_F_INFLIGHT;
 	}
+	if (req->flags & REQ_F_CREDS) {
+		put_cred(req->creds);
+		req->flags &= ~REQ_F_CREDS;
+	}
 }
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
@@ -6141,7 +6146,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
-	if (req->creds && req->creds != current_cred())
+	if ((req->flags & REQ_F_CREDS) && req->creds != current_cred())
 		creds = override_creds(req->creds);
 
 	switch (req->opcode) {
@@ -6534,7 +6539,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	atomic_set(&req->refs, 2);
 	req->task = current;
 	req->result = 0;
-	req->creds = NULL;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
@@ -6556,6 +6560,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (!req->creds)
 			return -EINVAL;
 		get_cred(req->creds);
+		req->flags |= REQ_F_CREDS;
 	}
 	state = &ctx->submit_state;
 
