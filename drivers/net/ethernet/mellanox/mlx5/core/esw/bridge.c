@@ -1042,10 +1042,8 @@ static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge_offloads *br_offloa
 	int err;
 
 	port = kvzalloc(sizeof(*port), GFP_KERNEL);
-	if (!port) {
-		err = -ENOMEM;
-		goto err_port_alloc;
-	}
+	if (!port)
+		return -ENOMEM;
 
 	port->vport_num = vport->vport;
 	xa_init(&port->vlans);
@@ -1062,8 +1060,6 @@ static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge_offloads *br_offloa
 
 err_port_insert:
 	kvfree(port);
-err_port_alloc:
-	mlx5_esw_bridge_put(br_offloads, bridge);
 	return err;
 }
 
@@ -1108,8 +1104,14 @@ int mlx5_esw_bridge_vport_link(int ifindex, struct mlx5_esw_bridge_offloads *br_
 	}
 
 	err = mlx5_esw_bridge_vport_init(br_offloads, bridge, vport);
-	if (err)
+	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Error initializing port");
+		goto err_vport;
+	}
+	return 0;
+
+err_vport:
+	mlx5_esw_bridge_put(br_offloads, bridge);
 	return err;
 }
 
