@@ -430,6 +430,10 @@ iwl_mvm_ftm_put_target_common(struct iwl_mvm *mvm,
 		FTM_PUT_FLAG(TB);
 	else if (peer->ftm.non_trigger_based)
 		FTM_PUT_FLAG(NON_TB);
+
+	if ((peer->ftm.trigger_based || peer->ftm.non_trigger_based) &&
+	    peer->ftm.lmr_feedback)
+		FTM_PUT_FLAG(LMR_FEEDBACK);
 }
 
 static int
