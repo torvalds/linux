@@ -2494,16 +2494,6 @@ static void rcu_sched_exit(int *_)
 	int rcu_sched_guard_##name __guard(rcu_sched_exit);	\
 	rcu_read_lock_sched();
 
-static void rcu_callback_exit(int *_)
-{
-	rcu_lock_release(&rcu_callback_map);
-}
-
-#define RCU_CALLBACK_CONTEXT(name, ...)					\
-	int rcu_callback_guard_##name __guard(rcu_callback_exit);	\
-	rcu_lock_acquire(&rcu_callback_map);
-
-
 static void raw_spinlock_exit(raw_spinlock_t **lock)
 {
 	raw_spin_unlock(*lock);
@@ -2560,8 +2550,6 @@ static void __maybe_unused inner##_in_##outer(void)				\
  * ---------------+-------+----------+------+-------
  * RCU_BH         |   o   |    o     |  o   |  x
  * ---------------+-------+----------+------+-------
- * RCU_CALLBACK   |   o   |    o     |  o   |  x
- * ---------------+-------+----------+------+-------
  * RCU_SCHED      |   o   |    o     |  x   |  x
  * ---------------+-------+----------+------+-------
  * RAW_SPIN       |   o   |    o     |  x   |  x
@@ -2578,7 +2566,6 @@ GENERATE_2_CONTEXT_TESTCASE(NOTTHREADED_HARDIRQ, , inner, inner_lock)		\
 GENERATE_2_CONTEXT_TESTCASE(SOFTIRQ, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU, , inner, inner_lock)				\
 GENERATE_2_CONTEXT_TESTCASE(RCU_BH, , inner, inner_lock)			\
-GENERATE_2_CONTEXT_TESTCASE(RCU_CALLBACK, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU_SCHED, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RAW_SPINLOCK, raw_lock_A, inner, inner_lock)	\
 GENERATE_2_CONTEXT_TESTCASE(SPINLOCK, lock_A, inner, inner_lock)		\
@@ -2638,10 +2625,6 @@ static void wait_context_tests(void)
 
 	print_testname("in RCU-bh context");
 	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(RCU_BH);
-	pr_cont("\n");
-
-	print_testname("in RCU callback context");
-	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(RCU_CALLBACK);
 	pr_cont("\n");
 
 	print_testname("in RCU-sched context");
