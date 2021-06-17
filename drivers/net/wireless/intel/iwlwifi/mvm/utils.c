@@ -621,7 +621,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum ieee80211_smps_mode smps_request)
 {
 	struct iwl_mvm_vif *mvmvif;
-	enum ieee80211_smps_mode smps_mode;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -630,10 +630,8 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (num_of_ant(iwl_mvm_get_valid_rx_ant(mvm)) == 1)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		smps_mode = IEEE80211_SMPS_OFF;
-	else
-		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmvif->smps_requests[req_type] = smps_request;
