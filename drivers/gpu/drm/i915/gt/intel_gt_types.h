@@ -24,6 +24,7 @@
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
 #include "intel_rps_types.h"
+#include "intel_migrate_types.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -144,6 +145,8 @@ struct intel_gt {
 	struct intel_gt_buffer_pool buffer_pool;
 
 	struct i915_vma *scratch;
+
+	struct intel_migrate migrate;
 
 	struct intel_gt_info {
 		intel_engine_mask_t engine_mask;

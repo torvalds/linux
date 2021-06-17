@@ -3,6 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/sort.h>
+
 #include "selftests/i915_random.h"
 
 static const unsigned int sizes[] = {
@@ -18,13 +20,11 @@ static const unsigned int sizes[] = {
 static struct drm_i915_gem_object *
 create_lmem_or_internal(struct drm_i915_private *i915, size_t size)
 {
-	if (HAS_LMEM(i915)) {
-		struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj;
 
-		obj = i915_gem_object_create_lmem(i915, size, 0);
-		if (!IS_ERR(obj))
-			return obj;
-	}
+	obj = i915_gem_object_create_lmem(i915, size, 0);
+	if (!IS_ERR(obj))
+		return obj;
 
 	return i915_gem_object_create_internal(i915, size);
 }
@@ -441,14 +441,229 @@ int intel_migrate_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(thread_global_copy),
 		SUBTEST(thread_global_clear),
 	};
-	struct intel_migrate m;
-	int err;
+	struct intel_gt *gt = &i915->gt;
 
-	if (intel_migrate_init(&m, &i915->gt))
+	if (!gt->migrate.context)
 		return 0;
 
-	err = i915_subtests(tests, &m);
-	intel_migrate_fini(&m);
+	return i915_subtests(tests, &gt->migrate);
+}
 
-	return err;
+static struct drm_i915_gem_object *
+create_init_lmem_internal(struct intel_gt *gt, size_t sz, bool try_lmem)
+{
+	struct drm_i915_gem_object *obj = NULL;
+	int err;
+
+	if (try_lmem)
+		obj = i915_gem_object_create_lmem(gt->i915, sz, 0);
+
+	if (IS_ERR_OR_NULL(obj)) {
+		obj = i915_gem_object_create_internal(gt->i915, sz);
+		if (IS_ERR(obj))
+			return obj;
+	}
+
+	i915_gem_object_trylock(obj);
+	err = i915_gem_object_pin_pages(obj);
+	if (err) {
+		i915_gem_object_unlock(obj);
+		i915_gem_object_put(obj);
+		return ERR_PTR(err);
+	}
+
+	return obj;
+}
+
+static int wrap_ktime_compare(const void *A, const void *B)
+{
+	const ktime_t *a = A, *b = B;
+
+	return ktime_compare(*a, *b);
+}
+
+static int __perf_clear_blt(struct intel_context *ce,
+			    struct scatterlist *sg,
+			    enum i915_cache_level cache_level,
+			    bool is_lmem,
+			    size_t sz)
+{
+	ktime_t t[5];
+	int pass;
+	int err = 0;
+
+	for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
+		struct i915_request *rq;
+		ktime_t t0, t1;
+
+		t0 = ktime_get();
+
+		err = intel_context_migrate_clear(ce, NULL, sg, cache_level,
+						  is_lmem, 0, &rq);
+		if (rq) {
+			if (i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT) < 0)
+				err = -EIO;
+			i915_request_put(rq);
+		}
+		if (err)
+			break;
+
+		t1 = ktime_get();
+		t[pass] = ktime_sub(t1, t0);
+	}
+	if (err)
+		return err;
+
+	sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+	pr_info("%s: %zd KiB fill: %lld MiB/s\n",
+		ce->engine->name, sz >> 10,
+		div64_u64(mul_u32_u32(4 * sz,
+				      1000 * 1000 * 1000),
+			  t[1] + 2 * t[2] + t[3]) >> 20);
+	return 0;
+}
+
+static int perf_clear_blt(void *arg)
+{
+	struct intel_gt *gt = arg;
+	static const unsigned long sizes[] = {
+		SZ_4K,
+		SZ_64K,
+		SZ_2M,
+		SZ_64M
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+		struct drm_i915_gem_object *dst;
+		int err;
+
+		dst = create_init_lmem_internal(gt, sizes[i], true);
+		if (IS_ERR(dst))
+			return PTR_ERR(dst);
+
+		err = __perf_clear_blt(gt->migrate.context,
+				       dst->mm.pages->sgl,
+				       I915_CACHE_NONE,
+				       i915_gem_object_is_lmem(dst),
+				       sizes[i]);
+
+		i915_gem_object_unlock(dst);
+		i915_gem_object_put(dst);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int __perf_copy_blt(struct intel_context *ce,
+			   struct scatterlist *src,
+			   enum i915_cache_level src_cache_level,
+			   bool src_is_lmem,
+			   struct scatterlist *dst,
+			   enum i915_cache_level dst_cache_level,
+			   bool dst_is_lmem,
+			   size_t sz)
+{
+	ktime_t t[5];
+	int pass;
+	int err = 0;
+
+	for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
+		struct i915_request *rq;
+		ktime_t t0, t1;
+
+		t0 = ktime_get();
+
+		err = intel_context_migrate_copy(ce, NULL,
+						 src, src_cache_level,
+						 src_is_lmem,
+						 dst, dst_cache_level,
+						 dst_is_lmem,
+						 &rq);
+		if (rq) {
+			if (i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT) < 0)
+				err = -EIO;
+			i915_request_put(rq);
+		}
+		if (err)
+			break;
+
+		t1 = ktime_get();
+		t[pass] = ktime_sub(t1, t0);
+	}
+	if (err)
+		return err;
+
+	sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+	pr_info("%s: %zd KiB copy: %lld MiB/s\n",
+		ce->engine->name, sz >> 10,
+		div64_u64(mul_u32_u32(4 * sz,
+				      1000 * 1000 * 1000),
+			  t[1] + 2 * t[2] + t[3]) >> 20);
+	return 0;
+}
+
+static int perf_copy_blt(void *arg)
+{
+	struct intel_gt *gt = arg;
+	static const unsigned long sizes[] = {
+		SZ_4K,
+		SZ_64K,
+		SZ_2M,
+		SZ_64M
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+		struct drm_i915_gem_object *src, *dst;
+		int err;
+
+		src = create_init_lmem_internal(gt, sizes[i], true);
+		if (IS_ERR(src))
+			return PTR_ERR(src);
+
+		dst = create_init_lmem_internal(gt, sizes[i], false);
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			goto err_src;
+		}
+
+		err = __perf_copy_blt(gt->migrate.context,
+				      src->mm.pages->sgl,
+				      I915_CACHE_NONE,
+				      i915_gem_object_is_lmem(src),
+				      dst->mm.pages->sgl,
+				      I915_CACHE_NONE,
+				      i915_gem_object_is_lmem(dst),
+				      sizes[i]);
+
+		i915_gem_object_unlock(dst);
+		i915_gem_object_put(dst);
+err_src:
+		i915_gem_object_unlock(src);
+		i915_gem_object_put(src);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int intel_migrate_perf_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(perf_clear_blt),
+		SUBTEST(perf_copy_blt),
+	};
+	struct intel_gt *gt = &i915->gt;
+
+	if (intel_gt_is_wedged(gt))
+		return 0;
+
+	if (!gt->migrate.context)
+		return 0;
+
+	return intel_gt_live_subtests(tests, gt);
 }
