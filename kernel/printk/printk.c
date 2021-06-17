@@ -3568,10 +3568,33 @@ int __printk_cpu_trylock(void)
 
 	cpu = smp_processor_id();
 
-	old = atomic_cmpxchg(&printk_cpulock_owner, -1, cpu);
+	/*
+	 * Guarantee loads and stores from this CPU when it is the lock owner
+	 * are _not_ visible to the previous lock owner. This pairs with
+	 * __printk_cpu_unlock:B.
+	 *
+	 * Memory barrier involvement:
+	 *
+	 * If __printk_cpu_trylock:A reads from __printk_cpu_unlock:B, then
+	 * __printk_cpu_unlock:A can never read from __printk_cpu_trylock:B.
+	 *
+	 * Relies on:
+	 *
+	 * RELEASE from __printk_cpu_unlock:A to __printk_cpu_unlock:B
+	 * of the previous CPU
+	 *    matching
+	 * ACQUIRE from __printk_cpu_trylock:A to __printk_cpu_trylock:B
+	 * of this CPU
+	 */
+	old = atomic_cmpxchg_acquire(&printk_cpulock_owner, -1,
+				     cpu); /* LMM(__printk_cpu_trylock:A) */
 	if (old == -1) {
-		/* This CPU is now the owner. */
+		/*
+		 * This CPU is now the owner and begins loading/storing
+		 * data: LMM(__printk_cpu_trylock:B)
+		 */
 		return 1;
+
 	} else if (old == cpu) {
 		/* This CPU is already the owner. */
 		atomic_inc(&printk_cpulock_nested);
@@ -3596,7 +3619,31 @@ void __printk_cpu_unlock(void)
 		return;
 	}
 
-	atomic_set(&printk_cpulock_owner, -1);
+	/*
+	 * This CPU is finished loading/storing data:
+	 * LMM(__printk_cpu_unlock:A)
+	 */
+
+	/*
+	 * Guarantee loads and stores from this CPU when it was the
+	 * lock owner are visible to the next lock owner. This pairs
+	 * with __printk_cpu_trylock:A.
+	 *
+	 * Memory barrier involvement:
+	 *
+	 * If __printk_cpu_trylock:A reads from __printk_cpu_unlock:B,
+	 * then __printk_cpu_trylock:B reads from __printk_cpu_unlock:A.
+	 *
+	 * Relies on:
+	 *
+	 * RELEASE from __printk_cpu_unlock:A to __printk_cpu_unlock:B
+	 * of this CPU
+	 *    matching
+	 * ACQUIRE from __printk_cpu_trylock:A to __printk_cpu_trylock:B
+	 * of the next CPU
+	 */
+	atomic_set_release(&printk_cpulock_owner,
+			   -1); /* LMM(__printk_cpu_unlock:B) */
 }
 EXPORT_SYMBOL(__printk_cpu_unlock);
 #endif /* CONFIG_SMP */
