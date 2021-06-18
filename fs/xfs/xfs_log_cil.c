@@ -870,6 +870,15 @@ restart:
 	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_push_lock);
 
+	/*
+	 * If the checkpoint spans multiple iclogs, wait for all previous
+	 * iclogs to complete before we submit the commit_iclog.
+	 */
+	if (ctx->start_lsn != commit_lsn) {
+		spin_lock(&log->l_icloglock);
+		xlog_wait_on_iclog(commit_iclog->ic_prev);
+	}
+
 	/* release the hounds! */
 	xfs_log_release_iclog(commit_iclog);
 	return;

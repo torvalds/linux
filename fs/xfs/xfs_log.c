@@ -786,10 +786,12 @@ xfs_log_mount_cancel(
 }
 
 /*
- * Wait for the iclog to be written disk, or return an error if the log has been
- * shut down.
+ * Wait for the iclog and all prior iclogs to be written disk as required by the
+ * log force state machine. Waiting on ic_force_wait ensures iclog completions
+ * have been ordered and callbacks run before we are woken here, hence
+ * guaranteeing that all the iclogs up to this one are on stable storage.
  */
-static int
+int
 xlog_wait_on_iclog(
 	struct xlog_in_core	*iclog)
 		__releases(iclog->ic_log->l_icloglock)
