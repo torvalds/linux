@@ -583,7 +583,7 @@ static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-static int CheckIsMoxaMust(unsigned long io)
+static int mxser_must_get_hwid(unsigned long io)
 {
 	u8 oldmcr, hwid;
 	int i;
@@ -2452,7 +2452,7 @@ static int mxser_probe(struct pci_dev *pdev,
 	/* irq */
 	brd->irq = pdev->irq;
 
-	brd->chip_flag = CheckIsMoxaMust(brd->ports[0].ioaddr);
+	brd->chip_flag = mxser_must_get_hwid(brd->ports[0].ioaddr);
 	brd->uart_type = PORT_16550A;
 	brd->vector_mask = 0;
 
