@@ -12,6 +12,7 @@
 #include "amd_sfh_pcie.h"
 #include "amd_sfh_hid_desc.h"
 #include "amd_sfh_hid_report_desc.h"
+#include "amd_sfh_hid.h"
 
 #define	AMD_SFH_FW_MULTIPLIER (1000)
 #define HID_USAGE_SENSOR_PROP_REPORTING_STATE_ALL_EVENTS_ENUM	0x41
@@ -174,8 +175,12 @@ static void get_common_inputs(struct common_input_property *common, int report_i
 	common->event_type = HID_USAGE_SENSOR_EVENT_DATA_UPDATED_ENUM;
 }
 
-u8 get_input_report(int sensor_idx, int report_id, u8 *input_report, u32 *sensor_virt_addr)
+u8 get_input_report(u8 current_index, int sensor_idx, int report_id, struct amd_input_data *in_data)
 {
+	struct amd_mp2_dev *privdata = container_of(in_data, struct amd_mp2_dev, in_data);
+	u32 *sensor_virt_addr = in_data->sensor_virt_addr[current_index];
+	u8 *input_report = in_data->input_report[current_index];
+	u8 supported_input = privdata->mp2_acs & GENMASK(3, 0);
 	struct accel3_input_report acc_input;
 	struct gyro_input_report gyro_input;
 	struct magno_input_report magno_input;
@@ -213,7 +218,12 @@ u8 get_input_report(int sensor_idx, int report_id, u8 *input_report, u32 *sensor
 		break;
 	case als_idx: /* Als */
 		get_common_inputs(&als_input.common_property, report_id);
-		als_input.illuminance_value =  (int)sensor_virt_addr[0] / AMD_SFH_FW_MULTIPLIER;
+		/* For ALS ,V2 Platforms uses C2P_MSG5 register instead of DRAM access method */
+		if (supported_input == V2_STATUS)
+			als_input.illuminance_value = (int)readl(privdata->mmio + AMD_C2P_MSG(5));
+		else
+			als_input.illuminance_value =
+				(int)sensor_virt_addr[0] / AMD_SFH_FW_MULTIPLIER;
 		report_size = sizeof(als_input);
 		memcpy(input_report, &als_input, sizeof(als_input));
 		break;

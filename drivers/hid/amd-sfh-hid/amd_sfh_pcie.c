@@ -230,6 +230,11 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		return rc;
 	}
+
+	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
+	if (!privdata->cl_data)
+		return -ENOMEM;
+
 	rc = devm_add_action_or_reset(&pdev->dev, amd_mp2_pci_remove, privdata);
 	if (rc)
 		return rc;

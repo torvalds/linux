@@ -103,5 +103,4 @@ struct als_input_report {
 int get_report_descriptor(int sensor_idx, u8 rep_desc[]);
 u32 get_descr_sz(int sensor_idx, int descriptor_name);
 u8 get_feature_report(int sensor_idx, int report_id, u8 *feature_report);
-u8 get_input_report(int sensor_idx, int report_id, u8 *input_report, u32 *sensor_virt_addr);
 #endif

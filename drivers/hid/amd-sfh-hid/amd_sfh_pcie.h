@@ -10,6 +10,7 @@
 #define PCIE_MP2_AMD_H
 
 #include <linux/pci.h>
+#include "amd_sfh_hid.h"
 
 #define PCI_DEVICE_ID_AMD_MP2	0x15E4
 
@@ -75,6 +76,7 @@ struct amd_mp2_dev {
 	struct amdtp_cl_data *cl_data;
 	void __iomem *mmio;
 	const struct amd_mp2_ops *mp2_ops;
+	struct amd_input_data in_data;
 	/* mp2 active control status */
 	u32 mp2_acs;
 };
