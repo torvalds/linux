@@ -48,6 +48,24 @@ static inline void i915_priolist_free(struct i915_priolist *p)
 		__i915_priolist_free(p);
 }
 
+struct i915_sched_engine *
+i915_sched_engine_create(unsigned int subclass);
+
+void i915_sched_engine_free(struct kref *kref);
+
+static inline struct i915_sched_engine *
+i915_sched_engine_get(struct i915_sched_engine *sched_engine)
+{
+	kref_get(&sched_engine->ref);
+	return sched_engine;
+}
+
+static inline void
+i915_sched_engine_put(struct i915_sched_engine *sched_engine)
+{
+	kref_put(&sched_engine->ref, i915_sched_engine_free);
+}
+
 void i915_request_show_with_schedule(struct drm_printer *m,
 				     const struct i915_request *rq,
 				     const char *prefix,

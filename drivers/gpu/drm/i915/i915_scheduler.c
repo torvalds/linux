@@ -40,7 +40,7 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 	return rb_entry(rb, struct i915_priolist, node);
 }
 
-static void assert_priolists(struct intel_engine_execlists * const execlists)
+static void assert_priolists(struct i915_sched_engine * const sched_engine)
 {
 	struct rb_node *rb;
 	long last_prio;
@@ -48,11 +48,11 @@ static void assert_priolists(struct intel_engine_execlists * const execlists)
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		return;
 
-	GEM_BUG_ON(rb_first_cached(&execlists->queue) !=
-		   rb_first(&execlists->queue.rb_root));
+	GEM_BUG_ON(rb_first_cached(&sched_engine->queue) !=
+		   rb_first(&sched_engine->queue.rb_root));
 
 	last_prio = INT_MAX;
-	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
+	for (rb = rb_first_cached(&sched_engine->queue); rb; rb = rb_next(rb)) {
 		const struct i915_priolist *p = to_priolist(rb);
 
 		GEM_BUG_ON(p->priority > last_prio);
@@ -63,21 +63,21 @@ static void assert_priolists(struct intel_engine_execlists * const execlists)
 struct list_head *
 i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
 {
-	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_sched_engine * const sched_engine = engine->sched_engine;
 	struct i915_priolist *p;
 	struct rb_node **parent, *rb;
 	bool first = true;
 
 	lockdep_assert_held(&engine->active.lock);
-	assert_priolists(execlists);
+	assert_priolists(sched_engine);
 
-	if (unlikely(execlists->no_priolist))
+	if (unlikely(sched_engine->no_priolist))
 		prio = I915_PRIORITY_NORMAL;
 
 find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	parent = &execlists->queue.rb_root.rb_node;
+	parent = &sched_engine->queue.rb_root.rb_node;
 	while (*parent) {
 		rb = *parent;
 		p = to_priolist(rb);
@@ -92,7 +92,7 @@ find_priolist:
 	}
 
 	if (prio == I915_PRIORITY_NORMAL) {
-		p = &execlists->default_priolist;
+		p = &sched_engine->default_priolist;
 	} else {
 		p = kmem_cache_alloc(global.slab_priorities, GFP_ATOMIC);
 		/* Convert an allocation failure to a priority bump */
@@ -107,7 +107,7 @@ find_priolist:
 			 * requests, so if userspace lied about their
 			 * dependencies that reordering may be visible.
 			 */
-			execlists->no_priolist = true;
+			sched_engine->no_priolist = true;
 			goto find_priolist;
 		}
 	}
@@ -116,7 +116,7 @@ find_priolist:
 	INIT_LIST_HEAD(&p->requests);
 
 	rb_link_node(&p->node, rb, parent);
-	rb_insert_color_cached(&p->node, &execlists->queue, first);
+	rb_insert_color_cached(&p->node, &sched_engine->queue, first);
 
 	return &p->requests;
 }
@@ -184,7 +184,7 @@ static void kick_submission(struct intel_engine_cs *engine,
 	 * We only need to kick the tasklet once for the high priority
 	 * new context we add into the queue.
 	 */
-	if (prio <= engine->execlists.queue_priority_hint)
+	if (prio <= engine->sched_engine->queue_priority_hint)
 		return;
 
 	rcu_read_lock();
@@ -208,7 +208,7 @@ static void kick_submission(struct intel_engine_cs *engine,
 		     inflight->fence.context, inflight->fence.seqno,
 		     inflight->sched.attr.priority);
 
-	engine->execlists.queue_priority_hint = prio;
+	engine->sched_engine->queue_priority_hint = prio;
 	if (need_preempt(prio, rq_prio(inflight)))
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 
@@ -487,6 +487,33 @@ void i915_request_show_with_schedule(struct drm_printer *m,
 		i915_request_show(m, signaler, prefix, indent + 2);
 	}
 	rcu_read_unlock();
+}
+
+void i915_sched_engine_free(struct kref *kref)
+{
+	struct i915_sched_engine *sched_engine =
+		container_of(kref, typeof(*sched_engine), ref);
+
+	kfree(sched_engine);
+}
+
+struct i915_sched_engine *
+i915_sched_engine_create(unsigned int subclass)
+{
+	struct i915_sched_engine *sched_engine;
+
+	sched_engine = kzalloc(sizeof(*sched_engine), GFP_KERNEL);
+	if (!sched_engine)
+		return NULL;
+
+	kref_init(&sched_engine->ref);
+
+	sched_engine->queue = RB_ROOT_CACHED;
+	sched_engine->queue_priority_hint = INT_MIN;
+
+	/* subclass is used in a follow up patch */
+
+	return sched_engine;
 }
 
 static void i915_global_scheduler_shrink(void)

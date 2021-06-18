@@ -425,6 +425,11 @@ User Batchbuffer Execution
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
    :doc: User command execution
 
+Scheduling
+----------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_scheduler_types.h
+   :functions: i915_sched_engine
+
 Logical Rings, Logical Ring Contexts and Execlists
 --------------------------------------------------
 
