@@ -2207,23 +2207,13 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 {
 	int status, iir, i;
-	struct mxser_board *brd = NULL;
+	struct mxser_board *brd = dev_id;
 	struct mxser_port *port;
 	int max, irqbits, bits, msr;
 	unsigned int int_cnt, pass_counter = 0;
 	int handled = IRQ_NONE;
 	struct tty_struct *tty;
 
-	for (i = 0; i < MXSER_BOARDS; i++)
-		if (dev_id == &mxser_boards[i]) {
-			brd = dev_id;
-			break;
-		}
-
-	if (i == MXSER_BOARDS)
-		goto irq_stop;
-	if (brd == NULL)
-		goto irq_stop;
 	max = brd->info->nports;
 	while (pass_counter++ < MXSER_ISR_PASS_LIMIT) {
 		irqbits = inb(brd->vector) & brd->vector_mask;
@@ -2299,7 +2289,6 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 		}
 	}
 
-irq_stop:
 	return handled;
 }
 
