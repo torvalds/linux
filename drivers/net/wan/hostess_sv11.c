@@ -340,7 +340,8 @@ static struct z8530_dev *sv11_unit;
 
 int init_module(void)
 {
-	if ((sv11_unit = sv11_init(io, irq)) == NULL)
+	sv11_unit = sv11_init(io, irq);
+	if (!sv11_unit)
 		return -ENODEV;
 	return 0;
 }
