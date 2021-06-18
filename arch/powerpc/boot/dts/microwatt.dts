@@ -99,7 +99,25 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		interrupt-parent = <&ICS>;
 
 		ranges = <0 0 0xc0000000 0x40000000>;
+
+		interrupt-controller@4000 {
+			compatible = "openpower,xics-presentation", "ibm,ppc-xicp";
+			ibm,interrupt-server-ranges = <0x0 0x1>;
+			reg = <0x4000 0x100>;
+		};
+
+		ICS: interrupt-controller@5000 {
+			compatible = "openpower,xics-sources";
+			interrupt-controller;
+			interrupt-ranges = <0x10 0x10>;
+			reg = <0x5000 0x100>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			#interrupt-cells = <2>;
+		};
+
 	};
 };

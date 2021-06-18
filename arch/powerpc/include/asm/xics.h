@@ -65,8 +65,12 @@ struct icp_ops {
 
 extern const struct icp_ops *icp_ops;
 
+#ifdef CONFIG_PPC_ICS_NATIVE
 /* Native ICS */
 extern int ics_native_init(void);
+#else
+static inline int ics_native_init(void) { return -ENODEV; }
+#endif
 
 /* RTAS ICS */
 #ifdef CONFIG_PPC_ICS_RTAS

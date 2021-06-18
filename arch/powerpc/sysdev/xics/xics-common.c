@@ -477,6 +477,8 @@ void __init xics_init(void)
 	if (rc < 0)
 		rc = ics_opal_init();
 	if (rc < 0)
+		rc = ics_native_init();
+	if (rc < 0)
 		pr_warn("XICS: Cannot find a Source Controller !\n");
 
 	/* Initialize common bits */

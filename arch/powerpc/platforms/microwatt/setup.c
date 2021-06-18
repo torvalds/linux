@@ -10,8 +10,15 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+
 #include <asm/machdep.h>
 #include <asm/time.h>
+#include <asm/xics.h>
+
+static void __init microwatt_init_IRQ(void)
+{
+	xics_init();
+}
 
 static int __init microwatt_probe(void)
 {
@@ -27,5 +34,6 @@ machine_arch_initcall(microwatt, microwatt_populate);
 define_machine(microwatt) {
 	.name			= "microwatt",
 	.probe			= microwatt_probe,
+	.init_IRQ		= microwatt_init_IRQ,
 	.calibrate_decr		= generic_calibrate_decr,
 };
