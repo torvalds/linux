@@ -64,23 +64,23 @@
 /*
  * Follow just what Moxa Must chip defines.
  *
- * When LCR register (offset 0x03) writes the following value, the Must chip
- * will enter enchance mode. And write value on EFR (offset 0x02) bit 6,7 to
+ * When LCR register (offset 0x03) is written the following value, the Must chip
+ * will enter enhanced mode. And a write to EFR (offset 0x02) bit 6,7 will
  * change bank.
  */
-#define MOXA_MUST_ENTER_ENCHANCE	0xBF
+#define MOXA_MUST_ENTER_ENHANCED	0xBF
 
-/* when enhance mode enabled, access on general bank register */
+/* when enhanced mode is enabled, access to general bank register */
 #define MOXA_MUST_GDL_REGISTER		0x07
 #define MOXA_MUST_GDL_MASK		0x7F
 #define MOXA_MUST_GDL_HAS_BAD_DATA	0x80
 
 #define MOXA_MUST_LSR_RERR		0x80	/* error in receive FIFO */
-/* enchance register bank select and enchance mode setting register */
-/* when LCR register equals to 0xBF */
+/* enhanced register bank select and enhanced mode setting register */
+/* This works only when LCR register equals to 0xBF */
 #define MOXA_MUST_EFR_REGISTER		0x02
-#define MOXA_MUST_EFR_EFRB_ENABLE	0x10 /* enchance mode enable */
-/* enchance register bank set 0, 1, 2 */
+#define MOXA_MUST_EFR_EFRB_ENABLE	0x10 /* enhanced mode enable */
+/* enhanced register bank set 0, 1, 2 */
 #define MOXA_MUST_EFR_BANK0		0x00
 #define MOXA_MUST_EFR_BANK1		0x40
 #define MOXA_MUST_EFR_BANK2		0x80
@@ -287,7 +287,7 @@ static u8 __mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set,
 	u8 oldlcr, efr;
 
 	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	outb(MOXA_MUST_ENTER_ENHANCED, baseio + UART_LCR);
 
 	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~clear;
