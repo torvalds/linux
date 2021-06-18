@@ -273,6 +273,7 @@ config CRYPTO_DEV_SL3516
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select HW_RANDOM
+	depends on PM
 	help
 	  This option allows you to have support for SL3516 crypto offloader.
 
