@@ -45,7 +45,7 @@
 /* Generic definitions */
 #define MAX_STR_LEN			128
 #define BC_WAIT_TIME_MS			1000
-#define WLS_FW_PREPARE_TIME_MS		300
+#define WLS_FW_PREPARE_TIME_MS		1000
 #define WLS_FW_WAIT_TIME_MS		500
 #define WLS_FW_UPDATE_TIME_MS		1000
 #define WLS_FW_BUF_SIZE			128
