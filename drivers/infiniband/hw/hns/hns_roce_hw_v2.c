@@ -5190,6 +5190,11 @@ done:
 		qp_attr->cap.max_send_sge = 0;
 	}
 
+	qp_init_attr->qp_context = ibqp->qp_context;
+	qp_init_attr->qp_type = ibqp->qp_type;
+	qp_init_attr->recv_cq = ibqp->recv_cq;
+	qp_init_attr->send_cq = ibqp->send_cq;
+	qp_init_attr->srq = ibqp->srq;
 	qp_init_attr->cap = qp_attr->cap;
 	qp_init_attr->sq_sig_type = hr_qp->sq_signal_bits;
 
