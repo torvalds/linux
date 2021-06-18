@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2020	Intel Corporation
+ * Copyright 2018-2021	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -1339,3 +1339,34 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 		WARN_ON(1);
 	}
 }
+
+bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+				  unsigned long sband_mask,
+				  u32 prohibited_flags)
+{
+	int idx;
+
+	prohibited_flags |= IEEE80211_CHAN_DISABLED;
+
+	for_each_set_bit(idx, &sband_mask, NUM_NL80211_BANDS) {
+		struct ieee80211_supported_band *sband = wiphy->bands[idx];
+		int chanidx;
+
+		if (!sband)
+			continue;
+
+		for (chanidx = 0; chanidx < sband->n_channels; chanidx++) {
+			struct ieee80211_channel *chan;
+
+			chan = &sband->channels[chanidx];
+
+			if (chan->flags & prohibited_flags)
+				continue;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(cfg80211_any_usable_channels);

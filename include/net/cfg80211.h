@@ -895,6 +895,17 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
 }
 
 /**
+ * cfg80211_any_usable_channels - check for usable channels
+ * @wiphy: the wiphy to check for
+ * @band_mask: which bands to check on
+ * @prohibited_flags: which channels to not consider usable,
+ *	%IEEE80211_CHAN_DISABLED is always taken into account
+ */
+bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+				  unsigned long band_mask,
+				  u32 prohibited_flags);
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
