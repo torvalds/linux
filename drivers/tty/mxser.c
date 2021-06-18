@@ -398,22 +398,24 @@ static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 	return MOXA_OTHER_UART;
 }
 
-static void process_txrx_fifo(struct mxser_port *info)
+static void mxser_process_txrx_fifo(struct mxser_port *info)
 {
-	int i;
+	unsigned int i;
 
-	if ((info->type == PORT_16450) || (info->type == PORT_8250)) {
+	if (info->type == PORT_16450 || info->type == PORT_8250) {
 		info->rx_high_water = 1;
 		info->rx_low_water = 1;
 		info->xmit_fifo_size = 1;
-	} else
-		for (i = 0; i < UART_INFO_NUM; i++)
-			if (info->board->must_hwid == Gpci_uart_info[i].type) {
-				info->rx_low_water = Gpci_uart_info[i].rx_low_water;
-				info->rx_high_water = Gpci_uart_info[i].rx_high_water;
-				info->xmit_fifo_size = Gpci_uart_info[i].fifo_size;
-				break;
-			}
+		return;
+	}
+
+	for (i = 0; i < UART_INFO_NUM; i++)
+		if (info->board->must_hwid == Gpci_uart_info[i].type) {
+			info->rx_low_water = Gpci_uart_info[i].rx_low_water;
+			info->rx_high_water = Gpci_uart_info[i].rx_high_water;
+			info->xmit_fifo_size = Gpci_uart_info[i].fifo_size;
+			break;
+		}
 }
 
 static int mxser_carrier_raised(struct tty_port *port)
@@ -1149,7 +1151,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 
 		info->type = ss->type;
 
-		process_txrx_fifo(info);
+		mxser_process_txrx_fifo(info);
 	}
 
 	if (tty_port_initialized(port)) {
@@ -1895,7 +1897,7 @@ static void mxser_initbrd(struct mxser_board *brd, bool high_baud)
 
 		info->type = PORT_16550A;
 
-		process_txrx_fifo(info);
+		mxser_process_txrx_fifo(info);
 
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
