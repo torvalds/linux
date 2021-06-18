@@ -277,10 +277,11 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BAND_IN_RX_DATA	= (__force iwl_ucode_tlv_api_t)59,
 
 
-	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
-		= 128
+	/* sparse says it cannot increment the previous enum member */
+#define NUM_IWL_UCODE_TLV_API 128
+#else
+	NUM_IWL_UCODE_TLV_API
 #endif
 };
 
@@ -447,10 +448,11 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT		= (__force iwl_ucode_tlv_capa_t)100,
 	IWL_UCODE_TLV_CAPA_RFIM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)102,
 
-	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
-		= 128
+	/* sparse says it cannot increment the previous enum member */
+#define NUM_IWL_UCODE_TLV_CAPA 128
+#else
+	NUM_IWL_UCODE_TLV_CAPA
 #endif
 };
 
