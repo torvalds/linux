@@ -1953,17 +1953,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 	return retval;
 }
 
-static void mxser_board_remove(struct mxser_board *brd)
-{
-	unsigned int i;
-
-	for (i = 0; i < brd->info->nports; i++) {
-		tty_unregister_device(mxvar_sdriver, brd->idx + i);
-		tty_port_destroy(&brd->ports[i].port);
-	}
-	free_irq(brd->irq, brd);
-}
-
 static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
@@ -2053,8 +2042,14 @@ err:
 static void mxser_remove(struct pci_dev *pdev)
 {
 	struct mxser_board *brd = pci_get_drvdata(pdev);
+	unsigned int i;
 
-	mxser_board_remove(brd);
+	for (i = 0; i < brd->info->nports; i++) {
+		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+		tty_port_destroy(&brd->ports[i].port);
+	}
+
+	free_irq(brd->irq, brd);
 
 	pci_release_region(pdev, 2);
 	pci_release_region(pdev, 3);
