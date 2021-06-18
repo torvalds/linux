@@ -275,7 +275,7 @@ struct mxser_board {
 	enum mxser_must_hwid must_hwid;
 	speed_t max_baud;
 
-	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
+	struct mxser_port ports[];
 };
 
 static DECLARE_BITMAP(mxser_boards, MXSER_BOARDS);
@@ -1923,7 +1923,8 @@ static int mxser_probe(struct pci_dev *pdev,
 		goto err;
 	}
 
-	brd = devm_kzalloc(&pdev->dev, sizeof(*brd), GFP_KERNEL);
+	brd = devm_kzalloc(&pdev->dev, struct_size(brd, ports, nports),
+			GFP_KERNEL);
 	if (!brd)
 		goto err;
 
