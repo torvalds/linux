@@ -3975,7 +3975,9 @@ static int __regulatory_set_wiphy_regd(struct wiphy *wiphy,
 		 "wiphy should have REGULATORY_WIPHY_SELF_MANAGED\n"))
 		return -EPERM;
 
-	if (WARN(!is_valid_rd(rd), "Invalid regulatory domain detected\n")) {
+	if (WARN(!is_valid_rd(rd),
+		 "Invalid regulatory domain detected: %c%c\n",
+		 rd->alpha2[0], rd->alpha2[1])) {
 		print_regdomain_info(rd);
 		return -EINVAL;
 	}
