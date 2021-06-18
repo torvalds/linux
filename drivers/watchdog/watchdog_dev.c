@@ -1228,6 +1228,53 @@ void __exit watchdog_dev_exit(void)
 	kthread_destroy_worker(watchdog_kworker);
 }
 
+int watchdog_dev_suspend(struct watchdog_device *wdd)
+{
+	struct watchdog_core_data *wd_data = wdd->wd_data;
+	int ret = 0;
+
+	if (!wdd->wd_data)
+		return -ENODEV;
+
+	/* ping for the last time before suspend */
+	mutex_lock(&wd_data->lock);
+	if (watchdog_worker_should_ping(wd_data))
+		ret = __watchdog_ping(wd_data->wdd);
+	mutex_unlock(&wd_data->lock);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * make sure that watchdog worker will not kick in when the wdog is
+	 * suspended
+	 */
+	hrtimer_cancel(&wd_data->timer);
+	kthread_cancel_work_sync(&wd_data->work);
+
+	return 0;
+}
+
+int watchdog_dev_resume(struct watchdog_device *wdd)
+{
+	struct watchdog_core_data *wd_data = wdd->wd_data;
+	int ret = 0;
+
+	if (!wdd->wd_data)
+		return -ENODEV;
+
+	/*
+	 * __watchdog_ping will also retrigger hrtimer and therefore restore the
+	 * ping worker if needed.
+	 */
+	mutex_lock(&wd_data->lock);
+	if (watchdog_worker_should_ping(wd_data))
+		ret = __watchdog_ping(wd_data->wdd);
+	mutex_unlock(&wd_data->lock);
+
+	return ret;
+}
+
 module_param(handle_boot_enabled, bool, 0444);
 MODULE_PARM_DESC(handle_boot_enabled,
 	"Watchdog core auto-updates boot enabled watchdogs before userspace takes over (default="
