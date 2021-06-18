@@ -656,6 +656,8 @@ xlog_cil_push_work(
 	struct xfs_log_vec	lvhdr = { NULL };
 	xfs_lsn_t		commit_lsn;
 	xfs_lsn_t		push_seq;
+	struct bio		bio;
+	DECLARE_COMPLETION_ONSTACK(bdev_flush);
 
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
@@ -719,10 +721,19 @@ xlog_cil_push_work(
 	spin_unlock(&cil->xc_push_lock);
 
 	/*
-	 * pull all the log vectors off the items in the CIL, and
-	 * remove the items from the CIL. We don't need the CIL lock
-	 * here because it's only needed on the transaction commit
-	 * side which is currently locked out by the flush lock.
+	 * The CIL is stable at this point - nothing new will be added to it
+	 * because we hold the flush lock exclusively. Hence we can now issue
+	 * a cache flush to ensure all the completed metadata in the journal we
+	 * are about to overwrite is on stable storage.
+	 */
+	xfs_flush_bdev_async(&bio, log->l_mp->m_ddev_targp->bt_bdev,
+				&bdev_flush);
+
+	/*
+	 * Pull all the log vectors off the items in the CIL, and remove the
+	 * items from the CIL. We don't need the CIL lock here because it's only
+	 * needed on the transaction commit side which is currently locked out
+	 * by the flush lock.
 	 */
 	lv = NULL;
 	num_iovecs = 0;
@@ -805,6 +816,12 @@ xlog_cil_push_work(
 	lvhdr.lv_niovecs = 1;
 	lvhdr.lv_iovecp = &lhdr;
 	lvhdr.lv_next = ctx->lv_chain;
+
+	/*
+	 * Before we format and submit the first iclog, we have to ensure that
+	 * the metadata writeback ordering cache flush is complete.
+	 */
+	wait_for_completion(&bdev_flush);
 
 	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL, 0, true);
 	if (error)
