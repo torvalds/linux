@@ -189,12 +189,16 @@ void noinstr s390_handle_mcck(void)
  * returns 0 if all required registers are available
  * returns 1 otherwise
  */
-static int notrace s390_check_registers(union mci mci, int umode)
+static int notrace s390_validate_registers(union mci mci, int umode)
 {
+	struct mcesa *mcesa;
+	void *fpt_save_area;
 	union ctlreg2 cr2;
 	int kill_task;
+	u64 zero;
 
 	kill_task = 0;
+	zero = 0;
 
 	if (!mci.gr) {
 		/*
@@ -217,35 +221,89 @@ static int notrace s390_check_registers(union mci mci, int umode)
 		if (!test_cpu_flag(CIF_FPU))
 			kill_task = 1;
 	}
+	fpt_save_area = &S390_lowcore.floating_pt_save_area;
 	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
 		 * If the kernel currently uses the floating pointer
 		 * registers and needs the FPC register the system is
 		 * stopped. If the process has its floating pointer
-		 * registers loaded it is terminated.
+		 * registers loaded it is terminated. Otherwise the
+		 * FPC is just validated.
 		 */
 		if (S390_lowcore.fpu_flags & KERNEL_FPC)
 			s390_handle_damage();
+		asm volatile(
+			"	lfpc	%0\n"
+			:
+			: "Q" (zero));
 		if (!test_cpu_flag(CIF_FPU))
 			kill_task = 1;
+	} else {
+		asm volatile(
+			"	lfpc	%0\n"
+			:
+			: "Q" (S390_lowcore.fpt_creg_save_area));
 	}
 
-	if (MACHINE_HAS_VX) {
+	mcesa = (struct mcesa *)(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
+	if (!MACHINE_HAS_VX) {
+		/* Validate floating point registers */
+		asm volatile(
+			"	ld	0,0(%0)\n"
+			"	ld	1,8(%0)\n"
+			"	ld	2,16(%0)\n"
+			"	ld	3,24(%0)\n"
+			"	ld	4,32(%0)\n"
+			"	ld	5,40(%0)\n"
+			"	ld	6,48(%0)\n"
+			"	ld	7,56(%0)\n"
+			"	ld	8,64(%0)\n"
+			"	ld	9,72(%0)\n"
+			"	ld	10,80(%0)\n"
+			"	ld	11,88(%0)\n"
+			"	ld	12,96(%0)\n"
+			"	ld	13,104(%0)\n"
+			"	ld	14,112(%0)\n"
+			"	ld	15,120(%0)\n"
+			:
+			: "a" (fpt_save_area)
+			: "memory");
+	} else {
+		/* Validate vector registers */
+		union ctlreg0 cr0;
+
 		if (!mci.vr) {
 			/*
 			 * Vector registers can't be restored. If the kernel
 			 * currently uses vector registers the system is
 			 * stopped. If the process has its vector registers
-			 * loaded it is terminated.
+			 * loaded it is terminated. Otherwise just validate
+			 * the registers.
 			 */
 			if (S390_lowcore.fpu_flags & KERNEL_VXR)
 				s390_handle_damage();
 			if (!test_cpu_flag(CIF_FPU))
 				kill_task = 1;
 		}
+		cr0.val = S390_lowcore.cregs_save_area[0];
+		cr0.afp = cr0.vx = 1;
+		__ctl_load(cr0.val, 0, 0);
+		asm volatile(
+			"	la	1,%0\n"
+			"	.word	0xe70f,0x1000,0x0036\n" /* vlm 0,15,0(1) */
+			"	.word	0xe70f,0x1100,0x0c36\n" /* vlm 16,31,256(1) */
+			:
+			: "Q" (*(struct vx_array *)mcesa->vector_save_area)
+			: "1");
+		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
-	/* Check if access registers are valid */
+	/* Validate access registers */
+	asm volatile(
+		"	lam	0,15,0(%0)\n"
+		:
+		: "a" (&S390_lowcore.access_regs_save_area)
+		: "memory");
 	if (!mci.ar) {
 		/*
 		 * Access registers have unknown contents.
@@ -253,7 +311,7 @@ static int notrace s390_check_registers(union mci mci, int umode)
 		 */
 		kill_task = 1;
 	}
-	/* Check guarded storage registers */
+	/* Validate guarded storage registers */
 	cr2.val = S390_lowcore.cregs_save_area[2];
 	if (cr2.gse) {
 		if (!mci.gs) {
@@ -263,15 +321,26 @@ static int notrace s390_check_registers(union mci mci, int umode)
 			 * It has to be terminated.
 			 */
 			kill_task = 1;
+		} else {
+			load_gs_cb((struct gs_cb *)mcesa->guarded_storage_save_area);
 		}
 	}
+	/*
+	 * The getcpu vdso syscall reads CPU number from the programmable
+	 * field of the TOD clock. Disregard the TOD programmable register
+	 * validity bit and load the CPU number into the TOD programmable
+	 * field unconditionally.
+	 */
+	set_tod_programmable_field(raw_smp_processor_id());
+	/* Validate clock comparator register */
+	set_clock_comparator(S390_lowcore.clock_comparator);
 
 	if (!mci.ms || !mci.pm || !mci.ia)
 		kill_task = 1;
 
 	return kill_task;
 }
-NOKPROBE_SYMBOL(s390_check_registers);
+NOKPROBE_SYMBOL(s390_validate_registers);
 
 /*
  * Backup the guest's machine check info to its description block
@@ -369,7 +438,7 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_check_registers(mci, user_mode(regs))) {
+	if (s390_validate_registers(mci, user_mode(regs))) {
 		/*
 		 * Couldn't restore all register contents for the
 		 * user space process -> mark task for termination.
