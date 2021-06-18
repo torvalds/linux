@@ -113,6 +113,6 @@ union acpi_object *skl_int3472_get_acpi_buffer(struct acpi_device *adev,
 int skl_int3472_fill_cldb(struct acpi_device *adev, struct int3472_cldb *cldb);
 int skl_int3472_register_clock(struct int3472_discrete_device *int3472);
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
-				   struct acpi_resource *ares);
+				   struct acpi_resource_gpio *agpio);
 
 #endif

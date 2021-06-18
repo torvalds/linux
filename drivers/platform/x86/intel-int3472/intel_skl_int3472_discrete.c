@@ -103,11 +103,11 @@ skl_int3472_get_sensor_module_config(struct int3472_discrete_device *int3472)
 }
 
 static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int3472,
-					  struct acpi_resource *ares,
+					  struct acpi_resource_gpio *agpio,
 					  const char *func, u32 polarity)
 {
-	char *path = ares->data.gpio.resource_source.string_ptr;
 	const struct int3472_sensor_config *sensor_config;
+	char *path = agpio->resource_source.string_ptr;
 	struct gpiod_lookup *table_entry;
 	struct acpi_device *adev;
 	acpi_handle handle;
@@ -145,7 +145,7 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 
 	table_entry = &int3472->gpios.table[int3472->n_sensor_gpios];
 	table_entry->key = acpi_dev_name(adev);
-	table_entry->chip_hwnum = ares->data.gpio.pin_table[0];
+	table_entry->chip_hwnum = agpio->pin_table[0];
 	table_entry->con_id = func;
 	table_entry->idx = 0;
 	table_entry->flags = polarity;
@@ -156,23 +156,22 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 }
 
 static int skl_int3472_map_gpio_to_clk(struct int3472_discrete_device *int3472,
-				       struct acpi_resource *ares, u8 type)
+				       struct acpi_resource_gpio *agpio, u8 type)
 {
-	char *path = ares->data.gpio.resource_source.string_ptr;
+	char *path = agpio->resource_source.string_ptr;
+	u16 pin = agpio->pin_table[0];
 	struct gpio_desc *gpio;
 
 	switch (type) {
 	case INT3472_GPIO_TYPE_CLK_ENABLE:
-		gpio = acpi_get_and_request_gpiod(path, ares->data.gpio.pin_table[0],
-						  "int3472,clk-enable");
+		gpio = acpi_get_and_request_gpiod(path, pin, "int3472,clk-enable");
 		if (IS_ERR(gpio))
 			return (PTR_ERR(gpio));
 
 		int3472->clock.ena_gpio = gpio;
 		break;
 	case INT3472_GPIO_TYPE_PRIVACY_LED:
-		gpio = acpi_get_and_request_gpiod(path, ares->data.gpio.pin_table[0],
-						  "int3472,privacy-led");
+		gpio = acpi_get_and_request_gpiod(path, pin, "int3472,privacy-led");
 		if (IS_ERR(gpio))
 			return (PTR_ERR(gpio));
 
@@ -242,7 +241,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 	if (!obj) {
 		dev_warn(int3472->dev, "No _DSM entry for GPIO pin %u\n",
-			 ares->data.gpio.pin_table[0]);
+			 agpio->pin_table[0]);
 		return 1;
 	}
 
@@ -250,15 +249,14 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 	switch (type) {
 	case INT3472_GPIO_TYPE_RESET:
-		ret = skl_int3472_map_gpio_to_sensor(int3472, ares, "reset",
+		ret = skl_int3472_map_gpio_to_sensor(int3472, agpio, "reset",
 						     GPIO_ACTIVE_LOW);
 		if (ret)
 			err_msg = "Failed to map reset pin to sensor\n";
 
 		break;
 	case INT3472_GPIO_TYPE_POWERDOWN:
-		ret = skl_int3472_map_gpio_to_sensor(int3472, ares,
-						     "powerdown",
+		ret = skl_int3472_map_gpio_to_sensor(int3472, agpio, "powerdown",
 						     GPIO_ACTIVE_LOW);
 		if (ret)
 			err_msg = "Failed to map powerdown pin to sensor\n";
@@ -266,13 +264,13 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 		break;
 	case INT3472_GPIO_TYPE_CLK_ENABLE:
 	case INT3472_GPIO_TYPE_PRIVACY_LED:
-		ret = skl_int3472_map_gpio_to_clk(int3472, ares, type);
+		ret = skl_int3472_map_gpio_to_clk(int3472, agpio, type);
 		if (ret)
 			err_msg = "Failed to map GPIO to clock\n";
 
 		break;
 	case INT3472_GPIO_TYPE_POWER_ENABLE:
-		ret = skl_int3472_register_regulator(int3472, ares);
+		ret = skl_int3472_register_regulator(int3472, agpio);
 		if (ret)
 			err_msg = "Failed to map regulator to sensor\n";
 

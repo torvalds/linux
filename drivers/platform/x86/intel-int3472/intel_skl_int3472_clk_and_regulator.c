@@ -131,10 +131,10 @@ out_free_init_name:
 }
 
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
-				   struct acpi_resource *ares)
+				   struct acpi_resource_gpio *agpio)
 {
-	char *path = ares->data.gpio.resource_source.string_ptr;
 	const struct int3472_sensor_config *sensor_config;
+	char *path = agpio->resource_source.string_ptr;
 	struct regulator_consumer_supply supply_map;
 	struct regulator_init_data init_data = { };
 	struct regulator_config cfg = { };
@@ -168,8 +168,7 @@ int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 						int3472->regulator.supply_name,
 						&int3472_gpio_regulator_ops);
 
-	int3472->regulator.gpio = acpi_get_and_request_gpiod(path,
-							     ares->data.gpio.pin_table[0],
+	int3472->regulator.gpio = acpi_get_and_request_gpiod(path, agpio->pin_table[0],
 							     "int3472,regulator");
 	if (IS_ERR(int3472->regulator.gpio)) {
 		dev_err(int3472->dev, "Failed to get regulator GPIO line\n");
