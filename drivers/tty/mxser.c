@@ -51,7 +51,6 @@
 
 #define MOXA			0x400
 #define MOXA_HighSpeedOn	(MOXA + 61)
-#define MOXA_GETMSTATUS		(MOXA + 65)
 #define MOXA_SET_OP_MODE	(MOXA + 66)
 #define MOXA_GET_OP_MODE	(MOXA + 67)
 
@@ -316,14 +315,6 @@ struct mxser_board {
 	speed_t max_baud;
 
 	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
-};
-
-struct mxser_mstatus {
-	tcflag_t cflag;
-	int cts;
-	int dsr;
-	int ri;
-	int dcd;
 };
 
 static struct mxser_board mxser_boards[MXSER_BOARDS];
@@ -1416,57 +1407,6 @@ static int mxser_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
-{
-	struct mxser_port *ip;
-	struct tty_port *port;
-	struct tty_struct *tty;
-	int status;
-	unsigned int i, j;
-
-	switch (cmd) {
-	case MOXA_GETMSTATUS: {
-		struct mxser_mstatus ms, __user *msu = argp;
-		for (i = 0; i < MXSER_BOARDS; i++)
-			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
-				ip = &mxser_boards[i].ports[j];
-				port = &ip->port;
-				memset(&ms, 0, sizeof(ms));
-
-				mutex_lock(&port->mutex);
-				if (!ip->ioaddr)
-					goto copy;
-				
-				tty = tty_port_tty_get(port);
-
-				if (!tty)
-					ms.cflag = ip->normal_termios.c_cflag;
-				else
-					ms.cflag = tty->termios.c_cflag;
-				tty_kref_put(tty);
-				spin_lock_irq(&ip->slock);
-				status = inb(ip->ioaddr + UART_MSR);
-				spin_unlock_irq(&ip->slock);
-				if (status & UART_MSR_DCD)
-					ms.dcd = 1;
-				if (status & UART_MSR_DSR)
-					ms.dsr = 1;
-				if (status & UART_MSR_CTS)
-					ms.cts = 1;
-			copy:
-				mutex_unlock(&port->mutex);
-				if (copy_to_user(msu, &ms, sizeof(ms)))
-					return -EFAULT;
-				msu++;
-			}
-		return 0;
-	}
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-
 static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
 		struct async_icount *cprev)
 {
@@ -1497,7 +1437,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 	void __user *argp = (void __user *)arg;
 
 	if (tty->index == MXSER_PORTS)
-		return mxser_ioctl_special(cmd, argp);
+		return -ENOTTY;
 
 	if (cmd == MOXA_SET_OP_MODE || cmd == MOXA_GET_OP_MODE) {
 		int p;
