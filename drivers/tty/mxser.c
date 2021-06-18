@@ -180,9 +180,6 @@
 
 #define WAKEUP_CHARS		256
 
-#define UART_MCR_AFE		0x20
-#define UART_LSR_SPECIAL	0x1E
-
 #define PCI_DEVICE_ID_POS104UL	0x1044
 #define PCI_DEVICE_ID_CB108	0x1080
 #define PCI_DEVICE_ID_CP102UF	0x1023
@@ -2063,7 +2060,7 @@ static bool mxser_receive_chars_new(struct tty_struct *tty,
 
 	if (hwid == MOXA_OTHER_UART)
 		return false;
-	if (status & UART_LSR_SPECIAL)
+	if (status & UART_LSR_BRK_ERROR_BITS)
 		return false;
 	if (hwid == MOXA_MUST_MU860_HWID && (status & MOXA_MUST_LSR_RERR))
 		return false;
@@ -2108,7 +2105,7 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 				break;
 		} else {
 			char flag = 0;
-			if (status & UART_LSR_SPECIAL) {
+			if (status & UART_LSR_BRK_ERROR_BITS) {
 				if (status & UART_LSR_BI) {
 					flag = TTY_BREAK;
 					port->icount.brk++;
