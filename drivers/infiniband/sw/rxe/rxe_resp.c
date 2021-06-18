@@ -637,17 +637,10 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	ack->opcode = opcode;
 	ack->mask = rxe_opcode[opcode].mask;
 	ack->paylen = paylen;
-
-	/* fill in bth using the request packet headers */
-	memcpy(ack->hdr, pkt->hdr, RXE_BTH_BYTES);
-
-	bth_set_opcode(ack, opcode);
-	bth_set_qpn(ack, qp->attr.dest_qp_num);
-	bth_set_pad(ack, pad);
-	bth_set_se(ack, 0);
-	bth_set_psn(ack, psn);
-	bth_set_ack(ack, 0);
 	ack->psn = psn;
+
+	bth_init(ack, opcode, 0, 0, pad, IB_DEFAULT_PKEY_FULL,
+		 qp->attr.dest_qp_num, 0, psn);
 
 	if (ack->mask & RXE_AETH_MASK) {
 		aeth_set_syn(ack, syndrome);
