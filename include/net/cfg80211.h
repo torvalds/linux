@@ -535,18 +535,6 @@ ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *sband,
 }
 
 /**
- * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
- * @sband: the sband to search for the STA on
- *
- * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
- */
-static inline const struct ieee80211_sta_he_cap *
-ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
-{
-	return ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_STATION);
-}
-
-/**
  * ieee80211_get_he_6ghz_capa - return HE 6 GHz capabilities
  * @sband: the sband to search for the STA on
  * @iftype: the iftype to search for
