@@ -314,34 +314,24 @@ struct mxser_board {
 static struct mxser_board mxser_boards[MXSER_BOARDS];
 static struct tty_driver *mxvar_sdriver;
 
-static void mxser_enable_must_enchance_mode(unsigned long baseio)
+static u8 __mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set,
+		bool restore_LCR)
 {
-	u8 oldlcr;
-	u8 efr;
+	u8 oldlcr, efr;
 
 	oldlcr = inb(baseio + UART_LCR);
 	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
 	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr |= MOXA_MUST_EFR_EFRB_ENABLE;
+	efr &= ~clear;
+	efr |= set;
 
 	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
-}
 
-static void mxser_disable_must_enchance_mode(unsigned long baseio)
-{
-	u8 oldlcr;
-	u8 efr;
+	if (restore_LCR)
+		outb(oldlcr, baseio + UART_LCR);
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_EFRB_ENABLE;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	return oldlcr;
 }
 
 static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
@@ -431,6 +421,18 @@ static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
+static void mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set)
+{
+	__mxser_must_set_EFR(baseio, clear, set, true);
+}
+
+static void mxser_must_set_enhance_mode(unsigned long baseio, bool enable)
+{
+	mxser_must_set_EFR(baseio,
+			enable ? 0 : MOXA_MUST_EFR_EFRB_ENABLE,
+			enable ? MOXA_MUST_EFR_EFRB_ENABLE : 0);
+}
+
 static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
 {
 	u8 oldlcr;
@@ -514,7 +516,7 @@ static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 	int i;
 
 	outb(0, io + UART_LCR);
-	mxser_disable_must_enchance_mode(io);
+	mxser_must_set_enhance_mode(io, false);
 	oldmcr = inb(io + UART_MCR);
 	outb(0, io + UART_MCR);
 	mxser_set_must_xon1_value(io, 0x11);
@@ -2011,7 +2013,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 
 		/* Enhance mode enabled here */
 		if (brd->must_hwid != MOXA_OTHER_UART)
-			mxser_enable_must_enchance_mode(info->ioaddr);
+			mxser_must_set_enhance_mode(info->ioaddr, true);
 
 		info->type = PORT_16550A;
 
