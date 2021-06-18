@@ -1937,7 +1937,8 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_sta_cap(sband);
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(&sdata->vif));
 	if (he_cap) {
 		pos = ieee80211_ie_build_he_cap(pos, he_cap, end);
 		if (!pos)
