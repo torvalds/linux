@@ -67,10 +67,33 @@ static int rpmsg_wwan_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 	return 0;
 }
 
+static int rpmsg_wwan_ctrl_tx_blocking(struct wwan_port *port, struct sk_buff *skb)
+{
+	struct rpmsg_wwan_dev *rpwwan = wwan_port_get_drvdata(port);
+	int ret;
+
+	ret = rpmsg_send(rpwwan->ept, skb->data, skb->len);
+	if (ret)
+		return ret;
+
+	consume_skb(skb);
+	return 0;
+}
+
+static __poll_t rpmsg_wwan_ctrl_tx_poll(struct wwan_port *port,
+					struct file *filp, poll_table *wait)
+{
+	struct rpmsg_wwan_dev *rpwwan = wwan_port_get_drvdata(port);
+
+	return rpmsg_poll(rpwwan->ept, filp, wait);
+}
+
 static const struct wwan_port_ops rpmsg_wwan_pops = {
 	.start = rpmsg_wwan_ctrl_start,
 	.stop = rpmsg_wwan_ctrl_stop,
 	.tx = rpmsg_wwan_ctrl_tx,
+	.tx_blocking = rpmsg_wwan_ctrl_tx_blocking,
+	.tx_poll = rpmsg_wwan_ctrl_tx_poll,
 };
 
 static struct device *rpmsg_wwan_find_parent(struct device *dev)
