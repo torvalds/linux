@@ -295,17 +295,13 @@ static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct devic
 
 static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	ssize_t count;
-	count = sprintf(buf, "%d\n", w1_timeout);
-	return count;
+	return sprintf(buf, "%d\n", w1_timeout);
 }
 
 static ssize_t w1_master_attribute_show_timeout_us(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	ssize_t count;
-	count = sprintf(buf, "%d\n", w1_timeout_us);
-	return count;
+	return sprintf(buf, "%d\n", w1_timeout_us);
 }
 
 static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
