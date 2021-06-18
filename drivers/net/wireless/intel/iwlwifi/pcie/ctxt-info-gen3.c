@@ -231,25 +231,31 @@ err_free_prph_scratch:
 
 }
 
-void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans)
+void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans_pcie->iml) {
+		dma_free_coherent(trans->dev, trans->iml_len, trans_pcie->iml,
+				  trans_pcie->iml_dma_addr);
+		trans_pcie->iml_dma_addr = 0;
+		trans_pcie->iml = NULL;
+	}
+
+	iwl_pcie_ctxt_info_free_fw_img(trans);
+
+	if (alive)
+		return;
 
 	if (!trans_pcie->ctxt_info_gen3)
 		return;
 
+	/* ctxt_info_gen3 and prph_scratch are still needed for PNVM load */
 	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_gen3),
 			  trans_pcie->ctxt_info_gen3,
 			  trans_pcie->ctxt_info_dma_addr);
 	trans_pcie->ctxt_info_dma_addr = 0;
 	trans_pcie->ctxt_info_gen3 = NULL;
-
-	dma_free_coherent(trans->dev, trans->iml_len, trans_pcie->iml,
-			  trans_pcie->iml_dma_addr);
-	trans_pcie->iml_dma_addr = 0;
-	trans_pcie->iml = NULL;
-
-	iwl_pcie_ctxt_info_free_fw_img(trans);
 
 	dma_free_coherent(trans->dev, sizeof(*trans_pcie->prph_scratch),
 			  trans_pcie->prph_scratch,
@@ -257,6 +263,7 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans)
 	trans_pcie->prph_scratch_dma_addr = 0;
 	trans_pcie->prph_scratch = NULL;
 
+	/* this is needed for the entire lifetime */
 	dma_free_coherent(trans->dev, PAGE_SIZE, trans_pcie->prph_info,
 			  trans_pcie->prph_info_dma_addr);
 	trans_pcie->prph_info_dma_addr = 0;
