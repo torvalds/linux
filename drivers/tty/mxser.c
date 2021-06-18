@@ -372,7 +372,6 @@ struct mxser_board {
 	unsigned long vector_mask;
 
 	enum mxser_must_hwid must_hwid;
-	int uart_type;
 
 	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
 };
@@ -2361,7 +2360,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 		if (brd->must_hwid != MOXA_OTHER_UART)
 			mxser_enable_must_enchance_mode(info->ioaddr);
 
-		info->type = brd->uart_type;
+		info->type = PORT_16550A;
 
 		process_txrx_fifo(info);
 
@@ -2454,7 +2453,6 @@ static int mxser_probe(struct pci_dev *pdev,
 	brd->irq = pdev->irq;
 
 	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
-	brd->uart_type = PORT_16550A;
 	brd->vector_mask = 0;
 
 	for (i = 0; i < brd->info->nports; i++) {
