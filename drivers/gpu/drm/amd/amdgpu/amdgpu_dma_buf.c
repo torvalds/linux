@@ -448,7 +448,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 
 	for (bo_base = bo->vm_bo; bo_base; bo_base = bo_base->next) {
 		struct amdgpu_vm *vm = bo_base->vm;
-		struct dma_resv *resv = vm->root.base.bo->tbo.base.resv;
+		struct dma_resv *resv = vm->root.bo->tbo.base.resv;
 
 		if (ticket) {
 			/* When we get an error here it means that somebody

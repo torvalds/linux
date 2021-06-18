@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.139"
+#define DC_VER "3.2.140"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -303,6 +303,7 @@ struct dc_config {
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
+	bool allow_edp_hotplug_detection;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool clamp_min_dcfclk;
 #endif

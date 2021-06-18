@@ -33,7 +33,6 @@
 #include "clk_mgr.h"
 #include "reg_helper.h"
 #include "abm.h"
-#include "clk_mgr.h"
 #include "hubp.h"
 #include "dchubbub.h"
 #include "timing_generator.h"
@@ -47,6 +46,7 @@
 #include "dpcd_defs.h"
 #include "dce/dmub_outbox.h"
 #include "dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER_INIT(logger)
 

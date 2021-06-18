@@ -71,4 +71,8 @@ void dc_dmub_trace_event_control(struct dc *dc, bool enable);
 
 void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv, union dmub_inbox0_data_register data);
 
+bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *dmub_oca);
+
+void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv);
+
 #endif /* _DMUB_DC_SRV_H_ */

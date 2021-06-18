@@ -159,7 +159,6 @@ dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_l_in_us, mode_lib->vba.TimeP
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_c_in_us, mode_lib->vba.TimePerChromaMetaChunkVBlank);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_l_in_us, mode_lib->vba.TimePerMetaChunkFlip);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_c_in_us, mode_lib->vba.TimePerChromaMetaChunkFlip);
-
 dml_get_pipe_attr_func(vstartup, mode_lib->vba.VStartup);
 dml_get_pipe_attr_func(vupdate_offset, mode_lib->vba.VUpdateOffsetPix);
 dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
@@ -419,7 +418,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		visited[j] = true;
 
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
-
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
 				(enum scan_direction_class) (src->source_scan);

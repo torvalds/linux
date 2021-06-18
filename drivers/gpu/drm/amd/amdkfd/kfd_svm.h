@@ -175,6 +175,11 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 void svm_range_free_dma_mappings(struct svm_range *prange);
 void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm);
 
+/* SVM API and HMM page migration work together, device memory type
+ * is initialized to not 0 when page migration register device memory.
+ */
+#define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0)
+
 #else
 
 struct kfd_process;
@@ -200,6 +205,8 @@ static inline int svm_range_schedule_evict_svm_bo(
 	WARN_ONCE(1, "SVM eviction fence triggered, but SVM is disabled");
 	return -EINVAL;
 }
+
+#define KFD_IS_SVM_API_SUPPORTED(dev) false
 
 #endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */
 
