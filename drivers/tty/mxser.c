@@ -50,7 +50,6 @@
  */
 
 #define MOXA			0x400
-#define MOXA_HighSpeedOn	(MOXA + 61)
 #define MOXA_SET_OP_MODE	(MOXA + 66)
 #define MOXA_GET_OP_MODE	(MOXA + 67)
 
@@ -1495,8 +1494,6 @@ static int mxser_ioctl(struct tty_struct *tty,
 
 		return wait_event_interruptible(info->port.delta_msr_wait,
 				mxser_cflags_changed(info, arg, &cnow));
-	case MOXA_HighSpeedOn:
-		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	default:
 		return -ENOIOCTLCMD;
 	}
