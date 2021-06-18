@@ -337,7 +337,7 @@ struct hns_roce_mw {
 
 struct hns_roce_mr {
 	struct ib_mr		ibmr;
-	u64			iova; /* MR's virtual orignal addr */
+	u64			iova; /* MR's virtual original addr */
 	u64			size; /* Address range of MR */
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
