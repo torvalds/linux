@@ -221,9 +221,6 @@ struct xfrm_state {
 	struct xfrm_replay_state preplay;
 	struct xfrm_replay_state_esn *preplay_esn;
 
-	/* The functions for replay detection. */
-	const struct xfrm_replay *repl;
-
 	/* replay detection mode */
 	enum xfrm_replay_mode    repl_mode;
 	/* internal flag that only holds state for delayed aevent at the
@@ -303,10 +300,6 @@ struct km_event {
 	u32	portid;
 	u32	event;
 	struct net *net;
-};
-
-struct xfrm_replay {
-	int	(*overflow)(struct xfrm_state *x, struct sk_buff *skb);
 };
 
 struct xfrm_if_cb {
@@ -1718,6 +1711,7 @@ static inline int xfrm_policy_id2dir(u32 index)
 void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq);
 int xfrm_replay_check(struct xfrm_state *x, struct sk_buff *skb, __be32 net_seq);
 void xfrm_replay_notify(struct xfrm_state *x, int event);
+int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm_replay_recheck(struct xfrm_state *x, struct sk_buff *skb, __be32 net_seq);
 
 static inline int xfrm_aevent_is_on(struct net *net)

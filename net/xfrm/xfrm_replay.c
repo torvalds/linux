@@ -95,7 +95,7 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 		x->xflags &= ~XFRM_TIME_DEFER;
 }
 
-static int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
+static int __xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = 0;
 	struct net *net = xs_net(x);
@@ -617,7 +617,7 @@ static int xfrm_replay_overflow_offload(struct xfrm_state *x, struct sk_buff *sk
 	__u32 oseq = x->replay.oseq;
 
 	if (!xo)
-		return xfrm_replay_overflow(x, skb);
+		return __xfrm_replay_overflow(x, skb);
 
 	if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 		if (!skb_is_gso(skb)) {
@@ -737,29 +737,33 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 	return err;
 }
 
-static const struct xfrm_replay xfrm_replay_legacy = {
-	.overflow	= xfrm_replay_overflow_offload,
-};
+int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
+{
+	switch (x->repl_mode) {
+	case XFRM_REPLAY_MODE_LEGACY:
+		break;
+	case XFRM_REPLAY_MODE_BMP:
+		return xfrm_replay_overflow_offload_bmp(x, skb);
+	case XFRM_REPLAY_MODE_ESN:
+		return xfrm_replay_overflow_offload_esn(x, skb);
+	}
 
-static const struct xfrm_replay xfrm_replay_bmp = {
-	.overflow	= xfrm_replay_overflow_offload_bmp,
-};
-
-static const struct xfrm_replay xfrm_replay_esn = {
-	.overflow	= xfrm_replay_overflow_offload_esn,
-};
+	return xfrm_replay_overflow_offload(x, skb);
+}
 #else
-static const struct xfrm_replay xfrm_replay_legacy = {
-	.overflow	= xfrm_replay_overflow,
-};
+int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
+{
+	switch (x->repl_mode) {
+	case XFRM_REPLAY_MODE_LEGACY:
+		break;
+	case XFRM_REPLAY_MODE_BMP:
+		return xfrm_replay_overflow_bmp(x, skb);
+	case XFRM_REPLAY_MODE_ESN:
+		return xfrm_replay_overflow_esn(x, skb);
+	}
 
-static const struct xfrm_replay xfrm_replay_bmp = {
-	.overflow	= xfrm_replay_overflow_bmp,
-};
-
-static const struct xfrm_replay xfrm_replay_esn = {
-	.overflow	= xfrm_replay_overflow_esn,
-};
+	return __xfrm_replay_overflow(x, skb);
+}
 #endif
 
 int xfrm_init_replay(struct xfrm_state *x)
@@ -774,14 +778,11 @@ int xfrm_init_replay(struct xfrm_state *x)
 		if (x->props.flags & XFRM_STATE_ESN) {
 			if (replay_esn->replay_window == 0)
 				return -EINVAL;
-			x->repl = &xfrm_replay_esn;
 			x->repl_mode = XFRM_REPLAY_MODE_ESN;
 		} else {
-			x->repl = &xfrm_replay_bmp;
 			x->repl_mode = XFRM_REPLAY_MODE_BMP;
 		}
 	} else {
-		x->repl = &xfrm_replay_legacy;
 		x->repl_mode = XFRM_REPLAY_MODE_LEGACY;
 	}
 
