@@ -630,8 +630,7 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 out_netif_api:
 	netif_napi_del(&priv->napi);
 out_netdev:
-	if (err)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	return err;
 }
