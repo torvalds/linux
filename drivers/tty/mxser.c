@@ -64,15 +64,8 @@
 #define OP_MODE_MASK		3
 
 #define MOXA_ASPP_OQUEUE	(MOXA + 70)
-#define MOXA_ASPP_LSTATUS	(MOXA + 74)
 
 /* --------------------------------------------------- */
-
-#define NPPI_NOTIFY_PARITY	0x01
-#define NPPI_NOTIFY_FRAMING	0x02
-#define NPPI_NOTIFY_HW_OVERRUN	0x04
-#define NPPI_NOTIFY_SW_OVERRUN	0x08
-#define NPPI_NOTIFY_BREAK	0x10
 
 /*
  * Follow just what Moxa Must chip defines.
@@ -304,7 +297,6 @@ struct mxser_port {
 	unsigned char ldisc_stop_rx;
 
 	int custom_divisor;
-	unsigned char err_shadow;
 
 	struct async_icount icount; /* kernel counters for 4 input interrupts */
 	unsigned int timeout;
@@ -1601,13 +1593,6 @@ static int mxser_ioctl(struct tty_struct *tty,
 
 		return put_user(len, (int __user *)argp);
 	}
-	case MOXA_ASPP_LSTATUS: {
-		if (put_user(info->err_shadow, (unsigned char __user *)argp))
-			return -EFAULT;
-
-		info->err_shadow = 0;
-		return 0;
-	}
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -2033,15 +2018,6 @@ static bool mxser_port_isr(struct mxser_port *port)
 
 	status = inb(port->ioaddr + UART_LSR);
 
-	if (status & UART_LSR_PE)
-		port->err_shadow |= NPPI_NOTIFY_PARITY;
-	if (status & UART_LSR_FE)
-		port->err_shadow |= NPPI_NOTIFY_FRAMING;
-	if (status & UART_LSR_OE)
-		port->err_shadow |= NPPI_NOTIFY_HW_OVERRUN;
-	if (status & UART_LSR_BI)
-		port->err_shadow |= NPPI_NOTIFY_BREAK;
-
 	if (port->board->must_hwid) {
 		if (iir == MOXA_MUST_IIR_GDA ||
 		    iir == MOXA_MUST_IIR_RDA ||
@@ -2172,7 +2148,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
 		info->normal_termios = mxvar_sdriver->init_termios;
-		info->err_shadow = 0;
 		spin_lock_init(&info->slock);
 
 		/* before set INT ISR, disable all int */
