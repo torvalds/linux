@@ -4223,7 +4223,6 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	struct ieee80211_vif *disabled_vif = NULL;
 
 	lockdep_assert_held(&mvm->mutex);
-
 	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
 	switch (vif->type) {
