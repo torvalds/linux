@@ -6,6 +6,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/poll.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 
@@ -40,15 +41,23 @@ struct wwan_port;
 /** struct wwan_port_ops - The WWAN port operations
  * @start: The routine for starting the WWAN port device.
  * @stop: The routine for stopping the WWAN port device.
- * @tx: The routine that sends WWAN port protocol data to the device.
+ * @tx: Non-blocking routine that sends WWAN port protocol data to the device.
+ * @tx_blocking: Optional blocking routine that sends WWAN port protocol data
+ *               to the device.
+ * @tx_poll: Optional routine that sets additional TX poll flags.
  *
  * The wwan_port_ops structure contains a list of low-level operations
- * that control a WWAN port device. All functions are mandatory.
+ * that control a WWAN port device. All functions are mandatory unless specified.
  */
 struct wwan_port_ops {
 	int (*start)(struct wwan_port *port);
 	void (*stop)(struct wwan_port *port);
 	int (*tx)(struct wwan_port *port, struct sk_buff *skb);
+
+	/* Optional operations */
+	int (*tx_blocking)(struct wwan_port *port, struct sk_buff *skb);
+	__poll_t (*tx_poll)(struct wwan_port *port, struct file *filp,
+			    poll_table *wait);
 };
 
 /**

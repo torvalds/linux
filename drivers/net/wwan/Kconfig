@@ -38,6 +38,24 @@ config MHI_WWAN_CTRL
 	  To compile this driver as a module, choose M here: the module will be
 	  called mhi_wwan_ctrl.
 
+config RPMSG_WWAN_CTRL
+	tristate "RPMSG WWAN control driver"
+	depends on RPMSG
+	help
+	  RPMSG WWAN CTRL allows modems available via RPMSG channels to expose
+	  different modem protocols/ports to userspace, including AT and QMI.
+	  These protocols can be accessed directly from userspace
+	  (e.g. AT commands) or via libraries/tools (e.g. libqmi, libqcdm...).
+
+	  This is mainly used for modems integrated into many Qualcomm SoCs,
+	  e.g. for AT and QMI on Qualcomm MSM8916 or MSM8974. Note that many
+	  newer Qualcomm SoCs (e.g. SDM845) still provide an AT port through
+	  this driver but the QMI messages can only be sent through
+	  QRTR network sockets (CONFIG_QRTR).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called rpmsg_wwan_ctrl.
+
 config IOSM
 	tristate "IOSM Driver for Intel M.2 WWAN Device"
 	depends on INTEL_IOMMU

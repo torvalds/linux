@@ -500,7 +500,8 @@ static void wwan_port_op_stop(struct wwan_port *port)
 	mutex_unlock(&port->ops_lock);
 }
 
-static int wwan_port_op_tx(struct wwan_port *port, struct sk_buff *skb)
+static int wwan_port_op_tx(struct wwan_port *port, struct sk_buff *skb,
+			   bool nonblock)
 {
 	int ret;
 
@@ -510,7 +511,10 @@ static int wwan_port_op_tx(struct wwan_port *port, struct sk_buff *skb)
 		goto out_unlock;
 	}
 
-	ret = port->ops->tx(port, skb);
+	if (nonblock || !port->ops->tx_blocking)
+		ret = port->ops->tx(port, skb);
+	else
+		ret = port->ops->tx_blocking(port, skb);
 
 out_unlock:
 	mutex_unlock(&port->ops_lock);
@@ -637,7 +641,7 @@ static ssize_t wwan_port_fops_write(struct file *filp, const char __user *buf,
 		return -EFAULT;
 	}
 
-	ret = wwan_port_op_tx(port, skb);
+	ret = wwan_port_op_tx(port, skb, !!(filp->f_flags & O_NONBLOCK));
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
@@ -653,12 +657,16 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 
 	poll_wait(filp, &port->waitqueue, wait);
 
-	if (!is_write_blocked(port))
+	mutex_lock(&port->ops_lock);
+	if (port->ops && port->ops->tx_poll)
+		mask |= port->ops->tx_poll(port, filp, wait);
+	else if (!is_write_blocked(port))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (!is_read_blocked(port))
 		mask |= EPOLLIN | EPOLLRDNORM;
 	if (!port->ops)
 		mask |= EPOLLHUP | EPOLLERR;
+	mutex_unlock(&port->ops_lock);
 
 	return mask;
 }
