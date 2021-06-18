@@ -355,14 +355,11 @@ out:
 int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 		   loff_t *pos)
 {
-	struct file *filp;
+	struct file *filp = fp->filp;
 	ssize_t nbytes = 0;
-	char *rbuf;
-	struct inode *inode;
+	char *rbuf = work->aux_payload_buf;
+	struct inode *inode = file_inode(filp);
 
-	rbuf = work->aux_payload_buf;
-	filp = fp->filp;
-	inode = file_inode(filp);
 	if (S_ISDIR(inode->i_mode))
 		return -EISDIR;
 
