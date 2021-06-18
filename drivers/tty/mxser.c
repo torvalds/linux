@@ -391,81 +391,21 @@ static void mxser_must_set_enhance_mode(unsigned long baseio, bool enable)
 			enable ? MOXA_MUST_EFR_EFRB_ENABLE : 0);
 }
 
-static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
+static void mxser_must_no_sw_flow_control(unsigned long baseio)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_SF_MASK;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	mxser_must_set_EFR(baseio, MOXA_MUST_EFR_SF_MASK, 0);
 }
 
-static void mxser_enable_must_tx_software_flow_control(unsigned long baseio)
+static void mxser_must_set_tx_sw_flow_control(unsigned long baseio, bool enable)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_SF_TX_MASK;
-	efr |= MOXA_MUST_EFR_SF_TX1;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	mxser_must_set_EFR(baseio, MOXA_MUST_EFR_SF_TX_MASK,
+			enable ? MOXA_MUST_EFR_SF_TX1 : 0);
 }
 
-static void mxser_disable_must_tx_software_flow_control(unsigned long baseio)
+static void mxser_must_set_rx_sw_flow_control(unsigned long baseio, bool enable)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_SF_TX_MASK;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
-}
-
-static void mxser_enable_must_rx_software_flow_control(unsigned long baseio)
-{
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_SF_RX_MASK;
-	efr |= MOXA_MUST_EFR_SF_RX1;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
-}
-
-static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
-{
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_SF_RX_MASK;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	mxser_must_set_EFR(baseio, MOXA_MUST_EFR_SF_RX_MASK,
+			enable ? MOXA_MUST_EFR_SF_RX1 : 0);
 }
 
 static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
@@ -746,20 +686,8 @@ static void mxser_change_speed(struct tty_struct *tty)
 	if (info->board->must_hwid) {
 		mxser_set_must_xon1_value(info->ioaddr, START_CHAR(tty));
 		mxser_set_must_xoff1_value(info->ioaddr, STOP_CHAR(tty));
-		if (I_IXON(tty)) {
-			mxser_enable_must_rx_software_flow_control(
-					info->ioaddr);
-		} else {
-			mxser_disable_must_rx_software_flow_control(
-					info->ioaddr);
-		}
-		if (I_IXOFF(tty)) {
-			mxser_enable_must_tx_software_flow_control(
-					info->ioaddr);
-		} else {
-			mxser_disable_must_tx_software_flow_control(
-					info->ioaddr);
-		}
+		mxser_must_set_rx_sw_flow_control(info->ioaddr, I_IXON(tty));
+		mxser_must_set_tx_sw_flow_control(info->ioaddr, I_IXOFF(tty));
 	}
 
 
@@ -946,7 +874,7 @@ static void mxser_shutdown_port(struct tty_port *port)
 
 
 	if (info->board->must_hwid)
-		SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(info->ioaddr);
+		mxser_must_no_sw_flow_control(info->ioaddr);
 
 	spin_unlock_irqrestore(&info->slock, flags);
 }
@@ -1585,8 +1513,7 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 
 		if (info->board->must_hwid) {
 			spin_lock_irqsave(&info->slock, flags);
-			mxser_disable_must_rx_software_flow_control(
-					info->ioaddr);
+			mxser_must_set_rx_sw_flow_control(info->ioaddr, false);
 			spin_unlock_irqrestore(&info->slock, flags);
 		}
 
