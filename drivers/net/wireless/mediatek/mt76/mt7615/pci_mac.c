@@ -268,6 +268,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	struct mt7615_phy *phy2;
 	struct mt76_phy *ext_phy;
 	struct mt7615_dev *dev;
+	unsigned long timeout;
 
 	dev = container_of(work, struct mt7615_dev, reset_work);
 	ext_phy = dev->mt76.phy2;
@@ -345,11 +346,11 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	mt7615_mutex_release(dev);
 
+	timeout = mt7615_get_macwork_timeout(dev);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
-				     MT7615_WATCHDOG_TIME);
+				     timeout);
 	if (phy2)
 		ieee80211_queue_delayed_work(ext_phy->hw,
-					     &phy2->mt76->mac_work,
-					     MT7615_WATCHDOG_TIME);
+					     &phy2->mt76->mac_work, timeout);
 
 }

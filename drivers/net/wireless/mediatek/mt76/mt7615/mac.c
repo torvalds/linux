@@ -1954,9 +1954,14 @@ void mt7615_pm_wake_work(struct work_struct *work)
 			mt76_queue_tx_cleanup(dev, mdev->q_mcu[MT_MCUQ_WM],
 					      false);
 		}
-		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+
+		if (test_bit(MT76_STATE_RUNNING, &mphy->state)) {
+			unsigned long timeout;
+
+			timeout = mt7615_get_macwork_timeout(dev);
 			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
-						     MT7615_WATCHDOG_TIME);
+						     timeout);
+		}
 	}
 
 	ieee80211_wake_queues(mphy->hw);
@@ -1991,6 +1996,7 @@ void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_phy *phy;
 	struct mt76_phy *mphy;
+	unsigned long timeout;
 
 	mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
 					       mac_work.work);
@@ -2009,8 +2015,9 @@ void mt7615_mac_work(struct work_struct *work)
 	mt7615_mutex_release(phy->dev);
 
 	mt76_tx_status_check(mphy->dev, NULL, false);
-	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
-				     MT7615_WATCHDOG_TIME);
+
+	timeout = mt7615_get_macwork_timeout(phy->dev);
+	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work, timeout);
 }
 
 void mt7615_tx_token_put(struct mt7615_dev *dev)

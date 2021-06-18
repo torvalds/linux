@@ -28,6 +28,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	unsigned long timeout;
 	bool running;
 	int ret;
 
@@ -78,8 +79,8 @@ static int mt7615_start(struct ieee80211_hw *hw)
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
-				     MT7615_WATCHDOG_TIME);
+	timeout = mt7615_get_macwork_timeout(dev);
+	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work, timeout);
 
 	if (!running)
 		mt7615_mac_reset_counters(dev);
@@ -350,10 +351,12 @@ out:
 	mt7615_mutex_release(dev);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
-	if (!mt76_testmode_enabled(phy->mt76))
+	if (!mt76_testmode_enabled(phy->mt76)) {
+		unsigned long timeout = mt7615_get_macwork_timeout(dev);
+
 		ieee80211_queue_delayed_work(phy->mt76->hw,
-					     &phy->mt76->mac_work,
-					     MT7615_WATCHDOG_TIME);
+					     &phy->mt76->mac_work, timeout);
+	}
 
 	return ret;
 }
@@ -1225,6 +1228,7 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 {
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	unsigned long timeout;
 	bool running;
 
 	mt7615_mutex_acquire(dev);
@@ -1248,8 +1252,8 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 					    mt76_connac_mcu_set_suspend_iter,
 					    phy->mt76);
 
-	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
-				     MT7615_WATCHDOG_TIME);
+	timeout = mt7615_get_macwork_timeout(dev);
+	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work, timeout);
 
 	mt7615_mutex_release(dev);
 

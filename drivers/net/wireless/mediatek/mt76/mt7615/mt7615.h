@@ -20,7 +20,6 @@
 					 MT7615_MAX_INTERFACES)
 
 #define MT7615_PM_TIMEOUT		(HZ / 12)
-#define MT7615_WATCHDOG_TIME		(HZ / 10)
 #define MT7615_HW_SCAN_TIMEOUT		(HZ / 10)
 #define MT7615_RESET_TIMEOUT		(30 * HZ)
 #define MT7615_RATE_RETRY		2
@@ -459,6 +458,12 @@ static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
 static inline u32 mt7615_tx_mcu_int_mask(struct mt7615_dev *dev)
 {
 	return MT_INT_TX_DONE(dev->mt76.q_mcu[MT_MCUQ_WM]->hw_idx);
+}
+
+static inline unsigned long
+mt7615_get_macwork_timeout(struct mt7615_dev *dev)
+{
+	return dev->pm.enable ? HZ / 3 : HZ / 10;
 }
 
 void mt7615_dma_reset(struct mt7615_dev *dev);
