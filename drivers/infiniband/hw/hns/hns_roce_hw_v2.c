@@ -740,10 +740,10 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 		       ~(((qp->sq.head + nreq) >> ilog2(qp->sq.wqe_cnt)) & 0x1);
 
 		/* Corresponding to the QP type, wqe process separately */
-		if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
-			ret = set_ud_wqe(qp, wr, wqe, &sge_idx, owner_bit);
-		else if (ibqp->qp_type == IB_QPT_RC)
+		if (ibqp->qp_type == IB_QPT_RC)
 			ret = set_rc_wqe(qp, wr, wqe, &sge_idx, owner_bit);
+		else
+			ret = set_ud_wqe(qp, wr, wqe, &sge_idx, owner_bit);
 
 		if (unlikely(ret)) {
 			*bad_wr = wr;
