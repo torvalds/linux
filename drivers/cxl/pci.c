@@ -1086,7 +1086,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	LIST_HEAD(register_maps);
 	int ret = 0;
 
-	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
+	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
 	if (!regloc) {
 		dev_err(dev, "register location dvsec not found\n");
 		return -ENXIO;
