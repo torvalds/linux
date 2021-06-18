@@ -230,6 +230,7 @@ enum mlx5e_tc_attr_to_reg {
 	FTEID_TO_REG,
 	NIC_CHAIN_TO_REG,
 	NIC_ZONE_RESTORE_TO_REG,
+	PACKET_COLOR_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {

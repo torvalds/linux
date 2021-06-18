@@ -62,10 +62,11 @@ struct mlx5_ct_attr {
 				 misc_parameters_2.metadata_reg_c_4),\
 }
 
+/* 8 LSB of metadata C5 are reserved for packet color */
 #define fteid_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_5,\
-	.moffset = 0,\
-	.mlen = 32,\
+	.moffset = 8,\
+	.mlen = 24,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_5),\
 }

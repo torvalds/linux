@@ -5,6 +5,7 @@
 #include "en/tc/post_act.h"
 #include "meter.h"
 #include "en/tc_priv.h"
+#include "post_meter.h"
 
 #define MLX5_START_COLOR_SHIFT 28
 #define MLX5_METER_MODE_SHIFT 24
@@ -45,6 +46,8 @@ struct mlx5e_flow_meters {
 
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_post_act *post_act;
+
+	struct mlx5e_post_meter_priv *post_meter;
 };
 
 static void
@@ -422,6 +425,12 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 		goto err_sq;
 	}
 
+	flow_meters->post_meter = mlx5e_post_meter_init(priv, ns_type, post_act);
+	if (IS_ERR(flow_meters->post_meter)) {
+		err = PTR_ERR(flow_meters->post_meter);
+		goto err_post_meter;
+	}
+
 	mutex_init(&flow_meters->sync_lock);
 	INIT_LIST_HEAD(&flow_meters->partial_list);
 	INIT_LIST_HEAD(&flow_meters->full_list);
@@ -435,6 +444,8 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 
 	return flow_meters;
 
+err_post_meter:
+	mlx5_aso_destroy(flow_meters->aso);
 err_sq:
 	mlx5_core_dealloc_pd(mdev, flow_meters->pdn);
 err_out:
@@ -448,6 +459,7 @@ mlx5e_flow_meters_cleanup(struct mlx5e_flow_meters *flow_meters)
 	if (IS_ERR_OR_NULL(flow_meters))
 		return;
 
+	mlx5e_post_meter_cleanup(flow_meters->post_meter);
 	mlx5_aso_destroy(flow_meters->aso);
 	mlx5_core_dealloc_pd(flow_meters->mdev, flow_meters->pdn);
 

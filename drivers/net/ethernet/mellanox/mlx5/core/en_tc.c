@@ -59,6 +59,7 @@
 #include "en/tc_tun_encap.h"
 #include "en/tc/sample.h"
 #include "en/tc/act/act.h"
+#include "en/tc/post_meter.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
@@ -104,6 +105,7 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 		.mlen = 16,
 	},
 	[NIC_ZONE_RESTORE_TO_REG] = nic_zone_restore_to_reg_ct,
+	[PACKET_COLOR_TO_REG] = packet_color_to_reg,
 };
 
 /* To avoid false lock dependency warning set the tc_ht lock
