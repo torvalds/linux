@@ -559,19 +559,22 @@ struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp)
 	fp->f_ci		= ksmbd_inode_get(fp);
 
 	if (!fp->f_ci) {
-		kmem_cache_free(filp_cache, fp);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err_out;
 	}
 
 	ret = __open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
 	if (ret) {
 		ksmbd_inode_put(fp->f_ci);
-		kmem_cache_free(filp_cache, fp);
-		return ERR_PTR(ret);
+		goto err_out;
 	}
 
 	atomic_inc(&work->conn->stats.open_files_count);
 	return fp;
+
+err_out:
+	kmem_cache_free(filp_cache, fp);
+	return ERR_PTR(ret);
 }
 
 static int
