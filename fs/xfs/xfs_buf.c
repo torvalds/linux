@@ -648,7 +648,7 @@ xfs_buf_get_map(
 {
 	struct xfs_buf		*bp;
 	struct xfs_buf		*new_bp;
-	int			error = 0;
+	int			error;
 
 	*bpp = NULL;
 	error = xfs_buf_find(target, map, nmaps, flags, NULL, &bp);
