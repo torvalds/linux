@@ -308,8 +308,10 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	ret = acpi_dev_get_resources(int3472->adev, &resource_list,
 				     skl_int3472_handle_gpio_resources,
 				     int3472);
-	if (ret)
-		goto out_free_res_list;
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&resource_list);
 
 	/*
 	 * If we find no clock enable GPIO pin then the privacy LED won't work.
@@ -319,7 +321,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	if (int3472->clock.ena_gpio) {
 		ret = skl_int3472_register_clock(int3472);
 		if (ret)
-			goto out_free_res_list;
+			return ret;
 	} else {
 		if (int3472->clock.led_gpio)
 			dev_warn(int3472->dev,
@@ -329,10 +331,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	int3472->gpios.dev_id = int3472->sensor_name;
 	gpiod_add_lookup_table(&int3472->gpios);
 
-out_free_res_list:
-	acpi_dev_free_resource_list(&resource_list);
-
-	return ret;
+	return 0;
 }
 
 int skl_int3472_discrete_probe(struct platform_device *pdev)
