@@ -3537,20 +3537,32 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	int size = le16_to_cpu(desc->rx.size);
 	u32 truesize = hns3_buf_size(ring);
 	u32 frag_size = size - pull_len;
+	bool reused;
 
 	/* Avoid re-using remote or pfmem page */
 	if (unlikely(!dev_page_is_reusable(desc_cb->priv)))
 		goto out;
 
-	/* Stack is not using and current page_offset is non-zero, we can
-	 * reuse from the zero offset.
+	reused = hns3_can_reuse_page(desc_cb);
+
+	/* Rx page can be reused when:
+	 * 1. Rx page is only owned by the driver when page_offset
+	 *    is zero, which means 0 @ truesize will be used by
+	 *    stack after skb_add_rx_frag() is called, and the rest
+	 *    of rx page can be reused by driver.
+	 * Or
+	 * 2. Rx page is only owned by the driver when page_offset
+	 *    is non-zero, which means page_offset @ truesize will
+	 *    be used by stack after skb_add_rx_frag() is called,
+	 *    and 0 @ truesize can be reused by driver.
 	 */
-	if (desc_cb->page_offset && hns3_can_reuse_page(desc_cb)) {
-		desc_cb->page_offset = 0;
-		desc_cb->reuse_flag = 1;
-	} else if (desc_cb->page_offset + truesize * 2 <=
-		   hns3_page_size(ring)) {
+	if ((!desc_cb->page_offset && reused) ||
+	    ((desc_cb->page_offset + truesize + truesize) <=
+	     hns3_page_size(ring) && desc_cb->page_offset)) {
 		desc_cb->page_offset += truesize;
+		desc_cb->reuse_flag = 1;
+	} else if (desc_cb->page_offset && reused) {
+		desc_cb->page_offset = 0;
 		desc_cb->reuse_flag = 1;
 	} else if (frag_size <= ring->rx_copybreak) {
 		void *frag = napi_alloc_frag(frag_size);
