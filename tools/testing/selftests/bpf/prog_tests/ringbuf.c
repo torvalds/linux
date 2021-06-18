@@ -100,7 +100,7 @@ void test_ringbuf(void)
 	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
 		goto cleanup;
 
-	rb_fd = bpf_map__fd(skel->maps.ringbuf);
+	rb_fd = skel->maps.ringbuf.map_fd;
 	/* good read/write cons_pos */
 	mmap_ptr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, rb_fd, 0);
 	ASSERT_OK_PTR(mmap_ptr, "rw_cons_pos");
