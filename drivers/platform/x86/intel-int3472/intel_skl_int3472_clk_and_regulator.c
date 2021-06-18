@@ -193,3 +193,9 @@ err_free_gpio:
 
 	return ret;
 }
+
+void skl_int3472_unregister_regulator(struct int3472_discrete_device *int3472)
+{
+	regulator_unregister(int3472->regulator.rdev);
+	gpiod_put(int3472->regulator.gpio);
+}
