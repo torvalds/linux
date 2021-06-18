@@ -64,6 +64,33 @@ static struct ttm_placement i915_sys_placement = {
 	.busy_placement = &sys_placement_flags,
 };
 
+static int i915_ttm_err_to_gem(int err)
+{
+	/* Fastpath */
+	if (likely(!err))
+		return 0;
+
+	switch (err) {
+	case -EBUSY:
+		/*
+		 * TTM likes to convert -EDEADLK to -EBUSY, and wants us to
+		 * restart the operation, since we don't record the contending
+		 * lock. We use -EAGAIN to restart.
+		 */
+		return -EAGAIN;
+	case -ENOSPC:
+		/*
+		 * Memory type / region is full, and we can't evict.
+		 * Except possibly system, that returns -ENOMEM;
+		 */
+		return -ENXIO;
+	default:
+		break;
+	}
+
+	return err;
+}
+
 static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj);
 
 static enum ttm_caching
@@ -522,15 +549,46 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 	struct sg_table *st;
 	struct ttm_place requested, busy[I915_TTM_MAX_PLACEMENTS];
 	struct ttm_placement placement;
+	int real_num_busy;
 	int ret;
 
 	GEM_BUG_ON(obj->mm.n_placements > I915_TTM_MAX_PLACEMENTS);
 
 	/* Move to the requested placement. */
 	i915_ttm_placement_from_obj(obj, &requested, busy, &placement);
+
+	/*
+	 * For now we support LMEM only with TTM.
+	 * TODO: Remove with system support
+	 */
+	GEM_BUG_ON(requested.mem_type < I915_PL_LMEM0 ||
+		   busy[0].mem_type < I915_PL_LMEM0);
+
+	/* First try only the requested placement. No eviction. */
+	real_num_busy = fetch_and_zero(&placement.num_busy_placement);
 	ret = ttm_bo_validate(bo, &placement, &ctx);
-	if (ret)
-		return ret == -ENOSPC ? -ENXIO : ret;
+	if (ret) {
+		ret = i915_ttm_err_to_gem(ret);
+		/*
+		 * Anything that wants to restart the operation gets to
+		 * do that.
+		 */
+		if (ret == -EDEADLK || ret == -EINTR || ret == -ERESTARTSYS ||
+		    ret == -EAGAIN)
+			return ret;
+
+		/* TODO: Remove this when we support system as TTM. */
+		real_num_busy = 1;
+
+		/*
+		 * If the initial attempt fails, allow all accepted placements,
+		 * evicting if necessary.
+		 */
+		placement.num_busy_placement = real_num_busy;
+		ret = ttm_bo_validate(bo, &placement, &ctx);
+		if (ret)
+			return i915_ttm_err_to_gem(ret);
+	}
 
 	/* Object either has a page vector or is an iomem object */
 	st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
@@ -741,5 +799,5 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 		obj->ttm.created = true;
 
 	/* i915 wants -ENXIO when out of memory region space. */
-	return (ret == -ENOSPC) ? -ENXIO : ret;
+	return i915_ttm_err_to_gem(ret);
 }
