@@ -740,10 +740,13 @@ static ssize_t iio_read_channel_label(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
-	if (!indio_dev->info->read_label)
-		return -EINVAL;
+	if (indio_dev->info->read_label)
+		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
 
-	return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
+	if (this_attr->c->extend_name)
+		return sprintf(buf, "%s\n", this_attr->c->extend_name);
+
+	return -EINVAL;
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,
@@ -1183,7 +1186,7 @@ static int iio_device_add_channel_label(struct iio_dev *indio_dev,
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int ret;
 
-	if (!indio_dev->info->read_label)
+	if (!indio_dev->info->read_label && !chan->extend_name)
 		return 0;
 
 	ret = __iio_add_chan_devattr("label",
