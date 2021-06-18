@@ -3598,8 +3598,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	if (btrfs_test_opt(fs_info, CHECK_INTEGRITY)) {
 		ret = btrfsic_mount(fs_info, fs_devices,
 				    btrfs_test_opt(fs_info,
-					CHECK_INTEGRITY_INCLUDING_EXTENT_DATA) ?
-				    1 : 0,
+					CHECK_INTEGRITY_DATA) ? 1 : 0,
 				    fs_info->check_integrity_print_mask);
 		if (ret)
 			btrfs_warn(fs_info,
