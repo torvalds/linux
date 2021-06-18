@@ -60,8 +60,6 @@
 #define RS485_4WIRE_MODE	3
 #define OP_MODE_MASK		3
 
-#define MOXA_ASPP_OQUEUE	(MOXA + 70)
-
 /* --------------------------------------------------- */
 
 /*
@@ -1499,17 +1497,6 @@ static int mxser_ioctl(struct tty_struct *tty,
 				mxser_cflags_changed(info, arg, &cnow));
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
-	case MOXA_ASPP_OQUEUE:{
-		int len, lsr;
-
-		len = mxser_chars_in_buffer(tty);
-		spin_lock_irq(&info->slock);
-		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
-		spin_unlock_irq(&info->slock);
-		len += (lsr ? 0 : 1);
-
-		return put_user(len, (int __user *)argp);
-	}
 	default:
 		return -ENOIOCTLCMD;
 	}
