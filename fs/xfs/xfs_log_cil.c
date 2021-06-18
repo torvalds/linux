@@ -890,15 +890,25 @@ restart:
 
 	/*
 	 * If the checkpoint spans multiple iclogs, wait for all previous
-	 * iclogs to complete before we submit the commit_iclog.
+	 * iclogs to complete before we submit the commit_iclog. In this case,
+	 * the commit_iclog write needs to issue a pre-flush so that the
+	 * ordering is correctly preserved down to stable storage.
 	 */
+	spin_lock(&log->l_icloglock);
 	if (ctx->start_lsn != commit_lsn) {
-		spin_lock(&log->l_icloglock);
 		xlog_wait_on_iclog(commit_iclog->ic_prev);
+		spin_lock(&log->l_icloglock);
+		commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
 	}
 
-	/* release the hounds! */
-	xfs_log_release_iclog(commit_iclog);
+	/*
+	 * The commit iclog must be written to stable storage to guarantee
+	 * journal IO vs metadata writeback IO is correctly ordered on stable
+	 * storage.
+	 */
+	commit_iclog->ic_flags |= XLOG_ICL_NEED_FUA;
+	xlog_state_release_iclog(log, commit_iclog);
+	spin_unlock(&log->l_icloglock);
 	return;
 
 out_skip:

@@ -513,7 +513,7 @@ __xlog_state_release_iclog(
  * Flush iclog to disk if this is the last reference to the given iclog and the
  * it is in the WANT_SYNC state.
  */
-static int
+int
 xlog_state_release_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog)
@@ -531,23 +531,6 @@ xlog_state_release_iclog(
 	}
 
 	return 0;
-}
-
-void
-xfs_log_release_iclog(
-	struct xlog_in_core	*iclog)
-{
-	struct xlog		*log = iclog->ic_log;
-	bool			sync = false;
-
-	if (atomic_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock)) {
-		if (iclog->ic_state != XLOG_STATE_IOERROR)
-			sync = __xlog_state_release_iclog(log, iclog);
-		spin_unlock(&log->l_icloglock);
-	}
-
-	if (sync)
-		xlog_sync(log, iclog);
 }
 
 /*
@@ -837,6 +820,14 @@ xlog_write_unmount_record(
 
 	/* account for space used by record data */
 	ticket->t_curr_res -= sizeof(ulf);
+
+	/*
+	 * For external log devices, we need to flush the data device cache
+	 * first to ensure all metadata writeback is on stable storage before we
+	 * stamp the tail LSN into the unmount record.
+	 */
+	if (log->l_targ != log->l_mp->m_ddev_targp)
+		blkdev_issue_flush(log->l_targ->bt_bdev);
 	return xlog_write(log, &vec, ticket, NULL, NULL, XLOG_UNMOUNT_TRANS);
 }
 
@@ -874,6 +865,11 @@ out_err:
 	else
 		ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
 		       iclog->ic_state == XLOG_STATE_IOERROR);
+	/*
+	 * Ensure the journal is fully flushed and on stable storage once the
+	 * iclog containing the unmount record is written.
+	 */
+	iclog->ic_flags |= (XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA);
 	error = xlog_state_release_iclog(log, iclog);
 	xlog_wait_on_iclog(iclog);
 
@@ -1755,8 +1751,7 @@ xlog_write_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	uint64_t		bno,
-	unsigned int		count,
-	bool			need_flush)
+	unsigned int		count)
 {
 	ASSERT(bno < log->l_logBBsize);
 
@@ -1794,10 +1789,12 @@ xlog_write_iclog(
 	 * writeback throttle from throttling log writes behind background
 	 * metadata writeback and causing priority inversions.
 	 */
-	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC |
-				REQ_IDLE | REQ_FUA;
-	if (need_flush)
+	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_IDLE;
+	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH)
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
+	if (iclog->ic_flags & XLOG_ICL_NEED_FUA)
+		iclog->ic_bio.bi_opf |= REQ_FUA;
+	iclog->ic_flags &= ~(XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA);
 
 	if (xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count)) {
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
@@ -1900,7 +1897,6 @@ xlog_sync(
 	unsigned int		roundoff;       /* roundoff to BB or stripe */
 	uint64_t		bno;
 	unsigned int		size;
-	bool			need_flush = true, split = false;
 
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
 
@@ -1925,10 +1921,8 @@ xlog_sync(
 	bno = BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn));
 
 	/* Do we need to split this write into 2 parts? */
-	if (bno + BTOBB(count) > log->l_logBBsize) {
+	if (bno + BTOBB(count) > log->l_logBBsize)
 		xlog_split_iclog(log, &iclog->ic_header, bno, count);
-		split = true;
-	}
 
 	/* calculcate the checksum */
 	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
@@ -1949,22 +1943,8 @@ xlog_sync(
 			 be64_to_cpu(iclog->ic_header.h_lsn));
 	}
 #endif
-
-	/*
-	 * Flush the data device before flushing the log to make sure all meta
-	 * data written back from the AIL actually made it to disk before
-	 * stamping the new log tail LSN into the log buffer.  For an external
-	 * log we need to issue the flush explicitly, and unfortunately
-	 * synchronously here; for an internal log we can simply use the block
-	 * layer state machine for preflushes.
-	 */
-	if (log->l_targ != log->l_mp->m_ddev_targp || split) {
-		blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev);
-		need_flush = false;
-	}
-
 	xlog_verify_iclog(log, iclog, count);
-	xlog_write_iclog(log, iclog, bno, count, need_flush);
+	xlog_write_iclog(log, iclog, bno, count);
 }
 
 /*
@@ -2418,7 +2398,7 @@ xlog_write(
 		ASSERT(log_offset <= iclog->ic_size - 1);
 		ptr = iclog->ic_datap + log_offset;
 
-		/* start_lsn is the first lsn written to. That's all we need. */
+		/* Start_lsn is the first lsn written to. */
 		if (start_lsn && !*start_lsn)
 			*start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
