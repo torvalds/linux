@@ -757,11 +757,7 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	hns_roce_init_cq_table(hr_dev);
 
-	ret = hns_roce_init_qp_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init queue pair table.\n");
-		goto err_cq_table_free;
-	}
+	hns_roce_init_qp_table(hr_dev);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		ret = hns_roce_init_srq_table(hr_dev);
@@ -776,8 +772,6 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 err_qp_table_free:
 	hns_roce_cleanup_qp_table(hr_dev);
-
-err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
 	ida_destroy(&hr_dev->mr_table.mtpt_ida.ida);
 
