@@ -65,13 +65,16 @@ static int __mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 
 	ret = readx_poll_timeout(mt7663s_read_pcr, dev, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev->mt76.dev, "Cannot get ownership from device");
-	else
+	} else {
 		clear_bit(MT76_STATE_PM, &mphy->state);
 
+		pm->stats.last_wake_event = jiffies;
+		pm->stats.doze_time += pm->stats.last_wake_event -
+				       pm->stats.last_doze_event;
+	}
 	sdio_release_host(func);
-	pm->last_activity = jiffies;
 
 	return ret;
 }
@@ -113,6 +116,10 @@ static int mt7663s_mcu_fw_pmctrl(struct mt7615_dev *dev)
 	if (ret < 0) {
 		dev_err(dev->mt76.dev, "Cannot set ownership to device");
 		clear_bit(MT76_STATE_PM, &mphy->state);
+	} else {
+		pm->stats.last_doze_event = jiffies;
+		pm->stats.awake_time += pm->stats.last_doze_event -
+					pm->stats.last_wake_event;
 	}
 
 	sdio_release_host(func);

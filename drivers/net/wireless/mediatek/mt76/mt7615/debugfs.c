@@ -75,7 +75,7 @@ mt7615_pm_set(void *data, u64 val)
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	if (!mt7615_firmware_offload(dev) || !mt76_is_mmio(&dev->mt76))
+	if (!mt7615_firmware_offload(dev) || mt76_is_usb(&dev->mt76))
 		return -EOPNOTSUPP;
 
 	if (val == pm->enable)
