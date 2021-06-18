@@ -1964,7 +1964,7 @@ xlog_sync(
 	 * layer state machine for preflushes.
 	 */
 	if (log->l_targ != log->l_mp->m_ddev_targp || split) {
-		xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
+		blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev);
 		need_flush = false;
 	}
 
