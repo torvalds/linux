@@ -200,18 +200,15 @@
 #define MXSER_HIGHBAUD	1
 
 static const struct {
-	int type;
-	int tx_fifo;
-	int rx_fifo;
-	int xmit_fifo_size;
-	int rx_high_water;
-	int rx_trigger;
-	int rx_low_water;
-	long max_baud;
+	u8 type;
+	u8 fifo_size;
+	u8 rx_high_water;
+	u8 rx_low_water;
+	speed_t max_baud;
 } Gpci_uart_info[] = {
-	{MOXA_OTHER_UART, 16, 16, 16, 14, 14, 1, 921600L},
-	{MOXA_MUST_MU150_HWID, 64, 64, 64, 48, 48, 16, 230400L},
-	{MOXA_MUST_MU860_HWID, 128, 128, 128, 96, 96, 32, 921600L}
+	{ MOXA_OTHER_UART,	 16, 14,  1, 921600 },
+	{ MOXA_MUST_MU150_HWID,	 64, 48, 16, 230400 },
+	{ MOXA_MUST_MU860_HWID, 128, 96, 32, 921600 }
 };
 #define UART_INFO_NUM	ARRAY_SIZE(Gpci_uart_info)
 
@@ -331,11 +328,10 @@ struct mxser_port {
 
 	unsigned long ioaddr;
 	unsigned long opmode_ioaddr;
-	int max_baud;
+	speed_t max_baud;
 
-	int rx_high_water;
-	int rx_trigger;		/* Rx fifo trigger level */
-	int rx_low_water;
+	u8 rx_high_water;
+	u8 rx_low_water;
 	int baud_base;		/* max. speed */
 	int type;		/* UART type */
 
@@ -354,7 +350,7 @@ struct mxser_port {
 
 	int read_status_mask;
 	int ignore_status_mask;
-	unsigned int xmit_fifo_size;
+	u8 xmit_fifo_size;
 	int xmit_head;
 	int xmit_tail;
 	int xmit_cnt;
@@ -470,9 +466,9 @@ static void mxser_set_must_fifo_value(struct mxser_port *info)
 	efr |= MOXA_MUST_EFR_BANK1;
 
 	outb(efr, info->ioaddr + MOXA_MUST_EFR_REGISTER);
-	outb((u8)info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTH_REGISTER);
-	outb((u8)info->rx_trigger, info->ioaddr + MOXA_MUST_RBRTI_REGISTER);
-	outb((u8)info->rx_low_water, info->ioaddr + MOXA_MUST_RBRTL_REGISTER);
+	outb(info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTH_REGISTER);
+	outb(info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTI_REGISTER);
+	outb(info->rx_low_water, info->ioaddr + MOXA_MUST_RBRTL_REGISTER);
 	outb(oldlcr, info->ioaddr + UART_LCR);
 }
 
@@ -615,17 +611,15 @@ static void process_txrx_fifo(struct mxser_port *info)
 	int i;
 
 	if ((info->type == PORT_16450) || (info->type == PORT_8250)) {
-		info->rx_trigger = 1;
 		info->rx_high_water = 1;
 		info->rx_low_water = 1;
 		info->xmit_fifo_size = 1;
 	} else
 		for (i = 0; i < UART_INFO_NUM; i++)
 			if (info->board->chip_flag == Gpci_uart_info[i].type) {
-				info->rx_trigger = Gpci_uart_info[i].rx_trigger;
 				info->rx_low_water = Gpci_uart_info[i].rx_low_water;
 				info->rx_high_water = Gpci_uart_info[i].rx_high_water;
-				info->xmit_fifo_size = Gpci_uart_info[i].xmit_fifo_size;
+				info->xmit_fifo_size = Gpci_uart_info[i].fifo_size;
 				break;
 			}
 }
@@ -667,7 +661,7 @@ static void mxser_dtr_rts(struct tty_port *port, int on)
 	spin_unlock_irqrestore(&mp->slock, flags);
 }
 
-static int mxser_set_baud(struct tty_struct *tty, long newspd)
+static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned int quot = 0, baud;
@@ -793,7 +787,7 @@ static void mxser_change_speed(struct tty_struct *tty)
 			fcr |= MOXA_MUST_FCR_GDA_MODE_ENABLE;
 			mxser_set_must_fifo_value(info);
 		} else {
-			switch (info->rx_trigger) {
+			switch (info->rx_high_water) {
 			case 1:
 				fcr |= UART_FCR_TRIGGER_1;
 				break;
