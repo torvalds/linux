@@ -265,6 +265,15 @@ config MSM_MMCC_8974
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_MMCC_8994
+	tristate "MSM8994 Multimedia Clock Controller"
+	select MSM_GCC_8994
+	select QCOM_GDSC
+	help
+	  Support for the multimedia clock controller on msm8994 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
 config MSM_GCC_8994
 	tristate "MSM8994 Global Clock Controller"
 	help
