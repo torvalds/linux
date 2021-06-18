@@ -1052,8 +1052,7 @@ sja1105_static_config_check_valid(const struct sja1105_static_config *config,
 	(tables[blk_idx].entry_count == tables[blk_idx].ops->max_entry_count)
 
 	if (tables[BLK_IDX_SCHEDULE].entry_count) {
-		if (config->device_id != SJA1105T_DEVICE_ID &&
-		    config->device_id != SJA1105QS_DEVICE_ID)
+		if (!tables[BLK_IDX_SCHEDULE].ops->max_entry_count)
 			return SJA1105_TTETHERNET_NOT_SUPPORTED;
 
 		if (tables[BLK_IDX_SCHEDULE_ENTRY_POINTS].entry_count == 0)
