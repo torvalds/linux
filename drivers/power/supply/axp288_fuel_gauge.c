@@ -142,9 +142,7 @@ static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
 
 	for (i = 0; i < NR_RETRY_CNT; i++) {
 		ret = regmap_read(info->regmap, reg, &val);
-		if (ret == -EBUSY)
-			continue;
-		else
+		if (ret != -EBUSY)
 			break;
 	}
 
