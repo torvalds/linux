@@ -446,9 +446,6 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 	unsigned char cval;
 	u64 timeout;
 
-	if (!info->ioaddr)
-		return -1;
-
 	if (newspd > info->board->max_baud)
 		return -1;
 
@@ -519,8 +516,6 @@ static void mxser_change_speed(struct tty_struct *tty)
 	unsigned char status;
 
 	cflag = tty->termios.c_cflag;
-	if (!info->ioaddr)
-		return;
 
 	mxser_set_baud(tty, tty_get_baud_rate(tty));
 
@@ -724,7 +719,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->slock, flags);
 
-	if (!info->ioaddr || !info->type) {
+	if (!info->type) {
 		set_bit(TTY_IO_ERROR, &tty->flags);
 		free_page(page);
 		spin_unlock_irqrestore(&info->slock, flags);
@@ -1097,10 +1092,6 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		return -EIO;
 
 	mutex_lock(&port->mutex);
-	if (!info->ioaddr) {
-		mutex_unlock(&port->mutex);
-		return -ENODEV;
-	}
 
 	if (ss->irq != info->board->irq ||
 			ss->port != info->ioaddr) {
