@@ -1407,6 +1407,48 @@ static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
 	return ret;
 }
 
+/* We should likely switch to TIOCGRS485/TIOCSRS485. */
+static int mxser_ioctl_op_mode(struct mxser_port *port, int index, bool set,
+		int __user *u_opmode)
+{
+	static const unsigned char ModeMask[] = { 0xfc, 0xf3, 0xcf, 0x3f };
+	int opmode, p = index % 4;
+	int shiftbit = p * 2;
+	unsigned char val, mask;
+
+	if (port->board->must_hwid != MOXA_MUST_MU860_HWID)
+		return -EFAULT;
+
+	if (set) {
+		if (get_user(opmode, u_opmode))
+			return -EFAULT;
+
+		if (opmode != RS232_MODE && opmode != RS485_2WIRE_MODE &&
+				opmode != RS422_MODE &&
+				opmode != RS485_4WIRE_MODE)
+			return -EFAULT;
+
+		mask = ModeMask[p];
+
+		spin_lock_irq(&port->slock);
+		val = inb(port->opmode_ioaddr);
+		val &= mask;
+		val |= (opmode << shiftbit);
+		outb(val, port->opmode_ioaddr);
+		spin_unlock_irq(&port->slock);
+	} else {
+		spin_lock_irq(&port->slock);
+		opmode = inb(port->opmode_ioaddr) >> shiftbit;
+		spin_unlock_irq(&port->slock);
+
+		opmode &= OP_MODE_MASK;
+		if (put_user(opmode, u_opmode))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int mxser_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
@@ -1415,44 +1457,9 @@ static int mxser_ioctl(struct tty_struct *tty,
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 
-	if (cmd == MOXA_SET_OP_MODE || cmd == MOXA_GET_OP_MODE) {
-		int p;
-		unsigned long opmode;
-		static unsigned char ModeMask[] = { 0xfc, 0xf3, 0xcf, 0x3f };
-		int shiftbit;
-		unsigned char val, mask;
-
-		if (info->board->must_hwid != MOXA_MUST_MU860_HWID)
-			return -EFAULT;
-
-		p = tty->index % 4;
-		if (cmd == MOXA_SET_OP_MODE) {
-			if (get_user(opmode, (int __user *) argp))
-				return -EFAULT;
-			if (opmode != RS232_MODE &&
-					opmode != RS485_2WIRE_MODE &&
-					opmode != RS422_MODE &&
-					opmode != RS485_4WIRE_MODE)
-				return -EFAULT;
-			mask = ModeMask[p];
-			shiftbit = p * 2;
-			spin_lock_irq(&info->slock);
-			val = inb(info->opmode_ioaddr);
-			val &= mask;
-			val |= (opmode << shiftbit);
-			outb(val, info->opmode_ioaddr);
-			spin_unlock_irq(&info->slock);
-		} else {
-			shiftbit = p * 2;
-			spin_lock_irq(&info->slock);
-			opmode = inb(info->opmode_ioaddr) >> shiftbit;
-			spin_unlock_irq(&info->slock);
-			opmode &= OP_MODE_MASK;
-			if (put_user(opmode, (int __user *)argp))
-				return -EFAULT;
-		}
-		return 0;
-	}
+	if (cmd == MOXA_SET_OP_MODE || cmd == MOXA_GET_OP_MODE)
+		return mxser_ioctl_op_mode(info, tty->index,
+				cmd == MOXA_SET_OP_MODE, argp);
 
 	if (cmd != TIOCMIWAIT && tty_io_error(tty))
 		return -EIO;
