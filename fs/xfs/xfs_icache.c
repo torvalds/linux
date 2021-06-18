@@ -507,13 +507,8 @@ xfs_iget_cache_hit(
 	 * will not match, so check for that, too.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	if (ip->i_ino != ino) {
-		trace_xfs_iget_skip(ip);
-		XFS_STATS_INC(mp, xs_ig_frecycle);
-		error = -EAGAIN;
-		goto out_error;
-	}
-
+	if (ip->i_ino != ino)
+		goto out_skip;
 
 	/*
 	 * If we are racing with another cache hit that is currently
@@ -525,12 +520,8 @@ xfs_iget_cache_hit(
 	 *	     wait_on_inode to wait for these flags to be cleared
 	 *	     instead of polling for it.
 	 */
-	if (ip->i_flags & (XFS_INEW|XFS_IRECLAIM)) {
-		trace_xfs_iget_skip(ip);
-		XFS_STATS_INC(mp, xs_ig_frecycle);
-		error = -EAGAIN;
-		goto out_error;
-	}
+	if (ip->i_flags & (XFS_INEW | XFS_IRECLAIM))
+		goto out_skip;
 
 	/*
 	 * Check the inode free state is valid. This also detects lookup
@@ -540,23 +531,21 @@ xfs_iget_cache_hit(
 	if (error)
 		goto out_error;
 
-	if (ip->i_flags & XFS_IRECLAIMABLE) {
-		if (flags & XFS_IGET_INCORE) {
-			error = -EAGAIN;
-			goto out_error;
-		}
+	/* Skip inodes that have no vfs state. */
+	if ((flags & XFS_IGET_INCORE) &&
+	    (ip->i_flags & XFS_IRECLAIMABLE))
+		goto out_skip;
 
+	/* The inode fits the selection criteria; process it. */
+	if (ip->i_flags & XFS_IRECLAIMABLE) {
 		/* Drops i_flags_lock and RCU read lock. */
 		error = xfs_iget_recycle(pag, ip);
 		if (error)
 			return error;
 	} else {
 		/* If the VFS inode is being torn down, pause and try again. */
-		if (!igrab(inode)) {
-			trace_xfs_iget_skip(ip);
-			error = -EAGAIN;
-			goto out_error;
-		}
+		if (!igrab(inode))
+			goto out_skip;
 
 		/* We've got a live one. */
 		spin_unlock(&ip->i_flags_lock);
@@ -573,6 +562,10 @@ xfs_iget_cache_hit(
 
 	return 0;
 
+out_skip:
+	trace_xfs_iget_skip(ip);
+	XFS_STATS_INC(mp, xs_ig_frecycle);
+	error = -EAGAIN;
 out_error:
 	spin_unlock(&ip->i_flags_lock);
 	rcu_read_unlock();
