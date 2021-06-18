@@ -291,7 +291,7 @@ static inline void fscache_cookie_get(struct fscache_cookie *cookie,
 {
 	int usage = atomic_inc_return(&cookie->usage);
 
-	trace_fscache_cookie(cookie, where, usage);
+	trace_fscache_cookie(cookie->debug_id, usage, where);
 }
 
 /*

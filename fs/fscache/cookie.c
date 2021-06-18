@@ -225,8 +225,8 @@ struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *candidate)
 
 collision:
 	if (test_and_set_bit(FSCACHE_COOKIE_ACQUIRED, &cursor->flags)) {
-		trace_fscache_cookie(cursor, fscache_cookie_collision,
-				     atomic_read(&cursor->usage));
+		trace_fscache_cookie(cursor->debug_id, atomic_read(&cursor->usage),
+				     fscache_cookie_collision);
 		pr_err("Duplicate cookie detected\n");
 		fscache_print_cookie(cursor, 'O');
 		fscache_print_cookie(candidate, 'N');
@@ -305,7 +305,8 @@ struct fscache_cookie *__fscache_acquire_cookie(
 
 	cookie = fscache_hash_cookie(candidate);
 	if (!cookie) {
-		trace_fscache_cookie(candidate, fscache_cookie_discard, 1);
+		trace_fscache_cookie(candidate->debug_id, 1,
+				     fscache_cookie_discard);
 		goto out;
 	}
 
@@ -866,8 +867,9 @@ void fscache_cookie_put(struct fscache_cookie *cookie,
 	_enter("%x", cookie->debug_id);
 
 	do {
+		unsigned int cookie_debug_id = cookie->debug_id;
 		usage = atomic_dec_return(&cookie->usage);
-		trace_fscache_cookie(cookie, where, usage);
+		trace_fscache_cookie(cookie_debug_id, usage, where);
 
 		if (usage > 0)
 			return;

@@ -160,37 +160,27 @@ fscache_cookie_traces;
 
 
 TRACE_EVENT(fscache_cookie,
-	    TP_PROTO(struct fscache_cookie *cookie,
-		     enum fscache_cookie_trace where,
-		     int usage),
+	    TP_PROTO(unsigned int cookie_debug_id,
+		     int usage,
+		     enum fscache_cookie_trace where),
 
-	    TP_ARGS(cookie, where, usage),
+	    TP_ARGS(cookie_debug_id, usage, where),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		cookie		)
-		    __field(unsigned int,		parent		)
 		    __field(enum fscache_cookie_trace,	where		)
 		    __field(int,			usage		)
-		    __field(int,			n_children	)
-		    __field(int,			n_active	)
-		    __field(u8,				flags		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->cookie	= cookie->debug_id;
-		    __entry->parent	= cookie->parent ? cookie->parent->debug_id : 0;
+		    __entry->cookie	= cookie_debug_id;
 		    __entry->where	= where;
 		    __entry->usage	= usage;
-		    __entry->n_children	= atomic_read(&cookie->n_children);
-		    __entry->n_active	= atomic_read(&cookie->n_active);
-		    __entry->flags	= cookie->flags;
 			   ),
 
-	    TP_printk("%s c=%08x u=%d p=%08x Nc=%d Na=%d f=%02x",
+	    TP_printk("%s c=%08x u=%d",
 		      __print_symbolic(__entry->where, fscache_cookie_traces),
-		      __entry->cookie, __entry->usage,
-		      __entry->parent, __entry->n_children, __entry->n_active,
-		      __entry->flags)
+		      __entry->cookie, __entry->usage)
 	    );
 
 TRACE_EVENT(fscache_netfs,
