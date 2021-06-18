@@ -33,7 +33,6 @@
 #include "connection.h"
 #include "smb_common.h"
 #include "smbstatus.h"
-#include "buffer_pool.h"
 #include "transport_rdma.h"
 
 #define SMB_DIRECT_PORT	5445

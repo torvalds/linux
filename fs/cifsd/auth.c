@@ -29,7 +29,6 @@
 #include "mgmt/user_config.h"
 #include "crypto_ctx.h"
 #include "transport_ipc.h"
-#include "buffer_pool.h"
 
 /*
  * Fixed format data defining GSS header and fixed string

@@ -7,7 +7,6 @@
 #include <linux/slab.h>
 #include <linux/xarray.h>
 
-#include "../buffer_pool.h"
 #include "../transport_ipc.h"
 #include "../connection.h"
 

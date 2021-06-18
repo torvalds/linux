@@ -12,7 +12,6 @@
 
 #include "glob.h"
 #include "crypto_ctx.h"
-#include "buffer_pool.h"
 
 struct crypto_ctx_list {
 	spinlock_t		ctx_lock;

@@ -70,8 +70,6 @@ struct ksmbd_work {
 	/* Is this SYNC or ASYNC ksmbd_work */
 	bool                            syncronous:1;
 	bool                            need_invalidate_rkey:1;
-	bool                            set_trans_buf:1;
-	bool                            set_read_buf:1;
 
 	unsigned int                    remote_key;
 	/* cancel works */

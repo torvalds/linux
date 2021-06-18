@@ -182,4 +182,6 @@ void ksmbd_set_inode_pending_delete(struct ksmbd_file *fp);
 void ksmbd_clear_inode_pending_delete(struct ksmbd_file *fp);
 void ksmbd_fd_set_delete_on_close(struct ksmbd_file *fp,
 				  int file_info);
+int ksmbd_init_file_cache(void);
+void ksmbd_exit_file_cache(void);
 #endif /* __VFS_CACHE_H__ */

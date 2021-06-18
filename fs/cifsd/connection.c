@@ -9,7 +9,6 @@
 #include <linux/module.h>
 
 #include "server.h"
-#include "buffer_pool.h"
 #include "smb_common.h"
 #include "mgmt/ksmbd_ida.h"
 #include "connection.h"

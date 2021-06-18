@@ -11,7 +11,6 @@
 
 #include "smb_common.h"
 #include "smbstatus.h"
-#include "buffer_pool.h"
 #include "connection.h"
 #include "mgmt/user_session.h"
 #include "mgmt/share_config.h"

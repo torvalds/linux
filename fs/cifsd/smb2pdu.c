@@ -19,7 +19,6 @@
 
 #include "auth.h"
 #include "asn1.h"
-#include "buffer_pool.h"
 #include "connection.h"
 #include "transport_ipc.h"
 #include "vfs.h"
@@ -538,10 +537,8 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 	size_t sz = small_sz;
 	int cmd = le16_to_cpu(hdr->Command);
 
-	if (cmd == SMB2_IOCTL_HE || cmd == SMB2_QUERY_DIRECTORY_HE) {
+	if (cmd == SMB2_IOCTL_HE || cmd == SMB2_QUERY_DIRECTORY_HE)
 		sz = large_sz;
-		work->set_trans_buf = true;
-	}
 
 	if (cmd == SMB2_QUERY_INFO_HE) {
 		struct smb2_query_info_req *req;
@@ -549,22 +546,15 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 		req = work->request_buf;
 		if (req->InfoType == SMB2_O_INFO_FILE &&
 		    (req->FileInfoClass == FILE_FULL_EA_INFORMATION ||
-		     req->FileInfoClass == FILE_ALL_INFORMATION)) {
+		     req->FileInfoClass == FILE_ALL_INFORMATION))
 			sz = large_sz;
-			work->set_trans_buf = true;
-		}
 	}
 
 	/* allocate large response buf for chained commands */
 	if (le32_to_cpu(hdr->NextCommand) > 0)
 		sz = large_sz;
 
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_TBUF &&
-	    work->set_trans_buf)
-		work->response_buf = ksmbd_find_buffer(sz);
-	else
-		work->response_buf = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);
-
+	work->response_buf = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);
 	if (!work->response_buf)
 		return -ENOMEM;
 
@@ -5950,13 +5940,7 @@ int smb2_read(struct ksmbd_work *work)
 	ksmbd_debug(SMB, "filename %s, offset %lld, len %zu\n", FP_FILENAME(fp),
 		    offset, length);
 
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF) {
-		work->aux_payload_buf =
-			ksmbd_find_buffer(conn->vals->max_read_size);
-		work->set_read_buf = true;
-	} else {
-		work->aux_payload_buf = kvmalloc(length, GFP_KERNEL | __GFP_ZERO);
-	}
+	work->aux_payload_buf = kvmalloc(length, GFP_KERNEL | __GFP_ZERO);
 	if (!work->aux_payload_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -5969,10 +5953,7 @@ int smb2_read(struct ksmbd_work *work)
 	}
 
 	if ((nbytes == 0 && length != 0) || nbytes < mincount) {
-		if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF)
-			ksmbd_release_buffer(work->aux_payload_buf);
-		else
-			kvfree(work->aux_payload_buf);
+		kvfree(work->aux_payload_buf);
 		work->aux_payload_buf = NULL;
 		rsp->hdr.Status = STATUS_END_OF_FILE;
 		smb2_set_err_rsp(work);
@@ -5989,10 +5970,7 @@ int smb2_read(struct ksmbd_work *work)
 		remain_bytes = smb2_read_rdma_channel(work, req,
 						      work->aux_payload_buf,
 						      nbytes);
-		if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF)
-			ksmbd_release_buffer(work->aux_payload_buf);
-		else
-			kvfree(work->aux_payload_buf);
+		kvfree(work->aux_payload_buf);
 		work->aux_payload_buf = NULL;
 
 		nbytes = 0;

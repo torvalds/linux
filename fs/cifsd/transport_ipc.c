@@ -16,7 +16,6 @@
 
 #include "vfs_cache.h"
 #include "transport_ipc.h"
-#include "buffer_pool.h"
 #include "server.h"
 #include "smb_common.h"
 

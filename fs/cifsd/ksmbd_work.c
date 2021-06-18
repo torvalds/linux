@@ -11,7 +11,6 @@
 #include "server.h"
 #include "connection.h"
 #include "ksmbd_work.h"
-#include "buffer_pool.h"
 #include "mgmt/ksmbd_ida.h"
 
 /* @FIXME */
@@ -38,18 +37,9 @@ struct ksmbd_work *ksmbd_alloc_work_struct(void)
 void ksmbd_free_work_struct(struct ksmbd_work *work)
 {
 	WARN_ON(work->saved_cred != NULL);
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_TBUF &&
-	    work->set_trans_buf)
-		ksmbd_release_buffer(work->response_buf);
-	else
-		kvfree(work->response_buf);
 
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF &&
-	    work->set_read_buf)
-		ksmbd_release_buffer(work->aux_payload_buf);
-	else
-		kvfree(work->aux_payload_buf);
-
+	kvfree(work->response_buf);
+	kvfree(work->aux_payload_buf);
 	kfree(work->tr_buf);
 	kvfree(work->request_buf);
 	if (work->async_id)

@@ -15,7 +15,6 @@
 #include "share_config.h"
 #include "user_config.h"
 #include "user_session.h"
-#include "../buffer_pool.h"
 #include "../transport_ipc.h"
 
 #define SHARE_HASH_BITS		3

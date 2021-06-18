@@ -7,7 +7,6 @@
 #include <linux/mm.h>
 
 #include "user_config.h"
-#include "../buffer_pool.h"
 #include "../transport_ipc.h"
 
 struct ksmbd_user *ksmbd_login_user(const char *account)

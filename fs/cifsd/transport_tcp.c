@@ -9,7 +9,6 @@
 #include "smb_common.h"
 #include "server.h"
 #include "auth.h"
-#include "buffer_pool.h"
 #include "connection.h"
 #include "transport_tcp.h"
 
