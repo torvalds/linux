@@ -5081,6 +5081,176 @@ Writes special registers into the vcpu.
 See KVM_GET_SREGS2 for the data structures.
 This ioctl (when supported) replaces the KVM_SET_SREGS.
 
+4.133 KVM_GET_STATS_FD
+----------------------
+
+:Capability: KVM_CAP_STATS_BINARY_FD
+:Architectures: all
+:Type: vm ioctl, vcpu ioctl
+:Parameters: none
+:Returns: statistics file descriptor on success, < 0 on error
+
+Errors:
+
+  ======     ======================================================
+  ENOMEM     if the fd could not be created due to lack of memory
+  EMFILE     if the number of opened files exceeds the limit
+  ======     ======================================================
+
+The returned file descriptor can be used to read VM/vCPU statistics data in
+binary format. The data in the file descriptor consists of four blocks
+organized as follows:
+
++-------------+
+|   Header    |
++-------------+
+|  id string  |
++-------------+
+| Descriptors |
++-------------+
+| Stats Data  |
++-------------+
+
+Apart from the header starting at offset 0, please be aware that it is
+not guaranteed that the four blocks are adjacent or in the above order;
+the offsets of the id, descriptors and data blocks are found in the
+header.  However, all four blocks are aligned to 64 bit offsets in the
+file and they do not overlap.
+
+All blocks except the data block are immutable.  Userspace can read them
+only one time after retrieving the file descriptor, and then use ``pread`` or
+``lseek`` to read the statistics repeatedly.
+
+All data is in system endianness.
+
+The format of the header is as follows::
+
+	struct kvm_stats_header {
+		__u32 flags;
+		__u32 name_size;
+		__u32 num_desc;
+		__u32 id_offset;
+		__u32 desc_offset;
+		__u32 data_offset;
+	};
+
+The ``flags`` field is not used at the moment. It is always read as 0.
+
+The ``name_size`` field is the size (in byte) of the statistics name string
+(including trailing '\0') which is contained in the "id string" block and
+appended at the end of every descriptor.
+
+The ``num_desc`` field is the number of descriptors that are included in the
+descriptor block.  (The actual number of values in the data block may be
+larger, since each descriptor may comprise more than one value).
+
+The ``id_offset`` field is the offset of the id string from the start of the
+file indicated by the file descriptor. It is a multiple of 8.
+
+The ``desc_offset`` field is the offset of the Descriptors block from the start
+of the file indicated by the file descriptor. It is a multiple of 8.
+
+The ``data_offset`` field is the offset of the Stats Data block from the start
+of the file indicated by the file descriptor. It is a multiple of 8.
+
+The id string block contains a string which identifies the file descriptor on
+which KVM_GET_STATS_FD was invoked.  The size of the block, including the
+trailing ``'\0'``, is indicated by the ``name_size`` field in the header.
+
+The descriptors block is only needed to be read once for the lifetime of the
+file descriptor contains a sequence of ``struct kvm_stats_desc``, each followed
+by a string of size ``name_size``.
+
+	#define KVM_STATS_TYPE_SHIFT		0
+	#define KVM_STATS_TYPE_MASK		(0xF << KVM_STATS_TYPE_SHIFT)
+	#define KVM_STATS_TYPE_CUMULATIVE	(0x0 << KVM_STATS_TYPE_SHIFT)
+	#define KVM_STATS_TYPE_INSTANT		(0x1 << KVM_STATS_TYPE_SHIFT)
+	#define KVM_STATS_TYPE_PEAK		(0x2 << KVM_STATS_TYPE_SHIFT)
+
+	#define KVM_STATS_UNIT_SHIFT		4
+	#define KVM_STATS_UNIT_MASK		(0xF << KVM_STATS_UNIT_SHIFT)
+	#define KVM_STATS_UNIT_NONE		(0x0 << KVM_STATS_UNIT_SHIFT)
+	#define KVM_STATS_UNIT_BYTES		(0x1 << KVM_STATS_UNIT_SHIFT)
+	#define KVM_STATS_UNIT_SECONDS		(0x2 << KVM_STATS_UNIT_SHIFT)
+	#define KVM_STATS_UNIT_CYCLES		(0x3 << KVM_STATS_UNIT_SHIFT)
+
+	#define KVM_STATS_BASE_SHIFT		8
+	#define KVM_STATS_BASE_MASK		(0xF << KVM_STATS_BASE_SHIFT)
+	#define KVM_STATS_BASE_POW10		(0x0 << KVM_STATS_BASE_SHIFT)
+	#define KVM_STATS_BASE_POW2		(0x1 << KVM_STATS_BASE_SHIFT)
+
+	struct kvm_stats_desc {
+		__u32 flags;
+		__s16 exponent;
+		__u16 size;
+		__u32 offset;
+		__u32 unused;
+		char name[];
+	};
+
+The ``flags`` field contains the type and unit of the statistics data described
+by this descriptor. Its endianness is CPU native.
+The following flags are supported:
+
+Bits 0-3 of ``flags`` encode the type:
+  * ``KVM_STATS_TYPE_CUMULATIVE``
+    The statistics data is cumulative. The value of data can only be increased.
+    Most of the counters used in KVM are of this type.
+    The corresponding ``size`` field for this type is always 1.
+    All cumulative statistics data are read/write.
+  * ``KVM_STATS_TYPE_INSTANT``
+    The statistics data is instantaneous. Its value can be increased or
+    decreased. This type is usually used as a measurement of some resources,
+    like the number of dirty pages, the number of large pages, etc.
+    All instant statistics are read only.
+    The corresponding ``size`` field for this type is always 1.
+  * ``KVM_STATS_TYPE_PEAK``
+    The statistics data is peak. The value of data can only be increased, and
+    represents a peak value for a measurement, for example the maximum number
+    of items in a hash table bucket, the longest time waited and so on.
+    The corresponding ``size`` field for this type is always 1.
+
+Bits 4-7 of ``flags`` encode the unit:
+  * ``KVM_STATS_UNIT_NONE``
+    There is no unit for the value of statistics data. This usually means that
+    the value is a simple counter of an event.
+  * ``KVM_STATS_UNIT_BYTES``
+    It indicates that the statistics data is used to measure memory size, in the
+    unit of Byte, KiByte, MiByte, GiByte, etc. The unit of the data is
+    determined by the ``exponent`` field in the descriptor.
+  * ``KVM_STATS_UNIT_SECONDS``
+    It indicates that the statistics data is used to measure time or latency.
+  * ``KVM_STATS_UNIT_CYCLES``
+    It indicates that the statistics data is used to measure CPU clock cycles.
+
+Bits 8-11 of ``flags``, together with ``exponent``, encode the scale of the
+unit:
+  * ``KVM_STATS_BASE_POW10``
+    The scale is based on power of 10. It is used for measurement of time and
+    CPU clock cycles.  For example, an exponent of -9 can be used with
+    ``KVM_STATS_UNIT_SECONDS`` to express that the unit is nanoseconds.
+  * ``KVM_STATS_BASE_POW2``
+    The scale is based on power of 2. It is used for measurement of memory size.
+    For example, an exponent of 20 can be used with ``KVM_STATS_UNIT_BYTES`` to
+    express that the unit is MiB.
+
+The ``size`` field is the number of values of this statistics data. Its
+value is usually 1 for most of simple statistics. 1 means it contains an
+unsigned 64bit data.
+
+The ``offset`` field is the offset from the start of Data Block to the start of
+the corresponding statistics data.
+
+The ``unused`` field is reserved for future support for other types of
+statistics data, like log/linear histogram. Its value is always 0 for the types
+defined above.
+
+The ``name`` field is the name string of the statistics data. The name string
+starts at the end of ``struct kvm_stats_desc``.  The maximum length including
+the trailing ``'\0'``, is indicated by ``name_size`` in the header.
+
+The Stats Data block contains an array of 64-bit values in the same order
+as the descriptors in Descriptors block.
 
 5. The kvm_run structure
 ========================
