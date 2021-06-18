@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/usb/onboard_hub.h>
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
@@ -375,9 +374,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(&pdev->dev);
 
-	INIT_LIST_HEAD(&xhci->onboard_hub_devs);
-	onboard_hub_create_pdevs(hcd->self.root_hub, &xhci->onboard_hub_devs);
-
 	return 0;
 
 
@@ -423,8 +419,6 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(shared_hcd);
-
-	onboard_hub_destroy_pdevs(&xhci->onboard_hub_devs);
 
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);
