@@ -68,7 +68,7 @@ i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
 	struct rb_node **parent, *rb;
 	bool first = true;
 
-	lockdep_assert_held(&engine->active.lock);
+	lockdep_assert_held(&engine->sched_engine->lock);
 	assert_priolists(sched_engine);
 
 	if (unlikely(sched_engine->no_priolist))
@@ -147,9 +147,9 @@ sched_lock_engine(const struct i915_sched_node *node,
 	 * check that the rq still belongs to the newly locked engine.
 	 */
 	while (locked != (engine = READ_ONCE(rq->engine))) {
-		spin_unlock(&locked->active.lock);
+		spin_unlock(&locked->sched_engine->lock);
 		memset(cache, 0, sizeof(*cache));
-		spin_lock(&engine->active.lock);
+		spin_lock(&engine->sched_engine->lock);
 		locked = engine;
 	}
 
@@ -296,7 +296,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 	memset(&cache, 0, sizeof(cache));
 	engine = node_to_request(node)->engine;
-	spin_lock(&engine->active.lock);
+	spin_lock(&engine->sched_engine->lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	engine = sched_lock_engine(node, engine, &cache);
@@ -305,7 +305,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		node = dep->signaler;
 		engine = sched_lock_engine(node, engine, &cache);
-		lockdep_assert_held(&engine->active.lock);
+		lockdep_assert_held(&engine->sched_engine->lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
 		if (prio <= node->attr.priority || node_signaled(node))
@@ -338,7 +338,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 		kick_submission(engine, node_to_request(node), prio);
 	}
 
-	spin_unlock(&engine->active.lock);
+	spin_unlock(&engine->sched_engine->lock);
 }
 
 void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
@@ -511,7 +511,23 @@ i915_sched_engine_create(unsigned int subclass)
 	sched_engine->queue = RB_ROOT_CACHED;
 	sched_engine->queue_priority_hint = INT_MIN;
 
-	/* subclass is used in a follow up patch */
+	INIT_LIST_HEAD(&sched_engine->requests);
+	INIT_LIST_HEAD(&sched_engine->hold);
+
+	spin_lock_init(&sched_engine->lock);
+	lockdep_set_subclass(&sched_engine->lock, subclass);
+
+	/*
+	 * Due to an interesting quirk in lockdep's internal debug tracking,
+	 * after setting a subclass we must ensure the lock is used. Otherwise,
+	 * nr_unused_locks is incremented once too often.
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	local_irq_disable();
+	lock_map_acquire(&sched_engine->lock.dep_map);
+	lock_map_release(&sched_engine->lock.dep_map);
+	local_irq_enable();
+#endif
 
 	return sched_engine;
 }
