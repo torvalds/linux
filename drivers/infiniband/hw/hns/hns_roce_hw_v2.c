@@ -269,8 +269,6 @@ static int set_rc_inl(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 
 	dseg += sizeof(struct hns_roce_v2_rc_send_wqe);
 
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_INLINE_S, 1);
-
 	if (msg_len <= HNS_ROCE_V2_MAX_RC_INL_INN_SZ) {
 		roce_set_bit(rc_sq_wqe->byte_20,
 			     V2_RC_SEND_WQE_BYTE_20_INL_TYPE_S, 0);
@@ -315,6 +313,8 @@ static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		       V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_S,
 		       (*sge_ind) & (qp->sge.sge_cnt - 1));
 
+	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_INLINE_S,
+		     !!(wr->send_flags & IB_SEND_INLINE));
 	if (wr->send_flags & IB_SEND_INLINE)
 		return set_rc_inl(qp, wr, rc_sq_wqe, sge_ind);
 
