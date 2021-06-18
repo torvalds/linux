@@ -1978,7 +1978,7 @@ static int mxser_probe(struct pci_dev *pdev,
 		mxser_cards[ent->driver_data].name,
 		pdev->bus->number, PCI_SLOT(pdev->devfn));
 
-	retval = pci_enable_device(pdev);
+	retval = pcim_enable_device(pdev);
 	if (retval) {
 		dev_err(&pdev->dev, "PCI enable failed\n");
 		goto err;
@@ -1988,7 +1988,7 @@ static int mxser_probe(struct pci_dev *pdev,
 	ioaddress = pci_resource_start(pdev, 2);
 	retval = pci_request_region(pdev, 2, "mxser(IO)");
 	if (retval)
-		goto err_dis;
+		goto err;
 
 	brd->info = &mxser_cards[ent->driver_data];
 	for (i = 0; i < brd->info->nports; i++)
@@ -2007,7 +2007,7 @@ static int mxser_probe(struct pci_dev *pdev,
 	/* mxser_initbrd will hook ISR. */
 	retval = mxser_initbrd(brd);
 	if (retval)
-		goto err_rel3;
+		goto err_zero;
 
 	for (i = 0; i < brd->info->nports; i++) {
 		tty_dev = tty_port_register_device(&brd->ports[i].port,
@@ -2028,13 +2028,8 @@ err_relbrd:
 	for (i = 0; i < brd->info->nports; i++)
 		tty_port_destroy(&brd->ports[i].port);
 	free_irq(brd->irq, brd);
-err_rel3:
-	pci_release_region(pdev, 3);
 err_zero:
 	brd->info = NULL;
-	pci_release_region(pdev, 2);
-err_dis:
-	pci_disable_device(pdev);
 err:
 	return retval;
 }
@@ -2051,9 +2046,6 @@ static void mxser_remove(struct pci_dev *pdev)
 
 	free_irq(brd->irq, brd);
 
-	pci_release_region(pdev, 2);
-	pci_release_region(pdev, 3);
-	pci_disable_device(pdev);
 	brd->info = NULL;
 }
 
