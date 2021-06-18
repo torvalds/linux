@@ -53,6 +53,8 @@ struct deadline_data {
 	struct rb_root sort_list[DD_DIR_COUNT];
 	struct list_head fifo_list[DD_DIR_COUNT];
 
+	/* Data direction of latest dispatched request. */
+	enum dd_data_dir last_dir;
 	/*
 	 * next in sort order. read, write or both are NULL
 	 */
@@ -179,8 +181,6 @@ deadline_move_request(struct deadline_data *dd, struct request *rq)
 {
 	const enum dd_data_dir data_dir = rq_data_dir(rq);
 
-	dd->next_rq[DD_READ] = NULL;
-	dd->next_rq[DD_WRITE] = NULL;
 	dd->next_rq[data_dir] = deadline_latter_request(rq);
 
 	/*
@@ -292,10 +292,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 	/*
 	 * batches are currently reads XOR writes
 	 */
-	rq = deadline_next_request(dd, DD_WRITE);
-	if (!rq)
-		rq = deadline_next_request(dd, DD_READ);
-
+	rq = deadline_next_request(dd, dd->last_dir);
 	if (rq && dd->batching < dd->fifo_batch)
 		/* we have a next request are still entitled to batch */
 		goto dispatch_request;
@@ -361,6 +358,7 @@ dispatch_find_request:
 	if (!rq)
 		return NULL;
 
+	dd->last_dir = data_dir;
 	dd->batching = 0;
 
 dispatch_request:
@@ -473,6 +471,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	dd->fifo_expire[DD_WRITE] = write_expire;
 	dd->writes_starved = writes_starved;
 	dd->front_merges = 1;
+	dd->last_dir = DD_WRITE;
 	dd->fifo_batch = fifo_batch;
 	spin_lock_init(&dd->lock);
 	spin_lock_init(&dd->zone_lock);
