@@ -9388,7 +9388,7 @@ F:	drivers/platform/x86/intel_scu_*
 INTEL SKYLAKE INT3472 ACPI DEVICE DRIVER
 M:	Daniel Scally <djrscally@gmail.com>
 S:	Maintained
-F:	drivers/platform/x86/intel-int3472/
+F:	drivers/platform/x86/intel/int3472/
 
 INTEL SPEED SELECT TECHNOLOGY
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
