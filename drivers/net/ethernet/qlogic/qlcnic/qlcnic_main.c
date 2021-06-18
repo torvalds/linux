@@ -3341,9 +3341,6 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	do {
 		msleep(1000);
 		prev_state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-
-		if (prev_state == QLCNIC_DEV_QUISCENT)
-			continue;
 	} while ((prev_state != QLCNIC_DEV_READY) && --dev_init_timeo);
 
 	if (!dev_init_timeo) {
