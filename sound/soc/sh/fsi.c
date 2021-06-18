@@ -219,7 +219,7 @@ struct fsi_stream {
 	u32 bus_option;
 
 	/*
-	 * thse are initialized by fsi_handler_init()
+	 * these are initialized by fsi_handler_init()
 	 */
 	struct fsi_stream_handler *handler;
 	struct fsi_priv		*priv;
