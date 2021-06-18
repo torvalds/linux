@@ -64,21 +64,21 @@ static inline int check_session_id(struct ksmbd_conn *conn, u64 id)
 	if (id == 0 || id == -1)
 		return 0;
 
-	sess = ksmbd_session_lookup(conn, id);
+	sess = ksmbd_session_lookup_all(conn, id);
 	if (sess)
 		return 1;
 	ksmbd_err("Invalid user session id: %llu\n", id);
 	return 0;
 }
 
-struct channel *lookup_chann_list(struct ksmbd_session *sess)
+struct channel *lookup_chann_list(struct ksmbd_session *sess, struct ksmbd_conn *conn)
 {
 	struct channel *chann;
 	struct list_head *t;
 
 	list_for_each(t, &sess->ksmbd_chann_list) {
 		chann = list_entry(t, struct channel, chann_list);
-		if (chann && chann->conn == sess->conn)
+		if (chann && chann->conn == conn)
 			return chann;
 	}
 
@@ -600,7 +600,7 @@ int smb2_check_user_session(struct ksmbd_work *work)
 
 	sess_id = le64_to_cpu(req_hdr->SessionId);
 	/* Check for validity of user session */
-	work->sess = ksmbd_session_lookup(conn, sess_id);
+	work->sess = ksmbd_session_lookup_all(conn, sess_id);
 	if (work->sess)
 		return 1;
 	ksmbd_debug(SMB, "Invalid user session, Uid %llu\n", sess_id);
@@ -1165,18 +1165,30 @@ static int generate_preauth_hash(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
+	u8 *preauth_hash;
 
 	if (conn->dialect != SMB311_PROT_ID)
 		return 0;
 
-	if (!sess->Preauth_HashValue) {
-		if (alloc_preauth_hash(sess, conn))
-			return -ENOMEM;
+	if (conn->binding) {
+		struct preauth_session *preauth_sess;
+
+		preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
+		if (!preauth_sess) {
+			preauth_sess = ksmbd_preauth_session_alloc(conn, sess->id);
+			if (!preauth_sess)
+				return -ENOMEM;
+		}
+
+		preauth_hash = preauth_sess->Preauth_HashValue;
+	} else {
+		if (!sess->Preauth_HashValue)
+			if (alloc_preauth_hash(sess, conn))
+				return -ENOMEM;
+		preauth_hash = sess->Preauth_HashValue;
 	}
 
-	ksmbd_gen_preauth_integrity_hash(conn,
-					 work->request_buf,
-					 sess->Preauth_HashValue);
+	ksmbd_gen_preauth_integrity_hash(conn, work->request_buf, preauth_hash);
 	return 0;
 }
 
@@ -1383,15 +1395,19 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 		 * that it is reauthentication. And the user/password
 		 * has been verified, so return it here.
 		 */
-		if (sess->state == SMB2_SESSION_VALID)
+		if (sess->state == SMB2_SESSION_VALID) {
+			if (conn->binding)
+				goto binding_session;
 			return 0;
+		}
 
 		if ((conn->sign || server_conf.enforced_signing) ||
 		    (req->SecurityMode & SMB2_NEGOTIATE_SIGNING_REQUIRED))
 			sess->sign = true;
 
 		if (conn->vals->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION &&
-		    conn->ops->generate_encryptionkey) {
+		    conn->ops->generate_encryptionkey &&
+		    !(req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)) {
 			rc = conn->ops->generate_encryptionkey(sess);
 			if (rc) {
 				ksmbd_debug(SMB,
@@ -1409,8 +1425,9 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 		}
 	}
 
+binding_session:
 	if (conn->dialect >= SMB30_PROT_ID) {
-		chann = lookup_chann_list(sess);
+		chann = lookup_chann_list(sess, conn);
 		if (!chann) {
 			chann = kmalloc(sizeof(struct channel), GFP_KERNEL);
 			if (!chann)
@@ -1423,7 +1440,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	}
 
 	if (conn->ops->generate_signingkey) {
-		rc = conn->ops->generate_signingkey(sess);
+		rc = conn->ops->generate_signingkey(sess, conn);
 		if (rc) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
 			rsp->hdr.Status = STATUS_LOGON_FAILURE;
@@ -1500,7 +1517,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 	}
 
 	if (conn->dialect >= SMB30_PROT_ID) {
-		chann = lookup_chann_list(sess);
+		chann = lookup_chann_list(sess, conn);
 		if (!chann) {
 			chann = kmalloc(sizeof(struct channel), GFP_KERNEL);
 			if (!chann)
@@ -1513,7 +1530,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 	}
 
 	if (conn->ops->generate_signingkey) {
-		retval = conn->ops->generate_signingkey(sess);
+		retval = conn->ops->generate_signingkey(sess, conn);
 		if (retval) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
 			rsp->hdr.Status = STATUS_LOGON_FAILURE;
@@ -1562,12 +1579,59 @@ int smb2_sess_setup(struct ksmbd_work *work)
 		}
 		rsp->hdr.SessionId = cpu_to_le64(sess->id);
 		ksmbd_session_register(conn, sess);
+	} else if (conn->dialect >= SMB30_PROT_ID &&
+		   (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB3_MULTICHANNEL) &&
+		   req->Flags & SMB2_SESSION_REQ_FLAG_BINDING) {
+		u64 sess_id = le64_to_cpu(req->hdr.SessionId);
+
+		sess = ksmbd_session_lookup_slowpath(sess_id);
+		if (!sess) {
+			rc = -ENOENT;
+			goto out_err;
+		}
+
+		if (conn->dialect != sess->conn->dialect) {
+			rc = -EINVAL;
+			goto out_err;
+		}
+
+		if (!(req->hdr.Flags & SMB2_FLAGS_SIGNED)) {
+			rc = -EINVAL;
+			goto out_err;
+		}
+
+		if (strncmp(conn->ClientGUID, sess->conn->ClientGUID,
+			    SMB2_CLIENT_GUID_SIZE)) {
+			rc = -ENOENT;
+			goto out_err;
+		}
+
+		if (sess->state == SMB2_SESSION_IN_PROGRESS) {
+			rc = -EACCES;
+			goto out_err;
+		}
+
+		if (sess->state == SMB2_SESSION_EXPIRED) {
+			rc = -EFAULT;
+			goto out_err;
+		}
+
+		if (ksmbd_session_lookup(conn, sess_id)) {
+			rc = -EACCES;
+			goto out_err;
+		}
+
+		conn->binding = true;
+	} else if ((conn->dialect < SMB30_PROT_ID ||
+		    server_conf.flags & KSMBD_GLOBAL_FLAG_SMB3_MULTICHANNEL) &&
+		   (req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)) {
+		rc = -EACCES;
+		goto out_err;
 	} else {
 		sess = ksmbd_session_lookup(conn,
 					    le64_to_cpu(req->hdr.SessionId));
 		if (!sess) {
 			rc = -ENOENT;
-			rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
 			goto out_err;
 		}
 	}
@@ -1585,15 +1649,15 @@ int smb2_sess_setup(struct ksmbd_work *work)
 	}
 
 	if (server_conf.auth_mechs & conn->auth_mechs) {
+		rc = generate_preauth_hash(work);
+		if (rc)
+			goto out_err;
+
 		if (conn->preferred_auth_mech &
 				(KSMBD_AUTH_KRB5 | KSMBD_AUTH_MSKRB5)) {
-			rc = generate_preauth_hash(work);
-			if (rc)
-				goto out_err;
-
 			rc = krb5_authenticate(work);
 			if (rc) {
-				rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+				rc = -EINVAL;
 				goto out_err;
 			}
 
@@ -1602,10 +1666,6 @@ int smb2_sess_setup(struct ksmbd_work *work)
 			kfree(sess->Preauth_HashValue);
 			sess->Preauth_HashValue = NULL;
 		} else if (conn->preferred_auth_mech == KSMBD_AUTH_NTLMSSP) {
-			rc = generate_preauth_hash(work);
-			if (rc)
-				goto out_err;
-
 			if (negblob->MessageType == NtLmNegotiate) {
 				rc = ntlm_negotiate(work, negblob);
 				if (rc)
@@ -1625,6 +1685,16 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 				ksmbd_conn_set_good(work);
 				sess->state = SMB2_SESSION_VALID;
+				if (conn->binding) {
+					struct preauth_session *preauth_sess;
+
+					preauth_sess =
+						ksmbd_preauth_session_lookup(conn, sess->id);
+					if (preauth_sess) {
+						list_del(&preauth_sess->preauth_entry);
+						kfree(preauth_sess);
+					}
+				}
 				kfree(sess->Preauth_HashValue);
 				sess->Preauth_HashValue = NULL;
 			}
@@ -1632,15 +1702,24 @@ int smb2_sess_setup(struct ksmbd_work *work)
 			/* TODO: need one more negotiation */
 			ksmbd_err("Not support the preferred authentication\n");
 			rc = -EINVAL;
-			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 		}
 	} else {
 		ksmbd_err("Not support authentication\n");
 		rc = -EINVAL;
-		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 	}
 
 out_err:
+	if (rc == -EINVAL)
+		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+	else if (rc == -ENOENT)
+		rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
+	else if (rc == -EACCES)
+		rsp->hdr.Status = STATUS_REQUEST_NOT_ACCEPTED;
+	else if (rc == -EFAULT)
+		rsp->hdr.Status = STATUS_NETWORK_SESSION_EXPIRED;
+	else if (rc)
+		rsp->hdr.Status = STATUS_LOGON_FAILURE;
+
 	if (conn->use_spnego && conn->mechToken) {
 		kfree(conn->mechToken);
 		conn->mechToken = NULL;
@@ -7883,7 +7962,7 @@ void smb2_set_sign_rsp(struct ksmbd_work *work)
  */
 int smb3_check_sign_req(struct ksmbd_work *work)
 {
-	struct ksmbd_conn *conn;
+	struct ksmbd_conn *conn = work->conn;
 	char *signing_key;
 	struct smb2_hdr *hdr, *hdr_org;
 	struct channel *chann;
@@ -7906,13 +7985,11 @@ int smb3_check_sign_req(struct ksmbd_work *work)
 
 	if (le16_to_cpu(hdr->Command) == SMB2_SESSION_SETUP_HE) {
 		signing_key = work->sess->smb3signingkey;
-		conn = work->sess->conn;
 	} else {
-		chann = lookup_chann_list(work->sess);
+		chann = lookup_chann_list(work->sess, conn);
 		if (!chann)
 			return 0;
 		signing_key = chann->smb3signingkey;
-		conn = chann->conn;
 	}
 
 	if (!signing_key) {
@@ -7943,7 +8020,7 @@ int smb3_check_sign_req(struct ksmbd_work *work)
  */
 void smb3_set_sign_rsp(struct ksmbd_work *work)
 {
-	struct ksmbd_conn *conn;
+	struct ksmbd_conn *conn = work->conn;
 	struct smb2_hdr *req_hdr;
 	struct smb2_hdr *hdr, *hdr_org;
 	struct channel *chann;
@@ -7970,13 +8047,11 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 
 	if (le16_to_cpu(hdr->Command) == SMB2_SESSION_SETUP_HE) {
 		signing_key = work->sess->smb3signingkey;
-		conn = work->sess->conn;
 	} else {
-		chann = lookup_chann_list(work->sess);
+		chann = lookup_chann_list(work->sess, work->conn);
 		if (!chann)
 			return;
 		signing_key = chann->smb3signingkey;
-		conn = chann->conn;
 	}
 
 	if (!signing_key)
@@ -8020,11 +8095,21 @@ void smb3_preauth_hash_rsp(struct ksmbd_work *work)
 		ksmbd_gen_preauth_integrity_hash(conn, (char *)rsp,
 						 conn->preauth_info->Preauth_HashValue);
 
-	if (le16_to_cpu(rsp->Command) == SMB2_SESSION_SETUP_HE &&
-	    sess && sess->state == SMB2_SESSION_IN_PROGRESS) {
+	if (le16_to_cpu(rsp->Command) == SMB2_SESSION_SETUP_HE && sess) {
 		__u8 *hash_value;
 
-		hash_value = sess->Preauth_HashValue;
+		if (conn->binding) {
+			struct preauth_session *preauth_sess;
+
+			preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
+			if (!preauth_sess)
+				return;
+			hash_value = preauth_sess->Preauth_HashValue;
+		} else {
+			hash_value = sess->Preauth_HashValue;
+			if (!hash_value)
+				return;
+		}
 		ksmbd_gen_preauth_integrity_hash(conn, (char *)rsp,
 						 hash_value);
 	}
@@ -8116,7 +8201,7 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 	unsigned int orig_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
 	int rc = 0;
 
-	sess = ksmbd_session_lookup(conn, le64_to_cpu(tr_hdr->SessionId));
+	sess = ksmbd_session_lookup_all(conn, le64_to_cpu(tr_hdr->SessionId));
 	if (!sess) {
 		ksmbd_err("invalid session id(%llx) in transform header\n",
 			  le64_to_cpu(tr_hdr->SessionId));

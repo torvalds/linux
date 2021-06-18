@@ -921,13 +921,14 @@ smb3signkey_ret:
 }
 
 static int generate_smb3signingkey(struct ksmbd_session *sess,
+				   struct ksmbd_conn *conn,
 				   const struct derivation *signing)
 {
 	int rc;
 	struct channel *chann;
 	char *key;
 
-	chann = lookup_chann_list(sess);
+	chann = lookup_chann_list(sess, conn);
 	if (!chann)
 		return 0;
 
@@ -953,7 +954,8 @@ static int generate_smb3signingkey(struct ksmbd_session *sess,
 	return 0;
 }
 
-int ksmbd_gen_smb30_signingkey(struct ksmbd_session *sess)
+int ksmbd_gen_smb30_signingkey(struct ksmbd_session *sess,
+			       struct ksmbd_conn *conn)
 {
 	struct derivation d;
 
@@ -961,22 +963,32 @@ int ksmbd_gen_smb30_signingkey(struct ksmbd_session *sess)
 	d.label.iov_len = 12;
 	d.context.iov_base = "SmbSign";
 	d.context.iov_len = 8;
-	d.binding = false;
+	d.binding = conn->binding;
 
-	return generate_smb3signingkey(sess, &d);
+	return generate_smb3signingkey(sess, conn, &d);
 }
 
-int ksmbd_gen_smb311_signingkey(struct ksmbd_session *sess)
+int ksmbd_gen_smb311_signingkey(struct ksmbd_session *sess,
+				struct ksmbd_conn *conn)
 {
 	struct derivation d;
 
 	d.label.iov_base = "SMBSigningKey";
 	d.label.iov_len = 14;
-	d.context.iov_base = sess->Preauth_HashValue;
-	d.context.iov_len = 64;
-	d.binding = false;
+	if (conn->binding) {
+		struct preauth_session *preauth_sess;
 
-	return generate_smb3signingkey(sess, &d);
+		preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
+		if (!preauth_sess)
+			return -ENOENT;
+		d.context.iov_base = preauth_sess->Preauth_HashValue;
+	} else {
+		d.context.iov_base = sess->Preauth_HashValue;
+	}
+	d.context.iov_len = 64;
+	d.binding = conn->binding;
+
+	return generate_smb3signingkey(sess, conn, &d);
 }
 
 struct derivation_twin {
@@ -1148,7 +1160,7 @@ static int ksmbd_get_encryption_key(struct ksmbd_conn *conn, __u64 ses_id,
 	struct ksmbd_session *sess;
 	u8 *ses_enc_key;
 
-	sess = ksmbd_session_lookup(conn, ses_id);
+	sess = ksmbd_session_lookup_all(conn, ses_id);
 	if (!sess)
 		return -EINVAL;
 

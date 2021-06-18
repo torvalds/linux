@@ -26,8 +26,8 @@ struct channel {
 
 struct preauth_session {
 	__u8			Preauth_HashValue[PREAUTH_HASHVALUE_SIZE];
-	u64			sess_id;
-	struct list_head	list_entry;
+	u64			id;
+	struct list_head	preauth_entry;
 };
 
 struct ksmbd_session {
@@ -82,13 +82,18 @@ struct ksmbd_session *ksmbd_smb2_session_create(void);
 
 void ksmbd_session_destroy(struct ksmbd_session *sess);
 
-bool ksmbd_session_id_match(struct ksmbd_session *sess, unsigned long long id);
 struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id);
 struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 					   unsigned long long id);
 void ksmbd_session_register(struct ksmbd_conn *conn,
 			    struct ksmbd_session *sess);
 void ksmbd_sessions_deregister(struct ksmbd_conn *conn);
+struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
+					       unsigned long long id);
+struct preauth_session *ksmbd_preauth_session_alloc(struct ksmbd_conn *conn,
+						    u64 sess_id);
+struct preauth_session *ksmbd_preauth_session_lookup(struct ksmbd_conn *conn,
+						     unsigned long long id);
 
 int ksmbd_acquire_tree_conn_id(struct ksmbd_session *sess);
 void ksmbd_release_tree_conn_id(struct ksmbd_session *sess, int id);

@@ -479,7 +479,7 @@ struct smb_version_ops {
 	bool (*is_sign_req)(struct ksmbd_work *work, unsigned int command);
 	int (*check_sign_req)(struct ksmbd_work *work);
 	void (*set_sign_rsp)(struct ksmbd_work *work);
-	int (*generate_signingkey)(struct ksmbd_session *sess);
+	int (*generate_signingkey)(struct ksmbd_session *sess, struct ksmbd_conn *conn);
 	int (*generate_encryptionkey)(struct ksmbd_session *sess);
 	int (*is_transform_hdr)(void *buf);
 	int (*decrypt_req)(struct ksmbd_work *work);
