@@ -16,33 +16,30 @@ struct pause_cpu_state {
 
 static DEFINE_PER_CPU(struct pause_cpu_state, pause_state);
 
-/* increment ref count for cpus in passed mask */
-static void inc_ref_counts(struct cpumask *cpus)
+/* increment/decrement ref count for cpus in pause/resume mask */
+static void update_ref_counts(struct cpumask *cpus, bool pause)
 {
 	int cpu;
 	struct pause_cpu_state *pause_cpu_state;
 
 	for_each_cpu(cpu, cpus) {
 		pause_cpu_state = per_cpu_ptr(&pause_state, cpu);
-		if (pause_cpu_state->ref_count)
-			cpumask_clear_cpu(cpu, cpus);
-		pause_cpu_state->ref_count++;
+		if (pause)
+			pause_cpu_state->ref_count++;
+		else {
+			WARN_ON_ONCE(pause_cpu_state->ref_count == 0);
+			pause_cpu_state->ref_count--;
+		}
 	}
 }
 
-/*
- * decrement ref count for cpus in passed mask
- * updates the cpus to include only cpus ready to be unpaused
- */
-static void dec_test_ref_counts(struct cpumask *cpus)
+static void update_pause_resume_cpus(struct cpumask *cpus)
 {
 	int cpu;
 	struct pause_cpu_state *pause_cpu_state;
 
 	for_each_cpu(cpu, cpus) {
 		pause_cpu_state = per_cpu_ptr(&pause_state, cpu);
-		WARN_ON_ONCE(pause_cpu_state->ref_count == 0);
-		pause_cpu_state->ref_count--;
 		if (pause_cpu_state->ref_count)
 			cpumask_clear_cpu(cpu, cpus);
 	}
@@ -57,26 +54,24 @@ int walt_pause_cpus(struct cpumask *cpus)
 	mutex_lock(&pause_lock);
 
 	cpumask_copy(&requested_cpus, cpus);
-	inc_ref_counts(cpus);
+	update_pause_resume_cpus(cpus);
 
 	/*
 	 * Add ref counts for all cpus in mask, but
 	 * only actually pause online CPUs
 	 */
 	cpumask_and(cpus, cpus, cpu_online_mask);
-
-	if (cpumask_empty(cpus))
+	if (cpumask_empty(cpus)) {
+		update_ref_counts(&requested_cpus, true);
 		goto unlock;
+	}
 
 	ret = pause_cpus(cpus);
-
-	if (ret < 0) {
+	if (ret < 0)
 		printk_deferred("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
-
-		/* ref counts recorded, suppress failure */
-		ret = 0;
-	}
+	else
+		update_ref_counts(&requested_cpus, true);
 unlock:
 	mutex_unlock(&pause_lock);
 
@@ -92,22 +87,20 @@ int walt_resume_cpus(struct cpumask *cpus)
 
 	mutex_lock(&pause_lock);
 	cpumask_copy(&requested_cpus, cpus);
-	dec_test_ref_counts(cpus);
+	update_ref_counts(&requested_cpus, false);
+	update_pause_resume_cpus(cpus);
 
 	/* only actually resume online CPUs */
 	cpumask_and(cpus, cpus, cpu_online_mask);
-
 	if (cpumask_empty(cpus))
 		goto unlock;
 
 	ret = resume_cpus(cpus);
-
 	if (ret < 0) {
 		printk_deferred("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
-
-		/* ref counts recorded, suppress failure */
-		ret = 0;
+		/* restore/increment ref counts in case of error */
+		update_ref_counts(&requested_cpus, true);
 	}
 unlock:
 	mutex_unlock(&pause_lock);
