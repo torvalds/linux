@@ -5182,13 +5182,8 @@ done:
 	qp_attr->cap.max_recv_sge = hr_qp->rq.max_gs - hr_qp->rq.rsv_sge;
 	qp_attr->cap.max_inline_data = hr_qp->max_inline_data;
 
-	if (!ibqp->uobject) {
-		qp_attr->cap.max_send_wr = hr_qp->sq.wqe_cnt;
-		qp_attr->cap.max_send_sge = hr_qp->sq.max_gs;
-	} else {
-		qp_attr->cap.max_send_wr = 0;
-		qp_attr->cap.max_send_sge = 0;
-	}
+	qp_attr->cap.max_send_wr = hr_qp->sq.wqe_cnt;
+	qp_attr->cap.max_send_sge = hr_qp->sq.max_gs;
 
 	qp_init_attr->qp_context = ibqp->qp_context;
 	qp_init_attr->qp_type = ibqp->qp_type;
