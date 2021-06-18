@@ -368,7 +368,6 @@ struct mxser_board {
 	int irq;
 	const struct mxser_cardinfo *info;
 	unsigned long vector;
-	unsigned long vector_mask;
 
 	enum mxser_must_hwid must_hwid;
 	speed_t max_baud;
@@ -2273,18 +2272,18 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 	struct mxser_board *brd = dev_id;
 	struct mxser_port *port;
 	unsigned int int_cnt, pass_counter = 0;
-	int max, irqbits, bits, i;
+	unsigned int i, max = brd->info->nports;
 	int handled = IRQ_NONE;
+	u8 irqbits, bits, mask = BIT(max) - 1;
 
-	max = brd->info->nports;
 	while (pass_counter++ < MXSER_ISR_PASS_LIMIT) {
-		irqbits = inb(brd->vector) & brd->vector_mask;
-		if (irqbits == brd->vector_mask)
+		irqbits = inb(brd->vector) & mask;
+		if (irqbits == mask)
 			break;
 
 		handled = IRQ_HANDLED;
 		for (i = 0, bits = 1; i < max; i++, irqbits |= bits, bits <<= 1) {
-			if (irqbits == brd->vector_mask)
+			if (irqbits == mask)
 				break;
 			if (bits & irqbits)
 				continue;
@@ -2450,7 +2449,6 @@ static int mxser_probe(struct pci_dev *pdev,
 	brd->irq = pdev->irq;
 
 	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
-	brd->vector_mask = 0;
 
 	for (j = 0; j < UART_INFO_NUM; j++) {
 		if (Gpci_uart_info[j].type == brd->must_hwid) {
@@ -2475,7 +2473,6 @@ static int mxser_probe(struct pci_dev *pdev,
 	}
 
 	for (i = 0; i < brd->info->nports; i++) {
-		brd->vector_mask |= (1 << i);
 		brd->ports[i].baud_base = 921600;
 	}
 
