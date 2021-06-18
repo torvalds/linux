@@ -428,14 +428,15 @@ static void mxser_dtr_rts(struct tty_port *port, int on)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
 	unsigned long flags;
+	u8 mcr;
 
 	spin_lock_irqsave(&mp->slock, flags);
+	mcr = inb(mp->ioaddr + UART_MCR);
 	if (on)
-		outb(inb(mp->ioaddr + UART_MCR) |
-			UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
+		mcr |= UART_MCR_DTR | UART_MCR_RTS;
 	else
-		outb(inb(mp->ioaddr + UART_MCR)&~(UART_MCR_DTR | UART_MCR_RTS),
-			mp->ioaddr + UART_MCR);
+		mcr &= ~(UART_MCR_DTR | UART_MCR_RTS);
+	outb(mcr, mp->ioaddr + UART_MCR);
 	spin_unlock_irqrestore(&mp->slock, flags);
 }
 
