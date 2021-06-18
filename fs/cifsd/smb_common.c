@@ -481,15 +481,13 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 {
 	int rc = 0;
 	struct ksmbd_file *prev_fp;
-	struct list_head *cur;
 
 	/*
 	 * Lookup fp in master fp list, and check desired access and
 	 * shared mode between previous open and current open.
 	 */
 	read_lock(&curr_fp->f_ci->m_lock);
-	list_for_each(cur, &curr_fp->f_ci->m_fp_list) {
-		prev_fp = list_entry(cur, struct ksmbd_file, node);
+	list_for_each_entry(prev_fp, &curr_fp->f_ci->m_fp_list, node) {
 		if (file_inode(filp) != FP_INODE(prev_fp))
 			continue;
 

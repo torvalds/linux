@@ -472,15 +472,13 @@ struct ksmbd_file *ksmbd_lookup_fd_inode(struct inode *inode)
 {
 	struct ksmbd_file	*lfp;
 	struct ksmbd_inode	*ci;
-	struct list_head	*cur;
 
 	ci = ksmbd_inode_lookup_by_vfsinode(inode);
 	if (!ci)
 		return NULL;
 
 	read_lock(&ci->m_lock);
-	list_for_each(cur, &ci->m_fp_list) {
-		lfp = list_entry(cur, struct ksmbd_file, node);
+	list_for_each_entry(lfp, &ci->m_fp_list, node) {
 		if (inode == FP_INODE(lfp)) {
 			atomic_dec(&ci->m_count);
 			read_unlock(&ci->m_lock);
