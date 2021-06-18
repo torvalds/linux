@@ -43,16 +43,13 @@ efct_xport_init_debugfs(struct efct *efct)
 	if (!efct_debugfs_root) {
 		efct_debugfs_root = debugfs_create_dir("efct", NULL);
 		atomic_set(&efct_debugfs_count, 0);
-		if (!efct_debugfs_root) {
-			efc_log_err(efct, "failed to create debugfs entry\n");
-			goto debugfs_fail;
-		}
 	}
 
 	/* Create a directory for sessions in root */
 	if (!efct->sess_debugfs_dir) {
-		efct->sess_debugfs_dir = debugfs_create_dir("sessions", NULL);
-		if (!efct->sess_debugfs_dir) {
+		efct->sess_debugfs_dir = debugfs_create_dir("sessions",
+							efct_debugfs_root);
+		if (IS_ERR(efct->sess_debugfs_dir)) {
 			efc_log_err(efct,
 				    "failed to create debugfs entry for sessions\n");
 			goto debugfs_fail;
