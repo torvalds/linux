@@ -279,6 +279,8 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 	bool reads, writes;
 	int data_dir;
 
+	lockdep_assert_held(&dd->lock);
+
 	if (!list_empty(&dd->dispatch)) {
 		rq = list_first_entry(&dd->dispatch, struct request, queuelist);
 		list_del_init(&rq->queuelist);
@@ -500,6 +502,8 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	struct request_queue *q = hctx->queue;
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int data_dir = rq_data_dir(rq);
+
+	lockdep_assert_held(&dd->lock);
 
 	/*
 	 * This may be a requeue of a write request that has locked its
