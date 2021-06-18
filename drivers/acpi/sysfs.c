@@ -909,27 +909,22 @@ static void __exit interrupt_stats_exit(void)
 	delete_gpe_attr_array();
 }
 
-static ssize_t
-acpi_show_profile(struct kobject *kobj, struct kobj_attribute *attr,
-		  char *buf)
+static ssize_t pm_profile_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", acpi_gbl_FADT.preferred_profile);
 }
 
-static const struct kobj_attribute pm_profile_attr =
-	__ATTR(pm_profile, S_IRUGO, acpi_show_profile, NULL);
+static const struct kobj_attribute pm_profile_attr = __ATTR_RO(pm_profile);
 
-static ssize_t hotplug_enabled_show(struct kobject *kobj,
-				    struct kobj_attribute *attr, char *buf)
+static ssize_t enabled_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct acpi_hotplug_profile *hotplug = to_acpi_hotplug_profile(kobj);
 
 	return sprintf(buf, "%d\n", hotplug->enabled);
 }
 
-static ssize_t hotplug_enabled_store(struct kobject *kobj,
-				     struct kobj_attribute *attr,
-				     const char *buf, size_t size)
+static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
+			     const char *buf, size_t size)
 {
 	struct acpi_hotplug_profile *hotplug = to_acpi_hotplug_profile(kobj);
 	unsigned int val;
@@ -941,9 +936,7 @@ static ssize_t hotplug_enabled_store(struct kobject *kobj,
 	return size;
 }
 
-static struct kobj_attribute hotplug_enabled_attr =
-	__ATTR(enabled, S_IRUGO | S_IWUSR, hotplug_enabled_show,
-		hotplug_enabled_store);
+static struct kobj_attribute hotplug_enabled_attr = __ATTR_RW(enabled);
 
 static struct attribute *hotplug_profile_attrs[] = {
 	&hotplug_enabled_attr.attr,
@@ -1001,9 +994,7 @@ static ssize_t force_remove_store(struct kobject *kobj,
 	return size;
 }
 
-static const struct kobj_attribute force_remove_attr =
-	__ATTR(force_remove, S_IRUGO | S_IWUSR, force_remove_show,
-	       force_remove_store);
+static const struct kobj_attribute force_remove_attr = __ATTR_RW(force_remove);
 
 int __init acpi_sysfs_init(void)
 {
