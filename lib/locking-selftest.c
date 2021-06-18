@@ -53,6 +53,7 @@ __setup("debug_locks_verbose=", setup_debug_locks_verbose);
 #define LOCKTYPE_WW	0x10
 #define LOCKTYPE_RTMUTEX 0x20
 #define LOCKTYPE_LL	0x40
+#define LOCKTYPE_SPECIAL 0x80
 
 static struct ww_acquire_ctx t, t2;
 static struct ww_mutex o, o2, o3;
@@ -2744,6 +2745,66 @@ static void local_lock_tests(void)
 	pr_cont("\n");
 }
 
+static void hardirq_deadlock_softirq_not_deadlock(void)
+{
+	/* mutex_A is hardirq-unsafe and softirq-unsafe */
+	/* mutex_A -> lock_C */
+	mutex_lock(&mutex_A);
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_C);
+	spin_unlock(&lock_C);
+	HARDIRQ_ENABLE();
+	mutex_unlock(&mutex_A);
+
+	/* lock_A is hardirq-safe */
+	HARDIRQ_ENTER();
+	spin_lock(&lock_A);
+	spin_unlock(&lock_A);
+	HARDIRQ_EXIT();
+
+	/* lock_A -> lock_B */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	spin_lock(&lock_B);
+	spin_unlock(&lock_B);
+	spin_unlock(&lock_A);
+	HARDIRQ_ENABLE();
+
+	/* lock_B -> lock_C */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_B);
+	spin_lock(&lock_C);
+	spin_unlock(&lock_C);
+	spin_unlock(&lock_B);
+	HARDIRQ_ENABLE();
+
+	/* lock_D is softirq-safe */
+	SOFTIRQ_ENTER();
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	SOFTIRQ_EXIT();
+
+	/* And lock_D is hardirq-unsafe */
+	SOFTIRQ_DISABLE();
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	SOFTIRQ_ENABLE();
+
+	/*
+	 * mutex_A -> lock_C -> lock_D is softirq-unsafe -> softirq-safe, not
+	 * deadlock.
+	 *
+	 * lock_A -> lock_B -> lock_C -> lock_D is hardirq-safe ->
+	 * hardirq-unsafe, deadlock.
+	 */
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_C);
+	spin_lock(&lock_D);
+	spin_unlock(&lock_D);
+	spin_unlock(&lock_C);
+	HARDIRQ_ENABLE();
+}
+
 void locking_selftest(void)
 {
 	/*
@@ -2871,6 +2932,10 @@ void locking_selftest(void)
 		wait_context_tests();
 
 	local_lock_tests();
+
+	print_testname("hardirq_unsafe_softirq_safe");
+	dotest(hardirq_deadlock_softirq_not_deadlock, FAILURE, LOCKTYPE_SPECIAL);
+	pr_cont("\n");
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");
