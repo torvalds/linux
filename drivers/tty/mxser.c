@@ -418,6 +418,28 @@ static void mxser_process_txrx_fifo(struct mxser_port *info)
 		}
 }
 
+static void __mxser_start_tx(struct mxser_port *info)
+{
+	outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
+	info->IER |= UART_IER_THRI;
+	outb(info->IER, info->ioaddr + UART_IER);
+}
+
+static void mxser_start_tx(struct mxser_port *info)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->slock, flags);
+	__mxser_start_tx(info);
+	spin_unlock_irqrestore(&info->slock, flags);
+}
+
+static void __mxser_stop_tx(struct mxser_port *info)
+{
+	info->IER &= ~UART_IER_THRI;
+	outb(info->IER, info->ioaddr + UART_IER);
+}
+
 static int mxser_carrier_raised(struct tty_port *port)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
@@ -516,12 +538,8 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
 			tty->hw_stopped = 0;
 
 			if (info->type != PORT_16550A &&
-					!info->board->must_hwid) {
-				outb(info->IER & ~UART_IER_THRI,
-					info->ioaddr + UART_IER);
-				info->IER |= UART_IER_THRI;
-				outb(info->IER, info->ioaddr + UART_IER);
-			}
+					!info->board->must_hwid)
+				__mxser_start_tx(info);
 			tty_wakeup(tty);
 		}
 		return;
@@ -529,10 +547,8 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
 		return;
 
 	tty->hw_stopped = 1;
-	if (info->type != PORT_16550A && !info->board->must_hwid) {
-		info->IER &= ~UART_IER_THRI;
-		outb(info->IER, info->ioaddr + UART_IER);
-	}
+	if (info->type != PORT_16550A && !info->board->must_hwid)
+		__mxser_stop_tx(info);
 }
 
 /*
@@ -947,16 +963,9 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 	}
 
 	if (info->xmit_cnt && !tty->flow.stopped) {
-		if (!tty->hw_stopped ||
-				(info->type == PORT_16550A) ||
-				(info->board->must_hwid)) {
-			spin_lock_irqsave(&info->slock, flags);
-			outb(info->IER & ~UART_IER_THRI, info->ioaddr +
-					UART_IER);
-			info->IER |= UART_IER_THRI;
-			outb(info->IER, info->ioaddr + UART_IER);
-			spin_unlock_irqrestore(&info->slock, flags);
-		}
+		if (!tty->hw_stopped || info->type == PORT_16550A ||
+				info->board->must_hwid)
+			mxser_start_tx(info);
 	}
 	return total;
 }
@@ -985,20 +994,13 @@ static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
 static void mxser_flush_chars(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
-	unsigned long flags;
 
 	if (info->xmit_cnt <= 0 || tty->flow.stopped || !info->port.xmit_buf ||
 			(tty->hw_stopped && info->type != PORT_16550A &&
 			 !info->board->must_hwid))
 		return;
 
-	spin_lock_irqsave(&info->slock, flags);
-
-	outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
-	info->IER |= UART_IER_THRI;
-	outb(info->IER, info->ioaddr + UART_IER);
-
-	spin_unlock_irqrestore(&info->slock, flags);
+	mxser_start_tx(info);
 }
 
 static unsigned int mxser_write_room(struct tty_struct *tty)
@@ -1399,10 +1401,8 @@ static void mxser_stop(struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	if (info->IER & UART_IER_THRI) {
-		info->IER &= ~UART_IER_THRI;
-		outb(info->IER, info->ioaddr + UART_IER);
-	}
+	if (info->IER & UART_IER_THRI)
+		__mxser_stop_tx(info);
 	spin_unlock_irqrestore(&info->slock, flags);
 }
 
@@ -1412,11 +1412,8 @@ static void mxser_start(struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	if (info->xmit_cnt && info->port.xmit_buf) {
-		outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
-		info->IER |= UART_IER_THRI;
-		outb(info->IER, info->ioaddr + UART_IER);
-	}
+	if (info->xmit_cnt && info->port.xmit_buf)
+		__mxser_start_tx(info);
 	spin_unlock_irqrestore(&info->slock, flags);
 }
 
@@ -1659,8 +1656,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 			(tty->hw_stopped &&
 			(port->type != PORT_16550A) &&
 			(!port->board->must_hwid))) {
-		port->IER &= ~UART_IER_THRI;
-		outb(port->IER, port->ioaddr + UART_IER);
+		__mxser_stop_tx(port);
 		return;
 	}
 
@@ -1679,10 +1675,8 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	if (port->xmit_cnt < WAKEUP_CHARS)
 		tty_wakeup(tty);
 
-	if (port->xmit_cnt <= 0) {
-		port->IER &= ~UART_IER_THRI;
-		outb(port->IER, port->ioaddr + UART_IER);
-	}
+	if (port->xmit_cnt <= 0)
+		__mxser_stop_tx(port);
 }
 
 static bool mxser_port_isr(struct mxser_port *port)
