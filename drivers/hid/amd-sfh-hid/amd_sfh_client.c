@@ -202,7 +202,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
 		if (rc)
 			return rc;
-		amd_start_sensor(privdata, info);
+		privdata->mp2_ops->start(privdata, info);
 		cl_data->sensor_sts[i] = 1;
 	}
 	privdata->cl_data = cl_data;
@@ -230,7 +230,7 @@ int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 	int i;
 
 	for (i = 0; i < cl_data->num_hid_devices; i++)
-		amd_stop_sensor(privdata, i);
+		privdata->mp2_ops->stop(privdata, i);
 
 	cancel_delayed_work_sync(&cl_data->work);
 	cancel_delayed_work_sync(&cl_data->work_buffer);
