@@ -223,7 +223,7 @@ struct efct_hw_io {
 	struct efc_dma		xfer_rdy;
 	u16			type;
 	bool			xbusy;
-	bool			abort_in_progress;
+	int			abort_in_progress;
 	bool			status_saved;
 	u8			wq_class;
 	u16			reqtag;
