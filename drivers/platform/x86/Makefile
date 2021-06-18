@@ -70,10 +70,6 @@ obj-$(CONFIG_X86_PLATFORM_DRIVERS_INTEL)		+= intel/
 
 obj-$(CONFIG_INTEL_ATOMISP2_LED)	+= intel_atomisp2_led.o
 obj-$(CONFIG_INTEL_ATOMISP2_PM)		+= intel_atomisp2_pm.o
-obj-$(CONFIG_INTEL_CHT_INT33FE)		+= intel_cht_int33fe.o
-intel_cht_int33fe-objs			:= intel_cht_int33fe_common.o \
-					   intel_cht_int33fe_typec.o \
-					   intel_cht_int33fe_microb.o
 obj-$(CONFIG_INTEL_HID_EVENT)		+= intel-hid.o
 obj-$(CONFIG_INTEL_INT0002_VGPIO)	+= intel_int0002_vgpio.o
 obj-$(CONFIG_INTEL_MENLOW)		+= intel_menlow.o
