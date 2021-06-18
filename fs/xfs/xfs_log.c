@@ -820,9 +820,7 @@ xlog_wait_on_iclog(
 static int
 xlog_write_unmount_record(
 	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	xfs_lsn_t		*lsn,
-	uint			flags)
+	struct xlog_ticket	*ticket)
 {
 	struct xfs_unmount_log_format ulf = {
 		.magic = XLOG_UNMOUNT_TYPE,
@@ -839,7 +837,7 @@ xlog_write_unmount_record(
 
 	/* account for space used by record data */
 	ticket->t_curr_res -= sizeof(ulf);
-	return xlog_write(log, &vec, ticket, lsn, NULL, flags, false);
+	return xlog_write(log, &vec, ticket, NULL, NULL, XLOG_UNMOUNT_TRANS);
 }
 
 /*
@@ -853,15 +851,13 @@ xlog_unmount_write(
 	struct xfs_mount	*mp = log->l_mp;
 	struct xlog_in_core	*iclog;
 	struct xlog_ticket	*tic = NULL;
-	xfs_lsn_t		lsn;
-	uint			flags = XLOG_UNMOUNT_TRANS;
 	int			error;
 
 	error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
 	if (error)
 		goto out_err;
 
-	error = xlog_write_unmount_record(log, tic, &lsn, flags);
+	error = xlog_write_unmount_record(log, tic);
 	/*
 	 * At this point, we're umounting anyway, so there's no point in
 	 * transitioning log state to IOERROR. Just continue...
@@ -1553,8 +1549,7 @@ xlog_commit_record(
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return -EIO;
 
-	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS,
-			   false);
+	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS);
 	if (error)
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	return error;
@@ -2151,12 +2146,15 @@ static int
 xlog_write_calc_vec_length(
 	struct xlog_ticket	*ticket,
 	struct xfs_log_vec	*log_vector,
-	bool			need_start_rec)
+	uint			optype)
 {
 	struct xfs_log_vec	*lv;
-	int			headers = need_start_rec ? 1 : 0;
+	int			headers = 0;
 	int			len = 0;
 	int			i;
+
+	if (optype & XLOG_START_TRANS)
+		headers++;
 
 	for (lv = log_vector; lv; lv = lv->lv_next) {
 		/* we don't write ordered log vectors */
@@ -2377,8 +2375,7 @@ xlog_write(
 	struct xlog_ticket	*ticket,
 	xfs_lsn_t		*start_lsn,
 	struct xlog_in_core	**commit_iclog,
-	uint			flags,
-	bool			need_start_rec)
+	uint			optype)
 {
 	struct xlog_in_core	*iclog = NULL;
 	struct xfs_log_vec	*lv = log_vector;
@@ -2406,8 +2403,9 @@ xlog_write(
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	}
 
-	len = xlog_write_calc_vec_length(ticket, log_vector, need_start_rec);
-	*start_lsn = 0;
+	len = xlog_write_calc_vec_length(ticket, log_vector, optype);
+	if (start_lsn)
+		*start_lsn = 0;
 	while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 		void		*ptr;
 		int		log_offset;
@@ -2421,7 +2419,7 @@ xlog_write(
 		ptr = iclog->ic_datap + log_offset;
 
 		/* start_lsn is the first lsn written to. That's all we need. */
-		if (!*start_lsn)
+		if (start_lsn && !*start_lsn)
 			*start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
 		/*
@@ -2434,6 +2432,7 @@ xlog_write(
 			int			copy_len;
 			int			copy_off;
 			bool			ordered = false;
+			bool			wrote_start_rec = false;
 
 			/* ordered log vectors have no regions to write */
 			if (lv->lv_buf_len == XFS_LOG_VEC_ORDERED) {
@@ -2451,13 +2450,15 @@ xlog_write(
 			 * write a start record. Only do this for the first
 			 * iclog we write to.
 			 */
-			if (need_start_rec) {
+			if (optype & XLOG_START_TRANS) {
 				xlog_write_start_rec(ptr, ticket);
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
 						sizeof(struct xlog_op_header));
+				optype &= ~XLOG_START_TRANS;
+				wrote_start_rec = true;
 			}
 
-			ophdr = xlog_write_setup_ophdr(log, ptr, ticket, flags);
+			ophdr = xlog_write_setup_ophdr(log, ptr, ticket, optype);
 			if (!ophdr)
 				return -EIO;
 
@@ -2488,14 +2489,13 @@ xlog_write(
 			}
 			copy_len += sizeof(struct xlog_op_header);
 			record_cnt++;
-			if (need_start_rec) {
+			if (wrote_start_rec) {
 				copy_len += sizeof(struct xlog_op_header);
 				record_cnt++;
-				need_start_rec = false;
 			}
 			data_cnt += contwr ? copy_len : 0;
 
-			error = xlog_write_copy_finish(log, iclog, flags,
+			error = xlog_write_copy_finish(log, iclog, optype,
 						       &record_cnt, &data_cnt,
 						       &partial_copy,
 						       &partial_copy_len,
@@ -2539,7 +2539,7 @@ next_lv:
 	spin_lock(&log->l_icloglock);
 	xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
 	if (commit_iclog) {
-		ASSERT(flags & XLOG_COMMIT_TRANS);
+		ASSERT(optype & XLOG_COMMIT_TRANS);
 		*commit_iclog = iclog;
 	} else {
 		error = xlog_state_release_iclog(log, iclog);
