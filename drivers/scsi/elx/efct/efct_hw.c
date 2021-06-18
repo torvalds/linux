@@ -338,14 +338,14 @@ efct_hw_init_free_io(struct efct_hw_io *io)
 	io->wq = NULL;
 }
 
-static u8 efct_hw_iotype_is_originator(u16 io_type)
+static bool efct_hw_iotype_is_originator(u16 io_type)
 {
 	switch (io_type) {
 	case EFCT_HW_FC_CT:
 	case EFCT_HW_ELS_REQ:
-		return 0;
+		return true;
 	default:
-		return -EIO;
+		return false;
 	}
 }
 
@@ -408,7 +408,7 @@ efct_hw_wq_process_io(void *arg, u8 *cqe, int status)
 		 * If we're not an originator IO, and XB is set, then issue
 		 * abort for the IO from within the HW
 		 */
-		if ((!efct_hw_iotype_is_originator(io->type)) &&
+		if (efct_hw_iotype_is_originator(io->type) &&
 		    wcqe->flags & SLI4_WCQE_XB) {
 			int rc;
 
