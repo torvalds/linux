@@ -400,10 +400,9 @@ int skl_int3472_discrete_remove(struct platform_device *pdev)
 	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
 
 	gpiod_remove_lookup_table(&int3472->gpios);
-	clk_unregister(int3472->clock.clk);
 
-	if (int3472->clock.cl)
-		clkdev_drop(int3472->clock.cl);
+	if (int3472->clock.ena_gpio)
+		skl_int3472_unregister_clock(int3472);
 
 	gpiod_put(int3472->clock.ena_gpio);
 	gpiod_put(int3472->clock.led_gpio);

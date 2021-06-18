@@ -130,6 +130,12 @@ out_free_init_name:
 	return ret;
 }
 
+void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472)
+{
+	clkdev_drop(int3472->clock.cl);
+	clk_unregister(int3472->clock.clk);
+}
+
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 				   struct acpi_resource_gpio *agpio)
 {
