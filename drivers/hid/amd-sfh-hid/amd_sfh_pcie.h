@@ -30,6 +30,8 @@
 
 #define V2_STATUS	0x2
 
+#define HPD_IDX		16
+
 /* SFH Command register */
 union sfh_cmd_base {
 	u32 ul;
@@ -90,6 +92,18 @@ struct amd_mp2_sensor_info {
 enum mem_use_type {
 	USE_DRAM,
 	USE_C2P_REG,
+};
+
+struct hpd_status {
+	union {
+		struct {
+			u32 human_presence_report : 4;
+			u32 human_presence_actual : 4;
+			u32 probablity		  : 8;
+			u32 object_distance       : 16;
+		} shpd;
+		u32 val;
+	};
 };
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info);

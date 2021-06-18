@@ -100,6 +100,16 @@ struct als_input_report {
 	int illuminance_value;
 } __packed;
 
+struct hpd_feature_report {
+	struct common_feature_property common_property;
+} __packed;
+
+struct hpd_input_report {
+	struct common_input_property common_property;
+	 /* values specific to human presence sensor */
+	u8 human_presence;
+} __packed;
+
 int get_report_descriptor(int sensor_idx, u8 rep_desc[]);
 u32 get_descr_sz(int sensor_idx, int descriptor_name);
 u8 get_feature_report(int sensor_idx, int report_id, u8 *feature_report);

@@ -24,6 +24,7 @@
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
 #define MAGNO_EN	BIT(2)
+#define HPD_EN		BIT(16)
 #define ALS_EN		BIT(19)
 
 static int sensor_mask_override = -1;
@@ -164,6 +165,9 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 
 	if (ALS_EN & activestatus)
 		sensor_id[num_of_sensors++] = als_idx;
+
+	if (HPD_EN & activestatus)
+		sensor_id[num_of_sensors++] = HPD_IDX;
 
 	return num_of_sensors;
 }

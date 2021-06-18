@@ -50,6 +50,11 @@ int get_report_descriptor(int sensor_idx, u8 *rep_desc)
 		memcpy(rep_desc, als_report_descriptor,
 		       sizeof(als_report_descriptor));
 		break;
+	case HPD_IDX: /* HPD sensor */
+		memset(rep_desc, 0, sizeof(hpd_report_descriptor));
+		memcpy(rep_desc, hpd_report_descriptor,
+		       sizeof(hpd_report_descriptor));
+		break;
 	default:
 		break;
 	}
@@ -99,6 +104,17 @@ u32 get_descr_sz(int sensor_idx, int descriptor_name)
 			return sizeof(struct als_feature_report);
 		}
 		break;
+	case HPD_IDX:
+		switch (descriptor_name) {
+		case descr_size:
+			return sizeof(hpd_report_descriptor);
+		case input_size:
+			return sizeof(struct hpd_input_report);
+		case feature_size:
+			return sizeof(struct hpd_feature_report);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -120,6 +136,7 @@ u8 get_feature_report(int sensor_idx, int report_id, u8 *feature_report)
 	struct accel3_feature_report acc_feature;
 	struct gyro_feature_report gyro_feature;
 	struct magno_feature_report magno_feature;
+	struct hpd_feature_report hpd_feature;
 	struct als_feature_report als_feature;
 	u8 report_size = 0;
 
@@ -162,6 +179,12 @@ u8 get_feature_report(int sensor_idx, int report_id, u8 *feature_report)
 		memcpy(feature_report, &als_feature, sizeof(als_feature));
 		report_size = sizeof(als_feature);
 		break;
+	case HPD_IDX:  /* human presence detection sensor */
+		get_common_features(&hpd_feature.common_property, report_id);
+		memcpy(feature_report, &hpd_feature, sizeof(hpd_feature));
+		report_size = sizeof(hpd_feature);
+		break;
+
 	default:
 		break;
 	}
@@ -181,10 +204,12 @@ u8 get_input_report(u8 current_index, int sensor_idx, int report_id, struct amd_
 	u32 *sensor_virt_addr = in_data->sensor_virt_addr[current_index];
 	u8 *input_report = in_data->input_report[current_index];
 	u8 supported_input = privdata->mp2_acs & GENMASK(3, 0);
+	struct magno_input_report magno_input;
 	struct accel3_input_report acc_input;
 	struct gyro_input_report gyro_input;
-	struct magno_input_report magno_input;
+	struct hpd_input_report hpd_input;
 	struct als_input_report als_input;
+	struct hpd_status hpdstatus;
 	u8 report_size = 0;
 
 	if (!sensor_virt_addr || !input_report)
@@ -226,6 +251,13 @@ u8 get_input_report(u8 current_index, int sensor_idx, int report_id, struct amd_
 				(int)sensor_virt_addr[0] / AMD_SFH_FW_MULTIPLIER;
 		report_size = sizeof(als_input);
 		memcpy(input_report, &als_input, sizeof(als_input));
+		break;
+	case HPD_IDX: /* hpd */
+		get_common_inputs(&hpd_input.common_property, report_id);
+		hpdstatus.val = readl(privdata->mmio + AMD_C2P_MSG(4));
+		hpd_input.human_presence = hpdstatus.shpd.human_presence_actual;
+		report_size = sizeof(hpd_input);
+		memcpy(input_report, &hpd_input, sizeof(hpd_input));
 		break;
 	default:
 		break;
