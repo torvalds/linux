@@ -329,7 +329,6 @@ struct mxser_port {
 
 	unsigned long ioaddr;
 	unsigned long opmode_ioaddr;
-	speed_t max_baud;
 
 	u8 rx_high_water;
 	u8 rx_low_water;
@@ -372,6 +371,7 @@ struct mxser_board {
 	unsigned long vector_mask;
 
 	enum mxser_must_hwid must_hwid;
+	speed_t max_baud;
 
 	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
 };
@@ -671,7 +671,7 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 	if (!info->ioaddr)
 		return -1;
 
-	if (newspd > info->max_baud)
+	if (newspd > info->board->max_baud)
 		return -1;
 
 	if (newspd == 134) {
@@ -2345,9 +2345,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 	unsigned int i;
 	int retval;
 
-	printk(KERN_INFO "mxser: max. baud rate = %d bps\n",
-			brd->ports[0].max_baud);
-
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
 		tty_port_init(&info->port);
@@ -2455,17 +2452,14 @@ static int mxser_probe(struct pci_dev *pdev,
 	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
 	brd->vector_mask = 0;
 
-	for (i = 0; i < brd->info->nports; i++) {
-		for (j = 0; j < UART_INFO_NUM; j++) {
-			if (Gpci_uart_info[j].type == brd->must_hwid) {
-				brd->ports[i].max_baud =
-					Gpci_uart_info[j].max_baud;
+	for (j = 0; j < UART_INFO_NUM; j++) {
+		if (Gpci_uart_info[j].type == brd->must_hwid) {
+			brd->max_baud = Gpci_uart_info[j].max_baud;
 
-				/* exception....CP-102 */
-				if (brd->info->flags & MXSER_HIGHBAUD)
-					brd->ports[i].max_baud = 921600;
-				break;
-			}
+			/* exception....CP-102 */
+			if (brd->info->flags & MXSER_HIGHBAUD)
+				brd->max_baud = 921600;
+			break;
 		}
 	}
 
