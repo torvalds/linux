@@ -1888,9 +1888,36 @@ static int mxser_initbrd(struct mxser_board *brd)
 	struct mxser_port *info;
 	unsigned int i;
 	int retval;
+	bool is_mu860;
+
+	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
+	is_mu860 = brd->must_hwid == MOXA_MUST_MU860_HWID;
+
+	for (i = 0; i < UART_INFO_NUM; i++) {
+		if (Gpci_uart_info[i].type == brd->must_hwid) {
+			brd->max_baud = Gpci_uart_info[i].max_baud;
+
+			/* exception....CP-102 */
+			if (brd->info->flags & MXSER_HIGHBAUD)
+				brd->max_baud = 921600;
+			break;
+		}
+	}
+
+	if (is_mu860) {
+		/* set to RS232 mode by default */
+		outb(0, brd->vector + 4);
+		outb(0, brd->vector + 0x0c);
+	}
 
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
+		if (is_mu860) {
+			if (i < 4)
+				info->opmode_ioaddr = brd->vector + 4;
+			else
+				info->opmode_ioaddr = brd->vector + 0x0c;
+		}
 		tty_port_init(&info->port);
 		info->port.ops = &mxser_port_ops;
 		info->board = brd;
@@ -1941,7 +1968,7 @@ static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	struct mxser_board *brd;
-	unsigned int i, j;
+	unsigned int i;
 	unsigned long ioaddress;
 	struct device *tty_dev;
 	int retval = -EINVAL;
@@ -1987,30 +2014,6 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	/* irq */
 	brd->irq = pdev->irq;
-
-	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
-
-	for (j = 0; j < UART_INFO_NUM; j++) {
-		if (Gpci_uart_info[j].type == brd->must_hwid) {
-			brd->max_baud = Gpci_uart_info[j].max_baud;
-
-			/* exception....CP-102 */
-			if (brd->info->flags & MXSER_HIGHBAUD)
-				brd->max_baud = 921600;
-			break;
-		}
-	}
-
-	if (brd->must_hwid == MOXA_MUST_MU860_HWID) {
-		for (i = 0; i < brd->info->nports; i++) {
-			if (i < 4)
-				brd->ports[i].opmode_ioaddr = ioaddress + 4;
-			else
-				brd->ports[i].opmode_ioaddr = ioaddress + 0x0c;
-		}
-		outb(0, ioaddress + 4);	/* default set to RS232 mode */
-		outb(0, ioaddress + 0x0c);	/* default set to RS232 mode */
-	}
 
 	/* mxser_initbrd will hook ISR. */
 	retval = mxser_initbrd(brd);
