@@ -785,18 +785,6 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	return state;
 }
 
-static void build_rdma_network_hdr(union rdma_network_hdr *hdr,
-				   struct rxe_pkt_info *pkt)
-{
-	struct sk_buff *skb = PKT_TO_SKB(pkt);
-
-	memset(hdr, 0, sizeof(*hdr));
-	if (skb->protocol == htons(ETH_P_IP))
-		memcpy(&hdr->roce4grh, ip_hdr(skb), sizeof(hdr->roce4grh));
-	else if (skb->protocol == htons(ETH_P_IPV6))
-		memcpy(&hdr->ibgrh, ipv6_hdr(skb), sizeof(hdr->ibgrh));
-}
-
 static int invalidate_rkey(struct rxe_qp *qp, u32 rkey)
 {
 	if (rkey_is_mw(rkey))
@@ -811,16 +799,23 @@ static int invalidate_rkey(struct rxe_qp *qp, u32 rkey)
 static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 {
 	enum resp_states err;
+	struct sk_buff *skb = PKT_TO_SKB(pkt);
+	union rdma_network_hdr hdr;
 
 	if (pkt->mask & RXE_SEND_MASK) {
 		if (qp_type(qp) == IB_QPT_UD ||
 		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
-			union rdma_network_hdr hdr;
-
-			build_rdma_network_hdr(&hdr, pkt);
-
-			err = send_data_in(qp, &hdr, sizeof(hdr));
+			if (skb->protocol == htons(ETH_P_IP)) {
+				memset(&hdr.reserved, 0,
+						sizeof(hdr.reserved));
+				memcpy(&hdr.roce4grh, ip_hdr(skb),
+						sizeof(hdr.roce4grh));
+				err = send_data_in(qp, &hdr, sizeof(hdr));
+			} else {
+				err = send_data_in(qp, ipv6_hdr(skb),
+						sizeof(hdr));
+			}
 			if (err)
 				return err;
 		}
