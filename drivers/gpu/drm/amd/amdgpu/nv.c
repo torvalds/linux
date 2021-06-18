@@ -64,6 +64,13 @@
 #include "smuio_v11_0.h"
 #include "smuio_v11_0_6.h"
 
+#define codec_info_build(type, width, height, level) \
+			 .codec_type = type,\
+			 .max_width = width,\
+			 .max_height = height,\
+			 .max_pixels_per_frame = height * width,\
+			 .max_level = level,
+
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
 /* Navi */
@@ -309,6 +316,23 @@ static struct amdgpu_video_codecs sriov_sc_video_codecs_decode =
 	.codec_array = sriov_sc_video_codecs_decode_array,
 };
 
+/* Beige Goby*/
+static const struct amdgpu_video_codec_info bg_video_codecs_decode_array[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4906, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs bg_video_codecs_decode = {
+	.codec_count = ARRAY_SIZE(bg_video_codecs_decode_array),
+	.codec_array = bg_video_codecs_decode_array,
+};
+
+static const struct amdgpu_video_codecs bg_video_codecs_encode = {
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
 static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				 const struct amdgpu_video_codecs **codecs)
 {
@@ -334,6 +358,12 @@ static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 			*codecs = &nv_video_codecs_encode;
 		else
 			*codecs = &sc_video_codecs_decode;
+		return 0;
+	case CHIP_BEIGE_GOBY:
+		if (encode)
+			*codecs = &bg_video_codecs_encode;
+		else
+			*codecs = &bg_video_codecs_decode;
 		return 0;
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
