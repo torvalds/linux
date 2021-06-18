@@ -278,7 +278,7 @@ struct mxser_board {
 	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
 };
 
-static struct mxser_board mxser_boards[MXSER_BOARDS];
+static DECLARE_BITMAP(mxser_boards, MXSER_BOARDS);
 static struct tty_driver *mxvar_sdriver;
 
 static u8 __mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set,
@@ -1916,31 +1916,32 @@ static int mxser_probe(struct pci_dev *pdev,
 	struct device *tty_dev;
 	int retval = -EINVAL;
 
-	for (i = 0; i < MXSER_BOARDS; i++)
-		if (mxser_boards[i].nports == 0)
-			break;
-
+	i = find_first_zero_bit(mxser_boards, MXSER_BOARDS);
 	if (i >= MXSER_BOARDS) {
 		dev_err(&pdev->dev, "too many boards found (maximum %d), board "
 				"not configured\n", MXSER_BOARDS);
 		goto err;
 	}
 
-	brd = &mxser_boards[i];
+	brd = devm_kzalloc(&pdev->dev, sizeof(*brd), GFP_KERNEL);
+	if (!brd)
+		goto err;
+
 	brd->idx = i;
+	__set_bit(brd->idx, mxser_boards);
 	base = i * MXSER_PORTS_PER_BOARD;
 
 	retval = pcim_enable_device(pdev);
 	if (retval) {
 		dev_err(&pdev->dev, "PCI enable failed\n");
-		goto err;
+		goto err_zero;
 	}
 
 	/* io address */
 	ioaddress = pci_resource_start(pdev, 2);
 	retval = pci_request_region(pdev, 2, "mxser(IO)");
 	if (retval)
-		goto err;
+		goto err_zero;
 
 	brd->nports = nports;
 	for (i = 0; i < nports; i++)
@@ -1984,7 +1985,7 @@ err_relbrd:
 	for (i = 0; i < nports; i++)
 		tty_port_destroy(&brd->ports[i].port);
 err_zero:
-	brd->nports = 0;
+	__clear_bit(brd->idx, mxser_boards);
 err:
 	return retval;
 }
@@ -1999,7 +2000,7 @@ static void mxser_remove(struct pci_dev *pdev)
 		tty_port_destroy(&brd->ports[i].port);
 	}
 
-	brd->nports = 0;
+	__clear_bit(brd->idx, mxser_boards);
 }
 
 static struct pci_driver mxser_driver = {
