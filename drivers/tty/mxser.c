@@ -178,11 +178,6 @@
 #define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
 #define MXSER_ISR_PASS_LIMIT	100
 
-/*CheckIsMoxaMust return value*/
-#define MOXA_OTHER_UART		0x00
-#define MOXA_MUST_MU150_HWID	0x01
-#define MOXA_MUST_MU860_HWID	0x02
-
 #define WAKEUP_CHARS		256
 
 #define UART_MCR_AFE		0x20
@@ -198,6 +193,12 @@
 #define PCI_DEVICE_ID_CP138U	0x1380
 
 #define MXSER_HIGHBAUD	1
+
+enum mxser_must_hwid {
+	MOXA_OTHER_UART		= 0x00,
+	MOXA_MUST_MU150_HWID	= 0x01,
+	MOXA_MUST_MU860_HWID	= 0x02,
+};
 
 static const struct {
 	u8 type;
@@ -370,7 +371,7 @@ struct mxser_board {
 	unsigned long vector;
 	unsigned long vector_mask;
 
-	int must_hwid;
+	enum mxser_must_hwid must_hwid;
 	int uart_type;
 
 	struct mxser_port ports[MXSER_PORTS_PER_BOARD];
@@ -583,7 +584,7 @@ static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-static int mxser_must_get_hwid(unsigned long io)
+static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 {
 	u8 oldmcr, hwid;
 	int i;
@@ -599,10 +600,10 @@ static int mxser_must_get_hwid(unsigned long io)
 	}
 
 	mxser_get_must_hardware_id(io, &hwid);
-	for (i = 1; i < UART_INFO_NUM; i++) { /* 0 = OTHER_UART */
+	for (i = 1; i < UART_INFO_NUM; i++) /* 0 = OTHER_UART */
 		if (hwid == Gpci_uart_info[i].type)
-			return (int)hwid;
-	}
+			return hwid;
+
 	return MOXA_OTHER_UART;
 }
 
