@@ -37,11 +37,6 @@ Required properties:
 			When compatible with "renesas,rmobile-iic" it should
 			be the last compatibility string listed.
 
-			The r8a77990 (R-Car E3) and r8a774c0 (RZ/G2E)
-			controllers are not considered compatible with
-			"renesas,rcar-gen3-iic" or "renesas,rmobile-iic"
-			due to the absence of automatic transmission registers.
-
 - reg             : address start and address range size of device
 - interrupts      : interrupt of device
 - clocks          : clock for device
