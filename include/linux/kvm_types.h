@@ -89,4 +89,6 @@ struct kvm_vcpu_stat_generic {
 	u64 halt_poll_fail_ns;
 };
 
+#define KVM_STATS_NAME_SIZE	48
+
 #endif /* __KVM_TYPES_H__ */
