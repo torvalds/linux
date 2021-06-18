@@ -1879,29 +1879,18 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 
 static int lo_open(struct block_device *bdev, fmode_t mode)
 {
-	struct loop_device *lo;
+	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
-	/*
-	 * take loop_ctl_mutex to protect lo pointer from race with
-	 * loop_control_ioctl(LOOP_CTL_REMOVE), however, to reduce contention
-	 * release it prior to updating lo->lo_refcnt.
-	 */
-	err = mutex_lock_killable(&loop_ctl_mutex);
-	if (err)
-		return err;
-	lo = bdev->bd_disk->private_data;
-	if (!lo) {
-		mutex_unlock(&loop_ctl_mutex);
-		return -ENXIO;
-	}
 	err = mutex_lock_killable(&lo->lo_mutex);
-	mutex_unlock(&loop_ctl_mutex);
 	if (err)
 		return err;
-	atomic_inc(&lo->lo_refcnt);
+	if (lo->lo_state == Lo_deleting)
+		err = -ENXIO;
+	else
+		atomic_inc(&lo->lo_refcnt);
 	mutex_unlock(&lo->lo_mutex);
-	return 0;
+	return err;
 }
 
 static void lo_release(struct gendisk *disk, fmode_t mode)
@@ -2285,7 +2274,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 			mutex_unlock(&lo->lo_mutex);
 			break;
 		}
-		lo->lo_disk->private_data = NULL;
+		lo->lo_state = Lo_deleting;
 		mutex_unlock(&lo->lo_mutex);
 		idr_remove(&loop_index_idr, lo->lo_number);
 		loop_remove(lo);

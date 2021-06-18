@@ -1901,7 +1901,7 @@ static void stream_caps_new_ver(struct snd_soc_tplg_stream_caps *dest,
  * @src: older version of pcm as a source
  * @pcm: latest version of pcm created from the source
  *
- * Support from vesion 4. User should free the returned pcm manually.
+ * Support from version 4. User should free the returned pcm manually.
  */
 static int pcm_new_ver(struct soc_tplg *tplg,
 		       struct snd_soc_tplg_pcm *src,
@@ -2089,7 +2089,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
  * @src: old version of phyical link config as a source
  * @link: latest version of physical link config created from the source
  *
- * Support from vesion 4. User need free the returned link config manually.
+ * Support from version 4. User need free the returned link config manually.
  */
 static int link_new_ver(struct soc_tplg *tplg,
 			struct snd_soc_tplg_link_config *src,
@@ -2400,7 +2400,7 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
  * @src: old version of manifest as a source
  * @manifest: latest version of manifest created from the source
  *
- * Support from vesion 4. Users need free the returned manifest manually.
+ * Support from version 4. Users need free the returned manifest manually.
  */
 static int manifest_new_ver(struct soc_tplg *tplg,
 			    struct snd_soc_tplg_manifest *src,

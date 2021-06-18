@@ -2091,7 +2091,7 @@ void rtw_cfg80211_indicate_sta_assoc(struct adapter *padapter, u8 *pmgmt_frame, 
 	struct net_device *ndev = padapter->pnetdev;
 
 	{
-		struct station_info sinfo;
+		struct station_info sinfo = {};
 		u8 ie_offset;
 		if (GetFrameSubType(pmgmt_frame) == WIFI_ASSOCREQ)
 			ie_offset = _ASOCREQ_IE_OFFSET_;

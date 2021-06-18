@@ -947,6 +947,10 @@ static void __mptcp_update_wmem(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
+#ifdef CONFIG_LOCKDEP
+	WARN_ON_ONCE(!lockdep_is_held(&sk->sk_lock.slock));
+#endif
+
 	if (!msk->wmem_reserved)
 		return;
 
@@ -1085,8 +1089,18 @@ out:
 
 static void __mptcp_clean_una_wakeup(struct sock *sk)
 {
+#ifdef CONFIG_LOCKDEP
+	WARN_ON_ONCE(!lockdep_is_held(&sk->sk_lock.slock));
+#endif
 	__mptcp_clean_una(sk);
 	mptcp_write_space(sk);
+}
+
+static void mptcp_clean_una_wakeup(struct sock *sk)
+{
+	mptcp_data_lock(sk);
+	__mptcp_clean_una_wakeup(sk);
+	mptcp_data_unlock(sk);
 }
 
 static void mptcp_enter_memory_pressure(struct sock *sk)
@@ -2299,7 +2313,7 @@ static void __mptcp_retrans(struct sock *sk)
 	struct sock *ssk;
 	int ret;
 
-	__mptcp_clean_una_wakeup(sk);
+	mptcp_clean_una_wakeup(sk);
 	dfrag = mptcp_rtx_head(sk);
 	if (!dfrag) {
 		if (mptcp_data_fin_enabled(msk)) {
