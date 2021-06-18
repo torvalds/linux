@@ -22,8 +22,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
-#include <linux/pci-acpi.h>
-#include <linux/pci-ecam.h>
 #include <linux/phy/phy.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -247,24 +245,6 @@ static const unsigned int pcie_gen_freq[] = {
 	GEN4_CORE_CLK_FREQ
 };
 
-static const u32 event_cntr_ctrl_offset[] = {
-	0x1d8,
-	0x1a8,
-	0x1a8,
-	0x1a8,
-	0x1c4,
-	0x1d8
-};
-
-static const u32 event_cntr_data_offset[] = {
-	0x1dc,
-	0x1ac,
-	0x1ac,
-	0x1ac,
-	0x1c8,
-	0x1dc
-};
-
 struct tegra_pcie_dw {
 	struct device *dev;
 	struct resource *appl_res;
@@ -312,104 +292,6 @@ struct tegra_pcie_dw {
 struct tegra_pcie_dw_of_data {
 	enum dw_pcie_device_mode mode;
 };
-
-#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
-struct tegra194_pcie_ecam  {
-	void __iomem *config_base;
-	void __iomem *iatu_base;
-	void __iomem *dbi_base;
-};
-
-static int tegra194_acpi_init(struct pci_config_window *cfg)
-{
-	struct device *dev = cfg->parent;
-	struct tegra194_pcie_ecam *pcie_ecam;
-
-	pcie_ecam = devm_kzalloc(dev, sizeof(*pcie_ecam), GFP_KERNEL);
-	if (!pcie_ecam)
-		return -ENOMEM;
-
-	pcie_ecam->config_base = cfg->win;
-	pcie_ecam->iatu_base = cfg->win + SZ_256K;
-	pcie_ecam->dbi_base = cfg->win + SZ_512K;
-	cfg->priv = pcie_ecam;
-
-	return 0;
-}
-
-static void atu_reg_write(struct tegra194_pcie_ecam *pcie_ecam, int index,
-			  u32 val, u32 reg)
-{
-	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
-
-	writel(val, pcie_ecam->iatu_base + offset + reg);
-}
-
-static void program_outbound_atu(struct tegra194_pcie_ecam *pcie_ecam,
-				 int index, int type, u64 cpu_addr,
-				 u64 pci_addr, u64 size)
-{
-	atu_reg_write(pcie_ecam, index, lower_32_bits(cpu_addr),
-		      PCIE_ATU_LOWER_BASE);
-	atu_reg_write(pcie_ecam, index, upper_32_bits(cpu_addr),
-		      PCIE_ATU_UPPER_BASE);
-	atu_reg_write(pcie_ecam, index, lower_32_bits(pci_addr),
-		      PCIE_ATU_LOWER_TARGET);
-	atu_reg_write(pcie_ecam, index, lower_32_bits(cpu_addr + size - 1),
-		      PCIE_ATU_LIMIT);
-	atu_reg_write(pcie_ecam, index, upper_32_bits(pci_addr),
-		      PCIE_ATU_UPPER_TARGET);
-	atu_reg_write(pcie_ecam, index, type, PCIE_ATU_CR1);
-	atu_reg_write(pcie_ecam, index, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
-}
-
-static void __iomem *tegra194_map_bus(struct pci_bus *bus,
-				      unsigned int devfn, int where)
-{
-	struct pci_config_window *cfg = bus->sysdata;
-	struct tegra194_pcie_ecam *pcie_ecam = cfg->priv;
-	u32 busdev;
-	int type;
-
-	if (bus->number < cfg->busr.start || bus->number > cfg->busr.end)
-		return NULL;
-
-	if (bus->number == cfg->busr.start) {
-		if (PCI_SLOT(devfn) == 0)
-			return pcie_ecam->dbi_base + where;
-		else
-			return NULL;
-	}
-
-	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
-		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
-
-	if (bus->parent->number == cfg->busr.start) {
-		if (PCI_SLOT(devfn) == 0)
-			type = PCIE_ATU_TYPE_CFG0;
-		else
-			return NULL;
-	} else {
-		type = PCIE_ATU_TYPE_CFG1;
-	}
-
-	program_outbound_atu(pcie_ecam, 0, type, cfg->res.start, busdev,
-			     SZ_256K);
-
-	return pcie_ecam->config_base + where;
-}
-
-const struct pci_ecam_ops tegra194_pcie_ops = {
-	.init		= tegra194_acpi_init,
-	.pci_ops	= {
-		.map_bus	= tegra194_map_bus,
-		.read		= pci_generic_config_read,
-		.write		= pci_generic_config_write,
-	}
-};
-#endif /* defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS) */
-
-#ifdef CONFIG_PCIE_TEGRA194
 
 static inline struct tegra_pcie_dw *to_tegra_pcie(struct dw_pcie *pci)
 {
@@ -694,6 +576,24 @@ static struct pci_ops tegra_pci_ops = {
 };
 
 #if defined(CONFIG_PCIEASPM)
+static const u32 event_cntr_ctrl_offset[] = {
+	0x1d8,
+	0x1a8,
+	0x1a8,
+	0x1a8,
+	0x1c4,
+	0x1d8
+};
+
+static const u32 event_cntr_data_offset[] = {
+	0x1dc,
+	0x1ac,
+	0x1ac,
+	0x1ac,
+	0x1c8,
+	0x1dc
+};
+
 static void disable_aspm_l11(struct tegra_pcie_dw *pcie)
 {
 	u32 val;
@@ -2411,5 +2311,3 @@ MODULE_DEVICE_TABLE(of, tegra_pcie_dw_of_match);
 MODULE_AUTHOR("Vidya Sagar <vidyas@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA PCIe host controller driver");
 MODULE_LICENSE("GPL v2");
-
-#endif /* CONFIG_PCIE_TEGRA194 */
