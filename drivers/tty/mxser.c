@@ -156,6 +156,8 @@
 
 #define WAKEUP_CHARS		256
 
+#define MXSER_BAUD_BASE		921600
+
 #define PCI_DEVICE_ID_POS104UL	0x1044
 #define PCI_DEVICE_ID_CB108	0x1080
 #define PCI_DEVICE_ID_CP102UF	0x1023
@@ -274,7 +276,6 @@ struct mxser_port {
 
 	u8 rx_high_water;
 	u8 rx_low_water;
-	int baud_base;		/* max. speed */
 	int type;		/* UART type */
 
 	unsigned char x_char;	/* xon/xoff character */
@@ -584,13 +585,13 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 		return -1;
 
 	if (newspd == 134) {
-		quot = 2 * info->baud_base / 269;
+		quot = 2 * MXSER_BAUD_BASE / 269;
 		tty_encode_baud_rate(tty, 134, 134);
 	} else if (newspd) {
-		quot = info->baud_base / newspd;
+		quot = MXSER_BAUD_BASE / newspd;
 		if (quot == 0)
 			quot = 1;
-		baud = info->baud_base/quot;
+		baud = MXSER_BAUD_BASE / quot;
 		tty_encode_baud_rate(tty, baud, baud);
 	} else {
 		quot = 0;
@@ -601,7 +602,7 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 	 * u64 domain
 	 */
 	timeout = (u64)info->xmit_fifo_size * HZ * 10 * quot;
-	do_div(timeout, info->baud_base);
+	do_div(timeout, MXSER_BAUD_BASE);
 	info->timeout = timeout + HZ / 50; /* Add .02 seconds of slop */
 
 	if (quot) {
@@ -623,7 +624,7 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 
 #ifdef BOTHER
 	if (C_BAUD(tty) == BOTHER) {
-		quot = info->baud_base % newspd;
+		quot = MXSER_BAUD_BASE % newspd;
 		quot *= 8;
 		if (quot % newspd > newspd / 2) {
 			quot /= newspd;
@@ -1222,7 +1223,7 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	ss->port = info->ioaddr,
 	ss->irq = info->board->irq,
 	ss->flags = info->port.flags,
-	ss->baud_base = info->baud_base,
+	ss->baud_base = MXSER_BAUD_BASE,
 	ss->close_delay = close_delay;
 	ss->closing_wait = closing_wait;
 	ss->custom_divisor = info->custom_divisor,
@@ -1263,7 +1264,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		closing_wait = msecs_to_jiffies(closing_wait * 10);
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((ss->baud_base != info->baud_base) ||
+		if ((ss->baud_base != MXSER_BAUD_BASE) ||
 				(close_delay != info->port.close_delay) ||
 				(closing_wait != info->port.closing_wait) ||
 				((ss->flags & ~ASYNC_USR_MASK) != (info->port.flags & ~ASYNC_USR_MASK))) {
@@ -1282,7 +1283,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		port->close_delay = close_delay;
 		port->closing_wait = closing_wait;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
-				(ss->baud_base != info->baud_base ||
+				(ss->baud_base != MXSER_BAUD_BASE ||
 				ss->custom_divisor !=
 				info->custom_divisor)) {
 			if (ss->custom_divisor == 0) {
@@ -2018,7 +2019,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 
 		process_txrx_fifo(info);
 
-		info->custom_divisor = info->baud_base * 16;
+		info->custom_divisor = MXSER_BAUD_BASE * 16;
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
 		spin_lock_init(&info->slock);
@@ -2125,10 +2126,6 @@ static int mxser_probe(struct pci_dev *pdev,
 		}
 		outb(0, ioaddress + 4);	/* default set to RS232 mode */
 		outb(0, ioaddress + 0x0c);	/* default set to RS232 mode */
-	}
-
-	for (i = 0; i < brd->info->nports; i++) {
-		brd->ports[i].baud_base = 921600;
 	}
 
 	/* mxser_initbrd will hook ISR. */
