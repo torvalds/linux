@@ -657,24 +657,23 @@ static void mxser_change_speed(struct tty_struct *tty)
 
 	/* byte size and parity */
 	switch (cflag & CSIZE) {
+	default:
 	case CS5:
-		cval = 0x00;
+		cval = UART_LCR_WLEN5;
 		break;
 	case CS6:
-		cval = 0x01;
+		cval = UART_LCR_WLEN6;
 		break;
 	case CS7:
-		cval = 0x02;
+		cval = UART_LCR_WLEN7;
 		break;
 	case CS8:
-		cval = 0x03;
+		cval = UART_LCR_WLEN8;
 		break;
-	default:
-		cval = 0x00;
-		break;		/* too keep GCC shut... */
 	}
+
 	if (cflag & CSTOPB)
-		cval |= 0x04;
+		cval |= UART_LCR_STOP;
 	if (cflag & PARENB)
 		cval |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
