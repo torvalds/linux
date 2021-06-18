@@ -1004,11 +1004,8 @@ static void mxser_shutdown_port(struct tty_port *port)
 static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_port *info;
-	int line;
+	int line = tty->index;
 
-	line = tty->index;
-	if (line == MXSER_PORTS)
-		return 0;
 	info = &mxser_boards[line / MXSER_PORTS_PER_BOARD].ports[line % MXSER_PORTS_PER_BOARD];
 	if (!info->ioaddr)
 		return -ENODEV;
@@ -1077,7 +1074,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info = tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	if (tty->index == MXSER_PORTS || info == NULL)
+	if (info == NULL)
 		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
@@ -1216,9 +1213,6 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	struct tty_port *port = &info->port;
 	unsigned int closing_wait, close_delay;
 
-	if (tty->index == MXSER_PORTS)
-		return -ENOTTY;
-
 	mutex_lock(&port->mutex);
 
 	close_delay = jiffies_to_msecs(info->port.close_delay) / 10;
@@ -1249,8 +1243,6 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	unsigned int flags, close_delay, closing_wait;
 	int retval = 0;
 
-	if (tty->index == MXSER_PORTS)
-		return -ENOTTY;
 	if (tty_io_error(tty))
 		return -EIO;
 
@@ -1354,9 +1346,6 @@ static int mxser_tiocmget(struct tty_struct *tty)
 	unsigned char control, status;
 	unsigned long flags;
 
-
-	if (tty->index == MXSER_PORTS)
-		return -ENOIOCTLCMD;
 	if (tty_io_error(tty))
 		return -EIO;
 
@@ -1381,9 +1370,6 @@ static int mxser_tiocmset(struct tty_struct *tty,
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-
-	if (tty->index == MXSER_PORTS)
-		return -ENOIOCTLCMD;
 	if (tty_io_error(tty))
 		return -EIO;
 
@@ -1432,9 +1418,6 @@ static int mxser_ioctl(struct tty_struct *tty,
 	struct async_icount cnow;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
-
-	if (tty->index == MXSER_PORTS)
-		return -ENOTTY;
 
 	if (cmd == MOXA_SET_OP_MODE || cmd == MOXA_GET_OP_MODE) {
 		int p;
@@ -2211,7 +2194,7 @@ static int __init mxser_module_init(void)
 {
 	int retval;
 
-	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
+	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS);
 	if (!mxvar_sdriver)
 		return -ENOMEM;
 
