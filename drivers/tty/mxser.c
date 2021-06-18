@@ -334,53 +334,29 @@ static u8 __mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set,
 	return oldlcr;
 }
 
+static u8 mxser_must_select_bank(unsigned long baseio, u8 bank)
+{
+	return __mxser_must_set_EFR(baseio, MOXA_MUST_EFR_BANK_MASK, bank,
+			false);
+}
+
 static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_BANK_MASK;
-	efr |= MOXA_MUST_EFR_BANK0;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	u8 oldlcr = mxser_must_select_bank(baseio, MOXA_MUST_EFR_BANK0);
 	outb(value, baseio + MOXA_MUST_XON1_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
 
 static void mxser_set_must_xoff1_value(unsigned long baseio, u8 value)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_BANK_MASK;
-	efr |= MOXA_MUST_EFR_BANK0;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	u8 oldlcr = mxser_must_select_bank(baseio, MOXA_MUST_EFR_BANK0);
 	outb(value, baseio + MOXA_MUST_XOFF1_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
 
 static void mxser_set_must_fifo_value(struct mxser_port *info)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(info->ioaddr + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, info->ioaddr + UART_LCR);
-
-	efr = inb(info->ioaddr + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_BANK_MASK;
-	efr |= MOXA_MUST_EFR_BANK1;
-
-	outb(efr, info->ioaddr + MOXA_MUST_EFR_REGISTER);
+	u8 oldlcr = mxser_must_select_bank(info->ioaddr, MOXA_MUST_EFR_BANK1);
 	outb(info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTH_REGISTER);
 	outb(info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTI_REGISTER);
 	outb(info->rx_low_water, info->ioaddr + MOXA_MUST_RBRTL_REGISTER);
@@ -389,36 +365,18 @@ static void mxser_set_must_fifo_value(struct mxser_port *info)
 
 static void mxser_set_must_enum_value(unsigned long baseio, u8 value)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_BANK_MASK;
-	efr |= MOXA_MUST_EFR_BANK2;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	u8 oldlcr = mxser_must_select_bank(baseio, MOXA_MUST_EFR_BANK2);
 	outb(value, baseio + MOXA_MUST_ENUM_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
+static u8 mxser_get_must_hardware_id(unsigned long baseio)
 {
-	u8 oldlcr;
-	u8 efr;
-
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
-
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
-	efr &= ~MOXA_MUST_EFR_BANK_MASK;
-	efr |= MOXA_MUST_EFR_BANK2;
-
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	*pId = inb(baseio + MOXA_MUST_HWID_REGISTER);
+	u8 oldlcr = mxser_must_select_bank(baseio, MOXA_MUST_EFR_BANK2);
+	u8 id = inb(baseio + MOXA_MUST_HWID_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
+
+	return id;
 }
 
 static void mxser_must_set_EFR(unsigned long baseio, u8 clear, u8 set)
@@ -525,7 +483,7 @@ static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 		return MOXA_OTHER_UART;
 	}
 
-	mxser_get_must_hardware_id(io, &hwid);
+	hwid = mxser_get_must_hardware_id(io);
 	for (i = 1; i < UART_INFO_NUM; i++) /* 0 = OTHER_UART */
 		if (hwid == Gpci_uart_info[i].type)
 			return hwid;
