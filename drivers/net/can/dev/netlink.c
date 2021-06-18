@@ -132,10 +132,13 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		priv->ctrlmode |= maskedflags;
 
 		/* CAN_CTRLMODE_FD can only be set when driver supports FD */
-		if (priv->ctrlmode & CAN_CTRLMODE_FD)
+		if (priv->ctrlmode & CAN_CTRLMODE_FD) {
 			dev->mtu = CANFD_MTU;
-		else
+		} else {
 			dev->mtu = CAN_MTU;
+			memset(&priv->data_bittiming, 0,
+			       sizeof(priv->data_bittiming));
+		}
 	}
 
 	if (data[IFLA_CAN_RESTART_MS]) {
