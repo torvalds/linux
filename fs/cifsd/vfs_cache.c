@@ -601,12 +601,14 @@ __close_file_table_ids(struct ksmbd_file_table *ft,
 	return num;
 }
 
-static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon, struct ksmbd_file *fp)
+static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon,
+			       struct ksmbd_file *fp)
 {
 	return fp->tcon != tcon;
 }
 
-static bool session_fd_check(struct ksmbd_tree_connect *tcon, struct ksmbd_file *fp)
+static bool session_fd_check(struct ksmbd_tree_connect *tcon,
+			     struct ksmbd_file *fp)
 {
 	return false;
 }
