@@ -436,6 +436,7 @@ void i915_sched_engine_free(struct kref *kref)
 	struct i915_sched_engine *sched_engine =
 		container_of(kref, typeof(*sched_engine), ref);
 
+	tasklet_kill(&sched_engine->tasklet); /* flush the callback */
 	kfree(sched_engine);
 }
 

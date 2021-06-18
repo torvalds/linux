@@ -43,7 +43,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   unsigned long timeout)
 {
 	/* Ignore our own attempts to suppress excess tasklets */
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	timeout += jiffies;
 	do {
@@ -553,13 +553,13 @@ static int live_pin_rewind(void *arg)
 
 static int engine_lock_reset_tasklet(struct intel_engine_cs *engine)
 {
-	tasklet_disable(&engine->execlists.tasklet);
+	tasklet_disable(&engine->sched_engine->tasklet);
 	local_bh_disable();
 
 	if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 			     &engine->gt->reset.flags)) {
 		local_bh_enable();
-		tasklet_enable(&engine->execlists.tasklet);
+		tasklet_enable(&engine->sched_engine->tasklet);
 
 		intel_gt_set_wedged(engine->gt);
 		return -EBUSY;
@@ -574,7 +574,7 @@ static void engine_unlock_reset_tasklet(struct intel_engine_cs *engine)
 			      &engine->gt->reset.flags);
 
 	local_bh_enable();
-	tasklet_enable(&engine->execlists.tasklet);
+	tasklet_enable(&engine->sched_engine->tasklet);
 }
 
 static int live_hold_reset(void *arg)
@@ -628,7 +628,7 @@ static int live_hold_reset(void *arg)
 		if (err)
 			goto out;
 
-		engine->execlists.tasklet.callback(&engine->execlists.tasklet);
+		engine->sched_engine->tasklet.callback(&engine->sched_engine->tasklet);
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
 
 		i915_request_get(rq);
@@ -1200,7 +1200,7 @@ static int live_timeslice_rewind(void *arg)
 		while (i915_request_is_active(rq[A2])) { /* semaphore yield! */
 			/* Wait for the timeslice to kick in */
 			del_timer(&engine->execlists.timer);
-			tasklet_hi_schedule(&engine->execlists.tasklet);
+			tasklet_hi_schedule(&engine->sched_engine->tasklet);
 			intel_engine_flush_submission(engine);
 		}
 		/* -> ELSP[] = { { A:rq1 }, { B:rq1 } } */
@@ -4606,7 +4606,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	if (err)
 		goto out_heartbeat;
 
-	engine->execlists.tasklet.callback(&engine->execlists.tasklet);
+	engine->sched_engine->tasklet.callback(&engine->sched_engine->tasklet);
 	GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
 
 	/* Fake a preemption event; failed of course */

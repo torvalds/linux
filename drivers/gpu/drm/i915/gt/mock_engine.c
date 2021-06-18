@@ -349,6 +349,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	engine->sched_engine = i915_sched_engine_create(ENGINE_MOCK);
 	if (!engine->sched_engine)
 		return -ENOMEM;
+	engine->sched_engine->private_data = engine;
 
 	intel_engine_init_execlists(engine);
 	intel_engine_init__pm(engine);

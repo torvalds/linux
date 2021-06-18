@@ -321,7 +321,7 @@ static int igt_atomic_engine_reset(void *arg)
 		goto out_unlock;
 
 	for_each_engine(engine, gt, id) {
-		struct tasklet_struct *t = &engine->execlists.tasklet;
+		struct tasklet_struct *t = &engine->sched_engine->tasklet;
 
 		if (t->func)
 			tasklet_disable(t);

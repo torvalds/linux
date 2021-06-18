@@ -241,8 +241,9 @@ done:
 
 static void guc_submission_tasklet(struct tasklet_struct *t)
 {
-	struct intel_engine_cs * const engine =
-		from_tasklet(engine, t, execlists.tasklet);
+	struct i915_sched_engine *sched_engine =
+		from_tasklet(sched_engine, t, tasklet);
+	struct intel_engine_cs * const engine = sched_engine->private_data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request **port, *rq;
 	unsigned long flags;
@@ -272,14 +273,12 @@ static void cs_irq_handler(struct intel_engine_cs *engine, u16 iir)
 {
 	if (iir & GT_RENDER_USER_INTERRUPT) {
 		intel_engine_signal_breadcrumbs(engine);
-		tasklet_hi_schedule(&engine->execlists.tasklet);
+		tasklet_hi_schedule(&engine->sched_engine->tasklet);
 	}
 }
 
 static void guc_reset_prepare(struct intel_engine_cs *engine)
 {
-	struct intel_engine_execlists * const execlists = &engine->execlists;
-
 	ENGINE_TRACE(engine, "\n");
 
 	/*
@@ -291,7 +290,7 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	 * Turning off the execlists->tasklet until the reset is over
 	 * prevents the race.
 	 */
-	__tasklet_disable_sync_once(&execlists->tasklet);
+	__tasklet_disable_sync_once(&engine->sched_engine->tasklet);
 }
 
 static void guc_reset_state(struct intel_context *ce,
@@ -395,14 +394,12 @@ static void guc_reset_cancel(struct intel_engine_cs *engine)
 
 static void guc_reset_finish(struct intel_engine_cs *engine)
 {
-	struct intel_engine_execlists * const execlists = &engine->execlists;
-
-	if (__tasklet_enable(&execlists->tasklet))
+	if (__tasklet_enable(&engine->sched_engine->tasklet))
 		/* And kick in case we missed a new request submission. */
-		tasklet_hi_schedule(&execlists->tasklet);
+		tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	ENGINE_TRACE(engine, "depth->%d\n",
-		     atomic_read(&execlists->tasklet.count));
+		     atomic_read(&engine->sched_engine->tasklet.count));
 }
 
 /*
@@ -520,7 +517,7 @@ static void guc_submit_request(struct i915_request *rq)
 	GEM_BUG_ON(i915_sched_engine_is_empty(engine->sched_engine));
 	GEM_BUG_ON(list_empty(&rq->sched.link));
 
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	spin_unlock_irqrestore(&engine->sched_engine->lock, flags);
 }
@@ -600,7 +597,7 @@ static void guc_release(struct intel_engine_cs *engine)
 {
 	engine->sanitize = NULL; /* no longer in control, nothing to sanitize */
 
-	tasklet_kill(&engine->execlists.tasklet);
+	tasklet_kill(&engine->sched_engine->tasklet);
 
 	intel_engine_cleanup_common(engine);
 	lrc_fini_wa_ctx(engine);
@@ -679,7 +676,7 @@ int intel_guc_submission_setup(struct intel_engine_cs *engine)
 	 */
 	GEM_BUG_ON(GRAPHICS_VER(i915) < 11);
 
-	tasklet_setup(&engine->execlists.tasklet, guc_submission_tasklet);
+	tasklet_setup(&engine->sched_engine->tasklet, guc_submission_tasklet);
 
 	guc_default_vfuncs(engine);
 	guc_default_irqs(engine);

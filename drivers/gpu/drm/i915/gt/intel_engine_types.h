@@ -139,11 +139,6 @@ struct st_preempt_hang {
  */
 struct intel_engine_execlists {
 	/**
-	 * @tasklet: softirq tasklet for bottom handler
-	 */
-	struct tasklet_struct tasklet;
-
-	/**
 	 * @timer: kick the current context if its timeslice expires
 	 */
 	struct timer_list timer;

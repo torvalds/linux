@@ -125,6 +125,11 @@ struct i915_sched_engine {
 	struct list_head hold;
 
 	/**
+	 * @tasklet: softirq tasklet for submission
+	 */
+	struct tasklet_struct tasklet;
+
+	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
 	 */
 	struct i915_priolist default_priolist;
@@ -152,6 +157,11 @@ struct i915_sched_engine {
 	 * @no_priolist: priority lists disabled
 	 */
 	bool no_priolist;
+
+	/**
+	 * @private_data: private data of the submission backend
+	 */
+	void *private_data;
 
 	/**
 	 * @kick_backend: kick backend after a request's priority has changed

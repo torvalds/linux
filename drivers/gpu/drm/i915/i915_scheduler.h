@@ -79,6 +79,20 @@ i915_sched_engine_reset_on_empty(struct i915_sched_engine *sched_engine)
 		sched_engine->no_priolist = false;
 }
 
+static inline void
+i915_sched_engine_active_lock_bh(struct i915_sched_engine *sched_engine)
+{
+	local_bh_disable(); /* prevent local softirq and lock recursion */
+	tasklet_lock(&sched_engine->tasklet);
+}
+
+static inline void
+i915_sched_engine_active_unlock_bh(struct i915_sched_engine *sched_engine)
+{
+	tasklet_unlock(&sched_engine->tasklet);
+	local_bh_enable(); /* restore softirq, and kick ksoftirqd! */
+}
+
 void i915_request_show_with_schedule(struct drm_printer *m,
 				     const struct i915_request *rq,
 				     const char *prefix,
