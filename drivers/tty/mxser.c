@@ -2203,18 +2203,78 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	}
 }
 
+static bool mxser_port_isr(struct mxser_port *port)
+{
+	struct tty_struct *tty;
+	u8 iir, msr, status;
+	bool error = false;
+
+	iir = inb(port->ioaddr + UART_IIR);
+	if (iir & UART_IIR_NO_INT)
+		return true;
+
+	iir &= MOXA_MUST_IIR_MASK;
+	tty = tty_port_tty_get(&port->port);
+	if (!tty || port->closing || !tty_port_initialized(&port->port)) {
+		status = inb(port->ioaddr + UART_LSR);
+		outb(0x27, port->ioaddr + UART_FCR);
+		inb(port->ioaddr + UART_MSR);
+
+		error = true;
+		goto put_tty;
+	}
+
+	status = inb(port->ioaddr + UART_LSR);
+
+	if (status & UART_LSR_PE)
+		port->err_shadow |= NPPI_NOTIFY_PARITY;
+	if (status & UART_LSR_FE)
+		port->err_shadow |= NPPI_NOTIFY_FRAMING;
+	if (status & UART_LSR_OE)
+		port->err_shadow |= NPPI_NOTIFY_HW_OVERRUN;
+	if (status & UART_LSR_BI)
+		port->err_shadow |= NPPI_NOTIFY_BREAK;
+
+	if (port->board->must_hwid) {
+		if (iir == MOXA_MUST_IIR_GDA ||
+		    iir == MOXA_MUST_IIR_RDA ||
+		    iir == MOXA_MUST_IIR_RTO ||
+		    iir == MOXA_MUST_IIR_LSR)
+			status = mxser_receive_chars(tty, port, status);
+	} else {
+		status &= port->read_status_mask;
+		if (status & UART_LSR_DR)
+			status = mxser_receive_chars(tty, port, status);
+	}
+
+	msr = inb(port->ioaddr + UART_MSR);
+	if (msr & UART_MSR_ANY_DELTA)
+		mxser_check_modem_status(tty, port, msr);
+
+	if (port->board->must_hwid) {
+		if (iir == 0x02 && (status & UART_LSR_THRE))
+			mxser_transmit_chars(tty, port);
+	} else {
+		if (status & UART_LSR_THRE)
+			mxser_transmit_chars(tty, port);
+	}
+
+put_tty:
+	tty_kref_put(tty);
+
+	return error;
+}
+
 /*
  * This is the serial driver's generic interrupt routine
  */
 static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 {
-	int status, iir, i;
 	struct mxser_board *brd = dev_id;
 	struct mxser_port *port;
-	int max, irqbits, bits, msr;
 	unsigned int int_cnt, pass_counter = 0;
+	int max, irqbits, bits, i;
 	int handled = IRQ_NONE;
-	struct tty_struct *tty;
 
 	max = brd->info->nports;
 	while (pass_counter++ < MXSER_ISR_PASS_LIMIT) {
@@ -2233,59 +2293,8 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 			int_cnt = 0;
 			spin_lock(&port->slock);
 			do {
-				iir = inb(port->ioaddr + UART_IIR);
-				if (iir & UART_IIR_NO_INT)
+				if (mxser_port_isr(port))
 					break;
-				iir &= MOXA_MUST_IIR_MASK;
-				tty = tty_port_tty_get(&port->port);
-				if (!tty || port->closing ||
-				    !tty_port_initialized(&port->port)) {
-					status = inb(port->ioaddr + UART_LSR);
-					outb(0x27, port->ioaddr + UART_FCR);
-					inb(port->ioaddr + UART_MSR);
-					tty_kref_put(tty);
-					break;
-				}
-
-				status = inb(port->ioaddr + UART_LSR);
-
-				if (status & UART_LSR_PE)
-					port->err_shadow |= NPPI_NOTIFY_PARITY;
-				if (status & UART_LSR_FE)
-					port->err_shadow |= NPPI_NOTIFY_FRAMING;
-				if (status & UART_LSR_OE)
-					port->err_shadow |=
-						NPPI_NOTIFY_HW_OVERRUN;
-				if (status & UART_LSR_BI)
-					port->err_shadow |= NPPI_NOTIFY_BREAK;
-
-				if (port->board->must_hwid) {
-					if (iir == MOXA_MUST_IIR_GDA ||
-					    iir == MOXA_MUST_IIR_RDA ||
-					    iir == MOXA_MUST_IIR_RTO ||
-					    iir == MOXA_MUST_IIR_LSR)
-						status = mxser_receive_chars(tty,
-								port, status);
-
-				} else {
-					status &= port->read_status_mask;
-					if (status & UART_LSR_DR)
-						status = mxser_receive_chars(tty,
-								port, status);
-				}
-				msr = inb(port->ioaddr + UART_MSR);
-				if (msr & UART_MSR_ANY_DELTA)
-					mxser_check_modem_status(tty, port, msr);
-
-				if (port->board->must_hwid) {
-					if (iir == 0x02 && (status &
-								UART_LSR_THRE))
-						mxser_transmit_chars(tty, port);
-				} else {
-					if (status & UART_LSR_THRE)
-						mxser_transmit_chars(tty, port);
-				}
-				tty_kref_put(tty);
 			} while (int_cnt++ < MXSER_ISR_PASS_LIMIT);
 			spin_unlock(&port->slock);
 		}
