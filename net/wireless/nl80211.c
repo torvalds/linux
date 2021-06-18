@@ -1731,6 +1731,11 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 		    &iftdata->he_6ghz_capa))
 		return -ENOBUFS;
 
+	if (iftdata->vendor_elems.data && iftdata->vendor_elems.len &&
+	    nla_put(msg, NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS,
+		    iftdata->vendor_elems.len, iftdata->vendor_elems.data))
+		return -ENOBUFS;
+
 	return 0;
 }
 
