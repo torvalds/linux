@@ -1886,17 +1886,23 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	mutex_lock(&priv->ptp_data.lock);
 
 	rc = __sja1105_ptp_gettimex(ds, &now, &ptp_sts_before);
-	if (rc < 0)
-		goto out_unlock_ptp;
+	if (rc < 0) {
+		mutex_unlock(&priv->ptp_data.lock);
+		goto out;
+	}
 
 	/* Reset switch and send updated static configuration */
 	rc = sja1105_static_config_upload(priv);
-	if (rc < 0)
-		goto out_unlock_ptp;
+	if (rc < 0) {
+		mutex_unlock(&priv->ptp_data.lock);
+		goto out;
+	}
 
 	rc = __sja1105_ptp_settime(ds, 0, &ptp_sts_after);
-	if (rc < 0)
-		goto out_unlock_ptp;
+	if (rc < 0) {
+		mutex_unlock(&priv->ptp_data.lock);
+		goto out;
+	}
 
 	t1 = timespec64_to_ns(&ptp_sts_before.pre_ts);
 	t2 = timespec64_to_ns(&ptp_sts_before.post_ts);
@@ -1911,7 +1917,6 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 
 	__sja1105_ptp_adjtime(ds, now);
 
-out_unlock_ptp:
 	mutex_unlock(&priv->ptp_data.lock);
 
 	dev_info(priv->ds->dev,
