@@ -995,7 +995,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 
-	if (info->xmit_cnt <= 0 || tty->flow.stopped || !info->port.xmit_buf ||
+	if (!info->xmit_cnt || tty->flow.stopped || !info->port.xmit_buf ||
 			(tty->hw_stopped && info->type != PORT_16550A &&
 			 !info->board->must_hwid))
 		return;
@@ -1652,7 +1652,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	if (port->port.xmit_buf == NULL)
 		return;
 
-	if (port->xmit_cnt <= 0 || tty->flow.stopped ||
+	if (!port->xmit_cnt || tty->flow.stopped ||
 			(tty->hw_stopped &&
 			(port->type != PORT_16550A) &&
 			(!port->board->must_hwid))) {
@@ -1666,7 +1666,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 		outb(port->port.xmit_buf[port->xmit_tail++],
 			port->ioaddr + UART_TX);
 		port->xmit_tail = port->xmit_tail & (SERIAL_XMIT_SIZE - 1);
-		if (--port->xmit_cnt <= 0)
+		if (!--port->xmit_cnt)
 			break;
 	} while (--count > 0);
 
@@ -1675,7 +1675,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	if (port->xmit_cnt < WAKEUP_CHARS)
 		tty_wakeup(tty);
 
-	if (port->xmit_cnt <= 0)
+	if (!port->xmit_cnt)
 		__mxser_stop_tx(port);
 }
 
