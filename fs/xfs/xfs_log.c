@@ -3143,8 +3143,8 @@ xlog_state_switch_iclogs(
 
 	/* Round up to next log-sunit */
 	if (log->l_iclog_roundoff > BBSIZE) {
-		log->l_curr_block = roundup(log->l_curr_block,
-						BTOBB(log->l_iclog_roundoff));
+		uint32_t sunit_bb = BTOBB(log->l_iclog_roundoff);
+		log->l_curr_block = roundup(log->l_curr_block, sunit_bb);
 	}
 
 	if (log->l_curr_block >= log->l_logBBsize) {
