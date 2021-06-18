@@ -85,15 +85,15 @@ static int hostess_open(struct net_device *d)
 	 *	Link layer up
 	 */
 	switch (dma) {
-		case 0:
-			err = z8530_sync_open(d, &sv11->chanA);
-			break;
-		case 1:
-			err = z8530_sync_dma_open(d, &sv11->chanA);
-			break;
-		case 2:
-			err = z8530_sync_txdma_open(d, &sv11->chanA);
-			break;
+	case 0:
+		err = z8530_sync_open(d, &sv11->chanA);
+		break;
+	case 1:
+		err = z8530_sync_dma_open(d, &sv11->chanA);
+		break;
+	case 2:
+		err = z8530_sync_txdma_open(d, &sv11->chanA);
+		break;
 	}
 
 	if (err)
@@ -102,15 +102,15 @@ static int hostess_open(struct net_device *d)
 	err = hdlc_open(d);
 	if (err) {
 		switch (dma) {
-			case 0:
-				z8530_sync_close(d, &sv11->chanA);
-				break;
-			case 1:
-				z8530_sync_dma_close(d, &sv11->chanA);
-				break;
-			case 2:
-				z8530_sync_txdma_close(d, &sv11->chanA);
-				break;
+		case 0:
+			z8530_sync_close(d, &sv11->chanA);
+			break;
+		case 1:
+			z8530_sync_dma_close(d, &sv11->chanA);
+			break;
+		case 2:
+			z8530_sync_txdma_close(d, &sv11->chanA);
+			break;
 		}
 		return err;
 	}
@@ -136,15 +136,15 @@ static int hostess_close(struct net_device *d)
 	netif_stop_queue(d);
 
 	switch (dma) {
-		case 0:
-			z8530_sync_close(d, &sv11->chanA);
-			break;
-		case 1:
-			z8530_sync_dma_close(d, &sv11->chanA);
-			break;
-		case 2:
-			z8530_sync_txdma_close(d, &sv11->chanA);
-			break;
+	case 0:
+		z8530_sync_close(d, &sv11->chanA);
+		break;
+	case 1:
+		z8530_sync_dma_close(d, &sv11->chanA);
+		break;
+	case 2:
+		z8530_sync_txdma_close(d, &sv11->chanA);
+		break;
 	}
 	return 0;
 }
