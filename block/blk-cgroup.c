@@ -31,6 +31,7 @@
 #include <linux/tracehook.h>
 #include <linux/psi.h>
 #include "blk.h"
+#include "blk-ioprio.h"
 
 /*
  * blkcg_pol_mutex protects blkcg_policy[] and policy [de]activation.
@@ -1184,6 +1185,10 @@ int blkcg_init_queue(struct request_queue *q)
 		radix_tree_preload_end();
 
 	ret = blk_iolatency_init(q);
+	if (ret)
+		goto err_destroy_all;
+
+	ret = blk_ioprio_init(q);
 	if (ret)
 		goto err_destroy_all;
 
