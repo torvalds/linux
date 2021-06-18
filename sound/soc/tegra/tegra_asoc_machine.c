@@ -409,7 +409,7 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		return PTR_ERR(np_codec);
 
 	np_i2s = tegra_machine_parse_phandle(dev, "nvidia,i2s-controller");
-	if (!np_i2s)
+	if (IS_ERR(np_i2s))
 		return PTR_ERR(np_i2s);
 
 	card->dai_link->cpus->of_node = np_i2s;
