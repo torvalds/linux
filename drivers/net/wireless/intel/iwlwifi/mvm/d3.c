@@ -636,7 +636,6 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *vif, struct iwl_mvm_vif *mvmvif,
 			  struct ieee80211_sta *ap_sta)
 {
-	int ret;
 	struct iwl_mvm_sta *mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
 
 	/* TODO: wowlan_config_cmd->wowlan_ba_teardown_tids */
@@ -646,12 +645,16 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
 		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
 
-	/* Query the last used seqno and set it */
-	ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
-	if (ret < 0)
-		return ret;
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+				  WOWLAN_CONFIGURATION, 0) < 6) {
+		/* Query the last used seqno and set it */
+		int ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
 
-	wowlan_config_cmd->non_qos_seq = cpu_to_le16(ret);
+		if (ret < 0)
+			return ret;
+
+		wowlan_config_cmd->non_qos_seq = cpu_to_le16(ret);
+	}
 
 	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, wowlan_config_cmd);
 
@@ -1534,9 +1537,12 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	}
 
 out:
-	mvmvif->seqno_valid = true;
-	/* +0x10 because the set API expects next-to-use, not last-used */
-	mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP,
+				    WOWLAN_GET_STATUSES, 0) < 10) {
+		mvmvif->seqno_valid = true;
+		/* +0x10 because the set API expects next-to-use, not last-used */
+		mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
+	}
 
 	return true;
 }
@@ -1654,7 +1660,7 @@ struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 
 		status->gtk[0] = v7->gtk[0];
 		status->igtk[0] = v7->igtk[0];
-	} else if (notif_ver == 9) {
+	} else if (notif_ver == 9 || notif_ver == 10) {
 		struct iwl_wowlan_status_v9 *v9 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v9(mvm,

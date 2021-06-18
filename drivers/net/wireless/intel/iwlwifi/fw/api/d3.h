@@ -339,9 +339,10 @@ enum iwl_wowlan_flags {
 };
 
 /**
- * struct iwl_wowlan_config_cmd - WoWLAN configuration
+ * struct iwl_wowlan_config_cmd - WoWLAN configuration (versions 5 and 6)
  * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
- * @non_qos_seq: non-QoS sequence counter to use next
+ * @non_qos_seq: non-QoS sequence counter to use next.
+ *               Reserved if the struct has version >= 6.
  * @qos_seq: QoS sequence counters to use next
  * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
  * @is_11n_connection: indicates HT connection
@@ -604,12 +605,13 @@ struct iwl_wowlan_status_v7 {
 } __packed; /* WOWLAN_STATUSES_API_S_VER_7 */
 
 /**
- * struct iwl_wowlan_status_v9 - WoWLAN status (version 9)
+ * struct iwl_wowlan_status_v9 - WoWLAN status (versions 9 and 10)
  * @gtk: GTK data
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
+ * @non_qos_seq_ctr: non-QoS sequence counter to use next.
+ *                   Reserved if the struct has version >= 10.
  * @qos_seq_ctr: QoS sequence counters to use next
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
@@ -638,7 +640,7 @@ struct iwl_wowlan_status_v9 {
 	u8 tid_tear_down;
 	u8 reserved[3];
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
-} __packed; /* WOWLAN_STATUSES_API_S_VER_9 */
+} __packed; /* WOWLAN_STATUSES_RSP_API_S_VER_9 */
 
 /**
  * struct iwl_wowlan_status - WoWLAN status
