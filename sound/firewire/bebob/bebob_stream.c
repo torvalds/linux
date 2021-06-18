@@ -856,6 +856,11 @@ static int detect_midi_ports(struct snd_bebob *bebob,
 		err = avc_bridgeco_get_plug_ch_count(bebob->unit, addr, &ch_count);
 		if (err < 0)
 			break;
+		// Yamaha GO44, GO46, Terratec Phase 24, Phase x24 reports 0 for the number of
+		// channels in external output plug 3 (MIDI type) even if it has a pair of physical
+		// MIDI jacks. As a workaround, assume it as one.
+		if (ch_count == 0)
+			ch_count = 1;
 		*midi_ports += ch_count;
 	}
 
@@ -934,12 +939,12 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 	if (err < 0)
 		goto end;
 
-	err = detect_midi_ports(bebob, bebob->rx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_IN,
+	err = detect_midi_ports(bebob, bebob->tx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_IN,
 				plugs[2], &bebob->midi_input_ports);
 	if (err < 0)
 		goto end;
 
-	err = detect_midi_ports(bebob, bebob->tx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_OUT,
+	err = detect_midi_ports(bebob, bebob->rx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_OUT,
 				plugs[3], &bebob->midi_output_ports);
 	if (err < 0)
 		goto end;
