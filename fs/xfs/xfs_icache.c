@@ -1084,11 +1084,11 @@ xfs_reclaim_inodes(
 long
 xfs_reclaim_inodes_nr(
 	struct xfs_mount	*mp,
-	int			nr_to_scan)
+	unsigned long		nr_to_scan)
 {
 	struct xfs_icwalk	icw = {
 		.icw_flags	= XFS_ICWALK_FLAG_SCAN_LIMIT,
-		.icw_scan_limit	= nr_to_scan,
+		.icw_scan_limit	= min_t(unsigned long, LONG_MAX, nr_to_scan),
 	};
 
 	if (xfs_want_reclaim_sick(mp))
@@ -1106,13 +1106,13 @@ xfs_reclaim_inodes_nr(
  * Return the number of reclaimable inodes in the filesystem for
  * the shrinker to determine how much to reclaim.
  */
-int
+long
 xfs_reclaim_inodes_count(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag;
 	xfs_agnumber_t		ag = 0;
-	int			reclaimable = 0;
+	long			reclaimable = 0;
 
 	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
 		ag = pag->pag_agno + 1;

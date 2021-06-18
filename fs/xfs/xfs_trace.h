@@ -3895,7 +3895,7 @@ DECLARE_EVENT_CLASS(xfs_icwalk_class,
 		__field(uint32_t, gid)
 		__field(prid_t, prid)
 		__field(__u64, min_file_size)
-		__field(int, scan_limit)
+		__field(long, scan_limit)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
@@ -3910,7 +3910,7 @@ DECLARE_EVENT_CLASS(xfs_icwalk_class,
 		__entry->scan_limit = icw ? icw->icw_scan_limit : 0;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d flags 0x%x uid %u gid %u prid %u minsize %llu scan_limit %d caller %pS",
+	TP_printk("dev %d:%d flags 0x%x uid %u gid %u prid %u minsize %llu scan_limit %ld caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->flags,
 		  __entry->uid,

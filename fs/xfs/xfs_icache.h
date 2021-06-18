@@ -15,7 +15,7 @@ struct xfs_icwalk {
 	kgid_t		icw_gid;
 	prid_t		icw_prid;
 	__u64		icw_min_file_size;
-	int		icw_scan_limit;
+	long		icw_scan_limit;
 };
 
 /* Flags that reflect xfs_fs_eofblocks functionality. */
@@ -49,8 +49,8 @@ void xfs_inode_free(struct xfs_inode *ip);
 void xfs_reclaim_worker(struct work_struct *work);
 
 void xfs_reclaim_inodes(struct xfs_mount *mp);
-int xfs_reclaim_inodes_count(struct xfs_mount *mp);
-long xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
+long xfs_reclaim_inodes_count(struct xfs_mount *mp);
+long xfs_reclaim_inodes_nr(struct xfs_mount *mp, unsigned long nr_to_scan);
 
 void xfs_inode_mark_reclaimable(struct xfs_inode *ip);
 
