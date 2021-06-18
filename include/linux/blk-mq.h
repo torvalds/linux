@@ -431,7 +431,7 @@ enum {
 	static struct lock_class_key __key;				\
 	struct gendisk *__disk = __blk_mq_alloc_disk(set, queuedata);	\
 									\
-	if (__disk)							\
+	if (!IS_ERR(__disk))						\
 		lockdep_init_map(&__disk->lockdep_map,			\
 			"(bio completion)", &__key, 0);			\
 	__disk;								\
