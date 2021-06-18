@@ -124,10 +124,11 @@ awk < "$rundir"/scenarios -v dest="$T/bin" -v rundir="$rundir" '
 	n = $1;
 	sub(/\./, "", n);
 	fn = dest "/kvm-remote-" n ".sh"
+	print "kvm-remote-noreap.sh " rundir " &" > fn;
 	scenarios = "";
 	for (i = 2; i <= NF; i++)
 		scenarios = scenarios " " $i;
-	print "kvm-test-1-run-batch.sh" scenarios > fn;
+	print "kvm-test-1-run-batch.sh" scenarios >> fn;
 	print "sync" >> fn;
 	print "rm " rundir "/remote.run" >> fn;
 }'
