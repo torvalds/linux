@@ -624,18 +624,8 @@ static inline int set_rc_wqe(struct hns_roce_qp *qp,
 static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 				struct hns_roce_qp *qp)
 {
-	/*
-	 * Hip08 hardware cannot flush the WQEs in SQ if the QP state
-	 * gets into errored mode. Hence, as a workaround to this
-	 * hardware limitation, driver needs to assist in flushing. But
-	 * the flushing operation uses mailbox to convey the QP state to
-	 * the hardware and which can sleep due to the mutex protection
-	 * around the mailbox calls. Hence, use the deferred flush for
-	 * now.
-	 */
 	if (unlikely(qp->state == IB_QPS_ERR)) {
-		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
-			init_flush_work(hr_dev, qp);
+		flush_cqe(hr_dev, qp);
 	} else {
 		struct hns_roce_v2_db sq_db = {};
 
@@ -651,18 +641,8 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 static inline void update_rq_db(struct hns_roce_dev *hr_dev,
 				struct hns_roce_qp *qp)
 {
-	/*
-	 * Hip08 hardware cannot flush the WQEs in RQ if the QP state
-	 * gets into errored mode. Hence, as a workaround to this
-	 * hardware limitation, driver needs to assist in flushing. But
-	 * the flushing operation uses mailbox to convey the QP state to
-	 * the hardware and which can sleep due to the mutex protection
-	 * around the mailbox calls. Hence, use the deferred flush for
-	 * now.
-	 */
 	if (unlikely(qp->state == IB_QPS_ERR)) {
-		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
-			init_flush_work(hr_dev, qp);
+		flush_cqe(hr_dev, qp);
 	} else {
 		if (likely(qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)) {
 			*qp->rdb.db_record =
@@ -3553,17 +3533,7 @@ static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 	if (cqe_status == HNS_ROCE_CQE_V2_GENERAL_ERR)
 		return;
 
-	/*
-	 * Hip08 hardware cannot flush the WQEs in SQ/RQ if the QP state gets
-	 * into errored mode. Hence, as a workaround to this hardware
-	 * limitation, driver needs to assist in flushing. But the flushing
-	 * operation uses mailbox to convey the QP state to the hardware and
-	 * which can sleep due to the mutex protection around the mailbox calls.
-	 * Hence, use the deferred flush for now. Once wc error detected, the
-	 * flushing operation is needed.
-	 */
-	if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
-		init_flush_work(hr_dev, qp);
+	flush_cqe(hr_dev, qp);
 }
 
 static int get_cur_qp(struct hns_roce_cq *hr_cq, struct hns_roce_v2_cqe *cqe,

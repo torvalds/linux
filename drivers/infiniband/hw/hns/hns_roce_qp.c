@@ -79,6 +79,21 @@ void init_flush_work(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	queue_work(hr_dev->irq_workq, &flush_work->work);
 }
 
+void flush_cqe(struct hns_roce_dev *dev, struct hns_roce_qp *qp)
+{
+	/*
+	 * Hip08 hardware cannot flush the WQEs in SQ/RQ if the QP state
+	 * gets into errored mode. Hence, as a workaround to this
+	 * hardware limitation, driver needs to assist in flushing. But
+	 * the flushing operation uses mailbox to convey the QP state to
+	 * the hardware and which can sleep due to the mutex protection
+	 * around the mailbox calls. Hence, use the deferred flush for
+	 * now.
+	 */
+	if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
+		init_flush_work(dev, qp);
+}
+
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 {
 	struct device *dev = hr_dev->dev;
@@ -102,8 +117,8 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	     event_type == HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION ||
 	     event_type == HNS_ROCE_EVENT_TYPE_INVALID_XRCETH)) {
 		qp->state = IB_QPS_ERR;
-		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
-			init_flush_work(hr_dev, qp);
+
+		flush_cqe(hr_dev, qp);
 	}
 
 	qp->event(qp, (enum hns_roce_event)event_type);
