@@ -1883,11 +1883,10 @@ static const struct tty_port_operations mxser_port_ops = {
  * The MOXA Smartio/Industio serial driver boot-time initialization code!
  */
 
-static int mxser_initbrd(struct mxser_board *brd)
+static void mxser_initbrd(struct mxser_board *brd)
 {
 	struct mxser_port *info;
 	unsigned int i;
-	int retval;
 	bool is_mu860;
 
 	brd->must_hwid = mxser_must_get_hwid(brd->ports[0].ioaddr);
@@ -1939,18 +1938,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 		outb(inb(info->ioaddr + UART_IER) & 0xf0,
 			info->ioaddr + UART_IER);
 	}
-
-	retval = request_irq(brd->irq, mxser_interrupt, IRQF_SHARED, "mxser",
-			brd);
-	if (retval) {
-		for (i = 0; i < brd->info->nports; i++)
-			tty_port_destroy(&brd->ports[i].port);
-		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
-			"conflict with another device.\n",
-			brd->info->name, brd->irq);
-	}
-
-	return retval;
 }
 
 static int mxser_probe(struct pci_dev *pdev,
@@ -2004,10 +1991,14 @@ static int mxser_probe(struct pci_dev *pdev,
 	/* irq */
 	brd->irq = pdev->irq;
 
-	/* mxser_initbrd will hook ISR. */
-	retval = mxser_initbrd(brd);
-	if (retval)
-		goto err_zero;
+	mxser_initbrd(brd);
+
+	retval = devm_request_irq(&pdev->dev, brd->irq, mxser_interrupt,
+			IRQF_SHARED, "mxser", brd);
+	if (retval) {
+		dev_err(&pdev->dev, "request irq failed");
+		goto err_relbrd;
+	}
 
 	for (i = 0; i < brd->info->nports; i++) {
 		tty_dev = tty_port_register_device(&brd->ports[i].port,
@@ -2027,7 +2018,6 @@ static int mxser_probe(struct pci_dev *pdev,
 err_relbrd:
 	for (i = 0; i < brd->info->nports; i++)
 		tty_port_destroy(&brd->ports[i].port);
-	free_irq(brd->irq, brd);
 err_zero:
 	brd->info = NULL;
 err:
@@ -2043,8 +2033,6 @@ static void mxser_remove(struct pci_dev *pdev)
 		tty_unregister_device(mxvar_sdriver, brd->idx + i);
 		tty_port_destroy(&brd->ports[i].port);
 	}
-
-	free_irq(brd->irq, brd);
 
 	brd->info = NULL;
 }
