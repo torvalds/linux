@@ -1057,7 +1057,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	struct tty_port *port = &info->port;
 	speed_t baud;
 	unsigned long sl_flags;
-	unsigned int flags, close_delay, closing_wait;
+	unsigned int old_speed, close_delay, closing_wait;
 	int retval = 0;
 
 	if (tty_io_error(tty))
@@ -1071,7 +1071,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		return -EINVAL;
 	}
 
-	flags = port->flags & ASYNC_SPD_MASK;
+	old_speed = port->flags & ASYNC_SPD_MASK;
 
 	close_delay = msecs_to_jiffies(ss->close_delay * 10);
 	closing_wait = ss->closing_wait;
@@ -1115,7 +1115,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	}
 
 	if (tty_port_initialized(port)) {
-		if (flags != (port->flags & ASYNC_SPD_MASK)) {
+		if (old_speed != (port->flags & ASYNC_SPD_MASK)) {
 			spin_lock_irqsave(&info->slock, sl_flags);
 			mxser_change_speed(tty);
 			spin_unlock_irqrestore(&info->slock, sl_flags);
