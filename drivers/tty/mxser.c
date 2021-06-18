@@ -70,18 +70,8 @@
 #define PCI_DEVICE_ID_CB134I	0x1341
 #define PCI_DEVICE_ID_CP138U	0x1380
 
-
-#define C168_ASIC_ID    1
-#define C104_ASIC_ID    2
-#define C102_ASIC_ID	0xB
-#define CI132_ASIC_ID	4
-#define CI134_ASIC_ID	3
-#define CI104J_ASIC_ID  5
-
 #define MXSER_HIGHBAUD	1
-#define MXSER_HAS2	2
 
-/* This is only for PCI */
 static const struct {
 	int type;
 	int tx_fifo;
@@ -105,14 +95,14 @@ struct mxser_cardinfo {
 };
 
 static const struct mxser_cardinfo mxser_cards[] = {
-/* 0*/	{ "C168 series",	8, },
-	{ "C104 series",	4, },
-	{ "CI-104J series",	4, },
+/* 0*/	{ },
+	{ },
+	{ },
 	{ "C168H/PCI series",	8, },
 	{ "C104H/PCI series",	4, },
-/* 5*/	{ "C102 series",	4, MXSER_HAS2 },	/* C102-ISA */
-	{ "CI-132 series",	4, MXSER_HAS2 },
-	{ "CI-134 series",	4, },
+/* 5*/	{ },
+	{ },
+	{ },
 	{ "CP-132 series",	2, },
 	{ "CP-114 series",	4, },
 /*10*/	{ "CT-114 series",	4, },
@@ -172,15 +162,12 @@ static const struct pci_device_id mxser_pcibrds[] = {
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 
-static unsigned long ioaddr[MXSER_BOARDS];
 static int ttymajor = MXSERMAJOR;
 
 /* Variables for insmod */
 
 MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
-module_param_hw_array(ioaddr, ulong, ioport, NULL, 0);
-MODULE_PARM_DESC(ioaddr, "ISA io addresses to look for a moxa board");
 module_param(ttymajor, int, 0);
 MODULE_LICENSE("GPL");
 
@@ -300,7 +287,6 @@ static void mxser_enable_must_enchance_mode(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-#ifdef	CONFIG_PCI
 static void mxser_disable_must_enchance_mode(unsigned long baseio)
 {
 	u8 oldlcr;
@@ -315,7 +301,6 @@ static void mxser_disable_must_enchance_mode(unsigned long baseio)
 	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
-#endif
 
 static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
 {
@@ -387,7 +372,6 @@ static void mxser_set_must_enum_value(unsigned long baseio, u8 value)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-#ifdef CONFIG_PCI
 static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 {
 	u8 oldlcr;
@@ -404,7 +388,6 @@ static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 	*pId = inb(baseio + MOXA_MUST_HWID_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
-#endif
 
 static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
 {
@@ -483,7 +466,6 @@ static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
-#ifdef CONFIG_PCI
 static int CheckIsMoxaMust(unsigned long io)
 {
 	u8 oldmcr, hwid;
@@ -506,7 +488,6 @@ static int CheckIsMoxaMust(unsigned long io)
 	}
 	return MOXA_OTHER_UART;
 }
-#endif
 
 static void process_txrx_fifo(struct mxser_port *info)
 {
@@ -1398,109 +1379,6 @@ static int mxser_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int __init mxser_program_mode(int port)
-{
-	int id, i, j, n;
-
-	outb(0, port);
-	outb(0, port);
-	outb(0, port);
-	(void)inb(port);
-	(void)inb(port);
-	outb(0, port);
-	(void)inb(port);
-
-	id = inb(port + 1) & 0x1F;
-	if ((id != C168_ASIC_ID) &&
-			(id != C104_ASIC_ID) &&
-			(id != C102_ASIC_ID) &&
-			(id != CI132_ASIC_ID) &&
-			(id != CI134_ASIC_ID) &&
-			(id != CI104J_ASIC_ID))
-		return -1;
-	for (i = 0, j = 0; i < 4; i++) {
-		n = inb(port + 2);
-		if (n == 'M') {
-			j = 1;
-		} else if ((j == 1) && (n == 1)) {
-			j = 2;
-			break;
-		} else
-			j = 0;
-	}
-	if (j != 2)
-		id = -2;
-	return id;
-}
-
-static void __init mxser_normal_mode(int port)
-{
-	int i, n;
-
-	outb(0xA5, port + 1);
-	outb(0x80, port + 3);
-	outb(12, port + 0);	/* 9600 bps */
-	outb(0, port + 1);
-	outb(0x03, port + 3);	/* 8 data bits */
-	outb(0x13, port + 4);	/* loop back mode */
-	for (i = 0; i < 16; i++) {
-		n = inb(port + 5);
-		if ((n & 0x61) == 0x60)
-			break;
-		if ((n & 1) == 1)
-			(void)inb(port);
-	}
-	outb(0x00, port + 4);
-}
-
-#define CHIP_SK 	0x01	/* Serial Data Clock  in Eprom */
-#define CHIP_DO 	0x02	/* Serial Data Output in Eprom */
-#define CHIP_CS 	0x04	/* Serial Chip Select in Eprom */
-#define CHIP_DI 	0x08	/* Serial Data Input  in Eprom */
-#define EN_CCMD 	0x000	/* Chip's command register     */
-#define EN0_RSARLO	0x008	/* Remote start address reg 0  */
-#define EN0_RSARHI	0x009	/* Remote start address reg 1  */
-#define EN0_RCNTLO	0x00A	/* Remote byte count reg WR    */
-#define EN0_RCNTHI	0x00B	/* Remote byte count reg WR    */
-#define EN0_DCFG	0x00E	/* Data configuration reg WR   */
-#define EN0_PORT	0x010	/* Rcv missed frame error counter RD */
-#define ENC_PAGE0	0x000	/* Select page 0 of chip registers   */
-#define ENC_PAGE3	0x0C0	/* Select page 3 of chip registers   */
-static int __init mxser_read_register(int port, unsigned short *regs)
-{
-	int i, k, value, id;
-	unsigned int j;
-
-	id = mxser_program_mode(port);
-	if (id < 0)
-		return id;
-	for (i = 0; i < 14; i++) {
-		k = (i & 0x3F) | 0x180;
-		for (j = 0x100; j > 0; j >>= 1) {
-			outb(CHIP_CS, port);
-			if (k & j) {
-				outb(CHIP_CS | CHIP_DO, port);
-				outb(CHIP_CS | CHIP_DO | CHIP_SK, port);	/* A? bit of read */
-			} else {
-				outb(CHIP_CS, port);
-				outb(CHIP_CS | CHIP_SK, port);	/* A? bit of read */
-			}
-		}
-		(void)inb(port);
-		value = 0;
-		for (k = 0, j = 0x8000; k < 16; k++, j >>= 1) {
-			outb(CHIP_CS, port);
-			outb(CHIP_CS | CHIP_SK, port);
-			if (inb(port) & CHIP_DI)
-				value |= j;
-		}
-		regs[i] = value;
-		outb(0, port);
-	}
-	mxser_normal_mode(port);
-	return id;
-}
-
 static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 {
 	struct mxser_port *ip;
@@ -2346,37 +2224,6 @@ static const struct tty_port_operations mxser_port_ops = {
  * The MOXA Smartio/Industio serial driver boot-time initialization code!
  */
 
-static bool allow_overlapping_vector;
-module_param(allow_overlapping_vector, bool, S_IRUGO);
-MODULE_PARM_DESC(allow_overlapping_vector, "whether we allow ISA cards to be configured such that vector overlabs IO ports (default=no)");
-
-static bool mxser_overlapping_vector(struct mxser_board *brd)
-{
-	return allow_overlapping_vector &&
-		brd->vector >= brd->ports[0].ioaddr &&
-		brd->vector < brd->ports[0].ioaddr + 8 * brd->info->nports;
-}
-
-static int mxser_request_vector(struct mxser_board *brd)
-{
-	if (mxser_overlapping_vector(brd))
-		return 0;
-	return request_region(brd->vector, 1, "mxser(vector)") ? 0 : -EIO;
-}
-
-static void mxser_release_vector(struct mxser_board *brd)
-{
-	if (mxser_overlapping_vector(brd))
-		return;
-	release_region(brd->vector, 1);
-}
-
-static void mxser_release_ISA_res(struct mxser_board *brd)
-{
-	release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
-	mxser_release_vector(brd);
-}
-
 static int mxser_initbrd(struct mxser_board *brd)
 {
 	struct mxser_port *info;
@@ -2439,125 +2286,9 @@ static void mxser_board_remove(struct mxser_board *brd)
 	free_irq(brd->irq, brd);
 }
 
-static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
-{
-	int id, i, bits, ret;
-	unsigned short regs[16], irq;
-	unsigned char scratch, scratch2;
-
-	brd->chip_flag = MOXA_OTHER_UART;
-
-	id = mxser_read_register(cap, regs);
-	switch (id) {
-	case C168_ASIC_ID:
-		brd->info = &mxser_cards[0];
-		break;
-	case C104_ASIC_ID:
-		brd->info = &mxser_cards[1];
-		break;
-	case CI104J_ASIC_ID:
-		brd->info = &mxser_cards[2];
-		break;
-	case C102_ASIC_ID:
-		brd->info = &mxser_cards[5];
-		break;
-	case CI132_ASIC_ID:
-		brd->info = &mxser_cards[6];
-		break;
-	case CI134_ASIC_ID:
-		brd->info = &mxser_cards[7];
-		break;
-	default:
-		return 0;
-	}
-
-	irq = 0;
-	/* some ISA cards have 2 ports, but we want to see them as 4-port (why?)
-	   Flag-hack checks if configuration should be read as 2-port here. */
-	if (brd->info->nports == 2 || (brd->info->flags & MXSER_HAS2)) {
-		irq = regs[9] & 0xF000;
-		irq = irq | (irq >> 4);
-		if (irq != (regs[9] & 0xFF00))
-			goto err_irqconflict;
-	} else if (brd->info->nports == 4) {
-		irq = regs[9] & 0xF000;
-		irq = irq | (irq >> 4);
-		irq = irq | (irq >> 8);
-		if (irq != regs[9])
-			goto err_irqconflict;
-	} else if (brd->info->nports == 8) {
-		irq = regs[9] & 0xF000;
-		irq = irq | (irq >> 4);
-		irq = irq | (irq >> 8);
-		if ((irq != regs[9]) || (irq != regs[10]))
-			goto err_irqconflict;
-	}
-
-	if (!irq) {
-		printk(KERN_ERR "mxser: interrupt number unset\n");
-		return -EIO;
-	}
-	brd->irq = ((int)(irq & 0xF000) >> 12);
-	for (i = 0; i < 8; i++)
-		brd->ports[i].ioaddr = (int) regs[i + 1] & 0xFFF8;
-	if ((regs[12] & 0x80) == 0) {
-		printk(KERN_ERR "mxser: invalid interrupt vector\n");
-		return -EIO;
-	}
-	brd->vector = (int)regs[11];	/* interrupt vector */
-	if (id == 1)
-		brd->vector_mask = 0x00FF;
-	else
-		brd->vector_mask = 0x000F;
-	for (i = 7, bits = 0x0100; i >= 0; i--, bits <<= 1) {
-		if (regs[12] & bits) {
-			brd->ports[i].baud_base = 921600;
-			brd->ports[i].max_baud = 921600;
-		} else {
-			brd->ports[i].baud_base = 115200;
-			brd->ports[i].max_baud = 115200;
-		}
-	}
-	scratch2 = inb(cap + UART_LCR) & (~UART_LCR_DLAB);
-	outb(scratch2 | UART_LCR_DLAB, cap + UART_LCR);
-	outb(0, cap + UART_EFR);	/* EFR is the same as FCR */
-	outb(scratch2, cap + UART_LCR);
-	outb(UART_FCR_ENABLE_FIFO, cap + UART_FCR);
-	scratch = inb(cap + UART_IIR);
-
-	if (scratch & 0xC0)
-		brd->uart_type = PORT_16550A;
-	else
-		brd->uart_type = PORT_16450;
-	if (!request_region(brd->ports[0].ioaddr, 8 * brd->info->nports,
-			"mxser(IO)")) {
-		printk(KERN_ERR "mxser: can't request ports I/O region: "
-				"0x%.8lx-0x%.8lx\n",
-				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
-				8 * brd->info->nports - 1);
-		return -EIO;
-	}
-
-	ret = mxser_request_vector(brd);
-	if (ret) {
-		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
-		printk(KERN_ERR "mxser: can't request interrupt vector region: "
-				"0x%.8lx-0x%.8lx\n",
-				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
-				8 * brd->info->nports - 1);
-		return ret;
-	}
-	return brd->info->nports;
-
-err_irqconflict:
-	printk(KERN_ERR "mxser: invalid interrupt number\n");
-	return -EIO;
-}
-
 static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
-#ifdef CONFIG_PCI
 	struct mxser_board *brd;
 	unsigned int i, j;
 	unsigned long ioaddress;
@@ -2673,14 +2404,10 @@ err_dis:
 	pci_disable_device(pdev);
 err:
 	return retval;
-#else
-	return -ENODEV;
-#endif
 }
 
 static void mxser_remove(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI
 	struct mxser_board *brd = pci_get_drvdata(pdev);
 
 	mxser_board_remove(brd);
@@ -2689,7 +2416,6 @@ static void mxser_remove(struct pci_dev *pdev)
 	pci_release_region(pdev, 3);
 	pci_disable_device(pdev);
 	brd->info = NULL;
-#endif
 }
 
 static struct pci_driver mxser_driver = {
@@ -2701,9 +2427,6 @@ static struct pci_driver mxser_driver = {
 
 static int __init mxser_module_init(void)
 {
-	struct mxser_board *brd;
-	struct device *tty_dev;
-	unsigned int b, i, m;
 	int retval;
 
 	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
@@ -2731,57 +2454,10 @@ static int __init mxser_module_init(void)
 		goto err_put;
 	}
 
-	/* Start finding ISA boards here */
-	for (m = 0, b = 0; b < MXSER_BOARDS; b++) {
-		if (!ioaddr[b])
-			continue;
-
-		brd = &mxser_boards[m];
-		retval = mxser_get_ISA_conf(ioaddr[b], brd);
-		if (retval <= 0) {
-			brd->info = NULL;
-			continue;
-		}
-
-		printk(KERN_INFO "mxser: found MOXA %s board (CAP=0x%lx)\n",
-				brd->info->name, ioaddr[b]);
-
-		/* mxser_initbrd will hook ISR. */
-		if (mxser_initbrd(brd) < 0) {
-			mxser_release_ISA_res(brd);
-			brd->info = NULL;
-			continue;
-		}
-
-		brd->idx = m * MXSER_PORTS_PER_BOARD;
-		for (i = 0; i < brd->info->nports; i++) {
-			tty_dev = tty_port_register_device(&brd->ports[i].port,
-					mxvar_sdriver, brd->idx + i, NULL);
-			if (IS_ERR(tty_dev)) {
-				for (; i > 0; i--)
-					tty_unregister_device(mxvar_sdriver,
-						brd->idx + i - 1);
-				for (i = 0; i < brd->info->nports; i++)
-					tty_port_destroy(&brd->ports[i].port);
-				free_irq(brd->irq, brd);
-				mxser_release_ISA_res(brd);
-				brd->info = NULL;
-				break;
-			}
-		}
-		if (brd->info == NULL)
-			continue;
-
-		m++;
-	}
-
 	retval = pci_register_driver(&mxser_driver);
 	if (retval) {
 		printk(KERN_ERR "mxser: can't register pci driver\n");
-		if (!m) {
-			retval = -ENODEV;
-			goto err_unr;
-		} /* else: we have some ISA cards under control */
+		goto err_unr;
 	}
 
 	return 0;
@@ -2794,19 +2470,9 @@ err_put:
 
 static void __exit mxser_module_exit(void)
 {
-	unsigned int i;
-
 	pci_unregister_driver(&mxser_driver);
-
-	for (i = 0; i < MXSER_BOARDS; i++) /* ISA remains */
-		if (mxser_boards[i].info != NULL)
-			mxser_board_remove(&mxser_boards[i]);
 	tty_unregister_driver(mxvar_sdriver);
 	put_tty_driver(mxvar_sdriver);
-
-	for (i = 0; i < MXSER_BOARDS; i++)
-		if (mxser_boards[i].info != NULL)
-			mxser_release_ISA_res(&mxser_boards[i]);
 }
 
 module_init(mxser_module_init);

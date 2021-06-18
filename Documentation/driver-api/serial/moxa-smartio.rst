@@ -37,8 +37,7 @@ Date: 01/21/2008
 	CP-102U, CP-102UL, CP-102UF
 	CP-132U-I, CP-132UL,
 	CP-132, CP-132I, CP132S, CP-132IS,
-	CI-132, CI-132I, CI-132IS,
-	(C102H, C102HI, C102HIS, C102P, CP-102, CP-102S)
+	(CP-102, CP-102S)
 
     - 4 ports multiport board
 	CP-104EL,
@@ -46,10 +45,7 @@ Date: 01/21/2008
 	CP-134U, CP-134U-I,
 	C104H/PCI, C104HS/PCI,
 	CP-114, CP-114I, CP-114S, CP-114IS, CP-114UL,
-	C104H, C104HS,
-	CI-104J, CI-104JS,
-	CI-134, CI-134I, CI-134IS,
-	(C114HI, CT-114I, C104P),
+	(C114HI, CT-114I),
 	POS-104UL,
 	CB-114,
 	CB-134I
@@ -58,8 +54,6 @@ Date: 01/21/2008
 	CP-118EL, CP-168EL,
 	CP-118U, CP-168U,
 	C168H/PCI,
-	C168H, C168HS,
-	(C168P),
 	CB-108
 
    This driver and installation procedure have been developed upon Linux Kernel
@@ -78,9 +72,6 @@ Date: 01/21/2008
 		 Monitor program to observe data count and line status signals.
     - msterm     A simple terminal program which is useful in testing serial
 	         ports.
-    - io-irq.exe
-		 Configuration program to setup ISA boards. Please note that
-                 this program can only be executed under DOS.
 
    All the drivers and utilities are published in form of source code under
    GNU General Public License in this version. Please refer to GNU General
@@ -111,17 +102,6 @@ Date: 01/21/2008
 
 3.1 Hardware installation
 =========================
-
-   There are two types of buses, ISA and PCI, for Smartio/Industio
-   family multiport board.
-
-ISA board
----------
-
-   You'll have to configure CAP address, I/O address, Interrupt Vector
-   as well as IRQ before installing this driver. Please refer to hardware
-   installation procedure in User's Manual before proceed any further.
-   Please make sure the JP1 is open after the ISA board is set properly.
 
 PCI/UPCI board
 --------------
@@ -194,16 +174,6 @@ Device naming when more than 2 boards installed
    Under Kernel 2.6 and upper, the cum Device is Obsolete. So use ttyM*
    device instead.
 
-Board sequence
---------------
-
-   This driver will activate ISA boards according to the parameter set
-   in the driver. After all specified ISA board activated, PCI board
-   will be installed in the system automatically driven.
-   Therefore the board number is sorted by the CAP address of ISA boards.
-   For PCI boards, their sequence will be after ISA boards and C168H/PCI
-   has higher priority than C104H/PCI boards.
-
 3.4 Module driver configuration
 ===============================
 
@@ -274,12 +244,10 @@ Board sequence
 
    ::
 
-	 # modprobe mxser <argument>
+	 # modprobe mxser
 
    will activate the module driver. You may run "lsmod" to check
-   if "mxser" is activated. If the MOXA board is ISA board, the
-   <argument> is needed. Please refer to section "3.4.5" for more
-   information.
+   if "mxser" is activated.
 
 ------------- Load MOXA driver on boot --------------------
 
@@ -296,13 +264,6 @@ Board sequence
    achieved by rc file. We offer one "rc.mxser" file to simplify
    the procedure under "moxa/mxser/driver".
 
-   But if you use ISA board, please modify the "modprobe ..." command
-   to add the argument (see "3.4.5" section). After modifying the
-   rc.mxser, please try to execute "/moxa/mxser/driver/rc.mxser"
-   manually to make sure the modification is ok. If any error
-   encountered, please try to modify again. If the modification is
-   completed, follow the below step.
-
    Run following command for setting rc files::
 
 	 # cd /moxa/mxser/driver
@@ -315,21 +276,6 @@ Board sequence
    Add "/etc/rc.d/rc.mxser" in last line.
 
    Reboot and check if moxa.o activated by "lsmod" command.
-
-3.4.5. specify CAP address
---------------------------
-
-   If you'd like to drive Smartio/Industio ISA boards in the system,
-   you'll have to add parameter to specify CAP address of given
-   board while activating "mxser.o". The format for parameters are
-   as follows.::
-
-	   modprobe mxser ioaddr=0x???,0x???,0x???,0x???
-				  |  |  |    |
-				  |  |  |    +- 4th ISA board
-				  |  |  +------ 3rd ISA board
-				  |  +------------ 2nd ISA board
-				  +-------------------1st ISA board
 
 3.5 Static driver configuration for Linux kernel 2.4.x and 2.6.x
 ================================================================
@@ -357,35 +303,7 @@ Board sequence
 	  # cd /usr/src/linux/drivers/char
 	  # ln -s /moxa/mxser/driver/mxser.c mxser.c
 
-3.5.3 Add CAP address list for ISA boards.
-------------------------------------------
-
-    For PCI boards user, please skip this step.
-
-    In module mode, the CAP address for ISA board is given by
-    parameter. In static driver configuration, you'll have to
-    assign it within driver's source code. If you will not
-    install any ISA boards, you may skip to next portion.
-    The instructions to modify driver source code are as
-    below.
-
-    a. run::
-
-	# cd /moxa/mxser/driver
-	# vi mxser.c
-
-    b. Find the array mxserBoardCAP[] as below::
-
-	  static int mxserBoardCAP[] = {0x00, 0x00, 0x00, 0x00};
-
-    c. Change the address within this array using vi. For
-       example, to driver 2 ISA boards with CAP address
-       0x280 and 0x180 as 1st and 2nd board. Just to change
-       the source code as follows::
-
-	  static int mxserBoardCAP[] = {0x280, 0x180, 0x00, 0x00};
-
-3.5.4 Setup kernel configuration
+3.5.3 Setup kernel configuration
 --------------------------------
 
     Configure the kernel::
@@ -398,7 +316,7 @@ Board sequence
     SmartIO support] driver with "[*]" for built-in (not "[M]"), then
     select [Exit] to exit this program.
 
-3.5.5 Rebuild kernel
+3.5.4 Rebuild kernel
 --------------------
 
     The following are for Linux kernel rebuilding, for your
@@ -426,14 +344,14 @@ Board sequence
           directory /usr/src/linux.
 
 
-3.5.6 Make tty device and special file
+3.5.5 Make tty device and special file
 --------------------------------------
 
     ::
        # cd /moxa/mxser/driver
        # ./msmknod
 
-3.5.7 Make utility
+3.5.6 Make utility
 ------------------
 
     ::
@@ -441,7 +359,7 @@ Board sequence
 	  # cd /moxa/mxser/utility
 	  # make clean; make install
 
-3.5.8 Reboot
+3.5.7 Reboot
 ------------
 
 
@@ -590,13 +508,6 @@ msterm - Terminal Emulation
    Solution:
    Each port within the same multiport board shares the same IRQ. Please set
    one IRQ (IRQ doesn't equal to zero) for one Moxa board.
-
-   Error msg:
-	      No interrupt vector be set for Moxa ISA board(CAP=xxx).
-
-   Solution:
-   Moxa ISA board needs an interrupt vector.Please refer to user's manual
-   "Hardware Installation" chapter to set interrupt vector.
 
    Error msg:
               Couldn't install MOXA Smartio/Industio family driver!
