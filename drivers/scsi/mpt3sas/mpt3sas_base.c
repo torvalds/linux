@@ -7207,6 +7207,7 @@ mpt3sas_port_enable_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 		ioc->port_enable_failed = 1;
 
 	if (ioc->port_enable_cmds.status & MPT3_CMD_COMPLETE_ASYNC) {
+		ioc->port_enable_cmds.status &= ~MPT3_CMD_COMPLETE_ASYNC;
 		if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
 			mpt3sas_port_enable_complete(ioc);
 			return 1;
@@ -7215,7 +7216,6 @@ mpt3sas_port_enable_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 			ioc->start_scan = 0;
 			return 1;
 		}
-		ioc->port_enable_cmds.status &= ~MPT3_CMD_COMPLETE_ASYNC;
 	}
 	complete(&ioc->port_enable_cmds.done);
 	return 1;
