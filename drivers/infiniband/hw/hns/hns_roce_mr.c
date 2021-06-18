@@ -988,7 +988,7 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 					&buf_page_shift,
 					udata ? user_addr & ~PAGE_MASK : 0);
 	if (buf_page_cnt < 1 || buf_page_shift < HNS_HW_PAGE_SHIFT) {
-		ibdev_err(ibdev, "failed to init mtr cfg, count %d shift %d.\n",
+		ibdev_err(ibdev, "failed to init mtr cfg, count %d shift %u.\n",
 			  buf_page_cnt, buf_page_shift);
 		return -EINVAL;
 	}

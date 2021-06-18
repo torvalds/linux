@@ -648,9 +648,7 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 
 	if (!cap->max_send_wr || cap->max_send_wr > hr_dev->caps.max_wqes ||
 	    cap->max_send_sge > hr_dev->caps.max_sq_sg) {
-		ibdev_err(ibdev,
-			  "failed to check SQ WR or SGE num, ret = %d.\n",
-			  -EINVAL);
+		ibdev_err(ibdev, "failed to check SQ WR or SGE num.\n");
 		return -EINVAL;
 	}
 
