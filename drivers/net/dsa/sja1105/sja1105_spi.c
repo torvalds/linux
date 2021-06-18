@@ -199,7 +199,11 @@ static int sja1110_reset_cmd(struct dsa_switch *ds)
 	const struct sja1105_regs *regs = priv->info->regs;
 	u32 switch_reset = BIT(20);
 
-	/* Switch core reset */
+	/* Only reset the switch core.
+	 * A full cold reset would re-enable the BASE_MCSS_CLOCK PLL which
+	 * would turn on the microcontroller, potentially letting it execute
+	 * code which could interfere with our configuration.
+	 */
 	return sja1105_xfer_u32(priv, SPI_WRITE, regs->rgu, &switch_reset, NULL);
 }
 
@@ -796,7 +800,7 @@ const struct sja1105_info sja1110a_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.rxtstamp		= sja1110_rxtstamp,
 	.txtstamp		= sja1110_txtstamp,
-	.clocking_setup		= sja1110_clocking_setup,
+	.disable_microcontroller = sja1110_disable_microcontroller,
 	.pcs_mdio_read		= sja1110_pcs_mdio_read,
 	.pcs_mdio_write		= sja1110_pcs_mdio_write,
 	.port_speed		= {
@@ -847,7 +851,7 @@ const struct sja1105_info sja1110b_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.rxtstamp		= sja1110_rxtstamp,
 	.txtstamp		= sja1110_txtstamp,
-	.clocking_setup		= sja1110_clocking_setup,
+	.disable_microcontroller = sja1110_disable_microcontroller,
 	.pcs_mdio_read		= sja1110_pcs_mdio_read,
 	.pcs_mdio_write		= sja1110_pcs_mdio_write,
 	.port_speed		= {
@@ -898,7 +902,7 @@ const struct sja1105_info sja1110c_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.rxtstamp		= sja1110_rxtstamp,
 	.txtstamp		= sja1110_txtstamp,
-	.clocking_setup		= sja1110_clocking_setup,
+	.disable_microcontroller = sja1110_disable_microcontroller,
 	.pcs_mdio_read		= sja1110_pcs_mdio_read,
 	.pcs_mdio_write		= sja1110_pcs_mdio_write,
 	.port_speed		= {
@@ -949,7 +953,7 @@ const struct sja1105_info sja1110d_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.rxtstamp		= sja1110_rxtstamp,
 	.txtstamp		= sja1110_txtstamp,
-	.clocking_setup		= sja1110_clocking_setup,
+	.disable_microcontroller = sja1110_disable_microcontroller,
 	.pcs_mdio_read		= sja1110_pcs_mdio_read,
 	.pcs_mdio_write		= sja1110_pcs_mdio_write,
 	.port_speed		= {

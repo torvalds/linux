@@ -6,6 +6,7 @@
 #include "sja1105.h"
 
 #define SJA1105_SIZE_CGU_CMD	4
+#define SJA1110_BASE_MCSS_CLK	SJA1110_CGU_ADDR(0x70)
 #define SJA1110_BASE_TIMER_CLK	SJA1110_CGU_ADDR(0x74)
 
 /* Common structure for CFG_PAD_MIIx_RX and CFG_PAD_MIIx_TX */
@@ -832,17 +833,30 @@ sja1110_cgu_outclk_packing(void *buf, struct sja1110_cgu_outclk *outclk,
 	sja1105_packing(buf, &outclk->pd,         0,  0, size, op);
 }
 
-/* Power down the BASE_TIMER_CLK in order to disable the watchdog */
-int sja1110_clocking_setup(struct sja1105_private *priv)
+int sja1110_disable_microcontroller(struct sja1105_private *priv)
 {
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+	struct sja1110_cgu_outclk outclk_6_c = {
+		.clksrc = 0x3,
+		.pd = true,
+	};
 	struct sja1110_cgu_outclk outclk_7_c = {
 		.clksrc = 0x5,
 		.pd = true,
 	};
+	int rc;
 
+	/* Power down the BASE_TIMER_CLK to disable the watchdog timer */
 	sja1110_cgu_outclk_packing(packed_buf, &outclk_7_c, PACK);
 
-	return sja1105_xfer_buf(priv, SPI_WRITE, SJA1110_BASE_TIMER_CLK,
+	rc = sja1105_xfer_buf(priv, SPI_WRITE, SJA1110_BASE_TIMER_CLK,
+			      packed_buf, SJA1105_SIZE_CGU_CMD);
+	if (rc)
+		return rc;
+
+	/* Power down the BASE_MCSS_CLOCK to gate the microcontroller off */
+	sja1110_cgu_outclk_packing(packed_buf, &outclk_6_c, PACK);
+
+	return sja1105_xfer_buf(priv, SPI_WRITE, SJA1110_BASE_MCSS_CLK,
 				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
