@@ -459,6 +459,48 @@ out:
 			     fbt_env->skip_cpu, task_on_rq_queued(p));
 }
 
+static inline unsigned long
+cpu_util_next_walt(int cpu, struct task_struct *p, int dst_cpu)
+{
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	unsigned long util = wrq->walt_stats.cumulative_runnable_avg_scaled;
+	bool queued = task_on_rq_queued(p);
+
+	/*
+	 * When task is queued,
+	 * (a) The evaluating CPU (cpu) is task's current CPU. If the
+	 * task is migrating, discount the task contribution from the
+	 * evaluation cpu.
+	 * (b) The evaluating CPU (cpu) is task's current CPU. If the
+	 * task is NOT migrating, nothing to do. The contribution is
+	 * already present on the evaluation CPU.
+	 * (c) The evaluating CPU (cpu) is not task's current CPU. But
+	 * the task is migrating to the evaluating CPU. So add the
+	 * task contribution to it.
+	 * (d) The evaluating CPU (cpu) is neither the current CPU nor
+	 * the destination CPU. don't care.
+	 *
+	 * When task is NOT queued i.e waking. Task contribution is not
+	 * present on any CPU.
+	 *
+	 * (a) If the evaluating CPU is the destination CPU, add the task
+	 * contribution.
+	 * (b) The evaluation CPU is not the destination CPU, don't care.
+	 */
+	if (unlikely(queued)) {
+		if (task_cpu(p) == cpu) {
+			if (dst_cpu != cpu)
+				util = max_t(long, util - task_util(p), 0);
+		} else if (dst_cpu == cpu) {
+			util += task_util(p);
+		}
+	} else if (dst_cpu == cpu) {
+		util += task_util(p);
+	}
+
+	return min_t(unsigned long, util, capacity_orig_of(cpu));
+}
+
 static inline u64
 cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_dst_same_cluster,
 											u64 *prs)
@@ -606,13 +648,12 @@ walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *p
 	 * its pd list and will not be accounted by compute_energy().
 	 */
 	for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
+		sum_util += cpu_util_next_walt(cpu, p, dst_cpu);
 		cpu_util = cpu_util_next_walt_prs(cpu, p, dst_cpu, prev_dst_same_cluster, prs);
-		sum_util += cpu_util;
 		max_util = max(max_util, cpu_util);
 	}
 
 	max_util = scale_demand(max_util);
-	sum_util = scale_demand(sum_util);
 
 	if (output)
 		output->cluster_first_cpu[x] = cpumask_first(pd_mask);
