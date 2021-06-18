@@ -1910,7 +1910,7 @@ static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	struct mxser_board *brd;
-	unsigned int i;
+	unsigned int i, base;
 	unsigned long ioaddress;
 	unsigned short nports = MXSER_NPORTS(ent->driver_data);
 	struct device *tty_dev;
@@ -1927,7 +1927,8 @@ static int mxser_probe(struct pci_dev *pdev,
 	}
 
 	brd = &mxser_boards[i];
-	brd->idx = i * MXSER_PORTS_PER_BOARD;
+	brd->idx = i;
+	base = i * MXSER_PORTS_PER_BOARD;
 
 	retval = pcim_enable_device(pdev);
 	if (retval) {
@@ -1966,12 +1967,12 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	for (i = 0; i < nports; i++) {
 		tty_dev = tty_port_register_device(&brd->ports[i].port,
-				mxvar_sdriver, brd->idx + i, &pdev->dev);
+				mxvar_sdriver, base + i, &pdev->dev);
 		if (IS_ERR(tty_dev)) {
 			retval = PTR_ERR(tty_dev);
 			for (; i > 0; i--)
 				tty_unregister_device(mxvar_sdriver,
-					brd->idx + i - 1);
+					base + i - 1);
 			goto err_relbrd;
 		}
 	}
@@ -1991,10 +1992,10 @@ err:
 static void mxser_remove(struct pci_dev *pdev)
 {
 	struct mxser_board *brd = pci_get_drvdata(pdev);
-	unsigned int i;
+	unsigned int i, base = brd->idx * MXSER_PORTS_PER_BOARD;
 
 	for (i = 0; i < brd->nports; i++) {
-		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+		tty_unregister_device(mxvar_sdriver, base + i);
 		tty_port_destroy(&brd->ports[i].port);
 	}
 
