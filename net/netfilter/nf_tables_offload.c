@@ -594,23 +594,6 @@ int nft_flow_rule_offload_commit(struct net *net)
 		}
 	}
 
-	list_for_each_entry(trans, &nft_net->commit_list, list) {
-		if (trans->ctx.family != NFPROTO_NETDEV)
-			continue;
-
-		switch (trans->msg_type) {
-		case NFT_MSG_NEWRULE:
-		case NFT_MSG_DELRULE:
-			if (!(trans->ctx.chain->flags & NFT_CHAIN_HW_OFFLOAD))
-				continue;
-
-			nft_flow_rule_destroy(nft_trans_flow_rule(trans));
-			break;
-		default:
-			break;
-		}
-	}
-
 	return err;
 }
 
