@@ -205,7 +205,7 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 		if (!md->zwp_offset) {
 			md->zwp_offset =
 				kvcalloc(q->nr_zones, sizeof(unsigned int),
-					 GFP_NOIO);
+					 GFP_KERNEL);
 			if (!md->zwp_offset)
 				return -ENOMEM;
 		}
@@ -230,6 +230,7 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 static int dm_revalidate_zones(struct mapped_device *md, struct dm_table *t)
 {
 	struct request_queue *q = md->queue;
+	unsigned int noio_flag;
 	int ret;
 
 	/*
@@ -241,9 +242,14 @@ static int dm_revalidate_zones(struct mapped_device *md, struct dm_table *t)
 	if (md->nr_zones)
 		return 0;
 
-	/* Scan all zones to initialize everything */
+	/*
+	 * Scan all zones to initialize everything. Ensure that all vmalloc
+	 * operations in this context are done as if GFP_NOIO was specified.
+	 */
+	noio_flag = memalloc_noio_save();
 	ret = dm_blk_do_report_zones(md, t, 0, q->nr_zones,
 				     dm_zone_revalidate_cb, md);
+	memalloc_noio_restore(noio_flag);
 	if (ret < 0)
 		goto err;
 	if (ret != q->nr_zones) {
