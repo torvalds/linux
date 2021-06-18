@@ -1693,7 +1693,10 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	if (auth_alg == WLAN_AUTH_SHARED_KEY && transaction == 3) {
 		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		err = ieee80211_wep_encrypt(local, skb, key, key_len, key_idx);
-		WARN_ON(err);
+		if (WARN_ON(err)) {
+			kfree_skb(skb);
+			return;
+		}
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
