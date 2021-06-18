@@ -50,7 +50,6 @@
  */
 
 #define MOXA			0x400
-#define MOXA_GETDATACOUNT	(MOXA + 23)
 #define MOXA_HighSpeedOn	(MOXA + 61)
 #define MOXA_GETMSTATUS		(MOXA + 65)
 #define MOXA_SET_OP_MODE	(MOXA + 66)
@@ -268,12 +267,6 @@ MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver")
 module_param(ttymajor, int, 0);
 MODULE_LICENSE("GPL");
 
-struct mxser_log {
-	int tick;
-	unsigned long rxcnt[MXSER_PORTS];
-	unsigned long txcnt[MXSER_PORTS];
-};
-
 struct mxser_board;
 
 struct mxser_port {
@@ -335,7 +328,6 @@ struct mxser_mstatus {
 
 static struct mxser_board mxser_boards[MXSER_BOARDS];
 static struct tty_driver *mxvar_sdriver;
-static struct mxser_log mxvar_log;
 
 static void mxser_enable_must_enchance_mode(unsigned long baseio)
 {
@@ -1431,15 +1423,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	struct tty_struct *tty;
 	int status;
 	unsigned int i, j;
-	int ret = 0;
 
 	switch (cmd) {
-	case MOXA_GETDATACOUNT:
-		/* The receive side is locked by port->slock but it isn't
-		   clear that an exact snapshot is worth copying here */
-		if (copy_to_user(argp, &mxvar_log, sizeof(mxvar_log)))
-			ret = -EFAULT;
-		return ret;
 	case MOXA_GETMSTATUS: {
 		struct mxser_mstatus ms, __user *msu = argp;
 		for (i = 0; i < MXSER_BOARDS; i++)
@@ -1934,8 +1919,6 @@ static u8 mxser_receive_chars(struct tty_struct *tty,
 	if (!mxser_receive_chars_new(tty, port, status, &cnt))
 		status = mxser_receive_chars_old(tty, port, status, &cnt);
 
-	mxvar_log.rxcnt[tty->index] += cnt;
-
 	tty_flip_buffer_push(&port->port);
 
 	return status;
@@ -1948,7 +1931,6 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	if (port->x_char) {
 		outb(port->x_char, port->ioaddr + UART_TX);
 		port->x_char = 0;
-		mxvar_log.txcnt[tty->index]++;
 		port->icount.tx++;
 		return;
 	}
@@ -1974,7 +1956,6 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 		if (--port->xmit_cnt <= 0)
 			break;
 	} while (--count > 0);
-	mxvar_log.txcnt[tty->index] += (cnt - port->xmit_cnt);
 
 	port->icount.tx += (cnt - port->xmit_cnt);
 
