@@ -236,7 +236,13 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	if (ret)
 		return ret;
 
-	return mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
+	ret = mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
+	if (ret)
+		return ret;
+
+	dev->hw_init_done = true;
+
+	return 0;
 }
 
 void mt7921_unregister_device(struct mt7921_dev *dev)
