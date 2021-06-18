@@ -206,12 +206,6 @@ struct __packed vmcs12 {
 #define VMCS12_SIZE		KVM_STATE_NESTED_VMX_VMCS_SIZE
 
 /*
- * VMCS12_MAX_FIELD_INDEX is the highest index value used in any
- * supported VMCS12 field encoding.
- */
-#define VMCS12_MAX_FIELD_INDEX 0x17
-
-/*
  * For save/restore compatibility, the vmcs12 field offsets must not change.
  */
 #define CHECK_OFFSET(field, loc)				\

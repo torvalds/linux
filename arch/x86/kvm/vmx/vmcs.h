@@ -164,4 +164,12 @@ static inline int vmcs_field_readonly(unsigned long field)
 	return (((field >> 10) & 0x3) == 1);
 }
 
+#define VMCS_FIELD_INDEX_SHIFT		(1)
+#define VMCS_FIELD_INDEX_MASK		GENMASK(9, 1)
+
+static inline unsigned int vmcs_field_index(unsigned long field)
+{
+	return (field & VMCS_FIELD_INDEX_MASK) >> VMCS_FIELD_INDEX_SHIFT;
+}
+
 #endif /* __KVM_X86_VMX_VMCS_H */

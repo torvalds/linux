@@ -6375,6 +6375,40 @@ void nested_vmx_set_vmcs_shadowing_bitmap(void)
 }
 
 /*
+ * Indexing into the vmcs12 uses the VMCS encoding rotated left by 6.  Undo
+ * that madness to get the encoding for comparison.
+ */
+#define VMCS12_IDX_TO_ENC(idx) ((u16)(((u16)(idx) >> 6) | ((u16)(idx) << 10)))
+
+static u64 nested_vmx_calc_vmcs_enum_msr(void)
+{
+	/*
+	 * Note these are the so called "index" of the VMCS field encoding, not
+	 * the index into vmcs12.
+	 */
+	unsigned int max_idx, idx;
+	int i;
+
+	/*
+	 * For better or worse, KVM allows VMREAD/VMWRITE to all fields in
+	 * vmcs12, regardless of whether or not the associated feature is
+	 * exposed to L1.  Simply find the field with the highest index.
+	 */
+	max_idx = 0;
+	for (i = 0; i < nr_vmcs12_fields; i++) {
+		/* The vmcs12 table is very, very sparsely populated. */
+		if (!vmcs_field_to_offset_table[i])
+			continue;
+
+		idx = vmcs_field_index(VMCS12_IDX_TO_ENC(i));
+		if (idx > max_idx)
+			max_idx = idx;
+	}
+
+	return (u64)max_idx << VMCS_FIELD_INDEX_SHIFT;
+}
+
+/*
  * nested_vmx_setup_ctls_msrs() sets up variables containing the values to be
  * returned for the various VMX controls MSRs when nested VMX is enabled.
  * The same values should also be used to verify that vmcs12 control fields are
@@ -6619,8 +6653,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 	rdmsrl(MSR_IA32_VMX_CR0_FIXED1, msrs->cr0_fixed1);
 	rdmsrl(MSR_IA32_VMX_CR4_FIXED1, msrs->cr4_fixed1);
 
-	/* highest index: VMX_PREEMPTION_TIMER_VALUE */
-	msrs->vmcs_enum = VMCS12_MAX_FIELD_INDEX << 1;
+	msrs->vmcs_enum = nested_vmx_calc_vmcs_enum_msr();
 }
 
 void nested_vmx_hardware_unsetup(void)
