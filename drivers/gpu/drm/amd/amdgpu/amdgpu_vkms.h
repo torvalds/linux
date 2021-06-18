@@ -23,7 +23,4 @@ struct amdgpu_vkms_output {
 	struct drm_pending_vblank_event *event;
 };
 
-int amdgpu_vkms_output_init(struct drm_device *dev,
-			    struct amdgpu_vkms_output *output, int index);
-
 #endif /* _AMDGPU_VKMS_H_ */
