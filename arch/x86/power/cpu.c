@@ -58,19 +58,20 @@ static void msr_restore_context(struct saved_context *ctxt)
 }
 
 /**
- *	__save_processor_state - save CPU registers before creating a
- *		hibernation image and before restoring the memory state from it
- *	@ctxt - structure to store the registers contents in
+ * __save_processor_state() - Save CPU registers before creating a
+ *                             hibernation image and before restoring
+ *                             the memory state from it
+ * @ctxt: Structure to store the registers contents in.
  *
- *	NOTE: If there is a CPU register the modification of which by the
- *	boot kernel (ie. the kernel used for loading the hibernation image)
- *	might affect the operations of the restored target kernel (ie. the one
- *	saved in the hibernation image), then its contents must be saved by this
- *	function.  In other words, if kernel A is hibernated and different
- *	kernel B is used for loading the hibernation image into memory, the
- *	kernel A's __save_processor_state() function must save all registers
- *	needed by kernel A, so that it can operate correctly after the resume
- *	regardless of what kernel B does in the meantime.
+ * NOTE: If there is a CPU register the modification of which by the
+ * boot kernel (ie. the kernel used for loading the hibernation image)
+ * might affect the operations of the restored target kernel (ie. the one
+ * saved in the hibernation image), then its contents must be saved by this
+ * function.  In other words, if kernel A is hibernated and different
+ * kernel B is used for loading the hibernation image into memory, the
+ * kernel A's __save_processor_state() function must save all registers
+ * needed by kernel A, so that it can operate correctly after the resume
+ * regardless of what kernel B does in the meantime.
  */
 static void __save_processor_state(struct saved_context *ctxt)
 {
@@ -181,9 +182,9 @@ static void fix_processor_context(void)
 }
 
 /**
- * __restore_processor_state - restore the contents of CPU registers saved
- *                             by __save_processor_state()
- * @ctxt - structure to load the registers contents from
+ * __restore_processor_state() - Restore the contents of CPU registers saved
+ *                               by __save_processor_state()
+ * @ctxt: Structure to load the registers contents from.
  *
  * The asm code that gets us here will have restored a usable GDT, although
  * it will be pointing to the wrong alias.
