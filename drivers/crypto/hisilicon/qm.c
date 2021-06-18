@@ -2926,6 +2926,23 @@ static void hisi_qm_uacce_stop_queue(struct uacce_queue *q)
 	hisi_qm_stop_qp(q->priv);
 }
 
+static int hisi_qm_is_q_updated(struct uacce_queue *q)
+{
+	struct hisi_qp *qp = q->priv;
+	struct qm_cqe *cqe = qp->cqe + qp->qp_status.cq_head;
+	int updated = 0;
+
+	while (QM_CQE_PHASE(cqe) == qp->qp_status.cqc_phase) {
+		/* make sure to read data from memory */
+		dma_rmb();
+		qm_cq_head_update(qp);
+		cqe = qp->cqe + qp->qp_status.cq_head;
+		updated = 1;
+	}
+
+	return updated;
+}
+
 static void qm_set_sqctype(struct uacce_queue *q, u16 type)
 {
 	struct hisi_qm *qm = q->uacce->priv;
@@ -2971,6 +2988,7 @@ static const struct uacce_ops uacce_qm_ops = {
 	.stop_queue = hisi_qm_uacce_stop_queue,
 	.mmap = hisi_qm_uacce_mmap,
 	.ioctl = hisi_qm_uacce_ioctl,
+	.is_q_updated = hisi_qm_is_q_updated,
 };
 
 static int qm_alloc_uacce(struct hisi_qm *qm)
