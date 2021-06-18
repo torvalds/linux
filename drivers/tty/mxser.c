@@ -1743,7 +1743,7 @@ static int mxser_rs_break(struct tty_struct *tty, int break_state)
 }
 
 static bool mxser_receive_chars_new(struct tty_struct *tty,
-		struct mxser_port *port, u8 status, int *cnt)
+		struct mxser_port *port, u8 status)
 {
 	enum mxser_must_hwid hwid = port->board->must_hwid;
 	u8 gdl;
@@ -1767,19 +1767,19 @@ static bool mxser_receive_chars_new(struct tty_struct *tty,
 	while (gdl--) {
 		u8 ch = inb(port->ioaddr + UART_RX);
 		tty_insert_flip_char(&port->port, ch, 0);
-		(*cnt)++;
 	}
 
 	return true;
 }
 
 static u8 mxser_receive_chars_old(struct tty_struct *tty,
-		                struct mxser_port *port, u8 status, int *cnt)
+		                struct mxser_port *port, u8 status)
 {
 	enum mxser_must_hwid hwid = port->board->must_hwid;
 	int recv_room = tty->receive_room;
 	int ignored = 0;
 	int max = 256;
+	int cnt = 0;
 	u8 ch;
 
 	do {
@@ -1814,8 +1814,8 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 				}
 			}
 			tty_insert_flip_char(&port->port, ch, flag);
-			(*cnt)++;
-			if (*cnt >= recv_room) {
+			cnt++;
+			if (cnt >= recv_room) {
 				if (!port->ldisc_stop_rx)
 					mxser_stoprx(tty);
 				break;
@@ -1835,13 +1835,11 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 static u8 mxser_receive_chars(struct tty_struct *tty,
 		struct mxser_port *port, u8 status)
 {
-	int cnt = 0;
-
 	if (tty->receive_room == 0 && !port->ldisc_stop_rx)
 		mxser_stoprx(tty);
 
-	if (!mxser_receive_chars_new(tty, port, status, &cnt))
-		status = mxser_receive_chars_old(tty, port, status, &cnt);
+	if (!mxser_receive_chars_new(tty, port, status))
+		status = mxser_receive_chars_old(tty, port, status);
 
 	tty_flip_buffer_push(&port->port);
 
