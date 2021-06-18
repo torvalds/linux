@@ -2124,8 +2124,7 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 				} else if (status & UART_LSR_OE) {
 					flag = TTY_OVERRUN;
 					port->icount.overrun++;
-				} else
-					flag = TTY_BREAK;
+				}
 			}
 			tty_insert_flip_char(&port->port, ch, flag);
 			(*cnt)++;
