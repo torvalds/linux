@@ -371,7 +371,6 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def chandef;
 	u16 ht_opmode;
 	u32 flags;
-	enum ieee80211_sta_rx_bandwidth new_sta_bw;
 	u32 vht_cap_info = 0;
 	int ret;
 
@@ -450,46 +449,13 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
-	switch (chandef.width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-		new_sta_bw = IEEE80211_STA_RX_BW_20;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		new_sta_bw = IEEE80211_STA_RX_BW_40;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		new_sta_bw = IEEE80211_STA_RX_BW_80;
-		break;
-	case NL80211_CHAN_WIDTH_80P80:
-	case NL80211_CHAN_WIDTH_160:
-		new_sta_bw = IEEE80211_STA_RX_BW_160;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (new_sta_bw > sta->cur_max_bandwidth)
-		new_sta_bw = sta->cur_max_bandwidth;
-
-	if (new_sta_bw < sta->sta.bandwidth) {
-		sta->sta.bandwidth = new_sta_bw;
-		rate_control_rate_update(local, sband, sta,
-					 IEEE80211_RC_BW_CHANGED);
-	}
-
 	ret = ieee80211_vif_change_bandwidth(sdata, &chandef, changed);
+
 	if (ret) {
 		sdata_info(sdata,
 			   "AP %pM changed bandwidth to incompatible one - disconnect\n",
 			   ifmgd->bssid);
 		return ret;
-	}
-
-	if (new_sta_bw > sta->sta.bandwidth) {
-		sta->sta.bandwidth = new_sta_bw;
-		rate_control_rate_update(local, sband, sta,
-					 IEEE80211_RC_BW_CHANGED);
 	}
 
 	return 0;
@@ -1174,10 +1140,6 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	 */
 
 	if (sdata->reserved_chanctx) {
-		struct ieee80211_supported_band *sband = NULL;
-		struct sta_info *mgd_sta = NULL;
-		enum ieee80211_sta_rx_bandwidth bw = IEEE80211_STA_RX_BW_20;
-
 		/*
 		 * with multi-vif csa driver may call ieee80211_csa_finish()
 		 * many times while waiting for other interfaces to use their
@@ -1185,48 +1147,6 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 		 */
 		if (sdata->reserved_ready)
 			goto out;
-
-		if (sdata->vif.bss_conf.chandef.width !=
-		    sdata->csa_chandef.width) {
-			/*
-			 * For managed interface, we need to also update the AP
-			 * station bandwidth and align the rate scale algorithm
-			 * on the bandwidth change. Here we only consider the
-			 * bandwidth of the new channel definition (as channel
-			 * switch flow does not have the full HT/VHT/HE
-			 * information), assuming that if additional changes are
-			 * required they would be done as part of the processing
-			 * of the next beacon from the AP.
-			 */
-			switch (sdata->csa_chandef.width) {
-			case NL80211_CHAN_WIDTH_20_NOHT:
-			case NL80211_CHAN_WIDTH_20:
-			default:
-				bw = IEEE80211_STA_RX_BW_20;
-				break;
-			case NL80211_CHAN_WIDTH_40:
-				bw = IEEE80211_STA_RX_BW_40;
-				break;
-			case NL80211_CHAN_WIDTH_80:
-				bw = IEEE80211_STA_RX_BW_80;
-				break;
-			case NL80211_CHAN_WIDTH_80P80:
-			case NL80211_CHAN_WIDTH_160:
-				bw = IEEE80211_STA_RX_BW_160;
-				break;
-			}
-
-			mgd_sta = sta_info_get(sdata, ifmgd->bssid);
-			sband =
-				local->hw.wiphy->bands[sdata->csa_chandef.chan->band];
-		}
-
-		if (sdata->vif.bss_conf.chandef.width >
-		    sdata->csa_chandef.width) {
-			mgd_sta->sta.bandwidth = bw;
-			rate_control_rate_update(local, sband, mgd_sta,
-						 IEEE80211_RC_BW_CHANGED);
-		}
 
 		ret = ieee80211_vif_use_reserved_context(sdata);
 		if (ret) {
@@ -1236,13 +1156,6 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 			ieee80211_queue_work(&sdata->local->hw,
 					     &ifmgd->csa_connection_drop_work);
 			goto out;
-		}
-
-		if (sdata->vif.bss_conf.chandef.width <
-		    sdata->csa_chandef.width) {
-			mgd_sta->sta.bandwidth = bw;
-			rate_control_rate_update(local, sband, mgd_sta,
-						 IEEE80211_RC_BW_CHANGED);
 		}
 
 		goto out;
