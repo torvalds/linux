@@ -7437,8 +7437,8 @@ int smb2_ioctl(struct ksmbd_work *work)
 			ret = -EOPNOTSUPP;
 			goto dup_ext_out;
 		} else if (cloned != length) {
-			cloned = ksmbd_vfs_copy_file_range(fp_in->filp, src_off,
-							   fp_out->filp, dst_off, length);
+			cloned = vfs_copy_file_range(fp_in->filp, src_off,
+						     fp_out->filp, dst_off, length, 0);
 			if (cloned != length) {
 				if (cloned < 0)
 					ret = cloned;

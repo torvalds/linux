@@ -1802,52 +1802,6 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	return 0;
 }
 
-int ksmbd_vfs_copy_file_range(struct file *file_in, loff_t pos_in,
-			      struct file *file_out, loff_t pos_out, size_t len)
-{
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
-	int ret;
-
-	ret = vfs_copy_file_range(file_in, pos_in, file_out, pos_out, len, 0);
-	/* do splice for the copy between different file systems */
-	if (ret != -EXDEV)
-		return ret;
-
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
-		return -EISDIR;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
-		return -EINVAL;
-
-	if (!(file_in->f_mode & FMODE_READ) ||
-	    !(file_out->f_mode & FMODE_WRITE))
-		return -EBADF;
-
-	if (len == 0)
-		return 0;
-
-	file_start_write(file_out);
-
-	/*
-	 * skip the verification of the range of data. it will be done
-	 * in do_splice_direct
-	 */
-	ret = do_splice_direct(file_in, &pos_in, file_out, &pos_out,
-			       len > MAX_RW_COUNT ? MAX_RW_COUNT : len, 0);
-	if (ret > 0) {
-		fsnotify_access(file_in);
-		add_rchar(current, ret);
-		fsnotify_modify(file_out);
-		add_wchar(current, ret);
-	}
-
-	inc_syscr(current);
-	inc_syscw(current);
-
-	file_end_write(file_out);
-	return ret;
-}
-
 int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 			       struct ksmbd_file *src_fp,
 			       struct ksmbd_file *dst_fp,
@@ -1905,8 +1859,8 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		if (src_off + len > src_file_size)
 			return -E2BIG;
 
-		ret = ksmbd_vfs_copy_file_range(src_fp->filp, src_off,
-						dst_fp->filp, dst_off, len);
+		ret = vfs_copy_file_range(src_fp->filp, src_off,
+					  dst_fp->filp, dst_off, len, 0);
 		if (ret < 0)
 			return ret;
 
