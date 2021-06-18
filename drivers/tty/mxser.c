@@ -351,9 +351,9 @@ struct mxser_port {
 	u8 read_status_mask;
 	u8 ignore_status_mask;
 	u8 xmit_fifo_size;
-	int xmit_head;
-	int xmit_tail;
-	int xmit_cnt;
+	unsigned int xmit_head;
+	unsigned int xmit_tail;
+	unsigned int xmit_cnt;
 	int closing;
 
 	struct ktermios normal_termios;
