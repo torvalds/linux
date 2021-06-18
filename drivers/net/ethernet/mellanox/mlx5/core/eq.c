@@ -712,7 +712,7 @@ mlx5_eq_create_generic(struct mlx5_core_dev *dev,
 	struct mlx5_eq *eq = kvzalloc(sizeof(*eq), GFP_KERNEL);
 	int err;
 
-	if (!param->affinity)
+	if (!cpumask_available(param->affinity))
 		return ERR_PTR(-EINVAL);
 
 	if (!eq)
