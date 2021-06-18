@@ -1162,13 +1162,13 @@ static int mxser_tiocmget(struct tty_struct *tty)
 	if (tty_io_error(tty))
 		return -EIO;
 
-	control = info->MCR;
-
 	spin_lock_irqsave(&info->slock, flags);
+	control = info->MCR;
 	status = inb(info->ioaddr + UART_MSR);
 	if (status & UART_MSR_ANY_DELTA)
 		mxser_check_modem_status(tty, info, status);
 	spin_unlock_irqrestore(&info->slock, flags);
+
 	return ((control & UART_MCR_RTS) ? TIOCM_RTS : 0) |
 		    ((control & UART_MCR_DTR) ? TIOCM_DTR : 0) |
 		    ((status & UART_MSR_DCD) ? TIOCM_CAR : 0) |
