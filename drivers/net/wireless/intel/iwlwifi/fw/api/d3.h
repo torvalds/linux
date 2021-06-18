@@ -159,6 +159,22 @@ struct iwl_proto_offload_cmd_v3_large {
 	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
 
+/**
+ * struct iwl_proto_offload_cmd_v4 - ARP/NS offload configuration
+ * @sta_id: station id
+ * @common: common/IPv4 configuration
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v4 {
+	__le32 sta_id;
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_4 */
+
 /*
  * WOWLAN_PATTERNS
  */

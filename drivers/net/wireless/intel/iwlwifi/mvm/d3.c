@@ -1693,10 +1693,13 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	/* only for tracing for now */
-	ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0, 0, NULL);
-	if (ret)
-		IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
+	if (!mvm->net_detect) {
+		/* only for tracing for now */
+		int ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0,
+					       0, NULL);
+		if (ret)
+			IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
+	}
 
 	return iwl_mvm_send_wowlan_get_status(mvm);
 }
