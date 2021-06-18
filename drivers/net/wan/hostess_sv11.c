@@ -48,7 +48,7 @@ static int dma;
  *	Network driver support routines
  */
 
-static inline struct z8530_dev* dev_to_sv(struct net_device *dev)
+static inline struct z8530_dev *dev_to_sv(struct net_device *dev)
 {
 	return (struct z8530_dev *)dev_to_hdlc(dev)->priv;
 }
