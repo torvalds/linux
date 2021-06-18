@@ -1001,10 +1001,10 @@ efc_domain_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 
 	if (node->hold_frames || !list_empty(&node->pend_frames)) {
 		/* add frame to node's pending list */
-		spin_lock_irqsave(&node->pend_frames_lock, flags);
+		spin_lock(&node->pend_frames_lock);
 		INIT_LIST_HEAD(&seq->list_entry);
 		list_add_tail(&seq->list_entry, &node->pend_frames);
-		spin_unlock_irqrestore(&node->pend_frames_lock, flags);
+		spin_unlock(&node->pend_frames_lock);
 		rc = EFC_HW_SEQ_HOLD;
 		goto out_release;
 	}
