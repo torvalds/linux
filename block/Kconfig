@@ -133,6 +133,13 @@ config BLK_WBT
 	dynamically on an algorithm loosely based on CoDel, factoring in
 	the realtime performance of the disk.
 
+config BLK_WBT_MQ
+	bool "Enable writeback throttling by default"
+	default y
+	depends on BLK_WBT
+	help
+	Enable writeback throttling by default for request-based block devices.
+
 config BLK_CGROUP_IOLATENCY
 	bool "Enable support for latency based cgroup IO protection"
 	depends on BLK_CGROUP=y
@@ -154,13 +161,6 @@ config BLK_CGROUP_IOCOST
 	model based proportional IO control.  The IO controller
 	distributes IO capacity between different groups based on
 	their share of the overall weight distribution.
-
-config BLK_WBT_MQ
-	bool "Multiqueue writeback throttling"
-	default y
-	depends on BLK_WBT
-	help
-	Enable writeback throttling by default on multiqueue devices.
 
 config BLK_DEBUG_FS
 	bool "Block layer debugging information in debugfs"
