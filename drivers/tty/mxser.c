@@ -53,7 +53,6 @@
 #define MOXA_GETDATACOUNT	(MOXA + 23)
 #define MOXA_CHKPORTENABLE	(MOXA + 60)
 #define MOXA_HighSpeedOn	(MOXA + 61)
-#define MOXA_GET_MAJOR		(MOXA + 63)
 #define MOXA_GETMSTATUS		(MOXA + 65)
 #define MOXA_SET_OP_MODE	(MOXA + 66)
 #define MOXA_GET_OP_MODE	(MOXA + 67)
@@ -1499,12 +1498,6 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	int ret = 0;
 
 	switch (cmd) {
-	case MOXA_GET_MAJOR:
-		printk_ratelimited(KERN_WARNING "mxser: '%s' uses deprecated ioctl "
-					"%x (GET_MAJOR), fix your userspace\n",
-					current->comm, cmd);
-		return put_user(ttymajor, (int __user *)argp);
-
 	case MOXA_CHKPORTENABLE:
 		result = 0;
 		for (i = 0; i < MXSER_BOARDS; i++)
