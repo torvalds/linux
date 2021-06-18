@@ -1,7 +1,7 @@
 config INTEL_SKL_INT3472
 	tristate "Intel SkyLake ACPI INT3472 Driver"
 	depends on ACPI
-	depends on COMMON_CLK && CLKDEV_LOOKUP
+	depends on COMMON_CLK
 	depends on I2C
 	depends on GPIOLIB
 	depends on REGULATOR
