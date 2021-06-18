@@ -1080,14 +1080,14 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((ss->baud_base != MXSER_BAUD_BASE) ||
-				(close_delay != info->port.close_delay) ||
-				(closing_wait != info->port.closing_wait) ||
-				((ss->flags & ~ASYNC_USR_MASK) != (info->port.flags & ~ASYNC_USR_MASK))) {
+				(close_delay != port->close_delay) ||
+				(closing_wait != port->closing_wait) ||
+				((ss->flags & ~ASYNC_USR_MASK) != (port->flags & ~ASYNC_USR_MASK))) {
 			mutex_unlock(&port->mutex);
 			return -EPERM;
 		}
-		info->port.flags = ((info->port.flags & ~ASYNC_USR_MASK) |
-				(ss->flags & ASYNC_USR_MASK));
+		port->flags = (port->flags & ~ASYNC_USR_MASK) |
+				(ss->flags & ASYNC_USR_MASK);
 	} else {
 		/*
 		 * OK, past this point, all the error checking has been done.
