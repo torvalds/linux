@@ -1443,21 +1443,6 @@ struct hns_roce_v2_priv {
 	struct hns_roce_link_table ext_llm;
 };
 
-struct hns_roce_eq_context {
-	__le32	byte_4;
-	__le32	byte_8;
-	__le32	byte_12;
-	__le32	eqe_report_timer;
-	__le32	eqe_ba0;
-	__le32	eqe_ba1;
-	__le32	byte_28;
-	__le32	byte_32;
-	__le32	byte_36;
-	__le32	byte_40;
-	__le32	byte_44;
-	__le32	rsv[5];
-};
-
 struct hns_roce_dip {
 	u8 dgid[GID_LEN_V2];
 	u8 dip_idx;
@@ -1518,6 +1503,10 @@ struct hns_roce_dip {
 #define HNS_ROCE_V2_VF_ABN_INT_ST_M GENMASK(2, 0)
 #define HNS_ROCE_V2_VF_ABN_INT_CFG_M GENMASK(2, 0)
 #define HNS_ROCE_V2_VF_EVENT_INT_EN_M GENMASK(0, 0)
+
+struct hns_roce_eq_context {
+	__le32	data[16];
+};
 
 #define EQC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_eq_context, h, l)
 
