@@ -856,15 +856,12 @@ static void mxser_shutdown_port(struct tty_port *port)
  */
 static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
-	struct mxser_port *info;
-	int line = tty->index;
+	struct tty_port *tport = tty->port;
+	struct mxser_port *port = container_of(tport, struct mxser_port, port);
 
-	info = &mxser_boards[line / MXSER_PORTS_PER_BOARD].ports[line % MXSER_PORTS_PER_BOARD];
-	if (!info->ioaddr)
-		return -ENODEV;
+	tty->driver_data = port;
 
-	tty->driver_data = info;
-	return tty_port_open(&info->port, tty, filp);
+	return tty_port_open(tport, tty, filp);
 }
 
 static void mxser_flush_buffer(struct tty_struct *tty)
