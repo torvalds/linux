@@ -147,13 +147,7 @@ or::
    run the driver. If you prefer module driver, please refer to 3.4.
    If static driver is required, please refer to 3.5.
 
-Dialin and callout port
------------------------
-
-   This driver remains traditional serial device properties. There are
-   two special file name for each serial port. One is dial-in port
-   which is named "ttyMxx". For callout port, the naming convention
-   is "cumxx".
+   The device node is named "ttyMxx".
 
 Device naming when more than 2 boards installed
 -----------------------------------------------
@@ -161,18 +155,13 @@ Device naming when more than 2 boards installed
    Naming convention for each Smartio/Industio multiport board is
    pre-defined as below.
 
-   ============ ===============       ==============
-   Board Num.	 Dial-in Port	      Callout port
-   1st board	ttyM0  - ttyM7	      cum0  - cum7
-   2nd board	ttyM8  - ttyM15       cum8  - cum15
-   3rd board	ttyM16 - ttyM23       cum16 - cum23
-   4th board	ttyM24 - ttym31       cum24 - cum31
-   ============ ===============       ==============
-
-.. note::
-
-   Under Kernel 2.6 and upper, the cum Device is Obsolete. So use ttyM*
-   device instead.
+   ============ ===============
+   Board Num.	Device node
+   1st board	ttyM0  - ttyM7
+   2nd board	ttyM8  - ttyM15
+   3rd board	ttyM16 - ttyM23
+   4th board	ttyM24 - ttyM31
+   ============ ===============
 
 3.4 Module driver configuration
 ===============================
@@ -204,13 +193,10 @@ Device naming when more than 2 boards installed
 	 # cd /moxa/mxser/driver
 	 # ./msmknod
 
-   This shell script will require the major number for dial-in
-   device and callout device to create tty device. You also need
-   to specify the total installed MOXA board number. Default major
-   numbers for dial-in device and callout device are 30, 35. If
-   you need to change to other number, please refer section "3.7"
-   for more detailed procedure.
-   Msmknod will delete any special files occupying the same device
+   This shell script will require the major number for the device. You also
+   need to specify the total installed MOXA board number. If you need to
+   change to other number, please refer section "3.7" for more detailed
+   procedure. Msmknod will delete any special files occupying the same device
    naming.
 
 3.4.2 Build the MOXA driver and utilities
@@ -516,11 +502,3 @@ msterm - Terminal Emulation
    Load Moxa driver fail, the major number may conflict with other devices.
    Please refer to previous section 3.7 to change a free major number for
    Moxa driver.
-
-   Error msg:
-              Couldn't install MOXA Smartio/Industio family callout driver!
-
-   Solution:
-   Load Moxa callout driver fail, the callout device major number may
-   conflict with other devices. Please refer to previous section 3.7 to
-   change a free callout device major number for Moxa driver.
