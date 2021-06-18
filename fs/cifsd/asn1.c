@@ -66,7 +66,7 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 
 	vlen += 1;
 	if (vlen < 2 || vlen > UINT_MAX / sizeof(unsigned long))
-		return false;
+		goto fail_nullify;
 
 	*oid = kmalloc(vlen * sizeof(unsigned long), GFP_KERNEL);
 	if (!*oid)
@@ -102,6 +102,7 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 
 fail:
 	kfree(*oid);
+fail_nullify:
 	*oid = NULL;
 	return false;
 }
