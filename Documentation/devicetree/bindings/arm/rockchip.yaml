@@ -471,11 +471,13 @@ properties:
           - const: radxa,rock
           - const: rockchip,rk3188
 
-      - description: Radxa ROCK Pi 4A/B/C
+      - description: Radxa ROCK Pi 4A/A+/B/B+/C
         items:
           - enum:
               - radxa,rockpi4a
+              - radxa,rockpi4a-plus
               - radxa,rockpi4b
+              - radxa,rockpi4b-plus
               - radxa,rockpi4c
           - const: radxa,rockpi4
           - const: rockchip,rk3399
