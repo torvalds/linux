@@ -185,7 +185,7 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 		return err;
 	data = be32_to_cpu(reg) & V3_CLOCK_SOURCE_MASK;
 
-	if (motu->spec == &snd_motu_spec_828mk3)
+	if (motu->spec == &snd_motu_spec_828mk3_fw || motu->spec == &snd_motu_spec_828mk3_hybrid)
 		return detect_clock_source_828mk3(motu, data, src);
 	else
 		return v3_detect_clock_source(motu, data, src);
@@ -284,20 +284,29 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 	       motu->spec->rx_fixed_pcm_chunks,
 	       sizeof(motu->rx_packet_formats.pcm_chunks));
 
-	if (motu->spec == &snd_motu_spec_828mk3)
+	if (motu->spec == &snd_motu_spec_828mk3_fw || motu->spec == &snd_motu_spec_828mk3_hybrid)
 		return detect_packet_formats_828mk3(motu, data);
 	else
 		return 0;
 }
 
 
-const struct snd_motu_spec snd_motu_spec_828mk3 = {
+const struct snd_motu_spec snd_motu_spec_828mk3_fw = {
 	.name = "828mk3",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 	.tx_fixed_pcm_chunks = {18, 18, 14},
 	.rx_fixed_pcm_chunks = {14, 14, 10},
+};
+
+const struct snd_motu_spec snd_motu_spec_828mk3_hybrid = {
+	.name = "828mk3",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.tx_fixed_pcm_chunks = {18, 18, 14},
+	.rx_fixed_pcm_chunks = {14, 14, 14},	// Additional 4 dummy chunks at higher rate.
 };
 
 const struct snd_motu_spec snd_motu_spec_ultralite_mk3 = {
