@@ -294,8 +294,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
-	struct elevator_queue *e = q->elevator;
-	const bool has_sched_dispatch = e && e->type->ops.dispatch_request;
+	const bool has_sched = q->elevator;
 	int ret = 0;
 	LIST_HEAD(rq_list);
 
@@ -326,12 +325,12 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
 		if (blk_mq_dispatch_rq_list(hctx, &rq_list, 0)) {
-			if (has_sched_dispatch)
+			if (has_sched)
 				ret = blk_mq_do_dispatch_sched(hctx);
 			else
 				ret = blk_mq_do_dispatch_ctx(hctx);
 		}
-	} else if (has_sched_dispatch) {
+	} else if (has_sched) {
 		ret = blk_mq_do_dispatch_sched(hctx);
 	} else if (hctx->dispatch_busy) {
 		/* dequeue request one by one from sw queue if queue is busy */
@@ -463,7 +462,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		goto run;
 	}
 
-	if (e && e->type->ops.insert_requests) {
+	if (e) {
 		LIST_HEAD(list);
 
 		list_add(&rq->queuelist, &list);
@@ -494,9 +493,9 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 	percpu_ref_get(&q->q_usage_counter);
 
 	e = hctx->queue->elevator;
-	if (e && e->type->ops.insert_requests)
+	if (e) {
 		e->type->ops.insert_requests(hctx, list, false);
-	else {
+	} else {
 		/*
 		 * try to issue requests directly if the hw queue isn't
 		 * busy in case of 'none' scheduler, and this way may save
