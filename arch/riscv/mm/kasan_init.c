@@ -201,7 +201,7 @@ void __init kasan_init(void)
 
 	/* Populate kernel, BPF, modules mapping */
 	kasan_populate(kasan_mem_to_shadow((const void *)MODULES_VADDR),
-		       kasan_mem_to_shadow((const void *)BPF_JIT_REGION_END));
+		       kasan_mem_to_shadow((const void *)MODULES_VADDR + SZ_2G));
 
 	for (i = 0; i < PTRS_PER_PTE; i++)
 		set_pte(&kasan_early_shadow_pte[i],
