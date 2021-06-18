@@ -148,6 +148,13 @@ _LPP_OFFSET	= __LC_LPP
 	clgr	%r14,%r13
 	jhe	\outside_label
 	.endm
+
+	.macro SIEEXIT
+	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
+	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
+	larl	%r9,sie_exit			# skip forward to sie_exit
+	.endm
 #endif
 
 	GEN_BR_THUNK %r14
@@ -235,7 +242,6 @@ ENTRY(sie64a)
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
 # Other instructions between sie64a and .Lsie_done should not cause program
 # interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
-# See also .Lcleanup_sie
 .Lrewind_pad6:
 	nopr	7
 .Lrewind_pad4:
@@ -341,10 +347,7 @@ ENTRY(pgm_check_handler)
 #if IS_ENABLED(CONFIG_KVM)
 	# cleanup critical section for program checks in sie64a
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,1f
-	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-	larl	%r9,sie_exit			# skip forward to sie_exit
+	SIEEXIT
 	lghi	%r10,_PIF_GUEST_FAULT
 #endif
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
@@ -410,7 +413,8 @@ ENTRY(\name)
 	jnz	1f
 #if IS_ENABLED(CONFIG_KVM)
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,0f
-	brasl	%r14,.Lcleanup_sie
+	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	SIEEXIT
 #endif
 0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -556,7 +560,8 @@ ENTRY(mcck_int_handler)
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,5f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-5:	brasl	%r14,.Lcleanup_sie
+5:	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	SIEEXIT
 #endif
 	j	.Lmcck_stack
 .Lmcck_user:
@@ -657,15 +662,6 @@ ENTRY(stack_overflow)
 ENDPROC(stack_overflow)
 #endif
 
-#if IS_ENABLED(CONFIG_KVM)
-.Lcleanup_sie:
-	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
-	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-	larl	%r9,sie_exit			# skip forward to sie_exit
-	BR_EX	%r14,%r13
-#endif
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 	.globl	sys_call_table
