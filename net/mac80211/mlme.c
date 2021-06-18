@@ -444,8 +444,8 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 				      IEEE80211_STA_DISABLE_160MHZ)) ||
 	    !cfg80211_chandef_valid(&chandef)) {
 		sdata_info(sdata,
-			   "AP %pM changed bandwidth in a way we can't support - disconnect\n",
-			   ifmgd->bssid);
+			   "AP %pM changed caps/bw in a way we can't support (0x%x/0x%x) - disconnect\n",
+			   ifmgd->bssid, flags, ifmgd->flags);
 		return -EINVAL;
 	}
 
