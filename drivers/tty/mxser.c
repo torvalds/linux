@@ -297,8 +297,6 @@ struct mxser_port {
 	unsigned int xmit_cnt;
 	int closing;
 
-	struct ktermios normal_termios;
-
 	spinlock_t slock;
 };
 
@@ -2025,7 +2023,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 		info->custom_divisor = info->baud_base * 16;
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
-		info->normal_termios = mxvar_sdriver->init_termios;
 		spin_lock_init(&info->slock);
 
 		/* before set INT ISR, disable all int */
