@@ -119,8 +119,6 @@ static void dps920ab_init_debugfs(struct dps920ab_data *data, struct i2c_client 
 		return;
 
 	debugfs_dir = debugfs_create_dir(client->name, root);
-	if (!debugfs_dir)
-		return;
 
 	debugfs_create_file("mfr_id",
 			    0400,
