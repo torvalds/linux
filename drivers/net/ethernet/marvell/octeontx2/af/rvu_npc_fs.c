@@ -123,11 +123,8 @@ static bool npc_is_field_present(struct rvu *rvu, enum key_fields type, u8 intf)
 static bool npc_is_same(struct npc_key_field *input,
 			struct npc_key_field *field)
 {
-	int ret;
-
-	ret = memcmp(&input->layer_mdata, &field->layer_mdata,
-		     sizeof(struct npc_layer_mdata));
-	return ret == 0;
+	return memcmp(&input->layer_mdata, &field->layer_mdata,
+		     sizeof(struct npc_layer_mdata)) == 0;
 }
 
 static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
