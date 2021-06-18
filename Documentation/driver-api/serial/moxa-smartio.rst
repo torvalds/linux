@@ -20,7 +20,7 @@ Copyright (C) 2021, Jiri Slaby
 ^^^^^^^^^^^^^^^
 
    The Smartio/Industio/UPCI family Linux driver supports following multiport
-   boards.
+   boards:
 
     - 2 ports multiport board
 	CP-102U, CP-102UL, CP-102UF
@@ -63,10 +63,10 @@ Copyright (C) 2021, Jiri Slaby
    GNU General Public License in this version. Please refer to GNU General
    Public License announcement in each source code file for more detail.
 
-   In Moxa's Web sites, you may always find latest driver at
+   In Moxa's Web sites, you may always find the latest driver at
    https://www.moxa.com/.
 
-   This version of driver can be installed as Loadable Module (Module driver)
+   This version of driver can be installed as a Loadable Module (Module driver)
    or built-in into kernel (Static driver). Before you install the driver,
    please refer to hardware installation procedure in the User's Manual.
 
@@ -89,9 +89,9 @@ Copyright (C) 2021, Jiri Slaby
 PCI/UPCI board
 --------------
 
-   You may need to adjust IRQ usage in BIOS to avoid from IRQ conflict
-   with other ISA devices. Please refer to hardware installation
-   procedure in User's Manual in advance.
+   You may need to adjust IRQ usage in BIOS to avoid IRQ conflict with other
+   ISA devices. Please refer to hardware installation procedure in User's
+   Manual in advance.
 
 PCI IRQ Sharing
 ---------------
@@ -132,7 +132,7 @@ msdiag - Diagnostic
 ===================
 
    This utility provides the function to display what Moxa Smartio/Industio
-   board found by driver in the system.
+   board was found by the driver in the system.
 
 msmon - Port Monitoring
 =======================
@@ -162,23 +162,23 @@ msterm - Terminal Emulation
 
    Supported Setserial parameters are listed as below.
 
-   ============== =========================================================
-   uart		  set UART type(16450-->disable FIFO, 16550A-->enable FIFO)
-   close_delay	  set the amount of time(in 1/100 of a second) that DTR
+   ============== =============================================================
+   uart		  set UART type(16450 --> disable FIFO, 16550A --> enable FIFO)
+   close_delay	  set the amount of time (in 1/100 of a second) that DTR
 		  should be kept low while being closed.
-   closing_wait   set the amount of time(in 1/100 of a second) that the
+   closing_wait   set the amount of time (in 1/100 of a second) that the
 		  serial port should wait for data to be drained while
-		  being closed, before the receiver is disable.
-   spd_hi	  Use  57.6kb  when  the application requests 38.4kb.
-   spd_vhi	  Use  115.2kb	when  the application requests 38.4kb.
-   spd_shi	  Use  230.4kb	when  the application requests 38.4kb.
-   spd_warp	  Use  460.8kb	when  the application requests 38.4kb.
-   spd_normal	  Use  38.4kb  when  the application requests 38.4kb.
-   spd_cust	  Use  the custom divisor to set the speed when  the
+		  being closed, before the receiver is disabled.
+   spd_hi	  Use 57.6kb when the application requests 38.4kb.
+   spd_vhi	  Use 115.2kb when the application requests 38.4kb.
+   spd_shi	  Use 230.4kb when the application requests 38.4kb.
+   spd_warp	  Use 460.8kb when the application requests 38.4kb.
+   spd_normal	  Use 38.4kb when the application requests 38.4kb.
+   spd_cust	  Use the custom divisor to set the speed when the
 		  application requests 38.4kb.
-   divisor	  This option set the custom division.
-   baud_base	  This option set the base baud rate.
-   ============== =========================================================
+   divisor	  This option sets the custom division.
+   baud_base	  This option sets the base baud rate.
+   ============== =============================================================
 
 6. Troubleshooting
 ^^^^^^^^^^^^^^^^^^
