@@ -51,6 +51,19 @@ enum dd_prio {
 
 enum { DD_PRIO_COUNT = 3 };
 
+/* I/O statistics per I/O priority. */
+struct io_stats_per_prio {
+	local_t inserted;
+	local_t merged;
+	local_t dispatched;
+	local_t completed;
+};
+
+/* I/O statistics for all I/O priorities (enum dd_prio). */
+struct io_stats {
+	struct io_stats_per_prio stats[DD_PRIO_COUNT];
+};
+
 /*
  * Deadline scheduler data per I/O priority (enum dd_prio). Requests are
  * present on both sort_list[] and fifo_list[].
@@ -75,6 +88,8 @@ struct deadline_data {
 	unsigned int batching;		/* number of sequential requests made */
 	unsigned int starved;		/* times reads have starved writes */
 
+	struct io_stats __percpu *stats;
+
 	/*
 	 * settings that change how the i/o scheduler behaves
 	 */
@@ -87,6 +102,33 @@ struct deadline_data {
 	spinlock_t lock;
 	spinlock_t zone_lock;
 };
+
+/* Count one event of type 'event_type' and with I/O priority 'prio' */
+#define dd_count(dd, event_type, prio) do {				\
+	struct io_stats *io_stats = get_cpu_ptr((dd)->stats);		\
+									\
+	BUILD_BUG_ON(!__same_type((dd), struct deadline_data *));	\
+	BUILD_BUG_ON(!__same_type((prio), enum dd_prio));		\
+	local_inc(&io_stats->stats[(prio)].event_type);			\
+	put_cpu_ptr(io_stats);						\
+} while (0)
+
+/*
+ * Returns the total number of dd_count(dd, event_type, prio) calls across all
+ * CPUs. No locking or barriers since it is fine if the returned sum is slightly
+ * outdated.
+ */
+#define dd_sum(dd, event_type, prio) ({					\
+	unsigned int cpu;						\
+	u32 sum = 0;							\
+									\
+	BUILD_BUG_ON(!__same_type((dd), struct deadline_data *));	\
+	BUILD_BUG_ON(!__same_type((prio), enum dd_prio));		\
+	for_each_present_cpu(cpu)					\
+		sum += local_read(&per_cpu_ptr((dd)->stats, cpu)->	\
+				  stats[(prio)].event_type);		\
+	sum;								\
+})
 
 /* Maps an I/O priority class to a deadline scheduler priority. */
 static const enum dd_prio ioprio_class_to_prio[] = {
@@ -187,8 +229,11 @@ static void dd_request_merged(struct request_queue *q, struct request *req,
 static void dd_merged_requests(struct request_queue *q, struct request *req,
 			       struct request *next)
 {
+	struct deadline_data *dd = q->elevator->elevator_data;
 	const u8 ioprio_class = dd_rq_ioclass(next);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
+
+	dd_count(dd, merged, prio);
 
 	/*
 	 * if next expires before rq, assign its expire time to rq
@@ -223,6 +268,12 @@ deadline_move_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 	 * take it off the sort and fifo list
 	 */
 	deadline_remove_request(rq->q, per_prio, rq);
+}
+
+/* Number of requests queued for a given priority level. */
+static u32 dd_queued(struct deadline_data *dd, enum dd_prio prio)
+{
+	return dd_sum(dd, inserted, prio) - dd_sum(dd, completed, prio);
 }
 
 /*
@@ -319,6 +370,8 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 {
 	struct request *rq, *next_rq;
 	enum dd_data_dir data_dir;
+	enum dd_prio prio;
+	u8 ioprio_class;
 
 	lockdep_assert_held(&dd->lock);
 
@@ -408,6 +461,9 @@ dispatch_request:
 	dd->batching++;
 	deadline_move_request(dd, per_prio, rq);
 done:
+	ioprio_class = dd_rq_ioclass(rq);
+	prio = ioprio_class_to_prio[ioprio_class];
+	dd_count(dd, dispatched, prio);
 	/*
 	 * If the request needs its target zone locked, do it.
 	 */
@@ -491,6 +547,8 @@ static void dd_exit_sched(struct elevator_queue *e)
 		WARN_ON_ONCE(!list_empty(&per_prio->fifo_list[DD_WRITE]));
 	}
 
+	free_percpu(dd->stats);
+
 	kfree(dd);
 }
 
@@ -514,6 +572,11 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 
 	eq->elevator_data = dd;
 
+	dd->stats = alloc_percpu_gfp(typeof(*dd->stats),
+				     GFP_KERNEL | __GFP_ZERO);
+	if (!dd->stats)
+		goto free_dd;
+
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
 		struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
@@ -534,6 +597,9 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 
 	q->elevator = eq;
 	return 0;
+
+free_dd:
+	kfree(dd);
 
 put_eq:
 	kobject_put(&eq->kobj);
@@ -614,6 +680,7 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	blk_req_zone_write_unlock(rq);
 
 	prio = ioprio_class_to_prio[ioprio_class];
+	dd_count(dd, inserted, prio);
 
 	if (blk_mq_sched_try_insert_merge(q, rq))
 		return;
@@ -691,6 +758,8 @@ static void dd_finish_request(struct request *rq)
 	const u8 ioprio_class = dd_rq_ioclass(rq);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
 	struct dd_per_prio *per_prio = &dd->per_prio[prio];
+
+	dd_count(dd, completed, prio);
 
 	if (blk_queue_is_zoned(q)) {
 		unsigned long flags;
@@ -873,6 +942,35 @@ static int dd_async_depth_show(void *data, struct seq_file *m)
 	return 0;
 }
 
+static int dd_queued_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	struct deadline_data *dd = q->elevator->elevator_data;
+
+	seq_printf(m, "%u %u %u\n", dd_queued(dd, DD_RT_PRIO),
+		   dd_queued(dd, DD_BE_PRIO),
+		   dd_queued(dd, DD_IDLE_PRIO));
+	return 0;
+}
+
+/* Number of requests owned by the block driver for a given priority. */
+static u32 dd_owned_by_driver(struct deadline_data *dd, enum dd_prio prio)
+{
+	return dd_sum(dd, dispatched, prio) + dd_sum(dd, merged, prio)
+		- dd_sum(dd, completed, prio);
+}
+
+static int dd_owned_by_driver_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	struct deadline_data *dd = q->elevator->elevator_data;
+
+	seq_printf(m, "%u %u %u\n", dd_owned_by_driver(dd, DD_RT_PRIO),
+		   dd_owned_by_driver(dd, DD_BE_PRIO),
+		   dd_owned_by_driver(dd, DD_IDLE_PRIO));
+	return 0;
+}
+
 #define DEADLINE_DISPATCH_ATTR(prio)					\
 static void *deadline_dispatch##prio##_start(struct seq_file *m,	\
 					     loff_t *pos)		\
@@ -941,6 +1039,8 @@ static const struct blk_mq_debugfs_attr deadline_queue_debugfs_attrs[] = {
 	{"dispatch0", 0400, .seq_ops = &deadline_dispatch0_seq_ops},
 	{"dispatch1", 0400, .seq_ops = &deadline_dispatch1_seq_ops},
 	{"dispatch2", 0400, .seq_ops = &deadline_dispatch2_seq_ops},
+	{"owned_by_driver", 0400, dd_owned_by_driver_show},
+	{"queued", 0400, dd_queued_show},
 	{},
 };
 #undef DEADLINE_QUEUE_DDIR_ATTRS
