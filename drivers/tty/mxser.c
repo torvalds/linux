@@ -398,6 +398,11 @@ static enum mxser_must_hwid mxser_must_get_hwid(unsigned long io)
 	return MOXA_OTHER_UART;
 }
 
+static bool mxser_16550A_or_MUST(struct mxser_port *info)
+{
+	return info->type == PORT_16550A || info->board->must_hwid;
+}
+
 static void mxser_process_txrx_fifo(struct mxser_port *info)
 {
 	unsigned int i;
@@ -537,8 +542,7 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
 		if (cts) {
 			tty->hw_stopped = 0;
 
-			if (info->type != PORT_16550A &&
-					!info->board->must_hwid)
+			if (!mxser_16550A_or_MUST(info))
 				__mxser_start_tx(info);
 			tty_wakeup(tty);
 		}
@@ -547,7 +551,7 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
 		return;
 
 	tty->hw_stopped = 1;
-	if (info->type != PORT_16550A && !info->board->must_hwid)
+	if (!mxser_16550A_or_MUST(info))
 		__mxser_stop_tx(info);
 }
 
@@ -626,7 +630,7 @@ static void mxser_change_speed(struct tty_struct *tty)
 	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS) {
 		info->IER |= UART_IER_MSI;
-		if ((info->type == PORT_16550A) || (info->board->must_hwid)) {
+		if (mxser_16550A_or_MUST(info)) {
 			info->MCR |= UART_MCR_AFE;
 		} else {
 			mxser_handle_cts(tty, info,
@@ -962,11 +966,10 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 		total += c;
 	}
 
-	if (info->xmit_cnt && !tty->flow.stopped) {
-		if (!tty->hw_stopped || info->type == PORT_16550A ||
-				info->board->must_hwid)
+	if (info->xmit_cnt && !tty->flow.stopped)
+		if (!tty->hw_stopped || mxser_16550A_or_MUST(info))
 			mxser_start_tx(info);
-	}
+
 	return total;
 }
 
@@ -996,8 +999,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 
 	if (!info->xmit_cnt || tty->flow.stopped || !info->port.xmit_buf ||
-			(tty->hw_stopped && info->type != PORT_16550A &&
-			 !info->board->must_hwid))
+			(tty->hw_stopped && !mxser_16550A_or_MUST(info)))
 		return;
 
 	mxser_start_tx(info);
@@ -1655,9 +1657,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 		return;
 
 	if (!port->xmit_cnt || tty->flow.stopped ||
-			(tty->hw_stopped &&
-			(port->type != PORT_16550A) &&
-			(!port->board->must_hwid))) {
+			(tty->hw_stopped && !mxser_16550A_or_MUST(port))) {
 		__mxser_stop_tx(port);
 		return;
 	}
