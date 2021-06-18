@@ -506,6 +506,35 @@ static int mxser_set_baud(struct tty_struct *tty, speed_t newspd)
 	return 0;
 }
 
+static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
+		u8 msr)
+{
+	bool cts = msr & UART_MSR_CTS;
+
+	if (tty->hw_stopped) {
+		if (cts) {
+			tty->hw_stopped = 0;
+
+			if (info->type != PORT_16550A &&
+					!info->board->must_hwid) {
+				outb(info->IER & ~UART_IER_THRI,
+					info->ioaddr + UART_IER);
+				info->IER |= UART_IER_THRI;
+				outb(info->IER, info->ioaddr + UART_IER);
+			}
+			tty_wakeup(tty);
+		}
+		return;
+	} else if (cts)
+		return;
+
+	tty->hw_stopped = 1;
+	if (info->type != PORT_16550A && !info->board->must_hwid) {
+		info->IER &= ~UART_IER_THRI;
+		outb(info->IER, info->ioaddr + UART_IER);
+	}
+}
+
 /*
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
@@ -514,7 +543,6 @@ static void mxser_change_speed(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned cflag, cval, fcr;
-	unsigned char status;
 
 	cflag = tty->termios.c_cflag;
 
@@ -585,32 +613,8 @@ static void mxser_change_speed(struct tty_struct *tty)
 		if ((info->type == PORT_16550A) || (info->board->must_hwid)) {
 			info->MCR |= UART_MCR_AFE;
 		} else {
-			status = inb(info->ioaddr + UART_MSR);
-			if (tty->hw_stopped) {
-				if (status & UART_MSR_CTS) {
-					tty->hw_stopped = 0;
-					if (info->type != PORT_16550A &&
-							!info->board->must_hwid) {
-						outb(info->IER & ~UART_IER_THRI,
-							info->ioaddr +
-							UART_IER);
-						info->IER |= UART_IER_THRI;
-						outb(info->IER, info->ioaddr +
-								UART_IER);
-					}
-					tty_wakeup(tty);
-				}
-			} else {
-				if (!(status & UART_MSR_CTS)) {
-					tty->hw_stopped = 1;
-					if ((info->type != PORT_16550A) &&
-							(!info->board->must_hwid)) {
-						info->IER &= ~UART_IER_THRI;
-						outb(info->IER, info->ioaddr +
-								UART_IER);
-					}
-				}
-			}
+			mxser_handle_cts(tty, info,
+					inb(info->ioaddr + UART_MSR));
 		}
 	}
 	outb(info->MCR, info->ioaddr + UART_MCR);
@@ -679,33 +683,8 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 			wake_up_interruptible(&port->port.open_wait);
 	}
 
-	if (tty_port_cts_enabled(&port->port)) {
-		if (tty->hw_stopped) {
-			if (status & UART_MSR_CTS) {
-				tty->hw_stopped = 0;
-
-				if ((port->type != PORT_16550A) &&
-						(!port->board->must_hwid)) {
-					outb(port->IER & ~UART_IER_THRI,
-						port->ioaddr + UART_IER);
-					port->IER |= UART_IER_THRI;
-					outb(port->IER, port->ioaddr +
-							UART_IER);
-				}
-				tty_wakeup(tty);
-			}
-		} else {
-			if (!(status & UART_MSR_CTS)) {
-				tty->hw_stopped = 1;
-				if (port->type != PORT_16550A &&
-						!port->board->must_hwid) {
-					port->IER &= ~UART_IER_THRI;
-					outb(port->IER, port->ioaddr +
-							UART_IER);
-				}
-			}
-		}
-	}
+	if (tty_port_cts_enabled(&port->port))
+		mxser_handle_cts(tty, port, status);
 }
 
 static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
