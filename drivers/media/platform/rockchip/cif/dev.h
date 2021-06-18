@@ -168,12 +168,6 @@ struct rkcif_buffer {
 	};
 };
 
-struct rkcif_dummy_buffer {
-	void *vaddr;
-	dma_addr_t dma_addr;
-	u32 size;
-};
-
 extern int rkcif_debug;
 
 /*
@@ -401,7 +395,6 @@ struct rkcif_stream {
 	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
 	struct list_head		buf_head;
-	struct rkcif_dummy_buffer	dummy_buf;
 	struct rkcif_buffer		*curr_buf;
 	struct rkcif_buffer		*next_buf;
 
