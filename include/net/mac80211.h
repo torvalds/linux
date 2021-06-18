@@ -3347,6 +3347,21 @@ enum ieee80211_reconfig_type {
 };
 
 /**
+ * struct ieee80211_prep_tx_info - prepare TX information
+ * @duration: if non-zero, hint about the required duration,
+ *	only used with the mgd_prepare_tx() method.
+ * @subtype: frame subtype (auth, (re)assoc, deauth, disassoc)
+ * @success: whether the frame exchange was successful, only
+ *	used with the mgd_complete_tx() method, and then only
+ *	valid for auth and (re)assoc.
+ */
+struct ieee80211_prep_tx_info {
+	u16 duration;
+	u16 subtype;
+	u8 success:1;
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -3758,9 +3773,13 @@ enum ieee80211_reconfig_type {
  *	frame in case that no beacon was heard from the AP/P2P GO.
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
- *      If duration is greater than zero, mac80211 hints to the driver the
- *      duration for which the operation is requested.
+ *	Additional information is passed in the &struct ieee80211_prep_tx_info
+ *	data. If duration there is greater than zero, mac80211 hints to the
+ *	driver the duration for which the operation is requested.
  *	The callback is optional and can (should!) sleep.
+ * @mgd_complete_tx: Notify the driver that the response frame for a previously
+ *	transmitted frame announced with @mgd_prepare_tx was received, the data
+ *	is filled similarly to @mgd_prepare_tx though the duration is not used.
  *
  * @mgd_protect_tdls_discover: Protect a TDLS discovery session. After sending
  *	a TDLS discovery-request, we expect a reply to arrive on the AP's
@@ -4111,7 +4130,10 @@ struct ieee80211_ops {
 
 	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  u16 duration);
+				  struct ieee80211_prep_tx_info *info);
+	void	(*mgd_complete_tx)(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_prep_tx_info *info);
 
 	void	(*mgd_protect_tdls_discover)(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif);
