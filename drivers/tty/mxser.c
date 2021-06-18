@@ -51,7 +51,6 @@
 
 #define MOXA			0x400
 #define MOXA_GETDATACOUNT	(MOXA + 23)
-#define MOXA_CHKPORTENABLE	(MOXA + 60)
 #define MOXA_HighSpeedOn	(MOXA + 61)
 #define MOXA_GETMSTATUS		(MOXA + 65)
 #define MOXA_SET_OP_MODE	(MOXA + 66)
@@ -1430,18 +1429,11 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	struct mxser_port *ip;
 	struct tty_port *port;
 	struct tty_struct *tty;
-	int result, status;
+	int status;
 	unsigned int i, j;
 	int ret = 0;
 
 	switch (cmd) {
-	case MOXA_CHKPORTENABLE:
-		result = 0;
-		for (i = 0; i < MXSER_BOARDS; i++)
-			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++)
-				if (mxser_boards[i].ports[j].ioaddr)
-					result |= (1 << i);
-		return put_user(result, (unsigned long __user *)argp);
 	case MOXA_GETDATACOUNT:
 		/* The receive side is locked by port->slock but it isn't
 		   clear that an exact snapshot is worth copying here */
