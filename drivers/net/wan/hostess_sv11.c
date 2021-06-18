@@ -151,8 +151,6 @@ static int hostess_close(struct net_device *d)
 
 static int hostess_ioctl(struct net_device *d, struct ifreq *ifr, int cmd)
 {
-	/* struct z8530_dev *sv11=dev_to_sv(d);
-	   z8530_ioctl(d,&sv11->chanA,ifr,cmd) */
 	return hdlc_ioctl(d, ifr, cmd);
 }
 
