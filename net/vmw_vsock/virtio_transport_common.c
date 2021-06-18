@@ -413,7 +413,6 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 	struct virtio_vsock_pkt *pkt;
 	int dequeued_len = 0;
 	size_t user_buf_len = msg_data_left(msg);
-	bool copy_failed = false;
 	bool msg_ready = false;
 
 	spin_lock_bh(&vvs->rx_lock);
@@ -426,7 +425,7 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 	while (!msg_ready) {
 		pkt = list_first_entry(&vvs->rx_queue, struct virtio_vsock_pkt, list);
 
-		if (!copy_failed) {
+		if (dequeued_len >= 0) {
 			size_t pkt_len;
 			size_t bytes_to_copy;
 
@@ -443,11 +442,9 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 
 				err = memcpy_to_msg(msg, pkt->buf, bytes_to_copy);
 				if (err) {
-					/* Copy of message failed, set flag to skip
-					 * copy path for rest of fragments. Rest of
+					/* Copy of message failed. Rest of
 					 * fragments will be freed without copy.
 					 */
-					copy_failed = true;
 					dequeued_len = err;
 				} else {
 					user_buf_len -= bytes_to_copy;
