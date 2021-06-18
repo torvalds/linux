@@ -335,9 +335,9 @@ struct mxser_port {
 	int baud_base;		/* max. speed */
 	int type;		/* UART type */
 
-	int x_char;		/* xon/xoff character */
-	int IER;		/* Interrupt Enable Register */
-	int MCR;		/* Modem control register */
+	unsigned char x_char;	/* xon/xoff character */
+	u8 IER;			/* Interrupt Enable Register */
+	u8 MCR;			/* Modem control register */
 
 	unsigned char stop_rx;
 	unsigned char ldisc_stop_rx;
@@ -348,8 +348,8 @@ struct mxser_port {
 	struct async_icount icount; /* kernel counters for 4 input interrupts */
 	unsigned int timeout;
 
-	int read_status_mask;
-	int ignore_status_mask;
+	u8 read_status_mask;
+	u8 ignore_status_mask;
 	u8 xmit_fifo_size;
 	int xmit_head;
 	int xmit_tail;
