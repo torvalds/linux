@@ -543,7 +543,7 @@ xfs_do_force_shutdown(
 	}
 
 	xfs_notice(mp,
-"%s(0x%x) called from line %d of file %s. Return address = "PTR_FMT,
+"%s(0x%x) called from line %d of file %s. Return address = %pS",
 		__func__, flags, lnnum, fname, __return_address);
 
 	if (flags & SHUTDOWN_CORRUPT_INCORE) {
