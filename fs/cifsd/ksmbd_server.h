@@ -90,13 +90,17 @@ struct ksmbd_share_config_response {
 };
 
 #define KSMBD_SHARE_CONFIG_VETO_LIST(s)	((s)->____payload)
-#define KSMBD_SHARE_CONFIG_PATH(s)				\
-	({							\
-		char *p = (s)->____payload;			\
-		if ((s)->veto_list_sz)				\
-			p += (s)->veto_list_sz + 1;		\
-		p;						\
-	 })
+
+static inline char *
+ksmbd_share_config_path(struct ksmbd_share_config_response *sc)
+{
+	char *p = sc->____payload;
+
+	if (sc->veto_list_sz)
+		p += sc->veto_list_sz + 1;
+
+	return p;
+}
 
 struct ksmbd_tree_connect_request {
 	__u32	handle;
