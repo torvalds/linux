@@ -1580,7 +1580,9 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 
 		ch = inb(port->ioaddr + UART_RX);
 		if (hwid && (status & UART_LSR_OE))
-			outb(0x23, port->ioaddr + UART_FCR);
+			outb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR |
+					MOXA_MUST_FCR_GDA_MODE_ENABLE,
+					port->ioaddr + UART_FCR);
 		status &= port->read_status_mask;
 		if (status & port->ignore_status_mask) {
 			if (++ignored > 100)
@@ -1693,7 +1695,9 @@ static bool mxser_port_isr(struct mxser_port *port)
 	tty = tty_port_tty_get(&port->port);
 	if (!tty || port->closing || !tty_port_initialized(&port->port)) {
 		status = inb(port->ioaddr + UART_LSR);
-		outb(0x27, port->ioaddr + UART_FCR);
+		outb(MOXA_MUST_FCR_GDA_MODE_ENABLE | UART_FCR_ENABLE_FIFO |
+				UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+				port->ioaddr + UART_FCR);
 		inb(port->ioaddr + UART_MSR);
 
 		error = true;
