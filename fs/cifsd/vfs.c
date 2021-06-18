@@ -687,6 +687,29 @@ out1:
 	return err;
 }
 
+static int ksmbd_validate_entry_in_use(struct dentry *src_dent)
+{
+	struct dentry *dst_dent;
+
+	spin_lock(&src_dent->d_lock);
+	list_for_each_entry(dst_dent, &src_dent->d_subdirs, d_child) {
+		struct ksmbd_file *child_fp;
+
+		if (d_really_is_negative(dst_dent))
+			continue;
+
+		child_fp = ksmbd_lookup_fd_inode(d_inode(dst_dent));
+		if (child_fp) {
+			spin_unlock(&src_dent->d_lock);
+			ksmbd_debug(VFS, "Forbid rename, sub file/dir is in use\n");
+			return -EACCES;
+		}
+	}
+	spin_unlock(&src_dent->d_lock);
+
+	return 0;
+}
+
 static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 			      struct dentry *src_dent_parent,
 			      struct dentry *src_dent,
@@ -698,21 +721,9 @@ static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 	int err;
 
 	if (!work->tcon->posix_extensions) {
-		spin_lock(&src_dent->d_lock);
-		list_for_each_entry(dst_dent, &src_dent->d_subdirs, d_child) {
-			struct ksmbd_file *child_fp;
-
-			if (d_really_is_negative(dst_dent))
-				continue;
-
-			child_fp = ksmbd_lookup_fd_inode(d_inode(dst_dent));
-			if (child_fp) {
-				spin_unlock(&src_dent->d_lock);
-				ksmbd_debug(VFS, "Forbid rename, sub file/dir is in use\n");
-				return -EACCES;
-			}
-		}
-		spin_unlock(&src_dent->d_lock);
+		err = ksmbd_validate_entry_in_use(src_dent);
+		if (err)
+			return err;
 	}
 
 	if (d_really_is_negative(src_dent_parent))
