@@ -1942,12 +1942,18 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	mphy = dev->phy.mt76;
 
 	if (!mt7615_mcu_set_drv_ctrl(dev)) {
+		struct mt76_dev *mdev = &dev->mt76;
 		int i;
 
-		mt76_for_each_q_rx(&dev->mt76, i)
-			napi_schedule(&dev->mt76.napi[i]);
-		mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
-		mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+		if (mt76_is_sdio(mdev)) {
+			mt76_worker_schedule(&mdev->sdio.txrx_worker);
+		} else {
+			mt76_for_each_q_rx(mdev, i)
+				napi_schedule(&mdev->napi[i]);
+			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
+			mt76_queue_tx_cleanup(dev, mdev->q_mcu[MT_MCUQ_WM],
+					      false);
+		}
 		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
 			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 						     MT7615_WATCHDOG_TIME);
