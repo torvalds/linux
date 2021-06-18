@@ -151,7 +151,7 @@ static int hostess_ioctl(struct net_device *d, struct ifreq *ifr, int cmd)
  */
 
 static netdev_tx_t hostess_queue_xmit(struct sk_buff *skb,
-					    struct net_device *d)
+				      struct net_device *d)
 {
 	return z8530_queue_xmit(&dev_to_sv(d)->chanA, skb);
 }
