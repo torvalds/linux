@@ -68,12 +68,12 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 #ifdef CONFIG_CPU_LOONGSON64
 	VCPU_STAT("vz_cpucfg", vz_cpucfg_exits),
 #endif
-	VCPU_STAT("halt_successful_poll", halt_successful_poll),
-	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
-	VCPU_STAT("halt_poll_invalid", halt_poll_invalid),
-	VCPU_STAT("halt_wakeup", halt_wakeup),
-	VCPU_STAT("halt_poll_success_ns", halt_poll_success_ns),
-	VCPU_STAT("halt_poll_fail_ns", halt_poll_fail_ns),
+	VCPU_STAT("halt_successful_poll", generic.halt_successful_poll),
+	VCPU_STAT("halt_attempted_poll", generic.halt_attempted_poll),
+	VCPU_STAT("halt_poll_invalid", generic.halt_poll_invalid),
+	VCPU_STAT("halt_wakeup", generic.halt_wakeup),
+	VCPU_STAT("halt_poll_success_ns", generic.halt_poll_success_ns),
+	VCPU_STAT("halt_poll_fail_ns", generic.halt_poll_fail_ns),
 	{NULL}
 };
 
