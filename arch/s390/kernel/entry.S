@@ -129,6 +129,24 @@ _LPP_OFFSET	= __LC_LPP
 		    "jnz .+8; .long 0xb2e8d000", 82
 	.endm
 
+	/*
+	 * The CHKSTG macro jumps to the provided label in case the
+	 * machine check interruption code reports one of unrecoverable
+	 * storage errors:
+	 * - Storage error uncorrected
+	 * - Storage key error uncorrected
+	 * - Storage degradation with Failing-storage-address validity
+	 */
+	.macro CHKSTG errlabel
+	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_STG_ERROR|MCCK_CODE_STG_KEY_ERROR)
+	jnz	\errlabel
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_DEGRAD
+	jz	oklabel\@
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_FAIL_ADDR
+	jnz	\errlabel
+oklabel\@:
+	.endm
+
 #if IS_ENABLED(CONFIG_KVM)
 	/*
 	 * The OUTSIDE macro jumps to the provided label in case the value
@@ -550,23 +568,26 @@ ENTRY(mcck_int_handler)
 3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
 	jno	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	4f
+	jnz	6f
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
-4:	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	tmhh	%r8,0x0001			# interrupting from user ?
 #if IS_ENABLED(CONFIG_KVM)
-	jnz	.Lmcck_user
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
-	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,5f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,6f
+	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-5:	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	j	5f
+4:	CHKSTG	.Lmcck_panic
+5:	larl	%r14,.Lstosm_tmp
+	stosm	0(%r14),0x04		# turn dat on, keep irqs off
+	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	SIEEXIT
 	j	.Lmcck_stack
-#else
-	jz	.Lmcck_stack
 #endif
-.Lmcck_user:
+6:	CHKSTG	.Lmcck_panic
+	larl	%r14,.Lstosm_tmp
+	stosm	0(%r14),0x04		# turn dat on, keep irqs off
+	tmhh	%r8,0x0001		# interrupting from user ?
+	jz	.Lmcck_stack
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 .Lmcck_stack:
 	lg	%r15,__LC_MCCK_STACK
@@ -692,7 +713,7 @@ ENDPROC(stack_overflow)
 		.align	4
 .Lstop_lock:	.long	0
 .Lthis_cpu:	.short	0
-
+.Lstosm_tmp:	.byte	0
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 	.globl	sys_call_table
