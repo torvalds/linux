@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2020 Intel Corporation
+ * Copyright (c) 2018 - 2021 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -3110,6 +3110,11 @@ enum ieee80211_tdls_actioncode {
  * @WLAN_EID_EXT_CAPABILITY information element
  */
 #define WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT	BIT(6)
+
+/* Timing Measurement protocol for time sync is set in the 7th bit of 3rd byte
+ * of the @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA3_TIMING_MEASUREMENT_SUPPORT	BIT(7)
 
 /* TDLS capabilities in the 4th byte of @WLAN_EID_EXT_CAPABILITY */
 #define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
