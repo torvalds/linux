@@ -436,6 +436,8 @@ struct xlog {
 #endif
 	/* log recovery lsn tracking (for buffer submission */
 	xfs_lsn_t		l_recovery_lsn;
+
+	uint32_t		l_iclog_roundoff;/* padding roundoff */
 };
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
