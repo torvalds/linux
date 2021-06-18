@@ -157,6 +157,7 @@
 #define WAKEUP_CHARS		256
 
 #define MXSER_BAUD_BASE		921600
+#define MXSER_CUSTOM_DIVISOR	(MXSER_BAUD_BASE * 16)
 
 #define PCI_DEVICE_ID_POS104UL	0x1044
 #define PCI_DEVICE_ID_CB108	0x1080
@@ -283,8 +284,6 @@ struct mxser_port {
 	u8 MCR;			/* Modem control register */
 
 	unsigned char ldisc_stop_rx;
-
-	int custom_divisor;
 
 	struct async_icount icount; /* kernel counters for 4 input interrupts */
 	unsigned int timeout;
@@ -1226,7 +1225,7 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	ss->baud_base = MXSER_BAUD_BASE,
 	ss->close_delay = close_delay;
 	ss->closing_wait = closing_wait;
-	ss->custom_divisor = info->custom_divisor,
+	ss->custom_divisor = MXSER_CUSTOM_DIVISOR,
 	mutex_unlock(&port->mutex);
 	return 0;
 }
@@ -1285,7 +1284,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(ss->baud_base != MXSER_BAUD_BASE ||
 				ss->custom_divisor !=
-				info->custom_divisor)) {
+				MXSER_CUSTOM_DIVISOR)) {
 			if (ss->custom_divisor == 0) {
 				mutex_unlock(&port->mutex);
 				return -EINVAL;
@@ -2019,7 +2018,6 @@ static int mxser_initbrd(struct mxser_board *brd)
 
 		process_txrx_fifo(info);
 
-		info->custom_divisor = MXSER_BAUD_BASE * 16;
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
 		spin_lock_init(&info->slock);
