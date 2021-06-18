@@ -67,6 +67,7 @@ struct deadline_data {
 	int fifo_batch;
 	int writes_starved;
 	int front_merges;
+	u32 async_depth;
 
 	spinlock_t lock;
 	spinlock_t zone_lock;
@@ -397,6 +398,44 @@ static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 	return rq;
 }
 
+/*
+ * Called by __blk_mq_alloc_request(). The shallow_depth value set by this
+ * function is used by __blk_mq_get_tag().
+ */
+static void dd_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
+{
+	struct deadline_data *dd = data->q->elevator->elevator_data;
+
+	/* Do not throttle synchronous reads. */
+	if (op_is_sync(op) && !op_is_write(op))
+		return;
+
+	/*
+	 * Throttle asynchronous requests and writes such that these requests
+	 * do not block the allocation of synchronous requests.
+	 */
+	data->shallow_depth = dd->async_depth;
+}
+
+/* Called by blk_mq_update_nr_requests(). */
+static void dd_depth_updated(struct blk_mq_hw_ctx *hctx)
+{
+	struct request_queue *q = hctx->queue;
+	struct deadline_data *dd = q->elevator->elevator_data;
+	struct blk_mq_tags *tags = hctx->sched_tags;
+
+	dd->async_depth = max(1UL, 3 * q->nr_requests / 4);
+
+	sbitmap_queue_min_shallow_depth(tags->bitmap_tags, dd->async_depth);
+}
+
+/* Called by blk_mq_init_hctx() and blk_mq_init_sched(). */
+static int dd_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
+{
+	dd_depth_updated(hctx);
+	return 0;
+}
+
 static void dd_exit_sched(struct elevator_queue *e)
 {
 	struct deadline_data *dd = e->elevator_data;
@@ -617,6 +656,7 @@ SHOW_JIFFIES(deadline_read_expire_show, dd->fifo_expire[DD_READ]);
 SHOW_JIFFIES(deadline_write_expire_show, dd->fifo_expire[DD_WRITE]);
 SHOW_INT(deadline_writes_starved_show, dd->writes_starved);
 SHOW_INT(deadline_front_merges_show, dd->front_merges);
+SHOW_INT(deadline_async_depth_show, dd->front_merges);
 SHOW_INT(deadline_fifo_batch_show, dd->fifo_batch);
 #undef SHOW_INT
 #undef SHOW_JIFFIES
@@ -645,6 +685,7 @@ STORE_JIFFIES(deadline_read_expire_store, &dd->fifo_expire[DD_READ], 0, INT_MAX)
 STORE_JIFFIES(deadline_write_expire_store, &dd->fifo_expire[DD_WRITE], 0, INT_MAX);
 STORE_INT(deadline_writes_starved_store, &dd->writes_starved, INT_MIN, INT_MAX);
 STORE_INT(deadline_front_merges_store, &dd->front_merges, 0, 1);
+STORE_INT(deadline_async_depth_store, &dd->front_merges, 1, INT_MAX);
 STORE_INT(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX);
 #undef STORE_FUNCTION
 #undef STORE_INT
@@ -658,6 +699,7 @@ static struct elv_fs_entry deadline_attrs[] = {
 	DD_ATTR(write_expire),
 	DD_ATTR(writes_starved),
 	DD_ATTR(front_merges),
+	DD_ATTR(async_depth),
 	DD_ATTR(fifo_batch),
 	__ATTR_NULL
 };
@@ -733,6 +775,15 @@ static int deadline_starved_show(void *data, struct seq_file *m)
 	return 0;
 }
 
+static int dd_async_depth_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	struct deadline_data *dd = q->elevator->elevator_data;
+
+	seq_printf(m, "%u\n", dd->async_depth);
+	return 0;
+}
+
 static void *deadline_dispatch_start(struct seq_file *m, loff_t *pos)
 	__acquires(&dd->lock)
 {
@@ -775,6 +826,7 @@ static const struct blk_mq_debugfs_attr deadline_queue_debugfs_attrs[] = {
 	DEADLINE_QUEUE_DDIR_ATTRS(write),
 	{"batching", 0400, deadline_batching_show},
 	{"starved", 0400, deadline_starved_show},
+	{"async_depth", 0400, dd_async_depth_show},
 	{"dispatch", 0400, .seq_ops = &deadline_dispatch_seq_ops},
 	{},
 };
@@ -783,6 +835,8 @@ static const struct blk_mq_debugfs_attr deadline_queue_debugfs_attrs[] = {
 
 static struct elevator_type mq_deadline = {
 	.ops = {
+		.depth_updated		= dd_depth_updated,
+		.limit_depth		= dd_limit_depth,
 		.insert_requests	= dd_insert_requests,
 		.dispatch_request	= dd_dispatch_request,
 		.prepare_request	= dd_prepare_request,
@@ -796,6 +850,7 @@ static struct elevator_type mq_deadline = {
 		.has_work		= dd_has_work,
 		.init_sched		= dd_init_sched,
 		.exit_sched		= dd_exit_sched,
+		.init_hctx		= dd_init_hctx,
 	},
 
 #ifdef CONFIG_BLK_DEBUG_FS
