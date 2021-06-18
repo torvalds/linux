@@ -113,8 +113,8 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 
 	/* Find the connector we're trying to set up */
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		if (!connector->encoder || connector->encoder->crtc != crtc)
-			continue;
+		if (connector->encoder && connector->encoder->crtc == crtc)
+			break;
 	}
 
 	if (!connector) {
