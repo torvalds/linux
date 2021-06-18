@@ -2177,7 +2177,7 @@ static void xfrm_replay_timer_handler(struct timer_list *t)
 
 	if (x->km.state == XFRM_STATE_VALID) {
 		if (xfrm_aevent_is_on(xs_net(x)))
-			x->repl->notify(x, XFRM_REPLAY_TIMEOUT);
+			xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
 		else
 			x->xflags |= XFRM_TIME_DEFER;
 	}

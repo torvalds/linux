@@ -145,6 +145,12 @@ enum {
 	XFRM_MODE_FLAG_TUNNEL = 1,
 };
 
+enum xfrm_replay_mode {
+	XFRM_REPLAY_MODE_LEGACY,
+	XFRM_REPLAY_MODE_BMP,
+	XFRM_REPLAY_MODE_ESN,
+};
+
 /* Full description of state of transformer. */
 struct xfrm_state {
 	possible_net_t		xs_net;
@@ -218,6 +224,8 @@ struct xfrm_state {
 	/* The functions for replay detection. */
 	const struct xfrm_replay *repl;
 
+	/* replay detection mode */
+	enum xfrm_replay_mode    repl_mode;
 	/* internal flag that only holds state for delayed aevent at the
 	 * moment
 	*/
@@ -305,7 +313,6 @@ struct xfrm_replay {
 	int	(*recheck)(struct xfrm_state *x,
 			   struct sk_buff *skb,
 			   __be32 net_seq);
-	void	(*notify)(struct xfrm_state *x, int event);
 	int	(*overflow)(struct xfrm_state *x, struct sk_buff *skb);
 };
 
@@ -1715,6 +1722,8 @@ static inline int xfrm_policy_id2dir(u32 index)
 }
 
 #ifdef CONFIG_XFRM
+void xfrm_replay_notify(struct xfrm_state *x, int event);
+
 static inline int xfrm_aevent_is_on(struct net *net)
 {
 	struct sock *nlsk;
