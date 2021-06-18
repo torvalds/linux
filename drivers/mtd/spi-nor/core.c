@@ -1411,9 +1411,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 			continue;
 
 		spi_nor_div_by_erase_size(erase, addr, &rem);
-		if (rem)
-			continue;
-		else
+		if (!rem)
 			return erase;
 	}
 
