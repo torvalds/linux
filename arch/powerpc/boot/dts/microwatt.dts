@@ -6,6 +6,10 @@
 	model-name = "microwatt";
 	compatible = "microwatt-soc";
 
+	aliases {
+		serial0 = &UART0;
+	};
+
 	reserved-memory {
 		#size-cells = <0x02>;
 		#address-cells = <0x02>;
@@ -89,12 +93,6 @@
 		};
 	};
 
-	chosen {
-		bootargs = "";
-		ibm,architecture-vec-5 = [19 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00
-					  00 00 00 00 00 00 00 00 40 00 40];
-	};
-
 	soc@c0000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -119,5 +117,22 @@
 			#interrupt-cells = <2>;
 		};
 
+		UART0: serial@2000 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x2000 0x8>;
+			clock-frequency = <100000000>;
+			current-speed = <115200>;
+			reg-shift = <2>;
+			fifo-size = <16>;
+			interrupts = <0x10 0x1>;
+		};
+	};
+
+	chosen {
+		bootargs = "";
+		ibm,architecture-vec-5 = [19 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00
+					  00 00 00 00 00 00 00 00 40 00 40];
+		stdout-path = &UART0;
 	};
 };

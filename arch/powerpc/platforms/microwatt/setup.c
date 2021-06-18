@@ -14,6 +14,7 @@
 #include <asm/machdep.h>
 #include <asm/time.h>
 #include <asm/xics.h>
+#include <asm/udbg.h>
 
 static void __init microwatt_init_IRQ(void)
 {
@@ -35,5 +36,6 @@ define_machine(microwatt) {
 	.name			= "microwatt",
 	.probe			= microwatt_probe,
 	.init_IRQ		= microwatt_init_IRQ,
+	.progress		= udbg_progress,
 	.calibrate_decr		= generic_calibrate_decr,
 };

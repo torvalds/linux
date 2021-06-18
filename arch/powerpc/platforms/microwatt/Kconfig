@@ -6,6 +6,7 @@ config PPC_MICROWATT
 	select PPC_ICS_NATIVE
 	select PPC_ICP_NATIVE
 	select PPC_NATIVE
+	select PPC_UDBG_16550
 	help
           This option enables support for FPGA-based Microwatt implementations.
 
