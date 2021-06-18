@@ -1092,7 +1092,6 @@ config TOUCHSCREEN_DMI
 
 config FW_ATTR_CLASS
 	tristate
-	default n
 
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"
