@@ -2055,10 +2055,41 @@ static int mxser_rs_break(struct tty_struct *tty, int break_state)
 	return 0;
 }
 
+static bool mxser_receive_chars_new(struct tty_struct *tty,
+		struct mxser_port *port, u8 status, int *cnt)
+{
+	enum mxser_must_hwid hwid = port->board->must_hwid;
+	u8 gdl;
+
+	if (hwid == MOXA_OTHER_UART)
+		return false;
+	if (status & UART_LSR_SPECIAL)
+		return false;
+	if (hwid == MOXA_MUST_MU860_HWID && (status & MOXA_MUST_LSR_RERR))
+		return false;
+	if (status & MOXA_MUST_LSR_RERR)
+		return false;
+
+	gdl = inb(port->ioaddr + MOXA_MUST_GDL_REGISTER);
+	if (hwid == MOXA_MUST_MU150_HWID)
+		gdl &= MOXA_MUST_GDL_MASK;
+
+	if (gdl >= tty->receive_room && !port->ldisc_stop_rx)
+		mxser_stoprx(tty);
+
+	while (gdl--) {
+		u8 ch = inb(port->ioaddr + UART_RX);
+		tty_insert_flip_char(&port->port, ch, 0);
+		(*cnt)++;
+	}
+
+	return true;
+}
+
 static u8 mxser_receive_chars(struct tty_struct *tty,
 		struct mxser_port *port, u8 status)
 {
-	unsigned char ch, gdl;
+	unsigned char ch;
 	int ignored = 0;
 	int cnt = 0;
 	int recv_room;
@@ -2067,32 +2098,9 @@ static u8 mxser_receive_chars(struct tty_struct *tty,
 	recv_room = tty->receive_room;
 	if (recv_room == 0 && !port->ldisc_stop_rx)
 		mxser_stoprx(tty);
-	if (port->board->must_hwid != MOXA_OTHER_UART) {
 
-		if (status & UART_LSR_SPECIAL)
-			goto intr_old;
-		if (port->board->must_hwid == MOXA_MUST_MU860_HWID &&
-				(status & MOXA_MUST_LSR_RERR))
-			goto intr_old;
-		if (status & MOXA_MUST_LSR_RERR)
-			goto intr_old;
-
-		gdl = inb(port->ioaddr + MOXA_MUST_GDL_REGISTER);
-
-		if (port->board->must_hwid == MOXA_MUST_MU150_HWID)
-			gdl &= MOXA_MUST_GDL_MASK;
-		if (gdl >= recv_room) {
-			if (!port->ldisc_stop_rx)
-				mxser_stoprx(tty);
-		}
-		while (gdl--) {
-			ch = inb(port->ioaddr + UART_RX);
-			tty_insert_flip_char(&port->port, ch, 0);
-			cnt++;
-		}
+	if (mxser_receive_chars_new(tty, port, status, &cnt))
 		goto end_intr;
-	}
-intr_old:
 
 	do {
 		if (max-- < 0)
