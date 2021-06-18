@@ -43,7 +43,6 @@
 
 #include "mxser.h"
 
-#define	MXSER_VERSION	"2.0.5"		/* 1.14 */
 #define	MXSERMAJOR	 174
 
 #define MXSER_BOARDS		4	/* Max. boards */
@@ -2426,9 +2425,6 @@ static int __init mxser_module_init(void)
 	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
 	if (!mxvar_sdriver)
 		return -ENOMEM;
-
-	printk(KERN_INFO "MOXA Smartio/Industio family driver version %s\n",
-		MXSER_VERSION);
 
 	/* Initialize the tty_driver structure */
 	mxvar_sdriver->name = "ttyMI";
