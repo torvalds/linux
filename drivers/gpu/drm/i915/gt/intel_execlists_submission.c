@@ -382,7 +382,8 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != prio) {
 			prio = rq_prio(rq);
-			pl = i915_sched_lookup_priolist(engine, prio);
+			pl = i915_sched_lookup_priolist(engine->sched_engine,
+							prio);
 		}
 		GEM_BUG_ON(i915_sched_engine_is_empty(engine->sched_engine));
 
@@ -1096,7 +1097,8 @@ static void defer_active(struct intel_engine_cs *engine)
 	if (!rq)
 		return;
 
-	defer_request(rq, i915_sched_lookup_priolist(engine, rq_prio(rq)));
+	defer_request(rq, i915_sched_lookup_priolist(engine->sched_engine,
+						     rq_prio(rq)));
 }
 
 static bool
@@ -2083,7 +2085,7 @@ static void __execlists_unhold(struct i915_request *rq)
 
 		i915_request_clear_hold(rq);
 		list_move_tail(&rq->sched.link,
-			       i915_sched_lookup_priolist(rq->engine,
+			       i915_sched_lookup_priolist(rq->engine->sched_engine,
 							  rq_prio(rq)));
 		set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 
@@ -2452,7 +2454,8 @@ static void queue_request(struct intel_engine_cs *engine,
 {
 	GEM_BUG_ON(!list_empty(&rq->sched.link));
 	list_add_tail(&rq->sched.link,
-		      i915_sched_lookup_priolist(engine, rq_prio(rq)));
+		      i915_sched_lookup_priolist(engine->sched_engine,
+						 rq_prio(rq)));
 	set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 }
 

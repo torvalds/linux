@@ -61,14 +61,13 @@ static void assert_priolists(struct i915_sched_engine * const sched_engine)
 }
 
 struct list_head *
-i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
+i915_sched_lookup_priolist(struct i915_sched_engine *sched_engine, int prio)
 {
-	struct i915_sched_engine * const sched_engine = engine->sched_engine;
 	struct i915_priolist *p;
 	struct rb_node **parent, *rb;
 	bool first = true;
 
-	lockdep_assert_held(&engine->sched_engine->lock);
+	lockdep_assert_held(&sched_engine->lock);
 	assert_priolists(sched_engine);
 
 	if (unlikely(sched_engine->no_priolist))
@@ -130,13 +129,13 @@ struct sched_cache {
 	struct list_head *priolist;
 };
 
-static struct intel_engine_cs *
-sched_lock_engine(const struct i915_sched_node *node,
-		  struct intel_engine_cs *locked,
+static struct i915_sched_engine *
+lock_sched_engine(struct i915_sched_node *node,
+		  struct i915_sched_engine *locked,
 		  struct sched_cache *cache)
 {
 	const struct i915_request *rq = node_to_request(node);
-	struct intel_engine_cs *engine;
+	struct i915_sched_engine *sched_engine;
 
 	GEM_BUG_ON(!locked);
 
@@ -146,14 +145,14 @@ sched_lock_engine(const struct i915_sched_node *node,
 	 * engine lock. The simple ploy we use is to take the lock then
 	 * check that the rq still belongs to the newly locked engine.
 	 */
-	while (locked != (engine = READ_ONCE(rq->engine))) {
-		spin_unlock(&locked->sched_engine->lock);
+	while (locked != (sched_engine = READ_ONCE(rq->engine)->sched_engine)) {
+		spin_unlock(&locked->lock);
 		memset(cache, 0, sizeof(*cache));
-		spin_lock(&engine->sched_engine->lock);
-		locked = engine;
+		spin_lock(&sched_engine->lock);
+		locked = sched_engine;
 	}
 
-	GEM_BUG_ON(locked != engine);
+	GEM_BUG_ON(locked != sched_engine);
 	return locked;
 }
 
@@ -161,7 +160,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 			    const struct i915_sched_attr *attr)
 {
 	const int prio = max(attr->priority, node->attr.priority);
-	struct intel_engine_cs *engine;
+	struct i915_sched_engine *sched_engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
 	struct sched_cache cache;
@@ -236,23 +235,24 @@ static void __i915_schedule(struct i915_sched_node *node,
 	}
 
 	memset(&cache, 0, sizeof(cache));
-	engine = node_to_request(node)->engine;
-	spin_lock(&engine->sched_engine->lock);
+	sched_engine = node_to_request(node)->engine->sched_engine;
+	spin_lock(&sched_engine->lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
-	engine = sched_lock_engine(node, engine, &cache);
+	sched_engine = lock_sched_engine(node, sched_engine, &cache);
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
 		INIT_LIST_HEAD(&dep->dfs_link);
 
 		node = dep->signaler;
-		engine = sched_lock_engine(node, engine, &cache);
-		lockdep_assert_held(&engine->sched_engine->lock);
+		sched_engine = lock_sched_engine(node, sched_engine, &cache);
+		lockdep_assert_held(&sched_engine->lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
 		if (prio <= node->attr.priority || node_signaled(node))
 			continue;
 
-		GEM_BUG_ON(node_to_request(node)->engine != engine);
+		GEM_BUG_ON(node_to_request(node)->engine->sched_engine !=
+			   sched_engine);
 
 		WRITE_ONCE(node->attr.priority, prio);
 
@@ -270,17 +270,17 @@ static void __i915_schedule(struct i915_sched_node *node,
 		if (i915_request_in_priority_queue(node_to_request(node))) {
 			if (!cache.priolist)
 				cache.priolist =
-					i915_sched_lookup_priolist(engine,
+					i915_sched_lookup_priolist(sched_engine,
 								   prio);
 			list_move_tail(&node->link, cache.priolist);
 		}
 
 		/* Defer (tasklet) submission until after all of our updates. */
-		if (engine->sched_engine->kick_backend)
-			engine->sched_engine->kick_backend(node_to_request(node), prio);
+		if (sched_engine->kick_backend)
+			sched_engine->kick_backend(node_to_request(node), prio);
 	}
 
-	spin_unlock(&engine->sched_engine->lock);
+	spin_unlock(&sched_engine->lock);
 }
 
 void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)

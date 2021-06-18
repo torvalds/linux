@@ -39,7 +39,7 @@ void i915_schedule(struct i915_request *request,
 		   const struct i915_sched_attr *attr);
 
 struct list_head *
-i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio);
+i915_sched_lookup_priolist(struct i915_sched_engine *sched_engine, int prio);
 
 void __i915_priolist_free(struct i915_priolist *p);
 static inline void i915_priolist_free(struct i915_priolist *p)
