@@ -2056,8 +2056,8 @@ static int mxser_rs_break(struct tty_struct *tty, int break_state)
 	return 0;
 }
 
-static void mxser_receive_chars(struct tty_struct *tty,
-				struct mxser_port *port, int *status)
+static u8 mxser_receive_chars(struct tty_struct *tty,
+		struct mxser_port *port, u8 status)
 {
 	unsigned char ch, gdl;
 	int ignored = 0;
@@ -2070,12 +2070,12 @@ static void mxser_receive_chars(struct tty_struct *tty,
 		mxser_stoprx(tty);
 	if (port->board->must_hwid != MOXA_OTHER_UART) {
 
-		if (*status & UART_LSR_SPECIAL)
+		if (status & UART_LSR_SPECIAL)
 			goto intr_old;
 		if (port->board->must_hwid == MOXA_MUST_MU860_HWID &&
-				(*status & MOXA_MUST_LSR_RERR))
+				(status & MOXA_MUST_LSR_RERR))
 			goto intr_old;
-		if (*status & MOXA_MUST_LSR_RERR)
+		if (status & MOXA_MUST_LSR_RERR)
 			goto intr_old;
 
 		gdl = inb(port->ioaddr + MOXA_MUST_GDL_REGISTER);
@@ -2100,28 +2100,28 @@ intr_old:
 			break;
 
 		ch = inb(port->ioaddr + UART_RX);
-		if (port->board->must_hwid && (*status & UART_LSR_OE))
+		if (port->board->must_hwid && (status & UART_LSR_OE))
 			outb(0x23, port->ioaddr + UART_FCR);
-		*status &= port->read_status_mask;
-		if (*status & port->ignore_status_mask) {
+		status &= port->read_status_mask;
+		if (status & port->ignore_status_mask) {
 			if (++ignored > 100)
 				break;
 		} else {
 			char flag = 0;
-			if (*status & UART_LSR_SPECIAL) {
-				if (*status & UART_LSR_BI) {
+			if (status & UART_LSR_SPECIAL) {
+				if (status & UART_LSR_BI) {
 					flag = TTY_BREAK;
 					port->icount.brk++;
 
 					if (port->port.flags & ASYNC_SAK)
 						do_SAK(tty);
-				} else if (*status & UART_LSR_PE) {
+				} else if (status & UART_LSR_PE) {
 					flag = TTY_PARITY;
 					port->icount.parity++;
-				} else if (*status & UART_LSR_FE) {
+				} else if (status & UART_LSR_FE) {
 					flag = TTY_FRAME;
 					port->icount.frame++;
-				} else if (*status & UART_LSR_OE) {
+				} else if (status & UART_LSR_OE) {
 					flag = TTY_OVERRUN;
 					port->icount.overrun++;
 				} else
@@ -2140,8 +2140,8 @@ intr_old:
 		if (port->board->must_hwid)
 			break;
 
-		*status = inb(port->ioaddr + UART_LSR);
-	} while (*status & UART_LSR_DR);
+		status = inb(port->ioaddr + UART_LSR);
+	} while (status & UART_LSR_DR);
 
 end_intr:
 	mxvar_log.rxcnt[tty->index] += cnt;
@@ -2149,6 +2149,8 @@ end_intr:
 	port->mon_data.up_rxcnt += cnt;
 
 	tty_flip_buffer_push(&port->port);
+
+	return status;
 }
 
 static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port)
@@ -2262,14 +2264,14 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 					    iir == MOXA_MUST_IIR_RDA ||
 					    iir == MOXA_MUST_IIR_RTO ||
 					    iir == MOXA_MUST_IIR_LSR)
-						mxser_receive_chars(tty, port,
-								&status);
+						status = mxser_receive_chars(tty,
+								port, status);
 
 				} else {
 					status &= port->read_status_mask;
 					if (status & UART_LSR_DR)
-						mxser_receive_chars(tty, port,
-								&status);
+						status = mxser_receive_chars(tty,
+								port, status);
 				}
 				msr = inb(port->ioaddr + UART_MSR);
 				if (msr & UART_MSR_ANY_DELTA)
