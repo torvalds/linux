@@ -190,38 +190,37 @@ static const struct {
 #define UART_INFO_NUM	ARRAY_SIZE(Gpci_uart_info)
 
 struct mxser_cardinfo {
-	char *name;
 	unsigned int nports;
 	unsigned int flags;
 };
 
 static const struct mxser_cardinfo mxser_cards[] = {
-/* 0*/	{ "C168H/PCI series",	8, },
-	{ "C104H/PCI series",	4, },
-	{ "CP-132 series",	2, },
-	{ "CP-114 series",	4, },
-	{ "CT-114 series",	4, },
-/* 5*/	{ "CP-102 series",	2, MXSER_HIGHBAUD },
-	{ "CP-104U series",	4, },
-	{ "CP-168U series",	8, },
-	{ "CP-132U series",	2, },
-	{ "CP-134U series",	4, },
-/*10*/	{ "CP-104JU series",	4, },
-	{ "Moxa UC7000 Serial",	8, },		/* RC7000 */
-	{ "CP-118U series",	8, },
-	{ "CP-102UL series",	2, },
-	{ "CP-102U series",	2, },
-/*15*/	{ "CP-118EL series",	8, },
-	{ "CP-168EL series",	8, },
-	{ "CP-104EL series",	4, },
-	{ "CB-108 series",	8, },
-	{ "CB-114 series",	4, },
-/*20*/	{ "CB-134I series",	4, },
-	{ "CP-138U series",	8, },
-	{ "POS-104UL series",	4, },
-	{ "CP-114UL series",	4, },
-	{ "CP-102UF series",	2, },
-/*25*/	{ "CP-112UL series",	2, },
+/* 0*/	{ 8, },
+	{ 4, },
+	{ 2, },
+	{ 4, },
+	{ 4, },
+/* 5*/	{ 2, MXSER_HIGHBAUD },
+	{ 4, },
+	{ 8, },
+	{ 2, },
+	{ 4, },
+/*10*/	{ 4, },
+	{ 8, },		/* RC7000 */
+	{ 8, },
+	{ 2, },
+	{ 2, },
+/*15*/	{ 8, },
+	{ 8, },
+	{ 4, },
+	{ 8, },
+	{ 4, },
+/*20*/	{ 4, },
+	{ 8, },
+	{ 4, },
+	{ 4, },
+	{ 2, },
+/*25*/	{ 2, },
 };
 
 /* driver_data correspond to the lines in the structure above
@@ -1961,9 +1960,6 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	brd = &mxser_boards[i];
 	brd->idx = i * MXSER_PORTS_PER_BOARD;
-	dev_info(&pdev->dev, "found MOXA %s board (BusNo=%d, DevNo=%d)\n",
-		mxser_cards[ent->driver_data].name,
-		pdev->bus->number, PCI_SLOT(pdev->devfn));
 
 	retval = pcim_enable_device(pdev);
 	if (retval) {
