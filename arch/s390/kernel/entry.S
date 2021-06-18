@@ -570,7 +570,6 @@ ENTRY(mcck_int_handler)
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 .Lmcck_stack:
 	lg	%r15,__LC_MCCK_STACK
-.Lmcck_skip:
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stctg	%c1,%c1,__PT_CR1(%r11)
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE
@@ -612,8 +611,33 @@ ENTRY(mcck_int_handler)
 	b	__LC_RETURN_MCCK_LPSWE
 
 .Lmcck_panic:
-	lg	%r15,__LC_NODAT_STACK
-	j	.Lmcck_skip
+	/*
+	 * Iterate over all possible CPU addresses in the range 0..0xffff
+	 * and stop each CPU using signal processor. Use compare and swap
+	 * to allow just one CPU-stopper and prevent concurrent CPUs from
+	 * stopping each other while leaving the others running.
+	 */
+	lhi	%r5,0
+	lhi	%r6,1
+	larl	%r7,.Lstop_lock
+	cs	%r5,%r6,0(%r7)		# single CPU-stopper only
+	jnz	4f
+	larl	%r7,.Lthis_cpu
+	stap	0(%r7)			# this CPU address
+	lh	%r4,0(%r7)
+	nilh	%r4,0
+	lhi	%r0,1
+	sll	%r0,16			# CPU counter
+	lhi	%r3,0			# next CPU address
+0:	cr	%r3,%r4
+	je	2f
+1:	sigp	%r1,%r3,SIGP_STOP	# stop next CPU
+	brc	SIGP_CC_BUSY,1b
+2:	ahi	%r3,1
+	brct	%r0,0b
+3:	sigp	%r1,%r4,SIGP_STOP	# stop this CPU
+	brc	SIGP_CC_BUSY,3b
+4:	j	4b
 ENDPROC(mcck_int_handler)
 
 #
@@ -663,6 +687,11 @@ ENTRY(stack_overflow)
 	jg	kernel_stack_overflow
 ENDPROC(stack_overflow)
 #endif
+
+	.section .data, "aw"
+		.align	4
+.Lstop_lock:	.long	0
+.Lthis_cpu:	.short	0
 
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame

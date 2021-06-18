@@ -205,14 +205,6 @@ static int notrace s390_check_registers(union mci mci, int umode)
 			s390_handle_damage();
 		kill_task = 1;
 	}
-	/* Check control registers */
-	if (!mci.cr) {
-		/*
-		 * Control registers have unknown contents.
-		 * Can't recover and therefore stopping machine.
-		 */
-		s390_handle_damage();
-	}
 	if (!mci.fp) {
 		/*
 		 * Floating point registers can't be restored. If the
@@ -272,22 +264,6 @@ static int notrace s390_check_registers(union mci mci, int umode)
 			 */
 			kill_task = 1;
 		}
-	}
-	/* Check if old PSW is valid */
-	if (!mci.wp) {
-		/*
-		 * Can't tell if we come from user or kernel mode
-		 * -> stopping machine.
-		 */
-		s390_handle_damage();
-	}
-	/* Check for invalid kernel instruction address */
-	if (!mci.ia && !umode) {
-		/*
-		 * The instruction address got lost while running
-		 * in the kernel -> stopping machine.
-		 */
-		s390_handle_damage();
 	}
 
 	if (!mci.ms || !mci.pm || !mci.ia)
@@ -352,11 +328,6 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	inc_irq_stat(NMI_NMI);
 	mci.val = S390_lowcore.mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
-
-	if (mci.sd) {
-		/* System damage -> stopping machine */
-		s390_handle_damage();
-	}
 
 	/*
 	 * Reinject the instruction processing damages' machine checks
