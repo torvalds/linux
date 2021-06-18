@@ -11,6 +11,7 @@
 #include <linux/notifier.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/ucsi_glink.h>
@@ -67,6 +68,11 @@ struct ucsi_notify_ind_msg {
 	u32			reserved;
 };
 
+struct constat_info_entry {
+	struct list_head		node;
+	struct ucsi_glink_constat_info	constat_info;
+};
+
 struct ucsi_dev {
 	struct device			*dev;
 	struct ucsi			*ucsi;
@@ -82,7 +88,7 @@ struct ucsi_dev {
 	unsigned long			flags;
 	atomic_t			rx_valid;
 	unsigned long			cmd_requested_flags;
-	struct ucsi_glink_constat_info	constat_info;
+	struct list_head		constat_info_list;
 	struct work_struct		notify_work;
 	struct work_struct		setup_work;
 	atomic_t			state;
@@ -363,12 +369,37 @@ static int ucsi_qti_sync_write(struct ucsi *ucsi, unsigned int offset,
 	return ucsi_qti_glink_write(udev, offset, val, val_len, true);
 }
 
+static void ucsi_qti_clean_notification(struct ucsi_dev *udev)
+{
+	struct constat_info_entry *entry, *tmp;
+
+	mutex_lock(&udev->notify_lock);
+	list_for_each_entry_safe(entry, tmp, &udev->constat_info_list, node) {
+		list_del(&entry->node);
+		kfree(entry);
+	}
+	INIT_LIST_HEAD(&udev->constat_info_list);
+	mutex_unlock(&udev->notify_lock);
+}
+
 static void ucsi_qti_notify_work(struct work_struct *work)
 {
 	struct ucsi_dev *udev = container_of(work, struct ucsi_dev,
 			notify_work);
+	struct constat_info_entry *entry;
 
-	raw_notifier_call_chain(&ucsi_glink_notifier, 0, &udev->constat_info);
+	mutex_lock(&udev->notify_lock);
+	while (!list_empty(&udev->constat_info_list)) {
+		entry = list_first_entry(&udev->constat_info_list,
+					struct constat_info_entry, node);
+		list_del(&entry->node);
+		mutex_unlock(&udev->notify_lock);
+		raw_notifier_call_chain(&ucsi_glink_notifier,
+					0, &entry->constat_info);
+		kfree(entry);
+		mutex_lock(&udev->notify_lock);
+	}
+	mutex_unlock(&udev->notify_lock);
 }
 
 static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
@@ -376,6 +407,7 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 {
 	u8 conn_partner_type, conn_partner_flag;
 	bool cmd_requested;
+	struct constat_info_entry *entry;
 
 	if (len != sizeof(*status))
 		return;
@@ -385,45 +417,49 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 	mutex_unlock(&udev->notify_lock);
 
 	if (cmd_requested && offset == UCSI_MESSAGE_IN) {
-		cancel_work_sync(&udev->notify_work);
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry)
+			return;
 
-		udev->constat_info.partner_usb = false;
-		udev->constat_info.partner_alternate_mode = false;
+		INIT_LIST_HEAD(&entry->node);
+		entry->constat_info.partner_usb = false;
+		entry->constat_info.partner_alternate_mode = false;
 
-		udev->constat_info.partner_change =
+		entry->constat_info.partner_change =
 				status->change & UCSI_CONSTAT_PARTNER_CHANGE;
 
-		udev->constat_info.connect =
+		entry->constat_info.connect =
 				status->flags & UCSI_CONSTAT_CONNECTED;
 
 		conn_partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 
 		switch (conn_partner_type) {
 		case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
-			udev->constat_info.acc = TYPEC_ACCESSORY_AUDIO;
+			entry->constat_info.acc = TYPEC_ACCESSORY_AUDIO;
 			break;
 		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
-			udev->constat_info.acc = TYPEC_ACCESSORY_DEBUG;
+			entry->constat_info.acc = TYPEC_ACCESSORY_DEBUG;
 			break;
 		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 		case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
 		case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
-			udev->constat_info.partner_usb = true;
+			entry->constat_info.partner_usb = true;
 			fallthrough;
 		default:
-			udev->constat_info.acc = TYPEC_ACCESSORY_NONE;
+			entry->constat_info.acc = TYPEC_ACCESSORY_NONE;
 			break;
 		}
 
 		conn_partner_flag = UCSI_CONSTAT_PARTNER_FLAGS(status->flags);
 		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_USB)
-			udev->constat_info.partner_usb = true;
+			entry->constat_info.partner_usb = true;
 
 		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE)
-			udev->constat_info.partner_alternate_mode = true;
+			entry->constat_info.partner_alternate_mode = true;
 
 		mutex_lock(&udev->notify_lock);
+		list_add_tail(&entry->node, &udev->constat_info_list);
 		clear_bit(CONN_STAT_REQD, &udev->cmd_requested_flags);
 		mutex_unlock(&udev->notify_lock);
 
@@ -550,6 +586,7 @@ static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 			return;
 		}
 
+		ucsi_qti_clean_notification(udev);
 		ucsi_unregister(udev->ucsi);
 		ucsi_destroy(udev->ucsi);
 		udev->ucsi = NULL;
@@ -574,6 +611,7 @@ static int ucsi_probe(struct platform_device *pdev)
 	if (!udev)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&udev->constat_info_list);
 	INIT_WORK(&udev->notify_work, ucsi_qti_notify_work);
 	INIT_WORK(&udev->setup_work, ucsi_qti_setup_work);
 	mutex_init(&udev->read_lock);
@@ -624,6 +662,7 @@ static int ucsi_remove(struct platform_device *pdev)
 	struct ucsi_dev *udev = dev_get_drvdata(dev);
 	int rc;
 
+	ucsi_qti_clean_notification(udev);
 	cancel_work_sync(&udev->notify_work);
 	ucsi_unregister(udev->ucsi);
 	ucsi_destroy(udev->ucsi);
