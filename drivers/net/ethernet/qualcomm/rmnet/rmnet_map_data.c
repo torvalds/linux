@@ -168,7 +168,7 @@ static void rmnet_map_complement_ipv4_txporthdr_csum_field(struct iphdr *ip4h)
 	void *txphdr;
 	u16 *csum;
 
-	txphdr = ip4h + ip4h->ihl * 4;
+	txphdr = (void *)ip4h + ip4h->ihl * 4;
 
 	if (ip4h->protocol == IPPROTO_TCP || ip4h->protocol == IPPROTO_UDP) {
 		csum = (u16 *)rmnet_map_get_csum_field(ip4h->protocol, txphdr);
@@ -203,7 +203,7 @@ rmnet_map_complement_ipv6_txporthdr_csum_field(struct ipv6hdr *ip6h)
 	void *txphdr;
 	u16 *csum;
 
-	txphdr = ip6h + sizeof(struct ipv6hdr);
+	txphdr = ip6h + 1;
 
 	if (ip6h->nexthdr == IPPROTO_TCP || ip6h->nexthdr == IPPROTO_UDP) {
 		csum = (u16 *)rmnet_map_get_csum_field(ip6h->nexthdr, txphdr);
