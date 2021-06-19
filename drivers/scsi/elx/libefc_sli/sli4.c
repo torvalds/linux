@@ -2381,8 +2381,6 @@ sli_xmit_els_rsp64_wqe(struct sli4 *sli, void *buf, struct efc_dma *rsp,
 
 	els->ox_id = cpu_to_le16(params->ox_id);
 
-	els->flags2 |= SLI4_ELS_IOD & SLI4_ELS_REQUEST64_DIR_WRITE;
-
 	els->flags2 |= SLI4_ELS_QOSD;
 
 	els->cmd_type_wqec = SLI4_ELS_REQUEST64_CMD_GEN;
