@@ -416,6 +416,7 @@ static void __exit c101_cleanup(void)
 
 	while (card) {
 		card_t *ptr = card;
+
 		card = card->next_card;
 		unregister_hdlc_device(port_to_dev(ptr));
 		c101_destroy_card(ptr);
