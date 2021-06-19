@@ -503,16 +503,14 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
  * Introducing security_inode_fileattr_get/set() hooks would solve this issue
  * properly.
  */
-static int ovl_security_fileattr(struct dentry *dentry, struct fileattr *fa,
+static int ovl_security_fileattr(struct path *realpath, struct fileattr *fa,
 				 bool set)
 {
-	struct path realpath;
 	struct file *file;
 	unsigned int cmd;
 	int err;
 
-	ovl_path_real(dentry, &realpath);
-	file = dentry_open(&realpath, O_RDONLY, current_cred());
+	file = dentry_open(realpath, O_RDONLY, current_cred());
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
@@ -527,11 +525,22 @@ static int ovl_security_fileattr(struct dentry *dentry, struct fileattr *fa,
 	return err;
 }
 
+int ovl_real_fileattr_set(struct path *realpath, struct fileattr *fa)
+{
+	int err;
+
+	err = ovl_security_fileattr(realpath, fa, true);
+	if (err)
+		return err;
+
+	return vfs_fileattr_set(&init_user_ns, realpath->dentry, fa);
+}
+
 int ovl_fileattr_set(struct user_namespace *mnt_userns,
 		     struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
-	struct dentry *upperdentry;
+	struct path upperpath;
 	const struct cred *old_cred;
 	int err;
 
@@ -541,12 +550,10 @@ int ovl_fileattr_set(struct user_namespace *mnt_userns,
 
 	err = ovl_copy_up(dentry);
 	if (!err) {
-		upperdentry = ovl_dentry_upper(dentry);
+		ovl_path_real(dentry, &upperpath);
 
 		old_cred = ovl_override_creds(inode->i_sb);
-		err = ovl_security_fileattr(dentry, fa, true);
-		if (!err)
-			err = vfs_fileattr_set(&init_user_ns, upperdentry, fa);
+		err = ovl_real_fileattr_set(&upperpath, fa);
 		revert_creds(old_cred);
 		ovl_copyflags(ovl_inode_real(inode), inode);
 	}
@@ -555,17 +562,28 @@ out:
 	return err;
 }
 
+int ovl_real_fileattr_get(struct path *realpath, struct fileattr *fa)
+{
+	int err;
+
+	err = ovl_security_fileattr(realpath, fa, false);
+	if (err)
+		return err;
+
+	return vfs_fileattr_get(realpath->dentry, fa);
+}
+
 int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
-	struct dentry *realdentry = ovl_dentry_real(dentry);
+	struct path realpath;
 	const struct cred *old_cred;
 	int err;
 
+	ovl_path_real(dentry, &realpath);
+
 	old_cred = ovl_override_creds(inode->i_sb);
-	err = ovl_security_fileattr(dentry, fa, false);
-	if (!err)
-		err = vfs_fileattr_get(realdentry, fa);
+	err = ovl_real_fileattr_get(&realpath, fa);
 	revert_creds(old_cred);
 
 	return err;

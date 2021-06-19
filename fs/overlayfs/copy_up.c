@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/fileattr.h>
 #include <linux/splice.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
@@ -128,6 +129,31 @@ retry:
 out:
 	kfree(buf);
 	return error;
+}
+
+static int ovl_copy_fileattr(struct path *old, struct path *new)
+{
+	struct fileattr oldfa = { .flags_valid = true };
+	struct fileattr newfa = { .flags_valid = true };
+	int err;
+
+	err = ovl_real_fileattr_get(old, &oldfa);
+	if (err)
+		return err;
+
+	err = ovl_real_fileattr_get(new, &newfa);
+	if (err)
+		return err;
+
+	BUILD_BUG_ON(OVL_COPY_FS_FLAGS_MASK & ~FS_COMMON_FL);
+	newfa.flags &= ~OVL_COPY_FS_FLAGS_MASK;
+	newfa.flags |= (oldfa.flags & OVL_COPY_FS_FLAGS_MASK);
+
+	BUILD_BUG_ON(OVL_COPY_FSX_FLAGS_MASK & ~FS_XFLAG_COMMON);
+	newfa.fsx_xflags &= ~OVL_COPY_FSX_FLAGS_MASK;
+	newfa.fsx_xflags |= (oldfa.fsx_xflags & OVL_COPY_FSX_FLAGS_MASK);
+
+	return ovl_real_fileattr_set(new, &newfa);
 }
 
 static int ovl_copy_up_data(struct ovl_fs *ofs, struct path *old,
@@ -493,20 +519,21 @@ static int ovl_link_up(struct ovl_copy_up_ctx *c)
 static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 {
 	struct ovl_fs *ofs = OVL_FS(c->dentry->d_sb);
+	struct inode *inode = d_inode(c->dentry);
+	struct path upperpath, datapath;
 	int err;
+
+	ovl_path_upper(c->dentry, &upperpath);
+	if (WARN_ON(upperpath.dentry != NULL))
+		return -EIO;
+
+	upperpath.dentry = temp;
 
 	/*
 	 * Copy up data first and then xattrs. Writing data after
 	 * xattrs will remove security.capability xattr automatically.
 	 */
 	if (S_ISREG(c->stat.mode) && !c->metacopy) {
-		struct path upperpath, datapath;
-
-		ovl_path_upper(c->dentry, &upperpath);
-		if (WARN_ON(upperpath.dentry != NULL))
-			return -EIO;
-		upperpath.dentry = temp;
-
 		ovl_path_lowerdata(c->dentry, &datapath);
 		err = ovl_copy_up_data(ofs, &datapath, &upperpath,
 				       c->stat.size);
@@ -517,6 +544,16 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	err = ovl_copy_xattr(c->dentry->d_sb, c->lowerpath.dentry, temp);
 	if (err)
 		return err;
+
+	if (inode->i_flags & OVL_COPY_I_FLAGS_MASK) {
+		/*
+		 * Copy the fileattr inode flags that are the source of already
+		 * copied i_flags
+		 */
+		err = ovl_copy_fileattr(&c->lowerpath, &upperpath);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Store identifier of lower inode in upper inode xattr to
