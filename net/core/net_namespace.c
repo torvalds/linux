@@ -641,6 +641,18 @@ void __put_net(struct net *net)
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
+/**
+ * get_net_ns - increment the refcount of the network namespace
+ * @ns: common namespace (net)
+ *
+ * Returns the net's common namespace.
+ */
+struct ns_common *get_net_ns(struct ns_common *ns)
+{
+	return &get_net(container_of(ns, struct net, ns))->ns;
+}
+EXPORT_SYMBOL_GPL(get_net_ns);
+
 struct net *get_net_ns_by_fd(int fd)
 {
 	struct file *file;
@@ -660,14 +672,8 @@ struct net *get_net_ns_by_fd(int fd)
 	fput(file);
 	return net;
 }
-
-#else
-struct net *get_net_ns_by_fd(int fd)
-{
-	return ERR_PTR(-EINVAL);
-}
-#endif
 EXPORT_SYMBOL_GPL(get_net_ns_by_fd);
+#endif
 
 struct net *get_net_ns_by_pid(pid_t pid)
 {
