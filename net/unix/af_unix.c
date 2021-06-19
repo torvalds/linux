@@ -286,11 +286,11 @@ static inline void unix_insert_socket(struct hlist_head *list, struct sock *sk)
 
 static struct sock *__unix_find_socket_byname(struct net *net,
 					      struct sockaddr_un *sunname,
-					      int len, int type, unsigned int hash)
+					      int len, unsigned int hash)
 {
 	struct sock *s;
 
-	sk_for_each(s, &unix_socket_table[hash ^ type]) {
+	sk_for_each(s, &unix_socket_table[hash]) {
 		struct unix_sock *u = unix_sk(s);
 
 		if (!net_eq(sock_net(s), net))
@@ -305,13 +305,12 @@ static struct sock *__unix_find_socket_byname(struct net *net,
 
 static inline struct sock *unix_find_socket_byname(struct net *net,
 						   struct sockaddr_un *sunname,
-						   int len, int type,
-						   unsigned int hash)
+						   int len, unsigned int hash)
 {
 	struct sock *s;
 
 	spin_lock(&unix_table_lock);
-	s = __unix_find_socket_byname(net, sunname, len, type, hash);
+	s = __unix_find_socket_byname(net, sunname, len, hash);
 	if (s)
 		sock_hold(s);
 	spin_unlock(&unix_table_lock);
@@ -899,12 +898,12 @@ static int unix_autobind(struct socket *sock)
 retry:
 	addr->len = sprintf(addr->name->sun_path+1, "%05x", ordernum) + 1 + sizeof(short);
 	addr->hash = unix_hash_fold(csum_partial(addr->name, addr->len, 0));
+	addr->hash ^= sk->sk_type;
 
 	spin_lock(&unix_table_lock);
 	ordernum = (ordernum+1)&0xFFFFF;
 
-	if (__unix_find_socket_byname(net, addr->name, addr->len, sock->type,
-				      addr->hash)) {
+	if (__unix_find_socket_byname(net, addr->name, addr->len, addr->hash)) {
 		spin_unlock(&unix_table_lock);
 		/*
 		 * __unix_find_socket_byname() may take long time if many names
@@ -919,7 +918,6 @@ retry:
 		}
 		goto retry;
 	}
-	addr->hash ^= sk->sk_type;
 
 	__unix_set_addr(sk, addr, addr->hash);
 	spin_unlock(&unix_table_lock);
@@ -966,7 +964,7 @@ static struct sock *unix_find_other(struct net *net,
 		}
 	} else {
 		err = -ECONNREFUSED;
-		u = unix_find_socket_byname(net, sunname, len, type, hash);
+		u = unix_find_socket_byname(net, sunname, len, type ^ hash);
 		if (u) {
 			struct dentry *dentry;
 			dentry = unix_sk(u)->path.dentry;
@@ -1040,8 +1038,7 @@ out:
 	return err;
 }
 
-static int unix_bind_abstract(struct sock *sk, unsigned hash,
-			      struct unix_address *addr)
+static int unix_bind_abstract(struct sock *sk, struct unix_address *addr)
 {
 	struct unix_sock *u = unix_sk(sk);
 	int err;
@@ -1057,7 +1054,7 @@ static int unix_bind_abstract(struct sock *sk, unsigned hash,
 
 	spin_lock(&unix_table_lock);
 	if (__unix_find_socket_byname(sock_net(sk), addr->name, addr->len,
-				      sk->sk_type, hash)) {
+				      addr->hash)) {
 		spin_unlock(&unix_table_lock);
 		mutex_unlock(&u->bindlock);
 		return -EADDRINUSE;
@@ -1100,7 +1097,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (sun_path[0])
 		err = unix_bind_bsd(sk, addr);
 	else
-		err = unix_bind_abstract(sk, hash, addr);
+		err = unix_bind_abstract(sk, addr);
 	if (err)
 		unix_release_addr(addr);
 	return err == -EEXIST ? -EADDRINUSE : err;
