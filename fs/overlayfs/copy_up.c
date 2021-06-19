@@ -131,7 +131,8 @@ out:
 	return error;
 }
 
-static int ovl_copy_fileattr(struct path *old, struct path *new)
+static int ovl_copy_fileattr(struct inode *inode, struct path *old,
+			     struct path *new)
 {
 	struct fileattr oldfa = { .flags_valid = true };
 	struct fileattr newfa = { .flags_valid = true };
@@ -144,6 +145,18 @@ static int ovl_copy_fileattr(struct path *old, struct path *new)
 	err = ovl_real_fileattr_get(new, &newfa);
 	if (err)
 		return err;
+
+	/*
+	 * We cannot set immutable and append-only flags on upper inode,
+	 * because we would not be able to link upper inode to upper dir
+	 * not set overlay private xattr on upper inode.
+	 * Store these flags in overlay.protattr xattr instead.
+	 */
+	if (oldfa.flags & OVL_PROT_FS_FLAGS_MASK) {
+		err = ovl_set_protattr(inode, new->dentry, &oldfa);
+		if (err)
+			return err;
+	}
 
 	BUILD_BUG_ON(OVL_COPY_FS_FLAGS_MASK & ~FS_COMMON_FL);
 	newfa.flags &= ~OVL_COPY_FS_FLAGS_MASK;
@@ -550,7 +563,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 		 * Copy the fileattr inode flags that are the source of already
 		 * copied i_flags
 		 */
-		err = ovl_copy_fileattr(&c->lowerpath, &upperpath);
+		err = ovl_copy_fileattr(inode, &c->lowerpath, &upperpath);
 		if (err)
 			return err;
 	}
