@@ -3470,6 +3470,8 @@ int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			  NULL);
 }
 
+#if 0
+/* currently unused, as now we are doing compounding instead (see smb311_posix_query_path_info) */
 int
 SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen)
@@ -3481,7 +3483,9 @@ SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
 			  SMB_FIND_FILE_POSIX_INFO, SMB2_O_INFO_FILE, 0,
 			  output_len, sizeof(struct smb311_posix_qinfo), (void **)&data, plen);
+	/* Note caller must free "data" (passed in above). It may be allocated in query_info call */
 }
+#endif
 
 int
 SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
