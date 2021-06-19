@@ -43,9 +43,9 @@
 #define HCLGE_PTP_SEC_H_OFFSET		32u
 #define HCLGE_PTP_SEC_L_MASK		GENMASK(31, 0)
 
-#define HCLGE_PTP_FLAG_EN		BIT(0)
-#define HCLGE_PTP_FLAG_TX_EN		BIT(1)
-#define HCLGE_PTP_FLAG_RX_EN		BIT(2)
+#define HCLGE_PTP_FLAG_EN		0
+#define HCLGE_PTP_FLAG_TX_EN		1
+#define HCLGE_PTP_FLAG_RX_EN		2
 
 struct hclge_ptp {
 	struct hclge_dev *hdev;
