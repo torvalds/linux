@@ -163,7 +163,7 @@ static const struct can_bittiming_const at91_bittiming_const = {
 	.tseg2_min	= 2,
 	.tseg2_max	= 8,
 	.sjw_max	= 4,
-	.brp_min 	= 2,
+	.brp_min	= 2,
 	.brp_max	= 128,
 	.brp_inc	= 1,
 };
