@@ -307,7 +307,7 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	}
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
-	if (card == NULL)
+	if (!card)
 		return -ENOBUFS;
 
 	card->dev = alloc_hdlcdev(card);
@@ -381,7 +381,7 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 
 static int __init c101_init(void)
 {
-	if (hw == NULL) {
+	if (!hw) {
 #ifdef MODULE
 		pr_info("no card initialized\n");
 #endif
