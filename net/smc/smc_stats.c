@@ -393,17 +393,17 @@ int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (!skip_serv) {
 			rc_srv = smc_nl_get_fback_details(skb, cb, k, is_srv);
-			if (rc_srv && rc_srv != ENODATA)
+			if (rc_srv && rc_srv != -ENODATA)
 				break;
 		} else {
 			skip_serv = 0;
 		}
 		rc_clnt = smc_nl_get_fback_details(skb, cb, k, !is_srv);
-		if (rc_clnt && rc_clnt != ENODATA) {
+		if (rc_clnt && rc_clnt != -ENODATA) {
 			skip_serv = 1;
 			break;
 		}
-		if (rc_clnt == ENODATA && rc_srv == ENODATA)
+		if (rc_clnt == -ENODATA && rc_srv == -ENODATA)
 			break;
 	}
 	mutex_unlock(&net->smc.mutex_fback_rsn);
