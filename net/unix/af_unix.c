@@ -1040,6 +1040,15 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (err < 0)
 		goto out;
 	addr_len = err;
+	err = -ENOMEM;
+	addr = kmalloc(sizeof(*addr)+addr_len, GFP_KERNEL);
+	if (!addr)
+		goto out;
+
+	memcpy(addr->name, sunaddr, addr_len);
+	addr->len = addr_len;
+	addr->hash = hash ^ sk->sk_type;
+	refcount_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
 		umode_t mode = S_IFSOCK |
@@ -1048,7 +1057,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (err) {
 			if (err == -EEXIST)
 				err = -EADDRINUSE;
-			goto out;
+			goto out_addr;
 		}
 	}
 
@@ -1059,16 +1068,6 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	err = -EINVAL;
 	if (u->addr)
 		goto out_up;
-
-	err = -ENOMEM;
-	addr = kmalloc(sizeof(*addr)+addr_len, GFP_KERNEL);
-	if (!addr)
-		goto out_up;
-
-	memcpy(addr->name, sunaddr, addr_len);
-	addr->len = addr_len;
-	addr->hash = hash ^ sk->sk_type;
-	refcount_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
 		addr->hash = UNIX_HASH_SIZE;
@@ -1081,20 +1080,23 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (__unix_find_socket_byname(net, sunaddr, addr_len,
 					      sk->sk_type, hash)) {
 			spin_unlock(&unix_table_lock);
-			unix_release_addr(addr);
 			goto out_up;
 		}
 		hash = addr->hash;
 	}
 
-	err = 0;
 	__unix_set_addr(sk, addr, hash);
 	spin_unlock(&unix_table_lock);
+	addr = NULL;
+	err = 0;
 out_up:
 	mutex_unlock(&u->bindlock);
 out_put:
 	if (err)
 		path_put(&path);
+out_addr:
+	if (addr)
+		unix_release_addr(addr);
 out:
 	return err;
 }
