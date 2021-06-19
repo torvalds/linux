@@ -534,9 +534,7 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt7921_mcu_tx_rate_parse(mphy->mt76, &peer,
 					 &msta->stats.tx_rate,
 					 le16_to_cpu(event->tx_rate));
-
-		spin_lock_bh(&dev->sta_poll_lock);
-		break;
+		return;
 	}
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
