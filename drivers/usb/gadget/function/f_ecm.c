@@ -791,7 +791,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 		fs_ecm_notify_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
-			ecm_ss_function, NULL);
+			ecm_ss_function, ecm_ss_function);
 	if (status)
 		goto fail;
 

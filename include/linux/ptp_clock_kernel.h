@@ -191,7 +191,7 @@ struct ptp_clock_event {
  *
  * @ppm:    Parts per million, but with a 16 bit binary fractional field
  */
-static inline s32 scaled_ppm_to_ppb(long ppm)
+static inline long scaled_ppm_to_ppb(long ppm)
 {
 	/*
 	 * The 'freq' field in the 'struct timex' is in parts per
@@ -209,7 +209,7 @@ static inline s32 scaled_ppm_to_ppb(long ppm)
 
 	ppb *= 125;
 	ppb >>= 13;
-	return (s32)ppb;
+	return (long)ppb;
 }
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)

@@ -156,7 +156,7 @@ static const struct software_node *ssam_node_group_sl2[] = {
 	NULL,
 };
 
-/* Devices for Surface Laptop 3. */
+/* Devices for Surface Laptop 3 and 4. */
 static const struct software_node *ssam_node_group_sl3[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
@@ -521,8 +521,11 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 	/* Surface Laptop 3 (13", Intel) */
 	{ "MSHW0114", (unsigned long)ssam_node_group_sl3 },
 
-	/* Surface Laptop 3 (15", AMD) */
+	/* Surface Laptop 3 (15", AMD) and 4 (15", AMD) */
 	{ "MSHW0110", (unsigned long)ssam_node_group_sl3 },
+
+	/* Surface Laptop 4 (13", Intel) */
+	{ "MSHW0250", (unsigned long)ssam_node_group_sl3 },
 
 	/* Surface Laptop Go 1 */
 	{ "MSHW0118", (unsigned long)ssam_node_group_slg1 },

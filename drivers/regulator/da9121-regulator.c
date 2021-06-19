@@ -280,7 +280,7 @@ static unsigned int da9121_map_mode(unsigned int mode)
 	case DA9121_BUCK_MODE_FORCE_PFM:
 		return REGULATOR_MODE_STANDBY;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 
@@ -317,7 +317,7 @@ static unsigned int da9121_buck_get_mode(struct regulator_dev *rdev)
 {
 	struct da9121 *chip = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
-	unsigned int val;
+	unsigned int val, mode;
 	int ret = 0;
 
 	ret = regmap_read(chip->regmap, da9121_mode_field[id].reg, &val);
@@ -326,7 +326,11 @@ static unsigned int da9121_buck_get_mode(struct regulator_dev *rdev)
 		return -EINVAL;
 	}
 
-	return da9121_map_mode(val & da9121_mode_field[id].msk);
+	mode = da9121_map_mode(val & da9121_mode_field[id].msk);
+	if (mode == REGULATOR_MODE_INVALID)
+		return -EINVAL;
+
+	return mode;
 }
 
 static const struct regulator_ops da9121_buck_ops = {

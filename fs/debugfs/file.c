@@ -893,7 +893,7 @@ ssize_t debugfs_read_file_str(struct file *file, char __user *user_buf,
 
 	copy[copy_len] = '\n';
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, copy, copy_len);
+	ret = simple_read_from_buffer(user_buf, count, ppos, copy, len);
 	kfree(copy);
 
 	return ret;
