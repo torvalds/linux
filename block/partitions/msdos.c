@@ -622,7 +622,7 @@ int msdos_partition(struct parsed_partitions *state)
 	for (slot = 1; slot <= 4; slot++, p++) {
 		if (p->boot_ind != 0 && p->boot_ind != 0x80) {
 			/*
-			 * Even without a valid boot inidicator value
+			 * Even without a valid boot indicator value
 			 * its still possible this is valid FAT filesystem
 			 * without a partition table.
 			 */
