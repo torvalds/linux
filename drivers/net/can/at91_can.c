@@ -515,6 +515,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static inline void at91_activate_rx_low(const struct at91_priv *priv)
 {
 	u32 mask = get_mb_rx_low_mask(priv);
+
 	at91_write(priv, AT91_TCR, mask);
 }
 
@@ -529,6 +530,7 @@ static inline void at91_activate_rx_mb(const struct at91_priv *priv,
 		unsigned int mb)
 {
 	u32 mask = 1 << mb;
+
 	at91_write(priv, AT91_TCR, mask);
 }
 
@@ -807,6 +809,7 @@ static int at91_poll(struct napi_struct *napi, int quota)
 	if (work_done < quota) {
 		/* enable IRQs for frame errors and all mailboxes >= rx_next */
 		u32 reg_ier = AT91_IRQ_ERR_FRAME;
+
 		reg_ier |= get_irq_mb_rx(priv) & ~AT91_MB_MASK(priv->rx_next);
 
 		napi_complete_done(napi, work_done);
