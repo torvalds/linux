@@ -320,7 +320,7 @@ bool ovl_already_copied_up(struct dentry *dentry, int flags);
 bool ovl_check_origin_xattr(struct ovl_fs *ofs, struct dentry *dentry);
 bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
 			 enum ovl_xattr ox);
-int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
+int ovl_check_setxattr(struct ovl_fs *ofs, struct dentry *upperdentry,
 		       enum ovl_xattr ox, const void *value, size_t size,
 		       int xerr);
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry);
@@ -561,8 +561,8 @@ int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
 struct ovl_fh *ovl_encode_real_fh(struct ovl_fs *ofs, struct dentry *real,
 				  bool is_upper);
-int ovl_set_origin(struct ovl_fs *ofs, struct dentry *dentry,
-		   struct dentry *lower, struct dentry *upper);
+int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
+		   struct dentry *upper);
 
 /* export.c */
 extern const struct export_operations ovl_export_operations;

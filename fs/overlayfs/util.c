@@ -600,12 +600,11 @@ const char *const ovl_xattr_table[][2] = {
 	OVL_XATTR_TAB_ENTRY(OVL_XATTR_METACOPY),
 };
 
-int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
+int ovl_check_setxattr(struct ovl_fs *ofs, struct dentry *upperdentry,
 		       enum ovl_xattr ox, const void *value, size_t size,
 		       int xerr)
 {
 	int err;
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 
 	if (ofs->noxattr)
 		return xerr;
@@ -623,6 +622,7 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	int err;
 
 	if (ovl_test_flag(OVL_IMPURE, d_inode(dentry)))
@@ -632,8 +632,7 @@ int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 	 * Do not fail when upper doesn't support xattrs.
 	 * Upper inodes won't have origin nor redirect xattr anyway.
 	 */
-	err = ovl_check_setxattr(dentry, upperdentry, OVL_XATTR_IMPURE,
-				 "y", 1, 0);
+	err = ovl_check_setxattr(ofs, upperdentry, OVL_XATTR_IMPURE, "y", 1, 0);
 	if (!err)
 		ovl_set_flag(OVL_IMPURE, d_inode(dentry));
 

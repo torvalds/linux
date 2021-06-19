@@ -331,8 +331,8 @@ out_err:
 	return ERR_PTR(err);
 }
 
-int ovl_set_origin(struct ovl_fs *ofs, struct dentry *dentry,
-		   struct dentry *lower, struct dentry *upper)
+int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
+		   struct dentry *upper)
 {
 	const struct ovl_fh *fh = NULL;
 	int err;
@@ -351,7 +351,7 @@ int ovl_set_origin(struct ovl_fs *ofs, struct dentry *dentry,
 	/*
 	 * Do not fail when upper doesn't support xattrs.
 	 */
-	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_ORIGIN, fh->buf,
+	err = ovl_check_setxattr(ofs, upper, OVL_XATTR_ORIGIN, fh->buf,
 				 fh ? fh->fb.len : 0, 0);
 	kfree(fh);
 
@@ -526,13 +526,13 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 * hard link.
 	 */
 	if (c->origin) {
-		err = ovl_set_origin(ofs, c->dentry, c->lowerpath.dentry, temp);
+		err = ovl_set_origin(ofs, c->lowerpath.dentry, temp);
 		if (err)
 			return err;
 	}
 
 	if (c->metacopy) {
-		err = ovl_check_setxattr(c->dentry, temp, OVL_XATTR_METACOPY,
+		err = ovl_check_setxattr(ofs, temp, OVL_XATTR_METACOPY,
 					 NULL, 0, -EOPNOTSUPP);
 		if (err)
 			return err;

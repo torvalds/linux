@@ -233,9 +233,10 @@ struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr)
 static int ovl_set_opaque_xerr(struct dentry *dentry, struct dentry *upper,
 			       int xerr)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	int err;
 
-	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_OPAQUE, "y", 1, xerr);
+	err = ovl_check_setxattr(ofs, upper, OVL_XATTR_OPAQUE, "y", 1, xerr);
 	if (!err)
 		ovl_dentry_set_opaque(dentry);
 
@@ -1043,6 +1044,7 @@ static bool ovl_need_absolute_redirect(struct dentry *dentry, bool samedir)
 static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 {
 	int err;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	const char *redirect = ovl_dentry_get_redirect(dentry);
 	bool absolute_redirect = ovl_need_absolute_redirect(dentry, samedir);
 
@@ -1053,7 +1055,7 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 	if (IS_ERR(redirect))
 		return PTR_ERR(redirect);
 
-	err = ovl_check_setxattr(dentry, ovl_dentry_upper(dentry),
+	err = ovl_check_setxattr(ofs, ovl_dentry_upper(dentry),
 				 OVL_XATTR_REDIRECT,
 				 redirect, strlen(redirect), -EXDEV);
 	if (!err) {
