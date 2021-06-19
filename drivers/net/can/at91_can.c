@@ -935,7 +935,6 @@ static void at91_irq_err_state(struct net_device *dev,
 		break;
 	}
 
-
 	/* process state changes depending on the new state */
 	switch (new_state) {
 	case CAN_STATE_ERROR_ACTIVE:
@@ -1003,7 +1002,6 @@ static int at91_get_state_by_bec(const struct net_device *dev,
 
 	return 0;
 }
-
 
 static void at91_irq_err(struct net_device *dev)
 {
