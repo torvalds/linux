@@ -92,7 +92,7 @@ static card_t **new_card = &first_card;
 #define phy_node(port)		   (0)
 #define winsize(card)		   (C101_WINDOW_SIZE)
 #define win0base(card)		   ((card)->win0base)
-#define winbase(card)      	   ((card)->win0base + 0x2000)
+#define winbase(card)		   ((card)->win0base + 0x2000)
 #define get_port(card, port)	   (card)
 static void sca_msci_intr(port_t *port);
 
