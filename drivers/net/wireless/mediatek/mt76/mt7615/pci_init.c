@@ -98,7 +98,7 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 	addr = mt7615_reg_map(dev, MT_LED_CTRL);
 	mt76_wr(dev, addr, val);
 
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 }
 
 static int
@@ -147,8 +147,12 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt76_register_device(&dev->mt76, true, mt7615_rates,
-				   ARRAY_SIZE(mt7615_rates));
+	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
+				   ARRAY_SIZE(mt76_rates));
+	if (ret)
+		return ret;
+
+	ret = mt7615_thermal_init(dev);
 	if (ret)
 		return ret;
 
