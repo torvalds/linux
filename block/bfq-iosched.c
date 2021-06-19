@@ -1985,14 +1985,18 @@ static void bfq_update_io_intensity(struct bfq_queue *bfqq, u64 now_ns)
  * Turning back to the detection of a waker queue, a queue Q is deemed
  * as a waker queue for bfqq if, for three consecutive times, bfqq
  * happens to become non empty right after a request of Q has been
- * completed. In particular, on the first time, Q is tentatively set
- * as a candidate waker queue, while on the third consecutive time
- * that Q is detected, the field waker_bfqq is set to Q, to confirm
- * that Q is a waker queue for bfqq. These detection steps are
- * performed only if bfqq has a long think time, so as to make it more
- * likely that bfqq's I/O is actually being blocked by a
- * synchronization. This last filter, plus the above three-times
- * requirement, make false positives less likely.
+ * completed. In this respect, even if bfqq is empty, we do not check
+ * for a waker if it still has some in-flight I/O. In fact, in this
+ * case bfqq is actually still being served by the drive, and may
+ * receive new I/O on the completion of some of the in-flight
+ * requests. In particular, on the first time, Q is tentatively set as
+ * a candidate waker queue, while on the third consecutive time that Q
+ * is detected, the field waker_bfqq is set to Q, to confirm that Q is
+ * a waker queue for bfqq. These detection steps are performed only if
+ * bfqq has a long think time, so as to make it more likely that
+ * bfqq's I/O is actually being blocked by a synchronization. This
+ * last filter, plus the above three-times requirement, make false
+ * positives less likely.
  *
  * NOTE
  *
@@ -2018,6 +2022,7 @@ static void bfq_check_waker(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	if (!bfqd->last_completed_rq_bfqq ||
 	    bfqd->last_completed_rq_bfqq == bfqq ||
 	    bfq_bfqq_has_short_ttime(bfqq) ||
+	    bfqq->dispatched > 0 ||
 	    now_ns - bfqd->last_completion >= 4 * NSEC_PER_MSEC ||
 	    bfqd->last_completed_rq_bfqq == bfqq->waker_bfqq)
 		return;
