@@ -281,19 +281,20 @@ static inline u32 at91_read(const struct at91_priv *priv, enum at91_reg reg)
 }
 
 static inline void at91_write(const struct at91_priv *priv, enum at91_reg reg,
-		u32 value)
+			      u32 value)
 {
 	writel_relaxed(value, priv->reg_base + reg);
 }
 
 static inline void set_mb_mode_prio(const struct at91_priv *priv,
-		unsigned int mb, enum at91_mb_mode mode, int prio)
+				    unsigned int mb, enum at91_mb_mode mode,
+				    int prio)
 {
 	at91_write(priv, AT91_MMR(mb), (mode << 24) | (prio << 16));
 }
 
 static inline void set_mb_mode(const struct at91_priv *priv, unsigned int mb,
-		enum at91_mb_mode mode)
+			       enum at91_mb_mode mode)
 {
 	set_mb_mode_prio(priv, mb, mode, 0);
 }
@@ -368,7 +369,7 @@ static int at91_set_bittiming(struct net_device *dev)
 }
 
 static int at91_get_berr_counter(const struct net_device *dev,
-		struct can_berr_counter *bec)
+				 struct can_berr_counter *bec)
 {
 	const struct at91_priv *priv = netdev_priv(dev);
 	u32 reg_ecr = at91_read(priv, AT91_ECR);
@@ -527,7 +528,7 @@ static inline void at91_activate_rx_low(const struct at91_priv *priv)
  * Reenables given mailbox for reception of new CAN messages
  */
 static inline void at91_activate_rx_mb(const struct at91_priv *priv,
-		unsigned int mb)
+				       unsigned int mb)
 {
 	u32 mask = 1 << mb;
 
@@ -570,7 +571,7 @@ static void at91_rx_overflow_err(struct net_device *dev)
  * given can frame. "mb" and "cf" must be valid.
  */
 static void at91_read_mb(struct net_device *dev, unsigned int mb,
-		struct can_frame *cf)
+			 struct can_frame *cf)
 {
 	const struct at91_priv *priv = netdev_priv(dev);
 	u32 reg_msr, reg_mid;
@@ -687,7 +688,7 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 	if (priv->rx_next > get_mb_rx_low_last(priv) &&
 	    reg_sr & get_mb_rx_low_mask(priv))
 		netdev_info(dev,
-			"order of incoming frames cannot be guaranteed\n");
+			    "order of incoming frames cannot be guaranteed\n");
 
  again:
 	for (mb = find_next_bit(addr, get_mb_tx_first(priv), priv->rx_next);
@@ -720,7 +721,7 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 }
 
 static void at91_poll_err_frame(struct net_device *dev,
-		struct can_frame *cf, u32 reg_sr)
+				struct can_frame *cf, u32 reg_sr)
 {
 	struct at91_priv *priv = netdev_priv(dev);
 
@@ -876,7 +877,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 }
 
 static void at91_irq_err_state(struct net_device *dev,
-		struct can_frame *cf, enum can_state new_state)
+			       struct can_frame *cf, enum can_state new_state)
 {
 	struct at91_priv *priv = netdev_priv(dev);
 	u32 reg_idr = 0, reg_ier = 0;
@@ -985,7 +986,7 @@ static void at91_irq_err_state(struct net_device *dev,
 }
 
 static int at91_get_state_by_bec(const struct net_device *dev,
-		enum can_state *state)
+				 enum can_state *state)
 {
 	struct can_berr_counter bec;
 	int err;
@@ -1189,7 +1190,8 @@ static ssize_t mb0_id_show(struct device *dev,
 }
 
 static ssize_t mb0_id_store(struct device *dev,
-			    struct device_attribute *attr, const char *buf, size_t count)
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct net_device *ndev = to_net_dev(dev);
 	struct at91_priv *priv = netdev_priv(ndev);
