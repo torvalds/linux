@@ -1067,6 +1067,8 @@ nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offl
 						    nfp_ct_map_params);
 		if (!ct_map_ent) {
 			ct_entry = nfp_fl_ct_add_flow(zt, NULL, flow, true, extack);
+			if (IS_ERR(ct_entry))
+				return PTR_ERR(ct_entry);
 			ct_entry->type = CT_TYPE_NFT;
 			list_add(&ct_entry->list_node, &zt->nft_flows_list);
 			zt->nft_flows_count++;
