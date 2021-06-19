@@ -536,6 +536,10 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 		req->ring_ptr++;
 	}
 
+	/* ignore nvme async cmd due to long timeout */
+	if (!nvme->u.nvme.aen_op)
+		sp->qpair->cmd_cnt++;
+
 	/* Set chip new ring index. */
 	wrt_reg_dword(req->req_q_in, req->ring_index);
 

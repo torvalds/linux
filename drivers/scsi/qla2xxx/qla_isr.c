@@ -2322,6 +2322,8 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (unlikely(iocb->u.nvme.aen_op))
 		atomic_dec(&sp->vha->hw->nvme_active_aen_cnt);
+	else
+		sp->qpair->cmd_completion_cnt++;
 
 	if (unlikely(comp_status != CS_COMPLETE))
 		logit = 1;
@@ -2966,6 +2968,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		qla24xx_tm_iocb_entry(vha, req, pkt);
 		return;
 	}
+
+	sp->qpair->cmd_completion_cnt++;
 
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
