@@ -81,7 +81,7 @@ struct libbpf_nla_req {
  */
 static inline void *libbpf_nla_data(const struct nlattr *nla)
 {
-	return (char *) nla + NLA_HDRLEN;
+	return (void *)nla + NLA_HDRLEN;
 }
 
 static inline uint8_t libbpf_nla_getattr_u8(const struct nlattr *nla)
@@ -118,12 +118,12 @@ int libbpf_nla_dump_errormsg(struct nlmsghdr *nlh);
 
 static inline struct nlattr *nla_data(struct nlattr *nla)
 {
-	return (struct nlattr *)((char *)nla + NLA_HDRLEN);
+	return (struct nlattr *)((void *)nla + NLA_HDRLEN);
 }
 
 static inline struct nlattr *req_tail(struct libbpf_nla_req *req)
 {
-	return (struct nlattr *)((char *)req + NLMSG_ALIGN(req->nh.nlmsg_len));
+	return (struct nlattr *)((void *)req + NLMSG_ALIGN(req->nh.nlmsg_len));
 }
 
 static inline int nlattr_add(struct libbpf_nla_req *req, int type,
@@ -158,7 +158,7 @@ static inline struct nlattr *nlattr_begin_nested(struct libbpf_nla_req *req, int
 static inline void nlattr_end_nested(struct libbpf_nla_req *req,
 				     struct nlattr *tail)
 {
-	tail->nla_len = (char *)req_tail(req) - (char *)tail;
+	tail->nla_len = (void *)req_tail(req) - (void *)tail;
 }
 
 #endif /* __LIBBPF_NLATTR_H */

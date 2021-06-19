@@ -524,7 +524,7 @@ static int get_tc_info(struct nlmsghdr *nh, libbpf_dump_nlmsg_t fn,
 	struct nlattr *tb[TCA_MAX + 1];
 
 	libbpf_nla_parse(tb, TCA_MAX,
-			 (struct nlattr *)((char *)tc + NLMSG_ALIGN(sizeof(*tc))),
+			 (struct nlattr *)((void *)tc + NLMSG_ALIGN(sizeof(*tc))),
 			 NLMSG_PAYLOAD(nh, sizeof(*tc)), NULL);
 	if (!tb[TCA_KIND])
 		return NL_CONT;
