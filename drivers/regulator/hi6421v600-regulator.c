@@ -117,7 +117,7 @@ static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 static unsigned int hi6421_spmi_regulator_get_mode(struct regulator_dev *rdev)
 {
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	u32 reg_val;
+	unsigned int reg_val;
 
 	regmap_read(rdev->regmap, rdev->desc->enable_reg, &reg_val);
 
@@ -131,14 +131,17 @@ static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
 					  unsigned int mode)
 {
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	u32 val;
+	unsigned int val;
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_IDLE:
-		val = sreg->eco_mode_mask << (ffs(sreg->eco_mode_mask) - 1);
+		if (!sreg->eco_mode_mask)
+			return -EINVAL;
+
+		val = sreg->eco_mode_mask;
 		break;
 	default:
 		return -EINVAL;
