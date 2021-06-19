@@ -984,46 +984,38 @@ fail:
 	return NULL;
 }
 
-static int unix_mknod(const char *sun_path, umode_t mode, struct path *res)
+static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
 {
+	struct unix_sock *u = unix_sk(sk);
+	umode_t mode = S_IFSOCK |
+	       (SOCK_INODE(sk->sk_socket)->i_mode & ~current_umask());
+	struct path parent, path;
+	struct user_namespace *ns; // barf...
 	struct dentry *dentry;
-	struct path path;
-	int err = 0;
+	unsigned int hash;
+	int err;
+
 	/*
 	 * Get the parent directory, calculate the hash for last
 	 * component.
 	 */
-	dentry = kern_path_create(AT_FDCWD, sun_path, &path, 0);
-	err = PTR_ERR(dentry);
+	dentry = kern_path_create(AT_FDCWD, addr->name->sun_path, &parent, 0);
 	if (IS_ERR(dentry))
-		return err;
+		return PTR_ERR(dentry);
+	ns = mnt_user_ns(parent.mnt);
 
 	/*
 	 * All right, let's create it.
 	 */
-	err = security_path_mknod(&path, dentry, mode, 0);
+	err = security_path_mknod(&parent, dentry, mode, 0);
 	if (!err) {
-		err = vfs_mknod(mnt_user_ns(path.mnt), d_inode(path.dentry),
-				dentry, mode, 0);
+		err = vfs_mknod(ns, d_inode(parent.dentry), dentry, mode, 0);
 		if (!err) {
-			res->mnt = mntget(path.mnt);
-			res->dentry = dget(dentry);
+			path.mnt = mntget(parent.mnt);
+			path.dentry = dget(dentry);
 		}
 	}
-	done_path_create(&path, dentry);
-	return err;
-}
-
-static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
-{
-	struct unix_sock *u = unix_sk(sk);
-	struct path path = { };
-	umode_t mode = S_IFSOCK |
-	       (SOCK_INODE(sk->sk_socket)->i_mode & ~current_umask());
-	unsigned int hash;
-	int err;
-
-	err = unix_mknod(addr->name->sun_path, mode, &path);
+	done_path_create(&parent, dentry);
 	if (err)
 		return err;
 
