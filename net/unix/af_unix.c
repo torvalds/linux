@@ -1010,20 +1010,13 @@ static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
 	err = security_path_mknod(&parent, dentry, mode, 0);
 	if (!err)
 		err = vfs_mknod(ns, d_inode(parent.dentry), dentry, mode, 0);
-	if (err) {
-		done_path_create(&parent, dentry);
-		return err;
-	}
+	if (err)
+		goto out;
 	err = mutex_lock_interruptible(&u->bindlock);
-	if (err) {
-		done_path_create(&parent, dentry);
-		return err;
-	}
-	if (u->addr) {
-		mutex_unlock(&u->bindlock);
-		done_path_create(&parent, dentry);
-		return -EINVAL;
-	}
+	if (err)
+		goto out_unlink;
+	if (u->addr)
+		goto out_unlock;
 
 	addr->hash = UNIX_HASH_SIZE;
 	hash = d_backing_inode(dentry)->i_ino & (UNIX_HASH_SIZE - 1);
@@ -1035,6 +1028,16 @@ static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
 	mutex_unlock(&u->bindlock);
 	done_path_create(&parent, dentry);
 	return 0;
+
+out_unlock:
+	mutex_unlock(&u->bindlock);
+	err = -EINVAL;
+out_unlink:
+	/* failed after successful mknod?  unlink what we'd created... */
+	vfs_unlink(ns, d_inode(parent.dentry), dentry, NULL);
+out:
+	done_path_create(&parent, dentry);
+	return err;
 }
 
 static int unix_bind_abstract(struct sock *sk, unsigned hash,
