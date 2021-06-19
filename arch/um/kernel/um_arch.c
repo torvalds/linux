@@ -280,7 +280,7 @@ static void parse_host_cpu_flags(char *line)
 	int i;
 	for (i = 0; i < 32*NCAPINTS; i++) {
 		if ((x86_cap_flags[i] != NULL) && strstr(line, x86_cap_flags[i]))
-			set_cpu_cap(&boot_cpu_data, i);;
+			set_cpu_cap(&boot_cpu_data, i);
 	}
 }
 static void parse_cache_line(char *line)
