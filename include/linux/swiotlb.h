@@ -85,6 +85,7 @@ extern enum swiotlb_force swiotlb_force;
  * @debugfs:	The dentry to debugfs.
  * @late_alloc:	%true if allocated using the page allocator
  * @force_bounce: %true if swiotlb bouncing is forced
+ * @for_alloc:  %true if the pool is used for memory allocation
  */
 struct io_tlb_mem {
 	phys_addr_t start;
@@ -96,6 +97,7 @@ struct io_tlb_mem {
 	struct dentry *debugfs;
 	bool late_alloc;
 	bool force_bounce;
+	bool for_alloc;
 	struct io_tlb_slot {
 		phys_addr_t orig_addr;
 		size_t alloc_size;
@@ -157,5 +159,29 @@ static inline void swiotlb_adjust_size(unsigned long size)
 
 extern void swiotlb_print_info(void);
 extern void swiotlb_set_max_segment(unsigned int);
+
+#ifdef CONFIG_DMA_RESTRICTED_POOL
+struct page *swiotlb_alloc(struct device *dev, size_t size);
+bool swiotlb_free(struct device *dev, struct page *page, size_t size);
+
+static inline bool is_swiotlb_for_alloc(struct device *dev)
+{
+	return dev->dma_io_tlb_mem->for_alloc;
+}
+#else
+static inline struct page *swiotlb_alloc(struct device *dev, size_t size)
+{
+	return NULL;
+}
+static inline bool swiotlb_free(struct device *dev, struct page *page,
+				size_t size)
+{
+	return false;
+}
+static inline bool is_swiotlb_for_alloc(struct device *dev)
+{
+	return false;
+}
+#endif /* CONFIG_DMA_RESTRICTED_POOL */
 
 #endif /* __LINUX_SWIOTLB_H */
