@@ -989,8 +989,8 @@ static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
 	struct unix_sock *u = unix_sk(sk);
 	umode_t mode = S_IFSOCK |
 	       (SOCK_INODE(sk->sk_socket)->i_mode & ~current_umask());
-	struct path parent, path;
 	struct user_namespace *ns; // barf...
+	struct path parent;
 	struct dentry *dentry;
 	unsigned int hash;
 	int err;
@@ -1008,36 +1008,32 @@ static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
 	 * All right, let's create it.
 	 */
 	err = security_path_mknod(&parent, dentry, mode, 0);
-	if (!err) {
+	if (!err)
 		err = vfs_mknod(ns, d_inode(parent.dentry), dentry, mode, 0);
-		if (!err) {
-			path.mnt = mntget(parent.mnt);
-			path.dentry = dget(dentry);
-		}
-	}
-	done_path_create(&parent, dentry);
-	if (err)
+	if (err) {
+		done_path_create(&parent, dentry);
 		return err;
-
+	}
 	err = mutex_lock_interruptible(&u->bindlock);
 	if (err) {
-		path_put(&path);
+		done_path_create(&parent, dentry);
 		return err;
 	}
-
 	if (u->addr) {
 		mutex_unlock(&u->bindlock);
-		path_put(&path);
+		done_path_create(&parent, dentry);
 		return -EINVAL;
 	}
 
 	addr->hash = UNIX_HASH_SIZE;
-	hash = d_backing_inode(path.dentry)->i_ino & (UNIX_HASH_SIZE - 1);
+	hash = d_backing_inode(dentry)->i_ino & (UNIX_HASH_SIZE - 1);
 	spin_lock(&unix_table_lock);
-	u->path = path;
+	u->path.mnt = mntget(parent.mnt);
+	u->path.dentry = dget(dentry);
 	__unix_set_addr(sk, addr, hash);
 	spin_unlock(&unix_table_lock);
 	mutex_unlock(&u->bindlock);
+	done_path_create(&parent, dentry);
 	return 0;
 }
 
