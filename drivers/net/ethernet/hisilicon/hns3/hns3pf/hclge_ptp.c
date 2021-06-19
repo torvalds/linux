@@ -415,8 +415,6 @@ int hclge_ptp_get_ts_info(struct hnae3_handle *handle,
 
 static int hclge_ptp_create_clock(struct hclge_dev *hdev)
 {
-#define HCLGE_PTP_NAME_LEN	32
-
 	struct hclge_ptp *ptp;
 
 	ptp = devm_kzalloc(&hdev->pdev->dev, sizeof(*ptp), GFP_KERNEL);
@@ -424,7 +422,7 @@ static int hclge_ptp_create_clock(struct hclge_dev *hdev)
 		return -ENOMEM;
 
 	ptp->hdev = hdev;
-	snprintf(ptp->info.name, HCLGE_PTP_NAME_LEN, "%s",
+	snprintf(ptp->info.name, sizeof(ptp->info.name), "%s",
 		 HCLGE_DRIVER_NAME);
 	ptp->info.owner = THIS_MODULE;
 	ptp->info.max_adj = HCLGE_PTP_CYCLE_ADJ_MAX;
