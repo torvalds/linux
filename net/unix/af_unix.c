@@ -1024,7 +1024,6 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	int err;
 	unsigned int hash;
 	struct unix_address *addr;
-	struct path path = { };
 
 	err = -EINVAL;
 	if (addr_len < offsetofend(struct sockaddr_un, sun_family) ||
@@ -1051,6 +1050,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	refcount_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
+		struct path path = { };
 		umode_t mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current_umask());
 		err = unix_mknod(sun_path, mode, &path);
@@ -1059,41 +1059,54 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 				err = -EADDRINUSE;
 			goto out_addr;
 		}
-	}
 
-	err = mutex_lock_interruptible(&u->bindlock);
-	if (err)
-		goto out_put;
+		err = mutex_lock_interruptible(&u->bindlock);
+		if (err) {
+			path_put(&path);
+			goto out_addr;
+		}
 
-	err = -EINVAL;
-	if (u->addr)
-		goto out_up;
+		err = -EINVAL;
+		if (u->addr) {
+			mutex_unlock(&u->bindlock);
+			path_put(&path);
+			goto out_addr;
+		}
 
-	if (sun_path[0]) {
 		addr->hash = UNIX_HASH_SIZE;
 		hash = d_backing_inode(path.dentry)->i_ino & (UNIX_HASH_SIZE - 1);
 		spin_lock(&unix_table_lock);
 		u->path = path;
+		__unix_set_addr(sk, addr, hash);
+		spin_unlock(&unix_table_lock);
+		mutex_unlock(&u->bindlock);
+		addr = NULL;
+		err = 0;
 	} else {
+		err = mutex_lock_interruptible(&u->bindlock);
+		if (err)
+			goto out_addr;
+
+		err = -EINVAL;
+		if (u->addr) {
+			mutex_unlock(&u->bindlock);
+			goto out_addr;
+		}
+
 		spin_lock(&unix_table_lock);
 		err = -EADDRINUSE;
 		if (__unix_find_socket_byname(net, sunaddr, addr_len,
 					      sk->sk_type, hash)) {
 			spin_unlock(&unix_table_lock);
-			goto out_up;
+			mutex_unlock(&u->bindlock);
+			goto out_addr;
 		}
-		hash = addr->hash;
+		__unix_set_addr(sk, addr, addr->hash);
+		spin_unlock(&unix_table_lock);
+		mutex_unlock(&u->bindlock);
+		addr = NULL;
+		err = 0;
 	}
-
-	__unix_set_addr(sk, addr, hash);
-	spin_unlock(&unix_table_lock);
-	addr = NULL;
-	err = 0;
-out_up:
-	mutex_unlock(&u->bindlock);
-out_put:
-	if (err)
-		path_put(&path);
 out_addr:
 	if (addr)
 		unix_release_addr(addr);
