@@ -43,14 +43,14 @@ enum at91_reg {
 };
 
 /* Mailbox registers (0 <= i <= 15) */
-#define AT91_MMR(i)		(enum at91_reg)(0x200 + ((i) * 0x20))
-#define AT91_MAM(i)		(enum at91_reg)(0x204 + ((i) * 0x20))
-#define AT91_MID(i)		(enum at91_reg)(0x208 + ((i) * 0x20))
-#define AT91_MFID(i)		(enum at91_reg)(0x20C + ((i) * 0x20))
-#define AT91_MSR(i)		(enum at91_reg)(0x210 + ((i) * 0x20))
-#define AT91_MDL(i)		(enum at91_reg)(0x214 + ((i) * 0x20))
-#define AT91_MDH(i)		(enum at91_reg)(0x218 + ((i) * 0x20))
-#define AT91_MCR(i)		(enum at91_reg)(0x21C + ((i) * 0x20))
+#define AT91_MMR(i)		((enum at91_reg)(0x200 + ((i) * 0x20)))
+#define AT91_MAM(i)		((enum at91_reg)(0x204 + ((i) * 0x20)))
+#define AT91_MID(i)		((enum at91_reg)(0x208 + ((i) * 0x20)))
+#define AT91_MFID(i)		((enum at91_reg)(0x20C + ((i) * 0x20)))
+#define AT91_MSR(i)		((enum at91_reg)(0x210 + ((i) * 0x20)))
+#define AT91_MDL(i)		((enum at91_reg)(0x214 + ((i) * 0x20)))
+#define AT91_MDH(i)		((enum at91_reg)(0x218 + ((i) * 0x20)))
+#define AT91_MCR(i)		((enum at91_reg)(0x21C + ((i) * 0x20)))
 
 /* Register bits */
 #define AT91_MR_CANEN		BIT(0)
