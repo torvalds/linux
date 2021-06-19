@@ -546,13 +546,6 @@ enum _PUBLIC_ACTION {
 	ACT_PUBLIC_MAX
 };
 
-/* BACK action code */
-enum rtw_ieee80211_back_actioncode {
-	RTW_WLAN_ACTION_ADDBA_REQ = 0,
-	RTW_WLAN_ACTION_ADDBA_RESP = 1,
-	RTW_WLAN_ACTION_DELBA = 2,
-};
-
 /* HT features action code */
 enum rtw_ieee80211_ht_actioncode {
 	RTW_WLAN_ACTION_NOTIFY_CH_WIDTH = 0,
