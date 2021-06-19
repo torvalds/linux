@@ -559,13 +559,6 @@ enum rtw_ieee80211_ht_actioncode {
 	RTW_WLAN_ACTION_HI_INFO_EXCHG = 8,
 };
 
-/* BACK (block-ack) parties */
-enum rtw_ieee80211_back_parties {
-	RTW_WLAN_BACK_RECIPIENT = 0,
-	RTW_WLAN_BACK_INITIATOR = 1,
-	RTW_WLAN_BACK_TIMER = 2,
-};
-
 #define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
 				* 00:50:F2
 				*/
