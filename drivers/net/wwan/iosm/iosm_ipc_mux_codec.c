@@ -477,7 +477,7 @@ static void ipc_mux_ul_adgh_finish(struct iosm_mux *ipc_mux)
 	long long bytes;
 	char *str;
 
-	if (!ul_adb || !ul_adb->dest_skb) {
+	if (!ul_adb->dest_skb) {
 		dev_err(ipc_mux->dev, "no dest skb");
 		return;
 	}
