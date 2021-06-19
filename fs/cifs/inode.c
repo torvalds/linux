@@ -360,9 +360,12 @@ cifs_get_file_info_unix(struct file *filp)
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, inode->i_sb);
 		rc = 0;
-	}
+	} else
+		goto cifs_gfiunix_out;
 
 	cifs_fattr_to_inode(inode, &fattr);
+
+cifs_gfiunix_out:
 	free_xid(xid);
 	return rc;
 }
