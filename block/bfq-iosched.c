@@ -1729,10 +1729,23 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 		bfqq->entity.new_weight == 40;
 	*interactive = !in_burst && idle_for_long_time &&
 		bfqq->entity.new_weight == 40;
+	/*
+	 * Merged bfq_queues are kept out of weight-raising
+	 * (low-latency) mechanisms. The reason is that these queues
+	 * are usually created for non-interactive and
+	 * non-soft-real-time tasks. Yet this is not the case for
+	 * stably-merged queues. These queues are merged just because
+	 * they are created shortly after each other. So they may
+	 * easily serve the I/O of an interactive or soft-real time
+	 * application, if the application happens to spawn multiple
+	 * processes. So let also stably-merged queued enjoy weight
+	 * raising.
+	 */
 	wr_or_deserves_wr = bfqd->low_latency &&
 		(bfqq->wr_coeff > 1 ||
 		 (bfq_bfqq_sync(bfqq) &&
-		  bfqq->bic && (*interactive || soft_rt)));
+		  (bfqq->bic || RQ_BIC(rq)->stably_merged) &&
+		   (*interactive || soft_rt)));
 
 	/*
 	 * Using the last flag, update budget and check whether bfqq
