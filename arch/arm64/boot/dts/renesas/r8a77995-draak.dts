@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "r8a77995.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Renesas Draak board based on r8a77995";
@@ -64,6 +65,42 @@
 			hdmi_con_out: endpoint {
 				remote-endpoint = <&adv7511_out>;
 			};
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keys_pins>;
+		pinctrl-names = "default";
+
+		key-1 {
+			gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW56-1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW56-2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW56-3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW56-4";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 	};
 
@@ -420,6 +457,11 @@
 	i2c1_pins: i2c1 {
 		groups = "i2c1";
 		function = "i2c1";
+	};
+
+	keys_pins: keys {
+		pins = "GP_4_12", "GP_4_13", "GP_4_14", "GP_4_15";
+		bias-pull-up;
 	};
 
 	pwm0_pins: pwm0 {
