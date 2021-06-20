@@ -1270,7 +1270,7 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 	mutex_lock(&private->data_mutex);
 
 	oval = private->vol_sw_hw_switch[index];
-	val = !!ucontrol->value.integer.value[0];
+	val = !!ucontrol->value.enumerated.item[0];
 
 	if (oval == val)
 		goto unlock;
@@ -1356,7 +1356,7 @@ static int scarlett2_level_enum_ctl_put(struct snd_kcontrol *kctl,
 	mutex_lock(&private->data_mutex);
 
 	oval = private->level_switch[index];
-	val = !!ucontrol->value.integer.value[0];
+	val = !!ucontrol->value.enumerated.item[0];
 
 	if (oval == val)
 		goto unlock;
@@ -1390,7 +1390,7 @@ static int scarlett2_pad_ctl_get(struct snd_kcontrol *kctl,
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct scarlett2_data *private = elem->head.mixer->private_data;
 
-	ucontrol->value.enumerated.item[0] =
+	ucontrol->value.integer.value[0] =
 		private->pad_switch[elem->control];
 	return 0;
 }
@@ -1448,7 +1448,7 @@ static int scarlett2_dim_mute_ctl_get(struct snd_kcontrol *kctl,
 		scarlett2_update_volumes(mixer);
 	mutex_unlock(&private->data_mutex);
 
-	ucontrol->value.enumerated.item[0] = private->dim_mute[elem->control];
+	ucontrol->value.integer.value[0] = private->dim_mute[elem->control];
 	return 0;
 }
 
@@ -1748,8 +1748,8 @@ static int scarlett2_mux_src_enum_ctl_put(struct snd_kcontrol *kctl,
 	mutex_lock(&private->data_mutex);
 
 	oval = private->mux[index];
-	val = clamp(ucontrol->value.integer.value[0],
-		    0L, private->num_mux_srcs - 1L);
+	val = min(ucontrol->value.enumerated.item[0],
+		  private->num_mux_srcs - 1U);
 
 	if (oval == val)
 		goto unlock;
