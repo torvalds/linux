@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xf3da2b656
+#define DMUB_FW_VERSION_GIT_HASH 0x2fe298ec9
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 71
+#define DMUB_FW_VERSION_REVISION 72
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -334,6 +334,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1), /**< 1 if mailbox ready */
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2), /**< 1 if init done */
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
+	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
 };
 
 /* Register bit definition for SCRATCH5 */
@@ -352,7 +353,7 @@ enum dmub_lvtma_status_bit {
 };
 
 /**
- * union dmub_fw_boot_options - Boot option definitions for SCRATCH15
+ * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
 union dmub_fw_boot_options {
 	struct {
@@ -363,7 +364,9 @@ union dmub_fw_boot_options {
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
-		uint32_t reserved : 25; /**< reserved */
+		uint32_t reserved2: 1; /**< reserved for an unreleased feature */
+		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
+		uint32_t reserved : 23; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
