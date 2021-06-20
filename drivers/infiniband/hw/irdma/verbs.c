@@ -3633,7 +3633,7 @@ static int irdma_iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
-	immutable->gid_tbl_len = 1;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	return 0;
 }
