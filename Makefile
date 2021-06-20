@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 13
 SUBLEVEL = 0
-EXTRAVERSION = -rc6
-NAME = Frozen Wasteland
+EXTRAVERSION = -rc7
+NAME = Opossums on Parade
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
