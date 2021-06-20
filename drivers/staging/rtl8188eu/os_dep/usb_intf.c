@@ -387,8 +387,11 @@ static int rtw_usb_if1_init(struct usb_interface *pusb_intf)
 		pr_debug("can't get autopm:\n");
 
 	/*  alloc dev name after read efuse. */
-	if (dev_alloc_name(pnetdev, padapter->registrypriv.ifname) < 0)
+	err = dev_alloc_name(pnetdev, padapter->registrypriv.ifname);
+	if (err < 0) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("dev_alloc_name, fail!\n"));
+		goto free_hal_data;
+	}
 
 	netif_carrier_off(pnetdev);
 
