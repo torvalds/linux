@@ -163,18 +163,15 @@ struct net_device *rtl88eu_mon_init(void)
 
 	dev = alloc_netdev(0, "mon%d", NET_NAME_UNKNOWN, mon_setup);
 	if (!dev)
-		goto fail;
+		return NULL;
 
 	err = register_netdev(dev);
-	if (err < 0)
-		goto fail_free_dev;
+	if (err < 0) {
+		free_netdev(dev);
+		return NULL;
+	}
 
 	return dev;
-
-fail_free_dev:
-	free_netdev(dev);
-fail:
-	return NULL;
 }
 
 void rtl88eu_mon_deinit(struct net_device *dev)
