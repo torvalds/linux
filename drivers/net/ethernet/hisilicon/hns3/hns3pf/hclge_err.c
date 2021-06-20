@@ -2330,8 +2330,10 @@ int hclge_handle_error_info_log(struct hnae3_ae_dev *ae_dev)
 	buf_size = buf_len / sizeof(u32);
 
 	desc_data = kzalloc(buf_len, GFP_KERNEL);
-	if (!desc_data)
-		return -ENOMEM;
+	if (!desc_data) {
+		ret = -ENOMEM;
+		goto err_desc;
+	}
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
