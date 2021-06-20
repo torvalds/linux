@@ -366,7 +366,6 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 	struct usb_device *pusbd = pdvobj->pusbdev;
 	int err;
 	unsigned int pipe;
-	u32 ret = _SUCCESS;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx) {
@@ -403,10 +402,10 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 			  precvbuf);/* context is precvbuf */
 
 	err = usb_submit_urb(purb, GFP_ATOMIC);
-	if ((err) && (err != (-EPERM)))
-		ret = _FAIL;
+	if (err)
+		return _FAIL;
 
-	return ret;
+	return _SUCCESS;
 }
 
 void rtw_hal_inirp_deinit(struct adapter *padapter)
