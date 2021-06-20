@@ -5480,9 +5480,9 @@ u64 goya_get_device_time(struct hl_device *hdev)
 	return device_time | RREG32(mmPSOC_TIMESTAMP_CNTCVL);
 }
 
-static void goya_collective_wait_init_cs(struct hl_cs *cs)
+static int goya_collective_wait_init_cs(struct hl_cs *cs)
 {
-
+	return 0;
 }
 
 static int goya_collective_wait_create_jobs(struct hl_device *hdev,

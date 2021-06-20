@@ -52,6 +52,24 @@ void hl_sob_reset_error(struct kref *ref)
 		hw_sob->q_idx, hw_sob->sob_id);
 }
 
+static void hw_sob_put(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_put(&hw_sob->kref, hl_sob_reset);
+}
+
+static void hw_sob_put_err(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_put(&hw_sob->kref, hl_sob_reset_error);
+}
+
+static void hw_sob_get(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_get(&hw_sob->kref);
+}
+
 /**
  * hl_gen_sob_mask() - Generates a sob mask to be used in a monitor arm packet
  * @sob_base: sob base id
@@ -122,31 +140,7 @@ static void hl_fence_release(struct kref *kref)
 		container_of(kref, struct hl_fence, refcount);
 	struct hl_cs_compl *hl_cs_cmpl =
 		container_of(fence, struct hl_cs_compl, base_fence);
-	struct hl_device *hdev = hl_cs_cmpl->hdev;
 
-	/* EBUSY means the CS was never submitted and hence we don't have
-	 * an attached hw_sob object that we should handle here
-	 */
-	if (fence->error == -EBUSY)
-		goto free;
-
-	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
-		(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
-		(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)) {
-
-		dev_dbg(hdev->dev,
-			"CS 0x%llx type %d finished, sob_id: %d, sob_val: 0x%x\n",
-			hl_cs_cmpl->cs_seq,
-			hl_cs_cmpl->type,
-			hl_cs_cmpl->hw_sob->sob_id,
-			hl_cs_cmpl->sob_val);
-
-		queue_work(hdev->sob_reset_wq, &hl_cs_cmpl->sob_reset_work);
-
-		return;
-	}
-
-free:
 	kfree(hl_cs_cmpl);
 }
 
@@ -567,11 +561,46 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 	}
 }
 
+static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
+					struct hl_cs *cs,
+					struct hl_cs_compl *hl_cs_cmpl)
+{
+	/* Skip this handler if the cs wasn't submitted, to avoid putting
+	 * the hw_sob twice, since this case already handled at this point,
+	 * also skip if the hw_sob pointer wasn't set.
+	 */
+	if (!hl_cs_cmpl->hw_sob || !cs->submitted)
+		return;
+
+	spin_lock(&hl_cs_cmpl->lock);
+
+	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
+			(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
+			(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)) {
+		dev_dbg(hdev->dev,
+				"CS 0x%llx type %d finished, sob_id: %d, sob_val: 0x%x\n",
+				hl_cs_cmpl->cs_seq,
+				hl_cs_cmpl->type,
+				hl_cs_cmpl->hw_sob->sob_id,
+				hl_cs_cmpl->sob_val);
+
+		hw_sob_put(hl_cs_cmpl->hw_sob);
+
+		if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
+			hdev->asic_funcs->reset_sob_group(hdev,
+					hl_cs_cmpl->sob_group);
+	}
+
+	spin_unlock(&hl_cs_cmpl->lock);
+}
+
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs, refcount);
 	struct hl_device *hdev = cs->ctx->hdev;
 	struct hl_cs_job *job, *tmp;
+	struct hl_cs_compl *hl_cs_cmpl =
+			container_of(cs->fence, struct hl_cs_compl, base_fence);
 
 	cs->completed = true;
 
@@ -587,8 +616,9 @@ static void cs_do_release(struct kref *ref)
 		complete_job(hdev, job);
 
 	if (!cs->submitted) {
-		/* In case the wait for signal CS was submitted, the put occurs
-		 * in init_signal_wait_cs() or collective_wait_init_cs()
+		/*
+		 * In case the wait for signal CS was submitted, the fence put
+		 * occurs in init_signal_wait_cs() or collective_wait_init_cs()
 		 * right before hanging on the PQ.
 		 */
 		if (cs->type == CS_TYPE_WAIT ||
@@ -661,6 +691,9 @@ out:
 		cs->fence->timestamp = ktime_get();
 	complete_all(&cs->fence->completion);
 	complete_multi_cs(hdev, cs);
+
+	cs_release_sob_reset_handler(hdev, cs, hl_cs_cmpl);
+
 	hl_fence_put(cs->fence);
 
 	kfree(cs->jobs_in_queue_cnt);
@@ -1630,7 +1663,7 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 
 	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
 
-	kref_get(&sob->kref);
+	hw_sob_get(sob);
 
 	/* check for wraparound */
 	if (prop->next_sob_val + count >= HL_MAX_SOB_VAL) {
@@ -1640,7 +1673,7 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 		 * just incremented the refcount right before calling this
 		 * function.
 		 */
-		kref_put(&sob->kref, hl_sob_reset_error);
+		hw_sob_put_err(sob);
 
 		/*
 		 * check the other sob value, if it still in use then fail
@@ -1797,6 +1830,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_fence *sig_fence = NULL;
 	struct hl_ctx *ctx = hpriv->ctx;
 	enum hl_queue_type q_type;
+	bool is_wait_cs = false;
 	struct hl_cs *cs;
 	u64 signal_seq;
 	int rc;
@@ -1849,6 +1883,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	}
 
 	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT) {
+		is_wait_cs = true;
+
 		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq, ctx);
 		if (rc)
 			goto free_cs_chunk_array;
@@ -1894,9 +1930,9 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	rc = allocate_cs(hdev, ctx, cs_type, ULLONG_MAX, &cs, flags, timeout);
 	if (rc) {
-		if (cs_type == CS_TYPE_WAIT ||
-			cs_type == CS_TYPE_COLLECTIVE_WAIT)
+		if (is_wait_cs)
 			hl_fence_put(sig_fence);
+
 		goto free_cs_chunk_array;
 	}
 
@@ -1928,7 +1964,13 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
-		if (rc != -EAGAIN)
+		/* In case wait cs failed here, it means the signal cs
+		 * already completed. we want to free all it's related objects
+		 * but we don't want to fail the ioctl.
+		 */
+		if (is_wait_cs)
+			rc = 0;
+		else if (rc != -EAGAIN)
 			dev_err(hdev->dev,
 				"Failed to submit CS %d.%llu to H/W queues, error %d\n",
 				ctx->asid, cs->sequence, rc);

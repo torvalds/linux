@@ -416,8 +416,9 @@ static int init_signal_cs(struct hl_device *hdev,
 	cs_cmpl->sob_val = prop->next_sob_val;
 
 	dev_dbg(hdev->dev,
-		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
-		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
+		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d, seq: %llu\n",
+		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx,
+		cs_cmpl->cs_seq);
 
 	/* we set an EB since we must make sure all oeprations are done
 	 * when sending the signal
@@ -430,7 +431,7 @@ static int init_signal_cs(struct hl_device *hdev,
 	return rc;
 }
 
-static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
+static int init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 		struct hl_cs_job *job, struct hl_cs_compl *cs_cmpl)
 {
 	struct hl_cs_compl *signal_cs_cmpl;
@@ -449,10 +450,33 @@ static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 	cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
 	cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
 
+	/* check again if the signal cs already completed.
+	 * if yes then don't send any wait cs since the hw_sob
+	 * could be in reset already. if signal is not completed
+	 * then get refcount to hw_sob to prevent resetting the sob
+	 * while wait cs is not submitted.
+	 * note that this check is protected by two locks,
+	 * hw queue lock and completion object lock,
+	 * and the same completion object lock also protects
+	 * the hw_sob reset handler function.
+	 * The hw_queue lock prevent out of sync of hw_sob
+	 * refcount value, changed by signal/wait flows.
+	 */
+	spin_lock(&signal_cs_cmpl->lock);
+
+	if (completion_done(&cs->signal_fence->completion)) {
+		spin_unlock(&signal_cs_cmpl->lock);
+		return -EINVAL;
+	}
+
+	kref_get(&cs_cmpl->hw_sob->kref);
+
+	spin_unlock(&signal_cs_cmpl->lock);
+
 	dev_dbg(hdev->dev,
-		"generate wait CB, sob_id: %d, sob_val: 0x%x, mon_id: %d, q_idx: %d\n",
+		"generate wait CB, sob_id: %d, sob_val: 0x%x, mon_id: %d, q_idx: %d, seq: %llu\n",
 		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val,
-		prop->base_mon_id, q_idx);
+		prop->base_mon_id, q_idx, cs->sequence);
 
 	wait_prop.data = (void *) job->patched_cb;
 	wait_prop.sob_base = cs_cmpl->hw_sob->sob_id;
@@ -461,17 +485,14 @@ static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 	wait_prop.mon_id = prop->base_mon_id;
 	wait_prop.q_idx = q_idx;
 	wait_prop.size = 0;
+
 	hdev->asic_funcs->gen_wait_cb(hdev, &wait_prop);
 
-	kref_get(&cs_cmpl->hw_sob->kref);
-	/*
-	 * Must put the signal fence after the SOB refcnt increment so
-	 * the SOB refcnt won't turn 0 and reset the SOB before the
-	 * wait CS was submitted.
-	 */
 	mb();
 	hl_fence_put(cs->signal_fence);
 	cs->signal_fence = NULL;
+
+	return 0;
 }
 
 /*
@@ -496,7 +517,7 @@ static int init_signal_wait_cs(struct hl_cs *cs)
 	if (cs->type & CS_TYPE_SIGNAL)
 		rc = init_signal_cs(hdev, job, cs_cmpl);
 	else if (cs->type & CS_TYPE_WAIT)
-		init_wait_cs(hdev, cs, job, cs_cmpl);
+		rc = init_wait_cs(hdev, cs, job, cs_cmpl);
 
 	return rc;
 }
@@ -571,12 +592,13 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT)) {
 		rc = init_signal_wait_cs(cs);
-		if (rc) {
-			dev_err(hdev->dev, "Failed to submit signal cs\n");
+		if (rc)
 			goto unroll_cq_resv;
-		}
-	} else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
-		hdev->asic_funcs->collective_wait_init_cs(cs);
+	} else if (cs->type == CS_TYPE_COLLECTIVE_WAIT) {
+		rc = hdev->asic_funcs->collective_wait_init_cs(cs);
+		if (rc)
+			goto unroll_cq_resv;
+	}
 
 
 	spin_lock(&hdev->cs_mirror_lock);

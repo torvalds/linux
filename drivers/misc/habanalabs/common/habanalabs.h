@@ -1244,7 +1244,7 @@ struct hl_asic_funcs {
 	void (*reset_sob_group)(struct hl_device *hdev, u16 sob_group);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);
-	void (*collective_wait_init_cs)(struct hl_cs *cs);
+	int (*collective_wait_init_cs)(struct hl_cs *cs);
 	int (*collective_wait_create_jobs)(struct hl_device *hdev,
 			struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
 			u32 collective_engine_id);

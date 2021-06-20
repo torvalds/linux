@@ -1239,7 +1239,7 @@ static void gaudi_collective_slave_init_job(struct hl_device *hdev,
 			prop->collective_sob_id, cb_size, false);
 }
 
-static void gaudi_collective_wait_init_cs(struct hl_cs *cs)
+static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 {
 	struct hl_cs_compl *signal_cs_cmpl =
 		container_of(cs->signal_fence, struct hl_cs_compl, base_fence);
@@ -1260,6 +1260,29 @@ static void gaudi_collective_wait_init_cs(struct hl_cs *cs)
 	/* copy the SOB id and value of the signal CS */
 	cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
 	cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+
+	/* check again if the signal cs already completed.
+	 * if yes then don't send any wait cs since the hw_sob
+	 * could be in reset already. if signal is not completed
+	 * then get refcount to hw_sob to prevent resetting the sob
+	 * while wait cs is not submitted.
+	 * note that this check is protected by two locks,
+	 * hw queue lock and completion object lock,
+	 * and the same completion object lock also protects
+	 * the hw_sob reset handler function.
+	 * The hw_queue lock prevent out of sync of hw_sob
+	 * refcount value, changed by signal/wait flows.
+	 */
+	spin_lock(&signal_cs_cmpl->lock);
+
+	if (completion_done(&cs->signal_fence->completion)) {
+		spin_unlock(&signal_cs_cmpl->lock);
+		return -EINVAL;
+	}
+	/* Increment kref since all slave queues are now waiting on it */
+	kref_get(&cs_cmpl->hw_sob->kref);
+
+	spin_unlock(&signal_cs_cmpl->lock);
 
 	/* Calculate the stream from collective master queue (1st job) */
 	job = list_first_entry(&cs->job_list, struct hl_cs_job, cs_node);
@@ -1304,16 +1327,11 @@ static void gaudi_collective_wait_init_cs(struct hl_cs *cs)
 				cprop->curr_sob_group_idx[stream], stream);
 	}
 
-	/* Increment kref since all slave queues are now waiting on it */
-	kref_get(&cs_cmpl->hw_sob->kref);
-	/*
-	 * Must put the signal fence after the SOB refcnt increment so
-	 * the SOB refcnt won't turn 0 and reset the SOB before the
-	 * wait CS was submitted.
-	 */
 	mb();
 	hl_fence_put(cs->signal_fence);
 	cs->signal_fence = NULL;
+
+	return 0;
 }
 
 static int gaudi_collective_wait_create_job(struct hl_device *hdev,
