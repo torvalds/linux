@@ -152,8 +152,17 @@ free:
 
 void hl_fence_put(struct hl_fence *fence)
 {
-	if (fence)
-		kref_put(&fence->refcount, hl_fence_release);
+	if (IS_ERR_OR_NULL(fence))
+		return;
+	kref_put(&fence->refcount, hl_fence_release);
+}
+
+void hl_fences_put(struct hl_fence **fence, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++, fence++)
+		hl_fence_put(*fence);
 }
 
 void hl_fence_get(struct hl_fence *fence)
@@ -1896,61 +1905,76 @@ out:
 	return rc;
 }
 
-static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
-				u64 timeout_us, u64 seq,
-				enum hl_cs_wait_status *status, s64 *timestamp)
+static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence,
+				enum hl_cs_wait_status *status, u64 timeout_us,
+				s64 *timestamp)
 {
-	struct hl_fence *fence;
-	unsigned long timeout;
-	int rc = 0;
+	struct hl_device *hdev = ctx->hdev;
 	long completion_rc;
+	int rc = 0;
 
-	if (timestamp)
-		*timestamp = 0;
-
-	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
-		timeout = timeout_us;
-	else
-		timeout = usecs_to_jiffies(timeout_us);
-
-	hl_ctx_get(hdev, ctx);
-
-	fence = hl_ctx_get_fence(ctx, seq);
 	if (IS_ERR(fence)) {
 		rc = PTR_ERR(fence);
 		if (rc == -EINVAL)
 			dev_notice_ratelimited(hdev->dev,
 				"Can't wait on CS %llu because current CS is at seq %llu\n",
 				seq, ctx->cs_sequence);
-	} else if (fence) {
-		if (!timeout_us)
-			completion_rc = completion_done(&fence->completion);
-		else
-			completion_rc =
-				wait_for_completion_interruptible_timeout(
-					&fence->completion, timeout);
-
-		if (completion_rc > 0) {
-			*status = CS_WAIT_STATUS_COMPLETED;
-			if (timestamp)
-				*timestamp = ktime_to_ns(fence->timestamp);
-		} else {
-			*status = CS_WAIT_STATUS_BUSY;
-		}
-
-		if (fence->error == -ETIMEDOUT)
-			rc = -ETIMEDOUT;
-		else if (fence->error == -EIO)
-			rc = -EIO;
-
-		hl_fence_put(fence);
-	} else {
-		dev_dbg(hdev->dev,
-			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
-			seq, ctx->cs_sequence);
-		*status = CS_WAIT_STATUS_GONE;
+		return rc;
 	}
 
+	if (!fence) {
+		dev_dbg(hdev->dev,
+			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
+				seq, ctx->cs_sequence);
+
+		*status = CS_WAIT_STATUS_GONE;
+		return 0;
+	}
+
+	if (!timeout_us) {
+		completion_rc = completion_done(&fence->completion);
+	} else {
+		unsigned long timeout;
+
+		timeout = (timeout_us == MAX_SCHEDULE_TIMEOUT) ?
+				timeout_us : usecs_to_jiffies(timeout_us);
+		completion_rc =
+			wait_for_completion_interruptible_timeout(
+				&fence->completion, timeout);
+	}
+
+	if (completion_rc > 0) {
+		*status = CS_WAIT_STATUS_COMPLETED;
+		if (timestamp)
+			*timestamp = ktime_to_ns(fence->timestamp);
+	} else {
+		*status = CS_WAIT_STATUS_BUSY;
+	}
+
+	if (fence->error == -ETIMEDOUT)
+		rc = -ETIMEDOUT;
+	else if (fence->error == -EIO)
+		rc = -EIO;
+
+	return rc;
+}
+
+static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				u64 timeout_us, u64 seq,
+				enum hl_cs_wait_status *status, s64 *timestamp)
+{
+	struct hl_fence *fence;
+	int rc = 0;
+
+	if (timestamp)
+		*timestamp = 0;
+
+	hl_ctx_get(hdev, ctx);
+
+	fence = hl_ctx_get_fence(ctx, seq);
+
+	rc = hl_wait_for_fence(ctx, seq, fence, status, timeout_us, timestamp);
+	hl_fence_put(fence);
 	hl_ctx_put(ctx);
 
 	return rc;

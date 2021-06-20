@@ -229,29 +229,64 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
-struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+/* this function shall be called with cs_lock locked */
+static struct hl_fence *hl_ctx_get_fence_locked(struct hl_ctx *ctx, u64 seq)
 {
 	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
 	struct hl_fence *fence;
 
-	spin_lock(&ctx->cs_lock);
-
-	if (seq >= ctx->cs_sequence) {
-		spin_unlock(&ctx->cs_lock);
+	if (seq >= ctx->cs_sequence)
 		return ERR_PTR(-EINVAL);
-	}
 
-	if (seq + asic_prop->max_pending_cs < ctx->cs_sequence) {
-		spin_unlock(&ctx->cs_lock);
+	if (seq + asic_prop->max_pending_cs < ctx->cs_sequence)
 		return NULL;
-	}
 
 	fence = ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)];
 	hl_fence_get(fence);
+	return fence;
+}
+
+struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+{
+	struct hl_fence *fence;
+
+	spin_lock(&ctx->cs_lock);
+
+	fence = hl_ctx_get_fence_locked(ctx, seq);
 
 	spin_unlock(&ctx->cs_lock);
 
 	return fence;
+}
+
+int hl_ctx_get_fences(struct hl_ctx *ctx, u64 *seq_arr,
+				struct hl_fence **fence, u32 arr_len)
+{
+	struct hl_fence **fence_arr_base = fence;
+	int i, rc = 0;
+
+	spin_lock(&ctx->cs_lock);
+
+	for (i = 0; i < arr_len; i++, fence++) {
+		u64 seq = seq_arr[i];
+
+		*fence = hl_ctx_get_fence_locked(ctx, seq);
+
+		if (IS_ERR(*fence)) {
+			dev_err(ctx->hdev->dev,
+				"Failed to get fence for CS with seq 0x%llx\n",
+					seq);
+			rc = PTR_ERR(*fence);
+			break;
+		}
+	}
+
+	spin_unlock(&ctx->cs_lock);
+
+	if (rc)
+		hl_fences_put(fence_arr_base, i);
+
+	return rc;
 }
 
 /*
