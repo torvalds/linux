@@ -648,7 +648,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PW_ON);
 	status = rtw_hal_power_on(Adapter);
 	if (status == _FAIL) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Failed to init power on!\n"));
 		goto exit;
 	}
 
@@ -688,7 +687,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 			Adapter->bFWReady = false;
 			return status;
 		}
-		RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializeadapt8192CSdio(): Download Firmware Success!!\n"));
 		Adapter->bFWReady = true;
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
@@ -709,7 +707,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
 	status =  InitLLTTable(Adapter, txpktbuf_bndy);
 	if (status == _FAIL) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Failed to init LLT table\n"));
 		goto exit;
 	}
 
@@ -845,8 +842,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 {
 	u8 val8;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s\n", __func__));
-
 	/* Stop Tx Report Timer. 0x4EC[Bit1]=b'0 */
 	val8 = usb_read8(Adapter, REG_TX_RPT_CTRL);
 	usb_write8(Adapter, REG_TX_RPT_CTRL, val8 & (~BIT(1)));
@@ -938,14 +933,10 @@ u32 rtw_hal_inirp_init(struct adapter *Adapter)
 
 	status = _SUCCESS;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("===> usb_inirp_init\n"));
-
 	/* issue Rx irp to receive data */
 	precvbuf = precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		if (!usb_read_port(Adapter, RECV_BULK_IN_ADDR, precvbuf)) {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("usb_rx_init: usb_read_port error\n"));
 			status = _FAIL;
 			goto exit;
 		}
@@ -954,9 +945,6 @@ u32 rtw_hal_inirp_init(struct adapter *Adapter)
 	}
 
 exit:
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("<=== usb_inirp_init\n"));
-
 	return status;
 }
 
@@ -1000,8 +988,6 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		/* Read Permanent MAC address */
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("%s: Permanent Address = %pM\n", __func__, eeprom->mac_addr));
 }
 
 static void readAdapterInfo_8188EU(struct adapter *adapt)
@@ -1040,14 +1026,7 @@ static void _ReadPROMContent(struct adapter *Adapter)
 
 void rtw_hal_read_chip_info(struct adapter *Adapter)
 {
-	unsigned long start = jiffies;
-
-	MSG_88E("====> %s\n", __func__);
-
 	_ReadPROMContent(Adapter);
-
-	MSG_88E("<==== %s in %d ms\n", __func__,
-		jiffies_to_msecs(jiffies - start));
 }
 
 #define GPIO_DEBUG_PORT_NUM 0
