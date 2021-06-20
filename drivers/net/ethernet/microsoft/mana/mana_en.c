@@ -1230,8 +1230,10 @@ static int mana_create_txq(struct mana_port_context *apc,
 
 		cq->gdma_id = cq->gdma_cq->id;
 
-		if (WARN_ON(cq->gdma_id >= gc->max_num_cqs))
-			return -EINVAL;
+		if (WARN_ON(cq->gdma_id >= gc->max_num_cqs)) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
