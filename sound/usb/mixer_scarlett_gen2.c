@@ -218,7 +218,6 @@ struct scarlett2_ports {
 
 struct scarlett2_device_info {
 	u8 line_out_hw_vol; /* line out hw volume is sw controlled */
-	u8 button_count; /* number of buttons */
 	u8 level_input_count; /* inputs with level selectable */
 	u8 pad_input_count; /* inputs with pad selectable */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
@@ -369,9 +368,6 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 	 * between software and hardware volume control
 	 */
 	.line_out_hw_vol = 1,
-
-	/* Mute and dim buttons */
-	.button_count = 2,
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -1108,7 +1104,8 @@ static int scarlett2_add_new_ctl(struct usb_mixer_interface *mixer,
 static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_mixer_data *private = mixer->private_data;
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const struct scarlett2_ports *ports = info->ports;
 	struct scarlett2_usb_volume_status volume_status;
 	int num_line_out =
 		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
@@ -1129,8 +1126,9 @@ static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 			private->vol[i] = private->master_vol;
 	}
 
-	for (i = 0; i < private->info->button_count; i++)
-		private->buttons[i] = !!volume_status.buttons[i];
+	if (info->line_out_hw_vol)
+		for (i = 0; i < SCARLETT2_BUTTON_MAX; i++)
+			private->buttons[i] = !!volume_status.buttons[i];
 
 	return 0;
 }
@@ -1547,13 +1545,15 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 	}
 
 	/* Add HW button controls */
-	for (i = 0; i < private->info->button_count; i++) {
-		err = scarlett2_add_new_ctl(mixer, &scarlett2_button_ctl,
-					    i, 1, scarlett2_button_names[i],
-					    &private->button_ctls[i]);
-		if (err < 0)
-			return err;
-	}
+	if (info->line_out_hw_vol)
+		for (i = 0; i < SCARLETT2_BUTTON_MAX; i++) {
+			err = scarlett2_add_new_ctl(
+				mixer, &scarlett2_button_ctl,
+				i, 1, scarlett2_button_names[i],
+				&private->button_ctls[i]);
+			if (err < 0)
+				return err;
+		}
 
 	return 0;
 }
@@ -1961,8 +1961,9 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 		private->vol[i] = volume;
 	}
 
-	for (i = 0; i < info->button_count; i++)
-		private->buttons[i] = !!volume_status.buttons[i];
+	if (info->line_out_hw_vol)
+		for (i = 0; i < SCARLETT2_BUTTON_MAX; i++)
+			private->buttons[i] = !!volume_status.buttons[i];
 
 	for (i = 0; i < num_mixer_out; i++) {
 		err = scarlett2_usb_get_mix(mixer, i);
@@ -2001,11 +2002,15 @@ static void scarlett2_mixer_interrupt_button_change(
 	struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_mixer_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
 	int i;
 
 	private->vol_updated = 1;
 
-	for (i = 0; i < private->info->button_count; i++)
+	if (!info->line_out_hw_vol)
+		return;
+
+	for (i = 0; i < SCARLETT2_BUTTON_MAX; i++)
 		snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->button_ctls[i]->id);
 }
@@ -2109,7 +2114,7 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
 		return err;
 
 	/* Set up the interrupt polling if there are hardware buttons */
-	if (info->button_count) {
+	if (info->line_out_hw_vol) {
 		err = scarlett2_mixer_status_create(mixer);
 		if (err < 0)
 			return err;
