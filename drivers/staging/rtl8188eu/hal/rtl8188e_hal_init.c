@@ -235,12 +235,12 @@ void Hal_InitPGData88E(struct adapter *padapter)
 	if (!pEEPROM->bautoload_fail_flag) { /*  autoload OK. */
 		if (!is_boot_from_eeprom(padapter)) {
 			/*  Read EFUSE real map to shadow. */
-			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI);
+			EFUSE_ShadowMapUpdate(padapter);
 		}
 	} else {/* autoload fail */
 		/* update to default value 0xFF */
 		if (!is_boot_from_eeprom(padapter))
-			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI);
+			EFUSE_ShadowMapUpdate(padapter);
 	}
 }
 
