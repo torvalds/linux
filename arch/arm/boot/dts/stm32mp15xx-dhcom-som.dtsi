@@ -12,6 +12,8 @@
 	aliases {
 		ethernet0 = &ethernet0;
 		ethernet1 = &ksz8851;
+		rtc0 = &hwrtc;
+		rtc1 = &rtc;
 	};
 
 	memory@c0000000 {
@@ -248,7 +250,7 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
-	rtc@32 {
+	hwrtc: rtc@32 {
 		compatible = "microcrystal,rv8803";
 		reg = <0x32>;
 	};
