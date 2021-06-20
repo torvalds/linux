@@ -518,7 +518,6 @@ static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
 				 struct drm_display_mode *adj)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-	u32 input_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_device *ddev = encoder->dev;
 	struct drm_connector *connector;
@@ -551,12 +550,35 @@ static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
 				 connector->display_info.bus_formats[0]);
 			break;
 		}
-
-		drm_display_info_set_bus_formats(&connector->display_info,
-						 &input_bus_format, 1);
 	}
 
 	return true;
+}
+
+#define MAX_INPUT_SEL_FORMATS	1
+
+static u32 *
+sn65dsi83_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
+				    struct drm_bridge_state *bridge_state,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state,
+				    u32 output_fmt,
+				    unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kcalloc(MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
+			     GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	/* This is the DSI-end bus format */
+	input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_input_fmts = 1;
+
+	return input_fmts;
 }
 
 static const struct drm_bridge_funcs sn65dsi83_funcs = {
@@ -568,6 +590,11 @@ static const struct drm_bridge_funcs sn65dsi83_funcs = {
 	.mode_valid	= sn65dsi83_mode_valid,
 	.mode_set	= sn65dsi83_mode_set,
 	.mode_fixup	= sn65dsi83_mode_fixup,
+
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = sn65dsi83_atomic_get_input_bus_fmts,
 };
 
 static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
