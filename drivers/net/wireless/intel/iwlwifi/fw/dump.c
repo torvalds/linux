@@ -271,6 +271,65 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 	IWL_ERR(fwrt, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
+/*
+ * TCM error struct.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_tcm_error_event_table {
+	u32 valid;
+	u32 error_id;
+	u32 blink2;
+	u32 ilink1;
+	u32 ilink2;
+	u32 data1, data2, data3;
+	u32 logpc;
+	u32 frame_pointer;
+	u32 stack_pointer;
+	u32 msgid;
+	u32 isr;
+	u32 hw_status[5];
+	u32 sw_status[1];
+	u32 reserved[4];
+} __packed; /* TCM_LOG_ERROR_TABLE_API_S_VER_1 */
+
+static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_tcm_error_event_table table = {};
+	u32 base = fwrt->trans->dbg.tcm_error_event_table;
+	int i;
+
+	if (!base ||
+	    !(fwrt->trans->dbg.error_event_table_tlv_status &
+	      IWL_ERROR_EVENT_TABLE_TCM))
+		return;
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	IWL_ERR(fwrt, "TCM status:\n");
+	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
+	IWL_ERR(fwrt, "0x%08X | tcm branchlink2\n", table.blink2);
+	IWL_ERR(fwrt, "0x%08X | tcm interruptlink1\n", table.ilink1);
+	IWL_ERR(fwrt, "0x%08X | tcm interruptlink2\n", table.ilink2);
+	IWL_ERR(fwrt, "0x%08X | tcm data1\n", table.data1);
+	IWL_ERR(fwrt, "0x%08X | tcm data2\n", table.data2);
+	IWL_ERR(fwrt, "0x%08X | tcm data3\n", table.data3);
+	IWL_ERR(fwrt, "0x%08X | tcm log PC\n", table.logpc);
+	IWL_ERR(fwrt, "0x%08X | tcm frame pointer\n", table.frame_pointer);
+	IWL_ERR(fwrt, "0x%08X | tcm stack pointer\n", table.stack_pointer);
+	IWL_ERR(fwrt, "0x%08X | tcm msg ID\n", table.msgid);
+	IWL_ERR(fwrt, "0x%08X | tcm ISR status\n", table.isr);
+	for (i = 0; i < ARRAY_SIZE(table.hw_status); i++)
+		IWL_ERR(fwrt, "0x%08X | tcm HW status[%d]\n",
+			table.hw_status[i], i);
+	for (i = 0; i < ARRAY_SIZE(table.sw_status); i++)
+		IWL_ERR(fwrt, "0x%08X | tcm SW status[%d]\n",
+			table.sw_status[i], i);
+}
+
 static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_trans *trans = fwrt->trans;
@@ -352,6 +411,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 	if (fwrt->trans->dbg.lmac_error_event_table[1])
 		iwl_fwrt_dump_lmac_error_log(fwrt, 1);
 	iwl_fwrt_dump_umac_error_log(fwrt);
+	iwl_fwrt_dump_tcm_error_log(fwrt);
 	iwl_fwrt_dump_iml_error_log(fwrt);
 	iwl_fwrt_dump_fseq_regs(fwrt);
 }
