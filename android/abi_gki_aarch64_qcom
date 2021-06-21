@@ -2054,6 +2054,7 @@
   sched_setscheduler
   sched_setscheduler_nocheck
   sched_show_task
+  sched_trace_rd_span
   sched_uclamp_used
   schedule
   schedule_hrtimeout
@@ -2506,6 +2507,7 @@
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
+  __traceiter_sched_overutilized_tp
   __traceiter_sched_switch
   __traceiter_suspend_resume
   __tracepoint_android_rvh_account_irq
@@ -2607,6 +2609,7 @@
   __tracepoint_rwmmio_post_read
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write
+  __tracepoint_sched_overutilized_tp
   __tracepoint_sched_switch
   __tracepoint_suspend_resume
   trace_print_array_seq
