@@ -94,7 +94,6 @@ static void wwan_hwsim_netdev_setup(struct net_device *ndev)
 }
 
 static const struct wwan_ops wwan_hwsim_wwan_rtnl_ops = {
-	.owner = THIS_MODULE,
 	.priv_size = 0,			/* No private data */
 	.setup = wwan_hwsim_netdev_setup,
 };

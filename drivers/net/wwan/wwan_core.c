@@ -929,11 +929,6 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 		return -EBUSY;
 	}
 
-	if (!try_module_get(ops->owner)) {
-		wwan_remove_dev(wwandev);
-		return -ENODEV;
-	}
-
 	wwandev->ops = ops;
 	wwandev->ops_ctxt = ctxt;
 
@@ -960,7 +955,6 @@ static int wwan_child_dellink(struct device *dev, void *data)
 void wwan_unregister_ops(struct device *parent)
 {
 	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
-	struct module *owner;
 	LIST_HEAD(kill_list);
 
 	if (WARN_ON(IS_ERR(wwandev)))
@@ -976,8 +970,6 @@ void wwan_unregister_ops(struct device *parent)
 	 */
 	put_device(&wwandev->dev);
 
-	owner = wwandev->ops->owner;	/* Preserve ops owner */
-
 	rtnl_lock();	/* Prevent concurent netdev(s) creation/destroying */
 
 	/* Remove all child netdev(s), using batch removing */
@@ -988,8 +980,6 @@ void wwan_unregister_ops(struct device *parent)
 	wwandev->ops = NULL;	/* Finally remove ops */
 
 	rtnl_unlock();
-
-	module_put(owner);
 
 	wwandev->ops_ctxt = NULL;
 	wwan_remove_dev(wwandev);

@@ -383,7 +383,6 @@ static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
 }
 
 static const struct wwan_ops mhi_wwan_ops = {
-	.owner = THIS_MODULE,
 	.priv_size = sizeof(struct mhi_net_dev),
 	.setup = mhi_net_setup,
 	.newlink = mhi_net_newlink,
@@ -436,7 +435,7 @@ static void mhi_net_remove(struct mhi_device *mhi_dev)
 	struct mhi_net_dev *mhi_netdev = dev_get_drvdata(&mhi_dev->dev);
 	struct mhi_controller *cntrl = mhi_dev->mhi_cntrl;
 
-	/* rtnetlink takes care of removing remaining links */
+	/* WWAN core takes care of removing remaining links */
 	wwan_unregister_ops(&cntrl->mhi_dev->dev);
 
 	if (create_default_iface)

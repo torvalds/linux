@@ -128,14 +128,12 @@ void *wwan_port_get_drvdata(struct wwan_port *port);
 
 /**
  * struct wwan_ops - WWAN device ops
- * @owner: module owner of the WWAN ops
  * @priv_size: size of private netdev data area
  * @setup: set up a new netdev
  * @newlink: register the new netdev
  * @dellink: remove the given netdev
  */
 struct wwan_ops {
-	struct module *owner;
 	unsigned int priv_size;
 	void (*setup)(struct net_device *dev);
 	int (*newlink)(void *ctxt, struct net_device *dev,
