@@ -52,10 +52,13 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 static bool dsa_switch_mtu_match(struct dsa_switch *ds, int port,
 				 struct dsa_notifier_mtu_info *info)
 {
-	if (ds->index == info->sw_index)
-		return (port == info->port) || dsa_is_dsa_port(ds, port);
+	if (ds->index == info->sw_index && port == info->port)
+		return true;
 
-	if (!info->propagate_upstream)
+	/* Do not propagate to other switches in the tree if the notifier was
+	 * targeted for a single switch.
+	 */
+	if (info->targeted_match)
 		return false;
 
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))

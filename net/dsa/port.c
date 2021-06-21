@@ -567,11 +567,11 @@ int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
 }
 
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
-			bool propagate_upstream)
+			bool targeted_match)
 {
 	struct dsa_notifier_mtu_info info = {
 		.sw_index = dp->ds->index,
-		.propagate_upstream = propagate_upstream,
+		.targeted_match = targeted_match,
 		.port = dp->index,
 		.mtu = new_mtu,
 	};
