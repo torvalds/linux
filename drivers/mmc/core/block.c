@@ -2331,6 +2331,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	md->queue.blkdata = md;
 
 	md->disk->major	= MMC_BLOCK_MAJOR;
+	md->disk->minors = perdev_minors;
 	md->disk->first_minor = devidx * perdev_minors;
 	md->disk->fops = &mmc_bdops;
 	md->disk->private_data = md;
