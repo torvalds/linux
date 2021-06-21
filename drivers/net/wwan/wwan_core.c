@@ -941,6 +941,17 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 }
 EXPORT_SYMBOL_GPL(wwan_register_ops);
 
+/* Enqueue child netdev deletion */
+static int wwan_child_dellink(struct device *dev, void *data)
+{
+	struct list_head *kill_list = data;
+
+	if (dev->type == &wwan_type)
+		wwan_rtnl_dellink(to_net_dev(dev), kill_list);
+
+	return 0;
+}
+
 /**
  * wwan_unregister_ops - remove WWAN device ops
  * @parent: Device to use as parent and shared by all WWAN ports and
@@ -949,26 +960,37 @@ EXPORT_SYMBOL_GPL(wwan_register_ops);
 void wwan_unregister_ops(struct device *parent)
 {
 	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
-	bool has_ops;
+	struct module *owner;
+	LIST_HEAD(kill_list);
 
 	if (WARN_ON(IS_ERR(wwandev)))
 		return;
-
-	has_ops = wwandev->ops;
+	if (WARN_ON(!wwandev->ops)) {
+		put_device(&wwandev->dev);
+		return;
+	}
 
 	/* put the reference obtained by wwan_dev_get_by_parent(),
 	 * we should still have one (that the owner is giving back
-	 * now) due to the ops being assigned, check that below
-	 * and return if not.
+	 * now) due to the ops being assigned.
 	 */
 	put_device(&wwandev->dev);
 
-	if (WARN_ON(!has_ops))
-		return;
+	owner = wwandev->ops->owner;	/* Preserve ops owner */
 
-	module_put(wwandev->ops->owner);
+	rtnl_lock();	/* Prevent concurent netdev(s) creation/destroying */
 
-	wwandev->ops = NULL;
+	/* Remove all child netdev(s), using batch removing */
+	device_for_each_child(&wwandev->dev, &kill_list,
+			      wwan_child_dellink);
+	unregister_netdevice_many(&kill_list);
+
+	wwandev->ops = NULL;	/* Finally remove ops */
+
+	rtnl_unlock();
+
+	module_put(owner);
+
 	wwandev->ops_ctxt = NULL;
 	wwan_remove_dev(wwandev);
 }
