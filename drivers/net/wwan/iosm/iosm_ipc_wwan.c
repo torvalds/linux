@@ -329,21 +329,8 @@ struct iosm_wwan *ipc_wwan_init(struct iosm_imem *ipc_imem, struct device *dev)
 
 void ipc_wwan_deinit(struct iosm_wwan *ipc_wwan)
 {
-	int if_id;
-
+	/* This call will remove all child netdev(s) */
 	wwan_unregister_ops(ipc_wwan->dev);
-
-	for (if_id = 0; if_id < ARRAY_SIZE(ipc_wwan->sub_netlist); if_id++) {
-		struct iosm_netdev_priv *priv;
-
-		priv = rcu_access_pointer(ipc_wwan->sub_netlist[if_id]);
-		if (!priv)
-			continue;
-
-		rtnl_lock();
-		ipc_wwan_dellink(ipc_wwan, priv->netdev, NULL);
-		rtnl_unlock();
-	}
 
 	mutex_destroy(&ipc_wwan->if_mutex);
 
