@@ -114,8 +114,11 @@ patternProperties:
           Compatible of the SPI device.
 
       reg:
-        minimum: 0
-        maximum: 256
+        minItems: 1
+        maxItems: 256
+        items:
+          minimum: 0
+          maximum: 256
         description:
           Chip select used by the device.
 
