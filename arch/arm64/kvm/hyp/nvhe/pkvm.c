@@ -1317,6 +1317,31 @@ out_guest_err:
 	return true;
 }
 
+static bool pkvm_install_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu, u64 *exit_code)
+{
+	u64 retval = SMCCC_RET_SUCCESS;
+	u64 ipa = smccc_get_arg1(&hyp_vcpu->vcpu);
+	int ret;
+
+	ret = __pkvm_install_ioguard_page(hyp_vcpu, ipa);
+	if (ret == -ENOMEM) {
+		/*
+		 * We ran out of memcache, let's ask for more. Cancel
+		 * the effects of the HVC that took us here, and
+		 * forward the hypercall to the host for page donation
+		 * purposes.
+		 */
+		write_sysreg_el2(read_sysreg_el2(SYS_ELR) - 4, SYS_ELR);
+		return false;
+	}
+
+	if (ret)
+		retval = SMCCC_RET_INVALID_PARAMETER;
+
+	smccc_set_retval(&hyp_vcpu->vcpu, retval, 0, 0, 0);
+	return true;
+}
+
 bool smccc_trng_available;
 
 static bool pkvm_forward_trng(struct kvm_vcpu *vcpu)
@@ -1377,7 +1402,24 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_SHARE);
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_UNSHARE);
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_RELINQUISH);
+		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MMIO_GUARD_INFO);
+		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MMIO_GUARD_ENROLL);
+		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP);
+		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP);
 		break;
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_ENROLL_FUNC_ID:
+		set_bit(KVM_ARCH_FLAG_MMIO_GUARD, &vcpu->kvm->arch.flags);
+		val[0] = SMCCC_RET_SUCCESS;
+		break;
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID:
+		return pkvm_install_ioguard_page(hyp_vcpu, exit_code);
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_UNMAP_FUNC_ID:
+		if (__pkvm_remove_ioguard_page(hyp_vcpu, vcpu_get_reg(vcpu, 1)))
+			val[0] = SMCCC_RET_INVALID_PARAMETER;
+		else
+			val[0] = SMCCC_RET_SUCCESS;
+		break;
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_INFO_FUNC_ID:
 	case ARM_SMCCC_VENDOR_HYP_KVM_HYP_MEMINFO_FUNC_ID:
 		return pkvm_meminfo_call(hyp_vcpu);
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_SHARE_FUNC_ID:

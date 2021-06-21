@@ -37,6 +37,16 @@ DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 
+static int pkvm_refill_memcache(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	u64 nr_pages = VTCR_EL2_LVLS(hyp_vm->kvm.arch.vtcr) - 1;
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	return refill_memcache(&hyp_vcpu->vcpu.arch.pkvm_memcache, nr_pages,
+			       &host_vcpu->arch.pkvm_memcache);
+}
+
 typedef void (*hyp_entry_exit_handler_fn)(struct pkvm_hyp_vcpu *);
 
 static void handle_pvm_entry_wfx(struct pkvm_hyp_vcpu *hyp_vcpu)
@@ -89,6 +99,9 @@ static void handle_pvm_entry_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
 	u32 fn = smccc_get_function(&hyp_vcpu->vcpu);
 
 	switch (fn) {
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID:
+		pkvm_refill_memcache(hyp_vcpu);
+		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_SHARE_FUNC_ID:
 		fallthrough;
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_UNSHARE_FUNC_ID:
@@ -265,6 +278,10 @@ static void handle_pvm_exit_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
 		fallthrough;
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_RELINQUISH_FUNC_ID:
 		n = 4;
+		break;
+
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID:
+		n = 3;
 		break;
 
 	case PSCI_1_1_FN_SYSTEM_RESET2:
@@ -823,16 +840,6 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 	}
 out:
 	cpu_reg(host_ctxt, 1) =  ret;
-}
-
-static int pkvm_refill_memcache(struct pkvm_hyp_vcpu *hyp_vcpu)
-{
-	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
-	u64 nr_pages = VTCR_EL2_LVLS(hyp_vm->kvm.arch.vtcr) - 1;
-	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
-
-	return refill_memcache(&hyp_vcpu->vcpu.arch.pkvm_memcache, nr_pages,
-			       &host_vcpu->arch.pkvm_memcache);
 }
 
 static void handle___pkvm_host_map_guest(struct kvm_cpu_context *host_ctxt)

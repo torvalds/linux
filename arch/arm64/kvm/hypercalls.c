@@ -228,6 +228,10 @@ int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 		pkvm_host_reclaim_page(vcpu->kvm, smccc_get_arg1(vcpu));
 		val[0] = SMCCC_RET_SUCCESS;
 		break;
+	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID:
+		if (kvm_vm_is_protected(vcpu->kvm) && !topup_hyp_memcache(vcpu))
+			val[0] = SMCCC_RET_SUCCESS;
+		break;
 	case ARM_SMCCC_TRNG_VERSION:
 	case ARM_SMCCC_TRNG_FEATURES:
 	case ARM_SMCCC_TRNG_GET_UUID:
