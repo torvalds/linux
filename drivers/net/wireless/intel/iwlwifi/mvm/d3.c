@@ -104,7 +104,7 @@ static const u8 *iwl_mvm_find_max_pn(struct ieee80211_key_conf *key,
 struct wowlan_key_data {
 	struct iwl_wowlan_rsc_tsc_params_cmd *rsc_tsc;
 	struct iwl_wowlan_tkip_params_cmd *tkip;
-	struct iwl_wowlan_kek_kck_material_cmd_v3 *kek_kck_cmd;
+	struct iwl_wowlan_kek_kck_material_cmd_v4 *kek_kck_cmd;
 	bool error, use_rsc_tsc, use_tkip, configure_keys;
 	int wep_key_idx;
 };
@@ -716,7 +716,8 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    u32 cmd_flags)
 {
-	struct iwl_wowlan_kek_kck_material_cmd_v3 kek_kck_cmd = {};
+	struct iwl_wowlan_kek_kck_material_cmd_v4 kek_kck_cmd = {};
+	struct iwl_wowlan_kek_kck_material_cmd_v4 *_kek_kck_cmd = &kek_kck_cmd;
 	struct iwl_wowlan_tkip_params_cmd tkip_cmd = {};
 	bool unified = fw_has_capa(&mvm->fw->ucode_capa,
 				   IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -725,7 +726,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		.use_rsc_tsc = false,
 		.tkip = &tkip_cmd,
 		.use_tkip = false,
-		.kek_kck_cmd = &kek_kck_cmd,
+		.kek_kck_cmd = _kek_kck_cmd,
 	};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
@@ -819,13 +820,9 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 						IWL_ALWAYS_LONG_GROUP,
 						WOWLAN_KEK_KCK_MATERIAL,
 						IWL_FW_CMD_VER_UNKNOWN);
-		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 &&
+		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 && cmd_ver != 4 &&
 			    cmd_ver != IWL_FW_CMD_VER_UNKNOWN))
 			return -EINVAL;
-		if (cmd_ver == 3)
-			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v3);
-		else
-			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
 
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       mvmvif->rekey_data.kck_len);
@@ -835,6 +832,21 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		kek_kck_cmd.kek_len = cpu_to_le16(mvmvif->rekey_data.kek_len);
 		kek_kck_cmd.replay_ctr = mvmvif->rekey_data.replay_ctr;
 		kek_kck_cmd.akm = cpu_to_le32(mvmvif->rekey_data.akm);
+		kek_kck_cmd.sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+
+		if (cmd_ver == 4) {
+			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v4);
+		} else {
+			if (cmd_ver == 3)
+				cmd_size =
+					sizeof(struct iwl_wowlan_kek_kck_material_cmd_v3);
+			else
+				cmd_size =
+					sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
+			/* skip the sta_id at the beginning */
+			_kek_kck_cmd = (void *)
+				((u8 *)_kek_kck_cmd) + sizeof(kek_kck_cmd.sta_id);
+		}
 
 		IWL_DEBUG_WOWLAN(mvm, "setting akm %d\n",
 				 mvmvif->rekey_data.akm);
@@ -842,7 +854,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_KEK_KCK_MATERIAL, cmd_flags,
 					   cmd_size,
-					   &kek_kck_cmd);
+					   _kek_kck_cmd);
 		if (ret)
 			goto out;
 	}
