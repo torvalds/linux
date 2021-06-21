@@ -393,14 +393,19 @@ static int iwl_mvm_send_patterns_v1(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
 				 struct cfg80211_wowlan *wowlan)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_wowlan_patterns_cmd *pattern_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_PATTERNS,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 	int i, err;
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					WOWLAN_PATTERNS,
+					IWL_FW_CMD_VER_UNKNOWN);
 
 	if (!wowlan->n_patterns)
 		return 0;
@@ -408,11 +413,13 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 	cmd.len[0] = sizeof(*pattern_cmd) +
 		wowlan->n_patterns * sizeof(struct iwl_wowlan_pattern_v2);
 
-	pattern_cmd = kmalloc(cmd.len[0], GFP_KERNEL);
+	pattern_cmd = kzalloc(cmd.len[0], GFP_KERNEL);
 	if (!pattern_cmd)
 		return -ENOMEM;
 
-	pattern_cmd->n_patterns = cpu_to_le32(wowlan->n_patterns);
+	pattern_cmd->n_patterns = wowlan->n_patterns;
+	if (ver >= 3)
+		pattern_cmd->sta_id = mvmvif->ap_sta_id;
 
 	for (i = 0; i < wowlan->n_patterns; i++) {
 		int mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
@@ -887,7 +894,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE))
-		ret = iwl_mvm_send_patterns(mvm, wowlan);
+		ret = iwl_mvm_send_patterns(mvm, vif, wowlan);
 	else
 		ret = iwl_mvm_send_patterns_v1(mvm, wowlan);
 	if (ret)

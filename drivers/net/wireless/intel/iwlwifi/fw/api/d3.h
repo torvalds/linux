@@ -318,13 +318,23 @@ struct iwl_wowlan_patterns_cmd {
 	/**
 	 * @n_patterns: number of patterns
 	 */
-	__le32 n_patterns;
+	u8 n_patterns;
+
+	/**
+	 * @n_patterns: sta_id
+	 */
+	u8 sta_id;
+
+	/**
+	 * @reserved: reserved for alignment
+	 */
+	__le16 reserved;
 
 	/**
 	 * @patterns: the patterns, array length in @n_patterns
 	 */
 	struct iwl_wowlan_pattern_v2 patterns[];
-} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_2 */
+} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_3 */
 
 enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_MAGIC_PACKET			= BIT(0),
