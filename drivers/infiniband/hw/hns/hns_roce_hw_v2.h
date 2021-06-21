@@ -945,27 +945,29 @@ struct hns_roce_v2_mpt_entry {
 #define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S 28
 #define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M GENMASK(31, 28)
 
-#define V2_DB_TAG_S 0
-#define V2_DB_TAG_M GENMASK(23, 0)
+struct hns_roce_v2_db {
+	__le32	data[2];
+};
 
-#define V2_DB_CMD_S 24
-#define V2_DB_CMD_M GENMASK(27, 24)
+#define DB_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_db, h, l)
 
-#define V2_DB_FLAG_S 31
+#define DB_TAG DB_FIELD_LOC(23, 0)
+#define DB_CMD DB_FIELD_LOC(27, 24)
+#define DB_FLAG DB_FIELD_LOC(31, 31)
+#define DB_PI DB_FIELD_LOC(47, 32)
+#define DB_SL DB_FIELD_LOC(50, 48)
+#define DB_CQ_CI DB_FIELD_LOC(55, 32)
+#define DB_CQ_NOTIFY DB_FIELD_LOC(56, 56)
+#define DB_CQ_CMD_SN DB_FIELD_LOC(58, 57)
+#define EQ_DB_TAG DB_FIELD_LOC(7, 0)
+#define EQ_DB_CMD DB_FIELD_LOC(17, 16)
+#define EQ_DB_CI DB_FIELD_LOC(55, 32)
 
 #define V2_DB_PRODUCER_IDX_S 0
 #define V2_DB_PRODUCER_IDX_M GENMASK(15, 0)
 
-#define V2_DB_SL_S 16
-#define V2_DB_SL_M GENMASK(18, 16)
-
 #define V2_CQ_DB_CONS_IDX_S 0
 #define V2_CQ_DB_CONS_IDX_M GENMASK(23, 0)
-
-#define V2_CQ_DB_NOTIFY_TYPE_S 24
-
-#define V2_CQ_DB_CMD_SN_S 25
-#define V2_CQ_DB_CMD_SN_M GENMASK(26, 25)
 
 struct hns_roce_v2_ud_send_wqe {
 	__le32	byte_4;
@@ -1099,11 +1101,6 @@ struct hns_roce_v2_wqe_data_seg {
 	__le32    len;
 	__le32    lkey;
 	__le64    addr;
-};
-
-struct hns_roce_v2_db {
-	__le32	byte_4;
-	__le32	parameter;
 };
 
 struct hns_roce_query_version {
@@ -1637,15 +1634,6 @@ struct hns_roce_dip {
 
 #define HNS_ROCE_V2_AEQE_SUB_TYPE_S 8
 #define HNS_ROCE_V2_AEQE_SUB_TYPE_M GENMASK(15, 8)
-
-#define V2_EQ_DB_TAG_S	0
-#define V2_EQ_DB_TAG_M	GENMASK(7, 0)
-
-#define V2_EQ_DB_CMD_S	16
-#define V2_EQ_DB_CMD_M	GENMASK(17, 16)
-
-#define V2_EQ_DB_CONS_IDX_S 0
-#define V2_EQ_DB_CONS_IDX_M GENMASK(23, 0)
 
 #define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S 0
 #define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M GENMASK(23, 0)
