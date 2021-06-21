@@ -238,11 +238,8 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 
 static int vt8500_pwm_remove(struct platform_device *pdev)
 {
-	struct vt8500_chip *chip;
+	struct vt8500_chip *chip = platform_get_drvdata(pdev);
 
-	chip = platform_get_drvdata(pdev);
-	if (chip == NULL)
-		return -ENODEV;
 
 	clk_unprepare(chip->clk);
 
