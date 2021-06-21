@@ -2191,6 +2191,9 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 	}
 
+	if (filter_cpu(sample))
+		return 0;
+
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
@@ -2198,9 +2201,6 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (al.filtered)
-		goto out_put;
-
-	if (filter_cpu(sample))
 		goto out_put;
 
 	if (scripting_ops) {
