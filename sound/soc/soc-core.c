@@ -1249,21 +1249,8 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	 * Flip the polarity for the "CPU" end of a CODEC<->CODEC link
 	 * the component which has non_legacy_dai_naming is Codec
 	 */
-	inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
-	switch (dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
-		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
-		break;
-	}
+	inv_dai_fmt = snd_soc_daifmt_clock_provider_fliped(dai_fmt);
+
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
 
@@ -3017,10 +3004,54 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname)
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_aux_devs);
 
-unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
-				     const char *prefix,
-				     struct device_node **bitclkmaster,
-				     struct device_node **framemaster)
+unsigned int snd_soc_daifmt_clock_provider_fliped(unsigned int dai_fmt)
+{
+	unsigned int inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+
+	switch (dai_fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
+		break;
+	case SND_SOC_DAIFMT_CBP_CFC:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBC_CFP;
+		break;
+	case SND_SOC_DAIFMT_CBC_CFP:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBP_CFC;
+		break;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		inv_dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
+		break;
+	}
+
+	return inv_dai_fmt;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_fliped);
+
+unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame)
+{
+	/*
+	 * bit_frame is return value from
+	 *	snd_soc_daifmt_parse_clock_provider_raw()
+	 */
+
+	/* Codec base */
+	switch (bit_frame) {
+	case 0x11:
+		return SND_SOC_DAIFMT_CBP_CFP;
+	case 0x10:
+		return SND_SOC_DAIFMT_CBP_CFC;
+	case 0x01:
+		return SND_SOC_DAIFMT_CBC_CFP;
+	default:
+		return SND_SOC_DAIFMT_CBC_CFC;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_clock_provider_from_bitmap);
+
+unsigned int snd_soc_daifmt_parse_format(struct device_node *np,
+					 const char *prefix)
 {
 	int ret, i;
 	char prop[128];
@@ -3100,10 +3131,24 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 		break;
 	}
 
+	return format;
+}
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_format);
+
+unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
+						     const char *prefix,
+						     struct device_node **bitclkmaster,
+						     struct device_node **framemaster)
+{
+	char prop[128];
+	unsigned int bit, frame;
+
+	if (!prefix)
+		prefix = "";
+
 	/*
 	 * check "[prefix]bitclock-master"
 	 * check "[prefix]frame-master"
-	 * SND_SOC_DAIFMT_MASTER_MASK area
 	 */
 	snprintf(prop, sizeof(prop), "%sbitclock-master", prefix);
 	bit = !!of_get_property(np, prop, NULL);
@@ -3115,24 +3160,14 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	if (frame && framemaster)
 		*framemaster = of_parse_phandle(np, prop, 0);
 
-	switch ((bit << 4) + frame) {
-	case 0x11:
-		format |= SND_SOC_DAIFMT_CBM_CFM;
-		break;
-	case 0x10:
-		format |= SND_SOC_DAIFMT_CBM_CFS;
-		break;
-	case 0x01:
-		format |= SND_SOC_DAIFMT_CBS_CFM;
-		break;
-	default:
-		format |= SND_SOC_DAIFMT_CBS_CFS;
-		break;
-	}
-
-	return format;
+	/*
+	 * return bitmap.
+	 * It will be parameter of
+	 *	snd_soc_daifmt_clock_provider_from_bitmap()
+	 */
+	return (bit << 4) + frame;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
+EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_clock_provider_raw);
 
 int snd_soc_get_dai_id(struct device_node *ep)
 {
