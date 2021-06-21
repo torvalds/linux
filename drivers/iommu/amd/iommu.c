@@ -884,7 +884,7 @@ static inline u64 build_inv_address(u64 address, size_t size)
 		 * The msb-bit must be clear on the address. Just set all the
 		 * lower bits.
 		 */
-		address |= 1ull << (msb_diff - 1);
+		address |= (1ull << msb_diff) - 1;
 	}
 
 	/* Clear bits 11:0 */
@@ -1714,6 +1714,8 @@ static void amd_iommu_probe_finalize(struct device *dev)
 	domain = iommu_get_domain_for_dev(dev);
 	if (domain->type == IOMMU_DOMAIN_DMA)
 		iommu_setup_dma_ops(dev, IOVA_START_PFN << PAGE_SHIFT, 0);
+	else
+		set_dma_ops(dev, NULL);
 }
 
 static void amd_iommu_release_device(struct device *dev)

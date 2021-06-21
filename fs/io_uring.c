@@ -100,6 +100,8 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+#define IORING_MAX_REG_BUFFERS	(1U << 14)
+
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
 				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
 				IOSQE_BUFFER_SELECT)
@@ -4035,7 +4037,7 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 #if defined(CONFIG_EPOLL)
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
 	req->epoll.epfd = READ_ONCE(sqe->fd);
@@ -4150,7 +4152,7 @@ static int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
@@ -5017,10 +5019,10 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 		 * Can't handle multishot for double wait for now, turn it
 		 * into one-shot mode.
 		 */
-		if (!(req->poll.events & EPOLLONESHOT))
-			req->poll.events |= EPOLLONESHOT;
+		if (!(poll_one->events & EPOLLONESHOT))
+			poll_one->events |= EPOLLONESHOT;
 		/* double add on the same waitqueue head, ignore */
-		if (poll->head == head)
+		if (poll_one->head == head)
 			return;
 		poll = kmalloc(sizeof(*poll), GFP_ATOMIC);
 		if (!poll) {
@@ -5827,8 +5829,6 @@ done:
 static int io_rsrc_update_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
-	if (unlikely(req->ctx->flags & IORING_SETUP_SQPOLL))
-		return -EINVAL;
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->rw_flags)
@@ -6354,19 +6354,20 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 * We don't expect the list to be empty, that will only happen if we
 	 * race with the completion of the linked work.
 	 */
-	if (prev && req_ref_inc_not_zero(prev))
+	if (prev) {
 		io_remove_next_linked(prev);
-	else
-		prev = NULL;
+		if (!req_ref_inc_not_zero(prev))
+			prev = NULL;
+	}
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (prev) {
 		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
 		io_put_req_deferred(prev, 1);
+		io_put_req_deferred(req, 1);
 	} else {
 		io_req_complete_post(req, -ETIME, 0);
 	}
-	io_put_req_deferred(req, 1);
 	return HRTIMER_NORESTART;
 }
 
@@ -8390,7 +8391,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (ctx->user_bufs)
 		return -EBUSY;
-	if (!nr_args || nr_args > UIO_MAXIOV)
+	if (!nr_args || nr_args > IORING_MAX_REG_BUFFERS)
 		return -EINVAL;
 	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
@@ -9034,14 +9035,19 @@ static void io_uring_del_task_file(unsigned long index)
 
 static void io_uring_clean_tctx(struct io_uring_task *tctx)
 {
+	struct io_wq *wq = tctx->io_wq;
 	struct io_tctx_node *node;
 	unsigned long index;
 
 	xa_for_each(&tctx->xa, index, node)
 		io_uring_del_task_file(index);
-	if (tctx->io_wq) {
-		io_wq_put_and_exit(tctx->io_wq);
+	if (wq) {
+		/*
+		 * Must be after io_uring_del_task_file() (removes nodes under
+		 * uring_lock) to avoid race with io_uring_try_cancel_iowq().
+		 */
 		tctx->io_wq = NULL;
+		io_wq_put_and_exit(wq);
 	}
 }
 
@@ -9077,6 +9083,9 @@ static void io_uring_cancel_sqpoll(struct io_sq_data *sqd)
 
 	if (!current->io_uring)
 		return;
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
+
 	WARN_ON_ONCE(!sqd || sqd->thread != current);
 
 	atomic_inc(&tctx->in_idle);
@@ -9110,6 +9119,9 @@ void __io_uring_cancel(struct files_struct *files)
 	struct io_uring_task *tctx = current->io_uring;
 	DEFINE_WAIT(wait);
 	s64 inflight;
+
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
 
 	/* make sure overflow events are dropped */
 	atomic_inc(&tctx->in_idle);

@@ -836,7 +836,7 @@ int __init amd_special_default_mtrr(void)
 	if (boot_cpu_data.x86 < 0xf)
 		return 0;
 	/* In case some hypervisor doesn't pass SYSCFG through: */
-	if (rdmsr_safe(MSR_K8_SYSCFG, &l, &h) < 0)
+	if (rdmsr_safe(MSR_AMD64_SYSCFG, &l, &h) < 0)
 		return 0;
 	/*
 	 * Memory between 4GB and top of mem is forced WB by this magic bit.

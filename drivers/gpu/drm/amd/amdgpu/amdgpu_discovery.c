@@ -373,6 +373,34 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
 	return -EINVAL;
 }
 
+void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
+{
+	struct binary_header *bhdr;
+	struct harvest_table *harvest_info;
+	int i;
+
+	bhdr = (struct binary_header *)adev->mman.discovery_bin;
+	harvest_info = (struct harvest_table *)(adev->mman.discovery_bin +
+			le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset));
+
+	for (i = 0; i < 32; i++) {
+		if (le32_to_cpu(harvest_info->list[i].hw_id) == 0)
+			break;
+
+		switch (le32_to_cpu(harvest_info->list[i].hw_id)) {
+		case VCN_HWID:
+			adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
+			adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
+			break;
+		case DMU_HWID:
+			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;

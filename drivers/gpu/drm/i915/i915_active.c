@@ -1156,7 +1156,8 @@ static int auto_active(struct i915_active *ref)
 	return 0;
 }
 
-static void auto_retire(struct i915_active *ref)
+__i915_active_call static void
+auto_retire(struct i915_active *ref)
 {
 	i915_active_put(ref);
 }

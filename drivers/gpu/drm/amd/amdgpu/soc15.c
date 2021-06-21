@@ -302,6 +302,7 @@ static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 			*codecs = &rv_video_codecs_decode;
 		return 0;
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 	case CHIP_RENOIR:
 		if (encode)
 			*codecs = &vega_video_codecs_encode;
@@ -1392,7 +1393,6 @@ static int soc15_common_early_init(void *handle)
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
-				AMD_CG_SUPPORT_GFX_3D_CGCG |
 				AMD_CG_SUPPORT_GFX_3D_CGLS |
 				AMD_CG_SUPPORT_GFX_CGCG |
 				AMD_CG_SUPPORT_GFX_CGLS |
@@ -1401,7 +1401,8 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
-				AMD_CG_SUPPORT_SDMA_LS;
+				AMD_CG_SUPPORT_SDMA_LS |
+				AMD_CG_SUPPORT_VCN_MGCG;
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA |
 				AMD_PG_SUPPORT_MMHUB |
@@ -1411,7 +1412,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_RLC_LS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
-				AMD_CG_SUPPORT_GFX_3D_CGCG |
 				AMD_CG_SUPPORT_GFX_3D_CGLS |
 				AMD_CG_SUPPORT_GFX_CGCG |
 				AMD_CG_SUPPORT_GFX_CGLS |

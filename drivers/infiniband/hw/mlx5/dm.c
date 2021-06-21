@@ -217,6 +217,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DM_MAP_OP_ADDR)(
 	if (err)
 		return err;
 
+	if (op >= BITS_PER_TYPE(u32))
+		return -EOPNOTSUPP;
+
 	if (!(MLX5_CAP_DEV_MEM(dev->mdev, memic_operations) & BIT(op)))
 		return -EOPNOTSUPP;
 
