@@ -480,7 +480,7 @@ static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
 
 	return rtrs_iu_post_rdma_write_imm(&con->c, req->iu, &sge, 1,
 					    rbuf->rkey, rbuf->addr + off,
-					    imm, flags, wr);
+					    imm, flags, wr, NULL);
 }
 
 static void process_io_rsp(struct rtrs_clt_sess *sess, u32 msg_id,
@@ -999,9 +999,10 @@ rtrs_clt_get_copy_req(struct rtrs_clt_sess *alive_sess,
 }
 
 static int rtrs_post_rdma_write_sg(struct rtrs_clt_con *con,
-				    struct rtrs_clt_io_req *req,
-				    struct rtrs_rbuf *rbuf,
-				    u32 size, u32 imm)
+				   struct rtrs_clt_io_req *req,
+				   struct rtrs_rbuf *rbuf,
+				   u32 size, u32 imm, struct ib_send_wr *wr,
+				   struct ib_send_wr *tail)
 {
 	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
 	struct ib_sge *sge = req->sge;
@@ -1009,6 +1010,7 @@ static int rtrs_post_rdma_write_sg(struct rtrs_clt_con *con,
 	struct scatterlist *sg;
 	size_t num_sge;
 	int i;
+	struct ib_send_wr *ptail = NULL;
 
 	for_each_sg(req->sglist, sg, req->sg_cnt, i) {
 		sge[i].addr   = sg_dma_address(sg);
@@ -1033,7 +1035,7 @@ static int rtrs_post_rdma_write_sg(struct rtrs_clt_con *con,
 
 	return rtrs_iu_post_rdma_write_imm(&con->c, req->iu, sge, num_sge,
 					    rbuf->rkey, rbuf->addr, imm,
-					    flags, NULL);
+					    flags, wr, ptail);
 }
 
 static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
@@ -1081,8 +1083,8 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 	rtrs_clt_update_all_stats(req, WRITE);
 
 	ret = rtrs_post_rdma_write_sg(req->con, req, rbuf,
-				       req->usr_len + sizeof(*msg),
-				       imm);
+				      req->usr_len + sizeof(*msg),
+				      imm, NULL, NULL);
 	if (unlikely(ret)) {
 		rtrs_err_rl(s,
 			    "Write request failed: error=%d path=%s [%s:%u]\n",

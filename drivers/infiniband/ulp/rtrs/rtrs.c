@@ -105,17 +105,20 @@ int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe)
 EXPORT_SYMBOL_GPL(rtrs_post_recv_empty);
 
 static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
-			     struct ib_send_wr *wr)
+			  struct ib_send_wr *wr, struct ib_send_wr *tail)
 {
 	if (head) {
-		struct ib_send_wr *tail = head;
+		struct ib_send_wr *next = head;
 
-		while (tail->next)
-			tail = tail->next;
-		tail->next = wr;
+		while (next->next)
+			next = next->next;
+		next->next = wr;
 	} else {
 		head = wr;
 	}
+
+	if (tail)
+		wr->next = tail;
 
 	return ib_post_send(qp, head, NULL);
 }
@@ -142,15 +145,16 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		.send_flags = IB_SEND_SIGNALED,
 	};
 
-	return rtrs_post_send(con->qp, head, &wr);
+	return rtrs_post_send(con->qp, head, &wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_send);
 
 int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
-				 struct ib_sge *sge, unsigned int num_sge,
-				 u32 rkey, u64 rdma_addr, u32 imm_data,
-				 enum ib_send_flags flags,
-				 struct ib_send_wr *head)
+				struct ib_sge *sge, unsigned int num_sge,
+				u32 rkey, u64 rdma_addr, u32 imm_data,
+				enum ib_send_flags flags,
+				struct ib_send_wr *head,
+				struct ib_send_wr *tail)
 {
 	struct ib_rdma_wr wr;
 	int i;
@@ -174,7 +178,7 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 		if (WARN_ON(sge[i].length == 0))
 			return -EINVAL;
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, tail);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
@@ -191,7 +195,7 @@ int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
 		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
