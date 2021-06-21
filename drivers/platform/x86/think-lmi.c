@@ -442,14 +442,9 @@ static ssize_t kbdlang_store(struct kobject *kobj,
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
 	int length;
 
-	length = strlen(buf);
-	if (!length)
-		return -EINVAL;
-
-	if (buf[length-1] == '\n')
-		length--;
-
-	if (length >= TLMI_LANG_MAXLEN)
+	/* Calculate length till '\n' or terminating 0 */
+	length = strchrnul(buf, '\n') - buf;
+	if (!length || length >= TLMI_LANG_MAXLEN)
 		return -EINVAL;
 
 	memcpy(setting->kbdlang, buf, length);
