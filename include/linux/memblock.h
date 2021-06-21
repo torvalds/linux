@@ -25,6 +25,10 @@ extern unsigned long max_pfn;
  */
 extern unsigned long long max_possible_pfn;
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+extern int defer_free_memblock(void *unused);
+#endif
+
 /**
  * enum memblock_flags - definition of memory region attributes
  * @MEMBLOCK_NONE: no special request
