@@ -26,11 +26,6 @@ struct nvm_auth_status {
 	u32 status;
 };
 
-enum nvm_write_ops {
-	WRITE_AND_AUTHENTICATE = 1,
-	WRITE_ONLY = 2,
-};
-
 /*
  * Hold NVM authentication failure status per switch This information
  * needs to stay around even when the switch gets power cycled so we
@@ -308,13 +303,23 @@ static inline int nvm_read(struct tb_switch *sw, unsigned int address,
 	return dma_port_flash_read(sw->dma_port, address, buf, size);
 }
 
-static int nvm_authenticate(struct tb_switch *sw)
+static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 {
 	int ret;
 
-	if (tb_switch_is_usb4(sw))
+	if (tb_switch_is_usb4(sw)) {
+		if (auth_only) {
+			ret = usb4_switch_nvm_set_offset(sw, 0);
+			if (ret)
+				return ret;
+		}
+		sw->nvm->authenticating = true;
 		return usb4_switch_nvm_authenticate(sw);
+	} else if (auth_only) {
+		return -EOPNOTSUPP;
+	}
 
+	sw->nvm->authenticating = true;
 	if (!tb_route(sw)) {
 		nvm_authenticate_start_dma_port(sw);
 		ret = nvm_authenticate_host_dma_port(sw);
@@ -459,7 +464,7 @@ static void tb_switch_nvm_remove(struct tb_switch *sw)
 
 /* port utility functions */
 
-static const char *tb_port_type(struct tb_regs_port_header *port)
+static const char *tb_port_type(const struct tb_regs_port_header *port)
 {
 	switch (port->type >> 16) {
 	case 0:
@@ -488,17 +493,21 @@ static const char *tb_port_type(struct tb_regs_port_header *port)
 	}
 }
 
-static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
+static void tb_dump_port(struct tb *tb, const struct tb_port *port)
 {
+	const struct tb_regs_port_header *regs = &port->config;
+
 	tb_dbg(tb,
 	       " Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
-	       port->port_number, port->vendor_id, port->device_id,
-	       port->revision, port->thunderbolt_version, tb_port_type(port),
-	       port->type);
+	       regs->port_number, regs->vendor_id, regs->device_id,
+	       regs->revision, regs->thunderbolt_version, tb_port_type(regs),
+	       regs->type);
 	tb_dbg(tb, "  Max hop id (in/out): %d/%d\n",
-	       port->max_in_hop_id, port->max_out_hop_id);
-	tb_dbg(tb, "  Max counters: %d\n", port->max_counters);
-	tb_dbg(tb, "  NFC Credits: %#x\n", port->nfc_credits);
+	       regs->max_in_hop_id, regs->max_out_hop_id);
+	tb_dbg(tb, "  Max counters: %d\n", regs->max_counters);
+	tb_dbg(tb, "  NFC Credits: %#x\n", regs->nfc_credits);
+	tb_dbg(tb, "  Credits (total/control): %u/%u\n", port->total_credits,
+	       port->ctl_credits);
 }
 
 /**
@@ -738,13 +747,32 @@ static int tb_init_port(struct tb_port *port)
 		cap = tb_port_find_cap(port, TB_PORT_CAP_USB4);
 		if (cap > 0)
 			port->cap_usb4 = cap;
+
+		/*
+		 * USB4 ports the buffers allocated for the control path
+		 * can be read from the path config space. Legacy
+		 * devices we use hard-coded value.
+		 */
+		if (tb_switch_is_usb4(port->sw)) {
+			struct tb_regs_hop hop;
+
+			if (!tb_port_read(port, &hop, TB_CFG_HOPS, 0, 2))
+				port->ctl_credits = hop.initial_credits;
+		}
+		if (!port->ctl_credits)
+			port->ctl_credits = 2;
+
 	} else if (port->port != 0) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
 		if (cap > 0)
 			port->cap_adap = cap;
 	}
 
-	tb_dump_port(port->sw->tb, &port->config);
+	port->total_credits =
+		(port->config.nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
+
+	tb_dump_port(port->sw->tb, port);
 
 	INIT_LIST_HEAD(&port->list);
 	return 0;
@@ -991,8 +1019,11 @@ static int tb_port_set_link_width(struct tb_port *port, unsigned int width)
  * tb_port_lane_bonding_enable() - Enable bonding on port
  * @port: port to enable
  *
- * Enable bonding by setting the link width of the port and the
- * other port in case of dual link port.
+ * Enable bonding by setting the link width of the port and the other
+ * port in case of dual link port. Does not wait for the link to
+ * actually reach the bonded state so caller needs to call
+ * tb_port_wait_for_link_width() before enabling any paths through the
+ * link to make sure the link is in expected state.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
@@ -1043,6 +1074,79 @@ void tb_port_lane_bonding_disable(struct tb_port *port)
 	tb_port_set_link_width(port, 1);
 }
 
+/**
+ * tb_port_wait_for_link_width() - Wait until link reaches specific width
+ * @port: Port to wait for
+ * @width: Expected link width (%1 or %2)
+ * @timeout_msec: Timeout in ms how long to wait
+ *
+ * Should be used after both ends of the link have been bonded (or
+ * bonding has been disabled) to wait until the link actually reaches
+ * the expected state. Returns %-ETIMEDOUT if the @width was not reached
+ * within the given timeout, %0 if it did.
+ */
+int tb_port_wait_for_link_width(struct tb_port *port, int width,
+				int timeout_msec)
+{
+	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
+	int ret;
+
+	do {
+		ret = tb_port_get_link_width(port);
+		if (ret < 0)
+			return ret;
+		else if (ret == width)
+			return 0;
+
+		usleep_range(1000, 2000);
+	} while (ktime_before(ktime_get(), timeout));
+
+	return -ETIMEDOUT;
+}
+
+static int tb_port_do_update_credits(struct tb_port *port)
+{
+	u32 nfc_credits;
+	int ret;
+
+	ret = tb_port_read(port, &nfc_credits, TB_CFG_PORT, ADP_CS_4, 1);
+	if (ret)
+		return ret;
+
+	if (nfc_credits != port->config.nfc_credits) {
+		u32 total;
+
+		total = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+			ADP_CS_4_TOTAL_BUFFERS_SHIFT;
+
+		tb_port_dbg(port, "total credits changed %u -> %u\n",
+			    port->total_credits, total);
+
+		port->config.nfc_credits = nfc_credits;
+		port->total_credits = total;
+	}
+
+	return 0;
+}
+
+/**
+ * tb_port_update_credits() - Re-read port total credits
+ * @port: Port to update
+ *
+ * After the link is bonded (or bonding was disabled) the port total
+ * credits may change, so this function needs to be called to re-read
+ * the credits. Updates also the second lane adapter.
+ */
+int tb_port_update_credits(struct tb_port *port)
+{
+	int ret;
+
+	ret = tb_port_do_update_credits(port);
+	if (ret)
+		return ret;
+	return tb_port_do_update_credits(port->dual_link_port);
+}
+
 static int tb_port_start_lane_initialization(struct tb_port *port)
 {
 	int ret;
@@ -1052,6 +1156,33 @@ static int tb_port_start_lane_initialization(struct tb_port *port)
 
 	ret = tb_lc_start_lane_initialization(port);
 	return ret == -EINVAL ? 0 : ret;
+}
+
+/*
+ * Returns true if the port had something (router, XDomain) connected
+ * before suspend.
+ */
+static bool tb_port_resume(struct tb_port *port)
+{
+	bool has_remote = tb_port_has_remote(port);
+
+	if (port->usb4) {
+		usb4_port_device_resume(port->usb4);
+	} else if (!has_remote) {
+		/*
+		 * For disconnected downstream lane adapters start lane
+		 * initialization now so we detect future connects.
+		 *
+		 * For XDomain start the lane initialzation now so the
+		 * link gets re-established.
+		 *
+		 * This is only needed for non-USB4 ports.
+		 */
+		if (!tb_is_upstream_port(port) || port->xdomain)
+			tb_port_start_lane_initialization(port);
+	}
+
+	return has_remote || port->xdomain;
 }
 
 /**
@@ -1592,8 +1723,7 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 				      bool disconnect)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	int val;
-	int ret;
+	int val, ret;
 
 	pm_runtime_get_sync(&sw->dev);
 
@@ -1616,22 +1746,27 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 	nvm_clear_auth_status(sw);
 
 	if (val > 0) {
-		if (!sw->nvm->flushed) {
-			if (!sw->nvm->buf) {
+		if (val == AUTHENTICATE_ONLY) {
+			if (disconnect)
 				ret = -EINVAL;
-				goto exit_unlock;
-			}
+			else
+				ret = nvm_authenticate(sw, true);
+		} else {
+			if (!sw->nvm->flushed) {
+				if (!sw->nvm->buf) {
+					ret = -EINVAL;
+					goto exit_unlock;
+				}
 
-			ret = nvm_validate_and_write(sw);
-			if (ret || val == WRITE_ONLY)
-				goto exit_unlock;
-		}
-		if (val == WRITE_AND_AUTHENTICATE) {
-			if (disconnect) {
-				ret = tb_lc_force_power(sw);
-			} else {
-				sw->nvm->authenticating = true;
-				ret = nvm_authenticate(sw);
+				ret = nvm_validate_and_write(sw);
+				if (ret || val == WRITE_ONLY)
+					goto exit_unlock;
+			}
+			if (val == WRITE_AND_AUTHENTICATE) {
+				if (disconnect)
+					ret = tb_lc_force_power(sw);
+				else
+					ret = nvm_authenticate(sw, false);
 			}
 		}
 	}
@@ -2432,6 +2567,14 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return ret;
 	}
 
+	ret = tb_port_wait_for_link_width(down, 2, 100);
+	if (ret) {
+		tb_port_warn(down, "timeout enabling lane bonding\n");
+		return ret;
+	}
+
+	tb_port_update_credits(down);
+	tb_port_update_credits(up);
 	tb_switch_update_link_attributes(sw);
 
 	tb_sw_dbg(sw, "lane bonding enabled\n");
@@ -2462,7 +2605,17 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	tb_port_lane_bonding_disable(up);
 	tb_port_lane_bonding_disable(down);
 
+	/*
+	 * It is fine if we get other errors as the router might have
+	 * been unplugged.
+	 */
+	if (tb_port_wait_for_link_width(down, 1, 100) == -ETIMEDOUT)
+		tb_sw_warn(sw, "timeout disabling lane bonding\n");
+
+	tb_port_update_credits(down);
+	tb_port_update_credits(up);
 	tb_switch_update_link_attributes(sw);
+
 	tb_sw_dbg(sw, "lane bonding disabled\n");
 }
 
@@ -2529,6 +2682,16 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 		tb_lc_unconfigure_port(down);
 }
 
+static void tb_switch_credits_init(struct tb_switch *sw)
+{
+	if (tb_switch_is_icm(sw))
+		return;
+	if (!tb_switch_is_usb4(sw))
+		return;
+	if (usb4_switch_credits_init(sw))
+		tb_sw_info(sw, "failed to determine preferred buffer allocation, using defaults\n");
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -2559,6 +2722,8 @@ int tb_switch_add(struct tb_switch *sw)
 	}
 
 	if (!sw->safe_mode) {
+		tb_switch_credits_init(sw);
+
 		/* read drom */
 		ret = tb_drom_read(sw);
 		if (ret) {
@@ -2612,11 +2777,16 @@ int tb_switch_add(struct tb_switch *sw)
 				 sw->device_name);
 	}
 
+	ret = usb4_switch_add_ports(sw);
+	if (ret) {
+		dev_err(&sw->dev, "failed to add USB4 ports\n");
+		goto err_del;
+	}
+
 	ret = tb_switch_nvm_add(sw);
 	if (ret) {
 		dev_err(&sw->dev, "failed to add NVM devices\n");
-		device_del(&sw->dev);
-		return ret;
+		goto err_ports;
 	}
 
 	/*
@@ -2637,6 +2807,13 @@ int tb_switch_add(struct tb_switch *sw)
 
 	tb_switch_debugfs_init(sw);
 	return 0;
+
+err_ports:
+	usb4_switch_remove_ports(sw);
+err_del:
+	device_del(&sw->dev);
+
+	return ret;
 }
 
 /**
@@ -2676,6 +2853,7 @@ void tb_switch_remove(struct tb_switch *sw)
 		tb_plug_events_active(sw, false);
 
 	tb_switch_nvm_remove(sw);
+	usb4_switch_remove_ports(sw);
 
 	if (tb_route(sw))
 		dev_info(&sw->dev, "device disconnected\n");
@@ -2773,22 +2951,11 @@ int tb_switch_resume(struct tb_switch *sw)
 
 	/* check for surviving downstream switches */
 	tb_switch_for_each_port(sw, port) {
-		if (!tb_port_has_remote(port) && !port->xdomain) {
-			/*
-			 * For disconnected downstream lane adapters
-			 * start lane initialization now so we detect
-			 * future connects.
-			 */
-			if (!tb_is_upstream_port(port) && tb_port_is_null(port))
-				tb_port_start_lane_initialization(port);
+		if (!tb_port_is_null(port))
 			continue;
-		} else if (port->xdomain) {
-			/*
-			 * Start lane initialization for XDomain so the
-			 * link gets re-established.
-			 */
-			tb_port_start_lane_initialization(port);
-		}
+
+		if (!tb_port_resume(port))
+			continue;
 
 		if (tb_wait_for_port(port, true) <= 0) {
 			tb_port_warn(port,
@@ -2797,7 +2964,7 @@ int tb_switch_resume(struct tb_switch *sw)
 				tb_sw_set_unplugged(port->remote->sw);
 			else if (port->xdomain)
 				port->xdomain->is_unplugged = true;
-		} else if (tb_port_has_remote(port) || port->xdomain) {
+		} else {
 			/*
 			 * Always unlock the port so the downstream
 			 * switch/domain is accessible.
@@ -2844,7 +3011,8 @@ void tb_switch_suspend(struct tb_switch *sw, bool runtime)
 	if (runtime) {
 		/* Trigger wake when something is plugged in/out */
 		flags |= TB_WAKE_ON_CONNECT | TB_WAKE_ON_DISCONNECT;
-		flags |= TB_WAKE_ON_USB4 | TB_WAKE_ON_USB3 | TB_WAKE_ON_PCIE;
+		flags |= TB_WAKE_ON_USB4;
+		flags |= TB_WAKE_ON_USB3 | TB_WAKE_ON_PCIE | TB_WAKE_ON_DP;
 	} else if (device_may_wakeup(&sw->dev)) {
 		flags |= TB_WAKE_ON_USB4 | TB_WAKE_ON_USB3 | TB_WAKE_ON_PCIE;
 	}

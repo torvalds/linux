@@ -208,8 +208,8 @@ static int tb_lc_set_wake_one(struct tb_switch *sw, unsigned int offset,
 	if (ret)
 		return ret;
 
-	ctrl &= ~(TB_LC_SX_CTRL_WOC | TB_LC_SX_CTRL_WOD | TB_LC_SX_CTRL_WOP |
-		  TB_LC_SX_CTRL_WOU4);
+	ctrl &= ~(TB_LC_SX_CTRL_WOC | TB_LC_SX_CTRL_WOD | TB_LC_SX_CTRL_WODPC |
+		  TB_LC_SX_CTRL_WODPD | TB_LC_SX_CTRL_WOP | TB_LC_SX_CTRL_WOU4);
 
 	if (flags & TB_WAKE_ON_CONNECT)
 		ctrl |= TB_LC_SX_CTRL_WOC | TB_LC_SX_CTRL_WOD;
@@ -217,6 +217,8 @@ static int tb_lc_set_wake_one(struct tb_switch *sw, unsigned int offset,
 		ctrl |= TB_LC_SX_CTRL_WOU4;
 	if (flags & TB_WAKE_ON_PCIE)
 		ctrl |= TB_LC_SX_CTRL_WOP;
+	if (flags & TB_WAKE_ON_DP)
+		ctrl |= TB_LC_SX_CTRL_WODPC | TB_LC_SX_CTRL_WODPD;
 
 	return tb_sw_write(sw, &ctrl, TB_CFG_SWITCH, offset + TB_LC_SX_CTRL, 1);
 }

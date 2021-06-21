@@ -256,6 +256,35 @@ Note names of the NVMem devices ``nvm_activeN`` and ``nvm_non_activeN``
 depend on the order they are registered in the NVMem subsystem. N in
 the name is the identifier added by the NVMem subsystem.
 
+Upgrading on-board retimer NVM when there is no cable connected
+---------------------------------------------------------------
+If the platform supports, it may be possible to upgrade the retimer NVM
+firmware even when there is nothing connected to the USB4
+ports. When this is the case the ``usb4_portX`` devices have two special
+attributes: ``offline`` and ``rescan``. The way to upgrade the firmware
+is to first put the USB4 port into offline mode::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/offline
+
+This step makes sure the port does not respond to any hotplug events,
+and also ensures the retimers are powered on. The next step is to scan
+for the retimers::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/rescan
+
+This enumerates and adds the on-board retimers. Now retimer NVM can be
+upgraded in the same way than with cable connected (see previous
+section). However, the retimer is not disconnected as we are offline
+mode) so after writing ``1`` to ``nvm_authenticate`` one should wait for
+5 or more seconds before running rescan again::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/rescan
+
+This point if everything went fine, the port can be put back to
+functional state again::
+
+  # echo 0 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/offline
+
 Upgrading NVM when host controller is in safe mode
 --------------------------------------------------
 If the existing NVM is not properly authenticated (or is missing) the
