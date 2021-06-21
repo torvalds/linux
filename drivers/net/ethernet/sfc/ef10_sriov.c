@@ -206,9 +206,7 @@ static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
 
 	return 0;
 fail:
-	efx_ef10_sriov_free_vf_vports(efx);
-	kfree(nic_data->vf);
-	nic_data->vf = NULL;
+	efx_ef10_sriov_free_vf_vswitching(efx);
 	return rc;
 }
 
