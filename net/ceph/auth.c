@@ -36,7 +36,7 @@ static int init_protocol(struct ceph_auth_client *ac, int proto)
 	}
 }
 
-static void set_global_id(struct ceph_auth_client *ac, u64 global_id)
+void ceph_auth_set_global_id(struct ceph_auth_client *ac, u64 global_id)
 {
 	dout("%s global_id %llu\n", __func__, global_id);
 
@@ -267,7 +267,7 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		goto out;
 	}
 
-	ret = ac->ops->handle_reply(ac, payload, payload_end,
+	ret = ac->ops->handle_reply(ac, global_id, payload, payload_end,
 				    NULL, NULL, NULL, NULL);
 	if (ret == -EAGAIN) {
 		ret = build_request(ac, true, reply_buf, reply_len);
@@ -275,8 +275,6 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	} else if (ret) {
 		goto out;
 	}
-
-	set_global_id(ac, global_id);
 
 out:
 	mutex_unlock(&ac->mutex);
@@ -485,7 +483,7 @@ int ceph_auth_handle_reply_more(struct ceph_auth_client *ac, void *reply,
 	int ret;
 
 	mutex_lock(&ac->mutex);
-	ret = ac->ops->handle_reply(ac, reply, reply + reply_len,
+	ret = ac->ops->handle_reply(ac, 0, reply, reply + reply_len,
 				    NULL, NULL, NULL, NULL);
 	if (ret == -EAGAIN)
 		ret = build_request(ac, false, buf, buf_len);
@@ -503,11 +501,10 @@ int ceph_auth_handle_reply_done(struct ceph_auth_client *ac,
 	int ret;
 
 	mutex_lock(&ac->mutex);
-	ret = ac->ops->handle_reply(ac, reply, reply + reply_len,
+	ret = ac->ops->handle_reply(ac, global_id, reply, reply + reply_len,
 				    session_key, session_key_len,
 				    con_secret, con_secret_len);
-	if (!ret)
-		set_global_id(ac, global_id);
+	WARN_ON(ret == -EAGAIN || ret > 0);
 	mutex_unlock(&ac->mutex);
 	return ret;
 }
