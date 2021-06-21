@@ -8,6 +8,7 @@
 
 struct mlx5_flow_attr;
 struct mlx5e_tc_psample;
+struct mlx5e_post_act;
 
 struct mlx5e_sample_attr {
 	u32 group_num;
@@ -15,7 +16,6 @@ struct mlx5e_sample_attr {
 	u32 trunc_size;
 	u32 restore_obj_id;
 	u32 sampler_id;
-	struct mlx5_flow_table *sample_default_tbl;
 	struct mlx5e_sample_flow *sample_flow;
 };
 
@@ -33,7 +33,7 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *sample_priv,
 			  struct mlx5_flow_attr *attr);
 
 struct mlx5e_tc_psample *
-mlx5e_tc_sample_init(struct mlx5_eswitch *esw);
+mlx5e_tc_sample_init(struct mlx5_eswitch *esw, struct mlx5e_post_act *post_act);
 
 void
 mlx5e_tc_sample_cleanup(struct mlx5e_tc_psample *tc_psample);

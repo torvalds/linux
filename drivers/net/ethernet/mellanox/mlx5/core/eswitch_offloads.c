@@ -540,10 +540,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_hdr = attr->modify_hdr;
 
-	/* sample_attr is allocated only when there is a sample action */
-	if (attr->sample_attr && attr->sample_attr->sample_default_tbl) {
-		fdb = attr->sample_attr->sample_default_tbl;
-	} else if (split) {
+	if (split) {
 		fwd_attr.chain = attr->chain;
 		fwd_attr.prio = attr->prio;
 		fwd_attr.vport = esw_attr->in_rep->vport;
