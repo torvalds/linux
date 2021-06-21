@@ -385,7 +385,7 @@ struct radeon_fence {
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
-int radeon_fence_driver_init(struct radeon_device *rdev);
+void radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
 void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);

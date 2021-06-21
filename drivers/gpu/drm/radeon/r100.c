@@ -4056,9 +4056,7 @@ int r100_init(struct radeon_device *rdev)
 	/* initialize VRAM */
 	r100_mc_init(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r)
