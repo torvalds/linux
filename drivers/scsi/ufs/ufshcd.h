@@ -188,7 +188,6 @@ struct ufs_pm_lvl_states {
  * @crypto_key_slot: the key slot to use for inline crypto (-1 if none)
  * @data_unit_num: the data unit number for the first block for inline crypto
  * @req_abort_skip: skip request abort task flag
- * @in_use: indicates that this lrb is still in use
  */
 struct ufshcd_lrb {
 	struct utp_transfer_req_desc *utr_descriptor_ptr;
@@ -218,7 +217,6 @@ struct ufshcd_lrb {
 #endif
 
 	bool req_abort_skip;
-	bool in_use;
 };
 
 /**
@@ -655,6 +653,25 @@ struct ufs_hba_variant_params {
 	u32 wb_flush_threshold;
 };
 
+struct ufs_hba_monitor {
+	unsigned long chunk_size;
+
+	unsigned long nr_sec_rw[2];
+	ktime_t total_busy[2];
+
+	unsigned long nr_req[2];
+	/* latencies*/
+	ktime_t lat_sum[2];
+	ktime_t lat_max[2];
+	ktime_t lat_min[2];
+
+	u32 nr_queued[2];
+	ktime_t busy_start_ts[2];
+
+	ktime_t enabled_ts;
+	bool enabled;
+};
+
 /**
  * struct ufs_hba - per adapter private structure
  * @mmio_base: UFSHCI base register address
@@ -845,6 +862,8 @@ struct ufs_hba {
 	bool wb_buf_flush_enabled;
 	bool wb_enabled;
 	struct delayed_work rpm_dev_flush_recheck_work;
+
+	struct ufs_hba_monitor	monitor;
 
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 	union ufs_crypto_capabilities crypto_capabilities;
@@ -1144,6 +1163,11 @@ static inline u32 ufshcd_vops_get_ufs_hci_version(struct ufs_hba *hba)
 		return hba->vops->get_ufs_hci_version(hba);
 
 	return ufshcd_readl(hba, REG_UFS_VERSION);
+}
+
+static inline bool ufshcd_has_utrlcnr(struct ufs_hba *hba)
+{
+	return (hba->ufs_version >= ufshci_version(3, 0));
 }
 
 static inline int ufshcd_vops_clk_scale_notify(struct ufs_hba *hba,

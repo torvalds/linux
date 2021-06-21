@@ -1269,7 +1269,7 @@ static inline void gic_cpu_pm_init(void) { }
 #ifdef CONFIG_PM
 void gic_resume(void)
 {
-	trace_android_vh_gic_resume(gic_data.domain, gic_data.dist_base);
+	trace_android_vh_gic_resume(&gic_data);
 }
 EXPORT_SYMBOL_GPL(gic_resume);
 

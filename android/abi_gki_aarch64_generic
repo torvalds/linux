@@ -552,6 +552,7 @@
   __drm_atomic_helper_crtc_destroy_state
   __drm_atomic_helper_crtc_duplicate_state
   __drm_atomic_helper_crtc_reset
+  drm_atomic_helper_disable_all
   drm_atomic_helper_disable_plane
   drm_atomic_helper_duplicate_state
   drm_atomic_helper_fake_vblank
@@ -574,6 +575,7 @@
   drm_atomic_private_obj_init
   drm_atomic_set_crtc_for_plane
   drm_atomic_set_fb_for_plane
+  drm_atomic_set_mode_for_crtc
   drm_atomic_state_alloc
   drm_atomic_state_clear
   __drm_atomic_state_free
@@ -641,6 +643,7 @@
   drmm_mode_config_init
   drm_mode_config_reset
   drm_mode_convert_to_umode
+  drm_mode_copy
   drm_mode_duplicate
   drm_mode_equal
   drm_mode_equal_no_clocks
@@ -1615,6 +1618,7 @@
   skb_clone
   skb_copy
   skb_dequeue
+  skb_dequeue_tail
   skb_pull
   skb_push
   skb_put
