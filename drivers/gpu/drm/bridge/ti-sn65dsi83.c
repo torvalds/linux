@@ -291,7 +291,8 @@ err_dsi_attach:
 	return ret;
 }
 
-static void sn65dsi83_pre_enable(struct drm_bridge *bridge)
+static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
+					struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 
@@ -366,7 +367,8 @@ static u8 sn65dsi83_get_dsi_div(struct sn65dsi83 *ctx)
 	return dsi_div - 1;
 }
 
-static void sn65dsi83_enable(struct drm_bridge *bridge)
+static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
+				    struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	unsigned int pval;
@@ -475,7 +477,8 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 	regmap_write(ctx->regmap, REG_IRQ_STAT, pval);
 }
 
-static void sn65dsi83_disable(struct drm_bridge *bridge)
+static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
+				     struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 
@@ -484,7 +487,8 @@ static void sn65dsi83_disable(struct drm_bridge *bridge)
 	regmap_write(ctx->regmap, REG_RC_PLL_EN, 0x00);
 }
 
-static void sn65dsi83_post_disable(struct drm_bridge *bridge)
+static void sn65dsi83_atomic_post_disable(struct drm_bridge *bridge,
+					  struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 
@@ -575,13 +579,13 @@ sn65dsi83_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs sn65dsi83_funcs = {
-	.attach		= sn65dsi83_attach,
-	.pre_enable	= sn65dsi83_pre_enable,
-	.enable		= sn65dsi83_enable,
-	.disable	= sn65dsi83_disable,
-	.post_disable	= sn65dsi83_post_disable,
-	.mode_valid	= sn65dsi83_mode_valid,
-	.mode_set	= sn65dsi83_mode_set,
+	.attach			= sn65dsi83_attach,
+	.atomic_pre_enable	= sn65dsi83_atomic_pre_enable,
+	.atomic_enable		= sn65dsi83_atomic_enable,
+	.atomic_disable		= sn65dsi83_atomic_disable,
+	.atomic_post_disable	= sn65dsi83_atomic_post_disable,
+	.mode_valid		= sn65dsi83_mode_valid,
+	.mode_set		= sn65dsi83_mode_set,
 
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
