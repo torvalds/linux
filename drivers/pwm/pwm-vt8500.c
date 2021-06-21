@@ -240,10 +240,11 @@ static int vt8500_pwm_remove(struct platform_device *pdev)
 {
 	struct vt8500_chip *chip = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&chip->chip);
 
 	clk_unprepare(chip->clk);
 
-	return pwmchip_remove(&chip->chip);
+	return 0;
 }
 
 static struct platform_driver vt8500_pwm_driver = {
