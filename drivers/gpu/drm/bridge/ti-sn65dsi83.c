@@ -306,7 +306,8 @@ static void sn65dsi83_pre_enable(struct drm_bridge *bridge)
 	usleep_range(1000, 1100);
 }
 
-static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx)
+static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx,
+				   const struct drm_display_mode *mode)
 {
 	/*
 	 * The encoding of the LVDS_CLK_RANGE is as follows:
@@ -322,7 +323,7 @@ static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx)
 	 * the clock to 25..154 MHz, the range calculation can be simplified
 	 * as follows:
 	 */
-	int mode_clock = ctx->mode.clock;
+	int mode_clock = mode->clock;
 
 	if (ctx->lvds_dual_link)
 		mode_clock /= 2;
@@ -330,7 +331,8 @@ static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx)
 	return (mode_clock - 12500) / 25000;
 }
 
-static u8 sn65dsi83_get_dsi_range(struct sn65dsi83 *ctx)
+static u8 sn65dsi83_get_dsi_range(struct sn65dsi83 *ctx,
+				  const struct drm_display_mode *mode)
 {
 	/*
 	 * The encoding of the CHA_DSI_CLK_RANGE is as follows:
@@ -346,7 +348,7 @@ static u8 sn65dsi83_get_dsi_range(struct sn65dsi83 *ctx)
 	 *  DSI_CLK = mode clock * bpp / dsi_data_lanes / 2
 	 * the 2 is there because the bus is DDR.
 	 */
-	return DIV_ROUND_UP(clamp((unsigned int)ctx->mode.clock *
+	return DIV_ROUND_UP(clamp((unsigned int)mode->clock *
 			    mipi_dsi_pixel_format_to_bpp(ctx->dsi->format) /
 			    ctx->dsi_lanes / 2, 40000U, 500000U), 5000U);
 }
@@ -378,10 +380,10 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 
 	/* Reference clock derived from DSI link clock. */
 	regmap_write(ctx->regmap, REG_RC_LVDS_PLL,
-		     REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx)) |
+		     REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx, &ctx->mode)) |
 		     REG_RC_LVDS_PLL_HS_CLK_SRC_DPHY);
 	regmap_write(ctx->regmap, REG_DSI_CLK,
-		     REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx)));
+		     REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx, &ctx->mode)));
 	regmap_write(ctx->regmap, REG_RC_DSI_CLK,
 		     REG_RC_DSI_CLK_DSI_CLK_DIVIDER(sn65dsi83_get_dsi_div(ctx)));
 
