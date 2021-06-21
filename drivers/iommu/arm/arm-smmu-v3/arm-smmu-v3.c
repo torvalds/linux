@@ -733,10 +733,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	unsigned long flags;
 	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
-	struct arm_smmu_ll_queue llq = {
-		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq;
+	struct arm_smmu_ll_queue llq, head;
 	int ret = 0;
+
+	llq.max_n_shift = cmdq->q.llq.max_n_shift;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
