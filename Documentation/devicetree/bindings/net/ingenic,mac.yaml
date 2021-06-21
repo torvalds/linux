@@ -61,7 +61,7 @@ examples:
     #include <dt-bindings/clock/x1000-cgu.h>
 
     mac: ethernet@134b0000 {
-        compatible = "ingenic,x1000-mac", "snps,dwmac";
+        compatible = "ingenic,x1000-mac";
         reg = <0x134b0000 0x2000>;
 
         interrupt-parent = <&intc>;
