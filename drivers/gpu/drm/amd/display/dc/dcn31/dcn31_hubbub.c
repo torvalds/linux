@@ -934,7 +934,8 @@ static const struct hubbub_funcs hubbub31_funcs = {
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.program_det_size = dcn31_program_det_size,
 	.program_compbuf_size = dcn31_program_compbuf_size,
-	.init_crb = dcn31_init_crb
+	.init_crb = dcn31_init_crb,
+	.hubbub_read_state = hubbub2_read_state,
 };
 
 void hubbub31_construct(struct dcn20_hubbub *hubbub31,

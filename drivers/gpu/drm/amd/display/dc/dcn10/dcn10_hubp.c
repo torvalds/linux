@@ -871,6 +871,8 @@ void hubp1_read_state_common(struct hubp *hubp)
 	struct _vcs_dpi_display_dlg_regs_st *dlg_attr = &s->dlg_attr;
 	struct _vcs_dpi_display_ttu_regs_st *ttu_attr = &s->ttu_attr;
 	struct _vcs_dpi_display_rq_regs_st *rq_regs = &s->rq_regs;
+	uint32_t aperture_low_msb, aperture_low_lsb;
+	uint32_t aperture_high_msb, aperture_high_lsb;
 
 	/* Requester */
 	REG_GET(HUBPRET_CONTROL,
@@ -880,6 +882,22 @@ void hubp1_read_state_common(struct hubp *hubp)
 			PRQ_EXPANSION_MODE, &rq_regs->prq_expansion_mode,
 			MRQ_EXPANSION_MODE, &rq_regs->mrq_expansion_mode,
 			CRQ_EXPANSION_MODE, &rq_regs->crq_expansion_mode);
+
+	REG_GET(DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB,
+			MC_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, &aperture_low_msb);
+
+	REG_GET(DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB,
+			MC_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, &aperture_low_lsb);
+
+	REG_GET(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB,
+			MC_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, &aperture_high_msb);
+
+	REG_GET(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB,
+			MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, &aperture_high_lsb);
+
+	// On DCN1, aperture is broken down into MSB and LSB; only keep bits [47:18] to match later DCN format
+	rq_regs->aperture_low_addr = (aperture_low_msb << 26) | (aperture_low_lsb >> 6);
+	rq_regs->aperture_high_addr = (aperture_high_msb << 26) | (aperture_high_lsb >> 6);
 
 	/* DLG - Per hubp */
 	REG_GET_2(BLANK_OFFSET_0,
@@ -1037,6 +1055,17 @@ void hubp1_read_state_common(struct hubp *hubp)
 			QoS_LEVEL_LOW_WM, &s->qos_level_low_wm,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 
+	REG_GET(DCSURF_PRIMARY_SURFACE_ADDRESS,
+			PRIMARY_SURFACE_ADDRESS, &s->primary_surface_addr_lo);
+
+	REG_GET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+			PRIMARY_SURFACE_ADDRESS, &s->primary_surface_addr_hi);
+
+	REG_GET(DCSURF_PRIMARY_META_SURFACE_ADDRESS,
+			PRIMARY_META_SURFACE_ADDRESS, &s->primary_meta_addr_lo);
+
+	REG_GET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH,
+			PRIMARY_META_SURFACE_ADDRESS, &s->primary_meta_addr_hi);
 }
 
 void hubp1_read_state(struct hubp *hubp)
