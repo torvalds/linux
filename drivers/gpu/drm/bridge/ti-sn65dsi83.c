@@ -147,8 +147,6 @@ struct sn65dsi83 {
 	int				dsi_lanes;
 	bool				lvds_dual_link;
 	bool				lvds_dual_link_even_odd_swap;
-	bool				lvds_format_24bpp;
-	bool				lvds_format_jeida;
 };
 
 static const struct regmap_range sn65dsi83_readable_ranges[] = {
@@ -371,10 +369,44 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 				    struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
+	struct drm_atomic_state *state = old_bridge_state->base.state;
+	const struct drm_bridge_state *bridge_state;
+	bool lvds_format_24bpp;
+	bool lvds_format_jeida;
 	unsigned int pval;
 	__le16 le16val;
 	u16 val;
 	int ret;
+
+	/* Get the LVDS format from the bridge state. */
+	bridge_state = drm_atomic_get_new_bridge_state(state, bridge);
+
+	switch (bridge_state->output_bus_cfg.format) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+		lvds_format_24bpp = false;
+		lvds_format_jeida = true;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+		lvds_format_24bpp = true;
+		lvds_format_jeida = true;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+		lvds_format_24bpp = true;
+		lvds_format_jeida = false;
+		break;
+	default:
+		/*
+		 * Some bridges still don't set the correct
+		 * LVDS bus pixel format, use SPWG24 default
+		 * format until those are fixed.
+		 */
+		lvds_format_24bpp = true;
+		lvds_format_jeida = false;
+		dev_warn(ctx->dev,
+			 "Unsupported LVDS bus format 0x%04x, please check output bridge driver. Falling back to SPWG24.\n",
+			 bridge_state->output_bus_cfg.format);
+		break;
+	}
 
 	/* Clear reset, disable PLL */
 	regmap_write(ctx->regmap, REG_RC_RESET, 0x00);
@@ -405,14 +437,14 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	       REG_LVDS_FMT_VS_NEG_POLARITY : 0);
 
 	/* Set up bits-per-pixel, 18bpp or 24bpp. */
-	if (ctx->lvds_format_24bpp) {
+	if (lvds_format_24bpp) {
 		val |= REG_LVDS_FMT_CHA_24BPP_MODE;
 		if (ctx->lvds_dual_link)
 			val |= REG_LVDS_FMT_CHB_24BPP_MODE;
 	}
 
 	/* Set up LVDS format, JEIDA/Format 1 or SPWG/Format 2 */
-	if (ctx->lvds_format_jeida) {
+	if (lvds_format_jeida) {
 		val |= REG_LVDS_FMT_CHA_24BPP_FORMAT1;
 		if (ctx->lvds_dual_link)
 			val |= REG_LVDS_FMT_CHB_24BPP_FORMAT1;
@@ -515,41 +547,8 @@ static void sn65dsi83_mode_set(struct drm_bridge *bridge,
 			       const struct drm_display_mode *adj)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-	struct drm_encoder *encoder = bridge->encoder;
-	struct drm_device *ddev = encoder->dev;
-	struct drm_connector *connector;
 
 	ctx->mode = *adj;
-
-	/* The DSI format is always RGB888_1X24 */
-	list_for_each_entry(connector, &ddev->mode_config.connector_list, head) {
-		switch (connector->display_info.bus_formats[0]) {
-		case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
-			ctx->lvds_format_24bpp = false;
-			ctx->lvds_format_jeida = true;
-			break;
-		case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
-			ctx->lvds_format_24bpp = true;
-			ctx->lvds_format_jeida = true;
-			break;
-		case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
-			ctx->lvds_format_24bpp = true;
-			ctx->lvds_format_jeida = false;
-			break;
-		default:
-			/*
-			 * Some bridges still don't set the correct
-			 * LVDS bus pixel format, use SPWG24 default
-			 * format until those are fixed.
-			 */
-			ctx->lvds_format_24bpp = true;
-			ctx->lvds_format_jeida = false;
-			dev_warn(ctx->dev,
-				 "Unsupported LVDS bus format 0x%04x, please check output bridge driver. Falling back to SPWG24.\n",
-				 connector->display_info.bus_formats[0]);
-			break;
-		}
-	}
 }
 
 #define MAX_INPUT_SEL_FORMATS	1
