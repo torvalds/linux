@@ -86,12 +86,16 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 		if (bpos_cmp(expected_start, bp->v.min_key)) {
 			bch2_topology_error(c);
 
-			if (fsck_err(c, "btree node with incorrect min_key at btree %s level %u:\n"
-				     "  prev %s\n"
-				     "  cur %s",
-				     bch2_btree_ids[b->c.btree_id], b->c.level,
-				     buf1,
-				     (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2))) {
+			if (__fsck_err(c,
+				  FSCK_CAN_FIX|
+				  FSCK_CAN_IGNORE|
+				  FSCK_NO_RATELIMIT,
+				  "btree node with incorrect min_key at btree %s level %u:\n"
+				  "  prev %s\n"
+				  "  cur %s",
+				  bch2_btree_ids[b->c.btree_id], b->c.level,
+				  buf1,
+				  (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2))) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
 				return FSCK_ERR_START_TOPOLOGY_REPAIR;
 			} else {
@@ -103,12 +107,16 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	if (is_last && bpos_cmp(cur.k->k.p, node_end)) {
 		bch2_topology_error(c);
 
-		if (fsck_err(c, "btree node with incorrect max_key at btree %s level %u:\n"
-			     "  %s\n"
-			     "  expected %s",
-			     bch2_btree_ids[b->c.btree_id], b->c.level,
-			     (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
-			     (bch2_bpos_to_text(&PBUF(buf2), node_end), buf2))) {
+		if (__fsck_err(c,
+			  FSCK_CAN_FIX|
+			  FSCK_CAN_IGNORE|
+			  FSCK_NO_RATELIMIT,
+			  "btree node with incorrect max_key at btree %s level %u:\n"
+			  "  %s\n"
+			  "  expected %s",
+			  bch2_btree_ids[b->c.btree_id], b->c.level,
+			  (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
+			  (bch2_bpos_to_text(&PBUF(buf2), node_end), buf2))) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
 			return FSCK_ERR_START_TOPOLOGY_REPAIR;
 		} else {
@@ -884,11 +892,15 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 			if (ret == -EIO) {
 				bch2_topology_error(c);
 
-				if (fsck_err(c, "Unreadable btree node at btree %s level %u:\n"
-					"  %s",
-					bch2_btree_ids[b->c.btree_id],
-					b->c.level - 1,
-					(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur.k)), buf))) {
+				if (__fsck_err(c,
+					  FSCK_CAN_FIX|
+					  FSCK_CAN_IGNORE|
+					  FSCK_NO_RATELIMIT,
+					  "Unreadable btree node at btree %s level %u:\n"
+					  "  %s",
+					  bch2_btree_ids[b->c.btree_id],
+					  b->c.level - 1,
+					  (bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur.k)), buf))) {
 					ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
 					bch_info(c, "Halting mark and sweep to start topology repair pass");
 					goto fsck_err;

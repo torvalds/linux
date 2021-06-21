@@ -111,6 +111,7 @@ found:
 	list_move(&s->list, &c->fsck_errors);
 	s->nr++;
 	if (c->opts.ratelimit_errors &&
+	    !(flags & FSCK_NO_RATELIMIT) &&
 	    s->nr >= FSCK_ERR_RATELIMIT_NR) {
 		if (s->nr == FSCK_ERR_RATELIMIT_NR)
 			suppressing = true;

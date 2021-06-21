@@ -104,6 +104,7 @@ struct fsck_err_state {
 #define FSCK_CAN_FIX		(1 << 0)
 #define FSCK_CAN_IGNORE		(1 << 1)
 #define FSCK_NEED_FSCK		(1 << 2)
+#define FSCK_NO_RATELIMIT	(1 << 3)
 
 __printf(3, 4) __cold
 enum fsck_err_ret bch2_fsck_err(struct bch_fs *,
