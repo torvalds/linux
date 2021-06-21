@@ -1340,7 +1340,9 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
 	} else {
 		drv = &qcom_geni_uart_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "hsuart");
+		line = of_alias_get_id(pdev->dev.of_node, "serial");
+		if (line == -ENODEV) /* compat with non-standard aliases */
+			line = of_alias_get_id(pdev->dev.of_node, "hsuart");
 	}
 
 	port = get_port_from_line(line, console);
