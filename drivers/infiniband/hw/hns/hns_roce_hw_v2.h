@@ -379,22 +379,7 @@ struct hns_roce_v2_cq_context {
 #define CQC_POE_QID_H_1 CQC_FIELD_LOC(511, 511)
 
 struct hns_roce_srq_context {
-	__le32 byte_4_srqn_srqst;
-	__le32 byte_8_limit_wl;
-	__le32 byte_12_xrcd;
-	__le32 byte_16_pi_ci;
-	__le32 wqe_bt_ba;
-	__le32 byte_24_wqe_bt_ba;
-	__le32 byte_28_rqws_pd;
-	__le32 idx_bt_ba;
-	__le32 rsv_idx_bt_ba;
-	__le32 idx_cur_blk_addr;
-	__le32 byte_44_idxbufpgsz_addr;
-	__le32 idx_nxt_blk_addr;
-	__le32 rsv_idxnxtblkaddr;
-	__le32 byte_56_xrc_cqn;
-	__le32 db_record_addr_record_en;
-	__le32 db_record_addr;
+	__le32 data[16];
 };
 
 #define SRQC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_srq_context, h, l)
@@ -434,71 +419,6 @@ struct hns_roce_srq_context {
 #define SRQC_DB_RECORD_EN SRQC_FIELD_LOC(448, 448)
 #define SRQC_DB_RECORD_ADDR_L SRQC_FIELD_LOC(479, 449)
 #define SRQC_DB_RECORD_ADDR_H SRQC_FIELD_LOC(511, 480)
-
-#define SRQC_BYTE_4_SRQ_ST_S 0
-#define SRQC_BYTE_4_SRQ_ST_M GENMASK(1, 0)
-
-#define SRQC_BYTE_4_SRQ_WQE_HOP_NUM_S 2
-#define SRQC_BYTE_4_SRQ_WQE_HOP_NUM_M GENMASK(3, 2)
-
-#define SRQC_BYTE_4_SRQ_SHIFT_S 4
-#define SRQC_BYTE_4_SRQ_SHIFT_M GENMASK(7, 4)
-
-#define SRQC_BYTE_4_SRQN_S 8
-#define SRQC_BYTE_4_SRQN_M GENMASK(31, 8)
-
-#define SRQC_BYTE_8_SRQ_LIMIT_WL_S 0
-#define SRQC_BYTE_8_SRQ_LIMIT_WL_M GENMASK(15, 0)
-
-#define SRQC_BYTE_12_SRQ_XRCD_S 0
-#define SRQC_BYTE_12_SRQ_XRCD_M GENMASK(23, 0)
-
-#define SRQC_BYTE_16_SRQ_PRODUCER_IDX_S 0
-#define SRQC_BYTE_16_SRQ_PRODUCER_IDX_M GENMASK(15, 0)
-
-#define SRQC_BYTE_16_SRQ_CONSUMER_IDX_S 0
-#define SRQC_BYTE_16_SRQ_CONSUMER_IDX_M GENMASK(31, 16)
-
-#define SRQC_BYTE_24_SRQ_WQE_BT_BA_S 0
-#define SRQC_BYTE_24_SRQ_WQE_BT_BA_M GENMASK(28, 0)
-
-#define SRQC_BYTE_28_PD_S 0
-#define SRQC_BYTE_28_PD_M GENMASK(23, 0)
-
-#define SRQC_BYTE_28_RQWS_S 24
-#define SRQC_BYTE_28_RQWS_M GENMASK(27, 24)
-
-#define SRQC_BYTE_36_SRQ_IDX_BT_BA_S 0
-#define SRQC_BYTE_36_SRQ_IDX_BT_BA_M GENMASK(28, 0)
-
-#define SRQC_BYTE_44_SRQ_IDX_CUR_BLK_ADDR_S 0
-#define SRQC_BYTE_44_SRQ_IDX_CUR_BLK_ADDR_M GENMASK(19, 0)
-
-#define SRQC_BYTE_44_SRQ_IDX_HOP_NUM_S 22
-#define SRQC_BYTE_44_SRQ_IDX_HOP_NUM_M GENMASK(23, 22)
-
-#define SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_S 24
-#define SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_M GENMASK(27, 24)
-
-#define SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_S 28
-#define SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_M GENMASK(31, 28)
-
-#define SRQC_BYTE_52_SRQ_IDX_NXT_BLK_ADDR_S 0
-#define SRQC_BYTE_52_SRQ_IDX_NXT_BLK_ADDR_M GENMASK(19, 0)
-
-#define SRQC_BYTE_56_SRQ_XRC_CQN_S 0
-#define SRQC_BYTE_56_SRQ_XRC_CQN_M GENMASK(23, 0)
-
-#define SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_S 24
-#define SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_M GENMASK(27, 24)
-
-#define SRQC_BYTE_56_SRQ_WQE_BUF_PG_SZ_S 28
-#define SRQC_BYTE_56_SRQ_WQE_BUF_PG_SZ_M GENMASK(31, 28)
-
-#define SRQC_BYTE_60_SRQ_RECORD_EN_S 0
-
-#define SRQC_BYTE_60_SRQ_DB_RECORD_ADDR_S 1
-#define SRQC_BYTE_60_SRQ_DB_RECORD_ADDR_M GENMASK(31, 1)
 
 enum {
 	V2_MPT_ST_VALID = 0x1,

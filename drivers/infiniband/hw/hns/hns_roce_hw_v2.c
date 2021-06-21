@@ -5450,12 +5450,8 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 
 		memset(srqc_mask, 0xff, sizeof(*srqc_mask));
 
-		roce_set_field(srq_context->byte_8_limit_wl,
-			       SRQC_BYTE_8_SRQ_LIMIT_WL_M,
-			       SRQC_BYTE_8_SRQ_LIMIT_WL_S, srq_attr->srq_limit);
-		roce_set_field(srqc_mask->byte_8_limit_wl,
-			       SRQC_BYTE_8_SRQ_LIMIT_WL_M,
-			       SRQC_BYTE_8_SRQ_LIMIT_WL_S, 0);
+		hr_reg_write(srq_context, SRQC_LIMIT_WL, srq_attr->srq_limit);
+		hr_reg_clear(srqc_mask, SRQC_LIMIT_WL);
 
 		ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, srq->srqn, 0,
 					HNS_ROCE_CMD_MODIFY_SRQC,
@@ -5478,7 +5474,6 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
 	struct hns_roce_srq_context *srq_context;
 	struct hns_roce_cmd_mailbox *mailbox;
-	int limit_wl;
 	int ret;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
@@ -5496,11 +5491,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 		goto out;
 	}
 
-	limit_wl = roce_get_field(srq_context->byte_8_limit_wl,
-				  SRQC_BYTE_8_SRQ_LIMIT_WL_M,
-				  SRQC_BYTE_8_SRQ_LIMIT_WL_S);
-
-	attr->srq_limit = limit_wl;
+	attr->srq_limit = hr_reg_read(srq_context, SRQC_LIMIT_WL);
 	attr->max_wr = srq->wqe_cnt;
 	attr->max_sge = srq->max_gs - srq->rsv_sge;
 
