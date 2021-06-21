@@ -239,7 +239,7 @@ struct stepping_info {
 
 bool intel_dmc_has_payload(struct drm_i915_private *i915)
 {
-	return i915->dmc.dmc_payload;
+	return i915->dmc.dmc_info[DMC_FW_MAIN].payload;
 }
 
 static const struct stepping_info skl_stepping_info[] = {
@@ -316,7 +316,8 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
  */
 void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 {
-	u32 *payload = dev_priv->dmc.dmc_payload;
+	struct intel_dmc *dmc = &dev_priv->dmc;
+	struct dmc_fw_info *dmc_info = &dmc->dmc_info[DMC_FW_MAIN];
 	u32 i, fw_size;
 
 	if (!HAS_DMC(dev_priv)) {
@@ -325,26 +326,26 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (!intel_dmc_has_payload(dev_priv)) {
+	if (!dev_priv->dmc.dmc_info[DMC_FW_MAIN].payload) {
 		drm_err(&dev_priv->drm,
 			"Tried to program CSR with empty payload\n");
 		return;
 	}
 
-	fw_size = dev_priv->dmc.dmc_fw_size;
+	fw_size = dmc_info->dmc_fw_size;
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	preempt_disable();
 
 	for (i = 0; i < fw_size; i++)
 		intel_uncore_write_fw(&dev_priv->uncore, DMC_PROGRAM(i),
-				      payload[i]);
+				      dmc_info->payload[i]);
 
 	preempt_enable();
 
-	for (i = 0; i < dev_priv->dmc.mmio_count; i++) {
-		intel_de_write(dev_priv, dev_priv->dmc.mmioaddr[i],
-			       dev_priv->dmc.mmiodata[i]);
+	for (i = 0; i < dmc_info->mmio_count; i++) {
+		intel_de_write(dev_priv, dmc_info->mmioaddr[i],
+			       dmc_info->mmiodata[i]);
 	}
 
 	dev_priv->dmc.dc_state = 0;
@@ -401,13 +402,14 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 			       size_t rem_size)
 {
 	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	struct dmc_fw_info *dmc_info = &dmc->dmc_info[DMC_FW_MAIN];
 	unsigned int header_len_bytes, dmc_header_size, payload_size, i;
 	const u32 *mmioaddr, *mmiodata;
 	u32 mmio_count, mmio_count_max;
 	u8 *payload;
 
-	BUILD_BUG_ON(ARRAY_SIZE(dmc->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
-		     ARRAY_SIZE(dmc->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
+	BUILD_BUG_ON(ARRAY_SIZE(dmc_info->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
+		     ARRAY_SIZE(dmc_info->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
 
 	/*
 	 * Check if we can access common fields, we will checkc again below
@@ -469,10 +471,10 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 				mmioaddr[i]);
 			return 0;
 		}
-		dmc->mmioaddr[i] = _MMIO(mmioaddr[i]);
-		dmc->mmiodata[i] = mmiodata[i];
+		dmc_info->mmioaddr[i] = _MMIO(mmioaddr[i]);
+		dmc_info->mmiodata[i] = mmiodata[i];
 	}
-	dmc->mmio_count = mmio_count;
+	dmc_info->mmio_count = mmio_count;
 
 	rem_size -= header_len_bytes;
 
@@ -485,14 +487,14 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 		drm_err(&i915->drm, "DMC FW too big (%u bytes)\n", payload_size);
 		return 0;
 	}
-	dmc->dmc_fw_size = dmc_header->fw_size;
+	dmc_info->dmc_fw_size = dmc_header->fw_size;
 
-	dmc->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
-	if (!dmc->dmc_payload)
+	dmc_info->payload = kmalloc(payload_size, GFP_KERNEL);
+	if (!dmc_info->payload)
 		return 0;
 
 	payload = (u8 *)(dmc_header) + header_len_bytes;
-	memcpy(dmc->dmc_payload, payload, payload_size);
+	memcpy(dmc_info->payload, payload, payload_size);
 
 	return header_len_bytes + payload_size;
 
@@ -827,5 +829,5 @@ void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 	intel_dmc_ucode_suspend(dev_priv);
 	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 
-	kfree(dev_priv->dmc.dmc_payload);
+	kfree(dev_priv->dmc.dmc_info[DMC_FW_MAIN].payload);
 }
