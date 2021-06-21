@@ -1372,8 +1372,7 @@ static int alloc_sess_reqs(struct rtrs_clt_sess *sess)
 		if (!req->iu)
 			goto out;
 
-		req->sge = kmalloc_array(clt->max_segments + 1,
-					 sizeof(*req->sge), GFP_KERNEL);
+		req->sge = kcalloc(2, sizeof(*req->sge), GFP_KERNEL);
 		if (!req->sge)
 			goto out;
 
@@ -1675,7 +1674,7 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 			      sess->queue_depth * 3 + 1);
 		max_recv_wr = min_t(int, wr_limit,
 			      sess->queue_depth * 3 + 1);
-		max_send_sge = sess->clt->max_segments + 1;
+		max_send_sge = 2;
 	}
 	cq_num = max_send_wr + max_recv_wr;
 	/* alloc iu to recv new rkey reply when server reports flags set */
