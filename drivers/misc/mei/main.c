@@ -1102,7 +1102,7 @@ static ssize_t dev_state_show(struct device *device,
 static DEVICE_ATTR_RO(dev_state);
 
 /**
- * dev_set_devstate: set to new device state and notify sysfs file.
+ * mei_set_devstate: set to new device state and notify sysfs file.
  *
  * @dev: mei_device
  * @state: new device state

@@ -121,7 +121,7 @@ struct mei_mc_hdr {
 };
 
 /**
- * struct mei_wdt_start_request watchdog start/ping
+ * struct mei_wdt_start_request - watchdog start/ping
  *
  * @hdr: Management Control Command Header
  * @timeout: timeout value
@@ -134,7 +134,7 @@ struct mei_wdt_start_request {
 } __packed;
 
 /**
- * struct mei_wdt_start_response watchdog start/ping response
+ * struct mei_wdt_start_response - watchdog start/ping response
  *
  * @hdr: Management Control Command Header
  * @status: operation status

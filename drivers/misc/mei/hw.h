@@ -284,7 +284,7 @@ static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
 }
 
 /**
- *mei_ext_next - following extended header on the TLV list
+ * mei_ext_next - following extended header on the TLV list
  *
  * @ext: current extend header
  *

@@ -326,7 +326,7 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 }
 
 /**
- * mei_tx_cb_queue - queue tx callback
+ * mei_tx_cb_enqueue - queue tx callback
  *
  * Locking: called under "dev->device_lock" lock
  *
@@ -2250,7 +2250,7 @@ static void mei_cl_dma_free(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_alloc_and_map - send client dma map request
+ * mei_cl_dma_alloc_and_map - send client dma map request
  *
  * @cl: host client
  * @fp: pointer to file structure
@@ -2349,7 +2349,7 @@ out:
 }
 
 /**
- * mei_cl_unmap_and_free - send client dma unmap request
+ * mei_cl_dma_unmap - send client dma unmap request
  *
  * @cl: host client
  * @fp: pointer to file structure
