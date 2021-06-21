@@ -7435,6 +7435,43 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	return nfs4_retry_setlk(state, cmd, request);
 }
 
+static int nfs4_delete_lease(struct file *file, void **priv)
+{
+	return generic_setlease(file, F_UNLCK, NULL, priv);
+}
+
+static int nfs4_add_lease(struct file *file, long arg, struct file_lock **lease,
+			  void **priv)
+{
+	struct inode *inode = file_inode(file);
+	fmode_t type = arg == F_RDLCK ? FMODE_READ : FMODE_WRITE;
+	int ret;
+
+	/* No delegation, no lease */
+	if (!nfs4_have_delegation(inode, type))
+		return -EAGAIN;
+	ret = generic_setlease(file, arg, lease, priv);
+	if (ret || nfs4_have_delegation(inode, type))
+		return ret;
+	/* We raced with a delegation return */
+	nfs4_delete_lease(file, priv);
+	return -EAGAIN;
+}
+
+int nfs4_proc_setlease(struct file *file, long arg, struct file_lock **lease,
+		       void **priv)
+{
+	switch (arg) {
+	case F_RDLCK:
+	case F_WRLCK:
+		return nfs4_add_lease(file, arg, lease, priv);
+	case F_UNLCK:
+		return nfs4_delete_lease(file, priv);
+	default:
+		return -EINVAL;
+	}
+}
+
 int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
