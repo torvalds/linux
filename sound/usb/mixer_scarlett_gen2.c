@@ -453,8 +453,8 @@ static int scarlett2_get_port_start_num(const struct scarlett2_ports *ports,
 #define SCARLETT2_USB_NOTIFY_MONITOR  0x00400000
 
 /* Commands for sending/receiving requests/responses */
-#define SCARLETT2_USB_VENDOR_SPECIFIC_CMD_REQ  2
-#define SCARLETT2_USB_VENDOR_SPECIFIC_CMD_RESP 3
+#define SCARLETT2_USB_CMD_REQ  2
+#define SCARLETT2_USB_CMD_RESP 3
 
 #define SCARLETT2_USB_INIT_SEQ  0x00000000
 #define SCARLETT2_USB_GET_METER 0x00001001
@@ -576,12 +576,31 @@ static void scarlett2_fill_request_header(struct scarlett2_data *private,
 	req->pad = 0;
 }
 
+static int scarlett2_usb_tx(struct usb_device *dev, int interface,
+			    void *buf, u16 size)
+{
+	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
+			SCARLETT2_USB_CMD_REQ,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+			0, interface, buf, size);
+}
+
+static int scarlett2_usb_rx(struct usb_device *dev, int interface,
+			    u32 usb_req, void *buf, u16 size)
+{
+	return snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+			usb_req,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
+			0, interface, buf, size);
+}
+
 /* Send a proprietary format request to the Scarlett interface */
 static int scarlett2_usb(
 	struct usb_mixer_interface *mixer, u32 cmd,
 	void *req_data, u16 req_size, void *resp_data, u16 resp_size)
 {
 	struct scarlett2_data *private = mixer->private_data;
+	struct usb_device *dev = mixer->chip->dev;
 	u16 req_buf_size = sizeof(struct scarlett2_usb_packet) + req_size;
 	u16 resp_buf_size = sizeof(struct scarlett2_usb_packet) + resp_size;
 	struct scarlett2_usb_packet *req, *resp = NULL;
@@ -608,14 +627,8 @@ static int scarlett2_usb(
 	if (req_size)
 		memcpy(req->data, req_data, req_size);
 
-	err = snd_usb_ctl_msg(mixer->chip->dev,
-			usb_sndctrlpipe(mixer->chip->dev, 0),
-			SCARLETT2_USB_VENDOR_SPECIFIC_CMD_REQ,
-			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
-			0,
-			private->bInterfaceNumber,
-			req,
-			req_buf_size);
+	err = scarlett2_usb_tx(dev, private->bInterfaceNumber,
+			       req, req_buf_size);
 
 	if (err != req_buf_size) {
 		usb_audio_err(
@@ -628,14 +641,9 @@ static int scarlett2_usb(
 
 	/* send a second message to get the response */
 
-	err = snd_usb_ctl_msg(mixer->chip->dev,
-			usb_rcvctrlpipe(mixer->chip->dev, 0),
-			SCARLETT2_USB_VENDOR_SPECIFIC_CMD_RESP,
-			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
-			0,
-			private->bInterfaceNumber,
-			resp,
-			resp_buf_size);
+	err = scarlett2_usb_rx(dev, private->bInterfaceNumber,
+			       SCARLETT2_USB_CMD_RESP,
+			       resp, resp_buf_size);
 
 	/* validate the response */
 
