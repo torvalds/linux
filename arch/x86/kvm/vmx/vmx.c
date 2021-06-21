@@ -5724,6 +5724,8 @@ void dump_vmcs(struct kvm_vcpu *vcpu)
 	if (cpu_has_secondary_exec_ctrls())
 		secondary_exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
 
+	pr_err("VMCS %p, last attempted VM-entry on CPU %d\n",
+	       vmx->loaded_vmcs->vmcs, vcpu->arch.last_vmentry_cpu);
 	pr_err("*** Guest State ***\n");
 	pr_err("CR0: actual=0x%016lx, shadow=0x%016lx, gh_mask=%016lx\n",
 	       vmcs_readl(GUEST_CR0), vmcs_readl(CR0_READ_SHADOW),
