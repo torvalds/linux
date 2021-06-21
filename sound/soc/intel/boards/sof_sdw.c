@@ -1273,8 +1273,6 @@ static int mc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
-
 	/*
 	 * the default amp_num is zero for each codec and
 	 * amp_num will only be increased for active amp

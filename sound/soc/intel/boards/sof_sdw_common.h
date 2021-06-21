@@ -79,7 +79,6 @@ struct sof_sdw_codec_info {
 
 struct mc_private {
 	struct list_head hdmi_pcm_list;
-	bool common_hdmi_codec_drv;
 	bool idisp_codec;
 	struct snd_soc_jack sdw_headset;
 };
