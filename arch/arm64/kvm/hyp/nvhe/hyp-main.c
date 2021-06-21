@@ -319,11 +319,7 @@ static void handle_pvm_exit_dabt(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
-	/*
-	 * For now, we treat all data aborts as MMIO since we have no knowledge
-	 * of the memslot configuration at EL2.
-	 */
-	hyp_vcpu->vcpu.mmio_needed = true;
+	hyp_vcpu->vcpu.mmio_needed = __pkvm_check_ioguard_page(hyp_vcpu);
 
 	if (hyp_vcpu->vcpu.mmio_needed) {
 		/* r0 as transfer register between the guest and the host. */
