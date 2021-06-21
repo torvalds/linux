@@ -219,21 +219,6 @@ static void dsa_tree_put(struct dsa_switch_tree *dst)
 		kref_put(&dst->refcount, dsa_tree_release);
 }
 
-static bool dsa_port_is_dsa(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_DSA;
-}
-
-static bool dsa_port_is_cpu(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_CPU;
-}
-
-static bool dsa_port_is_user(struct dsa_port *dp)
-{
-	return dp->type == DSA_PORT_TYPE_USER;
-}
-
 static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 						   struct device_node *dn)
 {
