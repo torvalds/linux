@@ -346,36 +346,16 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool dsa_switch_mrp_match(struct dsa_switch *ds, int port,
-				 struct dsa_notifier_mrp_info *info)
-{
-	if (ds->index == info->sw_index && port == info->port)
-		return true;
-
-	if (dsa_is_dsa_port(ds, port))
-		return true;
-
-	return false;
-}
-
 static int dsa_switch_mrp_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mrp_info *info)
 {
-	int err = 0;
-	int port;
-
 	if (!ds->ops->port_mrp_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_mrp_match(ds, port, info)) {
-			err = ds->ops->port_mrp_add(ds, port, info->mrp);
-			if (err)
-				break;
-		}
-	}
+	if (ds->index == info->sw_index)
+		return ds->ops->port_mrp_add(ds, info->port, info->mrp);
 
-	return err;
+	return 0;
 }
 
 static int dsa_switch_mrp_del(struct dsa_switch *ds,
@@ -390,39 +370,18 @@ static int dsa_switch_mrp_del(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool
-dsa_switch_mrp_ring_role_match(struct dsa_switch *ds, int port,
-			       struct dsa_notifier_mrp_ring_role_info *info)
-{
-	if (ds->index == info->sw_index && port == info->port)
-		return true;
-
-	if (dsa_is_dsa_port(ds, port))
-		return true;
-
-	return false;
-}
-
 static int
 dsa_switch_mrp_add_ring_role(struct dsa_switch *ds,
 			     struct dsa_notifier_mrp_ring_role_info *info)
 {
-	int err = 0;
-	int port;
-
 	if (!ds->ops->port_mrp_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_mrp_ring_role_match(ds, port, info)) {
-			err = ds->ops->port_mrp_add_ring_role(ds, port,
-							      info->mrp);
-			if (err)
-				break;
-		}
-	}
+	if (ds->index == info->sw_index)
+		return ds->ops->port_mrp_add_ring_role(ds, info->port,
+						       info->mrp);
 
-	return err;
+	return 0;
 }
 
 static int
