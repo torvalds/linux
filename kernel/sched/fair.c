@@ -4626,8 +4626,11 @@ static inline u64 sched_cfs_bandwidth_slice(void)
  */
 void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b)
 {
-	if (cfs_b->quota != RUNTIME_INF)
-		cfs_b->runtime = cfs_b->quota;
+	if (unlikely(cfs_b->quota == RUNTIME_INF))
+		return;
+
+	cfs_b->runtime += cfs_b->quota;
+	cfs_b->runtime = min(cfs_b->runtime, cfs_b->quota + cfs_b->burst);
 }
 
 static inline struct cfs_bandwidth *tg_cfs_bandwidth(struct task_group *tg)
@@ -4988,14 +4991,15 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun, u
 	throttled = !list_empty(&cfs_b->throttled_cfs_rq);
 	cfs_b->nr_periods += overrun;
 
+	/* Refill extra burst quota even if cfs_b->idle */
+	__refill_cfs_bandwidth_runtime(cfs_b);
+
 	/*
 	 * idle depends on !throttled (for the case of a large deficit), and if
 	 * we're going inactive then everything else can be deferred
 	 */
 	if (cfs_b->idle && !throttled)
 		goto out_deactivate;
-
-	__refill_cfs_bandwidth_runtime(cfs_b);
 
 	if (!throttled) {
 		/* mark as potentially idle for the upcoming period */
@@ -5246,6 +5250,7 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 			if (new < max_cfs_quota_period) {
 				cfs_b->period = ns_to_ktime(new);
 				cfs_b->quota *= 2;
+				cfs_b->burst *= 2;
 
 				pr_warn_ratelimited(
 	"cfs_period_timer[cpu%d]: period too short, scaling up (new cfs_period_us = %lld, cfs_quota_us = %lld)\n",
@@ -5277,6 +5282,7 @@ void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	cfs_b->runtime = 0;
 	cfs_b->quota = RUNTIME_INF;
 	cfs_b->period = ns_to_ktime(default_cfs_period());
+	cfs_b->burst = 0;
 
 	INIT_LIST_HEAD(&cfs_b->throttled_cfs_rq);
 	hrtimer_init(&cfs_b->period_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);

@@ -366,6 +366,7 @@ struct cfs_bandwidth {
 	ktime_t			period;
 	u64			quota;
 	u64			runtime;
+	u64			burst;
 	s64			hierarchical_quota;
 
 	u8			idle;
