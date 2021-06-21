@@ -2059,10 +2059,15 @@ static void scarlett2_notify_monitor(
 	struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const struct scarlett2_ports *ports = info->ports;
 	int num_line_out =
 		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
 	int i;
+
+	/* if line_out_hw_vol is 0, there are no controls to update */
+	if (!info->line_out_hw_vol)
+		return;
 
 	private->vol_updated = 1;
 
@@ -2197,12 +2202,10 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
 	if (err < 0)
 		return err;
 
-	/* Set up the interrupt polling if there are hardware buttons */
-	if (info->line_out_hw_vol) {
-		err = scarlett2_init_notify(mixer);
-		if (err < 0)
-			return err;
-	}
+	/* Set up the interrupt polling */
+	err = scarlett2_init_notify(mixer);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
