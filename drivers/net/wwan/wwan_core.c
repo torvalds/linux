@@ -789,77 +789,6 @@ static const struct file_operations wwan_port_fops = {
 	.llseek = noop_llseek,
 };
 
-/**
- * wwan_register_ops - register WWAN device ops
- * @parent: Device to use as parent and shared by all WWAN ports and
- *	created netdevs
- * @ops: operations to register
- * @ctxt: context to pass to operations
- *
- * Returns: 0 on success, a negative error code on failure
- */
-int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
-		      void *ctxt)
-{
-	struct wwan_device *wwandev;
-
-	if (WARN_ON(!parent || !ops))
-		return -EINVAL;
-
-	wwandev = wwan_create_dev(parent);
-	if (!wwandev)
-		return -ENOMEM;
-
-	if (WARN_ON(wwandev->ops)) {
-		wwan_remove_dev(wwandev);
-		return -EBUSY;
-	}
-
-	if (!try_module_get(ops->owner)) {
-		wwan_remove_dev(wwandev);
-		return -ENODEV;
-	}
-
-	wwandev->ops = ops;
-	wwandev->ops_ctxt = ctxt;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wwan_register_ops);
-
-/**
- * wwan_unregister_ops - remove WWAN device ops
- * @parent: Device to use as parent and shared by all WWAN ports and
- *	created netdevs
- */
-void wwan_unregister_ops(struct device *parent)
-{
-	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
-	bool has_ops;
-
-	if (WARN_ON(IS_ERR(wwandev)))
-		return;
-
-	has_ops = wwandev->ops;
-
-	/* put the reference obtained by wwan_dev_get_by_parent(),
-	 * we should still have one (that the owner is giving back
-	 * now) due to the ops being assigned, check that below
-	 * and return if not.
-	 */
-	put_device(&wwandev->dev);
-
-	if (WARN_ON(!has_ops))
-		return;
-
-	module_put(wwandev->ops->owner);
-
-	wwandev->ops = NULL;
-	wwandev->ops_ctxt = NULL;
-	wwan_remove_dev(wwandev);
-}
-EXPORT_SYMBOL_GPL(wwan_unregister_ops);
-
 static int wwan_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 			      struct netlink_ext_ack *extack)
 {
@@ -973,6 +902,77 @@ static struct rtnl_link_ops wwan_rtnl_link_ops __read_mostly = {
 	.dellink = wwan_rtnl_dellink,
 	.policy = wwan_rtnl_policy,
 };
+
+/**
+ * wwan_register_ops - register WWAN device ops
+ * @parent: Device to use as parent and shared by all WWAN ports and
+ *	created netdevs
+ * @ops: operations to register
+ * @ctxt: context to pass to operations
+ *
+ * Returns: 0 on success, a negative error code on failure
+ */
+int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
+		      void *ctxt)
+{
+	struct wwan_device *wwandev;
+
+	if (WARN_ON(!parent || !ops))
+		return -EINVAL;
+
+	wwandev = wwan_create_dev(parent);
+	if (!wwandev)
+		return -ENOMEM;
+
+	if (WARN_ON(wwandev->ops)) {
+		wwan_remove_dev(wwandev);
+		return -EBUSY;
+	}
+
+	if (!try_module_get(ops->owner)) {
+		wwan_remove_dev(wwandev);
+		return -ENODEV;
+	}
+
+	wwandev->ops = ops;
+	wwandev->ops_ctxt = ctxt;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wwan_register_ops);
+
+/**
+ * wwan_unregister_ops - remove WWAN device ops
+ * @parent: Device to use as parent and shared by all WWAN ports and
+ *	created netdevs
+ */
+void wwan_unregister_ops(struct device *parent)
+{
+	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
+	bool has_ops;
+
+	if (WARN_ON(IS_ERR(wwandev)))
+		return;
+
+	has_ops = wwandev->ops;
+
+	/* put the reference obtained by wwan_dev_get_by_parent(),
+	 * we should still have one (that the owner is giving back
+	 * now) due to the ops being assigned, check that below
+	 * and return if not.
+	 */
+	put_device(&wwandev->dev);
+
+	if (WARN_ON(!has_ops))
+		return;
+
+	module_put(wwandev->ops->owner);
+
+	wwandev->ops = NULL;
+	wwandev->ops_ctxt = NULL;
+	wwan_remove_dev(wwandev);
+}
+EXPORT_SYMBOL_GPL(wwan_unregister_ops);
 
 static int __init wwan_init(void)
 {
