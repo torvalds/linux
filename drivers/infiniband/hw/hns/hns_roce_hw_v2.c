@@ -6264,8 +6264,7 @@ static int config_eqc(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 	hr_reg_write(eqc, EQC_EQ_CONS_INDX, HNS_ROCE_EQ_INIT_CONS_IDX);
 	hr_reg_write(eqc, EQC_NEX_EQE_BA_L, eqe_ba[1] >> 12);
 	hr_reg_write(eqc, EQC_NEX_EQE_BA_H, eqe_ba[1] >> 44);
-	hr_reg_write(eqc, EQC_EQE_SIZE,
-		     !!(eq->eqe_size == HNS_ROCE_V3_EQE_SIZE));
+	hr_reg_write(eqc, EQC_EQE_SIZE, eq->eqe_size == HNS_ROCE_V3_EQE_SIZE);
 
 	return 0;
 }
