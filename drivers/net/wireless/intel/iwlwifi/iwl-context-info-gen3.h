@@ -128,6 +128,17 @@ struct iwl_prph_scratch_rbd_cfg {
 } __packed; /* PERIPH_SCRATCH_RBD_CFG_S */
 
 /*
+ * struct iwl_prph_scratch_uefi_cfg - prph scratch reduce power table
+ * @base_addr: reduce power table address
+ * @size: table size in dwords
+ */
+struct iwl_prph_scratch_uefi_cfg {
+	__le64 base_addr;
+	__le32 size;
+	__le32 reserved;
+} __packed; /* PERIPH_SCRATCH_UEFI_CFG_S */
+
+/*
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
@@ -141,6 +152,7 @@ struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_pnvm_cfg pnvm_cfg;
 	struct iwl_prph_scratch_hwm_cfg hwm_cfg;
 	struct iwl_prph_scratch_rbd_cfg rbd_cfg;
+	struct iwl_prph_scratch_uefi_cfg reduce_power_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
 /*
@@ -151,7 +163,7 @@ struct iwl_prph_scratch_ctrl_cfg {
  */
 struct iwl_prph_scratch {
 	struct iwl_prph_scratch_ctrl_cfg ctrl_cfg;
-	__le32 reserved[16];
+	__le32 reserved[12];
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
@@ -249,5 +261,7 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 
 int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 					  const void *data, u32 len);
+int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
+						  const void *data, u32 len);
 
 #endif /* __iwl_context_info_file_gen3_h__ */

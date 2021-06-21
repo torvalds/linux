@@ -1943,6 +1943,12 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 				  trans_pcie->pnvm_dram.block,
 				  trans_pcie->pnvm_dram.physical);
 
+	if (trans_pcie->reduce_power_dram.size)
+		dma_free_coherent(trans->dev,
+				  trans_pcie->reduce_power_dram.size,
+				  trans_pcie->reduce_power_dram.block,
+				  trans_pcie->reduce_power_dram.physical);
+
 	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);
 }
@@ -3418,6 +3424,7 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	.wait_txq_empty = iwl_trans_pcie_wait_txq_empty,
 	.rxq_dma_data = iwl_trans_pcie_rxq_dma_data,
 	.set_pnvm = iwl_trans_pcie_ctx_info_gen3_set_pnvm,
+	.set_reduce_power = iwl_trans_pcie_ctx_info_gen3_set_reduce_power,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.debugfs_cleanup = iwl_trans_pcie_debugfs_cleanup,
 #endif

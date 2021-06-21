@@ -17,15 +17,6 @@ struct iwl_pnvm_section {
 	const u8 data[];
 } __packed;
 
-struct pnvm_sku_package {
-	u8 rev;
-	u8 reserved1[3];
-	u32 total_size;
-	u8 n_skus;
-	u8 reserved2[11];
-	u8 data[];
-};
-
 static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
 				 struct iwl_rx_packet *pkt, void *data)
 {
@@ -322,6 +313,30 @@ parse:
 	kfree(data);
 
 skip_parse:
+	data = NULL;
+	/* now try to get the reduce power table, if not loaded yet */
+	if (!trans->reduce_power_loaded) {
+		data = iwl_uefi_get_reduced_power(trans, &len);
+		if (IS_ERR_OR_NULL(data)) {
+			/*
+			 * Pretend we've loaded it - at least we've tried and
+			 * couldn't load it at all, so there's no point in
+			 * trying again over and over.
+			 */
+			trans->reduce_power_loaded = true;
+
+			goto skip_reduce_power;
+		}
+	}
+
+	ret = iwl_trans_set_reduce_power(trans, data, len);
+	if (ret)
+		IWL_DEBUG_FW(trans,
+			     "Failed to set reduce power table %d\n",
+			     ret);
+	kfree(data);
+
+skip_reduce_power:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);

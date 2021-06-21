@@ -349,6 +349,7 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr kw;
 
 	struct iwl_dram_data pnvm_dram;
+	struct iwl_dram_data reduce_power_dram;
 
 	struct iwl_txq *txq_memory;
 
