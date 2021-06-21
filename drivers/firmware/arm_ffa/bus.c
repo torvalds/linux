@@ -99,6 +99,9 @@ int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 {
 	int ret;
 
+	if (!driver->probe)
+		return -EINVAL;
+
 	driver->driver.bus = &ffa_bus_type;
 	driver->driver.name = driver->name;
 	driver->driver.owner = owner;
