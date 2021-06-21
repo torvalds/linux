@@ -3109,16 +3109,16 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 	hr_reg_write(mpt_entry, MPT_PD, mr->pd);
 	hr_reg_enable(mpt_entry, MPT_L_INV_EN);
 
-	hr_reg_write(mpt_entry, MPT_BIND_EN,
-		     !!(mr->access & IB_ACCESS_MW_BIND));
-	hr_reg_write(mpt_entry, MPT_ATOMIC_EN,
-		     !!(mr->access & IB_ACCESS_REMOTE_ATOMIC));
-	hr_reg_write(mpt_entry, MPT_RR_EN,
-		     !!(mr->access & IB_ACCESS_REMOTE_READ));
-	hr_reg_write(mpt_entry, MPT_RW_EN,
-		     !!(mr->access & IB_ACCESS_REMOTE_WRITE));
-	hr_reg_write(mpt_entry, MPT_LW_EN,
-		     !!((mr->access & IB_ACCESS_LOCAL_WRITE)));
+	hr_reg_write_bool(mpt_entry, MPT_BIND_EN,
+			  mr->access & IB_ACCESS_MW_BIND);
+	hr_reg_write_bool(mpt_entry, MPT_ATOMIC_EN,
+			  mr->access & IB_ACCESS_REMOTE_ATOMIC);
+	hr_reg_write_bool(mpt_entry, MPT_RR_EN,
+			  mr->access & IB_ACCESS_REMOTE_READ);
+	hr_reg_write_bool(mpt_entry, MPT_RW_EN,
+			  mr->access & IB_ACCESS_REMOTE_WRITE);
+	hr_reg_write_bool(mpt_entry, MPT_LW_EN,
+			  mr->access & IB_ACCESS_LOCAL_WRITE);
 
 	mpt_entry->len_l = cpu_to_le32(lower_32_bits(mr->size));
 	mpt_entry->len_h = cpu_to_le32(upper_32_bits(mr->size));
@@ -5718,8 +5718,8 @@ static int hns_roce_v2_write_srqc(struct hns_roce_srq *srq, void *mb_buf)
 	}
 
 	hr_reg_write(ctx, SRQC_SRQ_ST, 1);
-	hr_reg_write(ctx, SRQC_SRQ_TYPE,
-		     !!(srq->ibsrq.srq_type == IB_SRQT_XRC));
+	hr_reg_write_bool(ctx, SRQC_SRQ_TYPE,
+			  srq->ibsrq.srq_type == IB_SRQT_XRC);
 	hr_reg_write(ctx, SRQC_PD, to_hr_pd(srq->ibsrq.pd)->pdn);
 	hr_reg_write(ctx, SRQC_SRQN, srq->srqn);
 	hr_reg_write(ctx, SRQC_XRCD, srq->xrcdn);

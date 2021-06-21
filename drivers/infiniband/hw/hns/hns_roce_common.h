@@ -77,6 +77,14 @@
 
 #define hr_reg_clear(ptr, field) _hr_reg_clear(ptr, field)
 
+#define _hr_reg_write_bool(ptr, field_type, field_h, field_l, val)             \
+	({                                                                     \
+		(val) ? _hr_reg_enable(ptr, field_type, field_h, field_l) :    \
+			_hr_reg_clear(ptr, field_type, field_h, field_l);      \
+	})
+
+#define hr_reg_write_bool(ptr, field, val) _hr_reg_write_bool(ptr, field, val)
+
 #define _hr_reg_write(ptr, field_type, field_h, field_l, val)                  \
 	({                                                                     \
 		_hr_reg_clear(ptr, field_type, field_h, field_l);              \
