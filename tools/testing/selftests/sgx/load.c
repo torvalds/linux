@@ -150,16 +150,6 @@ bool encl_load(const char *path, struct encl *encl)
 		goto err;
 	}
 
-	/*
-	 * This just checks if the /dev file has these permission
-	 * bits set.  It does not check that the current user is
-	 * the owner or in the owning group.
-	 */
-	if (!(sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-		fprintf(stderr, "no execute permissions on device file %s\n", device_path);
-		goto err;
-	}
-
 	ptr = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
 	if (ptr == (void *)-1) {
 		perror("mmap for read");
@@ -169,13 +159,13 @@ bool encl_load(const char *path, struct encl *encl)
 
 #define ERR_MSG \
 "mmap() succeeded for PROT_READ, but failed for PROT_EXEC.\n" \
-" Check that current user has execute permissions on %s and \n" \
-" that /dev does not have noexec set: mount | grep \"/dev .*noexec\"\n" \
+" Check that /dev does not have noexec set:\n" \
+" \tmount | grep \"/dev .*noexec\"\n" \
 " If so, remount it executable: mount -o remount,exec /dev\n\n"
 
 	ptr = mmap(NULL, PAGE_SIZE, PROT_EXEC, MAP_SHARED, fd, 0);
 	if (ptr == (void *)-1) {
-		fprintf(stderr, ERR_MSG, device_path);
+		fprintf(stderr, ERR_MSG);
 		goto err;
 	}
 	munmap(ptr, PAGE_SIZE);
