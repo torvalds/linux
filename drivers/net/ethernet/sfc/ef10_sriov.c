@@ -122,8 +122,7 @@ static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 		struct ef10_vf *vf = nic_data->vf + i;
 
 		/* If VF is assigned, do not free the vport  */
-		if (vf->pci_dev &&
-		    vf->pci_dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
+		if (vf->pci_dev && pci_is_dev_assigned(vf->pci_dev))
 			continue;
 
 		if (vf->vport_assigned) {
@@ -449,7 +448,9 @@ void efx_ef10_sriov_fini(struct efx_nic *efx)
 	int rc;
 
 	if (!nic_data->vf) {
-		/* Remove any un-assigned orphaned VFs */
+		/* Remove any un-assigned orphaned VFs. This can happen if the PF driver
+		 * was unloaded while any VF was assigned to a guest (using Xen, only).
+		 */
 		if (pci_num_vf(efx->pci_dev) && !pci_vfs_assigned(efx->pci_dev))
 			pci_disable_sriov(efx->pci_dev);
 		return;
