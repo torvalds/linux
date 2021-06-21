@@ -9690,6 +9690,20 @@ MLXSW_ITEM32(reg, mcia, l, 0x00, 31, 1);
  */
 MLXSW_ITEM32(reg, mcia, module, 0x00, 16, 8);
 
+enum {
+	MLXSW_REG_MCIA_STATUS_GOOD = 0,
+	/* No response from module's EEPROM. */
+	MLXSW_REG_MCIA_STATUS_NO_EEPROM_MODULE = 1,
+	/* Module type not supported by the device. */
+	MLXSW_REG_MCIA_STATUS_MODULE_NOT_SUPPORTED = 2,
+	/* No module present indication. */
+	MLXSW_REG_MCIA_STATUS_MODULE_NOT_CONNECTED = 3,
+	/* Error occurred while trying to access module's EEPROM using I2C. */
+	MLXSW_REG_MCIA_STATUS_I2C_ERROR = 9,
+	/* Module is disabled. */
+	MLXSW_REG_MCIA_STATUS_MODULE_DISABLED = 16,
+};
+
 /* reg_mcia_status
  * Module status.
  * Access: RO
@@ -9713,6 +9727,12 @@ MLXSW_ITEM32(reg, mcia, page_number, 0x04, 16, 8);
  * Access: RW
  */
 MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
+
+/* reg_mcia_bank_number
+ * Bank number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcia, bank_number, 0x08, 16, 8);
 
 /* reg_mcia_size
  * Number of bytes to read/write (up to 48 bytes).
