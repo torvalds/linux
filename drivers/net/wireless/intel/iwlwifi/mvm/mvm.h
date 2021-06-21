@@ -1452,7 +1452,12 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 			       struct ieee80211_tx_rate *r);
 u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac);
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
+
+static inline void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+{
+	iwl_fwrt_dump_error_logs(&mvm->fwrt);
+}
+
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type, u32 *gp2,
