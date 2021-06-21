@@ -46,9 +46,6 @@ static int ffa_device_probe(struct device *dev)
 	struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
 	struct ffa_device *ffa_dev = to_ffa_dev(dev);
 
-	if (!ffa_device_match(dev, dev->driver))
-		return -ENODEV;
-
 	return ffa_drv->probe(ffa_dev);
 }
 
