@@ -1259,6 +1259,13 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 	if (!ds->dst)
 		return -ENOMEM;
 
+	if (dsa_switch_find(ds->dst->index, ds->index)) {
+		dev_err(ds->dev,
+			"A DSA switch with index %d already exists in tree %d\n",
+			ds->index, ds->dst->index);
+		return -EEXIST;
+	}
+
 	return 0;
 }
 
