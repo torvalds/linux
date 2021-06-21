@@ -1984,12 +1984,6 @@ static void process_event(struct perf_script *script,
 	if (output[type].fields == 0)
 		return;
 
-	if (!show_event(sample, evsel, thread, al))
-		return;
-
-	if (evswitch__discard(&script->evswitch, evsel))
-		return;
-
 	++es->samples;
 
 	perf_sample__fprintf_start(script, sample, thread, evsel,
@@ -2201,6 +2195,12 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (al.filtered)
+		goto out_put;
+
+	if (!show_event(sample, evsel, al.thread, &al))
+		goto out_put;
+
+	if (evswitch__discard(&scr->evswitch, evsel))
 		goto out_put;
 
 	if (scripting_ops) {
