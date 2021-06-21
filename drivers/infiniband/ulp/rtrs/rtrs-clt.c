@@ -1357,7 +1357,6 @@ static void free_sess_reqs(struct rtrs_clt_sess *sess)
 static int alloc_sess_reqs(struct rtrs_clt_sess *sess)
 {
 	struct rtrs_clt_io_req *req;
-	struct rtrs_clt *clt = sess->clt;
 	int i, err = -ENOMEM;
 
 	sess->reqs = kcalloc(sess->queue_depth, sizeof(*sess->reqs),
@@ -1466,6 +1465,8 @@ static void query_fast_reg_mode(struct rtrs_clt_sess *sess)
 	sess->max_pages_per_mr =
 		min3(sess->max_pages_per_mr, (u32)max_pages_per_mr,
 		     ib_dev->attrs.max_fast_reg_page_list_len);
+	sess->clt->max_segments =
+		min(sess->max_pages_per_mr, sess->clt->max_segments);
 }
 
 static bool rtrs_clt_change_state_get_old(struct rtrs_clt_sess *sess,
@@ -1503,9 +1504,8 @@ static void rtrs_clt_reconnect_work(struct work_struct *work);
 static void rtrs_clt_close_work(struct work_struct *work);
 
 static struct rtrs_clt_sess *alloc_sess(struct rtrs_clt *clt,
-					 const struct rtrs_addr *path,
-					 size_t con_num, u16 max_segments,
-					 u32 nr_poll_queues)
+					const struct rtrs_addr *path,
+					size_t con_num, u32 nr_poll_queues)
 {
 	struct rtrs_clt_sess *sess;
 	int err = -ENOMEM;
@@ -2668,7 +2668,6 @@ static struct rtrs_clt *alloc_clt(const char *sessname, size_t paths_num,
 				  u16 port, size_t pdu_sz, void *priv,
 				  void	(*link_ev)(void *priv,
 						   enum rtrs_clt_link_ev ev),
-				  unsigned int max_segments,
 				  unsigned int reconnect_delay_sec,
 				  unsigned int max_reconnect_attempts)
 {
@@ -2766,7 +2765,6 @@ static void free_clt(struct rtrs_clt *clt)
  * @port: port to be used by the RTRS session
  * @pdu_sz: Size of extra payload which can be accessed after permit allocation.
  * @reconnect_delay_sec: time between reconnect tries
- * @max_segments: Max. number of segments per IO request
  * @max_reconnect_attempts: Number of times to reconnect on error before giving
  *			    up, 0 for * disabled, -1 for forever
  * @nr_poll_queues: number of polling mode connection using IB_POLL_DIRECT flag
@@ -2781,7 +2779,6 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 				 const struct rtrs_addr *paths,
 				 size_t paths_num, u16 port,
 				 size_t pdu_sz, u8 reconnect_delay_sec,
-				 u16 max_segments,
 				 s16 max_reconnect_attempts, u32 nr_poll_queues)
 {
 	struct rtrs_clt_sess *sess, *tmp;
@@ -2790,7 +2787,7 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 
 	clt = alloc_clt(sessname, paths_num, port, pdu_sz, ops->priv,
 			ops->link_ev,
-			max_segments, reconnect_delay_sec,
+			reconnect_delay_sec,
 			max_reconnect_attempts);
 	if (IS_ERR(clt)) {
 		err = PTR_ERR(clt);
@@ -2800,7 +2797,7 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 		struct rtrs_clt_sess *sess;
 
 		sess = alloc_sess(clt, &paths[i], nr_cpu_ids,
-				  max_segments, nr_poll_queues);
+				  nr_poll_queues);
 		if (IS_ERR(sess)) {
 			err = PTR_ERR(sess);
 			goto close_all_sess;
@@ -3062,6 +3059,7 @@ int rtrs_clt_query(struct rtrs_clt *clt, struct rtrs_attrs *attr)
 		return -ECOMM;
 
 	attr->queue_depth      = clt->queue_depth;
+	attr->max_segments     = clt->max_segments;
 	/* Cap max_io_size to min of remote buffer size and the fr pages */
 	attr->max_io_size = min_t(int, clt->max_io_size,
 				  clt->max_segments * SZ_4K);
@@ -3076,7 +3074,7 @@ int rtrs_clt_create_path_from_sysfs(struct rtrs_clt *clt,
 	struct rtrs_clt_sess *sess;
 	int err;
 
-	sess = alloc_sess(clt, addr, nr_cpu_ids, clt->max_segments, 0);
+	sess = alloc_sess(clt, addr, nr_cpu_ids, 0);
 	if (IS_ERR(sess))
 		return PTR_ERR(sess);
 
