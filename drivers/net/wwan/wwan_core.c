@@ -917,7 +917,7 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 {
 	struct wwan_device *wwandev;
 
-	if (WARN_ON(!parent || !ops))
+	if (WARN_ON(!parent || !ops || !ops->setup))
 		return -EINVAL;
 
 	wwandev = wwan_create_dev(parent);
