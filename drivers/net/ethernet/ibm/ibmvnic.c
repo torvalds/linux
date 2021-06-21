@@ -3909,21 +3909,21 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	vlcd->type = 1;
 	len = strlen(os_name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(vlcd->name, os_name, len);
+	strscpy(vlcd->name, os_name, len);
 	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 2 - LPAR name */
 	vlcd->type = 2;
 	len = strlen(utsname()->nodename) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(vlcd->name, utsname()->nodename, len);
+	strscpy(vlcd->name, utsname()->nodename, len);
 	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 3 - device name */
 	vlcd->type = 3;
 	len = strlen(adapter->netdev->name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(vlcd->name, adapter->netdev->name, len);
+	strscpy(vlcd->name, adapter->netdev->name, len);
 }
 
 static int send_login(struct ibmvnic_adapter *adapter)
