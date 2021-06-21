@@ -71,7 +71,7 @@ int walt_pause_cpus(struct cpumask *cpus)
 	ret = pause_cpus(cpus);
 
 	if (ret < 0) {
-		pr_err("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
+		printk_deferred("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
 
 		/* ref counts recorded, suppress failure */
@@ -103,7 +103,7 @@ int walt_resume_cpus(struct cpumask *cpus)
 	ret = resume_cpus(cpus);
 
 	if (ret < 0) {
-		pr_err("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
+		printk_deferred("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
 
 		/* ref counts recorded, suppress failure */
@@ -169,7 +169,7 @@ unlock:
 	mutex_unlock(&pause_lock);
 
 	if (ret < 0)
-		pr_err("pause_cpus during online failure ret=%d cpus=%*pb1\n", ret,
+		printk_deferred("pause_cpus during online failure ret=%d cpus=%*pb1\n", ret,
 		       cpumask_pr_args(&re_pause_cpus));
 }
 
@@ -194,6 +194,6 @@ void walt_pause_init(void)
 				walt_pause_hp_online, NULL);
 
 	if (ret < 0)
-		pr_err("failure to register cpuhp online state ret=%d\n", ret);
+		printk_deferred("failure to register cpuhp online state ret=%d\n", ret);
 }
 #endif /* CONFIG_HOTPLUG_CPU */
