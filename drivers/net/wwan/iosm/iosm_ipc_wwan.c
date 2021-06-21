@@ -317,8 +317,9 @@ struct iosm_wwan *ipc_wwan_init(struct iosm_imem *ipc_imem, struct device *dev)
 	ipc_wwan->dev = dev;
 	ipc_wwan->ipc_imem = ipc_imem;
 
+	/* WWAN core will create a netdev for the default IP MUX channel */
 	if (wwan_register_ops(ipc_wwan->dev, &iosm_wwan_ops, ipc_wwan,
-			      WWAN_NO_DEFAULT_LINK)) {
+			      IP_MUX_SESSION_DEFAULT)) {
 		kfree(ipc_wwan);
 		return NULL;
 	}
