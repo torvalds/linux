@@ -433,23 +433,25 @@ static void mptcp_send_ack(struct mptcp_sock *msk)
 
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+		bool slow;
 
-		lock_sock(ssk);
+		slow = lock_sock_fast(ssk);
 		if (tcp_can_send_ack(ssk))
 			tcp_send_ack(ssk);
-		release_sock(ssk);
+		unlock_sock_fast(ssk, slow);
 	}
 }
 
 static bool mptcp_subflow_cleanup_rbuf(struct sock *ssk)
 {
+	bool slow;
 	int ret;
 
-	lock_sock(ssk);
+	slow = lock_sock_fast(ssk);
 	ret = tcp_can_send_ack(ssk);
 	if (ret)
 		tcp_cleanup_rbuf(ssk, 1);
-	release_sock(ssk);
+	unlock_sock_fast(ssk, slow);
 	return ret;
 }
 
@@ -2252,13 +2254,14 @@ static void mptcp_check_fastclose(struct mptcp_sock *msk)
 
 	list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
 		struct sock *tcp_sk = mptcp_subflow_tcp_sock(subflow);
+		bool slow;
 
-		lock_sock(tcp_sk);
+		slow = lock_sock_fast(tcp_sk);
 		if (tcp_sk->sk_state != TCP_CLOSE) {
 			tcp_send_active_reset(tcp_sk, GFP_ATOMIC);
 			tcp_set_state(tcp_sk, TCP_CLOSE);
 		}
-		release_sock(tcp_sk);
+		unlock_sock_fast(tcp_sk, slow);
 	}
 
 	inet_sk_state_store(sk, TCP_CLOSE);
