@@ -76,6 +76,7 @@
 #include <asm/kvm_book3s_uvmem.h>
 #include <asm/ultravisor.h>
 #include <asm/dtl.h>
+#include <asm/plpar_wrappers.h>
 
 #include "book3s.h"
 
@@ -922,6 +923,32 @@ static int kvmppc_get_yield_count(struct kvm_vcpu *vcpu)
 	return yield_count;
 }
 
+static long kvmppc_h_rpt_invalidate(struct kvm_vcpu *vcpu,
+				    unsigned long id, unsigned long target,
+				    unsigned long type, unsigned long pg_sizes,
+				    unsigned long start, unsigned long end)
+{
+	if (!kvm_is_radix(vcpu->kvm))
+		return H_UNSUPPORTED;
+
+	if (end < start)
+		return H_P5;
+
+	/*
+	 * Partition-scoped invalidation for nested guests.
+	 * Not yet supported
+	 */
+	if (type & H_RPTI_TYPE_NESTED)
+		return H_P3;
+
+	/*
+	 * Process-scoped invalidation for L1 guests.
+	 */
+	do_h_rpt_invalidate_prt(id, vcpu->kvm->arch.lpid,
+				type, pg_sizes, start, end);
+	return H_SUCCESS;
+}
+
 int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -1105,6 +1132,14 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (!powernv_get_random_long(&vcpu->arch.regs.gpr[4]))
 			ret = H_HARDWARE;
 		break;
+	case H_RPT_INVALIDATE:
+		ret = kvmppc_h_rpt_invalidate(vcpu, kvmppc_get_gpr(vcpu, 4),
+					      kvmppc_get_gpr(vcpu, 5),
+					      kvmppc_get_gpr(vcpu, 6),
+					      kvmppc_get_gpr(vcpu, 7),
+					      kvmppc_get_gpr(vcpu, 8),
+					      kvmppc_get_gpr(vcpu, 9));
+		break;
 
 	case H_SET_PARTITION_TABLE:
 		ret = H_FUNCTION;
@@ -1225,6 +1260,7 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_XIRR_X:
 #endif
 	case H_PAGE_INIT:
+	case H_RPT_INVALIDATE:
 		return 1;
 	}
 
