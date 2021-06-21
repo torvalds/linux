@@ -735,8 +735,9 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 static void mt7921_update_txs(struct mt76_wcid *wcid, __le32 *txwi)
 {
 	struct mt7921_sta *msta = container_of(wcid, struct mt7921_sta, wcid);
-	u32 pid, frame_type = FIELD_GET(MT_TXD2_FRAME_TYPE, txwi[2]);
+	u32 pid, frame_type;
 
+	frame_type = FIELD_GET(MT_TXD2_FRAME_TYPE, le32_to_cpu(txwi[2]));
 	if (!(frame_type & (IEEE80211_FTYPE_DATA >> 2)))
 		return;
 
