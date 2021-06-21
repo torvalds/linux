@@ -7416,23 +7416,23 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	if (ret)
 		goto out;
 
-	mutex_lock(&fs_info->balance_mutex);
-	if (test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags)) {
-		mutex_unlock(&fs_info->balance_mutex);
+	spin_lock(&fs_info->send_reloc_lock);
+	if (test_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags)) {
+		spin_unlock(&fs_info->send_reloc_lock);
 		btrfs_warn_rl(fs_info,
-		"cannot run send because a balance operation is in progress");
+		"cannot run send because a relocation operation is in progress");
 		ret = -EAGAIN;
 		goto out;
 	}
 	fs_info->send_in_progress++;
-	mutex_unlock(&fs_info->balance_mutex);
+	spin_unlock(&fs_info->send_reloc_lock);
 
 	current->journal_info = BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
 	current->journal_info = NULL;
-	mutex_lock(&fs_info->balance_mutex);
+	spin_lock(&fs_info->send_reloc_lock);
 	fs_info->send_in_progress--;
-	mutex_unlock(&fs_info->balance_mutex);
+	spin_unlock(&fs_info->send_reloc_lock);
 	if (ret < 0)
 		goto out;
 

@@ -561,13 +561,13 @@ enum {
 	/*
 	 * Indicate that balance has been set up from the ioctl and is in the
 	 * main phase. The fs_info::balance_ctl is initialized.
-	 * Set and cleared while holding fs_info::balance_mutex.
 	 */
 	BTRFS_FS_BALANCE_RUNNING,
 
 	/*
 	 * Indicate that relocation of a chunk has started, it's set per chunk
 	 * and is toggled between chunks.
+	 * Set, tested and cleared while holding fs_info::send_reloc_lock.
 	 */
 	BTRFS_FS_RELOC_RUNNING,
 
@@ -995,9 +995,10 @@ struct btrfs_fs_info {
 
 	struct crypto_shash *csum_shash;
 
+	spinlock_t send_reloc_lock;
 	/*
 	 * Number of send operations in progress.
-	 * Updated while holding fs_info::balance_mutex.
+	 * Updated while holding fs_info::send_reloc_lock.
 	 */
 	int send_in_progress;
 

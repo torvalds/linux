@@ -1491,7 +1491,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
-	int ret;
+	LIST_HEAD(again_list);
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
 		return;
@@ -1502,6 +1502,8 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	mutex_lock(&fs_info->reclaim_bgs_lock);
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
+		int ret = 0;
+
 		bg = list_first_entry(&fs_info->reclaim_bgs,
 				      struct btrfs_block_group,
 				      bg_list);
@@ -1547,9 +1549,13 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 				  bg->start);
 
 next:
-		btrfs_put_block_group(bg);
 		spin_lock(&fs_info->unused_bgs_lock);
+		if (ret == -EAGAIN && list_empty(&bg->bg_list))
+			list_add_tail(&bg->bg_list, &again_list);
+		else
+			btrfs_put_block_group(bg);
 	}
+	list_splice_tail(&again_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	btrfs_exclop_finish(fs_info);
