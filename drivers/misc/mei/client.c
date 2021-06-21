@@ -1726,12 +1726,15 @@ nortpm:
 	return rets;
 }
 
-static inline u8 mei_ext_hdr_set_vtag(struct mei_ext_hdr *ext, u8 vtag)
+static inline u8 mei_ext_hdr_set_vtag(void *ext, u8 vtag)
 {
-	ext->type = MEI_EXT_HDR_VTAG;
-	ext->ext_payload[0] = vtag;
-	ext->length = mei_data2slots(sizeof(*ext));
-	return ext->length;
+	struct mei_ext_hdr_vtag *vtag_hdr = ext;
+
+	vtag_hdr->hdr.type = MEI_EXT_HDR_VTAG;
+	vtag_hdr->hdr.length = mei_data2slots(sizeof(*vtag_hdr));
+	vtag_hdr->vtag = vtag;
+	vtag_hdr->reserved = 0;
+	return vtag_hdr->hdr.length;
 }
 
 /**
@@ -1745,7 +1748,6 @@ static struct mei_msg_hdr *mei_msg_hdr_init(const struct mei_cl_cb *cb)
 {
 	size_t hdr_len;
 	struct mei_ext_meta_hdr *meta;
-	struct mei_ext_hdr *ext;
 	struct mei_msg_hdr *mei_hdr;
 	bool is_ext, is_vtag;
 
@@ -1764,7 +1766,7 @@ static struct mei_msg_hdr *mei_msg_hdr_init(const struct mei_cl_cb *cb)
 
 	hdr_len += sizeof(*meta);
 	if (is_vtag)
-		hdr_len += sizeof(*ext);
+		hdr_len += sizeof(struct mei_ext_hdr_vtag);
 
 setup_hdr:
 	mei_hdr = kzalloc(hdr_len, GFP_KERNEL);
