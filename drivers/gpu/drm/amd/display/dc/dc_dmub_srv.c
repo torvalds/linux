@@ -185,7 +185,7 @@ bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 		       dmub, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
 		       stream_mask, timeout) == DMUB_STATUS_OK;
 }
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+
 bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
 {
 	struct dmub_srv *dmub;
@@ -207,7 +207,6 @@ bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
 
 	return boot_status.bits.restore_required;
 }
-#endif
 
 bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry)
 {

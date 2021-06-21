@@ -224,7 +224,6 @@ enum {
 #define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 #define FAMILY_YELLOW_CARP                     146
 
 #define YELLOW_CARP_A0 0x01
@@ -233,7 +232,6 @@ enum {
 
 #ifndef ASICREV_IS_YELLOW_CARP
 #define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKNOWN))
-#endif
 #endif
 
 

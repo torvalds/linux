@@ -362,11 +362,7 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
-#else
-		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
-#endif
 		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
@@ -631,7 +627,6 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 	/**
 	 * Command type used for all idle optimization commands.
 	 */
@@ -644,7 +639,6 @@ enum dmub_cmd_type {
 	 * Command type used for all panel control commands.
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
-#endif
 	/**
 	 * Command type used for EDID CEA parsing
 	 */
@@ -854,8 +848,6 @@ struct dmub_rb_cmd_mall {
 	uint8_t reserved2; /**< Reserved bits */
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
-
 /**
  * enum dmub_cmd_idle_opt_type - Idle optimization command type.
  */
@@ -900,7 +892,7 @@ struct dmub_rb_cmd_clk_mgr_notify_clocks {
 	struct dmub_cmd_header header; /**< header */
 	struct dmub_clocks clocks; /**< clock data */
 };
-#endif
+
 /**
  * struct dmub_cmd_digx_encoder_control_data - Encoder control data.
  */
@@ -2111,7 +2103,6 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 /**
  * enum dmub_cmd_panel_cntl_type - Panel control command.
  */
@@ -2146,7 +2137,6 @@ struct dmub_rb_cmd_panel_cntl {
 	struct dmub_cmd_header header; /**< header */
 	struct dmub_cmd_panel_cntl_data data; /**< payload */
 };
-#endif
 
 /**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
@@ -2307,7 +2297,6 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__MALL command.
 	 */
 	struct dmub_rb_cmd_mall mall;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
 	 */
@@ -2322,7 +2311,6 @@ union dmub_rb_cmd {
 	 * Definition of DMUB_CMD__PANEL_CNTL commands.
 	 */
 	struct dmub_rb_cmd_panel_cntl panel_cntl;
-#endif
 	/**
 	 * Definition of a DMUB_CMD__ABM_SET_PIPE command.
 	 */
