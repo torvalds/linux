@@ -3377,73 +3377,44 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 	cq_context = mb_buf;
 	memset(cq_context, 0, sizeof(*cq_context));
 
-	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_CQ_ST_M,
-		       V2_CQC_BYTE_4_CQ_ST_S, V2_CQ_STATE_VALID);
-	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_ARM_ST_M,
-		       V2_CQC_BYTE_4_ARM_ST_S, REG_NXT_CEQE);
-	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_SHIFT_M,
-		       V2_CQC_BYTE_4_SHIFT_S, ilog2(hr_cq->cq_depth));
-	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_CEQN_M,
-		       V2_CQC_BYTE_4_CEQN_S, hr_cq->vector);
+	hr_reg_write(cq_context, CQC_CQ_ST, V2_CQ_STATE_VALID);
+	hr_reg_write(cq_context, CQC_ARM_ST, REG_NXT_CEQE);
+	hr_reg_write(cq_context, CQC_SHIFT, ilog2(hr_cq->cq_depth));
+	hr_reg_write(cq_context, CQC_CEQN, hr_cq->vector);
+	hr_reg_write(cq_context, CQC_CQN, hr_cq->cqn);
 
-	roce_set_field(cq_context->byte_8_cqn, V2_CQC_BYTE_8_CQN_M,
-		       V2_CQC_BYTE_8_CQN_S, hr_cq->cqn);
-
-	roce_set_field(cq_context->byte_8_cqn, V2_CQC_BYTE_8_CQE_SIZE_M,
-		       V2_CQC_BYTE_8_CQE_SIZE_S, hr_cq->cqe_size ==
-		       HNS_ROCE_V3_CQE_SIZE ? 1 : 0);
+	if (hr_cq->cqe_size == HNS_ROCE_V3_CQE_SIZE)
+		hr_reg_write(cq_context, CQC_CQE_SIZE, CQE_SIZE_64B);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_STASH)
 		hr_reg_enable(cq_context, CQC_STASH);
 
-	cq_context->cqe_cur_blk_addr = cpu_to_le32(to_hr_hw_page_addr(mtts[0]));
-
-	roce_set_field(cq_context->byte_16_hop_addr,
-		       V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_M,
-		       V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_S,
-		       upper_32_bits(to_hr_hw_page_addr(mtts[0])));
-	roce_set_field(cq_context->byte_16_hop_addr,
-		       V2_CQC_BYTE_16_CQE_HOP_NUM_M,
-		       V2_CQC_BYTE_16_CQE_HOP_NUM_S, hr_dev->caps.cqe_hop_num ==
-		       HNS_ROCE_HOP_NUM_0 ? 0 : hr_dev->caps.cqe_hop_num);
-
-	cq_context->cqe_nxt_blk_addr = cpu_to_le32(to_hr_hw_page_addr(mtts[1]));
-	roce_set_field(cq_context->byte_24_pgsz_addr,
-		       V2_CQC_BYTE_24_CQE_NXT_BLK_ADDR_M,
-		       V2_CQC_BYTE_24_CQE_NXT_BLK_ADDR_S,
-		       upper_32_bits(to_hr_hw_page_addr(mtts[1])));
-	roce_set_field(cq_context->byte_24_pgsz_addr,
-		       V2_CQC_BYTE_24_CQE_BA_PG_SZ_M,
-		       V2_CQC_BYTE_24_CQE_BA_PG_SZ_S,
-		       to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.ba_pg_shift));
-	roce_set_field(cq_context->byte_24_pgsz_addr,
-		       V2_CQC_BYTE_24_CQE_BUF_PG_SZ_M,
-		       V2_CQC_BYTE_24_CQE_BUF_PG_SZ_S,
-		       to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.buf_pg_shift));
-
-	cq_context->cqe_ba = cpu_to_le32(dma_handle >> 3);
-
-	roce_set_field(cq_context->byte_40_cqe_ba, V2_CQC_BYTE_40_CQE_BA_M,
-		       V2_CQC_BYTE_40_CQE_BA_S, (dma_handle >> (32 + 3)));
-
-	roce_set_bit(cq_context->byte_44_db_record,
-		     V2_CQC_BYTE_44_DB_RECORD_EN_S,
-		     (hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB) ? 1 : 0);
-
-	roce_set_field(cq_context->byte_44_db_record,
-		       V2_CQC_BYTE_44_DB_RECORD_ADDR_M,
-		       V2_CQC_BYTE_44_DB_RECORD_ADDR_S,
-		       ((u32)hr_cq->db.dma) >> 1);
-	cq_context->db_record_addr = cpu_to_le32(hr_cq->db.dma >> 32);
-
-	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_MAX_CNT_M,
-		       V2_CQC_BYTE_56_CQ_MAX_CNT_S,
-		       HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM);
-	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_PERIOD_M,
-		       V2_CQC_BYTE_56_CQ_PERIOD_S,
-		       HNS_ROCE_V2_CQ_DEFAULT_INTERVAL);
+	hr_reg_write(cq_context, CQC_CQE_CUR_BLK_ADDR_L,
+		     to_hr_hw_page_addr(mtts[0]));
+	hr_reg_write(cq_context, CQC_CQE_CUR_BLK_ADDR_H,
+		     upper_32_bits(to_hr_hw_page_addr(mtts[0])));
+	hr_reg_write(cq_context, CQC_CQE_HOP_NUM, hr_dev->caps.cqe_hop_num ==
+		     HNS_ROCE_HOP_NUM_0 ? 0 : hr_dev->caps.cqe_hop_num);
+	hr_reg_write(cq_context, CQC_CQE_NEX_BLK_ADDR_L,
+		     to_hr_hw_page_addr(mtts[1]));
+	hr_reg_write(cq_context, CQC_CQE_NEX_BLK_ADDR_H,
+		     upper_32_bits(to_hr_hw_page_addr(mtts[1])));
+	hr_reg_write(cq_context, CQC_CQE_BAR_PG_SZ,
+		     to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.ba_pg_shift));
+	hr_reg_write(cq_context, CQC_CQE_BUF_PG_SZ,
+		     to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.buf_pg_shift));
+	hr_reg_write(cq_context, CQC_CQE_BA_L, dma_handle >> 3);
+	hr_reg_write(cq_context, CQC_CQE_BA_H, (dma_handle >> (32 + 3)));
+	hr_reg_write_bool(cq_context, CQC_DB_RECORD_EN,
+			  hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB);
+	hr_reg_write(cq_context, CQC_CQE_DB_RECORD_ADDR_L,
+		     ((u32)hr_cq->db.dma) >> 1);
+	hr_reg_write(cq_context, CQC_CQE_DB_RECORD_ADDR_H,
+		     hr_cq->db.dma >> 32);
+	hr_reg_write(cq_context, CQC_CQ_MAX_CNT,
+		     HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM);
+	hr_reg_write(cq_context, CQC_CQ_PERIOD,
+		     HNS_ROCE_V2_CQ_DEFAULT_INTERVAL);
 }
 
 static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
@@ -5850,18 +5821,10 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 
 	memset(cqc_mask, 0xff, sizeof(*cqc_mask));
 
-	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_MAX_CNT_M, V2_CQC_BYTE_56_CQ_MAX_CNT_S,
-		       cq_count);
-	roce_set_field(cqc_mask->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_MAX_CNT_M, V2_CQC_BYTE_56_CQ_MAX_CNT_S,
-		       0);
-	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_PERIOD_M, V2_CQC_BYTE_56_CQ_PERIOD_S,
-		       cq_period);
-	roce_set_field(cqc_mask->byte_56_cqe_period_maxcnt,
-		       V2_CQC_BYTE_56_CQ_PERIOD_M, V2_CQC_BYTE_56_CQ_PERIOD_S,
-		       0);
+	hr_reg_write(cq_context, CQC_CQ_MAX_CNT, cq_count);
+	hr_reg_clear(cqc_mask, CQC_CQ_MAX_CNT);
+	hr_reg_write(cq_context, CQC_CQ_PERIOD, cq_period);
+	hr_reg_clear(cqc_mask, CQC_CQ_PERIOD);
 
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn, 1,
 				HNS_ROCE_CMD_MODIFY_CQC,
