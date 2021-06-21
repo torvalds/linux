@@ -168,6 +168,32 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	return rc;
 }
 
+static void idxd_cleanup_interrupts(struct idxd_device *idxd)
+{
+	struct pci_dev *pdev = idxd->pdev;
+	struct idxd_irq_entry *irq_entry;
+	int i, msixcnt;
+
+	msixcnt = pci_msix_vec_count(pdev);
+	if (msixcnt <= 0)
+		return;
+
+	irq_entry = &idxd->irq_entries[0];
+	free_irq(irq_entry->vector, irq_entry);
+
+	for (i = 1; i < msixcnt; i++) {
+
+		irq_entry = &idxd->irq_entries[i];
+		if (idxd->hw.cmd_cap & BIT(IDXD_CMD_RELEASE_INT_HANDLE))
+			idxd_device_release_int_handle(idxd, idxd->int_handles[i],
+						       IDXD_IRQ_MSIX);
+		free_irq(irq_entry->vector, irq_entry);
+	}
+
+	idxd_mask_error_interrupts(idxd);
+	pci_free_irq_vectors(pdev);
+}
+
 static int idxd_setup_wqs(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -242,6 +268,7 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 		engine->idxd = idxd;
 		device_initialize(&engine->conf_dev);
 		engine->conf_dev.parent = &idxd->conf_dev;
+		engine->conf_dev.bus = &dsa_bus_type;
 		engine->conf_dev.type = &idxd_engine_device_type;
 		rc = dev_set_name(&engine->conf_dev, "engine%d.%d", idxd->id, engine->id);
 		if (rc < 0) {
@@ -301,6 +328,19 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 	while (--i >= 0)
 		put_device(&idxd->groups[i]->conf_dev);
 	return rc;
+}
+
+static void idxd_cleanup_internals(struct idxd_device *idxd)
+{
+	int i;
+
+	for (i = 0; i < idxd->max_groups; i++)
+		put_device(&idxd->groups[i]->conf_dev);
+	for (i = 0; i < idxd->max_engines; i++)
+		put_device(&idxd->engines[i]->conf_dev);
+	for (i = 0; i < idxd->max_wqs; i++)
+		put_device(&idxd->wqs[i]->conf_dev);
+	destroy_workqueue(idxd->wq);
 }
 
 static int idxd_setup_internals(struct idxd_device *idxd)
@@ -531,12 +571,12 @@ static int idxd_probe(struct idxd_device *idxd)
 		dev_dbg(dev, "Loading RO device config\n");
 		rc = idxd_device_load_config(idxd);
 		if (rc < 0)
-			goto err;
+			goto err_config;
 	}
 
 	rc = idxd_setup_interrupts(idxd);
 	if (rc)
-		goto err;
+		goto err_config;
 
 	dev_dbg(dev, "IDXD interrupt setup complete.\n");
 
@@ -549,11 +589,25 @@ static int idxd_probe(struct idxd_device *idxd)
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
 
+ err_config:
+	idxd_cleanup_internals(idxd);
  err:
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
 	iommu_dev_disable_feature(dev, IOMMU_DEV_FEAT_SVA);
 	return rc;
+}
+
+static void idxd_cleanup(struct idxd_device *idxd)
+{
+	struct device *dev = &idxd->pdev->dev;
+
+	perfmon_pmu_remove(idxd);
+	idxd_cleanup_interrupts(idxd);
+	idxd_cleanup_internals(idxd);
+	if (device_pasid_enabled(idxd))
+		idxd_disable_system_pasid(idxd);
+	iommu_dev_disable_feature(dev, IOMMU_DEV_FEAT_SVA);
 }
 
 static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -608,7 +662,7 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = idxd_register_devices(idxd);
 	if (rc) {
 		dev_err(dev, "IDXD sysfs setup failed\n");
-		goto err;
+		goto err_dev_register;
 	}
 
 	idxd->state = IDXD_DEV_CONF_READY;
@@ -618,6 +672,8 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+ err_dev_register:
+	idxd_cleanup(idxd);
  err:
 	pci_iounmap(pdev, idxd->reg_base);
  err_iomap:
@@ -787,6 +843,7 @@ module_init(idxd_init_module);
 
 static void __exit idxd_exit_module(void)
 {
+	idxd_unregister_driver();
 	pci_unregister_driver(&idxd_pci_driver);
 	idxd_cdev_remove();
 	idxd_unregister_bus_type();
