@@ -137,7 +137,6 @@ enum sn65dsi83_model {
 
 struct sn65dsi83 {
 	struct drm_bridge		bridge;
-	struct drm_display_mode		mode;
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct device_node		*host_node;
@@ -371,6 +370,10 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	struct drm_atomic_state *state = old_bridge_state->base.state;
 	const struct drm_bridge_state *bridge_state;
+	const struct drm_crtc_state *crtc_state;
+	const struct drm_display_mode *mode;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
 	bool lvds_format_24bpp;
 	bool lvds_format_jeida;
 	unsigned int pval;
@@ -408,16 +411,26 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 		break;
 	}
 
+	/*
+	 * Retrieve the CRTC adjusted mode. This requires a little dance to go
+	 * from the bridge to the encoder, to the connector and to the CRTC.
+	 */
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	mode = &crtc_state->adjusted_mode;
+
 	/* Clear reset, disable PLL */
 	regmap_write(ctx->regmap, REG_RC_RESET, 0x00);
 	regmap_write(ctx->regmap, REG_RC_PLL_EN, 0x00);
 
 	/* Reference clock derived from DSI link clock. */
 	regmap_write(ctx->regmap, REG_RC_LVDS_PLL,
-		     REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx, &ctx->mode)) |
+		     REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx, mode)) |
 		     REG_RC_LVDS_PLL_HS_CLK_SRC_DPHY);
 	regmap_write(ctx->regmap, REG_DSI_CLK,
-		     REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx, &ctx->mode)));
+		     REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx, mode)));
 	regmap_write(ctx->regmap, REG_RC_DSI_CLK,
 		     REG_RC_DSI_CLK_DSI_CLK_DIVIDER(sn65dsi83_get_dsi_div(ctx)));
 
@@ -431,9 +444,9 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	regmap_write(ctx->regmap, REG_DSI_EQ, 0x00);
 
 	/* Set up sync signal polarity. */
-	val = (ctx->mode.flags & DRM_MODE_FLAG_NHSYNC ?
+	val = (mode->flags & DRM_MODE_FLAG_NHSYNC ?
 	       REG_LVDS_FMT_HS_NEG_POLARITY : 0) |
-	      (ctx->mode.flags & DRM_MODE_FLAG_NVSYNC ?
+	      (mode->flags & DRM_MODE_FLAG_NVSYNC ?
 	       REG_LVDS_FMT_VS_NEG_POLARITY : 0);
 
 	/* Set up bits-per-pixel, 18bpp or 24bpp. */
@@ -463,29 +476,29 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 		     REG_LVDS_LANE_CHB_LVDS_TERM);
 	regmap_write(ctx->regmap, REG_LVDS_CM, 0x00);
 
-	le16val = cpu_to_le16(ctx->mode.hdisplay);
+	le16val = cpu_to_le16(mode->hdisplay);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_ACTIVE_LINE_LENGTH_LOW,
 			  &le16val, 2);
-	le16val = cpu_to_le16(ctx->mode.vdisplay);
+	le16val = cpu_to_le16(mode->vdisplay);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_VERTICAL_DISPLAY_SIZE_LOW,
 			  &le16val, 2);
 	/* 32 + 1 pixel clock to ensure proper operation */
 	le16val = cpu_to_le16(32 + 1);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_SYNC_DELAY_LOW, &le16val, 2);
-	le16val = cpu_to_le16(ctx->mode.hsync_end - ctx->mode.hsync_start);
+	le16val = cpu_to_le16(mode->hsync_end - mode->hsync_start);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_HSYNC_PULSE_WIDTH_LOW,
 			  &le16val, 2);
-	le16val = cpu_to_le16(ctx->mode.vsync_end - ctx->mode.vsync_start);
+	le16val = cpu_to_le16(mode->vsync_end - mode->vsync_start);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_VSYNC_PULSE_WIDTH_LOW,
 			  &le16val, 2);
 	regmap_write(ctx->regmap, REG_VID_CHA_HORIZONTAL_BACK_PORCH,
-		     ctx->mode.htotal - ctx->mode.hsync_end);
+		     mode->htotal - mode->hsync_end);
 	regmap_write(ctx->regmap, REG_VID_CHA_VERTICAL_BACK_PORCH,
-		     ctx->mode.vtotal - ctx->mode.vsync_end);
+		     mode->vtotal - mode->vsync_end);
 	regmap_write(ctx->regmap, REG_VID_CHA_HORIZONTAL_FRONT_PORCH,
-		     ctx->mode.hsync_start - ctx->mode.hdisplay);
+		     mode->hsync_start - mode->hdisplay);
 	regmap_write(ctx->regmap, REG_VID_CHA_VERTICAL_FRONT_PORCH,
-		     ctx->mode.vsync_start - ctx->mode.vdisplay);
+		     mode->vsync_start - mode->vdisplay);
 	regmap_write(ctx->regmap, REG_VID_CHA_TEST_PATTERN, 0x00);
 
 	/* Enable PLL */
@@ -542,15 +555,6 @@ sn65dsi83_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static void sn65dsi83_mode_set(struct drm_bridge *bridge,
-			       const struct drm_display_mode *mode,
-			       const struct drm_display_mode *adj)
-{
-	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-
-	ctx->mode = *adj;
-}
-
 #define MAX_INPUT_SEL_FORMATS	1
 
 static u32 *
@@ -584,7 +588,6 @@ static const struct drm_bridge_funcs sn65dsi83_funcs = {
 	.atomic_disable		= sn65dsi83_atomic_disable,
 	.atomic_post_disable	= sn65dsi83_atomic_post_disable,
 	.mode_valid		= sn65dsi83_mode_valid,
-	.mode_set		= sn65dsi83_mode_set,
 
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
