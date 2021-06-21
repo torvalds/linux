@@ -1337,17 +1337,18 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 				      struct evsel *evsel,
 				      struct thread *thread,
 				      struct addr_location *al,
+				      struct addr_location *addr_al,
 				      u64 *ip)
 {
-	struct addr_location addr_al;
 	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *name = NULL;
 
 	if (sample->flags & (PERF_IP_FLAG_CALL | PERF_IP_FLAG_TRACE_BEGIN)) {
 		if (sample_addr_correlates_sym(attr)) {
-			thread__resolve(thread, &addr_al, sample);
-			if (addr_al.sym)
-				name = addr_al.sym->name;
+			if (!addr_al->thread)
+				thread__resolve(thread, addr_al, sample);
+			if (addr_al->sym)
+				name = addr_al->sym->name;
 			else
 				*ip = sample->addr;
 		} else {
@@ -1365,7 +1366,9 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct evsel *evsel,
 					   struct thread *thread,
-					   struct addr_location *al, FILE *fp)
+					   struct addr_location *al,
+					   struct addr_location *addr_al,
+					   FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	size_t depth = thread_stack__depth(thread, sample->cpu);
@@ -1382,7 +1385,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 	if (thread->ts && sample->flags & PERF_IP_FLAG_RETURN)
 		depth += 1;
 
-	name = resolve_branch_sym(sample, evsel, thread, al, &ip);
+	name = resolve_branch_sym(sample, evsel, thread, al, addr_al, &ip);
 
 	if (PRINT_FIELD(DSO) && !(PRINT_FIELD(IP) || PRINT_FIELD(ADDR))) {
 		dlen += fprintf(fp, "(");
@@ -1466,6 +1469,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 				    struct evsel *evsel,
 				    struct thread *thread,
 				    struct addr_location *al,
+				    struct addr_location *addr_al,
 				    struct machine *machine, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
@@ -1474,7 +1478,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 	int printed = 0;
 
 	if (PRINT_FIELD(CALLINDENT))
-		printed += perf_sample__fprintf_callindent(sample, evsel, thread, al, fp);
+		printed += perf_sample__fprintf_callindent(sample, evsel, thread, al, addr_al, fp);
 
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
@@ -1931,7 +1935,8 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 static bool show_event(struct perf_sample *sample,
 		       struct evsel *evsel,
 		       struct thread *thread,
-		       struct addr_location *al)
+		       struct addr_location *al,
+		       struct addr_location *addr_al)
 {
 	int depth = thread_stack__depth(thread, sample->cpu);
 
@@ -1947,7 +1952,7 @@ static bool show_event(struct perf_sample *sample,
 	} else {
 		const char *s = symbol_conf.graph_function;
 		u64 ip;
-		const char *name = resolve_branch_sym(sample, evsel, thread, al,
+		const char *name = resolve_branch_sym(sample, evsel, thread, al, addr_al,
 				&ip);
 		unsigned nlen;
 
@@ -1972,6 +1977,7 @@ static bool show_event(struct perf_sample *sample,
 static void process_event(struct perf_script *script,
 			  struct perf_sample *sample, struct evsel *evsel,
 			  struct addr_location *al,
+			  struct addr_location *addr_al,
 			  struct machine *machine)
 {
 	struct thread *thread = al->thread;
@@ -2005,7 +2011,7 @@ static void process_event(struct perf_script *script,
 		perf_sample__fprintf_flags(sample->flags, fp);
 
 	if (is_bts_event(attr)) {
-		perf_sample__fprintf_bts(sample, evsel, thread, al, machine, fp);
+		perf_sample__fprintf_bts(sample, evsel, thread, al, addr_al, machine, fp);
 		return;
 	}
 
@@ -2168,6 +2174,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
+	struct addr_location addr_al;
 
 	if (perf_time__ranges_skip_sample(scr->ptime_range, scr->range_num,
 					  sample->time)) {
@@ -2197,7 +2204,10 @@ static int process_sample_event(struct perf_tool *tool,
 	if (al.filtered)
 		goto out_put;
 
-	if (!show_event(sample, evsel, al.thread, &al))
+	/* Set thread to NULL to indicate addr_al is not initialized */
+	addr_al.thread = NULL;
+
+	if (!show_event(sample, evsel, al.thread, &al, &addr_al))
 		goto out_put;
 
 	if (evswitch__discard(&scr->evswitch, evsel))
@@ -2205,16 +2215,16 @@ static int process_sample_event(struct perf_tool *tool,
 
 	if (scripting_ops) {
 		struct addr_location *addr_al_ptr = NULL;
-		struct addr_location addr_al;
 
 		if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
 		    sample_addr_correlates_sym(&evsel->core.attr)) {
-			thread__resolve(al.thread, &addr_al, sample);
+			if (!addr_al.thread)
+				thread__resolve(al.thread, &addr_al, sample);
 			addr_al_ptr = &addr_al;
 		}
 		scripting_ops->process_event(event, sample, evsel, &al, addr_al_ptr);
 	} else {
-		process_event(scr, sample, evsel, &al, machine);
+		process_event(scr, sample, evsel, &al, &addr_al, machine);
 	}
 
 out_put:
