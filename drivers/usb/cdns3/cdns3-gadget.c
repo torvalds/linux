@@ -430,9 +430,7 @@ static int cdns3_start_all_request(struct cdns3_device *priv_dev,
 		if (ret)
 			return ret;
 
-		list_del(&request->list);
-		list_add_tail(&request->list,
-			      &priv_ep->pending_req_list);
+		list_move_tail(&request->list, &priv_ep->pending_req_list);
 		if (request->stream_id != 0 || (priv_ep->flags & EP_TDLCHK_EN))
 			break;
 	}
@@ -484,7 +482,7 @@ static void __cdns3_descmiss_copy_data(struct usb_request *request,
 }
 
 /**
- * cdns3_wa2_descmiss_copy_data copy data from internal requests to
+ * cdns3_wa2_descmiss_copy_data - copy data from internal requests to
  * request queued by class driver.
  * @priv_ep: extended endpoint object
  * @request: request object
