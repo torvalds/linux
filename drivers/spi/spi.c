@@ -564,6 +564,55 @@ static void spi_cleanup(struct spi_device *spi)
 		spi->controller->cleanup(spi);
 }
 
+static int __spi_add_device(struct spi_device *spi)
+{
+	struct spi_controller *ctlr = spi->controller;
+	struct device *dev = ctlr->dev.parent;
+	int status;
+
+	status = bus_for_each_dev(&spi_bus_type, NULL, spi, spi_dev_check);
+	if (status) {
+		dev_err(dev, "chipselect %d already in use\n",
+				spi->chip_select);
+		return status;
+	}
+
+	/* Controller may unregister concurrently */
+	if (IS_ENABLED(CONFIG_SPI_DYNAMIC) &&
+	    !device_is_registered(&ctlr->dev)) {
+		return -ENODEV;
+	}
+
+	/* Descriptors take precedence */
+	if (ctlr->cs_gpiods)
+		spi->cs_gpiod = ctlr->cs_gpiods[spi->chip_select];
+	else if (ctlr->cs_gpios)
+		spi->cs_gpio = ctlr->cs_gpios[spi->chip_select];
+
+	/* Drivers may modify this initial i/o setup, but will
+	 * normally rely on the device being setup.  Devices
+	 * using SPI_CS_HIGH can't coexist well otherwise...
+	 */
+	status = spi_setup(spi);
+	if (status < 0) {
+		dev_err(dev, "can't setup %s, status %d\n",
+				dev_name(&spi->dev), status);
+		return status;
+	}
+
+	/* Device may be bound to an active driver when this returns */
+	status = device_add(&spi->dev);
+	if (status < 0) {
+		dev_err(dev, "can't add %s, status %d\n",
+				dev_name(&spi->dev), status);
+		spi_cleanup(spi);
+	} else {
+		dev_dbg(dev, "registered child %s\n", dev_name(&spi->dev));
+	}
+
+	return status;
+}
+
 /**
  * spi_add_device - Add spi_device allocated with spi_alloc_device
  * @spi: spi_device to register
@@ -594,53 +643,30 @@ int spi_add_device(struct spi_device *spi)
 	 * its configuration.  Lock against concurrent add() calls.
 	 */
 	mutex_lock(&spi_add_lock);
-
-	status = bus_for_each_dev(&spi_bus_type, NULL, spi, spi_dev_check);
-	if (status) {
-		dev_err(dev, "chipselect %d already in use\n",
-				spi->chip_select);
-		goto done;
-	}
-
-	/* Controller may unregister concurrently */
-	if (IS_ENABLED(CONFIG_SPI_DYNAMIC) &&
-	    !device_is_registered(&ctlr->dev)) {
-		status = -ENODEV;
-		goto done;
-	}
-
-	/* Descriptors take precedence */
-	if (ctlr->cs_gpiods)
-		spi->cs_gpiod = ctlr->cs_gpiods[spi->chip_select];
-	else if (ctlr->cs_gpios)
-		spi->cs_gpio = ctlr->cs_gpios[spi->chip_select];
-
-	/* Drivers may modify this initial i/o setup, but will
-	 * normally rely on the device being setup.  Devices
-	 * using SPI_CS_HIGH can't coexist well otherwise...
-	 */
-	status = spi_setup(spi);
-	if (status < 0) {
-		dev_err(dev, "can't setup %s, status %d\n",
-				dev_name(&spi->dev), status);
-		goto done;
-	}
-
-	/* Device may be bound to an active driver when this returns */
-	status = device_add(&spi->dev);
-	if (status < 0) {
-		dev_err(dev, "can't add %s, status %d\n",
-				dev_name(&spi->dev), status);
-		spi_cleanup(spi);
-	} else {
-		dev_dbg(dev, "registered child %s\n", dev_name(&spi->dev));
-	}
-
-done:
+	status = __spi_add_device(spi);
 	mutex_unlock(&spi_add_lock);
 	return status;
 }
 EXPORT_SYMBOL_GPL(spi_add_device);
+
+static int spi_add_device_locked(struct spi_device *spi)
+{
+	struct spi_controller *ctlr = spi->controller;
+	struct device *dev = ctlr->dev.parent;
+
+	/* Chipselects are numbered 0..max; validate. */
+	if (spi->chip_select >= ctlr->num_chipselect) {
+		dev_err(dev, "cs%d >= max %d\n", spi->chip_select,
+			ctlr->num_chipselect);
+		return -EINVAL;
+	}
+
+	/* Set the bus ID string */
+	spi_dev_set_name(spi);
+
+	WARN_ON(!mutex_is_locked(&spi_add_lock));
+	return __spi_add_device(spi);
+}
 
 /**
  * spi_new_device - instantiate one new SPI device
@@ -2124,6 +2150,55 @@ static void of_register_spi_devices(struct spi_controller *ctlr)
 #else
 static void of_register_spi_devices(struct spi_controller *ctlr) { }
 #endif
+
+/**
+ * spi_new_ancillary_device() - Register ancillary SPI device
+ * @spi:         Pointer to the main SPI device registering the ancillary device
+ * @chip_select: Chip Select of the ancillary device
+ *
+ * Register an ancillary SPI device; for example some chips have a chip-select
+ * for normal device usage and another one for setup/firmware upload.
+ *
+ * This may only be called from main SPI device's probe routine.
+ *
+ * Return: 0 on success; negative errno on failure
+ */
+struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
+					     u8 chip_select)
+{
+	struct spi_device *ancillary;
+	int rc = 0;
+
+	/* Alloc an spi_device */
+	ancillary = spi_alloc_device(spi->controller);
+	if (!ancillary) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
+
+	strlcpy(ancillary->modalias, "dummy", sizeof(ancillary->modalias));
+
+	/* Use provided chip-select for ancillary device */
+	ancillary->chip_select = chip_select;
+
+	/* Take over SPI mode/speed from SPI main device */
+	ancillary->max_speed_hz = spi->max_speed_hz;
+	ancillary->mode = ancillary->mode;
+
+	/* Register the new device */
+	rc = spi_add_device_locked(ancillary);
+	if (rc) {
+		dev_err(&spi->dev, "failed to register ancillary device\n");
+		goto err_out;
+	}
+
+	return ancillary;
+
+err_out:
+	spi_dev_put(ancillary);
+	return ERR_PTR(rc);
+}
+EXPORT_SYMBOL_GPL(spi_new_ancillary_device);
 
 #ifdef CONFIG_ACPI
 struct acpi_spi_lookup {
