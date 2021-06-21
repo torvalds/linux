@@ -260,14 +260,19 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		ac->negotiating = false;
 	}
 
-	ret = ac->ops->handle_reply(ac, result, payload, payload_end,
+	if (result) {
+		pr_err("auth protocol '%s' mauth authentication failed: %d\n",
+		       ceph_auth_proto_name(ac->protocol), result);
+		ret = result;
+		goto out;
+	}
+
+	ret = ac->ops->handle_reply(ac, payload, payload_end,
 				    NULL, NULL, NULL, NULL);
 	if (ret == -EAGAIN) {
 		ret = build_request(ac, true, reply_buf, reply_len);
 		goto out;
 	} else if (ret) {
-		pr_err("auth protocol '%s' mauth authentication failed: %d\n",
-		       ceph_auth_proto_name(ac->protocol), result);
 		goto out;
 	}
 
@@ -480,7 +485,7 @@ int ceph_auth_handle_reply_more(struct ceph_auth_client *ac, void *reply,
 	int ret;
 
 	mutex_lock(&ac->mutex);
-	ret = ac->ops->handle_reply(ac, 0, reply, reply + reply_len,
+	ret = ac->ops->handle_reply(ac, reply, reply + reply_len,
 				    NULL, NULL, NULL, NULL);
 	if (ret == -EAGAIN)
 		ret = build_request(ac, false, buf, buf_len);
@@ -498,7 +503,7 @@ int ceph_auth_handle_reply_done(struct ceph_auth_client *ac,
 	int ret;
 
 	mutex_lock(&ac->mutex);
-	ret = ac->ops->handle_reply(ac, 0, reply, reply + reply_len,
+	ret = ac->ops->handle_reply(ac, reply, reply + reply_len,
 				    session_key, session_key_len,
 				    con_secret, con_secret_len);
 	if (!ret)

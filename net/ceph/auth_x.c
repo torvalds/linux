@@ -661,7 +661,7 @@ e_inval:
 	return -EINVAL;
 }
 
-static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
+static int ceph_x_handle_reply(struct ceph_auth_client *ac,
 			       void *buf, void *end,
 			       u8 *session_key, int *session_key_len,
 			       u8 *con_secret, int *con_secret_len)
@@ -669,12 +669,10 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 	struct ceph_x_info *xi = ac->private;
 	struct ceph_x_ticket_handler *th;
 	int len = end - buf;
+	int result;
 	void *p;
 	int op;
 	int ret;
-
-	if (result)
-		return result;  /* XXX hmm? */
 
 	if (xi->starting) {
 		/* it's a hello */
