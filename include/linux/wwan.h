@@ -9,6 +9,7 @@
 #include <linux/poll.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/netdevice.h>
 
 /**
  * enum wwan_port_type - WWAN port types
@@ -125,6 +126,23 @@ void wwan_port_txon(struct wwan_port *port);
  * @port: Related WWAN port
  */
 void *wwan_port_get_drvdata(struct wwan_port *port);
+
+/**
+ * struct wwan_netdev_priv - WWAN core network device private data
+ * @link_id: WWAN device data link id
+ * @drv_priv: driver private data area, size is determined in &wwan_ops
+ */
+struct wwan_netdev_priv {
+	u32 link_id;
+
+	/* must be last */
+	u8 drv_priv[] __aligned(sizeof(void *));
+};
+
+static inline void *wwan_netdev_drvpriv(struct net_device *dev)
+{
+	return ((struct wwan_netdev_priv *)netdev_priv(dev))->drv_priv;
+}
 
 /*
  * Used to indicate that the WWAN core should not create a default network

@@ -815,6 +815,7 @@ static struct net_device *wwan_rtnl_alloc(struct nlattr *tb[],
 	const char *devname = nla_data(tb[IFLA_PARENT_DEV_NAME]);
 	struct wwan_device *wwandev = wwan_dev_get_by_name(devname);
 	struct net_device *dev;
+	unsigned int priv_size;
 
 	if (IS_ERR(wwandev))
 		return ERR_CAST(wwandev);
@@ -825,7 +826,8 @@ static struct net_device *wwan_rtnl_alloc(struct nlattr *tb[],
 		goto out;
 	}
 
-	dev = alloc_netdev_mqs(wwandev->ops->priv_size, ifname, name_assign_type,
+	priv_size = sizeof(struct wwan_netdev_priv) + wwandev->ops->priv_size;
+	dev = alloc_netdev_mqs(priv_size, ifname, name_assign_type,
 			       wwandev->ops->setup, num_tx_queues, num_rx_queues);
 
 	if (dev) {
@@ -845,6 +847,7 @@ static int wwan_rtnl_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct wwan_device *wwandev = wwan_dev_get_by_parent(dev->dev.parent);
 	u32 link_id = nla_get_u32(data[IFLA_WWAN_LINK_ID]);
+	struct wwan_netdev_priv *priv = netdev_priv(dev);
 	int ret;
 
 	if (IS_ERR(wwandev))
@@ -856,6 +859,7 @@ static int wwan_rtnl_newlink(struct net *src_net, struct net_device *dev,
 		goto out;
 	}
 
+	priv->link_id = link_id;
 	if (wwandev->ops->newlink)
 		ret = wwandev->ops->newlink(wwandev->ops_ctxt, dev,
 					    link_id, extack);
@@ -889,6 +893,27 @@ out:
 	put_device(&wwandev->dev);
 }
 
+static size_t wwan_rtnl_get_size(const struct net_device *dev)
+{
+	return
+		nla_total_size(4) +	/* IFLA_WWAN_LINK_ID */
+		0;
+}
+
+static int wwan_rtnl_fill_info(struct sk_buff *skb,
+			       const struct net_device *dev)
+{
+	struct wwan_netdev_priv *priv = netdev_priv(dev);
+
+	if (nla_put_u32(skb, IFLA_WWAN_LINK_ID, priv->link_id))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 static const struct nla_policy wwan_rtnl_policy[IFLA_WWAN_MAX + 1] = {
 	[IFLA_WWAN_LINK_ID] = { .type = NLA_U32 },
 };
@@ -900,6 +925,8 @@ static struct rtnl_link_ops wwan_rtnl_link_ops __read_mostly = {
 	.validate = wwan_rtnl_validate,
 	.newlink = wwan_rtnl_newlink,
 	.dellink = wwan_rtnl_dellink,
+	.get_size = wwan_rtnl_get_size,
+	.fill_info = wwan_rtnl_fill_info,
 	.policy = wwan_rtnl_policy,
 };
 
