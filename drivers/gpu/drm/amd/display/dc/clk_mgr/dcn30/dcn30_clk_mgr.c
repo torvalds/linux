@@ -280,12 +280,12 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
 		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCEFCLK, clk_mgr_base->clks.dcfclk_khz / 1000);
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCEFCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-		dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, clk_mgr_base->clks.dcfclk_deep_sleep_khz / 1000);
+		dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
@@ -313,20 +313,20 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 	/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
 	if (clk_mgr_base->clks.p_state_change_support &&
 			(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support))
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, clk_mgr_base->clks.dramclk_khz / 1000);
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr_base->clks.dppclk_khz)) {
 		if (clk_mgr_base->clks.dppclk_khz > new_clocks->dppclk_khz)
 			dpp_clock_lowered = true;
 
 		clk_mgr_base->clks.dppclk_khz = new_clocks->dppclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PIXCLK, clk_mgr_base->clks.dppclk_khz / 1000);
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PIXCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
 		update_dppclk = true;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dispclk_khz));
 		update_dispclk = true;
 	}
 
@@ -392,12 +392,17 @@ static void dcn3_set_hard_min_memclk(struct clk_mgr *clk_mgr_base, bool current_
 	if (!clk_mgr->smu_present)
 		return;
 
-	if (current_mode)
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-				clk_mgr_base->clks.dramclk_khz / 1000);
-	else
+	if (current_mode) {
+		if (clk_mgr_base->clks.p_state_change_support)
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
+					khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
+		else
+			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
+					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
+	} else {
 		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
 				clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz);
+	}
 }
 
 /* Set max memclk to highest DPM value */
@@ -485,7 +490,7 @@ static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct d
 
 	if (max_phyclk_req != clk_mgr_base->clks.phyclk_khz) {
 		clk_mgr_base->clks.phyclk_khz = max_phyclk_req;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PHYCLK, khz_to_mhz_ceil(clk_mgr_base->clks.phyclk_khz));
 	}
 }
 
