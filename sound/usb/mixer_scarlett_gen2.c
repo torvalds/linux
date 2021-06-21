@@ -217,6 +217,7 @@ struct scarlett2_ports {
 };
 
 struct scarlett2_device_info {
+	u32 usb_id; /* USB device identifier */
 	u8 line_out_hw_vol; /* line out hw volume is sw controlled */
 	u8 level_input_count; /* inputs with level selectable */
 	u8 pad_input_count; /* inputs with pad selectable */
@@ -257,6 +258,8 @@ struct scarlett2_data {
 /*** Model-specific data ***/
 
 static const struct scarlett2_device_info s6i6_gen2_info = {
+	.usb_id = USB_ID(0x1235, 0x8203),
+
 	/* The first two analogue inputs can be switched between line
 	 * and instrument levels.
 	 */
@@ -310,6 +313,8 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 };
 
 static const struct scarlett2_device_info s18i8_gen2_info = {
+	.usb_id = USB_ID(0x1235, 0x8204),
+
 	/* The first two analogue inputs can be switched between line
 	 * and instrument levels.
 	 */
@@ -371,6 +376,8 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 };
 
 static const struct scarlett2_device_info s18i20_gen2_info = {
+	.usb_id = USB_ID(0x1235, 0x8201),
+
 	/* The analogue line outputs on the 18i20 can be switched
 	 * between software and hardware volume control
 	 */
@@ -435,6 +442,16 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 			.dst_descr = "PCM %02d Capture"
 		},
 	},
+};
+
+static const struct scarlett2_device_info *scarlett2_devices[] = {
+	/* Supported Gen 2 devices */
+	&s6i6_gen2_info,
+	&s18i8_gen2_info,
+	&s18i20_gen2_info,
+
+	/* End of list */
+	NULL
 };
 
 /* get the starting port index number for a given port type/direction */
@@ -2293,26 +2310,18 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
 int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
-	const struct scarlett2_device_info *info;
+	const struct scarlett2_device_info **info = scarlett2_devices;
 	int err;
 
 	/* only use UAC_VERSION_2 */
 	if (!mixer->protocol)
 		return 0;
 
-	switch (chip->usb_id) {
-	case USB_ID(0x1235, 0x8203):
-		info = &s6i6_gen2_info;
-		break;
-	case USB_ID(0x1235, 0x8204):
-		info = &s18i8_gen2_info;
-		break;
-	case USB_ID(0x1235, 0x8201):
-		info = &s18i20_gen2_info;
-		break;
-	default: /* device not (yet) supported */
+	/* find device in scarlett2_devices */
+	while (*info && (*info)->usb_id != chip->usb_id)
+		info++;
+	if (!*info)
 		return -EINVAL;
-	}
 
 	if (!(chip->setup & SCARLETT2_ENABLE)) {
 		usb_audio_info(chip,
@@ -2329,7 +2338,7 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 		"Focusrite Scarlett Gen 2 Mixer Driver enabled pid=0x%04x",
 		USB_ID_PRODUCT(chip->usb_id));
 
-	err = snd_scarlett_gen2_controls_create(mixer, info);
+	err = snd_scarlett_gen2_controls_create(mixer, *info);
 	if (err < 0)
 		usb_audio_err(mixer->chip,
 			      "Error initialising Scarlett Mixer Driver: %d",
