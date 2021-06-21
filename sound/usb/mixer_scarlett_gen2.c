@@ -2249,13 +2249,19 @@ static int scarlett2_init_notify(struct usb_mixer_interface *mixer)
 	return usb_submit_urb(mixer->urb, GFP_KERNEL);
 }
 
-static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
-					     const struct scarlett2_device_info *info)
+static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 {
+	const struct scarlett2_device_info **info = scarlett2_devices;
 	int err;
 
+	/* Find device in scarlett2_devices */
+	while (*info && (*info)->usb_id != mixer->chip->usb_id)
+		info++;
+	if (!*info)
+		return -EINVAL;
+
 	/* Initialise private data */
-	err = scarlett2_init_private(mixer, info);
+	err = scarlett2_init_private(mixer, *info);
 	if (err < 0)
 		return err;
 
@@ -2310,18 +2316,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
 int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
-	const struct scarlett2_device_info **info = scarlett2_devices;
 	int err;
 
 	/* only use UAC_VERSION_2 */
 	if (!mixer->protocol)
 		return 0;
-
-	/* find device in scarlett2_devices */
-	while (*info && (*info)->usb_id != chip->usb_id)
-		info++;
-	if (!*info)
-		return -EINVAL;
 
 	if (!(chip->setup & SCARLETT2_ENABLE)) {
 		usb_audio_info(chip,
@@ -2338,7 +2337,7 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 		"Focusrite Scarlett Gen 2 Mixer Driver enabled pid=0x%04x",
 		USB_ID_PRODUCT(chip->usb_id));
 
-	err = snd_scarlett_gen2_controls_create(mixer, *info);
+	err = snd_scarlett_gen2_controls_create(mixer);
 	if (err < 0)
 		usb_audio_err(mixer->chip,
 			      "Error initialising Scarlett Mixer Driver: %d",
