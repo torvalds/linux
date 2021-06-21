@@ -1820,7 +1820,7 @@
 	};
 
 	usb@7d000000 {
-		compatible = "nvidia,tegra210-ehci", "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra210-ehci", "nvidia,tegra30-ehci";
 		reg = <0x0 0x7d000000 0x0 0x4000>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -1858,7 +1858,7 @@
 	};
 
 	usb@7d004000 {
-		compatible = "nvidia,tegra210-ehci", "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra210-ehci", "nvidia,tegra30-ehci";
 		reg = <0x0 0x7d004000 0x0 0x4000>;
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
