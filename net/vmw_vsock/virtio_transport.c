@@ -498,9 +498,11 @@ static bool virtio_transport_seqpacket_allow(u32 remote_cid)
 	struct virtio_vsock *vsock;
 	bool seqpacket_allow;
 
+	seqpacket_allow = false;
 	rcu_read_lock();
 	vsock = rcu_dereference(the_virtio_vsock);
-	seqpacket_allow = vsock->seqpacket_allow;
+	if (vsock)
+		seqpacket_allow = vsock->seqpacket_allow;
 	rcu_read_unlock();
 
 	return seqpacket_allow;
