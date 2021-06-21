@@ -583,9 +583,6 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	bool do_chunk_alloc = false;
 	int ret;
 
-	/* Send isn't supposed to start transactions. */
-	ASSERT(current->journal_info != BTRFS_SEND_TRANS_STUB);
-
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
 		return ERR_PTR(-EROFS);
 

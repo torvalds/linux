@@ -7427,9 +7427,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	fs_info->send_in_progress++;
 	spin_unlock(&fs_info->send_reloc_lock);
 
-	current->journal_info = BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
-	current->journal_info = NULL;
 	spin_lock(&fs_info->send_reloc_lock);
 	fs_info->send_in_progress--;
 	spin_unlock(&fs_info->send_reloc_lock);
