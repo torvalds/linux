@@ -9714,6 +9714,12 @@ MLXSW_ITEM32(reg, mcia, page_number, 0x04, 16, 8);
  */
 MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
 
+/* reg_mcia_bank_number
+ * Bank number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcia, bank_number, 0x08, 16, 8);
+
 /* reg_mcia_size
  * Number of bytes to read/write (up to 48 bytes).
  * Access: RW
