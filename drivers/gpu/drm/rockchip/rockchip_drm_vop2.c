@@ -702,6 +702,11 @@ static bool vop2_soc_is_rk3566(void)
 	return soc_is_rk3566();
 }
 
+static bool vop2_is_mirror_win(struct vop2_win *win)
+{
+	return soc_is_rk3566() && (win->feature & WIN_FEATURE_MIRROR);
+}
+
 static uint64_t vop2_soc_id_fixup(uint64_t soc_id)
 {
 	switch (soc_id) {
@@ -6012,6 +6017,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	const struct vop2_video_port_data *vp_data;
 	uint32_t possible_crtcs;
 	uint64_t soc_id;
+	uint32_t registered_num_crtcs = 0;
 	char dclk_name[9];
 	int i = 0, j = 0, k = 0;
 	int ret = 0;
@@ -6141,6 +6147,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_bottom_margin_property, 100);
 		vop2_crtc_create_plane_mask_property(vop2, crtc);
+		registered_num_crtcs++;
 	}
 
 	/*
@@ -6170,6 +6177,11 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		win = &vop2->win[j];
 
 		if (win->type != DRM_PLANE_TYPE_OVERLAY)
+			continue;
+		/*
+		 * Only dual display(which need two crtcs) need mirror win
+		 */
+		if (registered_num_crtcs < 2 && vop2_is_mirror_win(win))
 			continue;
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
@@ -6249,6 +6261,7 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->regs = regs;
 			area->type = DRM_PLANE_TYPE_OVERLAY;
 			area->formats = win->formats;
+			area->feature = win->feature;
 			area->nformats = win->nformats;
 			area->format_modifiers = win->format_modifiers;
 			area->max_upscale_factor = win_data->max_upscale_factor;

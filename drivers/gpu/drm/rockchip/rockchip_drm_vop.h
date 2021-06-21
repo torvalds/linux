@@ -32,6 +32,15 @@
 #define WIN_FEATURE_AFBDC		BIT(3)
 #define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
 #define WIN_FEATURE_CLUSTER_SUB		BIT(5)
+/* a mirror win can only get fb address
+ * from source win:
+ * Cluster1---->Cluster0
+ * Esmart1 ---->Esmart0
+ * Smart1  ---->Smart0
+ * This is a feather on rk3566
+ */
+#define WIN_FEATURE_MIRROR		BIT(6)
+
 
 #define DSP_BG_SWAP		0x1
 #define DSP_RB_SWAP		0x2
