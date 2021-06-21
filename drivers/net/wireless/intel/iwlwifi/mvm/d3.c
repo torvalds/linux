@@ -1612,15 +1612,27 @@ iwl_mvm_parse_wowlan_status_common(v6)
 iwl_mvm_parse_wowlan_status_common(v7)
 iwl_mvm_parse_wowlan_status_common(v9)
 
-struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
+static struct iwl_wowlan_status *
+iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 {
 	struct iwl_wowlan_status *status;
+	struct iwl_wowlan_get_status_cmd get_status_cmd = {
+		.sta_id = cpu_to_le32(sta_id),
+	};
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_GET_STATUSES,
 		.flags = CMD_WANT_SKB,
+		.data = { &get_status_cmd, },
+		.len = { sizeof(get_status_cmd), },
 	};
 	int ret, len;
 	u8 notif_ver;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					   WOWLAN_GET_STATUSES,
+					   IWL_FW_CMD_VER_UNKNOWN);
+
+	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN)
+		cmd.len[0] = 0;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1708,32 +1720,37 @@ out_free_resp:
 }
 
 static struct iwl_wowlan_status *
-iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm)
+iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, u8 sta_id)
 {
-	int ret;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					   OFFLOADS_QUERY_CMD,
+					   IWL_FW_CMD_VER_UNKNOWN);
+	__le32 station_id = cpu_to_le32(sta_id);
+	u32 cmd_size = cmd_ver != IWL_FW_CMD_VER_UNKNOWN ? sizeof(station_id) : 0;
 
 	if (!mvm->net_detect) {
 		/* only for tracing for now */
 		int ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0,
-					       0, NULL);
+					       cmd_size, &station_id);
 		if (ret)
 			IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
 	}
 
-	return iwl_mvm_send_wowlan_get_status(mvm);
+	return iwl_mvm_send_wowlan_get_status(mvm, sta_id);
 }
 
 /* releases the MVM mutex */
 static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_wowlan_status_data status;
 	struct iwl_wowlan_status *fw_status;
 	int i;
 	bool keep;
 	struct iwl_mvm_sta *mvm_ap_sta;
 
-	fw_status = iwl_mvm_get_wakeup_status(mvm);
+	fw_status = iwl_mvm_get_wakeup_status(mvm, mvmvif->ap_sta_id);
 	if (IS_ERR_OR_NULL(fw_status))
 		goto out_unlock;
 
@@ -1911,7 +1928,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	u32 reasons = 0;
 	int i, n_matches, ret;
 
-	fw_status = iwl_mvm_get_wakeup_status(mvm);
+	fw_status = iwl_mvm_get_wakeup_status(mvm, IWL_MVM_INVALID_STA);
 	if (!IS_ERR_OR_NULL(fw_status)) {
 		reasons = le32_to_cpu(fw_status->wakeup_reasons);
 		kfree(fw_status);

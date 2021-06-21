@@ -496,6 +496,10 @@ struct iwl_wowlan_kek_kck_material_cmd_v4 {
 	__le32  bigtk_cipher;
 } __packed; /* KEK_KCK_MATERIAL_API_S_VER_4 */
 
+struct iwl_wowlan_get_status_cmd {
+	__le32  sta_id;
+} __packed; /* WOWLAN_GET_STATUSES_CMD_API_S_VER_1 */
+
 #define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
 
 enum iwl_wowlan_rekey_status {
