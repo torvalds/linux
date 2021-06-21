@@ -509,18 +509,11 @@ static void sn65dsi83_mode_set(struct drm_bridge *bridge,
 			       const struct drm_display_mode *adj)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-
-	ctx->mode = *adj;
-}
-
-static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adj)
-{
-	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_device *ddev = encoder->dev;
 	struct drm_connector *connector;
+
+	ctx->mode = *adj;
 
 	/* The DSI format is always RGB888_1X24 */
 	list_for_each_entry(connector, &ddev->mode_config.connector_list, head) {
@@ -551,8 +544,6 @@ static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
 			break;
 		}
 	}
-
-	return true;
 }
 
 #define MAX_INPUT_SEL_FORMATS	1
@@ -589,7 +580,6 @@ static const struct drm_bridge_funcs sn65dsi83_funcs = {
 	.post_disable	= sn65dsi83_post_disable,
 	.mode_valid	= sn65dsi83_mode_valid,
 	.mode_set	= sn65dsi83_mode_set,
-	.mode_fixup	= sn65dsi83_mode_fixup,
 
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
