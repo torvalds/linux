@@ -232,36 +232,15 @@ static int dsa_switch_lag_leave(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
-				 struct dsa_notifier_mdb_info *info)
-{
-	if (ds->index == info->sw_index && port == info->port)
-		return true;
-
-	if (dsa_is_dsa_port(ds, port))
-		return true;
-
-	return false;
-}
-
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	int err = 0;
-	int port;
+	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
 	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_mdb_match(ds, port, info)) {
-			err = ds->ops->port_mdb_add(ds, port, info->mdb);
-			if (err)
-				break;
-		}
-	}
-
-	return err;
+	return ds->ops->port_mdb_add(ds, port, info->mdb);
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
