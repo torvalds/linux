@@ -1044,7 +1044,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	bch2_journal_space_available(j);
 	spin_unlock(&j->lock);
 
-	return 0;
+	return bch2_journal_reclaim_start(j);
 }
 
 /* init/exit: */

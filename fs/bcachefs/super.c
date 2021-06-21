@@ -276,7 +276,7 @@ static void bch2_writes_disabled(struct percpu_ref *writes)
 void bch2_fs_read_only(struct bch_fs *c)
 {
 	if (!test_bit(BCH_FS_RW, &c->flags)) {
-		BUG_ON(c->journal.reclaim_thread);
+		bch2_journal_reclaim_stop(&c->journal);
 		return;
 	}
 
@@ -430,12 +430,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	for_each_rw_member(ca, c, i)
 		bch2_wake_allocator(ca);
-
-	ret = bch2_journal_reclaim_start(&c->journal);
-	if (ret) {
-		bch_err(c, "error starting journal reclaim: %i", ret);
-		return ret;
-	}
 
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
