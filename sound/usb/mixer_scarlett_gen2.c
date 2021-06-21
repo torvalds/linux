@@ -237,13 +237,16 @@ struct scarlett2_data {
 	int num_mux_srcs;
 	int num_mux_dsts;
 	u16 scarlett2_seq;
+	u8 sync_updated;
 	u8 vol_updated;
+	u8 sync;
 	u8 master_vol;
 	u8 vol[SCARLETT2_ANALOGUE_MAX];
 	u8 vol_sw_hw_switch[SCARLETT2_ANALOGUE_MAX];
 	u8 level_switch[SCARLETT2_LEVEL_SWITCH_MAX];
 	u8 pad_switch[SCARLETT2_PAD_SWITCH_MAX];
 	u8 dim_mute[SCARLETT2_DIM_MUTE_COUNT];
+	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
 	struct snd_kcontrol *vol_ctls[SCARLETT2_ANALOGUE_MAX];
 	struct snd_kcontrol *dim_mute_ctls[SCARLETT2_DIM_MUTE_COUNT];
@@ -448,7 +451,8 @@ static int scarlett2_get_port_start_num(const struct scarlett2_ports *ports,
 
 /*** USB Interactions ***/
 
-/* Interrupt flags for dim/mute button and monitor changes */
+/* Notifications from the interface */
+#define SCARLETT2_USB_NOTIFY_SYNC     0x00000008
 #define SCARLETT2_USB_NOTIFY_DIM_MUTE 0x00200000
 #define SCARLETT2_USB_NOTIFY_MONITOR  0x00400000
 
@@ -464,6 +468,7 @@ static int scarlett2_get_port_start_num(const struct scarlett2_ports *ports,
 #define SCARLETT2_USB_SET_MIX   0x00002002
 #define SCARLETT2_USB_GET_MUX   0x00003001
 #define SCARLETT2_USB_SET_MUX   0x00003002
+#define SCARLETT2_USB_GET_SYNC  0x00006004
 #define SCARLETT2_USB_GET_DATA  0x00800000
 #define SCARLETT2_USB_SET_DATA  0x00800001
 #define SCARLETT2_USB_DATA_CMD  0x00800002
@@ -782,6 +787,23 @@ static int scarlett2_usb_get_config(
 	int size = config_item->size * count;
 
 	return scarlett2_usb_get(mixer, config_item->offset, buf, size);
+}
+
+/* Send a USB message to get sync status; result placed in *sync */
+static int scarlett2_usb_get_sync_status(
+	struct usb_mixer_interface *mixer,
+	u8 *sync)
+{
+	__le32 data;
+	int err;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_GET_SYNC,
+			    NULL, 0, &data, sizeof(data));
+	if (err < 0)
+		return err;
+
+	*sync = !!data;
+	return 0;
 }
 
 /* Send a USB message to get volume status; result placed in *buf */
@@ -1107,6 +1129,60 @@ static int scarlett2_add_new_ctl(struct usb_mixer_interface *mixer,
 		*kctl_return = kctl;
 
 	return 0;
+}
+
+/*** Sync Control ***/
+
+/* Update sync control after receiving notification that the status
+ * has changed
+ */
+static int scarlett2_update_sync(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	private->sync_updated = 0;
+	return scarlett2_usb_get_sync_status(mixer, &private->sync);
+}
+
+static int scarlett2_sync_ctl_info(struct snd_kcontrol *kctl,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	static const char *texts[2] = {
+		"Unlocked", "Locked"
+	};
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
+}
+
+static int scarlett2_sync_ctl_get(struct snd_kcontrol *kctl,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	mutex_lock(&private->data_mutex);
+	if (private->sync_updated)
+		scarlett2_update_sync(mixer);
+	ucontrol->value.enumerated.item[0] = private->sync;
+	mutex_unlock(&private->data_mutex);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new scarlett2_sync_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ,
+	.name = "",
+	.info = scarlett2_sync_ctl_info,
+	.get  = scarlett2_sync_ctl_get
+};
+
+static int scarlett2_add_sync_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	return scarlett2_add_new_ctl(mixer, &scarlett2_sync_ctl,
+				     0, 1, "Sync Status", &private->sync_ctl);
 }
 
 /*** Analogue Line Out Volume Controls ***/
@@ -2018,6 +2094,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
+	err = scarlett2_update_sync(mixer);
+	if (err < 0)
+		return err;
+
 	err = scarlett2_usb_get_volume_status(mixer, &volume_status);
 	if (err < 0)
 		return err;
@@ -2052,6 +2132,18 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	}
 
 	return scarlett2_usb_get_mux(mixer);
+}
+
+/* Notify on sync change */
+static void scarlett2_notify_sync(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	private->sync_updated = 1;
+
+	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->sync_ctl->id);
 }
 
 /* Notify on monitor change */
@@ -2112,6 +2204,8 @@ static void scarlett2_notify(struct urb *urb)
 		goto requeue;
 
 	data = le32_to_cpu(*(__le32 *)urb->transfer_buffer);
+	if (data & SCARLETT2_USB_NOTIFY_SYNC)
+		scarlett2_notify_sync(mixer);
 	if (data & SCARLETT2_USB_NOTIFY_MONITOR)
 		scarlett2_notify_monitor(mixer);
 	if (data & SCARLETT2_USB_NOTIFY_DIM_MUTE)
@@ -2199,6 +2293,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer,
 
 	/* Create the level meter controls */
 	err = scarlett2_add_meter_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the sync control */
+	err = scarlett2_add_sync_ctl(mixer);
 	if (err < 0)
 		return err;
 
