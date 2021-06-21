@@ -288,7 +288,7 @@ static struct wwan_hwsim_dev *wwan_hwsim_dev_new(void)
 
 	INIT_WORK(&dev->del_work, wwan_hwsim_dev_del_work);
 
-	err = wwan_register_ops(&dev->dev, &wwan_hwsim_wwan_rtnl_ops, dev);
+	err = wwan_register_ops(&dev->dev, &wwan_hwsim_wwan_rtnl_ops, dev, 1);
 	if (err)
 		goto err_unreg_dev;
 

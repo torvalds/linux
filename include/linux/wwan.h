@@ -126,6 +126,12 @@ void wwan_port_txon(struct wwan_port *port);
  */
 void *wwan_port_get_drvdata(struct wwan_port *port);
 
+/*
+ * Used to indicate that the WWAN core should not create a default network
+ * link.
+ */
+#define WWAN_NO_DEFAULT_LINK		U32_MAX
+
 /**
  * struct wwan_ops - WWAN device ops
  * @priv_size: size of private netdev data area
@@ -143,7 +149,7 @@ struct wwan_ops {
 };
 
 int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
-		      void *ctxt);
+		      void *ctxt, u32 def_link_id);
 
 void wwan_unregister_ops(struct device *parent);
 

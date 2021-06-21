@@ -397,7 +397,8 @@ static int mhi_net_probe(struct mhi_device *mhi_dev,
 	struct net_device *ndev;
 	int err;
 
-	err = wwan_register_ops(&cntrl->mhi_dev->dev, &mhi_wwan_ops, mhi_dev);
+	err = wwan_register_ops(&cntrl->mhi_dev->dev, &mhi_wwan_ops, mhi_dev,
+				WWAN_NO_DEFAULT_LINK);
 	if (err)
 		return err;
 

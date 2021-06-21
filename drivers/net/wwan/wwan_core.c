@@ -903,17 +903,81 @@ static struct rtnl_link_ops wwan_rtnl_link_ops __read_mostly = {
 	.policy = wwan_rtnl_policy,
 };
 
+static void wwan_create_default_link(struct wwan_device *wwandev,
+				     u32 def_link_id)
+{
+	struct nlattr *tb[IFLA_MAX + 1], *linkinfo[IFLA_INFO_MAX + 1];
+	struct nlattr *data[IFLA_WWAN_MAX + 1];
+	struct net_device *dev;
+	struct nlmsghdr *nlh;
+	struct sk_buff *msg;
+
+	/* Forge attributes required to create a WWAN netdev. We first
+	 * build a netlink message and then parse it. This looks
+	 * odd, but such approach is less error prone.
+	 */
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (WARN_ON(!msg))
+		return;
+	nlh = nlmsg_put(msg, 0, 0, RTM_NEWLINK, 0, 0);
+	if (WARN_ON(!nlh))
+		goto free_attrs;
+
+	if (nla_put_string(msg, IFLA_PARENT_DEV_NAME, dev_name(&wwandev->dev)))
+		goto free_attrs;
+	tb[IFLA_LINKINFO] = nla_nest_start(msg, IFLA_LINKINFO);
+	if (!tb[IFLA_LINKINFO])
+		goto free_attrs;
+	linkinfo[IFLA_INFO_DATA] = nla_nest_start(msg, IFLA_INFO_DATA);
+	if (!linkinfo[IFLA_INFO_DATA])
+		goto free_attrs;
+	if (nla_put_u32(msg, IFLA_WWAN_LINK_ID, def_link_id))
+		goto free_attrs;
+	nla_nest_end(msg, linkinfo[IFLA_INFO_DATA]);
+	nla_nest_end(msg, tb[IFLA_LINKINFO]);
+
+	nlmsg_end(msg, nlh);
+
+	/* The next three parsing calls can not fail */
+	nlmsg_parse_deprecated(nlh, 0, tb, IFLA_MAX, NULL, NULL);
+	nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO],
+				    NULL, NULL);
+	nla_parse_nested_deprecated(data, IFLA_WWAN_MAX,
+				    linkinfo[IFLA_INFO_DATA], NULL, NULL);
+
+	rtnl_lock();
+
+	dev = rtnl_create_link(&init_net, "wwan%d", NET_NAME_ENUM,
+			       &wwan_rtnl_link_ops, tb, NULL);
+	if (WARN_ON(IS_ERR(dev)))
+		goto unlock;
+
+	if (WARN_ON(wwan_rtnl_newlink(&init_net, dev, tb, data, NULL))) {
+		free_netdev(dev);
+		goto unlock;
+	}
+
+unlock:
+	rtnl_unlock();
+
+free_attrs:
+	nlmsg_free(msg);
+}
+
 /**
  * wwan_register_ops - register WWAN device ops
  * @parent: Device to use as parent and shared by all WWAN ports and
  *	created netdevs
  * @ops: operations to register
  * @ctxt: context to pass to operations
+ * @def_link_id: id of the default link that will be automatically created by
+ *	the WWAN core for the WWAN device. The default link will not be created
+ *	if the passed value is WWAN_NO_DEFAULT_LINK.
  *
  * Returns: 0 on success, a negative error code on failure
  */
 int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
-		      void *ctxt)
+		      void *ctxt, u32 def_link_id)
 {
 	struct wwan_device *wwandev;
 
@@ -931,6 +995,15 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 
 	wwandev->ops = ops;
 	wwandev->ops_ctxt = ctxt;
+
+	/* NB: we do not abort ops registration in case of default link
+	 * creation failure. Link ops is the management interface, while the
+	 * default link creation is a service option. And we should not prevent
+	 * a user from manually creating a link latter if service option failed
+	 * now.
+	 */
+	if (def_link_id != WWAN_NO_DEFAULT_LINK)
+		wwan_create_default_link(wwandev, def_link_id);
 
 	return 0;
 }
