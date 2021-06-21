@@ -523,40 +523,20 @@ struct scarlett2_config {
 
 static const struct scarlett2_config
 		scarlett2_config_items[SCARLETT2_CONFIG_COUNT] = {
-	/* Dim/Mute Buttons */
-	{
-		.offset = 0x31,
-		.size = 1,
-		.activate = 2
-	},
+	[SCARLETT2_CONFIG_DIM_MUTE] = {
+		.offset = 0x31, .size = 1, .activate = 2 },
 
-	/* Line Out Volume */
-	{
-		.offset = 0x34,
-		.size = 2,
-		.activate = 1
-	},
+	[SCARLETT2_CONFIG_LINE_OUT_VOLUME] = {
+		.offset = 0x34, .size = 2, .activate = 1 },
 
-	/* SW/HW Volume Switch */
-	{
-		.offset = 0x66,
-		.size = 1,
-		.activate = 3
-	},
+	[SCARLETT2_CONFIG_SW_HW_SWITCH] = {
+		.offset = 0x66, .size = 1, .activate = 3 },
 
-	/* Level Switch */
-	{
-		.offset = 0x7c,
-		.size = 1,
-		.activate = 7
-	},
+	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
+		.offset = 0x7c, .size = 1, .activate = 7 },
 
-	/* Pad Switch */
-	{
-		.offset = 0x84,
-		.size = 1,
-		.activate = 8
-	}
+	[SCARLETT2_CONFIG_PAD_SWITCH] = {
+		.offset = 0x84, .size = 1, .activate = 8 },
 };
 
 /* proprietary request/response format */
