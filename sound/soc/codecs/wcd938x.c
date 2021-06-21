@@ -3713,12 +3713,14 @@ static int wcd938x_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
 static const struct of_device_id wcd938x_dt_match[] = {
 	{ .compatible = "qcom,wcd9380-codec" },
 	{ .compatible = "qcom,wcd9385-codec" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, wcd938x_dt_match);
+#endif
 
 static struct platform_driver wcd938x_codec_driver = {
 	.probe = wcd938x_probe,
