@@ -32,6 +32,8 @@
 #define RTRS_RECONNECT_SEED 8
 
 #define FIRST_CONN 0x01
+/* limit to 128 * 4k = 512k max IO */
+#define RTRS_MAX_SEGMENTS          128
 
 MODULE_DESCRIPTION("RDMA Transport Client");
 MODULE_LICENSE("GPL");
@@ -1545,7 +1547,7 @@ static struct rtrs_clt_sess *alloc_sess(struct rtrs_clt *clt,
 		       rdma_addr_size((struct sockaddr *)path->src));
 	strscpy(sess->s.sessname, clt->sessname, sizeof(sess->s.sessname));
 	sess->clt = clt;
-	sess->max_pages_per_mr = max_segments;
+	sess->max_pages_per_mr = RTRS_MAX_SEGMENTS;
 	init_waitqueue_head(&sess->state_wq);
 	sess->state = RTRS_CLT_CONNECTING;
 	atomic_set(&sess->connected_cnt, 0);
@@ -2695,7 +2697,7 @@ static struct rtrs_clt *alloc_clt(const char *sessname, size_t paths_num,
 	clt->paths_up = MAX_PATHS_NUM;
 	clt->port = port;
 	clt->pdu_sz = pdu_sz;
-	clt->max_segments = max_segments;
+	clt->max_segments = RTRS_MAX_SEGMENTS;
 	clt->reconnect_delay_sec = reconnect_delay_sec;
 	clt->max_reconnect_attempts = max_reconnect_attempts;
 	clt->priv = priv;
