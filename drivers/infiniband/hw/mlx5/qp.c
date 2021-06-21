@@ -2064,6 +2064,13 @@ static int create_dci(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, log_rq_size, ilog2(qp->rq.wqe_cnt));
 	}
 
+	if (qp->flags_en & MLX5_QP_FLAG_DCI_STREAM) {
+		MLX5_SET(qpc, qpc, log_num_dci_stream_channels,
+			 ucmd->dci_streams.log_num_concurent);
+		MLX5_SET(qpc, qpc, log_num_dci_errored_streams,
+			 ucmd->dci_streams.log_num_errored);
+	}
+
 	MLX5_SET(qpc, qpc, ts_format, ts_format);
 	MLX5_SET(qpc, qpc, rq_type, get_rx_type(qp, init_attr));
 
@@ -2807,6 +2814,10 @@ static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCI, true, qp);
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCT, true, qp);
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_DCI_STREAM,
+			    MLX5_CAP_GEN(mdev, log_max_dci_stream_channels) &&
+			    MLX5_CAP_GEN(mdev, log_max_dci_errored_streams),
+			    qp);
 
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_SIGNATURE, true, qp);
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_SCATTER_CQE,
