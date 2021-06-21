@@ -161,10 +161,8 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
  */
 #define SCARLETT2_MUX_MAX 64
 
-/* Number of meters:
- * 18 inputs, 20 outputs, 18 matrix inputs
- */
-#define SCARLETT2_NUM_METERS 56
+/* Maximum number of meters (sum of output port counts) */
+#define SCARLETT2_MAX_METERS 56
 
 /* Hardware port types:
  * - None (no input to mux)
@@ -1097,26 +1095,26 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 
 /* Send USB message to get meter levels */
 static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
-					  u16 *levels)
+					  u16 num_meters, u16 *levels)
 {
 	struct {
 		__le16 pad;
 		__le16 num_meters;
 		__le32 magic;
 	} __packed req;
-	u32 resp[SCARLETT2_NUM_METERS];
+	u32 resp[SCARLETT2_MAX_METERS];
 	int i, err;
 
 	req.pad = 0;
-	req.num_meters = cpu_to_le16(SCARLETT2_NUM_METERS);
+	req.num_meters = cpu_to_le16(num_meters);
 	req.magic = cpu_to_le32(SCARLETT2_USB_METER_LEVELS_GET_MAGIC);
 	err = scarlett2_usb(mixer, SCARLETT2_USB_GET_METER,
-			    &req, sizeof(req), resp, sizeof(resp));
+			    &req, sizeof(req), resp, num_meters * sizeof(u32));
 	if (err < 0)
 		return err;
 
 	/* copy, convert to u16 */
-	for (i = 0; i < SCARLETT2_NUM_METERS; i++)
+	for (i = 0; i < num_meters; i++)
 		levels[i] = resp[i];
 
 	return 0;
@@ -2053,10 +2051,11 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
-	u16 meter_levels[SCARLETT2_NUM_METERS];
+	u16 meter_levels[SCARLETT2_MAX_METERS];
 	int i, err;
 
-	err = scarlett2_usb_get_meter_levels(elem->head.mixer, meter_levels);
+	err = scarlett2_usb_get_meter_levels(elem->head.mixer, elem->channels,
+					     meter_levels);
 	if (err < 0)
 		return err;
 
@@ -2076,8 +2075,10 @@ static const struct snd_kcontrol_new scarlett2_meter_ctl = {
 
 static int scarlett2_add_meter_ctl(struct usb_mixer_interface *mixer)
 {
+	struct scarlett2_data *private = mixer->private_data;
+
 	return scarlett2_add_new_ctl(mixer, &scarlett2_meter_ctl,
-				     0, SCARLETT2_NUM_METERS,
+				     0, private->num_mux_dsts,
 				     "Level Meter", NULL);
 }
 
