@@ -2085,11 +2085,9 @@ static int wcd938x_tx_swr_ctrl(struct snd_soc_dapm_widget *w,
 			}
 			rate = wcd938x_get_clk_rate(i);
 			wcd938x_set_swr_clk_rate(component, rate, bank);
-		}
-
-		if (strnstr(w->name, "ADC", sizeof("ADC")))
 			/* Copy clk settings to active bank */
 			wcd938x_set_swr_clk_rate(component, rate, !bank);
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (strnstr(w->name, "ADC", sizeof("ADC"))) {
@@ -2184,6 +2182,8 @@ static void wcd938x_tx_channel_config(struct snd_soc_component *component,
 		reg = WCD938X_ANA_TX_CH4;
 		mask = WCD938X_HPF4_INIT_MASK;
 		break;
+	default:
+		return;
 	}
 
 	snd_soc_component_write_field(component, reg, mask, mode);
