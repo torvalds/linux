@@ -320,4 +320,30 @@ struct mt7921_mcu_tx_done_event {
 
 	u8 rsv1[32];
 } __packed;
+
+enum {
+	TM_SWITCH_MODE,
+	TM_SET_AT_CMD,
+	TM_QUERY_AT_CMD,
+};
+
+enum {
+	MT7921_TM_NORMAL,
+	MT7921_TM_TESTMODE,
+	MT7921_TM_ICAP,
+	MT7921_TM_ICAP_OVERLAP,
+	MT7921_TM_WIFISPECTRUM,
+};
+
+struct mt7921_rftest_cmd {
+	u8 action;
+	u8 rsv[3];
+	__le32 param0;
+	__le32 param1;
+} __packed;
+
+struct mt7921_rftest_evt {
+	__le32 param0;
+	__le32 param1;
+} __packed;
 #endif

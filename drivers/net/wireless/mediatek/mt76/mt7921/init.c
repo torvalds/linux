@@ -141,6 +141,8 @@ int mt7921_mac_init(struct mt7921_dev *dev)
 	for (i = 0; i < 2; i++)
 		mt7921_mac_init_band(dev, i);
 
+	dev->mt76.rxfilter = mt76_rr(dev, MT_WF_RFCR(0));
+
 	return mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
 }
 
