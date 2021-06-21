@@ -579,6 +579,10 @@ out_release_firmware:
 
 static const struct of_device_id ipa_match[] = {
 	{
+		.compatible	= "qcom,msm8998-ipa",
+		.data		= &ipa_data_v3_1,
+	},
+	{
 		.compatible	= "qcom,sdm845-ipa",
 		.data		= &ipa_data_v3_5_1,
 	},
