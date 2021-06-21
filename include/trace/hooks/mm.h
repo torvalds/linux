@@ -97,6 +97,10 @@ DECLARE_HOOK(android_vh_show_stack_hash,
 DECLARE_HOOK(android_vh_save_track_hash,
 	TP_PROTO(bool alloc, unsigned long p),
 	TP_ARGS(alloc, p));
+struct mem_cgroup;
+DECLARE_HOOK(android_vh_vmpressure,
+	TP_PROTO(struct mem_cgroup *memcg, bool *bypass),
+	TP_ARGS(memcg, bypass));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
