@@ -546,6 +546,19 @@ static void hl_device_heartbeat(struct work_struct *work)
 	return;
 
 reschedule:
+	/*
+	 * prev_reset_trigger tracks consecutive fatal h/w errors until first
+	 * heartbeat immediately post reset.
+	 * If control reached here, then at least one heartbeat work has been
+	 * scheduled since last reset/init cycle.
+	 * So if the device is not already in reset cycle, reset the flag
+	 * prev_reset_trigger as no reset occurred with HL_RESET_FW_FATAL_ERR
+	 * status for at least one heartbeat. From this point driver restarts
+	 * tracking future consecutive fatal errors.
+	 */
+	if (!(atomic_read(&hdev->in_reset)))
+		hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
+
 	schedule_delayed_work(&hdev->work_heartbeat,
 			usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
 }
@@ -925,6 +938,65 @@ static void device_disable_open_processes(struct hl_device *hdev)
 	mutex_unlock(&hdev->fpriv_list_lock);
 }
 
+static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
+{
+	u32 cur_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
+
+	/*
+	 * 'reset cause' is being updated here, because getting here
+	 * means that it's the 1st time and the last time we're here
+	 * ('in_reset' makes sure of it). This makes sure that
+	 * 'reset_cause' will continue holding its 1st recorded reason!
+	 */
+	if (flags & HL_RESET_HEARTBEAT) {
+		hdev->curr_reset_cause = HL_RESET_CAUSE_HEARTBEAT;
+		cur_reset_trigger = HL_RESET_HEARTBEAT;
+	} else if (flags & HL_RESET_TDR) {
+		hdev->curr_reset_cause = HL_RESET_CAUSE_TDR;
+		cur_reset_trigger = HL_RESET_TDR;
+	} else if (flags & HL_RESET_FW_FATAL_ERR) {
+		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+		cur_reset_trigger = HL_RESET_FW_FATAL_ERR;
+	} else {
+		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	}
+
+	/*
+	 * If reset cause is same twice, then reset_trigger_repeated
+	 * is set and if this reset is due to a fatal FW error
+	 * device is set to an unstable state.
+	 */
+	if (hdev->prev_reset_trigger != cur_reset_trigger) {
+		hdev->prev_reset_trigger = cur_reset_trigger;
+		hdev->reset_trigger_repeated = 0;
+	} else {
+		hdev->reset_trigger_repeated = 1;
+	}
+
+	/* If reset is due to heartbeat, device CPU is no responsive in
+	 * which case no point sending PCI disable message to it.
+	 *
+	 * If F/W is performing the reset, no need to send it a message to disable
+	 * PCI access
+	 */
+	if ((flags & HL_RESET_HARD) &&
+			!(flags & (HL_RESET_HEARTBEAT | HL_RESET_FW))) {
+		/* Disable PCI access from device F/W so he won't send
+		 * us additional interrupts. We disable MSI/MSI-X at
+		 * the halt_engines function and we can't have the F/W
+		 * sending us interrupts after that. We need to disable
+		 * the access here because if the device is marked
+		 * disable, the message won't be send. Also, in case
+		 * of heartbeat, the device CPU is marked as disable
+		 * so this message won't be sent
+		 */
+		if (hl_fw_send_pci_access_msg(hdev,
+				CPUCP_PACKET_DISABLE_PCI_ACCESS))
+			dev_warn(hdev->dev,
+				"Failed to disable PCI access by F/W\n");
+	}
+}
+
 /*
  * hl_device_reset - reset the device
  *
@@ -994,40 +1066,7 @@ do_reset:
 		if (rc)
 			return 0;
 
-		/*
-		 * 'reset cause' is being updated here, because getting here
-		 * means that it's the 1st time and the last time we're here
-		 * ('in_reset' makes sure of it). This makes sure that
-		 * 'reset_cause' will continue holding its 1st recorded reason!
-		 */
-		if (flags & HL_RESET_HEARTBEAT)
-			hdev->curr_reset_cause = HL_RESET_CAUSE_HEARTBEAT;
-		else if (flags & HL_RESET_TDR)
-			hdev->curr_reset_cause = HL_RESET_CAUSE_TDR;
-		else
-			hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
-
-		/* If reset is due to heartbeat, device CPU is no responsive in
-		 * which case no point sending PCI disable message to it.
-		 *
-		 * If F/W is performing the reset, no need to send it a message to disable
-		 * PCI access
-		 */
-		if (hard_reset && !(flags & (HL_RESET_HEARTBEAT | HL_RESET_FW))) {
-			/* Disable PCI access from device F/W so he won't send
-			 * us additional interrupts. We disable MSI/MSI-X at
-			 * the halt_engines function and we can't have the F/W
-			 * sending us interrupts after that. We need to disable
-			 * the access here because if the device is marked
-			 * disable, the message won't be send. Also, in case
-			 * of heartbeat, the device CPU is marked as disable
-			 * so this message won't be sent
-			 */
-			if (hl_fw_send_pci_access_msg(hdev,
-					CPUCP_PACKET_DISABLE_PCI_ACCESS))
-				dev_warn(hdev->dev,
-					"Failed to disable PCI access by F/W\n");
-		}
+		handle_reset_trigger(hdev, flags);
 
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
@@ -1130,6 +1169,17 @@ kill_processes:
 	if (hard_reset) {
 		hdev->device_cpu_disabled = false;
 		hdev->hard_reset_pending = false;
+
+		if (hdev->reset_trigger_repeated &&
+				(hdev->prev_reset_trigger == HL_RESET_FW_FATAL_ERR)) {
+			/* if there 2 back to back resets from FW,
+			 * ensure driver puts the driver in a unusable state
+			 */
+			dev_crit(hdev->dev,
+				"Consecutive FW fatal errors received, stopping hard reset\n");
+			rc = -EIO;
+			goto out_err;
+		}
 
 		if (hdev->kernel_ctx) {
 			dev_crit(hdev->dev,

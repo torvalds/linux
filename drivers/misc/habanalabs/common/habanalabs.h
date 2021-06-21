@@ -68,6 +68,9 @@
 
 #define HL_STATE_DUMP_HIST_LEN		5
 
+/* Default value for device reset trigger , an invalid value */
+#define HL_RESET_TRIGGER_DEFAULT	0xFF
+
 #define OBJ_NAMES_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
 #define SYNC_TO_ENGINE_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
 
@@ -132,13 +135,18 @@ enum hl_mmu_page_table_location {
  * - HL_RESET_FW
  *       F/W will perform the reset. No need to ask it to reset the device. This is relevant
  *       only when running with secured f/w
+ *
+ * - HL_RESET_FW_FATAL_ERR
+ *       Set if reset is due to a fatal error from FW
  */
+
 #define HL_RESET_HARD			(1 << 0)
 #define HL_RESET_FROM_RESET_THREAD	(1 << 1)
 #define HL_RESET_HEARTBEAT		(1 << 2)
 #define HL_RESET_TDR			(1 << 3)
 #define HL_RESET_DEVICE_RELEASE		(1 << 4)
 #define HL_RESET_FW			(1 << 5)
+#define HL_RESET_FW_FATAL_ERR		(1 << 6)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 
@@ -2458,6 +2466,10 @@ struct multi_cs_data {
  * @supports_staged_submission: true if staged submissions are supported
  * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
  *                    triggered, and cleared after it is shared with preboot.
+ * @prev_reset_trigger: saves the previous trigger which caused a reset, overidden
+ *                      with a new value on next reset
+ * @reset_trigger_repeated: set if device reset is triggered more than once with
+ *                          same cause.
  * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
  *                         complete instead.
  * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
@@ -2585,6 +2597,8 @@ struct hl_device {
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
 	u8				curr_reset_cause;
+	u8				prev_reset_trigger;
+	u8				reset_trigger_repeated;
 	u8				skip_reset_on_timeout;
 	u8				device_cpu_is_halted;
 	u8				supports_wait_for_multi_cs;
