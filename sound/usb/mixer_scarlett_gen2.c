@@ -1344,6 +1344,24 @@ static int scarlett2_sw_hw_enum_ctl_get(struct snd_kcontrol *kctl,
 	return 0;
 }
 
+static void scarlett2_vol_ctl_set_writable(struct usb_mixer_interface *mixer,
+					   int index, int value)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	/* Set/Clear write bit */
+	if (value)
+		private->vol_ctls[index]->vd[0].access |=
+			SNDRV_CTL_ELEM_ACCESS_WRITE;
+	else
+		private->vol_ctls[index]->vd[0].access &=
+			~SNDRV_CTL_ELEM_ACCESS_WRITE;
+
+	/* Notify of write bit change */
+	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_INFO,
+		       &private->vol_ctls[index]->id);
+}
+
 static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -1367,12 +1385,7 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 	/* Change access mode to RO (hardware controlled volume)
 	 * or RW (software controlled volume)
 	 */
-	if (val)
-		private->vol_ctls[index]->vd[0].access &=
-			~SNDRV_CTL_ELEM_ACCESS_WRITE;
-	else
-		private->vol_ctls[index]->vd[0].access |=
-			SNDRV_CTL_ELEM_ACCESS_WRITE;
+	scarlett2_vol_ctl_set_writable(mixer, index, !val);
 
 	/* Reset volume to master volume */
 	private->vol[index] = private->master_vol;
@@ -1383,10 +1396,6 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 		index, private->master_vol - SCARLETT2_VOLUME_BIAS);
 	if (err < 0)
 		goto unlock;
-
-	/* Notify of RO/RW change */
-	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_INFO,
-		       &private->vol_ctls[index]->id);
 
 	/* Send SW/HW switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_SW_HW_SWITCH,
@@ -1620,8 +1629,7 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 
 		/* Make the fader read-only if the SW/HW switch is set to HW */
 		if (private->vol_sw_hw_switch[i])
-			private->vol_ctls[i]->vd[0].access &=
-				~SNDRV_CTL_ELEM_ACCESS_WRITE;
+			scarlett2_vol_ctl_set_writable(mixer, i, 0);
 
 		/* SW/HW Switch */
 		if (info->line_out_hw_vol) {
