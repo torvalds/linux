@@ -894,6 +894,8 @@ static void ashmem_show_fdinfo(struct seq_file *m, struct file *file)
 		seq_printf(m, "name:\t%s\n",
 			   asma->name + ASHMEM_NAME_PREFIX_LEN);
 
+	seq_printf(m, "size:\t%zu\n", asma->size);
+
 	mutex_unlock(&ashmem_mutex);
 }
 #endif
