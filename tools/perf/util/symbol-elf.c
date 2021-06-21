@@ -1082,7 +1082,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	struct maps *kmaps = kmap ? map__kmaps(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = dso;
-	Elf_Data *symstrs, *secstrs;
+	Elf_Data *symstrs, *secstrs, *secstrs_run, *secstrs_sym;
 	uint32_t nr_syms;
 	int err = -1;
 	uint32_t idx;
@@ -1132,8 +1132,16 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	if (sec_strndx == NULL)
 		goto out_elf_end;
 
-	secstrs = elf_getdata(sec_strndx, NULL);
-	if (secstrs == NULL)
+	secstrs_run = elf_getdata(sec_strndx, NULL);
+	if (secstrs_run == NULL)
+		goto out_elf_end;
+
+	sec_strndx = elf_getscn(elf, ehdr.e_shstrndx);
+	if (sec_strndx == NULL)
+		goto out_elf_end;
+
+	secstrs_sym = elf_getdata(sec_strndx, NULL);
+	if (secstrs_sym == NULL)
 		goto out_elf_end;
 
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
@@ -1219,6 +1227,8 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 		gelf_getshdr(sec, &shdr);
 
+		secstrs = secstrs_sym;
+
 		/*
 		 * We have to fallback to runtime when syms' section header has
 		 * NOBITS set. NOBITS results in file offset (sh_offset) not
@@ -1231,6 +1241,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				goto out_elf_end;
 
 			gelf_getshdr(sec, &shdr);
+			secstrs = secstrs_run;
 		}
 
 		if (is_label && !elf_sec__filter(&shdr, secstrs))
