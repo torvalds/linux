@@ -93,6 +93,12 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = 0;
 		kvm->arch.return_nisv_io_abort_to_user = true;
 		break;
+	case KVM_CAP_ARM_MTE:
+		if (!system_supports_mte() || kvm->created_vcpus)
+			return -EINVAL;
+		r = 0;
+		kvm->arch.mte_enabled = true;
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -236,6 +242,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 * (bump this number if adding more devices)
 		 */
 		r = 1;
+		break;
+	case KVM_CAP_ARM_MTE:
+		r = system_supports_mte();
 		break;
 	case KVM_CAP_STEAL_TIME:
 		r = kvm_arm_pvtime_supported();
