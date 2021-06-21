@@ -184,14 +184,11 @@ enum {
 	SCARLETT2_PORT_TYPE_COUNT    = 6,
 };
 
-/* Count of total I/O and number available at each sample rate */
+/* I/O count of each port type kept in struct scarlett2_ports */
 enum {
-	SCARLETT2_PORT_IN      = 0,
-	SCARLETT2_PORT_OUT     = 1,
-	SCARLETT2_PORT_OUT_44  = 2,
-	SCARLETT2_PORT_OUT_88  = 3,
-	SCARLETT2_PORT_OUT_176 = 4,
-	SCARLETT2_PORT_DIRNS   = 5,
+	SCARLETT2_PORT_IN    = 0,
+	SCARLETT2_PORT_OUT   = 1,
+	SCARLETT2_PORT_DIRNS = 2,
 };
 
 /* Dim/Mute buttons on the 18i20 */
@@ -220,6 +217,24 @@ struct scarlett2_ports {
 	const char * const dst_descr;
 };
 
+/* Number of mux tables: one for each band of sample rates
+ * (44.1/48kHz, 88.2/96kHz, and 176.4/176kHz)
+ */
+#define SCARLETT2_MUX_TABLES 3
+
+/* Maximum number of entries in a mux table */
+#define SCARLETT2_MAX_MUX_ENTRIES 7
+
+/* One entry within mux_assignment defines the port type and range of
+ * ports to add to the set_mux message. The end of the list is marked
+ * with count == 0.
+ */
+struct scarlett2_mux_entry {
+	u8 port_type;
+	u8 start;
+	u8 count;
+};
+
 struct scarlett2_device_info {
 	u32 usb_id; /* USB device identifier */
 
@@ -241,6 +256,10 @@ struct scarlett2_device_info {
 
 	/* port count and type data */
 	struct scarlett2_ports ports[SCARLETT2_PORT_TYPE_COUNT];
+
+	/* layout/order of the entries in the set_mux message */
+	struct scarlett2_mux_entry mux_assignment[SCARLETT2_MUX_TABLES]
+						 [SCARLETT2_MAX_MUX_ENTRIES];
 };
 
 struct scarlett2_data {
@@ -293,38 +312,61 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 	.ports = {
 		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
-			.num = { 1, 0, 8, 8, 8 },
+			.num = { 1, 0 },
 			.src_descr = "Off",
 		},
 		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
-			.num = { 4, 4, 4, 4, 4 },
+			.num = { 4, 4 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_SPDIF] = {
 			.id = 0x180,
-			.num = { 2, 2, 2, 2, 2 },
+			.num = { 2, 2 },
 			.src_descr = "S/PDIF %d",
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
-			.num = { 10, 18, 18, 18, 18 },
+			.num = { 10, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
 		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
-			.num = { 6, 6, 6, 6, 6 },
+			.num = { 6, 6 },
 			.src_descr = "PCM %d",
 			.src_num_offset = 1,
 			.dst_descr = "PCM %02d Capture"
 		},
 	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	} },
 };
 
 static const struct scarlett2_device_info s18i8_gen2_info = {
@@ -345,44 +387,67 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 	.ports = {
 		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
-			.num = { 1, 0, 8, 8, 4 },
+			.num = { 1, 0 },
 			.src_descr = "Off",
 		},
 		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
-			.num = { 8, 6, 6, 6, 6 },
+			.num = { 8, 6 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_SPDIF] = {
 			.id = 0x180,
-			.num = { 2, 2, 2, 2, 2 },
+			.num = { 2, 2 },
 			.src_descr = "S/PDIF %d",
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_ADAT] = {
 			.id = 0x200,
-			.num = { 8, 0, 0, 0, 0 },
+			.num = { 8, 0 },
 			.src_descr = "ADAT %d",
 			.src_num_offset = 1,
 		},
 		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
-			.num = { 10, 18, 18, 18, 18 },
+			.num = { 10, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
 		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
-			.num = { 8, 18, 18, 14, 10 },
+			.num = { 8, 18 },
 			.src_descr = "PCM %d",
 			.src_num_offset = 1,
 			.dst_descr = "PCM %02d Capture"
 		},
 	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  6 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 14 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  6 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  6 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  4 },
+		{ 0,                            0,  0 },
+	} },
 };
 
 static const struct scarlett2_device_info s18i20_gen2_info = {
@@ -406,12 +471,12 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 	.ports = {
 		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
-			.num = { 1, 0, 8, 8, 6 },
+			.num = { 1, 0 },
 			.src_descr = "Off",
 		},
 		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
-			.num = { 8, 10, 10, 10, 10 },
+			.num = { 8, 10 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
@@ -422,33 +487,58 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 			 * assignment message anyway
 			 */
 			.id = 0x180,
-			.num = { 2, 2, 2, 2, 2 },
+			.num = { 2, 2 },
 			.src_descr = "S/PDIF %d",
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_ADAT] = {
 			.id = 0x200,
-			.num = { 8, 8, 8, 4, 0 },
+			.num = { 8, 8 },
 			.src_descr = "ADAT %d",
 			.src_num_offset = 1,
 			.dst_descr = "ADAT Output %d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
-			.num = { 10, 18, 18, 18, 18 },
+			.num = { 10, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
 		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
-			.num = { 20, 18, 18, 14, 10 },
+			.num = { 20, 18 },
 			.src_descr = "PCM %d",
 			.src_num_offset = 1,
 			.dst_descr = "PCM %02d Capture"
 		},
 	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,     0,  8 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 14 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,     0,  4 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  6 },
+		{ 0,                            0,  0 },
+	} },
 };
 
 static const struct scarlett2_device_info *scarlett2_devices[] = {
@@ -1009,16 +1099,7 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
 	const struct scarlett2_ports *ports = info->ports;
-	int rate, port_dir_rate;
-
-	static const int assignment_order[SCARLETT2_PORT_TYPE_COUNT] = {
-		SCARLETT2_PORT_TYPE_PCM,
-		SCARLETT2_PORT_TYPE_ANALOGUE,
-		SCARLETT2_PORT_TYPE_SPDIF,
-		SCARLETT2_PORT_TYPE_ADAT,
-		SCARLETT2_PORT_TYPE_MIX,
-		SCARLETT2_PORT_TYPE_NONE,
-	};
+	int table;
 
 	struct {
 		__le16 pad;
@@ -1028,39 +1109,44 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 
 	req.pad = 0;
 
-	/* mux settings for each rate */
-	for (rate = 0, port_dir_rate = SCARLETT2_PORT_OUT_44;
-	     port_dir_rate <= SCARLETT2_PORT_OUT_176;
-	     rate++, port_dir_rate++) {
-		int order_num, i, err;
+	/* set mux settings for each rate */
+	for (table = 0; table < SCARLETT2_MUX_TABLES; table++) {
+		const struct scarlett2_mux_entry *entry;
 
-		req.num = cpu_to_le16(rate);
+		/* i counts over the output array */
+		int i = 0, err;
 
-		for (order_num = 0, i = 0;
-		     order_num < SCARLETT2_PORT_TYPE_COUNT;
-		     order_num++) {
-			int port_type = assignment_order[order_num];
-			int j = scarlett2_get_port_start_num(ports,
-							     SCARLETT2_PORT_OUT,
-							     port_type);
-			int port_id = ports[port_type].id;
-			int channel;
+		req.num = cpu_to_le16(table);
 
-			for (channel = 0;
-			     channel < ports[port_type].num[port_dir_rate];
-			     channel++, i++, j++)
-				/* lower 12 bits for the destination and
-				 * next 12 bits for the source
-				 */
-				req.data[i] = !port_id
-					? 0
-					: cpu_to_le32(
-						port_id |
-						channel |
-						scarlett2_mux_src_num_to_id(
-							ports, private->mux[j]
-						) << 12
-					  );
+		/* loop through each entry */
+		for (entry = info->mux_assignment[table];
+		     entry->count;
+		     entry++) {
+			int j;
+			int port_type = entry->port_type;
+			int port_idx = entry->start;
+			int mux_idx = scarlett2_get_port_start_num(ports,
+				SCARLETT2_PORT_OUT, port_type) + port_idx;
+			int dst_id = ports[port_type].id + port_idx;
+
+			/* Empty slots */
+			if (!dst_id) {
+				for (j = 0; j < entry->count; j++)
+					req.data[i++] = 0;
+				continue;
+			}
+
+			/* Non-empty mux slots use the lower 12 bits
+			 * for the destination and next 12 bits for
+			 * the source
+			 */
+			for (j = 0; j < entry->count; j++) {
+				int src_id = scarlett2_mux_src_num_to_id(
+					ports, private->mux[mux_idx++]);
+				req.data[i++] = cpu_to_le32(dst_id |
+							    src_id << 12);
+				dst_id++;
+			}
 		}
 
 		err = scarlett2_usb(mixer, SCARLETT2_USB_SET_MUX,
@@ -2081,7 +2167,7 @@ static void scarlett2_count_mux_io(struct scarlett2_data *private)
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
 		srcs += ports[port_type].num[SCARLETT2_PORT_IN];
-		dsts += ports[port_type].num[SCARLETT2_PORT_OUT_44];
+		dsts += ports[port_type].num[SCARLETT2_PORT_OUT];
 	}
 
 	private->num_mux_srcs = srcs;
