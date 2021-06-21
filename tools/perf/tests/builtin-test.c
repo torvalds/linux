@@ -580,7 +580,10 @@ static int shell_test__run(struct test *test, int subdir __maybe_unused)
 	char script[PATH_MAX];
 	struct shell_test *st = test->priv;
 
-	path__join(script, sizeof(script), st->dir, st->file);
+	path__join(script, sizeof(script) - 3, st->dir, st->file);
+
+	if (verbose)
+		strncat(script, " -v", sizeof(script) - strlen(script) - 1);
 
 	err = system(script);
 	if (!err)
