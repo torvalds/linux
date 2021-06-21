@@ -1066,11 +1066,6 @@ out_error:
 		goto partial_message;
 	}
 
-	if (skb_has_frag_list(head)) {
-		kfree_skb_list(skb_shinfo(head)->frag_list);
-		skb_shinfo(head)->frag_list = NULL;
-	}
-
 	if (head != kcm->seq_skb)
 		kfree_skb(head);
 

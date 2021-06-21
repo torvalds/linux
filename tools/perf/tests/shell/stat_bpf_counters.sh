@@ -11,9 +11,9 @@ compare_number()
        second_num=$2
 
        # upper bound is first_num * 110%
-       upper=$(( $first_num + $first_num / 10 ))
+       upper=$(expr $first_num + $first_num / 10 )
        # lower bound is first_num * 90%
-       lower=$(( $first_num - $first_num / 10 ))
+       lower=$(expr $first_num - $first_num / 10 )
 
        if [ $second_num -gt $upper ] || [ $second_num -lt $lower ]; then
                echo "The difference between $first_num and $second_num are greater than 10%."

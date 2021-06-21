@@ -6247,6 +6247,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	switch (kvm_get_apic_mode(vcpu)) {
 	case LAPIC_MODE_INVALID:
 		WARN_ONCE(true, "Invalid local APIC state");
+		break;
 	case LAPIC_MODE_DISABLED:
 		break;
 	case LAPIC_MODE_XAPIC:
