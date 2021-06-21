@@ -105,16 +105,12 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 	u64 pbl_ba;
 
 	/* use ib_access_flags */
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_BIND_EN_S,
-		     !!(wr->access & IB_ACCESS_MW_BIND));
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_ATOMIC_S,
-		     !!(wr->access & IB_ACCESS_REMOTE_ATOMIC));
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_RR_S,
-		     !!(wr->access & IB_ACCESS_REMOTE_READ));
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_RW_S,
-		     !!(wr->access & IB_ACCESS_REMOTE_WRITE));
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_LW_S,
-		     !!(wr->access & IB_ACCESS_LOCAL_WRITE));
+	hr_reg_write_bool(fseg, FRMR_BIND_EN, wr->access & IB_ACCESS_MW_BIND);
+	hr_reg_write_bool(fseg, FRMR_ATOMIC,
+			  wr->access & IB_ACCESS_REMOTE_ATOMIC);
+	hr_reg_write_bool(fseg, FRMR_RR, wr->access & IB_ACCESS_REMOTE_READ);
+	hr_reg_write_bool(fseg, FRMR_RW, wr->access & IB_ACCESS_REMOTE_WRITE);
+	hr_reg_write_bool(fseg, FRMR_LW, wr->access & IB_ACCESS_LOCAL_WRITE);
 
 	/* Data structure reuse may lead to confusion */
 	pbl_ba = mr->pbl_mtr.hem_cfg.root_ba;
@@ -126,11 +122,10 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 	rc_sq_wqe->rkey = cpu_to_le32(wr->key);
 	rc_sq_wqe->va = cpu_to_le64(wr->mr->iova);
 
-	fseg->pbl_size = cpu_to_le32(mr->npages);
-	roce_set_field(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M,
-		       V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S,
-		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
-	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S, 0);
+	hr_reg_write(fseg, FRMR_PBL_SIZE, mr->npages);
+	hr_reg_write(fseg, FRMR_PBL_BUF_PG_SZ,
+		     to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
+	hr_reg_clear(fseg, FRMR_BLK_MODE);
 }
 
 static void set_atomic_seg(const struct ib_send_wr *wr,

@@ -1064,16 +1064,6 @@ struct hns_roce_v2_rc_send_wqe {
 
 #define V2_RC_SEND_WQE_BYTE_4_INLINE_S 12
 
-#define V2_RC_FRMR_WQE_BYTE_40_BIND_EN_S 10
-
-#define V2_RC_FRMR_WQE_BYTE_40_ATOMIC_S 11
-
-#define V2_RC_FRMR_WQE_BYTE_40_RR_S 12
-
-#define V2_RC_FRMR_WQE_BYTE_40_RW_S 13
-
-#define V2_RC_FRMR_WQE_BYTE_40_LW_S 14
-
 #define V2_RC_SEND_WQE_BYTE_4_FLAG_S 31
 
 #define	V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_S 0
@@ -1092,10 +1082,18 @@ struct hns_roce_wqe_frmr_seg {
 	__le32	byte_40;
 };
 
-#define V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S	4
-#define V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M	GENMASK(7, 4)
+#define FRMR_WQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_wqe_frmr_seg, h, l)
 
-#define V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S 8
+#define FRMR_PBL_SIZE FRMR_WQE_FIELD_LOC(31, 0)
+#define FRMR_BLOCK_SIZE FRMR_WQE_FIELD_LOC(35, 32)
+#define FRMR_PBL_BUF_PG_SZ FRMR_WQE_FIELD_LOC(39, 36)
+#define FRMR_BLK_MODE FRMR_WQE_FIELD_LOC(40, 40)
+#define FRMR_ZBVA FRMR_WQE_FIELD_LOC(41, 41)
+#define FRMR_BIND_EN FRMR_WQE_FIELD_LOC(42, 42)
+#define FRMR_ATOMIC FRMR_WQE_FIELD_LOC(43, 43)
+#define FRMR_RR FRMR_WQE_FIELD_LOC(44, 44)
+#define FRMR_RW FRMR_WQE_FIELD_LOC(45, 45)
+#define FRMR_LW FRMR_WQE_FIELD_LOC(46, 46)
 
 struct hns_roce_v2_wqe_data_seg {
 	__le32    len;
