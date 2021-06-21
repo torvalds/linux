@@ -203,18 +203,53 @@ static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
 };
 
 /* Description of each hardware port type:
- * - id: hardware ID for this port type
- * - num: number of sources/destinations of this port type
+ * - id: hardware ID of this port type
  * - src_descr: printf format string for mux input selections
  * - src_num_offset: added to channel number for the fprintf
  * - dst_descr: printf format string for mixer controls
  */
-struct scarlett2_ports {
+struct scarlett2_port {
 	u16 id;
-	int num[SCARLETT2_PORT_DIRNS];
 	const char * const src_descr;
 	int src_num_offset;
 	const char * const dst_descr;
+};
+
+static const struct scarlett2_port scarlett2_ports[SCARLETT2_PORT_TYPE_COUNT] = {
+	[SCARLETT2_PORT_TYPE_NONE] = {
+		.id = 0x000,
+		.src_descr = "Off"
+	},
+	[SCARLETT2_PORT_TYPE_ANALOGUE] = {
+		.id = 0x080,
+		.src_descr = "Analogue %d",
+		.src_num_offset = 1,
+		.dst_descr = "Analogue Output %02d Playback"
+	},
+	[SCARLETT2_PORT_TYPE_SPDIF] = {
+		.id = 0x180,
+		.src_descr = "S/PDIF %d",
+		.src_num_offset = 1,
+		.dst_descr = "S/PDIF Output %d Playback"
+	},
+	[SCARLETT2_PORT_TYPE_ADAT] = {
+		.id = 0x200,
+		.src_descr = "ADAT %d",
+		.src_num_offset = 1,
+		.dst_descr = "ADAT Output %d Playback"
+	},
+	[SCARLETT2_PORT_TYPE_MIX] = {
+		.id = 0x300,
+		.src_descr = "Mix %c",
+		.src_num_offset = 'A',
+		.dst_descr = "Mixer Input %02d Capture"
+	},
+	[SCARLETT2_PORT_TYPE_PCM] = {
+		.id = 0x600,
+		.src_descr = "PCM %d",
+		.src_num_offset = 1,
+		.dst_descr = "PCM %02d Capture"
+	},
 };
 
 /* Number of mux tables: one for each band of sample rates
@@ -254,8 +289,8 @@ struct scarlett2_device_info {
 	/* additional description for the line out volume controls */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
 
-	/* port count and type data */
-	struct scarlett2_ports ports[SCARLETT2_PORT_TYPE_COUNT];
+	/* number of sources/destinations of each port type */
+	const int port_count[SCARLETT2_PORT_TYPE_COUNT][SCARLETT2_PORT_DIRNS];
 
 	/* layout/order of the entries in the set_mux message */
 	struct scarlett2_mux_entry mux_assignment[SCARLETT2_MUX_TABLES]
@@ -309,40 +344,12 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 		"Headphones 2 R",
 	},
 
-	.ports = {
-		[SCARLETT2_PORT_TYPE_NONE] = {
-			.id = 0x000,
-			.num = { 1, 0 },
-			.src_descr = "Off",
-		},
-		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
-			.id = 0x080,
-			.num = { 4, 4 },
-			.src_descr = "Analogue %d",
-			.src_num_offset = 1,
-			.dst_descr = "Analogue Output %02d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_SPDIF] = {
-			.id = 0x180,
-			.num = { 2, 2 },
-			.src_descr = "S/PDIF %d",
-			.src_num_offset = 1,
-			.dst_descr = "S/PDIF Output %d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_MIX] = {
-			.id = 0x300,
-			.num = { 10, 18 },
-			.src_descr = "Mix %c",
-			.src_num_offset = 65,
-			.dst_descr = "Mixer Input %02d Capture"
-		},
-		[SCARLETT2_PORT_TYPE_PCM] = {
-			.id = 0x600,
-			.num = { 6, 6 },
-			.src_descr = "PCM %d",
-			.src_num_offset = 1,
-			.dst_descr = "PCM %02d Capture"
-		},
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  4,  4 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 10, 18 },
+		[SCARLETT2_PORT_TYPE_PCM]      = {  6,  6 },
 	},
 
 	.mux_assignment = { {
@@ -384,46 +391,13 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 		"Headphones 2 R",
 	},
 
-	.ports = {
-		[SCARLETT2_PORT_TYPE_NONE] = {
-			.id = 0x000,
-			.num = { 1, 0 },
-			.src_descr = "Off",
-		},
-		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
-			.id = 0x080,
-			.num = { 8, 6 },
-			.src_descr = "Analogue %d",
-			.src_num_offset = 1,
-			.dst_descr = "Analogue Output %02d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_SPDIF] = {
-			.id = 0x180,
-			.num = { 2, 2 },
-			.src_descr = "S/PDIF %d",
-			.src_num_offset = 1,
-			.dst_descr = "S/PDIF Output %d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_ADAT] = {
-			.id = 0x200,
-			.num = { 8, 0 },
-			.src_descr = "ADAT %d",
-			.src_num_offset = 1,
-		},
-		[SCARLETT2_PORT_TYPE_MIX] = {
-			.id = 0x300,
-			.num = { 10, 18 },
-			.src_descr = "Mix %c",
-			.src_num_offset = 65,
-			.dst_descr = "Mixer Input %02d Capture"
-		},
-		[SCARLETT2_PORT_TYPE_PCM] = {
-			.id = 0x600,
-			.num = { 8, 18 },
-			.src_descr = "PCM %d",
-			.src_num_offset = 1,
-			.dst_descr = "PCM %02d Capture"
-		},
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  8,  6 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_ADAT]     = {  8,  0 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 10, 18 },
+		[SCARLETT2_PORT_TYPE_PCM]      = {  8, 18 },
 	},
 
 	.mux_assignment = { {
@@ -468,51 +442,13 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 		"Headphones 2 R",
 	},
 
-	.ports = {
-		[SCARLETT2_PORT_TYPE_NONE] = {
-			.id = 0x000,
-			.num = { 1, 0 },
-			.src_descr = "Off",
-		},
-		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
-			.id = 0x080,
-			.num = { 8, 10 },
-			.src_descr = "Analogue %d",
-			.src_num_offset = 1,
-			.dst_descr = "Analogue Output %02d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_SPDIF] = {
-			/* S/PDIF outputs aren't available at 192kHz
-			 * but are included in the USB mux I/O
-			 * assignment message anyway
-			 */
-			.id = 0x180,
-			.num = { 2, 2 },
-			.src_descr = "S/PDIF %d",
-			.src_num_offset = 1,
-			.dst_descr = "S/PDIF Output %d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_ADAT] = {
-			.id = 0x200,
-			.num = { 8, 8 },
-			.src_descr = "ADAT %d",
-			.src_num_offset = 1,
-			.dst_descr = "ADAT Output %d Playback"
-		},
-		[SCARLETT2_PORT_TYPE_MIX] = {
-			.id = 0x300,
-			.num = { 10, 18 },
-			.src_descr = "Mix %c",
-			.src_num_offset = 65,
-			.dst_descr = "Mixer Input %02d Capture"
-		},
-		[SCARLETT2_PORT_TYPE_PCM] = {
-			.id = 0x600,
-			.num = { 20, 18 },
-			.src_descr = "PCM %d",
-			.src_num_offset = 1,
-			.dst_descr = "PCM %02d Capture"
-		},
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  8, 10 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_ADAT]     = {  8,  8 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 10, 18 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 20, 18 },
 	},
 
 	.mux_assignment = { {
@@ -552,13 +488,14 @@ static const struct scarlett2_device_info *scarlett2_devices[] = {
 };
 
 /* get the starting port index number for a given port type/direction */
-static int scarlett2_get_port_start_num(const struct scarlett2_ports *ports,
-					int direction, int port_type)
+static int scarlett2_get_port_start_num(
+	const int port_count[][SCARLETT2_PORT_DIRNS],
+	int direction, int port_type)
 {
 	int i, num = 0;
 
 	for (i = 0; i < port_type; i++)
-		num += ports[i].num[direction];
+		num += port_count[i][direction];
 
 	return num;
 }
@@ -924,7 +861,7 @@ static int scarlett2_usb_get_mix(struct usb_mixer_interface *mixer,
 	const struct scarlett2_device_info *info = private->info;
 
 	int num_mixer_in =
-		info->ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_OUT];
+		info->port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT];
 	int err, i, j, k;
 
 	struct {
@@ -973,7 +910,7 @@ static int scarlett2_usb_set_mix(struct usb_mixer_interface *mixer,
 
 	int i, j;
 	int num_mixer_in =
-		info->ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_OUT];
+		info->port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT];
 
 	req.mix_num = cpu_to_le16(mix_num);
 
@@ -987,18 +924,18 @@ static int scarlett2_usb_set_mix(struct usb_mixer_interface *mixer,
 			     NULL, 0);
 }
 
-/* Convert a port number index (per info->ports) to a hardware ID */
-static u32 scarlett2_mux_src_num_to_id(const struct scarlett2_ports *ports,
-				       int num)
+/* Convert a port number index (per info->port_count) to a hardware ID */
+static u32 scarlett2_mux_src_num_to_id(
+	const int port_count[][SCARLETT2_PORT_DIRNS], int num)
 {
 	int port_type;
 
 	for (port_type = 0;
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
-		if (num < ports[port_type].num[SCARLETT2_PORT_IN])
-			return ports[port_type].id | num;
-		num -= ports[port_type].num[SCARLETT2_PORT_IN];
+		if (num < port_count[port_type][SCARLETT2_PORT_IN])
+			return scarlett2_ports[port_type].id | num;
+		num -= port_count[port_type][SCARLETT2_PORT_IN];
 	}
 
 	/* Oops */
@@ -1006,9 +943,8 @@ static u32 scarlett2_mux_src_num_to_id(const struct scarlett2_ports *ports,
 }
 
 /* Convert a hardware ID to a port number index */
-static u32 scarlett2_mux_id_to_num(const struct scarlett2_ports *ports,
-				   int direction,
-				   u32 id)
+static u32 scarlett2_mux_id_to_num(
+	const int port_count[][SCARLETT2_PORT_DIRNS], int direction, u32 id)
 {
 	int port_type;
 	int port_num = 0;
@@ -1016,11 +952,11 @@ static u32 scarlett2_mux_id_to_num(const struct scarlett2_ports *ports,
 	for (port_type = 0;
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
-		struct scarlett2_ports port = ports[port_type];
-		int count = port.num[direction];
+		int base = scarlett2_ports[port_type].id;
+		int count = port_count[port_type][direction];
 
-		if (id >= port.id && id < port.id + count)
-			return port_num + id - port.id;
+		if (id >= base && id < base + count)
+			return port_num + id - base;
 		port_num += count;
 	}
 
@@ -1033,11 +969,11 @@ static void scarlett2_usb_populate_mux(struct scarlett2_data *private,
 				       u32 mux_entry)
 {
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 
 	int dst_idx, src_idx;
 
-	dst_idx = scarlett2_mux_id_to_num(ports, SCARLETT2_PORT_OUT,
+	dst_idx = scarlett2_mux_id_to_num(port_count, SCARLETT2_PORT_OUT,
 					  mux_entry & 0xFFF);
 	if (dst_idx < 0)
 		return;
@@ -1049,7 +985,7 @@ static void scarlett2_usb_populate_mux(struct scarlett2_data *private,
 		return;
 	}
 
-	src_idx = scarlett2_mux_id_to_num(ports, SCARLETT2_PORT_IN,
+	src_idx = scarlett2_mux_id_to_num(port_count, SCARLETT2_PORT_IN,
 					  mux_entry >> 12);
 	if (src_idx < 0)
 		return;
@@ -1098,7 +1034,7 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int table;
 
 	struct {
@@ -1125,9 +1061,9 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 			int j;
 			int port_type = entry->port_type;
 			int port_idx = entry->start;
-			int mux_idx = scarlett2_get_port_start_num(ports,
+			int mux_idx = scarlett2_get_port_start_num(port_count,
 				SCARLETT2_PORT_OUT, port_type) + port_idx;
-			int dst_id = ports[port_type].id + port_idx;
+			int dst_id = scarlett2_ports[port_type].id + port_idx;
 
 			/* Empty slots */
 			if (!dst_id) {
@@ -1142,7 +1078,7 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 			 */
 			for (j = 0; j < entry->count; j++) {
 				int src_id = scarlett2_mux_src_num_to_id(
-					ports, private->mux[mux_idx++]);
+					port_count, private->mux[mux_idx++]);
 				req.data[i++] = cpu_to_le32(dst_id |
 							    src_id << 12);
 				dst_id++;
@@ -1289,10 +1225,10 @@ static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	struct scarlett2_usb_volume_status volume_status;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 	int err, i;
 	int mute;
 
@@ -1721,9 +1657,9 @@ static int scarlett2_dim_mute_ctl_put(struct snd_kcontrol *kctl,
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 
 	int index = elem->control;
 	int oval, val, err = 0, i;
@@ -1772,9 +1708,9 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 	int err, i;
 	char s[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
@@ -1913,7 +1849,7 @@ static int scarlett2_mixer_ctl_put(struct snd_kcontrol *kctl,
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int oval, val, num_mixer_in, mix_num, err = 0;
 	int index = elem->control;
 
@@ -1921,7 +1857,7 @@ static int scarlett2_mixer_ctl_put(struct snd_kcontrol *kctl,
 
 	oval = private->mix[index];
 	val = ucontrol->value.integer.value[0];
-	num_mixer_in = ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_OUT];
+	num_mixer_in = port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT];
 	mix_num = index / num_mixer_in;
 
 	if (oval == val)
@@ -1958,13 +1894,16 @@ static const struct snd_kcontrol_new scarlett2_mixer_ctl = {
 static int scarlett2_add_mixer_ctls(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int err, i, j;
 	int index;
 	char s[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
-	int num_inputs = ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_OUT];
-	int num_outputs = ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_IN];
+	int num_inputs =
+		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT];
+	int num_outputs =
+		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_IN];
 
 	for (i = 0, index = 0; i < num_outputs; i++)
 		for (j = 0; j < num_inputs; j++, index++) {
@@ -1987,7 +1926,8 @@ static int scarlett2_mux_src_enum_ctl_info(struct snd_kcontrol *kctl,
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct scarlett2_data *private = elem->head.mixer->private_data;
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	unsigned int item = uinfo->value.enumerated.item;
 	int items = private->num_mux_srcs;
 	int port_type;
@@ -2002,13 +1942,15 @@ static int scarlett2_mux_src_enum_ctl_info(struct snd_kcontrol *kctl,
 	for (port_type = 0;
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
-		if (item < ports[port_type].num[SCARLETT2_PORT_IN]) {
+		if (item < port_count[port_type][SCARLETT2_PORT_IN]) {
+			const struct scarlett2_port *port =
+				&scarlett2_ports[port_type];
+
 			sprintf(uinfo->value.enumerated.name,
-				ports[port_type].src_descr,
-				item + ports[port_type].src_num_offset);
+				port->src_descr, item + port->src_num_offset);
 			return 0;
 		}
-		item -= ports[port_type].num[SCARLETT2_PORT_IN];
+		item -= port_count[port_type][SCARLETT2_PORT_IN];
 	}
 
 	return -EINVAL;
@@ -2063,18 +2005,20 @@ static const struct snd_kcontrol_new scarlett2_mux_src_enum_ctl = {
 static int scarlett2_add_mux_enums(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int port_type, channel, i;
 
 	for (i = 0, port_type = 0;
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
 		for (channel = 0;
-		     channel < ports[port_type].num[SCARLETT2_PORT_OUT];
+		     channel < port_count[port_type][SCARLETT2_PORT_OUT];
 		     channel++, i++) {
 			int err;
 			char s[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-			const char *const descr = ports[port_type].dst_descr;
+			const char *const descr =
+				scarlett2_ports[port_type].dst_descr;
 
 			snprintf(s, sizeof(s) - 5, descr, channel + 1);
 			strcat(s, " Enum");
@@ -2160,14 +2104,15 @@ static void scarlett2_private_suspend(struct usb_mixer_interface *mixer)
 
 static void scarlett2_count_mux_io(struct scarlett2_data *private)
 {
-	const struct scarlett2_ports *ports = private->info->ports;
+	const struct scarlett2_device_info *info = private->info;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int port_type, srcs = 0, dsts = 0;
 
 	for (port_type = 0;
 	     port_type < SCARLETT2_PORT_TYPE_COUNT;
 	     port_type++) {
-		srcs += ports[port_type].num[SCARLETT2_PORT_IN];
-		dsts += ports[port_type].num[SCARLETT2_PORT_OUT];
+		srcs += port_count[port_type][SCARLETT2_PORT_IN];
+		dsts += port_count[port_type][SCARLETT2_PORT_OUT];
 	}
 
 	private->num_mux_srcs = srcs;
@@ -2265,11 +2210,11 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 	int num_mixer_out =
-		ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_IN];
+		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_IN];
 	struct scarlett2_usb_volume_status volume_status;
 	int err, i;
 
@@ -2356,9 +2301,9 @@ static void scarlett2_notify_monitor(
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 	int i;
 
 	/* if line_out_hw_vol is 0, there are no controls to update */
@@ -2385,9 +2330,9 @@ static void scarlett2_notify_dim_mute(
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	const struct scarlett2_ports *ports = info->ports;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
 	int num_line_out =
-		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
 	int i;
 
 	private->vol_updated = 1;
