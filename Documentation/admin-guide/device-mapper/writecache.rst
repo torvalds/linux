@@ -68,6 +68,9 @@ Constructor parameters:
 		specifies the maximum age of a block in milliseconds. If
 		a block is stored in the cache for too long, it will be
 		written to the underlying device and cleaned up.
+	metadata_only
+		only metadata is promoted to the cache. This option
+		improves performance for heavier REQ_META workloads.
 
 Status:
 1. error indicator - 0 if there was no error, otherwise error number

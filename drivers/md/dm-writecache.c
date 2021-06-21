@@ -171,6 +171,7 @@ struct dm_writecache {
 	bool flush_on_suspend:1;
 	bool cleaner:1;
 	bool cleaner_set:1;
+	bool metadata_only:1;
 
 	unsigned high_wm_percent_value;
 	unsigned low_wm_percent_value;
@@ -1301,7 +1302,7 @@ static int writecache_map(struct dm_target *ti, struct bio *bio)
 			writecache_flush(wc);
 			if (writecache_has_error(wc))
 				goto unlock_error;
-			if (unlikely(wc->cleaner))
+			if (unlikely(wc->cleaner) || unlikely(wc->metadata_only))
 				goto unlock_remap_origin;
 			goto unlock_submit;
 		} else {
@@ -1380,7 +1381,8 @@ read_next_block:
 				}
 				found_entry = true;
 			} else {
-				if (unlikely(wc->cleaner))
+				if (unlikely(wc->cleaner) ||
+				    (wc->metadata_only && !(bio->bi_opf & REQ_META)))
 					goto direct_write;
 			}
 			e = writecache_pop_from_freelist(wc, (sector_t)-1);
@@ -2094,7 +2096,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct wc_memory_superblock s;
 
 	static struct dm_arg _args[] = {
-		{0, 16, "Invalid number of feature args"},
+		{0, 17, "Invalid number of feature args"},
 	};
 
 	as.argc = argc;
@@ -2321,6 +2323,8 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				wc->writeback_fua = false;
 				wc->writeback_fua_set = true;
 			} else goto invalid_optional;
+		} else if (!strcasecmp(string, "metadata_only")) {
+			wc->metadata_only = true;
 		} else {
 invalid_optional:
 			r = -EINVAL;
@@ -2544,6 +2548,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			extra_args++;
 		if (wc->writeback_fua_set)
 			extra_args++;
+		if (wc->metadata_only)
+			extra_args++;
 
 		DMEMIT("%u", extra_args);
 		if (wc->start_sector_set)
@@ -2564,13 +2570,15 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" cleaner");
 		if (wc->writeback_fua_set)
 			DMEMIT(" %sfua", wc->writeback_fua ? "" : "no");
+		if (wc->metadata_only)
+			DMEMIT(" metadata_only");
 		break;
 	}
 }
 
 static struct target_type writecache_target = {
 	.name			= "writecache",
-	.version		= {1, 4, 0},
+	.version		= {1, 5, 0},
 	.module			= THIS_MODULE,
 	.ctr			= writecache_ctr,
 	.dtr			= writecache_dtr,
