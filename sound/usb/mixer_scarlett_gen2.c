@@ -218,10 +218,24 @@ struct scarlett2_ports {
 
 struct scarlett2_device_info {
 	u32 usb_id; /* USB device identifier */
-	u8 line_out_hw_vol; /* line out hw volume is sw controlled */
-	u8 level_input_count; /* inputs with level selectable */
-	u8 pad_input_count; /* inputs with pad selectable */
+
+	/* line out hw volume is sw controlled */
+	u8 line_out_hw_vol;
+
+	/* the number of analogue inputs with a software switchable
+	 * level control that can be set to line or instrument
+	 */
+	u8 level_input_count;
+
+	/* the number of analogue inputs with a software switchable
+	 * 10dB pad control
+	 */
+	u8 pad_input_count;
+
+	/* additional description for the line out volume controls */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
+
+	/* port count and type data */
 	struct scarlett2_ports ports[SCARLETT2_PORT_TYPE_COUNT];
 };
 
@@ -260,12 +274,7 @@ struct scarlett2_data {
 static const struct scarlett2_device_info s6i6_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8203),
 
-	/* The first two analogue inputs can be switched between line
-	 * and instrument levels.
-	 */
 	.level_input_count = 2,
-
-	/* The first two analogue inputs have an optional pad. */
 	.pad_input_count = 2,
 
 	.line_out_descrs = {
@@ -315,12 +324,7 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 static const struct scarlett2_device_info s18i8_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8204),
 
-	/* The first two analogue inputs can be switched between line
-	 * and instrument levels.
-	 */
 	.level_input_count = 2,
-
-	/* The first four analogue inputs have an optional pad. */
 	.pad_input_count = 4,
 
 	.line_out_descrs = {
@@ -378,9 +382,6 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 static const struct scarlett2_device_info s18i20_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8201),
 
-	/* The analogue line outputs on the 18i20 can be switched
-	 * between software and hardware volume control
-	 */
 	.line_out_hw_vol = 1,
 
 	.line_out_descrs = {
