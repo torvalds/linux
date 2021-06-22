@@ -6,6 +6,7 @@
 
 struct mlx5e_flow_meter_aso_obj;
 struct mlx5e_flow_meters;
+struct mlx5_flow_attr;
 
 enum mlx5e_flow_meter_mode {
 	MLX5_RATE_LIMIT_BPS,
@@ -31,6 +32,11 @@ struct mlx5e_flow_meter_handle {
 	struct mlx5e_flow_meter_params params;
 };
 
+struct mlx5e_meter_attr {
+	struct mlx5e_flow_meter_params params;
+	struct mlx5e_flow_meter_handle *meter;
+};
+
 int
 mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 		      struct mlx5e_flow_meter_handle *meter,
@@ -40,6 +46,9 @@ struct mlx5e_flow_meter_handle *
 mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params);
 void
 mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter);
+
+struct mlx5_flow_table *
+mlx5e_tc_meter_get_post_meter_ft(struct mlx5e_flow_meters *flow_meters);
 
 struct mlx5e_flow_meters *
 mlx5e_flow_meters_init(struct mlx5e_priv *priv,

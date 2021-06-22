@@ -30,7 +30,7 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_WAKE, */
 	NULL, /* FLOW_ACTION_QUEUE, */
 	&mlx5e_tc_act_sample,
-	NULL, /* FLOW_ACTION_POLICE, */
+	&mlx5e_tc_act_police,
 	&mlx5e_tc_act_ct,
 	NULL, /* FLOW_ACTION_CT_METADATA, */
 	&mlx5e_tc_act_mpls_push,

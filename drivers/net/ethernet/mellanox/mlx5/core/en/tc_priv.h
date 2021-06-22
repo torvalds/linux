@@ -208,4 +208,8 @@ struct mlx5e_flow_meters *mlx5e_get_flow_meters(struct mlx5_core_dev *dev);
 void *mlx5e_get_match_headers_value(u32 flags, struct mlx5_flow_spec *spec);
 void *mlx5e_get_match_headers_criteria(u32 flags, struct mlx5_flow_spec *spec);
 
+int mlx5e_policer_validate(const struct flow_action *action,
+			   const struct flow_action_entry *act,
+			   struct netlink_ext_ack *extack);
+
 #endif /* __MLX5_EN_TC_PRIV_H__ */

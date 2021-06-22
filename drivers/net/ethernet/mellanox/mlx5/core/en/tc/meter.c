@@ -389,6 +389,12 @@ mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter)
 	mutex_unlock(&flow_meters->sync_lock);
 }
 
+struct mlx5_flow_table *
+mlx5e_tc_meter_get_post_meter_ft(struct mlx5e_flow_meters *flow_meters)
+{
+	return mlx5e_post_meter_get_ft(flow_meters->post_meter);
+}
+
 struct mlx5e_flow_meters *
 mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 		       enum mlx5_flow_namespace_type ns_type,

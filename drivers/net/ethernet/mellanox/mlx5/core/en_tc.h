@@ -72,6 +72,7 @@ struct mlx5_flow_attr {
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_ct_attr ct_attr;
 	struct mlx5e_sample_attr sample_attr;
+	struct mlx5e_meter_attr meter_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	u32 chain;
 	u16 prio;
@@ -84,6 +85,7 @@ struct mlx5_flow_attr {
 	u8 tun_ip_version;
 	int tunnel_id; /* mapped tunnel id */
 	u32 flags;
+	u32 exe_aso_type;
 	struct list_head list;
 	struct mlx5e_post_act_handle *post_act_handle;
 	struct {
