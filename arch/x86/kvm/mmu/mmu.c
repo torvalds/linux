@@ -4574,8 +4574,10 @@ static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
 		ext.cr4_smep = ____is_cr4_smep(regs);
 		ext.cr4_smap = ____is_cr4_smap(regs);
 		ext.cr4_pse = ____is_cr4_pse(regs);
-		ext.cr4_pke = ____is_cr4_pke(regs);
-		ext.cr4_la57 = ____is_cr4_la57(regs);
+
+		/* PKEY and LA57 are active iff long mode is active. */
+		ext.cr4_pke = ____is_efer_lma(regs) && ____is_cr4_pke(regs);
+		ext.cr4_la57 = ____is_efer_lma(regs) && ____is_cr4_la57(regs);
 	}
 
 	ext.valid = 1;
