@@ -147,13 +147,19 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		/*
 		 * Optimization: for pte sync, if spte was writable the hash
 		 * lookup is unnecessary (and expensive). Write protection
-		 * is responsibility of mmu_get_page / kvm_sync_page.
+		 * is responsibility of kvm_mmu_get_page / kvm_mmu_sync_roots.
 		 * Same reasoning can be applied to dirty page accounting.
 		 */
 		if (!can_unsync && is_writable_pte(old_spte))
 			goto out;
 
-		if (mmu_need_write_protect(vcpu, gfn, can_unsync)) {
+		/*
+		 * Unsync shadow pages that are reachable by the new, writable
+		 * SPTE.  Write-protect the SPTE if the page can't be unsync'd,
+		 * e.g. it's write-tracked (upper-level SPs) or has one or more
+		 * shadow pages and unsync'ing pages is not allowed.
+		 */
+		if (mmu_try_to_unsync_pages(vcpu, gfn, can_unsync)) {
 			pgprintk("%s: found shadow page for %llx, marking ro\n",
 				 __func__, gfn);
 			ret |= SET_SPTE_WRITE_PROTECTED_PT;

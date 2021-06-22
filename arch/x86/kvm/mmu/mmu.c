@@ -2458,17 +2458,33 @@ static void kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	kvm_mmu_mark_parents_unsync(sp);
 }
 
-bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
-			    bool can_unsync)
+/*
+ * Attempt to unsync any shadow pages that can be reached by the specified gfn,
+ * KVM is creating a writable mapping for said gfn.  Returns 0 if all pages
+ * were marked unsync (or if there is no shadow page), -EPERM if the SPTE must
+ * be write-protected.
+ */
+int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync)
 {
 	struct kvm_mmu_page *sp;
 
+	/*
+	 * Force write-protection if the page is being tracked.  Note, the page
+	 * track machinery is used to write-protect upper-level shadow pages,
+	 * i.e. this guards the role.level == 4K assertion below!
+	 */
 	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE))
-		return true;
+		return -EPERM;
 
+	/*
+	 * The page is not write-tracked, mark existing shadow pages unsync
+	 * unless KVM is synchronizing an unsync SP (can_unsync = false).  In
+	 * that case, KVM must complete emulation of the guest TLB flush before
+	 * allowing shadow pages to become unsync (writable by the guest).
+	 */
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn) {
 		if (!can_unsync)
-			return true;
+			return -EPERM;
 
 		if (sp->unsync)
 			continue;
@@ -2499,8 +2515,8 @@ bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 	 *                      2.2 Guest issues TLB flush.
 	 *                          That causes a VM Exit.
 	 *
-	 *                      2.3 kvm_mmu_sync_pages() reads sp->unsync.
-	 *                          Since it is false, so it just returns.
+	 *                      2.3 Walking of unsync pages sees sp->unsync is
+	 *                          false and skips the page.
 	 *
 	 *                      2.4 Guest accesses GVA X.
 	 *                          Since the mapping in the SP was not updated,
@@ -2516,7 +2532,7 @@ bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 	 */
 	smp_wmb();
 
-	return false;
+	return 0;
 }
 
 static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
@@ -3461,8 +3477,8 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 		 * flush strictly after those changes are made. We only need to
 		 * ensure that the other CPU sets these flags before any actual
 		 * changes to the page tables are made. The comments in
-		 * mmu_need_write_protect() describe what could go wrong if this
-		 * requirement isn't satisfied.
+		 * mmu_try_to_unsync_pages() describe what could go wrong if
+		 * this requirement isn't satisfied.
 		 */
 		if (!smp_load_acquire(&sp->unsync) &&
 		    !smp_load_acquire(&sp->unsync_children))
