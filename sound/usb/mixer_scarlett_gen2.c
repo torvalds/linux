@@ -48,12 +48,15 @@
  * Support for Solo/2i2 Gen 3 added in May 2021 (thanks to Alexander
  * Vorona for 2i2 protocol traces).
  *
+ * Support for phantom power added in May 2021.
+ *
  * This ALSA mixer gives access to (model-dependent):
  *  - input, output, mixer-matrix muxes
  *  - mixer-matrix gain stages
  *  - gain/volume/mute controls
  *  - level meters
  *  - line/inst level, pad, and air controls
+ *  - phantom power controls
  *  - disable/enable MSD mode
  *
  * <ditaa>
@@ -174,6 +177,7 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 #define SCARLETT2_LEVEL_SWITCH_MAX 2
 #define SCARLETT2_PAD_SWITCH_MAX 8
 #define SCARLETT2_AIR_SWITCH_MAX 8
+#define SCARLETT2_PHANTOM_SWITCH_MAX 2
 
 /* Maximum number of inputs to the mixer */
 #define SCARLETT2_INPUT_MIX_MAX 25
@@ -328,6 +332,12 @@ struct scarlett2_device_info {
 	 */
 	u8 air_input_count;
 
+	/* the number of phantom (48V) software switchable controls */
+	u8 phantom_count;
+
+	/* the number of inputs each phantom switch controls */
+	u8 inputs_per_phantom;
+
 	/* additional description for the line out volume controls */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
 
@@ -364,6 +374,8 @@ struct scarlett2_data {
 	u8 pad_switch[SCARLETT2_PAD_SWITCH_MAX];
 	u8 dim_mute[SCARLETT2_DIM_MUTE_COUNT];
 	u8 air_switch[SCARLETT2_AIR_SWITCH_MAX];
+	u8 phantom_switch[SCARLETT2_PHANTOM_SWITCH_MAX];
+	u8 phantom_persistence;
 	u8 msd_switch;
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -373,6 +385,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *level_ctls[SCARLETT2_LEVEL_SWITCH_MAX];
 	struct snd_kcontrol *pad_ctls[SCARLETT2_PAD_SWITCH_MAX];
 	struct snd_kcontrol *air_ctls[SCARLETT2_AIR_SWITCH_MAX];
+	struct snd_kcontrol *phantom_ctls[SCARLETT2_PHANTOM_SWITCH_MAX];
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX];
 };
@@ -535,6 +548,8 @@ static const struct scarlett2_device_info solo_gen3_info = {
 	.level_input_count = 1,
 	.level_input_first = 1,
 	.air_input_count = 1,
+	.phantom_count = 1,
+	.inputs_per_phantom = 1,
 };
 
 static const struct scarlett2_device_info s2i2_gen3_info = {
@@ -543,6 +558,8 @@ static const struct scarlett2_device_info s2i2_gen3_info = {
 	.has_msd_mode = 1,
 	.level_input_count = 2,
 	.air_input_count = 2,
+	.phantom_count = 1,
+	.inputs_per_phantom = 2,
 };
 
 static const struct scarlett2_device_info s4i4_gen3_info = {
@@ -553,6 +570,8 @@ static const struct scarlett2_device_info s4i4_gen3_info = {
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
+	.phantom_count = 1,
+	.inputs_per_phantom = 2,
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -597,6 +616,8 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
+	.phantom_count = 1,
+	.inputs_per_phantom = 2,
 
 	.line_out_descrs = {
 		"Headphones 1 L",
@@ -649,6 +670,8 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 4,
+	.phantom_count = 2,
+	.inputs_per_phantom = 2,
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -713,6 +736,8 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	.level_input_count = 2,
 	.pad_input_count = 8,
 	.air_input_count = 8,
+	.phantom_count = 2,
+	.inputs_per_phantom = 4,
 
 	.line_out_descrs = {
 		"Monitor 1 L",
@@ -861,7 +886,9 @@ enum {
 	SCARLETT2_CONFIG_PAD_SWITCH = 5,
 	SCARLETT2_CONFIG_MSD_SWITCH = 6,
 	SCARLETT2_CONFIG_AIR_SWITCH = 7,
-	SCARLETT2_CONFIG_COUNT = 8
+	SCARLETT2_CONFIG_PHANTOM_SWITCH = 8,
+	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 9,
+	SCARLETT2_CONFIG_COUNT = 10
 };
 
 /* Location, size, and activation command number for the configuration
@@ -883,6 +910,12 @@ static const struct scarlett2_config
 { {
 	[SCARLETT2_CONFIG_MSD_SWITCH] = {
 		.offset = 0x04, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_PHANTOM_PERSISTENCE] = {
+		.offset = 0x05, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
+		.offset = 0x06, .size = 8, .activate = 3 },
 
 	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
 		.offset = 0x08, .size = 1, .activate = 7 },
@@ -913,8 +946,14 @@ static const struct scarlett2_config
 	[SCARLETT2_CONFIG_AIR_SWITCH] = {
 		.offset = 0x8c, .size = 8, .activate = 8 },
 
+	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
+		.offset = 0x9c, .size = 1, .activate = 8 },
+
 	[SCARLETT2_CONFIG_MSD_SWITCH] = {
 		.offset = 0x9d, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_PHANTOM_PERSISTENCE] = {
+		.offset = 0x9e, .size = 8, .activate = 6 },
 } };
 
 /* proprietary request/response format */
@@ -1927,6 +1966,20 @@ static int scarlett2_update_input_other(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
+	if (info->phantom_count) {
+		int err = scarlett2_usb_get_config(
+			mixer, SCARLETT2_CONFIG_PHANTOM_SWITCH,
+			info->phantom_count, private->phantom_switch);
+		if (err < 0)
+			return err;
+
+		err = scarlett2_usb_get_config(
+			mixer, SCARLETT2_CONFIG_PHANTOM_PERSISTENCE,
+			1, &private->phantom_persistence);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -2112,6 +2165,111 @@ static const struct snd_kcontrol_new scarlett2_air_ctl = {
 	.put  = scarlett2_air_ctl_put,
 };
 
+/*** Phantom Switch Controls ***/
+
+static int scarlett2_phantom_ctl_get(struct snd_kcontrol *kctl,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	mutex_lock(&private->data_mutex);
+	if (private->input_other_updated)
+		scarlett2_update_input_other(mixer);
+	ucontrol->value.integer.value[0] =
+		private->phantom_switch[elem->control];
+	mutex_unlock(&private->data_mutex);
+
+	return 0;
+}
+
+static int scarlett2_phantom_ctl_put(struct snd_kcontrol *kctl,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int index = elem->control;
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->phantom_switch[index];
+	val = !!ucontrol->value.integer.value[0];
+
+	if (oval == val)
+		goto unlock;
+
+	private->phantom_switch[index] = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_PHANTOM_SWITCH,
+				       index, val);
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_phantom_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = snd_ctl_boolean_mono_info,
+	.get  = scarlett2_phantom_ctl_get,
+	.put  = scarlett2_phantom_ctl_put,
+};
+
+/*** Phantom Persistence Control ***/
+
+static int scarlett2_phantom_persistence_ctl_get(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.integer.value[0] = private->phantom_persistence;
+	return 0;
+}
+
+static int scarlett2_phantom_persistence_ctl_put(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int index = elem->control;
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->phantom_persistence;
+	val = !!ucontrol->value.integer.value[0];
+
+	if (oval == val)
+		goto unlock;
+
+	private->phantom_persistence = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_PHANTOM_PERSISTENCE, index, val);
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_phantom_persistence_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = snd_ctl_boolean_mono_info,
+	.get  = scarlett2_phantom_persistence_ctl_get,
+	.put  = scarlett2_phantom_persistence_ctl_put,
+};
+
 /*** Dim/Mute Controls ***/
 
 static int scarlett2_dim_mute_ctl_get(struct snd_kcontrol *kctl,
@@ -2275,6 +2433,7 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 	int err, i;
 	char s[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	const char *fmt = "Line In %d %s Capture %s";
+	const char *fmt2 = "Line In %d-%d %s Capture %s";
 
 	/* Add input level (line/inst) controls */
 	for (i = 0; i < info->level_input_count; i++) {
@@ -2300,6 +2459,39 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 		snprintf(s, sizeof(s), fmt, i + 1, "Air", "Switch");
 		err = scarlett2_add_new_ctl(mixer, &scarlett2_air_ctl,
 					    i, 1, s, &private->air_ctls[i]);
+		if (err < 0)
+			return err;
+	}
+
+	/* Add input phantom controls */
+	if (info->inputs_per_phantom == 1) {
+		for (i = 0; i < info->phantom_count; i++) {
+			snprintf(s, sizeof(s), fmt, i + 1,
+				 "Phantom Power", "Switch");
+			err = scarlett2_add_new_ctl(
+				mixer, &scarlett2_phantom_ctl,
+				i, 1, s, &private->phantom_ctls[i]);
+			if (err < 0)
+				return err;
+		}
+	} else if (info->inputs_per_phantom > 1) {
+		for (i = 0; i < info->phantom_count; i++) {
+			int from = i * info->inputs_per_phantom + 1;
+			int to = (i + 1) * info->inputs_per_phantom;
+
+			snprintf(s, sizeof(s), fmt2, from, to,
+				 "Phantom Power", "Switch");
+			err = scarlett2_add_new_ctl(
+				mixer, &scarlett2_phantom_ctl,
+				i, 1, s, &private->phantom_ctls[i]);
+			if (err < 0)
+				return err;
+		}
+	}
+	if (info->phantom_count) {
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_phantom_persistence_ctl, 0, 1,
+			"Phantom Power Persistence Capture Switch", NULL);
 		if (err < 0)
 			return err;
 	}
@@ -2932,6 +3124,9 @@ static void scarlett2_notify_input_other(
 	for (i = 0; i < info->air_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->air_ctls[i]->id);
+	for (i = 0; i < info->phantom_count; i++)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &private->phantom_ctls[i]->id);
 }
 
 /* Interrupt callback */
