@@ -1383,6 +1383,8 @@ Request contents:
   ``ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS``  u8      page I2C address
   =======================================  ======  ==========================
 
+If ``ETHTOOL_A_MODULE_EEPROM_BANK`` is not specified, bank 0 is assumed.
+
 Kernel response contents:
 
  +---------------------------------------------+--------+---------------------+
