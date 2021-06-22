@@ -4281,19 +4281,22 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	 * MMU contexts.  Note, KVM forces EFER.NX=1 when TDP is disabled.
 	 */
 	bool uses_nx = context->nx || !tdp_enabled;
+
+	/* @amd adds a check on bit of SPTEs, which KVM shouldn't use anyways. */
+	bool is_amd = true;
+	/* KVM doesn't use 2-level page tables for the shadow MMU. */
+	bool is_pse = false;
 	struct rsvd_bits_validate *shadow_zero_check;
 	int i;
 
-	/*
-	 * Passing "true" to the last argument is okay; it adds a check
-	 * on bit 8 of the SPTEs which KVM doesn't use anyway.
-	 */
+	WARN_ON_ONCE(context->shadow_root_level < PT32E_ROOT_LEVEL);
+
 	shadow_zero_check = &context->shadow_zero_check;
 	__reset_rsvds_bits_mask(vcpu, shadow_zero_check,
 				reserved_hpa_bits(),
 				context->shadow_root_level, uses_nx,
 				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
-				is_pse(vcpu), true);
+				is_pse, is_amd);
 
 	if (!shadow_me_mask)
 		return;
@@ -4329,7 +4332,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 					reserved_hpa_bits(),
 					context->shadow_root_level, false,
 					boot_cpu_has(X86_FEATURE_GBPAGES),
-					true, true);
+					false, true);
 	else
 		__reset_rsvds_bits_mask_ept(shadow_zero_check,
 					    reserved_hpa_bits(), false);
