@@ -180,8 +180,8 @@ Shadow pages contain the following information:
   role.gpte_is_8_bytes:
     Reflects the size of the guest PTE for which the page is valid, i.e. '1'
     if 64-bit gptes are in use, '0' if 32-bit gptes are in use.
-  role.nxe:
-    Contains the value of efer.nxe for which the page is valid.
+  role.efer_nx:
+    Contains the value of efer.nx for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
   role.smep_andnot_wp:
