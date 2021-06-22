@@ -102,8 +102,6 @@ static void add_x86_vcpu(struct kvm_vm *vm, uint32_t vcpuid, bool bsp_code)
 		vm_vcpu_add_default(vm, vcpuid, guest_bsp_vcpu);
 	else
 		vm_vcpu_add_default(vm, vcpuid, guest_not_bsp_vcpu);
-
-	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
 }
 
 static void run_vm_bsp(uint32_t bsp_vcpu)

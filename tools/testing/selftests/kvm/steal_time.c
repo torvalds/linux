@@ -73,8 +73,6 @@ static void steal_time_init(struct kvm_vm *vm)
 	for (i = 0; i < NR_VCPUS; ++i) {
 		int ret;
 
-		vcpu_set_cpuid(vm, i, kvm_get_supported_cpuid());
-
 		/* ST_GPA_BASE is identity mapped */
 		st_gva[i] = (void *)(ST_GPA_BASE + i * STEAL_TIME_SIZE);
 		sync_global_to_guest(vm, st_gva[i]);
