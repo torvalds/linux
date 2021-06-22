@@ -423,7 +423,7 @@ int main(int argc, char *argv[])
 	vcpu_init_descriptor_tables(vm, HALTER_VCPU_ID);
 	vm_handle_exception(vm, IPI_VECTOR, guest_ipi_handler);
 
-	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA, 0);
+	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 
 	vm_vcpu_add_default(vm, SENDER_VCPU_ID, sender_guest_code);
 

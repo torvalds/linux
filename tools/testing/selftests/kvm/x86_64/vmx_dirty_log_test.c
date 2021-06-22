@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 	 * Add an identity map for GVA range [0xc0000000, 0xc0002000).  This
 	 * affects both L1 and L2.  However...
 	 */
-	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM, TEST_MEM_PAGES, 0);
+	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM, TEST_MEM_PAGES);
 
 	/*
 	 * ... pages in the L2 GPA range [0xc0001000, 0xc0003000) will map to

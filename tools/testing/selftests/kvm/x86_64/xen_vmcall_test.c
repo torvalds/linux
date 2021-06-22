@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	/* Map a region for the hypercall pages */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    HCALL_REGION_GPA, HCALL_REGION_SLOT, 2, 0);
-	virt_map(vm, HCALL_REGION_GPA, HCALL_REGION_GPA, 2, 0);
+	virt_map(vm, HCALL_REGION_GPA, HCALL_REGION_GPA, 2);
 
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
