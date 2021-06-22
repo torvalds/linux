@@ -814,7 +814,7 @@ enum {
 };
 
 /* Location, size, and activation command number for the configuration
- * parameters
+ * parameters. Size is in bits and may be 1, 8, or 16.
  */
 struct scarlett2_config {
 	u8 offset;
@@ -825,25 +825,25 @@ struct scarlett2_config {
 static const struct scarlett2_config
 		scarlett2_config_items[SCARLETT2_CONFIG_COUNT] = {
 	[SCARLETT2_CONFIG_DIM_MUTE] = {
-		.offset = 0x31, .size = 1, .activate = 2 },
+		.offset = 0x31, .size = 8, .activate = 2 },
 
 	[SCARLETT2_CONFIG_LINE_OUT_VOLUME] = {
-		.offset = 0x34, .size = 2, .activate = 1 },
+		.offset = 0x34, .size = 16, .activate = 1 },
 
 	[SCARLETT2_CONFIG_MUTE_SWITCH] = {
-		.offset = 0x5c, .size = 1, .activate = 1 },
+		.offset = 0x5c, .size = 8, .activate = 1 },
 
 	[SCARLETT2_CONFIG_SW_HW_SWITCH] = {
-		.offset = 0x66, .size = 1, .activate = 3 },
+		.offset = 0x66, .size = 8, .activate = 3 },
 
 	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
-		.offset = 0x7c, .size = 1, .activate = 7 },
+		.offset = 0x7c, .size = 8, .activate = 7 },
 
 	[SCARLETT2_CONFIG_PAD_SWITCH] = {
-		.offset = 0x84, .size = 1, .activate = 8 },
+		.offset = 0x84, .size = 8, .activate = 8 },
 
 	[SCARLETT2_CONFIG_MSD_SWITCH] = {
-		.offset = 0x9d, .size = 1, .activate = 6 },
+		.offset = 0x9d, .size = 8, .activate = 6 },
 };
 
 /* proprietary request/response format */
@@ -1008,9 +1008,25 @@ static int scarlett2_usb_get_config(
 {
 	const struct scarlett2_config *config_item =
 		&scarlett2_config_items[config_item_num];
-	int size = config_item->size * count;
+	int size, err, i;
+	u8 value;
 
-	return scarlett2_usb_get(mixer, config_item->offset, buf, size);
+	/* For byte-sized parameters, retrieve directly into buf */
+	if (config_item->size >= 8) {
+		size = config_item->size / 8 * count;
+		return scarlett2_usb_get(mixer, config_item->offset, buf, size);
+	}
+
+	/* For bit-sized parameters, retrieve into value */
+	err = scarlett2_usb_get(mixer, config_item->offset, &value, 1);
+	if (err < 0)
+		return err;
+
+	/* then unpack from value into buf[] */
+	for (i = 0; i < 8 && i < count; i++, value >>= 1)
+		*(u8 *)buf++ = value & 1;
+
+	return 0;
 }
 
 /* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
@@ -1047,18 +1063,44 @@ static int scarlett2_usb_set_config(
 		__le32 value;
 	} __packed req;
 	__le32 req2;
+	int offset, size;
 	int err;
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* Cancel any pending NVRAM save */
 	cancel_delayed_work_sync(&private->work);
 
+	/* Convert config_item->size in bits to size in bytes and
+	 * calculate offset
+	 */
+	if (config_item->size >= 8) {
+		size = config_item->size / 8;
+		offset = config_item->offset + index * size;
+
+	/* If updating a bit, retrieve the old value, set/clear the
+	 * bit as needed, and update value
+	 */
+	} else {
+		u8 tmp;
+
+		size = 1;
+		offset = config_item->offset;
+
+		scarlett2_usb_get(mixer, offset, &tmp, 1);
+		if (value)
+			tmp |= (1 << index);
+		else
+			tmp &= ~(1 << index);
+
+		value = tmp;
+	}
+
 	/* Send the configuration parameter data */
-	req.offset = cpu_to_le32(config_item->offset + index * config_item->size);
-	req.bytes = cpu_to_le32(config_item->size);
+	req.offset = cpu_to_le32(offset);
+	req.bytes = cpu_to_le32(size);
 	req.value = cpu_to_le32(value);
 	err = scarlett2_usb(mixer, SCARLETT2_USB_SET_DATA,
-			    &req, sizeof(u32) * 2 + config_item->size,
+			    &req, sizeof(u32) * 2 + size,
 			    NULL, 0);
 	if (err < 0)
 		return err;
