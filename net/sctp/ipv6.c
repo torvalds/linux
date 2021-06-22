@@ -126,7 +126,6 @@ static struct notifier_block sctp_inet6addr_notifier = {
 static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			u8 type, u8 code, int offset, __be32 info)
 {
-	struct inet6_dev *idev;
 	struct sock *sk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
@@ -134,8 +133,6 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	__u16 saveip, savesctp;
 	int err, ret = 0;
 	struct net *net = dev_net(skb->dev);
-
-	idev = in6_dev_get(skb->dev);
 
 	/* Fix up skb to look at the embedded net header. */
 	saveip	 = skb->network_header;
@@ -147,9 +144,8 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	skb->network_header   = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {
-		__ICMP6_INC_STATS(net, idev, ICMP6_MIB_INERRORS);
-		ret = -ENOENT;
-		goto out;
+		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
+		return -ENOENT;
 	}
 
 	/* Warning:  The sock lock is held.  Remember to call
@@ -185,10 +181,6 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 out_unlock:
 	sctp_err_finish(sk, transport);
-out:
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
-
 	return ret;
 }
 
