@@ -1170,7 +1170,13 @@ static int scarlett2_usb_get_config(
 	/* For byte-sized parameters, retrieve directly into buf */
 	if (config_item->size >= 8) {
 		size = config_item->size / 8 * count;
-		return scarlett2_usb_get(mixer, config_item->offset, buf, size);
+		err = scarlett2_usb_get(mixer, config_item->offset, buf, size);
+		if (err < 0)
+			return err;
+		if (size == 2)
+			for (i = 0; i < count; i++, (u16 *)buf++)
+				*(u16 *)buf = le16_to_cpu(*(__le16 *)buf);
+		return 0;
 	}
 
 	/* For bit-sized parameters, retrieve into value */
