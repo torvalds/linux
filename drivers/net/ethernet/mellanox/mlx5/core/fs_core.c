@@ -2969,8 +2969,11 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 		return err;
 
 	steering = kzalloc(sizeof(*steering), GFP_KERNEL);
-	if (!steering)
+	if (!steering) {
+		err = -ENOMEM;
 		goto err;
+	}
+
 	steering->dev = dev;
 	dev->priv.steering = steering;
 
