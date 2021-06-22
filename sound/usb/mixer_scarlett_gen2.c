@@ -48,7 +48,8 @@
  * Support for Solo/2i2 Gen 3 added in May 2021 (thanks to Alexander
  * Vorona for 2i2 protocol traces).
  *
- * Support for phantom power added in May 2021.
+ * Support for phantom power and direct monitoring added in May-June
+ * 2021.
  *
  * This ALSA mixer gives access to (model-dependent):
  *  - input, output, mixer-matrix muxes
@@ -56,7 +57,7 @@
  *  - gain/volume/mute controls
  *  - level meters
  *  - line/inst level, pad, and air controls
- *  - phantom power controls
+ *  - phantom power and direct monitor controls
  *  - disable/enable MSD mode
  *
  * <ditaa>
@@ -338,6 +339,11 @@ struct scarlett2_device_info {
 	/* the number of inputs each phantom switch controls */
 	u8 inputs_per_phantom;
 
+	/* the number of direct monitor options
+	 * (0 = none, 1 = mono only, 2 = mono/stereo)
+	 */
+	u8 direct_monitor;
+
 	/* additional description for the line out volume controls */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
 
@@ -365,6 +371,7 @@ struct scarlett2_data {
 	u8 sync_updated;
 	u8 vol_updated;
 	u8 input_other_updated;
+	u8 monitor_other_updated;
 	u8 sync;
 	u8 master_vol;
 	u8 vol[SCARLETT2_ANALOGUE_MAX];
@@ -376,6 +383,7 @@ struct scarlett2_data {
 	u8 air_switch[SCARLETT2_AIR_SWITCH_MAX];
 	u8 phantom_switch[SCARLETT2_PHANTOM_SWITCH_MAX];
 	u8 phantom_persistence;
+	u8 direct_monitor_switch;
 	u8 msd_switch;
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -386,6 +394,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *pad_ctls[SCARLETT2_PAD_SWITCH_MAX];
 	struct snd_kcontrol *air_ctls[SCARLETT2_AIR_SWITCH_MAX];
 	struct snd_kcontrol *phantom_ctls[SCARLETT2_PHANTOM_SWITCH_MAX];
+	struct snd_kcontrol *direct_monitor_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX];
 };
@@ -550,6 +559,7 @@ static const struct scarlett2_device_info solo_gen3_info = {
 	.air_input_count = 1,
 	.phantom_count = 1,
 	.inputs_per_phantom = 1,
+	.direct_monitor = 1,
 };
 
 static const struct scarlett2_device_info s2i2_gen3_info = {
@@ -560,6 +570,7 @@ static const struct scarlett2_device_info s2i2_gen3_info = {
 	.air_input_count = 2,
 	.phantom_count = 1,
 	.inputs_per_phantom = 2,
+	.direct_monitor = 2,
 };
 
 static const struct scarlett2_device_info s4i4_gen3_info = {
@@ -824,10 +835,11 @@ static int scarlett2_get_port_start_num(
 /*** USB Interactions ***/
 
 /* Notifications from the interface */
-#define SCARLETT2_USB_NOTIFY_SYNC        0x00000008
-#define SCARLETT2_USB_NOTIFY_DIM_MUTE    0x00200000
-#define SCARLETT2_USB_NOTIFY_MONITOR     0x00400000
-#define SCARLETT2_USB_NOTIFY_INPUT_OTHER 0x00800000
+#define SCARLETT2_USB_NOTIFY_SYNC          0x00000008
+#define SCARLETT2_USB_NOTIFY_DIM_MUTE      0x00200000
+#define SCARLETT2_USB_NOTIFY_MONITOR       0x00400000
+#define SCARLETT2_USB_NOTIFY_INPUT_OTHER   0x00800000
+#define SCARLETT2_USB_NOTIFY_MONITOR_OTHER 0x01000000
 
 /* Commands for sending/receiving requests/responses */
 #define SCARLETT2_USB_CMD_INIT 0
@@ -888,7 +900,8 @@ enum {
 	SCARLETT2_CONFIG_AIR_SWITCH = 7,
 	SCARLETT2_CONFIG_PHANTOM_SWITCH = 8,
 	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 9,
-	SCARLETT2_CONFIG_COUNT = 10
+	SCARLETT2_CONFIG_DIRECT_MONITOR = 10,
+	SCARLETT2_CONFIG_COUNT = 11
 };
 
 /* Location, size, and activation command number for the configuration
@@ -916,6 +929,9 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
 		.offset = 0x06, .size = 8, .activate = 3 },
+
+	[SCARLETT2_CONFIG_DIRECT_MONITOR] = {
+		.offset = 0x07, .size = 8, .activate = 4 },
 
 	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
 		.offset = 0x08, .size = 1, .activate = 7 },
@@ -2270,6 +2286,112 @@ static const struct snd_kcontrol_new scarlett2_phantom_persistence_ctl = {
 	.put  = scarlett2_phantom_persistence_ctl_put,
 };
 
+/*** Direct Monitor Control ***/
+
+static int scarlett2_update_monitor_other(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+
+	private->monitor_other_updated = 0;
+
+	if (info->direct_monitor)
+		return scarlett2_usb_get_config(
+			mixer, SCARLETT2_CONFIG_DIRECT_MONITOR,
+			1, &private->direct_monitor_switch);
+
+	return 0;
+}
+
+static int scarlett2_direct_monitor_ctl_get(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	mutex_lock(&private->data_mutex);
+	if (private->monitor_other_updated)
+		scarlett2_update_monitor_other(mixer);
+	ucontrol->value.enumerated.item[0] = private->direct_monitor_switch;
+	mutex_unlock(&private->data_mutex);
+
+	return 0;
+}
+
+static int scarlett2_direct_monitor_ctl_put(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int index = elem->control;
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->direct_monitor_switch;
+	val = min(ucontrol->value.enumerated.item[0], 2U);
+
+	if (oval == val)
+		goto unlock;
+
+	private->direct_monitor_switch = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_DIRECT_MONITOR, index, val);
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_direct_monitor_stereo_enum_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	static const char *const values[3] = {
+		"Off", "Mono", "Stereo"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 3, values);
+}
+
+/* Direct Monitor for Solo is mono-only and only needs a boolean control
+ * Direct Monitor for 2i2 is selectable between Off/Mono/Stereo
+ */
+static const struct snd_kcontrol_new scarlett2_direct_monitor_ctl[2] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "",
+		.info = snd_ctl_boolean_mono_info,
+		.get  = scarlett2_direct_monitor_ctl_get,
+		.put  = scarlett2_direct_monitor_ctl_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "",
+		.info = scarlett2_direct_monitor_stereo_enum_ctl_info,
+		.get  = scarlett2_direct_monitor_ctl_get,
+		.put  = scarlett2_direct_monitor_ctl_put,
+	}
+};
+
+static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+
+	if (!info->direct_monitor)
+		return 0;
+
+	return scarlett2_add_new_ctl(
+		mixer, &scarlett2_direct_monitor_ctl[info->direct_monitor - 1],
+		0, 1, "Direct Monitor Playback Switch",
+		&private->direct_monitor_ctl);
+}
+
 /*** Dim/Mute Controls ***/
 
 static int scarlett2_dim_mute_ctl_get(struct snd_kcontrol *kctl,
@@ -2988,6 +3110,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
+	err = scarlett2_update_monitor_other(mixer);
+	if (err < 0)
+		return err;
+
 	/* the rest of the configuration is for devices with a mixer */
 	if (!info->has_mixer)
 		return 0;
@@ -3129,6 +3255,20 @@ static void scarlett2_notify_input_other(
 			       &private->phantom_ctls[i]->id);
 }
 
+/* Notify on "monitor other" change (direct monitor) */
+static void scarlett2_notify_monitor_other(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	struct snd_card *card = mixer->chip->card;
+
+	private->monitor_other_updated = 1;
+
+	if (private->info->direct_monitor)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &private->direct_monitor_ctl->id);
+}
+
 /* Interrupt callback */
 static void scarlett2_notify(struct urb *urb)
 {
@@ -3149,6 +3289,8 @@ static void scarlett2_notify(struct urb *urb)
 		scarlett2_notify_dim_mute(mixer);
 	if (data & SCARLETT2_USB_NOTIFY_INPUT_OTHER)
 		scarlett2_notify_input_other(mixer);
+	if (data & SCARLETT2_USB_NOTIFY_MONITOR_OTHER)
+		scarlett2_notify_monitor_other(mixer);
 
 requeue:
 	if (ustatus != -ENOENT &&
@@ -3252,6 +3394,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 
 	/* Create the sync control */
 	err = scarlett2_add_sync_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the direct monitor control */
+	err = scarlett2_add_direct_monitor_ctl(mixer);
 	if (err < 0)
 		return err;
 
