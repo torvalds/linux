@@ -725,8 +725,6 @@ retry:
 		need_retry = false;
 
 		goto retry;
-	} else {
-		WRITE_ONCE(qdisc->empty, true);
 	}
 
 	return skb;
@@ -927,7 +925,6 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
-	sch->empty = true;
 	dev_hold(dev);
 	refcount_set(&sch->refcnt, 1);
 
