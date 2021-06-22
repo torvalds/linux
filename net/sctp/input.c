@@ -645,6 +645,36 @@ int sctp_v4_err(struct sk_buff *skb, __u32 info)
 	return 0;
 }
 
+int sctp_udp_v4_err(struct sock *sk, struct sk_buff *skb)
+{
+	struct net *net = dev_net(skb->dev);
+	struct sctp_association *asoc;
+	struct sctp_transport *t;
+	struct icmphdr *hdr;
+	__u32 info = 0;
+
+	skb->transport_header += sizeof(struct udphdr);
+	sk = sctp_err_lookup(net, AF_INET, skb, sctp_hdr(skb), &asoc, &t);
+	if (!sk) {
+		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
+		return -ENOENT;
+	}
+
+	skb->transport_header -= sizeof(struct udphdr);
+	hdr = (struct icmphdr *)(skb_network_header(skb) - sizeof(struct icmphdr));
+	if (hdr->type == ICMP_REDIRECT) {
+		/* can't be handled without outer iphdr known, leave it to udp_err */
+		sctp_err_finish(sk, t);
+		return 0;
+	}
+	if (hdr->type == ICMP_DEST_UNREACH && hdr->code == ICMP_FRAG_NEEDED)
+		info = ntohs(hdr->un.frag.mtu);
+	sctp_v4_err_handle(t, skb, hdr->type, hdr->code, info);
+
+	sctp_err_finish(sk, t);
+	return 1;
+}
+
 /*
  * RFC 2960, 8.4 - Handle "Out of the blue" Packets.
  *

@@ -145,6 +145,8 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
 void sctp_err_finish(struct sock *, struct sctp_transport *);
+int sctp_udp_v4_err(struct sock *sk, struct sk_buff *skb);
+int sctp_udp_v6_err(struct sock *sk, struct sk_buff *skb);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
 void sctp_icmp_redirect(struct sock *, struct sctp_transport *,

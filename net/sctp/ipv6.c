@@ -188,6 +188,36 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
+int sctp_udp_v6_err(struct sock *sk, struct sk_buff *skb)
+{
+	struct net *net = dev_net(skb->dev);
+	struct sctp_association *asoc;
+	struct sctp_transport *t;
+	struct icmp6hdr *hdr;
+	__u32 info = 0;
+
+	skb->transport_header += sizeof(struct udphdr);
+	sk = sctp_err_lookup(net, AF_INET6, skb, sctp_hdr(skb), &asoc, &t);
+	if (!sk) {
+		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
+		return -ENOENT;
+	}
+
+	skb->transport_header -= sizeof(struct udphdr);
+	hdr = (struct icmp6hdr *)(skb_network_header(skb) - sizeof(struct icmp6hdr));
+	if (hdr->icmp6_type == NDISC_REDIRECT) {
+		/* can't be handled without outer ip6hdr known, leave it to udpv6_err */
+		sctp_err_finish(sk, t);
+		return 0;
+	}
+	if (hdr->icmp6_type == ICMPV6_PKT_TOOBIG)
+		info = ntohl(hdr->icmp6_mtu);
+	sctp_v6_err_handle(t, skb, hdr->icmp6_type, hdr->icmp6_code, info);
+
+	sctp_err_finish(sk, t);
+	return 1;
+}
+
 static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *t)
 {
 	struct dst_entry *dst = dst_clone(t->dst);
