@@ -1843,24 +1843,6 @@ static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	return __kvm_sync_page(vcpu, sp, invalid_list);
 }
 
-/* @gfn should be write-protected at the call site */
-static bool kvm_sync_pages(struct kvm_vcpu *vcpu, gfn_t gfn,
-			   struct list_head *invalid_list)
-{
-	struct kvm_mmu_page *s;
-	bool ret = false;
-
-	for_each_gfn_indirect_valid_sp(vcpu->kvm, s, gfn) {
-		if (!s->unsync)
-			continue;
-
-		WARN_ON(s->role.level != PG_LEVEL_4K);
-		ret |= kvm_sync_page(vcpu, s, invalid_list);
-	}
-
-	return ret;
-}
-
 struct mmu_page_path {
 	struct kvm_mmu_page *parent[PT64_ROOT_MAX_LEVEL];
 	unsigned int idx[PT64_ROOT_MAX_LEVEL];
@@ -1990,8 +1972,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	struct hlist_head *sp_list;
 	unsigned quadrant;
 	struct kvm_mmu_page *sp;
-	bool need_sync = false;
-	bool flush = false;
 	int collisions = 0;
 	LIST_HEAD(invalid_list);
 
@@ -2014,11 +1994,21 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			continue;
 		}
 
-		if (!need_sync && sp->unsync)
-			need_sync = true;
-
-		if (sp->role.word != role.word)
+		if (sp->role.word != role.word) {
+			/*
+			 * If the guest is creating an upper-level page, zap
+			 * unsync pages for the same gfn.  While it's possible
+			 * the guest is using recursive page tables, in all
+			 * likelihood the guest has stopped using the unsync
+			 * page and is installing a completely unrelated page.
+			 * Unsync pages must not be left as is, because the new
+			 * upper-level page will be write-protected.
+			 */
+			if (level > PG_LEVEL_4K && sp->unsync)
+				kvm_mmu_prepare_zap_page(vcpu->kvm, sp,
+							 &invalid_list);
 			continue;
+		}
 
 		if (direct_mmu)
 			goto trace_get_page;
@@ -2052,22 +2042,14 @@ trace_get_page:
 	sp->role = role;
 	hlist_add_head(&sp->hash_link, sp_list);
 	if (!direct) {
-		/*
-		 * we should do write protection before syncing pages
-		 * otherwise the content of the synced shadow page may
-		 * be inconsistent with guest page table.
-		 */
 		account_shadowed(vcpu->kvm, sp);
 		if (level == PG_LEVEL_4K && rmap_write_protect(vcpu, gfn))
 			kvm_flush_remote_tlbs_with_address(vcpu->kvm, gfn, 1);
-
-		if (level > PG_LEVEL_4K && need_sync)
-			flush |= kvm_sync_pages(vcpu, gfn, &invalid_list);
 	}
 	trace_kvm_mmu_get_page(sp, true);
-
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
 out:
+	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
+
 	if (collisions > vcpu->kvm->stat.max_mmu_page_hash_collisions)
 		vcpu->kvm->stat.max_mmu_page_hash_collisions = collisions;
 	return sp;
