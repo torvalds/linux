@@ -176,6 +176,10 @@ static bool vcpu_allowed_register_width(struct kvm_vcpu *vcpu)
 	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1) && is32bit)
 		return false;
 
+	/* MTE is incompatible with AArch32 */
+	if (kvm_has_mte(vcpu->kvm) && is32bit)
+		return false;
+
 	/* Check that the vcpus are either all 32bit or all 64bit */
 	kvm_for_each_vcpu(i, tmp, vcpu->kvm) {
 		if (vcpu_has_feature(tmp, KVM_ARM_VCPU_EL1_32BIT) != is32bit)
