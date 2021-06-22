@@ -342,11 +342,7 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	shortGIrate = query_ra_short_GI(psta);
 
 	if (pcur_network->Configuration.DSConfig > 14) {
-		if (tx_ra_bitmap & 0xffff000)
-			sta_band |= WIRELESS_11_5N;
-
-		if (tx_ra_bitmap & 0xff0)
-			sta_band |= WIRELESS_11A;
+		sta_band |= WIRELESS_INVALID;
 	} else {
 		if (tx_ra_bitmap & 0xffff000)
 			sta_band |= WIRELESS_11_24N;
@@ -412,7 +408,7 @@ void update_bmc_sta(struct adapter *padapter)
 		} else if (network_type == WIRELESS_INVALID) { /*  error handling */
 
 			if (pcur_network->Configuration.DSConfig > 14)
-				network_type = WIRELESS_11A;
+				network_type = WIRELESS_INVALID;
 			else
 				network_type = WIRELESS_11B;
 		}
@@ -1114,9 +1110,6 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	case WIRELESS_11G_24N:
 	case WIRELESS_11BG_24N:
 		pbss_network->NetworkTypeInUse = Ndis802_11OFDM24;
-		break;
-	case WIRELESS_11A:
-		pbss_network->NetworkTypeInUse = Ndis802_11OFDM5;
 		break;
 	default:
 		pbss_network->NetworkTypeInUse = Ndis802_11OFDM24;

@@ -336,7 +336,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _PRE_ALLOCICVHDR_		5
 #define _PRE_ALLOCMICHDR_		6
 
-#define _SIFSTIME_				((priv->pmib->dot11BssType.net_work_type&WIRELESS_11A)?16:10)
 #define _ACKCTSLNG_				14	/* 14 bytes long, including crclng */
 #define _CRCLNG_				4
 

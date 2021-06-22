@@ -377,7 +377,6 @@ u32 ODM_Get_Rate_Bitmap(
 		break;
 
 	case (ODM_WM_G):
-	case (ODM_WM_A):
 		if (rssi_level == DM_RATR_STA_HIGH)
 			rate_bitmap = 0x00000f00;
 		else
@@ -396,7 +395,6 @@ u32 ODM_Get_Rate_Bitmap(
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 	case (ODM_WM_B|ODM_WM_N24G):
 	case (ODM_WM_G|ODM_WM_N24G):
-	case (ODM_WM_A|ODM_WM_N5G):
 		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
 			if (rssi_level == DM_RATR_STA_HIGH)
 				rate_bitmap = 0x000f0000;
@@ -419,34 +417,6 @@ u32 ODM_Get_Rate_Bitmap(
 				else
 					rate_bitmap = 0x0f8ff005;
 			}
-		}
-		break;
-
-	case (ODM_WM_AC|ODM_WM_G):
-		if (rssi_level == 1)
-			rate_bitmap = 0xfc3f0000;
-		else if (rssi_level == 2)
-			rate_bitmap = 0xfffff000;
-		else
-			rate_bitmap = 0xffffffff;
-		break;
-
-	case (ODM_WM_AC|ODM_WM_A):
-
-		if (pDM_Odm->RFType == RF_1T1R) {
-			if (rssi_level == 1)				/*  add by Gary for ac-series */
-				rate_bitmap = 0x003f8000;
-			else if (rssi_level == 2)
-				rate_bitmap = 0x003ff000;
-			else
-				rate_bitmap = 0x003ff010;
-		} else {
-			if (rssi_level == 1)				/*  add by Gary for ac-series */
-				rate_bitmap = 0xfe3f8000;       /*  VHT 2SS MCS3~9 */
-			else if (rssi_level == 2)
-				rate_bitmap = 0xfffff000;       /*  VHT 2SS MCS0~9 */
-			else
-				rate_bitmap = 0xfffff010;       /*  All */
 		}
 		break;
 

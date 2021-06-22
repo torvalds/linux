@@ -512,8 +512,6 @@ static void _InitOperationMode(struct adapter *padapter)
 	case WIRELESS_MODE_B:
 		regBwOpMode = BW_OPMODE_20MHZ;
 		break;
-	case WIRELESS_MODE_A:
-		break;
 	case WIRELESS_MODE_G:
 		regBwOpMode = BW_OPMODE_20MHZ;
 		break;
@@ -524,9 +522,6 @@ static void _InitOperationMode(struct adapter *padapter)
 		/*  It support CCK rate by default. */
 		/*  CCK rate will be filtered out only when associated AP does not support it. */
 		regBwOpMode = BW_OPMODE_20MHZ;
-		break;
-	case WIRELESS_MODE_N_5G:
-		regBwOpMode = BW_OPMODE_5G;
 		break;
 
 	default: /* for MacOSX compiler warning. */

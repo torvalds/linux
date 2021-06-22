@@ -55,9 +55,6 @@ u8 networktype_to_raid_ex(struct adapter *adapter, struct sta_info *psta)
 
 	if (cur_rf_type == RF_1T1R) {
 		rf_type = RF_1T1R;
-	} else if (IsSupportedVHT(psta->wireless_mode)) {
-		if (psta->ra_mask & 0xffc00000)
-			rf_type = RF_2T2R;
 	} else if (IsSupportedHT(psta->wireless_mode)) {
 		if (psta->ra_mask & 0xfff00000)
 			rf_type = RF_2T2R;
@@ -67,7 +64,6 @@ u8 networktype_to_raid_ex(struct adapter *adapter, struct sta_info *psta)
 	case WIRELESS_11B:
 		raid = RATEID_IDX_B;
 		break;
-	case WIRELESS_11A:
 	case WIRELESS_11G:
 		raid = RATEID_IDX_G;
 		break;
@@ -75,8 +71,6 @@ u8 networktype_to_raid_ex(struct adapter *adapter, struct sta_info *psta)
 		raid = RATEID_IDX_BG;
 		break;
 	case WIRELESS_11_24N:
-	case WIRELESS_11_5N:
-	case WIRELESS_11A_5N:
 	case WIRELESS_11G_24N:
 		if (rf_type == RF_2T2R)
 			raid = RATEID_IDX_GN_N2SS;
@@ -827,7 +821,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 
 		AIFS = aSifsTime + (2 * pmlmeinfo->slotTime);
 
-		if (pmlmeext->cur_wireless_mode & (WIRELESS_11G | WIRELESS_11A)) {
+		if (pmlmeext->cur_wireless_mode & WIRELESS_11G) {
 			ECWMin = 4;
 			ECWMax = 10;
 		} else if (pmlmeext->cur_wireless_mode & WIRELESS_11B) {
@@ -1623,7 +1617,7 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 		pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
 	} else {
 		/* Filen: See 802.11-2007 p.90 */
-		if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N | WIRELESS_11A | WIRELESS_11_5N | WIRELESS_11AC)) {
+		if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N)) {
 			pmlmeinfo->slotTime = SHORT_SLOT_TIME;
 		} else if (pmlmeext->cur_wireless_mode & (WIRELESS_11G)) {
 			if ((updateCap & cShortSlotTime) /* && (!(pMgntInfo->pHTInfo->RT2RT_HT_Mode & RT_HT_CAP_USE_LONG_PREAMBLE)) */)
@@ -1653,9 +1647,7 @@ void update_wireless_mode(struct adapter *padapter)
 	if ((pmlmeinfo->HT_info_enable) && (pmlmeinfo->HT_caps_enable))
 		pmlmeinfo->HT_enable = 1;
 
-	if (pmlmeinfo->VHT_enable)
-		network_type = WIRELESS_11AC;
-	else if (pmlmeinfo->HT_enable)
+	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
 
 	if (rtw_is_cckratesonly_included(rate))

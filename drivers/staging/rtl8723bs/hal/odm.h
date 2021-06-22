@@ -455,11 +455,8 @@ enum { /* tag_Wireless_Mode_Definition */
 	ODM_WM_UNKNOWN    = 0x0,
 	ODM_WM_B          = BIT0,
 	ODM_WM_G          = BIT1,
-	ODM_WM_A          = BIT2,
 	ODM_WM_N24G       = BIT3,
-	ODM_WM_N5G        = BIT4,
 	ODM_WM_AUTO       = BIT5,
-	ODM_WM_AC         = BIT6,
 };
 
 /*  ODM_CMNINFO_BAND */

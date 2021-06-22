@@ -4478,61 +4478,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			}
 		}
 
-		if (pregistrypriv->wireless_mode & WIRELESS_11A) {
-			do {
-				if ((i == MAX_CHANNEL_NUM) ||
-					(chplan_sta[i].ChannelNum == 0))
-					break;
-
-				if ((j == chplan_ap.Len) || (chplan_ap.Channel[j] == 0))
-					break;
-
-				if (chplan_sta[i].ChannelNum == chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-					chplan_new[k].ScanType = SCAN_ACTIVE;
-					i++;
-					j++;
-					k++;
-				} else if (chplan_sta[i].ChannelNum < chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-/* 					chplan_new[k].ScanType = chplan_sta[i].ScanType; */
-					chplan_new[k].ScanType = SCAN_PASSIVE;
-					i++;
-					k++;
-				} else if (chplan_sta[i].ChannelNum > chplan_ap.Channel[j]) {
-					chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-					chplan_new[k].ScanType = SCAN_ACTIVE;
-					j++;
-					k++;
-				}
-			} while (1);
-
-			/*  change AP not support channel to Passive scan */
-			while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-				chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-/* 				chplan_new[k].ScanType = chplan_sta[i].ScanType; */
-				chplan_new[k].ScanType = SCAN_PASSIVE;
-				i++;
-				k++;
-			}
-
-			/*  add channel AP supported */
-			while ((j < chplan_ap.Len) && (chplan_ap.Channel[j] != 0)) {
-				chplan_new[k].ChannelNum = chplan_ap.Channel[j];
-				chplan_new[k].ScanType = SCAN_ACTIVE;
-				j++;
-				k++;
-			}
-		} else {
-			/*  keep original STA 5G channel plan */
-			while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-				chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-				chplan_new[k].ScanType = chplan_sta[i].ScanType;
-				i++;
-				k++;
-			}
-		}
-
 		pmlmeext->update_channel_plan_by_ap_done = 1;
 	}
 
