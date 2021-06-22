@@ -4504,12 +4504,12 @@ static void update_pkru_bitmask(struct kvm_mmu *mmu)
 	}
 }
 
-static void update_last_nonleaf_level(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+static void update_last_nonleaf_level(struct kvm_mmu *mmu)
 {
 	unsigned root_level = mmu->root_level;
 
 	mmu->last_nonleaf_level = root_level;
-	if (root_level == PT32_ROOT_LEVEL && is_pse(vcpu))
+	if (root_level == PT32_ROOT_LEVEL && is_cr4_pse(mmu))
 		mmu->last_nonleaf_level++;
 }
 
@@ -4666,7 +4666,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 	update_permission_bitmask(context, false);
 	update_pkru_bitmask(context);
-	update_last_nonleaf_level(vcpu, context);
+	update_last_nonleaf_level(context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
@@ -4724,7 +4724,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 		reset_rsvds_bits_mask(vcpu, context);
 		update_permission_bitmask(context, false);
 		update_pkru_bitmask(context);
-		update_last_nonleaf_level(vcpu, context);
+		update_last_nonleaf_level(context);
 	}
 	context->shadow_root_level = new_role.base.level;
 
@@ -4831,7 +4831,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->direct_map = false;
 
 	update_permission_bitmask(context, true);
-	update_last_nonleaf_level(vcpu, context);
+	update_last_nonleaf_level(context);
 	update_pkru_bitmask(context);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
@@ -4929,7 +4929,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 
 	update_permission_bitmask(g_context, false);
 	update_pkru_bitmask(g_context);
-	update_last_nonleaf_level(vcpu, g_context);
+	update_last_nonleaf_level(g_context);
 }
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu)
