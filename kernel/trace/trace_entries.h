@@ -360,3 +360,28 @@ FTRACE_ENTRY(func_repeats, func_repeats_entry,
 		 __entry->count,
 		 FUNC_REPEATS_GET_DELTA_TS(__entry))
 );
+
+FTRACE_ENTRY(osnoise, osnoise_entry,
+
+	TRACE_OSNOISE,
+
+	F_STRUCT(
+		__field(	u64,			noise		)
+		__field(	u64,			runtime		)
+		__field(	u64,			max_sample	)
+		__field(	unsigned int,		hw_count	)
+		__field(	unsigned int,		nmi_count	)
+		__field(	unsigned int,		irq_count	)
+		__field(	unsigned int,		softirq_count	)
+		__field(	unsigned int,		thread_count	)
+	),
+
+	F_printk("noise:%llu\tmax_sample:%llu\thw:%u\tnmi:%u\tirq:%u\tsoftirq:%u\tthread:%u\n",
+		 __entry->noise,
+		 __entry->max_sample,
+		 __entry->hw_count,
+		 __entry->nmi_count,
+		 __entry->irq_count,
+		 __entry->softirq_count,
+		 __entry->thread_count)
+);
