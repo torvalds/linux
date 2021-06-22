@@ -4791,19 +4791,15 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	case FS_SECTOR_SIZE_INFORMATION:
 	{
 		struct smb3_fs_ss_info *info;
-		struct ksmbd_fs_sector_size fs_ss;
 
 		info = (struct smb3_fs_ss_info *)(rsp->Buffer);
-		ksmbd_vfs_smb2_sector_size(d_inode(path.dentry), &fs_ss);
 
-		info->LogicalBytesPerSector =
-				cpu_to_le32(fs_ss.logical_sector_size);
+		info->LogicalBytesPerSector = cpu_to_le32(stfs.f_bsize);
 		info->PhysicalBytesPerSectorForAtomicity =
-				cpu_to_le32(fs_ss.physical_sector_size);
-		info->PhysicalBytesPerSectorForPerf =
-				cpu_to_le32(fs_ss.optimal_io_size);
+				cpu_to_le32(stfs.f_bsize);
+		info->PhysicalBytesPerSectorForPerf = cpu_to_le32(stfs.f_bsize);
 		info->FSEffPhysicalBytesPerSectorForAtomicity =
-				cpu_to_le32(fs_ss.optimal_io_size);
+				cpu_to_le32(stfs.f_bsize);
 		info->Flags = cpu_to_le32(SSINFO_FLAGS_ALIGNED_DEVICE |
 				    SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE);
 		info->ByteOffsetForSectorAlignment = 0;

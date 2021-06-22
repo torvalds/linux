@@ -192,12 +192,6 @@ struct ksmbd_kstat {
 	__le32			file_attributes;
 };
 
-struct ksmbd_fs_sector_size {
-	unsigned short	logical_sector_size;
-	unsigned int	physical_sector_size;
-	unsigned int	optimal_io_size;
-};
-
 int ksmbd_vfs_inode_permission(struct dentry *dentry, int acc_mode,
 			       bool delete);
 int ksmbd_vfs_query_maximal_access(struct dentry *dentry, __le32 *daccess);
@@ -247,8 +241,6 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 			 struct file_allocated_range_buffer *ranges,
 			 int in_count, int *out_count);
 int ksmbd_vfs_unlink(struct dentry *dir, struct dentry *dentry);
-void ksmbd_vfs_smb2_sector_size(struct inode *inode,
-				struct ksmbd_fs_sector_size *fs_ss);
 void *ksmbd_vfs_init_kstat(char **p, struct ksmbd_kstat *ksmbd_kstat);
 int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work, struct dentry *dentry,
 				struct ksmbd_kstat *ksmbd_kstat);
