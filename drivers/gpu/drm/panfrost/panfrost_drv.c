@@ -138,12 +138,6 @@ panfrost_lookup_bos(struct drm_device *dev,
 	if (!job->bo_count)
 		return 0;
 
-	job->implicit_fences = kvmalloc_array(job->bo_count,
-				  sizeof(struct dma_fence *),
-				  GFP_KERNEL | __GFP_ZERO);
-	if (!job->implicit_fences)
-		return -ENOMEM;
-
 	ret = drm_gem_objects_lookup(file_priv,
 				     (void __user *)(uintptr_t)args->bo_handles,
 				     job->bo_count, &job->bos);
@@ -174,7 +168,7 @@ panfrost_lookup_bos(struct drm_device *dev,
 }
 
 /**
- * panfrost_copy_in_sync() - Sets up job->in_fences[] with the sync objects
+ * panfrost_copy_in_sync() - Sets up job->deps with the sync objects
  * referenced by the job.
  * @dev: DRM device
  * @file_priv: DRM file for this fd
@@ -194,22 +188,14 @@ panfrost_copy_in_sync(struct drm_device *dev,
 {
 	u32 *handles;
 	int ret = 0;
-	int i;
+	int i, in_fence_count;
 
-	job->in_fence_count = args->in_sync_count;
+	in_fence_count = args->in_sync_count;
 
-	if (!job->in_fence_count)
+	if (!in_fence_count)
 		return 0;
 
-	job->in_fences = kvmalloc_array(job->in_fence_count,
-					sizeof(struct dma_fence *),
-					GFP_KERNEL | __GFP_ZERO);
-	if (!job->in_fences) {
-		DRM_DEBUG("Failed to allocate job in fences\n");
-		return -ENOMEM;
-	}
-
-	handles = kvmalloc_array(job->in_fence_count, sizeof(u32), GFP_KERNEL);
+	handles = kvmalloc_array(in_fence_count, sizeof(u32), GFP_KERNEL);
 	if (!handles) {
 		ret = -ENOMEM;
 		DRM_DEBUG("Failed to allocate incoming syncobj handles\n");
@@ -218,16 +204,23 @@ panfrost_copy_in_sync(struct drm_device *dev,
 
 	if (copy_from_user(handles,
 			   (void __user *)(uintptr_t)args->in_syncs,
-			   job->in_fence_count * sizeof(u32))) {
+			   in_fence_count * sizeof(u32))) {
 		ret = -EFAULT;
 		DRM_DEBUG("Failed to copy in syncobj handles\n");
 		goto fail;
 	}
 
-	for (i = 0; i < job->in_fence_count; i++) {
+	for (i = 0; i < in_fence_count; i++) {
+		struct dma_fence *fence;
+
 		ret = drm_syncobj_find_fence(file_priv, handles[i], 0, 0,
-					     &job->in_fences[i]);
-		if (ret == -EINVAL)
+					     &fence);
+		if (ret)
+			goto fail;
+
+		ret = drm_gem_fence_array_add(&job->deps, fence);
+
+		if (ret)
 			goto fail;
 	}
 
@@ -264,6 +257,8 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	}
 
 	kref_init(&job->refcount);
+
+	xa_init_flags(&job->deps, XA_FLAGS_ALLOC);
 
 	job->pfdev = pfdev;
 	job->jc = args->jc;
