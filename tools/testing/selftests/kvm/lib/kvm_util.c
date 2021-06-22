@@ -365,7 +365,7 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
 	pages = vm_adjust_num_guest_pages(mode, pages);
 	vm = vm_create(mode, pages, O_RDWR);
 
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+	kvm_vm_elf_load(vm, program_invocation_name);
 
 #ifdef __x86_64__
 	vm_create_irqchip(vm);

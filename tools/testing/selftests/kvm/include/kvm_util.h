@@ -98,8 +98,7 @@ uint32_t kvm_vm_reset_dirty_ring(struct kvm_vm *vm);
 int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, const vm_vaddr_t gva,
 		       size_t len);
 
-void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
-		     uint32_t data_memslot, uint32_t pgd_memslot);
+void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename);
 
 void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
 
