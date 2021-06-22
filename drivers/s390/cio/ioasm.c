@@ -158,11 +158,11 @@ int tpi(struct tpi_info *addr)
 	int ccode;
 
 	asm volatile(
-		"	tpi	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode), "=m" (*addr)
-		: "a" (addr)
+		"	tpi	%[addr]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28"
+		: [cc] "=&d" (ccode), [addr] "=Q" (*addr)
+		:
 		: "cc");
 	trace_s390_cio_tpi(addr, ccode);
 
@@ -175,13 +175,13 @@ int chsc(void *chsc_area)
 	int cc = -EIO;
 
 	asm volatile(
-		"	.insn	rre,0xb25f0000,%2,0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"	.insn	rre,0xb25f0000,%[chsc_area],0\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (cc), "=m" (*(addr_type *) chsc_area)
-		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
+		: [cc] "+&d" (cc), "+m" (*(addr_type *)chsc_area)
+		: [chsc_area] "d" (chsc_area)
 		: "cc");
 	trace_s390_cio_chsc(chsc_area, cc);
 
@@ -273,11 +273,11 @@ static inline int __stcrw(struct crw *crw)
 	int ccode;
 
 	asm volatile(
-		"	stcrw	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "=m" (*crw)
-		: "a" (crw)
+		"	stcrw	%[crw]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode), [crw] "=Q" (*crw)
+		:
 		: "cc");
 	return ccode;
 }
