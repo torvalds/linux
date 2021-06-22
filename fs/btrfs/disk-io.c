@@ -4680,9 +4680,6 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			cache->space_info->bytes_reserved -= head->num_bytes;
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
-			percpu_counter_add_batch(
-				&cache->space_info->total_bytes_pinned,
-				head->num_bytes, BTRFS_TOTAL_BYTES_PINNED_BATCH);
 
 			btrfs_put_block_group(cache);
 
