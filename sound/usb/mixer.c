@@ -3631,6 +3631,9 @@ static int restore_mixer_value(struct usb_mixer_elem_list *list)
 	struct usb_mixer_elem_info *cval = mixer_elem_list_to_info(list);
 	int c, err, idx;
 
+	if (cval->val_type == USB_MIXER_BESPOKEN)
+		return 0;
+
 	if (cval->cmask) {
 		idx = 0;
 		for (c = 0; c < MAX_CHANNELS; c++) {
