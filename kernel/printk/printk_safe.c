@@ -391,6 +391,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	/* No obstacles. */
 	return vprintk_default(fmt, args);
 }
+EXPORT_SYMBOL(vprintk);
 
 void __init printk_safe_init(void)
 {
@@ -411,4 +412,3 @@ void __init printk_safe_init(void)
 	/* Flush pending messages that did not have scheduled IRQ works. */
 	printk_safe_flush();
 }
-EXPORT_SYMBOL(vprintk);

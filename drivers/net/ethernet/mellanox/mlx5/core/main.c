@@ -1161,7 +1161,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 	err = mlx5_core_set_hca_defaults(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to set hca defaults\n");
-		goto err_sriov;
+		goto err_set_hca;
 	}
 
 	mlx5_vhca_event_start(dev);
@@ -1194,6 +1194,7 @@ err_ec:
 	mlx5_sf_hw_table_destroy(dev);
 err_vhca:
 	mlx5_vhca_event_stop(dev);
+err_set_hca:
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_accel_tls_cleanup(dev);
