@@ -133,18 +133,13 @@
  *     operations, however they won't be usable until the transaction commits.
  *
  *   COMMIT_TRANS
- *     may_commit_transaction() is the ultimate arbiter on whether we commit the
- *     transaction or not.  In order to avoid constantly churning we do all the
- *     above flushing first and then commit the transaction as the last resort.
- *     However we need to take into account things like pinned space that would
- *     be freed, plus any delayed work we may not have gotten rid of in the case
- *     of metadata.
- *
- *   FORCE_COMMIT_TRANS
- *     For use by the preemptive flusher.  We use this to bypass the ticketing
- *     checks in may_commit_transaction, as we have more information about the
- *     overall state of the system and may want to commit the transaction ahead
- *     of actual ENOSPC conditions.
+ *     This will commit the transaction.  Historically we had a lot of logic
+ *     surrounding whether or not we'd commit the transaction, but this waits born
+ *     out of a pre-tickets era where we could end up committing the transaction
+ *     thousands of times in a row without making progress.  Now thanks to our
+ *     ticketing system we know if we're not making progress and can error
+ *     everybody out after a few commits rather than burning the disk hoping for
+ *     a different answer.
  *
  * OVERCOMMIT
  *
@@ -575,109 +570,6 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 	}
 }
 
-/**
- * Possibly commit the transaction if its ok to
- *
- * @fs_info:    the filesystem
- * @space_info: space_info we are checking for commit, either data or metadata
- *
- * This will check to make sure that committing the transaction will actually
- * get us somewhere and then commit the transaction if it does.  Otherwise it
- * will return -ENOSPC.
- */
-static int may_commit_transaction(struct btrfs_fs_info *fs_info,
-				  struct btrfs_space_info *space_info)
-{
-	struct reserve_ticket *ticket = NULL;
-	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_block_rsv;
-	struct btrfs_block_rsv *delayed_refs_rsv = &fs_info->delayed_refs_rsv;
-	struct btrfs_block_rsv *trans_rsv = &fs_info->trans_block_rsv;
-	struct btrfs_trans_handle *trans;
-	u64 reclaim_bytes = 0;
-	u64 bytes_needed = 0;
-	u64 cur_free_bytes = 0;
-
-	trans = (struct btrfs_trans_handle *)current->journal_info;
-	if (trans)
-		return -EAGAIN;
-
-	spin_lock(&space_info->lock);
-	cur_free_bytes = btrfs_space_info_used(space_info, true);
-	if (cur_free_bytes < space_info->total_bytes)
-		cur_free_bytes = space_info->total_bytes - cur_free_bytes;
-	else
-		cur_free_bytes = 0;
-
-	if (!list_empty(&space_info->priority_tickets))
-		ticket = list_first_entry(&space_info->priority_tickets,
-					  struct reserve_ticket, list);
-	else if (!list_empty(&space_info->tickets))
-		ticket = list_first_entry(&space_info->tickets,
-					  struct reserve_ticket, list);
-	if (ticket)
-		bytes_needed = ticket->bytes;
-
-	if (bytes_needed > cur_free_bytes)
-		bytes_needed -= cur_free_bytes;
-	else
-		bytes_needed = 0;
-	spin_unlock(&space_info->lock);
-
-	if (!bytes_needed)
-		return 0;
-
-	trans = btrfs_join_transaction(fs_info->extent_root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-
-	/*
-	 * See if there is enough pinned space to make this reservation, or if
-	 * we have block groups that are going to be freed, allowing us to
-	 * possibly do a chunk allocation the next loop through.
-	 */
-	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &trans->transaction->flags) ||
-	    __percpu_counter_compare(&space_info->total_bytes_pinned,
-				     bytes_needed,
-				     BTRFS_TOTAL_BYTES_PINNED_BATCH) >= 0)
-		goto commit;
-
-	/*
-	 * See if there is some space in the delayed insertion reserve for this
-	 * reservation.  If the space_info's don't match (like for DATA or
-	 * SYSTEM) then just go enospc, reclaiming this space won't recover any
-	 * space to satisfy those reservations.
-	 */
-	if (space_info != delayed_rsv->space_info)
-		goto enospc;
-
-	spin_lock(&delayed_rsv->lock);
-	reclaim_bytes += delayed_rsv->reserved;
-	spin_unlock(&delayed_rsv->lock);
-
-	spin_lock(&delayed_refs_rsv->lock);
-	reclaim_bytes += delayed_refs_rsv->reserved;
-	spin_unlock(&delayed_refs_rsv->lock);
-
-	spin_lock(&trans_rsv->lock);
-	reclaim_bytes += trans_rsv->reserved;
-	spin_unlock(&trans_rsv->lock);
-
-	if (reclaim_bytes >= bytes_needed)
-		goto commit;
-	bytes_needed -= reclaim_bytes;
-
-	if (__percpu_counter_compare(&space_info->total_bytes_pinned,
-				   bytes_needed,
-				   BTRFS_TOTAL_BYTES_PINNED_BATCH) < 0)
-		goto enospc;
-
-commit:
-	return btrfs_commit_transaction(trans);
-enospc:
-	btrfs_end_transaction(trans);
-	return -ENOSPC;
-}
-
 /*
  * Try to flush some data based on policy set by @state. This is only advisory
  * and may fail for various reasons. The caller is supposed to examine the
@@ -752,9 +644,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		btrfs_wait_on_delayed_iputs(fs_info);
 		break;
 	case COMMIT_TRANS:
-		ret = may_commit_transaction(fs_info, space_info);
-		break;
-	case FORCE_COMMIT_TRANS:
+		ASSERT(current->journal_info == NULL);
 		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
@@ -1136,7 +1026,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 			   (delayed_block_rsv->reserved +
 			    delayed_refs_rsv->reserved)) {
 			to_reclaim = space_info->bytes_pinned;
-			flush = FORCE_COMMIT_TRANS;
+			flush = COMMIT_TRANS;
 		} else if (delayed_block_rsv->reserved >
 			   delayed_refs_rsv->reserved) {
 			to_reclaim = delayed_block_rsv->reserved;
@@ -1206,12 +1096,8 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
  *   the information it needs to make the right decision.
  *
  * COMMIT_TRANS
- *   This is where we reclaim all of the pinned space generated by the previous
- *   two stages.  We will not commit the transaction if we don't think we're
- *   likely to satisfy our request, which means if our current free space +
- *   total_bytes_pinned < reservation we will not commit.  This is why the
- *   previous states are actually important, to make sure we know for sure
- *   whether committing the transaction will allow us to make progress.
+ *   This is where we reclaim all of the pinned space generated by running the
+ *   iputs
  *
  * ALLOC_CHUNK_FORCE
  *   For data we start with alloc chunk force, however we could have been full
