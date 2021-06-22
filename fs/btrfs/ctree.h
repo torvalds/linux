@@ -823,8 +823,6 @@ struct btrfs_fs_info {
 	struct kobject *space_info_kobj;
 	struct kobject *qgroups_kobj;
 
-	u64 total_pinned;
-
 	/* used to keep from writing metadata until there is a nice batch */
 	struct percpu_counter dirty_metadata_bytes;
 	struct percpu_counter delalloc_bytes;
