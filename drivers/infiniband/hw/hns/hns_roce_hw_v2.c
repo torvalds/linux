@@ -4556,6 +4556,11 @@ enum {
 	DIP_VALID,
 };
 
+enum {
+	WND_LIMIT,
+	WND_UNLIMIT,
+};
+
 static int check_cong_type(struct ib_qp *ibqp,
 			   struct hns_roce_congestion_algorithm *cong_alg)
 {
@@ -4567,21 +4572,25 @@ static int check_cong_type(struct ib_qp *ibqp,
 		cong_alg->alg_sel = CONG_DCQCN;
 		cong_alg->alg_sub_sel = UNSUPPORT_CONG_LEVEL;
 		cong_alg->dip_vld = DIP_INVALID;
+		cong_alg->wnd_mode_sel = WND_LIMIT;
 		break;
 	case CONG_TYPE_LDCP:
 		cong_alg->alg_sel = CONG_WINDOW;
 		cong_alg->alg_sub_sel = CONG_LDCP;
 		cong_alg->dip_vld = DIP_INVALID;
+		cong_alg->wnd_mode_sel = WND_UNLIMIT;
 		break;
 	case CONG_TYPE_HC3:
 		cong_alg->alg_sel = CONG_WINDOW;
 		cong_alg->alg_sub_sel = CONG_HC3;
 		cong_alg->dip_vld = DIP_INVALID;
+		cong_alg->wnd_mode_sel = WND_LIMIT;
 		break;
 	case CONG_TYPE_DIP:
 		cong_alg->alg_sel = CONG_DCQCN;
 		cong_alg->alg_sub_sel = UNSUPPORT_CONG_LEVEL;
 		cong_alg->dip_vld = DIP_VALID;
+		cong_alg->wnd_mode_sel = WND_LIMIT;
 		break;
 	default:
 		ibdev_err(&hr_dev->ib_dev,
@@ -4622,6 +4631,9 @@ static int fill_cong_field(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	hr_reg_clear(&qpc_mask->ext, QPCEX_CONG_ALG_SUB_SEL);
 	hr_reg_write(&context->ext, QPCEX_DIP_CTX_IDX_VLD, cong_field.dip_vld);
 	hr_reg_clear(&qpc_mask->ext, QPCEX_DIP_CTX_IDX_VLD);
+	hr_reg_write(&context->ext, QPCEX_SQ_RQ_NOT_FORBID_EN,
+		     cong_field.wnd_mode_sel);
+	hr_reg_clear(&qpc_mask->ext, QPCEX_SQ_RQ_NOT_FORBID_EN);
 
 	/* if dip is disabled, there is no need to set dip idx */
 	if (cong_field.dip_vld == 0)
