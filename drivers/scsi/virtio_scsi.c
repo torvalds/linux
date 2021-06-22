@@ -156,12 +156,11 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 
 	WARN_ON(virtio32_to_cpu(vscsi->vdev, resp->sense_len) >
 		VIRTIO_SCSI_SENSE_SIZE);
-	if (sc->sense_buffer) {
+	if (resp->sense_len) {
 		memcpy(sc->sense_buffer, resp->sense,
 		       min_t(u32,
 			     virtio32_to_cpu(vscsi->vdev, resp->sense_len),
 			     VIRTIO_SCSI_SENSE_SIZE));
-		set_status_byte(sc, SAM_STAT_CHECK_CONDITION);
 	}
 
 	sc->scsi_done(sc);
