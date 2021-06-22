@@ -11,7 +11,6 @@
 #include "../kvm_util_internal.h"
 #include "processor.h"
 
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
 #define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000
 
 static uint64_t page_align(struct kvm_vm *vm, uint64_t v)
@@ -104,25 +103,19 @@ static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		paddr, vm->max_gfn, vm->page_size);
 
 	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, vaddr) * 8;
-	if (!*ptep) {
-		*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
-		*ptep |= 3;
-	}
+	if (!*ptep)
+		*ptep = vm_alloc_page_table(vm) | 3;
 
 	switch (vm->pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = vm_alloc_page_table(vm) | 3;
 		/* fall through */
 	case 3:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pmd_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = vm_alloc_page_table(vm) | 3;
 		/* fall through */
 	case 2:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pte_index(vm, vaddr) * 8;

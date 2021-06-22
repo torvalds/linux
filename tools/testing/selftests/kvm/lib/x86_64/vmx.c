@@ -426,9 +426,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	/* Allocate page directory pointer table if not present. */
 	pml4e = vmx->eptp_hva;
 	if (!pml4e[index[3]].readable) {
-		pml4e[index[3]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
-			>> vm->page_shift;
+		pml4e[index[3]].address = vm_alloc_page_table(vm) >> vm->page_shift;
 		pml4e[index[3]].writable = true;
 		pml4e[index[3]].readable = true;
 		pml4e[index[3]].executable = true;
@@ -438,9 +436,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	struct eptPageTableEntry *pdpe;
 	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
 	if (!pdpe[index[2]].readable) {
-		pdpe[index[2]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
-			>> vm->page_shift;
+		pdpe[index[2]].address = vm_alloc_page_table(vm) >> vm->page_shift;
 		pdpe[index[2]].writable = true;
 		pdpe[index[2]].readable = true;
 		pdpe[index[2]].executable = true;
@@ -450,9 +446,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	struct eptPageTableEntry *pde;
 	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
 	if (!pde[index[1]].readable) {
-		pde[index[1]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
-			>> vm->page_shift;
+		pde[index[1]].address = vm_alloc_page_table(vm) >> vm->page_shift;
 		pde[index[1]].writable = true;
 		pde[index[1]].readable = true;
 		pde[index[1]].executable = true;

@@ -9,8 +9,6 @@
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
 
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
-
 #define PAGES_PER_REGION 4
 
 void virt_pgd_alloc(struct kvm_vm *vm)
