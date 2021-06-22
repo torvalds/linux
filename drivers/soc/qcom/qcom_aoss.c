@@ -537,6 +537,7 @@ static int qmp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request interrupt\n");
 		goto err_free_mbox;
 	}
+	enable_irq_wake(irq);
 
 	ret = qmp_open(qmp);
 	if (ret < 0)
