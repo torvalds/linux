@@ -171,7 +171,7 @@ static struct irq_chip iproc_msi_irq_chip = {
 
 static struct msi_domain_info iproc_msi_domain_info = {
 	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+		MSI_FLAG_PCI_MSIX,
 	.chip = &iproc_msi_irq_chip,
 };
 
@@ -249,6 +249,9 @@ static int iproc_msi_irq_domain_alloc(struct irq_domain *domain,
 {
 	struct iproc_msi *msi = domain->host_data;
 	int hwirq, i;
+
+	if (msi->nr_cpus > 1 && nr_irqs > 1)
+		return -EINVAL;
 
 	mutex_lock(&msi->bitmap_lock);
 
@@ -539,6 +542,9 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	msi->msi_addr = pcie->base_addr;
 	mutex_init(&msi->bitmap_lock);
 	msi->nr_cpus = num_possible_cpus();
+
+	if (msi->nr_cpus == 1)
+		iproc_msi_domain_info.flags |=  MSI_FLAG_MULTI_PCI_MSI;
 
 	msi->nr_irqs = of_irq_count(node);
 	if (!msi->nr_irqs) {
