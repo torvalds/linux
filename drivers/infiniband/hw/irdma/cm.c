@@ -3675,14 +3675,14 @@ int irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ibmr->device = iwpd->ibpd.device;
 	iwqp->lsmm_mr = ibmr;
 	if (iwqp->page)
-		iwqp->sc_qp.qp_uk.sq_base = kmap(iwqp->page);
+		iwqp->sc_qp.qp_uk.sq_base = kmap_local_page(iwqp->page);
 
 	cm_node->lsmm_size = accept.size + conn_param->private_data_len;
 	irdma_sc_send_lsmm(&iwqp->sc_qp, iwqp->ietf_mem.va, cm_node->lsmm_size,
 			   ibmr->lkey);
 
 	if (iwqp->page)
-		kunmap(iwqp->page);
+		kunmap_local(iwqp->sc_qp.qp_uk.sq_base);
 
 	iwqp->cm_id = cm_id;
 	cm_node->cm_id = cm_id;
@@ -4093,10 +4093,10 @@ static void irdma_cm_event_connected(struct irdma_cm_event *event)
 	irdma_cm_init_tsa_conn(iwqp, cm_node);
 	read0 = (cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO);
 	if (iwqp->page)
-		iwqp->sc_qp.qp_uk.sq_base = kmap(iwqp->page);
+		iwqp->sc_qp.qp_uk.sq_base = kmap_local_page(iwqp->page);
 	irdma_sc_send_rtt(&iwqp->sc_qp, read0);
 	if (iwqp->page)
-		kunmap(iwqp->page);
+		kunmap_local(iwqp->sc_qp.qp_uk.sq_base);
 
 	attr.qp_state = IB_QPS_RTS;
 	cm_node->qhash_set = false;
