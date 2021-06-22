@@ -466,6 +466,7 @@ static void stop_cpu_kthread(unsigned int cpu)
 	kthread = per_cpu(hwlat_per_cpu_data, cpu).kthread;
 	if (kthread)
 		kthread_stop(kthread);
+	per_cpu(hwlat_per_cpu_data, cpu).kthread = NULL;
 }
 
 /*
@@ -505,6 +506,68 @@ static int start_cpu_kthread(unsigned int cpu)
 
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void hwlat_hotplug_workfn(struct work_struct *dummy)
+{
+	struct trace_array *tr = hwlat_trace;
+	unsigned int cpu = smp_processor_id();
+
+	mutex_lock(&trace_types_lock);
+	mutex_lock(&hwlat_data.lock);
+	get_online_cpus();
+
+	if (!hwlat_busy || hwlat_data.thread_mode != MODE_PER_CPU)
+		goto out_unlock;
+
+	if (!cpumask_test_cpu(cpu, tr->tracing_cpumask))
+		goto out_unlock;
+
+	start_cpu_kthread(cpu);
+
+out_unlock:
+	put_online_cpus();
+	mutex_unlock(&hwlat_data.lock);
+	mutex_unlock(&trace_types_lock);
+}
+
+static DECLARE_WORK(hwlat_hotplug_work, hwlat_hotplug_workfn);
+
+/*
+ * hwlat_cpu_init - CPU hotplug online callback function
+ */
+static int hwlat_cpu_init(unsigned int cpu)
+{
+	schedule_work_on(cpu, &hwlat_hotplug_work);
+	return 0;
+}
+
+/*
+ * hwlat_cpu_die - CPU hotplug offline callback function
+ */
+static int hwlat_cpu_die(unsigned int cpu)
+{
+	stop_cpu_kthread(cpu);
+	return 0;
+}
+
+static void hwlat_init_hotplug_support(void)
+{
+	int ret;
+
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "trace/hwlat:online",
+				hwlat_cpu_init, hwlat_cpu_die);
+	if (ret < 0)
+		pr_warn(BANNER "Error to init cpu hotplug support\n");
+
+	return;
+}
+#else /* CONFIG_HOTPLUG_CPU */
+static void hwlat_init_hotplug_support(void)
+{
+	return;
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 /*
  * start_per_cpu_kthreads - Kick off the hardware latency sampling/detector kthreads
@@ -821,6 +884,8 @@ __init static int init_hwlat_tracer(void)
 	ret = register_tracer(&hwlat_tracer);
 	if (ret)
 		return ret;
+
+	hwlat_init_hotplug_support();
 
 	init_tracefs();
 
