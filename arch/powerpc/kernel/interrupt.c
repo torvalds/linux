@@ -3,6 +3,7 @@
 #include <linux/context_tracking.h>
 #include <linux/err.h>
 #include <linux/compat.h>
+#include <linux/sched/debug.h> /* for show_regs */
 
 #include <asm/asm-prototypes.h>
 #include <asm/kup.h>
@@ -215,6 +216,88 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
+static void check_return_regs_valid(struct pt_regs *regs)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	unsigned long trap, srr0, srr1;
+	static bool warned;
+	u8 *validp;
+	char *h;
+
+	if (regs->trap == 0x3000)
+		return;
+
+	trap = regs->trap;
+	// EE in HV mode sets HSRRs like 0xea0
+	if (cpu_has_feature(CPU_FTR_HVMODE) && trap == 0x500)
+		trap = 0xea0;
+
+	switch (trap) {
+	case 0x980:
+	case INTERRUPT_H_DATA_STORAGE:
+	case 0xe20:
+	case 0xe40:
+	case INTERRUPT_HMI:
+	case 0xe80:
+	case 0xea0:
+	case INTERRUPT_H_FAC_UNAVAIL:
+	case 0x1200:
+	case 0x1500:
+	case 0x1600:
+	case 0x1800:
+		validp = &local_paca->hsrr_valid;
+		if (!*validp)
+			return;
+
+		srr0 = mfspr(SPRN_HSRR0);
+		srr1 = mfspr(SPRN_HSRR1);
+		h = "H";
+
+		break;
+	default:
+		validp = &local_paca->srr_valid;
+		if (!*validp)
+			return;
+
+		srr0 = mfspr(SPRN_SRR0);
+		srr1 = mfspr(SPRN_SRR1);
+		h = "";
+		break;
+	}
+
+	if (srr0 == regs->nip && srr1 == regs->msr)
+		return;
+
+	/*
+	 * A NMI / soft-NMI interrupt may have come in after we found
+	 * srr_valid and before the SRRs are loaded. The interrupt then
+	 * comes in and clobbers SRRs and clears srr_valid. Then we load
+	 * the SRRs here and test them above and find they don't match.
+	 *
+	 * Test validity again after that, to catch such false positives.
+	 *
+	 * This test in general will have some window for false negatives
+	 * and may not catch and fix all such cases if an NMI comes in
+	 * later and clobbers SRRs without clearing srr_valid, but hopefully
+	 * such things will get caught most of the time, statistically
+	 * enough to be able to get a warning out.
+	 */
+	barrier();
+
+	if (!*validp)
+		return;
+
+	if (!warned) {
+		warned = true;
+		printk("%sSRR0 was: %lx should be: %lx\n", h, srr0, regs->nip);
+		printk("%sSRR1 was: %lx should be: %lx\n", h, srr1, regs->msr);
+		show_regs(regs);
+	}
+
+	*validp = 0; /* fixup */
+#endif
+}
+
 static notrace unsigned long
 interrupt_exit_user_prepare_main(unsigned long ret, struct pt_regs *regs)
 {
@@ -263,6 +346,8 @@ again:
 				restore_math(regs);
 		}
 	}
+
+	check_return_regs_valid(regs);
 
 	user_enter_irqoff();
 	if (!prep_irq_for_enabled_exit(true)) {
@@ -440,6 +525,8 @@ again:
 			}
 		}
 
+		check_return_regs_valid(regs);
+
 		/*
 		 * Stack store exit can't be restarted because the interrupt
 		 * stack frame might have been clobbered.
@@ -469,6 +556,8 @@ again:
 		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 
 	} else {
+		check_return_regs_valid(regs);
+
 		if (unlikely(stack_store))
 			__hard_EE_RI_disable();
 		/*
