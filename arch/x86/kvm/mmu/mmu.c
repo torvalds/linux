@@ -4637,17 +4637,17 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	} else if (is_long_mode(vcpu)) {
 		context->root_level = ____is_cr4_la57(&regs) ?
 				PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
-		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	} else if (is_pae(vcpu)) {
 		context->root_level = PT32E_ROOT_LEVEL;
-		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	} else {
 		context->root_level = PT32_ROOT_LEVEL;
-		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
+
+	if (is_cr0_pg(context))
+		reset_rsvds_bits_mask(vcpu, context);
 
 	update_permission_bitmask(context, false);
 	update_pkru_bitmask(context);
@@ -4890,18 +4890,17 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	 * nested page tables as the second level of translation. Basically
 	 * the gva_to_gpa functions between mmu and nested_mmu are swapped.
 	 */
-	if (!is_paging(vcpu)) {
+	if (!is_paging(vcpu))
 		g_context->gva_to_gpa = nonpaging_gva_to_gpa_nested;
-	} else if (is_long_mode(vcpu)) {
-		reset_rsvds_bits_mask(vcpu, g_context);
+	else if (is_long_mode(vcpu))
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
-	} else if (is_pae(vcpu)) {
-		reset_rsvds_bits_mask(vcpu, g_context);
+	else if (is_pae(vcpu))
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
-	} else {
-		reset_rsvds_bits_mask(vcpu, g_context);
+	else
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
-	}
+
+	if (is_cr0_pg(g_context))
+		reset_rsvds_bits_mask(vcpu, g_context);
 
 	update_permission_bitmask(g_context, false);
 	update_pkru_bitmask(g_context);
