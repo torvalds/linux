@@ -30,7 +30,7 @@ struct pageMapL4Entry {
 	uint64_t ignored_06:1;
 	uint64_t page_size:1;
 	uint64_t ignored_11_08:4;
-	uint64_t address:40;
+	uint64_t pfn:40;
 	uint64_t ignored_62_52:11;
 	uint64_t execute_disable:1;
 };
@@ -45,7 +45,7 @@ struct pageDirectoryPointerEntry {
 	uint64_t ignored_06:1;
 	uint64_t page_size:1;
 	uint64_t ignored_11_08:4;
-	uint64_t address:40;
+	uint64_t pfn:40;
 	uint64_t ignored_62_52:11;
 	uint64_t execute_disable:1;
 };
@@ -60,7 +60,7 @@ struct pageDirectoryEntry {
 	uint64_t ignored_06:1;
 	uint64_t page_size:1;
 	uint64_t ignored_11_08:4;
-	uint64_t address:40;
+	uint64_t pfn:40;
 	uint64_t ignored_62_52:11;
 	uint64_t execute_disable:1;
 };
@@ -76,7 +76,7 @@ struct pageTableEntry {
 	uint64_t reserved_07:1;
 	uint64_t global:1;
 	uint64_t ignored_11_09:3;
-	uint64_t address:40;
+	uint64_t pfn:40;
 	uint64_t ignored_62_52:11;
 	uint64_t execute_disable:1;
 };
@@ -249,33 +249,33 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 	/* Allocate page directory pointer table if not present. */
 	pml4e = addr_gpa2hva(vm, vm->pgd);
 	if (!pml4e[index[3]].present) {
-		pml4e[index[3]].address = vm_alloc_page_table(vm) >> vm->page_shift;
+		pml4e[index[3]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
 		pml4e[index[3]].writable = true;
 		pml4e[index[3]].present = true;
 	}
 
 	/* Allocate page directory table if not present. */
 	struct pageDirectoryPointerEntry *pdpe;
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
+	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
 	if (!pdpe[index[2]].present) {
-		pdpe[index[2]].address = vm_alloc_page_table(vm) >> vm->page_shift;
+		pdpe[index[2]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
 		pdpe[index[2]].writable = true;
 		pdpe[index[2]].present = true;
 	}
 
 	/* Allocate page table if not present. */
 	struct pageDirectoryEntry *pde;
-	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
+	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
 	if (!pde[index[1]].present) {
-		pde[index[1]].address = vm_alloc_page_table(vm) >> vm->page_shift;
+		pde[index[1]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
 		pde[index[1]].writable = true;
 		pde[index[1]].present = true;
 	}
 
 	/* Fill in page table entry. */
 	struct pageTableEntry *pte;
-	pte = addr_gpa2hva(vm, pde[index[1]].address * vm->page_size);
-	pte[index[0]].address = paddr >> vm->page_shift;
+	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
+	pte[index[0]].pfn = paddr >> vm->page_shift;
 	pte[index[0]].writable = true;
 	pte[index[0]].present = 1;
 }
@@ -305,11 +305,10 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 			" %u\n",
 			indent, "",
 			pml4e - pml4e_start, pml4e,
-			addr_hva2gpa(vm, pml4e), (uint64_t) pml4e->address,
+			addr_hva2gpa(vm, pml4e), (uint64_t) pml4e->pfn,
 			pml4e->writable, pml4e->execute_disable);
 
-		pdpe_start = addr_gpa2hva(vm, pml4e->address
-			* vm->page_size);
+		pdpe_start = addr_gpa2hva(vm, pml4e->pfn * vm->page_size);
 		for (uint16_t n2 = 0; n2 <= 0x1ffu; n2++) {
 			pdpe = &pdpe_start[n2];
 			if (!pdpe->present)
@@ -319,11 +318,10 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 				indent, "",
 				pdpe - pdpe_start, pdpe,
 				addr_hva2gpa(vm, pdpe),
-				(uint64_t) pdpe->address, pdpe->writable,
+				(uint64_t) pdpe->pfn, pdpe->writable,
 				pdpe->execute_disable);
 
-			pde_start = addr_gpa2hva(vm,
-				pdpe->address * vm->page_size);
+			pde_start = addr_gpa2hva(vm, pdpe->pfn * vm->page_size);
 			for (uint16_t n3 = 0; n3 <= 0x1ffu; n3++) {
 				pde = &pde_start[n3];
 				if (!pde->present)
@@ -332,11 +330,10 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 					"0x%-12lx 0x%-10lx %u  %u\n",
 					indent, "", pde - pde_start, pde,
 					addr_hva2gpa(vm, pde),
-					(uint64_t) pde->address, pde->writable,
+					(uint64_t) pde->pfn, pde->writable,
 					pde->execute_disable);
 
-				pte_start = addr_gpa2hva(vm,
-					pde->address * vm->page_size);
+				pte_start = addr_gpa2hva(vm, pde->pfn * vm->page_size);
 				for (uint16_t n4 = 0; n4 <= 0x1ffu; n4++) {
 					pte = &pte_start[n4];
 					if (!pte->present)
@@ -347,7 +344,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 						indent, "",
 						pte - pte_start, pte,
 						addr_hva2gpa(vm, pte),
-						(uint64_t) pte->address,
+						(uint64_t) pte->pfn,
 						pte->writable,
 						pte->execute_disable,
 						pte->dirty,
@@ -487,19 +484,19 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	if (!pml4e[index[3]].present)
 		goto unmapped_gva;
 
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
+	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
 	if (!pdpe[index[2]].present)
 		goto unmapped_gva;
 
-	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
+	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
 	if (!pde[index[1]].present)
 		goto unmapped_gva;
 
-	pte = addr_gpa2hva(vm, pde[index[1]].address * vm->page_size);
+	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
 	if (!pte[index[0]].present)
 		goto unmapped_gva;
 
-	return (pte[index[0]].address * vm->page_size) + (gva & 0xfffu);
+	return (pte[index[0]].pfn * vm->page_size) + (gva & 0xfffu);
 
 unmapped_gva:
 	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
