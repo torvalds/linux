@@ -31,7 +31,7 @@ static const struct snd_soc_acpi_endpoint spk_r_endpoint = {
 
 static const struct snd_soc_acpi_adr_device rt711_0_adr[] = {
 	{
-		.adr = 0x000020025D071100,
+		.adr = 0x000020025D071100ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt711"
@@ -40,7 +40,7 @@ static const struct snd_soc_acpi_adr_device rt711_0_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1308_1_group1_adr[] = {
 	{
-		.adr = 0x000120025D130800,
+		.adr = 0x000120025D130800ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
 		.name_prefix = "rt1308-1"
@@ -49,7 +49,7 @@ static const struct snd_soc_acpi_adr_device rt1308_1_group1_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1308_2_group1_adr[] = {
 	{
-		.adr = 0x000220025D130800,
+		.adr = 0x000220025D130800ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "rt1308-2"
@@ -58,7 +58,7 @@ static const struct snd_soc_acpi_adr_device rt1308_2_group1_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt715_3_adr[] = {
 	{
-		.adr = 0x000320025D071500,
+		.adr = 0x000320025D071500ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt715"
@@ -67,7 +67,7 @@ static const struct snd_soc_acpi_adr_device rt715_3_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 	{
-		.adr = 0x000030025D071101,
+		.adr = 0x000030025D071101ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt711"
@@ -76,7 +76,7 @@ static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1316_1_group1_adr[] = {
 	{
-		.adr = 0x000131025D131601, /* unique ID is set for some reason */
+		.adr = 0x000131025D131601ull, /* unique ID is set for some reason */
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
 		.name_prefix = "rt1316-1"
@@ -85,7 +85,7 @@ static const struct snd_soc_acpi_adr_device rt1316_1_group1_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1316_2_group1_adr[] = {
 	{
-		.adr = 0x000230025D131601,
+		.adr = 0x000230025D131601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "rt1316-2"
@@ -94,7 +94,7 @@ static const struct snd_soc_acpi_adr_device rt1316_2_group1_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1316_3_group1_adr[] = {
 	{
-		.adr = 0x000330025D131601,
+		.adr = 0x000330025D131601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "rt1316-2"
@@ -103,7 +103,7 @@ static const struct snd_soc_acpi_adr_device rt1316_3_group1_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1316_2_single_adr[] = {
 	{
-		.adr = 0x000230025D131601,
+		.adr = 0x000230025D131601ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt1316-1"
@@ -112,7 +112,7 @@ static const struct snd_soc_acpi_adr_device rt1316_2_single_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt714_0_adr[] = {
 	{
-		.adr = 0x000030025D071401,
+		.adr = 0x000030025D071401ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt714"
@@ -121,7 +121,7 @@ static const struct snd_soc_acpi_adr_device rt714_0_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt714_2_adr[] = {
 	{
-		.adr = 0x000230025D071401,
+		.adr = 0x000230025D071401ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt714"
@@ -130,7 +130,7 @@ static const struct snd_soc_acpi_adr_device rt714_2_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt714_3_adr[] = {
 	{
-		.adr = 0x000330025D071401,
+		.adr = 0x000330025D071401ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt714"
@@ -283,7 +283,7 @@ static const struct snd_soc_acpi_codecs adl_max98357a_amp = {
 struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	{
 		.id = "10EC5682",
-		.drv_name = "adl_max98373_rt5682",
+		.drv_name = "adl_mx98373_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98373_amp,
 		.sof_fw_filename = "sof-adl.ri",
@@ -291,7 +291,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	},
 	{
 		.id = "10EC5682",
-		.drv_name = "adl_max98357a_rt5682",
+		.drv_name = "adl_mx98357a_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98357a_amp,
 		.sof_fw_filename = "sof-adl.ri",

@@ -442,7 +442,7 @@ endif ## SND_SOC_SOF_GEMINILAKE
 if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
-	tristate "SKL/KBL/BXT/APL with HDA Codecs"
+	tristate "Skylake+ with HDA Codecs"
 	depends on SND_HDA_CODEC_HDMI
 	depends on GPIOLIB
 	select SND_SOC_HDAC_HDMI
@@ -450,8 +450,9 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 	select SND_SOC_DMIC
 	# SND_SOC_HDAC_HDA is already selected
 	help
-	  This adds support for ASoC machine driver for Intel platforms
-	  SKL/KBL/BXT/APL with iDisp, HDA audio codecs.
+	  This adds support for ASoC machine driver for Intel Skylake+
+	  platforms with display (HDMI/DP) and HDA audio codecs, and
+	  Smart Sound Technology (SST) integrated audio DSP.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
