@@ -2913,18 +2913,20 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		}
 
 		/*
-		 * WaWmMemoryReadLatency:skl+,glk
+		 * WaWmMemoryReadLatency
 		 *
 		 * punit doesn't take into account the read latency so we need
-		 * to add 2us to the various latency levels we retrieve from the
-		 * punit when level 0 response data us 0us.
+		 * to add proper adjustement to each valid level we retrieve
+		 * from the punit when level 0 response data is 0us.
 		 */
 		if (wm[0] == 0) {
-			wm[0] += 2;
+			u8 adjust = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
+
+			wm[0] += adjust;
 			for (level = 1; level <= max_level; level++) {
 				if (wm[level] == 0)
 					break;
-				wm[level] += 2;
+				wm[level] += adjust;
 			}
 		}
 
@@ -2936,7 +2938,6 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		 */
 		if (dev_priv->dram_info.wm_lv_0_adjust_needed)
 			wm[0] += 1;
-
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		u64 sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
 
