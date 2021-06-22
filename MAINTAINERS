@@ -19803,6 +19803,16 @@ F:	Documentation/core-api/workqueue.rst
 F:	include/linux/workqueue.h
 F:	kernel/workqueue.c
 
+WWAN DRIVERS
+M:	Loic Poulain <loic.poulain@linaro.org>
+M:	Sergey Ryazanov <ryazanov.s.a@gmail.com>
+R:	Johannes Berg <johannes@sipsolutions.net>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wwan/
+F:	include/linux/wwan.h
+F:	include/uapi/linux/wwan.h
+
 X-POWERS AXP288 PMIC DRIVERS
 M:	Hans de Goede <hdegoede@redhat.com>
 S:	Maintained
