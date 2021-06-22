@@ -40,7 +40,7 @@ Image Process Control IDs
 .. _v4l2-cid-pixel-rate:
 
 ``V4L2_CID_PIXEL_RATE (64-bit integer)``
-    Pixel rate in the source pads of the subdev. This control is
+    Pixel sampling rate in the device's pixel array. This control is
     read-only and its unit is pixels / second.
 
 ``V4L2_CID_TEST_PATTERN (menu)``
