@@ -4365,8 +4365,7 @@ reset_ept_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	 (7 & (access) ? 128 : 0))
 
 
-static void update_permission_bitmask(struct kvm_vcpu *vcpu,
-				      struct kvm_mmu *mmu, bool ept)
+static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 {
 	unsigned byte;
 
@@ -4374,9 +4373,9 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 	const u8 w = BYTE_MASK(ACC_WRITE_MASK);
 	const u8 u = BYTE_MASK(ACC_USER_MASK);
 
-	bool cr4_smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP) != 0;
-	bool cr4_smap = kvm_read_cr4_bits(vcpu, X86_CR4_SMAP) != 0;
-	bool cr0_wp = is_write_protection(vcpu);
+	bool cr4_smep = is_cr4_smep(mmu);
+	bool cr4_smap = is_cr4_smap(mmu);
+	bool cr0_wp = is_cr0_wp(mmu);
 
 	for (byte = 0; byte < ARRAY_SIZE(mmu->permissions); ++byte) {
 		unsigned pfec = byte << 1;
@@ -4672,7 +4671,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
 
-	update_permission_bitmask(vcpu, context, false);
+	update_permission_bitmask(context, false);
 	update_pkru_bitmask(vcpu, context, false);
 	update_last_nonleaf_level(vcpu, context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
@@ -4730,7 +4729,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 
 	if (____is_cr0_pg(regs)) {
 		reset_rsvds_bits_mask(vcpu, context);
-		update_permission_bitmask(vcpu, context, false);
+		update_permission_bitmask(context, false);
 		update_pkru_bitmask(vcpu, context, false);
 		update_last_nonleaf_level(vcpu, context);
 	}
@@ -4838,7 +4837,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->root_level = level;
 	context->direct_map = false;
 
-	update_permission_bitmask(vcpu, context, true);
+	update_permission_bitmask(context, true);
 	update_pkru_bitmask(vcpu, context, true);
 	update_last_nonleaf_level(vcpu, context);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
@@ -4935,7 +4934,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 	}
 
-	update_permission_bitmask(vcpu, g_context, false);
+	update_permission_bitmask(g_context, false);
 	update_pkru_bitmask(vcpu, g_context, false);
 	update_last_nonleaf_level(vcpu, g_context);
 }
