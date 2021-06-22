@@ -21,16 +21,13 @@
 #define RTL8711_RF_MAX_SENS	 6
 #define RTL8711_RF_DEF_SENS	 4
 
-/*  */
-/*  We now define the following channels as the max channels in each channel plan. */
-/*  2G, total 14 chnls */
-/*  {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} */
-/*  5G, total 24 chnls */
-/*  {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120,
- *   124, 128, 132, 136, 140, 149, 153, 157, 161, 165} */
+/*
+ * We now define the following channels as the max channels in each channel plan.
+ * 2G, total 14 chnls
+ * {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+ */
 #define	MAX_CHANNEL_NUM_2G	14
-#define	MAX_CHANNEL_NUM_5G	24
-#define	MAX_CHANNEL_NUM		38/* 14+24 */
+#define	MAX_CHANNEL_NUM		14
 
 #define NUM_REGULATORYS	1
 

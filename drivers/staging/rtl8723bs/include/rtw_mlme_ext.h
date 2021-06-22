@@ -248,11 +248,6 @@ struct rt_channel_plan_2g {
 	unsigned char Len;
 };
 
-struct rt_channel_plan_5g {
-	unsigned char Channel[MAX_CHANNEL_NUM_5G];
-	unsigned char Len;
-};
-
 struct rt_channel_plan_map {
 	unsigned char Index2G;
 	unsigned char Index5G;
