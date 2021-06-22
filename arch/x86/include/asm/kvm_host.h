@@ -840,7 +840,7 @@ struct kvm_vcpu_arch {
 	bool l1tf_flush_l1d;
 
 	/* Host CPU on which VM-entry was most recently attempted */
-	unsigned int last_vmentry_cpu;
+	int last_vmentry_cpu;
 
 	/* AMD MSRC001_0015 Hardware Configuration */
 	u64 msr_hwcr;

@@ -4913,6 +4913,26 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	vcpu->arch.guest_mmu.mmu_role.ext.valid = 0;
 	vcpu->arch.nested_mmu.mmu_role.ext.valid = 0;
 	kvm_mmu_reset_context(vcpu);
+
+	/*
+	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
+	 * MAXPHYADDR, GBPAGES support, AMD reserved bit behavior, etc.. aren't
+	 * tracked in kvm_mmu_page_role.  As a result, KVM may miss guest page
+	 * faults due to reusing SPs/SPTEs.  Alert userspace, but otherwise
+	 * sweep the problem under the rug.
+	 *
+	 * KVM's horrific CPUID ABI makes the problem all but impossible to
+	 * solve, as correctly handling multiple vCPU models (with respect to
+	 * paging and physical address properties) in a single VM would require
+	 * tracking all relevant CPUID information in kvm_mmu_page_role.  That
+	 * is very undesirable as it would double the memory requirements for
+	 * gfn_track (see struct kvm_mmu_page_role comments), and in practice
+	 * no sane VMM mucks with the core vCPU model on the fly.
+	 */
+	if (vcpu->arch.last_vmentry_cpu != -1) {
+		pr_warn_ratelimited("KVM: KVM_SET_CPUID{,2} after KVM_RUN may cause guest instability\n");
+		pr_warn_ratelimited("KVM: KVM_SET_CPUID{,2} will fail after KVM_RUN starting with Linux 5.16\n");
+	}
 }
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
