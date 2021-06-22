@@ -604,7 +604,7 @@ int main(void)
 	/* Test MSRs */
 	vm = vm_create_default(VCPU_ID, 0, guest_msr);
 
-	msr_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	msr_gva = vm_vaddr_alloc_page(vm);
 	memset(addr_gva2hva(vm, msr_gva), 0x0, getpagesize());
 	vcpu_args_set(vm, VCPU_ID, 1, msr_gva);
 	vcpu_enable_cap(vm, VCPU_ID, &cap);
@@ -626,10 +626,10 @@ int main(void)
 	vm = vm_create_default(VCPU_ID, 0, guest_hcall);
 
 	/* Hypercall input/output */
-	hcall_page = vm_vaddr_alloc(vm, 2 * getpagesize(), 0x10000, 0, 0);
+	hcall_page = vm_vaddr_alloc_pages(vm, 2);
 	memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
 
-	hcall_params = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	hcall_params = vm_vaddr_alloc_page(vm);
 	memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
 
 	vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
