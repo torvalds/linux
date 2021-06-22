@@ -521,7 +521,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 			hop->fpfn = 0;
 			hop->lpfn = 0;
 			hop->mem_type = TTM_PL_TT;
-			hop->flags = 0;
+			hop->flags = TTM_PL_FLAG_TEMPORARY;
 			return -EMULTIHOP;
 		}
 

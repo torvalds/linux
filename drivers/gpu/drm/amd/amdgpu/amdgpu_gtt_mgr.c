@@ -132,14 +132,15 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 	struct amdgpu_gtt_node *node;
 	int r;
 
-	spin_lock(&mgr->lock);
-	if (tbo->resource && tbo->resource->mem_type != TTM_PL_TT &&
-	    atomic64_read(&mgr->available) < num_pages) {
+	if (!(place->flags & TTM_PL_FLAG_TEMPORARY)) {
+		spin_lock(&mgr->lock);
+		if (atomic64_read(&mgr->available) < num_pages) {
+			spin_unlock(&mgr->lock);
+			return -ENOSPC;
+		}
+		atomic64_sub(num_pages, &mgr->available);
 		spin_unlock(&mgr->lock);
-		return -ENOSPC;
 	}
-	atomic64_sub(num_pages, &mgr->available);
-	spin_unlock(&mgr->lock);
 
 	node = kzalloc(struct_size(node, base.mm_nodes, 1), GFP_KERNEL);
 	if (!node) {
@@ -175,7 +176,8 @@ err_free:
 	kfree(node);
 
 err_out:
-	atomic64_add(num_pages, &mgr->available);
+	if (!(place->flags & TTM_PL_FLAG_TEMPORARY))
+		atomic64_add(num_pages, &mgr->available);
 
 	return r;
 }
@@ -198,7 +200,9 @@ static void amdgpu_gtt_mgr_del(struct ttm_resource_manager *man,
 	if (drm_mm_node_allocated(&node->base.mm_nodes[0]))
 		drm_mm_remove_node(&node->base.mm_nodes[0]);
 	spin_unlock(&mgr->lock);
-	atomic64_add(res->num_pages, &mgr->available);
+
+	if (!(res->placement & TTM_PL_FLAG_TEMPORARY))
+		atomic64_add(res->num_pages, &mgr->available);
 
 	kfree(node);
 }
