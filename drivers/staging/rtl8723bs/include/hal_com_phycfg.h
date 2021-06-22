@@ -73,7 +73,6 @@ struct bb_register_def {
 u8
 PHY_GetTxPowerByRateBase(
 struct adapter *Adapter,
-u8 		Band,
 u8 		RfPath,
 u8 		TxNum,
 enum rate_section	RateSection
@@ -113,7 +112,6 @@ u8 		RateSection
 s8
 PHY_GetTxPowerByRate(
 struct adapter *padapter,
-u8 	Band,
 u8 	RFPath,
 u8 	TxNum,
 u8 	RateIndex
@@ -122,7 +120,6 @@ u8 	RateIndex
 void
 PHY_SetTxPowerByRate(
 struct adapter *padapter,
-u8 	Band,
 u8 	RFPath,
 u8 	TxNum,
 u8 	Rate,
@@ -154,7 +151,6 @@ struct adapter *padapter
 void
 PHY_StoreTxPowerByRate(
 struct adapter *padapter,
-u32 		Band,
 u32 		RfPath,
 u32 		TxNum,
 u32 		RegAddr,
@@ -173,12 +169,11 @@ struct adapter *padapter,
 u8 		RFPath,
 u8 		Rate,
 enum channel_width	BandWidth,
-u8 		Channel,
-	bool		*bIn24G
+u8 		Channel
 	);
 
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 RegPwrTblSel,
-			enum band_type Band, enum channel_width Bandwidth,
+		      enum channel_width Bandwidth,
 u8 		RfPath,
 u8 		DataRate,
 u8 		Channel
@@ -188,7 +183,6 @@ void
 PHY_SetTxPowerLimit(
 struct adapter *Adapter,
 u8 			*Regulation,
-u8 			*Band,
 u8 			*Bandwidth,
 u8 			*RateSection,
 u8 			*RfPath,

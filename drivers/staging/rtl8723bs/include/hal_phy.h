@@ -17,13 +17,6 @@
 
 
 /*--------------------------Define Parameters-------------------------------*/
-enum band_type {
-	BAND_ON_2_4G = 0,
-	BAND_ON_5G,
-	BAND_ON_BOTH,
-	BANDMAX
-};
-
 enum {
 	RF_TYPE_MIN = 0,	/*  0 */
 	RF_8225 = 1,		/*  1 11b/g RF for verification only */

@@ -368,10 +368,6 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		*pu8 = false;
 		break;
 
-	case BTC_GET_BL_WIFI_UNDER_5G:
-		*pu8 = pHalData->CurrentBandType == 1;
-		break;
-
 	case BTC_GET_BL_WIFI_AP_MODE_ENABLE:
 		*pu8 = check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE);
 		break;

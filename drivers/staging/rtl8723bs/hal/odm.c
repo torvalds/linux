@@ -972,10 +972,6 @@ void ODM_CmnInfoHook(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, void 
 		pDM_Odm->pwirelessmode = pValue;
 		break;
 
-	case ODM_CMNINFO_BAND:
-		pDM_Odm->pBandType = pValue;
-		break;
-
 	case ODM_CMNINFO_SEC_CHNL_OFFSET:
 		pDM_Odm->pSecChOffset = pValue;
 		break;
@@ -1181,10 +1177,6 @@ void ODM_CmnInfoUpdate(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 
 	case	ODM_CMNINFO_WM_MODE:
 		pDM_Odm->WirelessMode = (u8)Value;
-		break;
-
-	case	ODM_CMNINFO_BAND:
-		pDM_Odm->BandType = (u8)Value;
 		break;
 
 	case	ODM_CMNINFO_SEC_CHNL_OFFSET:

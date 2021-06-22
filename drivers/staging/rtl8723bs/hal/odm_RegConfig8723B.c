@@ -117,7 +117,6 @@ void odm_ConfigBB_AGC_8723B(
 
 void odm_ConfigBB_PHY_REG_PG_8723B(
 	struct dm_odm_t *pDM_Odm,
-	u32 Band,
 	u32 RfPath,
 	u32 TxNum,
 	u32 Addr,
@@ -128,7 +127,7 @@ void odm_ConfigBB_PHY_REG_PG_8723B(
 	if (Addr == 0xfe || Addr == 0xffe)
 		msleep(50);
 	else {
-		PHY_StoreTxPowerByRate(pDM_Odm->Adapter, Band, RfPath, TxNum, Addr, Bitmask, Data);
+		PHY_StoreTxPowerByRate(pDM_Odm->Adapter, RfPath, TxNum, Addr, Bitmask, Data);
 	}
 }
 
@@ -162,7 +161,6 @@ void odm_ConfigBB_PHY_8723B(
 void odm_ConfigBB_TXPWR_LMT_8723B(
 	struct dm_odm_t *pDM_Odm,
 	u8 *Regulation,
-	u8 *Band,
 	u8 *Bandwidth,
 	u8 *RateSection,
 	u8 *RfPath,
@@ -173,7 +171,6 @@ void odm_ConfigBB_TXPWR_LMT_8723B(
 	PHY_SetTxPowerLimit(
 		pDM_Odm->Adapter,
 		Regulation,
-		Band,
 		Bandwidth,
 		RateSection,
 		RfPath,

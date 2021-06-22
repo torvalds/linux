@@ -546,15 +546,13 @@ u8 PHY_GetTxPowerIndex(
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	s8 txPower = 0, powerDiffByRate = 0, limit = 0;
-	bool bIn24G = false;
 
-	txPower = (s8) PHY_GetTxPowerIndexBase(padapter, RFPath, Rate, BandWidth, Channel, &bIn24G);
-	powerDiffByRate = PHY_GetTxPowerByRate(padapter, BAND_ON_2_4G, ODM_RF_PATH_A, RF_1TX, Rate);
+	txPower = (s8) PHY_GetTxPowerIndexBase(padapter, RFPath, Rate, BandWidth, Channel);
+	powerDiffByRate = PHY_GetTxPowerByRate(padapter, ODM_RF_PATH_A, RF_1TX, Rate);
 
 	limit = phy_get_tx_pwr_lmt(
 		padapter,
 		padapter->registrypriv.RegPwrTblSel,
-		(u8)(!bIn24G),
 		pHalData->CurrentChannelBW,
 		RFPath,
 		Rate,

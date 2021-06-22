@@ -69,7 +69,7 @@ static void setIqkMatrix_8723B(
 	ele_D = (OFDMSwingTable_New[OFDM_index] & 0xFFC00000)>>22;
 
 	/* new element A = element D x X */
-	if ((IqkResult_X != 0) && (*(pDM_Odm->pBandType) == ODM_BAND_2_4G)) {
+	if (IqkResult_X != 0) {
 		if ((IqkResult_X & 0x00000200) != 0)	/* consider minus */
 			IqkResult_X = IqkResult_X | 0xFFFFFC00;
 		ele_A = ((IqkResult_X * ele_D)>>8)&0x000003FF;
