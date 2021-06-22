@@ -2908,6 +2908,9 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			if (wm[level] == 0) {
 				for (i = level + 1; i <= max_level; i++)
 					wm[i] = 0;
+
+				max_level = level - 1;
+
 				break;
 			}
 		}
@@ -2922,12 +2925,8 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		if (wm[0] == 0) {
 			u8 adjust = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
 
-			wm[0] += adjust;
-			for (level = 1; level <= max_level; level++) {
-				if (wm[level] == 0)
-					break;
+			for (level = 0; level <= max_level; level++)
 				wm[level] += adjust;
-			}
 		}
 
 		/*
