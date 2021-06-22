@@ -343,10 +343,55 @@ void sctp_transport_pl_recv(struct sctp_transport *t)
 	}
 }
 
+static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
+{
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, ptb: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, pmtu);
+
+	if (pmtu < SCTP_MIN_PLPMTU || pmtu >= t->pl.probe_size)
+		return false;
+
+	if (t->pl.state == SCTP_PL_BASE) {
+		if (pmtu >= SCTP_MIN_PLPMTU && pmtu < SCTP_BASE_PLPMTU) {
+			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
+
+			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		}
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
+			t->pl.state = SCTP_PL_BASE;  /* Search -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_count = 0;
+
+			t->pl.probe_high = 0;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		} else if (pmtu > t->pl.pmtu && pmtu < t->pl.probe_size) {
+			t->pl.probe_size = pmtu;
+			t->pl.probe_count = 0;
+
+			return false;
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
+			t->pl.state = SCTP_PL_BASE;  /* Complete -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_count = 0;
+
+			t->pl.probe_high = 0;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		}
+	}
+
+	return true;
+}
+
 bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
-	struct dst_entry *dst = sctp_transport_dst_check(t);
 	struct sock *sk = t->asoc->base.sk;
+	struct dst_entry *dst;
 	bool change = true;
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
@@ -357,6 +402,10 @@ bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 	}
 	pmtu = SCTP_TRUNC4(pmtu);
 
+	if (sctp_transport_pl_enabled(t))
+		return sctp_transport_pl_toobig(t, pmtu - sctp_transport_pl_hlen(t));
+
+	dst = sctp_transport_dst_check(t);
 	if (dst) {
 		struct sctp_pf *pf = sctp_get_pf_specific(dst->ops->family);
 		union sctp_addr addr;

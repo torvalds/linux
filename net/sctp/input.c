@@ -385,7 +385,9 @@ static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
 void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			   struct sctp_transport *t, __u32 pmtu)
 {
-	if (!t || (t->pathmtu <= pmtu))
+	if (!t ||
+	    (t->pathmtu <= pmtu &&
+	     t->pl.probe_size + sctp_transport_pl_hlen(t) <= pmtu))
 		return;
 
 	if (sock_owned_by_user(sk)) {
