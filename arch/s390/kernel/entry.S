@@ -555,15 +555,17 @@ ENTRY(mcck_int_handler)
 	jno	.Lmcck_panic
 4:	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
 	tmhh	%r8,0x0001			# interrupting from user ?
-	jnz	.Lmcck_user
 #if IS_ENABLED(CONFIG_KVM)
+	jnz	.Lmcck_user
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,5f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 5:	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	SIEEXIT
-#endif
 	j	.Lmcck_stack
+#else
+	jz	.Lmcck_stack
+#endif
 .Lmcck_user:
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 .Lmcck_stack:
