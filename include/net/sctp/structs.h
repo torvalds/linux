@@ -978,6 +978,14 @@ struct sctp_transport {
 		char cacc_saw_newack;
 	} cacc;
 
+	struct {
+		__u16 pmtu;
+		__u16 probe_size;
+		__u16 probe_high;
+		__u8 probe_count;
+		__u8 state;
+	} pl; /* plpmtud related */
+
 	/* 64-bit random number sent with heartbeat. */
 	__u64 hb_nonce;
 

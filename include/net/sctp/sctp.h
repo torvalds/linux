@@ -573,14 +573,15 @@ static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *
 /* Calculate max payload size given a MTU, or the total overhead if
  * given MTU is zero
  */
-static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
-				     __u32 mtu, __u32 extra)
+static inline __u32 __sctp_mtu_payload(const struct sctp_sock *sp,
+				       const struct sctp_transport *t,
+				       __u32 mtu, __u32 extra)
 {
 	__u32 overhead = sizeof(struct sctphdr) + extra;
 
 	if (sp) {
 		overhead += sp->pf->af->net_header_len;
-		if (sp->udp_port)
+		if (sp->udp_port && (!t || t->encap_port))
 			overhead += sizeof(struct udphdr);
 	} else {
 		overhead += sizeof(struct ipv6hdr);
@@ -590,6 +591,12 @@ static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
 		mtu = overhead;
 
 	return mtu ? mtu - overhead : overhead;
+}
+
+static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
+				     __u32 mtu, __u32 extra)
+{
+	return __sctp_mtu_payload(sp, NULL, mtu, extra);
 }
 
 static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
@@ -613,6 +620,41 @@ static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
 static inline __u32 sctp_min_frag_point(struct sctp_sock *sp, __u16 datasize)
 {
 	return sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT, datasize);
+}
+
+static inline int sctp_transport_pl_hlen(struct sctp_transport *t)
+{
+	return __sctp_mtu_payload(sctp_sk(t->asoc->base.sk), t, 0, 0);
+}
+
+static inline void sctp_transport_pl_reset(struct sctp_transport *t)
+{
+	if (t->probe_interval && (t->param_flags & SPP_PMTUD_ENABLE) &&
+	    (t->state == SCTP_ACTIVE || t->state == SCTP_UNKNOWN)) {
+		if (t->pl.state == SCTP_PL_DISABLED) {
+			t->pl.state = SCTP_PL_BASE;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+		}
+	} else {
+		if (t->pl.state != SCTP_PL_DISABLED)
+			t->pl.state = SCTP_PL_DISABLED;
+	}
+}
+
+static inline void sctp_transport_pl_update(struct sctp_transport *t)
+{
+	if (t->pl.state == SCTP_PL_DISABLED)
+		return;
+
+	t->pl.state = SCTP_PL_BASE;
+	t->pl.pmtu = SCTP_BASE_PLPMTU;
+	t->pl.probe_size = SCTP_BASE_PLPMTU;
+}
+
+static inline bool sctp_transport_pl_enabled(struct sctp_transport *t)
+{
+	return t->pl.state != SCTP_PL_DISABLED;
 }
 
 static inline bool sctp_newsk_ready(const struct sock *sk)
