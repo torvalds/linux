@@ -5160,7 +5160,13 @@ static __poll_t __io_arm_poll_handler(struct io_kiocb *req,
 	return mask;
 }
 
-static bool io_arm_poll_handler(struct io_kiocb *req)
+enum {
+	IO_APOLL_OK,
+	IO_APOLL_ABORTED,
+	IO_APOLL_READY
+};
+
+static int io_arm_poll_handler(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
@@ -5170,22 +5176,22 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	int rw;
 
 	if (!req->file || !file_can_poll(req->file))
-		return false;
+		return IO_APOLL_ABORTED;
 	if (req->flags & REQ_F_POLLED)
-		return false;
+		return IO_APOLL_ABORTED;
 	if (def->pollin)
 		rw = READ;
 	else if (def->pollout)
 		rw = WRITE;
 	else
-		return false;
+		return IO_APOLL_ABORTED;
 	/* if we can't nonblock try, then no point in arming a poll handler */
 	if (!io_file_supports_async(req, rw))
-		return false;
+		return IO_APOLL_ABORTED;
 
 	apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 	if (unlikely(!apoll))
-		return false;
+		return IO_APOLL_ABORTED;
 	apoll->double_poll = NULL;
 
 	req->flags |= REQ_F_POLLED;
@@ -5211,12 +5217,14 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	if (ret || ipt.error) {
 		io_poll_remove_double(req);
 		spin_unlock_irq(&ctx->completion_lock);
-		return false;
+		if (ret)
+			return IO_APOLL_READY;
+		return IO_APOLL_ABORTED;
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 	trace_io_uring_poll_arm(ctx, req, req->opcode, req->user_data,
 				mask, apoll->poll.events);
-	return true;
+	return IO_APOLL_OK;
 }
 
 static bool __io_poll_remove_one(struct io_kiocb *req,
@@ -6445,6 +6453,7 @@ static void __io_queue_sqe(struct io_kiocb *req)
 	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
 	int ret;
 
+issue_sqe:
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
 
 	/*
@@ -6464,12 +6473,16 @@ static void __io_queue_sqe(struct io_kiocb *req)
 			io_put_req(req);
 		}
 	} else if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
-		if (!io_arm_poll_handler(req)) {
+		switch (io_arm_poll_handler(req)) {
+		case IO_APOLL_READY:
+			goto issue_sqe;
+		case IO_APOLL_ABORTED:
 			/*
 			 * Queued up for async execution, worker will release
 			 * submit reference when the iocb is actually submitted.
 			 */
 			io_queue_async_work(req);
+			break;
 		}
 	} else {
 		io_req_complete_failed(req, ret);
