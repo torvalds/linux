@@ -4531,19 +4531,13 @@ static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 	update_last_nonleaf_level(mmu);
 }
 
-static void paging64_init_context_common(struct kvm_mmu *context)
+static void paging64_init_context(struct kvm_mmu *context)
 {
-	WARN_ON_ONCE(!is_cr4_pae(context));
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->sync_page = paging64_sync_page;
 	context->invlpg = paging64_invlpg;
 	context->direct_map = false;
-}
-
-static void paging64_init_context(struct kvm_mmu *context)
-{
-	paging64_init_context_common(context);
 }
 
 static void paging32_init_context(struct kvm_mmu *context)
@@ -4553,11 +4547,6 @@ static void paging32_init_context(struct kvm_mmu *context)
 	context->sync_page = paging32_sync_page;
 	context->invlpg = paging32_invlpg;
 	context->direct_map = false;
-}
-
-static void paging32E_init_context(struct kvm_mmu *context)
-{
-	paging64_init_context_common(context);
 }
 
 static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
@@ -4650,8 +4639,6 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 	if (!is_paging(vcpu))
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
-	else if (is_long_mode(vcpu))
-		context->gva_to_gpa = paging64_gva_to_gpa;
 	else if (is_pae(vcpu))
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	else
@@ -4704,10 +4691,8 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 
 	if (!____is_cr0_pg(regs))
 		nonpaging_init_context(context);
-	else if (____is_efer_lma(regs))
-		paging64_init_context(context);
 	else if (____is_cr4_pae(regs))
-		paging32E_init_context(context);
+		paging64_init_context(context);
 	else
 		paging32_init_context(context);
 	context->root_level = role_regs_to_root_level(regs);
