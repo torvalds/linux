@@ -198,53 +198,88 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_pfn, uint64_t vaddr,
 static struct pageUpperEntry *virt_create_upper_pte(struct kvm_vm *vm,
 						    uint64_t pt_pfn,
 						    uint64_t vaddr,
-						    int level)
+						    uint64_t paddr,
+						    int level,
+						    enum x86_page_size page_size)
 {
 	struct pageUpperEntry *pte = virt_get_pte(vm, pt_pfn, vaddr, level);
 
 	if (!pte->present) {
-		pte->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
 		pte->writable = true;
 		pte->present = true;
+		pte->page_size = (level == page_size);
+		if (pte->page_size)
+			pte->pfn = paddr >> vm->page_shift;
+		else
+			pte->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+	} else {
+		/*
+		 * Entry already present.  Assert that the caller doesn't want
+		 * a hugepage at this level, and that there isn't a hugepage at
+		 * this level.
+		 */
+		TEST_ASSERT(level != page_size,
+			    "Cannot create hugepage at level: %u, vaddr: 0x%lx\n",
+			    page_size, vaddr);
+		TEST_ASSERT(!pte->page_size,
+			    "Cannot create page table at level: %u, vaddr: 0x%lx\n",
+			    level, vaddr);
 	}
 	return pte;
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		   enum x86_page_size page_size)
 {
+	const uint64_t pg_size = 1ull << ((page_size * 9) + 12);
 	struct pageUpperEntry *pml4e, *pdpe, *pde;
 	struct pageTableEntry *pte;
 
-	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K,
+		    "Unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
-	TEST_ASSERT((vaddr % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
-		"  vaddr: 0x%lx vm->page_size: 0x%x",
-		vaddr, vm->page_size);
-	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
-		(vaddr >> vm->page_shift)),
-		"Invalid virtual address, vaddr: 0x%lx",
-		vaddr);
-	TEST_ASSERT((paddr % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
-		"  paddr: 0x%lx vm->page_size: 0x%x",
-		paddr, vm->page_size);
+	TEST_ASSERT((vaddr % pg_size) == 0,
+		    "Virtual address not aligned,\n"
+		    "vaddr: 0x%lx page size: 0x%lx", vaddr, pg_size);
+	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid, (vaddr >> vm->page_shift)),
+		    "Invalid virtual address, vaddr: 0x%lx", vaddr);
+	TEST_ASSERT((paddr % pg_size) == 0,
+		    "Physical address not aligned,\n"
+		    "  paddr: 0x%lx page size: 0x%lx", paddr, pg_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
-		"Physical address beyond beyond maximum supported,\n"
-		"  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
-		paddr, vm->max_gfn, vm->page_size);
+		    "Physical address beyond maximum supported,\n"
+		    "  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
+		    paddr, vm->max_gfn, vm->page_size);
 
-	/* Allocate upper level page tables, if not already present. */
-	pml4e = virt_create_upper_pte(vm, vm->pgd >> vm->page_shift, vaddr, 3);
-	pdpe = virt_create_upper_pte(vm, pml4e->pfn, vaddr, 2);
-	pde = virt_create_upper_pte(vm, pdpe->pfn, vaddr, 1);
+	/*
+	 * Allocate upper level page tables, if not already present.  Return
+	 * early if a hugepage was created.
+	 */
+	pml4e = virt_create_upper_pte(vm, vm->pgd >> vm->page_shift,
+				      vaddr, paddr, 3, page_size);
+	if (pml4e->page_size)
+		return;
+
+	pdpe = virt_create_upper_pte(vm, pml4e->pfn, vaddr, paddr, 2, page_size);
+	if (pdpe->page_size)
+		return;
+
+	pde = virt_create_upper_pte(vm, pdpe->pfn, vaddr, paddr, 1, page_size);
+	if (pde->page_size)
+		return;
 
 	/* Fill in page table entry. */
 	pte = virt_get_pte(vm, pde->pfn, vaddr, 0);
+	TEST_ASSERT(!pte->present,
+		    "PTE already present for 4k page at vaddr: 0x%lx\n", vaddr);
 	pte->pfn = paddr >> vm->page_shift;
 	pte->writable = true;
 	pte->present = 1;
+}
+
+void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
+{
+	__virt_pg_map(vm, vaddr, paddr, X86_PAGE_SIZE_4K);
 }
 
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)

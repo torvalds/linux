@@ -412,6 +412,14 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void);
 void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 
+enum x86_page_size {
+	X86_PAGE_SIZE_4K = 0,
+	X86_PAGE_SIZE_2M,
+	X86_PAGE_SIZE_1G,
+};
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		   enum x86_page_size page_size);
+
 /*
  * Basic CPU control in CR0
  */
