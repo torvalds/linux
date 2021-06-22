@@ -49,7 +49,8 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 {
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
-	int ret, i, mdio;
+	bool mdio = false;
+	int ret, i;
 	struct device_node *np;
 
 	np = dev_of_node(&pdev->dev);
