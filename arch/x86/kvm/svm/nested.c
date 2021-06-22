@@ -1244,8 +1244,8 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 		&user_kvm_nested_state->data.svm[0];
 	struct vmcb_control_area *ctl;
 	struct vmcb_save_area *save;
+	unsigned long cr0;
 	int ret;
-	u32 cr0;
 
 	BUILD_BUG_ON(sizeof(struct vmcb_control_area) + sizeof(struct vmcb_save_area) >
 		     KVM_STATE_NESTED_SVM_VMCB_SIZE);

@@ -4659,8 +4659,8 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 }
 
 static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
-				    u32 cr0, u32 cr4, u32 efer,
-				    union kvm_mmu_role new_role)
+				    unsigned long cr0, unsigned long cr4,
+				    u64 efer, union kvm_mmu_role new_role)
 {
 	if (!(cr0 & X86_CR0_PG))
 		nonpaging_init_context(vcpu, context);
@@ -4675,7 +4675,8 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
 
-static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer)
+static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
+				unsigned long cr4, u64 efer)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 	union kvm_mmu_role new_role =
@@ -4697,8 +4698,8 @@ kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu)
 	return role;
 }
 
-void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer,
-			     gpa_t nested_cr3)
+void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
+			     unsigned long cr4, u64 efer, gpa_t nested_cr3)
 {
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	union kvm_mmu_role new_role = kvm_calc_shadow_npt_root_page_role(vcpu);

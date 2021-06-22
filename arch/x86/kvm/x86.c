@@ -9095,8 +9095,8 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment cs, ds;
 	struct desc_ptr dt;
+	unsigned long cr0;
 	char buf[512];
-	u32 cr0;
 
 	memset(buf, 0, 512);
 #ifdef CONFIG_X86_64
