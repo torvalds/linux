@@ -4693,12 +4693,6 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 
 	shadow_mmu_init_context(vcpu, context, &regs, new_role);
-
-	/*
-	 * Redo the shadow bits, the reset done by shadow_mmu_init_context()
-	 * (above) may use the wrong shadow_root_level.
-	 */
-	reset_shadow_zero_bits_mask(vcpu, context);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
 
