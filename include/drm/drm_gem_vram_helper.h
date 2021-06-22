@@ -124,6 +124,18 @@ void
 drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 				     struct drm_plane_state *old_state);
 
+/**
+ * DRM_GEM_VRAM_PLANE_HELPER_FUNCS -
+ *	Initializes struct drm_plane_helper_funcs for VRAM handling
+ *
+ * Drivers may use GEM BOs as VRAM helpers for the framebuffer memory. This
+ * macro initializes struct drm_plane_helper_funcs to use the respective helper
+ * functions.
+ */
+#define DRM_GEM_VRAM_PLANE_HELPER_FUNCS \
+	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb, \
+	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb
+
 /*
  * Helpers for struct drm_simple_display_pipe_funcs
  */
