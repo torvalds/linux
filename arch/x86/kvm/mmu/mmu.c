@@ -4119,8 +4119,7 @@ static inline bool is_last_gpte(struct kvm_mmu *mmu,
 #undef PTTYPE
 
 static void
-__reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
-			struct rsvd_bits_validate *rsvd_check,
+__reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
 			u64 pa_bits_rsvd, int level, bool nx, bool gbpages,
 			bool pse, bool amd)
 {
@@ -4212,7 +4211,7 @@ __reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu *context)
 {
-	__reset_rsvds_bits_mask(vcpu, &context->guest_rsvd_check,
+	__reset_rsvds_bits_mask(&context->guest_rsvd_check,
 				vcpu->arch.reserved_gpa_bits,
 				context->root_level, context->nx,
 				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
@@ -4292,8 +4291,7 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	WARN_ON_ONCE(context->shadow_root_level < PT32E_ROOT_LEVEL);
 
 	shadow_zero_check = &context->shadow_zero_check;
-	__reset_rsvds_bits_mask(vcpu, shadow_zero_check,
-				reserved_hpa_bits(),
+	__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
 				context->shadow_root_level, uses_nx,
 				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
 				is_pse, is_amd);
@@ -4328,8 +4326,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	shadow_zero_check = &context->shadow_zero_check;
 
 	if (boot_cpu_is_amd())
-		__reset_rsvds_bits_mask(vcpu, shadow_zero_check,
-					reserved_hpa_bits(),
+		__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
 					context->shadow_root_level, false,
 					boot_cpu_has(X86_FEATURE_GBPAGES),
 					false, true);
