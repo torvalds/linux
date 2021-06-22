@@ -592,6 +592,14 @@
 		status = "disabled";
 	};
 
+	wdt: watchdog@fe600000 {
+		compatible = "rockchip,rk3568-wdt", "snps,dw-wdt";
+		reg = <0x0 0xfe600000 0x0 0x100>;
+		interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru TCLK_WDT_NS>, <&cru PCLK_WDT_NS>;
+		clock-names = "tclk", "pclk";
+	};
+
 	uart1: serial@fe650000 {
 		compatible = "rockchip,rk3568-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfe650000 0x0 0x100>;
