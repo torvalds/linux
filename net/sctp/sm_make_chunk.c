@@ -1160,7 +1160,8 @@ nodata:
 
 /* Make a HEARTBEAT chunk.  */
 struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *asoc,
-				       const struct sctp_transport *transport)
+				       const struct sctp_transport *transport,
+				       __u32 probe_size)
 {
 	struct sctp_sender_hb_info hbinfo;
 	struct sctp_chunk *retval;
@@ -1176,6 +1177,7 @@ struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *asoc,
 	hbinfo.daddr = transport->ipaddr;
 	hbinfo.sent_at = jiffies;
 	hbinfo.hb_nonce = transport->hb_nonce;
+	hbinfo.probe_size = probe_size;
 
 	/* Cast away the 'const', as this is just telling the chunk
 	 * what transport it belongs to.
@@ -1183,6 +1185,7 @@ struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *asoc,
 	retval->transport = (struct sctp_transport *) transport;
 	retval->subh.hbs_hdr = sctp_addto_chunk(retval, sizeof(hbinfo),
 						&hbinfo);
+	retval->pmtu_probe = !!probe_size;
 
 nodata:
 	return retval;
@@ -1215,6 +1218,32 @@ struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *asoc,
 		retval->transport = chunk->transport;
 
 nodata:
+	return retval;
+}
+
+/* RFC4820 3. Padding Chunk (PAD)
+ *  0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | Type = 0x84   |   Flags=0     |             Length            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * \                         Padding Data                          /
+ * /                                                               \
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct sctp_chunk *sctp_make_pad(const struct sctp_association *asoc, int len)
+{
+	struct sctp_chunk *retval;
+
+	retval = sctp_make_control(asoc, SCTP_CID_PAD, 0, len, GFP_ATOMIC);
+	if (!retval)
+		return NULL;
+
+	skb_put_zero(retval->skb, len);
+	retval->chunk_hdr->length = htons(ntohs(retval->chunk_hdr->length) + len);
+	retval->chunk_end = skb_tail_pointer(retval->skb);
+
 	return retval;
 }
 
