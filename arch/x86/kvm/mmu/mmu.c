@@ -4212,8 +4212,8 @@ static inline u64 reserved_hpa_bits(void)
  * table in guest or amd nested guest, its mmu features completely
  * follow the features in guest.
  */
-void
-reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
+static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
+					struct kvm_mmu *context)
 {
 	/*
 	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
@@ -4247,7 +4247,6 @@ reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 	}
 
 }
-EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
 
 static inline bool boot_cpu_is_amd(void)
 {
@@ -4714,6 +4713,12 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		 */
 		context->shadow_root_level = new_role.base.level;
 	}
+
+	/*
+	 * Redo the shadow bits, the reset done by shadow_mmu_init_context()
+	 * (above) may use the wrong shadow_root_level.
+	 */
+	reset_shadow_zero_bits_mask(vcpu, context);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
 
