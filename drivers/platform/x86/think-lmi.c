@@ -492,14 +492,19 @@ static ssize_t display_name_show(struct kobject *kobj, struct kobj_attribute *at
 static ssize_t current_value_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct tlmi_attr_setting *setting = to_tlmi_attr_setting(kobj);
-	char *item;
+	char *item, *value;
 	int ret;
 
 	ret = tlmi_setting(setting->index, &item, LENOVO_BIOS_SETTING_GUID);
 	if (ret)
 		return ret;
 
-	ret = sysfs_emit(buf, "%s\n", item);
+	/* validate and split from `item,value` -> `value` */
+	value = strpbrk(item, ",");
+	if (!value || value == item || !strlen(value + 1))
+		return -EINVAL;
+
+	ret = sysfs_emit(buf, "%s\n", value + 1);
 	kfree(item);
 	return ret;
 }
