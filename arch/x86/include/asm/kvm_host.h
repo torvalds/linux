@@ -423,8 +423,6 @@ struct kvm_mmu {
 	/* Can have large pages at levels 2..last_nonleaf_level-1. */
 	u8 last_nonleaf_level;
 
-	bool nx;
-
 	u64 pdptrs[4]; /* pae */
 };
 

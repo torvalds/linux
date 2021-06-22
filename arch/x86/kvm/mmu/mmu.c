@@ -322,11 +322,6 @@ static int is_cpuid_PSE36(void)
 	return 1;
 }
 
-static int is_nx(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.efer & EFER_NX;
-}
-
 static gfn_t pse36_gfn_delta(u32 gpte)
 {
 	int shift = 32 - PT32_DIR_PSE36_SHIFT - PAGE_SHIFT;
@@ -3956,7 +3951,6 @@ static void nonpaging_init_context(struct kvm_mmu *context)
 	context->invlpg = NULL;
 	context->root_level = 0;
 	context->direct_map = true;
-	context->nx = false;
 }
 
 static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
@@ -4516,7 +4510,6 @@ static void update_last_nonleaf_level(struct kvm_mmu *mmu)
 static void paging64_init_context_common(struct kvm_mmu *context,
 					 int root_level)
 {
-	context->nx = is_efer_nx(context);
 	context->root_level = root_level;
 
 	WARN_ON_ONCE(!is_cr4_pae(context));
@@ -4538,7 +4531,6 @@ static void paging64_init_context(struct kvm_mmu *context,
 
 static void paging32_init_context(struct kvm_mmu *context)
 {
-	context->nx = false;
 	context->root_level = PT32_ROOT_LEVEL;
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
@@ -4640,22 +4632,18 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->inject_page_fault = kvm_inject_page_fault;
 
 	if (!is_paging(vcpu)) {
-		context->nx = false;
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
 		context->root_level = 0;
 	} else if (is_long_mode(vcpu)) {
-		context->nx = is_nx(vcpu);
 		context->root_level = is_la57_mode(vcpu) ?
 				PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
 		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	} else if (is_pae(vcpu)) {
-		context->nx = is_nx(vcpu);
 		context->root_level = PT32E_ROOT_LEVEL;
 		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	} else {
-		context->nx = false;
 		context->root_level = PT32_ROOT_LEVEL;
 		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging32_gva_to_gpa;
@@ -4818,7 +4806,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 
 	context->shadow_root_level = level;
 
-	context->nx = true;
 	context->ept_ad = accessed_dirty;
 	context->page_fault = ept_page_fault;
 	context->gva_to_gpa = ept_gva_to_gpa;
@@ -4903,22 +4890,18 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	 * the gva_to_gpa functions between mmu and nested_mmu are swapped.
 	 */
 	if (!is_paging(vcpu)) {
-		g_context->nx = false;
 		g_context->root_level = 0;
 		g_context->gva_to_gpa = nonpaging_gva_to_gpa_nested;
 	} else if (is_long_mode(vcpu)) {
-		g_context->nx = is_nx(vcpu);
 		g_context->root_level = is_la57_mode(vcpu) ?
 					PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
 		reset_rsvds_bits_mask(vcpu, g_context);
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
 	} else if (is_pae(vcpu)) {
-		g_context->nx = is_nx(vcpu);
 		g_context->root_level = PT32E_ROOT_LEVEL;
 		reset_rsvds_bits_mask(vcpu, g_context);
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
 	} else {
-		g_context->nx = false;
 		g_context->root_level = PT32_ROOT_LEVEL;
 		reset_rsvds_bits_mask(vcpu, g_context);
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
