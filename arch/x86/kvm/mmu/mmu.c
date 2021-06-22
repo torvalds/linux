@@ -4637,9 +4637,9 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->inject_page_fault = kvm_inject_page_fault;
 	context->root_level = role_regs_to_root_level(&regs);
 
-	if (!is_paging(vcpu))
+	if (!is_cr0_pg(context))
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
-	else if (is_pae(vcpu))
+	else if (is_cr4_pae(context))
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	else
 		context->gva_to_gpa = paging32_gva_to_gpa;
@@ -4689,9 +4689,9 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 
 	context->mmu_role.as_u64 = new_role.as_u64;
 
-	if (!____is_cr0_pg(regs))
+	if (!is_cr0_pg(context))
 		nonpaging_init_context(context);
-	else if (____is_cr4_pae(regs))
+	else if (is_cr4_pae(context))
 		paging64_init_context(context);
 	else
 		paging32_init_context(context);
