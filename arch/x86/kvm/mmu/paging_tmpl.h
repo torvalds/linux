@@ -471,7 +471,7 @@ retry_walk:
 
 error:
 	errcode |= write_fault | user_fault;
-	if (fetch_fault && (mmu->nx || mmu->mmu_role.ext.cr4_smep))
+	if (fetch_fault && (mmu->nx || is_cr4_smep(mmu)))
 		errcode |= PFERR_FETCH_MASK;
 
 	walker->fault.vector = PF_VECTOR;
