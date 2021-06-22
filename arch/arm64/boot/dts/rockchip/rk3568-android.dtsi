@@ -69,6 +69,10 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+};
+
 &vop {
 	support-multi-area;
 };
