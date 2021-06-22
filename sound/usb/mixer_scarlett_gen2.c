@@ -1904,6 +1904,43 @@ static void scarlett2_vol_ctl_set_writable(struct usb_mixer_interface *mixer,
 		       &private->mute_ctls[index]->id);
 }
 
+static int scarlett2_sw_hw_change(struct usb_mixer_interface *mixer,
+				  int ctl_index, int val)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int index = line_out_remap(private, ctl_index);
+	int err;
+
+	private->vol_sw_hw_switch[index] = val;
+
+	/* Change access mode to RO (hardware controlled volume)
+	 * or RW (software controlled volume)
+	 */
+	scarlett2_vol_ctl_set_writable(mixer, ctl_index, !val);
+
+	/* Reset volume/mute to master volume/mute */
+	private->vol[index] = private->master_vol;
+	private->mute_switch[index] = private->dim_mute[SCARLETT2_BUTTON_MUTE];
+
+	/* Set SW volume to current HW volume */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_LINE_OUT_VOLUME,
+		index, private->master_vol - SCARLETT2_VOLUME_BIAS);
+	if (err < 0)
+		return err;
+
+	/* Set SW mute to current HW mute */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_MUTE_SWITCH,
+		index, private->dim_mute[SCARLETT2_BUTTON_MUTE]);
+	if (err < 0)
+		return err;
+
+	/* Send SW/HW switch change to the device */
+	return scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_SW_HW_SWITCH,
+					index, val);
+}
+
 static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -1922,34 +1959,7 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 	if (oval == val)
 		goto unlock;
 
-	private->vol_sw_hw_switch[index] = val;
-
-	/* Change access mode to RO (hardware controlled volume)
-	 * or RW (software controlled volume)
-	 */
-	scarlett2_vol_ctl_set_writable(mixer, ctl_index, !val);
-
-	/* Reset volume/mute to master volume/mute */
-	private->vol[index] = private->master_vol;
-	private->mute_switch[index] = private->dim_mute[SCARLETT2_BUTTON_MUTE];
-
-	/* Set SW volume to current HW volume */
-	err = scarlett2_usb_set_config(
-		mixer, SCARLETT2_CONFIG_LINE_OUT_VOLUME,
-		index, private->master_vol - SCARLETT2_VOLUME_BIAS);
-	if (err < 0)
-		goto unlock;
-
-	/* Set SW mute to current HW mute */
-	err = scarlett2_usb_set_config(
-		mixer, SCARLETT2_CONFIG_MUTE_SWITCH,
-		index, private->dim_mute[SCARLETT2_BUTTON_MUTE]);
-	if (err < 0)
-		goto unlock;
-
-	/* Send SW/HW switch change to the device */
-	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_SW_HW_SWITCH,
-				       index, val);
+	err = scarlett2_sw_hw_change(mixer, ctl_index, val);
 	if (err == 0)
 		err = 1;
 
