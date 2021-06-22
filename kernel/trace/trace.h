@@ -1952,4 +1952,22 @@ static inline bool is_good_name(const char *name)
 	return true;
 }
 
+/*
+ * This is a generic way to read and write a u64 value from a file in tracefs.
+ *
+ * The value is stored on the variable pointed by *val. The value needs
+ * to be at least *min and at most *max. The write is protected by an
+ * existing *lock.
+ */
+struct trace_min_max_param {
+	struct mutex	*lock;
+	u64		*val;
+	u64		*min;
+	u64		*max;
+};
+
+#define U64_STR_SIZE		24	/* 20 digits max */
+
+extern const struct file_operations trace_min_max_fops;
+
 #endif /* _LINUX_KERNEL_TRACE_H */
