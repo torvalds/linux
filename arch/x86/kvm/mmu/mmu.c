@@ -1780,16 +1780,13 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)])	\
 		if ((_sp)->gfn != (_gfn) || (_sp)->role.direct) {} else
 
-static inline bool is_ept_sp(struct kvm_mmu_page *sp)
-{
-	return sp->role.cr0_wp && sp->role.smap_andnot_wp;
-}
-
 /* @sp->gfn should be write-protected at the call site */
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			    struct list_head *invalid_list)
 {
-	if ((!is_ept_sp(sp) && sp->role.gpte_is_8_bytes != !!is_pae(vcpu)) ||
+	union kvm_mmu_page_role mmu_role = vcpu->arch.mmu->mmu_role.base;
+
+	if (sp->role.gpte_is_8_bytes != mmu_role.gpte_is_8_bytes ||
 	    vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return false;
@@ -4720,13 +4717,6 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 	role.base.ad_disabled = !accessed_dirty;
 	role.base.guest_mode = true;
 	role.base.access = ACC_ALL;
-
-	/*
-	 * WP=1 and NOT_WP=1 is an impossible combination, use WP and the
-	 * SMAP variation to denote shadow EPT entries.
-	 */
-	role.base.cr0_wp = true;
-	role.base.smap_andnot_wp = true;
 
 	role.ext = kvm_calc_mmu_role_ext(vcpu);
 	role.ext.execonly = execonly;

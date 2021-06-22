@@ -192,9 +192,6 @@ Shadow pages contain the following information:
     Contains the value of cr4.smap && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
-  role.ept_sp:
-    This is a virtual flag to denote a shadowed nested EPT page.  ept_sp
-    is true if "cr0_wp && smap_andnot_wp", an otherwise invalid combination.
   role.smm:
     Is 1 if the page is valid in system management mode.  This field
     determines which of the kvm_memslots array was used to build this
