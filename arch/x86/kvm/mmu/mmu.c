@@ -1780,9 +1780,8 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)])	\
 		if ((_sp)->gfn != (_gfn) || (_sp)->role.direct) {} else
 
-/* @sp->gfn should be write-protected at the call site */
-static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			    struct list_head *invalid_list)
+static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			 struct list_head *invalid_list)
 {
 	if (vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
@@ -1828,13 +1827,6 @@ static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	return sp->role.invalid ||
 	       unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
-}
-
-static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			 struct list_head *invalid_list)
-{
-	kvm_unlink_unsync_page(vcpu->kvm, sp);
-	return __kvm_sync_page(vcpu, sp, invalid_list);
 }
 
 struct mmu_page_path {
@@ -1931,6 +1923,7 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 		}
 
 		for_each_sp(pages, sp, parents, i) {
+			kvm_unlink_unsync_page(vcpu->kvm, sp);
 			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
 			mmu_pages_clear_parents(&parents);
 		}
@@ -2009,7 +2002,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 
 		if (sp->unsync) {
 			/*
-			 * The page is good, but is stale.  __kvm_sync_page does
+			 * The page is good, but is stale.  kvm_sync_page does
 			 * get the latest guest state, but (unlike mmu_unsync_children)
 			 * it doesn't write-protect the page or mark it synchronized!
 			 * This way the validity of the mapping is ensured, but the
@@ -2020,7 +2013,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			 * If the sync fails, the page is zapped.  If so, break
 			 * in order to rebuild it.
 			 */
-			if (!__kvm_sync_page(vcpu, sp, &invalid_list))
+			if (!kvm_sync_page(vcpu, sp, &invalid_list))
 				break;
 
 			WARN_ON(!list_empty(&invalid_list));
