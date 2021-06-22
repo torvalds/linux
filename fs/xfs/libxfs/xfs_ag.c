@@ -779,6 +779,7 @@ xfs_ag_shrink_space(
 	struct xfs_buf		*agibp, *agfbp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
+	xfs_agblock_t		aglen;
 	int			error, err2;
 
 	ASSERT(agno == mp->m_sb.sb_agcount - 1);
@@ -793,14 +794,14 @@ xfs_ag_shrink_space(
 		return error;
 
 	agf = agfbp->b_addr;
+	aglen = be32_to_cpu(agi->agi_length);
 	/* some extra paranoid checks before we shrink the ag */
 	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length))
 		return -EFSCORRUPTED;
-	if (delta >= agi->agi_length)
+	if (delta >= aglen)
 		return -EINVAL;
 
-	args.fsbno = XFS_AGB_TO_FSB(mp, agno,
-				    be32_to_cpu(agi->agi_length) - delta);
+	args.fsbno = XFS_AGB_TO_FSB(mp, agno, aglen - delta);
 
 	/*
 	 * Disable perag reservations so it doesn't cause the allocation request
