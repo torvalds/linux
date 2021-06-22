@@ -457,9 +457,6 @@ struct kvm_mmu {
 
 	struct rsvd_bits_validate guest_rsvd_check;
 
-	/* Can have large pages at levels 2..last_nonleaf_level-1. */
-	u8 last_nonleaf_level;
-
 	u64 pdptrs[4]; /* pae */
 };
 

@@ -4071,26 +4071,6 @@ static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 	return false;
 }
 
-static inline bool is_last_gpte(struct kvm_mmu *mmu,
-				unsigned level, unsigned gpte)
-{
-	/*
-	 * The RHS has bit 7 set iff level < mmu->last_nonleaf_level.
-	 * If it is clear, there are no large pages at this level, so clear
-	 * PT_PAGE_SIZE_MASK in gpte if that is the case.
-	 */
-	gpte &= level - mmu->last_nonleaf_level;
-
-	/*
-	 * PG_LEVEL_4K always terminates.  The RHS has bit 7 set
-	 * iff level <= PG_LEVEL_4K, which for our purpose means
-	 * level == PG_LEVEL_4K; set PT_PAGE_SIZE_MASK in gpte then.
-	 */
-	gpte |= level - PG_LEVEL_4K - 1;
-
-	return gpte & PT_PAGE_SIZE_MASK;
-}
-
 #define PTTYPE_EPT 18 /* arbitrary */
 #define PTTYPE PTTYPE_EPT
 #include "paging_tmpl.h"
@@ -4491,15 +4471,6 @@ static void update_pkru_bitmask(struct kvm_mmu *mmu)
 	}
 }
 
-static void update_last_nonleaf_level(struct kvm_mmu *mmu)
-{
-	unsigned root_level = mmu->root_level;
-
-	mmu->last_nonleaf_level = root_level;
-	if (root_level == PT32_ROOT_LEVEL && is_cr4_pse(mmu))
-		mmu->last_nonleaf_level++;
-}
-
 static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 					struct kvm_mmu *mmu)
 {
@@ -4509,7 +4480,6 @@ static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 	reset_rsvds_bits_mask(vcpu, mmu);
 	update_permission_bitmask(mmu, false);
 	update_pkru_bitmask(mmu);
-	update_last_nonleaf_level(mmu);
 }
 
 static void paging64_init_context(struct kvm_mmu *context)
@@ -4783,7 +4753,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->direct_map = false;
 
 	update_permission_bitmask(context, true);
-	update_last_nonleaf_level(context);
 	update_pkru_bitmask(context);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
