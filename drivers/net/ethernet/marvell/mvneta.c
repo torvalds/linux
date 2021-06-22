@@ -1805,18 +1805,14 @@ static void mvneta_rx_error(struct mvneta_port *pp,
 }
 
 /* Handle RX checksum offload based on the descriptor's status */
-static void mvneta_rx_csum(struct mvneta_port *pp, u32 status,
-			   struct sk_buff *skb)
+static int mvneta_rx_csum(struct mvneta_port *pp, u32 status)
 {
 	if ((pp->dev->features & NETIF_F_RXCSUM) &&
 	    (status & MVNETA_RXD_L3_IP4) &&
-	    (status & MVNETA_RXD_L4_CSUM_OK)) {
-		skb->csum = 0;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		return;
-	}
+	    (status & MVNETA_RXD_L4_CSUM_OK))
+		return CHECKSUM_UNNECESSARY;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	return CHECKSUM_NONE;
 }
 
 /* Return tx queue pointer (find last set bit) according to <cause> returned
@@ -2335,7 +2331,7 @@ mvneta_swbm_build_skb(struct mvneta_port *pp, struct page_pool *pool,
 
 	skb_reserve(skb, xdp->data - xdp->data_hard_start);
 	skb_put(skb, xdp->data_end - xdp->data);
-	mvneta_rx_csum(pp, desc_status, skb);
+	skb->ip_summed = mvneta_rx_csum(pp, desc_status);
 
 	for (i = 0; i < num_frags; i++) {
 		skb_frag_t *frag = &sinfo->frags[i];
@@ -2535,7 +2531,7 @@ err_drop_frame:
 				     rx_bytes);
 
 			skb->protocol = eth_type_trans(skb, dev);
-			mvneta_rx_csum(pp, rx_status, skb);
+			skb->ip_summed = mvneta_rx_csum(pp, rx_status);
 			napi_gro_receive(napi, skb);
 
 			rcvd_pkts++;
@@ -2584,8 +2580,7 @@ err_drop_frame:
 		skb_put(skb, rx_bytes);
 
 		skb->protocol = eth_type_trans(skb, dev);
-
-		mvneta_rx_csum(pp, rx_status, skb);
+		skb->ip_summed = mvneta_rx_csum(pp, rx_status);
 
 		napi_gro_receive(napi, skb);
 	}

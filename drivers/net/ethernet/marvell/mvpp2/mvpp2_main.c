@@ -3543,21 +3543,17 @@ static void mvpp2_rx_error(struct mvpp2_port *port,
 }
 
 /* Handle RX checksum offload */
-static void mvpp2_rx_csum(struct mvpp2_port *port, u32 status,
-			  struct sk_buff *skb)
+static int mvpp2_rx_csum(struct mvpp2_port *port, u32 status)
 {
 	if (((status & MVPP2_RXD_L3_IP4) &&
 	     !(status & MVPP2_RXD_IP4_HEADER_ERR)) ||
 	    (status & MVPP2_RXD_L3_IP6))
 		if (((status & MVPP2_RXD_L4_UDP) ||
 		     (status & MVPP2_RXD_L4_TCP)) &&
-		     (status & MVPP2_RXD_L4_CSUM_OK)) {
-			skb->csum = 0;
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			return;
-		}
+		     (status & MVPP2_RXD_L4_CSUM_OK))
+			return CHECKSUM_UNNECESSARY;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	return CHECKSUM_NONE;
 }
 
 /* Allocate a new skb and add it to BM pool */
@@ -4012,7 +4008,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 
 		skb_reserve(skb, MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 		skb_put(skb, rx_bytes);
-		mvpp2_rx_csum(port, rx_status, skb);
+		skb->ip_summed = mvpp2_rx_csum(port, rx_status);
 		skb->protocol = eth_type_trans(skb, dev);
 
 		napi_gro_receive(napi, skb);
