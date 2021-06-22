@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
 
 	vm_vcpu_add_default(vm, SENDER_VCPU_ID, sender_guest_code);
 
-	test_data_page_vaddr = vm_vaddr_alloc(vm, 0x1000, 0x1000, 0, 0);
+	test_data_page_vaddr = vm_vaddr_alloc_page(vm);
 	data =
 	   (struct test_data_page *)addr_gva2hva(vm, test_data_page_vaddr);
 	memset(data, 0, sizeof(*data));
