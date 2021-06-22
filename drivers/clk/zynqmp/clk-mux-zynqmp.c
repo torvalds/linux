@@ -38,7 +38,7 @@ struct zynqmp_clk_mux {
  * zynqmp_clk_mux_get_parent() - Get parent of clock
  * @hw:		handle between common and hardware-specific interfaces
  *
- * Return: Parent index
+ * Return: Parent index on success or number of parents in case of error
  */
 static u8 zynqmp_clk_mux_get_parent(struct clk_hw *hw)
 {
@@ -50,9 +50,15 @@ static u8 zynqmp_clk_mux_get_parent(struct clk_hw *hw)
 
 	ret = zynqmp_pm_clock_getparent(clk_id, &val);
 
-	if (ret)
+	if (ret) {
 		pr_warn_once("%s() getparent failed for clock: %s, ret = %d\n",
 			     __func__, clk_name, ret);
+		/*
+		 * clk_core_get_parent_by_index() takes num_parents as incorrect
+		 * index which is exactly what I want to return here
+		 */
+		return clk_hw_get_num_parents(hw);
+	}
 
 	return val;
 }
