@@ -158,11 +158,10 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		list_for_each_entry(ses, &srvr->smb_ses_list, smb_ses_list) {
 			if (ses->Suid == thdr->SessionId)
 				break;
-
-			ses = NULL;
 		}
 		spin_unlock(&cifs_tcp_ses_lock);
-		if (ses == NULL) {
+		if (list_entry_is_head(ses, &srvr->smb_ses_list,
+				       smb_ses_list)) {
 			cifs_dbg(VFS, "no decryption - session id not found\n");
 			return 1;
 		}
