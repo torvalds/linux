@@ -175,7 +175,10 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		spte = mark_spte_for_access_track(spte);
 
 out:
-	WARN_ON(is_mmio_spte(spte));
+	WARN_ONCE(is_rsvd_spte(&vcpu->arch.mmu->shadow_zero_check, spte, level),
+		  "spte = 0x%llx, level = %d, rsvd bits = 0x%llx", spte, level,
+		  get_rsvd_bits(&vcpu->arch.mmu->shadow_zero_check, spte, level));
+
 	*new_spte = spte;
 	return ret;
 }
