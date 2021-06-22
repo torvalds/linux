@@ -98,6 +98,7 @@ static struct sctp_association *sctp_association_init(
 	 * sock configured value.
 	 */
 	asoc->hbinterval = msecs_to_jiffies(sp->hbinterval);
+	asoc->probe_interval = msecs_to_jiffies(sp->probe_interval);
 
 	asoc->encap_port = sp->encap_port;
 
@@ -625,6 +626,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	 * association configured value.
 	 */
 	peer->hbinterval = asoc->hbinterval;
+	peer->probe_interval = asoc->probe_interval;
 
 	peer->encap_port = asoc->encap_port;
 

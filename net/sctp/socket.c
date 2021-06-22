@@ -4989,6 +4989,7 @@ static int sctp_init_sock(struct sock *sk)
 	atomic_set(&sp->pd_mode, 0);
 	skb_queue_head_init(&sp->pd_lobby);
 	sp->frag_interleave = 0;
+	sp->probe_interval = net->sctp.probe_interval;
 
 	/* Create a per socket endpoint structure.  Even if we
 	 * change the data structure relationships, this may still

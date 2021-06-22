@@ -424,4 +424,6 @@ enum {
  */
 #define SCTP_AUTH_RANDOM_LENGTH 32
 
+#define SCTP_PROBE_TIMER_MIN	5000
+
 #endif /* __sctp_constants_h__ */

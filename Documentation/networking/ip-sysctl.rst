@@ -2834,6 +2834,14 @@ encap_port - INTEGER
 
 	Default: 0
 
+plpmtud_probe_interval - INTEGER
+        The time interval (in milliseconds) for sending PLPMTUD probe chunks.
+        These chunks are sent at the specified interval with a variable size
+        to probe the mtu of a given path between 2 endpoints. PLPMTUD will
+        be disabled when 0 is set, and other values for it must be >= 5000.
+
+	Default: 0
+
 
 ``/proc/sys/net/core/*``
 ========================

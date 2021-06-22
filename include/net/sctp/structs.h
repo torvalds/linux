@@ -177,6 +177,7 @@ struct sctp_sock {
 	 * will be inherited by all new associations.
 	 */
 	__u32 hbinterval;
+	__u32 probe_interval;
 
 	__be16 udp_port;
 	__be16 encap_port;
@@ -858,6 +859,7 @@ struct sctp_transport {
 	 * the destination address every heartbeat interval.
 	 */
 	unsigned long hbinterval;
+	unsigned long probe_interval;
 
 	/* SACK delay timeout */
 	unsigned long sackdelay;
@@ -1795,6 +1797,7 @@ struct sctp_association {
 	 * will be inherited by all new transports.
 	 */
 	unsigned long hbinterval;
+	unsigned long probe_interval;
 
 	__be16 encap_port;
 
