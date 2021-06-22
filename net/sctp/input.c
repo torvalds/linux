@@ -556,6 +556,49 @@ void sctp_err_finish(struct sock *sk, struct sctp_transport *t)
 	sctp_transport_put(t);
 }
 
+static void sctp_v4_err_handle(struct sctp_transport *t, struct sk_buff *skb,
+			       __u8 type, __u8 code, __u32 info)
+{
+	struct sctp_association *asoc = t->asoc;
+	struct sock *sk = asoc->base.sk;
+	int err = 0;
+
+	switch (type) {
+	case ICMP_PARAMETERPROB:
+		err = EPROTO;
+		break;
+	case ICMP_DEST_UNREACH:
+		if (code > NR_ICMP_UNREACH)
+			return;
+		if (code == ICMP_FRAG_NEEDED) {
+			sctp_icmp_frag_needed(sk, asoc, t, SCTP_TRUNC4(info));
+			return;
+		}
+		if (code == ICMP_PROT_UNREACH) {
+			sctp_icmp_proto_unreachable(sk, asoc, t);
+			return;
+		}
+		err = icmp_err_convert[code].errno;
+		break;
+	case ICMP_TIME_EXCEEDED:
+		if (code == ICMP_EXC_FRAGTIME)
+			return;
+
+		err = EHOSTUNREACH;
+		break;
+	case ICMP_REDIRECT:
+		sctp_icmp_redirect(sk, t, skb);
+	default:
+		return;
+	}
+	if (!sock_owned_by_user(sk) && inet_sk(sk)->recverr) {
+		sk->sk_err = err;
+		sk->sk_error_report(sk);
+	} else {  /* Only an error on timeout */
+		sk->sk_err_soft = err;
+	}
+}
+
 /*
  * This routine is called by the ICMP module when it gets some
  * sort of error condition.  If err < 0 then the socket should
@@ -574,22 +617,19 @@ void sctp_err_finish(struct sock *sk, struct sctp_transport *t)
 int sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
-	const int ihlen = iph->ihl * 4;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
-	struct sock *sk;
-	struct sctp_association *asoc = NULL;
-	struct sctp_transport *transport;
-	struct inet_sock *inet;
-	__u16 saveip, savesctp;
-	int err;
 	struct net *net = dev_net(skb->dev);
+	struct sctp_transport *transport;
+	struct sctp_association *asoc;
+	__u16 saveip, savesctp;
+	struct sock *sk;
 
 	/* Fix up skb to look at the embedded net header. */
 	saveip = skb->network_header;
 	savesctp = skb->transport_header;
 	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, ihlen);
+	skb_set_transport_header(skb, iph->ihl * 4);
 	sk = sctp_err_lookup(net, AF_INET, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original values. */
 	skb->network_header = saveip;
@@ -598,58 +638,10 @@ int sctp_v4_err(struct sk_buff *skb, __u32 info)
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return -ENOENT;
 	}
-	/* Warning:  The sock lock is held.  Remember to call
-	 * sctp_err_finish!
-	 */
 
-	switch (type) {
-	case ICMP_PARAMETERPROB:
-		err = EPROTO;
-		break;
-	case ICMP_DEST_UNREACH:
-		if (code > NR_ICMP_UNREACH)
-			goto out_unlock;
-
-		/* PMTU discovery (RFC1191) */
-		if (ICMP_FRAG_NEEDED == code) {
-			sctp_icmp_frag_needed(sk, asoc, transport,
-					      SCTP_TRUNC4(info));
-			goto out_unlock;
-		} else {
-			if (ICMP_PROT_UNREACH == code) {
-				sctp_icmp_proto_unreachable(sk, asoc,
-							    transport);
-				goto out_unlock;
-			}
-		}
-		err = icmp_err_convert[code].errno;
-		break;
-	case ICMP_TIME_EXCEEDED:
-		/* Ignore any time exceeded errors due to fragment reassembly
-		 * timeouts.
-		 */
-		if (ICMP_EXC_FRAGTIME == code)
-			goto out_unlock;
-
-		err = EHOSTUNREACH;
-		break;
-	case ICMP_REDIRECT:
-		sctp_icmp_redirect(sk, transport, skb);
-		/* Fall through to out_unlock. */
-	default:
-		goto out_unlock;
-	}
-
-	inet = inet_sk(sk);
-	if (!sock_owned_by_user(sk) && inet->recverr) {
-		sk->sk_err = err;
-		sk->sk_error_report(sk);
-	} else {  /* Only an error on timeout */
-		sk->sk_err_soft = err;
-	}
-
-out_unlock:
+	sctp_v4_err_handle(transport, skb, type, code, info);
 	sctp_err_finish(sk, transport);
+
 	return 0;
 }
 
