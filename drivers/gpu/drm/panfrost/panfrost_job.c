@@ -203,9 +203,8 @@ static int panfrost_acquire_object_fences(struct drm_gem_object **bos,
 	int i, ret;
 
 	for (i = 0; i < bo_count; i++) {
-		struct dma_fence *fence = dma_resv_get_excl_unlocked(bos[i]->resv);
-
-		ret = drm_gem_fence_array_add(deps, fence);
+		/* panfrost always uses write mode in its current uapi */
+		ret = drm_gem_fence_array_add_implicit(deps, bos[i], true);
 		if (ret)
 			return ret;
 	}
