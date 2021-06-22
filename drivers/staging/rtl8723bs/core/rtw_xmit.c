@@ -321,15 +321,12 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 
 u8 query_ra_short_GI(struct sta_info *psta)
 {
-	u8 sgi = false, sgi_20m = false, sgi_40m = false, sgi_80m = false;
+	u8 sgi = false, sgi_20m = false, sgi_40m = false;
 
 	sgi_20m = psta->htpriv.sgi_20m;
 	sgi_40m = psta->htpriv.sgi_40m;
 
 	switch (psta->bw_mode) {
-	case CHANNEL_WIDTH_80:
-		sgi = sgi_80m;
-		break;
 	case CHANNEL_WIDTH_40:
 		sgi = sgi_40m;
 		break;

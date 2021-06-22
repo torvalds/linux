@@ -230,8 +230,6 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 		IGI_target = pDM_Odm->IGI_Base;
 	else if (*pDM_Odm->pBandWidth == ODM_BW40M)
 		IGI_target = pDM_Odm->IGI_Base + 2;
-	else if (*pDM_Odm->pBandWidth == ODM_BW80M)
-		IGI_target = pDM_Odm->IGI_Base + 2;
 	else
 		IGI_target = pDM_Odm->IGI_Base;
 	pDM_Odm->IGI_target = (u8) IGI_target;

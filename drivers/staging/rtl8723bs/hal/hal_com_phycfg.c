@@ -995,7 +995,6 @@ u8 PHY_GetTxPowerIndexBase(
 )
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	u8 i = 0;	/* default set to 1S */
 	u8 txPower = 0;
 	u8 chnlIdx = (Channel-1);
 
@@ -1035,18 +1034,6 @@ u8 PHY_GetTxPowerIndexBase(
 				txPower += pHalData->BW40_24G_Diff[RFPath][TX_4S];
 
 		}
-		/*  Willis suggest adopt BW 40M power index while in BW 80 mode */
-		else if (BandWidth == CHANNEL_WIDTH_80) {
-			if ((MGN_MCS0 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT1SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW40_24G_Diff[RFPath][TX_1S];
-			if ((MGN_MCS8 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT2SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW40_24G_Diff[RFPath][TX_2S];
-			if ((MGN_MCS16 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT3SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW40_24G_Diff[RFPath][TX_3S];
-			if ((MGN_MCS24 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT4SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW40_24G_Diff[RFPath][TX_4S];
-
-		}
 	} else {/* 3 ============================== 5 G ============================== */
 		if (MGN_6M <= Rate)
 			txPower = pHalData->Index5G_BW40_Base[RFPath][chnlIdx];
@@ -1076,23 +1063,6 @@ u8 PHY_GetTxPowerIndexBase(
 			if ((MGN_MCS24 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT4SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
 				txPower += pHalData->BW40_5G_Diff[RFPath][TX_4S];
 
-		} else if (BandWidth == CHANNEL_WIDTH_80) { /*  BW80-1S, BW80-2S */
-			/*  <20121220, Kordan> Get the index of array "Index5G_BW80_Base". */
-			u8 channel5G_80M[CHANNEL_MAX_NUMBER_5G_80M] = {42, 58, 106, 122, 138, 155, 171};
-			for (i = 0; i < ARRAY_SIZE(channel5G_80M); ++i)
-				if (channel5G_80M[i] == Channel)
-					chnlIdx = i;
-
-			txPower = pHalData->Index5G_BW80_Base[RFPath][chnlIdx];
-
-			if ((MGN_MCS0 <= Rate && Rate <= MGN_MCS31)  || (MGN_VHT1SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += + pHalData->BW80_5G_Diff[RFPath][TX_1S];
-			if ((MGN_MCS8 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT2SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW80_5G_Diff[RFPath][TX_2S];
-			if ((MGN_MCS16 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT3SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW80_5G_Diff[RFPath][TX_3S];
-			if ((MGN_MCS23 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT4SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
-				txPower += pHalData->BW80_5G_Diff[RFPath][TX_4S];
 		}
 	}
 
@@ -1512,10 +1482,6 @@ static s16 get_bandwidth_idx(const enum channel_width bandwidth)
 		return 0;
 	case CHANNEL_WIDTH_40:
 		return 1;
-	case CHANNEL_WIDTH_80:
-		return 2;
-	case CHANNEL_WIDTH_160:
-		return 3;
 	default:
 		return -1;
 	}

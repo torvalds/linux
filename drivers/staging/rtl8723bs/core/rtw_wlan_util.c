@@ -336,9 +336,7 @@ u8 rtw_get_center_ch(u8 channel, u8 chnl_bw, u8 chnl_offset)
 {
 	u8 center_ch = channel;
 
-	if (chnl_bw == CHANNEL_WIDTH_80) {
-		center_ch = 7;
-	} else if (chnl_bw == CHANNEL_WIDTH_40) {
+	if (chnl_bw == CHANNEL_WIDTH_40) {
 		if (chnl_offset == HAL_PRIME_CHNL_OFFSET_LOWER)
 			center_ch = channel + 2;
 		else
@@ -375,14 +373,6 @@ void set_channel_bwmode(struct adapter *padapter, unsigned char channel, unsigne
 
 	center_ch = rtw_get_center_ch(channel, bwmode, channel_offset);
 
-	if (bwmode == CHANNEL_WIDTH_80) {
-		if (center_ch > channel)
-			chnl_offset80 = HAL_PRIME_CHNL_OFFSET_LOWER;
-		else if (center_ch < channel)
-			chnl_offset80 = HAL_PRIME_CHNL_OFFSET_UPPER;
-		else
-			chnl_offset80 = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-	}
 
 	/* set Channel */
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->setch_mutex)))
@@ -917,9 +907,6 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 		return;
 
 	if (phtpriv->ht_option == false)
-		return;
-
-	if (pmlmeext->cur_bwmode >= CHANNEL_WIDTH_80)
 		return;
 
 	if (pIE->Length > sizeof(struct HT_info_element))

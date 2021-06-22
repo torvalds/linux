@@ -609,11 +609,6 @@ static void phy_SetRegBW_8723B(
 		rtw_write16(Adapter, REG_TRXPTCL_CTL_8723B, (u2tmp & 0xFEFF)); /*  BIT 7 = 1, BIT 8 = 0 */
 		break;
 
-	case CHANNEL_WIDTH_80:
-		u2tmp = RegRfMod_BW | BIT8;
-		rtw_write16(Adapter, REG_TRXPTCL_CTL_8723B, (u2tmp & 0xFF7F)); /*  BIT 7 = 0, BIT 8 = 1 */
-		break;
-
 	default:
 		break;
 	}
@@ -624,33 +619,7 @@ static u8 phy_GetSecondaryChnl_8723B(struct adapter *Adapter)
 	u8 SCSettingOf40 = 0, SCSettingOf20 = 0;
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
-	if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_80) {
-		if (pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER)
-			SCSettingOf40 = VHT_DATA_SC_40_LOWER_OF_80MHZ;
-		else if (pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
-			SCSettingOf40 = VHT_DATA_SC_40_UPPER_OF_80MHZ;
-
-		if (
-			(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) &&
-			(pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER)
-		)
-			SCSettingOf20 = VHT_DATA_SC_20_LOWEST_OF_80MHZ;
-		else if (
-			(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER) &&
-			(pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER)
-		)
-			SCSettingOf20 = VHT_DATA_SC_20_LOWER_OF_80MHZ;
-		else if (
-			(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) &&
-			(pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
-		)
-			SCSettingOf20 = VHT_DATA_SC_20_UPPER_OF_80MHZ;
-		else if (
-			(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER) &&
-			(pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
-		)
-			SCSettingOf20 = VHT_DATA_SC_20_UPPERST_OF_80MHZ;
-	} else if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_40) {
+	if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_40) {
 		if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
 			SCSettingOf20 = VHT_DATA_SC_20_UPPER_OF_80MHZ;
 		else if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER)
