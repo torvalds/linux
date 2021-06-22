@@ -30,15 +30,12 @@ struct ksmbd_session_rpc {
 
 static void free_channel_list(struct ksmbd_session *sess)
 {
-	struct channel *chann;
-	struct list_head *tmp, *t;
+	struct channel *chann, *tmp;
 
-	list_for_each_safe(tmp, t, &sess->ksmbd_chann_list) {
-		chann = list_entry(tmp, struct channel, chann_list);
-		if (chann) {
-			list_del(&chann->chann_list);
-			kfree(chann);
-		}
+	list_for_each_entry_safe(chann, tmp, &sess->ksmbd_chann_list,
+				 chann_list) {
+		list_del(&chann->chann_list);
+		kfree(chann);
 	}
 }
 

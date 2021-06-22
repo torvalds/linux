@@ -76,7 +76,7 @@ struct channel *lookup_chann_list(struct ksmbd_session *sess, struct ksmbd_conn 
 	struct channel *chann;
 
 	list_for_each_entry(chann, &sess->ksmbd_chann_list, chann_list) {
-		if (chann && chann->conn == conn)
+		if (chann->conn == conn)
 			return chann;
 	}
 
