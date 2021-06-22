@@ -393,11 +393,8 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 {
 	struct configfs_buffer *buffer = file->private_data;
 
-	buffer->read_in_progress = false;
-
 	if (buffer->write_in_progress) {
 		struct configfs_fragment *frag = to_frag(file);
-		buffer->write_in_progress = false;
 
 		down_read(&frag->frag_sem);
 		if (!frag->frag_dead) {
@@ -410,9 +407,6 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 	}
 
 	vfree(buffer->bin_buffer);
-	buffer->bin_buffer = NULL;
-	buffer->bin_buffer_size = 0;
-	buffer->needs_read_fill = 1;
 
 	configfs_release(inode, file);
 	return 0;
