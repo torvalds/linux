@@ -172,6 +172,12 @@ static const struct imx_rproc_att imx_rproc_att_imx8mq[] = {
 	{ 0x40000000, 0x40000000, 0x80000000, 0 },
 };
 
+static const struct imx_rproc_att imx_rproc_att_imx8ulp[] = {
+	{0x1FFC0000, 0x1FFC0000, 0xC0000, ATT_OWN},
+	{0x21000000, 0x21000000, 0x10000, ATT_OWN},
+	{0x80000000, 0x80000000, 0x60000000, 0}
+};
+
 static const struct imx_rproc_att imx_rproc_att_imx7ulp[] = {
 	{0x1FFD0000, 0x1FFD0000, 0x30000, ATT_OWN},
 	{0x20000000, 0x20000000, 0x10000, ATT_OWN},
@@ -244,6 +250,12 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mq = {
 	.att		= imx_rproc_att_imx8mq,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mq),
 	.method		= IMX_RPROC_MMIO,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8ulp = {
+	.att		= imx_rproc_att_imx8ulp,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8ulp),
+	.method		= IMX_RPROC_NONE,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
@@ -824,6 +836,7 @@ static const struct of_device_id imx_rproc_of_match[] = {
 	{ .compatible = "fsl,imx8mm-cm4", .data = &imx_rproc_cfg_imx8mq },
 	{ .compatible = "fsl,imx8mn-cm7", .data = &imx_rproc_cfg_imx8mn },
 	{ .compatible = "fsl,imx8mp-cm7", .data = &imx_rproc_cfg_imx8mn },
+	{ .compatible = "fsl,imx8ulp-cm33", .data = &imx_rproc_cfg_imx8ulp },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx_rproc_of_match);
