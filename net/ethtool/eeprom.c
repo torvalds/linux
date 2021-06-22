@@ -177,10 +177,6 @@ static int eeprom_parse_request(struct ethnl_req_info *req_info, struct nlattr *
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_MODULE_EEPROM_LENGTH],
 				    "reading cross half page boundary is illegal");
 		return -EINVAL;
-	} else if (request->offset >= ETH_MODULE_EEPROM_PAGE_LEN * 2) {
-		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_MODULE_EEPROM_OFFSET],
-				    "offset is out of bounds");
-		return -EINVAL;
 	} else if (request->offset + request->length > ETH_MODULE_EEPROM_PAGE_LEN * 2) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_MODULE_EEPROM_LENGTH],
 				    "reading cross page boundary is illegal");
@@ -233,7 +229,8 @@ const struct ethnl_request_ops ethnl_module_eeprom_request_ops = {
 
 const struct nla_policy ethnl_module_eeprom_get_policy[] = {
 	[ETHTOOL_A_MODULE_EEPROM_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
-	[ETHTOOL_A_MODULE_EEPROM_OFFSET]	= { .type = NLA_U32 },
+	[ETHTOOL_A_MODULE_EEPROM_OFFSET]	=
+		NLA_POLICY_MAX(NLA_U32, ETH_MODULE_EEPROM_PAGE_LEN * 2 - 1),
 	[ETHTOOL_A_MODULE_EEPROM_LENGTH]	=
 		NLA_POLICY_RANGE(NLA_U32, 1, ETH_MODULE_EEPROM_PAGE_LEN),
 	[ETHTOOL_A_MODULE_EEPROM_PAGE]		= { .type = NLA_U8 },
