@@ -393,7 +393,7 @@ void nested_vmx_check_supported(void)
 }
 
 void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-	 	   uint64_t nested_paddr, uint64_t paddr, uint32_t eptp_memslot)
+		   uint64_t nested_paddr, uint64_t paddr)
 {
 	uint16_t index[4];
 	struct eptPageTableEntry *pml4e;
@@ -427,7 +427,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	pml4e = vmx->eptp_hva;
 	if (!pml4e[index[3]].readable) {
 		pml4e[index[3]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
 			>> vm->page_shift;
 		pml4e[index[3]].writable = true;
 		pml4e[index[3]].readable = true;
@@ -439,7 +439,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
 	if (!pdpe[index[2]].readable) {
 		pdpe[index[2]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
 			>> vm->page_shift;
 		pdpe[index[2]].writable = true;
 		pdpe[index[2]].readable = true;
@@ -451,7 +451,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
 	if (!pde[index[1]].readable) {
 		pde[index[1]].address = vm_phy_page_alloc(vm,
-			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, 0)
 			>> vm->page_shift;
 		pde[index[1]].writable = true;
 		pde[index[1]].readable = true;
@@ -492,8 +492,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
  * page range starting at nested_paddr to the page range starting at paddr.
  */
 void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-		uint64_t nested_paddr, uint64_t paddr, uint64_t size,
-		uint32_t eptp_memslot)
+		uint64_t nested_paddr, uint64_t paddr, uint64_t size)
 {
 	size_t page_size = vm->page_size;
 	size_t npages = size / page_size;
@@ -502,7 +501,7 @@ void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
 
 	while (npages--) {
-		nested_pg_map(vmx, vm, nested_paddr, paddr, eptp_memslot);
+		nested_pg_map(vmx, vm, nested_paddr, paddr);
 		nested_paddr += page_size;
 		paddr += page_size;
 	}
@@ -512,7 +511,7 @@ void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
  * physical pages in VM.
  */
 void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
-			uint32_t memslot, uint32_t eptp_memslot)
+			uint32_t memslot)
 {
 	sparsebit_idx_t i, last;
 	struct userspace_mem_region *region =
@@ -528,8 +527,7 @@ void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
 		nested_map(vmx, vm,
 			   (uint64_t)i << vm->page_shift,
 			   (uint64_t)i << vm->page_shift,
-			   1 << vm->page_shift,
-			   eptp_memslot);
+			   1 << vm->page_shift);
 	}
 }
 
@@ -541,8 +539,7 @@ void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 	vmx->eptp_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->eptp);
 }
 
-void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm,
-				      uint32_t eptp_memslot)
+void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	vmx->apic_access = (void *)vm_vaddr_alloc_page(vm);
 	vmx->apic_access_hva = addr_gva2hva(vm, (uintptr_t)vmx->apic_access);
