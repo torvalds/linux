@@ -4507,6 +4507,18 @@ static void update_last_nonleaf_level(struct kvm_mmu *mmu)
 		mmu->last_nonleaf_level++;
 }
 
+static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
+					struct kvm_mmu *mmu)
+{
+	if (!is_cr0_pg(mmu))
+		return;
+
+	reset_rsvds_bits_mask(vcpu, mmu);
+	update_permission_bitmask(mmu, false);
+	update_pkru_bitmask(mmu);
+	update_last_nonleaf_level(mmu);
+}
+
 static void paging64_init_context_common(struct kvm_mmu *context,
 					 int root_level)
 {
@@ -4646,12 +4658,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
 
-	if (is_cr0_pg(context)) {
-		reset_rsvds_bits_mask(vcpu, context);
-		update_permission_bitmask(context, false);
-		update_pkru_bitmask(context);
-		update_last_nonleaf_level(context);
-	}
+	reset_guest_paging_metadata(vcpu, context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
@@ -4705,12 +4712,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	else
 		paging32_init_context(context);
 
-	if (____is_cr0_pg(regs)) {
-		reset_rsvds_bits_mask(vcpu, context);
-		update_permission_bitmask(context, false);
-		update_pkru_bitmask(context);
-		update_last_nonleaf_level(context);
-	}
+	reset_guest_paging_metadata(vcpu, context);
 	context->shadow_root_level = new_role.base.level;
 
 	reset_shadow_zero_bits_mask(vcpu, context);
@@ -4899,12 +4901,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	else
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 
-	if (is_cr0_pg(g_context)) {
-		reset_rsvds_bits_mask(vcpu, g_context);
-		update_permission_bitmask(g_context, false);
-		update_pkru_bitmask(g_context);
-		update_last_nonleaf_level(g_context);
-	}
+	reset_guest_paging_metadata(vcpu, g_context);
 }
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu)
