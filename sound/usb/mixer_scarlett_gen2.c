@@ -48,8 +48,8 @@
  * Support for Solo/2i2 Gen 3 added in May 2021 (thanks to Alexander
  * Vorona for 2i2 protocol traces).
  *
- * Support for phantom power and direct monitoring added in May-June
- * 2021.
+ * Support for phantom power, direct monitoring, and speaker switching
+ * added in May-June 2021.
  *
  * This ALSA mixer gives access to (model-dependent):
  *  - input, output, mixer-matrix muxes
@@ -57,7 +57,7 @@
  *  - gain/volume/mute controls
  *  - level meters
  *  - line/inst level, pad, and air controls
- *  - phantom power and direct monitor controls
+ *  - phantom power, direct monitor, and speaker switching controls
  *  - disable/enable MSD mode
  *
  * <ditaa>
@@ -315,6 +315,9 @@ struct scarlett2_device_info {
 	/* line out hw volume is sw controlled */
 	u8 line_out_hw_vol;
 
+	/* support for main/alt speaker switching */
+	u8 has_speaker_switching;
+
 	/* the number of analogue inputs with a software switchable
 	 * level control that can be set to line or instrument
 	 */
@@ -379,6 +382,7 @@ struct scarlett2_data {
 	u8 input_other_updated;
 	u8 monitor_other_updated;
 	u8 mux_updated;
+	u8 speaker_switching_switched;
 	u8 sync;
 	u8 master_vol;
 	u8 vol[SCARLETT2_ANALOGUE_MAX];
@@ -391,6 +395,7 @@ struct scarlett2_data {
 	u8 phantom_switch[SCARLETT2_PHANTOM_SWITCH_MAX];
 	u8 phantom_persistence;
 	u8 direct_monitor_switch;
+	u8 speaker_switching_switch;
 	u8 msd_switch;
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -404,6 +409,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *phantom_ctls[SCARLETT2_PHANTOM_SWITCH_MAX];
 	struct snd_kcontrol *mux_ctls[SCARLETT2_MUX_MAX];
 	struct snd_kcontrol *direct_monitor_ctl;
+	struct snd_kcontrol *speaker_switching_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX];
 };
@@ -687,6 +693,7 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 	.has_msd_mode = 1,
 	.has_mixer = 1,
 	.line_out_hw_vol = 1,
+	.has_speaker_switching = 1,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 4,
@@ -756,6 +763,7 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	.has_msd_mode = 1,
 	.has_mixer = 1,
 	.line_out_hw_vol = 1,
+	.has_speaker_switching = 1,
 	.level_input_count = 2,
 	.pad_input_count = 8,
 	.air_input_count = 8,
@@ -913,7 +921,9 @@ enum {
 	SCARLETT2_CONFIG_PHANTOM_SWITCH = 8,
 	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 9,
 	SCARLETT2_CONFIG_DIRECT_MONITOR = 10,
-	SCARLETT2_CONFIG_COUNT = 11
+	SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH = 11,
+	SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE = 12,
+	SCARLETT2_CONFIG_COUNT = 13
 };
 
 /* Location, size, and activation command number for the configuration
@@ -982,6 +992,12 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_PHANTOM_PERSISTENCE] = {
 		.offset = 0x9e, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH] = {
+		.offset = 0x9f, .size = 1, .activate = 10 },
+
+	[SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE] = {
+		.offset = 0xa0, .size = 1, .activate = 10 },
 } };
 
 /* proprietary request/response format */
@@ -1862,6 +1878,18 @@ static const struct snd_kcontrol_new scarlett2_mute_ctl = {
 
 /*** HW/SW Volume Switch Controls ***/
 
+static void scarlett2_sw_hw_ctl_ro(struct scarlett2_data *private, int index)
+{
+	private->sw_hw_ctls[index]->vd[0].access &=
+		~SNDRV_CTL_ELEM_ACCESS_WRITE;
+}
+
+static void scarlett2_sw_hw_ctl_rw(struct scarlett2_data *private, int index)
+{
+	private->sw_hw_ctls[index]->vd[0].access |=
+		SNDRV_CTL_ELEM_ACCESS_WRITE;
+}
+
 static int scarlett2_sw_hw_enum_ctl_info(struct snd_kcontrol *kctl,
 					 struct snd_ctl_elem_info *uinfo)
 {
@@ -2325,6 +2353,13 @@ static int scarlett2_update_monitor_other(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
+	int err;
+
+	/* monitor_other_enable[0] enables speaker switching */
+	u8 monitor_other_enable[2];
+
+	/* monitor_other_switch[0] activates the alternate speakers */
+	u8 monitor_other_switch[2];
 
 	private->monitor_other_updated = 0;
 
@@ -2332,6 +2367,26 @@ static int scarlett2_update_monitor_other(struct usb_mixer_interface *mixer)
 		return scarlett2_usb_get_config(
 			mixer, SCARLETT2_CONFIG_DIRECT_MONITOR,
 			1, &private->direct_monitor_switch);
+
+	if (!info->has_speaker_switching)
+		return 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE,
+		2, monitor_other_enable);
+	if (err < 0)
+		return err;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH,
+		2, monitor_other_switch);
+	if (err < 0)
+		return err;
+
+	if (!monitor_other_enable[0])
+		private->speaker_switching_switch = 0;
+	else
+		private->speaker_switching_switch = monitor_other_switch[0] + 1;
 
 	return 0;
 }
@@ -2423,6 +2478,151 @@ static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
 		mixer, &scarlett2_direct_monitor_ctl[info->direct_monitor - 1],
 		0, 1, "Direct Monitor Playback Switch",
 		&private->direct_monitor_ctl);
+}
+
+/*** Speaker Switching Control ***/
+
+static int scarlett2_speaker_switch_enum_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	static const char *const values[3] = {
+		"Off", "Main", "Alt"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 3, values);
+}
+
+static int scarlett2_speaker_switch_enum_ctl_get(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	mutex_lock(&private->data_mutex);
+	if (private->monitor_other_updated)
+		scarlett2_update_monitor_other(mixer);
+	ucontrol->value.enumerated.item[0] = private->speaker_switching_switch;
+	mutex_unlock(&private->data_mutex);
+
+	return 0;
+}
+
+/* when speaker switching gets enabled, switch the main/alt speakers
+ * to HW volume and disable those controls
+ */
+static void scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		int index = line_out_remap(private, i);
+
+		/* switch the main/alt speakers to HW volume */
+		if (!private->vol_sw_hw_switch[index])
+			scarlett2_sw_hw_change(private->mixer, i, 1);
+
+		/* disable the line out SW/HW switch */
+		scarlett2_sw_hw_ctl_ro(private, i);
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+			       &private->sw_hw_ctls[i]->id);
+	}
+
+	/* when the next monitor-other notify comes in, update the mux
+	 * configuration
+	 */
+	private->speaker_switching_switched = 1;
+}
+
+/* when speaker switching gets disabled, reenable the hw/sw controls
+ * and invalidate the routing
+ */
+static void scarlett2_speaker_switch_disable(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	int i;
+
+	/* enable the line out SW/HW switch */
+	for (i = 0; i < 4; i++) {
+		scarlett2_sw_hw_ctl_rw(private, i);
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+			       &private->sw_hw_ctls[i]->id);
+	}
+
+	/* when the next monitor-other notify comes in, update the mux
+	 * configuration
+	 */
+	private->speaker_switching_switched = 1;
+}
+
+static int scarlett2_speaker_switch_enum_ctl_put(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->speaker_switching_switch;
+	val = min(ucontrol->value.enumerated.item[0], 2U);
+
+	if (oval == val)
+		goto unlock;
+
+	private->speaker_switching_switch = val;
+
+	/* enable/disable speaker switching */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE,
+		0, !!val);
+	if (err < 0)
+		goto unlock;
+
+	/* if speaker switching is enabled, select main or alt */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH,
+		0, val == 2);
+	if (err < 0)
+		goto unlock;
+
+	/* update controls if speaker switching gets enabled or disabled */
+	if (!oval && val)
+		scarlett2_speaker_switch_enable(mixer);
+	else if (oval && !val)
+		scarlett2_speaker_switch_disable(mixer);
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_speaker_switch_enum_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = scarlett2_speaker_switch_enum_ctl_info,
+	.get  = scarlett2_speaker_switch_enum_ctl_get,
+	.put  = scarlett2_speaker_switch_enum_ctl_put,
+};
+
+static int scarlett2_add_speaker_switch_ctl(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+
+	if (!info->has_speaker_switching)
+		return 0;
+
+	return scarlett2_add_new_ctl(
+		mixer, &scarlett2_speaker_switch_enum_ctl,
+		0, 1, "Speaker Switching Playback Enum",
+		&private->speaker_switching_ctl);
 }
 
 /*** Dim/Mute Controls ***/
@@ -2567,6 +2767,12 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 						    &private->sw_hw_ctls[i]);
 			if (err < 0)
 				return err;
+
+			/* Make the switch read-only if the line is
+			 * involved in speaker switching
+			 */
+			if (private->speaker_switching_switch && i < 4)
+				scarlett2_sw_hw_ctl_ro(private, i);
 		}
 	}
 
@@ -3314,18 +3520,41 @@ static void scarlett2_notify_input_other(
 			       &private->phantom_ctls[i]->id);
 }
 
-/* Notify on "monitor other" change (direct monitor) */
+/* Notify on "monitor other" change (direct monitor, speaker switching) */
 static void scarlett2_notify_monitor_other(
 	struct usb_mixer_interface *mixer)
 {
-	struct scarlett2_data *private = mixer->private_data;
 	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
 
 	private->monitor_other_updated = 1;
 
-	if (private->info->direct_monitor)
+	if (info->direct_monitor) {
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->direct_monitor_ctl->id);
+		return;
+	}
+
+	if (info->has_speaker_switching)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &private->speaker_switching_ctl->id);
+
+	/* if speaker switching was recently enabled or disabled,
+	 * invalidate the dim/mute and mux enum controls
+	 */
+	if (private->speaker_switching_switched) {
+		int i;
+
+		scarlett2_notify_dim_mute(mixer);
+
+		private->speaker_switching_switched = 0;
+		private->mux_updated = 1;
+
+		for (i = 0; i < private->num_mux_dsts; i++)
+			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+				       &private->mux_ctls[i]->id);
+	}
 }
 
 /* Interrupt callback */
@@ -3458,6 +3687,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 
 	/* Create the direct monitor control */
 	err = scarlett2_add_direct_monitor_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the speaker switching control */
+	err = scarlett2_add_speaker_switch_ctl(mixer);
 	if (err < 0)
 		return err;
 
