@@ -282,62 +282,6 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 *                           TxPowerTrack_SDIO.TXT
 ******************************************************************************/
 
-static u8 gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZE] = {
-	{
-		0, 1, 1, 2, 2, 3, 4, 5, 5, 6,  6,  7,  7,  8,  8,  9,
-		9, 10, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10,
-		10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10,
-		10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14
-	},
-};
-static u8 gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZE] = {
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12,
-		12, 13, 14, 15, 15, 16, 16, 17, 17, 18, 19, 20, 20, 20
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12,
-		12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 19, 20, 20, 20
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12,
-		12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 20, 21, 21, 21
-	},
-};
-static u8 gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZE] = {
-	{
-		0, 1, 2, 3, 3, 4, 4, 5, 5, 6,  7,  8,  8,  9,  9, 10,
-		10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 6,  7,  7,  8,  8,  9, 10,
-		11, 11, 12, 13, 13, 14, 15, 16, 16, 16, 16, 16, 16, 16
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 10, 11,
-		11, 12, 13, 14, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16
-	},
-};
-static u8 gDeltaSwingTableIdx_MP_5GA_P_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZE] = {
-	{
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12,
-		12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 20, 21, 21, 21
-	},
-	{
-		0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12,
-		12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 20, 21, 21, 21
-	},
-};
 static u8 gDeltaSwingTableIdx_MP_2GB_N_TxPowerTrack_SDIO_8723B[] = {
 	0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6, 6,  6,
 	7,  7,  7, 8,  8,  9,  9, 10, 10, 11, 12, 13, 14, 15
@@ -416,27 +360,6 @@ void ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(struct dm_odm_t *pDM_Odm)
 		pRFCalibrateInfo->DeltaSwingTableIdx_2GCCKB_N,
 		gDeltaSwingTableIdx_MP_2GCCKB_N_TxPowerTrack_SDIO_8723B,
 		DELTA_SWINGIDX_SIZE
-	);
-
-	memcpy(
-		pRFCalibrateInfo->DeltaSwingTableIdx_5GA_P,
-		gDeltaSwingTableIdx_MP_5GA_P_TxPowerTrack_SDIO_8723B,
-		DELTA_SWINGIDX_SIZE*3
-	);
-	memcpy(
-		pRFCalibrateInfo->DeltaSwingTableIdx_5GA_N,
-		gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_SDIO_8723B,
-		DELTA_SWINGIDX_SIZE*3
-	);
-	memcpy(
-		pRFCalibrateInfo->DeltaSwingTableIdx_5GB_P,
-		gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_SDIO_8723B,
-		DELTA_SWINGIDX_SIZE*3
-	);
-	memcpy(
-		pRFCalibrateInfo->DeltaSwingTableIdx_5GB_N,
-		gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_SDIO_8723B,
-		DELTA_SWINGIDX_SIZE*3
 	);
 }
 
