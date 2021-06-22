@@ -39,18 +39,6 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 RfPath,
 	case HT_MCS24_MCS31:
 		value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][5];
 		break;
-	case VHT_1SSMCS0_1SSMCS9:
-		value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][6];
-		break;
-	case VHT_2SSMCS0_2SSMCS9:
-		value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][7];
-		break;
-	case VHT_3SSMCS0_3SSMCS9:
-		value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][8];
-		break;
-	case VHT_4SSMCS0_4SSMCS9:
-		value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][9];
-		break;
 	default:
 		break;
 	}
@@ -91,18 +79,6 @@ phy_SetTxPowerByRateBase(
 	case HT_MCS24_MCS31:
 		pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][5] = Value;
 		break;
-	case VHT_1SSMCS0_1SSMCS9:
-		pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][6] = Value;
-		break;
-	case VHT_2SSMCS0_2SSMCS9:
-		pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][7] = Value;
-		break;
-	case VHT_3SSMCS0_3SSMCS9:
-		pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][8] = Value;
-		break;
-	case VHT_4SSMCS0_4SSMCS9:
-		pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][9] = Value;
-		break;
 	default:
 		break;
 	}
@@ -131,14 +107,6 @@ struct adapter *padapter
 		base = PHY_GetTxPowerByRate(padapter, path, RF_3TX, MGN_MCS23);
 		phy_SetTxPowerByRateBase(padapter, path, HT_MCS16_MCS23, RF_3TX, base);
 
-		base = PHY_GetTxPowerByRate(padapter, path, RF_1TX, MGN_VHT1SS_MCS7);
-		phy_SetTxPowerByRateBase(padapter, path, VHT_1SSMCS0_1SSMCS9, RF_1TX, base);
-
-		base = PHY_GetTxPowerByRate(padapter, path, RF_2TX, MGN_VHT2SS_MCS7);
-		phy_SetTxPowerByRateBase(padapter, path, VHT_2SSMCS0_2SSMCS9, RF_2TX, base);
-
-		base = PHY_GetTxPowerByRate(padapter, path, RF_3TX, MGN_VHT3SS_MCS7);
-		phy_SetTxPowerByRateBase(padapter, path, VHT_3SSMCS0_3SSMCS9, RF_3TX, base);
 	}
 }
 
@@ -442,81 +410,6 @@ PHY_GetRateValuesOfTxPowerByRate(
 		*RateNum = 4;
 		break;
 
-	case 0xC3C:
-	case 0xE3C:
-	case 0x183C:
-	case 0x1a3C:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS0);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS1);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS2);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS3);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xC40:
-	case 0xE40:
-	case 0x1840:
-	case 0x1a40:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS4);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS5);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS6);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS7);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xC44:
-	case 0xE44:
-	case 0x1844:
-	case 0x1a44:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS8);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT1SS_MCS9);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS0);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS1);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xC48:
-	case 0xE48:
-	case 0x1848:
-	case 0x1a48:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS2);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS3);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS4);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS5);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xC4C:
-	case 0xE4C:
-	case 0x184C:
-	case 0x1a4C:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS6);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS7);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS8);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS9);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
 	case 0xCD8:
 	case 0xED8:
 	case 0x18D8:
@@ -541,49 +434,6 @@ PHY_GetRateValuesOfTxPowerByRate(
 		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_MCS22);
 		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_MCS23);
 		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xCE0:
-	case 0xEE0:
-	case 0x18E0:
-	case 0x1aE0:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS0);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS1);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS2);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS3);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xCE4:
-	case 0xEE4:
-	case 0x18E4:
-	case 0x1aE4:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS4);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS5);
-		RateIndex[2] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS6);
-		RateIndex[3] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS7);
-		for (i = 0; i < 4; ++i) {
-			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
-											((Value >> (i * 8)) & 0xF));
-		}
-		*RateNum = 4;
-		break;
-
-	case 0xCE8:
-	case 0xEE8:
-	case 0x18E8:
-	case 0x1aE8:
-		RateIndex[0] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS8);
-		RateIndex[1] = PHY_GetRateIndexOfTxPowerByRate(MGN_VHT3SS_MCS9);
-		for (i = 0; i < 2; ++i) {
 			PwrByRateVal[i] = (s8) ((((Value >> (i * 8 + 4)) & 0xF)) * 10 +
 											((Value >> (i * 8)) & 0xF));
 		}
@@ -617,10 +467,6 @@ static void PHY_StoreTxPowerByRateNew(
 		return;
 
 	for (i = 0; i < rateNum; ++i) {
-		if (rateIndex[i] == PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS0) ||
-			 rateIndex[i] == PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS1))
-			TxNum = RF_2TX;
-
 		pHalData->TxPwrByRateOffset[RfPath][TxNum][rateIndex[i]] = PwrByRateVal[i];
 	}
 }
@@ -691,18 +537,6 @@ struct adapter *padapter
 	u8 mcs16_23Rates[8] = {
 		MGN_MCS16, MGN_MCS17, MGN_MCS18, MGN_MCS19, MGN_MCS20, MGN_MCS21, MGN_MCS22, MGN_MCS23
 	};
-	u8 vht1ssRates[10] = {
-		MGN_VHT1SS_MCS0, MGN_VHT1SS_MCS1, MGN_VHT1SS_MCS2, MGN_VHT1SS_MCS3, MGN_VHT1SS_MCS4,
-		MGN_VHT1SS_MCS5, MGN_VHT1SS_MCS6, MGN_VHT1SS_MCS7, MGN_VHT1SS_MCS8, MGN_VHT1SS_MCS9
-	};
-	u8 vht2ssRates[10] = {
-		MGN_VHT2SS_MCS0, MGN_VHT2SS_MCS1, MGN_VHT2SS_MCS2, MGN_VHT2SS_MCS3, MGN_VHT2SS_MCS4,
-		MGN_VHT2SS_MCS5, MGN_VHT2SS_MCS6, MGN_VHT2SS_MCS7, MGN_VHT2SS_MCS8, MGN_VHT2SS_MCS9
-	};
-	u8 vht3ssRates[10] = {
-		MGN_VHT3SS_MCS0, MGN_VHT3SS_MCS1, MGN_VHT3SS_MCS2, MGN_VHT3SS_MCS3, MGN_VHT3SS_MCS4,
-		MGN_VHT3SS_MCS5, MGN_VHT3SS_MCS6, MGN_VHT3SS_MCS7, MGN_VHT3SS_MCS8, MGN_VHT3SS_MCS9
-	};
 
 	for (path = ODM_RF_PATH_A; path <= ODM_RF_PATH_D; ++path) {
 		for (txNum = RF_1TX; txNum < RF_MAX_TX_NUM; ++txNum) {
@@ -739,27 +573,6 @@ struct adapter *padapter
 			for (i = 0; i < sizeof(mcs16_23Rates); ++i) {
 				value = PHY_GetTxPowerByRate(padapter, path, txNum, mcs16_23Rates[i]);
 				PHY_SetTxPowerByRate(padapter, path, txNum, mcs16_23Rates[i], value - base);
-			}
-
-			/*  VHT 1SS */
-			base = PHY_GetTxPowerByRate(padapter, path, txNum, MGN_VHT1SS_MCS7);
-			for (i = 0; i < sizeof(vht1ssRates); ++i) {
-				value = PHY_GetTxPowerByRate(padapter, path, txNum, vht1ssRates[i]);
-				PHY_SetTxPowerByRate(padapter, path, txNum, vht1ssRates[i], value - base);
-			}
-
-			/*  VHT 2SS */
-			base = PHY_GetTxPowerByRate(padapter, path, txNum, MGN_VHT2SS_MCS7);
-			for (i = 0; i < sizeof(vht2ssRates); ++i) {
-				value = PHY_GetTxPowerByRate(padapter, path, txNum, vht2ssRates[i]);
-				PHY_SetTxPowerByRate(padapter, path, txNum, vht2ssRates[i], value - base);
-			}
-
-			/*  VHT 3SS */
-			base = PHY_GetTxPowerByRate(padapter, path, txNum, MGN_VHT3SS_MCS7);
-			for (i = 0; i < sizeof(vht3ssRates); ++i) {
-				value = PHY_GetTxPowerByRate(padapter, path, txNum, vht3ssRates[i]);
-				PHY_SetTxPowerByRate(padapter, path, txNum, vht3ssRates[i], value - base);
 			}
 		}
 	}
@@ -823,38 +636,6 @@ void PHY_SetTxPowerIndexByRateSection(
 					       Channel, htRates4T,
 					       ARRAY_SIZE(htRates4T));
 
-	} else if (RateSection == VHT_1SSMCS0_1SSMCS9) {
-		u8 vhtRates1T[] = {MGN_VHT1SS_MCS0, MGN_VHT1SS_MCS1, MGN_VHT1SS_MCS2, MGN_VHT1SS_MCS3, MGN_VHT1SS_MCS4,
-				MGN_VHT1SS_MCS5, MGN_VHT1SS_MCS6, MGN_VHT1SS_MCS7, MGN_VHT1SS_MCS8, MGN_VHT1SS_MCS9};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
-					       pHalData->CurrentChannelBW,
-					       Channel, vhtRates1T,
-					       ARRAY_SIZE(vhtRates1T));
-
-	} else if (RateSection == VHT_2SSMCS0_2SSMCS9) {
-		u8 vhtRates2T[] = {MGN_VHT2SS_MCS0, MGN_VHT2SS_MCS1, MGN_VHT2SS_MCS2, MGN_VHT2SS_MCS3, MGN_VHT2SS_MCS4,
-				MGN_VHT2SS_MCS5, MGN_VHT2SS_MCS6, MGN_VHT2SS_MCS7, MGN_VHT2SS_MCS8, MGN_VHT2SS_MCS9};
-
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
-					       pHalData->CurrentChannelBW,
-					       Channel, vhtRates2T,
-					       ARRAY_SIZE(vhtRates2T));
-	} else if (RateSection == VHT_3SSMCS0_3SSMCS9) {
-		u8 vhtRates3T[] = {MGN_VHT3SS_MCS0, MGN_VHT3SS_MCS1, MGN_VHT3SS_MCS2, MGN_VHT3SS_MCS3, MGN_VHT3SS_MCS4,
-				MGN_VHT3SS_MCS5, MGN_VHT3SS_MCS6, MGN_VHT3SS_MCS7, MGN_VHT3SS_MCS8, MGN_VHT3SS_MCS9};
-
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
-					       pHalData->CurrentChannelBW,
-					       Channel, vhtRates3T,
-					       ARRAY_SIZE(vhtRates3T));
-	} else if (RateSection == VHT_4SSMCS0_4SSMCS9) {
-		u8 vhtRates4T[] = {MGN_VHT4SS_MCS0, MGN_VHT4SS_MCS1, MGN_VHT4SS_MCS2, MGN_VHT4SS_MCS3, MGN_VHT4SS_MCS4,
-				MGN_VHT4SS_MCS5, MGN_VHT4SS_MCS6, MGN_VHT4SS_MCS7, MGN_VHT4SS_MCS8, MGN_VHT4SS_MCS9};
-
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
-					       pHalData->CurrentChannelBW,
-					       Channel, vhtRates4T,
-					       ARRAY_SIZE(vhtRates4T));
 	}
 }
 
@@ -883,23 +664,23 @@ u8 PHY_GetTxPowerIndexBase(
 		txPower += pHalData->OFDM_24G_Diff[RFPath][TX_1S];
 
 	if (BandWidth == CHANNEL_WIDTH_20) { /*  BW20-1S, BW20-2S */
-		if ((MGN_MCS0 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT1SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS0 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW20_24G_Diff[RFPath][TX_1S];
-		if ((MGN_MCS8 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT2SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS8 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW20_24G_Diff[RFPath][TX_2S];
-		if ((MGN_MCS16 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT3SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS16 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW20_24G_Diff[RFPath][TX_3S];
-		if ((MGN_MCS24 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT4SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS24 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW20_24G_Diff[RFPath][TX_4S];
 
 	} else if (BandWidth == CHANNEL_WIDTH_40) { /*  BW40-1S, BW40-2S */
-		if ((MGN_MCS0 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT1SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS0 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW40_24G_Diff[RFPath][TX_1S];
-		if ((MGN_MCS8 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT2SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS8 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW40_24G_Diff[RFPath][TX_2S];
-		if ((MGN_MCS16 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT3SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS16 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW40_24G_Diff[RFPath][TX_3S];
-		if ((MGN_MCS24 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT4SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
+		if (MGN_MCS24 <= Rate && Rate <= MGN_MCS31)
 			txPower += pHalData->BW40_24G_Diff[RFPath][TX_4S];
 
 	}
@@ -1060,126 +841,6 @@ u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate)
 	case MGN_MCS31:
 		index = 43;
 		break;
-	case MGN_VHT1SS_MCS0:
-		index = 44;
-		break;
-	case MGN_VHT1SS_MCS1:
-		index = 45;
-		break;
-	case MGN_VHT1SS_MCS2:
-		index = 46;
-		break;
-	case MGN_VHT1SS_MCS3:
-		index = 47;
-		break;
-	case MGN_VHT1SS_MCS4:
-		index = 48;
-		break;
-	case MGN_VHT1SS_MCS5:
-		index = 49;
-		break;
-	case MGN_VHT1SS_MCS6:
-		index = 50;
-		break;
-	case MGN_VHT1SS_MCS7:
-		index = 51;
-		break;
-	case MGN_VHT1SS_MCS8:
-		index = 52;
-		break;
-	case MGN_VHT1SS_MCS9:
-		index = 53;
-		break;
-	case MGN_VHT2SS_MCS0:
-		index = 54;
-		break;
-	case MGN_VHT2SS_MCS1:
-		index = 55;
-		break;
-	case MGN_VHT2SS_MCS2:
-		index = 56;
-		break;
-	case MGN_VHT2SS_MCS3:
-		index = 57;
-		break;
-	case MGN_VHT2SS_MCS4:
-		index = 58;
-		break;
-	case MGN_VHT2SS_MCS5:
-		index = 59;
-		break;
-	case MGN_VHT2SS_MCS6:
-		index = 60;
-		break;
-	case MGN_VHT2SS_MCS7:
-		index = 61;
-		break;
-	case MGN_VHT2SS_MCS8:
-		index = 62;
-		break;
-	case MGN_VHT2SS_MCS9:
-		index = 63;
-		break;
-	case MGN_VHT3SS_MCS0:
-		index = 64;
-		break;
-	case MGN_VHT3SS_MCS1:
-		index = 65;
-		break;
-	case MGN_VHT3SS_MCS2:
-		index = 66;
-		break;
-	case MGN_VHT3SS_MCS3:
-		index = 67;
-		break;
-	case MGN_VHT3SS_MCS4:
-		index = 68;
-		break;
-	case MGN_VHT3SS_MCS5:
-		index = 69;
-		break;
-	case MGN_VHT3SS_MCS6:
-		index = 70;
-		break;
-	case MGN_VHT3SS_MCS7:
-		index = 71;
-		break;
-	case MGN_VHT3SS_MCS8:
-		index = 72;
-		break;
-	case MGN_VHT3SS_MCS9:
-		index = 73;
-		break;
-	case MGN_VHT4SS_MCS0:
-		index = 74;
-		break;
-	case MGN_VHT4SS_MCS1:
-		index = 75;
-		break;
-	case MGN_VHT4SS_MCS2:
-		index = 76;
-		break;
-	case MGN_VHT4SS_MCS3:
-		index = 77;
-		break;
-	case MGN_VHT4SS_MCS4:
-		index = 78;
-		break;
-	case MGN_VHT4SS_MCS5:
-		index = 79;
-		break;
-	case MGN_VHT4SS_MCS6:
-		index = 80;
-		break;
-	case MGN_VHT4SS_MCS7:
-		index = 81;
-		break;
-	case MGN_VHT4SS_MCS8:
-		index = 82;
-		break;
-	case MGN_VHT4SS_MCS9:
-		index = 83;
-		break;
 	default:
 		break;
 	}
@@ -1319,26 +980,6 @@ static s16 get_rate_sctn_idx(const u8 rate)
 	case MGN_MCS24: case MGN_MCS25: case MGN_MCS26: case MGN_MCS27:
 	case MGN_MCS28: case MGN_MCS29: case MGN_MCS30: case MGN_MCS31:
 		return 5;
-	case MGN_VHT1SS_MCS0: case MGN_VHT1SS_MCS1: case MGN_VHT1SS_MCS2:
-	case MGN_VHT1SS_MCS3: case MGN_VHT1SS_MCS4: case MGN_VHT1SS_MCS5:
-	case MGN_VHT1SS_MCS6: case MGN_VHT1SS_MCS7: case MGN_VHT1SS_MCS8:
-	case MGN_VHT1SS_MCS9:
-		return 6;
-	case MGN_VHT2SS_MCS0: case MGN_VHT2SS_MCS1: case MGN_VHT2SS_MCS2:
-	case MGN_VHT2SS_MCS3: case MGN_VHT2SS_MCS4: case MGN_VHT2SS_MCS5:
-	case MGN_VHT2SS_MCS6: case MGN_VHT2SS_MCS7: case MGN_VHT2SS_MCS8:
-	case MGN_VHT2SS_MCS9:
-		return 7;
-	case MGN_VHT3SS_MCS0: case MGN_VHT3SS_MCS1: case MGN_VHT3SS_MCS2:
-	case MGN_VHT3SS_MCS3: case MGN_VHT3SS_MCS4: case MGN_VHT3SS_MCS5:
-	case MGN_VHT3SS_MCS6: case MGN_VHT3SS_MCS7: case MGN_VHT3SS_MCS8:
-	case MGN_VHT3SS_MCS9:
-		return 8;
-	case MGN_VHT4SS_MCS0: case MGN_VHT4SS_MCS1: case MGN_VHT4SS_MCS2:
-	case MGN_VHT4SS_MCS3: case MGN_VHT4SS_MCS4: case MGN_VHT4SS_MCS5:
-	case MGN_VHT4SS_MCS6: case MGN_VHT4SS_MCS7: case MGN_VHT4SS_MCS8:
-	case MGN_VHT4SS_MCS9:
-		return 9;
 	default:
 		return -1;
 	}
@@ -1510,14 +1151,6 @@ void PHY_SetTxPowerLimit(
 		rateSection = 4;
 	else if (eqNByte(RateSection, (u8 *)("HT"), 2) && eqNByte(RfPath, (u8 *)("4T"), 2))
 		rateSection = 5;
-	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("1T"), 2))
-		rateSection = 6;
-	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("2T"), 2))
-		rateSection = 7;
-	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("3T"), 2))
-		rateSection = 8;
-	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("4T"), 2))
-		rateSection = 9;
 	else
 		return;
 
