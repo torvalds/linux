@@ -396,13 +396,19 @@ static int kthread_fn(void *data)
 static void stop_single_kthread(void)
 {
 	struct hwlat_kthread_data *kdata = get_cpu_data();
-	struct task_struct *kthread = kdata->kthread;
+	struct task_struct *kthread;
+
+	get_online_cpus();
+	kthread = kdata->kthread;
 
 	if (!kthread)
-		return;
+		goto out_put_cpus;
 
 	kthread_stop(kthread);
 	kdata->kthread = NULL;
+
+out_put_cpus:
+	put_online_cpus();
 }
 
 
@@ -419,20 +425,19 @@ static int start_single_kthread(struct trace_array *tr)
 	struct task_struct *kthread;
 	int next_cpu;
 
+	get_online_cpus();
 	if (kdata->kthread)
-		return 0;
+		goto out_put_cpus;
 
 	kthread = kthread_create(kthread_fn, NULL, "hwlatd");
 	if (IS_ERR(kthread)) {
 		pr_err(BANNER "could not start sampling thread\n");
+		put_online_cpus();
 		return -ENOMEM;
 	}
 
-
 	/* Just pick the first CPU on first iteration */
-	get_online_cpus();
 	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
-	put_online_cpus();
 
 	if (hwlat_data.thread_mode == MODE_ROUND_ROBIN) {
 		next_cpu = cpumask_first(current_mask);
@@ -446,6 +451,8 @@ static int start_single_kthread(struct trace_array *tr)
 	kdata->kthread = kthread;
 	wake_up_process(kthread);
 
+out_put_cpus:
+	put_online_cpus();
 	return 0;
 }
 
