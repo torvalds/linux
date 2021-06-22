@@ -13,6 +13,7 @@
 #include <linux/thermal.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/qcom_aoss.h>
+#include <linux/ipc_logging.h>
 
 #define QMP_DESC_MAGIC			0x0
 #define QMP_DESC_VERSION		0x4
@@ -87,6 +88,12 @@ struct qmp {
 	struct dentry *debugfs_file;
 #endif /* CONFIG_DEBUG_FS */
 };
+
+/* IPC Logging helpers */
+#define AOSS_IPC_LOG_PAGE_CNT	2
+static void *ilc;
+#define AOSS_INFO(x, ...)						  \
+	ipc_log_string(ilc, "[%s]: "x, __func__, ##__VA_ARGS__)
 
 static void qmp_kick(struct qmp *qmp)
 {
@@ -196,6 +203,7 @@ static irqreturn_t qmp_intr(int irq, void *data)
 {
 	struct qmp *qmp = data;
 
+	AOSS_INFO("\n");
 	wake_up_all(&qmp->event);
 
 	return IRQ_HANDLED;
@@ -242,6 +250,7 @@ int qmp_send(struct qmp *qmp, const void *data, size_t len)
 	/* Read back len to confirm data written in message RAM */
 	readl(qmp->msgram + qmp->offset);
 	qmp_kick(qmp);
+	AOSS_INFO("msg: %.*s\n", len, (char *)data);
 
 	time_left = wait_event_interruptible_timeout(qmp->event,
 						     qmp_message_empty(qmp), HZ);
@@ -250,10 +259,12 @@ int qmp_send(struct qmp *qmp, const void *data, size_t len)
 		ret = -ETIMEDOUT;
 
 		/* Clear message from buffer */
+		AOSS_INFO("timed out clearing msg: %.*s\n", len, (char *)data);
 		writel(0, qmp->msgram + qmp->offset);
 	} else {
 		ret = 0;
 	}
+	AOSS_INFO("ack: %.*s\n", len, (char *)data);
 
 	mutex_unlock(&qmp->tx_lock);
 
@@ -517,6 +528,7 @@ static int qmp_probe(struct platform_device *pdev)
 	qmp->dev = &pdev->dev;
 	init_waitqueue_head(&qmp->event);
 	mutex_init(&qmp->tx_lock);
+	ilc = ipc_log_context_create(AOSS_IPC_LOG_PAGE_CNT, "aoss", 0);
 
 	qmp->msgram = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qmp->msgram))
