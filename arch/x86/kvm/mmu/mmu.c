@@ -4778,8 +4778,8 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 
 	kvm_init_shadow_mmu(vcpu,
-			    kvm_read_cr0_bits(vcpu, X86_CR0_PG),
-			    kvm_read_cr4_bits(vcpu, X86_CR4_PAE),
+			    kvm_read_cr0_bits(vcpu, KVM_MMU_CR0_ROLE_BITS),
+			    kvm_read_cr4_bits(vcpu, KVM_MMU_CR4_ROLE_BITS),
 			    vcpu->arch.efer);
 
 	context->get_guest_pgd     = get_cr3;
