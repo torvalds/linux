@@ -691,6 +691,17 @@ static int tlmi_sysfs_init(void)
 		if (!tlmi_priv.setting[i])
 			continue;
 
+		/* check for duplicate or reserved values */
+		if (kset_find_obj(tlmi_priv.attribute_kset, tlmi_priv.setting[i]->display_name) ||
+		    !strcmp(tlmi_priv.setting[i]->display_name, "Reserved")) {
+			pr_debug("duplicate or reserved attribute name found - %s\n",
+				tlmi_priv.setting[i]->display_name);
+			kfree(tlmi_priv.setting[i]->possible_values);
+			kfree(tlmi_priv.setting[i]);
+			tlmi_priv.setting[i] = NULL;
+			continue;
+		}
+
 		/* Build attribute */
 		tlmi_priv.setting[i]->kobj.kset = tlmi_priv.attribute_kset;
 		ret = kobject_init_and_add(&tlmi_priv.setting[i]->kobj, &tlmi_attr_setting_ktype,
