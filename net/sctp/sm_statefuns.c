@@ -1109,6 +1109,8 @@ enum sctp_disposition sctp_sf_send_probe(struct net *net,
 	if (!sctp_transport_pl_enabled(transport))
 		return SCTP_DISPOSITION_CONSUME;
 
+	sctp_transport_pl_send(transport);
+
 	reply = sctp_make_heartbeat(asoc, transport, transport->pl.probe_size);
 	if (!reply)
 		return SCTP_DISPOSITION_NOMEM;

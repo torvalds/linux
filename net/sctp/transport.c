@@ -261,6 +261,50 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
+void sctp_transport_pl_send(struct sctp_transport *t)
+{
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+
+	if (t->pl.probe_count < SCTP_MAX_PROBES) {
+		t->pl.probe_count++;
+		return;
+	}
+
+	if (t->pl.state == SCTP_PL_BASE) {
+		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
+			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
+
+			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (t->pl.pmtu == t->pl.probe_size) { /* Black Hole Detected */
+			t->pl.state = SCTP_PL_BASE;  /* Search -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_high = 0;
+
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		} else { /* Normal probe failure. */
+			t->pl.probe_high = t->pl.probe_size;
+			t->pl.probe_size = t->pl.pmtu;
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		if (t->pl.pmtu == t->pl.probe_size) { /* Black Hole Detected */
+			t->pl.state = SCTP_PL_BASE;  /* Search Complete -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	}
+	t->pl.probe_count = 1;
+}
+
 bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
 	struct dst_entry *dst = sctp_transport_dst_check(t);
