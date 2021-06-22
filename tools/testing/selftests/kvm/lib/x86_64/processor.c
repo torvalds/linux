@@ -518,24 +518,22 @@ unmapped_gva:
 	exit(EXIT_FAILURE);
 }
 
-static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt, int gdt_memslot,
-			  int pgd_memslot)
+static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt)
 {
 	if (!vm->gdt)
 		vm->gdt = vm_vaddr_alloc(vm, getpagesize(),
-			KVM_UTIL_MIN_VADDR, gdt_memslot, pgd_memslot);
+			KVM_UTIL_MIN_VADDR, 0, 0);
 
 	dt->base = vm->gdt;
 	dt->limit = getpagesize();
 }
 
 static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
-				int selector, int gdt_memslot,
-				int pgd_memslot)
+				int selector)
 {
 	if (!vm->tss)
 		vm->tss = vm_vaddr_alloc(vm, getpagesize(),
-			KVM_UTIL_MIN_VADDR, gdt_memslot, pgd_memslot);
+			KVM_UTIL_MIN_VADDR, 0, 0);
 
 	memset(segp, 0, sizeof(*segp));
 	segp->base = vm->tss;
@@ -546,7 +544,7 @@ static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
 	kvm_seg_fill_gdt_64bit(vm, segp);
 }
 
-static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
+static void vcpu_setup(struct kvm_vm *vm, int vcpuid)
 {
 	struct kvm_sregs sregs;
 
@@ -555,7 +553,7 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_m
 
 	sregs.idt.limit = 0;
 
-	kvm_setup_gdt(vm, &sregs.gdt, gdt_memslot, pgd_memslot);
+	kvm_setup_gdt(vm, &sregs.gdt);
 
 	switch (vm->mode) {
 	case VM_MODE_PXXV48_4K:
@@ -567,7 +565,7 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_m
 		kvm_seg_set_kernel_code_64bit(vm, DEFAULT_CODE_SELECTOR, &sregs.cs);
 		kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.ds);
 		kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.es);
-		kvm_setup_tss_64bit(vm, &sregs.tr, 0x18, gdt_memslot, pgd_memslot);
+		kvm_setup_tss_64bit(vm, &sregs.tr, 0x18);
 		break;
 
 	default:
@@ -588,7 +586,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 
 	/* Create VCPU */
 	vm_vcpu_add(vm, vcpuid);
-	vcpu_setup(vm, vcpuid, 0, 0);
+	vcpu_setup(vm, vcpuid);
 
 	/* Setup guest general purpose registers */
 	vcpu_regs_get(vm, vcpuid, &regs);
