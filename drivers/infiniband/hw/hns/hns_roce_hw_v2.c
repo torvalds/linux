@@ -3524,6 +3524,7 @@ static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 	ibdev_err(&hr_dev->ib_dev, "error cqe status 0x%x:\n", cqe_status);
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_NONE, 16, 4, cqe,
 		       cq->cqe_size, false);
+	wc->vendor_err = hr_reg_read(cqe, CQE_SUB_STATUS);
 
 	/*
 	 * For hns ROCEE, GENERAL_ERR is an error type that is not defined in
