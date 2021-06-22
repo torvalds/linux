@@ -3822,9 +3822,16 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 					struct task_struct *task)
 {
 	struct perf_cpu_context *cpuctx;
-	struct pmu *pmu = ctx->pmu;
+	struct pmu *pmu;
 
 	cpuctx = __get_cpu_context(ctx);
+
+	/*
+	 * HACK: for HETEROGENEOUS the task context might have switched to a
+	 * different PMU, force (re)set the context,
+	 */
+	pmu = ctx->pmu = cpuctx->ctx.pmu;
+
 	if (cpuctx->task_ctx == ctx) {
 		if (cpuctx->sched_cb_usage)
 			__perf_pmu_sched_task(cpuctx, true);
