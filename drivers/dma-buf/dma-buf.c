@@ -173,11 +173,16 @@ static void dma_buf_vma_close(struct vm_area_struct *vma)
 
 static int dma_buf_do_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
-	/* call this first because the exporter might override vma->vm_ops */
-	int ret = dmabuf->ops->mmap(dmabuf, vma);
+	int ret;
+	struct file *orig_vm_file = vma->vm_file;
 
+	/* call this first because the exporter might override vma->vm_ops */
+	ret = dmabuf->ops->mmap(dmabuf, vma);
 	if (ret)
 		return ret;
+
+	if (orig_vm_file != vma->vm_file)
+		return 0;
 
 	/* save the exporter provided vm_ops */
 	dmabuf->exp_vm_ops = vma->vm_ops;
