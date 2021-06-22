@@ -15,6 +15,7 @@
 /x86_64/hyperv_cpuid
 /x86_64/hyperv_features
 /x86_64/mmio_warning_test
+/x86_64/mmu_role_test
 /x86_64/platform_info_test
 /x86_64/set_boot_cpu_id
 /x86_64/set_sregs_test

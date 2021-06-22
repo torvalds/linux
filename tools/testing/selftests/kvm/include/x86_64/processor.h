@@ -55,6 +55,9 @@
 #define CPUID_PKU		(1ul << 3)
 #define CPUID_LA57		(1ul << 16)
 
+/* CPUID.0x8000_0001.EDX */
+#define CPUID_GBPAGES		(1ul << 26)
+
 #define UNEXPECTED_VECTOR_PORT 0xfff0u
 
 /* General Registers in 64-Bit Mode */
