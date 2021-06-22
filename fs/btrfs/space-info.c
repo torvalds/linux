@@ -830,7 +830,6 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 {
 	struct reserve_ticket *ticket;
 	u64 tickets_id = space_info->tickets_id;
-	u64 first_ticket_bytes = 0;
 
 	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
 		btrfs_info(fs_info, "cannot satisfy tickets, dumping space info");
@@ -844,21 +843,6 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 
 		if (ticket->steal &&
 		    steal_from_global_rsv(fs_info, space_info, ticket))
-			return true;
-
-		/*
-		 * may_commit_transaction will avoid committing the transaction
-		 * if it doesn't feel like the space reclaimed by the commit
-		 * would result in the ticket succeeding.  However if we have a
-		 * smaller ticket in the queue it may be small enough to be
-		 * satisfied by committing the transaction, so if any
-		 * subsequent ticket is smaller than the first ticket go ahead
-		 * and send us back for another loop through the enospc flushing
-		 * code.
-		 */
-		if (first_ticket_bytes == 0)
-			first_ticket_bytes = ticket->bytes;
-		else if (first_ticket_bytes > ticket->bytes)
 			return true;
 
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
