@@ -269,12 +269,36 @@ enum x86_intercept_stage;
 struct kvm_kernel_irq_routing_entry;
 
 /*
- * the pages used as guest page table on soft mmu are tracked by
- * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
- * by indirect shadow page can not be more than 15 bits.
+ * kvm_mmu_page_role tracks the properties of a shadow page (where shadow page
+ * also includes TDP pages) to determine whether or not a page can be used in
+ * the given MMU context.  This is a subset of the overall kvm_mmu_role to
+ * minimize the size of kvm_memory_slot.arch.gfn_track, i.e. allows allocating
+ * 2 bytes per gfn instead of 4 bytes per gfn.
  *
- * Currently, we used 14 bits that are @level, @gpte_is_8_bytes, @quadrant, @access,
- * @efer_nx, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
+ * Indirect upper-level shadow pages are tracked for write-protection via
+ * gfn_track.  As above, gfn_track is a 16 bit counter, so KVM must not create
+ * more than 2^16-1 upper-level shadow pages at a single gfn, otherwise
+ * gfn_track will overflow and explosions will ensure.
+ *
+ * A unique shadow page (SP) for a gfn is created if and only if an existing SP
+ * cannot be reused.  The ability to reuse a SP is tracked by its role, which
+ * incorporates various mode bits and properties of the SP.  Roughly speaking,
+ * the number of unique SPs that can theoretically be created is 2^n, where n
+ * is the number of bits that are used to compute the role.
+ *
+ * But, even though there are 18 bits in the mask below, not all combinations
+ * of modes and flags are possible.  The maximum number of possible upper-level
+ * shadow pages for a single gfn is in the neighborhood of 2^13.
+ *
+ *   - invalid shadow pages are not accounted.
+ *   - level is effectively limited to four combinations, not 16 as the number
+ *     bits would imply, as 4k SPs are not tracked (allowed to go unsync).
+ *   - level is effectively unused for non-PAE paging because there is exactly
+ *     one upper level (see 4k SP exception above).
+ *   - quadrant is used only for non-PAE paging and is exclusive with
+ *     gpte_is_8_bytes.
+ *   - execonly and ad_disabled are used only for nested EPT, which makes it
+ *     exclusive with quadrant.
  */
 union kvm_mmu_page_role {
 	u32 word;
@@ -303,13 +327,26 @@ union kvm_mmu_page_role {
 	};
 };
 
-union kvm_mmu_extended_role {
 /*
- * This structure complements kvm_mmu_page_role caching everything needed for
- * MMU configuration. If nothing in both these structures changed, MMU
- * re-configuration can be skipped. @valid bit is set on first usage so we don't
- * treat all-zero structure as valid data.
+ * kvm_mmu_extended_role complements kvm_mmu_page_role, tracking properties
+ * relevant to the current MMU configuration.   When loading CR0, CR4, or EFER,
+ * including on nested transitions, if nothing in the full role changes then
+ * MMU re-configuration can be skipped. @valid bit is set on first usage so we
+ * don't treat all-zero structure as valid data.
+ *
+ * The properties that are tracked in the extended role but not the page role
+ * are for things that either (a) do not affect the validity of the shadow page
+ * or (b) are indirectly reflected in the shadow page's role.  For example,
+ * CR4.PKE only affects permission checks for software walks of the guest page
+ * tables (because KVM doesn't support Protection Keys with shadow paging), and
+ * CR0.PG, CR4.PAE, and CR4.PSE are indirectly reflected in role.level.
+ *
+ * Note, SMEP and SMAP are not redundant with sm*p_andnot_wp in the page role.
+ * If CR0.WP=1, KVM can reuse shadow pages for the guest regardless of SMEP and
+ * SMAP, but the MMU's permission checks for software walks need to be SMEP and
+ * SMAP aware regardless of CR0.WP.
  */
+union kvm_mmu_extended_role {
 	u32 word;
 	struct {
 		unsigned int valid:1;
