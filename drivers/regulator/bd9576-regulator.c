@@ -897,7 +897,7 @@ static int bd957x_probe(struct platform_device *pdev)
 {
 	int i;
 	unsigned int num_reg_data;
-	bool vout_mode, ddr_sel, may_have_irqs;
+	bool vout_mode, ddr_sel, may_have_irqs = false;
 	struct regmap *regmap;
 	struct bd957x_data *ic_data;
 	struct regulator_config config = { 0 };
