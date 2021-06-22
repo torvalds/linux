@@ -238,6 +238,19 @@ static struct kvm_mmu_role_regs vcpu_to_role_regs(struct kvm_vcpu *vcpu)
 	return regs;
 }
 
+static int role_regs_to_root_level(struct kvm_mmu_role_regs *regs)
+{
+	if (!____is_cr0_pg(regs))
+		return 0;
+	else if (____is_efer_lma(regs))
+		return ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL :
+					       PT64_ROOT_4LEVEL;
+	else if (____is_cr4_pae(regs))
+		return PT32E_ROOT_LEVEL;
+	else
+		return PT32_ROOT_LEVEL;
+}
+
 static inline bool kvm_available_flush_tlb_with_range(void)
 {
 	return kvm_x86_ops.tlb_remote_flush_with_range;
@@ -3949,7 +3962,6 @@ static void nonpaging_init_context(struct kvm_mmu *context)
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = NULL;
-	context->root_level = 0;
 	context->direct_map = true;
 }
 
@@ -4519,11 +4531,8 @@ static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 	update_last_nonleaf_level(mmu);
 }
 
-static void paging64_init_context_common(struct kvm_mmu *context,
-					 int root_level)
+static void paging64_init_context_common(struct kvm_mmu *context)
 {
-	context->root_level = root_level;
-
 	WARN_ON_ONCE(!is_cr4_pae(context));
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
@@ -4532,18 +4541,13 @@ static void paging64_init_context_common(struct kvm_mmu *context,
 	context->direct_map = false;
 }
 
-static void paging64_init_context(struct kvm_mmu *context,
-				  struct kvm_mmu_role_regs *regs)
+static void paging64_init_context(struct kvm_mmu *context)
 {
-	int root_level = ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL :
-						 PT64_ROOT_4LEVEL;
-
-	paging64_init_context_common(context, root_level);
+	paging64_init_context_common(context);
 }
 
 static void paging32_init_context(struct kvm_mmu *context)
 {
-	context->root_level = PT32_ROOT_LEVEL;
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->sync_page = paging32_sync_page;
@@ -4553,7 +4557,7 @@ static void paging32_init_context(struct kvm_mmu *context)
 
 static void paging32E_init_context(struct kvm_mmu *context)
 {
-	paging64_init_context_common(context, PT32E_ROOT_LEVEL);
+	paging64_init_context_common(context);
 }
 
 static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
@@ -4642,21 +4646,16 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->get_guest_pgd = get_cr3;
 	context->get_pdptr = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
+	context->root_level = role_regs_to_root_level(&regs);
 
-	if (!is_paging(vcpu)) {
+	if (!is_paging(vcpu))
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
-		context->root_level = 0;
-	} else if (is_long_mode(vcpu)) {
-		context->root_level = ____is_cr4_la57(&regs) ?
-				PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
+	else if (is_long_mode(vcpu))
 		context->gva_to_gpa = paging64_gva_to_gpa;
-	} else if (is_pae(vcpu)) {
-		context->root_level = PT32E_ROOT_LEVEL;
+	else if (is_pae(vcpu))
 		context->gva_to_gpa = paging64_gva_to_gpa;
-	} else {
-		context->root_level = PT32_ROOT_LEVEL;
+	else
 		context->gva_to_gpa = paging32_gva_to_gpa;
-	}
 
 	reset_guest_paging_metadata(vcpu, context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
@@ -4706,11 +4705,12 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	if (!____is_cr0_pg(regs))
 		nonpaging_init_context(context);
 	else if (____is_efer_lma(regs))
-		paging64_init_context(context, regs);
+		paging64_init_context(context);
 	else if (____is_cr4_pae(regs))
 		paging32E_init_context(context);
 	else
 		paging32_init_context(context);
+	context->root_level = role_regs_to_root_level(regs);
 
 	reset_guest_paging_metadata(vcpu, context);
 	context->shadow_root_level = new_role.base.level;
@@ -4849,17 +4849,7 @@ kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu, struct kvm_mmu_role_regs *regs)
 	 * to "true" to try to detect bogus usage of the nested MMU.
 	 */
 	role.base.direct = true;
-
-	if (!____is_cr0_pg(regs))
-		role.base.level = 0;
-	else if (____is_efer_lma(regs))
-		role.base.level = ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL :
-							  PT64_ROOT_4LEVEL;
-	else if (____is_cr4_pae(regs))
-		role.base.level = PT32E_ROOT_LEVEL;
-	else
-		role.base.level = PT32_ROOT_LEVEL;
-
+	role.base.level = role_regs_to_root_level(regs);
 	return role;
 }
 
