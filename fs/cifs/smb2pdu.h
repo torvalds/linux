@@ -264,7 +264,7 @@ struct share_redirect_error_context_rsp {
 	__le32 NotificationType;
 	__le32 ResourceNameOffset;
 	__le32 ResourceNameLength;
-	__le16 Flags;
+	__le16 Reserved;
 	__le16 TargetType;
 	__le32 IPAddrCount;
 	struct move_dst_ipaddr IpAddrMoveList[];
@@ -1448,6 +1448,22 @@ struct smb2_echo_rsp {
 
 #define SMB2_QUERY_DIRECTORY_IOV_SIZE 2
 
+/*
+ * Valid FileInformation classes.
+ *
+ * Note that these are a subset of the (file) QUERY_INFO levels defined
+ * later in this file (but since QUERY_DIRECTORY uses equivalent numbers
+ * we do not redefine them here)
+ *
+ * FileDirectoryInfomation		0x01
+ * FileFullDirectoryInformation		0x02
+ * FileIdFullDirectoryInformation	0x26
+ * FileBothDirectoryInformation		0x03
+ * FileIdBothDirectoryInformation	0x25
+ * FileNamesInformation			0x0C
+ * FileIdExtdDirectoryInformation	0x3C
+ */
+
 struct smb2_query_directory_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
@@ -1684,6 +1700,7 @@ struct smb3_fs_vol_info {
 #define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
 #define FILE_STANDARD_LINK_INFORMATION	54
 #define FILE_ID_INFORMATION		59
+#define FILE_ID_EXTD_DIRECTORY_INFORMATION 60
 
 struct smb2_file_internal_info {
 	__le64 IndexNumber;
@@ -1764,12 +1781,30 @@ struct smb2_file_network_open_info {
 	__le32 Reserved;
 } __packed; /* level 34 Query also similar returned in close rsp and open rsp */
 
-/* See MS-FSCC 2.4.43 */
+/* See MS-FSCC 2.4.21 */
 struct smb2_file_id_information {
 	__le64	VolumeSerialNumber;
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
 } __packed; /* level 59 */
+
+/* See MS-FSCC 2.4.18 */
+struct smb2_file_id_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 FileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize; /* EA size */
+	__le32 ReparsePointTag; /* valid if FILE_ATTR_REPARSE_POINT set in FileAttributes */
+	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit */
+	char FileName[1];
+} __packed; /* level 60 */
 
 extern char smb2_padding[7];
 

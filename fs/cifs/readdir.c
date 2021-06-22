@@ -309,7 +309,7 @@ static void cifs_fulldir_info_to_fattr(struct cifs_fattr *fattr,
 {
 	__dir_info_to_fattr(fattr, info);
 
-	/* See MS-FSCC 2.4.18 FileIdFullDirectoryInformation */
+	/* See MS-FSCC 2.4.19 FileIdFullDirectoryInformation */
 	if (fattr->cf_cifsattrs & ATTR_REPARSE)
 		fattr->cf_cifstag = le32_to_cpu(info->EaSize);
 	cifs_fill_common_info(fattr, cifs_sb);
