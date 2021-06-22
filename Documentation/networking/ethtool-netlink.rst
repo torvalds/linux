@@ -1388,7 +1388,7 @@ Kernel response contents:
  +---------------------------------------------+--------+---------------------+
  | ``ETHTOOL_A_MODULE_EEPROM_HEADER``          | nested | reply header        |
  +---------------------------------------------+--------+---------------------+
- | ``ETHTOOL_A_MODULE_EEPROM_DATA``            | nested | array of bytes from |
+ | ``ETHTOOL_A_MODULE_EEPROM_DATA``            | binary | array of bytes from |
  |                                             |        | module EEPROM       |
  +---------------------------------------------+--------+---------------------+
 
