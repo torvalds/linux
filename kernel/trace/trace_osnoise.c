@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * OS Noise Tracer: computes the OS Noise suffered by a running thread.
+ * Timerlat Tracer: measures the wakeup latency of a timer triggered IRQ and thread.
  *
  * Based on "hwlat_detector" tracer by:
  *   Copyright (C) 2008-2009 Jon Masters, Red Hat, Inc. <jcm@redhat.com>
@@ -21,6 +22,7 @@
 #include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/sched/clock.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/sched.h>
 #include "trace.h"
 
@@ -45,6 +47,9 @@ static struct trace_array	*osnoise_trace;
 #define DEFAULT_SAMPLE_PERIOD	1000000			/* 1s */
 #define DEFAULT_SAMPLE_RUNTIME	1000000			/* 1s */
 
+#define DEFAULT_TIMERLAT_PERIOD	1000			/* 1ms */
+#define DEFAULT_TIMERLAT_PRIO	95			/* FIFO 95 */
+
 /*
  * NMI runtime info.
  */
@@ -62,6 +67,8 @@ struct osn_irq {
 	u64	delta_start;
 };
 
+#define IRQ_CONTEXT	0
+#define THREAD_CONTEXT	1
 /*
  * sofirq runtime info.
  */
@@ -108,16 +115,65 @@ static inline struct osnoise_variables *this_cpu_osn_var(void)
 	return this_cpu_ptr(&per_cpu_osnoise_var);
 }
 
+#ifdef CONFIG_TIMERLAT_TRACER
 /*
- * osn_var_reset - Reset the values of the given osnoise_variables
+ * Runtime information for the timer mode.
  */
-static inline void osn_var_reset(struct osnoise_variables *osn_var)
+struct timerlat_variables {
+	struct task_struct	*kthread;
+	struct hrtimer		timer;
+	u64			rel_period;
+	u64			abs_period;
+	bool			tracing_thread;
+	u64			count;
+};
+
+DEFINE_PER_CPU(struct timerlat_variables, per_cpu_timerlat_var);
+
+/*
+ * this_cpu_tmr_var - Return the per-cpu timerlat_variables on its relative CPU
+ */
+static inline struct timerlat_variables *this_cpu_tmr_var(void)
 {
+	return this_cpu_ptr(&per_cpu_timerlat_var);
+}
+
+/*
+ * tlat_var_reset - Reset the values of the given timerlat_variables
+ */
+static inline void tlat_var_reset(void)
+{
+	struct timerlat_variables *tlat_var;
+	int cpu;
 	/*
 	 * So far, all the values are initialized as 0, so
 	 * zeroing the structure is perfect.
 	 */
-	memset(osn_var, 0, sizeof(*osn_var));
+	for_each_cpu(cpu, cpu_online_mask) {
+		tlat_var = per_cpu_ptr(&per_cpu_timerlat_var, cpu);
+		memset(tlat_var, 0, sizeof(*tlat_var));
+	}
+}
+#else /* CONFIG_TIMERLAT_TRACER */
+#define tlat_var_reset()	do {} while (0)
+#endif /* CONFIG_TIMERLAT_TRACER */
+
+/*
+ * osn_var_reset - Reset the values of the given osnoise_variables
+ */
+static inline void osn_var_reset(void)
+{
+	struct osnoise_variables *osn_var;
+	int cpu;
+
+	/*
+	 * So far, all the values are initialized as 0, so
+	 * zeroing the structure is perfect.
+	 */
+	for_each_cpu(cpu, cpu_online_mask) {
+		osn_var = per_cpu_ptr(&per_cpu_osnoise_var, cpu);
+		memset(osn_var, 0, sizeof(*osn_var));
+	}
 }
 
 /*
@@ -125,13 +181,8 @@ static inline void osn_var_reset(struct osnoise_variables *osn_var)
  */
 static inline void osn_var_reset_all(void)
 {
-	struct osnoise_variables *osn_var;
-	int cpu;
-
-	for_each_cpu(cpu, cpu_online_mask) {
-		osn_var = per_cpu_ptr(&per_cpu_osnoise_var, cpu);
-		osn_var_reset(osn_var);
-	}
+	osn_var_reset();
+	tlat_var_reset();
 }
 
 /*
@@ -154,6 +205,18 @@ struct osnoise_sample {
 	int			thread_count;	/* # threads during this sample */
 };
 
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * timerlat sample structure definition. Used to store the statistics of
+ * a sample run.
+ */
+struct timerlat_sample {
+	u64			timer_latency;	/* timer_latency */
+	unsigned int		seqnum;		/* unique sequence */
+	int			context;	/* timer context */
+};
+#endif
+
 /*
  * Protect the interface.
  */
@@ -165,14 +228,24 @@ struct mutex interface_lock;
 static struct osnoise_data {
 	u64	sample_period;		/* total sampling period */
 	u64	sample_runtime;		/* active sampling portion of period */
-	u64	stop_tracing;		/* stop trace in the inside operation (loop) */
-	u64	stop_tracing_total;	/* stop trace in the outside operation (report) */
+	u64	stop_tracing;		/* stop trace in the internal operation (loop/irq) */
+	u64	stop_tracing_total;	/* stop trace in the final operation (report/thread) */
+#ifdef CONFIG_TIMERLAT_TRACER
+	u64	timerlat_period;	/* timerlat period */
+	u64	print_stack;		/* print IRQ stack if total > */
+	int	timerlat_tracer;	/* timerlat tracer */
+#endif
 	bool	tainted;		/* infor users and developers about a problem */
 } osnoise_data = {
 	.sample_period			= DEFAULT_SAMPLE_PERIOD,
 	.sample_runtime			= DEFAULT_SAMPLE_RUNTIME,
 	.stop_tracing			= 0,
 	.stop_tracing_total		= 0,
+#ifdef CONFIG_TIMERLAT_TRACER
+	.print_stack			= 0,
+	.timerlat_period		= DEFAULT_TIMERLAT_PERIOD,
+	.timerlat_tracer		= 0,
+#endif
 };
 
 /*
@@ -245,6 +318,128 @@ static void trace_osnoise_sample(struct osnoise_sample *sample)
 	if (!call_filter_check_discard(call, entry, buffer, event))
 		trace_buffer_unlock_commit_nostack(buffer, event);
 }
+
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * Print the timerlat header info.
+ */
+static void print_timerlat_headers(struct seq_file *s)
+{
+	seq_puts(s, "#                                _-----=> irqs-off\n");
+	seq_puts(s, "#                               / _----=> need-resched\n");
+	seq_puts(s, "#                              | / _---=> hardirq/softirq\n");
+	seq_puts(s, "#                              || / _--=> preempt-depth\n");
+	seq_puts(s, "#                              || /\n");
+	seq_puts(s, "#                              ||||             ACTIVATION\n");
+	seq_puts(s, "#           TASK-PID      CPU# ||||   TIMESTAMP    ID     ");
+	seq_puts(s, "       CONTEXT                LATENCY\n");
+	seq_puts(s, "#              | |         |   ||||      |         |      ");
+	seq_puts(s, "            |                       |\n");
+}
+
+/*
+ * Record an timerlat_sample into the tracer buffer.
+ */
+static void trace_timerlat_sample(struct timerlat_sample *sample)
+{
+	struct trace_array *tr = osnoise_trace;
+	struct trace_event_call *call = &event_osnoise;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
+	struct ring_buffer_event *event;
+	struct timerlat_entry *entry;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_TIMERLAT, sizeof(*entry),
+					  tracing_gen_ctx());
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	entry->seqnum			= sample->seqnum;
+	entry->context			= sample->context;
+	entry->timer_latency		= sample->timer_latency;
+
+	if (!call_filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit_nostack(buffer, event);
+}
+
+#ifdef CONFIG_STACKTRACE
+
+#define	MAX_CALLS	256
+
+/*
+ * Stack trace will take place only at IRQ level, so, no need
+ * to control nesting here.
+ */
+struct trace_stack {
+	int		stack_size;
+	int		nr_entries;
+	unsigned long	calls[MAX_CALLS];
+};
+
+static DEFINE_PER_CPU(struct trace_stack, trace_stack);
+
+/*
+ * timerlat_save_stack - save a stack trace without printing
+ *
+ * Save the current stack trace without printing. The
+ * stack will be printed later, after the end of the measurement.
+ */
+static void timerlat_save_stack(int skip)
+{
+	unsigned int size, nr_entries;
+	struct trace_stack *fstack;
+
+	fstack = this_cpu_ptr(&trace_stack);
+
+	size = ARRAY_SIZE(fstack->calls);
+
+	nr_entries = stack_trace_save(fstack->calls, size, skip);
+
+	fstack->stack_size = nr_entries * sizeof(unsigned long);
+	fstack->nr_entries = nr_entries;
+
+	return;
+
+}
+/*
+ * timerlat_dump_stack - dump a stack trace previously saved
+ *
+ * Dump a saved stack trace into the trace buffer.
+ */
+static void timerlat_dump_stack(void)
+{
+	struct trace_event_call *call = &event_osnoise;
+	struct trace_array *tr = osnoise_trace;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
+	struct ring_buffer_event *event;
+	struct trace_stack *fstack;
+	struct stack_entry *entry;
+	unsigned int size;
+
+	preempt_disable_notrace();
+	fstack = this_cpu_ptr(&trace_stack);
+	size = fstack->stack_size;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_STACK, sizeof(*entry) + size,
+					  tracing_gen_ctx());
+	if (!event)
+		goto out;
+
+	entry = ring_buffer_event_data(event);
+
+	memcpy(&entry->caller, fstack->calls, size);
+	entry->size = fstack->nr_entries;
+
+	if (!call_filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit_nostack(buffer, event);
+
+out:
+	preempt_enable_notrace();
+}
+#else
+#define timerlat_dump_stack() do {} while (0)
+#define timerlat_save_stack(a) do {} while (0)
+#endif /* CONFIG_STACKTRACE */
+#endif /* CONFIG_TIMERLAT_TRACER */
 
 /*
  * Macros to encapsulate the time capturing infrastructure.
@@ -386,6 +581,30 @@ set_int_safe_time(struct osnoise_variables *osn_var, u64 *time)
 
 	return int_counter;
 }
+
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * copy_int_safe_time - Copy *src into *desc aware of interference
+ */
+static u64
+copy_int_safe_time(struct osnoise_variables *osn_var, u64 *dst, u64 *src)
+{
+	u64 int_counter;
+
+	do {
+		int_counter = local_read(&osn_var->int_counter);
+		/* synchronize with interrupts */
+		barrier();
+
+		*dst = *src;
+
+		/* synchronize with interrupts */
+		barrier();
+	} while (int_counter != local_read(&osn_var->int_counter));
+
+	return int_counter;
+}
+#endif /* CONFIG_TIMERLAT_TRACER */
 
 /*
  * trace_osnoise_callback - NMI entry/exit callback
@@ -597,6 +816,22 @@ void trace_softirq_exit_callback(void *data, unsigned int vec_nr)
 	if (!osn_var->sampling)
 		return;
 
+#ifdef CONFIG_TIMERLAT_TRACER
+	/*
+	 * If the timerlat is enabled, but the irq handler did
+	 * not run yet enabling timerlat_tracer, do not trace.
+	 */
+	if (unlikely(osnoise_data.timerlat_tracer)) {
+		struct timerlat_variables *tlat_var;
+		tlat_var = this_cpu_tmr_var();
+		if (!tlat_var->tracing_thread) {
+			osn_var->softirq.arrival_time = 0;
+			osn_var->softirq.delta_start = 0;
+			return;
+		}
+	}
+#endif
+
 	duration = get_int_safe_duration(osn_var, &osn_var->softirq.delta_start);
 	trace_softirq_noise(vec_nr, osn_var->softirq.arrival_time, duration);
 	cond_move_thread_delta_start(osn_var, duration);
@@ -688,6 +923,18 @@ thread_exit(struct osnoise_variables *osn_var, struct task_struct *t)
 
 	if (!osn_var->sampling)
 		return;
+
+#ifdef CONFIG_TIMERLAT_TRACER
+	if (osnoise_data.timerlat_tracer) {
+		struct timerlat_variables *tlat_var;
+		tlat_var = this_cpu_tmr_var();
+		if (!tlat_var->tracing_thread) {
+			osn_var->thread.delta_start = 0;
+			osn_var->thread.arrival_time = 0;
+			return;
+		}
+	}
+#endif
 
 	duration = get_int_safe_duration(osn_var, &osn_var->thread.delta_start);
 
@@ -979,6 +1226,195 @@ static int osnoise_main(void *data)
 	return 0;
 }
 
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * timerlat_irq - hrtimer handler for timerlat.
+ */
+static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
+{
+	struct osnoise_variables *osn_var = this_cpu_osn_var();
+	struct trace_array *tr = osnoise_trace;
+	struct timerlat_variables *tlat;
+	struct timerlat_sample s;
+	u64 now;
+	u64 diff;
+
+	/*
+	 * I am not sure if the timer was armed for this CPU. So, get
+	 * the timerlat struct from the timer itself, not from this
+	 * CPU.
+	 */
+	tlat = container_of(timer, struct timerlat_variables, timer);
+
+	now = ktime_to_ns(hrtimer_cb_get_time(&tlat->timer));
+
+	/*
+	 * Enable the osnoise: events for thread an softirq.
+	 */
+	tlat->tracing_thread = true;
+
+	osn_var->thread.arrival_time = time_get();
+
+	/*
+	 * A hardirq is running: the timer IRQ. It is for sure preempting
+	 * a thread, and potentially preempting a softirq.
+	 *
+	 * At this point, it is not interesting to know the duration of the
+	 * preempted thread (and maybe softirq), but how much time they will
+	 * delay the beginning of the execution of the timer thread.
+	 *
+	 * To get the correct (net) delay added by the softirq, its delta_start
+	 * is set as the IRQ one. In this way, at the return of the IRQ, the delta
+	 * start of the sofitrq will be zeroed, accounting then only the time
+	 * after that.
+	 *
+	 * The thread follows the same principle. However, if a softirq is
+	 * running, the thread needs to receive the softirq delta_start. The
+	 * reason being is that the softirq will be the last to be unfolded,
+	 * resseting the thread delay to zero.
+	 */
+#ifndef CONFIG_PREEMPT_RT
+	if (osn_var->softirq.delta_start) {
+		copy_int_safe_time(osn_var, &osn_var->thread.delta_start,
+				   &osn_var->softirq.delta_start);
+
+		copy_int_safe_time(osn_var, &osn_var->softirq.delta_start,
+				    &osn_var->irq.delta_start);
+	} else {
+		copy_int_safe_time(osn_var, &osn_var->thread.delta_start,
+				    &osn_var->irq.delta_start);
+	}
+#else /* CONFIG_PREEMPT_RT */
+	/*
+	 * The sofirqs run as threads on RT, so there is not need
+	 * to keep track of it.
+	 */
+	copy_int_safe_time(osn_var, &osn_var->thread.delta_start, &osn_var->irq.delta_start);
+#endif /* CONFIG_PREEMPT_RT */
+
+	/*
+	 * Compute the current time with the expected time.
+	 */
+	diff = now - tlat->abs_period;
+
+	tlat->count++;
+	s.seqnum = tlat->count;
+	s.timer_latency = diff;
+	s.context = IRQ_CONTEXT;
+
+	trace_timerlat_sample(&s);
+
+	/* Keep a running maximum ever recorded os noise "latency" */
+	if (diff > tr->max_latency) {
+		tr->max_latency = diff;
+		latency_fsnotify(tr);
+	}
+
+	if (osnoise_data.stop_tracing)
+		if (time_to_us(diff) >= osnoise_data.stop_tracing)
+			osnoise_stop_tracing();
+
+	wake_up_process(tlat->kthread);
+
+	if (osnoise_data.print_stack)
+		timerlat_save_stack(0);
+
+	return HRTIMER_NORESTART;
+}
+
+/*
+ * wait_next_period - Wait for the next period for timerlat
+ */
+static int wait_next_period(struct timerlat_variables *tlat)
+{
+	ktime_t next_abs_period, now;
+	u64 rel_period = osnoise_data.timerlat_period * 1000;
+
+	now = hrtimer_cb_get_time(&tlat->timer);
+	next_abs_period = ns_to_ktime(tlat->abs_period + rel_period);
+
+	/*
+	 * Save the next abs_period.
+	 */
+	tlat->abs_period = (u64) ktime_to_ns(next_abs_period);
+
+	/*
+	 * If the new abs_period is in the past, skip the activation.
+	 */
+	while (ktime_compare(now, next_abs_period) > 0) {
+		next_abs_period = ns_to_ktime(tlat->abs_period + rel_period);
+		tlat->abs_period = (u64) ktime_to_ns(next_abs_period);
+	}
+
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	hrtimer_start(&tlat->timer, next_abs_period, HRTIMER_MODE_ABS_PINNED_HARD);
+	schedule();
+	return 1;
+}
+
+/*
+ * timerlat_main- Timerlat main
+ */
+static int timerlat_main(void *data)
+{
+	struct osnoise_variables *osn_var = this_cpu_osn_var();
+	struct timerlat_variables *tlat = this_cpu_tmr_var();
+	struct timerlat_sample s;
+	struct sched_param sp;
+	u64 now, diff;
+
+	/*
+	 * Make the thread RT, that is how cyclictest is usually used.
+	 */
+	sp.sched_priority = DEFAULT_TIMERLAT_PRIO;
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
+
+	tlat->count = 0;
+	tlat->tracing_thread = false;
+
+	hrtimer_init(&tlat->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED_HARD);
+	tlat->timer.function = timerlat_irq;
+	tlat->kthread = current;
+	osn_var->pid = current->pid;
+	/*
+	 * Anotate the arrival time.
+	 */
+	tlat->abs_period = hrtimer_cb_get_time(&tlat->timer);
+
+	wait_next_period(tlat);
+
+	osn_var->sampling = 1;
+
+	while (!kthread_should_stop()) {
+		now = ktime_to_ns(hrtimer_cb_get_time(&tlat->timer));
+		diff = now - tlat->abs_period;
+
+		s.seqnum = tlat->count;
+		s.timer_latency = diff;
+		s.context = THREAD_CONTEXT;
+
+		trace_timerlat_sample(&s);
+
+#ifdef CONFIG_STACKTRACE
+	if (osnoise_data.print_stack)
+		if (osnoise_data.print_stack <= time_to_us(diff))
+			timerlat_dump_stack();
+#endif /* CONFIG_STACKTRACE */
+
+		tlat->tracing_thread = false;
+		if (osnoise_data.stop_tracing_total)
+			if (time_to_us(diff) >= osnoise_data.stop_tracing_total)
+				osnoise_stop_tracing();
+
+		wait_next_period(tlat);
+	}
+
+	hrtimer_cancel(&tlat->timer);
+	return 0;
+}
+#endif /* CONFIG_TIMERLAT_TRACER */
+
 /*
  * stop_per_cpu_kthread - stop per-cpu threads
  *
@@ -1009,6 +1445,7 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 	struct cpumask *current_mask = &save_cpumask;
 	struct task_struct *kthread;
 	char comm[24];
+	void *main = osnoise_main;
 	int cpu;
 
 	get_online_cpus();
@@ -1026,9 +1463,17 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 		per_cpu(per_cpu_osnoise_var, cpu).kthread = NULL;
 
 	for_each_cpu(cpu, current_mask) {
+#ifdef CONFIG_TIMERLAT_TRACER
+		if (osnoise_data.timerlat_tracer) {
+			snprintf(comm, 24, "timerlat/%d", cpu);
+			main = timerlat_main;
+		} else {
+			snprintf(comm, 24, "osnoise/%d", cpu);
+		}
+#else
 		snprintf(comm, 24, "osnoise/%d", cpu);
-
-		kthread = kthread_create_on_cpu(osnoise_main, NULL, cpu, comm);
+#endif
+		kthread = kthread_create_on_cpu(main, NULL, cpu, comm);
 
 		if (IS_ERR(kthread)) {
 			pr_err(BANNER "could not start sampling thread\n");
@@ -1194,6 +1639,31 @@ static struct trace_min_max_param osnoise_stop_tracing_total = {
 	.min	= NULL,
 };
 
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * osnoise/print_stack: print the stacktrace of the IRQ handler if the total
+ * latency is higher than val.
+ */
+static struct trace_min_max_param osnoise_print_stack = {
+	.lock	= &interface_lock,
+	.val	= &osnoise_data.print_stack,
+	.max	= NULL,
+	.min	= NULL,
+};
+
+/*
+ * osnoise/timerlat_period: min 100 us, max 1 s
+ */
+u64 timerlat_min_period = 100;
+u64 timerlat_max_period = 1000000;
+static struct trace_min_max_param timerlat_period = {
+	.lock	= &interface_lock,
+	.val	= &osnoise_data.timerlat_period,
+	.max	= &timerlat_max_period,
+	.min	= &timerlat_min_period,
+};
+#endif
+
 static const struct file_operations cpus_fops = {
 	.open		= tracing_open_generic,
 	.read		= osnoise_cpus_read,
@@ -1204,10 +1674,9 @@ static const struct file_operations cpus_fops = {
 /*
  * init_tracefs - A function to initialize the tracefs interface files
  *
- * This function creates entries in tracefs for "osnoise". It creates the
- * "osnoise" directory in the tracing directory, and within that
- * directory is the count, runtime and period files to change and view
- * those values.
+ * This function creates entries in tracefs for "osnoise" and "timerlat".
+ * It creates these directories in the tracing directory, and within that
+ * directory the use can change and view the configs.
  */
 static int init_tracefs(void)
 {
@@ -1221,7 +1690,7 @@ static int init_tracefs(void)
 
 	top_dir = tracefs_create_dir("osnoise", NULL);
 	if (!top_dir)
-		return -ENOMEM;
+		return 0;
 
 	tmp = tracefs_create_file("period_us", 0640, top_dir,
 				  &osnoise_period, &trace_min_max_fops);
@@ -1246,6 +1715,19 @@ static int init_tracefs(void)
 	tmp = trace_create_file("cpus", 0644, top_dir, NULL, &cpus_fops);
 	if (!tmp)
 		goto err;
+#ifdef CONFIG_TIMERLAT_TRACER
+#ifdef CONFIG_STACKTRACE
+	tmp = tracefs_create_file("print_stack", 0640, top_dir,
+				  &osnoise_print_stack, &trace_min_max_fops);
+	if (!tmp)
+		goto err;
+#endif
+
+	tmp = tracefs_create_file("timerlat_period_us", 0640, top_dir,
+				  &timerlat_period, &trace_min_max_fops);
+	if (!tmp)
+		goto err;
+#endif
 
 	return 0;
 
@@ -1286,18 +1768,15 @@ out_unhook_irq:
 	return -EINVAL;
 }
 
-static void osnoise_tracer_start(struct trace_array *tr)
+static int __osnoise_tracer_start(struct trace_array *tr)
 {
 	int retval;
-
-	if (osnoise_busy)
-		return;
 
 	osn_var_reset_all();
 
 	retval = osnoise_hook_events();
 	if (retval)
-		goto out_err;
+		return retval;
 	/*
 	 * Make sure NMIs see reseted values.
 	 */
@@ -1305,15 +1784,27 @@ static void osnoise_tracer_start(struct trace_array *tr)
 	trace_osnoise_callback_enabled = true;
 
 	retval = start_per_cpu_kthreads(tr);
-	/*
-	 * all fine!
-	 */
-	if (!retval)
+	if (retval) {
+		unhook_irq_events();
+		return retval;
+	}
+
+	osnoise_busy = true;
+
+	return 0;
+}
+
+static void osnoise_tracer_start(struct trace_array *tr)
+{
+	int retval;
+
+	if (osnoise_busy)
 		return;
 
-out_err:
-	unhook_irq_events();
-	pr_err(BANNER "Error starting osnoise tracer\n");
+	retval = __osnoise_tracer_start(tr);
+	if (retval)
+		pr_err(BANNER "Error starting osnoise tracer\n");
+
 }
 
 static void osnoise_tracer_stop(struct trace_array *tr)
@@ -1335,17 +1826,15 @@ static void osnoise_tracer_stop(struct trace_array *tr)
 
 static int osnoise_tracer_init(struct trace_array *tr)
 {
+
 	/* Only allow one instance to enable this */
 	if (osnoise_busy)
 		return -EBUSY;
 
 	osnoise_trace = tr;
-
 	tr->max_latency = 0;
 
 	osnoise_tracer_start(tr);
-
-	osnoise_busy = true;
 
 	return 0;
 }
@@ -1365,6 +1854,71 @@ static struct tracer osnoise_tracer __read_mostly = {
 	.allow_instances = true,
 };
 
+#ifdef CONFIG_TIMERLAT_TRACER
+static void timerlat_tracer_start(struct trace_array *tr)
+{
+	int retval;
+
+	if (osnoise_busy)
+		return;
+
+	osnoise_data.timerlat_tracer = 1;
+
+	retval = __osnoise_tracer_start(tr);
+	if (retval)
+		goto out_err;
+
+	return;
+out_err:
+	pr_err(BANNER "Error starting timerlat tracer\n");
+}
+
+static void timerlat_tracer_stop(struct trace_array *tr)
+{
+	int cpu;
+
+	if (!osnoise_busy)
+		return;
+
+	for_each_online_cpu(cpu)
+		per_cpu(per_cpu_osnoise_var, cpu).sampling = 0;
+
+	osnoise_tracer_stop(tr);
+
+	osnoise_data.timerlat_tracer = 0;
+}
+
+static int timerlat_tracer_init(struct trace_array *tr)
+{
+	/* Only allow one instance to enable this */
+	if (osnoise_busy)
+		return -EBUSY;
+
+	osnoise_trace = tr;
+
+	tr->max_latency = 0;
+
+	timerlat_tracer_start(tr);
+
+	return 0;
+}
+
+static void timerlat_tracer_reset(struct trace_array *tr)
+{
+	timerlat_tracer_stop(tr);
+}
+
+static struct tracer timerlat_tracer __read_mostly = {
+	.name		= "timerlat",
+	.init		= timerlat_tracer_init,
+	.reset		= timerlat_tracer_reset,
+	.start		= timerlat_tracer_start,
+	.stop		= timerlat_tracer_stop,
+	.print_header	= print_timerlat_headers,
+	.allow_instances = true,
+};
+#endif /* CONFIG_TIMERLAT_TRACER */
+
 __init static int init_osnoise_tracer(void)
 {
 	int ret;
@@ -1374,8 +1928,18 @@ __init static int init_osnoise_tracer(void)
 	cpumask_copy(&osnoise_cpumask, cpu_all_mask);
 
 	ret = register_tracer(&osnoise_tracer);
-	if (ret)
+	if (ret) {
+		pr_err(BANNER "Error registering osnoise!\n");
 		return ret;
+	}
+
+#ifdef CONFIG_TIMERLAT_TRACER
+	ret = register_tracer(&timerlat_tracer);
+	if (ret) {
+		pr_err(BANNER "Error registering timerlat\n");
+		return ret;
+	}
+#endif
 
 	init_tracefs();
 

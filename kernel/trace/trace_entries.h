@@ -385,3 +385,19 @@ FTRACE_ENTRY(osnoise, osnoise_entry,
 		 __entry->softirq_count,
 		 __entry->thread_count)
 );
+
+FTRACE_ENTRY(timerlat, timerlat_entry,
+
+	TRACE_TIMERLAT,
+
+	F_STRUCT(
+		__field(	unsigned int,		seqnum		)
+		__field(	int,			context		)
+		__field(	u64,			timer_latency	)
+	),
+
+	F_printk("seq:%u\tcontext:%d\ttimer_latency:%llu\n",
+		 __entry->seqnum,
+		 __entry->context,
+		 __entry->timer_latency)
+);
