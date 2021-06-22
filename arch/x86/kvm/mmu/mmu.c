@@ -1784,10 +1784,7 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			    struct list_head *invalid_list)
 {
-	union kvm_mmu_page_role mmu_role = vcpu->arch.mmu->mmu_role.base;
-
-	if (sp->role.gpte_is_8_bytes != mmu_role.gpte_is_8_bytes ||
-	    vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
+	if (vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return false;
 	}
