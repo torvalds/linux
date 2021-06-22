@@ -216,10 +216,21 @@ void virt_pgd_alloc(struct kvm_vm *vm)
 	}
 }
 
+static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_pfn, uint64_t vaddr,
+			  int level)
+{
+	uint64_t *page_table = addr_gpa2hva(vm, pt_pfn << vm->page_shift);
+	int index = vaddr >> (vm->page_shift + level * 9) & 0x1ffu;
+
+	return &page_table[index];
+}
+
 void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	uint16_t index[4];
 	struct pageMapL4Entry *pml4e;
+	struct pageDirectoryPointerEntry *pdpe;
+	struct pageDirectoryEntry *pde;
+	struct pageTableEntry *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -241,43 +252,35 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 		"  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		paddr, vm->max_gfn, vm->page_size);
 
-	index[0] = (vaddr >> 12) & 0x1ffu;
-	index[1] = (vaddr >> 21) & 0x1ffu;
-	index[2] = (vaddr >> 30) & 0x1ffu;
-	index[3] = (vaddr >> 39) & 0x1ffu;
-
 	/* Allocate page directory pointer table if not present. */
-	pml4e = addr_gpa2hva(vm, vm->pgd);
-	if (!pml4e[index[3]].present) {
-		pml4e[index[3]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pml4e[index[3]].writable = true;
-		pml4e[index[3]].present = true;
+	pml4e = virt_get_pte(vm, vm->pgd >> vm->page_shift, vaddr, 3);
+	if (!pml4e->present) {
+		pml4e->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+		pml4e->writable = true;
+		pml4e->present = true;
 	}
 
 	/* Allocate page directory table if not present. */
-	struct pageDirectoryPointerEntry *pdpe;
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
-	if (!pdpe[index[2]].present) {
-		pdpe[index[2]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pdpe[index[2]].writable = true;
-		pdpe[index[2]].present = true;
+	pdpe = virt_get_pte(vm, pml4e->pfn, vaddr, 2);
+	if (!pdpe->present) {
+		pdpe->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+		pdpe->writable = true;
+		pdpe->present = true;
 	}
 
 	/* Allocate page table if not present. */
-	struct pageDirectoryEntry *pde;
-	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
-	if (!pde[index[1]].present) {
-		pde[index[1]].pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pde[index[1]].writable = true;
-		pde[index[1]].present = true;
+	pde = virt_get_pte(vm, pdpe->pfn, vaddr, 1);
+	if (!pde->present) {
+		pde->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+		pde->writable = true;
+		pde->present = true;
 	}
 
 	/* Fill in page table entry. */
-	struct pageTableEntry *pte;
-	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
-	pte[index[0]].pfn = paddr >> vm->page_shift;
-	pte[index[0]].writable = true;
-	pte[index[0]].present = 1;
+	pte = virt_get_pte(vm, pde->pfn, vaddr, 0);
+	pte->pfn = paddr >> vm->page_shift;
+	pte->writable = true;
+	pte->present = 1;
 }
 
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
