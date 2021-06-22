@@ -259,6 +259,8 @@ int btrfs_fileattr_set(struct user_namespace *mnt_userns,
 	if (!fa->flags_valid) {
 		/* 1 item for the inode */
 		trans = btrfs_start_transaction(root, 1);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 		goto update_flags;
 	}
 
@@ -907,7 +909,7 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 	 */
 	btrfs_drew_read_lock(&root->snapshot_lock);
 
-	ret = btrfs_start_delalloc_snapshot(root);
+	ret = btrfs_start_delalloc_snapshot(root, false);
 	if (ret)
 		goto out;
 

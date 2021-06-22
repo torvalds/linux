@@ -2198,9 +2198,6 @@ struct saved_cmdlines_buffer {
 };
 static struct saved_cmdlines_buffer *savedcmd;
 
-/* temporary disable recording */
-static atomic_t trace_record_taskinfo_disabled __read_mostly;
-
 static inline char *get_saved_cmdlines(int idx)
 {
 	return &savedcmd->saved_cmdlines[idx * TASK_COMM_LEN];
@@ -2486,8 +2483,6 @@ static bool tracing_record_taskinfo_skip(int flags)
 {
 	if (unlikely(!(flags & (TRACE_RECORD_CMDLINE | TRACE_RECORD_TGID))))
 		return true;
-	if (atomic_read(&trace_record_taskinfo_disabled) || !tracing_is_on())
-		return true;
 	if (!__this_cpu_read(trace_taskinfo_save))
 		return true;
 	return false;
@@ -2736,7 +2731,7 @@ trace_event_buffer_lock_reserve(struct trace_buffer **current_rb,
 	    (entry = this_cpu_read(trace_buffered_event))) {
 		/* Try to use the per cpu buffer first */
 		val = this_cpu_inc_return(trace_buffered_event_cnt);
-		if ((len < (PAGE_SIZE - sizeof(*entry))) && val == 1) {
+		if ((len < (PAGE_SIZE - sizeof(*entry) - sizeof(entry->array[0]))) && val == 1) {
 			trace_event_setup(entry, type, trace_ctx);
 			entry->array[0] = len;
 			return entry;
@@ -3704,6 +3699,9 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 		goto print;
 
 	while (*p) {
+		bool star = false;
+		int len = 0;
+
 		j = 0;
 
 		/* We only care about %s and variants */
@@ -3725,13 +3723,17 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 				/* Need to test cases like %08.*s */
 				for (j = 1; p[i+j]; j++) {
 					if (isdigit(p[i+j]) ||
-					    p[i+j] == '*' ||
 					    p[i+j] == '.')
 						continue;
+					if (p[i+j] == '*') {
+						star = true;
+						continue;
+					}
 					break;
 				}
 				if (p[i+j] == 's')
 					break;
+				star = false;
 			}
 			j = 0;
 		}
@@ -3743,6 +3745,9 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 		strncpy(iter->fmt, p, i);
 		iter->fmt[i] = '\0';
 		trace_seq_vprintf(&iter->seq, iter->fmt, ap);
+
+		if (star)
+			len = va_arg(ap, int);
 
 		/* The ap now points to the string data of the %s */
 		str = va_arg(ap, const char *);
@@ -3762,8 +3767,18 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 			int ret;
 
 			/* Try to safely read the string */
-			ret = strncpy_from_kernel_nofault(iter->fmt, str,
-							  iter->fmt_size);
+			if (star) {
+				if (len + 1 > iter->fmt_size)
+					len = iter->fmt_size - 1;
+				if (len < 0)
+					len = 0;
+				ret = copy_from_kernel_nofault(iter->fmt, str, len);
+				iter->fmt[len] = 0;
+				star = false;
+			} else {
+				ret = strncpy_from_kernel_nofault(iter->fmt, str,
+								  iter->fmt_size);
+			}
 			if (ret < 0)
 				trace_seq_printf(&iter->seq, "(0x%px)", str);
 			else
@@ -3775,7 +3790,10 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 			strncpy(iter->fmt, p + i, j + 1);
 			iter->fmt[j+1] = '\0';
 		}
-		trace_seq_printf(&iter->seq, iter->fmt, str);
+		if (star)
+			trace_seq_printf(&iter->seq, iter->fmt, len, str);
+		else
+			trace_seq_printf(&iter->seq, iter->fmt, str);
 
 		p += i + j + 1;
 	}
@@ -3975,9 +3993,6 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 		return ERR_PTR(-EBUSY);
 #endif
 
-	if (!iter->snapshot)
-		atomic_inc(&trace_record_taskinfo_disabled);
-
 	if (*pos != iter->pos) {
 		iter->ent = NULL;
 		iter->cpu = 0;
@@ -4019,9 +4034,6 @@ static void s_stop(struct seq_file *m, void *p)
 	if (iter->snapshot && iter->trace->use_max_tr)
 		return;
 #endif
-
-	if (!iter->snapshot)
-		atomic_dec(&trace_record_taskinfo_disabled);
 
 	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
