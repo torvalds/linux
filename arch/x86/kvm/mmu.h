@@ -165,11 +165,6 @@ static inline bool is_writable_pte(unsigned long pte)
 	return pte & PT_WRITABLE_MASK;
 }
 
-static inline bool is_write_protection(struct kvm_vcpu *vcpu)
-{
-	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
-}
-
 /*
  * Check if a given access (described through the I/D, W/R and U/S bits of a
  * page fault error code pfec) causes a permission fault with the given PTE
