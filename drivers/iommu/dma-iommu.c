@@ -487,7 +487,7 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
 				       true);
 
-	trace_android_vh_iommu_alloc_iova(dev, iova, size);
+	trace_android_vh_iommu_alloc_iova(dev, (dma_addr_t)iova << shift, size);
 
 	return (dma_addr_t)iova << shift;
 }
