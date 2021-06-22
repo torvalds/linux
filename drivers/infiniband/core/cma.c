@@ -3060,8 +3060,10 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	 * as a reasonable approximation for RoCE networks.
 	 */
 	mutex_lock(&id_priv->qp_mutex);
-	route->path_rec->packet_life_time = id_priv->timeout_set ?
-		id_priv->timeout - 1 : CMA_IBOE_PACKET_LIFETIME;
+	if (id_priv->timeout_set && id_priv->timeout)
+		route->path_rec->packet_life_time = id_priv->timeout - 1;
+	else
+		route->path_rec->packet_life_time = CMA_IBOE_PACKET_LIFETIME;
 	mutex_unlock(&id_priv->qp_mutex);
 
 	if (!route->path_rec->mtu) {
