@@ -230,6 +230,7 @@ struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *asoc,
 					   const struct sctp_chunk *chunk,
 					   const void *payload,
 					   const size_t paylen);
+struct sctp_chunk *sctp_make_pad(const struct sctp_association *asoc, int len);
 struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk,
 				      __be16 cause_code, const void *payload,

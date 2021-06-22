@@ -1218,6 +1218,32 @@ nodata:
 	return retval;
 }
 
+/* RFC4820 3. Padding Chunk (PAD)
+ *  0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | Type = 0x84   |   Flags=0     |             Length            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * \                         Padding Data                          /
+ * /                                                               \
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct sctp_chunk *sctp_make_pad(const struct sctp_association *asoc, int len)
+{
+	struct sctp_chunk *retval;
+
+	retval = sctp_make_control(asoc, SCTP_CID_PAD, 0, len, GFP_ATOMIC);
+	if (!retval)
+		return NULL;
+
+	skb_put_zero(retval->skb, len);
+	retval->chunk_hdr->length = htons(ntohs(retval->chunk_hdr->length) + len);
+	retval->chunk_end = skb_tail_pointer(retval->skb);
+
+	return retval;
+}
+
 /* Create an Operation Error chunk with the specified space reserved.
  * This routine can be used for containing multiple causes in the chunk.
  */
