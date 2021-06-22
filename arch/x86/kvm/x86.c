@@ -10754,6 +10754,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
+	unsigned long old_cr0 = kvm_read_cr0(vcpu);
+
 	kvm_lapic_reset(vcpu, init_event);
 
 	vcpu->arch.hflags = 0;
@@ -10822,6 +10824,17 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vcpu->arch.ia32_xss = 0;
 
 	static_call(kvm_x86_vcpu_reset)(vcpu, init_event);
+
+	/*
+	 * Reset the MMU context if paging was enabled prior to INIT (which is
+	 * implied if CR0.PG=1 as CR0 will be '0' prior to RESET).  Unlike the
+	 * standard CR0/CR4/EFER modification paths, only CR0.PG needs to be
+	 * checked because it is unconditionally cleared on INIT and all other
+	 * paging related bits are ignored if paging is disabled, i.e. CR0.WP,
+	 * CR4, and EFER changes are all irrelevant if CR0.PG was '0'.
+	 */
+	if (old_cr0 & X86_CR0_PG)
+		kvm_mmu_reset_context(vcpu);
 }
 
 void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
