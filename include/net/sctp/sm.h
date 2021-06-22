@@ -151,6 +151,7 @@ sctp_state_fn_t sctp_sf_cookie_wait_icmp_abort;
 /* Prototypes for timeout event state functions.  */
 sctp_state_fn_t sctp_sf_do_6_3_3_rtx;
 sctp_state_fn_t sctp_sf_send_reconf;
+sctp_state_fn_t sctp_sf_send_probe;
 sctp_state_fn_t sctp_sf_do_6_2_sack;
 sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
@@ -311,6 +312,7 @@ int sctp_do_sm(struct net *net, enum sctp_event_type event_type,
 void sctp_generate_t3_rtx_event(struct timer_list *t);
 void sctp_generate_heartbeat_event(struct timer_list *t);
 void sctp_generate_reconf_event(struct timer_list *t);
+void sctp_generate_probe_event(struct timer_list *t);
 void sctp_generate_proto_unreach_event(struct timer_list *t);
 
 void sctp_ootb_pkt_free(struct sctp_packet *packet);

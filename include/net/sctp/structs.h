@@ -936,6 +936,9 @@ struct sctp_transport {
 	/* Timer to handler reconf chunk rtx */
 	struct timer_list reconf_timer;
 
+	/* Timer to send a probe HB packet for PLPMTUD */
+	struct timer_list probe_timer;
+
 	/* Since we're using per-destination retransmission timers
 	 * (see above), we're also using per-destination "transmitted"
 	 * queues.  This probably ought to be a private struct
@@ -1003,6 +1006,7 @@ void sctp_transport_free(struct sctp_transport *);
 void sctp_transport_reset_t3_rtx(struct sctp_transport *);
 void sctp_transport_reset_hb_timer(struct sctp_transport *);
 void sctp_transport_reset_reconf_timer(struct sctp_transport *transport);
+void sctp_transport_reset_probe_timer(struct sctp_transport *transport);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);

@@ -1095,6 +1095,23 @@ enum sctp_disposition sctp_sf_send_reconf(struct net *net,
 	return SCTP_DISPOSITION_CONSUME;
 }
 
+/* send hb chunk with padding for PLPMUTD.  */
+enum sctp_disposition sctp_sf_send_probe(struct net *net,
+					 const struct sctp_endpoint *ep,
+					 const struct sctp_association *asoc,
+					 const union sctp_subtype type,
+					 void *arg,
+					 struct sctp_cmd_seq *commands)
+{
+	struct sctp_transport *transport = (struct sctp_transport *)arg;
+
+	/* The actual handling will be performed here in a later patch. */
+	sctp_add_cmd_sf(commands, SCTP_CMD_PROBE_TIMER_UPDATE,
+			SCTP_TRANSPORT(transport));
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
 /*
  * Process an heartbeat request.
  *

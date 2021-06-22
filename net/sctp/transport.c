@@ -75,6 +75,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	timer_setup(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event, 0);
 	timer_setup(&peer->hb_timer, sctp_generate_heartbeat_event, 0);
 	timer_setup(&peer->reconf_timer, sctp_generate_reconf_event, 0);
+	timer_setup(&peer->probe_timer, sctp_generate_probe_event, 0);
 	timer_setup(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, 0);
 
@@ -129,6 +130,9 @@ void sctp_transport_free(struct sctp_transport *transport)
 		sctp_transport_put(transport);
 
 	if (del_timer(&transport->reconf_timer))
+		sctp_transport_put(transport);
+
+	if (del_timer(&transport->probe_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
@@ -205,6 +209,20 @@ void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
 		if (!mod_timer(&transport->reconf_timer,
 			       jiffies + transport->rto))
 			sctp_transport_hold(transport);
+}
+
+void sctp_transport_reset_probe_timer(struct sctp_transport *transport)
+{
+	int scale = 1;
+
+	if (timer_pending(&transport->probe_timer))
+		return;
+	if (transport->pl.state == SCTP_PL_COMPLETE &&
+	    transport->pl.probe_count == 1)
+		scale = 30; /* works as PMTU_RAISE_TIMER */
+	if (!mod_timer(&transport->probe_timer,
+		       jiffies + transport->probe_interval * scale))
+		sctp_transport_hold(transport);
 }
 
 /* This transport has been assigned to an association.

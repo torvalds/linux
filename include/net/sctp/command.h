@@ -59,6 +59,7 @@ enum sctp_verb {
 	SCTP_CMD_HB_TIMERS_START,    /* Start the heartbeat timers. */
 	SCTP_CMD_HB_TIMER_UPDATE,    /* Update a heartbeat timers.  */
 	SCTP_CMD_HB_TIMERS_STOP,     /* Stop the heartbeat timers.  */
+	SCTP_CMD_PROBE_TIMER_UPDATE, /* Update a probe timer.  */
 	SCTP_CMD_TRANSPORT_HB_SENT,  /* Reset the status of a transport. */
 	SCTP_CMD_TRANSPORT_IDLE,     /* Do manipulations on idle transport */
 	SCTP_CMD_TRANSPORT_ON,       /* Mark the transport as active. */

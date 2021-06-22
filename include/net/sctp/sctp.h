@@ -635,10 +635,14 @@ static inline void sctp_transport_pl_reset(struct sctp_transport *t)
 			t->pl.state = SCTP_PL_BASE;
 			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			sctp_transport_reset_probe_timer(t);
 		}
 	} else {
-		if (t->pl.state != SCTP_PL_DISABLED)
+		if (t->pl.state != SCTP_PL_DISABLED) {
+			if (del_timer(&t->probe_timer))
+				sctp_transport_put(t);
 			t->pl.state = SCTP_PL_DISABLED;
+		}
 	}
 }
 
@@ -646,6 +650,9 @@ static inline void sctp_transport_pl_update(struct sctp_transport *t)
 {
 	if (t->pl.state == SCTP_PL_DISABLED)
 		return;
+
+	if (del_timer(&t->probe_timer))
+		sctp_transport_put(t);
 
 	t->pl.state = SCTP_PL_BASE;
 	t->pl.pmtu = SCTP_BASE_PLPMTU;
