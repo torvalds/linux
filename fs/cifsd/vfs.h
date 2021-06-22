@@ -101,6 +101,14 @@ struct xattr_ntacl {
 #define XATTR_NAME_SD_LEN	\
 		(sizeof(XATTR_SECURITY_PREFIX SD_PREFIX) - 1)
 
+/*
+ * Enumeration for stream type.
+ */
+enum {
+	DATA_STREAM	= 1,	/* type $DATA */
+	DIR_STREAM		/* type $INDEX_ALLOCATION */
+};
+
 /* CreateOptions */
 /* Flag is set, it must not be a file , valid for directory only */
 #define FILE_DIRECTORY_FILE_LE			cpu_to_le32(0x00000001)

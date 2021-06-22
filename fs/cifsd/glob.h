@@ -16,9 +16,6 @@
 
 extern int ksmbd_debug_types;
 
-#define DATA_STREAM	1
-#define DIR_STREAM	2
-
 #define KSMBD_DEBUG_SMB		BIT(0)
 #define KSMBD_DEBUG_AUTH	BIT(1)
 #define KSMBD_DEBUG_VFS		BIT(2)
