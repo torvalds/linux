@@ -78,10 +78,11 @@ in /sys/kernel/tracing:
  - hwlat_detector/window	- amount of time between (width) runs (usecs)
  - hwlat_detector/mode	- the thread mode
 
-By default, the hwlat detector's kernel thread will migrate across each CPU
+By default, one hwlat detector's kernel thread will migrate across each CPU
 specified in cpumask at the beginning of a new window, in a round-robin
 fashion. This behavior can be changed by changing the thread mode,
 the available options are:
 
  - none:        do not force migration
  - round-robin: migrate across each CPU specified in cpumask [default]
+ - per-cpu:     create one thread for each cpu in tracing_cpumask
