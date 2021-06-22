@@ -4460,24 +4460,17 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 * away both AD and WD.  For all reads or if the last condition holds, WD
 * only will be masked away.
 */
-static void update_pkru_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				bool ept)
+static void update_pkru_bitmask(struct kvm_mmu *mmu)
 {
 	unsigned bit;
 	bool wp;
 
-	if (ept) {
+	if (!is_cr4_pke(mmu)) {
 		mmu->pkru_mask = 0;
 		return;
 	}
 
-	/* PKEY is enabled only if CR4.PKE and EFER.LMA are both set. */
-	if (!kvm_read_cr4_bits(vcpu, X86_CR4_PKE) || !is_long_mode(vcpu)) {
-		mmu->pkru_mask = 0;
-		return;
-	}
-
-	wp = is_write_protection(vcpu);
+	wp = is_cr0_wp(mmu);
 
 	for (bit = 0; bit < ARRAY_SIZE(mmu->permissions); ++bit) {
 		unsigned pfec, pkey_bits;
@@ -4672,7 +4665,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	}
 
 	update_permission_bitmask(context, false);
-	update_pkru_bitmask(vcpu, context, false);
+	update_pkru_bitmask(context);
 	update_last_nonleaf_level(vcpu, context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
@@ -4730,7 +4723,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	if (____is_cr0_pg(regs)) {
 		reset_rsvds_bits_mask(vcpu, context);
 		update_permission_bitmask(context, false);
-		update_pkru_bitmask(vcpu, context, false);
+		update_pkru_bitmask(context);
 		update_last_nonleaf_level(vcpu, context);
 	}
 	context->shadow_root_level = new_role.base.level;
@@ -4838,8 +4831,8 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->direct_map = false;
 
 	update_permission_bitmask(context, true);
-	update_pkru_bitmask(vcpu, context, true);
 	update_last_nonleaf_level(vcpu, context);
+	update_pkru_bitmask(context);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
 }
@@ -4935,7 +4928,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	}
 
 	update_permission_bitmask(g_context, false);
-	update_pkru_bitmask(vcpu, g_context, false);
+	update_pkru_bitmask(g_context);
 	update_last_nonleaf_level(vcpu, g_context);
 }
 
