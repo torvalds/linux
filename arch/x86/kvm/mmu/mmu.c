@@ -4568,13 +4568,15 @@ static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
 {
 	union kvm_mmu_extended_role ext = {0};
 
-	ext.cr0_pg = ____is_cr0_pg(regs);
-	ext.cr4_pae = ____is_cr4_pae(regs);
-	ext.cr4_smep = ____is_cr4_smep(regs);
-	ext.cr4_smap = ____is_cr4_smap(regs);
-	ext.cr4_pse = ____is_cr4_pse(regs);
-	ext.cr4_pke = ____is_cr4_pke(regs);
-	ext.cr4_la57 = ____is_cr4_la57(regs);
+	if (____is_cr0_pg(regs)) {
+		ext.cr0_pg = 1;
+		ext.cr4_pae = ____is_cr4_pae(regs);
+		ext.cr4_smep = ____is_cr4_smep(regs);
+		ext.cr4_smap = ____is_cr4_smap(regs);
+		ext.cr4_pse = ____is_cr4_pse(regs);
+		ext.cr4_pke = ____is_cr4_pke(regs);
+		ext.cr4_la57 = ____is_cr4_la57(regs);
+	}
 
 	ext.valid = 1;
 
@@ -4588,8 +4590,10 @@ static union kvm_mmu_role kvm_calc_mmu_role_common(struct kvm_vcpu *vcpu,
 	union kvm_mmu_role role = {0};
 
 	role.base.access = ACC_ALL;
-	role.base.efer_nx = ____is_efer_nx(regs);
-	role.base.cr0_wp = ____is_cr0_wp(regs);
+	if (____is_cr0_pg(regs)) {
+		role.base.efer_nx = ____is_efer_nx(regs);
+		role.base.cr0_wp = ____is_cr0_wp(regs);
+	}
 	role.base.smm = is_smm(vcpu);
 	role.base.guest_mode = is_guest_mode(vcpu);
 
@@ -4680,7 +4684,7 @@ kvm_calc_shadow_root_page_role_common(struct kvm_vcpu *vcpu,
 
 	role.base.smep_andnot_wp = role.ext.cr4_smep && !____is_cr0_wp(regs);
 	role.base.smap_andnot_wp = role.ext.cr4_smap && !____is_cr0_wp(regs);
-	role.base.gpte_is_8_bytes = ____is_cr4_pae(regs);
+	role.base.gpte_is_8_bytes = ____is_cr0_pg(regs) && ____is_cr4_pae(regs);
 
 	return role;
 }
