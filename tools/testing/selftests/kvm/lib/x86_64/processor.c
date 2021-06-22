@@ -207,7 +207,7 @@ void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
 	}
 }
 
-void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
+void virt_pgd_alloc(struct kvm_vm *vm)
 {
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -215,7 +215,7 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 	/* If needed, create page map l4 table. */
 	if (!vm->pgd_created) {
 		vm_paddr_t paddr = vm_phy_page_alloc(vm,
-			KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
+			KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
 		vm->pgd = paddr;
 		vm->pgd_created = true;
 	}
@@ -580,7 +580,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	struct kvm_regs regs;
 	vm_vaddr_t stack_vaddr;
 	stack_vaddr = vm_vaddr_alloc(vm, DEFAULT_STACK_PGS * getpagesize(),
-				     DEFAULT_GUEST_STACK_VADDR_MIN, 0, 0);
+				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
 	/* Create VCPU */
 	vm_vcpu_add(vm, vcpuid);
