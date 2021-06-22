@@ -232,10 +232,6 @@ int ksmbd_vfs_kern_path(char *name, unsigned int flags, struct path *path,
 			bool caseless);
 int ksmbd_vfs_empty_dir(struct ksmbd_file *fp);
 void ksmbd_vfs_set_fadvise(struct file *filp, __le32 option);
-int ksmbd_vfs_lock(struct file *filp, int cmd, struct file_lock *flock);
-int ksmbd_vfs_readdir(struct file *file, struct ksmbd_readdir_data *rdata);
-int ksmbd_vfs_alloc_size(struct ksmbd_work *work, struct ksmbd_file *fp,
-			 loff_t len);
 int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len);
 struct file_allocated_range_buffer;

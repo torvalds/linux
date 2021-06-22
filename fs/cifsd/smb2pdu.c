@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include <linux/ethtool.h>
+#include <linux/falloc.h>
 
 #include "glob.h"
 #include "smb2pdu.h"
@@ -2948,10 +2949,12 @@ int smb2_open(struct ksmbd_work *work)
 			ksmbd_debug(SMB,
 				    "request smb2 create allocate size : %llu\n",
 				    alloc_size);
-			err = ksmbd_vfs_alloc_size(work, fp, alloc_size);
+			smb_break_all_levII_oplock(work, fp, 1);
+			err = vfs_fallocate(fp->filp, FALLOC_FL_KEEP_SIZE, 0,
+					    alloc_size);
 			if (err < 0)
 				ksmbd_debug(SMB,
-					    "ksmbd_vfs_alloc_size is failed : %d\n",
+					    "vfs_fallocate is failed : %d\n",
 					    err);
 		}
 
@@ -3762,7 +3765,7 @@ int smb2_query_dir(struct ksmbd_work *work)
 	dir_fp->readdir_data.private		= &query_dir_private;
 	set_ctx_actor(&dir_fp->readdir_data.ctx, __query_dir);
 
-	rc = ksmbd_vfs_readdir(dir_fp->filp, &dir_fp->readdir_data);
+	rc = iterate_dir(dir_fp->filp, &dir_fp->readdir_data.ctx);
 	if (rc == 0)
 		restart_ctx(&dir_fp->readdir_data.ctx);
 	if (rc == -ENOSPC)
@@ -5465,9 +5468,11 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 	inode = file_inode(fp->filp);
 
 	if (alloc_blks > inode->i_blocks) {
-		rc = ksmbd_vfs_alloc_size(work, fp, alloc_blks * 512);
+		smb_break_all_levII_oplock(work, fp, 1);
+		rc = vfs_fallocate(fp->filp, FALLOC_FL_KEEP_SIZE, 0,
+				   alloc_blks * 512);
 		if (rc && rc != -EOPNOTSUPP) {
-			pr_err("ksmbd_vfs_alloc_size is failed : %d\n", rc);
+			pr_err("vfs_fallocate is failed : %d\n", rc);
 			return rc;
 		}
 	} else if (alloc_blks < inode->i_blocks) {
@@ -6672,7 +6677,7 @@ no_check_gl:
 		flock = smb_lock->fl;
 		list_del(&smb_lock->llist);
 retry:
-		err = ksmbd_vfs_lock(filp, smb_lock->cmd, flock);
+		err = vfs_lock_file(filp, smb_lock->cmd, flock, NULL);
 skip:
 		if (flags & SMB2_LOCKFLAG_UNLOCK) {
 			if (!err) {
@@ -6785,7 +6790,7 @@ out:
 		rlock->fl_start = smb_lock->start;
 		rlock->fl_end = smb_lock->end;
 
-		err = ksmbd_vfs_lock(filp, 0, rlock);
+		err = vfs_lock_file(filp, 0, rlock, NULL);
 		if (err)
 			pr_err("rollback unlock fail : %d\n", err);
 		list_del(&smb_lock->llist);

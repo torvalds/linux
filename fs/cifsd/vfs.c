@@ -1000,32 +1000,6 @@ void ksmbd_vfs_set_fadvise(struct file *filp, __le32 option)
 	}
 }
 
-/**
- * ksmbd_vfs_lock() - vfs helper for smb file locking
- * @filp:	the file to apply the lock to
- * @cmd:	type of locking operation (F_SETLK, F_GETLK, etc.)
- * @flock:	The lock to be applied
- *
- * Return:	0 on success, otherwise error
- */
-int ksmbd_vfs_lock(struct file *filp, int cmd, struct file_lock *flock)
-{
-	ksmbd_debug(VFS, "calling vfs_lock_file\n");
-	return vfs_lock_file(filp, cmd, flock, NULL);
-}
-
-int ksmbd_vfs_readdir(struct file *file, struct ksmbd_readdir_data *rdata)
-{
-	return iterate_dir(file, &rdata->ctx);
-}
-
-int ksmbd_vfs_alloc_size(struct ksmbd_work *work, struct ksmbd_file *fp,
-			 loff_t len)
-{
-	smb_break_all_levII_oplock(work, fp, 1);
-	return vfs_fallocate(fp->filp, FALLOC_FL_KEEP_SIZE, 0, len);
-}
-
 int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len)
 {
@@ -1216,7 +1190,7 @@ int ksmbd_vfs_empty_dir(struct ksmbd_file *fp)
 	set_ctx_actor(&readdir_data.ctx, __dir_empty);
 	readdir_data.dirent_count = 0;
 
-	err = ksmbd_vfs_readdir(fp->filp, &readdir_data);
+	err = iterate_dir(fp->filp, &readdir_data.ctx);
 	if (readdir_data.dirent_count > 2)
 		err = -ENOTEMPTY;
 	else
@@ -1266,7 +1240,7 @@ static int ksmbd_vfs_lookup_in_dir(struct path *dir, char *name, size_t namelen)
 	if (IS_ERR(dfilp))
 		return PTR_ERR(dfilp);
 
-	ret = ksmbd_vfs_readdir(dfilp, &readdir_data);
+	ret = iterate_dir(dfilp, &readdir_data.ctx);
 	if (readdir_data.dirent_count > 0)
 		ret = 0;
 	fput(dfilp);
