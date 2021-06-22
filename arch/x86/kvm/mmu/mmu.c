@@ -3594,19 +3594,6 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gpa_t vaddr,
 	return vcpu->arch.nested_mmu.translate_gpa(vcpu, vaddr, access, exception);
 }
 
-static bool
-__is_rsvd_bits_set(struct rsvd_bits_validate *rsvd_check, u64 pte, int level)
-{
-	int bit7 = (pte >> 7) & 1;
-
-	return pte & rsvd_check->rsvd_bits_mask[bit7][level-1];
-}
-
-static bool __is_bad_mt_xwr(struct rsvd_bits_validate *rsvd_check, u64 pte)
-{
-	return rsvd_check->bad_mt_xwr & BIT_ULL(pte & 0x3f);
-}
-
 static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 {
 	/*
@@ -3684,13 +3671,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
 
 	for (level = root; level >= leaf; level--)
-		/*
-		 * Use a bitwise-OR instead of a logical-OR to aggregate the
-		 * reserved bit and EPT's invalid memtype/XWR checks to avoid
-		 * adding a Jcc in the loop.
-		 */
-		reserved |= __is_bad_mt_xwr(rsvd_check, sptes[level]) |
-			    __is_rsvd_bits_set(rsvd_check, sptes[level], level);
+		reserved |= is_rsvd_spte(rsvd_check, sptes[level], level);
 
 	if (reserved) {
 		pr_err("%s: reserved bits set on MMU-present spte, addr 0x%llx, hierarchy:\n",
@@ -3698,7 +3679,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 		for (level = root; level >= leaf; level--)
 			pr_err("------ spte = 0x%llx level = %d, rsvd bits = 0x%llx",
 			       sptes[level], level,
-			       rsvd_check->rsvd_bits_mask[(sptes[level] >> 7) & 1][level-1]);
+			       get_rsvd_bits(rsvd_check, sptes[level], level));
 	}
 
 	return reserved;

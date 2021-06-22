@@ -293,6 +293,38 @@ static inline bool is_dirty_spte(u64 spte)
 	return dirty_mask ? spte & dirty_mask : spte & PT_WRITABLE_MASK;
 }
 
+static inline u64 get_rsvd_bits(struct rsvd_bits_validate *rsvd_check, u64 pte,
+				int level)
+{
+	int bit7 = (pte >> 7) & 1;
+
+	return rsvd_check->rsvd_bits_mask[bit7][level-1];
+}
+
+static inline bool __is_rsvd_bits_set(struct rsvd_bits_validate *rsvd_check,
+				      u64 pte, int level)
+{
+	return pte & get_rsvd_bits(rsvd_check, pte, level);
+}
+
+static inline bool __is_bad_mt_xwr(struct rsvd_bits_validate *rsvd_check,
+				   u64 pte)
+{
+	return rsvd_check->bad_mt_xwr & BIT_ULL(pte & 0x3f);
+}
+
+static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
+					 u64 spte, int level)
+{
+	/*
+	 * Use a bitwise-OR instead of a logical-OR to aggregate the reserved
+	 * bits and EPT's invalid memtype/XWR checks to avoid an extra Jcc
+	 * (this is extremely unlikely to be short-circuited as true).
+	 */
+	return __is_bad_mt_xwr(rsvd_check, spte) |
+	       __is_rsvd_bits_set(rsvd_check, spte, level);
+}
+
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
 	return (spte & shadow_host_writable_mask) &&
