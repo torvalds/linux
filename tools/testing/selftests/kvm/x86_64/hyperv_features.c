@@ -629,7 +629,7 @@ int main(void)
 	hcall_page = vm_vaddr_alloc(vm, 2 * getpagesize(), 0x10000, 0, 0);
 	memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
 
-	hcall_params = vm_vaddr_alloc(vm, getpagesize(), 0x20000, 0, 0);
+	hcall_params = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
 	memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
 
 	vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
