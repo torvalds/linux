@@ -1363,8 +1363,8 @@ in an implementation specific way.
 ``ETHTOOL_A_FEC_AUTO`` requests the driver to choose FEC mode based on SFP
 module parameters. This does not mean autonegotiation.
 
-MODULE_EEPROM
-=============
+MODULE_EEPROM_GET
+=================
 
 Fetch module EEPROM data dump.
 This interface is designed to allow dumps of at most 1/2 page at once. This
