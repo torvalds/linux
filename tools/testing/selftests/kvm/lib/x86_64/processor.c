@@ -20,37 +20,7 @@
 vm_vaddr_t exception_handlers;
 
 /* Virtual translation table structure declarations */
-struct pageMapL4Entry {
-	uint64_t present:1;
-	uint64_t writable:1;
-	uint64_t user:1;
-	uint64_t write_through:1;
-	uint64_t cache_disable:1;
-	uint64_t accessed:1;
-	uint64_t ignored_06:1;
-	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
-	uint64_t pfn:40;
-	uint64_t ignored_62_52:11;
-	uint64_t execute_disable:1;
-};
-
-struct pageDirectoryPointerEntry {
-	uint64_t present:1;
-	uint64_t writable:1;
-	uint64_t user:1;
-	uint64_t write_through:1;
-	uint64_t cache_disable:1;
-	uint64_t accessed:1;
-	uint64_t ignored_06:1;
-	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
-	uint64_t pfn:40;
-	uint64_t ignored_62_52:11;
-	uint64_t execute_disable:1;
-};
-
-struct pageDirectoryEntry {
+struct pageUpperEntry {
 	uint64_t present:1;
 	uint64_t writable:1;
 	uint64_t user:1;
@@ -225,11 +195,24 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_pfn, uint64_t vaddr,
 	return &page_table[index];
 }
 
+static struct pageUpperEntry *virt_create_upper_pte(struct kvm_vm *vm,
+						    uint64_t pt_pfn,
+						    uint64_t vaddr,
+						    int level)
+{
+	struct pageUpperEntry *pte = virt_get_pte(vm, pt_pfn, vaddr, level);
+
+	if (!pte->present) {
+		pte->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
+		pte->writable = true;
+		pte->present = true;
+	}
+	return pte;
+}
+
 void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	struct pageMapL4Entry *pml4e;
-	struct pageDirectoryPointerEntry *pdpe;
-	struct pageDirectoryEntry *pde;
+	struct pageUpperEntry *pml4e, *pdpe, *pde;
 	struct pageTableEntry *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
@@ -252,29 +235,10 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 		"  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		paddr, vm->max_gfn, vm->page_size);
 
-	/* Allocate page directory pointer table if not present. */
-	pml4e = virt_get_pte(vm, vm->pgd >> vm->page_shift, vaddr, 3);
-	if (!pml4e->present) {
-		pml4e->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pml4e->writable = true;
-		pml4e->present = true;
-	}
-
-	/* Allocate page directory table if not present. */
-	pdpe = virt_get_pte(vm, pml4e->pfn, vaddr, 2);
-	if (!pdpe->present) {
-		pdpe->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pdpe->writable = true;
-		pdpe->present = true;
-	}
-
-	/* Allocate page table if not present. */
-	pde = virt_get_pte(vm, pdpe->pfn, vaddr, 1);
-	if (!pde->present) {
-		pde->pfn = vm_alloc_page_table(vm) >> vm->page_shift;
-		pde->writable = true;
-		pde->present = true;
-	}
+	/* Allocate upper level page tables, if not already present. */
+	pml4e = virt_create_upper_pte(vm, vm->pgd >> vm->page_shift, vaddr, 3);
+	pdpe = virt_create_upper_pte(vm, pml4e->pfn, vaddr, 2);
+	pde = virt_create_upper_pte(vm, pdpe->pfn, vaddr, 1);
 
 	/* Fill in page table entry. */
 	pte = virt_get_pte(vm, pde->pfn, vaddr, 0);
@@ -285,9 +249,9 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
-	struct pageMapL4Entry *pml4e, *pml4e_start;
-	struct pageDirectoryPointerEntry *pdpe, *pdpe_start;
-	struct pageDirectoryEntry *pde, *pde_start;
+	struct pageUpperEntry *pml4e, *pml4e_start;
+	struct pageUpperEntry *pdpe, *pdpe_start;
+	struct pageUpperEntry *pde, *pde_start;
 	struct pageTableEntry *pte, *pte_start;
 
 	if (!vm->pgd_created)
@@ -298,8 +262,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	fprintf(stream, "%*s      index hvaddr         gpaddr         "
 		"addr         w exec dirty\n",
 		indent, "");
-	pml4e_start = (struct pageMapL4Entry *) addr_gpa2hva(vm,
-		vm->pgd);
+	pml4e_start = (struct pageUpperEntry *) addr_gpa2hva(vm, vm->pgd);
 	for (uint16_t n1 = 0; n1 <= 0x1ffu; n1++) {
 		pml4e = &pml4e_start[n1];
 		if (!pml4e->present)
@@ -468,9 +431,7 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	uint16_t index[4];
-	struct pageMapL4Entry *pml4e;
-	struct pageDirectoryPointerEntry *pdpe;
-	struct pageDirectoryEntry *pde;
+	struct pageUpperEntry *pml4e, *pdpe, *pde;
 	struct pageTableEntry *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
