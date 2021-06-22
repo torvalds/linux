@@ -386,6 +386,7 @@ struct sctp_sender_hb_info {
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
+	__u32 probe_size;
 };
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
@@ -657,6 +658,7 @@ struct sctp_chunk {
 		data_accepted:1,	/* At least 1 chunk accepted */
 		auth:1,			/* IN: was auth'ed | OUT: needs auth */
 		has_asconf:1,		/* IN: have seen an asconf before */
+		pmtu_probe:1,		/* Used by PLPMTUD, can be set in s HB chunk */
 		tsn_missing_report:2,	/* Data chunk missing counter. */
 		fast_retransmit:2;	/* Is this chunk fast retransmitted? */
 };
