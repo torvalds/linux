@@ -50,6 +50,21 @@ phy-mode
 The "phy-mode" _DSD property is used to describe the connection to
 the PHY. The valid values for "phy-mode" are defined in [4].
 
+managed
+-------
+Optional property, which specifies the PHY management type.
+The valid values for "managed" are defined in [4].
+
+fixed-link
+----------
+The "fixed-link" is described by a data-only subnode of the
+MAC port, which is linked in the _DSD package via
+hierarchical data extension (UUID dbb8e3e6-5886-4ba6-8795-1319f52a966b
+in accordance with [5] "_DSD Implementation Guide" document).
+The subnode should comprise a required property ("speed") and
+possibly the optional ones - complete list of parameters and
+their values are specified in [4].
+
 The following ASL example illustrates the usage of these properties.
 
 DSDT entry for MDIO node
@@ -128,6 +143,48 @@ phy-mode and phy-handle are used as explained earlier.
 	  })
 	}
 
+MAC node example where "managed" property is specified.
+-------------------------------------------------------
+
+.. code-block:: none
+
+	Scope(\_SB.PP21.ETH0)
+	{
+	  Name (_DSD, Package () {
+	     ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		 Package () {
+		     Package () {"phy-mode", "sgmii"},
+		     Package () {"managed", "in-band-status"}
+		 }
+	   })
+	}
+
+MAC node example with a "fixed-link" subnode.
+---------------------------------------------
+
+.. code-block:: none
+
+	Scope(\_SB.PP21.ETH1)
+	{
+	  Name (_DSD, Package () {
+	    ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		 Package () {
+		     Package () {"phy-mode", "sgmii"},
+		 },
+	    ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+		 Package () {
+		     Package () {"fixed-link", "LNK0"}
+		 }
+	  })
+	  Name (LNK0, Package(){ // Data-only subnode of port
+	    ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		 Package () {
+		     Package () {"speed", 1000},
+		     Package () {"full-duplex", 1}
+		 }
+	  })
+	}
+
 References
 ==========
 
@@ -138,3 +195,5 @@ References
 [3] Documentation/firmware-guide/acpi/DSD-properties-rules.rst
 
 [4] Documentation/devicetree/bindings/net/ethernet-controller.yaml
+
+[5] https://github.com/UEFI/DSD-Guide/blob/main/dsd-guide.pdf

@@ -7,8 +7,10 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/acpi_mdio.h>
 #include <linux/fwnode_mdio.h>
 #include <linux/of.h>
+#include <linux/of_mdio.h>
 #include <linux/phy.h>
 
 MODULE_AUTHOR("Calvin Johnson <calvin.johnson@oss.nxp.com>");
@@ -142,3 +144,23 @@ int fwnode_mdiobus_register_phy(struct mii_bus *bus,
 	return 0;
 }
 EXPORT_SYMBOL(fwnode_mdiobus_register_phy);
+
+/**
+ * fwnode_mdiobus_register - bring up all the PHYs on a given MDIO bus and
+ *	attach them to it.
+ * @bus: Target MDIO bus.
+ * @fwnode: Pointer to fwnode of the MDIO controller.
+ *
+ * Return values are determined accordingly to acpi_/of_ mdiobus_register()
+ * operation.
+ */
+int fwnode_mdiobus_register(struct mii_bus *bus, struct fwnode_handle *fwnode)
+{
+	if (is_acpi_node(fwnode))
+		return acpi_mdiobus_register(bus, fwnode);
+	else if (is_of_node(fwnode))
+		return of_mdiobus_register(bus, to_of_node(fwnode));
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(fwnode_mdiobus_register);
