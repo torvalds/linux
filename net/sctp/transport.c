@@ -305,6 +305,44 @@ void sctp_transport_pl_send(struct sctp_transport *t)
 	t->pl.probe_count = 1;
 }
 
+void sctp_transport_pl_recv(struct sctp_transport *t)
+{
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+
+	t->pl.pmtu = t->pl.probe_size;
+	t->pl.probe_count = 0;
+	if (t->pl.state == SCTP_PL_BASE) {
+		t->pl.state = SCTP_PL_SEARCH; /* Base -> Search */
+		t->pl.probe_size += SCTP_PL_BIG_STEP;
+	} else if (t->pl.state == SCTP_PL_ERROR) {
+		t->pl.state = SCTP_PL_SEARCH; /* Error -> Search */
+
+		t->pl.pmtu = t->pl.probe_size;
+		t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		sctp_assoc_sync_pmtu(t->asoc);
+		t->pl.probe_size += SCTP_PL_BIG_STEP;
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (!t->pl.probe_high) {
+			t->pl.probe_size = min(t->pl.probe_size + SCTP_PL_BIG_STEP,
+					       SCTP_MAX_PLPMTU);
+			return;
+		}
+		t->pl.probe_size += SCTP_PL_MIN_STEP;
+		if (t->pl.probe_size >= t->pl.probe_high) {
+			t->pl.probe_high = 0;
+			t->pl.state = SCTP_PL_COMPLETE; /* Search -> Search Complete */
+
+			t->pl.probe_size = t->pl.pmtu;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
+		t->pl.probe_size += SCTP_PL_MIN_STEP;
+	}
+}
+
 bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
 	struct dst_entry *dst = sctp_transport_dst_check(t);

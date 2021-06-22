@@ -1274,7 +1274,7 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 		    !sctp_transport_pl_enabled(link))
 			return SCTP_DISPOSITION_DISCARD;
 
-		/* The actual handling will be performed here in a later patch. */
+		sctp_transport_pl_recv(link);
 		return SCTP_DISPOSITION_CONSUME;
 	}
 
