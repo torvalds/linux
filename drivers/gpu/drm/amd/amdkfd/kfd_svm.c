@@ -564,6 +564,24 @@ svm_range_get_adev_by_id(struct svm_range *prange, uint32_t gpu_id)
 	return (struct amdgpu_device *)pdd->dev->kgd;
 }
 
+struct kfd_process_device *
+svm_range_get_pdd_by_adev(struct svm_range *prange, struct amdgpu_device *adev)
+{
+	struct kfd_process *p;
+	int32_t gpu_idx, gpuid;
+	int r;
+
+	p = container_of(prange->svms, struct kfd_process, svms);
+
+	r = kfd_process_gpuid_from_kgd(p, adev, &gpuid, &gpu_idx);
+	if (r) {
+		pr_debug("failed to get device id by adev %p\n", adev);
+		return NULL;
+	}
+
+	return kfd_process_device_from_gpuidx(p, gpu_idx);
+}
+
 static int svm_range_bo_validate(void *param, struct amdgpu_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
@@ -2311,6 +2329,27 @@ static bool svm_range_skip_recover(struct svm_range *prange)
 	return false;
 }
 
+static void
+svm_range_count_fault(struct amdgpu_device *adev, struct kfd_process *p,
+		      struct svm_range *prange, int32_t gpuidx)
+{
+	struct kfd_process_device *pdd;
+
+	if (gpuidx == MAX_GPU_INSTANCE)
+		/* fault is on different page of same range
+		 * or fault is skipped to recover later
+		 */
+		pdd = svm_range_get_pdd_by_adev(prange, adev);
+	else
+		/* fault recovered
+		 * or fault cannot recover because GPU no access on the range
+		 */
+		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+
+	if (pdd)
+		WRITE_ONCE(pdd->faults, pdd->faults + 1);
+}
+
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			uint64_t addr)
@@ -2320,7 +2359,8 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	struct svm_range *prange;
 	struct kfd_process *p;
 	uint64_t timestamp;
-	int32_t best_loc, gpuidx;
+	int32_t best_loc;
+	int32_t gpuidx = MAX_GPU_INSTANCE;
 	bool write_locked = false;
 	int r = 0;
 
@@ -2440,6 +2480,9 @@ out_unlock_range:
 out_unlock_svms:
 	mutex_unlock(&svms->lock);
 	mmap_read_unlock(mm);
+
+	svm_range_count_fault(adev, p, prange, gpuidx);
+
 	mmput(mm);
 out:
 	kfd_unref_process(p);
