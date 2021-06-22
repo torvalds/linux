@@ -1305,7 +1305,6 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 
 		/* report network only if the current channel set contains the channel to which this network belongs */
 		if (rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, pnetwork->network.Configuration.DSConfig) >= 0
-			&& rtw_mlme_band_check(padapter, pnetwork->network.Configuration.DSConfig) == true
 			&& true == rtw_validate_ssid(&(pnetwork->network.Ssid))) {
 
 			ev = translate_scan(padapter, a, pnetwork, ev, stop);

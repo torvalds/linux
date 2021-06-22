@@ -46,17 +46,14 @@ enum rt_ampdu_burst {
 	RT_AMPDU_BURST_8723B	= 7,
 };
 
-#define CHANNEL_MAX_NUMBER		(14 + 24 + 21)	/*  14 is the max channel number */
+#define CHANNEL_MAX_NUMBER		(14)	/*  14 is the max channel number */
 #define CHANNEL_MAX_NUMBER_2G		14
-#define CHANNEL_MAX_NUMBER_5G		54			/*  Please refer to "phy_GetChnlGroup8812A" and "Hal_ReadTxPowerInfo8812A" */
-#define CHANNEL_MAX_NUMBER_5G_80M	7
 #define MAX_PG_GROUP			13
 
 /*  Tx Power Limit Table Size */
 #define MAX_REGULATION_NUM			4
 #define MAX_2_4G_BANDWIDTH_NUM			4
 #define MAX_RATE_SECTION_NUM			10
-#define MAX_5G_BANDWIDTH_NUM			4
 
 #define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G		10 /*   CCK:1, OFDM:1, HT:4, VHT:4 */
 
@@ -234,7 +231,6 @@ struct hal_com_data {
 	s8	BW40_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	u8 Regulation2_4G;
-	u8 Regulation5G;
 
 	u8 TxPwrInPercentage;
 

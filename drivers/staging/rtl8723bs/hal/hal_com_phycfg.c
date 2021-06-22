@@ -1564,139 +1564,105 @@ void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC1:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI1:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_MKK1_MKK1:
 		pHalData->Regulation2_4G = TXPWR_LMT_MKK;
-		pHalData->Regulation5G = TXPWR_LMT_MKK;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_KCC1:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_MKK;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC2:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC3:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC4:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC5:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC6:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC7:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI2:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI3:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_MKK1_MKK2:
 		pHalData->Regulation2_4G = TXPWR_LMT_MKK;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_MKK1_MKK3:
 		pHalData->Regulation2_4G = TXPWR_LMT_MKK;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_NCC1:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_NCC2:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_GLOBAL_NULL:
 		pHalData->Regulation2_4G = TXPWR_LMT_WW;
-		pHalData->Regulation5G = TXPWR_LMT_WW;
 		break;
 	case RT_CHANNEL_DOMAIN_ETSI1_ETSI4:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC2:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_NCC3:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI5:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC8:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI6:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI7:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI8:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI9:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI10:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI11:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_NCC4:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI12:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC9:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_WORLD_ETSI13:
 		pHalData->Regulation2_4G = TXPWR_LMT_ETSI;
-		pHalData->Regulation5G = TXPWR_LMT_ETSI;
 		break;
 	case RT_CHANNEL_DOMAIN_FCC1_FCC10:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
-		pHalData->Regulation5G = TXPWR_LMT_FCC;
 		break;
 	case RT_CHANNEL_DOMAIN_REALTEK_DEFINE: /* Realtek Reserve */
 		pHalData->Regulation2_4G = TXPWR_LMT_WW;
-		pHalData->Regulation5G = TXPWR_LMT_WW;
 		break;
 	default:
 		break;
