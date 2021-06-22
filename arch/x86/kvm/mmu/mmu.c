@@ -4542,17 +4542,18 @@ static void paging32E_init_context(struct kvm_vcpu *vcpu,
 	paging64_init_context_common(vcpu, context, PT32E_ROOT_LEVEL);
 }
 
-static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu)
+static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu,
+							 struct kvm_mmu_role_regs *regs)
 {
 	union kvm_mmu_extended_role ext = {0};
 
-	ext.cr0_pg = !!is_paging(vcpu);
-	ext.cr4_pae = !!is_pae(vcpu);
-	ext.cr4_smep = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
-	ext.cr4_smap = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
-	ext.cr4_pse = !!is_pse(vcpu);
-	ext.cr4_pke = !!kvm_read_cr4_bits(vcpu, X86_CR4_PKE);
-	ext.cr4_la57 = !!kvm_read_cr4_bits(vcpu, X86_CR4_LA57);
+	ext.cr0_pg = ____is_cr0_pg(regs);
+	ext.cr4_pae = ____is_cr4_pae(regs);
+	ext.cr4_smep = ____is_cr4_smep(regs);
+	ext.cr4_smap = ____is_cr4_smap(regs);
+	ext.cr4_pse = ____is_cr4_pse(regs);
+	ext.cr4_pke = ____is_cr4_pke(regs);
+	ext.cr4_la57 = ____is_cr4_la57(regs);
 
 	ext.valid = 1;
 
@@ -4560,20 +4561,21 @@ static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu)
 }
 
 static union kvm_mmu_role kvm_calc_mmu_role_common(struct kvm_vcpu *vcpu,
+						   struct kvm_mmu_role_regs *regs,
 						   bool base_only)
 {
 	union kvm_mmu_role role = {0};
 
 	role.base.access = ACC_ALL;
-	role.base.nxe = !!is_nx(vcpu);
-	role.base.cr0_wp = is_write_protection(vcpu);
+	role.base.nxe = ____is_efer_nx(regs);
+	role.base.cr0_wp = ____is_cr0_wp(regs);
 	role.base.smm = is_smm(vcpu);
 	role.base.guest_mode = is_guest_mode(vcpu);
 
 	if (base_only)
 		return role;
 
-	role.ext = kvm_calc_mmu_role_ext(vcpu);
+	role.ext = kvm_calc_mmu_role_ext(vcpu, regs);
 
 	return role;
 }
@@ -4588,9 +4590,10 @@ static inline int kvm_mmu_get_tdp_level(struct kvm_vcpu *vcpu)
 }
 
 static union kvm_mmu_role
-kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
+kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
+				struct kvm_mmu_role_regs *regs, bool base_only)
 {
-	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, base_only);
+	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, regs, base_only);
 
 	role.base.ad_disabled = (shadow_accessed_mask == 0);
 	role.base.level = kvm_mmu_get_tdp_level(vcpu);
@@ -4603,8 +4606,9 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
+	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
 	union kvm_mmu_role new_role =
-		kvm_calc_tdp_mmu_root_page_role(vcpu, false);
+		kvm_calc_tdp_mmu_root_page_role(vcpu, &regs, false);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
@@ -4648,30 +4652,30 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 }
 
 static union kvm_mmu_role
-kvm_calc_shadow_root_page_role_common(struct kvm_vcpu *vcpu, bool base_only)
+kvm_calc_shadow_root_page_role_common(struct kvm_vcpu *vcpu,
+				      struct kvm_mmu_role_regs *regs, bool base_only)
 {
-	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, base_only);
+	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, regs, base_only);
 
-	role.base.smep_andnot_wp = role.ext.cr4_smep &&
-		!is_write_protection(vcpu);
-	role.base.smap_andnot_wp = role.ext.cr4_smap &&
-		!is_write_protection(vcpu);
-	role.base.gpte_is_8_bytes = !!is_pae(vcpu);
+	role.base.smep_andnot_wp = role.ext.cr4_smep && !____is_cr0_wp(regs);
+	role.base.smap_andnot_wp = role.ext.cr4_smap && !____is_cr0_wp(regs);
+	role.base.gpte_is_8_bytes = ____is_cr4_pae(regs);
 
 	return role;
 }
 
 static union kvm_mmu_role
-kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
+kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
+				   struct kvm_mmu_role_regs *regs, bool base_only)
 {
 	union kvm_mmu_role role =
-		kvm_calc_shadow_root_page_role_common(vcpu, base_only);
+		kvm_calc_shadow_root_page_role_common(vcpu, regs, base_only);
 
-	role.base.direct = !is_paging(vcpu);
+	role.base.direct = !____is_cr0_pg(regs);
 
-	if (!is_long_mode(vcpu))
+	if (!____is_efer_lma(regs))
 		role.base.level = PT32E_ROOT_LEVEL;
-	else if (is_la57_mode(vcpu))
+	else if (____is_cr4_la57(regs))
 		role.base.level = PT64_ROOT_5LEVEL;
 	else
 		role.base.level = PT64_ROOT_4LEVEL;
@@ -4709,17 +4713,18 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 	union kvm_mmu_role new_role =
-		kvm_calc_shadow_mmu_root_page_role(vcpu, false);
+		kvm_calc_shadow_mmu_root_page_role(vcpu, regs, false);
 
 	if (new_role.as_u64 != context->mmu_role.as_u64)
 		shadow_mmu_init_context(vcpu, context, regs, new_role);
 }
 
 static union kvm_mmu_role
-kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu)
+kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu,
+				   struct kvm_mmu_role_regs *regs)
 {
 	union kvm_mmu_role role =
-		kvm_calc_shadow_root_page_role_common(vcpu, false);
+		kvm_calc_shadow_root_page_role_common(vcpu, regs, false);
 
 	role.base.direct = false;
 	role.base.level = kvm_mmu_get_tdp_level(vcpu);
@@ -4736,7 +4741,9 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		.cr4 = cr4,
 		.efer = efer,
 	};
-	union kvm_mmu_role new_role = kvm_calc_shadow_npt_root_page_role(vcpu);
+	union kvm_mmu_role new_role;
+
+	new_role = kvm_calc_shadow_npt_root_page_role(vcpu, &regs);
 
 	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 
@@ -4821,9 +4828,12 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 	context->inject_page_fault = kvm_inject_page_fault;
 }
 
-static union kvm_mmu_role kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu)
+static union kvm_mmu_role
+kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu, struct kvm_mmu_role_regs *regs)
 {
-	union kvm_mmu_role role = kvm_calc_shadow_root_page_role_common(vcpu, false);
+	union kvm_mmu_role role;
+
+	role = kvm_calc_shadow_root_page_role_common(vcpu, regs, false);
 
 	/*
 	 * Nested MMUs are used only for walking L2's gva->gpa, they never have
@@ -4832,12 +4842,12 @@ static union kvm_mmu_role kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu)
 	 */
 	role.base.direct = true;
 
-	if (!is_paging(vcpu))
+	if (!____is_cr0_pg(regs))
 		role.base.level = 0;
-	else if (is_long_mode(vcpu))
-		role.base.level = is_la57_mode(vcpu) ? PT64_ROOT_5LEVEL :
-						       PT64_ROOT_4LEVEL;
-	else if (is_pae(vcpu))
+	else if (____is_efer_lma(regs))
+		role.base.level = ____is_cr4_la57(regs) ? PT64_ROOT_5LEVEL :
+							  PT64_ROOT_4LEVEL;
+	else if (____is_cr4_pae(regs))
 		role.base.level = PT32E_ROOT_LEVEL;
 	else
 		role.base.level = PT32_ROOT_LEVEL;
@@ -4847,7 +4857,8 @@ static union kvm_mmu_role kvm_calc_nested_mmu_role(struct kvm_vcpu *vcpu)
 
 static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 {
-	union kvm_mmu_role new_role = kvm_calc_nested_mmu_role(vcpu);
+	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
+	union kvm_mmu_role new_role = kvm_calc_nested_mmu_role(vcpu, &regs);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
 	if (new_role.as_u64 == g_context->mmu_role.as_u64)
@@ -4913,12 +4924,13 @@ EXPORT_SYMBOL_GPL(kvm_init_mmu);
 static union kvm_mmu_page_role
 kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
 {
+	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
 	union kvm_mmu_role role;
 
 	if (tdp_enabled)
-		role = kvm_calc_tdp_mmu_root_page_role(vcpu, true);
+		role = kvm_calc_tdp_mmu_root_page_role(vcpu, &regs, true);
 	else
-		role = kvm_calc_shadow_mmu_root_page_role(vcpu, true);
+		role = kvm_calc_shadow_mmu_root_page_role(vcpu, &regs, true);
 
 	return role.base;
 }
