@@ -3180,24 +3180,18 @@ void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *test_pipe;
-	const struct rect *r1 = &pipe_ctx->plane_res.scl_data.recout, *r2;
-	int r1_r = r1->x + r1->width, r1_b = r1->y + r1->height, r2_r, r2_b;
+	int cur_layer = pipe_ctx->plane_state->layer_index;
 
 	/**
-	 * Disable the cursor if there's another pipe above this with a
-	 * plane that contains this pipe's viewport to prevent double cursor
-	 * and incorrect scaling artifacts.
+	 * Disable the cursor if there's there's an upper layer active,
+	 * assume it's the one owning the cursor
 	 */
 	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
 	     test_pipe = test_pipe->top_pipe) {
 		if (!test_pipe->plane_state->visible)
 			continue;
 
-		r2 = &test_pipe->plane_res.scl_data.recout;
-		r2_r = r2->x + r2->width;
-		r2_b = r2->y + r2->height;
-
-		if (r1->x >= r2->x && r1->y >= r2->y && r1_r <= r2_r && r1_b <= r2_b)
+		if (test_pipe->plane_state->layer_index < cur_layer)
 			return true;
 	}
 
