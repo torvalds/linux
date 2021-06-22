@@ -4646,12 +4646,12 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
 
-	if (is_cr0_pg(context))
+	if (is_cr0_pg(context)) {
 		reset_rsvds_bits_mask(vcpu, context);
-
-	update_permission_bitmask(context, false);
-	update_pkru_bitmask(context);
-	update_last_nonleaf_level(context);
+		update_permission_bitmask(context, false);
+		update_pkru_bitmask(context);
+		update_last_nonleaf_level(context);
+	}
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
@@ -4899,12 +4899,12 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	else
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 
-	if (is_cr0_pg(g_context))
+	if (is_cr0_pg(g_context)) {
 		reset_rsvds_bits_mask(vcpu, g_context);
-
-	update_permission_bitmask(g_context, false);
-	update_pkru_bitmask(g_context);
-	update_last_nonleaf_level(g_context);
+		update_permission_bitmask(g_context, false);
+		update_pkru_bitmask(g_context);
+		update_last_nonleaf_level(g_context);
+	}
 }
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu)
