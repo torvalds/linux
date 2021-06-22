@@ -4507,11 +4507,6 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->nx = is_nx(vcpu);
 	context->root_level = root_level;
 
-	reset_rsvds_bits_mask(vcpu, context);
-	update_permission_bitmask(vcpu, context, false);
-	update_pkru_bitmask(vcpu, context, false);
-	update_last_nonleaf_level(vcpu, context);
-
 	MMU_WARN_ON(!is_pae(vcpu));
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
@@ -4534,12 +4529,6 @@ static void paging32_init_context(struct kvm_vcpu *vcpu,
 {
 	context->nx = false;
 	context->root_level = PT32_ROOT_LEVEL;
-
-	reset_rsvds_bits_mask(vcpu, context);
-	update_permission_bitmask(vcpu, context, false);
-	update_pkru_bitmask(vcpu, context, false);
-	update_last_nonleaf_level(vcpu, context);
-
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->sync_page = paging32_sync_page;
@@ -4703,6 +4692,12 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	else
 		paging32_init_context(vcpu, context);
 
+	if (____is_cr0_pg(regs)) {
+		reset_rsvds_bits_mask(vcpu, context);
+		update_permission_bitmask(vcpu, context, false);
+		update_pkru_bitmask(vcpu, context, false);
+		update_last_nonleaf_level(vcpu, context);
+	}
 	context->shadow_root_level = new_role.base.level;
 
 	context->mmu_role.as_u64 = new_role.as_u64;
