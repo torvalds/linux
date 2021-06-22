@@ -258,10 +258,6 @@ int ksmbd_vfs_set_dos_attrib_xattr(struct dentry *dentry,
 				   struct xattr_dos_attrib *da);
 int ksmbd_vfs_get_dos_attrib_xattr(struct dentry *dentry,
 				   struct xattr_dos_attrib *da);
-struct posix_acl *ksmbd_vfs_posix_acl_alloc(int count, gfp_t flags);
-struct posix_acl *ksmbd_vfs_get_acl(struct inode *inode, int type);
-int ksmbd_vfs_set_posix_acl(struct inode *inode, int type,
-			    struct posix_acl *acl);
 int ksmbd_vfs_set_init_posix_acl(struct inode *inode);
 int ksmbd_vfs_inherit_posix_acl(struct inode *inode,
 				struct inode *parent_inode);

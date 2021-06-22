@@ -1407,7 +1407,7 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct inode *inode,
 	struct xattr_acl_entry *xa_entry;
 	int i;
 
-	posix_acls = ksmbd_vfs_get_acl(inode, acl_type);
+	posix_acls = get_acl(inode, acl_type);
 	if (!posix_acls)
 		return NULL;
 
@@ -1628,34 +1628,6 @@ int ksmbd_vfs_get_dos_attrib_xattr(struct dentry *dentry,
 	}
 
 	return err;
-}
-
-struct posix_acl *ksmbd_vfs_posix_acl_alloc(int count, gfp_t flags)
-{
-#if IS_ENABLED(CONFIG_FS_POSIX_ACL)
-	return posix_acl_alloc(count, flags);
-#else
-	return NULL;
-#endif
-}
-
-struct posix_acl *ksmbd_vfs_get_acl(struct inode *inode, int type)
-{
-#if IS_ENABLED(CONFIG_FS_POSIX_ACL)
-	return get_acl(inode, type);
-#else
-	return NULL;
-#endif
-}
-
-int ksmbd_vfs_set_posix_acl(struct inode *inode, int type,
-			    struct posix_acl *acl)
-{
-#if IS_ENABLED(CONFIG_FS_POSIX_ACL)
-	return set_posix_acl(&init_user_ns, inode, type, acl);
-#else
-	return -EOPNOTSUPP;
-#endif
 }
 
 /**
@@ -1895,19 +1867,20 @@ int ksmbd_vfs_set_init_posix_acl(struct inode *inode)
 		acl_state.group.allow;
 	acl_state.mask.allow = 0x07;
 
-	acls = ksmbd_vfs_posix_acl_alloc(6, GFP_KERNEL);
+	acls = posix_acl_alloc(6, GFP_KERNEL);
 	if (!acls) {
 		free_acl_state(&acl_state);
 		return -ENOMEM;
 	}
 	posix_state_to_acl(&acl_state, acls->a_entries);
-	rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_ACCESS, acls);
+	rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS, acls);
 	if (rc < 0)
 		ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_ACCESS) failed, rc : %d\n",
 			    rc);
 	else if (S_ISDIR(inode->i_mode)) {
 		posix_state_to_acl(&acl_state, acls->a_entries);
-		rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_DEFAULT, acls);
+		rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_DEFAULT,
+				   acls);
 		if (rc < 0)
 			ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_DEFAULT) failed, rc : %d\n",
 				    rc);
@@ -1923,7 +1896,7 @@ int ksmbd_vfs_inherit_posix_acl(struct inode *inode, struct inode *parent_inode)
 	struct posix_acl_entry *pace;
 	int rc, i;
 
-	acls = ksmbd_vfs_get_acl(parent_inode, ACL_TYPE_DEFAULT);
+	acls = get_acl(parent_inode, ACL_TYPE_DEFAULT);
 	if (!acls)
 		return -ENOENT;
 	pace = acls->a_entries;
@@ -1935,12 +1908,13 @@ int ksmbd_vfs_inherit_posix_acl(struct inode *inode, struct inode *parent_inode)
 		}
 	}
 
-	rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_ACCESS, acls);
+	rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS, acls);
 	if (rc < 0)
 		ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_ACCESS) failed, rc : %d\n",
 			    rc);
 	if (S_ISDIR(inode->i_mode)) {
-		rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_DEFAULT, acls);
+		rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_DEFAULT,
+				   acls);
 		if (rc < 0)
 			ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_DEFAULT) failed, rc : %d\n",
 				    rc);

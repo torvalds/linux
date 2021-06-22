@@ -532,7 +532,7 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 
 	if (acl_state.users->n || acl_state.groups->n) {
 		acl_state.mask.allow = 0x07;
-		fattr->cf_acls = ksmbd_vfs_posix_acl_alloc(acl_state.users->n +
+		fattr->cf_acls = posix_acl_alloc(acl_state.users->n +
 			acl_state.groups->n + 4, GFP_KERNEL);
 		if (fattr->cf_acls) {
 			cf_pace = fattr->cf_acls->a_entries;
@@ -543,7 +543,7 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 	if (default_acl_state.users->n || default_acl_state.groups->n) {
 		default_acl_state.mask.allow = 0x07;
 		fattr->cf_dacls =
-			ksmbd_vfs_posix_acl_alloc(default_acl_state.users->n +
+			posix_acl_alloc(default_acl_state.users->n +
 			default_acl_state.groups->n + 4, GFP_KERNEL);
 		if (fattr->cf_dacls) {
 			cf_pdace = fattr->cf_dacls->a_entries;
@@ -1202,7 +1202,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 			granted = GENERIC_ALL_FLAGS;
 	}
 
-	posix_acls = ksmbd_vfs_get_acl(d_inode(dentry), ACL_TYPE_ACCESS);
+	posix_acls = get_acl(d_inode(dentry), ACL_TYPE_ACCESS);
 	if (posix_acls && !found) {
 		unsigned int id = -1;
 
@@ -1287,11 +1287,11 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	ksmbd_vfs_remove_acl_xattrs(dentry);
 	/* Update posix acls */
 	if (fattr.cf_dacls) {
-		rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_ACCESS,
-					     fattr.cf_acls);
+		rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS,
+				   fattr.cf_acls);
 		if (S_ISDIR(inode->i_mode) && fattr.cf_dacls)
-			rc = ksmbd_vfs_set_posix_acl(inode, ACL_TYPE_DEFAULT,
-						     fattr.cf_dacls);
+			rc = set_posix_acl(&init_user_ns, inode,
+					   ACL_TYPE_DEFAULT, fattr.cf_dacls);
 	}
 
 	/* Check it only calling from SD BUFFER context */
