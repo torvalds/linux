@@ -4714,6 +4714,11 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 				    struct kvm_mmu_role_regs *regs,
 				    union kvm_mmu_role new_role)
 {
+	if (new_role.as_u64 == context->mmu_role.as_u64)
+		return;
+
+	context->mmu_role.as_u64 = new_role.as_u64;
+
 	if (!____is_cr0_pg(regs))
 		nonpaging_init_context(vcpu, context);
 	else if (____is_efer_lma(regs))
@@ -4731,7 +4736,6 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	}
 	context->shadow_root_level = new_role.base.level;
 
-	context->mmu_role.as_u64 = new_role.as_u64;
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
 
@@ -4742,8 +4746,7 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 	union kvm_mmu_role new_role =
 		kvm_calc_shadow_mmu_root_page_role(vcpu, regs, false);
 
-	if (new_role.as_u64 != context->mmu_role.as_u64)
-		shadow_mmu_init_context(vcpu, context, regs, new_role);
+	shadow_mmu_init_context(vcpu, context, regs, new_role);
 }
 
 static union kvm_mmu_role
@@ -4774,8 +4777,7 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 
 	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 
-	if (new_role.as_u64 != context->mmu_role.as_u64)
-		shadow_mmu_init_context(vcpu, context, &regs, new_role);
+	shadow_mmu_init_context(vcpu, context, &regs, new_role);
 
 	/*
 	 * Redo the shadow bits, the reset done by shadow_mmu_init_context()
@@ -4823,6 +4825,8 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
+	context->mmu_role.as_u64 = new_role.as_u64;
+
 	context->shadow_root_level = level;
 
 	context->nx = true;
@@ -4833,7 +4837,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->invlpg = ept_invlpg;
 	context->root_level = level;
 	context->direct_map = false;
-	context->mmu_role.as_u64 = new_role.as_u64;
 
 	update_permission_bitmask(vcpu, context, true);
 	update_pkru_bitmask(vcpu, context, true);
