@@ -4767,8 +4767,10 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 	role.base.guest_mode = true;
 	role.base.access = ACC_ALL;
 
-	role.ext = kvm_calc_mmu_role_ext(vcpu);
+	/* EPT, and thus nested EPT, does not consume CR0, CR4, nor EFER. */
+	role.ext.word = 0;
 	role.ext.execonly = execonly;
+	role.ext.valid = 1;
 
 	return role;
 }
