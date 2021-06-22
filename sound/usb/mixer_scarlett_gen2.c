@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *   Focusrite Scarlett 6i6/18i8/18i20 Gen 2 Driver for ALSA
+ *   Focusrite Scarlett Gen 2/3 Driver for ALSA
  *
- *   Copyright (c) 2018-2019 by Geoffrey D. Bennett <g at b4.vu>
+ *   Supported models:
+ *   - 6i6/18i8/18i20 Gen 2
+ *   - 4i4/8i6/18i8/18i20 Gen 3
+ *
+ *   Copyright (c) 2018-2021 by Geoffrey D. Bennett <g at b4.vu>
  *
  *   Based on the Scarlett (Gen 1) Driver for ALSA:
  *
@@ -19,10 +23,6 @@
  *   David Henningsson <david.henningsson at canonical.com>
  */
 
-/* Mixer Interface for the Focusrite Scarlett 6i6/18i8/18i20 Gen 2 audio
- * interface. Based on the Gen 1 driver and rewritten.
- */
-
 /* The protocol was reverse engineered by looking at the communication
  * between Focusrite Control 2.3.4 and the Focusrite(R) Scarlett 18i20
  * (firmware 1083) using usbmon in July-August 2018.
@@ -32,13 +32,21 @@
  * Scarlett 6i6 support added in June 2019 (thanks to Martin Wittmann
  * for providing usbmon output and testing).
  *
+ * Scarlett 4i4/8i6 Gen 3 support added in May 2020 (thanks to Laurent
+ * Debricon for donating a 4i4 and to Fredrik Unger for providing 8i6
+ * usbmon output and testing).
+ *
+ * Scarlett 18i8/18i20 Gen 3 support added in June 2020 (thanks to
+ * Darren Jaeckel, Alex Sedlack, and Clovis Lunel for providing usbmon
+ * output, protocol traces and testing).
+ *
  * Support for loading mixer volume and mux configuration from the
  * interface during driver initialisation added in May 2021 (thanks to
  * Vladimir Sadovnikov for figuring out how).
  *
  * This ALSA mixer gives access to:
  *  - input, output, mixer-matrix muxes
- *  - 18x10 mixer-matrix gain stages
+ *  - mixer-matrix gain stages
  *  - gain/volume/mute controls
  *  - level meters
  *  - line/inst level and pad controls
@@ -148,21 +156,21 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 
 /* Maximum number of level and pad switches */
 #define SCARLETT2_LEVEL_SWITCH_MAX 2
-#define SCARLETT2_PAD_SWITCH_MAX 4
+#define SCARLETT2_PAD_SWITCH_MAX 8
 
 /* Maximum number of inputs to the mixer */
-#define SCARLETT2_INPUT_MIX_MAX 18
+#define SCARLETT2_INPUT_MIX_MAX 25
 
 /* Maximum number of outputs from the mixer */
-#define SCARLETT2_OUTPUT_MIX_MAX 10
+#define SCARLETT2_OUTPUT_MIX_MAX 12
 
 /* Maximum size of the data in the USB mux assignment message:
- * 18 inputs, 20 outputs, 18 matrix inputs, 8 spare
+ * 20 inputs, 20 outputs, 25 matrix inputs, 12 spare
  */
-#define SCARLETT2_MUX_MAX 64
+#define SCARLETT2_MUX_MAX 77
 
 /* Maximum number of meters (sum of output port counts) */
-#define SCARLETT2_MAX_METERS 56
+#define SCARLETT2_MAX_METERS 65
 
 /* Hardware port types:
  * - None (no input to mux)
@@ -256,7 +264,7 @@ static const struct scarlett2_port scarlett2_ports[SCARLETT2_PORT_TYPE_COUNT] = 
 #define SCARLETT2_MUX_TABLES 3
 
 /* Maximum number of entries in a mux table */
-#define SCARLETT2_MAX_MUX_ENTRIES 7
+#define SCARLETT2_MAX_MUX_ENTRIES 10
 
 /* One entry within mux_assignment defines the port type and range of
  * ports to add to the set_mux message. The end of the list is marked
@@ -475,11 +483,225 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 	} },
 };
 
+static const struct scarlett2_device_info s4i4_gen3_info = {
+	.usb_id = USB_ID(0x1235, 0x8212),
+
+	.level_input_count = 2,
+	.pad_input_count = 2,
+
+	.line_out_descrs = {
+		"Monitor L",
+		"Monitor R",
+		"Headphones L",
+		"Headphones R",
+	},
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = { 1, 0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = { 4, 4 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 6, 8 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 4, 6 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 16 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 16 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 16 },
+		{ 0,                            0,  0 },
+	} },
+};
+
+static const struct scarlett2_device_info s8i6_gen3_info = {
+	.usb_id = USB_ID(0x1235, 0x8213),
+
+	.level_input_count = 2,
+	.pad_input_count = 2,
+
+	.line_out_descrs = {
+		"Headphones 1 L",
+		"Headphones 1 R",
+		"Headphones 2 L",
+		"Headphones 2 R",
+	},
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = { 1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = { 6,  4 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = { 2,  2 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 8,  8 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 6, 10 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      8,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 18 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      8,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 18 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      8,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 18 },
+		{ 0,                            0,  0 },
+	} },
+};
+
+static const struct scarlett2_device_info s18i8_gen3_info = {
+	.usb_id = USB_ID(0x1235, 0x8214),
+
+	.line_out_hw_vol = 1,
+	.level_input_count = 2,
+	.pad_input_count = 2,
+
+	.line_out_descrs = {
+		"Monitor L",
+		"Monitor R",
+		"Headphones 1 L",
+		"Headphones 1 R",
+		"Headphones 2 L",
+		"Headphones 2 R",
+		"Alt Monitor L",
+		"Alt Monitor R",
+	},
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  8,  8 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_ADAT]     = {  8,  0 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 10, 20 },
+		[SCARLETT2_PORT_TYPE_PCM]      = {  8, 20 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,       0, 10 },
+		{ SCARLETT2_PORT_TYPE_PCM,      12,  8 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  6,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  2,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      10,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 20 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 10 },
+		{ 0,                             0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,       0, 10 },
+		{ SCARLETT2_PORT_TYPE_PCM,      12,  4 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  6,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  2,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      10,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 20 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 10 },
+		{ 0,                             0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,       0, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  6,  2 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  2,  4 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 20 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 10 },
+		{ 0,                             0,  0 },
+	} },
+};
+
+static const struct scarlett2_device_info s18i20_gen3_info = {
+	.usb_id = USB_ID(0x1235, 0x8215),
+
+	.line_out_hw_vol = 1,
+	.level_input_count = 2,
+	.pad_input_count = 8,
+
+	.line_out_descrs = {
+		"Monitor 1 L",
+		"Monitor 1 R",
+		"Monitor 2 L",
+		"Monitor 2 R",
+		NULL,
+		NULL,
+		"Headphones 1 L",
+		"Headphones 1 R",
+		"Headphones 2 L",
+		"Headphones 2 R",
+	},
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  9, 10 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_ADAT]     = {  8,  8 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 12, 25 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 20, 20 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,       0,  8 },
+		{ SCARLETT2_PORT_TYPE_PCM,      10, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_PCM,       8,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 25 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 12 },
+		{ 0,                             0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,       0,  8 },
+		{ SCARLETT2_PORT_TYPE_PCM,      10,  8 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,      0,  8 },
+		{ SCARLETT2_PORT_TYPE_PCM,       8,  2 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 25 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 10 },
+		{ 0,                             0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,       0, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,     0,  2 },
+		{ SCARLETT2_PORT_TYPE_NONE,      0, 24 },
+		{ 0,                             0,  0 },
+	} },
+};
+
 static const struct scarlett2_device_info *scarlett2_devices[] = {
 	/* Supported Gen 2 devices */
 	&s6i6_gen2_info,
 	&s18i8_gen2_info,
 	&s18i20_gen2_info,
+
+	/* Supported Gen 3 devices */
+	&s4i4_gen3_info,
+	&s8i6_gen3_info,
+	&s18i8_gen3_info,
+	&s18i20_gen3_info,
 
 	/* End of list */
 	NULL
@@ -674,7 +896,7 @@ static int scarlett2_usb(
 	if (err != req_buf_size) {
 		usb_audio_err(
 			mixer->chip,
-			"Scarlett Gen 2 USB request result cmd %x was %d\n",
+			"Scarlett Gen 2/3 USB request result cmd %x was %d\n",
 			cmd, err);
 		err = -EINVAL;
 		goto unlock;
@@ -691,7 +913,7 @@ static int scarlett2_usb(
 	if (err != resp_buf_size) {
 		usb_audio_err(
 			mixer->chip,
-			"Scarlett Gen 2 USB response result cmd %x was %d "
+			"Scarlett Gen 2/3 USB response result cmd %x was %d "
 			"expected %d\n",
 			cmd, err, resp_buf_size);
 		err = -EINVAL;
@@ -709,7 +931,7 @@ static int scarlett2_usb(
 	    resp->pad) {
 		usb_audio_err(
 			mixer->chip,
-			"Scarlett Gen 2 USB invalid response; "
+			"Scarlett Gen 2/3 USB invalid response; "
 			   "cmd tx/rx %d/%d seq %d/%d size %d/%d "
 			   "error %d pad %d\n",
 			le32_to_cpu(req->cmd), le32_to_cpu(resp->cmd),
@@ -2490,7 +2712,7 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 
 	if (!(chip->setup & SCARLETT2_ENABLE)) {
 		usb_audio_info(chip,
-			"Focusrite Scarlett Gen 2 Mixer Driver disabled; "
+			"Focusrite Scarlett Gen 2/3 Mixer Driver disabled; "
 			"use options snd_usb_audio vid=0x%04x pid=0x%04x "
 			"device_setup=1 to enable and report any issues "
 			"to g@b4.vu",
@@ -2500,7 +2722,7 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 	}
 
 	usb_audio_info(chip,
-		"Focusrite Scarlett Gen 2 Mixer Driver enabled pid=0x%04x",
+		"Focusrite Scarlett Gen 2/3 Mixer Driver enabled pid=0x%04x",
 		USB_ID_PRODUCT(chip->usb_id));
 
 	err = snd_scarlett_gen2_controls_create(mixer);
