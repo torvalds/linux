@@ -149,14 +149,16 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 			 * BOs to be evicted from VRAM
 			 */
 			amdgpu_bo_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM |
-							 AMDGPU_GEM_DOMAIN_GTT);
+							AMDGPU_GEM_DOMAIN_GTT |
+							AMDGPU_GEM_DOMAIN_CPU);
 			abo->placements[0].fpfn = adev->gmc.visible_vram_size >> PAGE_SHIFT;
 			abo->placements[0].lpfn = 0;
 			abo->placement.busy_placement = &abo->placements[1];
 			abo->placement.num_busy_placement = 1;
 		} else {
 			/* Move to GTT memory */
-			amdgpu_bo_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
+			amdgpu_bo_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT |
+							AMDGPU_GEM_DOMAIN_CPU);
 		}
 		break;
 	case TTM_PL_TT:
