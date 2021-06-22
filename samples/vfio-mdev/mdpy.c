@@ -261,6 +261,7 @@ static int mdpy_probe(struct mdev_device *mdev)
 
 	ret = vfio_register_group_dev(&mdev_state->vdev);
 	if (ret) {
+		kfree(mdev_state->vconfig);
 		kfree(mdev_state);
 		return ret;
 	}
