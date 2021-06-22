@@ -3898,7 +3898,6 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = NULL;
 	context->root_level = 0;
-	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->direct_map = true;
 	context->nx = false;
 }
@@ -4466,10 +4465,10 @@ static void update_last_nonleaf_level(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu
 
 static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 					 struct kvm_mmu *context,
-					 int level)
+					 int root_level)
 {
 	context->nx = is_nx(vcpu);
-	context->root_level = level;
+	context->root_level = root_level;
 
 	reset_rsvds_bits_mask(vcpu, context);
 	update_permission_bitmask(vcpu, context, false);
@@ -4481,7 +4480,6 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->sync_page = paging64_sync_page;
 	context->invlpg = paging64_invlpg;
-	context->shadow_root_level = level;
 	context->direct_map = false;
 }
 
@@ -4509,7 +4507,6 @@ static void paging32_init_context(struct kvm_vcpu *vcpu,
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->sync_page = paging32_sync_page;
 	context->invlpg = paging32_invlpg;
-	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->direct_map = false;
 }
 
@@ -4669,6 +4666,8 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	else
 		paging32_init_context(vcpu, context);
 
+	context->shadow_root_level = new_role.base.level;
+
 	context->mmu_role.as_u64 = new_role.as_u64;
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
@@ -4704,15 +4703,8 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 
 	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 
-	if (new_role.as_u64 != context->mmu_role.as_u64) {
+	if (new_role.as_u64 != context->mmu_role.as_u64)
 		shadow_mmu_init_context(vcpu, context, cr0, cr4, efer, new_role);
-
-		/*
-		 * Override the level set by the common init helper, nested TDP
-		 * always uses the host's TDP configuration.
-		 */
-		context->shadow_root_level = new_role.base.level;
-	}
 
 	/*
 	 * Redo the shadow bits, the reset done by shadow_mmu_init_context()
