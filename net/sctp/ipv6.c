@@ -122,17 +122,51 @@ static struct notifier_block sctp_inet6addr_notifier = {
 	.notifier_call = sctp_inet6addr_event,
 };
 
+static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
+			       __u8 type, __u8 code, __u32 info)
+{
+	struct sctp_association *asoc = t->asoc;
+	struct sock *sk = asoc->base.sk;
+	struct ipv6_pinfo *np;
+	int err = 0;
+
+	switch (type) {
+	case ICMPV6_PKT_TOOBIG:
+		if (ip6_sk_accept_pmtu(sk))
+			sctp_icmp_frag_needed(sk, asoc, t, info);
+		return;
+	case ICMPV6_PARAMPROB:
+		if (ICMPV6_UNK_NEXTHDR == code) {
+			sctp_icmp_proto_unreachable(sk, asoc, t);
+			return;
+		}
+		break;
+	case NDISC_REDIRECT:
+		sctp_icmp_redirect(sk, t, skb);
+		return;
+	default:
+		break;
+	}
+
+	np = inet6_sk(sk);
+	icmpv6_err_convert(type, code, &err);
+	if (!sock_owned_by_user(sk) && np->recverr) {
+		sk->sk_err = err;
+		sk->sk_error_report(sk);
+	} else {
+		sk->sk_err_soft = err;
+	}
+}
+
 /* ICMP error handler. */
 static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			u8 type, u8 code, int offset, __be32 info)
+		       u8 type, u8 code, int offset, __be32 info)
 {
-	struct sock *sk;
-	struct sctp_association *asoc;
-	struct sctp_transport *transport;
-	struct ipv6_pinfo *np;
-	__u16 saveip, savesctp;
-	int err, ret = 0;
 	struct net *net = dev_net(skb->dev);
+	struct sctp_transport *transport;
+	struct sctp_association *asoc;
+	__u16 saveip, savesctp;
+	struct sock *sk;
 
 	/* Fix up skb to look at the embedded net header. */
 	saveip	 = skb->network_header;
@@ -148,40 +182,10 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return -ENOENT;
 	}
 
-	/* Warning:  The sock lock is held.  Remember to call
-	 * sctp_err_finish!
-	 */
-
-	switch (type) {
-	case ICMPV6_PKT_TOOBIG:
-		if (ip6_sk_accept_pmtu(sk))
-			sctp_icmp_frag_needed(sk, asoc, transport, ntohl(info));
-		goto out_unlock;
-	case ICMPV6_PARAMPROB:
-		if (ICMPV6_UNK_NEXTHDR == code) {
-			sctp_icmp_proto_unreachable(sk, asoc, transport);
-			goto out_unlock;
-		}
-		break;
-	case NDISC_REDIRECT:
-		sctp_icmp_redirect(sk, transport, skb);
-		goto out_unlock;
-	default:
-		break;
-	}
-
-	np = inet6_sk(sk);
-	icmpv6_err_convert(type, code, &err);
-	if (!sock_owned_by_user(sk) && np->recverr) {
-		sk->sk_err = err;
-		sk->sk_error_report(sk);
-	} else {  /* Only an error on timeout */
-		sk->sk_err_soft = err;
-	}
-
-out_unlock:
+	sctp_v6_err_handle(transport, skb, type, code, ntohl(info));
 	sctp_err_finish(sk, transport);
-	return ret;
+
+	return 0;
 }
 
 static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *t)
