@@ -103,13 +103,6 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		spte |= SPTE_TDP_AD_WRPROT_ONLY_MASK;
 
 	/*
-	 * Bits 62:52 of PAE SPTEs are reserved.  WARN if said bits are set
-	 * if PAE paging may be employed (shadow paging or any 32-bit KVM).
-	 */
-	WARN_ON_ONCE((!tdp_enabled || !IS_ENABLED(CONFIG_X86_64)) &&
-		     (spte & SPTE_TDP_AD_MASK));
-
-	/*
 	 * For the EPT case, shadow_present_mask is 0 if hardware
 	 * supports exec-only page table entries.  In that case,
 	 * ACC_USER_MASK and shadow_user_mask are used to represent
