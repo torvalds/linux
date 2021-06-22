@@ -455,10 +455,10 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 
 	list_for_each_entry_safe(task, tmp, &thread->task_busy_list,
 				 list_entry) {
+		cb = &task->pkt->async_cb;
 		data.sta = -ECONNABORTED;
 		data.data = cb->data;
 		data.pkt = task->pkt;
-		cb = &task->pkt->async_cb;
 		if (cb->cb)
 			cb->cb(data);
 
