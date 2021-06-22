@@ -521,8 +521,7 @@ unmapped_gva:
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt)
 {
 	if (!vm->gdt)
-		vm->gdt = vm_vaddr_alloc(vm, getpagesize(),
-			KVM_UTIL_MIN_VADDR, 0, 0);
+		vm->gdt = vm_vaddr_alloc_page(vm);
 
 	dt->base = vm->gdt;
 	dt->limit = getpagesize();
@@ -532,8 +531,7 @@ static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
 				int selector)
 {
 	if (!vm->tss)
-		vm->tss = vm_vaddr_alloc(vm, getpagesize(),
-			KVM_UTIL_MIN_VADDR, 0, 0);
+		vm->tss = vm_vaddr_alloc_page(vm);
 
 	memset(segp, 0, sizeof(*segp));
 	segp->base = vm->tss;
@@ -1223,8 +1221,8 @@ void vm_init_descriptor_tables(struct kvm_vm *vm)
 	extern void *idt_handlers;
 	int i;
 
-	vm->idt = vm_vaddr_alloc(vm, getpagesize(), 0x2000, 0, 0);
-	vm->handlers = vm_vaddr_alloc(vm, 256 * sizeof(void *), 0x2000, 0, 0);
+	vm->idt = vm_vaddr_alloc_page(vm);
+	vm->handlers = vm_vaddr_alloc_page(vm);
 	/* Handlers have the same address in both address spaces.*/
 	for (i = 0; i < NUM_INTERRUPTS; i++)
 		set_idt_entry(vm, i, (unsigned long)(&idt_handlers)[i], 0,
