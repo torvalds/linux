@@ -224,14 +224,13 @@ int panfrost_job_push(struct panfrost_job *job)
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
-	mutex_lock(&pfdev->sched_lock);
 
 	ret = drm_gem_lock_reservations(job->bos, job->bo_count,
 					    &acquire_ctx);
-	if (ret) {
-		mutex_unlock(&pfdev->sched_lock);
+	if (ret)
 		return ret;
-	}
+
+	mutex_lock(&pfdev->sched_lock);
 
 	ret = drm_sched_job_init(&job->base, entity, NULL);
 	if (ret) {
