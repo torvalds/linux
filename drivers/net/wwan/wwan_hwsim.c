@@ -14,9 +14,12 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
 #include <linux/wwan.h>
 #include <linux/debugfs.h>
 #include <linux/workqueue.h>
+
+#include <net/arp.h>
 
 static int wwan_hwsim_devsnum = 2;
 module_param_named(devices, wwan_hwsim_devsnum, int, 0444);
@@ -63,6 +66,37 @@ static const struct file_operations wwan_hwsim_debugfs_portcreate_fops;
 static const struct file_operations wwan_hwsim_debugfs_devdestroy_fops;
 static void wwan_hwsim_port_del_work(struct work_struct *work);
 static void wwan_hwsim_dev_del_work(struct work_struct *work);
+
+static netdev_tx_t wwan_hwsim_netdev_xmit(struct sk_buff *skb,
+					  struct net_device *ndev)
+{
+	ndev->stats.tx_packets++;
+	ndev->stats.tx_bytes += skb->len;
+	consume_skb(skb);
+	return NETDEV_TX_OK;
+}
+
+static const struct net_device_ops wwan_hwsim_netdev_ops = {
+	.ndo_start_xmit = wwan_hwsim_netdev_xmit,
+};
+
+static void wwan_hwsim_netdev_setup(struct net_device *ndev)
+{
+	ndev->netdev_ops = &wwan_hwsim_netdev_ops;
+	ndev->needs_free_netdev = true;
+
+	ndev->mtu = ETH_DATA_LEN;
+	ndev->min_mtu = ETH_MIN_MTU;
+	ndev->max_mtu = ETH_MAX_MTU;
+
+	ndev->type = ARPHRD_NONE;
+	ndev->flags = IFF_POINTOPOINT | IFF_NOARP;
+}
+
+static const struct wwan_ops wwan_hwsim_wwan_rtnl_ops = {
+	.priv_size = 0,			/* No private data */
+	.setup = wwan_hwsim_netdev_setup,
+};
 
 static int wwan_hwsim_port_start(struct wwan_port *wport)
 {
@@ -254,6 +288,10 @@ static struct wwan_hwsim_dev *wwan_hwsim_dev_new(void)
 
 	INIT_WORK(&dev->del_work, wwan_hwsim_dev_del_work);
 
+	err = wwan_register_ops(&dev->dev, &wwan_hwsim_wwan_rtnl_ops, dev, 1);
+	if (err)
+		goto err_unreg_dev;
+
 	dev->debugfs_topdir = debugfs_create_dir(dev_name(&dev->dev),
 						 wwan_hwsim_debugfs_topdir);
 	debugfs_create_file("destroy", 0200, dev->debugfs_topdir, dev,
@@ -264,6 +302,12 @@ static struct wwan_hwsim_dev *wwan_hwsim_dev_new(void)
 				    &wwan_hwsim_debugfs_portcreate_fops);
 
 	return dev;
+
+err_unreg_dev:
+	device_unregister(&dev->dev);
+	/* Memory will be freed in the device release callback */
+
+	return ERR_PTR(err);
 
 err_free_dev:
 	kfree(dev);
@@ -289,6 +333,9 @@ static void wwan_hwsim_dev_del(struct wwan_hwsim_dev *dev)
 	spin_unlock(&dev->ports_lock);
 
 	debugfs_remove(dev->debugfs_topdir);
+
+	/* This will remove all child netdev(s) */
+	wwan_unregister_ops(&dev->dev);
 
 	/* Make sure that there is no pending deletion work */
 	if (current_work() != &dev->del_work)

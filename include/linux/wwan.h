@@ -9,6 +9,7 @@
 #include <linux/poll.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/netdevice.h>
 
 /**
  * enum wwan_port_type - WWAN port types
@@ -127,15 +128,36 @@ void wwan_port_txon(struct wwan_port *port);
 void *wwan_port_get_drvdata(struct wwan_port *port);
 
 /**
+ * struct wwan_netdev_priv - WWAN core network device private data
+ * @link_id: WWAN device data link id
+ * @drv_priv: driver private data area, size is determined in &wwan_ops
+ */
+struct wwan_netdev_priv {
+	u32 link_id;
+
+	/* must be last */
+	u8 drv_priv[] __aligned(sizeof(void *));
+};
+
+static inline void *wwan_netdev_drvpriv(struct net_device *dev)
+{
+	return ((struct wwan_netdev_priv *)netdev_priv(dev))->drv_priv;
+}
+
+/*
+ * Used to indicate that the WWAN core should not create a default network
+ * link.
+ */
+#define WWAN_NO_DEFAULT_LINK		U32_MAX
+
+/**
  * struct wwan_ops - WWAN device ops
- * @owner: module owner of the WWAN ops
  * @priv_size: size of private netdev data area
  * @setup: set up a new netdev
  * @newlink: register the new netdev
  * @dellink: remove the given netdev
  */
 struct wwan_ops {
-	struct module *owner;
 	unsigned int priv_size;
 	void (*setup)(struct net_device *dev);
 	int (*newlink)(void *ctxt, struct net_device *dev,
@@ -145,7 +167,7 @@ struct wwan_ops {
 };
 
 int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
-		      void *ctxt);
+		      void *ctxt, u32 def_link_id);
 
 void wwan_unregister_ops(struct device *parent);
 

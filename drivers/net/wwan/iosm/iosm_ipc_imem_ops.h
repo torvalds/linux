@@ -30,6 +30,9 @@
 #define IP_MUX_SESSION_START 1
 #define IP_MUX_SESSION_END 8
 
+/* Default IP MUX channel */
+#define IP_MUX_SESSION_DEFAULT	1
+
 /**
  * ipc_imem_sys_port_open - Open a port link to CP.
  * @ipc_imem:	Imem instance.

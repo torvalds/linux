@@ -789,77 +789,6 @@ static const struct file_operations wwan_port_fops = {
 	.llseek = noop_llseek,
 };
 
-/**
- * wwan_register_ops - register WWAN device ops
- * @parent: Device to use as parent and shared by all WWAN ports and
- *	created netdevs
- * @ops: operations to register
- * @ctxt: context to pass to operations
- *
- * Returns: 0 on success, a negative error code on failure
- */
-int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
-		      void *ctxt)
-{
-	struct wwan_device *wwandev;
-
-	if (WARN_ON(!parent || !ops))
-		return -EINVAL;
-
-	wwandev = wwan_create_dev(parent);
-	if (!wwandev)
-		return -ENOMEM;
-
-	if (WARN_ON(wwandev->ops)) {
-		wwan_remove_dev(wwandev);
-		return -EBUSY;
-	}
-
-	if (!try_module_get(ops->owner)) {
-		wwan_remove_dev(wwandev);
-		return -ENODEV;
-	}
-
-	wwandev->ops = ops;
-	wwandev->ops_ctxt = ctxt;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wwan_register_ops);
-
-/**
- * wwan_unregister_ops - remove WWAN device ops
- * @parent: Device to use as parent and shared by all WWAN ports and
- *	created netdevs
- */
-void wwan_unregister_ops(struct device *parent)
-{
-	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
-	bool has_ops;
-
-	if (WARN_ON(IS_ERR(wwandev)))
-		return;
-
-	has_ops = wwandev->ops;
-
-	/* put the reference obtained by wwan_dev_get_by_parent(),
-	 * we should still have one (that the owner is giving back
-	 * now) due to the ops being assigned, check that below
-	 * and return if not.
-	 */
-	put_device(&wwandev->dev);
-
-	if (WARN_ON(!has_ops))
-		return;
-
-	module_put(wwandev->ops->owner);
-
-	wwandev->ops = NULL;
-	wwandev->ops_ctxt = NULL;
-	wwan_remove_dev(wwandev);
-}
-EXPORT_SYMBOL_GPL(wwan_unregister_ops);
-
 static int wwan_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 			      struct netlink_ext_ack *extack)
 {
@@ -886,6 +815,7 @@ static struct net_device *wwan_rtnl_alloc(struct nlattr *tb[],
 	const char *devname = nla_data(tb[IFLA_PARENT_DEV_NAME]);
 	struct wwan_device *wwandev = wwan_dev_get_by_name(devname);
 	struct net_device *dev;
+	unsigned int priv_size;
 
 	if (IS_ERR(wwandev))
 		return ERR_CAST(wwandev);
@@ -896,7 +826,8 @@ static struct net_device *wwan_rtnl_alloc(struct nlattr *tb[],
 		goto out;
 	}
 
-	dev = alloc_netdev_mqs(wwandev->ops->priv_size, ifname, name_assign_type,
+	priv_size = sizeof(struct wwan_netdev_priv) + wwandev->ops->priv_size;
+	dev = alloc_netdev_mqs(priv_size, ifname, name_assign_type,
 			       wwandev->ops->setup, num_tx_queues, num_rx_queues);
 
 	if (dev) {
@@ -916,6 +847,7 @@ static int wwan_rtnl_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct wwan_device *wwandev = wwan_dev_get_by_parent(dev->dev.parent);
 	u32 link_id = nla_get_u32(data[IFLA_WWAN_LINK_ID]);
+	struct wwan_netdev_priv *priv = netdev_priv(dev);
 	int ret;
 
 	if (IS_ERR(wwandev))
@@ -927,6 +859,7 @@ static int wwan_rtnl_newlink(struct net *src_net, struct net_device *dev,
 		goto out;
 	}
 
+	priv->link_id = link_id;
 	if (wwandev->ops->newlink)
 		ret = wwandev->ops->newlink(wwandev->ops_ctxt, dev,
 					    link_id, extack);
@@ -953,11 +886,32 @@ static void wwan_rtnl_dellink(struct net_device *dev, struct list_head *head)
 	if (wwandev->ops->dellink)
 		wwandev->ops->dellink(wwandev->ops_ctxt, dev, head);
 	else
-		unregister_netdevice(dev);
+		unregister_netdevice_queue(dev, head);
 
 out:
 	/* release the reference */
 	put_device(&wwandev->dev);
+}
+
+static size_t wwan_rtnl_get_size(const struct net_device *dev)
+{
+	return
+		nla_total_size(4) +	/* IFLA_WWAN_LINK_ID */
+		0;
+}
+
+static int wwan_rtnl_fill_info(struct sk_buff *skb,
+			       const struct net_device *dev)
+{
+	struct wwan_netdev_priv *priv = netdev_priv(dev);
+
+	if (nla_put_u32(skb, IFLA_WWAN_LINK_ID, priv->link_id))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
 }
 
 static const struct nla_policy wwan_rtnl_policy[IFLA_WWAN_MAX + 1] = {
@@ -971,8 +925,166 @@ static struct rtnl_link_ops wwan_rtnl_link_ops __read_mostly = {
 	.validate = wwan_rtnl_validate,
 	.newlink = wwan_rtnl_newlink,
 	.dellink = wwan_rtnl_dellink,
+	.get_size = wwan_rtnl_get_size,
+	.fill_info = wwan_rtnl_fill_info,
 	.policy = wwan_rtnl_policy,
 };
+
+static void wwan_create_default_link(struct wwan_device *wwandev,
+				     u32 def_link_id)
+{
+	struct nlattr *tb[IFLA_MAX + 1], *linkinfo[IFLA_INFO_MAX + 1];
+	struct nlattr *data[IFLA_WWAN_MAX + 1];
+	struct net_device *dev;
+	struct nlmsghdr *nlh;
+	struct sk_buff *msg;
+
+	/* Forge attributes required to create a WWAN netdev. We first
+	 * build a netlink message and then parse it. This looks
+	 * odd, but such approach is less error prone.
+	 */
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (WARN_ON(!msg))
+		return;
+	nlh = nlmsg_put(msg, 0, 0, RTM_NEWLINK, 0, 0);
+	if (WARN_ON(!nlh))
+		goto free_attrs;
+
+	if (nla_put_string(msg, IFLA_PARENT_DEV_NAME, dev_name(&wwandev->dev)))
+		goto free_attrs;
+	tb[IFLA_LINKINFO] = nla_nest_start(msg, IFLA_LINKINFO);
+	if (!tb[IFLA_LINKINFO])
+		goto free_attrs;
+	linkinfo[IFLA_INFO_DATA] = nla_nest_start(msg, IFLA_INFO_DATA);
+	if (!linkinfo[IFLA_INFO_DATA])
+		goto free_attrs;
+	if (nla_put_u32(msg, IFLA_WWAN_LINK_ID, def_link_id))
+		goto free_attrs;
+	nla_nest_end(msg, linkinfo[IFLA_INFO_DATA]);
+	nla_nest_end(msg, tb[IFLA_LINKINFO]);
+
+	nlmsg_end(msg, nlh);
+
+	/* The next three parsing calls can not fail */
+	nlmsg_parse_deprecated(nlh, 0, tb, IFLA_MAX, NULL, NULL);
+	nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO],
+				    NULL, NULL);
+	nla_parse_nested_deprecated(data, IFLA_WWAN_MAX,
+				    linkinfo[IFLA_INFO_DATA], NULL, NULL);
+
+	rtnl_lock();
+
+	dev = rtnl_create_link(&init_net, "wwan%d", NET_NAME_ENUM,
+			       &wwan_rtnl_link_ops, tb, NULL);
+	if (WARN_ON(IS_ERR(dev)))
+		goto unlock;
+
+	if (WARN_ON(wwan_rtnl_newlink(&init_net, dev, tb, data, NULL))) {
+		free_netdev(dev);
+		goto unlock;
+	}
+
+unlock:
+	rtnl_unlock();
+
+free_attrs:
+	nlmsg_free(msg);
+}
+
+/**
+ * wwan_register_ops - register WWAN device ops
+ * @parent: Device to use as parent and shared by all WWAN ports and
+ *	created netdevs
+ * @ops: operations to register
+ * @ctxt: context to pass to operations
+ * @def_link_id: id of the default link that will be automatically created by
+ *	the WWAN core for the WWAN device. The default link will not be created
+ *	if the passed value is WWAN_NO_DEFAULT_LINK.
+ *
+ * Returns: 0 on success, a negative error code on failure
+ */
+int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
+		      void *ctxt, u32 def_link_id)
+{
+	struct wwan_device *wwandev;
+
+	if (WARN_ON(!parent || !ops || !ops->setup))
+		return -EINVAL;
+
+	wwandev = wwan_create_dev(parent);
+	if (!wwandev)
+		return -ENOMEM;
+
+	if (WARN_ON(wwandev->ops)) {
+		wwan_remove_dev(wwandev);
+		return -EBUSY;
+	}
+
+	wwandev->ops = ops;
+	wwandev->ops_ctxt = ctxt;
+
+	/* NB: we do not abort ops registration in case of default link
+	 * creation failure. Link ops is the management interface, while the
+	 * default link creation is a service option. And we should not prevent
+	 * a user from manually creating a link latter if service option failed
+	 * now.
+	 */
+	if (def_link_id != WWAN_NO_DEFAULT_LINK)
+		wwan_create_default_link(wwandev, def_link_id);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wwan_register_ops);
+
+/* Enqueue child netdev deletion */
+static int wwan_child_dellink(struct device *dev, void *data)
+{
+	struct list_head *kill_list = data;
+
+	if (dev->type == &wwan_type)
+		wwan_rtnl_dellink(to_net_dev(dev), kill_list);
+
+	return 0;
+}
+
+/**
+ * wwan_unregister_ops - remove WWAN device ops
+ * @parent: Device to use as parent and shared by all WWAN ports and
+ *	created netdevs
+ */
+void wwan_unregister_ops(struct device *parent)
+{
+	struct wwan_device *wwandev = wwan_dev_get_by_parent(parent);
+	LIST_HEAD(kill_list);
+
+	if (WARN_ON(IS_ERR(wwandev)))
+		return;
+	if (WARN_ON(!wwandev->ops)) {
+		put_device(&wwandev->dev);
+		return;
+	}
+
+	/* put the reference obtained by wwan_dev_get_by_parent(),
+	 * we should still have one (that the owner is giving back
+	 * now) due to the ops being assigned.
+	 */
+	put_device(&wwandev->dev);
+
+	rtnl_lock();	/* Prevent concurent netdev(s) creation/destroying */
+
+	/* Remove all child netdev(s), using batch removing */
+	device_for_each_child(&wwandev->dev, &kill_list,
+			      wwan_child_dellink);
+	unregister_netdevice_many(&kill_list);
+
+	wwandev->ops = NULL;	/* Finally remove ops */
+
+	rtnl_unlock();
+
+	wwandev->ops_ctxt = NULL;
+	wwan_remove_dev(wwandev);
+}
+EXPORT_SYMBOL_GPL(wwan_unregister_ops);
 
 static int __init wwan_init(void)
 {

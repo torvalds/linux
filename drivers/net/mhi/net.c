@@ -32,7 +32,7 @@ struct mhi_device_info {
 
 static int mhi_ndo_open(struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
+	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
 
 	/* Feed the rx buffer pool */
 	schedule_delayed_work(&mhi_netdev->rx_refill, 0);
@@ -47,7 +47,7 @@ static int mhi_ndo_open(struct net_device *ndev)
 
 static int mhi_ndo_stop(struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
+	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
 
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);
@@ -58,7 +58,7 @@ static int mhi_ndo_stop(struct net_device *ndev)
 
 static netdev_tx_t mhi_ndo_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
+	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
 	const struct mhi_net_proto *proto = mhi_netdev->proto;
 	struct mhi_device *mdev = mhi_netdev->mdev;
 	int err;
@@ -93,7 +93,7 @@ exit_drop:
 static void mhi_ndo_get_stats64(struct net_device *ndev,
 				struct rtnl_link_stats64 *stats)
 {
-	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
+	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
 	unsigned int start;
 
 	do {
@@ -322,7 +322,7 @@ static int mhi_net_newlink(void *ctxt, struct net_device *ndev, u32 if_id,
 	if (dev_get_drvdata(&mhi_dev->dev))
 		return -EBUSY;
 
-	mhi_netdev = netdev_priv(ndev);
+	mhi_netdev = wwan_netdev_drvpriv(ndev);
 
 	dev_set_drvdata(&mhi_dev->dev, mhi_netdev);
 	mhi_netdev->ndev = ndev;
@@ -367,7 +367,7 @@ out_err:
 static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
 			    struct list_head *head)
 {
-	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
+	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
 	struct mhi_device *mhi_dev = ctxt;
 
 	if (head)
@@ -383,7 +383,6 @@ static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
 }
 
 static const struct wwan_ops mhi_wwan_ops = {
-	.owner = THIS_MODULE,
 	.priv_size = sizeof(struct mhi_net_dev),
 	.setup = mhi_net_setup,
 	.newlink = mhi_net_newlink,
@@ -398,7 +397,8 @@ static int mhi_net_probe(struct mhi_device *mhi_dev,
 	struct net_device *ndev;
 	int err;
 
-	err = wwan_register_ops(&cntrl->mhi_dev->dev, &mhi_wwan_ops, mhi_dev);
+	err = wwan_register_ops(&cntrl->mhi_dev->dev, &mhi_wwan_ops, mhi_dev,
+				WWAN_NO_DEFAULT_LINK);
 	if (err)
 		return err;
 
@@ -436,7 +436,7 @@ static void mhi_net_remove(struct mhi_device *mhi_dev)
 	struct mhi_net_dev *mhi_netdev = dev_get_drvdata(&mhi_dev->dev);
 	struct mhi_controller *cntrl = mhi_dev->mhi_cntrl;
 
-	/* rtnetlink takes care of removing remaining links */
+	/* WWAN core takes care of removing remaining links */
 	wwan_unregister_ops(&cntrl->mhi_dev->dev);
 
 	if (create_default_iface)
