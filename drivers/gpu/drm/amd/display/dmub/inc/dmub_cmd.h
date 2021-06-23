@@ -368,8 +368,7 @@ union dmub_fw_boot_options {
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
-		uint32_t reserved2: 1; /**< reserved for an unreleased feature */
-		uint32_t reserved_unreleased1: 1; /**< reserved for an unreleased feature */
+		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
 		uint32_t reserved_unreleased2: 1; /**< reserved for an unreleased feature */
 		uint32_t reserved : 22; /**< reserved */

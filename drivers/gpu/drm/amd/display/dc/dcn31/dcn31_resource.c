@@ -2428,7 +2428,8 @@ static bool dcn31_resource_construct(
 	}
 
 	if (dc->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
-	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0 &&
+	    !dc->debug.dpia_debug.bits.disable_dpia) {
 		/* YELLOW CARP B0 has 4 DPIA's */
 		pool->base.usb4_dpia_count = 4;
 	}
