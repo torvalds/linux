@@ -868,7 +868,9 @@ void __init fpu__init_system_xstate(void)
 			xfeatures_mask_all &= ~BIT_ULL(i);
 	}
 
-	xfeatures_mask_all &= fpu__get_supported_xfeatures_mask();
+	xfeatures_mask_all &= XFEATURE_MASK_USER_SUPPORTED |
+			      XFEATURE_MASK_SUPERVISOR_SUPPORTED;
+
 	/* Store it for paranoia check at the end */
 	xfeatures = xfeatures_mask_all;
 
