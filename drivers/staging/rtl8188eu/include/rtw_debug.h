@@ -58,12 +58,6 @@
 
 extern u32 GlobalDebugLevel;
 
-#define MSG_88E(...)							\
-	do {								\
-		if (_drv_err_ <= GlobalDebugLevel)			\
-			pr_info(DRIVER_PREFIX __VA_ARGS__);			\
-	} while (0)
-
 #define RT_TRACE(_comp, _level, fmt)					\
 	do {								\
 		if (_level <= GlobalDebugLevel) {			\
