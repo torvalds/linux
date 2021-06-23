@@ -60,6 +60,41 @@ static void ksmbd_vfs_inherit_owner(struct ksmbd_work *work,
 	i_uid_write(inode, i_uid_read(parent_inode));
 }
 
+/**
+ * ksmbd_vfs_lock_parent() - lock parent dentry if it is stable
+ *
+ * the parent dentry got by dget_parent or @parent could be
+ * unstable, we try to lock a parent inode and lookup the
+ * child dentry again.
+ *
+ * the reference count of @parent isn't incremented.
+ */
+static int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child)
+{
+	struct dentry *dentry;
+	int ret = 0;
+
+	inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
+	dentry = lookup_one_len(child->d_name.name, parent,
+				child->d_name.len);
+	if (IS_ERR(dentry)) {
+		ret = PTR_ERR(dentry);
+		goto out_err;
+	}
+
+	if (dentry != child) {
+		ret = -ESTALE;
+		dput(dentry);
+		goto out_err;
+	}
+
+	dput(dentry);
+	return 0;
+out_err:
+	inode_unlock(d_inode(parent));
+	return ret;
+}
+
 int ksmbd_vfs_inode_permission(struct dentry *dentry, int acc_mode, bool delete)
 {
 	int mask, ret = 0;
@@ -78,29 +113,18 @@ int ksmbd_vfs_inode_permission(struct dentry *dentry, int acc_mode, bool delete)
 		return -EACCES;
 
 	if (delete) {
-		struct dentry *child, *parent;
+		struct dentry *parent;
 
 		parent = dget_parent(dentry);
-		inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
-		child = lookup_one_len(dentry->d_name.name, parent,
-				       dentry->d_name.len);
-		if (IS_ERR(child)) {
-			ret = PTR_ERR(child);
-			goto out_lock;
+		ret = ksmbd_vfs_lock_parent(parent, dentry);
+		if (ret) {
+			dput(parent);
+			return ret;
 		}
 
-		if (child != dentry) {
-			ret = -ESTALE;
-			dput(child);
-			goto out_lock;
-		}
-		dput(child);
-
-		if (inode_permission(&init_user_ns, d_inode(parent), MAY_EXEC | MAY_WRITE)) {
+		if (inode_permission(&init_user_ns, d_inode(parent), MAY_EXEC | MAY_WRITE))
 			ret = -EACCES;
-			goto out_lock;
-		}
-out_lock:
+
 		inode_unlock(d_inode(parent));
 		dput(parent);
 	}
@@ -109,7 +133,7 @@ out_lock:
 
 int ksmbd_vfs_query_maximal_access(struct dentry *dentry, __le32 *daccess)
 {
-	struct dentry *parent, *child;
+	struct dentry *parent;
 	int ret = 0;
 
 	*daccess = cpu_to_le32(FILE_READ_ATTRIBUTES | READ_CONTROL);
@@ -127,25 +151,15 @@ int ksmbd_vfs_query_maximal_access(struct dentry *dentry, __le32 *daccess)
 		*daccess |= FILE_EXECUTE_LE;
 
 	parent = dget_parent(dentry);
-	inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
-	child = lookup_one_len(dentry->d_name.name, parent,
-			       dentry->d_name.len);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out_lock;
+	ret = ksmbd_vfs_lock_parent(parent, dentry);
+	if (ret) {
+		dput(parent);
+		return ret;
 	}
-
-	if (child != dentry) {
-		ret = -ESTALE;
-		dput(child);
-		goto out_lock;
-	}
-	dput(child);
 
 	if (!inode_permission(&init_user_ns, d_inode(parent), MAY_EXEC | MAY_WRITE))
 		*daccess |= FILE_DELETE_LE;
 
-out_lock:
 	inode_unlock(d_inode(parent));
 	dput(parent);
 	return ret;
@@ -573,7 +587,7 @@ int ksmbd_vfs_fsync(struct ksmbd_work *work, u64 fid, u64 p_id)
 int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 {
 	struct path path;
-	struct dentry *dentry, *parent;
+	struct dentry *parent;
 	int err;
 	int flags = 0;
 
@@ -592,35 +606,32 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	}
 
 	parent = dget_parent(path.dentry);
-	inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
-	dentry = lookup_one_len(path.dentry->d_name.name, parent,
-				strlen(path.dentry->d_name.name));
-	if (IS_ERR(dentry)) {
-		err = PTR_ERR(dentry);
-		ksmbd_debug(VFS, "%s: lookup failed, err %d\n",
-			    path.dentry->d_name.name, err);
-		goto out_err;
+	err = ksmbd_vfs_lock_parent(parent, path.dentry);
+	if (err) {
+		dput(parent);
+		path_put(&path);
+		ksmbd_revert_fsids(work);
+		return err;
 	}
 
-	if (!d_inode(dentry) || !d_inode(dentry)->i_nlink) {
-		dput(dentry);
+	if (!d_inode(path.dentry)->i_nlink) {
 		err = -ENOENT;
 		goto out_err;
 	}
 
-	if (S_ISDIR(d_inode(dentry)->i_mode)) {
-		err = vfs_rmdir(&init_user_ns, d_inode(parent), dentry);
+	if (S_ISDIR(d_inode(path.dentry)->i_mode)) {
+		err = vfs_rmdir(&init_user_ns, d_inode(parent), path.dentry);
 		if (err && err != -ENOTEMPTY)
 			ksmbd_debug(VFS, "%s: rmdir failed, err %d\n", name,
 				    err);
 	} else {
-		err = vfs_unlink(&init_user_ns, d_inode(parent), dentry, NULL);
+		err = vfs_unlink(&init_user_ns, d_inode(parent), path.dentry,
+				 NULL);
 		if (err)
 			ksmbd_debug(VFS, "%s: unlink failed, err %d\n", name,
 				    err);
 	}
 
-	dput(dentry);
 out_err:
 	inode_unlock(d_inode(parent));
 	dput(parent);
@@ -1086,30 +1097,18 @@ int ksmbd_vfs_remove_xattr(struct dentry *dentry, char *attr_name)
 
 int ksmbd_vfs_unlink(struct dentry *dir, struct dentry *dentry)
 {
-	struct dentry *child;
 	int err = 0;
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+	err = ksmbd_vfs_lock_parent(dir, dentry);
+	if (err)
+		return err;
 	dget(dentry);
-	child = lookup_one_len(dentry->d_name.name, dir, dentry->d_name.len);
-	if (IS_ERR(child)) {
-		err = PTR_ERR(child);
-		goto out;
-	}
-
-	if (child != dentry) {
-		err = -ESTALE;
-		dput(child);
-		goto out;
-	}
-	dput(child);
 
 	if (S_ISDIR(d_inode(dentry)->i_mode))
 		err = vfs_rmdir(&init_user_ns, d_inode(dir), dentry);
 	else
 		err = vfs_unlink(&init_user_ns, d_inode(dir), dentry, NULL);
 
-out:
 	dput(dentry);
 	inode_unlock(d_inode(dir));
 	if (err)
