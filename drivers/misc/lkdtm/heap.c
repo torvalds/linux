@@ -174,6 +174,71 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	kfree(val);
 }
 
+void lkdtm_SLAB_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = kmalloc(512, GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate 512 bytes the first time.\n");
+		return;
+	}
+
+	memset(first, 0xAB, 512);
+	kfree(first);
+
+	val = kmalloc(512, GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate 512 bytes the second time.\n");
+		return;
+	}
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, 512) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	kfree(val);
+}
+
+void lkdtm_BUDDY_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate first free page\n");
+		return;
+	}
+
+	memset(first, 0xAB, PAGE_SIZE);
+	free_page((unsigned long)first);
+
+	val = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate second free page\n");
+		return;
+	}
+
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, PAGE_SIZE) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	free_page((unsigned long)val);
+}
+
 void lkdtm_SLAB_FREE_DOUBLE(void)
 {
 	int *val;

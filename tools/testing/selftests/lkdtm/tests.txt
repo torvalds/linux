@@ -21,6 +21,8 @@ VMALLOC_LINEAR_OVERFLOW
 READ_AFTER_FREE call trace:|Memory correctly poisoned
 #WRITE_BUDDY_AFTER_FREE Corrupts memory on failure
 READ_BUDDY_AFTER_FREE call trace:|Memory correctly poisoned
+SLAB_INIT_ON_ALLOC Memory appears initialized
+BUDDY_INIT_ON_ALLOC Memory appears initialized
 SLAB_FREE_DOUBLE
 SLAB_FREE_CROSS
 SLAB_FREE_PAGE
