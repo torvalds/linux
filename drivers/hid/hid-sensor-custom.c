@@ -387,7 +387,7 @@ static ssize_t store_value(struct device *dev, struct device_attribute *attr,
 	struct hid_sensor_custom *sensor_inst = dev_get_drvdata(dev);
 	int index, field_index, usage;
 	char name[HID_CUSTOM_NAME_LENGTH];
-	int value;
+	int value, ret;
 
 	if (sscanf(attr->attr.name, "feature-%x-%x-%s", &index, &usage,
 		   name) == 3) {
@@ -403,8 +403,10 @@ static ssize_t store_value(struct device *dev, struct device_attribute *attr,
 
 		report_id = sensor_inst->fields[field_index].attribute.
 								report_id;
-		sensor_hub_set_feature(sensor_inst->hsdev, report_id,
-				       index, sizeof(value), &value);
+		ret = sensor_hub_set_feature(sensor_inst->hsdev, report_id,
+					     index, sizeof(value), &value);
+		if (ret)
+			return ret;
 	} else
 		return -EINVAL;
 

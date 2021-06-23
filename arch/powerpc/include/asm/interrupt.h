@@ -153,8 +153,6 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
  */
 static inline void interrupt_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
 {
-	if (user_mode(regs))
-		kuep_unlock();
 }
 
 static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)
@@ -221,6 +219,13 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	 */
 	local_paca->irq_soft_mask = IRQS_ALL_DISABLED;
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !(regs->msr & MSR_PR) &&
+				regs->nip < (unsigned long)__end_interrupts) {
+		// Kernel code running below __end_interrupts is
+		// implicitly soft-masked.
+		regs->softe = IRQS_ALL_DISABLED;
+	}
 
 	/* Don't do any per-CPU operations until interrupt state is fixed */
 

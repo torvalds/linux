@@ -6,6 +6,7 @@
 
 #include "system.h"
 
+#include <stddef.h>
 #include <linux/errno.h>
 #include <linux/auxvec.h>
 #include <linux/signal.h>

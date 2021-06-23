@@ -103,7 +103,7 @@ static int find_file_option(const efi_char16_t *cmdline, int cmdline_len,
 		return 0;
 
 	/* Skip any leading slashes */
-	while (cmdline[i] == L'/' || cmdline[i] == L'\\')
+	while (i < cmdline_len && (cmdline[i] == L'/' || cmdline[i] == L'\\'))
 		i++;
 
 	while (--result_len > 0 && i < cmdline_len) {

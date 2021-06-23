@@ -164,6 +164,11 @@ int __ref xen_swiotlb_init(void)
 	int rc = -ENOMEM;
 	char *start;
 
+	if (io_tlb_default_mem != NULL) {
+		pr_warn("swiotlb buffer already initialized\n");
+		return -EEXIST;
+	}
+
 retry:
 	m_ret = XEN_SWIOTLB_ENOMEM;
 	order = get_order(bytes);

@@ -29,8 +29,6 @@
 
 static struct kobject *block_depr;
 
-DECLARE_RWSEM(bdev_lookup_sem);
-
 /* for extended dynamic devt allocation, currently only one major is used */
 #define NR_EXT_DEVT		(1 << MINORBITS)
 static DEFINE_IDA(ext_devt_ida);
@@ -609,13 +607,8 @@ void del_gendisk(struct gendisk *disk)
 	blk_integrity_del(disk);
 	disk_del_events(disk);
 
-	/*
-	 * Block lookups of the disk until all bdevs are unhashed and the
-	 * disk is marked as dead (GENHD_FL_UP cleared).
-	 */
-	down_write(&bdev_lookup_sem);
-
 	mutex_lock(&disk->part0->bd_mutex);
+	disk->flags &= ~GENHD_FL_UP;
 	blk_drop_partitions(disk);
 	mutex_unlock(&disk->part0->bd_mutex);
 
@@ -629,8 +622,6 @@ void del_gendisk(struct gendisk *disk)
 	remove_inode_hash(disk->part0->bd_inode);
 
 	set_capacity(disk, 0);
-	disk->flags &= ~GENHD_FL_UP;
-	up_write(&bdev_lookup_sem);
 
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");

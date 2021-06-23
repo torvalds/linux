@@ -218,14 +218,14 @@ static int memory_block_offline(struct memory_block *mem)
 	struct zone *zone;
 	int ret;
 
-	zone = page_zone(pfn_to_page(start_pfn));
-
 	/*
 	 * Unaccount before offlining, such that unpopulated zone and kthreads
 	 * can properly be torn down in offline_pages().
 	 */
-	if (nr_vmemmap_pages)
+	if (nr_vmemmap_pages) {
+		zone = page_zone(pfn_to_page(start_pfn));
 		adjust_present_page_count(zone, -nr_vmemmap_pages);
+	}
 
 	ret = offline_pages(start_pfn + nr_vmemmap_pages,
 			    nr_pages - nr_vmemmap_pages);
