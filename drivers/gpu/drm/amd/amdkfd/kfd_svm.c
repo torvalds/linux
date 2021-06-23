@@ -1426,42 +1426,38 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 	svm_range_reserve_bos(&ctx);
 
-	if (!prange->actual_loc) {
-		p = container_of(prange->svms, struct kfd_process, svms);
-		owner = kfd_svm_page_owner(p, find_first_bit(ctx.bitmap,
-							MAX_GPU_INSTANCE));
-		for_each_set_bit(idx, ctx.bitmap, MAX_GPU_INSTANCE) {
-			if (kfd_svm_page_owner(p, idx) != owner) {
-				owner = NULL;
-				break;
-			}
+	p = container_of(prange->svms, struct kfd_process, svms);
+	owner = kfd_svm_page_owner(p, find_first_bit(ctx.bitmap,
+						MAX_GPU_INSTANCE));
+	for_each_set_bit(idx, ctx.bitmap, MAX_GPU_INSTANCE) {
+		if (kfd_svm_page_owner(p, idx) != owner) {
+			owner = NULL;
+			break;
 		}
-		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
-					       prange->start << PAGE_SHIFT,
-					       prange->npages, &hmm_range,
-					       false, true, owner);
-		if (r) {
-			pr_debug("failed %d to get svm range pages\n", r);
-			goto unreserve_out;
-		}
-
-		r = svm_range_dma_map(prange, ctx.bitmap,
-				      hmm_range->hmm_pfns);
-		if (r) {
-			pr_debug("failed %d to dma map range\n", r);
-			goto unreserve_out;
-		}
-
-		prange->validated_once = true;
+	}
+	r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
+				       prange->start << PAGE_SHIFT,
+				       prange->npages, &hmm_range,
+				       false, true, owner);
+	if (r) {
+		pr_debug("failed %d to get svm range pages\n", r);
+		goto unreserve_out;
 	}
 
+	r = svm_range_dma_map(prange, ctx.bitmap,
+			      hmm_range->hmm_pfns);
+	if (r) {
+		pr_debug("failed %d to dma map range\n", r);
+		goto unreserve_out;
+	}
+
+	prange->validated_once = true;
+
 	svm_range_lock(prange);
-	if (!prange->actual_loc) {
-		if (amdgpu_hmm_range_get_pages_done(hmm_range)) {
-			pr_debug("hmm update the range, need validate again\n");
-			r = -EAGAIN;
-			goto unlock_out;
-		}
+	if (amdgpu_hmm_range_get_pages_done(hmm_range)) {
+		pr_debug("hmm update the range, need validate again\n");
+		r = -EAGAIN;
+		goto unlock_out;
 	}
 	if (!list_empty(&prange->child_list)) {
 		pr_debug("range split by unmap in parallel, validate again\n");
@@ -2796,16 +2792,6 @@ svm_range_trigger_migration(struct mm_struct *mm, struct svm_range *prange,
 	if (best_loc == KFD_IOCTL_SVM_LOCATION_UNDEFINED ||
 	    best_loc == prange->actual_loc)
 		return 0;
-
-	/*
-	 * Prefetch to GPU without host access flag, set actual_loc to gpu, then
-	 * validate on gpu and map to gpus will be handled afterwards.
-	 */
-	if (best_loc && !prange->actual_loc &&
-	    !(prange->flags & KFD_IOCTL_SVM_FLAG_HOST_ACCESS)) {
-		prange->actual_loc = best_loc;
-		return 0;
-	}
 
 	if (!best_loc) {
 		r = svm_migrate_vram_to_ram(prange, mm);
