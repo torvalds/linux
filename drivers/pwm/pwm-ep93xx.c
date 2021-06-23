@@ -156,13 +156,48 @@ static void ep93xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable(ep93xx_pwm->clk);
 }
 
+static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			    const struct pwm_state *state)
+{
+	int ret;
+	bool enabled = state->enabled;
+
+	if (state->polarity != pwm->state.polarity) {
+		if (enabled) {
+			ep93xx_pwm_disable(chip, pwm);
+			enabled = false;
+		}
+
+		ret = ep93xx_pwm_polarity(chip, pwm, state->polarity);
+		if (ret)
+			return ret;
+	}
+
+	if (!state->enabled) {
+		if (enabled)
+			ep93xx_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	if (state->period != pwm->state.period ||
+	    state->duty_cycle != pwm->state.duty_cycle) {
+		ret = ep93xx_pwm_config(chip, pwm, (int)state->duty_cycle,
+					(int)state->period);
+		if (ret)
+			return ret;
+	}
+
+	if (!enabled)
+		return ep93xx_pwm_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops ep93xx_pwm_ops = {
 	.request = ep93xx_pwm_request,
 	.free = ep93xx_pwm_free,
-	.config = ep93xx_pwm_config,
-	.set_polarity = ep93xx_pwm_polarity,
-	.enable = ep93xx_pwm_enable,
-	.disable = ep93xx_pwm_disable,
+	.apply = ep93xx_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
