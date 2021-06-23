@@ -1597,7 +1597,7 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 					    struct of_dma *ofdma)
 {
 	struct xilinx_dpdma_device *xdev = ofdma->of_dma_data;
-	uint32_t chan_id = dma_spec->args[0];
+	u32 chan_id = dma_spec->args[0];
 
 	if (chan_id >= ARRAY_SIZE(xdev->chan))
 		return NULL;
