@@ -3059,13 +3059,6 @@ static int create_default_coloc_group(void)
 	return 0;
 }
 
-static int sync_cgroup_colocation(struct task_struct *p, bool insert)
-{
-	unsigned int grp_id = insert ? DEFAULT_CGROUP_COLOC_ID : 0;
-
-	return __sched_set_group_id(p, grp_id);
-}
-
 static void walt_update_tg_pointer(struct cgroup_subsys_state *css)
 {
 	if (!strcmp(css->cgroup->kn->name, "top-app"))
@@ -3089,9 +3082,10 @@ static void android_rvh_cpu_cgroup_attach(void *unused,
 {
 	struct task_struct *task;
 	struct cgroup_subsys_state *css;
-	bool colocate;
 	struct task_group *tg;
 	struct walt_task_group *wtg;
+	unsigned int grp_id;
+	int ret;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -3102,10 +3096,12 @@ static void android_rvh_cpu_cgroup_attach(void *unused,
 
 	tg = container_of(css, struct task_group, css);
 	wtg = (struct walt_task_group *) tg->android_vendor_data1;
-	colocate = wtg->colocate;
 
-	cgroup_taskset_for_each(task, css, tset)
-		sync_cgroup_colocation(task, colocate);
+	cgroup_taskset_for_each(task, css, tset) {
+		grp_id = wtg->colocate ? DEFAULT_CGROUP_COLOC_ID : 0;
+		ret = __sched_set_group_id(task, grp_id);
+		trace_sched_cgroup_attach(task, grp_id, ret);
+	}
 }
 
 static bool is_cluster_hosting_top_app(struct walt_sched_cluster *cluster)
