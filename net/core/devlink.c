@@ -2710,11 +2710,15 @@ static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 {
 	struct devlink_rate *devlink_rate;
 
+	/* Take the lock to sync with devlink_rate_nodes_destroy() */
+	mutex_lock(&devlink->lock);
 	list_for_each_entry(devlink_rate, &devlink->rate_list, list)
 		if (devlink_rate_is_node(devlink_rate)) {
+			mutex_unlock(&devlink->lock);
 			NL_SET_ERR_MSG_MOD(extack, "Rate node(s) exists.");
 			return -EBUSY;
 		}
+	mutex_unlock(&devlink->lock);
 	return 0;
 }
 
