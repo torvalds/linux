@@ -191,6 +191,14 @@ struct SISLANDS_SMC_SWSTATE
 
 typedef struct SISLANDS_SMC_SWSTATE SISLANDS_SMC_SWSTATE;
 
+struct SISLANDS_SMC_SWSTATE_SINGLE {
+	uint8_t                             flags;
+	uint8_t                             levelCount;
+	uint8_t                             padding2;
+	uint8_t                             padding3;
+	SISLANDS_SMC_HW_PERFORMANCE_LEVEL   level;
+};
+
 #define SISLANDS_SMC_VOLTAGEMASK_VDDC  0
 #define SISLANDS_SMC_VOLTAGEMASK_MVDD  1
 #define SISLANDS_SMC_VOLTAGEMASK_VDDCI 2
@@ -208,19 +216,19 @@ typedef struct SISLANDS_SMC_VOLTAGEMASKTABLE SISLANDS_SMC_VOLTAGEMASKTABLE;
 
 struct SISLANDS_SMC_STATETABLE
 {
-    uint8_t                             thermalProtectType;
-    uint8_t                             systemFlags;
-    uint8_t                             maxVDDCIndexInPPTable;
-    uint8_t                             extraFlags;
-    uint32_t                            lowSMIO[SISLANDS_MAX_NO_VREG_STEPS];
-    SISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
-    SISLANDS_SMC_VOLTAGEMASKTABLE       phaseMaskTable;
-    PP_SIslands_DPM2Parameters          dpm2Params;
-    SISLANDS_SMC_SWSTATE                initialState;
-    SISLANDS_SMC_SWSTATE                ACPIState;
-    SISLANDS_SMC_SWSTATE                ULVState;
-    SISLANDS_SMC_SWSTATE                driverState;
-    SISLANDS_SMC_HW_PERFORMANCE_LEVEL   dpmLevels[SISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE - 1];
+	uint8_t					thermalProtectType;
+	uint8_t					systemFlags;
+	uint8_t					maxVDDCIndexInPPTable;
+	uint8_t					extraFlags;
+	uint32_t				lowSMIO[SISLANDS_MAX_NO_VREG_STEPS];
+	SISLANDS_SMC_VOLTAGEMASKTABLE		voltageMaskTable;
+	SISLANDS_SMC_VOLTAGEMASKTABLE		phaseMaskTable;
+	PP_SIslands_DPM2Parameters		dpm2Params;
+	struct SISLANDS_SMC_SWSTATE_SINGLE	initialState;
+	struct SISLANDS_SMC_SWSTATE_SINGLE      ACPIState;
+	struct SISLANDS_SMC_SWSTATE_SINGLE      ULVState;
+	SISLANDS_SMC_SWSTATE			driverState;
+	SISLANDS_SMC_HW_PERFORMANCE_LEVEL	dpmLevels[SISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE];
 };
 
 typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;

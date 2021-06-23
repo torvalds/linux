@@ -57,6 +57,7 @@ kvm-pr-y := \
 	book3s_32_mmu.o
 
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) += \
+	book3s_64_entry.o \
 	tm.o
 
 ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
@@ -86,6 +87,7 @@ kvm-book3s_64-builtin-tm-objs-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
 ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) += \
 	book3s_hv_hmi.o \
+	book3s_hv_p9_entry.o \
 	book3s_hv_rmhandlers.o \
 	book3s_hv_rm_mmu.o \
 	book3s_hv_ras.o \

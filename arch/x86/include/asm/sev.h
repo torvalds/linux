@@ -10,34 +10,12 @@
 
 #include <linux/types.h>
 #include <asm/insn.h>
+#include <asm/sev-common.h>
 
-#define GHCB_SEV_INFO		0x001UL
-#define GHCB_SEV_INFO_REQ	0x002UL
-#define		GHCB_INFO(v)		((v) & 0xfffUL)
-#define		GHCB_PROTO_MAX(v)	(((v) >> 48) & 0xffffUL)
-#define		GHCB_PROTO_MIN(v)	(((v) >> 32) & 0xffffUL)
-#define		GHCB_PROTO_OUR		0x0001UL
-#define GHCB_SEV_CPUID_REQ	0x004UL
-#define		GHCB_CPUID_REQ_EAX	0
-#define		GHCB_CPUID_REQ_EBX	1
-#define		GHCB_CPUID_REQ_ECX	2
-#define		GHCB_CPUID_REQ_EDX	3
-#define		GHCB_CPUID_REQ(fn, reg) (GHCB_SEV_CPUID_REQ | \
-					(((unsigned long)reg & 3) << 30) | \
-					(((unsigned long)fn) << 32))
+#define GHCB_PROTO_OUR		0x0001UL
+#define GHCB_PROTOCOL_MAX	1ULL
+#define GHCB_DEFAULT_USAGE	0ULL
 
-#define	GHCB_PROTOCOL_MAX	0x0001UL
-#define GHCB_DEFAULT_USAGE	0x0000UL
-
-#define GHCB_SEV_CPUID_RESP	0x005UL
-#define GHCB_SEV_TERMINATE	0x100UL
-#define		GHCB_SEV_TERMINATE_REASON(reason_set, reason_val)	\
-			(((((u64)reason_set) &  0x7) << 12) |		\
-			 ((((u64)reason_val) & 0xff) << 16))
-#define		GHCB_SEV_ES_REASON_GENERAL_REQUEST	0
-#define		GHCB_SEV_ES_REASON_PROTOCOL_UNSUPPORTED	1
-
-#define	GHCB_SEV_GHCB_RESP_CODE(v)	((v) & 0xfff)
 #define	VMGEXIT()			{ asm volatile("rep; vmmcall\n\r"); }
 
 enum es_result {
