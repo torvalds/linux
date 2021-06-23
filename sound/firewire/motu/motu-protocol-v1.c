@@ -19,7 +19,7 @@
 // 0x00004000: mode of optical output interface.
 //   0x00004000: for S/PDIF signal.
 //   0x00000000: disabled or for ADAT signal.
-// 0x00003f40: monitor input mode.
+// 0x00003f00: monitor input mode.
 //   0x00000800: analog-1/2
 //   0x00001a00: analog-3/4
 //   0x00002c00: analog-5/6
@@ -32,26 +32,32 @@
 //   0x00002d00: analog-6
 //   0x00003600: analog-7
 //   0x00003f00: analog-8
-//   0x00000040: disabled
+// 0x00000080: enable stream input.
+// 0x00000040: disable monitor input.
+// 0x00000008: enable main out.
 // 0x00000004: rate of sampling clock.
 //   0x00000004: 48.0 kHz
 //   0x00000000: 44.1 kHz
 // 0x00000023: source of sampling clock.
+//   0x00000003: source packet header (SPH)
 //   0x00000002: S/PDIF on optical/coaxial interface.
 //   0x00000021: ADAT on optical interface
 //   0x00000001: ADAT on Dsub 9pin
-//   0x00000000: internal or SMPTE
+//   0x00000000: internal
 
 #define CLK_828_STATUS_OFFSET				0x0b00
 #define  CLK_828_STATUS_MASK				0x0000ffff
 #define  CLK_828_STATUS_FLAG_OPT_IN_IFACE_IS_SPDIF	0x00008000
 #define  CLK_828_STATUS_FLAG_OPT_OUT_IFACE_IS_SPDIF	0x00004000
 #define  CLK_828_STATUS_FLAG_FETCH_PCM_FRAMES		0x00000080
-#define  CLK_828_STATUS_FLAG_SRC_IS_NOT_FROM_ADAT_DSUB	0x00000020
-#define  CLK_828_STATUS_FLAG_OUTPUT_MUTE		0x00000008
+#define  CLK_828_STATUS_FLAG_ENABLE_OUTPUT		0x00000008
 #define  CLK_828_STATUS_FLAG_RATE_48000			0x00000004
-#define  CLK_828_STATUS_FLAG_SRC_SPDIF_ON_OPT_OR_COAX	0x00000002
-#define  CLK_828_STATUS_FLAG_SRC_ADAT_ON_OPT_OR_DSUB	0x00000001
+#define  CLK_828_STATUS_MASK_SRC			0x00000023
+#define   CLK_828_STATUS_FLAG_SRC_ADAT_ON_OPT		0x00000021
+#define   CLK_828_STATUS_FLAG_SRC_SPH			0x00000003
+#define   CLK_828_STATUS_FLAG_SRC_SPDIF			0x00000002
+#define   CLK_828_STATUS_FLAG_SRC_ADAT_ON_DSUB		0x00000001
+#define   CLK_828_STATUS_FLAG_SRC_INTERNAL		0x00000000
 
 // Status register for MOTU 896 (0x'ffff'f000'0b14).
 //
@@ -249,18 +255,29 @@ static int get_clock_source_828(struct snd_motu *motu, enum snd_motu_clock_sourc
 		return err;
 	data = be32_to_cpu(reg) & CLK_828_STATUS_MASK;
 
-	if (data & CLK_828_STATUS_FLAG_SRC_ADAT_ON_OPT_OR_DSUB) {
-		if (data & CLK_828_STATUS_FLAG_SRC_IS_NOT_FROM_ADAT_DSUB)
-			*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT;
-		else
-			*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_DSUB;
-	} else if (data & CLK_828_STATUS_FLAG_SRC_SPDIF_ON_OPT_OR_COAX) {
+	switch (data & CLK_828_STATUS_MASK_SRC) {
+	case CLK_828_STATUS_FLAG_SRC_ADAT_ON_OPT:
+		*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT;
+		break;
+	case CLK_828_STATUS_FLAG_SRC_SPH:
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
+		break;
+	case CLK_828_STATUS_FLAG_SRC_SPDIF:
+	{
 		if (data & CLK_828_STATUS_FLAG_OPT_IN_IFACE_IS_SPDIF)
-			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
-		else
 			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
-	} else {
+		else
+			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
+		break;
+	}
+	case CLK_828_STATUS_FLAG_SRC_ADAT_ON_DSUB:
+		*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_DSUB;
+		break;
+	case CLK_828_STATUS_FLAG_SRC_INTERNAL:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
+		break;
+	default:
+		return -ENXIO;
 	}
 
 	return 0;
@@ -321,13 +338,13 @@ static int switch_fetching_mode_828(struct snd_motu *motu, bool enable)
 		return err;
 	data = be32_to_cpu(reg) & CLK_828_STATUS_MASK;
 
-	data &= ~(CLK_828_STATUS_FLAG_FETCH_PCM_FRAMES | CLK_828_STATUS_FLAG_OUTPUT_MUTE);
+	data &= ~(CLK_828_STATUS_FLAG_FETCH_PCM_FRAMES | CLK_828_STATUS_FLAG_ENABLE_OUTPUT);
 	if (enable) {
 		// This transaction should be initiated after the device receives batch of packets
 		// since the device voluntarily mutes outputs. As a workaround, yield processor over
 		// 100 msec.
 		msleep(100);
-		data |= CLK_828_STATUS_FLAG_FETCH_PCM_FRAMES | CLK_828_STATUS_FLAG_OUTPUT_MUTE;
+		data |= CLK_828_STATUS_FLAG_FETCH_PCM_FRAMES | CLK_828_STATUS_FLAG_ENABLE_OUTPUT;
 	}
 
 	reg = cpu_to_be32(data);
