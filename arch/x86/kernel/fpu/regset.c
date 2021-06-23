@@ -93,7 +93,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	fpu__prepare_read(fpu);
 
-	copy_xstate_to_kernel(to, &fpu->state.xsave);
+	copy_xstate_to_uabi_buf(to, &fpu->state.xsave, XSTATE_COPY_XSAVE);
 	return 0;
 }
 

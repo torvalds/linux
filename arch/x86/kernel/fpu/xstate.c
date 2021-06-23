@@ -1068,14 +1068,20 @@ static void copy_feature(bool from_xstate, struct membuf *to, void *xstate,
 	membuf_write(to, from_xstate ? xstate : init_xstate, size);
 }
 
-/*
- * Convert from kernel XSAVE or XSAVES compacted format to UABI
- * non-compacted format and copy to a kernel-space ptrace buffer.
+/**
+ * copy_xstate_to_uabi_buf - Copy kernel saved xstate to a UABI buffer
+ * @to:		membuf descriptor
+ * @xsave:	The kernel xstate buffer to copy from
+ * @copy_mode:	The requested copy mode
  *
- * It supports partial copy but pos always starts from zero. This is called
- * from xstateregs_get() and there we check the CPU has XSAVE.
+ * Converts from kernel XSAVE or XSAVES compacted format to UABI conforming
+ * format, i.e. from the kernel internal hardware dependent storage format
+ * to the requested @mode. UABI XSTATE is always uncompacted!
+ *
+ * It supports partial copy but @to.pos always starts from zero.
  */
-void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
+void copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsave,
+			     enum xstate_copy_mode copy_mode)
 {
 	const unsigned int off_mxcsr = offsetof(struct fxregs_state, mxcsr);
 	struct xregs_state *xinit = &init_fpstate.xsave;
@@ -1083,12 +1089,22 @@ void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
 	unsigned int zerofrom;
 	int i;
 
-	/*
-	 * The destination is a ptrace buffer; we put in only user xstates:
-	 */
-	memset(&header, 0, sizeof(header));
 	header.xfeatures = xsave->header.xfeatures;
-	header.xfeatures &= xfeatures_mask_user();
+
+	/* Mask out the feature bits depending on copy mode */
+	switch (copy_mode) {
+	case XSTATE_COPY_FP:
+		header.xfeatures &= XFEATURE_MASK_FP;
+		break;
+
+	case XSTATE_COPY_FX:
+		header.xfeatures &= XFEATURE_MASK_FP | XFEATURE_MASK_SSE;
+		break;
+
+	case XSTATE_COPY_XSAVE:
+		header.xfeatures &= xfeatures_mask_user();
+		break;
+	}
 
 	/* Copy FP state up to MXCSR */
 	copy_feature(header.xfeatures & XFEATURE_MASK_FP, &to, &xsave->i387,
@@ -1108,6 +1124,9 @@ void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
 	copy_feature(header.xfeatures & XFEATURE_MASK_SSE,
 		     &to, &xsave->i387.xmm_space, &xinit->i387.xmm_space,
 		     sizeof(xsave->i387.xmm_space));
+
+	if (copy_mode != XSTATE_COPY_XSAVE)
+		goto out;
 
 	/* Zero the padding area */
 	membuf_zero(&to, sizeof(xsave->i387.padding));
@@ -1150,6 +1169,7 @@ void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
 		zerofrom = xstate_offsets[i] + xstate_sizes[i];
 	}
 
+out:
 	if (to.left)
 		membuf_zero(&to, to.left);
 }
