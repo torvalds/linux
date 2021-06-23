@@ -9275,6 +9275,8 @@ void devlink_rate_leaf_destroy(struct devlink_port *devlink_port)
 
 	mutex_lock(&devlink->lock);
 	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_DEL);
+	if (devlink_rate->parent)
+		refcount_dec(&devlink_rate->parent->refcnt);
 	list_del(&devlink_rate->list);
 	devlink_port->devlink_rate = NULL;
 	mutex_unlock(&devlink->lock);
