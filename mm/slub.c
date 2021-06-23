@@ -5749,31 +5749,23 @@ static int slab_debugfs_show(struct seq_file *seq, void *v)
 
 static void slab_debugfs_stop(struct seq_file *seq, void *v)
 {
-	kfree(v);
 }
 
 static void *slab_debugfs_next(struct seq_file *seq, void *v, loff_t *ppos)
 {
-	loff_t *spos = v;
 	struct loc_track *t = seq->private;
 
-	if (*ppos < t->count) {
-		*ppos = ++*spos;
-		return spos;
-	}
-	*ppos = ++*spos;
+	v = ppos;
+	++*ppos;
+	if (*ppos <= t->count)
+		return v;
+
 	return NULL;
 }
 
 static void *slab_debugfs_start(struct seq_file *seq, loff_t *ppos)
 {
-	loff_t *spos = kmalloc(sizeof(loff_t), GFP_KERNEL);
-
-	if (!spos)
-		return NULL;
-
-	*spos = *ppos;
-	return spos;
+	return ppos;
 }
 
 static const struct seq_operations slab_debugfs_sops = {
