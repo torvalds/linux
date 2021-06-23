@@ -334,6 +334,15 @@ struct dmcub_firmware_header_v1_0 {
 	uint32_t bss_data_bytes; /* size of bss/data region, in bytes */
 };
 
+/* version_major=1, version_minor=0 */
+struct imu_firmware_header_v1_0 {
+    struct common_firmware_header header;
+    uint32_t imu_iram_ucode_size_bytes;
+    uint32_t imu_iram_ucode_offset_bytes;
+    uint32_t imu_dram_ucode_size_bytes;
+    uint32_t imu_dram_ucode_offset_bytes;
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -358,6 +367,7 @@ union amdgpu_firmware_header {
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
 	struct dmcub_firmware_header_v1_0 dmcub;
+	struct imu_firmware_header_v1_0 imu;
 	uint8_t raw[0x100];
 };
 
