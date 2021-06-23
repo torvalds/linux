@@ -1812,10 +1812,6 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
 	stream->start_stream = false;
-	if (stream->id == RKISP_STREAM_SP && stream->out_isp_fmt.fmt_type == FMT_FBCGAIN) {
-		stream->out_isp_fmt.fmt_type = FMT_YUV;
-		stream->out_isp_fmt.fourcc = V4L2_PIX_FMT_NV12;
-	}
 }
 
 static int rkisp_stream_start(struct rkisp_stream *stream)

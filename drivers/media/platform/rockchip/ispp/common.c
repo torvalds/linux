@@ -271,6 +271,7 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 			if (buf->mem_priv[j]) {
 				g_ops->unmap_dmabuf(buf->mem_priv[j]);
 				g_ops->detach_dmabuf(buf->mem_priv[j]);
+				dma_buf_put(buf->dbufs->dbuf[j]);
 				buf->mem_priv[j] = NULL;
 			}
 		}
@@ -318,11 +319,12 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		} else {
 			pool->dma[i] = *((dma_addr_t *)g_ops->cookie(mem));
 		}
+		get_dma_buf(dbufs->dbuf[i]);
+		pool->vaddr[i] = g_ops->vaddr(mem);
 		if (rkispp_debug)
 			dev_info(hw->dev, "%s dma[%d]:0x%x\n",
 				 __func__, i, (u32)pool->dma[i]);
 
-		pool->vaddr[i] = g_ops->vaddr(mem);
 	}
 	rkispp_init_regbuf(hw);
 	hw->is_idle = true;
