@@ -1284,7 +1284,7 @@ ENDPROC(stack_overflow)
 	je	1f
 	larl	%r13,.Lsie_entry
 	slgr	%r9,%r13
-	larl	%r13,.Lsie_skip
+	lghi	%r13,.Lsie_skip - .Lsie_entry
 	clgr	%r9,%r13
 	jh	1f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST

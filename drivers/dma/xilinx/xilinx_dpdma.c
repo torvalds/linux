@@ -1459,7 +1459,7 @@ static void xilinx_dpdma_enable_irq(struct xilinx_dpdma_device *xdev)
  */
 static void xilinx_dpdma_disable_irq(struct xilinx_dpdma_device *xdev)
 {
-	dpdma_write(xdev->reg, XILINX_DPDMA_IDS, XILINX_DPDMA_INTR_ERR_ALL);
+	dpdma_write(xdev->reg, XILINX_DPDMA_IDS, XILINX_DPDMA_INTR_ALL);
 	dpdma_write(xdev->reg, XILINX_DPDMA_EIDS, XILINX_DPDMA_EINTR_ALL);
 }
 
@@ -1596,6 +1596,26 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(&xdev->chan[chan_id]->vchan.chan);
 }
 
+static void dpdma_hw_init(struct xilinx_dpdma_device *xdev)
+{
+	unsigned int i;
+	void __iomem *reg;
+
+	/* Disable all interrupts */
+	xilinx_dpdma_disable_irq(xdev);
+
+	/* Stop all channels */
+	for (i = 0; i < ARRAY_SIZE(xdev->chan); i++) {
+		reg = xdev->reg + XILINX_DPDMA_CH_BASE
+				+ XILINX_DPDMA_CH_OFFSET * i;
+		dpdma_clr(reg, XILINX_DPDMA_CH_CNTL, XILINX_DPDMA_CH_CNTL_ENABLE);
+	}
+
+	/* Clear the interrupt status registers */
+	dpdma_write(xdev->reg, XILINX_DPDMA_ISR, XILINX_DPDMA_INTR_ALL);
+	dpdma_write(xdev->reg, XILINX_DPDMA_EISR, XILINX_DPDMA_EINTR_ALL);
+}
+
 static int xilinx_dpdma_probe(struct platform_device *pdev)
 {
 	struct xilinx_dpdma_device *xdev;
@@ -1621,6 +1641,8 @@ static int xilinx_dpdma_probe(struct platform_device *pdev)
 	xdev->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xdev->reg))
 		return PTR_ERR(xdev->reg);
+
+	dpdma_hw_init(xdev);
 
 	xdev->irq = platform_get_irq(pdev, 0);
 	if (xdev->irq < 0) {
