@@ -61,13 +61,21 @@
 
 // Status register for MOTU 896 (0x'ffff'f000'0b14).
 //
-// 0x20000000: fetch PCM frames from communication IC to DAC.
+// 0xf0000000: enable physical and stream input to DAC.
+//   0x80000000: disable
+//   0x40000000: disable
+//   0x20000000: enable (prior to the other bits)
+//   0x10000000: disable
+//   0x00000000: disable
 // 0x08000000: speed of word clock signal output on BNC interface.
-//   0x00000000: follow to system clock.
-//   0x08000000: half of system clock.
-// 0x01000000: Route main output to headphone output.
-// 0x00ffff00: input to monitor.
-//   0x00000000: none
+//   0x00000000: force to low rate (44.1/48.0 kHz).
+//   0x08000000: follow to system clock.
+// 0x04000000: something relevant to clock.
+// 0x03000000: enable output.
+//  0x02000000: enabled irreversibly once standing unless the device voluntarily disables it.
+//  0x01000000: enabled irreversibly once standing unless the device voluntarily disables it.
+// 0x00ffff00: monitor input mode.
+//   0x00000000: disabled
 //   0x00004800: analog-1/2
 //   0x00005a00: analog-3/4
 //   0x00006c00: analog-5/6
@@ -83,7 +91,7 @@
 //   0x00007f00: analog-8
 //   0x00104000: AES/EBU-1
 //   0x00104900: AES/EBU-2
-// 0x00000060: sample rate conversin for AES/EBU input/output.
+// 0x00000060: sample rate conversion for AES/EBU input/output.
 //   0x00000000: None
 //   0x00000020: input signal is converted to system rate
 //   0x00000040: output is slave to input, ignoring system rate
@@ -97,16 +105,18 @@
 //   0x00000000: internal
 //   0x00000001: ADAT on optical interface
 //   0x00000002: AES/EBU on XLR
+//   0x00000003: source packet header (SPH)
 //   0x00000004: word clock on BNC
 //   0x00000005: ADAT on Dsub 9pin
 
 #define CLK_896_STATUS_OFFSET			0x0b14
 #define  CLK_896_STATUS_FLAG_FETCH_ENABLE	0x20000000
-#define  CLK_896_STATUS_FLAG_MAIN_TO_HP		0x01000000
+#define  CLK_896_STATUS_FLAG_OUTPUT_ON		0x03000000
 #define  CLK_896_STATUS_MASK_SRC		0x00000007
 #define   CLK_896_STATUS_FLAG_SRC_INTERNAL	0x00000000
 #define   CLK_896_STATUS_FLAG_SRC_ADAT_ON_OPT	0x00000001
 #define   CLK_896_STATUS_FLAG_SRC_AESEBU	0x00000002
+#define   CLK_896_STATUS_FLAG_SRC_SPH		0x00000003
 #define   CLK_896_STATUS_FLAG_SRC_WORD		0x00000004
 #define   CLK_896_STATUS_FLAG_SRC_ADAT_ON_DSUB	0x00000005
 #define  CLK_896_STATUS_MASK_RATE		0x00000018
@@ -304,6 +314,9 @@ static int get_clock_source_896(struct snd_motu *motu, enum snd_motu_clock_sourc
 	case CLK_896_STATUS_FLAG_SRC_AESEBU:
 		*src = SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR;
 		break;
+	case CLK_896_STATUS_FLAG_SRC_SPH:
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
+		break;
 	case CLK_896_STATUS_FLAG_SRC_WORD:
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
 		break;
@@ -362,9 +375,9 @@ static int switch_fetching_mode_896(struct snd_motu *motu, bool enable)
 		return err;
 	data = be32_to_cpu(reg);
 
-	data &= ~(CLK_896_STATUS_FLAG_FETCH_ENABLE | CLK_896_STATUS_FLAG_MAIN_TO_HP);
+	data &= ~CLK_896_STATUS_FLAG_FETCH_ENABLE;
 	if (enable)
-		data |= (CLK_896_STATUS_FLAG_FETCH_ENABLE | CLK_896_STATUS_FLAG_MAIN_TO_HP);
+		data |= CLK_896_STATUS_FLAG_FETCH_ENABLE | CLK_896_STATUS_FLAG_OUTPUT_ON;
 
 	reg = cpu_to_be32(data);
 	return snd_motu_transaction_write(motu, CLK_896_STATUS_OFFSET, &reg, sizeof(reg));
