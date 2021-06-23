@@ -311,7 +311,7 @@ static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 	else
 		frstor(&init_fpstate.fsave);
 
-	if (boot_cpu_has(X86_FEATURE_OSPKE))
+	if (cpu_feature_enabled(X86_FEATURE_OSPKE))
 		copy_init_pkru_to_fpregs();
 }
 
