@@ -953,23 +953,6 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 }
 #endif /* ! CONFIG_ARCH_HAS_PKEYS */
 
-/*
- * Weird legacy quirk: SSE and YMM states store information in the
- * MXCSR and MXCSR_FLAGS fields of the FP area. That means if the FP
- * area is marked as unused in the xfeatures header, we need to copy
- * MXCSR and MXCSR_FLAGS if either SSE or YMM are in use.
- */
-static inline bool xfeatures_mxcsr_quirk(u64 xfeatures)
-{
-	if (!(xfeatures & (XFEATURE_MASK_SSE|XFEATURE_MASK_YMM)))
-		return false;
-
-	if (xfeatures & XFEATURE_MASK_FP)
-		return false;
-
-	return true;
-}
-
 static void copy_feature(bool from_xstate, struct membuf *to, void *xstate,
 			 void *init_xstate, unsigned int size)
 {
@@ -1082,39 +1065,53 @@ out:
 		membuf_zero(&to, to.left);
 }
 
-static inline bool mxcsr_valid(struct xstate_header *hdr, const u32 *mxcsr)
+static int copy_from_buffer(void *dst, unsigned int offset, unsigned int size,
+			    const void *kbuf, const void __user *ubuf)
 {
-	u64 mask = XFEATURE_MASK_FP | XFEATURE_MASK_SSE | XFEATURE_MASK_YMM;
-
-	/* Only check if it is in use */
-	if (hdr->xfeatures & mask) {
-		/* Reserved bits in MXCSR must be zero. */
-		if (*mxcsr & ~mxcsr_feature_mask)
-			return false;
+	if (kbuf) {
+		memcpy(dst, kbuf + offset, size);
+	} else {
+		if (copy_from_user(dst, ubuf + offset, size))
+			return -EFAULT;
 	}
-	return true;
+	return 0;
 }
 
-/*
- * Convert from a ptrace standard-format kernel buffer to kernel XSAVE[S] format
- * and copy to the target thread. This is called from xstateregs_set().
- */
-int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
+
+static int copy_uabi_to_xstate(struct xregs_state *xsave, const void *kbuf,
+			       const void __user *ubuf)
 {
 	unsigned int offset, size;
-	int i;
 	struct xstate_header hdr;
+	u64 mask;
+	int i;
 
 	offset = offsetof(struct xregs_state, header);
-	size = sizeof(hdr);
-
-	memcpy(&hdr, kbuf + offset, size);
+	if (copy_from_buffer(&hdr, offset, sizeof(hdr), kbuf, ubuf))
+		return -EFAULT;
 
 	if (validate_user_xstate_header(&hdr))
 		return -EINVAL;
 
-	if (!mxcsr_valid(&hdr, kbuf + offsetof(struct fxregs_state, mxcsr)))
-		return -EINVAL;
+	/* Validate MXCSR when any of the related features is in use */
+	mask = XFEATURE_MASK_FP | XFEATURE_MASK_SSE | XFEATURE_MASK_YMM;
+	if (hdr.xfeatures & mask) {
+		u32 mxcsr[2];
+
+		offset = offsetof(struct fxregs_state, mxcsr);
+		if (copy_from_buffer(mxcsr, offset, sizeof(mxcsr), kbuf, ubuf))
+			return -EFAULT;
+
+		/* Reserved bits in MXCSR must be zero. */
+		if (mxcsr[0] & ~mxcsr_feature_mask)
+			return -EINVAL;
+
+		/* SSE and YMM require MXCSR even when FP is not in use. */
+		if (!(hdr.xfeatures & XFEATURE_MASK_FP)) {
+			xsave->i387.mxcsr = mxcsr[0];
+			xsave->i387.mxcsr_mask = mxcsr[1];
+		}
+	}
 
 	for (i = 0; i < XFEATURE_MAX; i++) {
 		u64 mask = ((u64)1 << i);
@@ -1125,14 +1122,9 @@ int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			memcpy(dst, kbuf + offset, size);
+			if (copy_from_buffer(dst, offset, size, kbuf, ubuf))
+				return -EFAULT;
 		}
-	}
-
-	if (xfeatures_mxcsr_quirk(hdr.xfeatures)) {
-		offset = offsetof(struct fxregs_state, mxcsr);
-		size = MXCSR_AND_FLAGS_SIZE;
-		memcpy(&xsave->i387.mxcsr, kbuf + offset, size);
 	}
 
 	/*
@@ -1147,6 +1139,16 @@ int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 	xsave->header.xfeatures |= hdr.xfeatures;
 
 	return 0;
+}
+
+/*
+ * Convert from a ptrace standard-format kernel buffer to kernel XSAVE[S]
+ * format and copy to the target thread. This is called from
+ * xstateregs_set().
+ */
+int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
+{
+	return copy_uabi_to_xstate(xsave, kbuf, NULL);
 }
 
 /*
@@ -1157,52 +1159,7 @@ int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 int copy_sigframe_from_user_to_xstate(struct xregs_state *xsave,
 				      const void __user *ubuf)
 {
-	unsigned int offset, size;
-	int i;
-	struct xstate_header hdr;
-
-	offset = offsetof(struct xregs_state, header);
-	size = sizeof(hdr);
-
-	if (copy_from_user(&hdr, ubuf + offset, size))
-		return -EFAULT;
-
-	if (validate_user_xstate_header(&hdr))
-		return -EINVAL;
-
-	for (i = 0; i < XFEATURE_MAX; i++) {
-		u64 mask = ((u64)1 << i);
-
-		if (hdr.xfeatures & mask) {
-			void *dst = __raw_xsave_addr(xsave, i);
-
-			offset = xstate_offsets[i];
-			size = xstate_sizes[i];
-
-			if (copy_from_user(dst, ubuf + offset, size))
-				return -EFAULT;
-		}
-	}
-
-	if (xfeatures_mxcsr_quirk(hdr.xfeatures)) {
-		offset = offsetof(struct fxregs_state, mxcsr);
-		size = MXCSR_AND_FLAGS_SIZE;
-		if (copy_from_user(&xsave->i387.mxcsr, ubuf + offset, size))
-			return -EFAULT;
-	}
-
-	/*
-	 * The state that came in from userspace was user-state only.
-	 * Mask all the user states out of 'xfeatures':
-	 */
-	xsave->header.xfeatures &= XFEATURE_MASK_SUPERVISOR_ALL;
-
-	/*
-	 * Add back in the features that came in from userspace:
-	 */
-	xsave->header.xfeatures |= hdr.xfeatures;
-
-	return 0;
+	return copy_uabi_to_xstate(xsave, NULL, ubuf);
 }
 
 /**
