@@ -16,10 +16,10 @@ static inline bool is_kvm_guest(void)
 	return static_branch_unlikely(&kvm_guest);
 }
 
-bool check_kvm_guest(void);
+int check_kvm_guest(void);
 #else
 static inline bool is_kvm_guest(void) { return false; }
-static inline bool check_kvm_guest(void) { return false; }
+static inline int check_kvm_guest(void) { return 0; }
 #endif
 
 #endif /* _ASM_POWERPC_KVM_GUEST_H_ */
