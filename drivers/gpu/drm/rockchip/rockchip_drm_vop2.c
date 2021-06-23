@@ -1072,6 +1072,19 @@ static inline void vop2_wb_cfg_done(struct vop2_video_port *vp)
 
 }
 
+static void vop2_win_multi_area_disable(struct vop2_win *parent)
+{
+	struct vop2 *vop2 = parent->vop2;
+	struct vop2_win *area;
+	int i;
+
+	for (i = 0; i < vop2->registered_num_wins; i++) {
+		area = &vop2->win[i];
+		if (area->parent == parent)
+			VOP_WIN_SET(vop2, area, enable, 0);
+	}
+}
+
 static void vop2_win_disable(struct vop2_win *win)
 {
 	struct vop2 *vop2 = win->vop2;
@@ -1091,6 +1104,12 @@ static void vop2_win_disable(struct vop2_win *win)
 
 		VOP_CLUSTER_SET(vop2, win, enable, 0);
 	}
+
+	/*
+	 * disable all other multi area win if we want disable area0 here
+	 */
+	if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
+		vop2_win_multi_area_disable(win);
 }
 
 static inline void vop2_write_lut(struct vop2 *vop2, uint32_t offset, uint32_t v)

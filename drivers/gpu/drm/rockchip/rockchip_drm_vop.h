@@ -40,6 +40,7 @@
  * This is a feather on rk3566
  */
 #define WIN_FEATURE_MIRROR		BIT(6)
+#define WIN_FEATURE_MULTI_AREA		BIT(7)
 
 
 #define DSP_BG_SWAP		0x1
