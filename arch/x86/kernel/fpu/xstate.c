@@ -1154,6 +1154,19 @@ void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
 		membuf_zero(&to, to.left);
 }
 
+static inline bool mxcsr_valid(struct xstate_header *hdr, const u32 *mxcsr)
+{
+	u64 mask = XFEATURE_MASK_FP | XFEATURE_MASK_SSE | XFEATURE_MASK_YMM;
+
+	/* Only check if it is in use */
+	if (hdr->xfeatures & mask) {
+		/* Reserved bits in MXCSR must be zero. */
+		if (*mxcsr & ~mxcsr_feature_mask)
+			return false;
+	}
+	return true;
+}
+
 /*
  * Convert from a ptrace standard-format kernel buffer to kernel XSAVE[S] format
  * and copy to the target thread. This is called from xstateregs_set().
@@ -1170,6 +1183,9 @@ int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 	memcpy(&hdr, kbuf + offset, size);
 
 	if (validate_user_xstate_header(&hdr))
+		return -EINVAL;
+
+	if (!mxcsr_valid(&hdr, kbuf + offsetof(struct fxregs_state, mxcsr)))
 		return -EINVAL;
 
 	for (i = 0; i < XFEATURE_MAX; i++) {
@@ -1201,9 +1217,6 @@ int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 	 * Add back in the features that came in from userspace:
 	 */
 	xsave->header.xfeatures |= hdr.xfeatures;
-
-	/* mxcsr reserved bits must be masked to zero for historical reasons. */
-	xsave->i387.mxcsr &= mxcsr_feature_mask;
 
 	return 0;
 }
