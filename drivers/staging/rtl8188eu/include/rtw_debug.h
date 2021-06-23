@@ -58,12 +58,6 @@
 
 extern u32 GlobalDebugLevel;
 
-#define DBG_88E_LEVEL(_level, fmt, arg...)				\
-	do {								\
-		if (_level <= GlobalDebugLevel)				\
-			pr_info(DRIVER_PREFIX fmt, ##arg);	\
-	} while (0)
-
 #define MSG_88E(...)							\
 	do {								\
 		if (_drv_err_ <= GlobalDebugLevel)			\
