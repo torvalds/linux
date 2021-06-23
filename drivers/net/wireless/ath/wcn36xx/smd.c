@@ -445,22 +445,12 @@ out:
 	return ret;
 }
 
-static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
-			 enum wcn36xx_hal_host_msg_type msg_type,
-			 size_t msg_size)
-{
-	memset(hdr, 0, msg_size + sizeof(*hdr));
-	hdr->msg_type = msg_type;
-	hdr->msg_version = WCN36XX_HAL_MSG_VERSION0;
-	hdr->len = msg_size + sizeof(*hdr);
-}
-
 #define __INIT_HAL_MSG(msg_body, type, version) \
 	do {								\
-		memset(&msg_body, 0, sizeof(msg_body));			\
-		msg_body.header.msg_type = type;			\
-		msg_body.header.msg_version = version;			\
-		msg_body.header.len = sizeof(msg_body);			\
+		memset(&(msg_body), 0, sizeof(msg_body));		\
+		(msg_body).header.msg_type = type;			\
+		(msg_body).header.msg_version = version;		\
+		(msg_body).header.len = sizeof(msg_body);		\
 	} while (0)							\
 
 #define INIT_HAL_MSG(msg_body, type)	\
@@ -2729,8 +2719,7 @@ int wcn36xx_smd_set_mc_list(struct wcn36xx *wcn,
 
 	msg_body = (struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg *)
 		   wcn->hal_buf;
-	init_hal_msg(&msg_body->header, WCN36XX_HAL_8023_MULTICAST_LIST_REQ,
-		     sizeof(msg_body->mc_addr_list));
+	INIT_HAL_MSG(*msg_body, WCN36XX_HAL_8023_MULTICAST_LIST_REQ);
 
 	/* An empty list means all mc traffic will be received */
 	if (fp)
