@@ -565,6 +565,42 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 	return 0;
 }
 
+/* For partial checksum offload, the outer header checksum is calculated
+ * by software and the inner header checksum is calculated by hardware.
+ * This requires hardware to know the inner packet type to calculate
+ * the inner header checksum. Save inner ip protocol here to avoid
+ * traversing the packet in the vendor's xmit code.
+ * If the encap type is IPIP, just save skb->inner_ipproto. Otherwise,
+ * get the ip protocol from the IP header.
+ */
+static void xfrm_get_inner_ipproto(struct sk_buff *skb)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	const struct ethhdr *eth;
+
+	if (!xo)
+		return;
+
+	if (skb->inner_protocol_type == ENCAP_TYPE_IPPROTO) {
+		xo->inner_ipproto = skb->inner_ipproto;
+		return;
+	}
+
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER)
+		return;
+
+	eth = (struct ethhdr *)skb_inner_mac_header(skb);
+
+	switch (ntohs(eth->h_proto)) {
+	case ETH_P_IPV6:
+		xo->inner_ipproto = inner_ipv6_hdr(skb)->nexthdr;
+		break;
+	case ETH_P_IP:
+		xo->inner_ipproto = inner_ip_hdr(skb)->protocol;
+		break;
+	}
+}
+
 int xfrm_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
@@ -594,11 +630,14 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 			kfree_skb(skb);
 			return -ENOMEM;
 		}
-		skb->encapsulation = 1;
 
 		sp->olen++;
 		sp->xvec[sp->len++] = x;
 		xfrm_state_hold(x);
+
+		if (skb->encapsulation)
+			xfrm_get_inner_ipproto(skb);
+		skb->encapsulation = 1;
 
 		if (skb_is_gso(skb)) {
 			if (skb->inner_protocol)
