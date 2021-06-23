@@ -232,7 +232,7 @@ struct css_set {
 	struct list_head task_iters;
 
 	/*
-	 * On the default hierarhcy, ->subsys[ssid] may point to a css
+	 * On the default hierarchy, ->subsys[ssid] may point to a css
 	 * attached to an ancestor instead of the cgroup this css_set is
 	 * associated with.  The following node is anchored at
 	 * ->subsys[ssid]->cgroup->e_csets[ssid] and provides a way to
@@ -668,7 +668,7 @@ struct cgroup_subsys {
 	 */
 	bool threaded:1;
 
-	/* the following two fields are initialized automtically during boot */
+	/* the following two fields are initialized automatically during boot */
 	int id;
 	const char *name;
 
@@ -757,7 +757,7 @@ static inline void cgroup_threadgroup_change_end(struct task_struct *tsk) {}
  * sock_cgroup_data overloads (prioidx, classid) and the cgroup pointer.
  * On boot, sock_cgroup_data records the cgroup that the sock was created
  * in so that cgroup2 matches can be made; however, once either net_prio or
- * net_cls starts being used, the area is overriden to carry prioidx and/or
+ * net_cls starts being used, the area is overridden to carry prioidx and/or
  * classid.  The two modes are distinguished by whether the lowest bit is
  * set.  Clear bit indicates cgroup pointer while set bit prioidx and
  * classid.

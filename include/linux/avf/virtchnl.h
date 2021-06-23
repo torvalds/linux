@@ -830,6 +830,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_proto_hdr);
 
 struct virtchnl_proto_hdrs {
 	u8 tunnel_level;
+	u8 pad[3];
 	/**
 	 * specify where protocol header start from.
 	 * 0 - from the outer layer

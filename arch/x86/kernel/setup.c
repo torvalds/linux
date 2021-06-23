@@ -44,6 +44,7 @@
 #include <asm/pci-direct.h>
 #include <asm/prom.h>
 #include <asm/proto.h>
+#include <asm/thermal.h>
 #include <asm/unwind.h>
 #include <asm/vsyscall.h>
 #include <linux/vmalloc.h>
@@ -637,11 +638,11 @@ static void __init trim_snb_memory(void)
 	 * them from accessing certain memory ranges, namely anything below
 	 * 1M and in the pages listed in bad_pages[] above.
 	 *
-	 * To avoid these pages being ever accessed by SNB gfx devices
-	 * reserve all memory below the 1 MB mark and bad_pages that have
-	 * not already been reserved at boot time.
+	 * To avoid these pages being ever accessed by SNB gfx devices reserve
+	 * bad_pages that have not already been reserved at boot time.
+	 * All memory below the 1 MB mark is anyway reserved later during
+	 * setup_arch(), so there is no need to reserve it here.
 	 */
-	memblock_reserve(0, 1<<20);
 
 	for (i = 0; i < ARRAY_SIZE(bad_pages); i++) {
 		if (memblock_reserve(bad_pages[i], PAGE_SIZE))
@@ -733,14 +734,14 @@ static void __init early_reserve_memory(void)
 	 * The first 4Kb of memory is a BIOS owned area, but generally it is
 	 * not listed as such in the E820 table.
 	 *
-	 * Reserve the first memory page and typically some additional
-	 * memory (64KiB by default) since some BIOSes are known to corrupt
-	 * low memory. See the Kconfig help text for X86_RESERVE_LOW.
+	 * Reserve the first 64K of memory since some BIOSes are known to
+	 * corrupt low memory. After the real mode trampoline is allocated the
+	 * rest of the memory below 640k is reserved.
 	 *
 	 * In addition, make sure page 0 is always reserved because on
 	 * systems with L1TF its contents can be leaked to user processes.
 	 */
-	memblock_reserve(0, ALIGN(reserve_low, PAGE_SIZE));
+	memblock_reserve(0, SZ_64K);
 
 	early_reserve_initrd();
 
@@ -751,6 +752,7 @@ static void __init early_reserve_memory(void)
 
 	reserve_ibft_region();
 	reserve_bios_regions();
+	trim_snb_memory();
 }
 
 /*
@@ -1081,14 +1083,20 @@ void __init setup_arch(char **cmdline_p)
 			(max_pfn_mapped<<PAGE_SHIFT) - 1);
 #endif
 
-	reserve_real_mode();
-
 	/*
-	 * Reserving memory causing GPU hangs on Sandy Bridge integrated
-	 * graphics devices should be done after we allocated memory under
-	 * 1M for the real mode trampoline.
+	 * Find free memory for the real mode trampoline and place it
+	 * there.
+	 * If there is not enough free memory under 1M, on EFI-enabled
+	 * systems there will be additional attempt to reclaim the memory
+	 * for the real mode trampoline at efi_free_boot_services().
+	 *
+	 * Unconditionally reserve the entire first 1M of RAM because
+	 * BIOSes are know to corrupt low memory and several
+	 * hundred kilobytes are not worth complex detection what memory gets
+	 * clobbered. Moreover, on machines with SandyBridge graphics or in
+	 * setups that use crashkernel the entire 1M is reserved anyway.
 	 */
-	trim_snb_memory();
+	reserve_real_mode();
 
 	init_mem_mapping();
 
@@ -1225,6 +1233,14 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.oem.banner();
 
 	x86_init.timers.wallclock_init();
+
+	/*
+	 * This needs to run before setup_local_APIC() which soft-disables the
+	 * local APIC temporarily and that masks the thermal LVT interrupt,
+	 * leading to softlockups on machines which have configured SMI
+	 * interrupt delivery.
+	 */
+	therm_lvt_init();
 
 	mcheck_init();
 
