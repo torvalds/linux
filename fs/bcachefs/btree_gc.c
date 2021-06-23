@@ -95,7 +95,8 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				  "  cur %s",
 				  bch2_btree_ids[b->c.btree_id], b->c.level,
 				  buf1,
-				  (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2))) {
+				  (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2)) &&
+			    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
 				return FSCK_ERR_START_TOPOLOGY_REPAIR;
 			} else {
@@ -116,7 +117,8 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			  "  expected %s",
 			  bch2_btree_ids[b->c.btree_id], b->c.level,
 			  (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
-			  (bch2_bpos_to_text(&PBUF(buf2), node_end), buf2))) {
+			  (bch2_bpos_to_text(&PBUF(buf2), node_end), buf2)) &&
+		    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
 			return FSCK_ERR_START_TOPOLOGY_REPAIR;
 		} else {
@@ -900,7 +902,8 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 					  "  %s",
 					  bch2_btree_ids[b->c.btree_id],
 					  b->c.level - 1,
-					  (bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur.k)), buf))) {
+					  (bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur.k)), buf)) &&
+				    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 					ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
 					bch_info(c, "Halting mark and sweep to start topology repair pass");
 					goto fsck_err;
@@ -1599,11 +1602,14 @@ again:
 		if (ret)
 			goto out;
 		bch_info(c, "topology repair pass done");
+
+		set_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags);
 	}
 
 	ret = bch2_gc_btrees(c, initial, metadata_only);
 
 	if (ret == FSCK_ERR_START_TOPOLOGY_REPAIR &&
+	    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags) &&
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {
 		set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
 		ret = 0;
