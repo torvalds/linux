@@ -2131,7 +2131,9 @@
   sg_pcopy_from_buffer
   sg_pcopy_to_buffer
   sg_scsi_ioctl
+  shmem_file_setup
   shmem_mark_page_lazyfree
+  shmem_read_mapping_page_gfp
   shmem_truncate_range
   show_rcu_gp_kthreads
   show_regs
