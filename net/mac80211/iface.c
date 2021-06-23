@@ -1977,6 +1977,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		}
 	}
 
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		init_airtime_info(&sdata->airtime[i], &local->airtime[i]);
+
 	ieee80211_set_default_queues(sdata);
 
 	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
