@@ -54,6 +54,7 @@
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
+#include <asm/syscall.h>	/* for syscall_get_* */
 
 /*
  * SLAB caches for signal bits.
@@ -1322,7 +1323,7 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
  * that is why we also clear SIGNAL_UNKILLABLE.
  */
 static int
-force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
+force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool sigdfl)
 {
 	unsigned long int flags;
 	int ret, blocked, ignored;
@@ -1333,7 +1334,7 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
 	action = &t->sighand->action[sig-1];
 	ignored = action->sa.sa_handler == SIG_IGN;
 	blocked = sigismember(&t->blocked, sig);
-	if (blocked || ignored) {
+	if (blocked || ignored || sigdfl) {
 		action->sa.sa_handler = SIG_DFL;
 		if (blocked) {
 			sigdelset(&t->blocked, sig);
@@ -1354,7 +1355,7 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
 
 int force_sig_info(struct kernel_siginfo *info)
 {
-	return force_sig_info_to_task(info, current);
+	return force_sig_info_to_task(info, current, false);
 }
 
 /*
@@ -1685,7 +1686,7 @@ int force_sig_fault_to_task(int sig, int code, void __user *addr
 	info.si_flags = flags;
 	info.si_isr = isr;
 #endif
-	return force_sig_info_to_task(&info, t);
+	return force_sig_info_to_task(&info, t, false);
 }
 
 int force_sig_fault(int sig, int code, void __user *addr
@@ -1791,6 +1792,27 @@ int force_sig_perf(void __user *addr, u32 type, u64 sig_data)
 	info.si_perf_type = type;
 
 	return force_sig_info(&info);
+}
+
+/**
+ * force_sig_seccomp - signals the task to allow in-process syscall emulation
+ * @syscall: syscall number to send to userland
+ * @reason: filter-supplied reason code to send to userland (via si_errno)
+ *
+ * Forces a SIGSYS with a code of SYS_SECCOMP and related sigsys info.
+ */
+int force_sig_seccomp(int syscall, int reason, bool force_coredump)
+{
+	struct kernel_siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGSYS;
+	info.si_code = SYS_SECCOMP;
+	info.si_call_addr = (void __user *)KSTK_EIP(current);
+	info.si_errno = reason;
+	info.si_arch = syscall_get_arch(current);
+	info.si_syscall = syscall;
+	return force_sig_info_to_task(&info, current, force_coredump);
 }
 
 /* For the crazy architectures that include trap information in
