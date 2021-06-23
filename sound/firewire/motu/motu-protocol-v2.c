@@ -121,6 +121,9 @@ static int get_clock_source(struct snd_motu *motu, u32 data,
 	case 5:
 		*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_DSUB;
 		break;
+	case 7:
+		*src = SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR;
+		break;
 	default:
 		*src = SND_MOTU_CLOCK_SOURCE_UNKNOWN;
 		break;
