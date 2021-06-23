@@ -2353,44 +2353,6 @@ static void loop_remove(struct loop_device *lo)
 	kfree(lo);
 }
 
-static int find_free_cb(int id, void *ptr, void *data)
-{
-	struct loop_device *lo = ptr;
-	struct loop_device **l = data;
-
-	if (lo->lo_state == Lo_unbound) {
-		*l = lo;
-		return 1;
-	}
-	return 0;
-}
-
-static int loop_lookup(struct loop_device **l, int i)
-{
-	struct loop_device *lo;
-	int ret = -ENODEV;
-
-	if (i < 0) {
-		int err;
-
-		err = idr_for_each(&loop_index_idr, &find_free_cb, &lo);
-		if (err == 1) {
-			*l = lo;
-			ret = lo->lo_number;
-		}
-		goto out;
-	}
-
-	/* lookup and return a specific i */
-	lo = idr_find(&loop_index_idr, i);
-	if (lo) {
-		*l = lo;
-		ret = lo->lo_number;
-	}
-out:
-	return ret;
-}
-
 static void loop_probe(dev_t dev)
 {
 	int idx = MINOR(dev) >> part_shift;
@@ -2414,9 +2376,11 @@ static int loop_control_remove(int idx)
 	if (ret)
 		return ret;
 
-	ret = loop_lookup(&lo, idx);
-	if (ret < 0)
+	lo = idr_find(&loop_index_idr, idx);
+	if (!lo) {
+		ret = -ENODEV;
 		goto out_unlock_ctrl;
+	}
 
 	ret = mutex_lock_killable(&lo->lo_mutex);
 	if (ret)
@@ -2440,17 +2404,20 @@ out_unlock_ctrl:
 static int loop_control_get_free(int idx)
 {
 	struct loop_device *lo;
-	int ret;
+	int id, ret;
 
 	ret = mutex_lock_killable(&loop_ctl_mutex);
 	if (ret)
 		return ret;
-	ret = loop_lookup(&lo, -1);
+	idr_for_each_entry(&loop_index_idr, lo, id) {
+		if (lo->lo_state == Lo_unbound)
+			goto found;
+	}
 	mutex_unlock(&loop_ctl_mutex);
-
-	if (ret >= 0)
-		return ret;
 	return loop_add(-1);
+found:
+	mutex_unlock(&loop_ctl_mutex);
+	return id;
 }
 
 static long loop_control_ioctl(struct file *file, unsigned int cmd,
