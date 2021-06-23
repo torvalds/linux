@@ -38,8 +38,7 @@ static void udp_error_log(const struct sk_buff *skb,
 			  const struct nf_hook_state *state,
 			  const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_UDP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_UDP, "%s", msg);
 }
 
 static bool udp_error(struct sk_buff *skb,
@@ -130,8 +129,7 @@ static void udplite_error_log(const struct sk_buff *skb,
 			      const struct nf_hook_state *state,
 			      const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_UDPLITE, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_UDPLITE, "%s", msg);
 }
 
 static bool udplite_error(struct sk_buff *skb,

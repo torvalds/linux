@@ -45,12 +45,13 @@
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
-__printf(5, 6)
+__printf(4, 5)
 void nf_l4proto_log_invalid(const struct sk_buff *skb,
-			    struct net *net,
-			    u16 pf, u8 protonum,
+			    const struct nf_hook_state *state,
+			    u8 protonum,
 			    const char *fmt, ...)
 {
+	struct net *net = state->net;
 	struct va_format vaf;
 	va_list args;
 
@@ -62,15 +63,16 @@ void nf_l4proto_log_invalid(const struct sk_buff *skb,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-		      "nf_ct_proto_%d: %pV ", protonum, &vaf);
+	nf_log_packet(net, state->pf, 0, skb, state->in, state->out,
+		      NULL, "nf_ct_proto_%d: %pV ", protonum, &vaf);
 	va_end(args);
 }
 EXPORT_SYMBOL_GPL(nf_l4proto_log_invalid);
 
-__printf(3, 4)
+__printf(4, 5)
 void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const struct nf_conn *ct,
+			       const struct nf_hook_state *state,
 			       const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -85,7 +87,7 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	nf_l4proto_log_invalid(skb, net, nf_ct_l3num(ct),
+	nf_l4proto_log_invalid(skb, state,
 			       nf_ct_protonum(ct), "%pV", &vaf);
 	va_end(args);
 }

@@ -126,8 +126,10 @@ static int nfnl_hook_dump_one(struct sk_buff *nlskb,
 
 #ifdef CONFIG_KALLSYMS
 	ret = snprintf(sym, sizeof(sym), "%ps", ops->hook);
-	if (ret < 0 || ret > (int)sizeof(sym))
+	if (ret >= sizeof(sym)) {
+		ret = -EINVAL;
 		goto nla_put_failure;
+	}
 
 	module_name = strstr(sym, " [");
 	if (module_name) {
