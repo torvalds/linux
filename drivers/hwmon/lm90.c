@@ -1029,8 +1029,11 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 	int err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
-	if (data->kind == lm99 && index <= 2)
+	if (data->kind == lm99 && index <= 2) {
+		/* prevent integer underflow */
+		val = max(val, -128000l);
 		val -= 16000;
+	}
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp11[index] = temp_to_u16_adt7461(data, val);
@@ -1089,8 +1092,11 @@ static int lm90_set_temp8(struct lm90_data *data, int index, long val)
 	int err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
-	if (data->kind == lm99 && index == 3)
+	if (data->kind == lm99 && index == 3) {
+		/* prevent integer underflow */
+		val = max(val, -128000l);
 		val -= 16000;
+	}
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp8[index] = temp_to_u8_adt7461(data, val);
@@ -1136,6 +1142,9 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 		temp = temp_from_u8(data->temp8[LOCAL_CRIT]);
 	else
 		temp = temp_from_s8(data->temp8[LOCAL_CRIT]);
+
+	/* prevent integer underflow */
+	val = max(val, -128000l);
 
 	data->temp_hyst = hyst_to_reg(temp - val);
 	err = i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
