@@ -281,7 +281,6 @@
   debugfs_create_symlink
   debugfs_create_u32
   debugfs_create_u64
-  debugfs_create_u8
   debugfs_create_x32
   debugfs_lookup
   debugfs_remove
@@ -393,7 +392,6 @@
   devm_of_phy_get_by_index
   __devm_of_phy_provider_register
   devm_of_platform_populate
-  devm_of_pwm_get
   devm_phy_create
   devm_phy_get
   devm_pinctrl_get
@@ -513,6 +511,7 @@
   dma_pool_destroy
   dma_pool_free
   dma_resv_wait_timeout_rcu
+  dma_run_dependencies
   dma_set_coherent_mask
   dma_set_mask
   dma_sync_sg_for_cpu
@@ -1005,7 +1004,6 @@
   kvmalloc_node
   led_classdev_flash_register_ext
   led_classdev_flash_unregister
-  led_classdev_unregister
   led_get_flash_fault
   led_set_brightness_sync
   led_set_flash_brightness
@@ -1183,6 +1181,7 @@
   of_find_device_by_node
   of_find_matching_node_and_match
   of_find_node_by_name
+  of_find_node_by_phandle
   of_find_node_opts_by_path
   of_find_node_with_property
   of_find_property
@@ -1556,7 +1555,6 @@
   sdio_writel
   sdio_writesb
   send_sig
-  send_sig_info
   seq_hex_dump
   seq_lseek
   seq_open
@@ -1732,8 +1730,6 @@
   syscon_node_to_regmap
   syscon_regmap_lookup_by_compatible
   syscon_regmap_lookup_by_phandle
-  syscore_resume
-  syscore_suspend
   sysfs_create_bin_file
   sysfs_create_file_ns
   sysfs_create_group
@@ -1758,6 +1754,7 @@
   tasklet_init
   tasklet_kill
   __tasklet_schedule
+  tasklet_setup
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
@@ -2193,4 +2190,10 @@
   zlib_deflate_workspacesize
 
 # preserved by --additions-only
+  debugfs_create_u8
+  devm_of_pwm_get
+  led_classdev_unregister
+  send_sig_info
+  syscore_resume
+  syscore_suspend
   v4l2_m2m_buf_remove_by_buf
