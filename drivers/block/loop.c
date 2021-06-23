@@ -2247,8 +2247,11 @@ static int loop_add(int i)
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
 	if (!lo)
 		goto out;
-
 	lo->lo_state = Lo_unbound;
+
+	err = mutex_lock_killable(&loop_ctl_mutex);
+	if (err)
+		goto out_free_dev;
 
 	/* allocate id, if @id >= 0, we're requesting that specific id */
 	if (i >= 0) {
@@ -2259,7 +2262,7 @@ static int loop_add(int i)
 		err = idr_alloc(&loop_index_idr, lo, 0, 0, GFP_KERNEL);
 	}
 	if (err < 0)
-		goto out_free_dev;
+		goto out_unlock;
 	i = err;
 
 	err = -ENOMEM;
@@ -2326,12 +2329,15 @@ static int loop_add(int i)
 	disk->queue		= lo->lo_queue;
 	sprintf(disk->disk_name, "loop%d", i);
 	add_disk(disk);
-	return lo->lo_number;
+	mutex_unlock(&loop_ctl_mutex);
+	return i;
 
 out_cleanup_tags:
 	blk_mq_free_tag_set(&lo->tag_set);
 out_free_idr:
 	idr_remove(&loop_index_idr, i);
+out_unlock:
+	mutex_unlock(&loop_ctl_mutex);
 out_free_dev:
 	kfree(lo);
 out:
@@ -2391,22 +2397,7 @@ static void loop_probe(dev_t dev)
 
 	if (max_loop && idx >= max_loop)
 		return;
-
-	mutex_lock(&loop_ctl_mutex);
 	loop_add(idx);
-	mutex_unlock(&loop_ctl_mutex);
-}
-
-static int loop_control_add(int idx)
-{
-	int ret;
-		
-	ret = mutex_lock_killable(&loop_ctl_mutex);
-	if (ret)
-		return ret;
-	ret = loop_add(idx);
-	mutex_unlock(&loop_ctl_mutex);
-	return ret;
 }
 
 static int loop_control_remove(int idx)
@@ -2450,11 +2441,11 @@ static int loop_control_get_free(int idx)
 	if (ret)
 		return ret;
 	ret = loop_lookup(&lo, -1);
-	if (ret < 0)
-		ret = loop_add(-1);
 	mutex_unlock(&loop_ctl_mutex);
 
-	return ret;
+	if (ret >= 0)
+		return ret;
+	return loop_add(-1);
 }
 
 static long loop_control_ioctl(struct file *file, unsigned int cmd,
@@ -2462,7 +2453,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 {
 	switch (cmd) {
 	case LOOP_CTL_ADD:
-		return loop_control_add(parm);
+		return loop_add(parm);
 	case LOOP_CTL_REMOVE:
 		return loop_control_remove(parm);
 	case LOOP_CTL_GET_FREE:
@@ -2543,10 +2534,8 @@ static int __init loop_init(void)
 	}
 
 	/* pre-create number of devices given by config or max_loop */
-	mutex_lock(&loop_ctl_mutex);
 	for (i = 0; i < nr; i++)
 		loop_add(i);
-	mutex_unlock(&loop_ctl_mutex);
 
 	printk(KERN_INFO "loop: module loaded\n");
 	return 0;
