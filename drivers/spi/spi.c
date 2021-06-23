@@ -2183,7 +2183,7 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 
 	/* Take over SPI mode/speed from SPI main device */
 	ancillary->max_speed_hz = spi->max_speed_hz;
-	ancillary->mode = ancillary->mode;
+	ancillary->mode = spi->mode;
 
 	/* Register the new device */
 	rc = spi_add_device_locked(ancillary);
