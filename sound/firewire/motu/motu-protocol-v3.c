@@ -13,6 +13,12 @@
 #define  V3_CLOCK_RATE_MASK		0x0000ff00
 #define  V3_CLOCK_RATE_SHIFT		8
 #define  V3_CLOCK_SOURCE_MASK		0x000000ff
+#define   V3_CLOCK_SRC_INTERNAL		0x00
+#define   V3_CLOCK_SRC_WORD_ON_BNC	0x01
+#define   V3_CLOCK_SRC_SPH		0x02
+#define   V3_CLOCK_SRC_SPDIF_ON_COAX	0x10
+#define   V3_CLOCK_SRC_OPT_IFACE_A	0x18
+#define   V3_CLOCK_SRC_OPT_IFACE_B	0x19
 
 #define V3_OPT_IFACE_MODE_OFFSET	0x0c94
 #define  V3_ENABLE_OPT_IN_IFACE_A	0x00000001
@@ -111,20 +117,20 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 	data = be32_to_cpu(reg) & V3_CLOCK_SOURCE_MASK;
 
 	switch (data) {
-	case 0x00:
+	case V3_CLOCK_SRC_INTERNAL:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 		break;
-	case 0x01:
+	case V3_CLOCK_SRC_WORD_ON_BNC:
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
 		break;
-	case 0x02:
+	case V3_CLOCK_SRC_SPH:
 		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 		break;
-	case 0x10:
+	case V3_CLOCK_SRC_SPDIF_ON_COAX:
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 		break;
-	case 0x18:
-	case 0x19:
+	case V3_CLOCK_SRC_OPT_IFACE_A:
+	case V3_CLOCK_SRC_OPT_IFACE_B:
 	{
 		__be32 reg;
 		u32 options;
@@ -135,7 +141,7 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 			return err;
 		options = be32_to_cpu(reg);
 
-		if (data == 0x18) {
+		if (data == V3_CLOCK_SRC_OPT_IFACE_A) {
 			if (options & V3_NO_ADAT_OPT_IN_IFACE_A)
 				*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT_A;
 			else
