@@ -741,6 +741,7 @@ static const struct dccg_mask dccg_mask = {
 
 #define HWSEQ_DCN31_REG_LIST()\
 	SR(DCHUBBUB_GLOBAL_TIMER_CNTL), \
+	SR(DCHUBBUB_ARB_HOSTVM_CNTL), \
 	SR(DIO_MEM_PWR_CTRL), \
 	SR(ODM_MEM_PWR_CTRL3), \
 	SR(DMU_MEM_PWR_CNTL), \
@@ -801,6 +802,7 @@ static const struct dce_hwseq_registers hwseq_reg = {
 #define HWSEQ_DCN31_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
 	HWS_SF(, DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, mask_sh), \
+	HWS_SF(, DCHUBBUB_ARB_HOSTVM_CNTL, DISABLE_HOSTVM_FORCE_ALLOW_PSTATE, mask_sh), \
 	HWS_SF(, DOMAIN0_PG_CONFIG, DOMAIN_POWER_FORCEON, mask_sh), \
 	HWS_SF(, DOMAIN0_PG_CONFIG, DOMAIN_POWER_GATE, mask_sh), \
 	HWS_SF(, DOMAIN1_PG_CONFIG, DOMAIN_POWER_FORCEON, mask_sh), \
@@ -1299,6 +1301,7 @@ static struct dce_hwseq *dcn31_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
+		hws->wa.early_riommu_invalidation = true;
 	}
 	return hws;
 }
