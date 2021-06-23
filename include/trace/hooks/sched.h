@@ -370,14 +370,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
 	TP_PROTO(struct cpumask *nohz_idle_cpus_mask, int *ilb),
 	TP_ARGS(nohz_idle_cpus_mask, ilb), 1);
 
-DECLARE_HOOK(android_vh_force_compatible_pre,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused));
-
-DECLARE_HOOK(android_vh_force_compatible_post,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused));
-
 DECLARE_RESTRICTED_HOOK(android_rvh_force_compatible_pre,
 	TP_PROTO(void *unused),
 	TP_ARGS(unused), 1);
