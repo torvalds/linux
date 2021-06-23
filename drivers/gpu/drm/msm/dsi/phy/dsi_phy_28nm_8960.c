@@ -8,6 +8,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_28nm_8960.xml.h"
 
 /*
  * DSI PLL 28nm (8960/A family) - clock diagram (eg: DSI1):
