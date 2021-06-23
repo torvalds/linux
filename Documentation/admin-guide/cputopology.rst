@@ -58,9 +58,9 @@ source for the output is in brackets ("[]").
 		[NR_CPUS-1]
 
     offline:	CPUs that are not online because they have been
-		HOTPLUGGED off (see cpu-hotplug.txt) or exceed the limit
-		of CPUs allowed by the kernel configuration (kernel_max
-		above). [~cpu_online_mask + cpus >= NR_CPUS]
+		HOTPLUGGED off or exceed the limit of CPUs allowed by the
+		kernel configuration (kernel_max above).
+		[~cpu_online_mask + cpus >= NR_CPUS]
 
     online:	CPUs that are online and being scheduled [cpu_online_mask]
 
@@ -96,5 +96,5 @@ online.)::
        possible: 0-127
         present: 0-3
 
-See cpu-hotplug.txt for the possible_cpus=NUM kernel start parameter
-as well as more information on the various cpumasks.
+See Documentation/core-api/cpu_hotplug.rst for the possible_cpus=NUM
+kernel start parameter as well as more information on the various cpumasks.
