@@ -76,9 +76,6 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
  .exit - 一个指向per-policy清理函数的指针，该函数在cpu热插拔过程的CPU_POST_DEAD
  阶段被调用。
 
- .stop_cpu - 一个指向per-policy停止函数的指针，该函数在cpu热插拔过程的CPU_DOWN_PREPARE
- 阶段被调用。
-
  .suspend - 一个指向per-policy暂停函数的指针，该函数在关中断且在该策略的调节器停止
  后被调用。
 
