@@ -448,8 +448,6 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 				}
 			}
 		}
-	} else if (pattrib->ether_type == ETH_P_PAE) {
-		DBG_88E_LEVEL(_drv_info_, "send eapol packet\n");
 	}
 
 	if ((pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1))
