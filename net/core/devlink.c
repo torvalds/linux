@@ -2709,23 +2709,16 @@ static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 				    struct netlink_ext_ack *extack)
 {
 	struct devlink_rate *devlink_rate;
-	u16 old_mode;
-	int err;
 
-	if (!devlink->ops->eswitch_mode_get)
-		return -EOPNOTSUPP;
-	err = devlink->ops->eswitch_mode_get(devlink, &old_mode);
-	if (err)
-		return err;
-
-	if (old_mode == mode)
-		return 0;
-
+	/* Take the lock to sync with devlink_rate_nodes_destroy() */
+	mutex_lock(&devlink->lock);
 	list_for_each_entry(devlink_rate, &devlink->rate_list, list)
 		if (devlink_rate_is_node(devlink_rate)) {
+			mutex_unlock(&devlink->lock);
 			NL_SET_ERR_MSG_MOD(extack, "Rate node(s) exists.");
 			return -EBUSY;
 		}
+	mutex_unlock(&devlink->lock);
 	return 0;
 }
 
@@ -9275,6 +9268,8 @@ void devlink_rate_leaf_destroy(struct devlink_port *devlink_port)
 
 	mutex_lock(&devlink->lock);
 	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_DEL);
+	if (devlink_rate->parent)
+		refcount_dec(&devlink_rate->parent->refcnt);
 	list_del(&devlink_rate->list);
 	devlink_port->devlink_rate = NULL;
 	mutex_unlock(&devlink->lock);
