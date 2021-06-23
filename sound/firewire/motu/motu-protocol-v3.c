@@ -97,9 +97,19 @@ int snd_motu_protocol_v3_set_clock_rate(struct snd_motu *motu,
 	return 0;
 }
 
-static int detect_clock_source_828mk3(struct snd_motu *motu, u32 data,
-				      enum snd_motu_clock_source *src)
+int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
+					  enum snd_motu_clock_source *src)
 {
+	__be32 reg;
+	u32 data;
+	int err;
+
+	err = snd_motu_transaction_read(motu, V3_CLOCK_STATUS_OFFSET, &reg,
+					sizeof(reg));
+	if (err < 0)
+		return err;
+	data = be32_to_cpu(reg) & V3_CLOCK_SOURCE_MASK;
+
 	switch (data) {
 	case 0x00:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
@@ -118,7 +128,6 @@ static int detect_clock_source_828mk3(struct snd_motu *motu, u32 data,
 	{
 		__be32 reg;
 		u32 options;
-		int err;
 
 		err = snd_motu_transaction_read(motu,
 				V3_OPT_IFACE_MODE_OFFSET, &reg, sizeof(reg));
@@ -137,7 +146,6 @@ static int detect_clock_source_828mk3(struct snd_motu *motu, u32 data,
 			else
 				*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT_B;
 		}
-
 		break;
 	}
 	default:
@@ -146,49 +154,6 @@ static int detect_clock_source_828mk3(struct snd_motu *motu, u32 data,
 	}
 
 	return 0;
-}
-
-static int v3_detect_clock_source(struct snd_motu *motu, u32 data,
-				  enum snd_motu_clock_source *src)
-{
-	switch (data) {
-	case 0x00:
-		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
-		break;
-	case 0x01:
-		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
-		break;
-	case 0x02:
-		*src = SND_MOTU_CLOCK_SOURCE_SPH;
-		break;
-	case 0x10:
-		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
-		break;
-	default:
-		*src = SND_MOTU_CLOCK_SOURCE_UNKNOWN;
-		break;
-	}
-
-	return 0;
-}
-
-int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
-					  enum snd_motu_clock_source *src)
-{
-	__be32 reg;
-	u32 data;
-	int err;
-
-	err = snd_motu_transaction_read(motu, V3_CLOCK_STATUS_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
-	data = be32_to_cpu(reg) & V3_CLOCK_SOURCE_MASK;
-
-	if (motu->spec == &snd_motu_spec_828mk3_fw || motu->spec == &snd_motu_spec_828mk3_hybrid)
-		return detect_clock_source_828mk3(motu, data, src);
-	else
-		return v3_detect_clock_source(motu, data, src);
 }
 
 int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
