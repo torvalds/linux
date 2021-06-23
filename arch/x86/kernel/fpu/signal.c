@@ -220,36 +220,6 @@ retry:
 	return 0;
 }
 
-static inline void
-sanitize_restored_user_xstate(union fpregs_state *state,
-			      struct user_i387_ia32_struct *ia32_env, u64 mask)
-{
-	struct xregs_state *xsave = &state->xsave;
-	struct xstate_header *header = &xsave->header;
-
-	if (use_xsave()) {
-		/*
-		 * Clear all feature bits which are not set in mask.
-		 *
-		 * Supervisor state has to be preserved. The sigframe
-		 * restore can only modify user features, i.e. @mask
-		 * cannot contain them.
-		 */
-		header->xfeatures &= mask | xfeatures_mask_supervisor();
-	}
-
-	if (use_fxsr()) {
-		/*
-		 * mscsr reserved bits must be masked to zero for security
-		 * reasons.
-		 */
-		xsave->i387.mxcsr &= mxcsr_feature_mask;
-
-		if (ia32_env)
-			convert_to_fxsr(&state->fxsave, ia32_env);
-	}
-}
-
 static int __restore_fpregs_from_user(void __user *buf, u64 xrestore,
 				      bool fx_only)
 {
@@ -352,6 +322,8 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		fx_only = !fx_sw_user.magic1;
 		state_size = fx_sw_user.xstate_size;
 		user_xfeatures = fx_sw_user.xfeatures;
+	} else {
+		user_xfeatures = XFEATURE_MASK_FPSSE;
 	}
 
 	if (likely(!ia32_fxstate)) {
@@ -395,54 +367,55 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		set_thread_flag(TIF_NEED_FPU_LOAD);
 	}
 	__fpu_invalidate_fpregs_state(fpu);
+	__cpu_invalidate_fpregs_state();
 	fpregs_unlock();
 
 	if (use_xsave() && !fx_only) {
-		u64 init_bv = xfeatures_mask_uabi() & ~user_xfeatures;
-
 		ret = copy_sigframe_from_user_to_xstate(&fpu->state.xsave, buf_fx);
 		if (ret)
 			return ret;
-
-		sanitize_restored_user_xstate(&fpu->state, &env, user_xfeatures);
-
-		fpregs_lock();
-		if (unlikely(init_bv))
-			os_xrstor(&init_fpstate.xsave, init_bv);
-
-		/*
-		 * Restore previously saved supervisor xstates along with
-		 * copied-in user xstates.
-		 */
-		ret = os_xrstor_safe(&fpu->state.xsave,
-				     user_xfeatures | xfeatures_mask_supervisor());
-
 	} else {
-		ret = __copy_from_user(&fpu->state.fxsave, buf_fx, state_size);
-		if (ret)
+		if (__copy_from_user(&fpu->state.fxsave, buf_fx,
+				     sizeof(fpu->state.fxsave)))
 			return -EFAULT;
 
-		sanitize_restored_user_xstate(&fpu->state, &env, user_xfeatures);
+		/* Reject invalid MXCSR values. */
+		if (fpu->state.fxsave.mxcsr & ~mxcsr_feature_mask)
+			return -EINVAL;
 
-		fpregs_lock();
-		if (use_xsave()) {
-			u64 init_bv;
+		/* Enforce XFEATURE_MASK_FPSSE when XSAVE is enabled */
+		if (use_xsave())
+			fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
+	}
 
-			init_bv = xfeatures_mask_uabi() & ~XFEATURE_MASK_FPSSE;
-			os_xrstor(&init_fpstate.xsave, init_bv);
-		}
+	/* Fold the legacy FP storage */
+	convert_to_fxsr(&fpu->state.fxsave, &env);
 
+	fpregs_lock();
+	if (use_xsave()) {
+		/*
+		 * Remove all UABI feature bits not set in user_xfeatures
+		 * from the memory xstate header which makes the full
+		 * restore below bring them into init state. This works for
+		 * fx_only mode as well because that has only FP and SSE
+		 * set in user_xfeatures.
+		 *
+		 * Preserve supervisor states!
+		 */
+		u64 mask = user_xfeatures | xfeatures_mask_supervisor();
+
+		fpu->state.xsave.header.xfeatures &= mask;
+		ret = os_xrstor_safe(&fpu->state.xsave, xfeatures_mask_all);
+	} else {
 		ret = fxrstor_safe(&fpu->state.fxsave);
 	}
 
-	if (!ret)
+	if (likely(!ret))
 		fpregs_mark_activate();
-	else
-		fpregs_deactivate(fpu);
+
 	fpregs_unlock();
 	return ret;
 }
-
 static inline int xstate_sigframe_size(void)
 {
 	return use_xsave() ? fpu_user_xstate_size + FP_XSTATE_MAGIC2_SIZE :
