@@ -530,7 +530,7 @@ static void xilinx_dpdma_sw_desc_set_dma_addrs(struct xilinx_dpdma_device *xdev,
 	for (i = 1; i < num_src_addr; i++) {
 		u32 *addr = &hw_desc->src_addr2;
 
-		addr[i-1] = lower_32_bits(dma_addr[i]);
+		addr[i - 1] = lower_32_bits(dma_addr[i]);
 
 		if (xdev->ext_addr) {
 			u32 *addr_ext = &hw_desc->addr_ext_23;
