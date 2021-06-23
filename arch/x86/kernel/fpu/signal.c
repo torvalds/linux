@@ -15,29 +15,30 @@
 #include <asm/sigframe.h>
 #include <asm/trace/fpu.h>
 
-static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
+static struct _fpx_sw_bytes fx_sw_reserved __ro_after_init;
+static struct _fpx_sw_bytes fx_sw_reserved_ia32 __ro_after_init;
 
 /*
  * Check for the presence of extended state information in the
  * user fpstate pointer in the sigcontext.
  */
-static inline int check_for_xstate(struct fxregs_state __user *buf,
-				   void __user *fpstate,
-				   struct _fpx_sw_bytes *fx_sw)
+static inline int check_xstate_in_sigframe(struct fxregs_state __user *fxbuf,
+					   struct _fpx_sw_bytes *fx_sw)
 {
 	int min_xstate_size = sizeof(struct fxregs_state) +
 			      sizeof(struct xstate_header);
+	void __user *fpstate = fxbuf;
 	unsigned int magic2;
 
-	if (__copy_from_user(fx_sw, &buf->sw_reserved[0], sizeof(*fx_sw)))
-		return -1;
+	if (__copy_from_user(fx_sw, &fxbuf->sw_reserved[0], sizeof(*fx_sw)))
+		return -EFAULT;
 
 	/* Check for the first magic field and other error scenarios. */
 	if (fx_sw->magic1 != FP_XSTATE_MAGIC1 ||
 	    fx_sw->xstate_size < min_xstate_size ||
 	    fx_sw->xstate_size > fpu_user_xstate_size ||
 	    fx_sw->xstate_size > fx_sw->extended_size)
-		return -1;
+		goto setfx;
 
 	/*
 	 * Check for the presence of second magic word at the end of memory
@@ -45,10 +46,18 @@ static inline int check_for_xstate(struct fxregs_state __user *buf,
 	 * fpstate layout with out copying the extended state information
 	 * in the memory layout.
 	 */
-	if (__get_user(magic2, (__u32 __user *)(fpstate + fx_sw->xstate_size))
-	    || magic2 != FP_XSTATE_MAGIC2)
-		return -1;
+	if (__get_user(magic2, (__u32 __user *)(fpstate + fx_sw->xstate_size)))
+		return -EFAULT;
 
+	if (likely(magic2 == FP_XSTATE_MAGIC2))
+		return 0;
+setfx:
+	trace_x86_fpu_xstate_check_failed(&current->thread.fpu);
+
+	/* Set the parameters for fx only state */
+	fx_sw->magic1 = 0;
+	fx_sw->xstate_size = sizeof(struct fxregs_state);
+	fx_sw->xfeatures = XFEATURE_MASK_FPSSE;
 	return 0;
 }
 
@@ -213,21 +222,15 @@ retry:
 
 static inline void
 sanitize_restored_user_xstate(union fpregs_state *state,
-			      struct user_i387_ia32_struct *ia32_env,
-			      u64 user_xfeatures, int fx_only)
+			      struct user_i387_ia32_struct *ia32_env, u64 mask)
 {
 	struct xregs_state *xsave = &state->xsave;
 	struct xstate_header *header = &xsave->header;
 
 	if (use_xsave()) {
 		/*
-		 * Clear all feature bits which are not set in
-		 * user_xfeatures and clear all extended features
-		 * for fx_only mode.
-		 */
-		u64 mask = fx_only ? XFEATURE_MASK_FPSSE : user_xfeatures;
-
-		/*
+		 * Clear all feature bits which are not set in mask.
+		 *
 		 * Supervisor state has to be preserved. The sigframe
 		 * restore can only modify user features, i.e. @mask
 		 * cannot contain them.
@@ -286,24 +289,19 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 	struct fpu *fpu = &tsk->thread.fpu;
 	struct user_i387_ia32_struct env;
 	u64 user_xfeatures = 0;
-	int fx_only = 0;
+	bool fx_only = false;
 	int ret = 0;
 
 	if (use_xsave()) {
 		struct _fpx_sw_bytes fx_sw_user;
-		if (unlikely(check_for_xstate(buf_fx, buf_fx, &fx_sw_user))) {
-			/*
-			 * Couldn't find the extended state information in the
-			 * memory layout. Restore just the FP/SSE and init all
-			 * the other extended state.
-			 */
-			state_size = sizeof(struct fxregs_state);
-			fx_only = 1;
-			trace_x86_fpu_xstate_check_failed(fpu);
-		} else {
-			state_size = fx_sw_user.xstate_size;
-			user_xfeatures = fx_sw_user.xfeatures;
-		}
+
+		ret = check_xstate_in_sigframe(buf_fx, &fx_sw_user);
+		if (unlikely(ret))
+			return ret;
+
+		fx_only = !fx_sw_user.magic1;
+		state_size = fx_sw_user.xstate_size;
+		user_xfeatures = fx_sw_user.xfeatures;
 	}
 
 	if (!ia32_fxstate) {
@@ -403,8 +401,7 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		if (ret)
 			return ret;
 
-		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures,
-					      fx_only);
+		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures);
 
 		fpregs_lock();
 		if (unlikely(init_bv))
@@ -422,8 +419,7 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		if (ret)
 			return -EFAULT;
 
-		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures,
-					      fx_only);
+		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures);
 
 		fpregs_lock();
 		if (use_xsave()) {
