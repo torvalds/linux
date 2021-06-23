@@ -12,8 +12,6 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_s2mpu.h>
 
-#define S2MPU_MMIO_SIZE		SZ_64K
-
 #define CTX_CFG_ENTRY(ctxid, nr_ctx, vid) \
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
