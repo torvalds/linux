@@ -236,7 +236,7 @@ static int avic_update_access_page(struct kvm *kvm, bool activate)
 	 * APICv mode change, which update APIC_ACCESS_PAGE_PRIVATE_MEMSLOT
 	 * memory region. So, we need to ensure that kvm->mm == current->mm.
 	 */
-	if ((kvm->arch.apic_access_page_done == activate) ||
+	if ((kvm->arch.apic_access_memslot_enabled == activate) ||
 	    (kvm->mm != current->mm))
 		goto out;
 
@@ -249,7 +249,7 @@ static int avic_update_access_page(struct kvm *kvm, bool activate)
 		goto out;
 	}
 
-	kvm->arch.apic_access_page_done = activate;
+	kvm->arch.apic_access_memslot_enabled = activate;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
