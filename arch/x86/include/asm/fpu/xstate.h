@@ -139,7 +139,7 @@ enum xstate_copy_mode {
 };
 
 struct membuf;
-void copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsave,
+void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
 			     enum xstate_copy_mode mode);
 
 #endif
