@@ -2709,17 +2709,6 @@ static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 				    struct netlink_ext_ack *extack)
 {
 	struct devlink_rate *devlink_rate;
-	u16 old_mode;
-	int err;
-
-	if (!devlink->ops->eswitch_mode_get)
-		return -EOPNOTSUPP;
-	err = devlink->ops->eswitch_mode_get(devlink, &old_mode);
-	if (err)
-		return err;
-
-	if (old_mode == mode)
-		return 0;
 
 	list_for_each_entry(devlink_rate, &devlink->rate_list, list)
 		if (devlink_rate_is_node(devlink_rate)) {
