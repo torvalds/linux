@@ -272,11 +272,17 @@ static int __restore_fpregs_from_user(void __user *buf, u64 xrestore,
 	}
 }
 
-static int restore_fpregs_from_user(void __user *buf, u64 xrestore, bool fx_only)
+/*
+ * Attempt to restore the FPU registers directly from user memory.
+ * Pagefaults are handled and any errors returned are fatal.
+ */
+static int restore_fpregs_from_user(void __user *buf, u64 xrestore,
+				    bool fx_only, unsigned int size)
 {
 	struct fpu *fpu = &current->thread.fpu;
 	int ret;
 
+retry:
 	fpregs_lock();
 	pagefault_disable();
 	ret = __restore_fpregs_from_user(buf, xrestore, fx_only);
@@ -293,14 +299,18 @@ static int restore_fpregs_from_user(void __user *buf, u64 xrestore, bool fx_only
 		 * invalidate the FPU register state otherwise the task
 		 * might preempt current and return to user space with
 		 * corrupted FPU registers.
-		 *
-		 * In case current owns the FPU registers then no further
-		 * action is required. The fixup in the slow path will
-		 * handle it correctly.
 		 */
 		if (test_thread_flag(TIF_NEED_FPU_LOAD))
 			__cpu_invalidate_fpregs_state();
 		fpregs_unlock();
+
+		/* Try to handle #PF, but anything else is fatal. */
+		if (ret != -EFAULT)
+			return -EINVAL;
+
+		ret = fault_in_pages_readable(buf, size);
+		if (!ret)
+			goto retry;
 		return ret;
 	}
 
@@ -311,9 +321,7 @@ static int restore_fpregs_from_user(void __user *buf, u64 xrestore, bool fx_only
 	 *
 	 * It would be optimal to handle this with a single XRSTORS, but
 	 * this does not work because the rest of the FPU registers have
-	 * been restored from a user buffer directly. The single XRSTORS
-	 * happens below, when the user buffer has been copied to the
-	 * kernel one.
+	 * been restored from a user buffer directly.
 	 */
 	if (test_thread_flag(TIF_NEED_FPU_LOAD) && xfeatures_mask_supervisor())
 		os_xrstor(&fpu->state.xsave, xfeatures_mask_supervisor());
@@ -326,14 +334,13 @@ static int restore_fpregs_from_user(void __user *buf, u64 xrestore, bool fx_only
 static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 			     bool ia32_fxstate)
 {
-	struct user_i387_ia32_struct *envp = NULL;
 	int state_size = fpu_kernel_xstate_size;
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 	struct user_i387_ia32_struct env;
 	u64 user_xfeatures = 0;
 	bool fx_only = false;
-	int ret = 0;
+	int ret;
 
 	if (use_xsave()) {
 		struct _fpx_sw_bytes fx_sw_user;
@@ -354,19 +361,18 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		 * faults. If it does, fall back to the slow path below, going
 		 * through the kernel buffer with the enabled pagefault handler.
 		 */
-		ret = restore_fpregs_from_user(buf_fx, user_xfeatures, fx_only);
-		if (likely(!ret))
-			return 0;
-	} else {
-		/*
-		 * For 32-bit frames with fxstate, copy the fxstate so it can
-		 * be reconstructed later.
-		 */
-		ret = __copy_from_user(&env, buf, sizeof(env));
-		if (ret)
-			return ret;
-		envp = &env;
+		return restore_fpregs_from_user(buf_fx, user_xfeatures, fx_only,
+						state_size);
 	}
+
+	/*
+	 * Copy the legacy state because the FP portion of the FX frame has
+	 * to be ignored for histerical raisins. The legacy state is folded
+	 * in once the larger state has been copied.
+	 */
+	ret = __copy_from_user(&env, buf, sizeof(env));
+	if (ret)
+		return ret;
 
 	/*
 	 * By setting TIF_NEED_FPU_LOAD it is ensured that our xstate is
@@ -382,8 +388,7 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		 * supervisor state is preserved. Save the full state for
 		 * simplicity. There is no point in optimizing this by only
 		 * saving the supervisor states and then shuffle them to
-		 * the right place in memory. This is the slow path and the
-		 * above XRSTOR failed or ia32_fxstate is true. Shrug.
+		 * the right place in memory. It's ia32 mode. Shrug.
 		 */
 		if (xfeatures_mask_supervisor())
 			os_xsave(&fpu->state.xsave);
@@ -399,7 +404,7 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		if (ret)
 			return ret;
 
-		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures);
+		sanitize_restored_user_xstate(&fpu->state, &env, user_xfeatures);
 
 		fpregs_lock();
 		if (unlikely(init_bv))
@@ -412,12 +417,12 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		ret = os_xrstor_safe(&fpu->state.xsave,
 				     user_xfeatures | xfeatures_mask_supervisor());
 
-	} else if (use_fxsr()) {
+	} else {
 		ret = __copy_from_user(&fpu->state.fxsave, buf_fx, state_size);
 		if (ret)
 			return -EFAULT;
 
-		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures);
+		sanitize_restored_user_xstate(&fpu->state, &env, user_xfeatures);
 
 		fpregs_lock();
 		if (use_xsave()) {
@@ -428,14 +433,8 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		}
 
 		ret = fxrstor_safe(&fpu->state.fxsave);
-	} else {
-		ret = __copy_from_user(&fpu->state.fsave, buf_fx, state_size);
-		if (ret)
-			return ret;
-
-		fpregs_lock();
-		ret = frstor_safe(&fpu->state.fsave);
 	}
+
 	if (!ret)
 		fpregs_mark_activate();
 	else
