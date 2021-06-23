@@ -12,7 +12,6 @@ config PCIE_DW_HOST
 
 config PCIE_DW_EP
 	bool
-	depends on PCI_ENDPOINT
 	select PCIE_DW
 
 config PCI_DRA7XX
@@ -37,8 +36,8 @@ config PCI_DRA7XX_HOST
 config PCI_DRA7XX_EP
 	tristate "TI DRA7xx PCIe controller Endpoint Mode"
 	depends on SOC_DRA7XX || COMPILE_TEST
-	depends on PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
+	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCI_DRA7XX
 	help
