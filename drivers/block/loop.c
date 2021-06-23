@@ -2404,6 +2404,11 @@ static int loop_control_remove(int idx)
 {
 	struct loop_device *lo;
 	int ret;
+
+	if (idx < 0) {
+		pr_warn("deleting an unspecified loop device is not supported.\n");
+		return -EINVAL;
+	}
 		
 	ret = mutex_lock_killable(&loop_ctl_mutex);
 	if (ret)
