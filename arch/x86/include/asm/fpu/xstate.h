@@ -104,8 +104,9 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
 int xfeature_size(int xfeature_nr);
 int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf);
 int copy_sigframe_from_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf);
-void copy_independent_supervisor_to_kernel(struct xregs_state *xstate, u64 mask);
-void copy_kernel_to_independent_supervisor(struct xregs_state *xstate, u64 mask);
+
+void xsaves(struct xregs_state *xsave, u64 mask);
+void xrstors(struct xregs_state *xsave, u64 mask);
 
 enum xstate_copy_mode {
 	XSTATE_COPY_FP,
