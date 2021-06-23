@@ -337,23 +337,6 @@ static inline unsigned int init_fpstate_copy_size(void)
 	return sizeof(init_fpstate.xsave);
 }
 
-/* Temporary workaround. Will be removed once PKRU and XSTATE are untangled. */
-static inline void pkru_set_default_in_xstate(struct xregs_state *xsave)
-{
-	struct pkru_state *pk;
-
-	if (!cpu_feature_enabled(X86_FEATURE_OSPKE))
-		return;
-	/*
-	 * Force XFEATURE_PKRU to be set in the header otherwise
-	 * get_xsave_addr() does not work and it also needs to be set to
-	 * make XRSTOR(S) load it.
-	 */
-	xsave->header.xfeatures |= XFEATURE_MASK_PKRU;
-	pk = get_xsave_addr(xsave, XFEATURE_PKRU);
-	pk->pkru = pkru_get_init_value();
-}
-
 /*
  * Reset current->fpu memory state to the init values.
  */
@@ -371,9 +354,12 @@ static void fpu_reset_fpstate(void)
 	 *
 	 * Do not use fpstate_init() here. Just copy init_fpstate which has
 	 * the correct content already except for PKRU.
+	 *
+	 * PKRU handling does not rely on the xstate when restoring for
+	 * user space as PKRU is eagerly written in switch_to() and
+	 * flush_thread().
 	 */
 	memcpy(&fpu->state, &init_fpstate, init_fpstate_copy_size());
-	pkru_set_default_in_xstate(&fpu->state.xsave);
 	set_thread_flag(TIF_NEED_FPU_LOAD);
 	fpregs_unlock();
 }
