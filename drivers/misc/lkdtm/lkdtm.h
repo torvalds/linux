@@ -6,6 +6,47 @@
 
 #include <linux/kernel.h>
 
+#define pr_expected_config(kconfig)				\
+{								\
+	if (IS_ENABLED(kconfig)) 				\
+		pr_err("Unexpected! This kernel was built with " #kconfig "=y\n"); \
+	else							\
+		pr_warn("This is probably expected, since this kernel was built *without* " #kconfig "=y\n"); \
+}
+
+#ifndef MODULE
+int lkdtm_check_bool_cmdline(const char *param);
+#define pr_expected_config_param(kconfig, param)		\
+{								\
+	if (IS_ENABLED(kconfig)) {				\
+		switch (lkdtm_check_bool_cmdline(param)) {	\
+		case 0:						\
+			pr_warn("This is probably expected, since this kernel was built with " #kconfig "=y but booted with '" param "=N'\n"); \
+			break;					\
+		case 1:						\
+			pr_err("Unexpected! This kernel was built with " #kconfig "=y and booted with '" param "=Y'\n"); \
+			break;					\
+		default:					\
+			pr_err("Unexpected! This kernel was built with " #kconfig "=y (and booted without '" param "' specified)\n"); \
+		}						\
+	} else {						\
+		switch (lkdtm_check_bool_cmdline(param)) {	\
+		case 0:						\
+			pr_warn("This is probably expected, as kernel was built *without* " #kconfig "=y and booted with '" param "=N'\n"); \
+			break;					\
+		case 1:						\
+			pr_err("Unexpected! This kernel was built *without* " #kconfig "=y but booted with '" param "=Y'\n"); \
+			break;					\
+		default:					\
+			pr_err("This is probably expected, since this kernel was built *without* " #kconfig "=y (and booted without '" param "' specified)\n"); \
+			break;					\
+		}						\
+	}							\
+}
+#else
+#define pr_expected_config_param(kconfig, param) pr_expected_config(kconfig)
+#endif
+
 /* bugs.c */
 void __init lkdtm_bugs_init(int *recur_param);
 void lkdtm_PANIC(void);

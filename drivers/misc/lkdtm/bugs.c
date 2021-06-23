@@ -303,8 +303,10 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_add() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 void lkdtm_CORRUPT_LIST_DEL(void)
@@ -328,8 +330,10 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_del() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */

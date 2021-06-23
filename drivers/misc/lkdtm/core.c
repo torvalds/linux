@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/init.h>
 
 #define DEFAULT_COUNT 10
 
@@ -397,6 +398,56 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 
 	return count;
 }
+
+#ifndef MODULE
+/*
+ * To avoid needing to export parse_args(), just don't use this code
+ * when LKDTM is built as a module.
+ */
+struct check_cmdline_args {
+	const char *param;
+	int value;
+};
+
+static int lkdtm_parse_one(char *param, char *val,
+			   const char *unused, void *arg)
+{
+	struct check_cmdline_args *args = arg;
+
+	/* short circuit if we already found a value. */
+	if (args->value != -ESRCH)
+		return 0;
+	if (strncmp(param, args->param, strlen(args->param)) == 0) {
+		bool bool_result;
+		int ret;
+
+		ret = kstrtobool(val, &bool_result);
+		if (ret == 0)
+			args->value = bool_result;
+	}
+	return 0;
+}
+
+int lkdtm_check_bool_cmdline(const char *param)
+{
+	char *command_line;
+	struct check_cmdline_args args = {
+		.param = param,
+		.value = -ESRCH,
+	};
+
+	command_line = kstrdup(saved_command_line, GFP_KERNEL);
+	if (!command_line)
+		return -ENOMEM;
+
+	parse_args("Setting sysctl args", command_line,
+		   NULL, 0, -1, -1, &args, lkdtm_parse_one);
+
+	kfree(command_line);
+
+	return args.value;
+}
+#endif
 
 static struct dentry *lkdtm_debugfs_root;
 
