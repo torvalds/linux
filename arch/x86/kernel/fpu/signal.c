@@ -251,33 +251,27 @@ sanitize_restored_user_xstate(union fpregs_state *state,
 }
 
 /*
- * Restore the extended state if present. Otherwise, restore the FP/SSE state.
+ * Restore the FPU state directly from the userspace signal frame.
  */
-static int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
+static int restore_fpregs_from_user(void __user *buf, u64 xrestore, bool fx_only)
 {
-	u64 init_bv;
-	int r;
-
 	if (use_xsave()) {
-		if (fx_only) {
-			init_bv = xfeatures_mask_uabi() & ~XFEATURE_MASK_FPSSE;
+		u64 init_bv = xfeatures_mask_uabi() & ~xrestore;
+		int ret;
 
-			r = fxrstor_from_user_sigframe(buf);
-			if (!r)
-				os_xrstor(&init_fpstate.xsave, init_bv);
-			return r;
-		} else {
-			init_bv = xfeatures_mask_uabi() & ~xbv;
+		if (likely(!fx_only))
+			ret = xrstor_from_user_sigframe(buf, xrestore);
+		else
+			ret = fxrstor_from_user_sigframe(buf);
 
-			r = xrstor_from_user_sigframe(buf, xbv);
-			if (!r && unlikely(init_bv))
-				os_xrstor(&init_fpstate.xsave, init_bv);
-			return r;
-		}
+		if (!ret && unlikely(init_bv))
+			os_xrstor(&init_fpstate.xsave, init_bv);
+		return ret;
 	} else if (use_fxsr()) {
 		return fxrstor_from_user_sigframe(buf);
-	} else
+	} else {
 		return frstor_from_user_sigframe(buf);
+	}
 }
 
 static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
@@ -314,7 +308,7 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		 */
 		fpregs_lock();
 		pagefault_disable();
-		ret = copy_user_to_fpregs_zeroing(buf_fx, user_xfeatures, fx_only);
+		ret = restore_fpregs_from_user(buf_fx, user_xfeatures, fx_only);
 		pagefault_enable();
 		if (!ret) {
 
