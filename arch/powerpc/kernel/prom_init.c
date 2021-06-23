@@ -3243,54 +3243,6 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
 
-#ifdef CONFIG_PPC64
-#ifdef CONFIG_RELOCATABLE
-static void reloc_toc(void)
-{
-}
-
-static void unreloc_toc(void)
-{
-}
-#else
-static void __reloc_toc(unsigned long offset, unsigned long nr_entries)
-{
-	unsigned long i;
-	unsigned long *toc_entry;
-
-	/* Get the start of the TOC by using r2 directly. */
-	asm volatile("addi %0,2,-0x8000" : "=b" (toc_entry));
-
-	for (i = 0; i < nr_entries; i++) {
-		*toc_entry = *toc_entry + offset;
-		toc_entry++;
-	}
-}
-
-static void reloc_toc(void)
-{
-	unsigned long offset = reloc_offset();
-	unsigned long nr_entries =
-		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
-
-	__reloc_toc(offset, nr_entries);
-
-	mb();
-}
-
-static void unreloc_toc(void)
-{
-	unsigned long offset = reloc_offset();
-	unsigned long nr_entries =
-		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
-
-	mb();
-
-	__reloc_toc(-offset, nr_entries);
-}
-#endif
-#endif
-
 #ifdef CONFIG_PPC_SVM
 /*
  * Perform the Enter Secure Mode ultracall.
@@ -3324,14 +3276,12 @@ static void __init setup_secure_guest(unsigned long kbase, unsigned long fdt)
 	 * relocated it so the check will fail. Restore the original image by
 	 * relocating it back to the kernel virtual base address.
 	 */
-	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		relocate(KERNELBASE);
+	relocate(KERNELBASE);
 
 	ret = enter_secure_mode(kbase, fdt);
 
 	/* Relocate the kernel again. */
-	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		relocate(kbase);
+	relocate(kbase);
 
 	if (ret != U_SUCCESS) {
 		prom_printf("Returned %d from switching to secure mode.\n", ret);
@@ -3359,8 +3309,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 #ifdef CONFIG_PPC32
 	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
-#else
-	reloc_toc();
 #endif
 
 	/*
@@ -3537,8 +3485,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 
 #ifdef CONFIG_PPC32
 	reloc_got2(-offset);
-#else
-	unreloc_toc();
 #endif
 
 	/* Move to secure memory if we're supposed to be secure guests. */

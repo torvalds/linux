@@ -51,6 +51,7 @@ config PPC_NATIVE
 config PPC_OF_BOOT_TRAMPOLINE
 	bool "Support booting from Open Firmware or yaboot"
 	depends on PPC_BOOK3S_32 || PPC64
+	select RELOCATABLE if PPC64
 	default y
 	help
 	  Support from booting from Open Firmware or yaboot using an
