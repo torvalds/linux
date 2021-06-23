@@ -2380,6 +2380,11 @@
 	memory-region = <&vga_memory>;
 };
 
+&kcs2 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca8 0xcac>;
+};
+
 &kcs3 {
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca2>;
