@@ -2008,8 +2008,17 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			goto trace_get_page;
 
 		if (sp->unsync) {
-			/* The page is good, but __kvm_sync_page might still end
-			 * up zapping it.  If so, break in order to rebuild it.
+			/*
+			 * The page is good, but is stale.  __kvm_sync_page does
+			 * get the latest guest state, but (unlike mmu_unsync_children)
+			 * it doesn't write-protect the page or mark it synchronized!
+			 * This way the validity of the mapping is ensured, but the
+			 * overhead of write protection is not incurred until the
+			 * guest invalidates the TLB mapping.  This allows multiple
+			 * SPs for a single gfn to be unsync.
+			 *
+			 * If the sync fails, the page is zapped.  If so, break
+			 * in order to rebuild it.
 			 */
 			if (!__kvm_sync_page(vcpu, sp, &invalid_list))
 				break;
