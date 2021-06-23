@@ -12,6 +12,13 @@
 #define  V2_CLOCK_RATE_SHIFT			3
 #define  V2_CLOCK_SRC_MASK			0x00000007
 #define  V2_CLOCK_SRC_SHIFT			0
+#define   V2_CLOCK_SRC_AESEBU_ON_XLR		0x07
+#define   V2_CLOCK_SRC_ADAT_ON_DSUB		0x05
+#define   V2_CLOCK_SRC_WORD_ON_BNC		0x04
+#define   V2_CLOCK_SRC_SPH			0x03
+#define   V2_CLOCK_SRC_SPDIF			0x02	// on either coaxial or optical
+#define   V2_CLOCK_SRC_ADAT_ON_OPT		0x01
+#define   V2_CLOCK_SRC_INTERNAL			0x00
 #define  V2_CLOCK_FETCH_ENABLE			0x02000000
 #define  V2_CLOCK_MODEL_SPECIFIC		0x04000000
 
@@ -82,13 +89,13 @@ static int get_clock_source(struct snd_motu *motu, u32 data,
 			    enum snd_motu_clock_source *src)
 {
 	switch (data & V2_CLOCK_SRC_MASK) {
-	case 0:
+	case V2_CLOCK_SRC_INTERNAL:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 		break;
-	case 1:
+	case V2_CLOCK_SRC_ADAT_ON_OPT:
 		*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT;
 		break;
-	case 2:
+	case V2_CLOCK_SRC_SPDIF:
 	{
 		bool support_iec60958_on_opt = (motu->spec == &snd_motu_spec_828mk2 ||
 						motu->spec == &snd_motu_spec_traveler);
@@ -112,16 +119,16 @@ static int get_clock_source(struct snd_motu *motu, u32 data,
 		}
 		break;
 	}
-	case 3:
+	case V2_CLOCK_SRC_SPH:
 		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 		break;
-	case 4:
+	case V2_CLOCK_SRC_WORD_ON_BNC:
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
 		break;
-	case 5:
+	case V2_CLOCK_SRC_ADAT_ON_DSUB:
 		*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_DSUB;
 		break;
-	case 7:
+	case V2_CLOCK_SRC_AESEBU_ON_XLR:
 		*src = SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR;
 		break;
 	default:
