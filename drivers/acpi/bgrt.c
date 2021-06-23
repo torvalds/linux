@@ -19,7 +19,7 @@ static struct kobject *bgrt_kobj;
 	static ssize_t _name##_show(struct kobject *kobj,			\
 				    struct kobj_attribute *attr, char *buf)	\
 	{									\
-		return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab._member);	\
+		return sysfs_emit(buf, "%d\n", bgrt_tab._member);		\
 	}									\
 	struct kobj_attribute bgrt_attr_##_name = __ATTR_RO(_name)
 
