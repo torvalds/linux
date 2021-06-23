@@ -2550,14 +2550,11 @@ static int loop_exit_cb(int id, void *ptr, void *data)
 static void __exit loop_exit(void)
 {
 	mutex_lock(&loop_ctl_mutex);
+	unregister_blkdev(LOOP_MAJOR, "loop");
+	misc_deregister(&loop_misc);
 
 	idr_for_each(&loop_index_idr, &loop_exit_cb, NULL);
 	idr_destroy(&loop_index_idr);
-
-	unregister_blkdev(LOOP_MAJOR, "loop");
-
-	misc_deregister(&loop_misc);
-
 	mutex_unlock(&loop_ctl_mutex);
 }
 
