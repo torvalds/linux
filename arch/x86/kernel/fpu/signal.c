@@ -261,14 +261,14 @@ static int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
 
 			r = copy_user_to_fxregs(buf);
 			if (!r)
-				copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+				os_xrstor(&init_fpstate.xsave, init_bv);
 			return r;
 		} else {
 			init_bv = xfeatures_mask_user() & ~xbv;
 
 			r = copy_user_to_xregs(buf, xbv);
 			if (!r && unlikely(init_bv))
-				copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+				os_xrstor(&init_fpstate.xsave, init_bv);
 			return r;
 		}
 	} else if (use_fxsr()) {
@@ -356,9 +356,10 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 			 * has been copied to the kernel one.
 			 */
 			if (test_thread_flag(TIF_NEED_FPU_LOAD) &&
-			    xfeatures_mask_supervisor())
-				copy_kernel_to_xregs(&fpu->state.xsave,
-						     xfeatures_mask_supervisor());
+			    xfeatures_mask_supervisor()) {
+				os_xrstor(&fpu->state.xsave,
+					  xfeatures_mask_supervisor());
+			}
 			fpregs_mark_activate();
 			fpregs_unlock();
 			return 0;
@@ -412,7 +413,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 * above XRSTOR failed or ia32_fxstate is true. Shrug.
 		 */
 		if (xfeatures_mask_supervisor())
-			copy_xregs_to_kernel(&fpu->state.xsave);
+			os_xsave(&fpu->state.xsave);
 		set_thread_flag(TIF_NEED_FPU_LOAD);
 	}
 	__fpu_invalidate_fpregs_state(fpu);
@@ -430,14 +431,14 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 
 		fpregs_lock();
 		if (unlikely(init_bv))
-			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+			os_xrstor(&init_fpstate.xsave, init_bv);
 
 		/*
 		 * Restore previously saved supervisor xstates along with
 		 * copied-in user xstates.
 		 */
-		ret = copy_kernel_to_xregs_err(&fpu->state.xsave,
-					       user_xfeatures | xfeatures_mask_supervisor());
+		ret = os_xrstor_safe(&fpu->state.xsave,
+				     user_xfeatures | xfeatures_mask_supervisor());
 
 	} else if (use_fxsr()) {
 		ret = __copy_from_user(&fpu->state.fxsave, buf_fx, state_size);
@@ -454,7 +455,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 			u64 init_bv;
 
 			init_bv = xfeatures_mask_user() & ~XFEATURE_MASK_FPSSE;
-			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+			os_xrstor(&init_fpstate.xsave, init_bv);
 		}
 
 		ret = copy_kernel_to_fxregs_err(&fpu->state.fxsave);

@@ -261,7 +261,7 @@ static inline void fxsave(struct fxregs_state *fx)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
+static inline void os_xrstor_booting(struct xregs_state *xstate)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -284,8 +284,11 @@ static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 
 /*
  * Save processor xstate to xsave area.
+ *
+ * Uses either XSAVE or XSAVEOPT or XSAVES depending on the CPU features
+ * and command line options. The choice is permanent until the next reboot.
  */
-static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
+static inline void os_xsave(struct xregs_state *xstate)
 {
 	u64 mask = xfeatures_mask_all;
 	u32 lmask = mask;
@@ -302,8 +305,10 @@ static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
 
 /*
  * Restore processor xstate from xsave area.
+ *
+ * Uses XRSTORS when XSAVES is used, XRSTOR otherwise.
  */
-static inline void copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
+static inline void os_xrstor(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
@@ -364,13 +369,13 @@ static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
  * Restore xstate from kernel space xsave area, return an error code instead of
  * an exception.
  */
-static inline int copy_kernel_to_xregs_err(struct xregs_state *xstate, u64 mask)
+static inline int os_xrstor_safe(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err;
 
-	if (static_cpu_has(X86_FEATURE_XSAVES))
+	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
 		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
 	else
 		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
@@ -383,7 +388,7 @@ extern int copy_fpregs_to_fpstate(struct fpu *fpu);
 static inline void __copy_kernel_to_fpregs(union fpregs_state *fpstate, u64 mask)
 {
 	if (use_xsave()) {
-		copy_kernel_to_xregs(&fpstate->xsave, mask);
+		os_xrstor(&fpstate->xsave, mask);
 	} else {
 		if (use_fxsr())
 			copy_kernel_to_fxregs(&fpstate->fxsave);

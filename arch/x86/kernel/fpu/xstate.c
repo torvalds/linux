@@ -400,7 +400,7 @@ static void __init setup_init_fpu_buf(void)
 	/*
 	 * Init all the features state with header.xfeatures being 0x0
 	 */
-	copy_kernel_to_xregs_booting(&init_fpstate.xsave);
+	os_xrstor_booting(&init_fpstate.xsave);
 
 	/*
 	 * All components are now in init state. Read the state back so
