@@ -480,6 +480,8 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 	}
 
 	cr4_set_bits(X86_CR4_PKE);
+	/* Load the default PKRU value */
+	pkru_write_default();
 }
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
