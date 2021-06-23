@@ -541,6 +541,7 @@ static void link_disconnect_sink(struct dc_link *link)
 	}
 
 	link->dpcd_sink_count = 0;
+	//link->dpcd_caps.dpcd_rev.raw = 0;
 }
 
 static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *link)
@@ -742,6 +743,7 @@ static bool detect_dp(struct dc_link *link,
 								sink_caps,
 								audio_support);
 		link->dpcd_caps.dongle_type = sink_caps->dongle_type;
+		link->dpcd_caps.dpcd_rev.raw = 0;
 	}
 
 	return true;
