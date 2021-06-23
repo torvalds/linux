@@ -277,37 +277,17 @@ static int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
 		return frstor_from_user_sigframe(buf);
 }
 
-static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
+			     bool ia32_fxstate)
 {
 	struct user_i387_ia32_struct *envp = NULL;
 	int state_size = fpu_kernel_xstate_size;
-	int ia32_fxstate = (buf != buf_fx);
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 	struct user_i387_ia32_struct env;
 	u64 user_xfeatures = 0;
 	int fx_only = 0;
 	int ret = 0;
-
-	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
-			 IS_ENABLED(CONFIG_IA32_EMULATION));
-
-	if (!buf) {
-		fpu__clear_user_states(fpu);
-		return 0;
-	}
-
-	if (!access_ok(buf, size)) {
-		ret = -EACCES;
-		goto out;
-	}
-
-	if (!static_cpu_has(X86_FEATURE_FPU)) {
-		ret = fpregs_soft_set(current, NULL, 0,
-				      sizeof(struct user_i387_ia32_struct),
-				      NULL, buf);
-		goto out;
-	}
 
 	if (use_xsave()) {
 		struct _fpx_sw_bytes fx_sw_user;
@@ -391,7 +371,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		ret = __copy_from_user(&env, buf, sizeof(env));
 		if (ret)
-			goto out;
+			return ret;
 		envp = &env;
 	}
 
@@ -424,7 +404,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 
 		ret = copy_sigframe_from_user_to_xstate(&fpu->state.xsave, buf_fx);
 		if (ret)
-			goto out;
+			return ret;
 
 		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures,
 					      fx_only);
@@ -442,10 +422,8 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 
 	} else if (use_fxsr()) {
 		ret = __copy_from_user(&fpu->state.fxsave, buf_fx, state_size);
-		if (ret) {
-			ret = -EFAULT;
-			goto out;
-		}
+		if (ret)
+			return -EFAULT;
 
 		sanitize_restored_user_xstate(&fpu->state, envp, user_xfeatures,
 					      fx_only);
@@ -462,7 +440,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	} else {
 		ret = __copy_from_user(&fpu->state.fsave, buf_fx, state_size);
 		if (ret)
-			goto out;
+			return ret;
 
 		fpregs_lock();
 		ret = frstor_safe(&fpu->state.fsave);
@@ -472,10 +450,6 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	else
 		fpregs_deactivate(fpu);
 	fpregs_unlock();
-
-out:
-	if (ret)
-		fpu__clear_user_states(fpu);
 	return ret;
 }
 
@@ -490,15 +464,47 @@ static inline int xstate_sigframe_size(void)
  */
 int fpu__restore_sig(void __user *buf, int ia32_frame)
 {
+	unsigned int size = xstate_sigframe_size();
+	struct fpu *fpu = &current->thread.fpu;
 	void __user *buf_fx = buf;
-	int size = xstate_sigframe_size();
+	bool ia32_fxstate = false;
+	int ret;
 
+	if (unlikely(!buf)) {
+		fpu__clear_user_states(fpu);
+		return 0;
+	}
+
+	ia32_frame &= (IS_ENABLED(CONFIG_X86_32) ||
+		       IS_ENABLED(CONFIG_IA32_EMULATION));
+
+	/*
+	 * Only FXSR enabled systems need the FX state quirk.
+	 * FRSTOR does not need it and can use the fast path.
+	 */
 	if (ia32_frame && use_fxsr()) {
 		buf_fx = buf + sizeof(struct fregs_state);
 		size += sizeof(struct fregs_state);
+		ia32_fxstate = true;
 	}
 
-	return __fpu__restore_sig(buf, buf_fx, size);
+	if (!access_ok(buf, size)) {
+		ret = -EACCES;
+		goto out;
+	}
+
+	if (!IS_ENABLED(CONFIG_X86_64) && !cpu_feature_enabled(X86_FEATURE_FPU)) {
+		ret = fpregs_soft_set(current, NULL, 0,
+				      sizeof(struct user_i387_ia32_struct),
+				      NULL, buf);
+	} else {
+		ret = __fpu_restore_sig(buf, buf_fx, ia32_fxstate);
+	}
+
+out:
+	if (unlikely(ret))
+		fpu__clear_user_states(fpu);
+	return ret;
 }
 
 unsigned long
