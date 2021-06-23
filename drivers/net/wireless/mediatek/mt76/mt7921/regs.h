@@ -96,6 +96,10 @@
 #define MT_WF_MIB_BASE(_band)		((_band) ? 0xa4800 : 0x24800)
 #define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE(_band) + (ofs))
 
+#define MT_MIB_SCR1(_band)		MT_WF_MIB(_band, 0x004)
+#define MT_MIB_TXDUR_EN			BIT(8)
+#define MT_MIB_RXDUR_EN			BIT(9)
+
 #define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x698)
 #define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(31, 16)
 
@@ -108,9 +112,9 @@
 #define MT_MIB_SDR34(_band)		MT_WF_MIB(_band, 0x090)
 #define MT_MIB_MU_BF_TX_CNT		GENMASK(15, 0)
 
-#define MT_MIB_SDR36(_band)		MT_WF_MIB(_band, 0x098)
+#define MT_MIB_SDR36(_band)		MT_WF_MIB(_band, 0x054)
 #define MT_MIB_SDR36_TXTIME_MASK	GENMASK(23, 0)
-#define MT_MIB_SDR37(_band)		MT_WF_MIB(_band, 0x09c)
+#define MT_MIB_SDR37(_band)		MT_WF_MIB(_band, 0x058)
 #define MT_MIB_SDR37_RXTIME_MASK	GENMASK(23, 0)
 
 #define MT_MIB_DR8(_band)		MT_WF_MIB(_band, 0x0c0)
