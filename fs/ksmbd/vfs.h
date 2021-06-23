@@ -192,8 +192,7 @@ struct ksmbd_kstat {
 	__le32			file_attributes;
 };
 
-int ksmbd_vfs_inode_permission(struct dentry *dentry, int acc_mode,
-			       bool delete);
+int ksmbd_vfs_may_delete(struct dentry *dentry);
 int ksmbd_vfs_query_maximal_access(struct dentry *dentry, __le32 *daccess);
 int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode);
 int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode);

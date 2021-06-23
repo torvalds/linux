@@ -1836,21 +1836,27 @@ out_err1:
  * @file_present:	is file already present
  * @access:		file access flags
  * @disposition:	file disposition flags
+ * @may_flags:		set with MAY_ flags
  *
  * Return:      file open flags
  */
 static int smb2_create_open_flags(bool file_present, __le32 access,
-				  __le32 disposition)
+				  __le32 disposition,
+				  int *may_flags)
 {
 	int oflags = O_NONBLOCK | O_LARGEFILE;
 
 	if (access & FILE_READ_DESIRED_ACCESS_LE &&
-	    access & FILE_WRITE_DESIRE_ACCESS_LE)
+	    access & FILE_WRITE_DESIRE_ACCESS_LE) {
 		oflags |= O_RDWR;
-	else if (access & FILE_WRITE_DESIRE_ACCESS_LE)
+		*may_flags = MAY_OPEN | MAY_READ | MAY_WRITE;
+	} else if (access & FILE_WRITE_DESIRE_ACCESS_LE) {
 		oflags |= O_WRONLY;
-	else
+		*may_flags = MAY_OPEN | MAY_WRITE;
+	} else {
 		oflags |= O_RDONLY;
+		*may_flags = MAY_OPEN | MAY_READ;
+	}
 
 	if (access == FILE_READ_ATTRIBUTES_LE)
 		oflags |= O_PATH;
@@ -1884,6 +1890,7 @@ static int smb2_create_open_flags(bool file_present, __le32 access,
 			break;
 		}
 	}
+
 	return oflags;
 }
 
@@ -2355,7 +2362,7 @@ int smb2_open(struct ksmbd_work *work)
 	struct create_ea_buf_req *ea_buf = NULL;
 	struct oplock_info *opinfo;
 	__le32 *next_ptr = NULL;
-	int req_op_level = 0, open_flags = 0, file_info = 0;
+	int req_op_level = 0, open_flags = 0, may_flags = 0, file_info = 0;
 	int rc = 0, len = 0;
 	int contxt_cnt = 0, query_disk_id = 0;
 	int maximal_access_ctxt = 0, posix_ctxt = 0;
@@ -2696,7 +2703,8 @@ int smb2_open(struct ksmbd_work *work)
 	}
 
 	open_flags = smb2_create_open_flags(file_present, daccess,
-					    req->CreateDisposition);
+					    req->CreateDisposition,
+					    &may_flags);
 
 	if (!test_tree_conn_flag(tcon, KSMBD_TREE_CONN_FLAG_WRITABLE)) {
 		if (open_flags & O_CREAT) {
@@ -2723,21 +2731,23 @@ int smb2_open(struct ksmbd_work *work)
 				goto err_out;
 		}
 	} else if (!already_permitted) {
-		bool may_delete;
-
-		may_delete = daccess & FILE_DELETE_LE ||
-			req->CreateOptions & FILE_DELETE_ON_CLOSE_LE;
-
 		/* FILE_READ_ATTRIBUTE is allowed without inode_permission,
 		 * because execute(search) permission on a parent directory,
 		 * is already granted.
 		 */
 		if (daccess & ~(FILE_READ_ATTRIBUTES_LE | FILE_READ_CONTROL_LE)) {
-			rc = ksmbd_vfs_inode_permission(path.dentry,
-							open_flags & O_ACCMODE,
-							may_delete);
+			rc = inode_permission(&init_user_ns,
+					      d_inode(path.dentry),
+					      may_flags);
 			if (rc)
 				goto err_out;
+
+			if ((daccess & FILE_DELETE_LE) ||
+			    (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)) {
+				rc = ksmbd_vfs_may_delete(path.dentry);
+				if (rc)
+					goto err_out;
+			}
 		}
 	}
 
