@@ -2379,3 +2379,9 @@
 	status = "okay";
 	memory-region = <&vga_memory>;
 };
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+	aspeed,lpc-interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+};
