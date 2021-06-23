@@ -1,0 +1,9 @@
+config GKI_HIDDEN_RCUTORTURE
+	bool
+	select TASKS_RUDE_RCU
+
+config GKI_HACKS_FOR_DEBUG_CONFIG
+	bool "GKI Dummy config options for debug configurations"
+	select TRACE_PREEMPT_TOGGLE
+	select TRACE_IRQFLAGS
+	select GKI_HIDDEN_RCUTORTURE
