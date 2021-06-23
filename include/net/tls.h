@@ -79,8 +79,6 @@
 	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
 #define TLS_INC_STATS(net, field)				\
 	SNMP_INC_STATS((net)->mib.tls_statistics, field)
-#define __TLS_DEC_STATS(net, field)				\
-	__SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 #define TLS_DEC_STATS(net, field)				\
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
