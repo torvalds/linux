@@ -384,10 +384,11 @@ cifs_create_set_dentry:
 		goto out_err;
 	}
 
-	if (S_ISDIR(newinode->i_mode)) {
-		rc = -EISDIR;
-		goto out_err;
-	}
+	if (newinode)
+		if (S_ISDIR(newinode->i_mode)) {
+			rc = -EISDIR;
+			goto out_err;
+		}
 
 	d_drop(direntry);
 	d_add(direntry, newinode);
