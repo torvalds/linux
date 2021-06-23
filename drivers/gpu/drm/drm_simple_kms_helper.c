@@ -9,6 +9,8 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -225,8 +227,14 @@ static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_simple_display_pipe *pipe;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
-	if (!pipe->funcs || !pipe->funcs->prepare_fb)
-		return 0;
+	if (!pipe->funcs || !pipe->funcs->prepare_fb) {
+		if (WARN_ON_ONCE(!drm_core_check_feature(plane->dev, DRIVER_GEM)))
+			return 0;
+
+		WARN_ON_ONCE(pipe->funcs && pipe->funcs->cleanup_fb);
+
+		return drm_gem_simple_display_pipe_prepare_fb(pipe, state);
+	}
 
 	return pipe->funcs->prepare_fb(pipe, state);
 }
