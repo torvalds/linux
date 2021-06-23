@@ -123,6 +123,8 @@ are in ``drivers/usb/common/common.c``.
 In addition, some functions useful for creating debugging output are
 defined in ``drivers/usb/common/debug.c``.
 
+.. _usb_header:
+
 Host-Side Data Types and Macros
 ===============================
 

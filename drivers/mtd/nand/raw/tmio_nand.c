@@ -34,6 +34,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
@@ -292,11 +293,12 @@ static int tmio_nand_correct_data(struct nand_chip *chip, unsigned char *buf,
 	int r0, r1;
 
 	/* assume ecc.size = 512 and ecc.bytes = 6 */
-	r0 = rawnand_sw_hamming_correct(chip, buf, read_ecc, calc_ecc);
+	r0 = ecc_sw_hamming_correct(buf, read_ecc, calc_ecc,
+				    chip->ecc.size, false);
 	if (r0 < 0)
 		return r0;
-	r1 = rawnand_sw_hamming_correct(chip, buf + 256, read_ecc + 3,
-					calc_ecc + 3);
+	r1 = ecc_sw_hamming_correct(buf + 256, read_ecc + 3, calc_ecc + 3,
+				    chip->ecc.size, false);
 	if (r1 < 0)
 		return r1;
 	return r0 + r1;

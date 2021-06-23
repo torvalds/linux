@@ -41,6 +41,11 @@
 #define ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+/* Older libelf all end up in this expression, for both 32 and 64 bit */
+#ifndef GELF_ST_VISIBILITY
+#define GELF_ST_VISIBILITY(o) ((o) & 0x03)
+#endif
+
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
 	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 #define BTF_TYPE_ENC(name, info, size_or_type) (name), (info), (size_or_type)

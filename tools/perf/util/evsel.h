@@ -83,8 +83,10 @@ struct evsel {
 		bool			collect_stat;
 		bool			weak_group;
 		bool			bpf_counter;
+		bool			use_config_name;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
+		struct list_head	config_terms;
 	};
 
 	/*
@@ -116,10 +118,8 @@ struct evsel {
 	bool			merged_stat;
 	bool			reset_group;
 	bool			errored;
-	bool			use_config_name;
 	struct hashmap		*per_pkg_mask;
 	struct evsel		*leader;
-	struct list_head	config_terms;
 	int			err;
 	int			cpu_iter;
 	struct {

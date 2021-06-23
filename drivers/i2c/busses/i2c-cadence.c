@@ -144,7 +144,7 @@ enum cdns_i2c_mode {
 };
 
 /**
- * enum cdns_i2c_slave_mode - Slave state when I2C is operating in slave mode
+ * enum cdns_i2c_slave_state - Slave state when I2C is operating in slave mode
  *
  * @CDNS_I2C_SLAVE_STATE_IDLE: I2C slave idle
  * @CDNS_I2C_SLAVE_STATE_SEND: I2C slave sending data to master

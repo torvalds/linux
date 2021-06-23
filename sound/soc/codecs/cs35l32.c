@@ -261,6 +261,9 @@ static const struct regmap_config cs35l32_regmap = {
 	.readable_reg = cs35l32_readable_register,
 	.precious_reg = cs35l32_precious_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int cs35l32_handle_of_data(struct i2c_client *i2c_client,

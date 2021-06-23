@@ -760,7 +760,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 
 		if (dma_buf_is_dynamic(attach->dmabuf)) {
 			dma_resv_lock(attach->dmabuf->resv, NULL);
-			ret = dma_buf_pin(attach);
+			ret = dmabuf->ops->pin(attach);
 			if (ret)
 				goto err_unlock;
 		}
@@ -786,7 +786,7 @@ err_attach:
 
 err_unpin:
 	if (dma_buf_is_dynamic(attach->dmabuf))
-		dma_buf_unpin(attach);
+		dmabuf->ops->unpin(attach);
 
 err_unlock:
 	if (dma_buf_is_dynamic(attach->dmabuf))
@@ -843,7 +843,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 		__unmap_dma_buf(attach, attach->sgt, attach->dir);
 
 		if (dma_buf_is_dynamic(attach->dmabuf)) {
-			dma_buf_unpin(attach);
+			dmabuf->ops->unpin(attach);
 			dma_resv_unlock(attach->dmabuf->resv);
 		}
 	}
@@ -956,7 +956,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	if (dma_buf_is_dynamic(attach->dmabuf)) {
 		dma_resv_assert_held(attach->dmabuf->resv);
 		if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
-			r = dma_buf_pin(attach);
+			r = attach->dmabuf->ops->pin(attach);
 			if (r)
 				return ERR_PTR(r);
 		}
@@ -968,7 +968,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 
 	if (IS_ERR(sg_table) && dma_buf_is_dynamic(attach->dmabuf) &&
 	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
-		dma_buf_unpin(attach);
+		attach->dmabuf->ops->unpin(attach);
 
 	if (!IS_ERR(sg_table) && attach->dmabuf->ops->cache_sgt_mapping) {
 		attach->sgt = sg_table;
