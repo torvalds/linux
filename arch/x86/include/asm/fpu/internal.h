@@ -26,13 +26,15 @@
 /*
  * High level FPU state handling functions:
  */
-extern void fpu__save(struct fpu *fpu);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
-extern int  fpu__copy(struct task_struct *dst, struct task_struct *src);
 extern void fpu__clear_user_states(struct fpu *fpu);
 extern void fpu__clear_all(struct fpu *fpu);
 extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
+
+extern void fpu_sync_fpstate(struct fpu *fpu);
+
+extern int  fpu_clone(struct task_struct *dst);
 
 /*
  * Boot time FPU initialization functions:

@@ -41,7 +41,7 @@ int regset_xregset_fpregs_active(struct task_struct *target, const struct user_r
 static void sync_fpstate(struct fpu *fpu)
 {
 	if (fpu == &current->thread.fpu)
-		fpu__save(fpu);
+		fpu_sync_fpstate(fpu);
 }
 
 /*
