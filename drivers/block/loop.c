@@ -2518,21 +2518,17 @@ err_out:
 	return err;
 }
 
-static int loop_exit_cb(int id, void *ptr, void *data)
-{
-	struct loop_device *lo = ptr;
-
-	loop_remove(lo);
-	return 0;
-}
-
 static void __exit loop_exit(void)
 {
+	struct loop_device *lo;
+	int id;
+
 	unregister_blkdev(LOOP_MAJOR, "loop");
 	misc_deregister(&loop_misc);
 
 	mutex_lock(&loop_ctl_mutex);
-	idr_for_each(&loop_index_idr, &loop_exit_cb, NULL);
+	idr_for_each_entry(&loop_index_idr, lo, id)
+		loop_remove(lo);
 	mutex_unlock(&loop_ctl_mutex);
 
 	idr_destroy(&loop_index_idr);
