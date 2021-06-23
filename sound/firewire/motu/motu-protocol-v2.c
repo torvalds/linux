@@ -78,10 +78,10 @@ int snd_motu_protocol_v2_set_clock_rate(struct snd_motu *motu,
 					  sizeof(reg));
 }
 
-static int detect_clock_source_optical_model(struct snd_motu *motu, u32 data,
-					     enum snd_motu_clock_source *src)
+static int get_clock_source(struct snd_motu *motu, u32 data,
+			    enum snd_motu_clock_source *src)
 {
-	switch (data) {
+	switch (data & V2_CLOCK_SRC_MASK) {
 	case 0:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 		break;
@@ -90,17 +90,26 @@ static int detect_clock_source_optical_model(struct snd_motu *motu, u32 data,
 		break;
 	case 2:
 	{
-		__be32 reg;
+		bool support_iec60958_on_opt = (motu->spec == &snd_motu_spec_828mk2 ||
+						motu->spec == &snd_motu_spec_traveler);
 
-		// To check the configuration of optical interface.
-		int err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET, &reg, sizeof(reg));
-		if (err < 0)
-			return err;
-
-		if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) == V2_OPT_IFACE_MODE_SPDIF)
-			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
-		else
+		if (!support_iec60958_on_opt) {
 			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
+		} else {
+			__be32 reg;
+
+			// To check the configuration of optical interface.
+			int err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET, &reg,
+							    sizeof(reg));
+			if (err < 0)
+				return err;
+
+			if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) ==
+			    V2_OPT_IFACE_MODE_SPDIF)
+				*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
+			else
+				*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
+		}
 		break;
 	}
 	case 3:
@@ -118,41 +127,6 @@ static int detect_clock_source_optical_model(struct snd_motu *motu, u32 data,
 	}
 
 	return 0;
-}
-
-static int v2_detect_clock_source(struct snd_motu *motu, u32 data,
-				  enum snd_motu_clock_source *src)
-{
-	switch (data) {
-	case 0:
-		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
-		break;
-	case 2:
-		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
-		break;
-	case 3:
-		*src = SND_MOTU_CLOCK_SOURCE_SPH;
-		break;
-	case 4:
-		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
-		break;
-	default:
-		*src = SND_MOTU_CLOCK_SOURCE_UNKNOWN;
-		break;
-	}
-
-	return 0;
-}
-
-static int get_clock_source(struct snd_motu *motu, u32 data,
-			    enum snd_motu_clock_source *src)
-{
-	data &= V2_CLOCK_SRC_MASK;
-	if (motu->spec == &snd_motu_spec_828mk2 ||
-	    motu->spec == &snd_motu_spec_traveler)
-		return detect_clock_source_optical_model(motu, data, src);
-	else
-		return v2_detect_clock_source(motu, data, src);
 }
 
 int snd_motu_protocol_v2_get_clock_source(struct snd_motu *motu,
