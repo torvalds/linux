@@ -306,9 +306,6 @@ static int __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		}
 	}
 
-	if ((unsigned long)buf_fx % 64)
-		fx_only = 1;
-
 	if (!ia32_fxstate) {
 		/*
 		 * Attempt to restore the FPU registers directly from user
