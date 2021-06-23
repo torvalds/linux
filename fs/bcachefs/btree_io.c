@@ -1187,31 +1187,27 @@ static void btree_node_read_all_replicas_done(struct closure *cl)
 		container_of(cl, struct btree_node_read_all, cl);
 	struct bch_fs *c = ra->c;
 	struct btree *b = ra->b;
-	bool have_good_copy = false;
 	bool dump_bset_maps = false;
 	bool have_retry = false;
-	int ret = 0, write = READ;
+	int ret = 0, best = -1, write = READ;
 	unsigned i, written, written2;
 	__le64 seq = b->key.k.type == KEY_TYPE_btree_ptr_v2
 		? bkey_i_to_btree_ptr_v2(&b->key)->v.seq : 0;
 
 	for (i = 0; i < ra->nr; i++) {
+		struct btree_node *bn = ra->buf[i];
+
 		if (ra->err[i])
 			continue;
 
-		if (!have_good_copy) {
-			memcpy(b->data, ra->buf[i], btree_bytes(c));
-			have_good_copy = true;
-			written = btree_node_sectors_written(c, b->data);
-		}
+		if (le64_to_cpu(bn->magic) != bset_magic(c) ||
+		    (seq && seq != bn->keys.seq))
+			continue;
 
-		/* Try to get the right btree node: */
-		if (have_good_copy &&
-		    seq &&
-		    b->data->keys.seq != seq &&
-		    ((struct btree_node *) ra->buf[i])->keys.seq == seq) {
-			memcpy(b->data, ra->buf[i], btree_bytes(c));
-			written = btree_node_sectors_written(c, b->data);
+		if (best < 0) {
+			best = i;
+			written = btree_node_sectors_written(c, bn);
+			continue;
 		}
 
 		written2 = btree_node_sectors_written(c, ra->buf[i]);
@@ -1221,14 +1217,14 @@ static void btree_node_read_all_replicas_done(struct closure *cl)
 		    btree_err_on(btree_node_has_extra_bsets(c, written2, ra->buf[i]),
 				 BTREE_ERR_FIXABLE, c, NULL, b, NULL,
 				 "found bset signature after last bset") ||
-		    btree_err_on(memcmp(b->data, ra->buf[i], written << 9),
+		    btree_err_on(memcmp(ra->buf[best], ra->buf[i], written << 9),
 				 BTREE_ERR_FIXABLE, c, NULL, b, NULL,
 				 "btree node replicas content mismatch"))
 			dump_bset_maps = true;
 
 		if (written2 > written) {
 			written = written2;
-			memcpy(b->data, ra->buf[i], btree_bytes(c));
+			best = i;
 		}
 	}
 fsck_err:
@@ -1281,9 +1277,14 @@ fsck_err:
 		}
 	}
 
-	if (have_good_copy)
-		bch2_btree_node_read_done(c, NULL, b, false);
-	else
+	if (best >= 0) {
+		memcpy(b->data, ra->buf[best], btree_bytes(c));
+		ret = bch2_btree_node_read_done(c, NULL, b, false);
+	} else {
+		ret = -1;
+	}
+
+	if (ret)
 		set_btree_node_read_error(b);
 
 	for (i = 0; i < ra->nr; i++) {
