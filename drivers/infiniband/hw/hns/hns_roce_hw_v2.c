@@ -4676,9 +4676,9 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	/* Only HIP08 needs to set the vlan_en bits in QPC */
 	if (vlan_id < VLAN_N_VID &&
 	    hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08) {
-		hr_reg_enable(qpc_mask, QPC_RQ_VLAN_EN);
+		hr_reg_enable(context, QPC_RQ_VLAN_EN);
 		hr_reg_clear(qpc_mask, QPC_RQ_VLAN_EN);
-		hr_reg_enable(qpc_mask, QPC_SQ_VLAN_EN);
+		hr_reg_enable(context, QPC_SQ_VLAN_EN);
 		hr_reg_clear(qpc_mask, QPC_SQ_VLAN_EN);
 	}
 
