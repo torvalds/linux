@@ -2388,14 +2388,12 @@ out:
 static void loop_probe(dev_t dev)
 {
 	int idx = MINOR(dev) >> part_shift;
-	struct loop_device *lo;
 
 	if (max_loop && idx >= max_loop)
 		return;
 
 	mutex_lock(&loop_ctl_mutex);
-	if (loop_lookup(&lo, idx) < 0)
-		loop_add(idx);
+	loop_add(idx);
 	mutex_unlock(&loop_ctl_mutex);
 }
 
@@ -2412,11 +2410,6 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 	ret = -ENOSYS;
 	switch (cmd) {
 	case LOOP_CTL_ADD:
-		ret = loop_lookup(&lo, parm);
-		if (ret >= 0) {
-			ret = -EEXIST;
-			break;
-		}
 		ret = loop_add(parm);
 		break;
 	case LOOP_CTL_REMOVE:
