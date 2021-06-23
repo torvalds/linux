@@ -28,6 +28,22 @@ int regset_xregset_fpregs_active(struct task_struct *target, const struct user_r
 		return 0;
 }
 
+/*
+ * The regset get() functions are invoked from:
+ *
+ *   - coredump to dump the current task's fpstate. If the current task
+ *     owns the FPU then the memory state has to be synchronized and the
+ *     FPU register state preserved. Otherwise fpstate is already in sync.
+ *
+ *   - ptrace to dump fpstate of a stopped task, in which case the registers
+ *     have already been saved to fpstate on context switch.
+ */
+static void sync_fpstate(struct fpu *fpu)
+{
+	if (fpu == &current->thread.fpu)
+		fpu__save(fpu);
+}
+
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		struct membuf to)
 {
@@ -36,7 +52,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_feature_enabled(X86_FEATURE_FXSR))
 		return -ENODEV;
 
-	fpu__prepare_read(fpu);
+	sync_fpstate(fpu);
 
 	if (!use_xsave()) {
 		return membuf_write(&to, &fpu->state.fxsave,
@@ -96,7 +112,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_feature_enabled(X86_FEATURE_XSAVE))
 		return -ENODEV;
 
-	fpu__prepare_read(fpu);
+	sync_fpstate(fpu);
 
 	copy_xstate_to_uabi_buf(to, &fpu->state.xsave, XSTATE_COPY_XSAVE);
 	return 0;
@@ -287,7 +303,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	struct fxregs_state fxsave, *fx;
 
-	fpu__prepare_read(fpu);
+	sync_fpstate(fpu);
 
 	if (!cpu_feature_enabled(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, to);

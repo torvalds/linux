@@ -282,26 +282,6 @@ static void fpu__initialize(struct fpu *fpu)
 }
 
 /*
- * This function must be called before we read a task's fpstate.
- *
- * There's two cases where this gets called:
- *
- * - for the current task (when coredumping), in which case we have
- *   to save the latest FPU registers into the fpstate,
- *
- * - or it's called for stopped tasks (ptrace), in which case the
- *   registers were already saved by the context-switch code when
- *   the task scheduled out.
- *
- * If the task has used the FPU before then save it.
- */
-void fpu__prepare_read(struct fpu *fpu)
-{
-	if (fpu == &current->thread.fpu)
-		fpu__save(fpu);
-}
-
-/*
  * This function must be called before we write a task's fpstate.
  *
  * Invalidate any cached FPU registers.
