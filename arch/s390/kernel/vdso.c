@@ -37,18 +37,6 @@ enum vvar_pages {
 	VVAR_NR_PAGES,
 };
 
-unsigned int __read_mostly vdso_enabled = 1;
-
-static int __init vdso_setup(char *str)
-{
-	bool enabled;
-
-	if (!kstrtobool(str, &enabled))
-		vdso_enabled = enabled;
-	return 1;
-}
-__setup("vdso=", vdso_setup);
-
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
 {
@@ -176,7 +164,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	int rc;
 
 	BUILD_BUG_ON(VVAR_NR_PAGES != __VVAR_PAGES);
-	if (!vdso_enabled || is_compat_task())
+	if (is_compat_task())
 		return 0;
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
@@ -218,10 +206,9 @@ static int __init vdso_init(void)
 
 	vdso_pages = (vdso64_end - vdso64_start) >> PAGE_SHIFT;
 	pages = kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
-	if (!pages) {
-		vdso_enabled = 0;
-		return -ENOMEM;
-	}
+	if (!pages)
+		panic("failed to allocate VDSO pages");
+
 	for (i = 0; i < vdso_pages; i++)
 		pages[i] = virt_to_page(vdso64_start + i * PAGE_SIZE);
 	pages[vdso_pages] = NULL;

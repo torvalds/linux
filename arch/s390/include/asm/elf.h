@@ -146,8 +146,6 @@ typedef s390_compat_regs compat_elf_gregset_t;
 
 #include <asm/vdso.h>
 
-extern unsigned int vdso_enabled;
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -268,11 +266,10 @@ do {								\
 #define STACK_RND_MASK	MMAP_RND_MASK
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
-#define ARCH_DLINFO							    \
-do {									    \
-	if (vdso_enabled)						    \
-		NEW_AUX_ENT(AT_SYSINFO_EHDR,				    \
-			    (unsigned long)current->mm->context.vdso_base); \
+#define ARCH_DLINFO							\
+do {									\
+	NEW_AUX_ENT(AT_SYSINFO_EHDR,					\
+		    (unsigned long)current->mm->context.vdso_base);	\
 } while (0)
 
 struct linux_binprm;
