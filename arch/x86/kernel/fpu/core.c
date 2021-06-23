@@ -303,7 +303,7 @@ void fpu__drop(struct fpu *fpu)
  * Clear FPU registers by setting them up from the init fpstate.
  * Caller must do fpregs_[un]lock() around it.
  */
-static inline void copy_init_fpstate_to_fpregs(u64 features_mask)
+static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 {
 	if (use_xsave())
 		os_xrstor(&init_fpstate.xsave, features_mask);
@@ -338,9 +338,9 @@ static void fpu__clear(struct fpu *fpu, bool user_only)
 		if (!fpregs_state_valid(fpu, smp_processor_id()) &&
 		    xfeatures_mask_supervisor())
 			os_xrstor(&fpu->state.xsave, xfeatures_mask_supervisor());
-		copy_init_fpstate_to_fpregs(xfeatures_mask_user());
+		restore_fpregs_from_init_fpstate(xfeatures_mask_user());
 	} else {
-		copy_init_fpstate_to_fpregs(xfeatures_mask_all);
+		restore_fpregs_from_init_fpstate(xfeatures_mask_all);
 	}
 
 	fpregs_mark_activate();
