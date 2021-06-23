@@ -2397,8 +2397,51 @@ static void loop_probe(dev_t dev)
 	mutex_unlock(&loop_ctl_mutex);
 }
 
-static long loop_control_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long parm)
+static int loop_control_add(int idx)
+{
+	int ret;
+		
+	ret = mutex_lock_killable(&loop_ctl_mutex);
+	if (ret)
+		return ret;
+	ret = loop_add(idx);
+	mutex_unlock(&loop_ctl_mutex);
+	return ret;
+}
+
+static int loop_control_remove(int idx)
+{
+	struct loop_device *lo;
+	int ret;
+		
+	ret = mutex_lock_killable(&loop_ctl_mutex);
+	if (ret)
+		return ret;
+
+	ret = loop_lookup(&lo, idx);
+	if (ret < 0)
+		goto out_unlock_ctrl;
+
+	ret = mutex_lock_killable(&lo->lo_mutex);
+	if (ret)
+		goto out_unlock_ctrl;
+	if (lo->lo_state != Lo_unbound ||
+	    atomic_read(&lo->lo_refcnt) > 0) {
+		mutex_unlock(&lo->lo_mutex);
+		ret = -EBUSY;
+		goto out_unlock_ctrl;
+	}
+	lo->lo_state = Lo_deleting;
+	mutex_unlock(&lo->lo_mutex);
+
+	idr_remove(&loop_index_idr, lo->lo_number);
+	loop_remove(lo);
+out_unlock_ctrl:
+	mutex_unlock(&loop_ctl_mutex);
+	return ret;
+}
+
+static int loop_control_get_free(int idx)
 {
 	struct loop_device *lo;
 	int ret;
@@ -2406,43 +2449,27 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 	ret = mutex_lock_killable(&loop_ctl_mutex);
 	if (ret)
 		return ret;
-
-	ret = -ENOSYS;
-	switch (cmd) {
-	case LOOP_CTL_ADD:
-		ret = loop_add(parm);
-		break;
-	case LOOP_CTL_REMOVE:
-		ret = loop_lookup(&lo, parm);
-		if (ret < 0)
-			break;
-		ret = mutex_lock_killable(&lo->lo_mutex);
-		if (ret)
-			break;
-		if (lo->lo_state != Lo_unbound) {
-			ret = -EBUSY;
-			mutex_unlock(&lo->lo_mutex);
-			break;
-		}
-		if (atomic_read(&lo->lo_refcnt) > 0) {
-			ret = -EBUSY;
-			mutex_unlock(&lo->lo_mutex);
-			break;
-		}
-		lo->lo_state = Lo_deleting;
-		mutex_unlock(&lo->lo_mutex);
-		idr_remove(&loop_index_idr, lo->lo_number);
-		loop_remove(lo);
-		break;
-	case LOOP_CTL_GET_FREE:
-		ret = loop_lookup(&lo, -1);
-		if (ret >= 0)
-			break;
+	ret = loop_lookup(&lo, -1);
+	if (ret < 0)
 		ret = loop_add(-1);
-	}
 	mutex_unlock(&loop_ctl_mutex);
 
 	return ret;
+}
+
+static long loop_control_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long parm)
+{
+	switch (cmd) {
+	case LOOP_CTL_ADD:
+		return loop_control_add(parm);
+	case LOOP_CTL_REMOVE:
+		return loop_control_remove(parm);
+	case LOOP_CTL_GET_FREE:
+		return loop_control_get_free(parm);
+	default:
+		return -ENOSYS;
+	}
 }
 
 static const struct file_operations loop_ctl_fops = {
