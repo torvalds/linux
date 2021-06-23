@@ -1493,6 +1493,16 @@ static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
 		return;
 	}
 
+	/*
+	 * PCIe controller exits from L2 only if reset is applied, so
+	 * controller doesn't handle interrupts. But in cases where
+	 * L2 entry fails, PERST# is asserted which can trigger surprise
+	 * link down AER. However this function call happens in
+	 * suspend_noirq(), so AER interrupt will not be processed.
+	 * Disable all interrupts to avoid such a scenario.
+	 */
+	appl_writel(pcie, 0x0, APPL_INTR_EN_L0_0);
+
 	if (tegra_pcie_try_link_l2(pcie)) {
 		dev_info(pcie->dev, "Link didn't transition to L2 state\n");
 		/*
