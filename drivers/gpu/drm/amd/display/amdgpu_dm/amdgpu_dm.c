@@ -110,10 +110,8 @@ MODULE_FIRMWARE(FIRMWARE_VANGOGH_DMUB);
 MODULE_FIRMWARE(FIRMWARE_DIMGREY_CAVEFISH_DMUB);
 #define FIRMWARE_BEIGE_GOBY_DMUB "amdgpu/beige_goby_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_BEIGE_GOBY_DMUB);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 #define FIRMWARE_YELLOW_CARP_DMUB "amdgpu/yellow_carp_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_YELLOW_CARP_DMUB);
-#endif
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -1145,16 +1143,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
 			init_data.flags.disable_dmcu = true;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case CHIP_VANGOGH:
-		init_data.flags.gpu_vm_support = true;
-		break;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
 		init_data.flags.gpu_vm_support = true;
 		break;
-#endif
 	default:
 		break;
 	}
@@ -1411,9 +1403,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
-#endif
 		return 0;
 	case CHIP_NAVI12:
 		fw_name_dmcu = FIRMWARE_NAVI12_DMCU;
@@ -1532,12 +1522,10 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		dmub_asic = DMUB_ASIC_DCN303;
 		fw_name_dmub = FIRMWARE_BEIGE_GOBY_DMUB;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
 		dmub_asic = DMUB_ASIC_DCN31;
 		fw_name_dmub = FIRMWARE_YELLOW_CARP_DMUB;
 		break;
-#endif
 
 	default:
 		/* ASIC doesn't support DMUB. */
@@ -2232,7 +2220,7 @@ static int dm_resume(void *handle)
 					= 0xffffffff;
 			}
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		/*
 		 * Resource allocation happens for link encoders for newer ASIC in
 		 * dc_validate_global_state, so we need to revalidate it.
@@ -3786,9 +3774,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
-#endif
 	case CHIP_RENOIR:
 		if (register_outbox_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -3893,9 +3879,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
-#endif
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -4067,13 +4051,11 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case CHIP_YELLOW_CARP:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 4;
 		adev->mode_info.num_dig = 4;
 		break;
-#endif
 	case CHIP_NAVI14:
 	case CHIP_DIMGREY_CAVEFISH:
 		adev->mode_info.num_crtc = 5;
@@ -4311,9 +4293,7 @@ fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
 	    adev->asic_type == CHIP_NAVY_FLOUNDER ||
 	    adev->asic_type == CHIP_DIMGREY_CAVEFISH ||
 	    adev->asic_type == CHIP_BEIGE_GOBY ||
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	    adev->asic_type == CHIP_YELLOW_CARP ||
-#endif
 	    adev->asic_type == CHIP_VANGOGH)
 		tiling_info->gfx9.num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
 }
@@ -5646,6 +5626,36 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 }
 #endif
 
+/**
+ * DOC: FreeSync Video
+ *
+ * When a userspace application wants to play a video, the content follows a
+ * standard format definition that usually specifies the FPS for that format.
+ * The below list illustrates some video format and the expected FPS,
+ * respectively:
+ *
+ * - TV/NTSC (23.976 FPS)
+ * - Cinema (24 FPS)
+ * - TV/PAL (25 FPS)
+ * - TV/NTSC (29.97 FPS)
+ * - TV/NTSC (30 FPS)
+ * - Cinema HFR (48 FPS)
+ * - TV/PAL (50 FPS)
+ * - Commonly used (60 FPS)
+ * - Multiples of 24 (48,72,96 FPS)
+ *
+ * The list of standards video format is not huge and can be added to the
+ * connector modeset list beforehand. With that, userspace can leverage
+ * FreeSync to extends the front porch in order to attain the target refresh
+ * rate. Such a switch will happen seamlessly, without screen blanking or
+ * reprogramming of the output in any other way. If the userspace requests a
+ * modesetting change compatible with FreeSync modes that only differ in the
+ * refresh rate, DC will skip the full update and avoid blink during the
+ * transition. For example, the video player can change the modesetting from
+ * 60Hz to 30Hz for playing TV/NTSC content when it goes full screen without
+ * causing any display blink. This same concept can be applied to a mode
+ * setting change.
+ */
 static struct drm_display_mode *
 get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
 			  bool use_probed_modes)
@@ -5870,6 +5880,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				stream->use_vsc_sdp_for_colorimetry = true;
 		}
 		mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
+		aconnector->psr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
+
 	}
 finish:
 	dc_sink_release(sink);
@@ -8683,7 +8695,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		else if ((acrtc_state->update_type == UPDATE_TYPE_FAST) &&
 				acrtc_state->stream->link->psr_settings.psr_feature_enabled &&
 				!acrtc_state->stream->link->psr_settings.psr_allow_active) {
-			amdgpu_dm_psr_enable(acrtc_state->stream);
+			struct amdgpu_dm_connector *aconn = (struct amdgpu_dm_connector *)
+					acrtc_state->stream->dm_stream_context;
+
+			if (aconn->psr_skip_count > 0)
+				aconn->psr_skip_count--;
+			else
+				amdgpu_dm_psr_enable(acrtc_state->stream);
 		}
 
 		mutex_unlock(&dm->dc_lock);

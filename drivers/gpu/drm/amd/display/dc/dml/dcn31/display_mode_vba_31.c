@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 #include "dc.h"
 #include "dc_link.h"
 #include "../display_mode_lib.h"
@@ -2668,6 +2667,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 												(double) v->WritebackDelay[v->VoltageLevel][k]
 														/ (v->HTotal[k] / v->PixelClock[k]),
 												1));
+		if (v->MaxVStartupLines[k] > 1023)
+			v->MaxVStartupLines[k] = 1023;
 
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%d MaxVStartupLines = %d\n", __func__, k, v->MaxVStartupLines[k]);
@@ -5064,6 +5065,8 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 																/ (v->HTotal[k]
 																		/ v->PixelClock[k]),
 														1.0));
+				if (v->MaximumVStartup[i][j][k] > 1023)
+					v->MaximumVStartup[i][j][k] = 1023;
 				v->MaxMaxVStartup[i][j] = dml_max(v->MaxMaxVStartup[i][j], v->MaximumVStartup[i][j][k]);
 			}
 		}
@@ -7505,4 +7508,3 @@ static bool UnboundedRequest(enum unbounded_requesting_policy UseUnboundedReques
 	return (ret_val);
 }
 
-#endif /* CONFIG_DRM_AMD_DC_DCN3_1 */

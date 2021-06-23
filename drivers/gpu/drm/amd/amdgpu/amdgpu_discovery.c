@@ -373,6 +373,14 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
 	return -EINVAL;
 }
 
+
+int amdgpu_discovery_get_vcn_version(struct amdgpu_device *adev, int vcn_instance,
+				     int *major, int *minor, int *revision)
+{
+	return amdgpu_discovery_get_ip_version(adev, VCN_HWID,
+					       vcn_instance, major, minor, revision);
+}
+
 void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;

@@ -1923,6 +1923,20 @@ static int aldebaran_set_mp1_state(struct smu_context *smu,
 	}
 }
 
+static int aldebaran_smu_send_hbm_bad_page_num(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	/* message SMU to update the bad page number on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetNumBadHbmPagesRetired, size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "[%s] failed to message SMU to update HBM bad pages number\n",
+				__func__);
+
+	return ret;
+}
+
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
@@ -1985,6 +1999,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.wait_for_event = smu_v13_0_wait_for_event,
 	.i2c_init = aldebaran_i2c_control_init,
 	.i2c_fini = aldebaran_i2c_control_fini,
+	.send_hbm_bad_pages_num = aldebaran_smu_send_hbm_bad_page_num,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

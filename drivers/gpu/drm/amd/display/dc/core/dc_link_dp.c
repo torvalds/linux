@@ -1664,6 +1664,7 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
+	uint8_t lane = 0;
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, lt_settings, DPRX);
@@ -1694,6 +1695,9 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 
 			repeater_training_done(link, repeater_id);
 		}
+
+		for (lane = 0; lane < (uint8_t)lt_settings->link_settings.lane_count; lane++)
+			lt_settings->lane_settings[lane].VOLTAGE_SWING = VOLTAGE_SWING_LEVEL0;
 	}
 
 	if (status == LINK_TRAINING_SUCCESS) {
@@ -1756,42 +1760,6 @@ enum link_training_result dc_link_dp_perform_link_training(
 	return status;
 }
 
-static enum dp_panel_mode try_enable_assr(struct dc_stream_state *stream)
-{
-	struct dc_link *link = stream->link;
-	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
-#ifdef CONFIG_DRM_AMD_DC_HDCP
-	struct cp_psp *cp_psp = &stream->ctx->cp_psp;
-#endif
-
-	/* ASSR must be supported on the panel */
-	if (panel_mode == DP_PANEL_MODE_DEFAULT)
-		return panel_mode;
-
-	/* eDP or internal DP only */
-	if (link->connector_signal != SIGNAL_TYPE_EDP &&
-		!(link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-		 link->is_internal_display))
-		return DP_PANEL_MODE_DEFAULT;
-
-#ifdef CONFIG_DRM_AMD_DC_HDCP
-	if (cp_psp && cp_psp->funcs.enable_assr) {
-		if (!cp_psp->funcs.enable_assr(cp_psp->handle, link)) {
-			/* since eDP implies ASSR on, change panel
-			 * mode to disable ASSR
-			 */
-			panel_mode = DP_PANEL_MODE_DEFAULT;
-		}
-	} else
-		panel_mode = DP_PANEL_MODE_DEFAULT;
-
-#else
-	/* turn off ASSR if the implementation is not compiled in */
-	panel_mode = DP_PANEL_MODE_DEFAULT;
-#endif
-	return panel_mode;
-}
-
 bool perform_link_training_with_retries(
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
@@ -1800,11 +1768,11 @@ bool perform_link_training_with_retries(
 	enum signal_type signal,
 	bool do_fallback)
 {
-	uint8_t j;
+	int j;
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	enum dp_panel_mode panel_mode;
+	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
 	struct link_encoder *link_enc;
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
 	struct dc_link_settings current_setting = *link_setting;
@@ -1841,11 +1809,23 @@ bool perform_link_training_with_retries(
 			msleep(delay_dp_power_up_in_ms);
 		}
 
-		panel_mode = try_enable_assr(stream);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+		if (panel_mode == DP_PANEL_MODE_EDP) {
+			struct cp_psp *cp_psp = &stream->ctx->cp_psp;
+
+			if (cp_psp && cp_psp->funcs.enable_assr) {
+				if (!cp_psp->funcs.enable_assr(cp_psp->handle, link)) {
+					/* since eDP implies ASSR on, change panel
+					 * mode to disable ASSR
+					 */
+					panel_mode = DP_PANEL_MODE_DEFAULT;
+				}
+			} else
+				panel_mode = DP_PANEL_MODE_DEFAULT;
+		}
+#endif
+
 		dp_set_panel_mode(link, panel_mode);
-		DC_LOG_DETECTION_DP_CAPS("Link: %d ASSR enabled: %d\n",
-			 link->link_index,
-			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
 			dc_link_dp_perform_link_training_skip_aux(link, &current_setting);
@@ -2327,7 +2307,7 @@ bool dp_verify_link_cap_with_retries(
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts)
 {
-	uint8_t i = 0;
+	int i = 0;
 	bool success = false;
 
 	for (i = 0; i < attempts; i++) {
@@ -3675,6 +3655,10 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 				DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
 				lttpr_dpcd_data,
 				sizeof(lttpr_dpcd_data));
+		if (status != DC_OK) {
+			dm_error("%s: Read LTTPR caps data failed.\n", __func__);
+			return false;
+		}
 
 		link->dpcd_caps.lttpr_caps.revision.raw =
 				lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -

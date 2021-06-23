@@ -1106,22 +1106,18 @@ struct dce_hwseq_registers {
 	type PANEL_DIGON_OVRD;\
 	type PANEL_PWRSEQ_TARGET_STATE_R;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 #define HWSEQ_DCN31_REG_FIELD_LIST(type) \
 	type DOMAIN_POWER_FORCEON;\
 	type DOMAIN_POWER_GATE;\
 	type DOMAIN_PGFSM_PWR_STATUS;\
 	type HPO_HDMISTREAMCLK_G_GATE_DIS;
 
-#endif
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN3_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint8_t)
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	HWSEQ_DCN31_REG_FIELD_LIST(uint8_t)
-#endif
 };
 
 struct dce_hwseq_mask {
@@ -1129,9 +1125,7 @@ struct dce_hwseq_mask {
 	HWSEQ_DCN_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN3_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint32_t)
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	HWSEQ_DCN31_REG_FIELD_LIST(uint32_t)
-#endif
 };
 
 

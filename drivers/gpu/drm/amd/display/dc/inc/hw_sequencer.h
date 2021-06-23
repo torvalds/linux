@@ -236,9 +236,7 @@ struct hw_sequencer_funcs {
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	void (*z10_restore)(struct dc *dc);
-#endif
 
 	void (*update_visual_confirm_color)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,

@@ -31,9 +31,7 @@
 #include "dmub_dcn301.h"
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 #include "dmub_dcn31.h"
-#endif
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -208,7 +206,6 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->setup_windows = dmub_dcn30_setup_windows;
 		}
 		break;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 
 	case DMUB_ASIC_DCN31:
 		funcs->reset = dmub_dcn31_reset;
@@ -241,7 +238,6 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
 		break;
-#endif
 
 	default:
 		return false;

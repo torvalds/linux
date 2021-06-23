@@ -1984,6 +1984,9 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			goto free;
+
+		if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
+			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.num_recs);
 	}
 
 	return 0;
@@ -2063,7 +2066,9 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev)
 		return;
 
 	if (strnstr(ctx->vbios_version, "D16406",
-		    sizeof(ctx->vbios_version)))
+		    sizeof(ctx->vbios_version)) ||
+		strnstr(ctx->vbios_version, "D36002",
+			sizeof(ctx->vbios_version)))
 		adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__GFX);
 }
 

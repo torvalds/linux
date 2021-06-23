@@ -67,14 +67,12 @@ bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 	struct dc_link *link = NULL;
 	struct psr_config psr_config = {0};
 	struct psr_context psr_context = {0};
-	struct dc *dc = NULL;
 	bool ret = false;
 
 	if (stream == NULL)
 		return false;
 
 	link = stream->link;
-	dc = link->ctx->dc;
 
 	psr_config.psr_version = link->dpcd_caps.psr_caps.psr_version;
 

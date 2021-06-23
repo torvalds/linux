@@ -87,21 +87,18 @@ static void vcn_v3_0_enc_ring_set_wptr(struct amdgpu_ring *ring);
 static int vcn_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i;
 
 	if (amdgpu_sriov_vf(adev)) {
-		adev->vcn.num_vcn_inst = VCN_INSTANCES_SIENNA_CICHLID;
+		for (i = 0; i < VCN_INSTANCES_SIENNA_CICHLID; i++)
+			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_DECODE_RING, i))
+				adev->vcn.num_vcn_inst++;
 		adev->vcn.harvest_config = 0;
 		adev->vcn.num_enc_rings = 1;
-
-	if (adev->asic_type == CHIP_BEIGE_GOBY) {
-		adev->vcn.num_vcn_inst = 1;
-		adev->vcn.num_enc_rings = 0;
-	}
 
 	} else {
 		if (adev->asic_type == CHIP_SIENNA_CICHLID) {
 			u32 harvest;
-			int i;
 
 			adev->vcn.num_vcn_inst = VCN_INSTANCES_SIENNA_CICHLID;
 			for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
@@ -156,7 +153,8 @@ static int vcn_v3_0_sw_init(void *handle)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 
-		if (adev->vcn.num_vcn_inst == VCN_INSTANCES_SIENNA_CICHLID) {
+		if ((adev->vcn.num_vcn_inst == VCN_INSTANCES_SIENNA_CICHLID) ||
+		    (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_SIENNA_CICHLID)) {
 			adev->firmware.ucode[AMDGPU_UCODE_ID_VCN1].ucode_id = AMDGPU_UCODE_ID_VCN1;
 			adev->firmware.ucode[AMDGPU_UCODE_ID_VCN1].fw = adev->vcn.fw;
 			adev->firmware.fw_size +=
@@ -330,19 +328,17 @@ static int vcn_v3_0_hw_init(void *handle)
 				continue;
 
 			ring = &adev->vcn.inst[i].ring_dec;
-			if (ring->sched.ready) {
-				ring->wptr = 0;
-				ring->wptr_old = 0;
-				vcn_v3_0_dec_ring_set_wptr(ring);
-			}
+			ring->wptr = 0;
+			ring->wptr_old = 0;
+			vcn_v3_0_dec_ring_set_wptr(ring);
+			ring->sched.ready = true;
 
 			for (j = 0; j < adev->vcn.num_enc_rings; ++j) {
 				ring = &adev->vcn.inst[i].ring_enc[j];
-				if (ring->sched.ready) {
-					ring->wptr = 0;
-					ring->wptr_old = 0;
-					vcn_v3_0_enc_ring_set_wptr(ring);
-				}
+				ring->wptr = 0;
+				ring->wptr_old = 0;
+				vcn_v3_0_enc_ring_set_wptr(ring);
+				ring->sched.ready = true;
 			}
 		}
 	} else {
@@ -1309,8 +1305,6 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 	uint32_t table_size;
 	uint32_t size, size_dw;
 
-	bool is_vcn_ready;
-
 	struct mmsch_v3_0_cmd_direct_write
 		direct_wt = { {0} };
 	struct mmsch_v3_0_cmd_direct_read_modify_write
@@ -1499,30 +1493,6 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 				"(expected=0x%08x, readback=0x%08x)\n",
 				tmp, expected, resp);
 			return -EBUSY;
-		}
-	}
-
-	/* 6, check each VCN's init_status
-	 * if it remains as 0, then this VCN is not assigned to current VF
-	 * do not start ring for this VCN
-	 */
-	size = sizeof(struct mmsch_v3_0_init_header);
-	table_loc = (uint32_t *)table->cpu_addr;
-	memcpy(&header, (void *)table_loc, size);
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-
-		is_vcn_ready = (header.inst[i].init_status == 1);
-		if (!is_vcn_ready)
-			DRM_INFO("VCN(%d) engine is disabled by hypervisor\n", i);
-
-		ring = &adev->vcn.inst[i].ring_dec;
-		ring->sched.ready = is_vcn_ready;
-		for (j = 0; j < adev->vcn.num_enc_rings; ++j) {
-			ring = &adev->vcn.inst[i].ring_enc[j];
-			ring->sched.ready = is_vcn_ready;
 		}
 	}
 

@@ -841,7 +841,7 @@ static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 		uint64_t page_idx = 1;
 
 		r = amdgpu_gart_bind(adev, gtt->offset, page_idx,
-				ttm->pages, gtt->ttm.dma_address, flags);
+				gtt->ttm.dma_address, flags);
 		if (r)
 			goto gart_bind_fail;
 
@@ -855,11 +855,10 @@ static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 		r = amdgpu_gart_bind(adev,
 				gtt->offset + (page_idx << PAGE_SHIFT),
 				ttm->num_pages - page_idx,
-				&ttm->pages[page_idx],
 				&(gtt->ttm.dma_address[page_idx]), flags);
 	} else {
 		r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
-				     ttm->pages, gtt->ttm.dma_address, flags);
+				     gtt->ttm.dma_address, flags);
 	}
 
 gart_bind_fail:
@@ -935,7 +934,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 	/* bind pages into GART page tables */
 	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
-		ttm->pages, gtt->ttm.dma_address, flags);
+		gtt->ttm.dma_address, flags);
 
 	if (r)
 		DRM_ERROR("failed to bind %u pages at 0x%08llX\n",
@@ -1129,8 +1128,6 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
-
-		ttm->page_flags |= TTM_PAGE_FLAG_SG;
 		return 0;
 	}
 
@@ -1156,7 +1153,6 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 		amdgpu_ttm_tt_set_user_pages(ttm, NULL);
 		kfree(ttm->sg);
 		ttm->sg = NULL;
-		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
 		return;
 	}
 
@@ -1189,6 +1185,9 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
 		if (bo->ttm == NULL)
 			return -ENOMEM;
 	}
+
+	/* Set TTM_PAGE_FLAG_SG before populate but after create. */
+	bo->ttm->page_flags |= TTM_PAGE_FLAG_SG;
 
 	gtt = (void *)bo->ttm;
 	gtt->userptr = addr;
