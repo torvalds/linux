@@ -164,8 +164,7 @@ static void update_BCNTIM(struct adapter *padapter)
 	pnetwork_mlmeext->IELength = offset + remainder_ielen;
 }
 
-u8 chk_sta_is_alive(struct sta_info *psta);
-u8 chk_sta_is_alive(struct sta_info *psta)
+static u8 chk_sta_is_alive(struct sta_info *psta)
 {
 	sta_update_last_rx_pkts(psta);
 
