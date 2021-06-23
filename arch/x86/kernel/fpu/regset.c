@@ -44,6 +44,25 @@ static void sync_fpstate(struct fpu *fpu)
 		fpu__save(fpu);
 }
 
+/*
+ * Invalidate cached FPU registers before modifying the stopped target
+ * task's fpstate.
+ *
+ * This forces the target task on resume to restore the FPU registers from
+ * modified fpstate. Otherwise the task might skip the restore and operate
+ * with the cached FPU registers which discards the modifications.
+ */
+static void fpu_force_restore(struct fpu *fpu)
+{
+	/*
+	 * Only stopped child tasks can be used to modify the FPU
+	 * state in the fpstate buffer:
+	 */
+	WARN_ON_FPU(fpu == &current->thread.fpu);
+
+	__fpu_invalidate_fpregs_state(fpu);
+}
+
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		struct membuf to)
 {
@@ -88,7 +107,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (newstate.mxcsr & ~mxcsr_feature_mask)
 		return -EINVAL;
 
-	fpu__prepare_write(fpu);
+	fpu_force_restore(fpu);
 
 	/* Copy the state  */
 	memcpy(&fpu->state.fxsave, &newstate, sizeof(newstate));
@@ -146,7 +165,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		}
 	}
 
-	fpu__prepare_write(fpu);
+	fpu_force_restore(fpu);
 	ret = copy_kernel_to_xstate(&fpu->state.xsave, kbuf ?: tmpbuf);
 
 out:
@@ -346,7 +365,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	fpu__prepare_write(fpu);
+	fpu_force_restore(fpu);
 
 	if (cpu_feature_enabled(X86_FEATURE_FXSR))
 		convert_to_fxsr(&fpu->state.fxsave, &env);
