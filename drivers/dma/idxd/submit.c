@@ -118,8 +118,10 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 		 * device is not accepting descriptor at all.
 		 */
 		rc = enqcmds(portal, desc->hw);
-		if (rc < 0)
+		if (rc < 0) {
+			percpu_ref_put(&wq->wq_active);
 			return rc;
+		}
 	}
 
 	percpu_ref_put(&wq->wq_active);
