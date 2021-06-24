@@ -884,7 +884,11 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 				 MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
 				 msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
-	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+	if (!ret) {
+		mhi_debug_reg_dump(mhi_cntrl);
+		panic("Timedout waiting for M3 ACK");
+		return -EIO;
+	} else if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
 		dev_err(dev,
 			"Did not enter M3 state, MHI state: %s, PM state: %s\n",
 			mhi_state_str(mhi_cntrl->dev_state),
