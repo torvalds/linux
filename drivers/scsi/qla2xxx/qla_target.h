@@ -446,7 +446,7 @@ struct ctio7_from_24xx {
 	uint8_t  vp_index;
 	uint8_t  reserved1[5];
 	__le32	exchange_address;
-	__le16	reserved2;
+	__le16	edif_sa_index;
 	__le16	flags;
 	__le32	residual;
 	__le16	ox_id;

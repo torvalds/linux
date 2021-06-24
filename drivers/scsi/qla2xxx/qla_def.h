@@ -401,6 +401,7 @@ struct srb_cmd {
 #define SRB_CRC_CTX_DSD_VALID		BIT_5	/* DIF: dsd_list valid */
 #define SRB_WAKEUP_ON_COMP		BIT_6
 #define SRB_DIF_BUNDL_DMA_VALID		BIT_7   /* DIF: DMA list valid */
+#define SRB_EDIF_CLEANUP_DELETE		BIT_9
 
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
@@ -595,6 +596,10 @@ struct srb_iocb {
 			u16 cmd;
 			u16 vp_index;
 		} ctrlvp;
+		struct {
+			struct edif_sa_ctl	*sa_ctl;
+			struct qla_sa_update_frame sa_frame;
+		} sa_update;
 	} u;
 
 	struct timer_list timer;
@@ -2616,7 +2621,12 @@ typedef struct fc_port {
 		uint32_t	app_stop:2;
 		uint32_t	app_started:1;
 		uint32_t	secured_login:1;
+		uint32_t	aes_gmac:1;
 		uint32_t	app_sess_online:1;
+		uint32_t	tx_sa_set:1;
+		uint32_t	rx_sa_set:1;
+		uint32_t	tx_sa_pending:1;
+		uint32_t	rx_sa_pending:1;
 		uint32_t	tx_rekey_cnt;
 		uint32_t	rx_rekey_cnt;
 		uint64_t	tx_bytes;
@@ -2624,6 +2634,12 @@ typedef struct fc_port {
 		uint8_t		non_secured_login;
 		uint8_t		auth_state;
 		uint16_t	rekey_cnt;
+		struct list_head edif_indx_list;
+		spinlock_t  indx_list_lock;
+
+		struct list_head tx_sa_list;
+		struct list_head rx_sa_list;
+		spinlock_t	sa_list_lock;
 	} edif;
 } fc_port_t;
 
@@ -2679,6 +2695,7 @@ static const char * const port_dstate_str[] = {
 #define FCF_CONF_COMP_SUPPORTED BIT_4
 #define FCF_ASYNC_ACTIVE	BIT_5
 #define FCF_FCSP_DEVICE		BIT_6
+#define FCF_EDIF_DELETE		BIT_7
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -3449,6 +3466,7 @@ enum qla_work_type {
 	QLA_EVT_SP_RETRY,
 	QLA_EVT_IIDMA,
 	QLA_EVT_ELS_PLOGI,
+	QLA_EVT_SA_REPLACE,
 };
 
 
@@ -3507,6 +3525,11 @@ struct qla_work_evt {
 			u8 fc4_type;
 			srb_t *sp;
 		} gpnft;
+		struct {
+			struct edif_sa_ctl	*sa_ctl;
+			fc_port_t *fcport;
+			uint16_t nport_handle;
+		} sa_update;
 	 } u;
 };
 
@@ -4684,6 +4707,16 @@ struct qla_hw_data {
 	u64 prev_cmd_cnt;
 	struct dma_pool *purex_dma_pool;
 	struct btree_head32 host_map;
+
+#define EDIF_NUM_SA_INDEX	512
+#define EDIF_TX_SA_INDEX_BASE	EDIF_NUM_SA_INDEX
+	void *edif_rx_sa_id_map;
+	void *edif_tx_sa_id_map;
+	spinlock_t sadb_fp_lock;
+
+	struct list_head sadb_tx_index_list;
+	struct list_head sadb_rx_index_list;
+	spinlock_t sadb_lock;	/* protects list */
 	struct els_reject elsrej;
 };
 
@@ -5160,7 +5193,43 @@ enum nexus_wait_type {
 	WAIT_LUN,
 };
 
+#define INVALID_EDIF_SA_INDEX	0xffff
+#define RX_DELETE_NO_EDIF_SA_INDEX	0xfffe
+
 #define QLA_SKIP_HANDLE QLA_TGT_SKIP_HANDLE
+
+/* edif hash element */
+struct edif_list_entry {
+	uint16_t handle;			/* nport_handle */
+	uint32_t update_sa_index;
+	uint32_t delete_sa_index;
+	uint32_t count;				/* counter for filtering sa_index */
+#define EDIF_ENTRY_FLAGS_CLEANUP	0x01	/* this index is being cleaned up */
+	uint32_t flags;				/* used by sadb cleanup code */
+	fc_port_t *fcport;			/* needed by rx delay timer function */
+	struct timer_list timer;		/* rx delay timer */
+	struct list_head next;
+};
+
+#define EDIF_TX_INDX_BASE 512
+#define EDIF_RX_INDX_BASE 0
+#define EDIF_RX_DELETE_FILTER_COUNT 3	/* delay queuing rx delete until this many */
+
+/* entry in the sa_index free pool */
+
+struct sa_index_pair {
+	uint16_t sa_index;
+	uint32_t spi;
+};
+
+/* edif sa_index data structure */
+struct edif_sa_index_entry {
+	struct sa_index_pair sa_pair[2];
+	fc_port_t *fcport;
+	uint16_t handle;
+	struct list_head next;
+};
+
 /* Refer to SNIA SFF 8247 */
 struct sff_8247_a0 {
 	u8 txid;	/* transceiver id */

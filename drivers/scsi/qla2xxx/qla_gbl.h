@@ -130,6 +130,13 @@ void qla24xx_free_purex_item(struct purex_item *item);
 extern bool qla24xx_risc_firmware_invalid(uint32_t *);
 void qla_init_iocb_limit(scsi_qla_host_t *);
 
+void qla_edif_sadb_release(struct qla_hw_data *ha);
+int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha);
+void qla_edif_sadb_release_free_pool(struct qla_hw_data *ha);
+void qla_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
+		srb_t *sp, struct sts_entry_24xx *sts24);
+void qlt_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
+		struct ctio7_from_24xx *ctio);
 int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsgjob);
 const char *sc_to_str(uint16_t cmd);
 
@@ -238,6 +245,8 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 			       struct purex_item *pkt);
 void qla_pci_set_eeh_busy(struct scsi_qla_host *);
 void qla_schedule_eeh_work(struct scsi_qla_host *);
+struct edif_sa_ctl *qla_edif_find_sa_ctl_by_index(fc_port_t *fcport,
+						  int index, int dir);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -313,6 +322,8 @@ extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
 	struct dsd64 *, uint16_t, struct qla_tgt_cmd *);
 extern int qla24xx_get_one_block_sg(uint32_t, struct qla2_sgx *, uint32_t *);
 extern int qla24xx_configure_prot_mode(srb_t *, uint16_t *);
+extern int qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha,
+	struct qla_work_evt *e);
 
 /*
  * Global Function Prototypes in qla_mbx.c source file.
@@ -885,6 +896,9 @@ extern int qla2x00_issue_iocb_timeout(scsi_qla_host_t *, void *,
 	dma_addr_t, size_t, uint32_t);
 extern int qla2x00_get_idma_speed(scsi_qla_host_t *, uint16_t,
 	uint16_t *, uint16_t *);
+extern int qla24xx_sadb_update(struct bsg_job *bsg_job);
+extern int qla_post_sa_replace_work(struct scsi_qla_host *vha,
+	 fc_port_t *fcport, uint16_t nport_handle, struct edif_sa_ctl *sa_ctl);
 
 /* 83xx related functions */
 void qla83xx_fw_dump(scsi_qla_host_t *vha);
@@ -957,12 +971,19 @@ extern void qla_nvme_abort_process_comp_status
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
+
+/* qla_edif.c */
 fc_port_t *qla2x00_find_fcport_by_pid(scsi_qla_host_t *vha, port_id_t *id);
 void qla_edb_stop(scsi_qla_host_t *vha);
 int32_t qla_edif_app_mgmt(struct bsg_job *bsg_job);
 void qla_enode_init(scsi_qla_host_t *vha);
 void qla_enode_stop(scsi_qla_host_t *vha);
+void qla_edif_flush_sa_ctl_lists(fc_port_t *fcport);
+void qla24xx_sa_update_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
+void qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
 void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp);
+void qla28xx_sa_update_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+		struct sa_update_28xx *pkt);
 void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea);
 
 #define QLA2XX_HW_ERROR			BIT_0

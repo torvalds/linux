@@ -11,6 +11,12 @@
 #include <linux/delay.h>
 #include <scsi/scsi_tcq.h>
 
+static struct edif_sa_index_entry *qla_edif_sadb_find_sa_index_entry(uint16_t nport_handle,
+		struct list_head *sa_list);
+static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
+		struct qla_sa_update_frame *sa_frame);
+static int qla_edif_sadb_delete_sa_index(fc_port_t *fcport, uint16_t nport_handle,
+		uint16_t sa_index);
 static int qla_pur_get_pending(scsi_qla_host_t *, fc_port_t *, struct bsg_job *);
 
 static struct els_sub_cmd {
@@ -35,14 +41,151 @@ const char *sc_to_str(uint16_t cmd)
 	return "unknown";
 }
 
+static struct edif_list_entry *qla_edif_list_find_sa_index(fc_port_t *fcport,
+		uint16_t handle)
+{
+	struct edif_list_entry *entry;
+	struct edif_list_entry *tentry;
+	struct list_head *indx_list = &fcport->edif.edif_indx_list;
+
+	list_for_each_entry_safe(entry, tentry, indx_list, next) {
+		if (entry->handle == handle)
+			return entry;
+	}
+	return NULL;
+}
+
+/* timeout called when no traffic and delayed rx sa_index delete */
+static void qla2x00_sa_replace_iocb_timeout(struct timer_list *t)
+{
+	struct edif_list_entry *edif_entry = from_timer(edif_entry, t, timer);
+	fc_port_t *fcport = edif_entry->fcport;
+	struct scsi_qla_host *vha = fcport->vha;
+	struct  edif_sa_ctl *sa_ctl;
+	uint16_t nport_handle;
+	unsigned long flags = 0;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3069,
+	    "%s:  nport_handle 0x%x,  SA REPL Delay Timeout, %8phC portid=%06x\n",
+	    __func__, edif_entry->handle, fcport->port_name, fcport->d_id.b24);
+
+	/*
+	 * if delete_sa_index is valid then no one has serviced this
+	 * delayed delete
+	 */
+	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
+
+	/*
+	 * delete_sa_index is invalidated when we find the new sa_index in
+	 * the incoming data stream.  If it is not invalidated then we are
+	 * still looking for the new sa_index because there is no I/O and we
+	 * need to just force the rx delete and move on.  Otherwise
+	 * we could get another rekey which will result in an error 66.
+	 */
+	if (edif_entry->delete_sa_index != INVALID_EDIF_SA_INDEX) {
+		uint16_t delete_sa_index = edif_entry->delete_sa_index;
+
+		edif_entry->delete_sa_index = INVALID_EDIF_SA_INDEX;
+		nport_handle = edif_entry->handle;
+		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+
+		sa_ctl = qla_edif_find_sa_ctl_by_index(fcport,
+		    delete_sa_index, 0);
+
+		if (sa_ctl) {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: sa_ctl: %p, delete index %d, update index: %d, lid: 0x%x\n",
+			    __func__, sa_ctl, delete_sa_index, edif_entry->update_sa_index,
+			    nport_handle);
+
+			sa_ctl->flags = EDIF_SA_CTL_FLG_DEL;
+			set_bit(EDIF_SA_CTL_REPL, &sa_ctl->state);
+			qla_post_sa_replace_work(fcport->vha, fcport,
+			    nport_handle, sa_ctl);
+
+		} else {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: sa_ctl not found for delete_sa_index: %d\n",
+			    __func__, edif_entry->delete_sa_index);
+		}
+	} else {
+		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+	}
+}
+
+/*
+ * create a new list entry for this nport handle and
+ * add an sa_update index to the list - called for sa_update
+ */
+static int qla_edif_list_add_sa_update_index(fc_port_t *fcport,
+		uint16_t sa_index, uint16_t handle)
+{
+	struct edif_list_entry *entry;
+	unsigned long flags = 0;
+
+	/* if the entry exists, then just update the sa_index */
+	entry = qla_edif_list_find_sa_index(fcport, handle);
+	if (entry) {
+		entry->update_sa_index = sa_index;
+		entry->count = 0;
+		return 0;
+	}
+
+	/*
+	 * This is the normal path - there should be no existing entry
+	 * when update is called.  The exception is at startup
+	 * when update is called for the first two sa_indexes
+	 * followed by a delete of the first sa_index
+	 */
+	entry = kzalloc((sizeof(struct edif_list_entry)), GFP_ATOMIC);
+	if (!entry)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&entry->next);
+	entry->handle = handle;
+	entry->update_sa_index = sa_index;
+	entry->delete_sa_index = INVALID_EDIF_SA_INDEX;
+	entry->count = 0;
+	entry->flags = 0;
+	timer_setup(&entry->timer, qla2x00_sa_replace_iocb_timeout, 0);
+	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
+	list_add_tail(&entry->next, &fcport->edif.edif_indx_list);
+	spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+	return 0;
+}
+
+/* remove an entry from the list */
+static void qla_edif_list_delete_sa_index(fc_port_t *fcport, struct edif_list_entry *entry)
+{
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
+	list_del(&entry->next);
+	spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+}
+
+int qla_post_sa_replace_work(struct scsi_qla_host *vha,
+	 fc_port_t *fcport, uint16_t nport_handle, struct edif_sa_ctl *sa_ctl)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(vha, QLA_EVT_SA_REPLACE);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.sa_update.fcport = fcport;
+	e->u.sa_update.sa_ctl = sa_ctl;
+	e->u.sa_update.nport_handle = nport_handle;
+	fcport->flags |= FCF_ASYNC_ACTIVE;
+	return qla2x00_post_work(vha, e);
+}
+
 static void
 qla_edif_sa_ctl_init(scsi_qla_host_t *vha, struct fc_port  *fcport)
 {
 	ql_dbg(ql_dbg_edif, vha, 0x2058,
-		"Init SA_CTL List for fcport - nn %8phN pn %8phN portid=%02x%02x%02x.\n",
-		fcport->node_name, fcport->port_name,
-		fcport->d_id.b.domain, fcport->d_id.b.area,
-		fcport->d_id.b.al_pa);
+	    "Init SA_CTL List for fcport - nn %8phN pn %8phN portid=%06x.\n",
+	    fcport->node_name, fcport->port_name, fcport->d_id.b24);
 
 	fcport->edif.tx_rekey_cnt = 0;
 	fcport->edif.rx_rekey_cnt = 0;
@@ -60,13 +203,11 @@ fc_port_t *fcport)
 	    (struct qla_bsg_auth_els_request *)bsg_job->request;
 
 	if (!vha->hw->flags.edif_enabled) {
-		/* edif support not enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x9105,
 		    "%s edif not enabled\n", __func__);
 		goto done;
 	}
 	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
-		/* doorbell list not enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		    "%s doorbell not enabled\n", __func__);
 		goto done;
@@ -193,6 +334,167 @@ static void qla_edif_reset_auth_wait(struct fc_port *fcport, int state,
 		    __func__, fcport->port_name, fcport->loop_id,
 		    fcport->d_id.b24, fcport, fcport->disc_state, cnt);
 	}
+}
+
+static void
+qla_edif_free_sa_ctl(fc_port_t *fcport, struct edif_sa_ctl *sa_ctl,
+	int index)
+{
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&fcport->edif.sa_list_lock, flags);
+	list_del(&sa_ctl->next);
+	spin_unlock_irqrestore(&fcport->edif.sa_list_lock, flags);
+	if (index >= 512)
+		fcport->edif.tx_rekey_cnt--;
+	else
+		fcport->edif.rx_rekey_cnt--;
+	kfree(sa_ctl);
+}
+
+/* return an index to the freepool */
+static void qla_edif_add_sa_index_to_freepool(fc_port_t *fcport, int dir,
+		uint16_t sa_index)
+{
+	void *sa_id_map;
+	struct scsi_qla_host *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
+	u16 lsa_index = sa_index;
+
+	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x3063,
+	    "%s: entry\n", __func__);
+
+	if (dir) {
+		sa_id_map = ha->edif_tx_sa_id_map;
+		lsa_index -= EDIF_TX_SA_INDEX_BASE;
+	} else {
+		sa_id_map = ha->edif_rx_sa_id_map;
+	}
+
+	spin_lock_irqsave(&ha->sadb_fp_lock, flags);
+	clear_bit(lsa_index, sa_id_map);
+	spin_unlock_irqrestore(&ha->sadb_fp_lock, flags);
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: index %d added to free pool\n", __func__, sa_index);
+}
+
+static void __qla2x00_release_all_sadb(struct scsi_qla_host *vha,
+	struct fc_port *fcport, struct edif_sa_index_entry *entry,
+	int pdir)
+{
+	struct edif_list_entry *edif_entry;
+	struct  edif_sa_ctl *sa_ctl;
+	int i, dir;
+	int key_cnt = 0;
+
+	for (i = 0; i < 2; i++) {
+		if (entry->sa_pair[i].sa_index == INVALID_EDIF_SA_INDEX)
+			continue;
+
+		if (fcport->loop_id != entry->handle) {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: ** WARNING %d** entry handle: 0x%x, lid: 0x%x, sa_index: %d\n",
+			    __func__, i, entry->handle, fcport->loop_id,
+			    entry->sa_pair[i].sa_index);
+		}
+
+		/* release the sa_ctl */
+		sa_ctl = qla_edif_find_sa_ctl_by_index(fcport,
+				entry->sa_pair[i].sa_index, pdir);
+		if (sa_ctl &&
+		    qla_edif_find_sa_ctl_by_index(fcport, sa_ctl->index, pdir)) {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: freeing sa_ctl for index %d\n", __func__, sa_ctl->index);
+			qla_edif_free_sa_ctl(fcport, sa_ctl, sa_ctl->index);
+		} else {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: sa_ctl NOT freed, sa_ctl: %p\n", __func__, sa_ctl);
+		}
+
+		/* Release the index */
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+			"%s: freeing sa_index %d, nph: 0x%x\n",
+			__func__, entry->sa_pair[i].sa_index, entry->handle);
+
+		dir = (entry->sa_pair[i].sa_index <
+			EDIF_TX_SA_INDEX_BASE) ? 0 : 1;
+		qla_edif_add_sa_index_to_freepool(fcport, dir,
+			entry->sa_pair[i].sa_index);
+
+		/* Delete timer on RX */
+		if (pdir != SAU_FLG_TX) {
+			edif_entry =
+				qla_edif_list_find_sa_index(fcport, entry->handle);
+			if (edif_entry) {
+				ql_dbg(ql_dbg_edif, vha, 0x5033,
+				    "%s: remove edif_entry %p, update_sa_index: 0x%x, delete_sa_index: 0x%x\n",
+				    __func__, edif_entry, edif_entry->update_sa_index,
+				    edif_entry->delete_sa_index);
+				qla_edif_list_delete_sa_index(fcport, edif_entry);
+				/*
+				 * valid delete_sa_index indicates there is a rx
+				 * delayed delete queued
+				 */
+				if (edif_entry->delete_sa_index !=
+						INVALID_EDIF_SA_INDEX) {
+					del_timer(&edif_entry->timer);
+
+					/* build and send the aen */
+					fcport->edif.rx_sa_set = 1;
+					fcport->edif.rx_sa_pending = 0;
+				}
+				ql_dbg(ql_dbg_edif, vha, 0x5033,
+				    "%s: release edif_entry %p, update_sa_index: 0x%x, delete_sa_index: 0x%x\n",
+				    __func__, edif_entry, edif_entry->update_sa_index,
+				    edif_entry->delete_sa_index);
+
+				kfree(edif_entry);
+			}
+		}
+		key_cnt++;
+	}
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: %d %s keys released\n",
+	    __func__, key_cnt, pdir ? "tx" : "rx");
+}
+
+/* find an release all outstanding sadb sa_indicies */
+void qla2x00_release_all_sadb(struct scsi_qla_host *vha, struct fc_port *fcport)
+{
+	struct edif_sa_index_entry *entry, *tmp;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+
+	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x3063,
+	    "%s: Starting...\n", __func__);
+
+	spin_lock_irqsave(&ha->sadb_lock, flags);
+
+	list_for_each_entry_safe(entry, tmp, &ha->sadb_rx_index_list, next) {
+		if (entry->fcport == fcport) {
+			list_del(&entry->next);
+			spin_unlock_irqrestore(&ha->sadb_lock, flags);
+			__qla2x00_release_all_sadb(vha, fcport, entry, 0);
+			kfree(entry);
+			spin_lock_irqsave(&ha->sadb_lock, flags);
+			break;
+		}
+	}
+
+	list_for_each_entry_safe(entry, tmp, &ha->sadb_tx_index_list, next) {
+		if (entry->fcport == fcport) {
+			list_del(&entry->next);
+			spin_unlock_irqrestore(&ha->sadb_lock, flags);
+
+			__qla2x00_release_all_sadb(vha, fcport, entry, SAU_FLG_TX);
+
+			kfree(entry);
+			spin_lock_irqsave(&ha->sadb_lock, flags);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&ha->sadb_lock, flags);
 }
 
 /**
@@ -576,6 +878,10 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	}
 
 	switch (vnd_sc) {
+	case QL_VND_SC_SA_UPDATE:
+		done = false;
+		rval = qla24xx_sadb_update(bsg_job);
+		break;
 	case QL_VND_SC_APP_START:
 		rval = qla_edif_app_start(vha, bsg_job);
 		break;
@@ -607,6 +913,438 @@ done:
 	}
 
 	return rval;
+}
+
+static struct edif_sa_ctl *
+qla_edif_add_sa_ctl(fc_port_t *fcport, struct qla_sa_update_frame *sa_frame,
+	int dir)
+{
+	struct	edif_sa_ctl *sa_ctl;
+	struct qla_sa_update_frame *sap;
+	int	index = sa_frame->fast_sa_index;
+	unsigned long flags = 0;
+
+	sa_ctl = kzalloc(sizeof(*sa_ctl), GFP_KERNEL);
+	if (!sa_ctl) {
+		/* couldn't get space */
+		ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+		    "unable to allocate SA CTL\n");
+		return NULL;
+	}
+
+	/*
+	 * need to allocate sa_index here and save it
+	 * in both sa_ctl->index and sa_frame->fast_sa_index;
+	 * If alloc fails then delete sa_ctl and return NULL
+	 */
+	INIT_LIST_HEAD(&sa_ctl->next);
+	sap = &sa_ctl->sa_frame;
+	*sap = *sa_frame;
+	sa_ctl->index = index;
+	sa_ctl->fcport = fcport;
+	sa_ctl->flags = 0;
+	sa_ctl->state = 0L;
+	ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+	    "%s: Added sa_ctl %p, index %d, state 0x%lx\n",
+	    __func__, sa_ctl, sa_ctl->index, sa_ctl->state);
+	spin_lock_irqsave(&fcport->edif.sa_list_lock, flags);
+	if (dir == SAU_FLG_TX)
+		list_add_tail(&sa_ctl->next, &fcport->edif.tx_sa_list);
+	else
+		list_add_tail(&sa_ctl->next, &fcport->edif.rx_sa_list);
+	spin_unlock_irqrestore(&fcport->edif.sa_list_lock, flags);
+
+	return sa_ctl;
+}
+
+void
+qla_edif_flush_sa_ctl_lists(fc_port_t *fcport)
+{
+	struct edif_sa_ctl *sa_ctl, *tsa_ctl;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&fcport->edif.sa_list_lock, flags);
+
+	list_for_each_entry_safe(sa_ctl, tsa_ctl, &fcport->edif.tx_sa_list,
+	    next) {
+		list_del(&sa_ctl->next);
+		kfree(sa_ctl);
+	}
+
+	list_for_each_entry_safe(sa_ctl, tsa_ctl, &fcport->edif.rx_sa_list,
+	    next) {
+		list_del(&sa_ctl->next);
+		kfree(sa_ctl);
+	}
+
+	spin_unlock_irqrestore(&fcport->edif.sa_list_lock, flags);
+}
+
+struct edif_sa_ctl *
+qla_edif_find_sa_ctl_by_index(fc_port_t *fcport, int index, int dir)
+{
+	struct edif_sa_ctl *sa_ctl, *tsa_ctl;
+	struct list_head *sa_list;
+
+	if (dir == SAU_FLG_TX)
+		sa_list = &fcport->edif.tx_sa_list;
+	else
+		sa_list = &fcport->edif.rx_sa_list;
+
+	list_for_each_entry_safe(sa_ctl, tsa_ctl, sa_list, next) {
+		if (test_bit(EDIF_SA_CTL_USED, &sa_ctl->state) &&
+		    sa_ctl->index == index)
+			return sa_ctl;
+	}
+	return NULL;
+}
+
+/* add the sa to the correct list */
+static int
+qla24xx_check_sadb_avail_slot(struct bsg_job *bsg_job, fc_port_t *fcport,
+	struct qla_sa_update_frame *sa_frame)
+{
+	struct edif_sa_ctl *sa_ctl = NULL;
+	int dir;
+	uint16_t sa_index;
+
+	dir = (sa_frame->flags & SAU_FLG_TX);
+
+	/* map the spi to an sa_index */
+	sa_index = qla_edif_sadb_get_sa_index(fcport, sa_frame);
+	if (sa_index == RX_DELETE_NO_EDIF_SA_INDEX) {
+		/* process rx delete */
+		ql_dbg(ql_dbg_edif, fcport->vha, 0x3063,
+		    "%s: rx delete for lid 0x%x, spi 0x%x, no entry found\n",
+		    __func__, fcport->loop_id, sa_frame->spi);
+
+		/* build and send the aen */
+		fcport->edif.rx_sa_set = 1;
+		fcport->edif.rx_sa_pending = 0;
+
+		/* force a return of good bsg status; */
+		return RX_DELETE_NO_EDIF_SA_INDEX;
+	} else if (sa_index == INVALID_EDIF_SA_INDEX) {
+		ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+		    "%s: Failed to get sa_index for spi 0x%x, dir: %d\n",
+		    __func__, sa_frame->spi, dir);
+		return INVALID_EDIF_SA_INDEX;
+	}
+
+	ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+	    "%s: index %d allocated to spi 0x%x, dir: %d, nport_handle: 0x%x\n",
+	    __func__, sa_index, sa_frame->spi, dir, fcport->loop_id);
+
+	/* This is a local copy of sa_frame. */
+	sa_frame->fast_sa_index = sa_index;
+	/* create the sa_ctl */
+	sa_ctl = qla_edif_add_sa_ctl(fcport, sa_frame, dir);
+	if (!sa_ctl) {
+		ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+		    "%s: Failed to add sa_ctl for spi 0x%x, dir: %d, sa_index: %d\n",
+		    __func__, sa_frame->spi, dir, sa_index);
+		return -1;
+	}
+
+	set_bit(EDIF_SA_CTL_USED, &sa_ctl->state);
+
+	if (dir == SAU_FLG_TX)
+		fcport->edif.tx_rekey_cnt++;
+	else
+		fcport->edif.rx_rekey_cnt++;
+
+	ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
+	    "%s: Found sa_ctl %p, index %d, state 0x%lx, tx_cnt %d, rx_cnt %d, nport_handle: 0x%x\n",
+	    __func__, sa_ctl, sa_ctl->index, sa_ctl->state,
+	    fcport->edif.tx_rekey_cnt,
+	    fcport->edif.rx_rekey_cnt, fcport->loop_id);
+
+	return 0;
+}
+
+#define QLA_SA_UPDATE_FLAGS_RX_KEY      0x0
+#define QLA_SA_UPDATE_FLAGS_TX_KEY      0x2
+
+int
+qla24xx_sadb_update(struct bsg_job *bsg_job)
+{
+	struct	fc_bsg_reply	*bsg_reply = bsg_job->reply;
+	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
+	scsi_qla_host_t *vha = shost_priv(host);
+	fc_port_t		*fcport = NULL;
+	srb_t			*sp = NULL;
+	struct edif_list_entry *edif_entry = NULL;
+	int			found = 0;
+	int			rval = 0;
+	int result = 0;
+	struct qla_sa_update_frame sa_frame;
+	struct srb_iocb *iocb_cmd;
+
+	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x911d,
+	    "%s entered, vha: 0x%p\n", __func__, vha);
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, &sa_frame,
+	    sizeof(struct qla_sa_update_frame));
+
+	/* Check if host is online */
+	if (!vha->flags.online) {
+		ql_log(ql_log_warn, vha, 0x70a1, "Host is not online\n");
+		rval = -EIO;
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		goto done;
+	}
+
+	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+		ql_log(ql_log_warn, vha, 0x70a1, "App not started\n");
+		rval = -EIO;
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		goto done;
+	}
+
+	fcport = qla2x00_find_fcport_by_pid(vha, &sa_frame.port_id);
+	if (fcport) {
+		found = 1;
+		if (sa_frame.flags == QLA_SA_UPDATE_FLAGS_TX_KEY)
+			fcport->edif.tx_bytes = 0;
+		if (sa_frame.flags == QLA_SA_UPDATE_FLAGS_RX_KEY)
+			fcport->edif.rx_bytes = 0;
+	}
+
+	if (!found) {
+		ql_dbg(ql_dbg_edif, vha, 0x70a3, "Failed to find port= %06x\n",
+		    sa_frame.port_id.b24);
+		rval = -EINVAL;
+		SET_DID_STATUS(bsg_reply->result, DID_TARGET_FAILURE);
+		goto done;
+	}
+
+	/* make sure the nport_handle is valid */
+	if (fcport->loop_id == FC_NO_LOOP_ID) {
+		ql_dbg(ql_dbg_edif, vha, 0x70e1,
+		    "%s: %8phN lid=FC_NO_LOOP_ID, spi: 0x%x, DS %d, returning NO_CONNECT\n",
+		    __func__, fcport->port_name, sa_frame.spi,
+		    fcport->disc_state);
+		rval = -EINVAL;
+		SET_DID_STATUS(bsg_reply->result, DID_NO_CONNECT);
+		goto done;
+	}
+
+	/* allocate and queue an sa_ctl */
+	result = qla24xx_check_sadb_avail_slot(bsg_job, fcport, &sa_frame);
+
+	/* failure of bsg */
+	if (result == INVALID_EDIF_SA_INDEX) {
+		ql_dbg(ql_dbg_edif, vha, 0x70e1,
+		    "%s: %8phN, skipping update.\n",
+		    __func__, fcport->port_name);
+		rval = -EINVAL;
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		goto done;
+
+	/* rx delete failure */
+	} else if (result == RX_DELETE_NO_EDIF_SA_INDEX) {
+		ql_dbg(ql_dbg_edif, vha, 0x70e1,
+		    "%s: %8phN, skipping rx delete.\n",
+		    __func__, fcport->port_name);
+		SET_DID_STATUS(bsg_reply->result, DID_OK);
+		goto done;
+	}
+
+	ql_dbg(ql_dbg_edif, vha, 0x70e1,
+	    "%s: %8phN, sa_index in sa_frame: %d flags %xh\n",
+	    __func__, fcport->port_name, sa_frame.fast_sa_index,
+	    sa_frame.flags);
+
+	/* looking for rx index and delete */
+	if (((sa_frame.flags & SAU_FLG_TX) == 0) &&
+	    (sa_frame.flags & SAU_FLG_INV)) {
+		uint16_t nport_handle = fcport->loop_id;
+		uint16_t sa_index = sa_frame.fast_sa_index;
+
+		/*
+		 * make sure we have an existing rx key, otherwise just process
+		 * this as a straight delete just like TX
+		 * This is NOT a normal case, it indicates an error recovery or key cleanup
+		 * by the ipsec code above us.
+		 */
+		edif_entry = qla_edif_list_find_sa_index(fcport, fcport->loop_id);
+		if (!edif_entry) {
+			ql_dbg(ql_dbg_edif, vha, 0x911d,
+			    "%s: WARNING: no active sa_index for nport_handle 0x%x, forcing delete for sa_index 0x%x\n",
+			    __func__, fcport->loop_id, sa_index);
+			goto force_rx_delete;
+		}
+
+		/*
+		 * if we have a forced delete for rx, remove the sa_index from the edif list
+		 * and proceed with normal delete.  The rx delay timer should not be running
+		 */
+		if ((sa_frame.flags & SAU_FLG_FORCE_DELETE) == SAU_FLG_FORCE_DELETE) {
+			qla_edif_list_delete_sa_index(fcport, edif_entry);
+			ql_dbg(ql_dbg_edif, vha, 0x911d,
+			    "%s: FORCE DELETE flag found for nport_handle 0x%x, sa_index 0x%x, forcing DELETE\n",
+			    __func__, fcport->loop_id, sa_index);
+			kfree(edif_entry);
+			goto force_rx_delete;
+		}
+
+		/*
+		 * delayed rx delete
+		 *
+		 * if delete_sa_index is not invalid then there is already
+		 * a delayed index in progress, return bsg bad status
+		 */
+		if (edif_entry->delete_sa_index != INVALID_EDIF_SA_INDEX) {
+			struct edif_sa_ctl *sa_ctl;
+
+			ql_dbg(ql_dbg_edif, vha, 0x911d,
+			    "%s: delete for lid 0x%x, delete_sa_index %d is pending\n",
+			    __func__, edif_entry->handle, edif_entry->delete_sa_index);
+
+			/* free up the sa_ctl that was allocated with the sa_index */
+			sa_ctl = qla_edif_find_sa_ctl_by_index(fcport, sa_index,
+			    (sa_frame.flags & SAU_FLG_TX));
+			if (sa_ctl) {
+				ql_dbg(ql_dbg_edif, vha, 0x3063,
+				    "%s: freeing sa_ctl for index %d\n",
+				    __func__, sa_ctl->index);
+				qla_edif_free_sa_ctl(fcport, sa_ctl, sa_ctl->index);
+			}
+
+			/* release the sa_index */
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: freeing sa_index %d, nph: 0x%x\n",
+			    __func__, sa_index, nport_handle);
+			qla_edif_sadb_delete_sa_index(fcport, nport_handle, sa_index);
+
+			rval = -EINVAL;
+			SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+			goto done;
+		}
+
+		fcport->edif.rekey_cnt++;
+
+		/* configure and start the rx delay timer */
+		edif_entry->fcport = fcport;
+		edif_entry->timer.expires = jiffies + RX_DELAY_DELETE_TIMEOUT * HZ;
+
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: adding timer, entry: %p, delete sa_index %d, lid 0x%x to edif_list\n",
+		    __func__, edif_entry, sa_index, nport_handle);
+
+		/*
+		 * Start the timer when we queue the delayed rx delete.
+		 * This is an activity timer that goes off if we have not
+		 * received packets with the new sa_index
+		 */
+		add_timer(&edif_entry->timer);
+
+		/*
+		 * sa_delete for rx key with an active rx key including this one
+		 * add the delete rx sa index to the hash so we can look for it
+		 * in the rsp queue.  Do this after making any changes to the
+		 * edif_entry as part of the rx delete.
+		 */
+
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: delete sa_index %d, lid 0x%x to edif_list. bsg done ptr %p\n",
+		    __func__, sa_index, nport_handle, bsg_job);
+
+		edif_entry->delete_sa_index = sa_index;
+
+		bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+		bsg_reply->result = DID_OK << 16;
+
+		goto done;
+
+	/*
+	 * rx index and update
+	 * add the index to the list and continue with normal update
+	 */
+	} else if (((sa_frame.flags & SAU_FLG_TX) == 0) &&
+	    ((sa_frame.flags & SAU_FLG_INV) == 0)) {
+		/* sa_update for rx key */
+		uint32_t nport_handle = fcport->loop_id;
+		uint16_t sa_index = sa_frame.fast_sa_index;
+		int result;
+
+		/*
+		 * add the update rx sa index to the hash so we can look for it
+		 * in the rsp queue and continue normally
+		 */
+
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s:  adding update sa_index %d, lid 0x%x to edif_list\n",
+		    __func__, sa_index, nport_handle);
+
+		result = qla_edif_list_add_sa_update_index(fcport, sa_index,
+		    nport_handle);
+		if (result) {
+			ql_dbg(ql_dbg_edif, vha, 0x911d,
+			    "%s: SA_UPDATE failed to add new sa index %d to list for lid 0x%x\n",
+			    __func__, sa_index, nport_handle);
+		}
+	}
+	if (sa_frame.flags & SAU_FLG_GMAC_MODE)
+		fcport->edif.aes_gmac = 1;
+	else
+		fcport->edif.aes_gmac = 0;
+
+force_rx_delete:
+	/*
+	 * sa_update for both rx and tx keys, sa_delete for tx key
+	 * immediately process the request
+	 */
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
+	if (!sp) {
+		rval = -ENOMEM;
+		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
+		goto done;
+	}
+
+	sp->type = SRB_SA_UPDATE;
+	sp->name = "bsg_sa_update";
+	sp->u.bsg_job = bsg_job;
+	/* sp->free = qla2x00_bsg_sp_free; */
+	sp->free = qla2x00_rel_sp;
+	sp->done = qla2x00_bsg_job_done;
+	iocb_cmd = &sp->u.iocb_cmd;
+	iocb_cmd->u.sa_update.sa_frame  = sa_frame;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_dbg_edif, vha, 0x70e3,
+		    "qla2x00_start_sp failed=%d.\n", rval);
+
+		qla2x00_rel_sp(sp);
+		rval = -EIO;
+		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
+		goto done;
+	}
+
+	ql_dbg(ql_dbg_edif, vha, 0x911d,
+	    "%s:  %s sent, hdl=%x, portid=%06x.\n",
+	    __func__, sp->name, sp->handle, fcport->d_id.b24);
+
+	fcport->edif.rekey_cnt++;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	SET_DID_STATUS(bsg_reply->result, DID_OK);
+
+	return 0;
+
+/*
+ * send back error status
+ */
+done:
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	ql_dbg(ql_dbg_edif, vha, 0x911d,
+	    "%s:status: FAIL, result: 0x%x, bsg ptr done %p\n",
+	    __func__, bsg_reply->result, bsg_job);
+	bsg_job_done(bsg_job, bsg_reply->result,
+	    bsg_reply->reply_payload_rcv_len);
+
+	return 0;
 }
 
 static void
@@ -850,6 +1588,198 @@ qla_edb_stop(scsi_qla_host_t *vha)
 	}
 }
 
+static void qla_noop_sp_done(srb_t *sp, int res)
+{
+	sp->free(sp);
+}
+
+/*
+ * Called from work queue
+ * build and send the sa_update iocb to delete an rx sa_index
+ */
+int
+qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
+{
+	srb_t *sp;
+	fc_port_t	*fcport = NULL;
+	struct srb_iocb *iocb_cmd = NULL;
+	int rval = QLA_SUCCESS;
+	struct	edif_sa_ctl *sa_ctl = e->u.sa_update.sa_ctl;
+	uint16_t nport_handle = e->u.sa_update.nport_handle;
+
+	ql_dbg(ql_dbg_edif, vha, 0x70e6,
+	    "%s: starting,  sa_ctl: %p\n", __func__, sa_ctl);
+
+	if (!sa_ctl) {
+		ql_dbg(ql_dbg_edif, vha, 0x70e6,
+		    "sa_ctl allocation failed\n");
+		return -ENOMEM;
+	}
+
+	fcport = sa_ctl->fcport;
+
+	/* Alloc SRB structure */
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
+	if (!sp) {
+		ql_dbg(ql_dbg_edif, vha, 0x70e6,
+		 "SRB allocation failed\n");
+		return -ENOMEM;
+	}
+
+	fcport->flags |= FCF_ASYNC_SENT;
+	iocb_cmd = &sp->u.iocb_cmd;
+	iocb_cmd->u.sa_update.sa_ctl = sa_ctl;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3073,
+	    "Enter: SA REPL portid=%06x, sa_ctl %p, index %x, nport_handle: 0x%x\n",
+	    fcport->d_id.b24, sa_ctl, sa_ctl->index, nport_handle);
+	/*
+	 * if this is a sadb cleanup delete, mark it so the isr can
+	 * take the correct action
+	 */
+	if (sa_ctl->flags & EDIF_SA_CTL_FLG_CLEANUP_DEL) {
+		/* mark this srb as a cleanup delete */
+		sp->flags |= SRB_EDIF_CLEANUP_DELETE;
+		ql_dbg(ql_dbg_edif, vha, 0x70e6,
+		    "%s: sp 0x%p flagged as cleanup delete\n", __func__, sp);
+	}
+
+	sp->type = SRB_SA_REPLACE;
+	sp->name = "SA_REPLACE";
+	sp->fcport = fcport;
+	sp->free = qla2x00_rel_sp;
+	sp->done = qla_noop_sp_done;
+
+	rval = qla2x00_start_sp(sp);
+
+	if (rval != QLA_SUCCESS)
+		rval = QLA_FUNCTION_FAILED;
+
+	return rval;
+}
+
+void qla24xx_sa_update_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
+{
+	int	itr = 0;
+	struct	scsi_qla_host		*vha = sp->vha;
+	struct	qla_sa_update_frame	*sa_frame =
+		&sp->u.iocb_cmd.u.sa_update.sa_frame;
+	u8 flags = 0;
+
+	switch (sa_frame->flags & (SAU_FLG_INV | SAU_FLG_TX)) {
+	case 0:
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: EDIF SA UPDATE RX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, sa_frame->fast_sa_index);
+		break;
+	case 1:
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: EDIF SA DELETE RX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, sa_frame->fast_sa_index);
+		flags |= SA_FLAG_INVALIDATE;
+		break;
+	case 2:
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: EDIF SA UPDATE TX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, sa_frame->fast_sa_index);
+		flags |= SA_FLAG_TX;
+		break;
+	case 3:
+		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		    "%s: EDIF SA DELETE TX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, sa_frame->fast_sa_index);
+		flags |= SA_FLAG_TX | SA_FLAG_INVALIDATE;
+		break;
+	}
+
+	sa_update_iocb->entry_type = SA_UPDATE_IOCB_TYPE;
+	sa_update_iocb->entry_count = 1;
+	sa_update_iocb->sys_define = 0;
+	sa_update_iocb->entry_status = 0;
+	sa_update_iocb->handle = sp->handle;
+	sa_update_iocb->u.nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	sa_update_iocb->vp_index = sp->fcport->vha->vp_idx;
+	sa_update_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+	sa_update_iocb->port_id[1] = sp->fcport->d_id.b.area;
+	sa_update_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+
+	sa_update_iocb->flags = flags;
+	sa_update_iocb->salt = cpu_to_le32(sa_frame->salt);
+	sa_update_iocb->spi = cpu_to_le32(sa_frame->spi);
+	sa_update_iocb->sa_index = cpu_to_le16(sa_frame->fast_sa_index);
+
+	sa_update_iocb->sa_control |= SA_CNTL_ENC_FCSP;
+	if (sp->fcport->edif.aes_gmac)
+		sa_update_iocb->sa_control |= SA_CNTL_AES_GMAC;
+
+	if (sa_frame->flags & SAU_FLG_KEY256) {
+		sa_update_iocb->sa_control |= SA_CNTL_KEY256;
+		for (itr = 0; itr < 32; itr++)
+			sa_update_iocb->sa_key[itr] = sa_frame->sa_key[itr];
+
+		ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x921f, "%s 256 sa key=%32phN\n",
+		    __func__, sa_update_iocb->sa_key);
+	} else {
+		sa_update_iocb->sa_control |= SA_CNTL_KEY128;
+		for (itr = 0; itr < 16; itr++)
+			sa_update_iocb->sa_key[itr] = sa_frame->sa_key[itr];
+
+		ql_dbg(ql_dbg_edif +  ql_dbg_verbose, vha, 0x921f, "%s 128 sa key=%16phN\n",
+		    __func__, sa_update_iocb->sa_key);
+	}
+
+	ql_dbg(ql_dbg_edif, vha, 0x921d,
+	    "%s SAU Port ID = %02x%02x%02x, flags=%xh, index=%u, ctl=%xh, SPI 0x%x flags 0x%x hdl=%x gmac %d\n",
+	    __func__, sa_update_iocb->port_id[2], sa_update_iocb->port_id[1],
+	    sa_update_iocb->port_id[0], sa_update_iocb->flags, sa_update_iocb->sa_index,
+	    sa_update_iocb->sa_control, sa_update_iocb->spi, sa_frame->flags, sp->handle,
+	    sp->fcport->edif.aes_gmac);
+
+	if (sa_frame->flags & SAU_FLG_TX)
+		sp->fcport->edif.tx_sa_pending = 1;
+	else
+		sp->fcport->edif.rx_sa_pending = 1;
+
+	sp->fcport->vha->qla_stats.control_requests++;
+}
+
+void
+qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
+{
+	struct	scsi_qla_host		*vha = sp->vha;
+	struct srb_iocb *srb_iocb = &sp->u.iocb_cmd;
+	struct	edif_sa_ctl		*sa_ctl = srb_iocb->u.sa_update.sa_ctl;
+	uint16_t nport_handle = sp->fcport->loop_id;
+
+	sa_update_iocb->entry_type = SA_UPDATE_IOCB_TYPE;
+	sa_update_iocb->entry_count = 1;
+	sa_update_iocb->sys_define = 0;
+	sa_update_iocb->entry_status = 0;
+	sa_update_iocb->handle = sp->handle;
+
+	sa_update_iocb->u.nport_handle = cpu_to_le16(nport_handle);
+
+	sa_update_iocb->vp_index = sp->fcport->vha->vp_idx;
+	sa_update_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+	sa_update_iocb->port_id[1] = sp->fcport->d_id.b.area;
+	sa_update_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+
+	/* Invalidate the index. salt, spi, control & key are ignore */
+	sa_update_iocb->flags = SA_FLAG_INVALIDATE;
+	sa_update_iocb->salt = 0;
+	sa_update_iocb->spi = 0;
+	sa_update_iocb->sa_index = cpu_to_le16(sa_ctl->index);
+	sa_update_iocb->sa_control = 0;
+
+	ql_dbg(ql_dbg_edif, vha, 0x921d,
+	    "%s SAU DELETE RX Port ID = %02x:%02x:%02x, lid %d flags=%xh, index=%u, hdl=%x\n",
+	    __func__, sa_update_iocb->port_id[2], sa_update_iocb->port_id[1],
+	    sa_update_iocb->port_id[0], nport_handle, sa_update_iocb->flags,
+	    sa_update_iocb->sa_index, sp->handle);
+
+	sp->fcport->vha->qla_stats.control_requests++;
+}
+
 void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 {
 	struct purex_entry_24xx *p = *pkt;
@@ -966,6 +1896,544 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	    "%s COMPLETE purex->pur_info.pur_bytes_rcvd =%xh s:%06x -> d:%06x xchg=%xh\n",
 	    __func__, purex->pur_info.pur_bytes_rcvd, purex->pur_info.pur_sid.b24,
 	    purex->pur_info.pur_did.b24, p->rx_xchg_addr);
+}
+
+static uint16_t  qla_edif_get_sa_index_from_freepool(fc_port_t *fcport, int dir)
+{
+	struct scsi_qla_host *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	void *sa_id_map;
+	unsigned long flags = 0;
+	u16 sa_index;
+
+	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x3063,
+	    "%s: entry\n", __func__);
+
+	if (dir)
+		sa_id_map = ha->edif_tx_sa_id_map;
+	else
+		sa_id_map = ha->edif_rx_sa_id_map;
+
+	spin_lock_irqsave(&ha->sadb_fp_lock, flags);
+	sa_index = find_first_zero_bit(sa_id_map, EDIF_NUM_SA_INDEX);
+	if (sa_index >=  EDIF_NUM_SA_INDEX) {
+		spin_unlock_irqrestore(&ha->sadb_fp_lock, flags);
+		return INVALID_EDIF_SA_INDEX;
+	}
+	set_bit(sa_index, sa_id_map);
+	spin_unlock_irqrestore(&ha->sadb_fp_lock, flags);
+
+	if (dir)
+		sa_index += EDIF_TX_SA_INDEX_BASE;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: index retrieved from free pool %d\n", __func__, sa_index);
+
+	return sa_index;
+}
+
+/* find an sadb entry for an nport_handle */
+static struct edif_sa_index_entry *
+qla_edif_sadb_find_sa_index_entry(uint16_t nport_handle,
+		struct list_head *sa_list)
+{
+	struct edif_sa_index_entry *entry;
+	struct edif_sa_index_entry *tentry;
+	struct list_head *indx_list = sa_list;
+
+	list_for_each_entry_safe(entry, tentry, indx_list, next) {
+		if (entry->handle == nport_handle)
+			return entry;
+	}
+	return NULL;
+}
+
+/* remove an sa_index from the nport_handle and return it to the free pool */
+static int qla_edif_sadb_delete_sa_index(fc_port_t *fcport, uint16_t nport_handle,
+		uint16_t sa_index)
+{
+	struct edif_sa_index_entry *entry;
+	struct list_head *sa_list;
+	int dir = (sa_index < EDIF_TX_SA_INDEX_BASE) ? 0 : 1;
+	int slot = 0;
+	int free_slot_count = 0;
+	scsi_qla_host_t *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: entry\n", __func__);
+
+	if (dir)
+		sa_list = &ha->sadb_tx_index_list;
+	else
+		sa_list = &ha->sadb_rx_index_list;
+
+	entry = qla_edif_sadb_find_sa_index_entry(nport_handle, sa_list);
+	if (!entry) {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: no entry found for nport_handle 0x%x\n",
+		    __func__, nport_handle);
+		return -1;
+	}
+
+	spin_lock_irqsave(&ha->sadb_lock, flags);
+	/*
+	 * each tx/rx direction has up to 2 sa indexes/slots. 1 slot for in flight traffic
+	 * the other is use at re-key time.
+	 */
+	for (slot = 0; slot < 2; slot++) {
+		if (entry->sa_pair[slot].sa_index == sa_index) {
+			entry->sa_pair[slot].sa_index = INVALID_EDIF_SA_INDEX;
+			entry->sa_pair[slot].spi = 0;
+			free_slot_count++;
+			qla_edif_add_sa_index_to_freepool(fcport, dir, sa_index);
+		} else if (entry->sa_pair[slot].sa_index == INVALID_EDIF_SA_INDEX) {
+			free_slot_count++;
+		}
+	}
+
+	if (free_slot_count == 2) {
+		list_del(&entry->next);
+		kfree(entry);
+	}
+	spin_unlock_irqrestore(&ha->sadb_lock, flags);
+
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: sa_index %d removed, free_slot_count: %d\n",
+	    __func__, sa_index, free_slot_count);
+
+	return 0;
+}
+
+void
+qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
+	struct sa_update_28xx *pkt)
+{
+	const char *func = "SA_UPDATE_RESPONSE_IOCB";
+	srb_t *sp;
+	struct edif_sa_ctl *sa_ctl;
+	int old_sa_deleted = 1;
+	uint16_t nport_handle;
+	struct scsi_qla_host *vha;
+
+	sp = qla2x00_get_sp_from_handle(v, func, req, pkt);
+
+	if (!sp) {
+		ql_dbg(ql_dbg_edif, v, 0x3063,
+			"%s: no sp found for pkt\n", __func__);
+		return;
+	}
+	/* use sp->vha due to npiv */
+	vha = sp->vha;
+
+	switch (pkt->flags & (SA_FLAG_INVALIDATE | SA_FLAG_TX)) {
+	case 0:
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: EDIF SA UPDATE RX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, pkt->sa_index);
+		break;
+	case 1:
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: EDIF SA DELETE RX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, pkt->sa_index);
+		break;
+	case 2:
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: EDIF SA UPDATE TX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, pkt->sa_index);
+		break;
+	case 3:
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: EDIF SA DELETE TX IOCB  vha: 0x%p  index: %d\n",
+		    __func__, vha, pkt->sa_index);
+		break;
+	}
+
+	/*
+	 * dig the nport handle out of the iocb, fcport->loop_id can not be trusted
+	 * to be correct during cleanup sa_update iocbs.
+	 */
+	nport_handle = sp->fcport->loop_id;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: %8phN comp status=%x old_sa_info=%x new_sa_info=%x lid %d, index=0x%x pkt_flags %xh hdl=%x\n",
+	    __func__, sp->fcport->port_name, pkt->u.comp_sts, pkt->old_sa_info, pkt->new_sa_info,
+	    nport_handle, pkt->sa_index, pkt->flags, sp->handle);
+
+	/* if rx delete, remove the timer */
+	if ((pkt->flags & (SA_FLAG_INVALIDATE | SA_FLAG_TX)) ==  SA_FLAG_INVALIDATE) {
+		struct edif_list_entry *edif_entry;
+
+		sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
+
+		edif_entry = qla_edif_list_find_sa_index(sp->fcport, nport_handle);
+		if (edif_entry) {
+			ql_dbg(ql_dbg_edif, vha, 0x5033,
+			    "%s: removing edif_entry %p, new sa_index: 0x%x\n",
+			    __func__, edif_entry, pkt->sa_index);
+			qla_edif_list_delete_sa_index(sp->fcport, edif_entry);
+			del_timer(&edif_entry->timer);
+
+			ql_dbg(ql_dbg_edif, vha, 0x5033,
+			    "%s: releasing edif_entry %p, new sa_index: 0x%x\n",
+			    __func__, edif_entry, pkt->sa_index);
+
+			kfree(edif_entry);
+		}
+	}
+
+	/*
+	 * if this is a delete for either tx or rx, make sure it succeeded.
+	 * The new_sa_info field should be 0xffff on success
+	 */
+	if (pkt->flags & SA_FLAG_INVALIDATE)
+		old_sa_deleted = (le16_to_cpu(pkt->new_sa_info) == 0xffff) ? 1 : 0;
+
+	/* Process update and delete the same way */
+
+	/* If this is an sadb cleanup delete, bypass sending events to IPSEC */
+	if (sp->flags & SRB_EDIF_CLEANUP_DELETE) {
+		sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: nph 0x%x, sa_index %d removed from fw\n",
+		    __func__, sp->fcport->loop_id, pkt->sa_index);
+
+	} else if ((pkt->entry_status == 0) && (pkt->u.comp_sts == 0) &&
+	    old_sa_deleted) {
+		/*
+		 * Note: Wa are only keeping track of latest SA,
+		 * so we know when we can start enableing encryption per I/O.
+		 * If all SA's get deleted, let FW reject the IOCB.
+
+		 * TODO: edif: don't set enabled here I think
+		 * TODO: edif: prli complete is where it should be set
+		 */
+		ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x3063,
+			"SA(%x)updated for s_id %02x%02x%02x\n",
+			pkt->new_sa_info,
+			pkt->port_id[2], pkt->port_id[1], pkt->port_id[0]);
+		sp->fcport->edif.enable = 1;
+		if (pkt->flags & SA_FLAG_TX) {
+			sp->fcport->edif.tx_sa_set = 1;
+			sp->fcport->edif.tx_sa_pending = 0;
+		} else {
+			sp->fcport->edif.rx_sa_set = 1;
+			sp->fcport->edif.rx_sa_pending = 0;
+		}
+	} else {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: %8phN SA update FAILED: sa_index: %d, new_sa_info %d, %02x%02x%02x\n",
+		    __func__, sp->fcport->port_name, pkt->sa_index, pkt->new_sa_info,
+		    pkt->port_id[2], pkt->port_id[1], pkt->port_id[0]);
+	}
+
+	/* for delete, release sa_ctl, sa_index */
+	if (pkt->flags & SA_FLAG_INVALIDATE) {
+		/* release the sa_ctl */
+		sa_ctl = qla_edif_find_sa_ctl_by_index(sp->fcport,
+		    le16_to_cpu(pkt->sa_index), (pkt->flags & SA_FLAG_TX));
+		if (sa_ctl &&
+		    qla_edif_find_sa_ctl_by_index(sp->fcport, sa_ctl->index,
+			(pkt->flags & SA_FLAG_TX)) != NULL) {
+			ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x3063,
+			    "%s: freeing sa_ctl for index %d\n",
+			    __func__, sa_ctl->index);
+			qla_edif_free_sa_ctl(sp->fcport, sa_ctl, sa_ctl->index);
+		} else {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: sa_ctl NOT freed, sa_ctl: %p\n",
+			    __func__, sa_ctl);
+		}
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: freeing sa_index %d, nph: 0x%x\n",
+		    __func__, le16_to_cpu(pkt->sa_index), nport_handle);
+		qla_edif_sadb_delete_sa_index(sp->fcport, nport_handle,
+		    le16_to_cpu(pkt->sa_index));
+	/*
+	 * check for a failed sa_update and remove
+	 * the sadb entry.
+	 */
+	} else if (pkt->u.comp_sts) {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: freeing sa_index %d, nph: 0x%x\n",
+		    __func__, pkt->sa_index, nport_handle);
+		qla_edif_sadb_delete_sa_index(sp->fcport, nport_handle,
+		    le16_to_cpu(pkt->sa_index));
+	}
+
+	sp->done(sp, 0);
+}
+
+/******************
+ * SADB functions *
+ ******************/
+
+/* allocate/retrieve an sa_index for a given spi */
+static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
+		struct qla_sa_update_frame *sa_frame)
+{
+	struct edif_sa_index_entry *entry;
+	struct list_head *sa_list;
+	uint16_t sa_index;
+	int dir = sa_frame->flags & SAU_FLG_TX;
+	int slot = 0;
+	int free_slot = -1;
+	scsi_qla_host_t *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
+	uint16_t nport_handle = fcport->loop_id;
+
+	ql_dbg(ql_dbg_edif, vha, 0x3063,
+	    "%s: entry  fc_port: %p, nport_handle: 0x%x\n",
+	    __func__, fcport, nport_handle);
+
+	if (dir)
+		sa_list = &ha->sadb_tx_index_list;
+	else
+		sa_list = &ha->sadb_rx_index_list;
+
+	entry = qla_edif_sadb_find_sa_index_entry(nport_handle, sa_list);
+	if (!entry) {
+		if ((sa_frame->flags & (SAU_FLG_TX | SAU_FLG_INV)) == SAU_FLG_INV) {
+			ql_dbg(ql_dbg_edif, vha, 0x3063,
+			    "%s: rx delete request with no entry\n", __func__);
+			return RX_DELETE_NO_EDIF_SA_INDEX;
+		}
+
+		/* if there is no entry for this nport, add one */
+		entry = kzalloc((sizeof(struct edif_sa_index_entry)), GFP_ATOMIC);
+		if (!entry)
+			return INVALID_EDIF_SA_INDEX;
+
+		sa_index = qla_edif_get_sa_index_from_freepool(fcport, dir);
+		if (sa_index == INVALID_EDIF_SA_INDEX) {
+			kfree(entry);
+			return INVALID_EDIF_SA_INDEX;
+		}
+
+		INIT_LIST_HEAD(&entry->next);
+		entry->handle = nport_handle;
+		entry->fcport = fcport;
+		entry->sa_pair[0].spi = sa_frame->spi;
+		entry->sa_pair[0].sa_index = sa_index;
+		entry->sa_pair[1].spi = 0;
+		entry->sa_pair[1].sa_index = INVALID_EDIF_SA_INDEX;
+		spin_lock_irqsave(&ha->sadb_lock, flags);
+		list_add_tail(&entry->next, sa_list);
+		spin_unlock_irqrestore(&ha->sadb_lock, flags);
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: Created new sadb entry for nport_handle 0x%x, spi 0x%x, returning sa_index %d\n",
+		    __func__, nport_handle, sa_frame->spi, sa_index);
+
+		return sa_index;
+	}
+
+	spin_lock_irqsave(&ha->sadb_lock, flags);
+
+	/* see if we already have an entry for this spi */
+	for (slot = 0; slot < 2; slot++) {
+		if (entry->sa_pair[slot].sa_index == INVALID_EDIF_SA_INDEX) {
+			free_slot = slot;
+		} else {
+			if (entry->sa_pair[slot].spi == sa_frame->spi) {
+				spin_unlock_irqrestore(&ha->sadb_lock, flags);
+				ql_dbg(ql_dbg_edif, vha, 0x3063,
+				    "%s: sadb slot %d entry for lid 0x%x, spi 0x%x found, sa_index %d\n",
+				    __func__, slot, entry->handle, sa_frame->spi,
+				    entry->sa_pair[slot].sa_index);
+				return entry->sa_pair[slot].sa_index;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&ha->sadb_lock, flags);
+
+	/* both slots are used */
+	if (free_slot == -1) {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: WARNING: No free slots in sadb for nport_handle 0x%x, spi: 0x%x\n",
+		    __func__, entry->handle, sa_frame->spi);
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: Slot 0  spi: 0x%x  sa_index: %d,  Slot 1  spi: 0x%x  sa_index: %d\n",
+		    __func__, entry->sa_pair[0].spi, entry->sa_pair[0].sa_index,
+		    entry->sa_pair[1].spi, entry->sa_pair[1].sa_index);
+
+		return INVALID_EDIF_SA_INDEX;
+	}
+
+	/* there is at least one free slot, use it */
+	sa_index = qla_edif_get_sa_index_from_freepool(fcport, dir);
+	if (sa_index == INVALID_EDIF_SA_INDEX) {
+		ql_dbg(ql_dbg_edif, fcport->vha, 0x3063,
+		    "%s: empty freepool!!\n", __func__);
+		return INVALID_EDIF_SA_INDEX;
+	}
+
+	spin_lock_irqsave(&ha->sadb_lock, flags);
+	entry->sa_pair[free_slot].spi = sa_frame->spi;
+	entry->sa_pair[free_slot].sa_index = sa_index;
+	spin_unlock_irqrestore(&ha->sadb_lock, flags);
+	ql_dbg(ql_dbg_edif, fcport->vha, 0x3063,
+	    "%s: sadb slot %d entry for nport_handle 0x%x, spi 0x%x added, returning sa_index %d\n",
+	    __func__, free_slot, entry->handle, sa_frame->spi, sa_index);
+
+	return sa_index;
+}
+
+/* release any sadb entries -- only done at teardown */
+void qla_edif_sadb_release(struct qla_hw_data *ha)
+{
+	struct list_head *pos;
+	struct list_head *tmp;
+	struct edif_sa_index_entry *entry;
+
+	list_for_each_safe(pos, tmp, &ha->sadb_rx_index_list) {
+		entry = list_entry(pos, struct edif_sa_index_entry, next);
+		list_del(&entry->next);
+		kfree(entry);
+	}
+
+	list_for_each_safe(pos, tmp, &ha->sadb_tx_index_list) {
+		entry = list_entry(pos, struct edif_sa_index_entry, next);
+		list_del(&entry->next);
+		kfree(entry);
+	}
+}
+
+/**************************
+ * sadb freepool functions
+ **************************/
+
+/* build the rx and tx sa_index free pools -- only done at fcport init */
+int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha)
+{
+	ha->edif_tx_sa_id_map =
+	    kcalloc(BITS_TO_LONGS(EDIF_NUM_SA_INDEX), sizeof(long), GFP_KERNEL);
+
+	if (!ha->edif_tx_sa_id_map) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0009,
+		    "Unable to allocate memory for sadb tx.\n");
+		return -ENOMEM;
+	}
+
+	ha->edif_rx_sa_id_map =
+	    kcalloc(BITS_TO_LONGS(EDIF_NUM_SA_INDEX), sizeof(long), GFP_KERNEL);
+	if (!ha->edif_rx_sa_id_map) {
+		kfree(ha->edif_tx_sa_id_map);
+		ha->edif_tx_sa_id_map = NULL;
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0009,
+		    "Unable to allocate memory for sadb rx.\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+/* release the free pool - only done during fcport teardown */
+void qla_edif_sadb_release_free_pool(struct qla_hw_data *ha)
+{
+	kfree(ha->edif_tx_sa_id_map);
+	ha->edif_tx_sa_id_map = NULL;
+	kfree(ha->edif_rx_sa_id_map);
+	ha->edif_rx_sa_id_map = NULL;
+}
+
+static void __chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
+		fc_port_t *fcport, uint32_t handle, uint16_t sa_index)
+{
+	struct edif_list_entry *edif_entry;
+	struct edif_sa_ctl *sa_ctl;
+	uint16_t delete_sa_index = INVALID_EDIF_SA_INDEX;
+	unsigned long flags = 0;
+	uint16_t nport_handle = fcport->loop_id;
+	uint16_t cached_nport_handle;
+
+	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
+	edif_entry = qla_edif_list_find_sa_index(fcport, nport_handle);
+	if (!edif_entry) {
+		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+		return;		/* no pending delete for this handle */
+	}
+
+	/*
+	 * check for no pending delete for this index or iocb does not
+	 * match rx sa_index
+	 */
+	if (edif_entry->delete_sa_index == INVALID_EDIF_SA_INDEX ||
+	    edif_entry->update_sa_index != sa_index) {
+		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+		return;
+	}
+
+	/*
+	 * wait until we have seen at least EDIF_DELAY_COUNT transfers before
+	 * queueing RX delete
+	 */
+	if (edif_entry->count++ < EDIF_RX_DELETE_FILTER_COUNT) {
+		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+		return;
+	}
+
+	ql_dbg(ql_dbg_edif, vha, 0x5033,
+	    "%s: invalidating delete_sa_index,  update_sa_index: 0x%x sa_index: 0x%x, delete_sa_index: 0x%x\n",
+	    __func__, edif_entry->update_sa_index, sa_index, edif_entry->delete_sa_index);
+
+	delete_sa_index = edif_entry->delete_sa_index;
+	edif_entry->delete_sa_index = INVALID_EDIF_SA_INDEX;
+	cached_nport_handle = edif_entry->handle;
+	spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+
+	/* sanity check on the nport handle */
+	if (nport_handle != cached_nport_handle) {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: POST SA DELETE nport_handle mismatch: lid: 0x%x, edif_entry nph: 0x%x\n",
+		    __func__, nport_handle, cached_nport_handle);
+	}
+
+	/* find the sa_ctl for the delete and schedule the delete */
+	sa_ctl = qla_edif_find_sa_ctl_by_index(fcport, delete_sa_index, 0);
+	if (sa_ctl) {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: POST SA DELETE sa_ctl: %p, index recvd %d\n",
+		    __func__, sa_ctl, sa_index);
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "delete index %d, update index: %d, nport handle: 0x%x, handle: 0x%x\n",
+		    delete_sa_index,
+		    edif_entry->update_sa_index, nport_handle, handle);
+
+		sa_ctl->flags = EDIF_SA_CTL_FLG_DEL;
+		set_bit(EDIF_SA_CTL_REPL, &sa_ctl->state);
+		qla_post_sa_replace_work(fcport->vha, fcport,
+		    nport_handle, sa_ctl);
+	} else {
+		ql_dbg(ql_dbg_edif, vha, 0x3063,
+		    "%s: POST SA DELETE sa_ctl not found for delete_sa_index: %d\n",
+		    __func__, delete_sa_index);
+	}
+}
+
+void qla_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
+		srb_t *sp, struct sts_entry_24xx *sts24)
+{
+	fc_port_t *fcport = sp->fcport;
+	/* sa_index used by this iocb */
+	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
+	uint32_t handle;
+
+	handle = (uint32_t)LSW(sts24->handle);
+
+	/* find out if this status iosb is for a scsi read */
+	if (cmd->sc_data_direction != DMA_FROM_DEVICE)
+		return;
+
+	return __chk_edif_rx_sa_delete_pending(vha, fcport, handle,
+	   le16_to_cpu(sts24->edif_sa_index));
+}
+
+void qlt_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
+		struct ctio7_from_24xx *pkt)
+{
+	__chk_edif_rx_sa_delete_pending(vha, fcport,
+	    pkt->handle, le16_to_cpu(pkt->edif_sa_index));
 }
 
 static void qla_parse_auth_els_ctl(struct srb *sp)

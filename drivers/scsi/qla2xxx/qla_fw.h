@@ -611,6 +611,7 @@ struct sts_entry_24xx {
 	union {
 		__le16 reserved_1;
 		__le16	nvme_rsp_pyld_len;
+		__le16 edif_sa_index;	 /* edif sa_index used for initiator read data */
 	};
 
 	__le16	state_flags;		/* State flags. */

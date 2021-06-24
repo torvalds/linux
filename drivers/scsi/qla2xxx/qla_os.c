@@ -2835,6 +2835,17 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ha->tgt.sess_lock);
 	spin_lock_init(&ha->tgt.atio_lock);
 
+	spin_lock_init(&ha->sadb_lock);
+	INIT_LIST_HEAD(&ha->sadb_tx_index_list);
+	INIT_LIST_HEAD(&ha->sadb_rx_index_list);
+
+	spin_lock_init(&ha->sadb_fp_lock);
+
+	if (qla_edif_sadb_build_free_pool(ha)) {
+		kfree(ha);
+		goto  disable_device;
+	}
+
 	atomic_set(&ha->nvme_active_aen_cnt, 0);
 
 	/* Clear our data area */
@@ -3867,6 +3878,9 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	qla2x00_mem_free(ha);
 
 	qla82xx_md_free(vha);
+
+	qla_edif_sadb_release_free_pool(ha);
+	qla_edif_sadb_release(ha);
 
 	qla2x00_free_queues(ha);
 }
@@ -5374,6 +5388,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_ELS_PLOGI:
 			qla24xx_els_dcmd2_iocb(vha, ELS_DCMD_PLOGI,
 			    e->u.fcport.fcport, false);
+			break;
+		case QLA_EVT_SA_REPLACE:
+			qla24xx_issue_sa_replace_iocb(vha, e);
 			break;
 		}
 

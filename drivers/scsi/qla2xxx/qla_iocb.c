@@ -3839,6 +3839,12 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_PRLO_CMD:
 		qla24xx_prlo_iocb(sp, pkt);
 		break;
+	case SRB_SA_UPDATE:
+		qla24xx_sa_update_iocb(sp, pkt);
+		break;
+	case SRB_SA_REPLACE:
+		qla24xx_sa_replace_iocb(sp, pkt);
+		break;
 	default:
 		break;
 	}

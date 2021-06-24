@@ -9,6 +9,27 @@
 struct qla_scsi_host;
 #define EDIF_APP_ID 0x73730001
 
+#define EDIF_MAX_INDEX	2048
+struct edif_sa_ctl {
+	struct list_head next;
+	uint16_t	del_index;
+	uint16_t	index;
+	uint16_t	slot;
+	uint16_t	flags;
+#define	EDIF_SA_CTL_FLG_REPL		BIT_0
+#define	EDIF_SA_CTL_FLG_DEL		BIT_1
+#define EDIF_SA_CTL_FLG_CLEANUP_DEL BIT_4
+	// Invalidate Index bit and mirrors QLA_SA_UPDATE_FLAGS_DELETE
+	unsigned long   state;
+#define EDIF_SA_CTL_USED	1	/* Active Sa update  */
+#define EDIF_SA_CTL_PEND	2	/* Waiting for slot */
+#define EDIF_SA_CTL_REPL	3	/* Active Replace and Delete */
+#define EDIF_SA_CTL_DEL		4	/* Delete Pending */
+	struct fc_port	*fcport;
+	struct bsg_job *bsg_job;
+	struct qla_sa_update_frame sa_frame;
+};
+
 enum enode_flags_t {
 	ENODE_ACTIVE = 0x1,
 };
@@ -30,6 +51,46 @@ struct edif_dbell {
 	struct	completion	dbell;
 };
 
+#define SA_UPDATE_IOCB_TYPE            0x71    /* Security Association Update IOCB entry */
+struct sa_update_28xx {
+	uint8_t entry_type;             /* Entry type. */
+	uint8_t entry_count;            /* Entry count. */
+	uint8_t sys_define;             /* System Defined. */
+	uint8_t entry_status;           /* Entry Status. */
+
+	uint32_t handle;                /* IOCB System handle. */
+
+	union {
+		__le16 nport_handle;  /* in: N_PORT handle. */
+		__le16 comp_sts;              /* out: completion status */
+#define CS_PORT_EDIF_SUPP_NOT_RDY 0x64
+#define CS_PORT_EDIF_INV_REQ      0x66
+	} u;
+	uint8_t vp_index;
+	uint8_t reserved_1;
+	uint8_t port_id[3];
+	uint8_t flags;
+#define SA_FLAG_INVALIDATE BIT_0
+#define SA_FLAG_TX	   BIT_1 // 1=tx, 0=rx
+
+	uint8_t sa_key[32];     /* 256 bit key */
+	__le32 salt;
+	__le32 spi;
+	uint8_t sa_control;
+#define SA_CNTL_ENC_FCSP        (1 << 3)
+#define SA_CNTL_ENC_OPD         (2 << 3)
+#define SA_CNTL_ENC_MSK         (3 << 3)  // mask bits 4,3
+#define SA_CNTL_AES_GMAC	(1 << 2)
+#define SA_CNTL_KEY256          (2 << 0)
+#define SA_CNTL_KEY128          0
+
+	uint8_t reserved_2;
+	__le16 sa_index;   // reserve: bit 11-15
+	__le16 old_sa_info;
+	__le16 new_sa_info;
+};
+
+#define        NUM_ENTRIES     256
 #define        MAX_PAYLOAD     1024
 #define        PUR_GET         1
 
