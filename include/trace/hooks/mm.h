@@ -95,8 +95,8 @@ DECLARE_HOOK(android_vh_show_stack_hash,
 	TP_PROTO(struct seq_file *m, struct vm_struct *v),
 	TP_ARGS(m, v));
 DECLARE_HOOK(android_vh_save_track_hash,
-	TP_PROTO(unsigned long p),
-	TP_ARGS(p));
+	TP_PROTO(bool alloc, unsigned long p),
+	TP_ARGS(alloc, p));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
