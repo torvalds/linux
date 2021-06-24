@@ -5,7 +5,7 @@ NXP SJA1105 switch driver
 Overview
 ========
 
-The NXP SJA1105 is a family of 6 devices:
+The NXP SJA1105 is a family of 10 SPI-managed automotive switches:
 
 - SJA1105E: First generation, no TTEthernet
 - SJA1105T: First generation, TTEthernet
@@ -13,9 +13,11 @@ The NXP SJA1105 is a family of 6 devices:
 - SJA1105Q: Second generation, TTEthernet, no SGMII
 - SJA1105R: Second generation, no TTEthernet, SGMII
 - SJA1105S: Second generation, TTEthernet, SGMII
-
-These are SPI-managed automotive switches, with all ports being gigabit
-capable, and supporting MII/RMII/RGMII and optionally SGMII on one port.
+- SJA1110A: Third generation, TTEthernet, SGMII, integrated 100base-T1 and
+  100base-TX PHYs
+- SJA1110B: Third generation, TTEthernet, SGMII, 100base-T1, 100base-TX
+- SJA1110C: Third generation, TTEthernet, SGMII, 100base-T1, 100base-TX
+- SJA1110D: Third generation, TTEthernet, SGMII, 100base-T1
 
 Being automotive parts, their configuration interface is geared towards
 set-and-forget use, with minimal dynamic interaction at runtime. They
@@ -579,3 +581,54 @@ A board would need to hook up the PHYs connected to the switch to any other
 MDIO bus available to Linux within the system (e.g. to the DSA master's MDIO
 bus). Link state management then works by the driver manually keeping in sync
 (over SPI commands) the MAC link speed with the settings negotiated by the PHY.
+
+By comparison, the SJA1110 supports an MDIO slave access point over which its
+internal 100base-T1 PHYs can be accessed from the host. This is, however, not
+used by the driver, instead the internal 100base-T1 and 100base-TX PHYs are
+accessed through SPI commands, modeled in Linux as virtual MDIO buses.
+
+The microcontroller attached to the SJA1110 port 0 also has an MDIO controller
+operating in master mode, however the driver does not support this either,
+since the microcontroller gets disabled when the Linux driver operates.
+Discrete PHYs connected to the switch ports should have their MDIO interface
+attached to an MDIO controller from the host system and not to the switch,
+similar to SJA1105.
+
+Port compatibility matrix
+-------------------------
+
+The SJA1105 port compatibility matrix is:
+
+===== ============== ============== ==============
+Port   SJA1105E/T     SJA1105P/Q     SJA1105R/S
+===== ============== ============== ==============
+0      xMII           xMII           xMII
+1      xMII           xMII           xMII
+2      xMII           xMII           xMII
+3      xMII           xMII           xMII
+4      xMII           xMII           SGMII
+===== ============== ============== ==============
+
+
+The SJA1110 port compatibility matrix is:
+
+===== ============== ============== ============== ==============
+Port   SJA1110A       SJA1110B       SJA1110C       SJA1110D
+===== ============== ============== ============== ==============
+0      RevMII (uC)    RevMII (uC)    RevMII (uC)    RevMII (uC)
+1      100base-TX     100base-TX     100base-TX
+       or SGMII                                     SGMII
+2      xMII           xMII           xMII           xMII
+       or SGMII                                     or SGMII
+3      xMII           xMII           xMII
+       or SGMII       or SGMII                      SGMII
+       or 2500base-X  or 2500base-X                 or 2500base-X
+4      SGMII          SGMII          SGMII          SGMII
+       or 2500base-X  or 2500base-X  or 2500base-X  or 2500base-X
+5      100base-T1     100base-T1     100base-T1     100base-T1
+6      100base-T1     100base-T1     100base-T1     100base-T1
+7      100base-T1     100base-T1     100base-T1     100base-T1
+8      100base-T1     100base-T1     n/a            n/a
+9      100base-T1     100base-T1     n/a            n/a
+10     100base-T1     n/a            n/a            n/a
+===== ============== ============== ============== ==============
