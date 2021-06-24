@@ -585,6 +585,8 @@ static void qla2x00_async_nack_sp_done(srb_t *sp, int res)
 			    DSC_LOGIN_AUTH_PEND);
 			qla2x00_post_aen_work(vha, FCH_EVT_PORT_ONLINE,
 			    sp->fcport->d_id.b24);
+			qla_edb_eventcreate(vha, VND_CMD_AUTH_STATE_NEEDED, sp->fcport->d_id.b24,
+			    0, sp->fcport);
 		}
 		break;
 

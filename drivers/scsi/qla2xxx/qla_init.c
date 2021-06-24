@@ -1473,6 +1473,9 @@ static int	qla_chk_secure_login(scsi_qla_host_t	*vha, fc_port_t *fcport,
 				    __func__, __LINE__, fcport->port_name);
 				fcport->edif.app_started = 1;
 				fcport->edif.app_sess_online = 1;
+
+				qla_edb_eventcreate(vha, VND_CMD_AUTH_STATE_NEEDED,
+				    fcport->d_id.b24, 0, fcport);
 			}
 
 			rc = 1;

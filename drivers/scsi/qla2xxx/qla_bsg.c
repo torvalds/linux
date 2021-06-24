@@ -2784,9 +2784,12 @@ qla2x00_manage_host_port(struct bsg_job *bsg_job)
 }
 
 static int
-qla2x00_process_vendor_specific(struct bsg_job *bsg_job)
+qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
+
+	ql_dbg(ql_dbg_edif, vha, 0x911b, "%s FC_BSG_HST_VENDOR cmd[0]=0x%x\n",
+	    __func__, bsg_request->rqst_data.h_vendor.vendor_cmd[0]);
 
 	switch (bsg_request->rqst_data.h_vendor.vendor_cmd[0]) {
 	case QL_VND_LOOPBACK:
@@ -2916,12 +2919,19 @@ qla24xx_bsg_request(struct bsg_job *bsg_job)
 		ql_dbg(ql_dbg_user, vha, 0x709f,
 		    "BSG: ISP abort active/needed -- cmd=%d.\n",
 		    bsg_request->msgcode);
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		return -EBUSY;
 	}
 
+	if (test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags)) {
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		return -EIO;
+	}
+
 skip_chip_chk:
-	ql_dbg(ql_dbg_user, vha, 0x7000,
-	    "Entered %s msgcode=0x%x.\n", __func__, bsg_request->msgcode);
+	ql_dbg(ql_dbg_user + ql_dbg_verbose, vha, 0x7000,
+	    "Entered %s msgcode=0x%x. bsg ptr %px\n",
+	    __func__, bsg_request->msgcode, bsg_job);
 
 	switch (bsg_request->msgcode) {
 	case FC_BSG_RPT_ELS:
@@ -2932,7 +2942,7 @@ skip_chip_chk:
 		ret = qla2x00_process_ct(bsg_job);
 		break;
 	case FC_BSG_HST_VENDOR:
-		ret = qla2x00_process_vendor_specific(bsg_job);
+		ret = qla2x00_process_vendor_specific(vha, bsg_job);
 		break;
 	case FC_BSG_HST_ADD_RPORT:
 	case FC_BSG_HST_DEL_RPORT:
@@ -2941,6 +2951,10 @@ skip_chip_chk:
 		ql_log(ql_log_warn, vha, 0x705a, "Unsupported BSG request.\n");
 		break;
 	}
+
+	ql_dbg(ql_dbg_user + ql_dbg_verbose, vha, 0x7000,
+	    "%s done with return %x\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2955,6 +2969,8 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 	unsigned long flags;
 	struct req_que *req;
 
+	ql_log(ql_log_info, vha, 0x708b, "%s CMD timeout. bsg ptr %p.\n",
+	    __func__, bsg_job);
 	/* find the bsg job from the active list of commands */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (que = 0; que < ha->max_req_queues; que++) {
