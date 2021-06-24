@@ -22,7 +22,8 @@ enum gve_adminq_opcodes {
 	GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES	= 0x9,
 	GVE_ADMINQ_SET_DRIVER_PARAMETER		= 0xB,
 	GVE_ADMINQ_REPORT_STATS			= 0xC,
-	GVE_ADMINQ_REPORT_LINK_SPEED	= 0xD
+	GVE_ADMINQ_REPORT_LINK_SPEED		= 0xD,
+	GVE_ADMINQ_GET_PTYPE_MAP		= 0xE,
 };
 
 /* Admin queue status codes */
@@ -266,6 +267,41 @@ enum gve_stat_names {
 	RX_DROPS_INVALID_CHECKSUM	= 68,
 };
 
+enum gve_l3_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L3_TYPE_UNKNOWN = 0,
+	GVE_L3_TYPE_OTHER,
+	GVE_L3_TYPE_IPV4,
+	GVE_L3_TYPE_IPV6,
+};
+
+enum gve_l4_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L4_TYPE_UNKNOWN = 0,
+	GVE_L4_TYPE_OTHER,
+	GVE_L4_TYPE_TCP,
+	GVE_L4_TYPE_UDP,
+	GVE_L4_TYPE_ICMP,
+	GVE_L4_TYPE_SCTP,
+};
+
+/* These are control path types for PTYPE which are the same as the data path
+ * types.
+ */
+struct gve_ptype_entry {
+	u8 l3_type;
+	u8 l4_type;
+};
+
+struct gve_ptype_map {
+	struct gve_ptype_entry ptypes[1 << 10]; /* PTYPES are always 10 bits. */
+};
+
+struct gve_adminq_get_ptype_map {
+	__be64 ptype_map_len;
+	__be64 ptype_map_addr;
+};
+
 union gve_adminq_command {
 	struct {
 		__be32 opcode;
@@ -283,6 +319,7 @@ union gve_adminq_command {
 			struct gve_adminq_set_driver_parameter set_driver_param;
 			struct gve_adminq_report_stats report_stats;
 			struct gve_adminq_report_link_speed report_link_speed;
+			struct gve_adminq_get_ptype_map get_ptype_map;
 		};
 	};
 	u8 reserved[64];
@@ -311,4 +348,9 @@ int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu);
 int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
 			    dma_addr_t stats_report_addr, u64 interval);
 int gve_adminq_report_link_speed(struct gve_priv *priv);
+
+struct gve_ptype_lut;
+int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
+				 struct gve_ptype_lut *ptype_lut);
+
 #endif /* _GVE_ADMINQ_H */

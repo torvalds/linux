@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
+
 #include "gve_desc.h"
 
 #ifndef PCI_VENDOR_ID_GOOGLE
@@ -39,6 +40,9 @@
 #define NIC_RX_STATS_REPORT_NUM	4
 
 #define GVE_DATA_SLOT_ADDR_PAGE_MASK (~(PAGE_SIZE - 1))
+
+/* PTYPEs are always 10 bits. */
+#define GVE_NUM_PTYPES	1024
 
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
@@ -199,6 +203,15 @@ struct gve_options_dqo_rda {
 	u16 rx_buff_ring_entries; /* number of rx_buff descriptors */
 };
 
+struct gve_ptype {
+	u8 l3_type;  /* `gve_l3_type` in gve_adminq.h */
+	u8 l4_type;  /* `gve_l4_type` in gve_adminq.h */
+};
+
+struct gve_ptype_lut {
+	struct gve_ptype ptypes[GVE_NUM_PTYPES];
+};
+
 /* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
  * when the entire configure_device_resources command is zeroed out and the
  * queue_format is not specified.
@@ -266,6 +279,7 @@ struct gve_priv {
 	u32 adminq_set_driver_parameter_cnt;
 	u32 adminq_report_stats_cnt;
 	u32 adminq_report_link_speed_cnt;
+	u32 adminq_get_ptype_map_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -292,6 +306,7 @@ struct gve_priv {
 	u64 link_speed;
 
 	struct gve_options_dqo_rda options_dqo_rda;
+	struct gve_ptype_lut *ptype_lut_dqo;
 
 	enum gve_queue_format queue_format;
 };

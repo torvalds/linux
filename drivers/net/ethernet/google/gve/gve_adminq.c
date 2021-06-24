@@ -176,6 +176,7 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_set_driver_parameter_cnt = 0;
 	priv->adminq_report_stats_cnt = 0;
 	priv->adminq_report_link_speed_cnt = 0;
+	priv->adminq_get_ptype_map_cnt = 0;
 
 	/* Setup Admin queue with the device */
 	iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
@@ -381,6 +382,9 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 	case GVE_ADMINQ_REPORT_LINK_SPEED:
 		priv->adminq_report_link_speed_cnt++;
 		break;
+	case GVE_ADMINQ_GET_PTYPE_MAP:
+		priv->adminq_get_ptype_map_cnt++;
+		break;
 	default:
 		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
 	}
@@ -393,7 +397,8 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
  * The caller is also responsible for making sure there are no commands
  * waiting to be executed.
  */
-static int gve_adminq_execute_cmd(struct gve_priv *priv, union gve_adminq_command *cmd_orig)
+static int gve_adminq_execute_cmd(struct gve_priv *priv,
+				  union gve_adminq_command *cmd_orig)
 {
 	u32 tail, head;
 	int err;
@@ -825,5 +830,43 @@ int gve_adminq_report_link_speed(struct gve_priv *priv)
 	priv->link_speed = be64_to_cpu(*link_speed_region);
 	dma_free_coherent(&priv->pdev->dev, sizeof(*link_speed_region), link_speed_region,
 			  link_speed_region_bus);
+	return err;
+}
+
+int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
+				 struct gve_ptype_lut *ptype_lut)
+{
+	struct gve_ptype_map *ptype_map;
+	union gve_adminq_command cmd;
+	dma_addr_t ptype_map_bus;
+	int err = 0;
+	int i;
+
+	memset(&cmd, 0, sizeof(cmd));
+	ptype_map = dma_alloc_coherent(&priv->pdev->dev, sizeof(*ptype_map),
+				       &ptype_map_bus, GFP_KERNEL);
+	if (!ptype_map)
+		return -ENOMEM;
+
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_GET_PTYPE_MAP);
+	cmd.get_ptype_map = (struct gve_adminq_get_ptype_map) {
+		.ptype_map_len = cpu_to_be64(sizeof(*ptype_map)),
+		.ptype_map_addr = cpu_to_be64(ptype_map_bus),
+	};
+
+	err = gve_adminq_execute_cmd(priv, &cmd);
+	if (err)
+		goto err;
+
+	/* Populate ptype_lut. */
+	for (i = 0; i < GVE_NUM_PTYPES; i++) {
+		ptype_lut->ptypes[i].l3_type =
+			ptype_map->ptypes[i].l3_type;
+		ptype_lut->ptypes[i].l4_type =
+			ptype_map->ptypes[i].l4_type;
+	}
+err:
+	dma_free_coherent(&priv->pdev->dev, sizeof(*ptype_map), ptype_map,
+			  ptype_map_bus);
 	return err;
 }
