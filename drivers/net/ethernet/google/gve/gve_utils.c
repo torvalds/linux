@@ -50,7 +50,7 @@ struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 {
 	struct sk_buff *skb = napi_alloc_skb(napi, len);
 	void *va = page_info->page_address + pad +
-		   (page_info->page_offset ? PAGE_SIZE / 2 : 0);
+		   page_info->page_offset;
 
 	if (unlikely(!skb))
 		return NULL;

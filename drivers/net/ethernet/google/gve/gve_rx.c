@@ -272,7 +272,7 @@ static struct sk_buff *gve_rx_add_frags(struct napi_struct *napi,
 		return NULL;
 
 	skb_add_rx_frag(skb, 0, page_info->page,
-			(page_info->page_offset ? PAGE_SIZE / 2 : 0) +
+			page_info->page_offset +
 			GVE_RX_PAD, len, PAGE_SIZE / 2);
 
 	return skb;
@@ -283,7 +283,7 @@ static void gve_rx_flip_buff(struct gve_rx_slot_page_info *page_info, __be64 *sl
 	const __be64 offset = cpu_to_be64(PAGE_SIZE / 2);
 
 	/* "flip" to other packet buffer on this page */
-	page_info->page_offset ^= 0x1;
+	page_info->page_offset ^= PAGE_SIZE / 2;
 	*(slot_addr) ^= offset;
 }
 

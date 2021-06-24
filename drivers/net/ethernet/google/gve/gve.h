@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #ifndef _GVE_H_
@@ -51,7 +51,7 @@ struct gve_rx_desc_queue {
 struct gve_rx_slot_page_info {
 	struct page *page;
 	void *page_address;
-	u8 page_offset; /* flipped to second half? */
+	u32 page_offset; /* offset to write to in page */
 	u8 can_flip;
 };
 
