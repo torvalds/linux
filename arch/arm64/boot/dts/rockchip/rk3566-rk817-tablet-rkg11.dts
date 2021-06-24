@@ -892,11 +892,11 @@
 	status = "okay";
 };
 
-&mipi_dphy0 {
+&video_phy0 {
 	status = "okay";
 };
 
-&mipi_dphy1 {
+&video_phy1 {
 	status = "okay";
 };
 

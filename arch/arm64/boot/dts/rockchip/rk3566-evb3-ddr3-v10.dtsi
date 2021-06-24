@@ -88,7 +88,7 @@
 };
 
 /*
- * mipi_dphy0 needs to be enabled
+ * video_phy0 needs to be enabled
  * when dsi0 is enabled
  */
 &dsi0 {
@@ -111,7 +111,7 @@
 };
 
 /*
- * mipi_dphy1 needs to be enabled
+ * video_phy1 needs to be enabled
  * when dsi1 is enabled
  */
 &dsi1 {
@@ -283,11 +283,11 @@
 	};
 };
 
-&mipi_dphy0 {
+&video_phy0 {
 	status = "okay";
 };
 
-&mipi_dphy1 {
+&video_phy1 {
 	status = "disabled";
 };
 

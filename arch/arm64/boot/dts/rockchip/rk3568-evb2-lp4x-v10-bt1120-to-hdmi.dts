@@ -45,7 +45,7 @@
 	};
 };
 
-&mipi_dphy0 {
+&video_phy0 {
 	status = "disabled";
 };
 

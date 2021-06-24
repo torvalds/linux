@@ -97,11 +97,3 @@
 	status = "okay";
 	connect = <&vp1_out_lvds>;
 };
-
-&mipi_dphy0 {
-	status = "disabled";
-};
-
-&mipi_dphy1 {
-	status = "disabled";
-};
