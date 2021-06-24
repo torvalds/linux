@@ -275,7 +275,7 @@ alternative_else_nop_endif
 
 	mte_set_kernel_gcr x22, x23
 
-	scs_load tsk, x20
+	scs_load tsk
 	.else
 	add	x21, sp, #PT_REGS_SIZE
 	get_current_task tsk
@@ -375,7 +375,7 @@ alternative_if ARM64_WORKAROUND_845719
 alternative_else_nop_endif
 #endif
 3:
-	scs_save tsk, x0
+	scs_save tsk
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 alternative_if ARM64_HAS_ADDRESS_AUTH
@@ -979,8 +979,8 @@ SYM_FUNC_START(cpu_switch_to)
 	mov	sp, x9
 	msr	sp_el0, x1
 	ptrauth_keys_install_kernel x1, x8, x9, x10
-	scs_save x0, x8
-	scs_load x1, x8
+	scs_save x0
+	scs_load x1
 	ret
 SYM_FUNC_END(cpu_switch_to)
 NOKPROBE(cpu_switch_to)

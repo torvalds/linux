@@ -395,15 +395,29 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 SYM_FUNC_END(__create_page_tables)
 
 	/*
+	 * Initialize CPU registers with task-specific and cpu-specific context.
+	 *
 	 * Create a final frame record at task_pt_regs(current)->stackframe, so
 	 * that the unwinder can identify the final frame record of any task by
 	 * its location in the task stack. We reserve the entire pt_regs space
 	 * for consistency with user tasks and kthreads.
 	 */
-	.macro setup_final_frame
+	.macro	init_cpu_task tsk, tmp1, tmp2
+	msr	sp_el0, \tsk
+
+	ldr	\tmp1, [\tsk, #TSK_STACK]
+	add	sp, \tmp1, #THREAD_SIZE
 	sub	sp, sp, #PT_REGS_SIZE
+
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
 	add	x29, sp, #S_STACKFRAME
+
+	scs_load \tsk
+
+	adr_l	\tmp1, __per_cpu_offset
+	ldr	w\tmp2, [\tsk, #TSK_CPU]
+	ldr	\tmp1, [\tmp1, \tmp2, lsl #3]
+	set_this_cpu_offset \tmp1
 	.endm
 
 /*
@@ -412,21 +426,15 @@ SYM_FUNC_END(__create_page_tables)
  *   x0 = __PHYS_OFFSET
  */
 SYM_FUNC_START_LOCAL(__primary_switched)
-	adrp	x4, init_thread_union
-	add	sp, x4, #THREAD_SIZE
-	adr_l	x5, init_task
-	msr	sp_el0, x5			// Save thread_info
+	adr_l	x4, init_task
+	init_cpu_task x4, x5, x6
 
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
 
-	stp	xzr, x30, [sp, #-16]!
+	stp	x29, x30, [sp, #-16]!
 	mov	x29, sp
-
-#ifdef CONFIG_SHADOW_CALL_STACK
-	adr_l	scs_sp, init_shadow_call_stack	// Set shadow call stack
-#endif
 
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
@@ -459,8 +467,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 0:
 #endif
 	bl	switch_to_vhe			// Prefer VHE if possible
-	add	sp, sp, #16
-	setup_final_frame
+	ldp	x29, x30, [sp], #16
 	bl	start_kernel
 	ASM_BUG()
 SYM_FUNC_END(__primary_switched)
@@ -645,14 +652,10 @@ SYM_FUNC_START_LOCAL(__secondary_switched)
 	isb
 
 	adr_l	x0, secondary_data
-	ldr	x1, [x0, #CPU_BOOT_STACK]	// get secondary_data.stack
-	cbz	x1, __secondary_too_slow
-	mov	sp, x1
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	cbz	x2, __secondary_too_slow
-	msr	sp_el0, x2
-	scs_load x2, x3
-	setup_final_frame
+
+	init_cpu_task x2, x1, x3
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 	ptrauth_keys_init_cpu x2, x3, x4, x5
