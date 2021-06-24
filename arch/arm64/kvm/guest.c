@@ -1053,6 +1053,14 @@ long kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		} else {
 			num_tags = mte_copy_tags_from_user(maddr, tags,
 							MTE_GRANULES_PER_PAGE);
+
+			/*
+			 * Set the flag after checking the write
+			 * completed fully
+			 */
+			if (num_tags == MTE_GRANULES_PER_PAGE)
+				set_bit(PG_mte_tagged, &page->flags);
+
 			kvm_release_pfn_dirty(pfn);
 		}
 
@@ -1060,10 +1068,6 @@ long kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 			ret = -EFAULT;
 			goto out;
 		}
-
-		/* Set the flag after checking the write completed fully */
-		if (write)
-			set_bit(PG_mte_tagged, &page->flags);
 
 		gfn++;
 		tags += num_tags;
