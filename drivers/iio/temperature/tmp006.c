@@ -193,6 +193,17 @@ static bool tmp006_check_identification(struct i2c_client *client)
 	return mid == TMP006_MANUFACTURER_MAGIC && did == TMP006_DEVICE_MAGIC;
 }
 
+static int tmp006_powerdown(struct tmp006_data *data)
+{
+	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
+		data->config & ~TMP006_CONFIG_MOD_MASK);
+}
+
+static void tmp006_powerdown_cleanup(void *data)
+{
+	tmp006_powerdown(data);
+}
+
 static int tmp006_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -228,23 +239,11 @@ static int tmp006_probe(struct i2c_client *client,
 		return ret;
 	data->config = ret;
 
-	return iio_device_register(indio_dev);
-}
+	ret = devm_add_action(&client->dev, tmp006_powerdown_cleanup, data);
+	if (ret < 0)
+		return ret;
 
-static int tmp006_powerdown(struct tmp006_data *data)
-{
-	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
-		data->config & ~TMP006_CONFIG_MOD_MASK);
-}
-
-static int tmp006_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	tmp006_powerdown(iio_priv(indio_dev));
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -277,7 +276,6 @@ static struct i2c_driver tmp006_driver = {
 		.pm	= &tmp006_pm_ops,
 	},
 	.probe = tmp006_probe,
-	.remove = tmp006_remove,
 	.id_table = tmp006_id,
 };
 module_i2c_driver(tmp006_driver);
