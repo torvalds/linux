@@ -239,12 +239,12 @@ static int rk628_combtxphy_power_on(struct phy *phy)
 			   SW_TX_IDLE(0x3ff) | SW_TX_PD(0x3ff) | SW_PD_PLL);
 
 	switch (combtxphy->mode) {
-	case PHY_MODE_VIDEO_MIPI:
+	case PHY_MODE_MIPI_DPHY:
 		regmap_update_bits(combtxphy->grf, GRF_POST_PROC_CON,
 				   SW_TXPHY_REFCLK_SEL_MASK,
 				   SW_TXPHY_REFCLK_SEL(0));
 		return rk628_combtxphy_dsi_power_on(combtxphy);
-	case PHY_MODE_VIDEO_LVDS:
+	case PHY_MODE_LVDS:
 		regmap_update_bits(combtxphy->grf, GRF_POST_PROC_CON,
 				   SW_TXPHY_REFCLK_SEL_MASK,
 				   SW_TXPHY_REFCLK_SEL(1));
@@ -283,7 +283,7 @@ static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode)
 	unsigned long fvco, fpfd;
 
 	switch (mode) {
-	case PHY_MODE_VIDEO_MIPI:
+	case PHY_MODE_MIPI_DPHY:
 	{
 		unsigned int fhsc = bus_width >> 8;
 		unsigned int flags = bus_width & 0xff;
@@ -321,7 +321,7 @@ static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode)
 		phy_set_bus_width(phy, fhsc);
 		break;
 	}
-	case PHY_MODE_VIDEO_LVDS:
+	case PHY_MODE_LVDS:
 	{
 		unsigned int flags = bus_width & 0xff;
 		unsigned int rate = (bus_width >> 8) * 7;

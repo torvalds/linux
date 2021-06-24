@@ -1121,7 +1121,7 @@ static void rk628_dsi_bridge_enable(struct drm_bridge *bridge)
 		bus_width |= COMBTXPHY_MODULEA_EN;
 	phy_set_bus_width(dsi->phy, bus_width);
 
-	ret = phy_set_mode(dsi->phy, PHY_MODE_VIDEO_MIPI);
+	ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
 	if (ret) {
 		dev_err(dsi->dev, "failed to set phy mode: %d\n", ret);
 		return;

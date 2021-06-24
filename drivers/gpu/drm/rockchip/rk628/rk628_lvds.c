@@ -193,7 +193,7 @@ static void rk628_lvds_bridge_enable(struct drm_bridge *bridge)
 	bus_width |= (mode->clock / 1000) << 8;
 	phy_set_bus_width(lvds->phy, bus_width);
 
-	ret = phy_set_mode(lvds->phy, PHY_MODE_VIDEO_LVDS);
+	ret = phy_set_mode(lvds->phy, PHY_MODE_LVDS);
 	if (ret) {
 		dev_err(lvds->dev, "failed to set phy mode: %d\n", ret);
 		return;
