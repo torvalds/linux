@@ -277,6 +277,12 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
 
+  For CPUs with support for HCRX_EL2 (FEAT_HCX) present:
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.HXEn (bit 38) must be initialised to 0b1.
+
   For CPUs with Advanced SIMD and floating point support:
 
   - If EL3 is present:
