@@ -19,6 +19,18 @@
 #define GVE_TX_IRQ_RATELIMIT_US_DQO 50
 #define GVE_RX_IRQ_RATELIMIT_US_DQO 20
 
+/* Timeout in seconds to wait for a reinjection completion after receiving
+ * its corresponding miss completion.
+ */
+#define GVE_REINJECT_COMPL_TIMEOUT 1
+
+/* Timeout in seconds to deallocate the completion tag for a packet that was
+ * prematurely freed for not receiving a valid completion. This should be large
+ * enough to rule out the possibility of receiving the corresponding valid
+ * completion after this interval.
+ */
+#define GVE_DEALLOCATE_COMPL_TIMEOUT 60
+
 netdev_tx_t gve_tx_dqo(struct sk_buff *skb, struct net_device *dev);
 bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean);
 int gve_rx_poll_dqo(struct gve_notify_block *block, int budget);
