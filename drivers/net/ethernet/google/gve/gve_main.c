@@ -696,7 +696,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 	return 0;
 }
 
-static inline void gve_rx_free_rings(struct gve_priv *priv)
+static void gve_rx_free_rings(struct gve_priv *priv)
 {
 	if (gve_is_gqi(priv))
 		gve_rx_free_rings_gqi(priv);
