@@ -74,8 +74,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
-static void nfs_pageio_complete_read(struct nfs_pageio_descriptor *pgio,
-				     struct inode *inode)
+static void nfs_pageio_complete_read(struct nfs_pageio_descriptor *pgio)
 {
 	struct nfs_pgio_mirror *pgm;
 	unsigned long npages;
@@ -86,9 +85,9 @@ static void nfs_pageio_complete_read(struct nfs_pageio_descriptor *pgio,
 	WARN_ON_ONCE(pgio->pg_mirror_count != 1);
 
 	pgm = &pgio->pg_mirrors[0];
-	NFS_I(inode)->read_io += pgm->pg_bytes_written;
+	NFS_I(pgio->pg_inode)->read_io += pgm->pg_bytes_written;
 	npages = (pgm->pg_bytes_written + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	nfs_add_stats(inode, NFSIOS_READPAGES, npages);
+	nfs_add_stats(pgio->pg_inode, NFSIOS_READPAGES, npages);
 }
 
 
@@ -376,7 +375,7 @@ int nfs_readpage(struct file *file, struct page *page)
 	ret = readpage_async_filler(&desc, page);
 
 	if (!ret)
-		nfs_pageio_complete_read(&desc.pgio, inode);
+		nfs_pageio_complete_read(&desc.pgio);
 
 	ret = desc.pgio.pg_error < 0 ? desc.pgio.pg_error : 0;
 	if (!ret) {
@@ -430,7 +429,7 @@ int nfs_readpages(struct file *file, struct address_space *mapping,
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 
-	nfs_pageio_complete_read(&desc.pgio, inode);
+	nfs_pageio_complete_read(&desc.pgio);
 
 read_complete:
 	put_nfs_open_context(desc.ctx);
