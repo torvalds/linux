@@ -199,6 +199,10 @@ int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
 int sparx5_vlan_vid_del(struct sparx5_port *port, u16 vid);
 void sparx5_vlan_port_apply(struct sparx5 *sparx5, struct sparx5_port *port);
 
+/* sparx5_calendar.c */
+int sparx5_config_auto_calendar(struct sparx5 *sparx5);
+int sparx5_config_dsm_calendar(struct sparx5 *sparx5);
+
 /* sparx5_netdev.c */
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);

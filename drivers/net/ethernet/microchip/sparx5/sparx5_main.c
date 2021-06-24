@@ -606,7 +606,14 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
-	/* Resource calendar support to be added in later patches */
+	err = sparx5_config_auto_calendar(sparx5);
+	if (err)
+		return err;
+
+	err = sparx5_config_dsm_calendar(sparx5);
+	if (err)
+		return err;
+
 
 	/* Init mact_sw struct */
 	mutex_init(&sparx5->mact_lock);
