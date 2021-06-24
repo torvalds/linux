@@ -11,21 +11,6 @@
 
 #define PAYLOAD_HEAD(d) ((d)->data + (d)->offset)
 
-#define KSMBD_ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
-
-#define KSMBD_ALIGN(x, a)							\
-	({									\
-		typeof(x) ret = (x);						\
-		if (((x) & ((typeof(x))(a) - 1)) != 0)				\
-			ret = KSMBD_ALIGN_MASK(x, (typeof(x))(a) - 1);		\
-		ret;								\
-	})
-
-static void align_offset(struct ndr *ndr, int n)
-{
-	ndr->offset = KSMBD_ALIGN(ndr->offset, n);
-}
-
 static int try_to_realloc_ndr_blob(struct ndr *n, size_t sz)
 {
 	char *data;
@@ -85,7 +70,7 @@ static int ndr_write_string(struct ndr *n, void *value, size_t sz)
 	strncpy(PAYLOAD_HEAD(n), value, sz);
 	sz++;
 	n->offset += sz;
-	align_offset(n, 2);
+	n->offset = ALIGN(n->offset, 2);
 	return 0;
 }
 
@@ -96,7 +81,7 @@ static int ndr_read_string(struct ndr *n, void *value, size_t sz)
 	memcpy(value, PAYLOAD_HEAD(n), len);
 	len++;
 	n->offset += len;
-	align_offset(n, 2);
+	n->offset = ALIGN(n->offset, 2);
 	return 0;
 }
 
@@ -210,20 +195,20 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 	int i;
 
 	ndr_write_int32(n, acl->count);
-	align_offset(n, 8);
+	n->offset = ALIGN(n->offset, 8);
 	ndr_write_int32(n, acl->count);
 	ndr_write_int32(n, 0);
 
 	for (i = 0; i < acl->count; i++) {
-		align_offset(n, 8);
+		n->offset = ALIGN(n->offset, 8);
 		ndr_write_int16(n, acl->entries[i].type);
 		ndr_write_int16(n, acl->entries[i].type);
 
 		if (acl->entries[i].type == SMB_ACL_USER) {
-			align_offset(n, 8);
+			n->offset = ALIGN(n->offset, 8);
 			ndr_write_int64(n, acl->entries[i].uid);
 		} else if (acl->entries[i].type == SMB_ACL_GROUP) {
-			align_offset(n, 8);
+			n->offset = ALIGN(n->offset, 8);
 			ndr_write_int64(n, acl->entries[i].gid);
 		}
 
