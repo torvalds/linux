@@ -1459,7 +1459,8 @@ static int ti_sn65dsi86_probe(struct i2c_client *client,
 		return dev_err_probe(dev, PTR_ERR(pdata->regmap),
 				     "regmap i2c init failed\n");
 
-	pdata->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	pdata->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						     GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->enable_gpio))
 		return dev_err_probe(dev, PTR_ERR(pdata->enable_gpio),
 				     "failed to get enable gpio from DT\n");
