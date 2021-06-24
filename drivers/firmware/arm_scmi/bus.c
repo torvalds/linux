@@ -134,6 +134,9 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 {
 	int retval;
 
+	if (!driver->probe)
+		return -EINVAL;
+
 	retval = scmi_protocol_device_request(driver->id_table);
 	if (retval)
 		return retval;
