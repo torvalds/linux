@@ -5,6 +5,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/kobject.h>
 #include <linux/sunrpc/addr.h>
+#include <linux/sunrpc/xprtsock.h>
 
 #include "sysfs.h"
 
@@ -103,10 +104,13 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 	ret = sprintf(buf, "last_used=%lu\ncur_cong=%lu\ncong_win=%lu\n"
 		       "max_num_slots=%u\nmin_num_slots=%u\nnum_reqs=%u\n"
 		       "binding_q_len=%u\nsending_q_len=%u\npending_q_len=%u\n"
-		       "backlog_q_len=%u\nmain_xprt=%d\n", xprt->last_used,
-		       xprt->cong, xprt->cwnd, xprt->max_reqs, xprt->min_reqs,
-		       xprt->num_reqs, xprt->binding.qlen, xprt->sending.qlen,
-		       xprt->pending.qlen, xprt->backlog.qlen, xprt->main);
+		       "backlog_q_len=%u\nmain_xprt=%d\nsrc_port=%u\n",
+		       xprt->last_used, xprt->cong, xprt->cwnd, xprt->max_reqs,
+		       xprt->min_reqs, xprt->num_reqs, xprt->binding.qlen,
+		       xprt->sending.qlen, xprt->pending.qlen,
+		       xprt->backlog.qlen, xprt->main,
+		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
+		       get_srcport(xprt) : 0);
 	xprt_put(xprt);
 	return ret + 1;
 }
