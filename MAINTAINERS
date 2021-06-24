@@ -4680,11 +4680,6 @@ S:	Maintained
 W:	http://www.fi.muni.cz/~kas/cosa/
 F:	drivers/net/wan/cosa*
 
-CORTINA-ACCESS SERIAL CONSOLE DRIVER
-M:	Jason Li <jason.li@cortina-access.com>
-S:	Supported
-F:	drivers/tty/serial/serial_cortina-access.c
-
 COUNTER SUBSYSTEM
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-iio@vger.kernel.org
