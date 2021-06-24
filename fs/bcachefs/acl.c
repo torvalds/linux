@@ -372,7 +372,7 @@ int bch2_acl_chmod(struct btree_trans *trans,
 	acl = bch2_acl_from_disk(xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 	ret = PTR_ERR_OR_ZERO(acl);
-	if (ret || !acl)
+	if (IS_ERR_OR_NULL(acl))
 		goto err;
 
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
@@ -391,7 +391,8 @@ int bch2_acl_chmod(struct btree_trans *trans,
 	acl = NULL;
 err:
 	bch2_trans_iter_put(trans, iter);
-	kfree(acl);
+	if (!IS_ERR_OR_NULL(acl))
+		kfree(acl);
 	return ret;
 }
 
