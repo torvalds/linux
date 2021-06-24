@@ -102,6 +102,8 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 		spin_lock_init(&idxd->irq_entries[i].list_lock);
 	}
 
+	idxd_msix_perm_setup(idxd);
+
 	irq_entry = &idxd->irq_entries[0];
 	rc = request_threaded_irq(irq_entry->vector, NULL, idxd_misc_thread,
 				  0, "idxd-misc", irq_entry);
@@ -148,7 +150,6 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	}
 
 	idxd_unmask_error_interrupts(idxd);
-	idxd_msix_perm_setup(idxd);
 	return 0;
 
  err_wq_irqs:
@@ -162,6 +163,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
  err_misc_irq:
 	/* Disable error interrupt generation */
 	idxd_mask_error_interrupts(idxd);
+	idxd_msix_perm_clear(idxd);
  err_irq_entries:
 	pci_free_irq_vectors(pdev);
 	dev_err(dev, "No usable interrupts\n");
