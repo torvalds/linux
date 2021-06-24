@@ -213,15 +213,10 @@ void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
 
 void sctp_transport_reset_probe_timer(struct sctp_transport *transport)
 {
-	int scale = 1;
-
 	if (timer_pending(&transport->probe_timer))
 		return;
-	if (transport->pl.state == SCTP_PL_COMPLETE &&
-	    transport->pl.probe_count == 1)
-		scale = 30; /* works as PMTU_RAISE_TIMER */
 	if (!mod_timer(&transport->probe_timer,
-		       jiffies + transport->probe_interval * scale))
+		       jiffies + transport->probe_interval))
 		sctp_transport_hold(transport);
 }
 
@@ -333,13 +328,15 @@ void sctp_transport_pl_recv(struct sctp_transport *t)
 		t->pl.probe_size += SCTP_PL_MIN_STEP;
 		if (t->pl.probe_size >= t->pl.probe_high) {
 			t->pl.probe_high = 0;
+			t->pl.raise_count = 0;
 			t->pl.state = SCTP_PL_COMPLETE; /* Search -> Search Complete */
 
 			t->pl.probe_size = t->pl.pmtu;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
-	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+	} else if (t->pl.state == SCTP_PL_COMPLETE && ++t->pl.raise_count == 30) {
+		/* Raise probe_size again after 30 * interval in Search Complete */
 		t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
 		t->pl.probe_size += SCTP_PL_MIN_STEP;
 	}
