@@ -1404,14 +1404,17 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	unsigned int queue_size;
 	struct amdtp_stream *s;
 	int cycle;
+	bool found = false;
 	int err;
 
 	// Select an IT context as IRQ target.
 	list_for_each_entry(s, &d->streams, list) {
-		if (s->direction == AMDTP_OUT_STREAM)
+		if (s->direction == AMDTP_OUT_STREAM) {
+			found = true;
 			break;
+		}
 	}
-	if (!s)
+	if (!found)
 		return -ENXIO;
 	d->irq_target = s;
 
