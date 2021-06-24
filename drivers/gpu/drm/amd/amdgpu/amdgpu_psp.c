@@ -356,6 +356,44 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	return -ETIME;
 }
 
+static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
+{
+	switch (cmd_id) {
+	case GFX_CMD_ID_LOAD_TA:
+		return "LOAD_TA";
+	case GFX_CMD_ID_UNLOAD_TA:
+		return "UNLOAD_TA";
+	case GFX_CMD_ID_INVOKE_CMD:
+		return "INVOKE_CMD";
+	case GFX_CMD_ID_LOAD_ASD:
+		return "LOAD_ASD";
+	case GFX_CMD_ID_SETUP_TMR:
+		return "SETUP_TMR";
+	case GFX_CMD_ID_LOAD_IP_FW:
+		return "LOAD_IP_FW";
+	case GFX_CMD_ID_DESTROY_TMR:
+		return "DESTROY_TMR";
+	case GFX_CMD_ID_SAVE_RESTORE:
+		return "SAVE_RESTORE_IP_FW";
+	case GFX_CMD_ID_SETUP_VMR:
+		return "SETUP_VMR";
+	case GFX_CMD_ID_DESTROY_VMR:
+		return "DESTROY_VMR";
+	case GFX_CMD_ID_PROG_REG:
+		return "PROG_REG";
+	case GFX_CMD_ID_GET_FW_ATTESTATION:
+		return "GET_FW_ATTESTATION";
+	case GFX_CMD_ID_LOAD_TOC:
+		return "ID_LOAD_TOC";
+	case GFX_CMD_ID_AUTOLOAD_RLC:
+		return "AUTOLOAD_RLC";
+	case GFX_CMD_ID_BOOT_CFG:
+		return "BOOT_CFG";
+	default:
+		return "UNKNOWN CMD";
+	}
+}
+
 static int
 psp_cmd_submit_buf(struct psp_context *psp,
 		   struct amdgpu_firmware_info *ucode,
