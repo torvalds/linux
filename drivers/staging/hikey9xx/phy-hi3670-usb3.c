@@ -148,10 +148,8 @@ static int hi3670_phy_cr_clk(struct regmap *usb31misc)
 		return ret;
 
 	/* Clock down */
-	ret = regmap_update_bits(usb31misc, USB_MISC_CFG54,
-				 CFG54_USB31PHY_CR_CLK, 0);
-
-	return ret;
+	return regmap_update_bits(usb31misc, USB_MISC_CFG54,
+				  CFG54_USB31PHY_CR_CLK, 0);
 }
 
 static int hi3670_phy_cr_set_sel(struct regmap *usb31misc)
@@ -215,17 +213,14 @@ static int hi3670_phy_cr_set_addr(struct regmap *usb31misc, u32 addr)
 		return ret;
 
 	reg = FIELD_PREP(CFG54_USB31PHY_CR_ADDR_MASK, addr);
-	ret = regmap_update_bits(usb31misc, USB_MISC_CFG54,
-				 CFG54_USB31PHY_CR_ADDR_MASK, reg);
 
-	return ret;
+	return regmap_update_bits(usb31misc, USB_MISC_CFG54,
+				  CFG54_USB31PHY_CR_ADDR_MASK, reg);
 }
 
 static int hi3670_phy_cr_read(struct regmap *usb31misc, u32 addr, u32 *val)
 {
-	int reg;
-	int i;
-	int ret;
+	int reg, i, ret;
 
 	for (i = 0; i < 100; i++) {
 		ret = hi3670_phy_cr_clk(usb31misc);
@@ -286,9 +281,7 @@ static int hi3670_phy_cr_write(struct regmap *usb31misc, u32 addr, u32 val)
 	if (ret)
 		return ret;
 
-	ret = hi3670_phy_cr_wait_ack(usb31misc);
-
-	return ret;
+	return hi3670_phy_cr_wait_ack(usb31misc);
 }
 
 static int hi3670_phy_set_params(struct hi3670_priv *priv)
