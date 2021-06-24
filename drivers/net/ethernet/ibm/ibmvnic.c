@@ -328,7 +328,14 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 
 	rx_scrq = adapter->rx_scrq[pool->index];
 	ind_bufp = &rx_scrq->ind_buf;
-	for (i = 0; i < count; ++i) {
+
+	/* netdev_skb_alloc() could have failed after we saved a few skbs
+	 * in the indir_buf and we would not have sent them to VIOS yet.
+	 * To account for them, start the loop at ind_bufp->index rather
+	 * than 0. If we pushed all the skbs to VIOS, ind_bufp->index will
+	 * be 0.
+	 */
+	for (i = ind_bufp->index; i < count; ++i) {
 		skb = netdev_alloc_skb(adapter->netdev, pool->buff_size);
 		if (!skb) {
 			dev_err(dev, "Couldn't replenish rx buff\n");
