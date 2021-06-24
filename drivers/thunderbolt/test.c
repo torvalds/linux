@@ -384,7 +384,8 @@ static void tb_test_path_single_hop_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i++;
 	}
 
@@ -395,7 +396,8 @@ static void tb_test_path_single_hop_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i--;
 	}
 
@@ -441,7 +443,8 @@ static void tb_test_path_daisy_chain_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i++;
 	}
 
@@ -452,7 +455,8 @@ static void tb_test_path_daisy_chain_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i--;
 	}
 
@@ -502,7 +506,8 @@ static void tb_test_path_simple_tree_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i++;
 	}
 
@@ -513,7 +518,8 @@ static void tb_test_path_simple_tree_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i--;
 	}
 
@@ -584,7 +590,8 @@ static void tb_test_path_complex_tree_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i++;
 	}
 
@@ -595,7 +602,8 @@ static void tb_test_path_complex_tree_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i--;
 	}
 
@@ -685,7 +693,8 @@ static void tb_test_path_max_length_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i++;
 	}
 
@@ -696,7 +705,8 @@ static void tb_test_path_max_length_walk(struct kunit *test)
 		KUNIT_EXPECT_TRUE(test, i < ARRAY_SIZE(test_data));
 		KUNIT_EXPECT_EQ(test, tb_route(p->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, p->port, test_data[i].port);
-		KUNIT_EXPECT_EQ(test, p->config.type, test_data[i].type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)p->config.type,
+				test_data[i].type);
 		i--;
 	}
 
@@ -779,10 +789,12 @@ static void tb_test_path_not_bonded_lane0(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
@@ -839,10 +851,12 @@ static void tb_test_path_not_bonded_lane1(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
@@ -917,10 +931,12 @@ static void tb_test_path_not_bonded_lane1_chain(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
@@ -995,10 +1011,12 @@ static void tb_test_path_not_bonded_lane1_chain_reverse(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
@@ -1085,10 +1103,12 @@ static void tb_test_path_mixed_chain(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
@@ -1175,10 +1195,12 @@ static void tb_test_path_mixed_chain_reverse(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, tb_route(in_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, in_port->port, test_data[i].in_port);
-		KUNIT_EXPECT_EQ(test, in_port->config.type, test_data[i].in_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)in_port->config.type,
+				test_data[i].in_type);
 		KUNIT_EXPECT_EQ(test, tb_route(out_port->sw), test_data[i].route);
 		KUNIT_EXPECT_EQ(test, out_port->port, test_data[i].out_port);
-		KUNIT_EXPECT_EQ(test, out_port->config.type, test_data[i].out_type);
+		KUNIT_EXPECT_EQ(test, (enum tb_port_type)out_port->config.type,
+				test_data[i].out_type);
 	}
 	tb_path_free(path);
 }
