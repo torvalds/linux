@@ -29,11 +29,21 @@
 #define LED2_FORCE_ON					(0x8 << 8)
 #define LEDMASK						GENMASK(11,8)
 
-static struct phy_device *phydev;
+struct power_off_cfg {
+	char *mdio_node_name;
+	void (*phy_set_reg)(bool restart);
+};
 
-static void mvphy_reg_intn(u16 data)
+static struct phy_device *phydev;
+static const struct power_off_cfg *cfg;
+
+static void linkstation_mvphy_reg_intn(bool restart)
 {
 	int rc = 0, saved_page;
+	u16 data = 0;
+
+	if (restart)
+		data = MII_88E1318S_PHY_LED_TCR_FORCE_INT;
 
 	saved_page = phy_select_page(phydev, MII_MARVELL_LED_PAGE);
 	if (saved_page < 0)
@@ -66,11 +76,16 @@ err:
 		dev_err(&phydev->mdio.dev, "Write register failed, %d\n", rc);
 }
 
+static const struct power_off_cfg linkstation_power_off_cfg = {
+	.mdio_node_name = "mdio",
+	.phy_set_reg = linkstation_mvphy_reg_intn,
+};
+
 static int linkstation_reboot_notifier(struct notifier_block *nb,
 				       unsigned long action, void *unused)
 {
 	if (action == SYS_RESTART)
-		mvphy_reg_intn(MII_88E1318S_PHY_LED_TCR_FORCE_INT);
+		cfg->phy_set_reg(true);
 
 	return NOTIFY_DONE;
 }
@@ -82,14 +97,18 @@ static struct notifier_block linkstation_reboot_nb = {
 static void linkstation_poweroff(void)
 {
 	unregister_reboot_notifier(&linkstation_reboot_nb);
-	mvphy_reg_intn(0);
+	cfg->phy_set_reg(false);
 
 	kernel_restart("Power off");
 }
 
 static const struct of_device_id ls_poweroff_of_match[] = {
-	{ .compatible = "buffalo,ls421d" },
-	{ .compatible = "buffalo,ls421de" },
+	{ .compatible = "buffalo,ls421d",
+	  .data = &linkstation_power_off_cfg,
+	},
+	{ .compatible = "buffalo,ls421de",
+	  .data = &linkstation_power_off_cfg,
+	},
 	{ },
 };
 
@@ -97,13 +116,17 @@ static int __init linkstation_poweroff_init(void)
 {
 	struct mii_bus *bus;
 	struct device_node *dn;
+	const struct of_device_id *match;
 
 	dn = of_find_matching_node(NULL, ls_poweroff_of_match);
 	if (!dn)
 		return -ENODEV;
 	of_node_put(dn);
 
-	dn = of_find_node_by_name(NULL, "mdio");
+	match = of_match_node(ls_poweroff_of_match, dn);
+	cfg = match->data;
+
+	dn = of_find_node_by_name(NULL, cfg->mdio_node_name);
 	if (!dn)
 		return -ENODEV;
 
