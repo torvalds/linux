@@ -647,14 +647,13 @@ static inline void loop_update_dio(struct loop_device *lo)
 				lo->use_dio);
 }
 
-static void loop_reread_partitions(struct loop_device *lo,
-				   struct block_device *bdev)
+static void loop_reread_partitions(struct loop_device *lo)
 {
 	int rc;
 
-	mutex_lock(&bdev->bd_disk->open_mutex);
-	rc = bdev_disk_changed(bdev, false);
-	mutex_unlock(&bdev->bd_disk->open_mutex);
+	mutex_lock(&lo->lo_disk->open_mutex);
+	rc = bdev_disk_changed(lo->lo_disk, false);
+	mutex_unlock(&lo->lo_disk->open_mutex);
 	if (rc)
 		pr_warn("%s: partition scan of loop%d (%s) failed (rc=%d)\n",
 			__func__, lo->lo_number, lo->lo_file_name, rc);
@@ -752,7 +751,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	 */
 	fput(old_file);
 	if (partscan)
-		loop_reread_partitions(lo, bdev);
+		loop_reread_partitions(lo);
 	return 0;
 
 out_err:
@@ -1174,7 +1173,7 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
 	bdgrab(bdev);
 	mutex_unlock(&lo->lo_mutex);
 	if (partscan)
-		loop_reread_partitions(lo, bdev);
+		loop_reread_partitions(lo);
 	if (!(mode & FMODE_EXCL))
 		bd_abort_claiming(bdev, loop_configure);
 	return 0;
@@ -1268,10 +1267,10 @@ out_unlock:
 		 * current holder is released.
 		 */
 		if (!release)
-			mutex_lock(&bdev->bd_disk->open_mutex);
-		err = bdev_disk_changed(bdev, false);
+			mutex_lock(&lo->lo_disk->open_mutex);
+		err = bdev_disk_changed(lo->lo_disk, false);
 		if (!release)
-			mutex_unlock(&bdev->bd_disk->open_mutex);
+			mutex_unlock(&lo->lo_disk->open_mutex);
 		if (err)
 			pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
 				__func__, lo_number, err);
@@ -1416,7 +1415,7 @@ out_unfreeze:
 out_unlock:
 	mutex_unlock(&lo->lo_mutex);
 	if (partscan)
-		loop_reread_partitions(lo, bdev);
+		loop_reread_partitions(lo);
 
 	return err;
 }

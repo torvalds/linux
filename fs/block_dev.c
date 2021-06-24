@@ -1253,7 +1253,7 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 			/* avoid ghost partitions on a removed medium */
 			if (ret == -ENOMEDIUM &&
 			     test_bit(GD_NEED_PART_SCAN, &disk->state))
-				bdev_disk_changed(bdev, true);
+				bdev_disk_changed(disk, true);
 			return ret;
 		}
 	}
@@ -1264,7 +1264,7 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
 	}
 	if (test_bit(GD_NEED_PART_SCAN, &disk->state))
-		bdev_disk_changed(bdev, false);
+		bdev_disk_changed(disk, false);
 	bdev->bd_openers++;
 	return 0;;
 }

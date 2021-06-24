@@ -120,8 +120,7 @@ static void free_partitions(struct parsed_partitions *state)
 	kfree(state);
 }
 
-static struct parsed_partitions *check_partition(struct gendisk *hd,
-		struct block_device *bdev)
+static struct parsed_partitions *check_partition(struct gendisk *hd)
 {
 	struct parsed_partitions *state;
 	int i, res, err;
@@ -136,7 +135,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd,
 	}
 	state->pp_buf[0] = '\0';
 
-	state->bdev = bdev;
+	state->bdev = hd->part0;
 	disk_name(hd, 0, state->name);
 	snprintf(state->pp_buf, PAGE_SIZE, " %s:", state->name);
 	if (isdigit(state->name[strlen(state->name)-1]))
@@ -546,7 +545,7 @@ void blk_drop_partitions(struct gendisk *disk)
 	}
 }
 
-static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
+static bool blk_add_partition(struct gendisk *disk,
 		struct parsed_partitions *state, int p)
 {
 	sector_t size = state->parts[p].size;
@@ -596,7 +595,7 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 	return true;
 }
 
-static int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
+static int blk_add_partitions(struct gendisk *disk)
 {
 	struct parsed_partitions *state;
 	int ret = -EAGAIN, p;
@@ -604,7 +603,7 @@ static int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 	if (!disk_part_scan_enabled(disk))
 		return 0;
 
-	state = check_partition(disk, bdev);
+	state = check_partition(disk);
 	if (!state)
 		return 0;
 	if (IS_ERR(state)) {
@@ -648,7 +647,7 @@ static int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
 	for (p = 1; p < state->limit; p++)
-		if (!blk_add_partition(disk, bdev, state, p))
+		if (!blk_add_partition(disk, state, p))
 			goto out_free_state;
 
 	ret = 0;
@@ -657,9 +656,8 @@ out_free_state:
 	return ret;
 }
 
-int bdev_disk_changed(struct block_device *bdev, bool invalidate)
+int bdev_disk_changed(struct gendisk *disk, bool invalidate)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	int ret = 0;
 
 	lockdep_assert_held(&disk->open_mutex);
@@ -670,8 +668,8 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 rescan:
 	if (disk->open_partitions)
 		return -EBUSY;
-	sync_blockdev(bdev);
-	invalidate_bdev(bdev);
+	sync_blockdev(disk->part0);
+	invalidate_bdev(disk->part0);
 	blk_drop_partitions(disk);
 
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
@@ -691,7 +689,7 @@ rescan:
 	}
 
 	if (get_capacity(disk)) {
-		ret = blk_add_partitions(disk, bdev);
+		ret = blk_add_partitions(disk);
 		if (ret == -EAGAIN)
 			goto rescan;
 	} else if (invalidate) {

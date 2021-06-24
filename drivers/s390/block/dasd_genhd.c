@@ -110,7 +110,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 	}
 
 	mutex_lock(&block->gdp->open_mutex);
-	rc = bdev_disk_changed(bdev, false);
+	rc = bdev_disk_changed(block->gdp, false);
 	mutex_unlock(&block->gdp->open_mutex);
 	if (rc)
 		DBF_DEV_EVENT(DBF_ERR, block->base,
@@ -146,7 +146,7 @@ void dasd_destroy_partitions(struct dasd_block *block)
 	block->bdev = NULL;
 
 	mutex_lock(&bdev->bd_disk->open_mutex);
-	bdev_disk_changed(bdev, true);
+	bdev_disk_changed(bdev->bd_disk, true);
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
