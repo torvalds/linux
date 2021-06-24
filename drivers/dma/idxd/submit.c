@@ -128,19 +128,8 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 * Pending the descriptor to the lockless list for the irq_entry
 	 * that we designated the descriptor to.
 	 */
-	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
-		int vec;
-
-		/*
-		 * If the driver is on host kernel, it would be the value
-		 * assigned to interrupt handle, which is index for MSIX
-		 * vector. If it's guest then can't use the int_handle since
-		 * that is the index to IMS for the entire device. The guest
-		 * device local index will be used.
-		 */
-		vec = !idxd->int_handles ? desc->hw->int_handle : desc->vector;
-		llist_add(&desc->llnode, &idxd->irq_entries[vec].pending_llist);
-	}
+	if (desc->hw->flags & IDXD_OP_FLAG_RCI)
+		llist_add(&desc->llnode, &idxd->irq_entries[desc->vector].pending_llist);
 
 	return 0;
 }
