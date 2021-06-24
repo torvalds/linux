@@ -1,27 +1,49 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
 /dts-v1/;
 
-#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8150.dtsi"
 #include "pm8150.dtsi"
 #include "pm8150b.dtsi"
 #include "pm8150l.dtsi"
 
-/ {
-	model = "Qualcomm Technologies, Inc. SM8150 HDK";
-	compatible = "qcom,sm8150-hdk", "qcom,sm8150";
+/delete-node/ &cdsp_mem;
+/delete-node/ &gpu_mem;
+/delete-node/ &ipa_fw_mem;
+/delete-node/ &ipa_gsi_mem;
+/delete-node/ &mpss_mem;
+/delete-node/ &slpi_mem;
+/delete-node/ &spss_mem;
+/delete-node/ &venus_mem;
 
-	aliases {
-		serial0 = &uart2;
-	};
+/ {
+	qcom,msm-id = <339 0x20000>; /* SM8150 v2 */
+	qcom,board-id = <8 0>;
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@9c000000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x9c000000 0 0x2300000>;
+			width = <1644>;
+			height = <3840>;
+			stride = <(1644 * 4)>;
+			format = "a8r8g8b8";
+			/*
+			 * That's (going to be) a lot of clocks, but it's necessary due
+			 * to unused clk cleanup & no panel driver yet (& no dispcc either)..
+			 */
+			clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
+				 <&gcc GCC_DISP_SF_AXI_CLK>;
+		};
 	};
 
 	vph_pwr: vph-pwr-regulator {
@@ -31,6 +53,10 @@
 		regulator-max-microvolt = <3700000>;
 	};
 
+	/*
+	 * Apparently RPMh does not provide support for PM8150 S4 because it
+	 * is always-on; model it as a fixed regulator.
+	 */
 	vreg_s4a_1p8: pm8150-s4 {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_s4a_1p8";
@@ -44,15 +70,71 @@
 		vin-supply = <&vph_pwr>;
 	};
 
-	gpio_keys {
-		compatible = "gpio-keys";
+	reserved-memory {
+		mpss_mem: memory@8dc00000 {
+			reg = <0x0 0x8dc00000 0x0 0x9600000>;
+			no-map;
+		};
 
-		vol-up {
-			label = "Volume Up";
-			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;
+		venus_mem: memory@97200000 {
+			reg = <0x0 0x97200000 0x0 0x500000>;
+			no-map;
+		};
+
+		slpi_mem: memory@97700000 {
+			reg = <0x0 0x97700000 0x0 0x1400000>;
+			no-map;
+		};
+
+		ipa_fw_mem: memory@98b00000 {
+			reg = <0x0 0x98b00000 0x0 0x10000>;
+			no-map;
+		};
+
+		ipa_gsi_mem: memory@98b10000 {
+			reg = <0x0 0x98b10000 0x0 0x5000>;
+			no-map;
+		};
+
+		gpu_mem: memory@98b15000 {
+			reg = <0x0 0x98b15000 0x0 0x2000>;
+			no-map;
+		};
+
+		spss_mem: memory@98c00000 {
+			reg = <0x0 0x98c00000 0x0 0x100000>;
+			no-map;
+		};
+
+		cdsp_mem: memory@98d00000 {
+			reg = <0x0 0x98d00000 0x0 0x1400000>;
+			no-map;
+		};
+
+		cont_splash_mem: memory@9c000000 {
+			reg = <0x0 0x9c000000 0x0 0x2400000>;
+			no-map;
+		};
+
+		cdsp_sec_mem: memory@a4c00000 {
+			reg = <0x0 0xa4c00000 0x0 0x3c00000>;
+			no-map;
+		};
+
+		ramoops@ffc00000 {
+			compatible = "ramoops";
+			reg = <0x0 0xffc00000 0x0 0x100000>;
+			record-size = <0x1000>;
+			console-size = <0x40000>;
+			msg-size = <0x20000 0x20000>;
+			ecc-size = <16>;
+			no-map;
 		};
 	};
+};
+
+&adsp_mem {
+	reg = <0x0 0x8be00000 0x0 0x1e00000>;
 };
 
 &apps_rsc {
@@ -75,28 +157,33 @@
 		vdd-l2-l10-supply = <&vreg_bob>;
 		vdd-l3-l4-l5-l18-supply = <&vreg_s6a_0p9>;
 		vdd-l6-l9-supply = <&vreg_s8c_1p3>;
-		vdd-l7-l12-l14-l15-supply = <&vreg_s5a_2p0>;
+		vdd-l7-l12-l14-l15-supply = <&vreg_s5a_1p9>;
 		vdd-l13-l16-l17-supply = <&vreg_bob>;
 
-		vreg_s5a_2p0: smps5 {
+		vreg_s2a_0p6: smps2 {
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <600000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_s5a_1p9: smps5 {
 			regulator-min-microvolt = <1904000>;
-			regulator-max-microvolt = <2000000>;
+			regulator-max-microvolt = <2040000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_s6a_0p9: smps6 {
 			regulator-min-microvolt = <920000>;
 			regulator-max-microvolt = <1128000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdda_wcss_pll:
 		vreg_l1a_0p75: ldo1 {
 			regulator-min-microvolt = <752000>;
 			regulator-max-microvolt = <752000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdd_pdphy:
-		vdda_usb_hs_3p1:
 		vreg_l2a_3p1: ldo2 {
 			regulator-min-microvolt = <3072000>;
 			regulator-max-microvolt = <3072000>;
@@ -109,27 +196,6 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdd_usb_hs_core:
-		vdda_csi_0_0p9:
-		vdda_csi_1_0p9:
-		vdda_csi_2_0p9:
-		vdda_csi_3_0p9:
-		vdda_dsi_0_0p9:
-		vdda_dsi_1_0p9:
-		vdda_dsi_0_pll_0p9:
-		vdda_dsi_1_pll_0p9:
-		vdda_pcie_1ln_core:
-		vdda_pcie_2ln_core:
-		vdda_pll_hv_cc_ebi01:
-		vdda_pll_hv_cc_ebi23:
-		vdda_qrefs_0p875_5:
-		vdda_sp_sensor:
-		vdda_ufs_2ln_core_1:
-		vdda_ufs_2ln_core_2:
-		vdda_usb_ss_dp_core_1:
-		vdda_usb_ss_dp_core_2:
-		vdda_qlink_lv:
-		vdda_qlink_lv_ck:
 		vreg_l5a_0p875: ldo5 {
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <880000>;
@@ -148,7 +214,6 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vddpx_10:
 		vreg_l9a_1p2: ldo9 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
@@ -167,28 +232,17 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdd_qfprom:
-		vdd_qfprom_sp:
-		vdda_apc_cs_1p8:
-		vdda_gfx_cs_1p8:
-		vdda_usb_hs_1p8:
-		vdda_qrefs_vref_1p8:
-		vddpx_10_a:
 		vreg_l12a_1p8: ldo12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l13a_2p7: ldo13 {
-			regulator-min-microvolt = <2704000>;
-			regulator-max-microvolt = <2704000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
+		/* L13 is unused. */
 
 		vreg_l14a_1p8: ldo14 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1880000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -207,6 +261,12 @@
 		vreg_l17a_3p0: ldo17 {
 			regulator-min-microvolt = <2856000>;
 			regulator-max-microvolt = <3008000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l18a_0p8: ldo18 {
+			regulator-min-microvolt = <880000>;
+			regulator-max-microvolt = <912000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
@@ -235,15 +295,22 @@
 		vdd-rgb-supply = <&vreg_bob>;
 
 		vreg_bob: bob {
-			regulator-min-microvolt = <3008000>;
+			regulator-min-microvolt = <3350000>;
 			regulator-max-microvolt = <4000000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
 			regulator-allow-bypass;
 		};
 
+		vreg_s1c_1p1: smps1 {
+			regulator-min-microvolt = <1128000>;
+			regulator-max-microvolt = <1128000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		vreg_s8c_1p3: smps8 {
 			regulator-min-microvolt = <1352000>;
 			regulator-max-microvolt = <1352000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l1c_1p8: ldo1 {
@@ -252,45 +319,35 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdda_wcss_adcdac_1:
-		vdda_wcss_adcdac_22:
 		vreg_l2c_1p3: ldo2 {
 			regulator-min-microvolt = <1304000>;
 			regulator-max-microvolt = <1304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vdda_hv_ebi0:
-		vdda_hv_ebi1:
-		vdda_hv_ebi2:
-		vdda_hv_ebi3:
-		vdda_hv_refgen0:
-		vdda_qlink_hv_ck:
 		vreg_l3c_1p2: ldo3 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vddpx_5:
 		vreg_l4c_1p8: ldo4 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <2928000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vddpx_6:
 		vreg_l5c_1p8: ldo5 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <2928000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vddpx_2:
 		vreg_l6c_2p9: ldo6 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 
 		vreg_l7c_3p0: ldo7 {
@@ -309,6 +366,7 @@
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 
 		vreg_l10c_3p3: ldo10 {
@@ -324,137 +382,55 @@
 		};
 	};
 
-	pm8009-rpmh-regulators {
-		compatible = "qcom,pm8009-rpmh-regulators";
-		qcom,pmic-id = "f";
-
-		vdd-s1-supply = <&vph_pwr>;
-		vdd-s2-supply = <&vreg_bob>;
-
-		vdd-l2-supply = <&vreg_s8c_1p3>;
-		vdd-l5-l6-supply = <&vreg_bob>;
-
-		vreg_l2f_1p2: ldo2 {
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l5f_2p85: ldo5 {
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l6f_2p85: ldo6 {
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-			regulator-min-microvolt = <2856000>;
-			regulator-max-microvolt = <2856000>;
-		};
-	};
+	/* PM8009 is not present on these boards, even if downstream sources suggest so. */
 };
 
-&gmu {
+&i2c4 {
 	status = "okay";
+
+	/* Qcom SMB1355 @ c */
+	/* Qcom SMB1390 @ 10 */
+	/* NXP PN553 NFC @ 28 */
+	/* Qcom FSA4480 USB-C audio switch @ 43 */
 };
 
-&gpu {
+&i2c7 {
 	status = "okay";
+
+	/* AMS TCS3490 RGB+IR color sensor @ 72 */
+};
+
+&i2c10 {
+	status = "okay";
+
+	/* Samsung touchscreen @ 48 */
 };
 
 &pon_pwrkey {
 	status = "okay";
 };
 
-&pon_resin {
+&qupv3_id_0 {
 	status = "okay";
-
-	linux,code = <KEY_VOLUMEDOWN>;
 };
 
 &qupv3_id_1 {
 	status = "okay";
 };
 
-&remoteproc_adsp {
-	status = "okay";
-
-	firmware-name = "qcom/sm8150/adsp.mbn";
-};
-
-&remoteproc_cdsp {
-	status = "okay";
-
-	firmware-name = "qcom/sm8150/cdsp.mbn";
-};
-
-&remoteproc_slpi {
-	status = "okay";
-
-	firmware-name = "qcom/sm8150/slpi.mbn";
-};
-
 &tlmm {
-	gpio-reserved-ranges = <0 4>, <126 4>;
+	gpio-reserved-ranges = <126 4>;
 };
 
 &uart2 {
 	status = "okay";
 };
 
-&ufs_mem_hc {
-	status = "okay";
-
-	reset-gpios = <&tlmm 175 GPIO_ACTIVE_LOW>;
-
-	vcc-supply = <&vreg_l10a_2p5>;
-	vcc-max-microamp = <750000>;
-	vccq-supply = <&vreg_l9a_1p2>;
-	vccq-max-microamp = <700000>;
-	vccq2-supply = <&vreg_s4a_1p8>;
-	vccq2-max-microamp = <750000>;
-};
-
-&ufs_mem_phy {
-	status = "okay";
-
-	vdda-phy-supply = <&vdda_ufs_2ln_core_1>;
-	vdda-max-microamp = <90200>;
-	vdda-pll-supply = <&vreg_l3c_1p2>;
-	vdda-pll-max-microamp = <19000>;
-};
-
-&usb_1_hsphy {
-	status = "okay";
-	vdda-pll-supply = <&vdd_usb_hs_core>;
-	vdda33-supply = <&vdda_usb_hs_3p1>;
-	vdda18-supply = <&vdda_usb_hs_1p8>;
-};
-
-&usb_2_hsphy {
-	status = "okay";
-	vdda-pll-supply = <&vdd_usb_hs_core>;
-	vdda33-supply = <&vdda_usb_hs_3p1>;
-	vdda18-supply = <&vdda_usb_hs_1p8>;
-};
-
-&usb_1_qmpphy {
-	status = "okay";
-	vdda-phy-supply = <&vreg_l3c_1p2>;
-	vdda-pll-supply = <&vdda_usb_ss_dp_core_1>;
-};
-
-&usb_2_qmpphy {
-	status = "okay";
-	vdda-phy-supply = <&vreg_l3c_1p2>;
-	vdda-pll-supply = <&vdda_usb_ss_dp_core_1>;
-};
+/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
+&ufs_mem_hc { status = "disabled"; };
+&ufs_mem_phy { status = "disabled"; };
 
 &usb_1 {
-	status = "okay";
-};
-
-&usb_2 {
 	status = "okay";
 };
 
@@ -462,6 +438,15 @@
 	dr_mode = "peripheral";
 };
 
-&usb_2_dwc3 {
-	dr_mode = "host";
+&usb_1_hsphy {
+	status = "okay";
+	vdda-pll-supply = <&vreg_l5a_0p875>;
+	vdda33-supply = <&vreg_l2a_3p1>;
+	vdda18-supply = <&vreg_l12a_1p8>;
+};
+
+&usb_1_qmpphy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l3c_1p2>;
+	vdda-pll-supply = <&vreg_l18a_0p8>;
 };
