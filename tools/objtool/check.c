@@ -382,7 +382,7 @@ static int decode_instructions(struct objtool_file *file)
 			insn->sec = sec;
 			insn->offset = offset;
 
-			ret = arch_decode_instruction(file->elf, sec, offset,
+			ret = arch_decode_instruction(file, sec, offset,
 						      sec->len - offset,
 						      &insn->len, &insn->type,
 						      &insn->immediate,
@@ -418,6 +418,82 @@ static int decode_instructions(struct objtool_file *file)
 err:
 	free(insn);
 	return ret;
+}
+
+/*
+ * Read the pv_ops[] .data table to find the static initialized values.
+ */
+static int add_pv_ops(struct objtool_file *file, const char *symname)
+{
+	struct symbol *sym, *func;
+	unsigned long off, end;
+	struct reloc *rel;
+	int idx;
+
+	sym = find_symbol_by_name(file->elf, symname);
+	if (!sym)
+		return 0;
+
+	off = sym->offset;
+	end = off + sym->len;
+	for (;;) {
+		rel = find_reloc_by_dest_range(file->elf, sym->sec, off, end - off);
+		if (!rel)
+			break;
+
+		func = rel->sym;
+		if (func->type == STT_SECTION)
+			func = find_symbol_by_offset(rel->sym->sec, rel->addend);
+
+		idx = (rel->offset - sym->offset) / sizeof(unsigned long);
+
+		objtool_pv_add(file, idx, func);
+
+		off = rel->offset + 1;
+		if (off > end)
+			break;
+	}
+
+	return 0;
+}
+
+/*
+ * Allocate and initialize file->pv_ops[].
+ */
+static int init_pv_ops(struct objtool_file *file)
+{
+	static const char *pv_ops_tables[] = {
+		"pv_ops",
+		"xen_cpu_ops",
+		"xen_irq_ops",
+		"xen_mmu_ops",
+		NULL,
+	};
+	const char *pv_ops;
+	struct symbol *sym;
+	int idx, nr;
+
+	if (!noinstr)
+		return 0;
+
+	file->pv_ops = NULL;
+
+	sym = find_symbol_by_name(file->elf, "pv_ops");
+	if (!sym)
+		return 0;
+
+	nr = sym->len / sizeof(unsigned long);
+	file->pv_ops = calloc(sizeof(struct pv_state), nr);
+	if (!file->pv_ops)
+		return -1;
+
+	for (idx = 0; idx < nr; idx++)
+		INIT_LIST_HEAD(&file->pv_ops[idx].targets);
+
+	for (idx = 0; (pv_ops = pv_ops_tables[idx]); idx++)
+		add_pv_ops(file, pv_ops);
+
+	return 0;
 }
 
 static struct instruction *find_last_insn(struct objtool_file *file,
@@ -893,6 +969,9 @@ static struct reloc *insn_reloc(struct objtool_file *file, struct instruction *i
 		return NULL;
 
 	if (!insn->reloc) {
+		if (!file)
+			return NULL;
+
 		insn->reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 						       insn->offset, insn->len);
 		if (!insn->reloc) {
@@ -1882,6 +1961,10 @@ static int decode_sections(struct objtool_file *file)
 
 	mark_rodata(file);
 
+	ret = init_pv_ops(file);
+	if (ret)
+		return ret;
+
 	ret = decode_instructions(file);
 	if (ret)
 		return ret;
@@ -2663,20 +2746,64 @@ static inline bool func_uaccess_safe(struct symbol *func)
 
 static inline const char *call_dest_name(struct instruction *insn)
 {
+	static char pvname[16];
+	struct reloc *rel;
+	int idx;
+
 	if (insn->call_dest)
 		return insn->call_dest->name;
+
+	rel = insn_reloc(NULL, insn);
+	if (rel && !strcmp(rel->sym->name, "pv_ops")) {
+		idx = (rel->addend / sizeof(void *));
+		snprintf(pvname, sizeof(pvname), "pv_ops[%d]", idx);
+		return pvname;
+	}
 
 	return "{dynamic}";
 }
 
-static inline bool noinstr_call_dest(struct symbol *func)
+static bool pv_call_dest(struct objtool_file *file, struct instruction *insn)
+{
+	struct symbol *target;
+	struct reloc *rel;
+	int idx;
+
+	rel = insn_reloc(file, insn);
+	if (!rel || strcmp(rel->sym->name, "pv_ops"))
+		return false;
+
+	idx = (arch_dest_reloc_offset(rel->addend) / sizeof(void *));
+
+	if (file->pv_ops[idx].clean)
+		return true;
+
+	file->pv_ops[idx].clean = true;
+
+	list_for_each_entry(target, &file->pv_ops[idx].targets, pv_target) {
+		if (!target->sec->noinstr) {
+			WARN("pv_ops[%d]: %s", idx, target->name);
+			file->pv_ops[idx].clean = false;
+		}
+	}
+
+	return file->pv_ops[idx].clean;
+}
+
+static inline bool noinstr_call_dest(struct objtool_file *file,
+				     struct instruction *insn,
+				     struct symbol *func)
 {
 	/*
 	 * We can't deal with indirect function calls at present;
 	 * assume they're instrumented.
 	 */
-	if (!func)
+	if (!func) {
+		if (file->pv_ops)
+			return pv_call_dest(file, insn);
+
 		return false;
+	}
 
 	/*
 	 * If the symbol is from a noinstr section; we good.
@@ -2695,10 +2822,12 @@ static inline bool noinstr_call_dest(struct symbol *func)
 	return false;
 }
 
-static int validate_call(struct instruction *insn, struct insn_state *state)
+static int validate_call(struct objtool_file *file,
+			 struct instruction *insn,
+			 struct insn_state *state)
 {
 	if (state->noinstr && state->instr <= 0 &&
-	    !noinstr_call_dest(insn->call_dest)) {
+	    !noinstr_call_dest(file, insn, insn->call_dest)) {
 		WARN_FUNC("call to %s() leaves .noinstr.text section",
 				insn->sec, insn->offset, call_dest_name(insn));
 		return 1;
@@ -2719,7 +2848,9 @@ static int validate_call(struct instruction *insn, struct insn_state *state)
 	return 0;
 }
 
-static int validate_sibling_call(struct instruction *insn, struct insn_state *state)
+static int validate_sibling_call(struct objtool_file *file,
+				 struct instruction *insn,
+				 struct insn_state *state)
 {
 	if (has_modified_stack_frame(insn, state)) {
 		WARN_FUNC("sibling call from callable instruction with modified stack frame",
@@ -2727,7 +2858,7 @@ static int validate_sibling_call(struct instruction *insn, struct insn_state *st
 		return 1;
 	}
 
-	return validate_call(insn, state);
+	return validate_call(file, insn, state);
 }
 
 static int validate_return(struct symbol *func, struct instruction *insn, struct insn_state *state)
@@ -2880,7 +3011,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 		case INSN_CALL:
 		case INSN_CALL_DYNAMIC:
-			ret = validate_call(insn, &state);
+			ret = validate_call(file, insn, &state);
 			if (ret)
 				return ret;
 
@@ -2899,7 +3030,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 		case INSN_JUMP_CONDITIONAL:
 		case INSN_JUMP_UNCONDITIONAL:
 			if (is_sibling_call(insn)) {
-				ret = validate_sibling_call(insn, &state);
+				ret = validate_sibling_call(file, insn, &state);
 				if (ret)
 					return ret;
 
@@ -2921,7 +3052,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 		case INSN_JUMP_DYNAMIC:
 		case INSN_JUMP_DYNAMIC_CONDITIONAL:
 			if (is_sibling_call(insn)) {
-				ret = validate_sibling_call(insn, &state);
+				ret = validate_sibling_call(file, insn, &state);
 				if (ret)
 					return ret;
 			}

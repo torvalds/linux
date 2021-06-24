@@ -20,6 +20,7 @@
 #include <objtool/arch.h>
 #include <objtool/warn.h>
 #include <objtool/endianness.h>
+#include <objtool/builtin.h>
 #include <arch/elf.h>
 
 static int is_x86_64(const struct elf *elf)
@@ -102,12 +103,13 @@ unsigned long arch_jump_destination(struct instruction *insn)
 #define rm_is_mem(reg)	(mod_is_mem() && !is_RIP() && rm_is(reg))
 #define rm_is_reg(reg)	(mod_is_reg() && modrm_rm == (reg))
 
-int arch_decode_instruction(const struct elf *elf, const struct section *sec,
+int arch_decode_instruction(struct objtool_file *file, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
 			    unsigned long *immediate,
 			    struct list_head *ops_list)
 {
+	const struct elf *elf = file->elf;
 	struct insn insn;
 	int x86_64, ret;
 	unsigned char op1, op2,
@@ -542,6 +544,36 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 	case 0xc2:
 	case 0xc3:
 		*type = INSN_RETURN;
+		break;
+
+	case 0xc7: /* mov imm, r/m */
+		if (!noinstr)
+			break;
+
+		if (insn.length == 3+4+4 && !strncmp(sec->name, ".init.text", 10)) {
+			struct reloc *immr, *disp;
+			struct symbol *func;
+			int idx;
+
+			immr = find_reloc_by_dest(elf, (void *)sec, offset+3);
+			disp = find_reloc_by_dest(elf, (void *)sec, offset+7);
+
+			if (!immr || strcmp(immr->sym->name, "pv_ops"))
+				break;
+
+			idx = (immr->addend + 8) / sizeof(void *);
+
+			func = disp->sym;
+			if (disp->sym->type == STT_SECTION)
+				func = find_symbol_by_offset(disp->sym->sec, disp->addend);
+			if (!func) {
+				WARN("no func for pv_ops[]");
+				return -1;
+			}
+
+			objtool_pv_add(file, idx, func);
+		}
+
 		break;
 
 	case 0xcf: /* iret */

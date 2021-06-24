@@ -14,6 +14,11 @@
 
 #define __weak __attribute__((weak))
 
+struct pv_state {
+	bool clean;
+	struct list_head targets;
+};
+
 struct objtool_file {
 	struct elf *elf;
 	struct list_head insn_list;
@@ -25,9 +30,13 @@ struct objtool_file {
 
 	unsigned long jl_short, jl_long;
 	unsigned long jl_nop_short, jl_nop_long;
+
+	struct pv_state *pv_ops;
 };
 
 struct objtool_file *objtool_open_read(const char *_objname);
+
+void objtool_pv_add(struct objtool_file *file, int idx, struct symbol *func);
 
 int check(struct objtool_file *file);
 int orc_dump(const char *objname);
