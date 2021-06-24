@@ -617,7 +617,7 @@ static void mvebu_uart_putc(struct uart_port *port, int c)
 
 static void mvebu_uart_putc_early_write(struct console *con,
 					const char *s,
-					unsigned n)
+					unsigned int n)
 {
 	struct earlycon_device *dev = con->data;
 
