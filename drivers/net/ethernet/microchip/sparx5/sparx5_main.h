@@ -135,9 +135,16 @@ struct sparx5 {
 	/* port structures are in net device */
 	struct sparx5_port *ports[SPX5_PORTS];
 	enum sparx5_core_clockfreq coreclock;
+	/* Notifiers */
+	struct notifier_block netdevice_nb;
+	struct notifier_block switchdev_nb;
+	struct notifier_block switchdev_blocking_nb;
 	/* Switch state */
 	u8 base_mac[ETH_ALEN];
+	/* Associated bridge device (when bridged) */
+	struct net_device *hw_bridge_dev;
 	/* Bridged interfaces */
+	DECLARE_BITMAP(bridge_mask, SPX5_PORTS);
 	DECLARE_BITMAP(bridge_fwd_mask, SPX5_PORTS);
 	DECLARE_BITMAP(bridge_lrn_mask, SPX5_PORTS);
 	DECLARE_BITMAP(vlan_mask[VLAN_N_VID], SPX5_PORTS);
@@ -152,6 +159,10 @@ struct sparx5 {
 	/* Register based inj/xtr */
 	int xtr_irq;
 };
+
+/* sparx5_switchdev.c */
+int sparx5_register_notifier_blocks(struct sparx5 *sparx5);
+void sparx5_unregister_notifier_blocks(struct sparx5 *sparx5);
 
 /* sparx5_packet.c */
 irqreturn_t sparx5_xtr_handler(int irq, void *_priv);

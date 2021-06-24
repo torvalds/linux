@@ -371,6 +371,9 @@ static void sparx5_mact_handle_entry(struct sparx5 *sparx5,
 	if (port >= SPX5_PORTS)
 		return;
 
+	if (!test_bit(port, sparx5->bridge_mask))
+		return;
+
 	mutex_lock(&sparx5->mact_lock);
 	list_for_each_entry(mact_entry, &sparx5->mact_entries, list) {
 		if (mact_entry->vid == vid &&

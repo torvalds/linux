@@ -623,6 +623,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 		return err;
 
 	sparx5_board_init(sparx5);
+	err = sparx5_register_notifier_blocks(sparx5);
 
 	/* Start register based INJ/XTR */
 	err = -ENXIO;
@@ -812,6 +813,9 @@ static int mchp_sparx5_remove(struct platform_device *pdev)
 		sparx5->xtr_irq = -ENXIO;
 	}
 	sparx5_cleanup_ports(sparx5);
+	/* Unregister netdevs */
+	sparx5_unregister_notifier_blocks(sparx5);
+
 	return 0;
 }
 
