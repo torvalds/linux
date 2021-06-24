@@ -614,6 +614,10 @@ static int sparx5_start(struct sparx5 *sparx5)
 	if (err)
 		return err;
 
+	/* Init stats */
+	err = sparx_stats_init(sparx5);
+	if (err)
+		return err;
 
 	/* Init mact_sw struct */
 	mutex_init(&sparx5->mact_lock);
