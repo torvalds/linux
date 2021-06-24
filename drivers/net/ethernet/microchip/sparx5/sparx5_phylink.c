@@ -12,6 +12,7 @@
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
+#include "sparx5_port.h"
 
 static bool port_conf_has_changed(struct sparx5_port_config *a, struct sparx5_port_config *b)
 {
@@ -115,6 +116,7 @@ static void sparx5_phylink_mac_link_up(struct phylink_config *config,
 {
 	struct sparx5_port *port = netdev_priv(to_net_dev(config->dev));
 	struct sparx5_port_config conf;
+	int err;
 
 	conf = port->conf;
 	conf.duplex = duplex;
@@ -122,7 +124,10 @@ static void sparx5_phylink_mac_link_up(struct phylink_config *config,
 	conf.pause |= tx_pause ? MLO_PAUSE_TX : 0;
 	conf.pause |= rx_pause ? MLO_PAUSE_RX : 0;
 	conf.speed = speed;
-	/* Port configuration to be added later */
+	/* Configure the port to speed/duplex/pause */
+	err = sparx5_port_config(port->sparx5, port, &conf);
+	if (err)
+		netdev_err(port->ndev, "port config failed: %d\n", err);
 }
 
 static void sparx5_phylink_mac_link_down(struct phylink_config *config,
@@ -140,12 +145,15 @@ static struct sparx5_port *sparx5_pcs_to_port(struct phylink_pcs *pcs)
 static void sparx5_pcs_get_state(struct phylink_pcs *pcs,
 				 struct phylink_link_state *state)
 {
-	/* Getting port status to be added later, just defaults now */
-	state->link = true;
-	state->an_complete = true;
-	state->speed = SPEED_1000;
-	state->duplex = true;
-	state->pause = MLO_PAUSE_AN;
+	struct sparx5_port *port = sparx5_pcs_to_port(pcs);
+	struct sparx5_port_status status;
+
+	sparx5_get_port_status(port->sparx5, port, &status);
+	state->link = status.link && !status.link_down;
+	state->an_complete = status.an_complete;
+	state->speed = status.speed;
+	state->duplex = status.duplex;
+	state->pause = status.pause;
 }
 
 static int sparx5_pcs_config(struct phylink_pcs *pcs,
@@ -176,7 +184,10 @@ static int sparx5_pcs_config(struct phylink_pcs *pcs,
 	}
 	if (!port_conf_has_changed(&port->conf, &conf))
 		return ret;
-	/* PCS configuration added later */
+	/* Enable the PCS matching this interface type */
+	ret = sparx5_port_pcs_set(port->sparx5, port, &conf);
+	if (ret)
+		netdev_err(port->ndev, "port PCS config failed: %d\n", ret);
 	return ret;
 }
 

@@ -6,6 +6,7 @@
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
+#include "sparx5_port.h"
 
 /* The IFH bit position of the first VSTAX bit. This is because the
  * VSTAX bit positions in Data sheet is starting from zero.
@@ -71,6 +72,7 @@ static int sparx5_port_open(struct net_device *ndev)
 	struct sparx5_port *port = netdev_priv(ndev);
 	int err = 0;
 
+	sparx5_port_enable(port, true);
 	err = phylink_of_phy_connect(port->phylink, port->of_node, 0);
 	if (err) {
 		netdev_err(ndev, "Could not attach to PHY\n");
@@ -82,7 +84,10 @@ static int sparx5_port_open(struct net_device *ndev)
 	if (!ndev->phydev) {
 		/* power up serdes */
 		port->conf.power_down = false;
-		err = phy_power_on(port->serdes);
+		if (port->conf.serdes_reset)
+			err = sparx5_serdes_set(port->sparx5, port, &port->conf);
+		else
+			err = phy_power_on(port->serdes);
 		if (err)
 			netdev_err(ndev, "%s failed\n", __func__);
 	}
@@ -95,12 +100,17 @@ static int sparx5_port_stop(struct net_device *ndev)
 	struct sparx5_port *port = netdev_priv(ndev);
 	int err = 0;
 
+	sparx5_port_enable(port, false);
 	phylink_stop(port->phylink);
 	phylink_disconnect_phy(port->phylink);
 
 	if (!ndev->phydev) {
+		/* power down serdes */
 		port->conf.power_down = true;
-		err = phy_power_off(port->serdes);
+		if (port->conf.serdes_reset)
+			err = sparx5_serdes_set(port->sparx5, port, &port->conf);
+		else
+			err = phy_power_off(port->serdes);
 		if (err)
 			netdev_err(ndev, "%s failed\n", __func__);
 	}

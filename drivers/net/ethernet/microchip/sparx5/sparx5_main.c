@@ -26,6 +26,7 @@
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
+#include "sparx5_port.h"
 
 #define QLIM_WM(fraction) \
 	((SPX5_BUFFER_MEMORY / SPX5_BUFFER_CELL_SZ - 100) * (fraction) / 100)
@@ -252,6 +253,7 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
 	struct phylink *phylink;
+	int err;
 
 	ndev = sparx5_create_netdev(sparx5, config->portno);
 	if (IS_ERR(ndev)) {
@@ -273,9 +275,14 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->phylink_pcs.ops = &sparx5_phylink_pcs_ops;
 	sparx5->ports[config->portno] = spx5_port;
 
+	err = sparx5_port_init(sparx5, spx5_port, &config->conf);
+	if (err) {
+		dev_err(sparx5->dev, "port init failed\n");
+		return err;
+	}
 	spx5_port->conf = config->conf;
 
-	/* VLAN setup to be added in later patches */
+	/* VLAN support to be added in later patches */
 
 	/* Create a phylink for PHY management.  Also handles SFPs */
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
