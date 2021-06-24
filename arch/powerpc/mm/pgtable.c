@@ -28,7 +28,13 @@
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
 
-pgd_t swapper_pg_dir[MAX_PTRS_PER_PGD] __page_aligned_bss;
+#ifdef CONFIG_PPC64
+#define PGD_ALIGN (sizeof(pgd_t) * MAX_PTRS_PER_PGD)
+#else
+#define PGD_ALIGN PAGE_SIZE
+#endif
+
+pgd_t swapper_pg_dir[MAX_PTRS_PER_PGD] __section(".bss..page_aligned") __aligned(PGD_ALIGN);
 
 static inline int is_exec_fault(void)
 {
