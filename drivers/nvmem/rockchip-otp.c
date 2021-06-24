@@ -616,6 +616,26 @@ static struct platform_driver rockchip_otp_driver = {
 	},
 };
 
-module_platform_driver(rockchip_otp_driver);
+static int __init rockchip_otp_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&rockchip_otp_driver);
+	if (ret) {
+		pr_err("failed to register otp driver\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit rockchip_otp_exit(void)
+{
+	return platform_driver_unregister(&rockchip_otp_driver);
+}
+
+subsys_initcall(rockchip_otp_init);
+module_exit(rockchip_otp_exit);
+
 MODULE_DESCRIPTION("Rockchip OTP driver");
 MODULE_LICENSE("GPL v2");
