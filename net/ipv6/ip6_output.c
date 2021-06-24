@@ -1055,13 +1055,11 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	 * ip6_route_output will fail given src=any saddr, though, so
 	 * that's why we try it again later.
 	 */
-	if (ipv6_addr_any(&fl6->saddr) && (!*dst || !(*dst)->error)) {
+	if (ipv6_addr_any(&fl6->saddr)) {
 		struct fib6_info *from;
 		struct rt6_info *rt;
-		bool had_dst = *dst != NULL;
 
-		if (!had_dst)
-			*dst = ip6_route_output(net, sk, fl6);
+		*dst = ip6_route_output(net, sk, fl6);
 		rt = (*dst)->error ? NULL : (struct rt6_info *)*dst;
 
 		rcu_read_lock();
@@ -1078,7 +1076,7 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 		 * never existed and let the SA-enabled version take
 		 * over.
 		 */
-		if (!had_dst && (*dst)->error) {
+		if ((*dst)->error) {
 			dst_release(*dst);
 			*dst = NULL;
 		}
