@@ -60,7 +60,7 @@ struct instruction {
 	struct list_head alts;
 	struct symbol *func;
 	struct list_head stack_ops;
-	struct cfi_state cfi;
+	struct cfi_state *cfi;
 };
 
 static inline bool is_static_jump(struct instruction *insn)

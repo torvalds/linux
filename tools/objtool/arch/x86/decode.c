@@ -779,34 +779,32 @@ int arch_rewrite_retpolines(struct objtool_file *file)
 	return 0;
 }
 
-int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
+int arch_decode_hint_reg(u8 sp_reg, int *base)
 {
-	struct cfi_reg *cfa = &insn->cfi.cfa;
-
 	switch (sp_reg) {
 	case ORC_REG_UNDEFINED:
-		cfa->base = CFI_UNDEFINED;
+		*base = CFI_UNDEFINED;
 		break;
 	case ORC_REG_SP:
-		cfa->base = CFI_SP;
+		*base = CFI_SP;
 		break;
 	case ORC_REG_BP:
-		cfa->base = CFI_BP;
+		*base = CFI_BP;
 		break;
 	case ORC_REG_SP_INDIRECT:
-		cfa->base = CFI_SP_INDIRECT;
+		*base = CFI_SP_INDIRECT;
 		break;
 	case ORC_REG_R10:
-		cfa->base = CFI_R10;
+		*base = CFI_R10;
 		break;
 	case ORC_REG_R13:
-		cfa->base = CFI_R13;
+		*base = CFI_R13;
 		break;
 	case ORC_REG_DI:
-		cfa->base = CFI_DI;
+		*base = CFI_DI;
 		break;
 	case ORC_REG_DX:
-		cfa->base = CFI_DX;
+		*base = CFI_DX;
 		break;
 	default:
 		return -1;
