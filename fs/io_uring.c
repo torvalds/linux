@@ -3851,27 +3851,26 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 		goto err;
 
 	file = do_filp_open(req->open.dfd, req->open.filename, &op);
-	/* only retry if RESOLVE_CACHED wasn't already set by application */
-	if ((!resolve_nonblock && (issue_flags & IO_URING_F_NONBLOCK)) &&
-	    file == ERR_PTR(-EAGAIN)) {
+	if (IS_ERR(file)) {
 		/*
-		 * We could hang on to this 'fd', but seems like marginal
-		 * gain for something that is now known to be a slower path.
-		 * So just put it, and we'll get a new one when we retry.
+		 * We could hang on to this 'fd' on retrying, but seems like
+		 * marginal gain for something that is now known to be a slower
+		 * path. So just put it, and we'll get a new one when we retry.
 		 */
 		put_unused_fd(ret);
-		return -EAGAIN;
+
+		ret = PTR_ERR(file);
+		/* only retry if RESOLVE_CACHED wasn't already set by application */
+		if (ret == -EAGAIN &&
+		    (!resolve_nonblock && (issue_flags & IO_URING_F_NONBLOCK)))
+			return -EAGAIN;
+		goto err;
 	}
 
-	if (IS_ERR(file)) {
-		put_unused_fd(ret);
-		ret = PTR_ERR(file);
-	} else {
-		if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
-			file->f_flags &= ~O_NONBLOCK;
-		fsnotify_open(file);
-		fd_install(ret, file);
-	}
+	if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
+		file->f_flags &= ~O_NONBLOCK;
+	fsnotify_open(file);
+	fd_install(ret, file);
 err:
 	putname(req->open.filename);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
