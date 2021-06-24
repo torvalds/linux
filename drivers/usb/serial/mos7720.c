@@ -945,27 +945,20 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
  *	this function is called by the tty driver when it wants to know how many
  *	bytes of data we currently have outstanding in the port (data that has
  *	been written, but hasn't made it out the port yet)
- *	If successful, we return the number of bytes left to be written in the
- *	system,
- *	Otherwise we return a negative error number.
  */
-static int mos7720_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mos7720_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
 	int i;
-	int chars = 0;
-	struct moschip_port *mos7720_port;
-
-	mos7720_port = usb_get_serial_port_data(port);
-	if (mos7720_port == NULL)
-		return 0;
+	unsigned int chars = 0;
 
 	for (i = 0; i < NUM_URBS; ++i) {
 		if (mos7720_port->write_urb_pool[i] &&
 		    mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
 			chars += URB_TRANSFER_BUFFER_SIZE;
 	}
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, chars);
 	return chars;
 }
 
@@ -1030,19 +1023,13 @@ static void mos7720_break(struct tty_struct *tty, int break_state)
  * mos7720_write_room
  *	this function is called by the tty driver when it wants to know how many
  *	bytes of data we can accept for a specific port.
- *	If successful, we return the amount of room that we have for this port
- *	Otherwise we return a negative error number.
  */
-static int mos7720_write_room(struct tty_struct *tty)
+static unsigned int mos7720_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7720_port;
-	int room = 0;
+	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
+	unsigned int room = 0;
 	int i;
-
-	mos7720_port = usb_get_serial_port_data(port);
-	if (mos7720_port == NULL)
-		return 0;
 
 	/* FIXME: Locking */
 	for (i = 0; i < NUM_URBS; ++i) {
@@ -1051,7 +1038,7 @@ static int mos7720_write_room(struct tty_struct *tty)
 			room += URB_TRANSFER_BUFFER_SIZE;
 	}
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, room);
 	return room;
 }
 

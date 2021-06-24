@@ -47,7 +47,7 @@ static int xbof = -1;
 static int  ir_startup (struct usb_serial *serial);
 static int ir_write(struct tty_struct *tty, struct usb_serial_port *port,
 		const unsigned char *buf, int count);
-static int ir_write_room(struct tty_struct *tty);
+static unsigned int ir_write_room(struct tty_struct *tty);
 static void ir_write_bulk_callback(struct urb *urb);
 static void ir_process_read_urb(struct urb *urb);
 static void ir_set_termios(struct tty_struct *tty,
@@ -339,10 +339,10 @@ static void ir_write_bulk_callback(struct urb *urb)
 	usb_serial_port_softint(port);
 }
 
-static int ir_write_room(struct tty_struct *tty)
+static unsigned int ir_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int count = 0;
+	unsigned int count = 0;
 
 	if (port->bulk_out_size == 0)
 		return 0;

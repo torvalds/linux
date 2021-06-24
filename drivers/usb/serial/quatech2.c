@@ -870,12 +870,12 @@ static void qt2_update_lsr(struct usb_serial_port *port, unsigned char *ch)
 
 }
 
-static int qt2_write_room(struct tty_struct *tty)
+static unsigned int qt2_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct qt2_port_private *port_priv;
-	unsigned long flags = 0;
-	int r;
+	unsigned long flags;
+	unsigned int r;
 
 	port_priv = usb_get_serial_port_data(port);
 

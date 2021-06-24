@@ -122,14 +122,14 @@ static void cypress_dtr_rts(struct usb_serial_port *port, int on);
 static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
-static int  cypress_write_room(struct tty_struct *tty);
+static unsigned int cypress_write_room(struct tty_struct *tty);
 static void cypress_earthmate_init_termios(struct tty_struct *tty);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int  cypress_chars_in_buffer(struct tty_struct *tty);
+static unsigned int cypress_chars_in_buffer(struct tty_struct *tty);
 static void cypress_throttle(struct tty_struct *tty);
 static void cypress_unthrottle(struct tty_struct *tty);
 static void cypress_set_dead(struct usb_serial_port *port);
@@ -789,18 +789,18 @@ send:
 
 
 /* returns how much space is available in the soft buffer */
-static int cypress_write_room(struct tty_struct *tty)
+static unsigned int cypress_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	int room = 0;
+	unsigned int room;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	room = kfifo_avail(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, room);
 	return room;
 }
 
@@ -970,18 +970,18 @@ static void cypress_set_termios(struct tty_struct *tty,
 
 
 /* returns amount of data still left in soft buffer */
-static int cypress_chars_in_buffer(struct tty_struct *tty)
+static unsigned int cypress_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	int chars = 0;
+	unsigned int chars;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	chars = kfifo_len(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, chars);
 	return chars;
 }
 
