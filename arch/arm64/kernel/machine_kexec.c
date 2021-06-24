@@ -68,10 +68,16 @@ int machine_kexec_post_load(struct kimage *kimage)
 	kimage->arch.kern_reloc = __pa(reloc_code);
 	kexec_image_info(kimage);
 
-	/* Flush the reloc_code in preparation for its execution. */
-	__flush_dcache_area(reloc_code, arm64_relocate_new_kernel_size);
-	flush_icache_range((uintptr_t)reloc_code, (uintptr_t)reloc_code +
-			   arm64_relocate_new_kernel_size);
+	/*
+	 * For execution with the MMU off, reloc_code needs to be cleaned to the
+	 * PoC and invalidated from the I-cache.
+	 */
+	dcache_clean_inval_poc((unsigned long)reloc_code,
+			    (unsigned long)reloc_code +
+				    arm64_relocate_new_kernel_size);
+	icache_inval_pou((uintptr_t)reloc_code,
+				(uintptr_t)reloc_code +
+					arm64_relocate_new_kernel_size);
 
 	return 0;
 }
@@ -102,16 +108,18 @@ static void kexec_list_flush(struct kimage *kimage)
 
 	for (entry = &kimage->head; ; entry++) {
 		unsigned int flag;
-		void *addr;
+		unsigned long addr;
 
 		/* flush the list entries. */
-		__flush_dcache_area(entry, sizeof(kimage_entry_t));
+		dcache_clean_inval_poc((unsigned long)entry,
+				    (unsigned long)entry +
+					    sizeof(kimage_entry_t));
 
 		flag = *entry & IND_FLAGS;
 		if (flag == IND_DONE)
 			break;
 
-		addr = phys_to_virt(*entry & PAGE_MASK);
+		addr = (unsigned long)phys_to_virt(*entry & PAGE_MASK);
 
 		switch (flag) {
 		case IND_INDIRECTION:
@@ -120,7 +128,7 @@ static void kexec_list_flush(struct kimage *kimage)
 			break;
 		case IND_SOURCE:
 			/* flush the source pages. */
-			__flush_dcache_area(addr, PAGE_SIZE);
+			dcache_clean_inval_poc(addr, addr + PAGE_SIZE);
 			break;
 		case IND_DESTINATION:
 			break;
@@ -147,8 +155,10 @@ static void kexec_segment_flush(const struct kimage *kimage)
 			kimage->segment[i].memsz,
 			kimage->segment[i].memsz /  PAGE_SIZE);
 
-		__flush_dcache_area(phys_to_virt(kimage->segment[i].mem),
-			kimage->segment[i].memsz);
+		dcache_clean_inval_poc(
+			(unsigned long)phys_to_virt(kimage->segment[i].mem),
+			(unsigned long)phys_to_virt(kimage->segment[i].mem) +
+				kimage->segment[i].memsz);
 	}
 }
 

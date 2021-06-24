@@ -118,8 +118,8 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 	dmb	sy				// needed before dc ivac with
 						// MMU off
 
-	mov	x1, #0x20			// 4 x 8 bytes
-	b	__inval_dcache_area		// tail call
+	add	x1, x0, #0x20			// 4 x 8 bytes
+	b	dcache_inval_poc		// tail call
 SYM_CODE_END(preserve_boot_args)
 
 /*
@@ -269,8 +269,7 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	 */
 	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
-	sub	x1, x1, x0
-	bl	__inval_dcache_area
+	bl	dcache_inval_poc
 
 	/*
 	 * Clear the init page tables.
@@ -383,13 +382,11 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 
 	adrp	x0, idmap_pg_dir
 	adrp	x1, idmap_pg_end
-	sub	x1, x1, x0
-	bl	__inval_dcache_area
+	bl	dcache_inval_poc
 
 	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
-	sub	x1, x1, x0
-	bl	__inval_dcache_area
+	bl	dcache_inval_poc
 
 	ret	x28
 SYM_FUNC_END(__create_page_tables)

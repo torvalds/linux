@@ -21,7 +21,7 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 	memcpy(dst, src, len);
 
 	/* flush caches (dcache/icache) */
-	sync_icache_aliases(dst, len);
+	sync_icache_aliases((unsigned long)dst, (unsigned long)dst + len);
 
 	kunmap_atomic(xol_page_kaddr);
 }
