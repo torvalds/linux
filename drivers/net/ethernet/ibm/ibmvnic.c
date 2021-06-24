@@ -3266,7 +3266,7 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 		/* H_EOI would fail with rc = H_FUNCTION when running
 		 * in XIVE mode which is expected, but not an error.
 		 */
-		if (rc && rc != H_FUNCTION)
+		if (rc && (rc != H_FUNCTION))
 			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
 				val, rc);
 	}
