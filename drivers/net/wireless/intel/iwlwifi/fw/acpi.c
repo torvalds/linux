@@ -717,42 +717,6 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
 
-static u32 iwl_acpi_eval_dsm_func(struct device *dev, enum iwl_dsm_funcs_rev_0 eval_func)
-{
-	union acpi_object *obj;
-	u32 ret;
-
-	obj = iwl_acpi_get_dsm_object(dev, 0,
-				      eval_func, NULL,
-				      &iwl_guid);
-
-	if (IS_ERR(obj)) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM func '%d': Got Error in obj = %ld\n",
-				    eval_func,
-				    PTR_ERR(obj));
-		return 0;
-	}
-
-	if (obj->type != ACPI_TYPE_INTEGER) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM func '%d' did not return a valid object, type=%d\n",
-				    eval_func,
-				    obj->type);
-		ret = 0;
-		goto out;
-	}
-
-	ret = obj->integer.value;
-	IWL_DEBUG_DEV_RADIO(dev,
-			    "ACPI: DSM method evaluated: func='%d', ret=%d\n",
-			    eval_func,
-			    ret);
-out:
-	ACPI_FREE(obj);
-	return ret;
-}
-
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
