@@ -1,0 +1,273 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Microchip Sparx5 Switch driver
+ *
+ * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ */
+
+#ifndef __SPARX5_MAIN_H__
+#define __SPARX5_MAIN_H__
+
+#include <linux/types.h>
+#include <linux/phy/phy.h>
+#include <linux/netdevice.h>
+#include <linux/phy.h>
+#include <linux/if_vlan.h>
+#include <linux/bitmap.h>
+#include <linux/phylink.h>
+
+/* Target chip type */
+enum spx5_target_chiptype {
+	SPX5_TARGET_CT_7546    = 0x7546,  /* SparX-5-64  Enterprise */
+	SPX5_TARGET_CT_7549    = 0x7549,  /* SparX-5-90  Enterprise */
+	SPX5_TARGET_CT_7552    = 0x7552,  /* SparX-5-128 Enterprise */
+	SPX5_TARGET_CT_7556    = 0x7556,  /* SparX-5-160 Enterprise */
+	SPX5_TARGET_CT_7558    = 0x7558,  /* SparX-5-200 Enterprise */
+	SPX5_TARGET_CT_7546TSN = 0x47546, /* SparX-5-64i Industrial */
+	SPX5_TARGET_CT_7549TSN = 0x47549, /* SparX-5-90i Industrial */
+	SPX5_TARGET_CT_7552TSN = 0x47552, /* SparX-5-128i Industrial */
+	SPX5_TARGET_CT_7556TSN = 0x47556, /* SparX-5-160i Industrial */
+	SPX5_TARGET_CT_7558TSN = 0x47558, /* SparX-5-200i Industrial */
+};
+
+enum sparx5_port_max_tags {
+	SPX5_PORT_MAX_TAGS_NONE,  /* No extra tags allowed */
+	SPX5_PORT_MAX_TAGS_ONE,   /* Single tag allowed */
+	SPX5_PORT_MAX_TAGS_TWO    /* Single and double tag allowed */
+};
+
+enum sparx5_vlan_port_type {
+	SPX5_VLAN_PORT_TYPE_UNAWARE, /* VLAN unaware port */
+	SPX5_VLAN_PORT_TYPE_C,       /* C-port */
+	SPX5_VLAN_PORT_TYPE_S,       /* S-port */
+	SPX5_VLAN_PORT_TYPE_S_CUSTOM /* S-port using custom type */
+};
+
+#define SPX5_PORTS             65
+#define SPX5_PORT_CPU          (SPX5_PORTS)  /* Next port is CPU port */
+#define SPX5_PORT_CPU_0        (SPX5_PORT_CPU + 0) /* CPU Port 65 */
+#define SPX5_PORT_CPU_1        (SPX5_PORT_CPU + 1) /* CPU Port 66 */
+#define SPX5_PORT_VD0          (SPX5_PORT_CPU + 2) /* VD0/Port 67 used for IPMC */
+#define SPX5_PORT_VD1          (SPX5_PORT_CPU + 3) /* VD1/Port 68 used for AFI/OAM */
+#define SPX5_PORT_VD2          (SPX5_PORT_CPU + 4) /* VD2/Port 69 used for IPinIP*/
+#define SPX5_PORTS_ALL         (SPX5_PORT_CPU + 5) /* Total number of ports */
+
+#define PGID_BASE              SPX5_PORTS /* Starts after port PGIDs */
+#define PGID_UC_FLOOD          (PGID_BASE + 0)
+#define PGID_MC_FLOOD          (PGID_BASE + 1)
+#define PGID_IPV4_MC_DATA      (PGID_BASE + 2)
+#define PGID_IPV4_MC_CTRL      (PGID_BASE + 3)
+#define PGID_IPV6_MC_DATA      (PGID_BASE + 4)
+#define PGID_IPV6_MC_CTRL      (PGID_BASE + 5)
+#define PGID_BCAST	       (PGID_BASE + 6)
+#define PGID_CPU	       (PGID_BASE + 7)
+
+#define IFH_LEN                9 /* 36 bytes */
+#define NULL_VID               0
+#define SPX5_MACT_PULL_DELAY   (2 * HZ)
+#define SPX5_STATS_CHECK_DELAY (1 * HZ)
+#define SPX5_PRIOS             8     /* Number of priority queues */
+#define SPX5_BUFFER_CELL_SZ    184   /* Cell size  */
+#define SPX5_BUFFER_MEMORY     4194280 /* 22795 words * 184 bytes */
+
+struct sparx5;
+
+struct sparx5_port_config {
+	phy_interface_t portmode;
+	u32 bandwidth;
+	int speed;
+	int duplex;
+	enum phy_media media;
+	bool inband;
+	bool power_down;
+	bool autoneg;
+	bool serdes_reset;
+	u32 pause;
+	u32 pause_adv;
+	phy_interface_t phy_mode;
+	u32 sd_sgpio;
+};
+
+struct sparx5_port {
+	struct net_device *ndev;
+	struct sparx5 *sparx5;
+	struct device_node *of_node;
+	struct phy *serdes;
+	struct sparx5_port_config conf;
+	u16 portno;
+	/* Ingress default VLAN (pvid) */
+	u16 pvid;
+	/* Egress default VLAN (vid) */
+	u16 vid;
+	bool signd_internal;
+	bool signd_active_high;
+	bool signd_enable;
+	bool flow_control;
+	enum sparx5_port_max_tags max_vlan_tags;
+	enum sparx5_vlan_port_type vlan_type;
+	u32 custom_etype;
+	u32 ifh[IFH_LEN];
+	bool vlan_aware;
+};
+
+enum sparx5_core_clockfreq {
+	SPX5_CORE_CLOCK_DEFAULT,  /* Defaults to the highest supported frequency */
+	SPX5_CORE_CLOCK_250MHZ,   /* 250MHZ core clock frequency */
+	SPX5_CORE_CLOCK_500MHZ,   /* 500MHZ core clock frequency */
+	SPX5_CORE_CLOCK_625MHZ,   /* 625MHZ core clock frequency */
+};
+
+struct sparx5 {
+	struct platform_device *pdev;
+	struct device *dev;
+	u32 chip_id;
+	enum spx5_target_chiptype target_ct;
+	void __iomem *regs[NUM_TARGETS];
+	int port_count;
+	struct mutex lock; /* MAC reg lock */
+	/* port structures are in net device */
+	struct sparx5_port *ports[SPX5_PORTS];
+	enum sparx5_core_clockfreq coreclock;
+	u8 base_mac[ETH_ALEN];
+	/* Board specifics */
+	bool sd_sgpio_remapping;
+};
+
+/* Clock period in picoseconds */
+static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
+{
+	switch (cclock) {
+	case SPX5_CORE_CLOCK_250MHZ:
+		return 4000;
+	case SPX5_CORE_CLOCK_500MHZ:
+		return 2000;
+	case SPX5_CORE_CLOCK_625MHZ:
+	default:
+		return 1600;
+	}
+}
+
+/* Calculate raw offset */
+static inline __pure int spx5_offset(int id, int tinst, int tcnt,
+				     int gbase, int ginst,
+				     int gcnt, int gwidth,
+				     int raddr, int rinst,
+				     int rcnt, int rwidth)
+{
+	WARN_ON((tinst) >= tcnt);
+	WARN_ON((ginst) >= gcnt);
+	WARN_ON((rinst) >= rcnt);
+	return gbase + ((ginst) * gwidth) +
+		raddr + ((rinst) * rwidth);
+}
+
+/* Read, Write and modify registers content.
+ * The register definition macros start at the id
+ */
+static inline void __iomem *spx5_addr(void __iomem *base[],
+				      int id, int tinst, int tcnt,
+				      int gbase, int ginst,
+				      int gcnt, int gwidth,
+				      int raddr, int rinst,
+				      int rcnt, int rwidth)
+{
+	WARN_ON((tinst) >= tcnt);
+	WARN_ON((ginst) >= gcnt);
+	WARN_ON((rinst) >= rcnt);
+	return base[id + (tinst)] +
+		gbase + ((ginst) * gwidth) +
+		raddr + ((rinst) * rwidth);
+}
+
+static inline void __iomem *spx5_inst_addr(void __iomem *base,
+					   int gbase, int ginst,
+					   int gcnt, int gwidth,
+					   int raddr, int rinst,
+					   int rcnt, int rwidth)
+{
+	WARN_ON((ginst) >= gcnt);
+	WARN_ON((rinst) >= rcnt);
+	return base +
+		gbase + ((ginst) * gwidth) +
+		raddr + ((rinst) * rwidth);
+}
+
+static inline u32 spx5_rd(struct sparx5 *sparx5, int id, int tinst, int tcnt,
+			  int gbase, int ginst, int gcnt, int gwidth,
+			  int raddr, int rinst, int rcnt, int rwidth)
+{
+	return readl(spx5_addr(sparx5->regs, id, tinst, tcnt, gbase, ginst,
+			       gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+}
+
+static inline u32 spx5_inst_rd(void __iomem *iomem, int id, int tinst, int tcnt,
+			       int gbase, int ginst, int gcnt, int gwidth,
+			       int raddr, int rinst, int rcnt, int rwidth)
+{
+	return readl(spx5_inst_addr(iomem, gbase, ginst,
+				     gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+}
+
+static inline void spx5_wr(u32 val, struct sparx5 *sparx5,
+			   int id, int tinst, int tcnt,
+			   int gbase, int ginst, int gcnt, int gwidth,
+			   int raddr, int rinst, int rcnt, int rwidth)
+{
+	writel(val, spx5_addr(sparx5->regs, id, tinst, tcnt,
+			      gbase, ginst, gcnt, gwidth,
+			      raddr, rinst, rcnt, rwidth));
+}
+
+static inline void spx5_inst_wr(u32 val, void __iomem *iomem,
+				int id, int tinst, int tcnt,
+				int gbase, int ginst, int gcnt, int gwidth,
+				int raddr, int rinst, int rcnt, int rwidth)
+{
+	writel(val, spx5_inst_addr(iomem,
+				   gbase, ginst, gcnt, gwidth,
+				   raddr, rinst, rcnt, rwidth));
+}
+
+static inline void spx5_rmw(u32 val, u32 mask, struct sparx5 *sparx5,
+			    int id, int tinst, int tcnt,
+			    int gbase, int ginst, int gcnt, int gwidth,
+			    int raddr, int rinst, int rcnt, int rwidth)
+{
+	u32 nval;
+
+	nval = readl(spx5_addr(sparx5->regs, id, tinst, tcnt, gbase, ginst,
+			       gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+	nval = (nval & ~mask) | (val & mask);
+	writel(nval, spx5_addr(sparx5->regs, id, tinst, tcnt, gbase, ginst,
+			       gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+}
+
+static inline void spx5_inst_rmw(u32 val, u32 mask, void __iomem *iomem,
+				 int id, int tinst, int tcnt,
+				 int gbase, int ginst, int gcnt, int gwidth,
+				 int raddr, int rinst, int rcnt, int rwidth)
+{
+	u32 nval;
+
+	nval = readl(spx5_inst_addr(iomem, gbase, ginst, gcnt, gwidth, raddr,
+				    rinst, rcnt, rwidth));
+	nval = (nval & ~mask) | (val & mask);
+	writel(nval, spx5_inst_addr(iomem, gbase, ginst, gcnt, gwidth, raddr,
+				    rinst, rcnt, rwidth));
+}
+
+static inline void __iomem *spx5_inst_get(struct sparx5 *sparx5, int id, int tinst)
+{
+	return sparx5->regs[id + tinst];
+}
+
+static inline void __iomem *spx5_reg_get(struct sparx5 *sparx5,
+					 int id, int tinst, int tcnt,
+					 int gbase, int ginst, int gcnt, int gwidth,
+					 int raddr, int rinst, int rcnt, int rwidth)
+{
+	return spx5_addr(sparx5->regs, id, tinst, tcnt,
+			 gbase, ginst, gcnt, gwidth,
+			 raddr, rinst, rcnt, rwidth);
+}
+
+#endif	/* __SPARX5_MAIN_H__ */

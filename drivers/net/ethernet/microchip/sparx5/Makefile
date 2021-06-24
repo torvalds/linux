@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Makefile for the Microchip Sparx5 network device drivers.
+#
+
+obj-$(CONFIG_SPARX5_SWITCH) += sparx5-switch.o
+
+sparx5-switch-objs  := sparx5_main.o
