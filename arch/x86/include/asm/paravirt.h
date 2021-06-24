@@ -133,7 +133,7 @@ static inline void write_cr0(unsigned long x)
 	PVOP_VCALL1(cpu.write_cr0, x);
 }
 
-static inline unsigned long read_cr2(void)
+static __always_inline unsigned long read_cr2(void)
 {
 	return PVOP_ALT_CALLEE0(unsigned long, mmu.read_cr2,
 				"mov %%cr2, %%rax;",

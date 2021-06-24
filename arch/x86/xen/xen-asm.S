@@ -102,6 +102,7 @@ SYM_FUNC_START(check_events)
 	ret
 SYM_FUNC_END(check_events)
 
+.pushsection .noinstr.text, "ax"
 SYM_FUNC_START(xen_read_cr2)
 	FRAME_BEGIN
 	_ASM_MOV PER_CPU_VAR(xen_vcpu), %_ASM_AX
@@ -116,6 +117,7 @@ SYM_FUNC_START(xen_read_cr2_direct)
 	FRAME_END
 	ret
 SYM_FUNC_END(xen_read_cr2_direct);
+.popsection
 
 .macro xen_pv_trap name
 SYM_CODE_START(xen_\name)
