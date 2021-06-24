@@ -623,21 +623,21 @@ const char *bch2_bkey_format_validate(struct bkey_format *f)
 	if (f->nr_fields != BKEY_NR_FIELDS)
 		return "incorrect number of fields";
 
+	/*
+	 * Verify that the packed format can't represent fields larger than the
+	 * unpacked format:
+	 */
 	for (i = 0; i < f->nr_fields; i++) {
 		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
-		u64 unpacked_mask = ~((~0ULL << 1) << (unpacked_bits - 1));
+		u64 unpacked_max = ~((~0ULL << 1) << (unpacked_bits - 1));
+		u64 packed_max = f->bits_per_field[i]
+			? ~((~0ULL << 1) << (f->bits_per_field[i] - 1))
+			: 0;
 		u64 field_offset = le64_to_cpu(f->field_offset[i]);
 
-		if (f->bits_per_field[i] > unpacked_bits)
+		if (packed_max + field_offset < packed_max ||
+		    packed_max + field_offset > unpacked_max)
 			return "field too large";
-
-		if ((f->bits_per_field[i] == unpacked_bits) && field_offset)
-			return "offset + bits overflow";
-
-		if (((field_offset + ((1ULL << f->bits_per_field[i]) - 1)) &
-		     unpacked_mask) <
-		    field_offset)
-			return "offset + bits overflow";
 
 		bits += f->bits_per_field[i];
 	}
