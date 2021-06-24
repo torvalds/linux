@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3568-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -257,6 +258,99 @@
 		status = "disabled";
 	};
 
+	pmu: power-management@fdd90000 {
+		compatible = "rockchip,rk3568-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xfdd90000 0x0 0x1000>;
+
+		power: power-controller {
+			compatible = "rockchip,rk3568-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* These power domains are grouped by VD_GPU */
+			power-domain@RK3568_PD_GPU {
+				reg = <RK3568_PD_GPU>;
+				clocks = <&cru ACLK_GPU_PRE>,
+					 <&cru PCLK_GPU_PRE>;
+				pm_qos = <&qos_gpu>;
+				#power-domain-cells = <0>;
+			};
+
+			/* These power domains are grouped by VD_LOGIC */
+			power-domain@RK3568_PD_VI {
+				reg = <RK3568_PD_VI>;
+				clocks = <&cru HCLK_VI>,
+					 <&cru PCLK_VI>;
+				pm_qos = <&qos_isp>,
+					 <&qos_vicap0>,
+					 <&qos_vicap1>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_VO {
+				reg = <RK3568_PD_VO>;
+				clocks = <&cru HCLK_VO>,
+					 <&cru PCLK_VO>,
+					 <&cru ACLK_VOP_PRE>;
+				pm_qos = <&qos_hdcp>,
+					 <&qos_vop_m0>,
+					 <&qos_vop_m1>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_RGA {
+				reg = <RK3568_PD_RGA>;
+				clocks = <&cru HCLK_RGA_PRE>,
+					 <&cru PCLK_RGA_PRE>;
+				pm_qos = <&qos_ebc>,
+					 <&qos_iep>,
+					 <&qos_jpeg_dec>,
+					 <&qos_jpeg_enc>,
+					 <&qos_rga_rd>,
+					 <&qos_rga_wr>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_VPU {
+				reg = <RK3568_PD_VPU>;
+				clocks = <&cru HCLK_VPU_PRE>;
+				pm_qos = <&qos_vpu>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_RKVDEC {
+				clocks = <&cru HCLK_RKVDEC_PRE>;
+				reg = <RK3568_PD_RKVDEC>;
+				pm_qos = <&qos_rkvdec>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_RKVENC {
+				reg = <RK3568_PD_RKVENC>;
+				clocks = <&cru HCLK_RKVENC_PRE>;
+				pm_qos = <&qos_rkvenc_rd_m0>,
+					 <&qos_rkvenc_rd_m1>,
+					 <&qos_rkvenc_wr_m0>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RK3568_PD_PIPE {
+				reg = <RK3568_PD_PIPE>;
+				clocks = <&cru PCLK_PIPE>;
+				pm_qos = <&qos_pcie2x1>,
+					 <&qos_pcie3x1>,
+					 <&qos_pcie3x2>,
+					 <&qos_sata0>,
+					 <&qos_sata1>,
+					 <&qos_sata2>,
+					 <&qos_usb3_0>,
+					 <&qos_usb3_1>;
+				#power-domain-cells = <0>;
+			};
+		};
+	};
+
 	sdmmc2: mmc@fe000000 {
 		compatible = "rockchip,rk3568-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe000000 0x0 0x4000>;
@@ -269,6 +363,141 @@
 		resets = <&cru SRST_SDMMC2>;
 		reset-names = "reset";
 		status = "disabled";
+	};
+
+	qos_gpu: qos@fe128000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe128000 0x0 0x20>;
+	};
+
+	qos_rkvenc_rd_m0: qos@fe138080 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe138080 0x0 0x20>;
+	};
+
+	qos_rkvenc_rd_m1: qos@fe138100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe138100 0x0 0x20>;
+	};
+
+	qos_rkvenc_wr_m0: qos@fe138180 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe138180 0x0 0x20>;
+	};
+
+	qos_isp: qos@fe148000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe148000 0x0 0x20>;
+	};
+
+	qos_vicap0: qos@fe148080 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe148080 0x0 0x20>;
+	};
+
+	qos_vicap1: qos@fe148100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe148100 0x0 0x20>;
+	};
+
+	qos_vpu: qos@fe150000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe150000 0x0 0x20>;
+	};
+
+	qos_ebc: qos@fe158000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158000 0x0 0x20>;
+	};
+
+	qos_iep: qos@fe158100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158100 0x0 0x20>;
+	};
+
+	qos_jpeg_dec: qos@fe158180 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158180 0x0 0x20>;
+	};
+
+	qos_jpeg_enc: qos@fe158200 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158200 0x0 0x20>;
+	};
+
+	qos_rga_rd: qos@fe158280 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158280 0x0 0x20>;
+	};
+
+	qos_rga_wr: qos@fe158300 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe158300 0x0 0x20>;
+	};
+
+	qos_npu: qos@fe180000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe180000 0x0 0x20>;
+	};
+
+	qos_pcie2x1: qos@fe190000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190000 0x0 0x20>;
+	};
+
+	qos_pcie3x1: qos@fe190080 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190080 0x0 0x20>;
+	};
+
+	qos_pcie3x2: qos@fe190100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190100 0x0 0x20>;
+	};
+
+	qos_sata0: qos@fe190200 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190200 0x0 0x20>;
+	};
+
+	qos_sata1: qos@fe190280 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190280 0x0 0x20>;
+	};
+
+	qos_sata2: qos@fe190300 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190300 0x0 0x20>;
+	};
+
+	qos_usb3_0: qos@fe190380 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190380 0x0 0x20>;
+	};
+
+	qos_usb3_1: qos@fe190400 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190400 0x0 0x20>;
+	};
+
+	qos_rkvdec: qos@fe198000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe198000 0x0 0x20>;
+	};
+
+	qos_hdcp: qos@fe1a8000 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe1a8000 0x0 0x20>;
+	};
+
+	qos_vop_m0: qos@fe1a8080 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe1a8080 0x0 0x20>;
+	};
+
+	qos_vop_m1: qos@fe1a8100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe1a8100 0x0 0x20>;
 	};
 
 	sdmmc0: mmc@fe2b0000 {
