@@ -1275,7 +1275,10 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 			return SCTP_DISPOSITION_DISCARD;
 
 		sctp_transport_pl_recv(link);
-		return SCTP_DISPOSITION_CONSUME;
+		if (link->pl.state == SCTP_PL_COMPLETE)
+			return SCTP_DISPOSITION_CONSUME;
+
+		return sctp_sf_send_probe(net, ep, asoc, type, link, commands);
 	}
 
 	max_interval = link->hbinterval + link->rto;
