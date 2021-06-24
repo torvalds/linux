@@ -291,11 +291,6 @@ void __init setup_arch(char **cmdline_p)
 	init_resources();
 	sbi_init();
 
-	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
-		protect_kernel_text_data();
-		protect_kernel_linear_mapping_text_rodata();
-	}
-
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
 #endif
@@ -334,11 +329,10 @@ subsys_initcall(topology_init);
 
 void free_initmem(void)
 {
-	unsigned long init_begin = (unsigned long)__init_begin;
-	unsigned long init_end = (unsigned long)__init_end;
-
 	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
-		set_memory_rw_nx(init_begin, (init_end - init_begin) >> PAGE_SHIFT);
+		set_kernel_memory(lm_alias(__init_begin), lm_alias(__init_end),
+				  IS_ENABLED(CONFIG_64BIT) ?
+					set_memory_rw : set_memory_rw_nx);
 
 	free_initmem_default(POISON_FREE_INITMEM);
 }
