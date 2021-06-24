@@ -196,7 +196,7 @@ SYM_CODE_END(preserve_boot_args)
 	and	\iend, \iend, \istart	// iend = (vend >> shift) & (ptrs - 1)
 	mov	\istart, \ptrs
 	mul	\istart, \istart, \count
-	add	\iend, \iend, \istart	// iend += (count - 1) * ptrs
+	add	\iend, \iend, \istart	// iend += count * ptrs
 					// our entries span multiple tables
 
 	lsr	\istart, \vstart, \shift
@@ -354,7 +354,6 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 #endif
 1:
 	ldr_l	x4, idmap_ptrs_per_pgd
-	mov	x5, x3				// __pa(__idmap_text_start)
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 
 	map_memory x0, x1, x3, x6, x7, x3, x4, x10, x11, x12, x13, x14
@@ -568,7 +567,7 @@ SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
-1:	str	w0, [x1]			// This CPU has booted in EL1
+1:	str	w0, [x1]			// Save CPU boot mode
 	dmb	sy
 	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
