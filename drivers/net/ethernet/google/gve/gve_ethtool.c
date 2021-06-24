@@ -311,8 +311,16 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
 			struct gve_tx_ring *tx = &priv->tx[ring];
 
-			data[i++] = tx->req;
-			data[i++] = tx->done;
+			if (gve_is_gqi(priv)) {
+				data[i++] = tx->req;
+				data[i++] = tx->done;
+			} else {
+				/* DQO doesn't currently support
+				 * posted/completed descriptor counts;
+				 */
+				data[i++] = 0;
+				data[i++] = 0;
+			}
 			do {
 				start =
 				  u64_stats_fetch_begin(&priv->tx[ring].statss);

@@ -45,6 +45,8 @@
 /* PTYPEs are always 10 bits. */
 #define GVE_NUM_PTYPES	1024
 
+#define GVE_RX_BUFFER_SIZE_DQO 2048
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */

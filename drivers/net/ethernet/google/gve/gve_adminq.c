@@ -714,6 +714,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	if (gve_is_gqi(priv)) {
 		err = gve_set_desc_cnt(priv, descriptor);
 	} else {
+		/* DQO supports LRO. */
+		priv->dev->hw_features |= NETIF_F_LRO;
 		err = gve_set_desc_cnt_dqo(priv, descriptor, dev_op_dqo_rda);
 	}
 	if (err)
