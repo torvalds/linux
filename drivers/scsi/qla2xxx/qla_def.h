@@ -3908,7 +3908,6 @@ struct qlt_hw_data {
 	int num_act_qpairs;
 #define DEFAULT_NAQP 2
 	spinlock_t atio_lock ____cacheline_aligned;
-	struct btree_head32 host_map;
 };
 
 #define MAX_QFULL_CMDS_ALLOC	8192
@@ -4684,6 +4683,7 @@ struct qla_hw_data {
 	pci_error_state_t pci_error_state;
 	u64 prev_cmd_cnt;
 	struct dma_pool *purex_dma_pool;
+	struct btree_head32 host_map;
 	struct els_reject elsrej;
 };
 

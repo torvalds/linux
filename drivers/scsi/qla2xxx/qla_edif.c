@@ -678,6 +678,46 @@ qla_enode_stop(scsi_qla_host_t *vha)
 	spin_unlock_irqrestore(&vha->pur_cinfo.pur_lock, flags);
 }
 
+/*
+ *  allocate enode struct and populate buffer
+ *  returns: enode pointer with buffers
+ *           NULL on error
+ */
+static struct enode *
+qla_enode_alloc(scsi_qla_host_t *vha, uint32_t ntype)
+{
+	struct enode		*node;
+	struct purexevent	*purex;
+
+	node = kzalloc(RX_ELS_SIZE, GFP_ATOMIC);
+	if (!node)
+		return NULL;
+
+	purex = &node->u.purexinfo;
+	purex->msgp = (u8 *)(node + 1);
+	purex->msgp_len = ELS_MAX_PAYLOAD;
+
+	node->ntype = ntype;
+	INIT_LIST_HEAD(&node->list);
+	return node;
+}
+
+static void
+qla_enode_add(scsi_qla_host_t *vha, struct enode *ptr)
+{
+	unsigned long flags;
+
+	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x9109,
+	    "%s add enode for type=%x, cnt=%x\n",
+	    __func__, ptr->ntype, ptr->dinfo.nodecnt);
+
+	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
+	list_add_tail(&ptr->list, &vha->pur_cinfo.head);
+	spin_unlock_irqrestore(&vha->pur_cinfo.pur_lock, flags);
+
+	return;
+}
+
 static struct enode *
 qla_enode_find(scsi_qla_host_t *vha, uint32_t ntype, uint32_t p1, uint32_t p2)
 {
@@ -771,6 +811,32 @@ qla_pur_get_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	return 0;
 }
+
+/* it is assume qpair lock is held */
+static int
+qla_els_reject_iocb(scsi_qla_host_t *vha, struct qla_qpair *qp,
+	struct qla_els_pt_arg *a)
+{
+	struct els_entry_24xx *els_iocb;
+
+	els_iocb = __qla2x00_alloc_iocbs(qp, NULL);
+	if (!els_iocb) {
+		ql_log(ql_log_warn, vha, 0x700c,
+		    "qla2x00_alloc_iocbs failed.\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	qla_els_pt_iocb(vha, els_iocb, a);
+
+	ql_dbg(ql_dbg_edif, vha, 0x0183,
+	    "Sending ELS reject...\n");
+	ql_dump_buffer(ql_dbg_edif + ql_dbg_verbose, vha, 0x0185,
+	    vha->hw->elsrej.c, sizeof(*vha->hw->elsrej.c));
+	/* flush iocb to mem before notifying hw doorbell */
+	wmb();
+	qla2x00_start_iocbs(vha, qp->req);
+	return 0;
+}
 /* function called when app is stopping */
 
 void
@@ -782,6 +848,124 @@ qla_edb_stop(scsi_qla_host_t *vha)
 		    "%s doorbell not enabled\n", __func__);
 		return;
 	}
+}
+
+void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
+{
+	struct purex_entry_24xx *p = *pkt;
+	struct enode		*ptr;
+	int		sid;
+	u16 totlen;
+	struct purexevent	*purex;
+	struct scsi_qla_host *host = NULL;
+	int rc;
+	struct fc_port *fcport;
+	struct qla_els_pt_arg a;
+	be_id_t beid;
+
+	memset(&a, 0, sizeof(a));
+
+	a.els_opcode = ELS_AUTH_ELS;
+	a.nport_handle = p->nport_handle;
+	a.rx_xchg_address = p->rx_xchg_addr;
+	a.did.b.domain = p->s_id[2];
+	a.did.b.area   = p->s_id[1];
+	a.did.b.al_pa  = p->s_id[0];
+	a.tx_byte_count = a.tx_len = sizeof(struct fc_els_ls_rjt);
+	a.tx_addr = vha->hw->elsrej.cdma;
+	a.vp_idx = vha->vp_idx;
+	a.control_flags = EPD_ELS_RJT;
+
+	sid = p->s_id[0] | (p->s_id[1] << 8) | (p->s_id[2] << 16);
+
+	totlen = (le16_to_cpu(p->frame_size) & 0x0fff) - PURX_ELS_HEADER_SIZE;
+	if (le16_to_cpu(p->status_flags) & 0x8000) {
+		totlen = le16_to_cpu(p->trunc_frame_size);
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return;
+	}
+
+	if (totlen > MAX_PAYLOAD) {
+		ql_dbg(ql_dbg_edif, vha, 0x0910d,
+		    "%s WARNING: verbose ELS frame received (totlen=%x)\n",
+		    __func__, totlen);
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return;
+	}
+
+	if (!vha->hw->flags.edif_enabled) {
+		/* edif support not enabled */
+		ql_dbg(ql_dbg_edif, vha, 0x910e, "%s edif not enabled\n",
+		    __func__);
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return;
+	}
+
+	ptr = qla_enode_alloc(vha, N_PUREX);
+	if (!ptr) {
+		ql_dbg(ql_dbg_edif, vha, 0x09109,
+		    "WARNING: enode allloc failed for sid=%x\n",
+		    sid);
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return;
+	}
+
+	purex = &ptr->u.purexinfo;
+	purex->pur_info.pur_sid = a.did;
+	purex->pur_info.pur_pend = 0;
+	purex->pur_info.pur_bytes_rcvd = totlen;
+	purex->pur_info.pur_rx_xchg_address = le32_to_cpu(p->rx_xchg_addr);
+	purex->pur_info.pur_nphdl = le16_to_cpu(p->nport_handle);
+	purex->pur_info.pur_did.b.domain =  p->d_id[2];
+	purex->pur_info.pur_did.b.area =  p->d_id[1];
+	purex->pur_info.pur_did.b.al_pa =  p->d_id[0];
+	purex->pur_info.vp_idx = p->vp_idx;
+
+	rc = __qla_copy_purex_to_buffer(vha, pkt, rsp, purex->msgp,
+		purex->msgp_len);
+	if (rc) {
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		qla_enode_free(vha, ptr);
+		return;
+	}
+	beid.al_pa = purex->pur_info.pur_did.b.al_pa;
+	beid.area   = purex->pur_info.pur_did.b.area;
+	beid.domain = purex->pur_info.pur_did.b.domain;
+	host = qla_find_host_by_d_id(vha, beid);
+	if (!host) {
+		ql_log(ql_log_fatal, vha, 0x508b,
+		    "%s Drop ELS due to unable to find host %06x\n",
+		    __func__, purex->pur_info.pur_did.b24);
+
+		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
+		qla_enode_free(vha, ptr);
+		return;
+	}
+
+	fcport = qla2x00_find_fcport_by_pid(host, &purex->pur_info.pur_sid);
+
+	if (host->e_dbell.db_flags != EDB_ACTIVE ||
+	    (fcport && fcport->loop_id == FC_NO_LOOP_ID)) {
+		ql_dbg(ql_dbg_edif, host, 0x0910c, "%s e_dbell.db_flags =%x %06x\n",
+		    __func__, host->e_dbell.db_flags,
+		    fcport ? fcport->d_id.b24 : 0);
+
+		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
+		qla_enode_free(host, ptr);
+		return;
+	}
+
+	/* add the local enode to the list */
+	qla_enode_add(host, ptr);
+
+	ql_dbg(ql_dbg_edif, host, 0x0910c,
+	    "%s COMPLETE purex->pur_info.pur_bytes_rcvd =%xh s:%06x -> d:%06x xchg=%xh\n",
+	    __func__, purex->pur_info.pur_bytes_rcvd, purex->pur_info.pur_sid.b24,
+	    purex->pur_info.pur_did.b24, p->rx_xchg_addr);
 }
 
 static void qla_parse_auth_els_ctl(struct srb *sp)

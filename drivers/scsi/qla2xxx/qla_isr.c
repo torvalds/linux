@@ -170,6 +170,149 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 }
 
 /**
+ * __qla_consume_iocb - this routine is used to tell fw driver has processed
+ *   or consumed the head IOCB along with the continuation IOCB's from the
+ *   provided respond queue.
+ * @vha: host adapter pointer
+ * @pkt: pointer to current packet.  On return, this pointer shall move
+ *       to the next packet.
+ * @rsp: respond queue pointer.
+ *
+ * it is assumed pkt is the head iocb, not the continuation iocbk
+ */
+void __qla_consume_iocb(struct scsi_qla_host *vha,
+	void **pkt, struct rsp_que **rsp)
+{
+	struct rsp_que *rsp_q = *rsp;
+	response_t *new_pkt;
+	uint16_t entry_count_remaining;
+	struct purex_entry_24xx *purex = *pkt;
+
+	entry_count_remaining = purex->entry_count;
+	while (entry_count_remaining > 0) {
+		new_pkt = rsp_q->ring_ptr;
+		*pkt = new_pkt;
+
+		rsp_q->ring_index++;
+		if (rsp_q->ring_index == rsp_q->length) {
+			rsp_q->ring_index = 0;
+			rsp_q->ring_ptr = rsp_q->ring;
+		} else {
+			rsp_q->ring_ptr++;
+		}
+
+		new_pkt->signature = RESPONSE_PROCESSED;
+		/* flush signature */
+		wmb();
+		--entry_count_remaining;
+	}
+}
+
+/**
+ * __qla_copy_purex_to_buffer - extract ELS payload from Purex IOCB
+ *    and save to provided buffer
+ * @vha: host adapter pointer
+ * @pkt: pointer Purex IOCB
+ * @rsp: respond queue
+ * @buf: extracted ELS payload copy here
+ * @buf_len: buffer length
+ */
+int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
+	void **pkt, struct rsp_que **rsp, u8 *buf, u32 buf_len)
+{
+	struct purex_entry_24xx *purex = *pkt;
+	struct rsp_que *rsp_q = *rsp;
+	sts_cont_entry_t *new_pkt;
+	uint16_t no_bytes = 0, total_bytes = 0, pending_bytes = 0;
+	uint16_t buffer_copy_offset = 0;
+	uint16_t entry_count_remaining;
+	u16 tpad;
+
+	entry_count_remaining = purex->entry_count;
+	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF)
+		- PURX_ELS_HEADER_SIZE;
+
+	/*
+	 * end of payload may not end in 4bytes boundary.  Need to
+	 * round up / pad for room to swap, before saving data
+	 */
+	tpad = roundup(total_bytes, 4);
+
+	if (buf_len < tpad) {
+		ql_dbg(ql_dbg_async, vha, 0x5084,
+		    "%s buffer is too small %d < %d\n",
+		    __func__, buf_len, tpad);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return -EIO;
+	}
+
+	pending_bytes = total_bytes = tpad;
+	no_bytes = (pending_bytes > sizeof(purex->els_frame_payload))  ?
+	    sizeof(purex->els_frame_payload) : pending_bytes;
+
+	memcpy(buf, &purex->els_frame_payload[0], no_bytes);
+	buffer_copy_offset += no_bytes;
+	pending_bytes -= no_bytes;
+	--entry_count_remaining;
+
+	((response_t *)purex)->signature = RESPONSE_PROCESSED;
+	/* flush signature */
+	wmb();
+
+	do {
+		while ((total_bytes > 0) && (entry_count_remaining > 0)) {
+			new_pkt = (sts_cont_entry_t *)rsp_q->ring_ptr;
+			*pkt = new_pkt;
+
+			if (new_pkt->entry_type != STATUS_CONT_TYPE) {
+				ql_log(ql_log_warn, vha, 0x507a,
+				    "Unexpected IOCB type, partial data 0x%x\n",
+				    buffer_copy_offset);
+				break;
+			}
+
+			rsp_q->ring_index++;
+			if (rsp_q->ring_index == rsp_q->length) {
+				rsp_q->ring_index = 0;
+				rsp_q->ring_ptr = rsp_q->ring;
+			} else {
+				rsp_q->ring_ptr++;
+			}
+			no_bytes = (pending_bytes > sizeof(new_pkt->data)) ?
+			    sizeof(new_pkt->data) : pending_bytes;
+			if ((buffer_copy_offset + no_bytes) <= total_bytes) {
+				memcpy((buf + buffer_copy_offset), new_pkt->data,
+				    no_bytes);
+				buffer_copy_offset += no_bytes;
+				pending_bytes -= no_bytes;
+				--entry_count_remaining;
+			} else {
+				ql_log(ql_log_warn, vha, 0x5044,
+				    "Attempt to copy more that we got, optimizing..%x\n",
+				    buffer_copy_offset);
+				memcpy((buf + buffer_copy_offset), new_pkt->data,
+				    total_bytes - buffer_copy_offset);
+			}
+
+			((response_t *)new_pkt)->signature = RESPONSE_PROCESSED;
+			/* flush signature */
+			wmb();
+		}
+
+		if (pending_bytes != 0 || entry_count_remaining != 0) {
+			ql_log(ql_log_fatal, vha, 0x508b,
+			    "Dropping partial Data, underrun bytes = 0x%x, entry cnts 0x%x\n",
+			    total_bytes, entry_count_remaining);
+			return -EIO;
+		}
+	} while (entry_count_remaining > 0);
+
+	be32_to_cpu_array((u32 *)buf, (__be32 *)buf, total_bytes >> 2);
+
+	return 0;
+}
+
+/**
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
  * @irq: interrupt number
  * @dev_id: SCSI driver HA context
@@ -1726,6 +1869,9 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	sts_entry_t *pkt = iocb;
 	srb_t *sp;
 	uint16_t index;
+
+	if (pkt->handle == QLA_SKIP_HANDLE)
+		return NULL;
 
 	index = LSW(pkt->handle);
 	if (index >= req->num_outstanding_cmds) {
@@ -3526,6 +3672,63 @@ void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
 }
 
 /**
+ * qla_chk_cont_iocb_avail - check for all continuation iocbs are available
+ *   before iocb processing can start.
+ * @vha: host adapter pointer
+ * @rsp: respond queue
+ * @pkt: head iocb describing how many continuation iocb
+ * Return: 0 all iocbs has arrived, xx- all iocbs have not arrived.
+ */
+static int qla_chk_cont_iocb_avail(struct scsi_qla_host *vha,
+	struct rsp_que *rsp, response_t *pkt)
+{
+	int start_pkt_ring_index, end_pkt_ring_index, n_ring_index;
+	response_t *end_pkt;
+	int rc = 0;
+	u32 rsp_q_in;
+
+	if (pkt->entry_count == 1)
+		return rc;
+
+	/* ring_index was pre-increment. set it back to current pkt */
+	if (rsp->ring_index == 0)
+		start_pkt_ring_index = rsp->length - 1;
+	else
+		start_pkt_ring_index = rsp->ring_index - 1;
+
+	if ((start_pkt_ring_index + pkt->entry_count) >= rsp->length)
+		end_pkt_ring_index = start_pkt_ring_index + pkt->entry_count -
+			rsp->length - 1;
+	else
+		end_pkt_ring_index = start_pkt_ring_index + pkt->entry_count - 1;
+
+	end_pkt = rsp->ring + end_pkt_ring_index;
+
+	/*  next pkt = end_pkt + 1 */
+	n_ring_index = end_pkt_ring_index + 1;
+	if (n_ring_index >= rsp->length)
+		n_ring_index = 0;
+
+	rsp_q_in = rsp->qpair->use_shadow_reg ? *rsp->in_ptr :
+		rd_reg_dword(rsp->rsp_q_in);
+
+	/* rsp_q_in is either wrapped or pointing beyond endpkt */
+	if ((rsp_q_in < start_pkt_ring_index && rsp_q_in < n_ring_index) ||
+			rsp_q_in >= n_ring_index)
+		/* all IOCBs arrived. */
+		rc = 0;
+	else
+		rc = -EIO;
+
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x5091,
+	    "%s - ring %p pkt %p end pkt %p entry count %#x rsp_q_in %d rc %d\n",
+	    __func__, rsp->ring, pkt, end_pkt, pkt->entry_count,
+	    rsp_q_in, rc);
+
+	return rc;
+}
+
+/**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @vha: SCSI driver HA context
  * @rsp: response queue
@@ -3665,6 +3868,15 @@ process_err:
 						 qla27xx_process_purex_fpin);
 				break;
 
+			case ELS_AUTH_ELS:
+				if (qla_chk_cont_iocb_avail(vha, rsp, (response_t *)pkt)) {
+					ql_dbg(ql_dbg_init, vha, 0x5091,
+					    "Defer processing ELS opcode %#x...\n",
+					    purex_entry->els_frame_payload[3]);
+					return;
+				}
+				qla24xx_auth_els(vha, (void **)&pkt, &rsp);
+				break;
 			default:
 				ql_log(ql_log_warn, vha, 0x509c,
 				       "Discarding ELS Request opcode 0x%x\n",
