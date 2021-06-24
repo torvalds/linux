@@ -2835,10 +2835,14 @@ encap_port - INTEGER
 	Default: 0
 
 plpmtud_probe_interval - INTEGER
-        The time interval (in milliseconds) for sending PLPMTUD probe chunks.
-        These chunks are sent at the specified interval with a variable size
-        to probe the mtu of a given path between 2 endpoints. PLPMTUD will
-        be disabled when 0 is set, and other values for it must be >= 5000.
+        The time interval (in milliseconds) for the PLPMTUD probe timer,
+        which is configured to expire after this period to receive an
+        acknowledgment to a probe packet. This is also the time interval
+        between the probes for the current pmtu when the probe search
+        is done.
+
+        PLPMTUD will be disabled when 0 is set, and other values for it
+        must be >= 5000.
 
 	Default: 0
 

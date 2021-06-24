@@ -987,7 +987,8 @@ struct sctp_transport {
 		__u16 pmtu;
 		__u16 probe_size;
 		__u16 probe_high;
-		__u8 probe_count;
+		__u8 probe_count:3;
+		__u8 raise_count:5;
 		__u8 state;
 	} pl; /* plpmtud related */
 
