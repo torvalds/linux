@@ -98,8 +98,8 @@ static struct addr_marker address_markers[] = {
 	{0, "vmalloc() end"},
 	{0, "Linear mapping"},
 #ifdef CONFIG_64BIT
-	{0, "Modules mapping"},
-	{0, "Kernel mapping (kernel, BPF)"},
+	{0, "Modules/BPF mapping"},
+	{0, "Kernel mapping"},
 #endif
 	{-1, NULL},
 };
