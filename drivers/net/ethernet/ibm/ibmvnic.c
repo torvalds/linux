@@ -106,6 +106,8 @@ static void release_crq_queue(struct ibmvnic_adapter *);
 static int __ibmvnic_set_mac(struct net_device *, u8 *);
 static int init_crq_queue(struct ibmvnic_adapter *adapter);
 static int send_query_phys_parms(struct ibmvnic_adapter *adapter);
+static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
+					 struct ibmvnic_sub_crq_queue *tx_scrq);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -668,6 +670,7 @@ static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 
 	tx_scrqs = adapter->num_active_tx_pools;
 	for (i = 0; i < tx_scrqs; i++) {
+		ibmvnic_tx_scrq_clean_buffer(adapter, adapter->tx_scrq[i]);
 		rc = reset_one_tx_pool(adapter, &adapter->tso_pool[i]);
 		if (rc)
 			return rc;
@@ -1618,7 +1621,8 @@ static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
 	ind_bufp->index = 0;
 	if (atomic_sub_return(entries, &tx_scrq->used) <=
 	    (adapter->req_tx_entries_per_subcrq / 2) &&
-	    __netif_subqueue_stopped(adapter->netdev, queue_num)) {
+	    __netif_subqueue_stopped(adapter->netdev, queue_num) &&
+	    !test_bit(0, &adapter->resetting)) {
 		netif_wake_subqueue(adapter->netdev, queue_num);
 		netdev_dbg(adapter->netdev, "Started queue %d\n",
 			   queue_num);
@@ -1711,7 +1715,6 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		tx_send_failed++;
 		tx_dropped++;
 		ret = NETDEV_TX_OK;
-		ibmvnic_tx_scrq_flush(adapter, tx_scrq);
 		goto out;
 	}
 
@@ -3175,6 +3178,7 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter, bool do_h_free)
 
 			netdev_dbg(adapter->netdev, "Releasing tx_scrq[%d]\n",
 				   i);
+			ibmvnic_tx_scrq_clean_buffer(adapter, adapter->tx_scrq[i]);
 			if (adapter->tx_scrq[i]->irq) {
 				free_irq(adapter->tx_scrq[i]->irq,
 					 adapter->tx_scrq[i]);
