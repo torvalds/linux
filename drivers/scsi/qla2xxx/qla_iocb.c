@@ -118,7 +118,7 @@ qla2x00_prep_cont_type0_iocb(struct scsi_qla_host *vha)
  *
  * Returns a pointer to the continuation type 1 IOCB packet.
  */
-static inline cont_a64_entry_t *
+cont_a64_entry_t *
 qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha, struct req_que *req)
 {
 	cont_a64_entry_t *cont_pkt;
@@ -1909,6 +1909,9 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair = sp->qpair;
+
+	if (sp->fcport->edif.enable)
+		return qla28xx_start_scsi_edif(sp);
 
 	/* Acquire qpair specific lock */
 	spin_lock_irqsave(&qpair->qp_lock, flags);

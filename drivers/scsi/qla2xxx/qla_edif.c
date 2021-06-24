@@ -547,41 +547,30 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	}
 
 	list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
-		if ((fcport->flags & FCF_FCSP_DEVICE)) {
-			ql_dbg(ql_dbg_edif, vha, 0xf084,
-			    "%s: sess %p %8phC lid %#04x s_id %06x logout %d\n",
-			    __func__, fcport, fcport->port_name,
-			    fcport->loop_id, fcport->d_id.b24,
-			    fcport->logout_on_delete);
+		ql_dbg(ql_dbg_edif, vha, 0xf084,
+		    "%s: sess %p %8phC lid %#04x s_id %06x logout %d\n",
+		    __func__, fcport, fcport->port_name,
+		    fcport->loop_id, fcport->d_id.b24,
+		    fcport->logout_on_delete);
 
-			ql_dbg(ql_dbg_edif, vha, 0xf084,
-			    "keep %d els_logo %d disc state %d auth state %d stop state %d\n",
-			    fcport->keep_nport_handle,
-			    fcport->send_els_logo, fcport->disc_state,
-			    fcport->edif.auth_state, fcport->edif.app_stop);
+		ql_dbg(ql_dbg_edif, vha, 0xf084,
+		    "keep %d els_logo %d disc state %d auth state %d stop state %d\n",
+		    fcport->keep_nport_handle,
+		    fcport->send_els_logo, fcport->disc_state,
+		    fcport->edif.auth_state, fcport->edif.app_stop);
 
-			if (atomic_read(&vha->loop_state) == LOOP_DOWN)
-				break;
+		if (atomic_read(&vha->loop_state) == LOOP_DOWN)
+			break;
 
-			if (!fcport->edif.secured_login)
-				continue;
+		fcport->edif.app_started = 1;
+		fcport->edif.app_stop = 0;
 
-			fcport->edif.app_started = 1;
-			if (fcport->edif.app_stop ||
-			    (fcport->disc_state != DSC_LOGIN_COMPLETE &&
-			     fcport->disc_state != DSC_LOGIN_PEND &&
-			     fcport->disc_state != DSC_DELETED)) {
-				/* no activity */
-				fcport->edif.app_stop = 0;
-
-				ql_dbg(ql_dbg_edif, vha, 0x911e,
-				    "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
-				    __func__, fcport->port_name);
-				fcport->edif.app_sess_online = 1;
-				qla_edif_reset_auth_wait(fcport, DSC_LOGIN_PEND, 0);
-			}
-			qla_edif_sa_ctl_init(vha, fcport);
-		}
+		ql_dbg(ql_dbg_edif, vha, 0x911e,
+		    "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
+		    __func__, fcport->port_name);
+		fcport->edif.app_sess_online = 1;
+		qla_edif_reset_auth_wait(fcport, DSC_LOGIN_PEND, 0);
+		qla_edif_sa_ctl_init(vha, fcport);
 	}
 
 	if (vha->pur_cinfo.enode_flags != ENODE_ACTIVE) {
@@ -925,6 +914,9 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (tdid.b24 != 0 && tdid.b24 != fcport->d_id.b24)
 				continue;
 
+			app_reply->ports[pcnt].rekey_count =
+				fcport->edif.rekey_cnt;
+
 			app_reply->ports[pcnt].remote_type =
 				VND_CMD_RTYPE_UNKNOWN;
 			if (fcport->port_type & (FCT_NVME_TARGET | FCT_TARGET))
@@ -1076,8 +1068,8 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	if (!vha->hw->flags.edif_enabled ||
 		test_bit(VPORT_DELETE, &vha->dpc_flags)) {
 		ql_dbg(ql_dbg_edif, vha, 0x911d,
-		    "%s edif not enabled or vp delete. bsg ptr done %p\n",
-		    __func__, bsg_job);
+		    "%s edif not enabled or vp delete. bsg ptr done %p. dpc_flags %lx\n",
+		    __func__, bsg_job, vha->dpc_flags);
 
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		goto done;
@@ -2227,16 +2219,10 @@ void qla24xx_sa_update_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
 		sa_update_iocb->sa_control |= SA_CNTL_KEY256;
 		for (itr = 0; itr < 32; itr++)
 			sa_update_iocb->sa_key[itr] = sa_frame->sa_key[itr];
-
-		ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x921f, "%s 256 sa key=%32phN\n",
-		    __func__, sa_update_iocb->sa_key);
 	} else {
 		sa_update_iocb->sa_control |= SA_CNTL_KEY128;
 		for (itr = 0; itr < 16; itr++)
 			sa_update_iocb->sa_key[itr] = sa_frame->sa_key[itr];
-
-		ql_dbg(ql_dbg_edif +  ql_dbg_verbose, vha, 0x921f, "%s 128 sa key=%16phN\n",
-		    __func__, sa_update_iocb->sa_key);
 	}
 
 	ql_dbg(ql_dbg_edif, vha, 0x921d,
@@ -2691,6 +2677,275 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 	}
 
 	sp->done(sp, 0);
+}
+
+/**
+ * qla28xx_start_scsi_edif() - Send a SCSI type 6 command to the ISP
+ * @sp: command to send to the ISP
+ *
+ * Return: non-zero if a failure occurred, else zero.
+ */
+int
+qla28xx_start_scsi_edif(srb_t *sp)
+{
+	int             nseg;
+	unsigned long   flags;
+	struct scsi_cmnd *cmd;
+	uint32_t        *clr_ptr;
+	uint32_t        index, i;
+	uint32_t        handle;
+	uint16_t        cnt;
+	int16_t        req_cnt;
+	uint16_t        tot_dsds;
+	__be32 *fcp_dl;
+	uint8_t additional_cdb_len;
+	struct ct6_dsd *ctx;
+	struct scsi_qla_host *vha = sp->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct cmd_type_6 *cmd_pkt;
+	struct dsd64	*cur_dsd;
+	uint8_t		avail_dsds = 0;
+	struct scatterlist *sg;
+	struct req_que *req = sp->qpair->req;
+	spinlock_t *lock = sp->qpair->qp_lock_ptr;
+
+	/* Setup device pointers. */
+	cmd = GET_CMD_SP(sp);
+
+	/* So we know we haven't pci_map'ed anything yet */
+	tot_dsds = 0;
+
+	/* Send marker if required */
+	if (vha->marker_needed != 0) {
+		if (qla2x00_marker(vha, sp->qpair, 0, 0, MK_SYNC_ALL) !=
+			QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0x300c,
+			    "qla2x00_marker failed for cmd=%p.\n", cmd);
+			return QLA_FUNCTION_FAILED;
+		}
+		vha->marker_needed = 0;
+	}
+
+	/* Acquire ring specific lock */
+	spin_lock_irqsave(lock, flags);
+
+	/* Check for room in outstanding command list. */
+	handle = req->current_outstanding_cmd;
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
+		handle++;
+		if (handle == req->num_outstanding_cmds)
+			handle = 1;
+		if (!req->outstanding_cmds[handle])
+			break;
+	}
+	if (index == req->num_outstanding_cmds)
+		goto queuing_error;
+
+	/* Map the sg table so we have an accurate count of sg entries needed */
+	if (scsi_sg_count(cmd)) {
+		nseg = dma_map_sg(&ha->pdev->dev, scsi_sglist(cmd),
+		    scsi_sg_count(cmd), cmd->sc_data_direction);
+		if (unlikely(!nseg))
+			goto queuing_error;
+	} else {
+		nseg = 0;
+	}
+
+	tot_dsds = nseg;
+	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
+	if (req->cnt < (req_cnt + 2)) {
+		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
+		    rd_reg_dword(req->req_q_out);
+		if (req->ring_index < cnt)
+			req->cnt = cnt - req->ring_index;
+		else
+			req->cnt = req->length -
+			    (req->ring_index - cnt);
+		if (req->cnt < (req_cnt + 2))
+			goto queuing_error;
+	}
+
+	ctx = sp->u.scmd.ct6_ctx =
+	    mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
+	if (!ctx) {
+		ql_log(ql_log_fatal, vha, 0x3010,
+		    "Failed to allocate ctx for cmd=%p.\n", cmd);
+		goto queuing_error;
+	}
+
+	memset(ctx, 0, sizeof(struct ct6_dsd));
+	ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
+	    GFP_ATOMIC, &ctx->fcp_cmnd_dma);
+	if (!ctx->fcp_cmnd) {
+		ql_log(ql_log_fatal, vha, 0x3011,
+		    "Failed to allocate fcp_cmnd for cmd=%p.\n", cmd);
+		goto queuing_error;
+	}
+
+	/* Initialize the DSD list and dma handle */
+	INIT_LIST_HEAD(&ctx->dsd_list);
+	ctx->dsd_use_cnt = 0;
+
+	if (cmd->cmd_len > 16) {
+		additional_cdb_len = cmd->cmd_len - 16;
+		if ((cmd->cmd_len % 4) != 0) {
+			/*
+			 * SCSI command bigger than 16 bytes must be
+			 * multiple of 4
+			 */
+			ql_log(ql_log_warn, vha, 0x3012,
+			    "scsi cmd len %d not multiple of 4 for cmd=%p.\n",
+			    cmd->cmd_len, cmd);
+			goto queuing_error_fcp_cmnd;
+		}
+		ctx->fcp_cmnd_len = 12 + cmd->cmd_len + 4;
+	} else {
+		additional_cdb_len = 0;
+		ctx->fcp_cmnd_len = 12 + 16 + 4;
+	}
+
+	cmd_pkt = (struct cmd_type_6 *)req->ring_ptr;
+	cmd_pkt->handle = make_handle(req->id, handle);
+
+	/*
+	 * Zero out remaining portion of packet.
+	 * tagged queuing modifier -- default is TSK_SIMPLE (0).
+	 */
+	clr_ptr = (uint32_t *)cmd_pkt + 2;
+	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
+	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
+
+	/* No data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+		cmd_pkt->byte_count = cpu_to_le32(0);
+		goto no_dsds;
+	}
+
+	/* Set transfer direction */
+	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
+		cmd_pkt->control_flags = cpu_to_le16(CF_WRITE_DATA);
+		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
+		sp->fcport->edif.tx_bytes += scsi_bufflen(cmd);
+	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
+		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
+		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
+		sp->fcport->edif.rx_bytes += scsi_bufflen(cmd);
+	}
+
+	cmd_pkt->control_flags |= cpu_to_le16(CF_EN_EDIF);
+	cmd_pkt->control_flags &= ~(cpu_to_le16(CF_NEW_SA));
+
+	/* One DSD is available in the Command Type 6 IOCB */
+	avail_dsds = 1;
+	cur_dsd = &cmd_pkt->fcp_dsd;
+
+	/* Load data segments */
+	scsi_for_each_sg(cmd, sg, tot_dsds, i) {
+		dma_addr_t      sle_dma;
+		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets? */
+		if (avail_dsds == 0) {
+			/*
+			 * Five DSDs are available in the Continuation
+			 * Type 1 IOCB.
+			 */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha, req);
+			cur_dsd = cont_pkt->dsd;
+			avail_dsds = 5;
+		}
+
+		sle_dma = sg_dma_address(sg);
+		put_unaligned_le64(sle_dma, &cur_dsd->address);
+		cur_dsd->length = cpu_to_le32(sg_dma_len(sg));
+		cur_dsd++;
+		avail_dsds--;
+	}
+
+no_dsds:
+	/* Set NPORT-ID and LUN number*/
+	cmd_pkt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	cmd_pkt->port_id[0] = sp->fcport->d_id.b.al_pa;
+	cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
+	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
+	cmd_pkt->vp_index = sp->vha->vp_idx;
+
+	cmd_pkt->entry_type = COMMAND_TYPE_6;
+
+	/* Set total data segment count. */
+	cmd_pkt->entry_count = (uint8_t)req_cnt;
+
+	int_to_scsilun(cmd->device->lun, &cmd_pkt->lun);
+	host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
+
+	/* build FCP_CMND IU */
+	int_to_scsilun(cmd->device->lun, &ctx->fcp_cmnd->lun);
+	ctx->fcp_cmnd->additional_cdb_len = additional_cdb_len;
+
+	if (cmd->sc_data_direction == DMA_TO_DEVICE)
+		ctx->fcp_cmnd->additional_cdb_len |= 1;
+	else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
+		ctx->fcp_cmnd->additional_cdb_len |= 2;
+
+	/* Populate the FCP_PRIO. */
+	if (ha->flags.fcp_prio_enabled)
+		ctx->fcp_cmnd->task_attribute |=
+		    sp->fcport->fcp_prio << 3;
+
+	memcpy(ctx->fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
+
+	fcp_dl = (__be32 *)(ctx->fcp_cmnd->cdb + 16 +
+	    additional_cdb_len);
+	*fcp_dl = htonl((uint32_t)scsi_bufflen(cmd));
+
+	cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(ctx->fcp_cmnd_len);
+	put_unaligned_le64(ctx->fcp_cmnd_dma, &cmd_pkt->fcp_cmnd_dseg_address);
+
+	sp->flags |= SRB_FCP_CMND_DMA_VALID;
+	cmd_pkt->byte_count = cpu_to_le32((uint32_t)scsi_bufflen(cmd));
+	/* Set total data segment count. */
+	cmd_pkt->entry_count = (uint8_t)req_cnt;
+	cmd_pkt->entry_status = 0;
+
+	/* Build command packet. */
+	req->current_outstanding_cmd = handle;
+	req->outstanding_cmds[handle] = sp;
+	sp->handle = handle;
+	cmd->host_scribble = (unsigned char *)(unsigned long)handle;
+	req->cnt -= req_cnt;
+
+	/* Adjust ring index. */
+	wmb();
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else {
+		req->ring_ptr++;
+	}
+
+	/* Set chip new ring index. */
+	wrt_reg_dword(req->req_q_in, req->ring_index);
+
+	spin_unlock_irqrestore(lock, flags);
+
+	return QLA_SUCCESS;
+
+queuing_error_fcp_cmnd:
+	dma_pool_free(ha->fcp_cmnd_dma_pool, ctx->fcp_cmnd, ctx->fcp_cmnd_dma);
+queuing_error:
+	if (tot_dsds)
+		scsi_dma_unmap(cmd);
+
+	if (sp->u.scmd.ct6_ctx) {
+		mempool_free(sp->u.scmd.ct6_ctx, ha->ctx_mempool);
+		sp->u.scmd.ct6_ctx = NULL;
+	}
+	spin_unlock_irqrestore(lock, flags);
+
+	return QLA_FUNCTION_FAILED;
 }
 
 /**********************************************

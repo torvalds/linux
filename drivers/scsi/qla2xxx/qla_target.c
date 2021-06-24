@@ -1313,8 +1313,8 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 	qla24xx_chk_fcp_state(sess);
 
 	ql_dbg(ql_log_warn, sess->vha, 0xe001,
-	    "Scheduling sess %p for deletion %8phC\n",
-	    sess, sess->port_name);
+	    "Scheduling sess %p for deletion %8phC fc4_type %x\n",
+	    sess, sess->port_name, sess->fc4_type);
 
 	WARN_ON(!queue_work(sess->vha->hw->wq, &sess->del_work));
 }
@@ -2612,6 +2612,7 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 	struct ctio7_to_24xx *pkt;
 	struct atio_from_isp *atio = &prm->cmd->atio;
 	uint16_t temp;
+	struct qla_tgt_cmd      *cmd = prm->cmd;
 
 	pkt = (struct ctio7_to_24xx *)qpair->req->ring_ptr;
 	prm->pkt = pkt;
@@ -2643,6 +2644,15 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	pkt->u.status0.ox_id = cpu_to_le16(temp);
 	pkt->u.status0.relative_offset = cpu_to_le32(prm->cmd->offset);
+
+	if (cmd->edif) {
+		if (cmd->dma_data_direction == DMA_TO_DEVICE)
+			prm->cmd->sess->edif.rx_bytes += cmd->bufflen;
+		if (cmd->dma_data_direction == DMA_FROM_DEVICE)
+			prm->cmd->sess->edif.tx_bytes += cmd->bufflen;
+
+		pkt->u.status0.edif_flags |= EF_EN_EDIF;
+	}
 
 	return 0;
 }
@@ -3334,8 +3344,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			if (xmit_type & QLA_TGT_XMIT_STATUS) {
 				pkt->u.status0.scsi_status =
 				    cpu_to_le16(prm.rq_result);
-				pkt->u.status0.residual =
-				    cpu_to_le32(prm.residual);
+				if (!cmd->edif)
+					pkt->u.status0.residual =
+						cpu_to_le32(prm.residual);
+
 				pkt->u.status0.flags |= cpu_to_le16(
 				    CTIO7_FLAGS_SEND_STATUS);
 				if (qlt_need_explicit_conf(cmd, 0)) {
@@ -3982,6 +3994,12 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 	if (cmd == NULL)
 		return;
 
+	if ((le16_to_cpu(((struct ctio7_from_24xx *)ctio)->flags) & CTIO7_FLAGS_DATA_OUT) &&
+	    cmd->sess) {
+		qlt_chk_edif_rx_sa_delete_pending(vha, cmd->sess,
+		    (struct ctio7_from_24xx *)ctio);
+	}
+
 	se_cmd = &cmd->se_cmd;
 	cmd->cmd_sent_to_fw = 0;
 
@@ -4052,6 +4070,16 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 			qlt_handle_dif_error(qpair, cmd, ctio);
 			return;
 		}
+
+		case CTIO_FAST_AUTH_ERR:
+		case CTIO_FAST_INCOMP_PAD_LEN:
+		case CTIO_FAST_INVALID_REQ:
+		case CTIO_FAST_SPI_ERR:
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05b,
+			    "qla_target(%d): CTIO with EDIF error status 0x%x received (state %x, se_cmd %p\n",
+			    vha->vp_idx, status, cmd->state, se_cmd);
+			break;
+
 		default:
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05b,
 			    "qla_target(%d): CTIO with error status 0x%x received (state %x, se_cmd %p\n",
@@ -4353,6 +4381,7 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	qlt_assign_qpair(vha, cmd);
 	cmd->reset_count = vha->hw->base_qpair->chip_reset;
 	cmd->vp_idx = vha->vp_idx;
+	cmd->edif = sess->edif.enable;
 
 	return cmd;
 }
@@ -4769,7 +4798,9 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 	}
 
 	if (vha->hw->flags.edif_enabled &&
-	    vha->e_dbell.db_flags != EDB_ACTIVE) {
+	    !(vha->e_dbell.db_flags & EDB_ACTIVE) &&
+	    iocb->u.isp24.status_subcode == ELS_PLOGI &&
+	    !(le16_to_cpu(iocb->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP)) {
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
 			"%s %d Term INOT due to app not available lid=%d, NportID %06X ",
 			__func__, __LINE__, loop_id, port_id.b24);

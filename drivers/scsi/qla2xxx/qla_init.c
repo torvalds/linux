@@ -345,15 +345,13 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (N2N_TOPO(fcport->vha->hw) && fcport_is_bigger(fcport)) {
 		lio->u.logio.flags |= SRB_LOGIN_PRLI_ONLY;
 	} else {
-		if (vha->hw->flags.edif_enabled) {
-			if (fcport->edif.non_secured_login == 0) {
-				lio->u.logio.flags |=
-					(SRB_LOGIN_FCSP | SRB_LOGIN_SKIP_PRLI);
-				ql_dbg(ql_dbg_disc, vha, 0x2072,
-				    "Async-login: w/ FCSP %8phC hdl=%x, loopid=%x portid=%06x\n",
-				    fcport->port_name, sp->handle, fcport->loop_id,
-				    fcport->d_id.b24);
-			}
+		if (vha->hw->flags.edif_enabled &&
+		    vha->e_dbell.db_flags & EDB_ACTIVE) {
+			lio->u.logio.flags |=
+				(SRB_LOGIN_FCSP | SRB_LOGIN_SKIP_PRLI);
+			ql_dbg(ql_dbg_disc, vha, 0x2072,
+			    "Async-login: w/ FCSP %8phC hdl=%x, loopid=%x portid=%06x\n",
+			    fcport->port_name, sp->handle, fcport->loop_id, fcport->d_id.b24);
 		} else {
 			lio->u.logio.flags |= SRB_LOGIN_COND_PLOGI;
 		}
@@ -363,10 +361,9 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 		lio->u.logio.flags |= SRB_LOGIN_SKIP_PRLI;
 
 	ql_log(ql_log_warn, vha, 0x2072,
-	       "Async-login - %8phC hdl=%x, loopid=%x portid=%02x%02x%02x retries=%d.\n",
+	       "Async-login - %8phC hdl=%x, loopid=%x portid=%06x retries=%d.\n",
 	       fcport->port_name, sp->handle, fcport->loop_id,
-	       fcport->d_id.b.domain, fcport->d_id.b.area, fcport->d_id.b.al_pa,
-	       fcport->login_retry);
+	       fcport->d_id.b24, fcport->login_retry);
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
@@ -3964,7 +3961,8 @@ enable_82xx_npiv:
 		}
 
 		/* Enable PUREX PASSTHRU */
-		if (ql2xrdpenable || ha->flags.scm_supported_f)
+		if (ql2xrdpenable || ha->flags.scm_supported_f ||
+		    ha->flags.edif_enabled)
 			qla25xx_set_els_cmds_supported(vha);
 	} else
 		goto failed;
@@ -4149,7 +4147,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	}
 
 	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
-	if (ql2xmvasynctoatio &&
+	if (ql2xmvasynctoatio && !ha->flags.edif_enabled &&
 	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))) {
 		if (qla_tgt_mode_enabled(vha) ||
 		    qla_dual_mode_enabled(vha))
@@ -4177,7 +4175,8 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_8;
 	}
 
-	if (ql2xrdpenable || ha->flags.scm_supported_f)
+	if (ql2xrdpenable || ha->flags.scm_supported_f ||
+	    ha->flags.edif_enabled)
 		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
 
 	/* Enable Async 8130/8131 events -- transceiver insertion/removal */

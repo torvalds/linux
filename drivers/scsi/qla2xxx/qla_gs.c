@@ -632,7 +632,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	ct_req->req.rft_id.port_id = port_id_to_be_id(vha->d_id);
 	ct_req->req.rft_id.fc4_types[2] = 0x01;		/* FCP-3 */
 
-	if (vha->flags.nvme_enabled)
+	if (vha->flags.nvme_enabled && qla_ini_mode_enabled(vha))
 		ct_req->req.rft_id.fc4_types[6] = 1;    /* NVMe type 28h */
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RFT_ID_REQ_SIZE;

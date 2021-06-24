@@ -188,6 +188,7 @@ extern int ql2xenablemsix;
 extern int qla2xuseresexchforels;
 extern int ql2xdifbundlinginternalbuffers;
 extern int ql2xfulldump_on_mpifail;
+extern int ql2xsecenable;
 extern int ql2xenforce_iocb_limit;
 extern int ql2xabts_wait_nvme;
 
@@ -297,6 +298,8 @@ extern int  qla2x00_vp_abort_isp(scsi_qla_host_t *);
  */
 void qla_els_pt_iocb(struct scsi_qla_host *vha,
 	struct els_entry_24xx *pkt, struct qla_els_pt_arg *a);
+cont_a64_entry_t *qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha,
+		struct req_que *que);
 extern uint16_t qla2x00_calc_iocbs_32(uint16_t);
 extern uint16_t qla2x00_calc_iocbs_64(uint16_t);
 extern void qla2x00_build_scsi_iocbs_32(srb_t *, cmd_entry_t *, uint16_t);
@@ -987,6 +990,7 @@ void qla_enode_init(scsi_qla_host_t *vha);
 void qla_enode_stop(scsi_qla_host_t *vha);
 void qla_edif_flush_sa_ctl_lists(fc_port_t *fcport);
 void qla_edb_init(scsi_qla_host_t *vha);
+int qla28xx_start_scsi_edif(srb_t *sp);
 void qla24xx_sa_update_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
 void qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
 void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp);

@@ -490,6 +490,9 @@ struct cmd_type_6 {
 	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	__le16	control_flags;		/* Control flags. */
+#define CF_NEW_SA			BIT_12
+#define CF_EN_EDIF			BIT_9
+#define CF_ADDITIONAL_PARAM_BLK		BIT_8
 #define CF_DIF_SEG_DESCR_ENABLE		BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE	BIT_2
 #define CF_READ_DATA			BIT_1
