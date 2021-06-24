@@ -819,7 +819,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	rk62_csi_reset(sd);
 	rk628_post_process_setup(sd);
 	phy_set_bus_width(csi->txphy, bus_width);
-	ret = phy_set_mode(csi->txphy, PHY_MODE_VIDEO_MIPI);
+	ret = phy_set_mode(csi->txphy, PHY_MODE_MIPI_DPHY);
 	if (ret) {
 		v4l2_err(sd, "failed to set phy mode: %d\n", ret);
 		return;
