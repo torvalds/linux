@@ -12,6 +12,7 @@
  * Global Function Prototypes in qla_init.c source file.
  */
 extern int qla2x00_initialize_adapter(scsi_qla_host_t *);
+extern int qla24xx_post_prli_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 
 extern int qla2100_pci_config(struct scsi_qla_host *);
 extern int qla2300_pci_config(struct scsi_qla_host *);
