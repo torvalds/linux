@@ -576,14 +576,20 @@ static kvm_pte_t kvm_init_invalid_leaf_owner(u8 owner_id)
 int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
 {
 	kvm_pte_t annotation;
+	int ret;
 
 	if (owner_id > KVM_MAX_OWNER_ID)
 		return -EINVAL;
 
 	annotation = kvm_init_invalid_leaf_owner(owner_id);
 
-	return host_stage2_try(kvm_pgtable_stage2_annotate, &host_mmu.pgt,
-			       addr, size, &host_s2_pool, annotation);
+	ret = host_stage2_try(kvm_pgtable_stage2_annotate, &host_mmu.pgt,
+			      addr, size, &host_s2_pool, annotation);
+
+	if (!ret && kvm_iommu_ops.host_stage2_set_owner)
+		kvm_iommu_ops.host_stage2_set_owner(addr, size, owner_id);
+
+	return ret;
 }
 
 static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot)
