@@ -41,7 +41,9 @@
   available_idle_cpu
   bdget_disk
   bdput
+  bio_add_pc_page
   bio_endio
+  bio_reset
   bitmap_allocate_region
   __bitmap_clear
   bitmap_find_next_zero_area_off
@@ -56,6 +58,7 @@
   blk_execute_rq_nowait
   blk_get_request
   blk_mq_rq_cpu
+  blk_mq_sched_mark_restart_hctx
   blk_put_request
   blk_queue_flag_clear
   blk_queue_flag_set
@@ -65,6 +68,7 @@
   blk_queue_max_discard_sectors
   blk_queue_max_write_zeroes_sectors
   blk_queue_physical_block_size
+  blk_rq_append_bio
   blk_rq_map_kern
   blk_rq_map_user
   blk_rq_map_user_iov
@@ -1399,6 +1403,7 @@
   rtc_update_irq
   rtc_valid_tm
   runqueues
+  __sbitmap_queue_get
   sched_clock
   sched_feat_keys
   sched_feat_names
@@ -1701,6 +1706,7 @@
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
+  __traceiter_android_vh_ufs_update_sdev
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
@@ -1771,6 +1777,7 @@
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command
+  __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
