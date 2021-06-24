@@ -204,6 +204,10 @@ struct gve_rx_ring {
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
 	dma_addr_t q_resources_bus; /* dma address for the queue resources */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
+
+	/* head and tail of skb chain for the current packet or NULL if none */
+	struct sk_buff *skb_head;
+	struct sk_buff *skb_tail;
 };
 
 /* A TX desc ring entry */
@@ -816,14 +820,14 @@ void gve_free_page(struct device *dev, struct page *page, dma_addr_t dma,
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
 int gve_tx_alloc_rings(struct gve_priv *priv);
-void gve_tx_free_rings(struct gve_priv *priv);
+void gve_tx_free_rings_gqi(struct gve_priv *priv);
 __be32 gve_tx_load_event_counter(struct gve_priv *priv,
 				 struct gve_tx_ring *tx);
 /* rx handling */
 void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
 bool gve_rx_poll(struct gve_notify_block *block, int budget);
 int gve_rx_alloc_rings(struct gve_priv *priv);
-void gve_rx_free_rings(struct gve_priv *priv);
+void gve_rx_free_rings_gqi(struct gve_priv *priv);
 bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 		       netdev_features_t feat);
 /* Reset */

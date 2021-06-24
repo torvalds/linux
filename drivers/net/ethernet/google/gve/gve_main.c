@@ -571,13 +571,21 @@ static int gve_create_rings(struct gve_priv *priv)
 	netif_dbg(priv, drv, priv->dev, "created %d rx queues\n",
 		  priv->rx_cfg.num_queues);
 
-	/* Rx data ring has been prefilled with packet buffers at queue
-	 * allocation time.
-	 * Write the doorbell to provide descriptor slots and packet buffers
-	 * to the NIC.
-	 */
-	for (i = 0; i < priv->rx_cfg.num_queues; i++)
-		gve_rx_write_doorbell(priv, &priv->rx[i]);
+	if (gve_is_gqi(priv)) {
+		/* Rx data ring has been prefilled with packet buffers at queue
+		 * allocation time.
+		 *
+		 * Write the doorbell to provide descriptor slots and packet
+		 * buffers to the NIC.
+		 */
+		for (i = 0; i < priv->rx_cfg.num_queues; i++)
+			gve_rx_write_doorbell(priv, &priv->rx[i]);
+	} else {
+		for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+			/* Post buffers and ring doorbell. */
+			gve_rx_post_buffers_dqo(&priv->rx[i]);
+		}
+	}
 
 	return 0;
 }
@@ -606,6 +614,15 @@ static void add_napi_init_sync_stats(struct gve_priv *priv,
 	}
 }
 
+static void gve_tx_free_rings(struct gve_priv *priv)
+{
+	if (gve_is_gqi(priv)) {
+		gve_tx_free_rings_gqi(priv);
+	} else {
+		gve_tx_free_rings_dqo(priv);
+	}
+}
+
 static int gve_alloc_rings(struct gve_priv *priv)
 {
 	int err;
@@ -615,9 +632,14 @@ static int gve_alloc_rings(struct gve_priv *priv)
 			    GFP_KERNEL);
 	if (!priv->tx)
 		return -ENOMEM;
-	err = gve_tx_alloc_rings(priv);
+
+	if (gve_is_gqi(priv))
+		err = gve_tx_alloc_rings(priv);
+	else
+		err = gve_tx_alloc_rings_dqo(priv);
 	if (err)
 		goto free_tx;
+
 	/* Setup rx rings */
 	priv->rx = kvzalloc(priv->rx_cfg.num_queues * sizeof(*priv->rx),
 			    GFP_KERNEL);
@@ -625,7 +647,11 @@ static int gve_alloc_rings(struct gve_priv *priv)
 		err = -ENOMEM;
 		goto free_tx_queue;
 	}
-	err = gve_rx_alloc_rings(priv);
+
+	if (gve_is_gqi(priv))
+		err = gve_rx_alloc_rings(priv);
+	else
+		err = gve_rx_alloc_rings_dqo(priv);
 	if (err)
 		goto free_rx;
 
@@ -668,6 +694,14 @@ static int gve_destroy_rings(struct gve_priv *priv)
 	}
 	netif_dbg(priv, drv, priv->dev, "destroyed rx queues\n");
 	return 0;
+}
+
+static inline void gve_rx_free_rings(struct gve_priv *priv)
+{
+	if (gve_is_gqi(priv))
+		gve_rx_free_rings_gqi(priv);
+	else
+		gve_rx_free_rings_dqo(priv);
 }
 
 static void gve_free_rings(struct gve_priv *priv)
@@ -869,6 +903,7 @@ static int gve_open(struct net_device *dev)
 	err = gve_alloc_qpls(priv);
 	if (err)
 		return err;
+
 	err = gve_alloc_rings(priv);
 	if (err)
 		goto free_qpls;

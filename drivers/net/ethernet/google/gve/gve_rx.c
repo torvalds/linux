@@ -238,7 +238,7 @@ int gve_rx_alloc_rings(struct gve_priv *priv)
 	return err;
 }
 
-void gve_rx_free_rings(struct gve_priv *priv)
+void gve_rx_free_rings_gqi(struct gve_priv *priv)
 {
 	int i;
 
