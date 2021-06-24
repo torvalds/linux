@@ -1481,12 +1481,6 @@ menu "ARMv8.3 architectural features"
 config ARM64_PTR_AUTH
 	bool "Enable support for pointer authentication"
 	default y
-	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
-	# Modern compilers insert a .note.gnu.property section note for PAC
-	# which is only understood by binutils starting with version 2.33.1.
-	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
-	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
-	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
 	  Pointer authentication (part of the ARMv8.3 Extensions) provides
 	  instructions for signing and authenticating pointers against secret
@@ -1498,13 +1492,6 @@ config ARM64_PTR_AUTH
 	  for each process at exec() time, with these keys being
 	  context-switched along with the process.
 
-	  If the compiler supports the -mbranch-protection or
-	  -msign-return-address flag (e.g. GCC 7 or later), then this option
-	  will also cause the kernel itself to be compiled with return address
-	  protection. In this case, and if the target hardware is known to
-	  support pointer authentication, then CONFIG_STACKPROTECTOR can be
-	  disabled with minimal loss of protection.
-
 	  The feature is detected at runtime. If the feature is not present in
 	  hardware it will not be advertised to userspace/KVM guest nor will it
 	  be enabled.
@@ -1514,6 +1501,24 @@ config ARM64_PTR_AUTH
 	  address auth and the late CPU has then the late CPU will still boot
 	  but with the feature disabled. On such a system, this option should
 	  not be selected.
+
+config ARM64_PTR_AUTH_KERNEL
+	bool "Use pointer authentication for kernel"
+	default y
+	depends on ARM64_PTR_AUTH
+	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
+	# Modern compilers insert a .note.gnu.property section note for PAC
+	# which is only understood by binutils starting with version 2.33.1.
+	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
+	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
+	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
+	help
+	  If the compiler supports the -mbranch-protection or
+	  -msign-return-address flag (e.g. GCC 7 or later), then this option
+	  will cause the kernel itself to be compiled with return address
+	  protection. In this case, and if the target hardware is known to
+	  support pointer authentication, then CONFIG_STACKPROTECTOR can be
+	  disabled with minimal loss of protection.
 
 	  This feature works with FUNCTION_GRAPH_TRACER option only if
 	  DYNAMIC_FTRACE_WITH_REGS is enabled.
@@ -1606,7 +1611,7 @@ config ARM64_BTI_KERNEL
 	bool "Use Branch Target Identification for kernel"
 	default y
 	depends on ARM64_BTI
-	depends on ARM64_PTR_AUTH
+	depends on ARM64_PTR_AUTH_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100

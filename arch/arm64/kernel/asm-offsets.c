@@ -47,6 +47,8 @@ int main(void)
   DEFINE(THREAD_SCTLR_USER,	offsetof(struct task_struct, thread.sctlr_user));
 #ifdef CONFIG_ARM64_PTR_AUTH
   DEFINE(THREAD_KEYS_USER,	offsetof(struct task_struct, thread.keys_user));
+#endif
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
   DEFINE(THREAD_KEYS_KERNEL,	offsetof(struct task_struct, thread.keys_kernel));
 #endif
 #ifdef CONFIG_ARM64_MTE
@@ -153,7 +155,9 @@ int main(void)
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
   DEFINE(PTRAUTH_USER_KEY_APIA,		offsetof(struct ptrauth_keys_user, apia));
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
   DEFINE(PTRAUTH_KERNEL_KEY_APIA,	offsetof(struct ptrauth_keys_kernel, apia));
+#endif
   BLANK();
 #endif
   return 0;

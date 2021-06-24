@@ -148,7 +148,9 @@ struct thread_struct {
 	struct debug_info	debug;		/* debugging */
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys_user	keys_user;
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
 	struct ptrauth_keys_kernel	keys_kernel;
+#endif
 #endif
 #ifdef CONFIG_ARM64_MTE
 	u64			gcr_user_excl;
