@@ -449,4 +449,6 @@ void amdgpu_ucode_sysfs_fini(struct amdgpu_device *adev);
 enum amdgpu_firmware_load_type
 amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type);
 
+const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id);
+
 #endif

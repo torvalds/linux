@@ -416,6 +416,84 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	return AMDGPU_FW_LOAD_DIRECT;
 }
 
+const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
+{
+	switch (ucode_id) {
+	case AMDGPU_UCODE_ID_SDMA0:
+		return "SDMA0";
+	case AMDGPU_UCODE_ID_SDMA1:
+		return "SDMA1";
+	case AMDGPU_UCODE_ID_SDMA2:
+		return "SDMA2";
+	case AMDGPU_UCODE_ID_SDMA3:
+		return "SDMA3";
+	case AMDGPU_UCODE_ID_SDMA4:
+		return "SDMA4";
+	case AMDGPU_UCODE_ID_SDMA5:
+		return "SDMA5";
+	case AMDGPU_UCODE_ID_SDMA6:
+		return "SDMA6";
+	case AMDGPU_UCODE_ID_SDMA7:
+		return "SDMA7";
+	case AMDGPU_UCODE_ID_CP_CE:
+		return "CP_CE";
+	case AMDGPU_UCODE_ID_CP_PFP:
+		return "CP_PFP";
+	case AMDGPU_UCODE_ID_CP_ME:
+		return "CP_ME";
+	case AMDGPU_UCODE_ID_CP_MEC1:
+		return "CP_MEC1";
+	case AMDGPU_UCODE_ID_CP_MEC1_JT:
+		return "CP_MEC1_JT";
+	case AMDGPU_UCODE_ID_CP_MEC2:
+		return "CP_MEC2";
+	case AMDGPU_UCODE_ID_CP_MEC2_JT:
+		return "CP_MEC2_JT";
+	case AMDGPU_UCODE_ID_CP_MES:
+		return "CP_MES";
+	case AMDGPU_UCODE_ID_CP_MES_DATA:
+		return "CP_MES_DATA";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
+		return "RLC_RESTORE_LIST_CNTL";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
+		return "RLC_RESTORE_LIST_GPM_MEM";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
+		return "RLC_RESTORE_LIST_SRM_MEM";
+	case AMDGPU_UCODE_ID_RLC_IRAM:
+		return "RLC_IRAM";
+	case AMDGPU_UCODE_ID_RLC_DRAM:
+		return "RLC_DRAM";
+	case AMDGPU_UCODE_ID_RLC_G:
+		return "RLC_G";
+	case AMDGPU_UCODE_ID_STORAGE:
+		return "STORAGE";
+	case AMDGPU_UCODE_ID_SMC:
+		return "SMC";
+	case AMDGPU_UCODE_ID_UVD:
+		return "UVD";
+	case AMDGPU_UCODE_ID_UVD1:
+		return "UVD1";
+	case AMDGPU_UCODE_ID_VCE:
+		return "VCE";
+	case AMDGPU_UCODE_ID_VCN:
+		return "VCN";
+	case AMDGPU_UCODE_ID_VCN1:
+		return "VCN1";
+	case AMDGPU_UCODE_ID_DMCU_ERAM:
+		return "DMCU_ERAM";
+	case AMDGPU_UCODE_ID_DMCU_INTV:
+		return "DMCU_INTV";
+	case AMDGPU_UCODE_ID_VCN0_RAM:
+		return "VCN0_RAM";
+	case AMDGPU_UCODE_ID_VCN1_RAM:
+		return "VCN1_RAM";
+	case AMDGPU_UCODE_ID_DMCUB:
+		return "DMCUB";
+	default:
+		return "UNKNOWN UCODE";
+	}
+}
+
 #define FW_VERSION_ATTR(name, mode, field)				\
 static ssize_t show_##name(struct device *dev,				\
 			  struct device_attribute *attr,		\
