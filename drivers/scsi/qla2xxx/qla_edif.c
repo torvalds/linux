@@ -2926,6 +2926,7 @@ no_dsds:
 		req->ring_ptr++;
 	}
 
+	sp->qpair->cmd_cnt++;
 	/* Set chip new ring index. */
 	wrt_reg_dword(req->req_q_in, req->ring_index);
 
