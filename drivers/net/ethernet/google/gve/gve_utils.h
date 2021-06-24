@@ -21,5 +21,8 @@ struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 			    struct gve_rx_slot_page_info *page_info, u16 len,
 			    u16 pad);
 
+/* Decrement pagecnt_bias. Set it back to INT_MAX if it reached zero. */
+void gve_dec_pagecnt_bias(struct gve_rx_slot_page_info *page_info);
+
 #endif /* _GVE_UTILS_H */
 

@@ -59,6 +59,7 @@ struct gve_rx_slot_page_info {
 	struct page *page;
 	void *page_address;
 	u32 page_offset; /* offset to write to in page */
+	int pagecnt_bias; /* expected pagecnt if only the driver has a ref */
 	u8 can_flip;
 };
 
