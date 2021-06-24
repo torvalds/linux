@@ -131,6 +131,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file_inode(file);
+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 	loff_t len, vma_len;
 	int ret;
 	struct hstate *h = hstate_file(file);
@@ -145,6 +146,10 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 */
 	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
 	vma->vm_ops = &hugetlb_vm_ops;
+
+	ret = seal_check_future_write(info->seals, vma);
+	if (ret)
+		return ret;
 
 	/*
 	 * page based offset in vm_pgoff could be sufficiently large to
@@ -524,7 +529,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			 * the subpool and global reserve usage count can need
 			 * to be adjusted.
 			 */
-			VM_BUG_ON(PagePrivate(page));
+			VM_BUG_ON(HPageRestoreReserve(page));
 			remove_huge_page(page);
 			freed++;
 			if (!truncate_op) {
