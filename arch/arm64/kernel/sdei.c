@@ -233,13 +233,13 @@ out_err:
 }
 
 /*
- * __sdei_handler() returns one of:
+ * do_sdei_event() returns one of:
  *  SDEI_EV_HANDLED -  success, return to the interrupted context.
  *  SDEI_EV_FAILED  -  failure, return this error code to firmare.
  *  virtual-address -  success, return to this address.
  */
-static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
-					     struct sdei_registered_event *arg)
+unsigned long __kprobes do_sdei_event(struct pt_regs *regs,
+				      struct sdei_registered_event *arg)
 {
 	u32 mode;
 	int i, err = 0;
@@ -293,46 +293,4 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 		return vbar + 0x680;
 
 	return vbar + 0x480;
-}
-
-static void __kprobes notrace __sdei_pstate_entry(void)
-{
-	/*
-	 * The original SDEI spec (ARM DEN 0054A) can be read ambiguously as to
-	 * whether PSTATE bits are inherited unchanged or generated from
-	 * scratch, and the TF-A implementation always clears PAN and always
-	 * clears UAO. There are no other known implementations.
-	 *
-	 * Subsequent revisions (ARM DEN 0054B) follow the usual rules for how
-	 * PSTATE is modified upon architectural exceptions, and so PAN is
-	 * either inherited or set per SCTLR_ELx.SPAN, and UAO is always
-	 * cleared.
-	 *
-	 * We must explicitly reset PAN to the expected state, including
-	 * clearing it when the host isn't using it, in case a VM had it set.
-	 */
-	if (system_uses_hw_pan())
-		set_pstate_pan(1);
-	else if (cpu_has_pan())
-		set_pstate_pan(0);
-}
-
-asmlinkage noinstr unsigned long
-__sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
-{
-	unsigned long ret;
-
-	/*
-	 * We didn't take an exception to get here, so the HW hasn't
-	 * set/cleared bits in PSTATE that we may rely on. Initialize PAN.
-	 */
-	__sdei_pstate_entry();
-
-	arm64_enter_nmi(regs);
-
-	ret = _sdei_handler(regs, arg);
-
-	arm64_exit_nmi(regs);
-
-	return ret;
 }

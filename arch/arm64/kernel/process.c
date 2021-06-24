@@ -18,7 +18,6 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/lockdep.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/nospec.h>
@@ -48,7 +47,6 @@
 #include <asm/alternative.h>
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
-#include <asm/cpuidle.h>
 #include <asm/cacheflush.h>
 #include <asm/exec.h>
 #include <asm/fpsimd.h>
@@ -73,40 +71,6 @@ void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
-
-/*
- *	cpu_do_idle()
- *
- *	Idle the processor (wait for interrupt).
- *
- *	If the CPU supports priority masking we must do additional work to
- *	ensure that interrupts are not masked at the PMR (because the core will
- *	not wake up if we block the wake up signal in the interrupt controller).
- */
-void noinstr cpu_do_idle(void)
-{
-	struct arm_cpuidle_irq_context context;
-
-	arm_cpuidle_save_irq_context(&context);
-
-	dsb(sy);
-	wfi();
-
-	arm_cpuidle_restore_irq_context(&context);
-}
-
-/*
- * This is our default idle handler.
- */
-void noinstr arch_cpu_idle(void)
-{
-	/*
-	 * This should do all the clock switching and wait for interrupt
-	 * tricks
-	 */
-	cpu_do_idle();
-	raw_local_irq_enable();
-}
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -722,22 +686,6 @@ static int __init tagged_addr_init(void)
 
 core_initcall(tagged_addr_init);
 #endif	/* CONFIG_ARM64_TAGGED_ADDR_ABI */
-
-asmlinkage void __sched arm64_preempt_schedule_irq(void)
-{
-	lockdep_assert_irqs_disabled();
-
-	/*
-	 * Preempting a task from an IRQ means we leave copies of PSTATE
-	 * on the stack. cpufeature's enable calls may modify PSTATE, but
-	 * resuming one of these preempted tasks would undo those changes.
-	 *
-	 * Only allow a task to be preempted once cpufeatures have been
-	 * enabled.
-	 */
-	if (system_capabilities_finalized())
-		preempt_schedule_irq();
-}
 
 #ifdef CONFIG_BINFMT_ELF
 int arch_elf_adjust_prot(int prot, const struct arch_elf_state *state,
