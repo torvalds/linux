@@ -194,6 +194,11 @@ struct gve_qpl_config {
 	unsigned long *qpl_id_map; /* bitmap of used qpl ids */
 };
 
+struct gve_options_dqo_rda {
+	u16 tx_comp_ring_entries; /* number of tx_comp descriptors */
+	u16 rx_buff_ring_entries; /* number of rx_buff descriptors */
+};
+
 /* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
  * when the entire configure_device_resources command is zeroed out and the
  * queue_format is not specified.
@@ -285,6 +290,8 @@ struct gve_priv {
 
 	/* Gvnic device link speed from hypervisor. */
 	u64 link_speed;
+
+	struct gve_options_dqo_rda options_dqo_rda;
 
 	enum gve_queue_format queue_format;
 };
@@ -531,6 +538,12 @@ static inline enum dma_data_direction gve_qpl_dma_dir(struct gve_priv *priv,
 		return DMA_TO_DEVICE;
 	else
 		return DMA_FROM_DEVICE;
+}
+
+static inline bool gve_is_gqi(struct gve_priv *priv)
+{
+	return priv->queue_format == GVE_GQI_RDA_FORMAT ||
+		priv->queue_format == GVE_GQI_QPL_FORMAT;
 }
 
 /* buffers */

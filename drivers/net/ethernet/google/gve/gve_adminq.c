@@ -602,6 +602,40 @@ int gve_adminq_destroy_rx_queues(struct gve_priv *priv, u32 num_queues)
 	return gve_adminq_kick_and_wait(priv);
 }
 
+static int gve_set_desc_cnt(struct gve_priv *priv,
+			    struct gve_device_descriptor *descriptor)
+{
+	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
+	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
+		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n",
+			priv->tx_desc_cnt);
+		return -EINVAL;
+	}
+	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
+	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
+	    < PAGE_SIZE) {
+		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n",
+			priv->rx_desc_cnt);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int
+gve_set_desc_cnt_dqo(struct gve_priv *priv,
+		     const struct gve_device_descriptor *descriptor,
+		     const struct gve_device_option_dqo_rda *dev_op_dqo_rda)
+{
+	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
+	priv->options_dqo_rda.tx_comp_ring_entries =
+		be16_to_cpu(dev_op_dqo_rda->tx_comp_ring_entries);
+	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
+	priv->options_dqo_rda.rx_buff_ring_entries =
+		be16_to_cpu(dev_op_dqo_rda->rx_buff_ring_entries);
+
+	return 0;
+}
+
 int gve_adminq_describe_device(struct gve_priv *priv)
 {
 	struct gve_device_option_gqi_rda *dev_op_gqi_rda = NULL;
@@ -655,22 +689,14 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 		dev_info(&priv->pdev->dev,
 			 "Driver is running with GQI QPL queue format.\n");
 	}
+	if (gve_is_gqi(priv)) {
+		err = gve_set_desc_cnt(priv, descriptor);
+	} else {
+		err = gve_set_desc_cnt_dqo(priv, descriptor, dev_op_dqo_rda);
+	}
+	if (err)
+		goto free_device_descriptor;
 
-	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
-	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n", priv->tx_desc_cnt);
-		err = -EINVAL;
-		goto free_device_descriptor;
-	}
-	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
-	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
-	    < PAGE_SIZE ||
-	    priv->rx_desc_cnt * sizeof(priv->rx->data.data_ring[0])
-	    < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n", priv->rx_desc_cnt);
-		err = -EINVAL;
-		goto free_device_descriptor;
-	}
 	priv->max_registered_pages =
 				be64_to_cpu(descriptor->max_registered_pages);
 	mtu = be16_to_cpu(descriptor->mtu);
@@ -686,7 +712,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	dev_info(&priv->pdev->dev, "MAC addr: %pM\n", mac);
 	priv->tx_pages_per_qpl = be16_to_cpu(descriptor->tx_pages_per_qpl);
 	priv->rx_data_slot_cnt = be16_to_cpu(descriptor->rx_pages_per_qpl);
-	if (priv->rx_data_slot_cnt < priv->rx_desc_cnt) {
+
+	if (gve_is_gqi(priv) && priv->rx_data_slot_cnt < priv->rx_desc_cnt) {
 		dev_err(&priv->pdev->dev, "rx_data_slot_cnt cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
 			priv->rx_data_slot_cnt);
 		priv->rx_desc_cnt = priv->rx_data_slot_cnt;
