@@ -273,9 +273,19 @@ static int opp_helper(struct dev_pm_set_opp_data *data)
 	struct device *dev = data->dev;
 	struct clk *clk = data->clk;
 	struct cluster_info *cluster;
+	struct dev_pm_opp_supply *old_supply_mem;
+	struct dev_pm_opp_supply *new_supply_mem;
+	struct regulator *mem_reg;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
+	unsigned int regulator_count = data->regulator_count;
 	int ret = 0;
+
+	if (regulator_count > 1) {
+		old_supply_mem = &data->old_opp.supplies[1];
+		new_supply_mem = &data->new_opp.supplies[1];
+		mem_reg = data->regulators[1];
+	}
 
 	cluster = rockchip_cluster_info_lookup(dev->id);
 	if (!cluster)
@@ -285,6 +295,12 @@ static int opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
+		if (regulator_count > 1) {
+			ret = rockchip_cpufreq_set_volt(dev, mem_reg,
+							new_supply_mem, "mem");
+			if (ret)
+				goto restore_voltage;
+		}
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
 						"vdd");
 		if (ret)
@@ -306,6 +322,12 @@ static int opp_helper(struct dev_pm_set_opp_data *data)
 						"vdd");
 		if (ret)
 			goto restore_freq;
+		if (regulator_count > 1) {
+			ret = rockchip_cpufreq_set_volt(dev, mem_reg,
+							new_supply_mem, "mem");
+			if (ret)
+				goto restore_freq;
+		}
 	}
 
 	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
@@ -317,6 +339,8 @@ restore_freq:
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
 restore_voltage:
+	if (regulator_count > 1 && old_supply_mem->u_volt)
+		rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
 	if (old_supply_vdd->u_volt)
 		rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
 
@@ -328,9 +352,11 @@ restore_voltage:
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
 	struct opp_table *pname_table = NULL;
+	struct opp_table *reg_table = NULL;
 	struct opp_table *opp_table;
 	struct device_node *np;
 	struct device *dev;
+	const char * const reg_names[] = {"cpu", "mem"};
 	char *reg_name = NULL;
 	int bin = -EINVAL;
 	int process = -EINVAL;
@@ -369,13 +395,32 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		goto np_err;
 	}
 
+	if (of_find_property(dev->of_node, "cpu-supply", NULL) &&
+	    of_find_property(dev->of_node, "mem-supply", NULL)) {
+		reg_table = dev_pm_opp_set_regulators(dev, reg_names,
+						      ARRAY_SIZE(reg_names));
+		if (IS_ERR(reg_table)) {
+			ret = PTR_ERR(reg_table);
+			goto pname_opp_table;
+		}
+	}
+
 	opp_table = dev_pm_opp_register_set_opp_helper(dev, opp_helper);
 	if (IS_ERR(opp_table)) {
 		ret = PTR_ERR(opp_table);
-		if (pname_table)
-			dev_pm_opp_put_prop_name(pname_table);
+		goto reg_opp_table;
 	}
 
+	of_node_put(np);
+
+	return 0;
+
+reg_opp_table:
+	if (reg_table)
+		dev_pm_opp_put_regulators(reg_table);
+pname_opp_table:
+	if (pname_table)
+		dev_pm_opp_put_prop_name(pname_table);
 np_err:
 	of_node_put(np);
 
