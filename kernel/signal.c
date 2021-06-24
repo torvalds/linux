@@ -2386,7 +2386,8 @@ static bool do_signal_stop(int signr)
 		WARN_ON_ONCE(signr & ~JOBCTL_STOP_SIGMASK);
 
 		if (!likely(current->jobctl & JOBCTL_STOP_DEQUEUED) ||
-		    unlikely(signal_group_exit(sig)))
+		    unlikely(sig->flags & SIGNAL_GROUP_EXIT) ||
+		    unlikely(sig->group_exec_task))
 			return false;
 		/*
 		 * There is no group stop already in progress.  We must
@@ -2693,7 +2694,8 @@ relock:
 		enum pid_type type;
 
 		/* Has this task already been marked for death? */
-		if (signal_group_exit(signal)) {
+		if ((signal->flags & SIGNAL_GROUP_EXIT) ||
+		     signal->group_exec_task) {
 			ksig->info.si_signo = signr = SIGKILL;
 			sigdelset(&current->pending.signal, SIGKILL);
 			trace_signal_deliver(SIGKILL, SEND_SIG_NOINFO,
@@ -2949,7 +2951,7 @@ void exit_signals(struct task_struct *tsk)
 	 */
 	cgroup_threadgroup_change_begin(tsk);
 
-	if (thread_group_empty(tsk) || signal_group_exit(tsk->signal)) {
+	if (thread_group_empty(tsk) || (tsk->signal->flags & SIGNAL_GROUP_EXIT)) {
 		tsk->flags |= PF_EXITING;
 		cgroup_threadgroup_change_end(tsk);
 		return;

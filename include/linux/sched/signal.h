@@ -271,13 +271,6 @@ static inline void signal_set_stop_flags(struct signal_struct *sig,
 	sig->flags = (sig->flags & ~SIGNAL_STOP_MASK) | flags;
 }
 
-/* If true, all threads except ->group_exec_task have pending SIGKILL */
-static inline int signal_group_exit(const struct signal_struct *sig)
-{
-	return	(sig->flags & SIGNAL_GROUP_EXIT) ||
-		(sig->group_exec_task != NULL);
-}
-
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);

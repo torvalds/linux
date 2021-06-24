@@ -372,11 +372,12 @@ static int zap_process(struct task_struct *start, int exit_code)
 static int zap_threads(struct task_struct *tsk,
 			struct core_state *core_state, int exit_code)
 {
+	struct signal_struct *signal = tsk->signal;
 	int nr = -EAGAIN;
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (!signal_group_exit(tsk->signal)) {
-		tsk->signal->core_state = core_state;
+	if (!(signal->flags & SIGNAL_GROUP_EXIT) && !signal->group_exec_task) {
+		signal->core_state = core_state;
 		nr = zap_process(tsk, exit_code);
 		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 		tsk->flags |= PF_DUMPCORE;
