@@ -616,9 +616,9 @@ static int ti_sn_bridge_calc_min_dp_rate_idx(struct ti_sn65dsi86 *pdata)
 	return i;
 }
 
-static void ti_sn_bridge_read_valid_rates(struct ti_sn65dsi86 *pdata,
-					  bool rate_valid[])
+static unsigned int ti_sn_bridge_read_valid_rates(struct ti_sn65dsi86 *pdata)
 {
+	unsigned int valid_rates = 0;
 	unsigned int rate_per_200khz;
 	unsigned int rate_mhz;
 	u8 dpcd_val;
@@ -658,13 +658,13 @@ static void ti_sn_bridge_read_valid_rates(struct ti_sn65dsi86 *pdata,
 			     j < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
 			     j++) {
 				if (ti_sn_bridge_dp_rate_lut[j] == rate_mhz)
-					rate_valid[j] = true;
+					valid_rates |= BIT(j);
 			}
 		}
 
 		for (i = 0; i < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut); i++) {
-			if (rate_valid[i])
-				return;
+			if (valid_rates & BIT(i))
+				return valid_rates;
 		}
 		DRM_DEV_ERROR(pdata->dev,
 			      "No matching eDP rates in table; falling back\n");
@@ -686,15 +686,17 @@ static void ti_sn_bridge_read_valid_rates(struct ti_sn65dsi86 *pdata,
 			      (int)dpcd_val);
 		fallthrough;
 	case DP_LINK_BW_5_4:
-		rate_valid[7] = 1;
+		valid_rates |= BIT(7);
 		fallthrough;
 	case DP_LINK_BW_2_7:
-		rate_valid[4] = 1;
+		valid_rates |= BIT(4);
 		fallthrough;
 	case DP_LINK_BW_1_62:
-		rate_valid[1] = 1;
+		valid_rates |= BIT(1);
 		break;
 	}
+
+	return valid_rates;
 }
 
 static void ti_sn_bridge_set_video_timings(struct ti_sn65dsi86 *pdata)
@@ -812,8 +814,8 @@ exit:
 static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
-	bool rate_valid[ARRAY_SIZE(ti_sn_bridge_dp_rate_lut)] = { };
 	const char *last_err_str = "No supported DP rate";
+	unsigned int valid_rates;
 	int dp_rate_idx;
 	unsigned int val;
 	int ret = -EINVAL;
@@ -852,13 +854,13 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	regmap_update_bits(pdata->regmap, SN_SSC_CONFIG_REG, DP_NUM_LANES_MASK,
 			   val);
 
-	ti_sn_bridge_read_valid_rates(pdata, rate_valid);
+	valid_rates = ti_sn_bridge_read_valid_rates(pdata);
 
 	/* Train until we run out of rates */
 	for (dp_rate_idx = ti_sn_bridge_calc_min_dp_rate_idx(pdata);
 	     dp_rate_idx < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
 	     dp_rate_idx++) {
-		if (!rate_valid[dp_rate_idx])
+		if (!(valid_rates & BIT(dp_rate_idx)))
 			continue;
 
 		ret = ti_sn_link_training(pdata, dp_rate_idx, &last_err_str);
