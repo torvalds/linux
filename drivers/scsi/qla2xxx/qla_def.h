@@ -49,6 +49,28 @@ typedef struct {
 	uint8_t domain;
 } le_id_t;
 
+/*
+ * 24 bit port ID type definition.
+ */
+typedef union {
+	uint32_t b24 : 24;
+	struct {
+#ifdef __BIG_ENDIAN
+		uint8_t domain;
+		uint8_t area;
+		uint8_t al_pa;
+#elif defined(__LITTLE_ENDIAN)
+		uint8_t al_pa;
+		uint8_t area;
+		uint8_t domain;
+#else
+#error "__BIG_ENDIAN or __LITTLE_ENDIAN must be defined!"
+#endif
+		uint8_t rsvd_1;
+	} b;
+} port_id_t;
+#define INVALID_PORT_ID	0xFFFFFF
+
 #include "qla_bsg.h"
 #include "qla_dsd.h"
 #include "qla_nx.h"
@@ -345,6 +367,8 @@ struct name_list_extended {
 #define FW_MAX_EXCHANGES_CNT (32 * 1024)
 #define REDUCE_EXCHANGES_CNT  (8 * 1024)
 
+#define SET_DID_STATUS(stat_var, status) (stat_var = status << 16)
+
 struct req_que;
 struct qla_tgt_sess;
 
@@ -373,29 +397,6 @@ struct srb_cmd {
 
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
-
-/*
- * 24 bit port ID type definition.
- */
-typedef union {
-	uint32_t b24 : 24;
-
-	struct {
-#ifdef __BIG_ENDIAN
-		uint8_t domain;
-		uint8_t area;
-		uint8_t al_pa;
-#elif defined(__LITTLE_ENDIAN)
-		uint8_t al_pa;
-		uint8_t area;
-		uint8_t domain;
-#else
-#error "__BIG_ENDIAN or __LITTLE_ENDIAN must be defined!"
-#endif
-		uint8_t rsvd_1;
-	} b;
-} port_id_t;
-#define INVALID_PORT_ID	0xFFFFFF
 #define ISP_REG16_DISCONNECT 0xFFFF
 
 static inline le_id_t be_id_to_le(be_id_t id)
@@ -2424,6 +2425,7 @@ enum discovery_state {
 	DSC_LOGIN_COMPLETE,
 	DSC_ADISC,
 	DSC_DELETE_PEND,
+	DSC_LOGIN_AUTH_PEND,
 };
 
 enum login_state {	/* FW control Target side */
@@ -2563,6 +2565,22 @@ typedef struct fc_port {
 	u64 tgt_short_link_down_cnt;
 	u64 tgt_link_down_time;
 	u64 dev_loss_tmo;
+	/*
+	 * EDIF parameters for encryption.
+	 */
+	struct {
+		uint32_t	enable:1;	/* device is edif enabled/req'd */
+		uint32_t	app_stop:2;
+		uint32_t	app_started:1;
+		uint32_t	secured_login:1;
+		uint32_t	app_sess_online:1;
+		uint32_t	tx_rekey_cnt;
+		uint32_t	rx_rekey_cnt;
+		/* delayed rx delete data structure list */
+		uint64_t	tx_bytes;
+		uint64_t	rx_bytes;
+		uint8_t		non_secured_login;
+	} edif;
 } fc_port_t;
 
 enum {
@@ -2616,6 +2634,7 @@ static const char * const port_dstate_str[] = {
 #define FCF_ASYNC_SENT		BIT_3
 #define FCF_CONF_COMP_SUPPORTED BIT_4
 #define FCF_ASYNC_ACTIVE	BIT_5
+#define FCF_FCSP_DEVICE		BIT_6
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -3935,6 +3954,7 @@ struct qla_hw_data {
 		uint32_t	scm_supported_f:1;
 				/* Enabled in Driver */
 		uint32_t	scm_enabled:1;
+		uint32_t	edif_enabled:1;
 		uint32_t	max_req_queue_warned:1;
 		uint32_t	plogi_template_valid:1;
 		uint32_t	port_isolated:1;
@@ -4659,6 +4679,8 @@ struct purex_item {
 	} iocb;
 };
 
+#include "qla_edif.h"
+
 #define SCM_FLAG_RDF_REJECT		0x00
 #define SCM_FLAG_RDF_COMPLETED		0x01
 
@@ -4888,6 +4910,8 @@ typedef struct scsi_qla_host {
 	u64 reset_cmd_err_cnt;
 	u64 link_down_time;
 	u64 short_link_down_cnt;
+	struct edif_dbell e_dbell;
+	struct pur_core pur_cinfo;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
