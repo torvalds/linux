@@ -3053,6 +3053,43 @@ done:
 	return rval;
 }
 
+/* it is assume qpair lock is held */
+void qla_els_pt_iocb(struct scsi_qla_host *vha,
+	struct els_entry_24xx *els_iocb,
+	struct qla_els_pt_arg *a)
+{
+	els_iocb->entry_type = ELS_IOCB_TYPE;
+	els_iocb->entry_count = 1;
+	els_iocb->sys_define = 0;
+	els_iocb->entry_status = 0;
+	els_iocb->handle = QLA_SKIP_HANDLE;
+	els_iocb->nport_handle = a->nport_handle;
+	els_iocb->rx_xchg_address = a->rx_xchg_address;
+	els_iocb->tx_dsd_count = cpu_to_le16(1);
+	els_iocb->vp_index = a->vp_idx;
+	els_iocb->sof_type = EST_SOFI3;
+	els_iocb->rx_dsd_count = cpu_to_le16(0);
+	els_iocb->opcode = a->els_opcode;
+
+	els_iocb->d_id[0] = a->did.b.al_pa;
+	els_iocb->d_id[1] = a->did.b.area;
+	els_iocb->d_id[2] = a->did.b.domain;
+	/* For SID the byte order is different than DID */
+	els_iocb->s_id[1] = vha->d_id.b.al_pa;
+	els_iocb->s_id[2] = vha->d_id.b.area;
+	els_iocb->s_id[0] = vha->d_id.b.domain;
+
+	els_iocb->control_flags = cpu_to_le16(a->control_flags);
+
+	els_iocb->tx_byte_count = cpu_to_le32(a->tx_byte_count);
+	els_iocb->tx_len = cpu_to_le32(a->tx_len);
+	put_unaligned_le64(a->tx_addr, &els_iocb->tx_address);
+
+	els_iocb->rx_byte_count = cpu_to_le32(a->rx_byte_count);
+	els_iocb->rx_len = cpu_to_le32(a->rx_len);
+	put_unaligned_le64(a->rx_addr, &els_iocb->rx_address);
+}
+
 static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
@@ -3750,6 +3787,10 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_ELS_CMD_RPT:
 	case SRB_ELS_CMD_HST:
 		qla24xx_els_iocb(sp, pkt);
+		break;
+	case SRB_ELS_CMD_HST_NOLOGIN:
+		qla_els_pt_iocb(sp->vha, pkt,  &sp->u.bsg_cmd.u.els_arg);
+		((struct els_entry_24xx *)pkt)->handle = sp->handle;
 		break;
 	case SRB_CT_CMD:
 		IS_FWI2_CAPABLE(ha) ?

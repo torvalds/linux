@@ -3107,6 +3107,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	qla2x00_wait_for_sess_deletion(vha);
 
 	qla_nvme_delete(vha);
+	qla_enode_stop(vha);
 	vha->flags.delete_progress = 1;
 
 	qlt_remove_target(ha, vha);

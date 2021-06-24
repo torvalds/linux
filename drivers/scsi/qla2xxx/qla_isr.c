@@ -1971,7 +1971,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 }
 
 static void
-qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
+qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
     struct sts_entry_24xx *pkt, int iocb_type)
 {
 	struct els_sts_entry_24xx *ese = (struct els_sts_entry_24xx *)pkt;
@@ -1982,18 +1982,58 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	struct fc_bsg_reply *bsg_reply;
 	uint16_t comp_status;
 	uint32_t fw_status[3];
-	int res;
+	int res, logit = 1;
 	struct srb_iocb *els;
+	uint n;
+	scsi_qla_host_t *vha;
+	struct els_sts_entry_24xx *e = (struct els_sts_entry_24xx *)pkt;
 
-	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	sp = qla2x00_get_sp_from_handle(v, func, req, pkt);
 	if (!sp)
 		return;
+	bsg_job = sp->u.bsg_job;
+	vha = sp->vha;
 
 	type = NULL;
+
+	comp_status = fw_status[0] = le16_to_cpu(pkt->comp_status);
+	fw_status[1] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_1);
+	fw_status[2] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_2);
+
 	switch (sp->type) {
 	case SRB_ELS_CMD_RPT:
 	case SRB_ELS_CMD_HST:
+		type = "rpt hst";
+		break;
+	case SRB_ELS_CMD_HST_NOLOGIN:
 		type = "els";
+		{
+			struct els_entry_24xx *els = (void *)pkt;
+			struct qla_bsg_auth_els_request *p =
+				(struct qla_bsg_auth_els_request *)bsg_job->request;
+
+			ql_dbg(ql_dbg_user, vha, 0x700f,
+			     "%s %s. portid=%02x%02x%02x status %x xchg %x bsg ptr %p\n",
+			     __func__, sc_to_str(p->e.sub_cmd),
+			     e->d_id[2], e->d_id[1], e->d_id[0],
+			     comp_status, p->e.extra_rx_xchg_address, bsg_job);
+
+			if (!(le16_to_cpu(els->control_flags) & ECF_PAYLOAD_DESCR_MASK)) {
+				if (sp->remap.remapped) {
+					n = sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+						bsg_job->reply_payload.sg_cnt,
+						sp->remap.rsp.buf,
+						sp->remap.rsp.len);
+					ql_dbg(ql_dbg_user + ql_dbg_verbose, vha, 0x700e,
+					   "%s: SG copied %x of %x\n",
+					   __func__, n, sp->remap.rsp.len);
+				} else {
+					ql_dbg(ql_dbg_user, vha, 0x700f,
+					   "%s: NOT REMAPPED (error)...!!!\n",
+					   __func__);
+				}
+			}
+		}
 		break;
 	case SRB_CT_CMD:
 		type = "ct pass-through";
@@ -2023,10 +2063,6 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		return;
 	}
 
-	comp_status = fw_status[0] = le16_to_cpu(pkt->comp_status);
-	fw_status[1] = le32_to_cpu(ese->error_subcode_1);
-	fw_status[2] = le32_to_cpu(ese->error_subcode_2);
-
 	if (iocb_type == ELS_IOCB_TYPE) {
 		els = &sp->u.iocb_cmd;
 		els->u.els_plogi.fw_status[0] = cpu_to_le32(fw_status[0]);
@@ -2040,15 +2076,52 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 				res =  DID_OK << 16;
 				els->u.els_plogi.len = cpu_to_le16(le32_to_cpu(
 					ese->total_byte_count));
+
+				if (sp->remap.remapped &&
+				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_ACC) {
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "%s IOCB Done LS_ACC %02x%02x%02x -> %02x%02x%02x",
+					    __func__, e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+					logit = 0;
+				}
+
+			} else if (comp_status == CS_PORT_LOGGED_OUT) {
+				els->u.els_plogi.len = 0;
+				res = DID_IMM_RETRY << 16;
 			} else {
 				els->u.els_plogi.len = 0;
 				res = DID_ERROR << 16;
 			}
+
+			if (logit) {
+				if (sp->remap.remapped &&
+				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_RJT) {
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "%s IOCB Done LS_RJT hdl=%x comp_status=0x%x\n",
+					    type, sp->handle, comp_status);
+
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
+					    fw_status[1], fw_status[2],
+					    le32_to_cpu(((struct els_sts_entry_24xx *)
+						pkt)->total_byte_count),
+					    e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+				} else {
+					ql_log(ql_log_info, vha, 0x503f,
+					    "%s IOCB Done hdl=%x comp_status=0x%x\n",
+					    type, sp->handle, comp_status);
+					ql_log(ql_log_info, vha, 0x503f,
+					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
+					    fw_status[1], fw_status[2],
+					    le32_to_cpu(((struct els_sts_entry_24xx *)
+						pkt)->total_byte_count),
+					    e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+				}
+			}
 		}
-		ql_dbg(ql_dbg_disc, vha, 0x503f,
-		    "ELS IOCB Done -%s hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
-		    type, sp->handle, comp_status, fw_status[1], fw_status[2],
-		    le32_to_cpu(ese->total_byte_count));
 		goto els_ct_done;
 	}
 

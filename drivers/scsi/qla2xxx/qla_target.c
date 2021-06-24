@@ -184,8 +184,7 @@ static inline int qlt_issue_marker(struct scsi_qla_host *vha, int vha_locked)
 	return QLA_SUCCESS;
 }
 
-static inline
-struct scsi_qla_host *qlt_find_host_by_d_id(struct scsi_qla_host *vha,
+struct scsi_qla_host *qla_find_host_by_d_id(struct scsi_qla_host *vha,
 					    be_id_t d_id)
 {
 	struct scsi_qla_host *host;
@@ -299,7 +298,7 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 			goto abort;
 		}
 
-		host = qlt_find_host_by_d_id(vha, u->atio.u.isp24.fcp_hdr.d_id);
+		host = qla_find_host_by_d_id(vha, u->atio.u.isp24.fcp_hdr.d_id);
 		if (host != NULL) {
 			ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0x502f,
 			    "Requeuing unknown ATIO_TYPE7 %p\n", u);
@@ -348,7 +347,7 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	switch (atio->u.raw.entry_type) {
 	case ATIO_TYPE7:
 	{
-		struct scsi_qla_host *host = qlt_find_host_by_d_id(vha,
+		struct scsi_qla_host *host = qla_find_host_by_d_id(vha,
 		    atio->u.isp24.fcp_hdr.d_id);
 		if (unlikely(NULL == host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe03e,

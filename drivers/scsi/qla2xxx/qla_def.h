@@ -341,6 +341,13 @@ struct name_list_extended {
 	u32			size;
 	u8			sent;
 };
+
+struct els_reject {
+	struct fc_els_ls_rjt *c;
+	dma_addr_t  cdma;
+	u16 size;
+};
+
 /*
  * Timeout timer counts in seconds
  */
@@ -618,6 +625,21 @@ struct srb_iocb {
 #define SRB_PRLI_CMD	21
 #define SRB_CTRL_VP	22
 #define SRB_PRLO_CMD	23
+#define SRB_SA_UPDATE	25
+#define SRB_ELS_CMD_HST_NOLOGIN 26
+#define SRB_SA_REPLACE	27
+
+struct qla_els_pt_arg {
+	u8 els_opcode;
+	u8 vp_idx;
+	__le16 nport_handle;
+	u16 control_flags;
+	__le32 rx_xchg_address;
+	port_id_t did;
+	u32 tx_len, tx_byte_count, rx_len, rx_byte_count;
+	dma_addr_t tx_addr, rx_addr;
+
+};
 
 enum {
 	TYPE_SRB,
@@ -629,6 +651,13 @@ struct iocb_resource {
 	u8 res_type;
 	u8 pad;
 	u16 iocb_cnt;
+};
+
+struct bsg_cmd {
+	struct bsg_job *bsg_job;
+	union {
+		struct qla_els_pt_arg els_arg;
+	} u;
 };
 
 typedef struct srb {
@@ -663,7 +692,21 @@ typedef struct srb {
 		struct srb_iocb iocb_cmd;
 		struct bsg_job *bsg_job;
 		struct srb_cmd scmd;
+		struct bsg_cmd bsg_cmd;
 	} u;
+	struct {
+		bool remapped;
+		struct {
+			dma_addr_t dma;
+			void *buf;
+			uint len;
+		} req;
+		struct {
+			dma_addr_t dma;
+			void *buf;
+			uint len;
+		} rsp;
+	} remap;
 	/*
 	 * Report completion status @res and call sp_put(@sp). @res is
 	 * an NVMe status code, a SCSI result (e.g. DID_OK << 16) or a
@@ -4640,7 +4683,11 @@ struct qla_hw_data {
 	struct qla_hw_data_stat stat;
 	pci_error_state_t pci_error_state;
 	u64 prev_cmd_cnt;
+	struct dma_pool *purex_dma_pool;
+	struct els_reject elsrej;
 };
+
+#define RX_ELS_SIZE (roundup(sizeof(struct enode) + ELS_MAX_PAYLOAD, SMP_CACHE_BYTES))
 
 struct active_regions {
 	uint8_t global;
@@ -5113,6 +5160,7 @@ enum nexus_wait_type {
 	WAIT_LUN,
 };
 
+#define QLA_SKIP_HANDLE QLA_TGT_SKIP_HANDLE
 /* Refer to SNIA SFF 8247 */
 struct sff_8247_a0 {
 	u8 txid;	/* transceiver id */

@@ -130,6 +130,8 @@ void qla24xx_free_purex_item(struct purex_item *item);
 extern bool qla24xx_risc_firmware_invalid(uint32_t *);
 void qla_init_iocb_limit(scsi_qla_host_t *);
 
+int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsgjob);
+const char *sc_to_str(uint16_t cmd);
 
 /*
  * Global Data in qla_os.c source file.
@@ -280,7 +282,8 @@ extern int  qla2x00_vp_abort_isp(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_iocb.c source file.
  */
-
+void qla_els_pt_iocb(struct scsi_qla_host *vha,
+	struct els_entry_24xx *pkt, struct qla_els_pt_arg *a);
 extern uint16_t qla2x00_calc_iocbs_32(uint16_t);
 extern uint16_t qla2x00_calc_iocbs_64(uint16_t);
 extern void qla2x00_build_scsi_iocbs_32(srb_t *, cmd_entry_t *, uint16_t);
@@ -950,6 +953,7 @@ extern void qla_nvme_abort_process_comp_status
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
+fc_port_t *qla2x00_find_fcport_by_pid(scsi_qla_host_t *vha, port_id_t *id);
 void qla_edb_stop(scsi_qla_host_t *vha);
 int32_t qla_edif_app_mgmt(struct bsg_job *bsg_job);
 void qla_enode_init(scsi_qla_host_t *vha);

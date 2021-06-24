@@ -27,6 +27,10 @@ void qla2x00_bsg_job_done(srb_t *sp, int res)
 
 	sp->free(sp);
 
+	ql_dbg(ql_dbg_user, sp->vha, 0x7009,
+	    "%s: sp hdl %x, result=%x bsg ptr %p\n",
+	    __func__, sp->handle, res, bsg_job);
+
 	bsg_reply->result = res;
 	bsg_job_done(bsg_job, bsg_reply->result,
 		       bsg_reply->reply_payload_rcv_len);
@@ -53,11 +57,19 @@ void qla2x00_bsg_sp_free(srb_t *sp)
 			    bsg_job->reply_payload.sg_list,
 			    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
 	} else {
-		dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-		    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 
-		dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-		    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+		if (sp->remap.remapped) {
+			dma_pool_free(ha->purex_dma_pool, sp->remap.rsp.buf,
+			    sp->remap.rsp.dma);
+			dma_pool_free(ha->purex_dma_pool, sp->remap.req.buf,
+			    sp->remap.req.dma);
+		} else {
+			dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+				bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+
+			dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
+				bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+		}
 	}
 
 	if (sp->type == SRB_CT_CMD ||
@@ -266,6 +278,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	int req_sg_cnt, rsp_sg_cnt;
 	int rval =  (DID_ERROR << 16);
 	uint16_t nextlid = 0;
+	uint32_t els_cmd = 0;
 
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
 		rport = fc_bsg_to_rport(bsg_job);
@@ -279,6 +292,9 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 		vha = shost_priv(host);
 		ha = vha->hw;
 		type = "FC_BSG_HST_ELS_NOLOGIN";
+		els_cmd = bsg_request->rqst_data.h_els.command_code;
+		if (els_cmd == ELS_AUTH_ELS)
+			return qla_edif_process_els(vha, bsg_job);
 	}
 
 	if (!vha->flags.online) {
@@ -2948,27 +2964,26 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
-			if (sp) {
-				if (((sp->type == SRB_CT_CMD) ||
-					(sp->type == SRB_ELS_CMD_HST) ||
-					(sp->type == SRB_FXIOCB_BCMD))
-					&& (sp->u.bsg_job == bsg_job)) {
-					req->outstanding_cmds[cnt] = NULL;
-					spin_unlock_irqrestore(&ha->hardware_lock, flags);
-					if (ha->isp_ops->abort_command(sp)) {
-						ql_log(ql_log_warn, vha, 0x7089,
-						    "mbx abort_command "
-						    "failed.\n");
-						bsg_reply->result = -EIO;
-					} else {
-						ql_dbg(ql_dbg_user, vha, 0x708a,
-						    "mbx abort_command "
-						    "success.\n");
-						bsg_reply->result = 0;
-					}
-					spin_lock_irqsave(&ha->hardware_lock, flags);
-					goto done;
+			if (sp &&
+			    (sp->type == SRB_CT_CMD ||
+			     sp->type == SRB_ELS_CMD_HST ||
+			     sp->type == SRB_ELS_CMD_HST_NOLOGIN ||
+			     sp->type == SRB_FXIOCB_BCMD) &&
+			    sp->u.bsg_job == bsg_job) {
+				req->outstanding_cmds[cnt] = NULL;
+				spin_unlock_irqrestore(&ha->hardware_lock, flags);
+				if (ha->isp_ops->abort_command(sp)) {
+					ql_log(ql_log_warn, vha, 0x7089,
+					    "mbx abort_command failed.\n");
+					bsg_reply->result = -EIO;
+				} else {
+					ql_dbg(ql_dbg_user, vha, 0x708a,
+					    "mbx abort_command success.\n");
+					bsg_reply->result = 0;
 				}
+				spin_lock_irqsave(&ha->hardware_lock, flags);
+				goto done;
+
 			}
 		}
 	}
