@@ -2,7 +2,7 @@
 /*
  * HiSilicon SoC HHA uncore Hardware event counters support
  *
- * Copyright (C) 2017 Hisilicon Limited
+ * Copyright (C) 2017 HiSilicon Limited
  * Author: Shaokun Zhang <zhangshaokun@hisilicon.com>
  *         Anurup M <anurup.m@huawei.com>
  *
@@ -90,7 +90,7 @@ static void hisi_hha_pmu_config_ds(struct perf_event *event)
 
 		val = readl(hha_pmu->base + HHA_DATSRC_CTRL);
 		val |= HHA_DATSRC_SKT_EN;
-		writel(ds_skt, hha_pmu->base + HHA_DATSRC_CTRL);
+		writel(val, hha_pmu->base + HHA_DATSRC_CTRL);
 	}
 }
 
@@ -104,7 +104,7 @@ static void hisi_hha_pmu_clear_ds(struct perf_event *event)
 
 		val = readl(hha_pmu->base + HHA_DATSRC_CTRL);
 		val &= ~HHA_DATSRC_SKT_EN;
-		writel(ds_skt, hha_pmu->base + HHA_DATSRC_CTRL);
+		writel(val, hha_pmu->base + HHA_DATSRC_CTRL);
 	}
 }
 
@@ -540,7 +540,6 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		dev_err(hha_pmu->dev, "HHA PMU register failed!\n");
 		cpuhp_state_remove_instance_nocalls(
 			CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE, &hha_pmu->node);
-		irq_set_affinity_hint(hha_pmu->irq, NULL);
 	}
 
 	return ret;
@@ -553,8 +552,6 @@ static int hisi_hha_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&hha_pmu->pmu);
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
 					    &hha_pmu->node);
-	irq_set_affinity_hint(hha_pmu->irq, NULL);
-
 	return 0;
 }
 
