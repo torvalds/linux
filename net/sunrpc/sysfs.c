@@ -133,7 +133,7 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	ssize_t ret;
 	int locked, connected, connecting, close_wait, bound, binding,
-	    closing, congested, cwnd_wait, write_space, offline;
+	    closing, congested, cwnd_wait, write_space, offline, remove;
 
 	if (!xprt)
 		return 0;
@@ -152,8 +152,9 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 		cwnd_wait = test_bit(XPRT_CWND_WAIT, &xprt->state);
 		write_space = test_bit(XPRT_WRITE_SPACE, &xprt->state);
 		offline = test_bit(XPRT_OFFLINE, &xprt->state);
+		remove = test_bit(XPRT_REMOVE, &xprt->state);
 
-		ret = sprintf(buf, "state=%s %s %s %s %s %s %s %s %s %s %s\n",
+		ret = sprintf(buf, "state=%s %s %s %s %s %s %s %s %s %s %s %s\n",
 			      locked ? "LOCKED" : "",
 			      connected ? "CONNECTED" : "",
 			      connecting ? "CONNECTING" : "",
@@ -164,7 +165,8 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 			      congested ? "CONGESTED" : "",
 			      cwnd_wait ? "CWND_WAIT" : "",
 			      write_space ? "WRITE_SPACE" : "",
-			      offline ? "OFFLINE" : "");
+			      offline ? "OFFLINE" : "",
+			      remove ? "REMOVE" : "");
 	}
 
 	xprt_put(xprt);
@@ -251,7 +253,7 @@ static ssize_t rpc_sysfs_xprt_state_change(struct kobject *kobj,
 					   const char *buf, size_t count)
 {
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
-	int offline = 0, online = 0;
+	int offline = 0, online = 0, remove = 0;
 	struct rpc_xprt_switch *xps = rpc_sysfs_xprt_kobj_get_xprt_switch(kobj);
 
 	if (!xprt)
@@ -261,6 +263,8 @@ static ssize_t rpc_sysfs_xprt_state_change(struct kobject *kobj,
 		offline = 1;
 	else if (!strncmp(buf, "online", 6))
 		online = 1;
+	else if (!strncmp(buf, "remove", 6))
+		remove = 1;
 	else
 		return -EINVAL;
 
@@ -282,6 +286,20 @@ static ssize_t rpc_sysfs_xprt_state_change(struct kobject *kobj,
 		spin_lock(&xps->xps_lock);
 		xps->xps_nactive++;
 		spin_unlock(&xps->xps_lock);
+	} else if (remove) {
+		if (test_bit(XPRT_OFFLINE, &xprt->state)) {
+			set_bit(XPRT_REMOVE, &xprt->state);
+			xprt_force_disconnect(xprt);
+			if (test_bit(XPRT_CONNECTED, &xprt->state)) {
+				if (!xprt->sending.qlen &&
+				    !xprt->pending.qlen &&
+				    !xprt->backlog.qlen &&
+				    !atomic_long_read(&xprt->queuelen))
+					rpc_xprt_switch_remove_xprt(xps, xprt);
+			}
+		} else {
+			count = -EINVAL;
+		}
 	}
 
 release_tasks:
