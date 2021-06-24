@@ -448,7 +448,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	if (unlikely(cpumask_empty(candidates))) {
 		if (most_spare_cap_cpu != -1)
 			cpumask_set_cpu(most_spare_cap_cpu, candidates);
-		else if (!cpu_active(prev_cpu))
+		else if (!cpu_active(prev_cpu) && active_candidate != -1)
 			cpumask_set_cpu(active_candidate, candidates);
 	}
 
