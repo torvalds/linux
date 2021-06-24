@@ -104,11 +104,6 @@ static int scmi_dev_probe(struct device *dev)
 {
 	struct scmi_driver *scmi_drv = to_scmi_driver(dev->driver);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
-	const struct scmi_device_id *id;
-
-	id = scmi_dev_match_id(scmi_dev, scmi_drv);
-	if (!id)
-		return -ENODEV;
 
 	if (!scmi_dev->handle)
 		return -EPROBE_DEFER;
