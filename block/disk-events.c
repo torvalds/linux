@@ -368,18 +368,10 @@ static ssize_t disk_events_poll_msecs_store(struct device *dev,
 	return count;
 }
 
-static const DEVICE_ATTR(events, 0444, disk_events_show, NULL);
-static const DEVICE_ATTR(events_async, 0444, disk_events_async_show, NULL);
-static const DEVICE_ATTR(events_poll_msecs, 0644,
-			 disk_events_poll_msecs_show,
-			 disk_events_poll_msecs_store);
-
-static const struct attribute *disk_events_attrs[] = {
-	&dev_attr_events.attr,
-	&dev_attr_events_async.attr,
-	&dev_attr_events_poll_msecs.attr,
-	NULL,
-};
+DEVICE_ATTR(events, 0444, disk_events_show, NULL);
+DEVICE_ATTR(events_async, 0444, disk_events_async_show, NULL);
+DEVICE_ATTR(events_poll_msecs, 0644, disk_events_poll_msecs_show,
+	    disk_events_poll_msecs_store);
 
 /*
  * The default polling interval can be specified by the kernel
@@ -444,11 +436,6 @@ void disk_alloc_events(struct gendisk *disk)
 
 void disk_add_events(struct gendisk *disk)
 {
-	/* FIXME: error handling */
-	if (sysfs_create_files(&disk_to_dev(disk)->kobj, disk_events_attrs) < 0)
-		pr_warn("%s: failed to create sysfs files for events\n",
-			disk->disk_name);
-
 	if (!disk->ev)
 		return;
 
@@ -472,8 +459,6 @@ void disk_del_events(struct gendisk *disk)
 		list_del_init(&disk->ev->node);
 		mutex_unlock(&disk_events_mutex);
 	}
-
-	sysfs_remove_files(&disk_to_dev(disk)->kobj, disk_events_attrs);
 }
 
 void disk_release_events(struct gendisk *disk)

@@ -364,5 +364,8 @@ void disk_alloc_events(struct gendisk *disk);
 void disk_add_events(struct gendisk *disk);
 void disk_del_events(struct gendisk *disk);
 void disk_release_events(struct gendisk *disk);
+extern struct device_attribute dev_attr_events;
+extern struct device_attribute dev_attr_events_async;
+extern struct device_attribute dev_attr_events_poll_msecs;
 
 #endif /* BLK_INTERNAL_H */
