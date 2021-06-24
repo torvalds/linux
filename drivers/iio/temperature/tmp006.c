@@ -193,15 +193,23 @@ static bool tmp006_check_identification(struct i2c_client *client)
 	return mid == TMP006_MANUFACTURER_MAGIC && did == TMP006_DEVICE_MAGIC;
 }
 
-static int tmp006_powerdown(struct tmp006_data *data)
+static int tmp006_power(struct device *dev, bool up)
 {
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct tmp006_data *data = iio_priv(indio_dev);
+
+	if (up)
+		data->config |= TMP006_CONFIG_MOD_MASK;
+	else
+		data->config &= ~TMP006_CONFIG_MOD_MASK;
+
 	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
-		data->config & ~TMP006_CONFIG_MOD_MASK);
+		data->config);
 }
 
-static void tmp006_powerdown_cleanup(void *data)
+static void tmp006_powerdown_cleanup(void *dev)
 {
-	tmp006_powerdown(data);
+	tmp006_power(dev, false);
 }
 
 static int tmp006_probe(struct i2c_client *client,
@@ -239,7 +247,14 @@ static int tmp006_probe(struct i2c_client *client,
 		return ret;
 	data->config = ret;
 
-	ret = devm_add_action(&client->dev, tmp006_powerdown_cleanup, data);
+	if ((ret & TMP006_CONFIG_MOD_MASK) != TMP006_CONFIG_MOD_MASK) {
+		ret = tmp006_power(&client->dev, true);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = devm_add_action_or_reset(&client->dev, tmp006_powerdown_cleanup,
+				       &client->dev);
 	if (ret < 0)
 		return ret;
 
@@ -249,16 +264,12 @@ static int tmp006_probe(struct i2c_client *client,
 #ifdef CONFIG_PM_SLEEP
 static int tmp006_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
-	return tmp006_powerdown(iio_priv(indio_dev));
+	return tmp006_power(dev, false);
 }
 
 static int tmp006_resume(struct device *dev)
 {
-	struct tmp006_data *data = iio_priv(i2c_get_clientdata(
-		to_i2c_client(dev)));
-	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
-		data->config | TMP006_CONFIG_MOD_MASK);
+	return tmp006_power(dev, true);
 }
 #endif
 
