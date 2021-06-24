@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #ifndef _GVE_ADMINQ_H
@@ -82,14 +82,54 @@ static_assert(sizeof(struct gve_device_descriptor) == 40);
 struct gve_device_option {
 	__be16 option_id;
 	__be16 option_length;
-	__be32 feat_mask;
+	__be32 required_features_mask;
 };
 
 static_assert(sizeof(struct gve_device_option) == 8);
 
-#define GVE_DEV_OPT_ID_RAW_ADDRESSING 0x1
-#define GVE_DEV_OPT_LEN_RAW_ADDRESSING 0x0
-#define GVE_DEV_OPT_FEAT_MASK_RAW_ADDRESSING 0x0
+struct gve_device_option_gqi_rda {
+	__be32 supported_features_mask;
+};
+
+static_assert(sizeof(struct gve_device_option_gqi_rda) == 4);
+
+struct gve_device_option_gqi_qpl {
+	__be32 supported_features_mask;
+};
+
+static_assert(sizeof(struct gve_device_option_gqi_qpl) == 4);
+
+struct gve_device_option_dqo_rda {
+	__be32 supported_features_mask;
+	__be16 tx_comp_ring_entries;
+	__be16 rx_buff_ring_entries;
+};
+
+static_assert(sizeof(struct gve_device_option_dqo_rda) == 8);
+
+/* Terminology:
+ *
+ * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
+ *       mapped and read/updated by the device.
+ *
+ * QPL - Queue Page Lists - Driver uses bounce buffers which are DMA mapped with
+ *       the device for read/write and data is copied from/to SKBs.
+ */
+enum gve_dev_opt_id {
+	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING = 0x1,
+	GVE_DEV_OPT_ID_GQI_RDA = 0x2,
+	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
+	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
+};
+
+enum gve_dev_opt_req_feat_mask {
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
+};
+
+#define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
 
 struct gve_adminq_configure_device_resources {
 	__be64 counter_array;
