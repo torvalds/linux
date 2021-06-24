@@ -86,10 +86,6 @@ struct ksmbd_work {
 	struct list_head                interim_entry;
 };
 
-#define WORK_CANCELLED(w)	((w)->state == KSMBD_WORK_CANCELLED)
-#define WORK_CLOSED(w)		((w)->state == KSMBD_WORK_CLOSED)
-#define WORK_ACTIVE(w)		((w)->state == KSMBD_WORK_ACTIVE)
-
 #define RESPONSE_BUF_NEXT(w)	\
 	(((w)->response_buf + (w)->next_smb2_rsp_hdr_off))
 #define REQUEST_BUF_NEXT(w)	\

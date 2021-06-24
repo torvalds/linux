@@ -6716,12 +6716,12 @@ skip:
 
 				err = ksmbd_vfs_posix_lock_wait(flock);
 
-				if (!WORK_ACTIVE(work)) {
+				if (work->state != KSMBD_WORK_ACTIVE) {
 					list_del(&smb_lock->llist);
 					list_del(&smb_lock->glist);
 					locks_free_lock(flock);
 
-					if (WORK_CANCELLED(work)) {
+					if (work->state == KSMBD_WORK_CANCELLED) {
 						spin_lock(&fp->f_lock);
 						list_del(&work->fp_entry);
 						spin_unlock(&fp->f_lock);
