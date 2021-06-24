@@ -17,14 +17,10 @@
  * VCP1, VCP2
  * MLB
  * ISS
- * USB3, USB4
+ * USB3
  */
 
 &usb3_tm {
-	status = "disabled";
-};
-
-&usb4_tm {
 	status = "disabled";
 };
 
