@@ -13,11 +13,7 @@ void i915_gem_object_init_memory_region(struct drm_i915_gem_object *obj,
 {
 	obj->mm.region = intel_memory_region_get(mem);
 
-	if (obj->base.size <= mem->min_page_size)
-		obj->flags |= I915_BO_ALLOC_CONTIGUOUS;
-
 	mutex_lock(&mem->objects.lock);
-
 	list_add(&obj->mm.region_link, &mem->objects.list);
 	mutex_unlock(&mem->objects.lock);
 }

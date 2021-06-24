@@ -286,6 +286,26 @@ static void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
 	unsigned int cache_level;
+	unsigned int i;
+
+	/*
+	 * If object was moved to an allowable region, update the object
+	 * region to consider it migrated. Note that if it's currently not
+	 * in an allowable region, it's evicted and we don't update the
+	 * object region.
+	 */
+	if (intel_region_to_ttm_type(obj->mm.region) != bo->resource->mem_type) {
+		for (i = 0; i < obj->mm.n_placements; ++i) {
+			struct intel_memory_region *mr = obj->mm.placements[i];
+
+			if (intel_region_to_ttm_type(mr) == bo->resource->mem_type &&
+			    mr != obj->mm.region) {
+				i915_gem_object_release_memory_region(obj);
+				i915_gem_object_init_memory_region(obj, mr);
+				break;
+			}
+		}
+	}
 
 	obj->mem_flags &= ~(I915_BO_FLAG_STRUCT_PAGE | I915_BO_FLAG_IOMEM);
 
@@ -615,13 +635,6 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 	/* Move to the requested placement. */
 	i915_ttm_placement_from_obj(obj, &requested, busy, &placement);
 
-	/*
-	 * For now we support LMEM only with TTM.
-	 * TODO: Remove with system support
-	 */
-	GEM_BUG_ON(requested.mem_type < I915_PL_LMEM0 ||
-		   busy[0].mem_type < I915_PL_LMEM0);
-
 	/* First try only the requested placement. No eviction. */
 	real_num_busy = fetch_and_zero(&placement.num_busy_placement);
 	ret = ttm_bo_validate(bo, &placement, &ctx);
@@ -634,9 +647,6 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 		if (ret == -EDEADLK || ret == -EINTR || ret == -ERESTARTSYS ||
 		    ret == -EAGAIN)
 			return ret;
-
-		/* TODO: Remove this when we support system as TTM. */
-		real_num_busy = 1;
 
 		/*
 		 * If the initial attempt fails, allow all accepted placements,
@@ -872,4 +882,26 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	i915_gem_object_unlock(obj);
 
 	return 0;
+}
+
+static const struct intel_memory_region_ops ttm_system_region_ops = {
+	.init_object = __i915_gem_ttm_object_init,
+};
+
+struct intel_memory_region *
+i915_gem_ttm_system_setup(struct drm_i915_private *i915,
+			  u16 type, u16 instance)
+{
+	struct intel_memory_region *mr;
+
+	mr = intel_memory_region_create(i915, 0,
+					totalram_pages() << PAGE_SHIFT,
+					PAGE_SIZE, 0,
+					type, instance,
+					&ttm_system_region_ops);
+	if (IS_ERR(mr))
+		return mr;
+
+	intel_memory_region_set_name(mr, "system-ttm");
+	return mr;
 }
