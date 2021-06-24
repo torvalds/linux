@@ -333,7 +333,11 @@ struct csi_state {
 	spinlock_t slock;	/* Protect events */
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
 	struct dentry *debugfs_root;
-	bool debug;
+	struct {
+		bool enable;
+		u32 hs_settle;
+		u32 clk_settle;
+	} debug;
 };
 
 /* -----------------------------------------------------------------------------
@@ -543,6 +547,18 @@ static int mipi_csis_calculate_params(struct csi_state *state)
 	dev_dbg(state->dev, "lane rate %u, Tclk_settle %u, Ths_settle %u\n",
 		lane_rate, state->clk_settle, state->hs_settle);
 
+	if (state->debug.hs_settle < 0xff) {
+		dev_dbg(state->dev, "overriding Ths_settle with %u\n",
+			state->debug.hs_settle);
+		state->hs_settle = state->debug.hs_settle;
+	}
+
+	if (state->debug.clk_settle < 4) {
+		dev_dbg(state->dev, "overriding Tclk_settle with %u\n",
+			state->debug.clk_settle);
+		state->clk_settle = state->debug.clk_settle;
+	}
+
 	return 0;
 }
 
@@ -659,7 +675,7 @@ static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&state->slock, flags);
 
 	/* Update the event/error counters */
-	if ((status & MIPI_CSIS_INT_SRC_ERRORS) || state->debug) {
+	if ((status & MIPI_CSIS_INT_SRC_ERRORS) || state->debug.enable) {
 		for (i = 0; i < MIPI_CSIS_NUM_EVENTS; i++) {
 			struct mipi_csis_event *event = &state->events[i];
 
@@ -749,7 +765,7 @@ static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
 	spin_lock_irqsave(&state->slock, flags);
 
 	for (i = 0; i < num_events; ++i) {
-		if (state->events[i].counter > 0 || state->debug)
+		if (state->events[i].counter > 0 || state->debug.enable)
 			dev_info(state->dev, "%s events: %d\n",
 				 state->events[i].name,
 				 state->events[i].counter);
@@ -801,12 +817,19 @@ DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
 static void mipi_csis_debugfs_init(struct csi_state *state)
 {
+	state->debug.hs_settle = UINT_MAX;
+	state->debug.clk_settle = UINT_MAX;
+
 	state->debugfs_root = debugfs_create_dir(dev_name(state->dev), NULL);
 
 	debugfs_create_bool("debug_enable", 0600, state->debugfs_root,
-			    &state->debug);
+			    &state->debug.enable);
 	debugfs_create_file("dump_regs", 0600, state->debugfs_root, state,
 			    &mipi_csis_dump_regs_fops);
+	debugfs_create_u32("tclk_settle", 0600, state->debugfs_root,
+			   &state->debug.clk_settle);
+	debugfs_create_u32("ths_settle", 0600, state->debugfs_root,
+			   &state->debug.hs_settle);
 }
 
 static void mipi_csis_debugfs_exit(struct csi_state *state)
@@ -867,7 +890,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 			ret = 0;
 		mipi_csis_stop_stream(state);
 		state->state &= ~ST_STREAMING;
-		if (state->debug)
+		if (state->debug.enable)
 			mipi_csis_log_counters(state, true);
 	}
 
@@ -1064,7 +1087,7 @@ static int mipi_csis_log_status(struct v4l2_subdev *sd)
 
 	mutex_lock(&state->lock);
 	mipi_csis_log_counters(state, true);
-	if (state->debug && (state->state & ST_POWERED))
+	if (state->debug.enable && (state->state & ST_POWERED))
 		mipi_csis_dump_regs(state);
 	mutex_unlock(&state->lock);
 
