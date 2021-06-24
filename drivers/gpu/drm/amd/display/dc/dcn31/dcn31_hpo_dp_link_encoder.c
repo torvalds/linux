@@ -377,7 +377,7 @@ void dcn31_hpo_dp_link_enc_update_stream_allocation_table(
 	 */
 	REG_WAIT(DP_DPHY_SYM32_STATUS,
 			SAT_UPDATE_PENDING, 0,
-			10, DP_SAT_UPDATE_MAX_RETRY);
+			100, DP_SAT_UPDATE_MAX_RETRY);
 }
 
 void dcn31_hpo_dp_link_enc_set_throttled_vcp_size(
