@@ -3446,7 +3446,8 @@ static int nf_tables_newrule(struct sk_buff *skb, const struct nfnl_info *info,
 	return 0;
 
 err_destroy_flow_rule:
-	nft_flow_rule_destroy(flow);
+	if (flow)
+		nft_flow_rule_destroy(flow);
 err_release_rule:
 	nf_tables_rule_release(&ctx, rule);
 err_release_expr:
