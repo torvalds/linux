@@ -475,6 +475,44 @@ bool i915_gem_object_migratable(struct drm_i915_gem_object *obj)
 	return obj->mm.n_placements > 1;
 }
 
+/**
+ * i915_gem_object_has_struct_page - Whether the object is page-backed
+ * @obj: The object to query.
+ *
+ * This function should only be called while the object is locked or pinned,
+ * otherwise the page backing may change under the caller.
+ *
+ * Return: True if page-backed, false otherwise.
+ */
+bool i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
+{
+#ifdef CONFIG_LOCKDEP
+	if (IS_DGFX(to_i915(obj->base.dev)) &&
+	    i915_gem_object_evictable((void __force *)obj))
+		assert_object_held_shared(obj);
+#endif
+	return obj->mem_flags & I915_BO_FLAG_STRUCT_PAGE;
+}
+
+/**
+ * i915_gem_object_has_iomem - Whether the object is iomem-backed
+ * @obj: The object to query.
+ *
+ * This function should only be called while the object is locked or pinned,
+ * otherwise the iomem backing may change under the caller.
+ *
+ * Return: True if iomem-backed, false otherwise.
+ */
+bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
+{
+#ifdef CONFIG_LOCKDEP
+	if (IS_DGFX(to_i915(obj->base.dev)) &&
+	    i915_gem_object_evictable((void __force *)obj))
+		assert_object_held_shared(obj);
+#endif
+	return obj->mem_flags & I915_BO_FLAG_IOMEM;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);

@@ -148,7 +148,7 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 /*
  * If more than one potential simultaneous locker, assert held.
  */
-static inline void assert_object_held_shared(struct drm_i915_gem_object *obj)
+static inline void assert_object_held_shared(const struct drm_i915_gem_object *obj)
 {
 	/*
 	 * Note mm list lookup is protected by
@@ -266,17 +266,9 @@ i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
 	return obj->ops->flags & flags;
 }
 
-static inline bool
-i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
-{
-	return obj->flags & I915_BO_ALLOC_STRUCT_PAGE;
-}
+bool i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj);
 
-static inline bool
-i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
-{
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM);
-}
+bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj);
 
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)

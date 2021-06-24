@@ -831,16 +831,19 @@ static int wc_check(struct drm_i915_gem_object *obj)
 
 static bool can_mmap(struct drm_i915_gem_object *obj, enum i915_mmap_type type)
 {
+	bool no_map;
+
 	if (type == I915_MMAP_TYPE_GTT &&
 	    !i915_ggtt_has_aperture(&to_i915(obj->base.dev)->ggtt))
 		return false;
 
-	if (type != I915_MMAP_TYPE_GTT &&
-	    !i915_gem_object_has_struct_page(obj) &&
-	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM))
-		return false;
+	i915_gem_object_lock(obj, NULL);
+	no_map = (type != I915_MMAP_TYPE_GTT &&
+		  !i915_gem_object_has_struct_page(obj) &&
+		  !i915_gem_object_has_iomem(obj));
+	i915_gem_object_unlock(obj);
 
-	return true;
+	return !no_map;
 }
 
 static void object_set_placements(struct drm_i915_gem_object *obj,
@@ -988,10 +991,16 @@ static const char *repr_mmap_type(enum i915_mmap_type type)
 	}
 }
 
-static bool can_access(const struct drm_i915_gem_object *obj)
+static bool can_access(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_object_has_struct_page(obj) ||
-	       i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM);
+	bool access;
+
+	i915_gem_object_lock(obj, NULL);
+	access = i915_gem_object_has_struct_page(obj) ||
+		i915_gem_object_has_iomem(obj);
+	i915_gem_object_unlock(obj);
+
+	return access;
 }
 
 static int __igt_mmap_access(struct drm_i915_private *i915,
