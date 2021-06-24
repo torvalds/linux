@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #include <linux/cpumask.h>
@@ -681,7 +681,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	int err;
 
 	/* Raw addressing means no QPLs */
-	if (priv->raw_addressing)
+	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
 		return 0;
 
 	priv->qpls = kvzalloc(num_qpls * sizeof(*priv->qpls), GFP_KERNEL);
@@ -725,7 +725,7 @@ static void gve_free_qpls(struct gve_priv *priv)
 	int i;
 
 	/* Raw addressing means no QPLs */
-	if (priv->raw_addressing)
+	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
 		return;
 
 	kvfree(priv->qpl_cfg.qpl_id_map);
@@ -1088,7 +1088,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	if (skip_describe_device)
 		goto setup_device;
 
-	priv->raw_addressing = false;
+	priv->queue_format = GVE_QUEUE_FORMAT_UNSPECIFIED;
 	/* Get the initial information we need from the device */
 	err = gve_adminq_describe_device(priv);
 	if (err) {
@@ -1352,6 +1352,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto abort_with_wq;
 
 	dev_info(&pdev->dev, "GVE version %s\n", gve_version_str);
+	dev_info(&pdev->dev, "GVE queue format %d\n", (int)priv->queue_format);
 	gve_clear_probe_in_progress(priv);
 	queue_work(priv->gve_wq, &priv->service_task);
 	return 0;

@@ -194,6 +194,17 @@ struct gve_qpl_config {
 	unsigned long *qpl_id_map; /* bitmap of used qpl ids */
 };
 
+/* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
+ * when the entire configure_device_resources command is zeroed out and the
+ * queue_format is not specified.
+ */
+enum gve_queue_format {
+	GVE_QUEUE_FORMAT_UNSPECIFIED	= 0x0,
+	GVE_GQI_RDA_FORMAT		= 0x1,
+	GVE_GQI_QPL_FORMAT		= 0x2,
+	GVE_DQO_RDA_FORMAT		= 0x3,
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -216,7 +227,6 @@ struct gve_priv {
 	u64 num_registered_pages; /* num pages registered with NIC */
 	u32 rx_copybreak; /* copy packets smaller than this */
 	u16 default_num_queues; /* default num queues to set up */
-	u8 raw_addressing; /* 1 if this dev supports raw addressing, 0 otherwise */
 
 	struct gve_queue_config tx_cfg;
 	struct gve_queue_config rx_cfg;
@@ -275,6 +285,8 @@ struct gve_priv {
 
 	/* Gvnic device link speed from hypervisor. */
 	u64 link_speed;
+
+	enum gve_queue_format queue_format;
 };
 
 enum gve_service_task_flags_bit {
@@ -454,14 +466,20 @@ static inline u32 gve_rx_idx_to_ntfy(struct gve_priv *priv, u32 queue_idx)
  */
 static inline u32 gve_num_tx_qpls(struct gve_priv *priv)
 {
-	return priv->raw_addressing ? 0 : priv->tx_cfg.num_queues;
+	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+		return 0;
+
+	return priv->tx_cfg.num_queues;
 }
 
 /* Returns the number of rx queue page lists
  */
 static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
 {
-	return priv->raw_addressing ? 0 : priv->rx_cfg.num_queues;
+	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+		return 0;
+
+	return priv->rx_cfg.num_queues;
 }
 
 /* Returns a pointer to the next available tx qpl in the list of qpls

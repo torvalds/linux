@@ -148,7 +148,7 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 
 	slots = priv->rx_data_slot_cnt;
 	rx->mask = slots - 1;
-	rx->data.raw_addressing = priv->raw_addressing;
+	rx->data.raw_addressing = priv->queue_format == GVE_GQI_RDA_FORMAT;
 
 	/* alloc rx data ring */
 	bytes = sizeof(*rx->data.data_ring) * slots;
