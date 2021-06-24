@@ -802,10 +802,10 @@ static int drm_sched_main(void *param)
 
 		sched_job = drm_sched_entity_pop_job(entity);
 
-		complete(&entity->entity_idle);
-
-		if (!sched_job)
+		if (!sched_job) {
+			complete(&entity->entity_idle);
 			continue;
+		}
 
 		s_fence = sched_job->s_fence;
 
@@ -814,6 +814,7 @@ static int drm_sched_main(void *param)
 
 		trace_drm_run_job(sched_job, entity);
 		fence = sched->ops->run_job(sched_job);
+		complete(&entity->entity_idle);
 		drm_sched_fence_scheduled(s_fence);
 
 		if (!IS_ERR_OR_NULL(fence)) {
