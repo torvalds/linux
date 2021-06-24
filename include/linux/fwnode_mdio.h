@@ -40,7 +40,7 @@ static inline int fwnode_mdiobus_register(struct mii_bus *bus,
 	 * This way, we don't have to keep compat bits around in drivers.
 	 */
 
-	return mdiobus_register(mdio);
+	return mdiobus_register(bus);
 }
 #endif
 
