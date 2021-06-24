@@ -17,7 +17,7 @@ if NET_VENDOR_GOOGLE
 
 config GVE
 	tristate "Google Virtual NIC (gVNIC) support"
-	depends on PCI_MSI
+	depends on (PCI_MSI && (X86 || CPU_LITTLE_ENDIAN))
 	help
 	  This driver supports Google Virtual NIC (gVNIC)"
 
