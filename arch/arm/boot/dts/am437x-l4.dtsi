@@ -1747,10 +1747,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap0: ecap@100 {
+				ecap0: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1760,8 +1759,7 @@
 
 				ehrpwm0: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
@@ -1799,10 +1797,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap1: ecap@100 {
+				ecap1: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1812,8 +1809,7 @@
 
 				ehrpwm1: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
@@ -1851,10 +1847,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap2: ecap@100 {
+				ecap2: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1864,8 +1859,7 @@
 
 				ehrpwm2: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
@@ -1905,8 +1899,7 @@
 
 				ehrpwm3: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm3_tbclk>, <&l4ls_gclk>;
@@ -1946,8 +1939,7 @@
 
 				ehrpwm4: pwm@48308200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm4_tbclk>, <&l4ls_gclk>;
@@ -1987,8 +1979,7 @@
 
 				ehrpwm5: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm5_tbclk>, <&l4ls_gclk>;

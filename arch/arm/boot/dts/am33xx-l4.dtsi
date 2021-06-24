@@ -1995,15 +1995,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap0: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap0: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <31>;
-					interrupt-names = "ecap0";
 					status = "disabled";
 				};
 
@@ -2017,8 +2014,7 @@
 				};
 
 				ehrpwm0: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
@@ -2056,15 +2052,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap1: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap1: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <47>;
-					interrupt-names = "ecap1";
 					status = "disabled";
 				};
 
@@ -2078,8 +2071,7 @@
 				};
 
 				ehrpwm1: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
@@ -2117,15 +2109,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap2: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap2: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <61>;
-					interrupt-names = "ecap2";
 					status = "disabled";
 				};
 
@@ -2139,8 +2128,7 @@
 				};
 
 				ehrpwm2: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
