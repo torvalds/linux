@@ -1077,14 +1077,26 @@ static void gve_turnup(struct gve_priv *priv)
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
-		iowrite32be(0, gve_irq_doorbell(priv, block));
+		if (gve_is_gqi(priv)) {
+			iowrite32be(0, gve_irq_doorbell(priv, block));
+		} else {
+			u32 val = gve_set_itr_ratelimit_dqo(GVE_TX_IRQ_RATELIMIT_US_DQO);
+
+			gve_write_irq_doorbell_dqo(priv, block, val);
+		}
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
-		iowrite32be(0, gve_irq_doorbell(priv, block));
+		if (gve_is_gqi(priv)) {
+			iowrite32be(0, gve_irq_doorbell(priv, block));
+		} else {
+			u32 val = gve_set_itr_ratelimit_dqo(GVE_RX_IRQ_RATELIMIT_US_DQO);
+
+			gve_write_irq_doorbell_dqo(priv, block, val);
+		}
 	}
 
 	gve_set_napi_enabled(priv);

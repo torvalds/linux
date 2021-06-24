@@ -13,6 +13,9 @@
 #define GVE_ITR_CLEAR_PBA_BIT_DQO BIT(1)
 #define GVE_ITR_NO_UPDATE_DQO (3 << 3)
 
+#define GVE_ITR_INTERVAL_DQO_SHIFT 5
+#define GVE_ITR_INTERVAL_DQO_MASK ((1 << 12) - 1)
+
 #define GVE_TX_IRQ_RATELIMIT_US_DQO 50
 #define GVE_RX_IRQ_RATELIMIT_US_DQO 20
 
@@ -36,6 +39,22 @@ gve_tx_put_doorbell_dqo(const struct gve_priv *priv,
 
 	index = be32_to_cpu(q_resources->db_index);
 	iowrite32(val, &priv->db_bar2[index]);
+}
+
+/* Builds register value to write to DQO IRQ doorbell to enable with specified
+ * ratelimit.
+ */
+static inline u32 gve_set_itr_ratelimit_dqo(u32 ratelimit_us)
+{
+	u32 result = GVE_ITR_ENABLE_BIT_DQO;
+
+	/* Interval has 2us granularity. */
+	ratelimit_us >>= 1;
+
+	ratelimit_us &= GVE_ITR_INTERVAL_DQO_MASK;
+	result |= (ratelimit_us << GVE_ITR_INTERVAL_DQO_SHIFT);
+
+	return result;
 }
 
 static inline void
