@@ -42,7 +42,7 @@ asmlinkage __visible noinstr unsigned long xen_save_fl(void)
 }
 __PV_CALLEE_SAVE_REGS_THUNK(xen_save_fl, ".noinstr.text");
 
-asmlinkage __visible void xen_irq_disable(void)
+asmlinkage __visible noinstr void xen_irq_disable(void)
 {
 	/* There's a one instruction preempt window here.  We need to
 	   make sure we're don't switch CPUs between getting the vcpu
@@ -51,7 +51,7 @@ asmlinkage __visible void xen_irq_disable(void)
 	this_cpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
 }
-PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable);
+__PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable, ".noinstr.text");
 
 asmlinkage __visible noinstr void xen_irq_enable(void)
 {
