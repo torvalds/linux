@@ -4540,16 +4540,6 @@ T:	git git://git.samba.org/sfrench/cifs-2.6.git
 F:	Documentation/admin-guide/cifs/
 F:	fs/cifs/
 
-COMMON INTERNET FILE SYSTEM SERVER (CIFSD)
-M:	Namjae Jeon <namjae.jeon@samsung.com>
-M:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-M:	Steve French <sfrench@samba.org>
-M:	Hyunchul Lee <hyc.lee@gmail.com>
-L:	linux-cifs@vger.kernel.org
-L:	linux-cifsd-devel@lists.sourceforge.net
-S:	Maintained
-F:	fs/cifsd/
-
 COMPACTPCI HOTPLUG CORE
 M:	Scott Murray <scott@spiteful.org>
 L:	linux-pci@vger.kernel.org
@@ -9947,6 +9937,15 @@ Q:	https://patchwork.kernel.org/project/linux-kselftest/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git
 F:	Documentation/dev-tools/kselftest*
 F:	tools/testing/selftests/
+
+KERNEL SMB3 SERVER (KSMBD)
+M:	Namjae Jeon <namjae.jeon@samsung.com>
+M:	Sergey Senozhatsky <senozhatsky@chromium.org>
+M:	Steve French <sfrench@samba.org>
+M:	Hyunchul Lee <hyc.lee@gmail.com>
+L:	linux-cifs@vger.kernel.org
+S:	Maintained
+F:	fs/ksmbd/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendanhiggins@google.com>
