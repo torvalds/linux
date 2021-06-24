@@ -293,6 +293,7 @@ struct rpc_xprt {
 	struct rcu_head		rcu;
 	const struct xprt_class	*xprt_class;
 	struct rpc_sysfs_xprt	*xprt_sysfs;
+	bool			main; /*mark if this is the 1st transport */
 };
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
