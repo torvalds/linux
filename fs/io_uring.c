@@ -6803,6 +6803,10 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 
 	if (!list_empty(&ctx->iopoll_list) || to_submit) {
 		unsigned nr_events = 0;
+		const struct cred *creds = NULL;
+
+		if (ctx->sq_creds != current_cred())
+			creds = override_creds(ctx->sq_creds);
 
 		mutex_lock(&ctx->uring_lock);
 		if (!list_empty(&ctx->iopoll_list))
@@ -6819,6 +6823,8 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 
 		if (to_submit && wq_has_sleeper(&ctx->sqo_sq_wait))
 			wake_up(&ctx->sqo_sq_wait);
+		if (creds)
+			revert_creds(creds);
 	}
 
 	return ret;
@@ -6870,7 +6876,6 @@ static int io_sq_thread(void *data)
 
 	mutex_lock(&sqd->lock);
 	while (1) {
-		int ret;
 		bool cap_entries, sqt_spin, needs_sched;
 
 		if (io_sqd_events_pending(sqd) || signal_pending(current)) {
@@ -6883,13 +6888,8 @@ static int io_sq_thread(void *data)
 		sqt_spin = false;
 		cap_entries = !list_is_singular(&sqd->ctx_list);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
-			const struct cred *creds = NULL;
+			int ret = __io_sq_thread(ctx, cap_entries);
 
-			if (ctx->sq_creds != current_cred())
-				creds = override_creds(ctx->sq_creds);
-			ret = __io_sq_thread(ctx, cap_entries);
-			if (creds)
-				revert_creds(creds);
 			if (!sqt_spin && (ret > 0 || !list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
