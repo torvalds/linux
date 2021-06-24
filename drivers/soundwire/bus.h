@@ -201,19 +201,6 @@ static inline void sdw_fill_port_params(struct sdw_port_params *params,
 	params->data_mode = data_mode;
 }
 
-/* Read-Modify-Write Slave register */
-static inline int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
-{
-	int tmp;
-
-	tmp = sdw_read(slave, addr);
-	if (tmp < 0)
-		return tmp;
-
-	tmp = (tmp & ~mask) | val;
-	return sdw_write(slave, addr, tmp);
-}
-
 /* broadcast read/write for tests */
 int sdw_bread_no_pm_unlocked(struct sdw_bus *bus, u16 dev_num, u32 addr);
 int sdw_bwrite_no_pm_unlocked(struct sdw_bus *bus, u16 dev_num, u32 addr, u8 value);

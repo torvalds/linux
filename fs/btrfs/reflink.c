@@ -282,6 +282,11 @@ copy_inline_extent:
 out:
 	if (!ret && !trans) {
 		/*
+		 * Release path before starting a new transaction so we don't
+		 * hold locks that would confuse lockdep.
+		 */
+		btrfs_release_path(path);
+		/*
 		 * No transaction here means we copied the inline extent into a
 		 * page of the destination inode.
 		 *

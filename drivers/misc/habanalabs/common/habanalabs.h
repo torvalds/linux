@@ -930,6 +930,9 @@ enum div_select_defs {
  *                         driver is ready to receive asynchronous events. This
  *                         function should be called during the first init and
  *                         after every hard-reset of the device
+ * @get_msi_info: Retrieve asic-specific MSI ID of the f/w async event
+ * @map_pll_idx_to_fw_idx: convert driver specific per asic PLL index to
+ *                         generic f/w compatible PLL Indexes
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1054,6 +1057,7 @@ struct hl_asic_funcs {
 			u32 block_id, u32 block_size);
 	void (*enable_events_from_fw)(struct hl_device *hdev);
 	void (*get_msi_info)(u32 *table);
+	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
 };
 
 
@@ -1950,8 +1954,6 @@ struct hl_mmu_funcs {
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
- * @legacy_pll_map: map holding map between dynamic (common) PLL indexes and
- *                  static (asic specific) PLL indexes.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -1960,6 +1962,12 @@ struct hl_mmu_funcs {
  * @clock_gating_mask: is clock gating enabled. bitmask that represents the
  *                     different engines. See debugfs-driver-habanalabs for
  *                     details.
+ * @boot_error_status_mask: contains a mask of the device boot error status.
+ *                          Each bit represents a different error, according to
+ *                          the defines in hl_boot_if.h. If the bit is cleared,
+ *                          the error will be ignored by the driver during
+ *                          device initialization. Mainly used to debug and
+ *                          workaround firmware bugs
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
@@ -2071,12 +2079,11 @@ struct hl_device {
 	struct hl_mmu_priv		mmu_priv;
 	struct hl_mmu_funcs		mmu_func[MMU_NUM_PGT_LOCATIONS];
 
-	enum pll_index			*legacy_pll_map;
-
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
 	u64				clock_gating_mask;
+	u64				boot_error_status_mask;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
@@ -2387,9 +2394,9 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,
 			u64 *total_energy);
-int get_used_pll_index(struct hl_device *hdev, enum pll_index input_pll_index,
+int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 						enum pll_index *pll_index);
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, enum pll_index pll_index,
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 		u16 *pll_freq_arr);
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
@@ -2411,9 +2418,9 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
-long hl_get_frequency(struct hl_device *hdev, enum pll_index pll_index,
+long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
 								bool curr);
-void hl_set_frequency(struct hl_device *hdev, enum pll_index pll_index,
+void hl_set_frequency(struct hl_device *hdev, u32 pll_index,
 								u64 freq);
 int hl_get_temperature(struct hl_device *hdev,
 		       int sensor_index, u32 attr, long *value);

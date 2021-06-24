@@ -179,7 +179,7 @@ shaper bw_rlimit: for each tc, sets minimum and maximum bandwidth rates.
 Totals must be equal or less than port speed.
 
 For example: min_rate 1Gbit 3Gbit: Verify bandwidth limit using network
-monitoring tools such as ifstat or sar –n DEV [interval] [number of samples]
+monitoring tools such as ``ifstat`` or ``sar -n DEV [interval] [number of samples]``
 
 NOTE:
   Setting up channels via ethtool (ethtool -L) is not supported when the

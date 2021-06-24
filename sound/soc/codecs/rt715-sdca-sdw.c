@@ -70,6 +70,7 @@ static bool rt715_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x2000036:
 	case 0x2000037:
 	case 0x2000039:
+	case 0x2000044:
 	case 0x6100000:
 		return true;
 	default:
@@ -224,7 +225,7 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 	struct rt715_sdca_priv *rt715 = dev_get_drvdata(dev);
 	unsigned long time;
 
-	if (!rt715->hw_init)
+	if (!rt715->first_hw_init)
 		return 0;
 
 	if (!slave->unattach_request)
