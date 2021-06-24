@@ -1,13 +1,13 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==========================
-CIFSD - SMB3 Kernel Server
+KSMBD - SMB3 Kernel Server
 ==========================
 
-CIFSD is a linux kernel server which implements SMB3 protocol in kernel space
+KSMBD is a linux kernel server which implements SMB3 protocol in kernel space
 for sharing files over network.
 
-CIFSD architecture
+KSMBD architecture
 ==================
 
 The subset of performance related operations belong in kernelspace and
@@ -60,7 +60,7 @@ NetServerGetInfo. Complete DCE/RPC response is prepared from the user space
 and passed over to the associated kernel thread for the client.
 
 
-CIFSD Feature Status
+KSMBD Feature Status
 ====================
 
 ============================== =================================================
@@ -138,7 +138,7 @@ How to run
 
 6. Access share from Windows or Linux using CIFS
 
-Shutdown CIFSD
+Shutdown KSMBD
 ==============
 
 1. kill user and kernel space daemon

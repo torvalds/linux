@@ -1,5 +1,5 @@
 config SMB_SERVER
-	tristate "SMB server support (EXPERIMENTAL)"
+	tristate "SMB3 server support (EXPERIMENTAL)"
 	depends on INET
 	depends on MULTIUSER
 	depends on FILE_LOCKING
@@ -31,13 +31,13 @@ config SMB_SERVER
 	  case you can choose N here.
 
 	  You also need to install user space programs which can be found
-	  in cifsd-tools, available from
-	  https://github.com/cifsd-team/cifsd-tools.
-	  More detail about how to run the cifsd kernel server is
+	  in ksmbd-tools, available from
+	  https://github.com/cifsd-team/ksmbd-tools.
+	  More detail about how to run the ksmbd kernel server is
 	  available via README file
-	  (https://github.com/cifsd-team/cifsd-tools/blob/master/README).
+	  (https://github.com/cifsd-team/ksmbd-tools/blob/master/README).
 
-	  cifsd kernel server includes support for auto-negotiation,
+	  ksmbd kernel server includes support for auto-negotiation,
 	  Secure negotiate, Pre-authentication integrity, oplock/lease,
 	  compound requests, multi-credit, packet signing, RDMA(smbdirect),
 	  smb3 encryption, copy-offload, secure per-user session
@@ -61,7 +61,7 @@ config SMB_SERVER_CHECK_CAP_NET_ADMIN
 	default y
 
 	help
-	  Prevent unprivileged processes to start the cifsd kernel server.
+	  Prevent unprivileged processes to start the ksmbd kernel server.
 
 config SMB_SERVER_KERBEROS5
 	bool "Support for Kerberos 5"
