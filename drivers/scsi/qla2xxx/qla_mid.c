@@ -158,6 +158,10 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	int ret = QLA_SUCCESS;
 	fc_port_t *fcport;
 
+	if (vha->hw->flags.edif_enabled)
+		/* delete sessions and flush sa_indexes */
+		qla2x00_wait_for_sess_deletion(vha);
+
 	if (vha->hw->flags.fw_started)
 		ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
 
@@ -166,7 +170,8 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	list_for_each_entry(fcport, &vha->vp_fcports, list)
 		fcport->logout_on_delete = 0;
 
-	qla2x00_mark_all_devices_lost(vha);
+	if (!vha->hw->flags.edif_enabled)
+		qla2x00_wait_for_sess_deletion(vha);
 
 	/* Remove port id from vp target map */
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);

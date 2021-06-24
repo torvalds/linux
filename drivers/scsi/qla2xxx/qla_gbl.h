@@ -131,6 +131,7 @@ void qla24xx_free_purex_item(struct purex_item *item);
 extern bool qla24xx_risc_firmware_invalid(uint32_t *);
 void qla_init_iocb_limit(scsi_qla_host_t *);
 
+void qla_edif_list_del(fc_port_t *fcport);
 void qla_edif_sadb_release(struct qla_hw_data *ha);
 int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha);
 void qla_edif_sadb_release_free_pool(struct qla_hw_data *ha);
@@ -138,7 +139,9 @@ void qla_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
 		srb_t *sp, struct sts_entry_24xx *sts24);
 void qlt_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
 		struct ctio7_from_24xx *ctio);
+void qla2x00_release_all_sadb(struct scsi_qla_host *vha, struct fc_port *fcport);
 int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsgjob);
+void qla_edif_sess_down(struct scsi_qla_host *vha, struct fc_port *sess);
 const char *sc_to_str(uint16_t cmd);
 
 /*

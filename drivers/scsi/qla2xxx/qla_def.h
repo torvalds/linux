@@ -492,6 +492,7 @@ struct srb_iocb {
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 #define SRB_LOGIN_NVME_PRLI	BIT_3
 #define SRB_LOGIN_PRLI_ONLY	BIT_4
+#define SRB_LOGIN_FCSP		BIT_5
 			uint16_t data[2];
 			u32 iop[2];
 		} logio;
@@ -2343,6 +2344,7 @@ struct imm_ntfy_from_isp {
 			__le16	nport_handle;
 			uint16_t reserved_2;
 			__le16	flags;
+#define NOTIFY24XX_FLAGS_FCSP		BIT_5
 #define NOTIFY24XX_FLAGS_GLOBAL_TPRLO   BIT_1
 #define NOTIFY24XX_FLAGS_PUREX_IOCB     BIT_0
 			__le16	srr_rx_id;
@@ -2682,7 +2684,8 @@ static const char * const port_dstate_str[] = {
 	"UPD_FCPORT",
 	"LOGIN_COMPLETE",
 	"ADISC",
-	"DELETE_PEND"
+	"DELETE_PEND",
+	"LOGIN_AUTH_PEND",
 };
 
 /*

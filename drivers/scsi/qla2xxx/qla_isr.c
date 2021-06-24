@@ -2372,6 +2372,10 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		if (sp->type != SRB_LOGIN_CMD)
 			goto logio_done;
 
+		lio->u.logio.iop[1] = le32_to_cpu(logio->io_parameter[5]);
+		if (le32_to_cpu(logio->io_parameter[5]) & LIO_COMM_FEAT_FCSP)
+			fcport->flags |= FCF_FCSP_DEVICE;
+
 		iop[0] = le32_to_cpu(logio->io_parameter[0]);
 		if (iop[0] & BIT_4) {
 			fcport->port_type = FCT_TARGET;

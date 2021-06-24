@@ -2366,6 +2366,26 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 	sp->done(sp, 0);
 }
 
+/**********************************************
+ * edif update/delete sa_index list functions *
+ **********************************************/
+
+/* clear the edif_indx_list for this port */
+void qla_edif_list_del(fc_port_t *fcport)
+{
+	struct edif_list_entry *indx_lst;
+	struct edif_list_entry *tindx_lst;
+	struct list_head *indx_list = &fcport->edif.edif_indx_list;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
+	list_for_each_entry_safe(indx_lst, tindx_lst, indx_list, next) {
+		list_del(&indx_lst->next);
+		kfree(indx_lst);
+	}
+	spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
+}
+
 /******************
  * SADB functions *
  ******************/
@@ -2790,4 +2810,15 @@ done_free_sp:
 
 done:
 	return rval;
+}
+
+void qla_edif_sess_down(struct scsi_qla_host *vha, struct fc_port *sess)
+{
+	if (sess->edif.app_sess_online && vha->e_dbell.db_flags & EDB_ACTIVE) {
+		ql_dbg(ql_dbg_disc, vha, 0xf09c,
+			"%s: sess %8phN send port_offline event\n",
+			__func__, sess->port_name);
+		sess->edif.app_sess_online = 0;
+		qla2x00_post_aen_work(vha, FCH_EVT_PORT_OFFLINE, sess->d_id.b24);
+	}
 }
