@@ -558,6 +558,8 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 
 static int sparx5_start(struct sparx5 *sparx5)
 {
+	u8 broadcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	char queue_name[32];
 	u32 idx;
 	int err;
 
@@ -589,11 +591,28 @@ static int sparx5_start(struct sparx5 *sparx5)
 			 ANA_CL_FILTER_CTRL_FORCE_FCS_UPDATE_ENA,
 			 sparx5, ANA_CL_FILTER_CTRL(idx));
 
-	/* MAC/VLAN support to be added in later patches */
+	/* Init MAC table, ageing */
+	sparx5_mact_init(sparx5);
+
+	/* VLAN support to be added in later patches */
+
+	/* Add host mode BC address (points only to CPU) */
+	sparx5_mact_learn(sparx5, PGID_CPU, broadcast, NULL_VID);
+
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
 	/* Resource calendar support to be added in later patches */
+
+	/* Init mact_sw struct */
+	mutex_init(&sparx5->mact_lock);
+	INIT_LIST_HEAD(&sparx5->mact_entries);
+	snprintf(queue_name, sizeof(queue_name), "%s-mact",
+		 dev_name(sparx5->dev));
+	sparx5->mact_queue = create_singlethread_workqueue(queue_name);
+	INIT_DELAYED_WORK(&sparx5->mact_work, sparx5_mact_pull_work);
+	queue_delayed_work(sparx5->mact_queue, &sparx5->mact_work,
+			   SPX5_MACT_PULL_DELAY);
 
 	err = sparx5_register_netdevs(sparx5);
 	if (err)
