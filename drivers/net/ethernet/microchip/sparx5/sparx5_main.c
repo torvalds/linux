@@ -282,7 +282,8 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	}
 	spx5_port->conf = config->conf;
 
-	/* VLAN support to be added in later patches */
+	/* Setup VLAN */
+	sparx5_vlan_port_setup(sparx5, spx5_port->portno);
 
 	/* Create a phylink for PHY management.  Also handles SFPs */
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
@@ -578,7 +579,9 @@ static int sparx5_start(struct sparx5 *sparx5)
 			 sparx5,
 			 QFWD_SWITCH_PORT_MODE(idx));
 
-	/* Forwarding masks to be added in later patches */
+	/* Init masks */
+	sparx5_update_fwd(sparx5);
+
 	/* CPU copy CPU pgids */
 	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
 		sparx5, ANA_AC_PGID_MISC_CFG(PGID_CPU));
@@ -594,7 +597,8 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Init MAC table, ageing */
 	sparx5_mact_init(sparx5);
 
-	/* VLAN support to be added in later patches */
+	/* Setup VLANs */
+	sparx5_vlan_init(sparx5);
 
 	/* Add host mode BC address (points only to CPU) */
 	sparx5_mact_learn(sparx5, PGID_CPU, broadcast, NULL_VID);

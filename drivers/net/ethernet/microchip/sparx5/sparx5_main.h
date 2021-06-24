@@ -137,6 +137,10 @@ struct sparx5 {
 	enum sparx5_core_clockfreq coreclock;
 	/* Switch state */
 	u8 base_mac[ETH_ALEN];
+	/* Bridged interfaces */
+	DECLARE_BITMAP(bridge_fwd_mask, SPX5_PORTS);
+	DECLARE_BITMAP(bridge_lrn_mask, SPX5_PORTS);
+	DECLARE_BITMAP(vlan_mask[VLAN_N_VID], SPX5_PORTS);
 	/* SW MAC table */
 	struct list_head mact_entries;
 	/* mac table list (mact_entries) mutex */
@@ -173,6 +177,16 @@ int sparx5_mc_sync(struct net_device *dev, const unsigned char *addr);
 int sparx5_mc_unsync(struct net_device *dev, const unsigned char *addr);
 void sparx5_set_ageing(struct sparx5 *sparx5, int msecs);
 void sparx5_mact_init(struct sparx5 *sparx5);
+
+/* sparx5_vlan.c */
+void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable);
+void sparx5_update_fwd(struct sparx5 *sparx5);
+void sparx5_vlan_init(struct sparx5 *sparx5);
+void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portno);
+int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
+			bool untagged);
+int sparx5_vlan_vid_del(struct sparx5_port *port, u16 vid);
+void sparx5_vlan_port_apply(struct sparx5 *sparx5, struct sparx5_port *port);
 
 /* sparx5_netdev.c */
 bool sparx5_netdevice_check(const struct net_device *dev);
