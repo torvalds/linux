@@ -5238,7 +5238,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_connector->panel.backlight.power = intel_pps_backlight_power;
+	if (!(dev_priv->quirks & QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
+		intel_connector->panel.backlight.power = intel_pps_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
 	if (fixed_mode) {
