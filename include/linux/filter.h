@@ -763,11 +763,9 @@ DECLARE_BPF_DISPATCHER(xdp)
 static __always_inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
 					    struct xdp_buff *xdp)
 {
-	/* Caller needs to hold rcu_read_lock() (!), otherwise program
-	 * can be released while still running, or map elements could be
-	 * freed early while still having concurrent users. XDP fastpath
-	 * already takes rcu_read_lock() when fetching the program, so
-	 * it's not necessary here anymore.
+	/* Driver XDP hooks are invoked within a single NAPI poll cycle and thus
+	 * under local_bh_disable(), which provides the needed RCU protection
+	 * for accessing map entries.
 	 */
 	return __BPF_PROG_RUN(prog, xdp, BPF_DISPATCHER_FUNC(xdp));
 }
