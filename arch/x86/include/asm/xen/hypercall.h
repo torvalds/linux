@@ -358,7 +358,7 @@ HYPERVISOR_event_channel_op(int cmd, void *arg)
 	return _hypercall2(int, event_channel_op, cmd, arg);
 }
 
-static inline int
+static __always_inline int
 HYPERVISOR_xen_version(int cmd, void *arg)
 {
 	return _hypercall2(int, xen_version, cmd, arg);
