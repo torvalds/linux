@@ -982,6 +982,7 @@ void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
 	unsigned int zerofrom;
 	int i;
 
+	memset(&header, 0, sizeof(header));
 	header.xfeatures = xsave->header.xfeatures;
 
 	/* Mask out the feature bits depending on copy mode */
