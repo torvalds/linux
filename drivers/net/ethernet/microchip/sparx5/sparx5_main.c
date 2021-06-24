@@ -250,9 +250,16 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 			      struct initial_port_config *config)
 {
 	struct sparx5_port *spx5_port;
+	struct net_device *ndev;
+	struct phylink *phylink;
 
-	/* netdev creation to be added in later patches */
-	spx5_port = devm_kzalloc(sparx5->dev, sizeof(*spx5_port), GFP_KERNEL);
+	ndev = sparx5_create_netdev(sparx5, config->portno);
+	if (IS_ERR(ndev)) {
+		dev_err(sparx5->dev, "Could not create net device: %02u\n",
+			config->portno);
+		return PTR_ERR(ndev);
+	}
+	spx5_port = netdev_priv(ndev);
 	spx5_port->of_node = config->node;
 	spx5_port->serdes = config->serdes;
 	spx5_port->pvid = NULL_VID;
@@ -262,8 +269,28 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->max_vlan_tags = SPX5_PORT_MAX_TAGS_NONE;
 	spx5_port->vlan_type = SPX5_VLAN_PORT_TYPE_UNAWARE;
 	spx5_port->custom_etype = 0x8880; /* Vitesse */
+	spx5_port->phylink_pcs.poll = true;
+	spx5_port->phylink_pcs.ops = &sparx5_phylink_pcs_ops;
+	sparx5->ports[config->portno] = spx5_port;
 
-	/* PHYLINK support to be added in later patches */
+	spx5_port->conf = config->conf;
+
+	/* VLAN setup to be added in later patches */
+
+	/* Create a phylink for PHY management.  Also handles SFPs */
+	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
+	spx5_port->phylink_config.type = PHYLINK_NETDEV;
+	spx5_port->phylink_config.pcs_poll = true;
+
+	phylink = phylink_create(&spx5_port->phylink_config,
+				 of_fwnode_handle(config->node),
+				 config->conf.phy_mode,
+				 &sparx5_phylink_mac_ops);
+	if (IS_ERR(phylink))
+		return PTR_ERR(phylink);
+
+	spx5_port->phylink = phylink;
+	phylink_set_pcs(phylink, &spx5_port->phylink_pcs);
 
 	return 0;
 }
@@ -525,6 +552,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 static int sparx5_start(struct sparx5 *sparx5)
 {
 	u32 idx;
+	int err;
 
 	/* Setup own UPSIDs */
 	for (idx = 0; idx < 3; idx++) {
@@ -558,13 +586,34 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
-	/* netdev and resource calendar support to be added in later patches */
+	/* Resource calendar support to be added in later patches */
+
+	err = sparx5_register_netdevs(sparx5);
+	if (err)
+		return err;
 
 	sparx5_board_init(sparx5);
 
-	/* Injection/Extraction config to be added in later patches */
+	/* Start register based INJ/XTR */
+	err = -ENXIO;
+	if (err && sparx5->xtr_irq >= 0) {
+		err = devm_request_irq(sparx5->dev, sparx5->xtr_irq,
+				       sparx5_xtr_handler, IRQF_SHARED,
+				       "sparx5-xtr", sparx5);
+		if (!err)
+			err = sparx5_manual_injection_mode(sparx5);
+		if (err)
+			sparx5->xtr_irq = -ENXIO;
+	} else {
+		sparx5->xtr_irq = -ENXIO;
+	}
+	return err;
+}
 
-	return 0;
+static void sparx5_cleanup_ports(struct sparx5 *sparx5)
+{
+	sparx5_unregister_netdevs(sparx5);
+	sparx5_destroy_netdevs(sparx5);
 }
 
 static int mchp_sparx5_probe(struct platform_device *pdev)
@@ -674,7 +723,8 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		ether_addr_copy(sparx5->base_mac, mac_addr);
 	}
 
-	/* Inj/Xtr IRQ support to be added in later patches */
+	sparx5->xtr_irq = platform_get_irq_byname(sparx5->pdev, "xtr");
+
 	/* Read chip ID to check CPU interface */
 	sparx5->chip_id = spx5_rd(sparx5, GCB_CHIP_ID);
 
@@ -715,12 +765,24 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	goto cleanup_config;
 
 cleanup_ports:
-	/* Port cleanup to be added in later patches */
+	sparx5_cleanup_ports(sparx5);
 cleanup_config:
 	kfree(configs);
 cleanup_pnode:
 	of_node_put(ports);
 	return err;
+}
+
+static int mchp_sparx5_remove(struct platform_device *pdev)
+{
+	struct sparx5 *sparx5 = platform_get_drvdata(pdev);
+
+	if (sparx5->xtr_irq) {
+		disable_irq(sparx5->xtr_irq);
+		sparx5->xtr_irq = -ENXIO;
+	}
+	sparx5_cleanup_ports(sparx5);
+	return 0;
 }
 
 static const struct of_device_id mchp_sparx5_match[] = {
@@ -731,6 +793,7 @@ MODULE_DEVICE_TABLE(of, mchp_sparx5_match);
 
 static struct platform_driver mchp_sparx5_driver = {
 	.probe = mchp_sparx5_probe,
+	.remove = mchp_sparx5_remove,
 	.driver = {
 		.name = "sparx5-switch",
 		.of_match_table = mchp_sparx5_match,
