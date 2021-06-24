@@ -153,7 +153,6 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg *wqcfg;
-	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
 	union {
@@ -290,7 +289,6 @@ struct idxd_desc {
 	struct list_head list;
 	int id;
 	int cpu;
-	unsigned int vector;
 	struct idxd_wq *wq;
 };
 
