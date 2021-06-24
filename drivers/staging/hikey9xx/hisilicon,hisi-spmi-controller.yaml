@@ -14,7 +14,7 @@ description: |
   It is a MIPI System Power Management (SPMI) controller.
 
   The PMIC part is provided by
-  drivers/staging/hikey9xx/hisilicon,hi6421-spmi-pmic.yaml.
+  ./Documentation/devicetree/bindings/mfd/hisilicon,hi6421-spmi-pmic.yaml.
 
 allOf:
   - $ref: spmi.yaml#
@@ -30,7 +30,7 @@ properties:
   reg:
     maxItems: 1
 
-  spmi-channel:
+  hisilicon,spmi-channel:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       number of the Kirin 970 SPMI channel where the SPMI devices are connected.
@@ -38,10 +38,12 @@ properties:
 required:
   - compatible
   - reg
-  - spmi-channel
+  - hisilicon,spmi-channel
 
 patternProperties:
   "@[0-9a-f]$":
+    type: object
+
     description: |
       PMIC properties, which are specific to the used SPMI PMIC device(s).
       When used in combination with HiSilicon 6421v600, the properties
@@ -61,7 +63,7 @@ examples:
         #address-cells = <2>;
         #size-cells = <0>;
         reg = <0x0 0xfff24000 0x0 0x1000>;
-        spmi-channel = <2>;
+        hisilicon,spmi-channel = <2>;
 
         pmic@0 {
           reg = <0 0>;

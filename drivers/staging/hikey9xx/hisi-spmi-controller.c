@@ -290,7 +290,7 @@ static int spmi_controller_probe(struct platform_device *pdev)
 		goto err_put_controller;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "spmi-channel",
+	ret = of_property_read_u32(pdev->dev.of_node, "hisilicon,spmi-channel",
 				   &spmi_controller->channel);
 	if (ret) {
 		dev_err(&pdev->dev, "can not get channel\n");
