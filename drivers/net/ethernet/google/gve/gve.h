@@ -548,6 +548,9 @@ struct gve_priv {
 	struct gve_options_dqo_rda options_dqo_rda;
 	struct gve_ptype_lut *ptype_lut_dqo;
 
+	/* Must be a power of two. */
+	int data_buffer_size_dqo;
+
 	enum gve_queue_format queue_format;
 };
 

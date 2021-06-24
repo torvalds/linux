@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #include <linux/ethtool.h>
@@ -453,11 +453,16 @@ static int gve_set_tunable(struct net_device *netdev,
 
 	switch (etuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
+	{
+		u32 max_copybreak = gve_is_gqi(priv) ?
+			(PAGE_SIZE / 2) : priv->data_buffer_size_dqo;
+
 		len = *(u32 *)value;
-		if (len > PAGE_SIZE / 2)
+		if (len > max_copybreak)
 			return -EINVAL;
 		priv->rx_copybreak = len;
 		return 0;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}

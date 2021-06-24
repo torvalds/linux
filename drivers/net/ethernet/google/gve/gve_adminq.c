@@ -443,6 +443,7 @@ int gve_adminq_configure_device_resources(struct gve_priv *priv,
 		.irq_db_stride = cpu_to_be32(sizeof(priv->ntfy_blocks[0])),
 		.ntfy_blk_msix_base_idx =
 					cpu_to_be32(GVE_NTFY_BLK_BASE_MSIX_IDX),
+		.queue_format = priv->queue_format,
 	};
 
 	return gve_adminq_execute_cmd(priv, &cmd);
@@ -462,28 +463,32 @@ static int gve_adminq_create_tx_queue(struct gve_priv *priv, u32 queue_index)
 {
 	struct gve_tx_ring *tx = &priv->tx[queue_index];
 	union gve_adminq_command cmd;
-	u32 qpl_id;
-	int err;
 
-	qpl_id = priv->queue_format == GVE_GQI_RDA_FORMAT ?
-		 GVE_RAW_ADDRESSING_QPL_ID : tx->tx_fifo.qpl->id;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_CREATE_TX_QUEUE);
 	cmd.create_tx_queue = (struct gve_adminq_create_tx_queue) {
 		.queue_id = cpu_to_be32(queue_index),
-		.reserved = 0,
 		.queue_resources_addr =
 			cpu_to_be64(tx->q_resources_bus),
 		.tx_ring_addr = cpu_to_be64(tx->bus),
-		.queue_page_list_id = cpu_to_be32(qpl_id),
 		.ntfy_id = cpu_to_be32(tx->ntfy_id),
 	};
 
-	err = gve_adminq_issue_cmd(priv, &cmd);
-	if (err)
-		return err;
+	if (gve_is_gqi(priv)) {
+		u32 qpl_id = priv->queue_format == GVE_GQI_RDA_FORMAT ?
+			GVE_RAW_ADDRESSING_QPL_ID : tx->tx_fifo.qpl->id;
 
-	return 0;
+		cmd.create_tx_queue.queue_page_list_id = cpu_to_be32(qpl_id);
+	} else {
+		cmd.create_tx_queue.tx_ring_size =
+			cpu_to_be16(priv->tx_desc_cnt);
+		cmd.create_tx_queue.tx_comp_ring_addr =
+			cpu_to_be64(tx->complq_bus_dqo);
+		cmd.create_tx_queue.tx_comp_ring_size =
+			cpu_to_be16(priv->options_dqo_rda.tx_comp_ring_entries);
+	}
+
+	return gve_adminq_issue_cmd(priv, &cmd);
 }
 
 int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 num_queues)
@@ -504,29 +509,41 @@ static int gve_adminq_create_rx_queue(struct gve_priv *priv, u32 queue_index)
 {
 	struct gve_rx_ring *rx = &priv->rx[queue_index];
 	union gve_adminq_command cmd;
-	u32 qpl_id;
-	int err;
 
-	qpl_id = priv->queue_format == GVE_GQI_RDA_FORMAT ?
-		 GVE_RAW_ADDRESSING_QPL_ID : rx->data.qpl->id;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_CREATE_RX_QUEUE);
 	cmd.create_rx_queue = (struct gve_adminq_create_rx_queue) {
 		.queue_id = cpu_to_be32(queue_index),
-		.index = cpu_to_be32(queue_index),
-		.reserved = 0,
 		.ntfy_id = cpu_to_be32(rx->ntfy_id),
 		.queue_resources_addr = cpu_to_be64(rx->q_resources_bus),
-		.rx_desc_ring_addr = cpu_to_be64(rx->desc.bus),
-		.rx_data_ring_addr = cpu_to_be64(rx->data.data_bus),
-		.queue_page_list_id = cpu_to_be32(qpl_id),
 	};
 
-	err = gve_adminq_issue_cmd(priv, &cmd);
-	if (err)
-		return err;
+	if (gve_is_gqi(priv)) {
+		u32 qpl_id = priv->queue_format == GVE_GQI_RDA_FORMAT ?
+			GVE_RAW_ADDRESSING_QPL_ID : rx->data.qpl->id;
 
-	return 0;
+		cmd.create_rx_queue.rx_desc_ring_addr =
+			cpu_to_be64(rx->desc.bus),
+		cmd.create_rx_queue.rx_data_ring_addr =
+			cpu_to_be64(rx->data.data_bus),
+		cmd.create_rx_queue.index = cpu_to_be32(queue_index);
+		cmd.create_rx_queue.queue_page_list_id = cpu_to_be32(qpl_id);
+	} else {
+		cmd.create_rx_queue.rx_ring_size =
+			cpu_to_be16(priv->rx_desc_cnt);
+		cmd.create_rx_queue.rx_desc_ring_addr =
+			cpu_to_be64(rx->dqo.complq.bus);
+		cmd.create_rx_queue.rx_data_ring_addr =
+			cpu_to_be64(rx->dqo.bufq.bus);
+		cmd.create_rx_queue.packet_buffer_size =
+			cpu_to_be16(priv->data_buffer_size_dqo);
+		cmd.create_rx_queue.rx_buff_ring_size =
+			cpu_to_be16(priv->options_dqo_rda.rx_buff_ring_entries);
+		cmd.create_rx_queue.enable_rsc =
+			!!(priv->dev->features & NETIF_F_LRO);
+	}
+
+	return gve_adminq_issue_cmd(priv, &cmd);
 }
 
 int gve_adminq_create_rx_queues(struct gve_priv *priv, u32 num_queues)

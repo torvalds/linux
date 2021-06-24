@@ -139,9 +139,11 @@ struct gve_adminq_configure_device_resources {
 	__be32 num_irq_dbs;
 	__be32 irq_db_stride;
 	__be32 ntfy_blk_msix_base_idx;
+	u8 queue_format;
+	u8 padding[7];
 };
 
-static_assert(sizeof(struct gve_adminq_configure_device_resources) == 32);
+static_assert(sizeof(struct gve_adminq_configure_device_resources) == 40);
 
 struct gve_adminq_register_page_list {
 	__be32 page_list_id;
@@ -166,9 +168,13 @@ struct gve_adminq_create_tx_queue {
 	__be64 tx_ring_addr;
 	__be32 queue_page_list_id;
 	__be32 ntfy_id;
+	__be64 tx_comp_ring_addr;
+	__be16 tx_ring_size;
+	__be16 tx_comp_ring_size;
+	u8 padding[4];
 };
 
-static_assert(sizeof(struct gve_adminq_create_tx_queue) == 32);
+static_assert(sizeof(struct gve_adminq_create_tx_queue) == 48);
 
 struct gve_adminq_create_rx_queue {
 	__be32 queue_id;
@@ -179,10 +185,14 @@ struct gve_adminq_create_rx_queue {
 	__be64 rx_desc_ring_addr;
 	__be64 rx_data_ring_addr;
 	__be32 queue_page_list_id;
-	u8 padding[4];
+	__be16 rx_ring_size;
+	__be16 packet_buffer_size;
+	__be16 rx_buff_ring_size;
+	u8 enable_rsc;
+	u8 padding[5];
 };
 
-static_assert(sizeof(struct gve_adminq_create_rx_queue) == 48);
+static_assert(sizeof(struct gve_adminq_create_rx_queue) == 56);
 
 /* Queue resources that are shared with the device */
 struct gve_queue_resources {
