@@ -2576,10 +2576,11 @@ typedef struct fc_port {
 		uint32_t	app_sess_online:1;
 		uint32_t	tx_rekey_cnt;
 		uint32_t	rx_rekey_cnt;
-		/* delayed rx delete data structure list */
 		uint64_t	tx_bytes;
 		uint64_t	rx_bytes;
 		uint8_t		non_secured_login;
+		uint8_t		auth_state;
+		uint16_t	rekey_cnt;
 	} edif;
 } fc_port_t;
 

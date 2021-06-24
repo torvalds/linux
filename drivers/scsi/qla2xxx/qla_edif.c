@@ -264,6 +264,188 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	return rval;
 }
 
+/**
+ * qla_edif_app_getfcinfo - app would like to read session info (wwpn, nportid,
+ *   [initiator|target] mode.  It can specific session with specific nport id or
+ *   all sessions.
+ * @vha: host adapter pointer
+ * @bsg_job: user request pointer
+ */
+static int
+qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
+{
+	int32_t			rval = 0;
+	int32_t			num_cnt = 1;
+	struct fc_bsg_reply	*bsg_reply = bsg_job->reply;
+	struct app_pinfo_req	app_req;
+	struct app_pinfo_reply	*app_reply;
+	port_id_t		tdid;
+
+	ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app get fcinfo\n", __func__);
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, &app_req,
+	    sizeof(struct app_pinfo_req));
+
+	num_cnt = app_req.num_ports;	/* num of ports alloc'd by app */
+
+	app_reply = kzalloc((sizeof(struct app_pinfo_reply) +
+	    sizeof(struct app_pinfo) * num_cnt), GFP_KERNEL);
+	if (!app_reply) {
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		rval = -1;
+	} else {
+		struct fc_port	*fcport = NULL, *tf;
+		uint32_t	pcnt = 0;
+
+		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
+			if (!(fcport->flags & FCF_FCSP_DEVICE))
+				continue;
+
+			tdid = app_req.remote_pid;
+
+			ql_dbg(ql_dbg_edif, vha, 0x2058,
+			    "APP request entry - portid=%06x.\n",
+			    tdid.b24);
+
+			/* Ran out of space */
+			if (pcnt > app_req.num_ports)
+				break;
+
+			if (tdid.b24 != 0 && tdid.b24 != fcport->d_id.b24)
+				continue;
+
+			app_reply->ports[pcnt].remote_type =
+				VND_CMD_RTYPE_UNKNOWN;
+			if (fcport->port_type & (FCT_NVME_TARGET | FCT_TARGET))
+				app_reply->ports[pcnt].remote_type |=
+					VND_CMD_RTYPE_TARGET;
+			if (fcport->port_type & (FCT_NVME_INITIATOR | FCT_INITIATOR))
+				app_reply->ports[pcnt].remote_type |=
+					VND_CMD_RTYPE_INITIATOR;
+
+			app_reply->ports[pcnt].remote_pid = fcport->d_id;
+
+			ql_dbg(ql_dbg_edif, vha, 0x2058,
+			    "Found FC_SP fcport - nn %8phN pn %8phN pcnt %d portid=%02x%02x%02x.\n",
+			    fcport->node_name, fcport->port_name, pcnt,
+			    fcport->d_id.b.domain, fcport->d_id.b.area,
+			    fcport->d_id.b.al_pa);
+
+			switch (fcport->edif.auth_state) {
+			case VND_CMD_AUTH_STATE_ELS_RCVD:
+				if (fcport->disc_state == DSC_LOGIN_AUTH_PEND) {
+					fcport->edif.auth_state = VND_CMD_AUTH_STATE_NEEDED;
+					app_reply->ports[pcnt].auth_state =
+						VND_CMD_AUTH_STATE_NEEDED;
+				} else {
+					app_reply->ports[pcnt].auth_state =
+						VND_CMD_AUTH_STATE_ELS_RCVD;
+				}
+				break;
+			default:
+				app_reply->ports[pcnt].auth_state = fcport->edif.auth_state;
+				break;
+			}
+
+			memcpy(app_reply->ports[pcnt].remote_wwpn,
+			    fcport->port_name, 8);
+
+			app_reply->ports[pcnt].remote_state =
+				(atomic_read(&fcport->state) ==
+				    FCS_ONLINE ? 1 : 0);
+
+			pcnt++;
+
+			if (tdid.b24 != 0)
+				break;
+		}
+		app_reply->port_count = pcnt;
+		SET_DID_STATUS(bsg_reply->result, DID_OK);
+	}
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, app_reply,
+	    sizeof(struct app_pinfo_reply) + sizeof(struct app_pinfo) * num_cnt);
+
+	kfree(app_reply);
+
+	return rval;
+}
+
+/**
+ * qla_edif_app_getstats - app would like to read various statistics info
+ * @vha: host adapter pointer
+ * @bsg_job: user request
+ */
+static int32_t
+qla_edif_app_getstats(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
+{
+	int32_t			rval = 0;
+	struct fc_bsg_reply	*bsg_reply = bsg_job->reply;
+	uint32_t ret_size, size;
+
+	struct app_sinfo_req	app_req;
+	struct app_stats_reply	*app_reply;
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, &app_req,
+	    sizeof(struct app_sinfo_req));
+	if (app_req.num_ports == 0) {
+		ql_dbg(ql_dbg_async, vha, 0x911d,
+		   "%s app did not indicate number of ports to return\n",
+		    __func__);
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		rval = -1;
+	}
+
+	size = sizeof(struct app_stats_reply) +
+	    (sizeof(struct app_sinfo) * app_req.num_ports);
+
+	if (size > bsg_job->reply_payload.payload_len)
+		ret_size = bsg_job->reply_payload.payload_len;
+	else
+		ret_size = size;
+
+	app_reply = kzalloc(size, GFP_KERNEL);
+	if (!app_reply) {
+		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
+		rval = -1;
+	} else {
+		struct fc_port	*fcport = NULL, *tf;
+		uint32_t	pcnt = 0;
+
+		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
+			if (fcport->edif.enable) {
+				if (pcnt > app_req.num_ports)
+					break;
+
+				app_reply->elem[pcnt].rekey_count =
+				    fcport->edif.rekey_cnt;
+				app_reply->elem[pcnt].tx_bytes =
+				    fcport->edif.tx_bytes;
+				app_reply->elem[pcnt].rx_bytes =
+				    fcport->edif.rx_bytes;
+
+				memcpy(app_reply->elem[pcnt].remote_wwpn,
+				    fcport->port_name, 8);
+
+				pcnt++;
+			}
+		}
+		app_reply->elem_count = pcnt;
+		SET_DID_STATUS(bsg_reply->result, DID_OK);
+	}
+
+	bsg_reply->reply_payload_rcv_len =
+	    sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	       bsg_job->reply_payload.sg_cnt, app_reply, ret_size);
+
+	kfree(app_reply);
+
+	return rval;
+}
+
 int32_t
 qla_edif_app_mgmt(struct bsg_job *bsg_job)
 {
@@ -309,6 +491,12 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 		break;
 	case QL_VND_SC_APP_STOP:
 		rval = qla_edif_app_stop(vha, bsg_job);
+		break;
+	case QL_VND_SC_GET_FCINFO:
+		rval = qla_edif_app_getfcinfo(vha, bsg_job);
+		break;
+	case QL_VND_SC_GET_STATS:
+		rval = qla_edif_app_getstats(vha, bsg_job);
 		break;
 	default:
 		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s unknown cmd=%x\n",
