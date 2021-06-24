@@ -207,7 +207,6 @@ struct inno_video_phy {
 	void __iomem *phy_base;
 	void __iomem *host_base;
 	struct reset_control *rst;
-	enum phy_mode mode;
 
 	struct {
 		struct clk_hw hw;
@@ -529,6 +528,7 @@ static void inno_video_phy_ttl_mode_enable(struct inno_video_phy *inno)
 static int inno_video_phy_power_on(struct phy *phy)
 {
 	struct inno_video_phy *inno = phy_get_drvdata(phy);
+	enum phy_mode mode = phy_get_mode(phy);
 
 	clk_prepare_enable(inno->pclk_host);
 	clk_prepare_enable(inno->pclk_phy);
@@ -541,18 +541,16 @@ static int inno_video_phy_power_on(struct phy *phy)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
 
-	switch (inno->mode) {
-	case PHY_MODE_VIDEO_MIPI:
+	switch (mode) {
+	case PHY_MODE_MIPI_DPHY:
 		inno_video_phy_mipi_mode_enable(inno);
 		break;
-	case PHY_MODE_VIDEO_LVDS:
+	case PHY_MODE_LVDS:
 		inno_video_phy_lvds_mode_enable(inno);
 		break;
-	case PHY_MODE_VIDEO_TTL:
+	default:
 		inno_video_phy_ttl_mode_enable(inno);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	return 0;
@@ -588,18 +586,6 @@ static int inno_video_phy_power_off(struct phy *phy)
 
 static int inno_video_phy_set_mode(struct phy *phy, enum phy_mode mode)
 {
-	struct inno_video_phy *inno = phy_get_drvdata(phy);
-
-	switch (mode) {
-	case PHY_MODE_VIDEO_MIPI:
-	case PHY_MODE_VIDEO_LVDS:
-	case PHY_MODE_VIDEO_TTL:
-		inno->mode = mode;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
