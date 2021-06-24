@@ -3,11 +3,9 @@
 #define __ASM_ALTERNATIVE_MACROS_H
 
 #include <asm/cpucaps.h>
+#include <asm/insn-def.h>
 
 #define ARM64_CB_PATCH ARM64_NCAPS
-
-/* A64 instructions are always 32 bits. */
-#define	AARCH64_INSN_SIZE		4
 
 #ifndef __ASSEMBLY__
 
