@@ -33,10 +33,10 @@ static inline bool exit_must_hard_disable(void)
 {
 	return static_branch_unlikely(&interrupt_exit_not_reentrant);
 }
-#elif defined(CONFIG_PPC64)
+#else
 static inline bool exit_must_hard_disable(void)
 {
-	return false;
+	return IS_ENABLED(CONFIG_PPC32);
 }
 #endif
 
@@ -56,12 +56,10 @@ static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();
 
-#ifdef CONFIG_PPC32
-	__hard_EE_RI_disable();
-#else
 	if (exit_must_hard_disable() || !restartable)
 		__hard_EE_RI_disable();
 
+#ifdef CONFIG_PPC64
 	/* This pattern matches prep_irq_for_idle */
 	if (unlikely(lazy_irq_pending_nocheck())) {
 		if (exit_must_hard_disable() || !restartable) {
