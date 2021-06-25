@@ -154,6 +154,9 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		goto out_err;
 	}
 
+	if (sk->sk_state == SMC_INIT)
+		return -ENOTCONN;
+
 	if (len > conn->sndbuf_desc->len)
 		SMC_STAT_RMB_TX_SIZE_SMALL(smc, !conn->lnk);
 
@@ -164,8 +167,6 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		SMC_STAT_INC(smc, urg_data_cnt);
 
 	while (msg_data_left(msg)) {
-		if (sk->sk_state == SMC_INIT)
-			return -ENOTCONN;
 		if (smc->sk.sk_shutdown & SEND_SHUTDOWN ||
 		    (smc->sk.sk_err == ECONNABORTED) ||
 		    conn->killed)
