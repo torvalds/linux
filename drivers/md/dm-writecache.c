@@ -15,6 +15,8 @@
 #include <linux/dax.h>
 #include <linux/pfn_t.h>
 #include <linux/libnvdimm.h>
+#include <linux/delay.h>
+#include "dm-io-tracker.h"
 
 #define DM_MSG_PREFIX "writecache"
 
@@ -182,6 +184,8 @@ struct dm_writecache {
 	struct workqueue_struct *writeback_wq;
 	struct work_struct writeback_work;
 	struct work_struct flush_work;
+
+	struct dm_io_tracker iot;
 
 	struct dm_io_client *dm_io;
 
@@ -1466,6 +1470,10 @@ bio_copy:
 	}
 
 unlock_remap_origin:
+	if (bio_data_dir(bio) != READ) {
+		dm_iot_io_begin(&wc->iot, 1);
+		bio->bi_private = (void *)2;
+	}
 	bio_set_dev(bio, wc->dev->bdev);
 	wc_unlock(wc);
 	return DM_MAPIO_REMAPPED;
@@ -1496,11 +1504,13 @@ static int writecache_end_io(struct dm_target *ti, struct bio *bio, blk_status_t
 {
 	struct dm_writecache *wc = ti->private;
 
-	if (bio->bi_private != NULL) {
+	if (bio->bi_private == (void *)1) {
 		int dir = bio_data_dir(bio);
 		if (atomic_dec_and_test(&wc->bio_in_progress[dir]))
 			if (unlikely(waitqueue_active(&wc->bio_in_progress_wait[dir])))
 				wake_up(&wc->bio_in_progress_wait[dir]);
+	} else if (bio->bi_private == (void *)2) {
+		dm_iot_io_end(&wc->iot, 1);
 	}
 	return 0;
 }
@@ -1827,6 +1837,13 @@ static void writecache_writeback(struct work_struct *work)
 		dm_kcopyd_client_flush(wc->dm_kcopyd);
 	}
 
+	if (!wc->writeback_all && !dm_suspended(wc->ti)) {
+		while (!dm_iot_idle_for(&wc->iot, HZ)) {
+			cond_resched();
+			msleep(1000);
+		}
+	}
+
 	wc_lock(wc);
 restart:
 	if (writecache_has_error(wc)) {
@@ -2139,6 +2156,8 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	INIT_WORK(&wc->writeback_work, writecache_writeback);
 	INIT_WORK(&wc->flush_work, writecache_flush_work);
+
+	dm_iot_init(&wc->iot);
 
 	raw_spin_lock_init(&wc->endio_list_lock);
 	INIT_LIST_HEAD(&wc->endio_list);
