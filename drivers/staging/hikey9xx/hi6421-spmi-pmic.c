@@ -250,9 +250,11 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 		ddata->irqs[i] = virq;
 	}
 
-	ret = request_threaded_irq(ddata->irq, hi6421_spmi_irq_handler, NULL,
-				   IRQF_TRIGGER_LOW | IRQF_SHARED | IRQF_NO_SUSPEND,
-				   "pmic", ddata);
+	ret = devm_request_threaded_irq(dev,
+					ddata->irq, hi6421_spmi_irq_handler,
+					NULL,
+				        IRQF_TRIGGER_LOW | IRQF_SHARED | IRQF_NO_SUSPEND,
+				        "pmic", ddata);
 	if (ret < 0) {
 		dev_err(dev, "Failed to start IRQ handling thread: error %d\n",
 			ret);
@@ -270,13 +272,6 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	return ret;
 }
 
-static void hi6421_spmi_pmic_remove(struct spmi_device *pdev)
-{
-	struct hi6421_spmi_pmic *ddata = dev_get_drvdata(&pdev->dev);
-
-	free_irq(ddata->irq, ddata);
-}
-
 static const struct of_device_id pmic_spmi_id_table[] = {
 	{ .compatible = "hisilicon,hi6421-spmi" },
 	{ }
@@ -289,7 +284,6 @@ static struct spmi_driver hi6421_spmi_pmic_driver = {
 		.of_match_table = pmic_spmi_id_table,
 	},
 	.probe	= hi6421_spmi_pmic_probe,
-	.remove	= hi6421_spmi_pmic_remove,
 };
 module_spmi_driver(hi6421_spmi_pmic_driver);
 
