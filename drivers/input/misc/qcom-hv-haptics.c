@@ -364,6 +364,10 @@ enum pmic_type {
 	PM5100,
 };
 
+enum wa_flags {
+	TOGGLE_CAL_RC_CLK = BIT(0),
+};
+
 static const char * const src_str[] = {
 	"FIFO",
 	"DIRECT_PLAY",
@@ -511,6 +515,7 @@ struct haptics_chip {
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
 	u32				hbst_addr_base;
+	u32				wa_flags;
 	u8				cfg_revision;
 	u8				ptn_revision;
 	u8				hpwr_intf_ctl;
@@ -1449,8 +1454,9 @@ static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 		if (rc < 0)
 			return rc;
 
-		if ((val & CAL_RC_CLK_MASK) ==
-				CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT) {
+		if ((chip->wa_flags & TOGGLE_CAL_RC_CLK) &&
+		    ((val & CAL_RC_CLK_MASK) ==
+		      CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT)) {
 			val = CAL_RC_CLK_DISABLED_VAL << CAL_RC_CLK_SHIFT;
 			rc = haptics_masked_write(chip, chip->cfg_addr_base,
 					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
@@ -2578,6 +2584,23 @@ static int haptics_config_openloop_lra_period(struct haptics_chip *chip,
 			HAP_CFG_TLRA_OL_HIGH_REG, val, 2);
 }
 
+static int haptics_config_wa(struct haptics_chip *chip)
+{
+	switch (chip->pmic_type) {
+	case PM8350B:
+		chip->wa_flags |= TOGGLE_CAL_RC_CLK;
+		break;
+	case PM5100:
+		break;
+	default:
+		dev_err(chip->dev, "PMIC type %d does not match\n",
+			chip->pmic_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int haptics_hw_init(struct haptics_chip *chip)
 {
 	struct haptics_hw_config *config = &chip->config;
@@ -2585,6 +2608,10 @@ static int haptics_hw_init(struct haptics_chip *chip)
 	int rc = 0, i;
 	u8 val[2];
 	u32 t_lra_us;
+
+	rc = haptics_config_wa(chip);
+	if (rc < 0)
+		return rc;
 
 	/* Store CL brake settings */
 	rc = haptics_store_cl_brake_settings(chip);
