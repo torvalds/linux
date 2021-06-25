@@ -534,11 +534,13 @@ static u32 intel_psr2_get_tp_time(struct intel_dp *intel_dp)
 static void hsw_activate_psr2(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 val;
+	u32 val = EDP_PSR2_ENABLE;
 
-	val = psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
+	val |= psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
 
-	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
+	if (!IS_ALDERLAKE_P(dev_priv))
+		val |= EDP_SU_TRACK_ENABLE;
+
 	if (DISPLAY_VER(dev_priv) >= 10 && DISPLAY_VER(dev_priv) <= 12)
 		val |= EDP_Y_COORDINATE_ENABLE;
 
@@ -793,6 +795,7 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 static bool psr2_granularity_check(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	u16 y_granularity = 0;
@@ -809,10 +812,13 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 		return intel_dp->psr.su_y_granularity == 4;
 
 	/*
-	 * For SW tracking we can adjust the y to match sink requirement if
-	 * multiple of 4
+	 * adl_p has 1 line granularity. For other platforms with SW tracking we
+	 * can adjust the y coordinates to match sink requirement if multiple of
+	 * 4.
 	 */
-	if (intel_dp->psr.su_y_granularity <= 2)
+	if (IS_ALDERLAKE_P(dev_priv))
+		y_granularity = intel_dp->psr.su_y_granularity;
+	else if (intel_dp->psr.su_y_granularity <= 2)
 		y_granularity = 4;
 	else if ((intel_dp->psr.su_y_granularity % 4) == 0)
 		y_granularity = intel_dp->psr.su_y_granularity;
@@ -1525,21 +1531,32 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 				  struct drm_rect *clip, bool full_update)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 val = PSR2_MAN_TRK_CTL_ENABLE;
 
 	if (full_update) {
-		val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+		if (IS_ALDERLAKE_P(dev_priv))
+			val |= ADLP_PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+		else
+			val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+
 		goto exit;
 	}
 
 	if (clip->y1 == -1)
 		goto exit;
 
-	drm_WARN_ON(crtc_state->uapi.crtc->dev, clip->y1 % 4 || clip->y2 % 4);
+	if (IS_ALDERLAKE_P(dev_priv)) {
+		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1);
+		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2);
+	} else {
+		drm_WARN_ON(crtc_state->uapi.crtc->dev, clip->y1 % 4 || clip->y2 % 4);
 
-	val |= PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
-	val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
-	val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 / 4 + 1);
+		val |= PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
+		val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
+		val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 / 4 + 1);
+	}
 exit:
 	crtc_state->psr2_man_track_ctl = val;
 }
@@ -1563,11 +1580,15 @@ static void clip_area_update(struct drm_rect *overlap_damage_area,
 static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *crtc_state,
 						struct drm_rect *pipe_clip)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	const u16 y_alignment = crtc_state->su_y_granularity;
 
 	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
 	if (pipe_clip->y2 % y_alignment)
 		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
+
+	if (IS_ALDERLAKE_P(dev_priv) && crtc_state->dsc.compression_enable)
+		drm_warn(&dev_priv->drm, "Missing PSR2 sel fetch alignment with DSC\n");
 }
 
 int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
