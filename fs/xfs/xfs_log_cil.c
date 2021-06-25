@@ -877,7 +877,7 @@ restart:
 	 * Once we attach the ctx to the iclog, a shutdown can process the
 	 * iclog, run the callbacks and free the ctx. The only thing preventing
 	 * this potential UAF situation here is that we are holding the
-	 * icloglock. Hence we cannot access the ctx after we have attached the
+	 * icloglock. Hence we cannot access the ctx once we have attached the
 	 * callbacks and dropped the icloglock.
 	 */
 	spin_lock(&log->l_icloglock);
@@ -900,17 +900,38 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 
 	/*
-	 * If the checkpoint spans multiple iclogs, wait for all previous
-	 * iclogs to complete before we submit the commit_iclog. In this case,
-	 * the commit_iclog write needs to issue a pre-flush so that the
-	 * ordering is correctly preserved down to stable storage.
+	 * If the checkpoint spans multiple iclogs, wait for all previous iclogs
+	 * to complete before we submit the commit_iclog. We can't use state
+	 * checks for this - ACTIVE can be either a past completed iclog or a
+	 * future iclog being filled, while WANT_SYNC through SYNC_DONE can be a
+	 * past or future iclog awaiting IO or ordered IO completion to be run.
+	 * In the latter case, if it's a future iclog and we wait on it, the we
+	 * will hang because it won't get processed through to ic_force_wait
+	 * wakeup until this commit_iclog is written to disk.  Hence we use the
+	 * iclog header lsn and compare it to the commit lsn to determine if we
+	 * need to wait on iclogs or not.
 	 *
 	 * NOTE: It is not safe to reference the ctx after this check as we drop
 	 * the icloglock if we have to wait for completion of other iclogs.
 	 */
 	if (ctx->start_lsn != commit_lsn) {
-		xlog_wait_on_iclog(commit_iclog->ic_prev);
-		spin_lock(&log->l_icloglock);
+		xfs_lsn_t	plsn;
+
+		plsn = be64_to_cpu(commit_iclog->ic_prev->ic_header.h_lsn);
+		if (plsn && XFS_LSN_CMP(plsn, commit_lsn) < 0) {
+			/*
+			 * Waiting on ic_force_wait orders the completion of
+			 * iclogs older than ic_prev. Hence we only need to wait
+			 * on the most recent older iclog here.
+			 */
+			xlog_wait_on_iclog(commit_iclog->ic_prev);
+			spin_lock(&log->l_icloglock);
+		}
+
+		/*
+		 * We need to issue a pre-flush so that the ordering for this
+		 * checkpoint is correctly preserved down to stable storage.
+		 */
 		commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
 	}
 
