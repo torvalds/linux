@@ -73,6 +73,10 @@
 #define PCAN_USB_STATUSLEN_RTR		(1 << 4)
 #define PCAN_USB_STATUSLEN_DLC		(0xf)
 
+/* PCAN-USB 4.1 CAN Id tx extended flags */
+#define PCAN_USB_TX_SRR			0x01	/* SJA1000 SRR command */
+#define PCAN_USB_TX_AT			0x02	/* SJA1000 AT command */
+
 /* PCAN-USB error flags */
 #define PCAN_USB_ERROR_TXFULL		0x01
 #define PCAN_USB_ERROR_RXQOVR		0x02
@@ -705,6 +709,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 	struct sk_buff *skb;
 	struct can_frame *cf;
 	struct skb_shared_hwtstamps *hwts;
+	u32 can_id_flags;
 
 	skb = alloc_can_skb(mc->netdev, &cf);
 	if (!skb)
@@ -714,13 +719,15 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		if ((mc->ptr + 4) > mc->end)
 			goto decode_failed;
 
-		cf->can_id = get_unaligned_le32(mc->ptr) >> 3 | CAN_EFF_FLAG;
+		can_id_flags = get_unaligned_le32(mc->ptr);
+		cf->can_id = can_id_flags >> 3 | CAN_EFF_FLAG;
 		mc->ptr += 4;
 	} else {
 		if ((mc->ptr + 2) > mc->end)
 			goto decode_failed;
 
-		cf->can_id = get_unaligned_le16(mc->ptr) >> 5;
+		can_id_flags = get_unaligned_le16(mc->ptr);
+		cf->can_id = can_id_flags >> 5;
 		mc->ptr += 2;
 	}
 
@@ -743,6 +750,10 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 
 		memcpy(cf->data, mc->ptr, cf->len);
 		mc->ptr += rec_len;
+
+		/* Ignore next byte (client private id) if SRR bit is set */
+		if (can_id_flags & PCAN_USB_TX_SRR)
+			mc->ptr++;
 	}
 
 	/* convert timestamp into kernel time */
@@ -820,6 +831,7 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 	struct net_device *netdev = dev->netdev;
 	struct net_device_stats *stats = &netdev->stats;
 	struct can_frame *cf = (struct can_frame *)skb->data;
+	u32 can_id_flags = cf->can_id & CAN_ERR_MASK;
 	u8 *pc;
 
 	obuf[0] = 2;
@@ -838,12 +850,28 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 		*pc |= PCAN_USB_STATUSLEN_EXT_ID;
 		pc++;
 
-		put_unaligned_le32((cf->can_id & CAN_ERR_MASK) << 3, pc);
+		can_id_flags <<= 3;
+
+		if (dev->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
+			can_id_flags |= PCAN_USB_TX_SRR;
+
+		if (dev->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
+			can_id_flags |= PCAN_USB_TX_AT;
+
+		put_unaligned_le32(can_id_flags, pc);
 		pc += 4;
 	} else {
 		pc++;
 
-		put_unaligned_le16((cf->can_id & CAN_ERR_MASK) << 5, pc);
+		can_id_flags <<= 5;
+
+		if (dev->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
+			can_id_flags |= PCAN_USB_TX_SRR;
+
+		if (dev->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
+			can_id_flags |= PCAN_USB_TX_AT;
+
+		put_unaligned_le16(can_id_flags, pc);
 		pc += 2;
 	}
 
@@ -852,6 +880,10 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 		memcpy(pc, cf->data, cf->len);
 		pc += cf->len;
 	}
+
+	/* SRR bit needs a writer id (useless here) */
+	if (can_id_flags & PCAN_USB_TX_SRR)
+		*pc++ = 0x80;
 
 	obuf[(*size)-1] = (u8)(stats->tx_packets & 0xff);
 
@@ -925,6 +957,19 @@ static int pcan_usb_init(struct peak_usb_device *dev)
 			"unable to read %s serial number (err %d)\n",
 			pcan_usb.name, err);
 		return err;
+	}
+
+	/* Since rev 4.1, PCAN-USB is able to make single-shot as well as
+	 * looped back frames.
+	 */
+	if (dev->device_rev >= 41) {
+		struct can_priv *priv = netdev_priv(dev->netdev);
+
+		priv->ctrlmode_supported |= CAN_CTRLMODE_ONE_SHOT |
+					    CAN_CTRLMODE_LOOPBACK;
+	} else {
+		dev_info(dev->netdev->dev.parent,
+			 "Firmware update available. Please contact support@peak-system.com\n");
 	}
 
 	dev_info(dev->netdev->dev.parent,
