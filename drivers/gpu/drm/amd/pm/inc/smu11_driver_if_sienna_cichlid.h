@@ -131,7 +131,7 @@
 #define FEATURE_GFX_EDC_BIT             49
 #define FEATURE_GFX_PER_PART_VMIN_BIT   50
 #define FEATURE_SMART_SHIFT_BIT         51
-#define FEATURE_SPARE_52_BIT            52
+#define FEATURE_APT_BIT                 52
 #define FEATURE_SPARE_53_BIT            53
 #define FEATURE_SPARE_54_BIT            54
 #define FEATURE_SPARE_55_BIT            55
