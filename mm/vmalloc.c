@@ -2999,6 +2999,23 @@ void *vmalloc(unsigned long size)
 EXPORT_SYMBOL(vmalloc);
 
 /**
+ * vmalloc_no_huge - allocate virtually contiguous memory using small pages
+ * @size:    allocation size
+ *
+ * Allocate enough non-huge pages to cover @size from the page level
+ * allocator and map them into contiguous kernel virtual space.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
+ */
+void *vmalloc_no_huge(unsigned long size)
+{
+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+				    GFP_KERNEL, PAGE_KERNEL, VM_NO_HUGE_VMAP,
+				    NUMA_NO_NODE, __builtin_return_address(0));
+}
+EXPORT_SYMBOL(vmalloc_no_huge);
+
+/**
  * vzalloc - allocate virtually contiguous memory with zero fill
  * @size:    allocation size
  *
