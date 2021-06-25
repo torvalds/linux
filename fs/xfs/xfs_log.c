@@ -1484,7 +1484,6 @@ xlog_alloc_log(
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);
-		spin_lock_init(&iclog->ic_callback_lock);
 		INIT_LIST_HEAD(&iclog->ic_callbacks);
 		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
 
@@ -2760,32 +2759,6 @@ xlog_state_iodone_process_iclog(
 	}
 }
 
-/*
- * Keep processing entries in the iclog callback list until we come around and
- * it is empty.  We need to atomically see that the list is empty and change the
- * state to DIRTY so that we don't miss any more callbacks being added.
- *
- * This function is called with the icloglock held and returns with it held. We
- * drop it while running callbacks, however, as holding it over thousands of
- * callbacks is unnecessary and causes excessive contention if we do.
- */
-static void
-xlog_state_do_iclog_callbacks(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog)
-{
-	LIST_HEAD(tmp);
-
-	trace_xlog_iclog_callbacks_start(iclog, _RET_IP_);
-
-	spin_lock(&iclog->ic_callback_lock);
-	list_splice_init(&iclog->ic_callbacks, &tmp);
-	spin_unlock(&iclog->ic_callback_lock);
-
-	xlog_cil_process_committed(&tmp);
-	trace_xlog_iclog_callbacks_done(iclog, _RET_IP_);
-}
-
 STATIC void
 xlog_state_do_callback(
 	struct xlog		*log)
@@ -2814,6 +2787,8 @@ xlog_state_do_callback(
 		repeats++;
 
 		do {
+			LIST_HEAD(cb_list);
+
 			if (xlog_state_iodone_process_iclog(log, iclog,
 							&ioerror))
 				break;
@@ -2823,9 +2798,12 @@ xlog_state_do_callback(
 				iclog = iclog->ic_next;
 				continue;
 			}
+			list_splice_init(&iclog->ic_callbacks, &cb_list);
 			spin_unlock(&log->l_icloglock);
 
-			xlog_state_do_iclog_callbacks(log, iclog);
+			trace_xlog_iclog_callbacks_start(iclog, _RET_IP_);
+			xlog_cil_process_committed(&cb_list);
+			trace_xlog_iclog_callbacks_done(iclog, _RET_IP_);
 			cycled_icloglock = true;
 
 			spin_lock(&log->l_icloglock);

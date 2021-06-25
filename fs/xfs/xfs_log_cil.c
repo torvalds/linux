@@ -873,15 +873,21 @@ restart:
 
 	xfs_log_ticket_ungrant(log, tic);
 
-	spin_lock(&commit_iclog->ic_callback_lock);
+	/*
+	 * Once we attach the ctx to the iclog, a shutdown can process the
+	 * iclog, run the callbacks and free the ctx. The only thing preventing
+	 * this potential UAF situation here is that we are holding the
+	 * icloglock. Hence we cannot access the ctx after we have attached the
+	 * callbacks and dropped the icloglock.
+	 */
+	spin_lock(&log->l_icloglock);
 	if (commit_iclog->ic_state == XLOG_STATE_IOERROR) {
-		spin_unlock(&commit_iclog->ic_callback_lock);
+		spin_unlock(&log->l_icloglock);
 		goto out_abort;
 	}
 	ASSERT_ALWAYS(commit_iclog->ic_state == XLOG_STATE_ACTIVE ||
 		      commit_iclog->ic_state == XLOG_STATE_WANT_SYNC);
 	list_add_tail(&ctx->iclog_entry, &commit_iclog->ic_callbacks);
-	spin_unlock(&commit_iclog->ic_callback_lock);
 
 	/*
 	 * now the checkpoint commit is complete and we've attached the
@@ -898,8 +904,10 @@ restart:
 	 * iclogs to complete before we submit the commit_iclog. In this case,
 	 * the commit_iclog write needs to issue a pre-flush so that the
 	 * ordering is correctly preserved down to stable storage.
+	 *
+	 * NOTE: It is not safe to reference the ctx after this check as we drop
+	 * the icloglock if we have to wait for completion of other iclogs.
 	 */
-	spin_lock(&log->l_icloglock);
 	if (ctx->start_lsn != commit_lsn) {
 		xlog_wait_on_iclog(commit_iclog->ic_prev);
 		spin_lock(&log->l_icloglock);
