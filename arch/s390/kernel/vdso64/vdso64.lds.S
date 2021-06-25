@@ -137,6 +137,9 @@ VERSION
 		__kernel_clock_gettime;
 		__kernel_clock_getres;
 		__kernel_getcpu;
+		__kernel_restart_syscall;
+		__kernel_rt_sigreturn;
+		__kernel_sigreturn;
 	local: *;
 	};
 }
