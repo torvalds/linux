@@ -144,7 +144,7 @@ struct mdev_state {
 	int nr_ports;
 };
 
-static atomic_t mdev_used_ports;
+static atomic_t mdev_avail_ports = ATOMIC_INIT(MAX_MTTYS);
 
 static const struct file_operations vd_fops = {
 	.owner          = THIS_MODULE,
@@ -707,11 +707,20 @@ static int mtty_probe(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
 	int nr_ports = mdev_get_type_group_id(mdev) + 1;
+	int avail_ports = atomic_read(&mdev_avail_ports);
 	int ret;
 
+	do {
+		if (avail_ports < nr_ports)
+			return -ENOSPC;
+	} while (!atomic_try_cmpxchg(&mdev_avail_ports,
+				     &avail_ports, avail_ports - nr_ports));
+
 	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
-	if (mdev_state == NULL)
+	if (mdev_state == NULL) {
+		atomic_add(nr_ports, &mdev_avail_ports);
 		return -ENOMEM;
+	}
 
 	vfio_init_group_dev(&mdev_state->vdev, &mdev->dev, &mtty_dev_ops);
 
@@ -724,6 +733,7 @@ static int mtty_probe(struct mdev_device *mdev)
 
 	if (mdev_state->vconfig == NULL) {
 		kfree(mdev_state);
+		atomic_add(nr_ports, &mdev_avail_ports);
 		return -ENOMEM;
 	}
 
@@ -735,9 +745,9 @@ static int mtty_probe(struct mdev_device *mdev)
 	ret = vfio_register_group_dev(&mdev_state->vdev);
 	if (ret) {
 		kfree(mdev_state);
+		atomic_add(nr_ports, &mdev_avail_ports);
 		return ret;
 	}
-	atomic_add(mdev_state->nr_ports, &mdev_used_ports);
 
 	dev_set_drvdata(&mdev->dev, mdev_state);
 	return 0;
@@ -746,12 +756,13 @@ static int mtty_probe(struct mdev_device *mdev)
 static void mtty_remove(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state = dev_get_drvdata(&mdev->dev);
+	int nr_ports = mdev_state->nr_ports;
 
-	atomic_sub(mdev_state->nr_ports, &mdev_used_ports);
 	vfio_unregister_group_dev(&mdev_state->vdev);
 
 	kfree(mdev_state->vconfig);
 	kfree(mdev_state);
+	atomic_add(nr_ports, &mdev_avail_ports);
 }
 
 static int mtty_reset(struct mdev_state *mdev_state)
@@ -1271,8 +1282,7 @@ static ssize_t available_instances_show(struct mdev_type *mtype,
 {
 	unsigned int ports = mtype_get_type_group_id(mtype) + 1;
 
-	return sprintf(buf, "%d\n",
-		       (MAX_MTTYS - atomic_read(&mdev_used_ports)) / ports);
+	return sprintf(buf, "%d\n", atomic_read(&mdev_avail_ports) / ports);
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);
