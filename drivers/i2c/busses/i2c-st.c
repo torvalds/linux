@@ -524,7 +524,7 @@ static void st_i2c_handle_write(struct st_i2c_dev *i2c_dev)
 }
 
 /**
- * st_i2c_handle_write() - Handle FIFO enmpty interrupt in case of read
+ * st_i2c_handle_read() - Handle FIFO empty interrupt in case of read
  * @i2c_dev: Controller's private data
  */
 static void st_i2c_handle_read(struct st_i2c_dev *i2c_dev)
@@ -558,7 +558,7 @@ static void st_i2c_handle_read(struct st_i2c_dev *i2c_dev)
 }
 
 /**
- * st_i2c_isr() - Interrupt routine
+ * st_i2c_isr_thread() - Interrupt routine
  * @irq: interrupt number
  * @data: Controller's private data
  */

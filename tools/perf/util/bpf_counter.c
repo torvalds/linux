@@ -451,10 +451,10 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 		goto out;
 	}
 
-	err = -1;
 	link = bpf_program__attach(skel->progs.on_switch);
-	if (!link) {
+	if (IS_ERR(link)) {
 		pr_err("Failed to attach leader program\n");
+		err = PTR_ERR(link);
 		goto out;
 	}
 

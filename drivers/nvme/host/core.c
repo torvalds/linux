@@ -3485,8 +3485,10 @@ int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 	cdev_init(cdev, fops);
 	cdev->owner = owner;
 	ret = cdev_device_add(cdev, cdev_device);
-	if (ret)
+	if (ret) {
+		put_device(cdev_device);
 		ida_simple_remove(&nvme_ns_chr_minor_ida, minor);
+	}
 	return ret;
 }
 
