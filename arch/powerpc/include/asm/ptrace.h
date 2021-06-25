@@ -146,19 +146,13 @@ static inline void set_return_regs_changed(void)
 static inline void regs_set_return_ip(struct pt_regs *regs, unsigned long ip)
 {
 	regs->nip = ip;
-#ifdef CONFIG_PPC_BOOK3S_64
-	local_paca->hsrr_valid = 0;
-	local_paca->srr_valid = 0;
-#endif
+	set_return_regs_changed();
 }
 
 static inline void regs_set_return_msr(struct pt_regs *regs, unsigned long msr)
 {
 	regs->msr = msr;
-#ifdef CONFIG_PPC_BOOK3S_64
-	local_paca->hsrr_valid = 0;
-	local_paca->srr_valid = 0;
-#endif
+	set_return_regs_changed();
 }
 
 static inline void regs_add_return_ip(struct pt_regs *regs, long offset)
