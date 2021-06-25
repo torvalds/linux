@@ -19,6 +19,11 @@ struct mlx5_esw_bridge_fdb_key {
 
 enum {
 	MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER = BIT(0),
+	MLX5_ESW_BRIDGE_FLAG_PEER = BIT(1),
+};
+
+enum {
+	MLX5_ESW_BRIDGE_PORT_FLAG_PEER = BIT(0),
 };
 
 struct mlx5_esw_bridge_fdb_entry {
@@ -49,6 +54,7 @@ struct mlx5_esw_bridge_vlan {
 struct mlx5_esw_bridge_port {
 	u16 vport_num;
 	u16 esw_owner_vhca_id;
+	u16 flags;
 	struct mlx5_esw_bridge *bridge;
 	struct xarray vlans;
 };

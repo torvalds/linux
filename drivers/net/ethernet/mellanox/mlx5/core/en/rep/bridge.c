@@ -15,6 +15,7 @@ struct mlx5_bridge_switchdev_fdb_work {
 	struct work_struct work;
 	struct switchdev_notifier_fdb_info fdb_info;
 	struct net_device *dev;
+	struct mlx5_esw_bridge_offloads *br_offloads;
 	bool add;
 };
 
@@ -25,13 +26,28 @@ static bool mlx5_esw_bridge_dev_same_esw(struct net_device *dev, struct mlx5_esw
 	return esw == priv->mdev->priv.eswitch;
 }
 
+static bool mlx5_esw_bridge_dev_same_hw(struct net_device *dev, struct mlx5_eswitch *esw)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev, *esw_mdev;
+	u64 system_guid, esw_system_guid;
+
+	mdev = priv->mdev;
+	esw_mdev = esw->dev;
+
+	system_guid = mlx5_query_nic_system_image_guid(mdev);
+	esw_system_guid = mlx5_query_nic_system_image_guid(esw_mdev);
+
+	return system_guid == esw_system_guid;
+}
+
 static int mlx5_esw_bridge_vport_num_vhca_id_get(struct net_device *dev, struct mlx5_eswitch *esw,
 						 u16 *vport_num, u16 *esw_owner_vhca_id)
 {
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *priv;
 
-	if (!mlx5e_eswitch_rep(dev) || !mlx5_esw_bridge_dev_same_esw(dev, esw))
+	if (!mlx5e_eswitch_rep(dev) || !mlx5_esw_bridge_dev_same_hw(dev, esw))
 		return -ENODEV;
 
 	priv = netdev_priv(dev);
@@ -48,7 +64,7 @@ mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(struct net_device *dev, struct m
 	struct net_device *lower_dev;
 	struct list_head *iter;
 
-	if (mlx5e_eswitch_rep(dev) && mlx5_esw_bridge_dev_same_esw(dev, esw))
+	if (mlx5e_eswitch_rep(dev))
 		return mlx5_esw_bridge_vport_num_vhca_id_get(dev, esw, vport_num,
 							     esw_owner_vhca_id);
 
@@ -74,6 +90,7 @@ static int mlx5_esw_bridge_port_changeupper(struct notifier_block *nb, void *ptr
 								    netdev_nb);
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct netdev_notifier_changeupper_info *info = ptr;
+	struct mlx5_eswitch *esw = br_offloads->esw;
 	struct net_device *upper = info->upper_dev;
 	u16 vport_num, esw_owner_vhca_id;
 	struct netlink_ext_ack *extack;
@@ -90,11 +107,20 @@ static int mlx5_esw_bridge_port_changeupper(struct notifier_block *nb, void *ptr
 
 	extack = netdev_notifier_info_to_extack(&info->info);
 
-	return info->linking ?
-		mlx5_esw_bridge_vport_link(ifindex, vport_num, esw_owner_vhca_id, br_offloads,
-					   extack) :
-		mlx5_esw_bridge_vport_unlink(ifindex, vport_num, esw_owner_vhca_id, br_offloads,
-					     extack);
+	if (mlx5_esw_bridge_dev_same_esw(dev, esw))
+		err = info->linking ?
+			mlx5_esw_bridge_vport_link(ifindex, vport_num, esw_owner_vhca_id,
+						   br_offloads, extack) :
+			mlx5_esw_bridge_vport_unlink(ifindex, vport_num, esw_owner_vhca_id,
+						     br_offloads, extack);
+	else if (mlx5_esw_bridge_dev_same_hw(dev, esw))
+		err = info->linking ?
+			mlx5_esw_bridge_vport_peer_link(ifindex, vport_num, esw_owner_vhca_id,
+							br_offloads, extack) :
+			mlx5_esw_bridge_vport_peer_unlink(ifindex, vport_num, esw_owner_vhca_id,
+							  br_offloads, extack);
+
+	return err;
 }
 
 static int mlx5_esw_bridge_switchdev_port_event(struct notifier_block *nb,
@@ -253,16 +279,14 @@ static void mlx5_esw_bridge_switchdev_fdb_event_work(struct work_struct *work)
 		container_of(work, struct mlx5_bridge_switchdev_fdb_work, work);
 	struct switchdev_notifier_fdb_info *fdb_info =
 		&fdb_work->fdb_info;
-	struct mlx5_esw_bridge_offloads *br_offloads;
+	struct mlx5_esw_bridge_offloads *br_offloads =
+		fdb_work->br_offloads;
 	struct net_device *dev = fdb_work->dev;
 	u16 vport_num, esw_owner_vhca_id;
-	struct mlx5e_priv *priv;
 	int err;
 
 	rtnl_lock();
 
-	priv = netdev_priv(dev);
-	br_offloads = priv->mdev->priv.eswitch->br_offloads;
 	err = mlx5_esw_bridge_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
 						    &esw_owner_vhca_id);
 	if (err)
@@ -282,7 +306,8 @@ out:
 
 static struct mlx5_bridge_switchdev_fdb_work *
 mlx5_esw_bridge_init_switchdev_fdb_work(struct net_device *dev, bool add,
-					struct switchdev_notifier_fdb_info *fdb_info)
+					struct switchdev_notifier_fdb_info *fdb_info,
+					struct mlx5_esw_bridge_offloads *br_offloads)
 {
 	struct mlx5_bridge_switchdev_fdb_work *work;
 	u8 *addr;
@@ -304,6 +329,7 @@ mlx5_esw_bridge_init_switchdev_fdb_work(struct net_device *dev, bool add,
 
 	dev_hold(dev);
 	work->dev = dev;
+	work->br_offloads = br_offloads;
 	work->add = add;
 	return work;
 }
@@ -334,10 +360,13 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 
 	if (!mlx5e_eswitch_rep(dev))
 		return NOTIFY_DONE;
-	if (!mlx5_esw_bridge_dev_same_esw(dev, br_offloads->esw))
-		return NOTIFY_DONE;
 
 	switch (event) {
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		/* only handle the event when source is on another eswitch */
+		if (mlx5_esw_bridge_dev_same_esw(dev, br_offloads->esw))
+			break;
+		fallthrough;
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = container_of(info,
@@ -346,7 +375,8 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 
 		work = mlx5_esw_bridge_init_switchdev_fdb_work(dev,
 							       event == SWITCHDEV_FDB_ADD_TO_DEVICE,
-							       fdb_info);
+							       fdb_info,
+							       br_offloads);
 		if (IS_ERR(work)) {
 			WARN_ONCE(1, "Failed to init switchdev work, err=%ld",
 				  PTR_ERR(work));

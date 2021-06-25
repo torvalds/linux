@@ -79,7 +79,7 @@ mlx5_esw_bridge_fdb_offload_notify(struct net_device *dev, const unsigned char *
 static void
 mlx5_esw_bridge_fdb_del_notify(struct mlx5_esw_bridge_fdb_entry *entry)
 {
-	if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
+	if (!(entry->flags & (MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER | MLX5_ESW_BRIDGE_FLAG_PEER)))
 		mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
 						   entry->key.vid,
 						   SWITCHDEV_FDB_DEL_TO_BRIDGE);
@@ -513,7 +513,7 @@ mlx5_esw_bridge_ingress_filter_flow_create(u16 vport_num, const unsigned char *a
 }
 
 static struct mlx5_flow_handle *
-mlx5_esw_bridge_egress_flow_create(u16 vport_num, const unsigned char *addr,
+mlx5_esw_bridge_egress_flow_create(u16 vport_num, u16 esw_owner_vhca_id, const unsigned char *addr,
 				   struct mlx5_esw_bridge_vlan *vlan,
 				   struct mlx5_esw_bridge *bridge)
 {
@@ -558,6 +558,10 @@ mlx5_esw_bridge_egress_flow_create(u16 vport_num, const unsigned char *addr,
 			 vlan->vid);
 	}
 
+	if (MLX5_CAP_ESW(bridge->br_offloads->esw->dev, merged_eswitch)) {
+		dest.vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;
+		dest.vport.vhca_id = esw_owner_vhca_id;
+	}
 	handle = mlx5_add_flow_rules(bridge->egress_ft, rule_spec, &flow_act, &dest, 1);
 
 	kvfree(rule_spec);
@@ -917,7 +921,7 @@ mlx5_esw_bridge_port_vlan_lookup(u16 vid, u16 vport_num, u16 esw_owner_vhca_id,
 
 static struct mlx5_esw_bridge_fdb_entry *
 mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
-			       const unsigned char *addr, u16 vid, bool added_by_user,
+			       const unsigned char *addr, u16 vid, bool added_by_user, bool peer,
 			       struct mlx5_eswitch *esw, struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_esw_bridge_vlan *vlan = NULL;
@@ -945,6 +949,8 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_ow
 	entry->lastuse = jiffies;
 	if (added_by_user)
 		entry->flags |= MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER;
+	if (peer)
+		entry->flags |= MLX5_ESW_BRIDGE_FLAG_PEER;
 
 	counter = mlx5_fc_create(esw->dev, true);
 	if (IS_ERR(counter)) {
@@ -974,7 +980,8 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_ow
 		entry->filter_handle = handle;
 	}
 
-	handle = mlx5_esw_bridge_egress_flow_create(vport_num, addr, vlan, bridge);
+	handle = mlx5_esw_bridge_egress_flow_create(vport_num, esw_owner_vhca_id, addr, vlan,
+						    bridge);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		esw_warn(esw->dev, "Failed to create egress flow(vport=%u,err=%d)\n",
@@ -1050,7 +1057,7 @@ int mlx5_esw_bridge_vlan_filtering_set(u16 vport_num, u16 esw_owner_vhca_id, boo
 	return 0;
 }
 
-static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id,
+static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id, u16 flags,
 				      struct mlx5_esw_bridge_offloads *br_offloads,
 				      struct mlx5_esw_bridge *bridge)
 {
@@ -1065,6 +1072,7 @@ static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id,
 	port->vport_num = vport_num;
 	port->esw_owner_vhca_id = esw_owner_vhca_id;
 	port->bridge = bridge;
+	port->flags |= flags;
 	xa_init(&port->vlans);
 	err = mlx5_esw_bridge_port_insert(port, br_offloads);
 	if (err) {
@@ -1101,9 +1109,10 @@ static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_off
 	return 0;
 }
 
-int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
-			       struct mlx5_esw_bridge_offloads *br_offloads,
-			       struct netlink_ext_ack *extack)
+static int mlx5_esw_bridge_vport_link_with_flags(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+						 u16 flags,
+						 struct mlx5_esw_bridge_offloads *br_offloads,
+						 struct netlink_ext_ack *extack)
 {
 	struct mlx5_esw_bridge *bridge;
 	int err;
@@ -1114,7 +1123,7 @@ int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id
 		return PTR_ERR(bridge);
 	}
 
-	err = mlx5_esw_bridge_vport_init(vport_num, esw_owner_vhca_id, br_offloads, bridge);
+	err = mlx5_esw_bridge_vport_init(vport_num, esw_owner_vhca_id, flags, br_offloads, bridge);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Error initializing port");
 		goto err_vport;
@@ -1124,6 +1133,14 @@ int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id
 err_vport:
 	mlx5_esw_bridge_put(br_offloads, bridge);
 	return err;
+}
+
+int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+			       struct mlx5_esw_bridge_offloads *br_offloads,
+			       struct netlink_ext_ack *extack)
+{
+	return mlx5_esw_bridge_vport_link_with_flags(ifindex, vport_num, esw_owner_vhca_id, 0,
+						     br_offloads, extack);
 }
 
 int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
@@ -1147,6 +1164,26 @@ int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "Port cleanup failed");
 	return err;
+}
+
+int mlx5_esw_bridge_vport_peer_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+				    struct mlx5_esw_bridge_offloads *br_offloads,
+				    struct netlink_ext_ack *extack)
+{
+	if (!MLX5_CAP_ESW(br_offloads->esw->dev, merged_eswitch))
+		return 0;
+
+	return mlx5_esw_bridge_vport_link_with_flags(ifindex, vport_num, esw_owner_vhca_id,
+						     MLX5_ESW_BRIDGE_PORT_FLAG_PEER,
+						     br_offloads, extack);
+}
+
+int mlx5_esw_bridge_vport_peer_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+				      struct mlx5_esw_bridge_offloads *br_offloads,
+				      struct netlink_ext_ack *extack)
+{
+	return mlx5_esw_bridge_vport_unlink(ifindex, vport_num, esw_owner_vhca_id, br_offloads,
+					    extack);
 }
 
 int mlx5_esw_bridge_port_vlan_add(u16 vport_num, u16 esw_owner_vhca_id, u16 vid, u16 flags,
@@ -1206,6 +1243,7 @@ void mlx5_esw_bridge_fdb_create(struct net_device *dev, u16 vport_num, u16 esw_o
 	bridge = port->bridge;
 	entry = mlx5_esw_bridge_fdb_entry_init(dev, vport_num, esw_owner_vhca_id, fdb_info->addr,
 					       fdb_info->vid, fdb_info->added_by_user,
+					       port->flags & MLX5_ESW_BRIDGE_PORT_FLAG_PEER,
 					       br_offloads->esw, bridge);
 	if (IS_ERR(entry))
 		return;
@@ -1213,7 +1251,7 @@ void mlx5_esw_bridge_fdb_create(struct net_device *dev, u16 vport_num, u16 esw_o
 	if (entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER)
 		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
 						   SWITCHDEV_FDB_OFFLOADED);
-	else
+	else if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_PEER))
 		/* Take over dynamic entries to prevent kernel bridge from aging them out. */
 		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
 						   SWITCHDEV_FDB_ADD_TO_BRIDGE);
@@ -1263,7 +1301,8 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 
 			if (time_after(lastuse, entry->lastuse)) {
 				mlx5_esw_bridge_fdb_entry_refresh(lastuse, entry);
-			} else if (time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
+			} else if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_PEER) &&
+				   time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
 				mlx5_esw_bridge_fdb_del_notify(entry);
 				mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 			}
