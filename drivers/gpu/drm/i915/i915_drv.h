@@ -1134,6 +1134,8 @@ struct drm_i915_private {
 	/* For i915gm/i945gm vblank irq workaround */
 	u8 vblank_enabled;
 
+	bool irq_enabled;
+
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
 
