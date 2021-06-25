@@ -135,6 +135,14 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 long do_syscall_trace_enter(struct pt_regs *regs);
 void do_syscall_trace_leave(struct pt_regs *regs);
 
+static inline void set_return_regs_changed(void)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	local_paca->hsrr_valid = 0;
+	local_paca->srr_valid = 0;
+#endif
+}
+
 static inline void regs_set_return_ip(struct pt_regs *regs, unsigned long ip)
 {
 	regs->nip = ip;
@@ -147,14 +155,6 @@ static inline void regs_set_return_ip(struct pt_regs *regs, unsigned long ip)
 static inline void regs_set_return_msr(struct pt_regs *regs, unsigned long msr)
 {
 	regs->msr = msr;
-#ifdef CONFIG_PPC_BOOK3S_64
-	local_paca->hsrr_valid = 0;
-	local_paca->srr_valid = 0;
-#endif
-}
-
-static inline void set_return_regs_changed(void)
-{
 #ifdef CONFIG_PPC_BOOK3S_64
 	local_paca->hsrr_valid = 0;
 	local_paca->srr_valid = 0;
