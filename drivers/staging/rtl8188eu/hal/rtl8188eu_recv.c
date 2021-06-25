@@ -31,8 +31,6 @@ int rtw_hal_init_recv_priv(struct adapter *padapter)
 		kcalloc(NR_RECVBUFF, sizeof(struct recv_buf), GFP_KERNEL);
 	if (!precvpriv->precv_buf) {
 		res = _FAIL;
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-			 ("alloc recv_buf fail!\n"));
 		goto exit;
 	}
 	precvbuf = precvpriv->precv_buf;
