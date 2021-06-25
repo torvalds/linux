@@ -52,23 +52,17 @@ static int hall_fb_notifier_callback(struct notifier_block *self,
 
 	mh248 = container_of(self, struct mh248_para, fb_notif);
 
+	if (action != FB_EVENT_BLANK)
+		return NOTIFY_DONE;
+
 	mutex_lock(&mh248->ops_lock);
-	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (*((int *)event->data)) {
-		case FB_BLANK_UNBLANK:
-			break;
-		default:
-			mh248->is_suspend = 1;
-			break;
-		}
-	} else if (action == FB_EVENT_BLANK) {
-		switch (*((int *)event->data)) {
-		case FB_BLANK_UNBLANK:
-			mh248->is_suspend = 0;
-			break;
-		default:
-			break;
-		}
+	switch (*((int *)event->data)) {
+	case FB_BLANK_UNBLANK:
+		mh248->is_suspend = 0;
+		break;
+	default:
+		mh248->is_suspend = 1;
+		break;
 	}
 	mutex_unlock(&mh248->ops_lock);
 
