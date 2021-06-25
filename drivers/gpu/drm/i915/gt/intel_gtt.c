@@ -16,7 +16,19 @@ struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_create_lmem(vm->i915, sz, 0);
+	/*
+	 * To avoid severe over-allocation when dealing with min_page_size
+	 * restrictions, we override that behaviour here by allowing an object
+	 * size and page layout which can be smaller. In practice this should be
+	 * totally fine, since GTT paging structures are not typically inserted
+	 * into the GTT.
+	 *
+	 * Note that we also hit this path for the scratch page, and for this
+	 * case it might need to be 64K, but that should work fine here since we
+	 * used the passed in size for the page size, which should ensure it
+	 * also has the same alignment.
+	 */
+	obj = __i915_gem_object_create_lmem_with_ps(vm->i915, sz, sz, 0);
 	/*
 	 * Ensure all paging structures for this vm share the same dma-resv
 	 * object underneath, with the idea that one object_lock() will lock
