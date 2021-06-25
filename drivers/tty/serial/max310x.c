@@ -1293,7 +1293,8 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		freq = uartclk;
 	if (freq == 0) {
 		dev_err(dev, "Cannot get clock rate\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_clk;
 	}
 
 	if (xtal) {
