@@ -11,7 +11,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <wlan_bssdef.h>
-#include <rtw_debug.h>
 #include <wifi.h>
 #include <rtw_mlme.h>
 #include <rtw_mlme_ext.h>

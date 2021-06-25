@@ -10,7 +10,6 @@
 
 #include <rtw_android.h>
 #include <osdep_service.h>
-#include <rtw_debug.h>
 #include <rtw_ioctl_set.h>
 
 static const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
