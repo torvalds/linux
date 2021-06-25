@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/devcoredump.h>
+
 #include "main.h"
 #include "regd.h"
 #include "fw.h"
@@ -239,7 +241,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	 * get that vif and check if device is having traffic more than the
 	 * threshold.
 	 */
-	if (rtwdev->ps_enabled && data.rtwvif && !ps_active)
+	if (rtwdev->ps_enabled && data.rtwvif && !ps_active &&
+	    !rtwdev->beacon_loss)
 		rtw_enter_lps(rtwdev, data.rtwvif->port);
 
 	rtwdev->watch_dog_cnt++;
@@ -292,6 +295,7 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	rtw_fw_media_status_report(rtwdev, si->mac_id, true);
 
 	rtwdev->sta_cnt++;
+	rtwdev->beacon_loss = false;
 	rtw_info(rtwdev, "sta %pM joined with macid %d\n",
 		 sta->addr, si->mac_id);
 
@@ -318,59 +322,131 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		 sta->addr, si->mac_id);
 }
 
-static bool rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
+struct rtw_fwcd_hdr {
+	u32 item;
+	u32 size;
+	u32 padding1;
+	u32 padding2;
+} __packed;
+
+static int rtw_fwcd_prep(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_fwcd_desc *desc = &rtwdev->fw.fwcd_desc;
+	const struct rtw_fwcd_segs *segs = chip->fwcd_segs;
+	u32 prep_size = chip->fw_rxff_size + sizeof(struct rtw_fwcd_hdr);
+	u8 i;
+
+	if (segs) {
+		prep_size += segs->num * sizeof(struct rtw_fwcd_hdr);
+
+		for (i = 0; i < segs->num; i++)
+			prep_size += segs->segs[i];
+	}
+
+	desc->data = vmalloc(prep_size);
+	if (!desc->data)
+		return -ENOMEM;
+
+	desc->size = prep_size;
+	desc->next = desc->data;
+
+	return 0;
+}
+
+static u8 *rtw_fwcd_next(struct rtw_dev *rtwdev, u32 item, u32 size)
+{
+	struct rtw_fwcd_desc *desc = &rtwdev->fw.fwcd_desc;
+	struct rtw_fwcd_hdr *hdr;
+	u8 *next;
+
+	if (!desc->data) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fwcd isn't prepared successfully\n");
+		return NULL;
+	}
+
+	next = desc->next + sizeof(struct rtw_fwcd_hdr);
+	if (next - desc->data + size > desc->size) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fwcd isn't prepared enough\n");
+		return NULL;
+	}
+
+	hdr = (struct rtw_fwcd_hdr *)(desc->next);
+	hdr->item = item;
+	hdr->size = size;
+	hdr->padding1 = 0x01234567;
+	hdr->padding2 = 0x89abcdef;
+	desc->next = next + size;
+
+	return next;
+}
+
+static void rtw_fwcd_dump(struct rtw_dev *rtwdev)
+{
+	struct rtw_fwcd_desc *desc = &rtwdev->fw.fwcd_desc;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "dump fwcd\n");
+
+	/* Data will be freed after lifetime of device coredump. After calling
+	 * dev_coredump, data is supposed to be handled by the device coredump
+	 * framework. Note that a new dump will be discarded if a previous one
+	 * hasn't been released yet.
+	 */
+	dev_coredumpv(rtwdev->dev, desc->data, desc->size, GFP_KERNEL);
+}
+
+static void rtw_fwcd_free(struct rtw_dev *rtwdev, bool free_self)
+{
+	struct rtw_fwcd_desc *desc = &rtwdev->fw.fwcd_desc;
+
+	if (free_self) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "free fwcd by self\n");
+		vfree(desc->data);
+	}
+
+	desc->data = NULL;
+	desc->next = NULL;
+}
+
+static int rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
 {
 	u32 size = rtwdev->chip->fw_rxff_size;
 	u32 *buf;
 	u8 seq;
-	bool ret = true;
 
-	buf = vmalloc(size);
+	buf = (u32 *)rtw_fwcd_next(rtwdev, RTW_FWCD_TLV, size);
 	if (!buf)
-		goto exit;
+		return -ENOMEM;
 
 	if (rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0, size, buf)) {
 		rtw_dbg(rtwdev, RTW_DBG_FW, "dump fw fifo fail\n");
-		goto free_buf;
+		return -EINVAL;
 	}
 
 	if (GET_FW_DUMP_LEN(buf) == 0) {
 		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's length is 0\n");
-		goto free_buf;
+		return -EINVAL;
 	}
 
 	seq = GET_FW_DUMP_SEQ(buf);
-	if (seq > 0 && seq != (rtwdev->fw.prev_dump_seq + 1)) {
+	if (seq > 0) {
 		rtw_dbg(rtwdev, RTW_DBG_FW,
 			"fw crash dump's seq is wrong: %d\n", seq);
-		goto free_buf;
+		return -EINVAL;
 	}
 
-	print_hex_dump(KERN_ERR, "rtw88 fw dump: ", DUMP_PREFIX_OFFSET, 16, 1,
-		       buf, size, true);
-
-	if (GET_FW_DUMP_MORE(buf) == 1) {
-		rtwdev->fw.prev_dump_seq = seq;
-		ret = false;
-	}
-
-free_buf:
-	vfree(buf);
-exit:
-	rtw_write8(rtwdev, REG_MCU_TST_CFG, 0);
-
-	return ret;
+	return 0;
 }
 
 int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
-		const char *prefix_str)
+		u32 fwcd_item)
 {
 	u32 rxff = rtwdev->chip->fw_rxff_size;
 	u32 dump_size, done_size = 0;
 	u8 *buf;
 	int ret;
 
-	buf = vzalloc(size);
+	buf = rtw_fwcd_next(rtwdev, fwcd_item, size);
 	if (!buf)
 		return -ENOMEM;
 
@@ -383,7 +459,7 @@ int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 			rtw_err(rtwdev,
 				"ddma fw 0x%x [+0x%x] to fw fifo fail\n",
 				ocp_src, done_size);
-			goto exit;
+			return ret;
 		}
 
 		ret = rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0,
@@ -392,24 +468,18 @@ int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 			rtw_err(rtwdev,
 				"dump fw 0x%x [+0x%x] from fw fifo fail\n",
 				ocp_src, done_size);
-			goto exit;
+			return ret;
 		}
 
 		size -= dump_size;
 		done_size += dump_size;
 	}
 
-	print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 1,
-		       buf, done_size, true);
-
-exit:
-	vfree(buf);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rtw_dump_fw);
 
-int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size,
-		 const char *prefix_str)
+int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size)
 {
 	u8 *buf;
 	u32 i;
@@ -419,17 +489,13 @@ int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size,
 		return -EINVAL;
 	}
 
-	buf = vzalloc(size);
+	buf = rtw_fwcd_next(rtwdev, RTW_FWCD_REG, size);
 	if (!buf)
 		return -ENOMEM;
 
 	for (i = 0; i < size; i += 4)
 		*(u32 *)(buf + i) = rtw_read32(rtwdev, addr + i);
 
-	print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 4, buf,
-		       size, true);
-
-	vfree(buf);
 	return 0;
 }
 EXPORT_SYMBOL(rtw_dump_reg);
@@ -487,20 +553,24 @@ void rtw_fw_recovery(struct rtw_dev *rtwdev)
 
 static void __fw_recovery_work(struct rtw_dev *rtwdev)
 {
-
-	/* rtw_fw_dump_crash_log() returns false indicates that there are
-	 * still more log to dump. Driver set 0x1cf[7:0] = 0x1 to tell firmware
-	 * to dump the remaining part of the log, and firmware will trigger an
-	 * IMR_C2HCMD interrupt to inform driver the log is ready.
-	 */
-	if (!rtw_fw_dump_crash_log(rtwdev)) {
-		rtw_write8(rtwdev, REG_HRCV_MSG, 1);
-		return;
-	}
-	rtwdev->fw.prev_dump_seq = 0;
+	int ret = 0;
 
 	set_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
-	rtw_chip_dump_fw_crash(rtwdev);
+
+	ret = rtw_fwcd_prep(rtwdev);
+	if (ret)
+		goto free;
+	ret = rtw_fw_dump_crash_log(rtwdev);
+	if (ret)
+		goto free;
+	ret = rtw_chip_dump_fw_crash(rtwdev);
+	if (ret)
+		goto free;
+
+	rtw_fwcd_dump(rtwdev);
+free:
+	rtw_fwcd_free(rtwdev, !!ret);
+	rtw_write8(rtwdev, REG_MCU_TST_CFG, 0);
 
 	WARN(1, "firmware crash, start reset and recover\n");
 
@@ -1109,11 +1179,11 @@ static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 		return LPS_DEEP_MODE_NONE;
 
 	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_PG)) &&
-	    (fw->feature & FW_FEATURE_PG))
+	    rtw_fw_feature_check(fw, FW_FEATURE_PG))
 		return LPS_DEEP_MODE_PG;
 
 	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_LCLK)) &&
-	    (fw->feature & FW_FEATURE_LCLK))
+	    rtw_fw_feature_check(fw, FW_FEATURE_LCLK))
 		return LPS_DEEP_MODE_LCLK;
 
 	return LPS_DEEP_MODE_NONE;
@@ -1181,6 +1251,22 @@ err_off:
 
 err:
 	return ret;
+}
+
+void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+{
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_NOTIFY_SCAN))
+		return;
+
+	if (start) {
+		rtw_fw_scan_notify(rtwdev, true);
+	} else {
+		reinit_completion(&rtwdev->fw_scan_density);
+		rtw_fw_scan_notify(rtwdev, false);
+		if (!wait_for_completion_timeout(&rtwdev->fw_scan_density,
+						 SCAN_NOTIFY_TIMEOUT))
+			rtw_warn(rtwdev, "firmware failed to report density after scan\n");
+	}
 }
 
 int rtw_core_start(struct rtw_dev *rtwdev)
@@ -1761,6 +1847,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	init_waitqueue_head(&rtwdev->coex.wait);
 	init_completion(&rtwdev->lps_leave_check);
+	init_completion(&rtwdev->fw_scan_density);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
@@ -1812,6 +1899,7 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	destroy_workqueue(rtwdev->tx_wq);
 	spin_lock_irqsave(&rtwdev->tx_report.q_lock, flags);
 	skb_queue_purge(&rtwdev->tx_report.queue);
+	skb_queue_purge(&rtwdev->coex.queue);
 	spin_unlock_irqrestore(&rtwdev->tx_report.q_lock, flags);
 
 	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwdev->rsvd_page_list,

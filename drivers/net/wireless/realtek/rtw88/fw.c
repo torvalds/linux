@@ -127,6 +127,62 @@ static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
 	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);
 }
 
+struct rtw_beacon_filter_iter_data {
+	struct rtw_dev *rtwdev;
+	u8 *payload;
+};
+
+static void rtw_fw_bcn_filter_notify_vif_iter(void *data, u8 *mac,
+					      struct ieee80211_vif *vif)
+{
+	struct rtw_beacon_filter_iter_data *iter_data = data;
+	struct rtw_dev *rtwdev = iter_data->rtwdev;
+	u8 *payload = iter_data->payload;
+	u8 type = GET_BCN_FILTER_NOTIFY_TYPE(payload);
+	u8 event = GET_BCN_FILTER_NOTIFY_EVENT(payload);
+	s8 sig = (s8)GET_BCN_FILTER_NOTIFY_RSSI(payload);
+
+	switch (type) {
+	case BCN_FILTER_NOTIFY_SIGNAL_CHANGE:
+		event = event ? NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH :
+			NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+		ieee80211_cqm_rssi_notify(vif, event, sig, GFP_KERNEL);
+		break;
+	case BCN_FILTER_CONNECTION_LOSS:
+		ieee80211_connection_loss(vif);
+		break;
+	case BCN_FILTER_CONNECTED:
+		rtwdev->beacon_loss = false;
+		break;
+	case BCN_FILTER_NOTIFY_BEACON_LOSS:
+		rtwdev->beacon_loss = true;
+		rtw_leave_lps(rtwdev);
+		break;
+	}
+}
+
+static void rtw_fw_bcn_filter_notify(struct rtw_dev *rtwdev, u8 *payload,
+				     u8 length)
+{
+	struct rtw_beacon_filter_iter_data dev_iter_data;
+
+	dev_iter_data.rtwdev = rtwdev;
+	dev_iter_data.payload = payload;
+	rtw_iterate_vifs(rtwdev, rtw_fw_bcn_filter_notify_vif_iter,
+			 &dev_iter_data);
+}
+
+static void rtw_fw_scan_result(struct rtw_dev *rtwdev, u8 *payload,
+			       u8 length)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	dm_info->scan_density = payload[0];
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "scan.density = %x\n",
+		dm_info->scan_density);
+}
+
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 {
 	struct rtw_c2h_cmd *c2h;
@@ -151,6 +207,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		break;
 	case C2H_WLAN_INFO:
 		rtw_coex_wl_fwdbginfo_notify(rtwdev, c2h->payload, len);
+		break;
+	case C2H_BCN_FILTER_NOTIFY:
+		rtw_fw_bcn_filter_notify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
@@ -186,6 +245,12 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 		break;
 	case C2H_WLAN_RFON:
 		complete(&rtwdev->lps_leave_check);
+		dev_kfree_skb_any(skb);
+		break;
+	case C2H_SCAN_RESULT:
+		complete(&rtwdev->fw_scan_density);
+		rtw_fw_scan_result(rtwdev, c2h->payload, len);
+		dev_kfree_skb_any(skb);
 		break;
 	default:
 		/* pass offset for further operation */
@@ -524,6 +589,45 @@ void rtw_fw_update_wl_phy_info(struct rtw_dev *rtwdev)
 	SET_WL_PHY_INFO_TX_RATE_DESC(h2c_pkt, dm_info->tx_rate);
 	SET_WL_PHY_INFO_RX_RATE_DESC(h2c_pkt, dm_info->curr_rx_rate);
 	SET_WL_PHY_INFO_RX_EVM(h2c_pkt, dm_info->rx_evm_dbm[RF_PATH_A]);
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
+				 struct ieee80211_vif *vif)
+{
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ieee80211_sta *sta = ieee80211_find_sta(vif, bss_conf->bssid);
+	static const u8 rssi_min = 0, rssi_max = 100, rssi_offset = 100;
+	struct rtw_sta_info *si =
+		sta ? (struct rtw_sta_info *)sta->drv_priv : NULL;
+	s32 threshold = bss_conf->cqm_rssi_thold + rssi_offset;
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER) || !si)
+		return;
+
+	if (!connect) {
+		SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P1);
+		SET_BCN_FILTER_OFFLOAD_P1_ENABLE(h2c_pkt, connect);
+		rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+
+		return;
+	}
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P0);
+	ether_addr_copy(&h2c_pkt[1], bss_conf->bssid);
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+
+	memset(h2c_pkt, 0, sizeof(h2c_pkt));
+	threshold = clamp_t(s32, threshold, rssi_min, rssi_max);
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P1);
+	SET_BCN_FILTER_OFFLOAD_P1_ENABLE(h2c_pkt, connect);
+	SET_BCN_FILTER_OFFLOAD_P1_OFFLOAD_MODE(h2c_pkt,
+					       BCN_FILTER_OFFLOAD_MODE_DEFAULT);
+	SET_BCN_FILTER_OFFLOAD_P1_THRESHOLD(h2c_pkt, (u8)threshold);
+	SET_BCN_FILTER_OFFLOAD_P1_BCN_LOSS_CNT(h2c_pkt, BCN_LOSS_CNT);
+	SET_BCN_FILTER_OFFLOAD_P1_MACID(h2c_pkt, si->mac_id);
+	SET_BCN_FILTER_OFFLOAD_P1_HYST(h2c_pkt, bss_conf->cqm_rssi_hyst);
+	SET_BCN_FILTER_OFFLOAD_P1_BCN_INTERVAL(h2c_pkt, bss_conf->beacon_int);
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
@@ -1612,4 +1716,14 @@ void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 	CH_SWITCH_SET_INFO_LOC(h2c_pkt, loc_ch_info);
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_SCAN);
+	SET_SCAN_START(h2c_pkt, start);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }

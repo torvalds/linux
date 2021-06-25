@@ -1023,7 +1023,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 		mvm->fw_restart++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(LONG_GROUP, REPLY_ERROR),
+				   0, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
 

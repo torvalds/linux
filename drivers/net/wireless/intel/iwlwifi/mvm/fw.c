@@ -1139,19 +1139,34 @@ static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
-	int cmd_ret;
-	struct iwl_lari_config_change_cmd_v3 cmd = {};
+	int ret;
+	u32 value;
+	struct iwl_lari_config_change_cmd_v4 cmd = {};
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
+	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0, DSM_FUNC_11AX_ENABLEMENT,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.oem_11ax_allow_bitmap = cpu_to_le32(value);
 	/* apply more config masks here */
 
-	if (cmd.config_bitmap) {
+	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0,
+				   DSM_FUNC_ENABLE_UNII4_CHAN,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
+
+	if (cmd.config_bitmap ||
+	    cmd.oem_11ax_allow_bitmap ||
+	    cmd.oem_unii4_allow_bitmap) {
 		size_t cmd_size;
 		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 						   REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE, 1);
-		if (cmd_ver == 3)
+		if (cmd_ver == 4)
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
+		else if (cmd_ver == 3)
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
 		else if (cmd_ver == 2)
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
@@ -1159,16 +1174,21 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
 
 		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x\n",
-				le32_to_cpu(cmd.config_bitmap));
-		cmd_ret = iwl_mvm_send_cmd_pdu(mvm,
-					       WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						       LARI_CONFIG_CHANGE),
-					       0, cmd_size, &cmd);
-		if (cmd_ret < 0)
+				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd.config_bitmap),
+				le32_to_cpu(cmd.oem_11ax_allow_bitmap));
+		IWL_DEBUG_RADIO(mvm,
+				"sending LARI_CONFIG_CHANGE, oem_unii4_allow_bitmap=0x%x, cmd_ver=%d\n",
+				le32_to_cpu(cmd.oem_unii4_allow_bitmap),
+				cmd_ver);
+		ret = iwl_mvm_send_cmd_pdu(mvm,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE),
+					   0, cmd_size, &cmd);
+		if (ret < 0)
 			IWL_DEBUG_RADIO(mvm,
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
-					cmd_ret);
+					ret);
 	}
 }
 #else /* CONFIG_ACPI */

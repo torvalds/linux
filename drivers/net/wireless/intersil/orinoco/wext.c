@@ -791,7 +791,7 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 
 			err = __orinoco_hw_set_tkip_key(priv, idx,
 				 ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
-				 priv->keys[idx].key,
+				 priv->keys[idx].key, priv->keys[idx].key_len,
 				 tkip_iv, ORINOCO_SEQ_LEN, NULL, 0);
 			if (err)
 				printk(KERN_ERR "%s: Error %d setting TKIP key"

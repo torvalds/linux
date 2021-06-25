@@ -2895,8 +2895,13 @@ brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
 					     &cfg->assoclist,
 					     sizeof(cfg->assoclist));
 		if (err) {
-			bphy_err(drvr, "BRCMF_C_GET_ASSOCLIST unsupported, err=%d\n",
-				 err);
+			/* GET_ASSOCLIST unsupported by firmware of older chips */
+			if (err == -EBADE)
+				bphy_info_once(drvr, "BRCMF_C_GET_ASSOCLIST unsupported\n");
+			else
+				bphy_err(drvr, "BRCMF_C_GET_ASSOCLIST failed, err=%d\n",
+					 err);
+
 			cfg->assoclist.count = 0;
 			return -EOPNOTSUPP;
 		}
@@ -6851,7 +6856,12 @@ static int brcmf_setup_wiphybands(struct brcmf_cfg80211_info *cfg)
 
 	err = brcmf_fil_iovar_int_get(ifp, "rxchain", &rxchain);
 	if (err) {
-		bphy_err(drvr, "rxchain error (%d)\n", err);
+		/* rxchain unsupported by firmware of older chips */
+		if (err == -EBADE)
+			bphy_info_once(drvr, "rxchain unsupported\n");
+		else
+			bphy_err(drvr, "rxchain error (%d)\n", err);
+
 		nchain = 1;
 	} else {
 		for (nchain = 0; rxchain; nchain++)

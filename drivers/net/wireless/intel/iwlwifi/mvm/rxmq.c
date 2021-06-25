@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -2001,8 +2001,10 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct sk_buff *skb;
 	u8 channel, energy_a, energy_b;
 	struct iwl_mvm_rx_phy_data phy_data = {
+		.info_type = le32_get_bits(desc->phy_info[1],
+					   IWL_RX_PHY_DATA1_INFO_TYPE_MASK),
 		.d0 = desc->phy_info[0],
-		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
+		.d1 = desc->phy_info[1],
 	};
 
 	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*desc)))
@@ -2014,10 +2016,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	energy_a = (rssi & RX_NO_DATA_CHAIN_A_MSK) >> RX_NO_DATA_CHAIN_A_POS;
 	energy_b = (rssi & RX_NO_DATA_CHAIN_B_MSK) >> RX_NO_DATA_CHAIN_B_POS;
 	channel = (rssi & RX_NO_DATA_CHANNEL_MSK) >> RX_NO_DATA_CHANNEL_POS;
-
-	phy_data.info_type =
-		le32_get_bits(desc->phy_info[1],
-			      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
 
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
 	 * ieee80211_hdr pulled.
