@@ -688,6 +688,7 @@ static struct devfreq_dev_profile tegra_devfreq_profile = {
 	.polling_ms	= ACTMON_SAMPLING_PERIOD,
 	.target		= tegra_devfreq_target,
 	.get_dev_status	= tegra_devfreq_get_dev_status,
+	.is_cooling_device = true,
 };
 
 static int tegra_governor_get_target(struct devfreq *devfreq,
