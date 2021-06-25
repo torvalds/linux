@@ -455,7 +455,7 @@ static void mptcp_subflow_cleanup_rbuf(struct sock *ssk)
 static bool mptcp_subflow_could_cleanup(const struct sock *ssk, bool rx_empty)
 {
 	const struct inet_connection_sock *icsk = inet_csk(ssk);
-	bool ack_pending = READ_ONCE(icsk->icsk_ack.pending);
+	u8 ack_pending = READ_ONCE(icsk->icsk_ack.pending);
 	const struct tcp_sock *tp = tcp_sk(ssk);
 
 	return (ack_pending & ICSK_ACK_SCHED) &&
