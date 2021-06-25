@@ -104,7 +104,6 @@ static const char * const icc_path_names[] = {"qup-core", "qup-config",
 #define GENI_OUTPUT_CTRL		0x24
 #define GENI_CGC_CTRL			0x28
 #define GENI_CLK_CTRL_RO		0x60
-#define GENI_IF_DISABLE_RO		0x64
 #define GENI_FW_S_REVISION_RO		0x6c
 #define SE_GENI_BYTE_GRAN		0x254
 #define SE_GENI_TX_PACKING_CFG0		0x260
