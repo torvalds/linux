@@ -1739,10 +1739,10 @@ static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 
 static bool drm_wait_vblank_supported(struct drm_device *dev)
 {
-	if  (IS_ENABLED(CONFIG_DRM_LEGACY)) {
-		if (unlikely(drm_core_check_feature(dev, DRIVER_LEGACY)))
-			return dev->irq_enabled;
-	}
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
+	if (unlikely(drm_core_check_feature(dev, DRIVER_LEGACY)))
+		return dev->irq_enabled;
+#endif
 	return drm_dev_has_vblank(dev);
 }
 
