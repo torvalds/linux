@@ -1788,8 +1788,8 @@ static const struct regval ov8858_3264x2448_regs_r2a_4lane[] = {
 	{0x380b, 0x90}, // y output size L
 	{0x380c, 0x07}, // HTS H
 	{0x380d, 0x94}, // HTS L
-	{0x380e, 0x09}, // VTS H
-	{0x380f, 0xaa}, // VTS L
+	{0x380e, 0x0a}, // VTS H
+	{0x380f, 0x00}, // VTS L
 	{0x3814, 0x01}, // x odd inc
 	{0x3821, 0x46}, // mirror on, bin off
 	{0x382a, 0x01}, // y odd inc
@@ -1807,6 +1807,7 @@ static const struct regval ov8858_3264x2448_regs_r2a_4lane[] = {
 	{0x4600, 0x01},
 	{0x4601, 0x97},
 	{0x382d, 0xff},
+	{0x030d, 0x1f},
 	{REG_NULL, 0x00},
 };
 
@@ -1889,7 +1890,7 @@ static const struct ov8858_mode supported_modes_r2a_4lane[] = {
 		},
 		.exp_def = 0x09a0,
 		.hts_def = 0x0794 * 2,
-		.vts_def = 0x09aa,
+		.vts_def = 0x0a00,
 		.reg_list = ov8858_3264x2448_regs_r2a_4lane,
 	},
 };
