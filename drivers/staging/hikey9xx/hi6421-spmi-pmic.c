@@ -245,7 +245,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 		virq = irq_create_mapping(ddata->domain, i);
 		if (!virq) {
 			dev_err(dev, "Failed to map H/W IRQ\n");
-			return -ENOSPC;
+			return -ENODEV;
 		}
 		ddata->irqs[i] = virq;
 	}
