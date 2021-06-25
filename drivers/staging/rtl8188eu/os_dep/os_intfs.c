@@ -140,8 +140,6 @@ static void loadparam(struct adapter *padapter)
 {
 	struct registry_priv *registry_par = &padapter->registrypriv;
 
-	GlobalDebugLevel = rtw_debug;
-
 	memcpy(registry_par->ssid.ssid, "ANY", 3);
 	registry_par->ssid.ssid_length = 3;
 

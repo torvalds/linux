@@ -54,6 +54,4 @@
 #define _module_rtl8712_recv_c_		BIT(30)
 #define _module_rtl8712_led_c_		BIT(31)
 
-extern u32 GlobalDebugLevel;
-
 #endif	/* __RTW_DEBUG_H__ */

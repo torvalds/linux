@@ -10,8 +10,6 @@
 #include "odm_precomp.h"
 #include "phy.h"
 
-u32 GlobalDebugLevel;
-
 /* avoid to warn in FreeBSD ==> To DO modify */
 static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {
 	/*  UL			DL */
