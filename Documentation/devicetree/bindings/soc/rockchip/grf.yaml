@@ -15,7 +15,6 @@ properties:
       - items:
           - enum:
               - rockchip,rk3288-sgrf
-              - rockchip,rv1108-pmugrf
               - rockchip,rv1108-usbgrf
           - const: syscon
       - items:
@@ -41,6 +40,7 @@ properties:
               - rockchip,rk3568-grf
               - rockchip,rk3568-pmugrf
               - rockchip,rv1108-grf
+              - rockchip,rv1108-pmugrf
           - const: syscon
           - const: simple-mfd
 
@@ -198,21 +198,27 @@ allOf:
         compatible:
           contains:
             enum:
-              - rockchip,px30-pmugrf
               - rockchip,px30-grf
+              - rockchip,px30-pmugrf
+              - rockchip,rk3188-grf
               - rockchip,rk3228-grf
               - rockchip,rk3288-grf
               - rockchip,rk3328-grf
-              - rockchip,rk3368-pmugrf
               - rockchip,rk3368-grf
-              - rockchip,rk3399-pmugrf
+              - rockchip,rk3368-pmugrf
               - rockchip,rk3399-grf
+              - rockchip,rk3399-pmugrf
+              - rockchip,rv1108-grf
+              - rockchip,rv1108-pmugrf
 
     then:
       properties:
         io-domains:
-          description:
-            Documentation/devicetree/bindings/power/rockchip-io-domain.txt
+          type: object
+
+          $ref: "/schemas/power/rockchip-io-domain.yaml#"
+
+          unevaluatedProperties: false
 
 examples:
   - |
