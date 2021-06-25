@@ -2314,7 +2314,7 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
  */
 enum irdma_status_code
 irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
-		    struct irdma_pble_chunkinfo *chunkinfo, u32 mem_size,
+		    struct irdma_pble_chunkinfo *chunkinfo, u64 mem_size,
 		    u64 **vaddr, u64 *fpm_addr)
 {
 	u64 bits_needed;
@@ -2326,7 +2326,7 @@ irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 	*vaddr = NULL;
 	*fpm_addr = 0;
 
-	bits_needed = (mem_size + (1 << pprm->pble_shift) - 1) >> pprm->pble_shift;
+	bits_needed = DIV_ROUND_UP_ULL(mem_size, BIT_ULL(pprm->pble_shift));
 
 	spin_lock_irqsave(&pprm->prm_lock, flags);
 	while (chunk_entry != &pprm->clist) {
