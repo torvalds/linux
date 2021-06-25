@@ -27,6 +27,7 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/time-internal.h>
+#include <linux/virtio-uml.h>
 #include <shared/as-layout.h>
 #include <irq_kern.h>
 #include <init.h>
