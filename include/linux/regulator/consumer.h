@@ -222,8 +222,6 @@ void regulator_bulk_unregister_supply_alias(struct device *dev,
 int devm_regulator_register_supply_alias(struct device *dev, const char *id,
 					 struct device *alias_dev,
 					 const char *alias_id);
-void devm_regulator_unregister_supply_alias(struct device *dev,
-					    const char *id);
 
 int devm_regulator_bulk_register_supply_alias(struct device *dev,
 					      const char *const *id,
@@ -403,11 +401,6 @@ static inline int devm_regulator_register_supply_alias(struct device *dev,
 						       const char *alias_id)
 {
 	return 0;
-}
-
-static inline void devm_regulator_unregister_supply_alias(struct device *dev,
-							  const char *id)
-{
 }
 
 static inline int devm_regulator_bulk_register_supply_alias(struct device *dev,

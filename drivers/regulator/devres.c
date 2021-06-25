@@ -267,19 +267,8 @@ int devm_regulator_register_supply_alias(struct device *dev, const char *id,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_register_supply_alias);
 
-/**
- * devm_regulator_unregister_supply_alias - Resource managed
- * regulator_unregister_supply_alias()
- *
- * @dev: device to supply
- * @id:  supply name or regulator ID
- *
- * Unregister an alias registered with
- * devm_regulator_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
- * will ensure that the resource is freed.
- */
-void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
+static void devm_regulator_unregister_supply_alias(struct device *dev,
+						   const char *id)
 {
 	struct regulator_supply_alias_match match;
 	int rc;
@@ -292,7 +281,6 @@ void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
 	if (rc != 0)
 		WARN_ON(rc);
 }
-EXPORT_SYMBOL_GPL(devm_regulator_unregister_supply_alias);
 
 /**
  * devm_regulator_bulk_register_supply_alias - Managed register
