@@ -9,6 +9,7 @@
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,6 +70,24 @@ int read_cgroup_id(struct cgroup *cgrp)
 	return 0;
 }
 #endif  /* HAVE_FILE_HANDLE */
+
+#ifndef CGROUP2_SUPER_MAGIC
+#define CGROUP2_SUPER_MAGIC  0x63677270
+#endif
+
+int cgroup_is_v2(const char *subsys)
+{
+	char mnt[PATH_MAX + 1];
+	struct statfs stbuf;
+
+	if (cgroupfs_find_mountpoint(mnt, PATH_MAX + 1, subsys))
+		return -1;
+
+	if (statfs(mnt, &stbuf) < 0)
+		return -1;
+
+	return (stbuf.f_type == CGROUP2_SUPER_MAGIC);
+}
 
 static struct cgroup *evlist__find_cgroup(struct evlist *evlist, const char *str)
 {

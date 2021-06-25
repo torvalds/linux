@@ -48,4 +48,6 @@ static inline int read_cgroup_id(struct cgroup *cgrp __maybe_unused)
 }
 #endif  /* HAVE_FILE_HANDLE */
 
+int cgroup_is_v2(const char *subsys);
+
 #endif /* __CGROUP_H__ */
