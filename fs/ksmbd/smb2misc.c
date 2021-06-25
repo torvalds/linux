@@ -341,7 +341,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 	__u32 len = get_rfc1002_len(pdu);
 
 	if (work->next_smb2_rcv_hdr_off) {
-		pdu = REQUEST_BUF_NEXT(work);
+		pdu = ksmbd_req_buf_next(work);
 		hdr = &pdu->hdr;
 	}
 

@@ -86,10 +86,23 @@ struct ksmbd_work {
 	struct list_head                interim_entry;
 };
 
-#define RESPONSE_BUF_NEXT(w)	\
-	(((w)->response_buf + (w)->next_smb2_rsp_hdr_off))
-#define REQUEST_BUF_NEXT(w)	\
-	(((w)->request_buf + (w)->next_smb2_rcv_hdr_off))
+/**
+ * ksmbd_resp_buf_next - Get next buffer on compound response.
+ * @work: smb work containing response buffer
+ */
+static inline void *ksmbd_resp_buf_next(struct ksmbd_work *work)
+{
+	return work->response_buf + work->next_smb2_rsp_hdr_off;
+}
+
+/**
+ * ksmbd_req_buf_next - Get next buffer on compound request.
+ * @work: smb work containing response buffer
+ */
+static inline void *ksmbd_req_buf_next(struct ksmbd_work *work)
+{
+	return work->request_buf + work->next_smb2_rcv_hdr_off;
+}
 
 struct ksmbd_work *ksmbd_alloc_work_struct(void);
 void ksmbd_free_work_struct(struct ksmbd_work *work);

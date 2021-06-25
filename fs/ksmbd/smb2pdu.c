@@ -40,8 +40,8 @@
 static void __wbuf(struct ksmbd_work *work, void **req, void **rsp)
 {
 	if (work->next_smb2_rcv_hdr_off) {
-		*req = REQUEST_BUF_NEXT(work);
-		*rsp = RESPONSE_BUF_NEXT(work);
+		*req = ksmbd_req_buf_next(work);
+		*rsp = ksmbd_resp_buf_next(work);
 	} else {
 		*req = work->request_buf;
 		*rsp = work->response_buf;
@@ -126,7 +126,7 @@ void smb2_set_err_rsp(struct ksmbd_work *work)
 	struct smb2_err_rsp *err_rsp;
 
 	if (work->next_smb2_rcv_hdr_off)
-		err_rsp = RESPONSE_BUF_NEXT(work);
+		err_rsp = ksmbd_resp_buf_next(work);
 	else
 		err_rsp = work->response_buf;
 
@@ -196,7 +196,7 @@ u16 get_smb2_cmd_val(struct ksmbd_work *work)
 	struct smb2_hdr *rcv_hdr;
 
 	if (work->next_smb2_rcv_hdr_off)
-		rcv_hdr = REQUEST_BUF_NEXT(work);
+		rcv_hdr = ksmbd_req_buf_next(work);
 	else
 		rcv_hdr = work->request_buf;
 	return le16_to_cpu(rcv_hdr->Command);
@@ -212,7 +212,7 @@ void set_smb2_rsp_status(struct ksmbd_work *work, __le32 err)
 	struct smb2_hdr *rsp_hdr;
 
 	if (work->next_smb2_rcv_hdr_off)
-		rsp_hdr = RESPONSE_BUF_NEXT(work);
+		rsp_hdr = ksmbd_resp_buf_next(work);
 	else
 		rsp_hdr = work->response_buf;
 	rsp_hdr->Status = err;
@@ -315,8 +315,8 @@ static int smb2_consume_credit_charge(struct ksmbd_work *work,
  */
 int smb2_set_rsp_credits(struct ksmbd_work *work)
 {
-	struct smb2_hdr *req_hdr = REQUEST_BUF_NEXT(work);
-	struct smb2_hdr *hdr = RESPONSE_BUF_NEXT(work);
+	struct smb2_hdr *req_hdr = ksmbd_req_buf_next(work);
+	struct smb2_hdr *hdr = ksmbd_resp_buf_next(work);
 	struct ksmbd_conn *conn = work->conn;
 	unsigned short credits_requested = le16_to_cpu(req_hdr->CreditRequest);
 	unsigned short credit_charge = 1, credits_granted = 0;
@@ -383,8 +383,8 @@ out:
  */
 static void init_chained_smb2_rsp(struct ksmbd_work *work)
 {
-	struct smb2_hdr *req = REQUEST_BUF_NEXT(work);
-	struct smb2_hdr *rsp = RESPONSE_BUF_NEXT(work);
+	struct smb2_hdr *req = ksmbd_req_buf_next(work);
+	struct smb2_hdr *rsp = ksmbd_resp_buf_next(work);
 	struct smb2_hdr *rsp_hdr;
 	struct smb2_hdr *rcv_hdr;
 	int next_hdr_offset = 0;
@@ -422,8 +422,8 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 		    new_len, work->next_smb2_rcv_hdr_off,
 		    work->next_smb2_rsp_hdr_off);
 
-	rsp_hdr = RESPONSE_BUF_NEXT(work);
-	rcv_hdr = REQUEST_BUF_NEXT(work);
+	rsp_hdr = ksmbd_resp_buf_next(work);
+	rcv_hdr = ksmbd_req_buf_next(work);
 
 	if (!(rcv_hdr->Flags & SMB2_FLAGS_RELATED_OPERATIONS)) {
 		ksmbd_debug(SMB, "related flag should be set\n");
@@ -462,7 +462,7 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
 		return false;
 
-	hdr = REQUEST_BUF_NEXT(work);
+	hdr = ksmbd_req_buf_next(work);
 	if (le32_to_cpu(hdr->NextCommand) > 0) {
 		ksmbd_debug(SMB, "got SMB2 chained command\n");
 		init_chained_smb2_rsp(work);
@@ -5725,8 +5725,8 @@ int smb2_set_info(struct ksmbd_work *work)
 
 	rsp_org = work->response_buf;
 	if (work->next_smb2_rcv_hdr_off) {
-		req = REQUEST_BUF_NEXT(work);
-		rsp = RESPONSE_BUF_NEXT(work);
+		req = ksmbd_req_buf_next(work);
+		rsp = ksmbd_resp_buf_next(work);
 		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
 			ksmbd_debug(SMB, "Compound request set FID = %u\n",
 				    work->compound_fid);
@@ -7224,8 +7224,8 @@ int smb2_ioctl(struct ksmbd_work *work)
 
 	rsp_org = work->response_buf;
 	if (work->next_smb2_rcv_hdr_off) {
-		req = REQUEST_BUF_NEXT(work);
-		rsp = RESPONSE_BUF_NEXT(work);
+		req = ksmbd_req_buf_next(work);
+		rsp = ksmbd_resp_buf_next(work);
 		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
 			ksmbd_debug(SMB, "Compound request set FID = %u\n",
 				    work->compound_fid);
@@ -7848,7 +7848,7 @@ int smb2_check_sign_req(struct ksmbd_work *work)
 
 	hdr_org = hdr = work->request_buf;
 	if (work->next_smb2_rcv_hdr_off)
-		hdr = REQUEST_BUF_NEXT(work);
+		hdr = ksmbd_req_buf_next(work);
 
 	if (!hdr->NextCommand && !work->next_smb2_rcv_hdr_off)
 		len = be32_to_cpu(hdr_org->smb2_buf_length);
@@ -7892,9 +7892,9 @@ void smb2_set_sign_rsp(struct ksmbd_work *work)
 
 	hdr_org = hdr = work->response_buf;
 	if (work->next_smb2_rsp_hdr_off)
-		hdr = RESPONSE_BUF_NEXT(work);
+		hdr = ksmbd_resp_buf_next(work);
 
-	req_hdr = REQUEST_BUF_NEXT(work);
+	req_hdr = ksmbd_req_buf_next(work);
 
 	if (!work->next_smb2_rsp_hdr_off) {
 		len = get_rfc1002_len(hdr_org);
@@ -7946,7 +7946,7 @@ int smb3_check_sign_req(struct ksmbd_work *work)
 
 	hdr_org = hdr = work->request_buf;
 	if (work->next_smb2_rcv_hdr_off)
-		hdr = REQUEST_BUF_NEXT(work);
+		hdr = ksmbd_req_buf_next(work);
 
 	if (!hdr->NextCommand && !work->next_smb2_rcv_hdr_off)
 		len = be32_to_cpu(hdr_org->smb2_buf_length);
@@ -8005,9 +8005,9 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 
 	hdr_org = hdr = work->response_buf;
 	if (work->next_smb2_rsp_hdr_off)
-		hdr = RESPONSE_BUF_NEXT(work);
+		hdr = ksmbd_resp_buf_next(work);
 
-	req_hdr = REQUEST_BUF_NEXT(work);
+	req_hdr = ksmbd_req_buf_next(work);
 
 	if (!work->next_smb2_rsp_hdr_off) {
 		len = get_rfc1002_len(hdr_org);
@@ -8217,7 +8217,7 @@ bool smb3_11_final_sess_setup_resp(struct ksmbd_work *work)
 		return false;
 
 	if (work->next_smb2_rcv_hdr_off)
-		rsp = RESPONSE_BUF_NEXT(work);
+		rsp = ksmbd_resp_buf_next(work);
 
 	if (le16_to_cpu(rsp->Command) == SMB2_SESSION_SETUP_HE &&
 	    rsp->Status == STATUS_SUCCESS)
