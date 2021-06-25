@@ -230,9 +230,6 @@ int devm_regulator_bulk_register_supply_alias(struct device *dev,
 					      struct device *alias_dev,
 					      const char *const *alias_id,
 					      int num_id);
-void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
-						 const char *const *id,
-						 int num_id);
 
 /* regulator output control and status */
 int __must_check regulator_enable(struct regulator *regulator);
@@ -420,11 +417,6 @@ static inline int devm_regulator_bulk_register_supply_alias(struct device *dev,
 						int num_id)
 {
 	return 0;
-}
-
-static inline void devm_regulator_bulk_unregister_supply_alias(
-	struct device *dev, const char *const *id, int num_id)
-{
 }
 
 static inline int regulator_enable(struct regulator *regulator)

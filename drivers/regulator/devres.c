@@ -344,30 +344,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
 
-/**
- * devm_regulator_bulk_unregister_supply_alias - Managed unregister
- * multiple aliases
- *
- * @dev:    device to supply
- * @id:     list of supply names or regulator IDs
- * @num_id: number of aliases to unregister
- *
- * Unregister aliases registered with
- * devm_regulator_bulk_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
- * will ensure that the resource is freed.
- */
-void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
-						 const char *const *id,
-						 int num_id)
-{
-	int i;
-
-	for (i = 0; i < num_id; ++i)
-		devm_regulator_unregister_supply_alias(dev, id[i]);
-}
-EXPORT_SYMBOL_GPL(devm_regulator_bulk_unregister_supply_alias);
-
 struct regulator_notifier_match {
 	struct regulator *regulator;
 	struct notifier_block *nb;
