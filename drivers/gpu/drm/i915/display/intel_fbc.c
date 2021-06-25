@@ -912,11 +912,11 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	}
 
 	/*
-	 * Tigerlake is not supporting FBC with PSR2.
+	 * Display 12+ is not supporting FBC with PSR2.
 	 * Recommendation is to keep this combination disabled
 	 * Bspec: 50422 HSD: 14010260002
 	 */
-	if (fbc->state_cache.psr2_active && IS_TIGERLAKE(dev_priv)) {
+	if (fbc->state_cache.psr2_active && DISPLAY_VER(dev_priv) >= 12) {
 		fbc->no_fbc_reason = "not supported with PSR2";
 		return false;
 	}
