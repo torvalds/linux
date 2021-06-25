@@ -90,7 +90,7 @@ i915_gem_setup(struct drm_i915_gem_object *obj, u64 size)
 	 */
 	flags = I915_BO_ALLOC_USER;
 
-	ret = mr->ops->init_object(mr, obj, size, flags);
+	ret = mr->ops->init_object(mr, obj, size, 0, flags);
 	if (ret)
 		return ret;
 

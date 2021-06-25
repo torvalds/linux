@@ -72,11 +72,42 @@ bool __i915_gem_object_is_lmem(struct drm_i915_gem_object *obj)
 		      mr->type == INTEL_MEMORY_STOLEN_LOCAL);
 }
 
+/**
+ * __i915_gem_object_create_lmem_with_ps - Create lmem object and force the
+ * minimum page size for the backing pages.
+ * @i915: The i915 instance.
+ * @size: The size in bytes for the object. Note that we need to round the size
+ * up depending on the @page_size. The final object size can be fished out from
+ * the drm GEM object.
+ * @page_size: The requested minimum page size in bytes for this object. This is
+ * useful if we need something bigger than the regions min_page_size due to some
+ * hw restriction, or in some very specialised cases where it needs to be
+ * smaller, where the internal fragmentation cost is too great when rounding up
+ * the object size.
+ * @flags: The optional BO allocation flags.
+ *
+ * Note that this interface assumes you know what you are doing when forcing the
+ * @page_size. If this is smaller than the regions min_page_size then it can
+ * never be inserted into any GTT, otherwise it might lead to undefined
+ * behaviour.
+ *
+ * Return: The object pointer, which might be an ERR_PTR in the case of failure.
+ */
+struct drm_i915_gem_object *
+__i915_gem_object_create_lmem_with_ps(struct drm_i915_private *i915,
+				      resource_size_t size,
+				      resource_size_t page_size,
+				      unsigned int flags)
+{
+	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_LMEM],
+					     size, page_size, flags);
+}
+
 struct drm_i915_gem_object *
 i915_gem_object_create_lmem(struct drm_i915_private *i915,
 			    resource_size_t size,
 			    unsigned int flags)
 {
 	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_LMEM],
-					     size, flags);
+					     size, 0, flags);
 }

@@ -18,6 +18,7 @@ struct i915_ttm_buddy_manager {
 	struct i915_buddy_mm mm;
 	struct list_head reserved;
 	struct mutex lock;
+	u64 default_page_size;
 };
 
 static struct i915_ttm_buddy_manager *
@@ -53,7 +54,10 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	GEM_BUG_ON(!bman_res->base.num_pages);
 	size = bman_res->base.num_pages << PAGE_SHIFT;
 
-	min_page_size = bo->page_alignment << PAGE_SHIFT;
+	min_page_size = bman->default_page_size;
+	if (bo->page_alignment)
+		min_page_size = bo->page_alignment << PAGE_SHIFT;
+
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
 	min_order = ilog2(min_page_size) - ilog2(mm->chunk_size);
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
@@ -134,6 +138,9 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  * @type: Memory type we want to manage
  * @use_tt: Set use_tt for the manager
  * @size: The size in bytes to manage
+ * @default_page_size: The default minimum page size in bytes for allocations,
+ * this must be at least as large as @chunk_size, and can be overridden by
+ * setting the BO page_alignment, to be larger or smaller as needed.
  * @chunk_size: The minimum page size in bytes for our allocations i.e
  * order-zero
  *
@@ -154,7 +161,8 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  */
 int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 			    unsigned int type, bool use_tt,
-			    u64 size, u64 chunk_size)
+			    u64 size, u64 default_page_size,
+			    u64 chunk_size)
 {
 	struct ttm_resource_manager *man;
 	struct i915_ttm_buddy_manager *bman;
@@ -170,6 +178,8 @@ int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 
 	mutex_init(&bman->lock);
 	INIT_LIST_HEAD(&bman->reserved);
+	GEM_BUG_ON(default_page_size < chunk_size);
+	bman->default_page_size = default_page_size;
 
 	man = &bman->manager;
 	man->use_tt = use_tt;

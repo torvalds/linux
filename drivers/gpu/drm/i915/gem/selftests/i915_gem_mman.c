@@ -958,7 +958,7 @@ static int igt_mmap(void *arg)
 			struct drm_i915_gem_object *obj;
 			int err;
 
-			obj = i915_gem_object_create_region(mr, sizes[i], I915_BO_ALLOC_USER);
+			obj = i915_gem_object_create_region(mr, sizes[i], 0, I915_BO_ALLOC_USER);
 			if (obj == ERR_PTR(-ENODEV))
 				continue;
 
@@ -1084,7 +1084,7 @@ static int igt_mmap_access(void *arg)
 		struct drm_i915_gem_object *obj;
 		int err;
 
-		obj = i915_gem_object_create_region(mr, PAGE_SIZE, I915_BO_ALLOC_USER);
+		obj = i915_gem_object_create_region(mr, PAGE_SIZE, 0, I915_BO_ALLOC_USER);
 		if (obj == ERR_PTR(-ENODEV))
 			continue;
 
@@ -1229,7 +1229,7 @@ static int igt_mmap_gpu(void *arg)
 		struct drm_i915_gem_object *obj;
 		int err;
 
-		obj = i915_gem_object_create_region(mr, PAGE_SIZE, I915_BO_ALLOC_USER);
+		obj = i915_gem_object_create_region(mr, PAGE_SIZE, 0, I915_BO_ALLOC_USER);
 		if (obj == ERR_PTR(-ENODEV))
 			continue;
 
@@ -1384,7 +1384,7 @@ static int igt_mmap_revoke(void *arg)
 		struct drm_i915_gem_object *obj;
 		int err;
 
-		obj = i915_gem_object_create_region(mr, PAGE_SIZE, I915_BO_ALLOC_USER);
+		obj = i915_gem_object_create_region(mr, PAGE_SIZE, 0, I915_BO_ALLOC_USER);
 		if (obj == ERR_PTR(-ENODEV))
 			continue;
 

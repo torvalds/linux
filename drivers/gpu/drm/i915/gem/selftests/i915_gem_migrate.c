@@ -48,7 +48,7 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 	GEM_BUG_ON(!src_mr);
 
 	/* Switch object backing-store on create */
-	obj = i915_gem_object_create_region(src_mr, PAGE_SIZE, 0);
+	obj = i915_gem_object_create_region(src_mr, PAGE_SIZE, 0, 0);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 

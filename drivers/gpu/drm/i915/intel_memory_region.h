@@ -55,6 +55,7 @@ struct intel_memory_region_ops {
 	int (*init_object)(struct intel_memory_region *mem,
 			   struct drm_i915_gem_object *obj,
 			   resource_size_t size,
+			   resource_size_t page_size,
 			   unsigned int flags);
 };
 

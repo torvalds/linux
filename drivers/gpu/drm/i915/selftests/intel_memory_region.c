@@ -68,7 +68,7 @@ static int igt_mock_fill(void *arg)
 		resource_size_t size = page_num * page_size;
 		struct drm_i915_gem_object *obj;
 
-		obj = i915_gem_object_create_region(mem, size, 0);
+		obj = i915_gem_object_create_region(mem, size, 0, 0);
 		if (IS_ERR(obj)) {
 			err = PTR_ERR(obj);
 			break;
@@ -110,7 +110,7 @@ igt_object_create(struct intel_memory_region *mem,
 	struct drm_i915_gem_object *obj;
 	int err;
 
-	obj = i915_gem_object_create_region(mem, size, flags);
+	obj = i915_gem_object_create_region(mem, size, 0, flags);
 	if (IS_ERR(obj))
 		return obj;
 
@@ -647,6 +647,62 @@ out_put:
 	return err;
 }
 
+static int igt_lmem_create_with_ps(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	int err = 0;
+	u32 ps;
+
+	for (ps = PAGE_SIZE; ps <= SZ_1G; ps <<= 1) {
+		struct drm_i915_gem_object *obj;
+		dma_addr_t daddr;
+
+		obj = __i915_gem_object_create_lmem_with_ps(i915, ps, ps, 0);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			if (err == -ENXIO || err == -E2BIG) {
+				pr_info("%s not enough lmem for ps(%u) err=%d\n",
+					__func__, ps, err);
+				err = 0;
+			}
+
+			break;
+		}
+
+		if (obj->base.size != ps) {
+			pr_err("%s size(%zu) != ps(%u)\n",
+			       __func__, obj->base.size, ps);
+			err = -EINVAL;
+			goto out_put;
+		}
+
+		i915_gem_object_lock(obj, NULL);
+		err = i915_gem_object_pin_pages(obj);
+		if (err)
+			goto out_put;
+
+		daddr = i915_gem_object_get_dma_address(obj, 0);
+		if (!IS_ALIGNED(daddr, ps)) {
+			pr_err("%s daddr(%pa) not aligned with ps(%u)\n",
+			       __func__, &daddr, ps);
+			err = -EINVAL;
+			goto out_unpin;
+		}
+
+out_unpin:
+		i915_gem_object_unpin_pages(obj);
+		__i915_gem_object_put_pages(obj);
+out_put:
+		i915_gem_object_unlock(obj);
+		i915_gem_object_put(obj);
+
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int igt_lmem_create_cleared_cpu(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -932,7 +988,7 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 	struct drm_i915_gem_object *obj;
 	void *addr;
 
-	obj = i915_gem_object_create_region(mr, size, 0);
+	obj = i915_gem_object_create_region(mr, size, 0, 0);
 	if (IS_ERR(obj)) {
 		if (PTR_ERR(obj) == -ENOSPC) /* Stolen memory */
 			return ERR_PTR(-ENODEV);
@@ -1149,6 +1205,7 @@ int intel_memory_region_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_lmem_create),
+		SUBTEST(igt_lmem_create_with_ps),
 		SUBTEST(igt_lmem_create_cleared_cpu),
 		SUBTEST(igt_lmem_write_cpu),
 		SUBTEST(igt_lmem_write_gpu),

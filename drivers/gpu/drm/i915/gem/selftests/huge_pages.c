@@ -496,7 +496,8 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(flags); ++i) {
-			obj = i915_gem_object_create_region(mem, page_size,
+			obj = i915_gem_object_create_region(mem,
+							    page_size, page_size,
 							    flags[i]);
 			if (IS_ERR(obj)) {
 				err = PTR_ERR(obj);

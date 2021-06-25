@@ -86,7 +86,8 @@ int intel_region_ttm_init(struct intel_memory_region *mem)
 	int ret;
 
 	ret = i915_ttm_buddy_man_init(bdev, mem_type, false,
-				      resource_size(&mem->region), PAGE_SIZE);
+				      resource_size(&mem->region),
+				      mem->min_page_size, PAGE_SIZE);
 	if (ret)
 		return ret;
 
@@ -167,7 +168,6 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	int ret;
 
 	mock_bo.base.size = size;
-	mock_bo.page_alignment = mem->min_page_size >> PAGE_SHIFT;
 	place.flags = flags;
 
 	ret = man->func->alloc(man, &mock_bo, &place, &res);

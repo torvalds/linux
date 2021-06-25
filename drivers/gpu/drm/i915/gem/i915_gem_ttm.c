@@ -893,6 +893,7 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
 int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 			       struct drm_i915_gem_object *obj,
 			       resource_size_t size,
+			       resource_size_t page_size,
 			       unsigned int flags)
 {
 	static struct lock_class_key lock_class;
@@ -915,6 +916,9 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 
 	obj->base.vma_node.driver_private = i915_gem_to_ttm(obj);
 
+	/* Forcing the page size is kernel internal only */
+	GEM_BUG_ON(page_size && obj->mm.n_placements);
+
 	/*
 	 * If this function fails, it will call the destructor, but
 	 * our caller still owns the object. So no freeing in the
@@ -924,7 +928,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	 */
 	ret = ttm_bo_init_reserved(&i915->bdev, i915_gem_to_ttm(obj), size,
 				   bo_type, &i915_sys_placement,
-				   mem->min_page_size >> PAGE_SHIFT,
+				   page_size >> PAGE_SHIFT,
 				   &ctx, NULL, NULL, i915_ttm_bo_destroy);
 	if (ret)
 		return i915_ttm_err_to_gem(ret);

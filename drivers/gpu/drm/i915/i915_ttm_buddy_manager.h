@@ -46,7 +46,7 @@ to_ttm_buddy_resource(struct ttm_resource *res)
 
 int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 			    unsigned type, bool use_tt,
-			    u64 size, u64 chunk_size);
+			    u64 size, u64 default_page_size, u64 chunk_size);
 int i915_ttm_buddy_man_fini(struct ttm_device *bdev,
 			    unsigned int type);
 
