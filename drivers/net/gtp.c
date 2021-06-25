@@ -201,6 +201,7 @@ static int gtp_rx(struct pdp_ctx *pctx, struct sk_buff *skb,
 	 * calculate the transport header.
 	 */
 	skb_reset_network_header(skb);
+	skb_reset_mac_header(skb);
 
 	skb->dev = pctx->dev;
 
