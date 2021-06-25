@@ -17,7 +17,7 @@ description: |
   node.
 
   The SPMI controller part is provided by
-  drivers/staging/hikey9xx/hisilicon,hisi-spmi-controller.yaml.
+  Documentation/devicetree/bindings/mfd/hisilicon,hi6421-spmi-pmic.yaml
 
 properties:
   $nodename:
