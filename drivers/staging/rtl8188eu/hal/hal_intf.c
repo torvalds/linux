@@ -25,9 +25,6 @@ uint rtw_hal_init(struct adapter *adapt)
 		adapt->hw_init_completed = false;
 	}
 
-	RT_TRACE(_module_hal_init_c_, _drv_err_,
-		 ("-rtl871x_hal_init:status=0x%x\n", status));
-
 	return status;
 }
 
