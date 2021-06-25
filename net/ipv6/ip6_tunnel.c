@@ -837,6 +837,7 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 	} else {
 		skb->dev = tunnel->dev;
+		skb_reset_mac_header(skb);
 	}
 
 	skb_reset_network_header(skb);
