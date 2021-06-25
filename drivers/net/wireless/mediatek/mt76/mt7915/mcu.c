@@ -3481,7 +3481,7 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
 		u8 idx;
 		u8 rsv[4];
 		__le32 len;
-	} req;
+	} req = {};
 	struct sk_buff *skb;
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req) + len);
