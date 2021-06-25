@@ -7452,13 +7452,13 @@ static int nfs4_add_lease(struct file *file, long arg, struct file_lock **lease,
 
 	/* No delegation, no lease */
 	if (!nfs4_have_delegation(inode, type))
-		return -ENOLCK;
+		return -EAGAIN;
 	ret = generic_setlease(file, arg, lease, priv);
 	if (ret || nfs4_have_delegation(inode, type))
 		return ret;
 	/* We raced with a delegation return */
 	nfs4_delete_lease(file, priv);
-	return -ENOLCK;
+	return -EAGAIN;
 }
 
 int nfs4_proc_setlease(struct file *file, long arg, struct file_lock **lease,
