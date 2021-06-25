@@ -677,13 +677,13 @@ void update_max_tr_single(struct trace_array *tr,
 
 #if (defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)) && \
 	defined(CONFIG_FSNOTIFY)
+#define LATENCY_FS_NOTIFY
+#endif
 
+#ifdef LATENCY_FS_NOTIFY
 void latency_fsnotify(struct trace_array *tr);
-
 #else
-
 static inline void latency_fsnotify(struct trace_array *tr) { }
-
 #endif
 
 #ifdef CONFIG_STACKTRACE

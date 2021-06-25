@@ -1690,8 +1690,7 @@ static ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
 unsigned long __read_mostly	tracing_thresh;
 static const struct file_operations tracing_max_lat_fops;
 
-#if (defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)) && \
-	defined(CONFIG_FSNOTIFY)
+#ifdef LATENCY_FS_NOTIFY
 
 static struct workqueue_struct *fsnotify_wq;
 
