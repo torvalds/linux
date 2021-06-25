@@ -1224,7 +1224,7 @@ static void rockchip_system_monitor_cpu_on_off(void)
 	cpumask_copy(&system_monitor->offline_cpus, &offline_cpus);
 	for_each_cpu(cpu, &system_monitor->offline_cpus) {
 		if (cpu_online(cpu))
-			cpu_down(cpu);
+			remove_cpu(cpu);
 	}
 
 	cpumask_clear(&online_cpus);
@@ -1234,7 +1234,7 @@ static void rockchip_system_monitor_cpu_on_off(void)
 	if (cpumask_empty(&online_cpus))
 		goto out;
 	for_each_cpu(cpu, &online_cpus)
-		cpu_up(cpu);
+		add_cpu(cpu);
 
 out:
 	mutex_unlock(&cpu_on_off_mutex);
