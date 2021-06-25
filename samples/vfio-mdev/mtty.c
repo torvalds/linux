@@ -144,8 +144,7 @@ struct mdev_state {
 	int nr_ports;
 };
 
-static struct mutex mdev_list_lock;
-static struct list_head mdev_devices_list;
+static atomic_t mdev_used_ports;
 
 static const struct file_operations vd_fops = {
 	.owner          = THIS_MODULE,
@@ -733,15 +732,13 @@ static int mtty_probe(struct mdev_device *mdev)
 
 	mtty_create_config_space(mdev_state);
 
-	mutex_lock(&mdev_list_lock);
-	list_add(&mdev_state->next, &mdev_devices_list);
-	mutex_unlock(&mdev_list_lock);
-
 	ret = vfio_register_group_dev(&mdev_state->vdev);
 	if (ret) {
 		kfree(mdev_state);
 		return ret;
 	}
+	atomic_add(mdev_state->nr_ports, &mdev_used_ports);
+
 	dev_set_drvdata(&mdev->dev, mdev_state);
 	return 0;
 }
@@ -750,10 +747,8 @@ static void mtty_remove(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state = dev_get_drvdata(&mdev->dev);
 
+	atomic_sub(mdev_state->nr_ports, &mdev_used_ports);
 	vfio_unregister_group_dev(&mdev_state->vdev);
-	mutex_lock(&mdev_list_lock);
-	list_del(&mdev_state->next);
-	mutex_unlock(&mdev_list_lock);
 
 	kfree(mdev_state->vconfig);
 	kfree(mdev_state);
@@ -1274,14 +1269,10 @@ static ssize_t available_instances_show(struct mdev_type *mtype,
 					struct mdev_type_attribute *attr,
 					char *buf)
 {
-	struct mdev_state *mds;
 	unsigned int ports = mtype_get_type_group_id(mtype) + 1;
-	int used = 0;
 
-	list_for_each_entry(mds, &mdev_devices_list, next)
-		used += mds->nr_ports;
-
-	return sprintf(buf, "%d\n", (MAX_MTTYS - used)/ports);
+	return sprintf(buf, "%d\n",
+		       (MAX_MTTYS - atomic_read(&mdev_used_ports)) / ports);
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);
@@ -1395,9 +1386,6 @@ static int __init mtty_dev_init(void)
 	ret = mdev_register_device(&mtty_dev.dev, &mdev_fops);
 	if (ret)
 		goto err_device;
-
-	mutex_init(&mdev_list_lock);
-	INIT_LIST_HEAD(&mdev_devices_list);
 	return 0;
 
 err_device:
