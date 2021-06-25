@@ -50,12 +50,6 @@
 
 extern struct list_head global_lock_list;
 
-#define IS_SMB2(x)		((x)->vals->protocol_id != SMB10_PROT_ID)
-
-#define HEADER_SIZE(conn)		((conn)->vals->header_size)
-#define HEADER_SIZE_NO_BUF_LEN(conn)	((conn)->vals->header_size - 4)
-#define MAX_HEADER_SIZE(conn)		((conn)->vals->max_header_size)
-
 /* RFC 1002 session packet types */
 #define RFC1002_SESSION_MESSAGE			0x00
 #define RFC1002_SESSION_REQUEST			0x81
@@ -489,6 +483,12 @@ struct smb_version_ops {
 struct smb_version_cmds {
 	int (*proc)(struct ksmbd_work *swork);
 };
+
+static inline size_t
+smb2_hdr_size_no_buflen(struct smb_version_values *vals)
+{
+	return vals->header_size - 4;
+}
 
 int ksmbd_min_protocol(void);
 int ksmbd_max_protocol(void);

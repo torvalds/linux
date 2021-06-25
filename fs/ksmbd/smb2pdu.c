@@ -243,7 +243,7 @@ int init_smb2_neg_rsp(struct ksmbd_work *work)
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
 
 	rsp_hdr->smb2_buf_length =
-		cpu_to_be32(HEADER_SIZE_NO_BUF_LEN(conn));
+		cpu_to_be32(smb2_hdr_size_no_buflen(conn->vals));
 
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
 	rsp_hdr->StructureSize = SMB2_HEADER_STRUCTURE_SIZE;
@@ -497,7 +497,8 @@ int init_smb2_rsp_hdr(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
-	rsp_hdr->smb2_buf_length = cpu_to_be32(HEADER_SIZE_NO_BUF_LEN(conn));
+	rsp_hdr->smb2_buf_length =
+		cpu_to_be32(smb2_hdr_size_no_buflen(conn->vals));
 	rsp_hdr->ProtocolId = rcv_hdr->ProtocolId;
 	rsp_hdr->StructureSize = SMB2_HEADER_STRUCTURE_SIZE;
 	rsp_hdr->Command = rcv_hdr->Command;
