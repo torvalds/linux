@@ -4,6 +4,8 @@
 #include "ice.h"
 #include "ice_lib.h"
 
+#define E810_OUT_PROP_DELAY_NS 1
+
 /**
  * ice_set_tx_tstamp - Enable or disable Tx timestamping
  * @pf: The PF pointer to search in
@@ -484,6 +486,255 @@ static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 }
 
 /**
+ * ice_ptp_extts_work - Workqueue task function
+ * @work: external timestamp work structure
+ *
+ * Service for PTP external clock event
+ */
+static void ice_ptp_extts_work(struct kthread_work *work)
+{
+	struct ice_ptp *ptp = container_of(work, struct ice_ptp, extts_work);
+	struct ice_pf *pf = container_of(ptp, struct ice_pf, ptp);
+	struct ptp_clock_event event;
+	struct ice_hw *hw = &pf->hw;
+	u8 chan, tmr_idx;
+	u32 hi, lo;
+
+	tmr_idx = hw->func_caps.ts_func_info.tmr_index_owned;
+	/* Event time is captured by one of the two matched registers
+	 *      GLTSYN_EVNT_L: 32 LSB of sampled time event
+	 *      GLTSYN_EVNT_H: 32 MSB of sampled time event
+	 * Event is defined in GLTSYN_EVNT_0 register
+	 */
+	for (chan = 0; chan < GLTSYN_EVNT_H_IDX_MAX; chan++) {
+		/* Check if channel is enabled */
+		if (pf->ptp.ext_ts_irq & (1 << chan)) {
+			lo = rd32(hw, GLTSYN_EVNT_L(chan, tmr_idx));
+			hi = rd32(hw, GLTSYN_EVNT_H(chan, tmr_idx));
+			event.timestamp = (((u64)hi) << 32) | lo;
+			event.type = PTP_CLOCK_EXTTS;
+			event.index = chan;
+
+			/* Fire event */
+			ptp_clock_event(pf->ptp.clock, &event);
+			pf->ptp.ext_ts_irq &= ~(1 << chan);
+		}
+	}
+}
+
+/**
+ * ice_ptp_cfg_extts - Configure EXTTS pin and channel
+ * @pf: Board private structure
+ * @ena: true to enable; false to disable
+ * @chan: GPIO channel (0-3)
+ * @gpio_pin: GPIO pin
+ * @extts_flags: request flags from the ptp_extts_request.flags
+ */
+static int
+ice_ptp_cfg_extts(struct ice_pf *pf, bool ena, unsigned int chan, u32 gpio_pin,
+		  unsigned int extts_flags)
+{
+	u32 func, aux_reg, gpio_reg, irq_reg;
+	struct ice_hw *hw = &pf->hw;
+	u8 tmr_idx;
+
+	if (chan > (unsigned int)pf->ptp.info.n_ext_ts)
+		return -EINVAL;
+
+	tmr_idx = hw->func_caps.ts_func_info.tmr_index_owned;
+
+	irq_reg = rd32(hw, PFINT_OICR_ENA);
+
+	if (ena) {
+		/* Enable the interrupt */
+		irq_reg |= PFINT_OICR_TSYN_EVNT_M;
+		aux_reg = GLTSYN_AUX_IN_0_INT_ENA_M;
+
+#define GLTSYN_AUX_IN_0_EVNTLVL_RISING_EDGE	BIT(0)
+#define GLTSYN_AUX_IN_0_EVNTLVL_FALLING_EDGE	BIT(1)
+
+		/* set event level to requested edge */
+		if (extts_flags & PTP_FALLING_EDGE)
+			aux_reg |= GLTSYN_AUX_IN_0_EVNTLVL_FALLING_EDGE;
+		if (extts_flags & PTP_RISING_EDGE)
+			aux_reg |= GLTSYN_AUX_IN_0_EVNTLVL_RISING_EDGE;
+
+		/* Write GPIO CTL reg.
+		 * 0x1 is input sampled by EVENT register(channel)
+		 * + num_in_channels * tmr_idx
+		 */
+		func = 1 + chan + (tmr_idx * 3);
+		gpio_reg = ((func << GLGEN_GPIO_CTL_PIN_FUNC_S) &
+			    GLGEN_GPIO_CTL_PIN_FUNC_M);
+		pf->ptp.ext_ts_chan |= (1 << chan);
+	} else {
+		/* clear the values we set to reset defaults */
+		aux_reg = 0;
+		gpio_reg = 0;
+		pf->ptp.ext_ts_chan &= ~(1 << chan);
+		if (!pf->ptp.ext_ts_chan)
+			irq_reg &= ~PFINT_OICR_TSYN_EVNT_M;
+	}
+
+	wr32(hw, PFINT_OICR_ENA, irq_reg);
+	wr32(hw, GLTSYN_AUX_IN(chan, tmr_idx), aux_reg);
+	wr32(hw, GLGEN_GPIO_CTL(gpio_pin), gpio_reg);
+
+	return 0;
+}
+
+/**
+ * ice_ptp_cfg_clkout - Configure clock to generate periodic wave
+ * @pf: Board private structure
+ * @chan: GPIO channel (0-3)
+ * @config: desired periodic clk configuration. NULL will disable channel
+ * @store: If set to true the values will be stored
+ *
+ * Configure the internal clock generator modules to generate the clock wave of
+ * specified period.
+ */
+static int ice_ptp_cfg_clkout(struct ice_pf *pf, unsigned int chan,
+			      struct ice_perout_channel *config, bool store)
+{
+	u64 current_time, period, start_time, phase;
+	struct ice_hw *hw = &pf->hw;
+	u32 func, val, gpio_pin;
+	u8 tmr_idx;
+
+	tmr_idx = hw->func_caps.ts_func_info.tmr_index_owned;
+
+	/* 0. Reset mode & out_en in AUX_OUT */
+	wr32(hw, GLTSYN_AUX_OUT(chan, tmr_idx), 0);
+
+	/* If we're disabling the output, clear out CLKO and TGT and keep
+	 * output level low
+	 */
+	if (!config || !config->ena) {
+		wr32(hw, GLTSYN_CLKO(chan, tmr_idx), 0);
+		wr32(hw, GLTSYN_TGT_L(chan, tmr_idx), 0);
+		wr32(hw, GLTSYN_TGT_H(chan, tmr_idx), 0);
+
+		val = GLGEN_GPIO_CTL_PIN_DIR_M;
+		gpio_pin = pf->ptp.perout_channels[chan].gpio_pin;
+		wr32(hw, GLGEN_GPIO_CTL(gpio_pin), val);
+
+		/* Store the value if requested */
+		if (store)
+			memset(&pf->ptp.perout_channels[chan], 0,
+			       sizeof(struct ice_perout_channel));
+
+		return 0;
+	}
+	period = config->period;
+	start_time = config->start_time;
+	div64_u64_rem(start_time, period, &phase);
+	gpio_pin = config->gpio_pin;
+
+	/* 1. Write clkout with half of required period value */
+	if (period & 0x1) {
+		dev_err(ice_pf_to_dev(pf), "CLK Period must be an even value\n");
+		goto err;
+	}
+
+	period >>= 1;
+
+	/* For proper operation, the GLTSYN_CLKO must be larger than clock tick
+	 */
+#define MIN_PULSE 3
+	if (period <= MIN_PULSE || period > U32_MAX) {
+		dev_err(ice_pf_to_dev(pf), "CLK Period must be > %d && < 2^33",
+			MIN_PULSE * 2);
+		goto err;
+	}
+
+	wr32(hw, GLTSYN_CLKO(chan, tmr_idx), lower_32_bits(period));
+
+	/* Allow time for programming before start_time is hit */
+	current_time = ice_ptp_read_src_clk_reg(pf, NULL);
+
+	/* if start time is in the past start the timer at the nearest second
+	 * maintaining phase
+	 */
+	if (start_time < current_time)
+		start_time = div64_u64(current_time + NSEC_PER_MSEC - 1,
+				       NSEC_PER_SEC) * NSEC_PER_SEC + phase;
+
+	start_time -= E810_OUT_PROP_DELAY_NS;
+
+	/* 2. Write TARGET time */
+	wr32(hw, GLTSYN_TGT_L(chan, tmr_idx), lower_32_bits(start_time));
+	wr32(hw, GLTSYN_TGT_H(chan, tmr_idx), upper_32_bits(start_time));
+
+	/* 3. Write AUX_OUT register */
+	val = GLTSYN_AUX_OUT_0_OUT_ENA_M | GLTSYN_AUX_OUT_0_OUTMOD_M;
+	wr32(hw, GLTSYN_AUX_OUT(chan, tmr_idx), val);
+
+	/* 4. write GPIO CTL reg */
+	func = 8 + chan + (tmr_idx * 4);
+	val = GLGEN_GPIO_CTL_PIN_DIR_M |
+	      ((func << GLGEN_GPIO_CTL_PIN_FUNC_S) & GLGEN_GPIO_CTL_PIN_FUNC_M);
+	wr32(hw, GLGEN_GPIO_CTL(gpio_pin), val);
+
+	/* Store the value if requested */
+	if (store) {
+		memcpy(&pf->ptp.perout_channels[chan], config,
+		       sizeof(struct ice_perout_channel));
+		pf->ptp.perout_channels[chan].start_time = phase;
+	}
+
+	return 0;
+err:
+	dev_err(ice_pf_to_dev(pf), "PTP failed to cfg per_clk\n");
+	return -EFAULT;
+}
+
+/**
+ * ice_ptp_gpio_enable_e810 - Enable/disable ancillary features of PHC
+ * @info: the driver's PTP info structure
+ * @rq: The requested feature to change
+ * @on: Enable/disable flag
+ */
+static int
+ice_ptp_gpio_enable_e810(struct ptp_clock_info *info,
+			 struct ptp_clock_request *rq, int on)
+{
+	struct ice_pf *pf = ptp_info_to_pf(info);
+	struct ice_perout_channel clk_cfg = {0};
+	unsigned int chan;
+	u32 gpio_pin;
+	int err;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		chan = rq->perout.index;
+		if (chan == PPS_CLK_GEN_CHAN)
+			clk_cfg.gpio_pin = PPS_PIN_INDEX;
+		else
+			clk_cfg.gpio_pin = chan;
+
+		clk_cfg.period = ((rq->perout.period.sec * NSEC_PER_SEC) +
+				   rq->perout.period.nsec);
+		clk_cfg.start_time = ((rq->perout.start.sec * NSEC_PER_SEC) +
+				       rq->perout.start.nsec);
+		clk_cfg.ena = !!on;
+
+		err = ice_ptp_cfg_clkout(pf, chan, &clk_cfg, true);
+		break;
+	case PTP_CLK_REQ_EXTTS:
+		chan = rq->extts.index;
+		gpio_pin = chan;
+
+		err = ice_ptp_cfg_extts(pf, !!on, chan, gpio_pin,
+					rq->extts.flags);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+/**
  * ice_ptp_gettimex64 - Get the time of the clock
  * @info: the driver's PTP info structure
  * @ts: timespec64 structure to hold the current time value
@@ -741,6 +992,34 @@ ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
 }
 
 /**
+ * ice_ptp_setup_pins_e810 - Setup PTP pins in sysfs
+ * @info: PTP clock capabilities
+ */
+static void ice_ptp_setup_pins_e810(struct ptp_clock_info *info)
+{
+	info->n_per_out = E810_N_PER_OUT;
+	info->n_ext_ts = E810_N_EXT_TS;
+}
+
+/**
+ * ice_ptp_set_funcs_e810 - Set specialized functions for E810 support
+ * @pf: Board private structure
+ * @info: PTP info to fill
+ *
+ * Assign functions to the PTP capabiltiies structure for E810 devices.
+ * Functions which operate across all device families should be set directly
+ * in ice_ptp_set_caps. Only add functions here which are distinct for e810
+ * devices.
+ */
+static void
+ice_ptp_set_funcs_e810(struct ice_pf *pf, struct ptp_clock_info *info)
+{
+	info->enable = ice_ptp_gpio_enable_e810;
+
+	ice_ptp_setup_pins_e810(info);
+}
+
+/**
  * ice_ptp_set_caps - Set PTP capabilities
  * @pf: Board private structure
  */
@@ -757,6 +1036,8 @@ static void ice_ptp_set_caps(struct ice_pf *pf)
 	info->adjfine = ice_ptp_adjfine;
 	info->gettimex64 = ice_ptp_gettimex64;
 	info->settime64 = ice_ptp_settime64;
+
+	ice_ptp_set_funcs_e810(pf, info);
 }
 
 /**
@@ -782,6 +1063,17 @@ static long ice_ptp_create_clock(struct ice_pf *pf)
 
 	info = &pf->ptp.info;
 	dev = ice_pf_to_dev(pf);
+
+	/* Allocate memory for kernel pins interface */
+	if (info->n_pins) {
+		info->pin_config = devm_kcalloc(dev, info->n_pins,
+						sizeof(*info->pin_config),
+						GFP_KERNEL);
+		if (!info->pin_config) {
+			info->n_pins = 0;
+			return -ENOMEM;
+		}
+	}
 
 	/* Attempt to register the clock before enabling the hardware. */
 	clock = ptp_clock_register(info, dev);
@@ -1203,6 +1495,7 @@ void ice_ptp_init(struct ice_pf *pf)
 
 	/* Initialize work functions */
 	kthread_init_delayed_work(&pf->ptp.work, ice_ptp_periodic_work);
+	kthread_init_work(&pf->ptp.extts_work, ice_ptp_extts_work);
 
 	/* Allocate a kworker for handling work required for the ports
 	 * connected to the PTP hardware clock.

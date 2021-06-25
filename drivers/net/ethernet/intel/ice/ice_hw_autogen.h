@@ -138,6 +138,10 @@
 #define GLGEN_CLKSTAT_SRC_PSM_CLK_SRC_S		4
 #define GLGEN_CLKSTAT_SRC_PSM_CLK_SRC_M		ICE_M(0x3, 4)
 #define GLGEN_CLKSTAT_SRC			0x000B826C
+#define GLGEN_GPIO_CTL(_i)			(0x000880C8 + ((_i) * 4))
+#define GLGEN_GPIO_CTL_PIN_DIR_M		BIT(4)
+#define GLGEN_GPIO_CTL_PIN_FUNC_S		8
+#define GLGEN_GPIO_CTL_PIN_FUNC_M		ICE_M(0xF, 8)
 #define GLGEN_RSTAT				0x000B8188
 #define GLGEN_RSTAT_DEVSTATE_M			ICE_M(0x3, 0)
 #define GLGEN_RSTCTL				0x000B8180
@@ -203,6 +207,7 @@
 #define PFINT_MBX_CTL_CAUSE_ENA_M		BIT(30)
 #define PFINT_OICR				0x0016CA00
 #define PFINT_OICR_TSYN_TX_M			BIT(11)
+#define PFINT_OICR_TSYN_EVNT_M			BIT(12)
 #define PFINT_OICR_ECC_ERR_M			BIT(16)
 #define PFINT_OICR_MAL_DETECT_M			BIT(19)
 #define PFINT_OICR_GRST_M			BIT(20)
@@ -434,10 +439,18 @@
 #define GLV_UPRCL(_i)				(0x003B2000 + ((_i) * 8))
 #define GLV_UPTCL(_i)				(0x0030A000 + ((_i) * 8))
 #define PRTRPB_RDPC				0x000AC260
+#define GLTSYN_AUX_IN_0(_i)			(0x000889D8 + ((_i) * 4))
+#define GLTSYN_AUX_IN_0_INT_ENA_M		BIT(4)
+#define GLTSYN_AUX_OUT_0(_i)			(0x00088998 + ((_i) * 4))
+#define GLTSYN_AUX_OUT_0_OUT_ENA_M		BIT(0)
+#define GLTSYN_AUX_OUT_0_OUTMOD_M		ICE_M(0x3, 1)
+#define GLTSYN_CLKO_0(_i)			(0x000889B8 + ((_i) * 4))
 #define GLTSYN_CMD				0x00088810
 #define GLTSYN_CMD_SYNC				0x00088814
 #define GLTSYN_ENA(_i)				(0x00088808 + ((_i) * 4))
 #define GLTSYN_ENA_TSYN_ENA_M			BIT(0)
+#define GLTSYN_EVNT_H_0(_i)			(0x00088970 + ((_i) * 4))
+#define GLTSYN_EVNT_L_0(_i)			(0x00088968 + ((_i) * 4))
 #define GLTSYN_INCVAL_H(_i)			(0x00088920 + ((_i) * 4))
 #define GLTSYN_INCVAL_L(_i)			(0x00088918 + ((_i) * 4))
 #define GLTSYN_SHADJ_H(_i)			(0x00088910 + ((_i) * 4))
@@ -446,7 +459,12 @@
 #define GLTSYN_SHTIME_H(_i)			(0x000888F0 + ((_i) * 4))
 #define GLTSYN_SHTIME_L(_i)			(0x000888E8 + ((_i) * 4))
 #define GLTSYN_STAT(_i)				(0x000888C0 + ((_i) * 4))
+#define GLTSYN_STAT_EVENT0_M			BIT(0)
+#define GLTSYN_STAT_EVENT1_M			BIT(1)
+#define GLTSYN_STAT_EVENT2_M			BIT(2)
 #define GLTSYN_SYNC_DLAY			0x00088818
+#define GLTSYN_TGT_H_0(_i)			(0x00088930 + ((_i) * 4))
+#define GLTSYN_TGT_L_0(_i)			(0x00088928 + ((_i) * 4))
 #define GLTSYN_TIME_H(_i)			(0x000888D8 + ((_i) * 4))
 #define GLTSYN_TIME_L(_i)			(0x000888D0 + ((_i) * 4))
 #define PFTSYN_SEM				0x00088880
