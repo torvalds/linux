@@ -63,6 +63,7 @@
 #include <trace/hooks/user.h>
 #include <trace/hooks/cpuidle_psci.h>
 #include <trace/hooks/fips140.h>
+#include <trace/hooks/remoteproc.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -337,3 +338,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_force_compatible_pre);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_force_compatible_post);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_print_transaction_info);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_setscheduler_uclamp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rproc_recovery);
