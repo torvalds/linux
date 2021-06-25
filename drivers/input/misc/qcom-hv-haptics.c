@@ -71,8 +71,11 @@
 #define DRV_SLEW_RATE_MASK			GENMASK(2, 0)
 
 #define HAP_CFG_VMAX_REG			0x48
-#define VMAX_STEP_MV				50
+#define VMAX_HV_STEP_MV				50
+#define VMAX_MV_STEP_MV				32
 #define MAX_VMAX_MV				11000
+#define MAX_HV_VMAX_MV				10000
+#define MAX_MV_VMAX_MV				6000
 #define CLAMPED_VMAX_MV				5000
 #define DEFAULT_VMAX_MV				5000
 
@@ -175,6 +178,9 @@
 #define CAL_RC_CLK_MANUAL_VAL			2
 
 /* These registers are only applicable for PM5100 */
+#define HAP_CFG_HW_CONFIG_REG			0x0D
+#define HV_HAP_DRIVER_BIT			BIT(1)
+
 #define HAP_CFG_HPWR_INTF_CTL_REG		0x80
 #define INTF_CTL_MASK				GENMASK(1, 0)
 #define INTF_CTL_BOB				1
@@ -509,11 +515,13 @@ struct haptics_chip {
 	u8				ptn_revision;
 	u8				hpwr_intf_ctl;
 	u16				hbst_revision;
+	u16				max_vmax_mv;
 	enum pmic_type			pmic_type;
 	bool				fifo_empty_irq_en;
 	bool				swr_slave_enabled;
 	bool				clamp_at_5v;
 	bool				hpwr_vreg_enabled;
+	bool				is_hv_haptics;
 };
 
 struct haptics_reg_info {
@@ -1163,18 +1171,20 @@ static int haptics_get_closeloop_lra_period(struct haptics_chip *chip,
 static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 {
 	int rc = 0;
-	u8 val;
+	u8 val, vmax_step;
 
-	if (vmax_mv > MAX_VMAX_MV) {
+	if (vmax_mv > chip->max_vmax_mv) {
 		dev_err(chip->dev, "vmax (%d) exceed the max value: %d\n",
-					vmax_mv, MAX_VMAX_MV);
+					vmax_mv, chip->max_vmax_mv);
 		return -EINVAL;
 	}
 
 	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
 		vmax_mv = CLAMPED_VMAX_MV;
 
-	val = vmax_mv / VMAX_STEP_MV;
+	vmax_step = (chip->is_hv_haptics) ?
+				VMAX_HV_STEP_MV : VMAX_MV_STEP_MV;
+	val = vmax_mv / vmax_step;
 	rc = haptics_write(chip, chip->cfg_addr_base,
 			HAP_CFG_VMAX_REG, &val, 1);
 	if (rc < 0)
@@ -2588,6 +2598,20 @@ static int haptics_hw_init(struct haptics_chip *chip)
 			return rc;
 
 		chip->clamp_at_5v = val[0] & CLAMP_5V_BIT;
+	}
+
+	chip->is_hv_haptics = true;
+	chip->max_vmax_mv = MAX_VMAX_MV;
+
+	if (chip->pmic_type == PM5100) {
+		rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_HW_CONFIG_REG, val, 1);
+		if (rc < 0)
+			return rc;
+
+		chip->is_hv_haptics = val[0] & HV_HAP_DRIVER_BIT;
+		chip->max_vmax_mv = (chip->is_hv_haptics) ?
+					MAX_HV_VMAX_MV : MAX_MV_VMAX_MV;
 	}
 
 	/* Config VMAX */
