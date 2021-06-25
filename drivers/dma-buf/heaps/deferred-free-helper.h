@@ -52,4 +52,6 @@ void deferred_free(struct deferred_freelist_item *item,
 		   void (*free)(struct deferred_freelist_item *i,
 				enum df_reason reason),
 		   size_t nr_pages);
+
+unsigned long get_freelist_nr_pages(void);
 #endif
