@@ -10981,9 +10981,6 @@ int kvm_arch_hardware_setup(void *opaque)
 	int r;
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
-	if (WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_NX) &&
-			 !(host_efer & EFER_NX)))
-		return -EIO;
 
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		rdmsrl(MSR_IA32_XSS, host_xss);
