@@ -77,3 +77,4 @@ obj-$(findstring y, $(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) $(CONFIG_PGSTE))	+=
 
 # vdso
 obj-y				+= vdso64/
+obj-$(CONFIG_COMPAT)		+= vdso32/

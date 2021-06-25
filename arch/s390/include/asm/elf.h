@@ -144,8 +144,6 @@ typedef s390_compat_regs compat_elf_gregset_t;
 #include <linux/sched/mm.h>	/* for task_struct */
 #include <asm/mmu_context.h>
 
-#include <asm/vdso.h>
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
