@@ -58,13 +58,4 @@
 
 extern u32 GlobalDebugLevel;
 
-#define RT_TRACE(_comp, _level, fmt)					\
-	do {								\
-		if (_level <= GlobalDebugLevel) {			\
-			pr_info("%s [0x%08x,%d]", DRIVER_PREFIX,	\
-				 (unsigned int)_comp, _level);		\
-			pr_info fmt;					\
-		}							\
-	} while (0)
-
 #endif	/* __RTW_DEBUG_H__ */
