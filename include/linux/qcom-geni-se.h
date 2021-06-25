@@ -8,11 +8,24 @@
 
 #include <linux/interconnect.h>
 
-/* Transfer mode supported by GENI Serial Engines */
+/**
+ * enum geni_se_xfer_mode: Transfer modes supported by Serial Engines
+ *
+ * @GENI_SE_INVALID: Invalid mode
+ * @GENI_SE_FIFO: FIFO mode. Data is transferred with SE FIFO
+ * by programmed IO method
+ * @GENI_SE_DMA: Serial Engine DMA mode. Data is transferred
+ * with SE by DMAengine internal to SE
+ * @GENI_GPI_DMA: GPI DMA mode. Data is transferred using a DMAengine
+ * configured by a firmware residing on a GSI engine. This DMA name is
+ * interchangeably used as GSI or GPI which seem to imply the same DMAengine
+ */
+
 enum geni_se_xfer_mode {
 	GENI_SE_INVALID,
 	GENI_SE_FIFO,
 	GENI_SE_DMA,
+	GENI_GPI_DMA,
 };
 
 /* Protocols supported by GENI Serial Engines */
