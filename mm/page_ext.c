@@ -65,6 +65,9 @@ static struct page_ext_operations *page_ext_ops[] = {
 #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
 	&page_idle_ops,
 #endif
+#ifdef CONFIG_PAGE_PINNER
+	&page_pinner_ops,
+#endif
 };
 
 unsigned long page_ext_size = sizeof(struct page_ext);

@@ -835,14 +835,14 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		/* Transmit completion */
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
-		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue +
+				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
-		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue +
+				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 		netif_tx_lock(efx->net_dev);
 		efx_farch_notify_tx_desc(tx_queue);
@@ -1081,16 +1081,16 @@ static void
 efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 {
 	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
 	int qid;
 
 	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
 	if (qid < EFX_MAX_TXQ_PER_CHANNEL * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
-		tx_queue = efx_get_tx_queue(efx, qid / EFX_MAX_TXQ_PER_CHANNEL,
-					    qid % EFX_MAX_TXQ_PER_CHANNEL);
-		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0)) {
+		channel = efx_get_tx_channel(efx, qid / EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue + (qid % EFX_MAX_TXQ_PER_CHANNEL);
+		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0))
 			efx_farch_magic_event(tx_queue->channel,
 					      EFX_CHANNEL_MAGIC_TX_DRAIN(tx_queue));
-		}
 	}
 }
 

@@ -1654,7 +1654,7 @@ out_putpage:
 	 * isolate_lru_page() or drop the page ref if it was
 	 * not isolated.
 	 */
-	put_page(page);
+	put_user_page(page);
 out:
 	mmap_read_unlock(mm);
 	return err;
@@ -2893,6 +2893,13 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 
 			swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
 			entry = swp_entry_to_pte(swp_entry);
+		} else {
+			/*
+			 * For now we only support migrating to un-addressable
+			 * device memory.
+			 */
+			pr_warn_once("Unsupported ZONE_DEVICE page type.\n");
+			goto abort;
 		}
 	} else {
 		entry = mk_pte(page, vma->vm_page_prot);

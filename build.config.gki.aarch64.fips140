@@ -1,0 +1,17 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki.aarch64
+
+FILES="${FILES}
+crypto/fips140.ko
+"
+
+if [ "${LTO}" = "none" ]; then
+	echo "The FIPS140 module needs LTO to be enabled."
+	exit 1
+fi
+
+MODULES_ORDER=android/gki_aarch64_fips140_modules
+
+DEFCONFIG=fips140_gki_defconfig
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_fips140
+PRE_DEFCONFIG_CMDS="cat ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/fips140_gki.fragment > ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG};"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"

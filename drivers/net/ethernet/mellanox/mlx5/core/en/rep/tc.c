@@ -643,7 +643,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (chain) {
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+		tc_skb_ext = tc_skb_ext_alloc(skb);
 		if (!tc_skb_ext) {
 			WARN_ON(1);
 			return false;

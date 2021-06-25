@@ -484,7 +484,7 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
 					      NULL);
 		else
 			ret = VM_FAULT_WRITE;
-		put_page(page);
+		put_user_page(page);
 	} while (!(ret & (VM_FAULT_WRITE | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | VM_FAULT_OOM)));
 	/*
 	 * We must loop because handle_mm_fault() may back out if there's
@@ -569,7 +569,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 		flush_anon_page(vma, page, addr);
 		flush_dcache_page(page);
 	} else {
-		put_page(page);
+		put_user_page(page);
 out:
 		page = NULL;
 	}
@@ -794,6 +794,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		stable_node->rmap_hlist_len--;
 
 		put_anon_vma(rmap_item->anon_vma);
+		rmap_item->head = NULL;
 		rmap_item->address &= PAGE_MASK;
 
 	} else if (rmap_item->address & UNSTABLE_FLAG) {
@@ -1949,7 +1950,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 		 * Don't substitute a ksm page for a forked page.
 		 */
 		if (page == tree_page) {
-			put_page(tree_page);
+			put_user_page(tree_page);
 			return NULL;
 		}
 
@@ -1957,10 +1958,10 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 
 		parent = *new;
 		if (ret < 0) {
-			put_page(tree_page);
+			put_user_page(tree_page);
 			new = &parent->rb_left;
 		} else if (ret > 0) {
-			put_page(tree_page);
+			put_user_page(tree_page);
 			new = &parent->rb_right;
 		} else if (!ksm_merge_across_nodes &&
 			   page_to_nid(tree_page) != nid) {
@@ -1969,7 +1970,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 			 * it will be flushed out and put in the right unstable
 			 * tree next time: only merge with it when across_nodes.
 			 */
-			put_page(tree_page);
+			put_user_page(tree_page);
 			return NULL;
 		} else {
 			*tree_pagep = tree_page;
@@ -2150,7 +2151,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 		 */
 		split = PageTransCompound(page)
 			&& compound_head(page) == compound_head(tree_page);
-		put_page(tree_page);
+		put_user_page(tree_page);
 		if (kpage) {
 			/*
 			 * The pages were successfully merged: insert new
@@ -2319,11 +2320,11 @@ next_mm:
 							&rmap_item->rmap_list;
 					ksm_scan.address += PAGE_SIZE;
 				} else
-					put_page(*page);
+					put_user_page(*page);
 				mmap_read_unlock(mm);
 				return rmap_item;
 			}
-			put_page(*page);
+			put_user_page(*page);
 			ksm_scan.address += PAGE_SIZE;
 			cond_resched();
 		}

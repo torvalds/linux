@@ -207,10 +207,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 			 * inline extent's data to the page.
 			 */
 			ASSERT(key.offset > 0);
-			ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
-						  inline_data, size, datal,
-						  comp_type);
-			goto out;
+			goto copy_to_page;
 		}
 	} else if (i_size_read(dst) <= datal) {
 		struct btrfs_file_extent_item *ei;
@@ -226,13 +223,10 @@ static int clone_copy_inline_extent(struct inode *dst,
 		    BTRFS_FILE_EXTENT_INLINE)
 			goto copy_inline_extent;
 
-		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
-					  inline_data, size, datal, comp_type);
-		goto out;
+		goto copy_to_page;
 	}
 
 copy_inline_extent:
-	ret = 0;
 	/*
 	 * We have no extent items, or we have an extent at offset 0 which may
 	 * or may not be inlined. All these cases are dealt the same way.
@@ -244,11 +238,13 @@ copy_inline_extent:
 		 * clone. Deal with all these cases by copying the inline extent
 		 * data into the respective page at the destination inode.
 		 */
-		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
-					  inline_data, size, datal, comp_type);
-		goto out;
+		goto copy_to_page;
 	}
 
+	/*
+	 * Release path before starting a new transaction so we don't hold locks
+	 * that would confuse lockdep.
+	 */
 	btrfs_release_path(path);
 	/*
 	 * If we end up here it means were copy the inline extent into a leaf
@@ -301,6 +297,21 @@ out:
 		*trans_out = trans;
 
 	return ret;
+
+copy_to_page:
+	/*
+	 * Release our path because we don't need it anymore and also because
+	 * copy_inline_to_page() needs to reserve data and metadata, which may
+	 * need to flush delalloc when we are low on available space and
+	 * therefore cause a deadlock if writeback of an inline extent needs to
+	 * write to the same leaf or an ordered extent completion needs to write
+	 * to the same leaf.
+	 */
+	btrfs_release_path(path);
+
+	ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+				  inline_data, size, datal, comp_type);
+	goto out;
 }
 
 /**

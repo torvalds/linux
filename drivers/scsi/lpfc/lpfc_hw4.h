@@ -124,6 +124,7 @@ struct lpfc_sli_intf {
 /* Define SLI4 Alignment requirements. */
 #define LPFC_ALIGN_16_BYTE	16
 #define LPFC_ALIGN_64_BYTE	64
+#define SLI4_PAGE_SIZE		4096
 
 /* Define SLI4 specific definitions. */
 #define LPFC_MQ_CQE_BYTE_OFFSET	256
@@ -2976,62 +2977,6 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rsp_mrqp_WORD		word3
 };
 
-struct lpfc_mbx_supp_pages {
-	uint32_t word1;
-#define qs_SHIFT 				0
-#define qs_MASK					0x00000001
-#define qs_WORD					word1
-#define wr_SHIFT				1
-#define wr_MASK 				0x00000001
-#define wr_WORD					word1
-#define pf_SHIFT				8
-#define pf_MASK					0x000000ff
-#define pf_WORD					word1
-#define cpn_SHIFT				16
-#define cpn_MASK				0x000000ff
-#define cpn_WORD				word1
-	uint32_t word2;
-#define list_offset_SHIFT 			0
-#define list_offset_MASK			0x000000ff
-#define list_offset_WORD			word2
-#define next_offset_SHIFT			8
-#define next_offset_MASK			0x000000ff
-#define next_offset_WORD			word2
-#define elem_cnt_SHIFT				16
-#define elem_cnt_MASK				0x000000ff
-#define elem_cnt_WORD				word2
-	uint32_t word3;
-#define pn_0_SHIFT				24
-#define pn_0_MASK  				0x000000ff
-#define pn_0_WORD				word3
-#define pn_1_SHIFT				16
-#define pn_1_MASK				0x000000ff
-#define pn_1_WORD				word3
-#define pn_2_SHIFT				8
-#define pn_2_MASK				0x000000ff
-#define pn_2_WORD				word3
-#define pn_3_SHIFT				0
-#define pn_3_MASK				0x000000ff
-#define pn_3_WORD				word3
-	uint32_t word4;
-#define pn_4_SHIFT				24
-#define pn_4_MASK				0x000000ff
-#define pn_4_WORD				word4
-#define pn_5_SHIFT				16
-#define pn_5_MASK				0x000000ff
-#define pn_5_WORD				word4
-#define pn_6_SHIFT				8
-#define pn_6_MASK				0x000000ff
-#define pn_6_WORD				word4
-#define pn_7_SHIFT				0
-#define pn_7_MASK				0x000000ff
-#define pn_7_WORD				word4
-	uint32_t rsvd[27];
-#define LPFC_SUPP_PAGES			0
-#define LPFC_BLOCK_GUARD_PROFILES	1
-#define LPFC_SLI4_PARAMETERS		2
-};
-
 struct lpfc_mbx_memory_dump_type3 {
 	uint32_t word1;
 #define lpfc_mbx_memory_dump_type3_type_SHIFT    0
@@ -3248,121 +3193,6 @@ struct user_eeprom {
 	uint8_t reserved191[57];
 };
 
-struct lpfc_mbx_pc_sli4_params {
-	uint32_t word1;
-#define qs_SHIFT				0
-#define qs_MASK					0x00000001
-#define qs_WORD					word1
-#define wr_SHIFT				1
-#define wr_MASK					0x00000001
-#define wr_WORD					word1
-#define pf_SHIFT				8
-#define pf_MASK					0x000000ff
-#define pf_WORD					word1
-#define cpn_SHIFT				16
-#define cpn_MASK				0x000000ff
-#define cpn_WORD				word1
-	uint32_t word2;
-#define if_type_SHIFT				0
-#define if_type_MASK				0x00000007
-#define if_type_WORD				word2
-#define sli_rev_SHIFT				4
-#define sli_rev_MASK				0x0000000f
-#define sli_rev_WORD				word2
-#define sli_family_SHIFT			8
-#define sli_family_MASK				0x000000ff
-#define sli_family_WORD				word2
-#define featurelevel_1_SHIFT			16
-#define featurelevel_1_MASK			0x000000ff
-#define featurelevel_1_WORD			word2
-#define featurelevel_2_SHIFT			24
-#define featurelevel_2_MASK			0x0000001f
-#define featurelevel_2_WORD			word2
-	uint32_t word3;
-#define fcoe_SHIFT 				0
-#define fcoe_MASK				0x00000001
-#define fcoe_WORD				word3
-#define fc_SHIFT				1
-#define fc_MASK					0x00000001
-#define fc_WORD					word3
-#define nic_SHIFT				2
-#define nic_MASK				0x00000001
-#define nic_WORD				word3
-#define iscsi_SHIFT				3
-#define iscsi_MASK				0x00000001
-#define iscsi_WORD				word3
-#define rdma_SHIFT				4
-#define rdma_MASK				0x00000001
-#define rdma_WORD				word3
-	uint32_t sge_supp_len;
-#define SLI4_PAGE_SIZE 4096
-	uint32_t word5;
-#define if_page_sz_SHIFT			0
-#define if_page_sz_MASK				0x0000ffff
-#define if_page_sz_WORD				word5
-#define loopbk_scope_SHIFT			24
-#define loopbk_scope_MASK			0x0000000f
-#define loopbk_scope_WORD			word5
-#define rq_db_window_SHIFT			28
-#define rq_db_window_MASK			0x0000000f
-#define rq_db_window_WORD			word5
-	uint32_t word6;
-#define eq_pages_SHIFT				0
-#define eq_pages_MASK				0x0000000f
-#define eq_pages_WORD				word6
-#define eqe_size_SHIFT				8
-#define eqe_size_MASK				0x000000ff
-#define eqe_size_WORD				word6
-	uint32_t word7;
-#define cq_pages_SHIFT				0
-#define cq_pages_MASK				0x0000000f
-#define cq_pages_WORD				word7
-#define cqe_size_SHIFT				8
-#define cqe_size_MASK				0x000000ff
-#define cqe_size_WORD				word7
-	uint32_t word8;
-#define mq_pages_SHIFT				0
-#define mq_pages_MASK				0x0000000f
-#define mq_pages_WORD				word8
-#define mqe_size_SHIFT				8
-#define mqe_size_MASK				0x000000ff
-#define mqe_size_WORD				word8
-#define mq_elem_cnt_SHIFT			16
-#define mq_elem_cnt_MASK			0x000000ff
-#define mq_elem_cnt_WORD			word8
-	uint32_t word9;
-#define wq_pages_SHIFT				0
-#define wq_pages_MASK				0x0000ffff
-#define wq_pages_WORD				word9
-#define wqe_size_SHIFT				8
-#define wqe_size_MASK				0x000000ff
-#define wqe_size_WORD				word9
-	uint32_t word10;
-#define rq_pages_SHIFT				0
-#define rq_pages_MASK				0x0000ffff
-#define rq_pages_WORD				word10
-#define rqe_size_SHIFT				8
-#define rqe_size_MASK				0x000000ff
-#define rqe_size_WORD				word10
-	uint32_t word11;
-#define hdr_pages_SHIFT				0
-#define hdr_pages_MASK				0x0000000f
-#define hdr_pages_WORD				word11
-#define hdr_size_SHIFT				8
-#define hdr_size_MASK				0x0000000f
-#define hdr_size_WORD				word11
-#define hdr_pp_align_SHIFT			16
-#define hdr_pp_align_MASK			0x0000ffff
-#define hdr_pp_align_WORD			word11
-	uint32_t word12;
-#define sgl_pages_SHIFT				0
-#define sgl_pages_MASK				0x0000000f
-#define sgl_pages_WORD				word12
-#define sgl_pp_align_SHIFT			16
-#define sgl_pp_align_MASK			0x0000ffff
-#define sgl_pp_align_WORD			word12
-	uint32_t rsvd_13_63[51];
-};
 #define SLI4_PAGE_ALIGN(addr) (((addr)+((SLI4_PAGE_SIZE)-1)) \
 			       &(~((SLI4_PAGE_SIZE)-1)))
 
@@ -3988,8 +3818,6 @@ struct lpfc_mqe {
 		struct lpfc_mbx_post_hdr_tmpl hdr_tmpl;
 		struct lpfc_mbx_query_fw_config query_fw_cfg;
 		struct lpfc_mbx_set_beacon_config beacon_config;
-		struct lpfc_mbx_supp_pages supp_pages;
-		struct lpfc_mbx_pc_sli4_params sli4_params;
 		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
 		struct lpfc_mbx_set_link_diag_state link_diag_state;
 		struct lpfc_mbx_set_link_diag_loopback link_diag_loopback;

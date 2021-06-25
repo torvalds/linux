@@ -1168,7 +1168,7 @@
 			};
 		};
 
-		target-module@34000 {			/* 0x48034000, ap 7 46.0 */
+		timer3_target: target-module@34000 {	/* 0x48034000, ap 7 46.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
 			reg = <0x34000 0x4>,
 			      <0x34010 0x4>;
@@ -1195,7 +1195,7 @@
 			};
 		};
 
-		target-module@36000 {			/* 0x48036000, ap 9 4e.0 */
+		timer4_target: target-module@36000 {	/* 0x48036000, ap 9 4e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
 			reg = <0x36000 0x4>,
 			      <0x36010 0x4>;

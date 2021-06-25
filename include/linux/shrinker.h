@@ -2,6 +2,8 @@
 #ifndef _LINUX_SHRINKER_H
 #define _LINUX_SHRINKER_H
 
+#include <linux/android_vendor.h>
+
 /*
  * This struct is used to pass information from page reclaim to the shrinkers.
  * We consolidate the values for easier extention later.
@@ -31,6 +33,7 @@ struct shrink_control {
 
 	/* current memcg being shrunk (for memcg aware shrinkers) */
 	struct mem_cgroup *memcg;
+	ANDROID_OEM_DATA_ARRAY(1, 3);
 };
 
 #define SHRINK_STOP (~0UL)

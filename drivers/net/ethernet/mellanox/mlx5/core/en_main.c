@@ -2920,7 +2920,7 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	int err;
 
 	old_num_txqs = netdev->real_num_tx_queues;
-	old_ntc = netdev->num_tc;
+	old_ntc = netdev->num_tc ? : 1;
 
 	nch = priv->channels.params.num_channels;
 	ntc = priv->channels.params.num_tc;
@@ -5385,6 +5385,11 @@ err_free_netdev:
 	return NULL;
 }
 
+static void mlx5e_reset_channels(struct net_device *netdev)
+{
+	netdev_reset_tc(netdev);
+}
+
 int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
 	const bool take_rtnl = priv->netdev->reg_state == NETREG_REGISTERED;
@@ -5438,6 +5443,7 @@ err_cleanup_tx:
 	profile->cleanup_tx(priv);
 
 out:
+	mlx5e_reset_channels(priv->netdev);
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	cancel_work_sync(&priv->update_stats_work);
 	return err;
@@ -5455,6 +5461,7 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 
 	profile->cleanup_rx(priv);
 	profile->cleanup_tx(priv);
+	mlx5e_reset_channels(priv->netdev);
 	cancel_work_sync(&priv->update_stats_work);
 }
 

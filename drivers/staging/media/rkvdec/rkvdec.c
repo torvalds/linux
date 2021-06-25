@@ -1107,7 +1107,7 @@ static struct platform_driver rkvdec_driver = {
 	.remove = rkvdec_remove,
 	.driver = {
 		   .name = "rkvdec",
-		   .of_match_table = of_match_ptr(of_rkvdec_match),
+		   .of_match_table = of_rkvdec_match,
 		   .pm = &rkvdec_pm_ops,
 	},
 };

@@ -399,6 +399,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	} else {
 		account_system_index_time(p, cputime, CPUTIME_SYSTEM);
 	}
+	trace_android_vh_irqtime_account_process_tick(p, this_rq(), user_tick, ticks);
 }
 
 static void irqtime_account_idle_ticks(int ticks)

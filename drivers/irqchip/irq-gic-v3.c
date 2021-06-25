@@ -654,6 +654,10 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 
 	irqnr = gic_read_iar();
 
+	/* Check for special IDs first */
+	if ((irqnr >= 1020 && irqnr <= 1023))
+		return;
+
 	if (gic_supports_nmi() &&
 	    unlikely(gic_read_rpr() == GICD_INT_NMI_PRI)) {
 		gic_handle_nmi(irqnr, regs);
@@ -664,10 +668,6 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		gic_pmr_mask_irqs();
 		gic_arch_enable_irqs();
 	}
-
-	/* Check for special IDs first */
-	if ((irqnr >= 1020 && irqnr <= 1023))
-		return;
 
 	if (static_branch_likely(&supports_deactivate_key))
 		gic_write_eoir(irqnr);
@@ -1211,7 +1211,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	reg = gic_dist_base(d) + offset + (index * 8);
 	val = gic_mpidr_to_affinity(cpu_logical_map(cpu));
 
-	trace_android_vh_gic_v3_set_affinity(d, mask_val, &val, force, gic_dist_base(d));
+	trace_android_rvh_gic_v3_set_affinity(d, mask_val, &val, force, gic_dist_base(d));
 	gic_write_irouter(val, reg);
 
 	/*
@@ -1267,10 +1267,11 @@ static inline void gic_cpu_pm_init(void) { }
 #endif /* CONFIG_CPU_PM */
 
 #ifdef CONFIG_PM
-static void gic_resume(void)
+void gic_resume(void)
 {
 	trace_android_vh_gic_resume(gic_data.domain, gic_data.dist_base);
 }
+EXPORT_SYMBOL_GPL(gic_resume);
 
 static struct syscore_ops gic_syscore_ops = {
 	.resume = gic_resume,
@@ -1283,6 +1284,7 @@ static void gic_syscore_init(void)
 
 #else
 static inline void gic_syscore_init(void) { }
+void gic_resume(void) { }
 #endif
 
 

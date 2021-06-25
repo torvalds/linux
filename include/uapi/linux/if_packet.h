@@ -2,6 +2,7 @@
 #ifndef __LINUX_IF_PACKET_H
 #define __LINUX_IF_PACKET_H
 
+#include <asm/byteorder.h>
 #include <linux/types.h>
 
 struct sockaddr_pkt {
@@ -294,6 +295,17 @@ struct packet_mreq {
 	unsigned short	mr_type;
 	unsigned short	mr_alen;
 	unsigned char	mr_address[8];
+};
+
+struct fanout_args {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u16		id;
+	__u16		type_flags;
+#else
+	__u16		type_flags;
+	__u16		id;
+#endif
+	__u32		max_num_members;
 };
 
 #define PACKET_MR_MULTICAST	0

@@ -619,61 +619,47 @@ AES_FUNC_END(aes_xts_decrypt)
 	 *		  int blocks, u8 dg[], int enc_before, int enc_after)
 	 */
 AES_FUNC_START(aes_mac_update)
-	frame_push	6
-
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-	mov		x22, x3
-	mov		x23, x4
-	mov		x24, x6
-
-	ld1		{v0.16b}, [x23]			/* get dg */
+	ld1		{v0.16b}, [x4]			/* get dg */
 	enc_prepare	w2, x1, x7
 	cbz		w5, .Lmacloop4x
 
 	encrypt_block	v0, w2, x1, x7, w8
 
 .Lmacloop4x:
-	subs		w22, w22, #4
+	subs		w3, w3, #4
 	bmi		.Lmac1x
-	ld1		{v1.16b-v4.16b}, [x19], #64	/* get next pt block */
+	ld1		{v1.16b-v4.16b}, [x0], #64	/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v2.16b
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v3.16b
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v4.16b
-	cmp		w22, wzr
-	csinv		x5, x24, xzr, eq
+	cmp		w3, wzr
+	csinv		x5, x6, xzr, eq
 	cbz		w5, .Lmacout
-	encrypt_block	v0, w21, x20, x7, w8
-	st1		{v0.16b}, [x23]			/* return dg */
-	cond_yield_neon	.Lmacrestart
+	encrypt_block	v0, w2, x1, x7, w8
+	st1		{v0.16b}, [x4]			/* return dg */
+	cond_yield	.Lmacout, x7, x8
 	b		.Lmacloop4x
 .Lmac1x:
-	add		w22, w22, #4
+	add		w3, w3, #4
 .Lmacloop:
-	cbz		w22, .Lmacout
-	ld1		{v1.16b}, [x19], #16		/* get next pt block */
+	cbz		w3, .Lmacout
+	ld1		{v1.16b}, [x0], #16		/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
 
-	subs		w22, w22, #1
-	csinv		x5, x24, xzr, eq
+	subs		w3, w3, #1
+	csinv		x5, x6, xzr, eq
 	cbz		w5, .Lmacout
 
 .Lmacenc:
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	b		.Lmacloop
 
 .Lmacout:
-	st1		{v0.16b}, [x23]			/* return dg */
-	frame_pop
+	st1		{v0.16b}, [x4]			/* return dg */
+	mov		w0, w3
 	ret
-
-.Lmacrestart:
-	ld1		{v0.16b}, [x23]			/* get dg */
-	enc_prepare	w21, x20, x0
-	b		.Lmacloop4x
 AES_FUNC_END(aes_mac_update)

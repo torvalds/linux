@@ -1008,14 +1008,21 @@ struct survey_info {
  * @sae_pwd: password for SAE authentication (for devices supporting SAE
  *	offload)
  * @sae_pwd_len: length of SAE password (for devices supporting SAE offload)
- * @sae_pwe: The mechanisms allowed for SAE PWE derivation
- *	NL80211_SAE_PWE_UNSPECIFIED: Not-specified, used to indicate userspace
- *		did not specify any preference. The driver should follow its
- *		internal policy in such a scenario.
- *	NL80211_SAE_PWE_HUNT_AND_PECK: Allow hunting-and-pecking loop only
- *	NL80211_SAE_PWE_HASH_TO_ELEMENT: Allow hash-to-element only
- *	NL80211_SAE_PWE_BOTH: Allow either hunting-and-pecking loop
- *		or hash-to-element
+ * @sae_pwe: The mechanisms allowed for SAE PWE derivation:
+ *
+ *	NL80211_SAE_PWE_UNSPECIFIED
+ *	  Not-specified, used to indicate userspace did not specify any
+ *	  preference. The driver should follow its internal policy in
+ *	  such a scenario.
+ *
+ *	NL80211_SAE_PWE_HUNT_AND_PECK
+ *	  Allow hunting-and-pecking loop only
+ *
+ *	NL80211_SAE_PWE_HASH_TO_ELEMENT
+ *	  Allow hash-to-element only
+ *
+ *	NL80211_SAE_PWE_BOTH
+ *	  Allow either hunting-and-pecking loop or hash-to-element
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -5633,7 +5640,7 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 				  const u8 *addr, enum nl80211_iftype iftype,
-				  u8 data_offset);
+				  u8 data_offset, bool is_amsdu);
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
@@ -5645,7 +5652,7 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 					 enum nl80211_iftype iftype)
 {
-	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0);
+	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0, false);
 }
 
 /**

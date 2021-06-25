@@ -1469,6 +1469,7 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 	txq->skb = kcalloc(MWL8K_TX_DESCS, sizeof(*txq->skb), GFP_KERNEL);
 	if (txq->skb == NULL) {
 		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
+		txq->txd = NULL;
 		return -ENOMEM;
 	}
 

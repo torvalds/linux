@@ -388,16 +388,6 @@ static char * __init xbc_make_cmdline(const char *key)
 	return new_cmdline;
 }
 
-static u32 boot_config_checksum(unsigned char *p, u32 size)
-{
-	u32 ret = 0;
-
-	while (size--)
-		ret += *p++;
-
-	return ret;
-}
-
 static int __init bootconfig_params(char *param, char *val,
 				    const char *unused, void *arg)
 {
@@ -441,7 +431,7 @@ static void __init setup_boot_config(const char *cmdline)
 		return;
 	}
 
-	if (boot_config_checksum((unsigned char *)data, size) != csum) {
+	if (xbc_calc_checksum(data, size) != csum) {
 		pr_err("bootconfig checksum failed\n");
 		return;
 	}
@@ -1526,7 +1516,7 @@ static noinline void __init kernel_init_freeable(void)
 	 */
 	set_mems_allowed(node_states[N_MEMORY]);
 
-	cad_pid = task_pid(current);
+	cad_pid = get_pid(task_pid(current));
 
 	smp_prepare_cpus(setup_max_cpus);
 

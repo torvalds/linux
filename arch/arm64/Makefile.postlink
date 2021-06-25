@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+
+#
+# This file is included by the generic Kbuild makefile to permit the
+# architecture to perform postlink actions on vmlinux and any .ko module file.
+# In this case, we only need it for fips140.ko, which needs a HMAC digest to be
+# injected into it. All other targets are NOPs.
+#
+
+PHONY := __archpost
+__archpost:
+
+-include include/config/auto.conf
+include scripts/Kbuild.include
+
+CMD_FIPS140_GEN_HMAC = crypto/fips140_gen_hmac
+quiet_cmd_gen_hmac = HMAC    $@
+      cmd_gen_hmac = $(CMD_FIPS140_GEN_HMAC) $@
+
+# `@true` prevents complaints when there is nothing to be done
+
+vmlinux: FORCE
+	@true
+
+$(objtree)/crypto/fips140.ko: FORCE
+	$(call cmd,gen_hmac)
+
+%.ko: FORCE
+	@true
+
+clean:
+	@true
+
+PHONY += FORCE clean
+
+FORCE:
+
+.PHONY: $(PHONY)

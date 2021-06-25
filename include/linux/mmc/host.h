@@ -17,6 +17,8 @@
 #include <linux/dma-direction.h>
 #include <linux/keyslot-manager.h>
 
+#include <linux/android_vendor.h>
+
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned short	vdd;
@@ -244,6 +246,7 @@ struct mmc_async_req {
 struct mmc_slot {
 	int cd_irq;
 	bool cd_wake_enabled;
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 	void *handler_priv;
 };
 
@@ -286,9 +289,6 @@ struct mmc_host {
 	u32			ocr_avail_sdio;	/* SDIO-specific OCR */
 	u32			ocr_avail_sd;	/* SD-specific OCR */
 	u32			ocr_avail_mmc;	/* MMC-specific OCR */
-#ifdef CONFIG_PM_SLEEP
-	struct notifier_block	pm_notify;
-#endif
 	struct wakeup_source	*ws;		/* Enable consume of uevents */
 	u32			max_current_330;
 	u32			max_current_300;
@@ -484,6 +484,8 @@ struct mmc_host {
 
 	/* Host Software Queue support */
 	bool			hsq_enabled;
+
+	ANDROID_OEM_DATA(1);
 
 	unsigned long		private[] ____cacheline_aligned;
 };

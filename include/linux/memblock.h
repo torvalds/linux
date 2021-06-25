@@ -404,13 +404,13 @@ void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
 			     phys_addr_t min_addr, phys_addr_t max_addr,
 			     int nid);
 
-static inline void * __init memblock_alloc(phys_addr_t size,  phys_addr_t align)
+static __always_inline void *memblock_alloc(phys_addr_t size, phys_addr_t align)
 {
 	return memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				      MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_alloc_raw(phys_addr_t size,
+static inline void *memblock_alloc_raw(phys_addr_t size,
 					       phys_addr_t align)
 {
 	return memblock_alloc_try_nid_raw(size, align, MEMBLOCK_LOW_LIMIT,
@@ -418,7 +418,7 @@ static inline void * __init memblock_alloc_raw(phys_addr_t size,
 					  NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_alloc_from(phys_addr_t size,
+static inline void *memblock_alloc_from(phys_addr_t size,
 						phys_addr_t align,
 						phys_addr_t min_addr)
 {
@@ -426,33 +426,33 @@ static inline void * __init memblock_alloc_from(phys_addr_t size,
 				      MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_alloc_low(phys_addr_t size,
+static inline void *memblock_alloc_low(phys_addr_t size,
 					       phys_addr_t align)
 {
 	return memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				      ARCH_LOW_ADDRESS_LIMIT, NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_alloc_node(phys_addr_t size,
+static inline void *memblock_alloc_node(phys_addr_t size,
 						phys_addr_t align, int nid)
 {
 	return memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				      MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 
-static inline void __init memblock_free_early(phys_addr_t base,
+static inline void memblock_free_early(phys_addr_t base,
 					      phys_addr_t size)
 {
 	memblock_free(base, size);
 }
 
-static inline void __init memblock_free_early_nid(phys_addr_t base,
+static inline void memblock_free_early_nid(phys_addr_t base,
 						  phys_addr_t size, int nid)
 {
 	memblock_free(base, size);
 }
 
-static inline void __init memblock_free_late(phys_addr_t base, phys_addr_t size)
+static inline void memblock_free_late(phys_addr_t base, phys_addr_t size)
 {
 	__memblock_free_late(base, size);
 }
@@ -460,7 +460,7 @@ static inline void __init memblock_free_late(phys_addr_t base, phys_addr_t size)
 /*
  * Set the allocation direction to bottom-up or top-down.
  */
-static inline void __init memblock_set_bottom_up(bool enable)
+static inline __init void memblock_set_bottom_up(bool enable)
 {
 	memblock.bottom_up = enable;
 }
@@ -470,7 +470,7 @@ static inline void __init memblock_set_bottom_up(bool enable)
  * if this is true, that said, memblock will allocate memory
  * in bottom-up direction.
  */
-static inline bool memblock_bottom_up(void)
+static inline __init bool memblock_bottom_up(void)
 {
 	return memblock.bottom_up;
 }

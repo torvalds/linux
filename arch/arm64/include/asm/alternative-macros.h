@@ -9,6 +9,7 @@
 /* A64 instructions are always 32 bits. */
 #define	AARCH64_INSN_SIZE		4
 
+#ifndef BUILD_FIPS140_KO
 #ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
@@ -214,4 +215,33 @@ alternative_endif
 #define ALTERNATIVE(oldinstr, newinstr, ...)   \
 	_ALTERNATIVE_CFG(oldinstr, newinstr, __VA_ARGS__, 1)
 
+#else
+
+/*
+ * The FIPS140 module does not support alternatives patching, as this
+ * invalidates the HMAC digest of the .text section. However, some alternatives
+ * are known to be irrelevant so we can tolerate them in the FIPS140 module, as
+ * they will never be applied in the first place in the use cases that the
+ * FIPS140 module targets (Android running on a production phone). Any other
+ * uses of alternatives should be avoided, as it is not safe in the general
+ * case to simply use the default sequence in one place (the fips module) and
+ * the alternative sequence everywhere else.
+ *
+ * Below is an allowlist of features that we can ignore, by simply taking the
+ * safe default instruction sequence. Note that this implies that the FIPS140
+ * module is not compatible with VHE, or with pseudo-NMI support.
+ */
+
+#define __ALT_ARM64_HAS_LDAPR			0,
+#define __ALT_ARM64_HAS_VIRT_HOST_EXTN		0,
+#define __ALT_ARM64_HAS_IRQ_PRIO_MASKING	0,
+
+#define ALTERNATIVE(oldinstr, newinstr, feature, ...)   \
+	_ALTERNATIVE(oldinstr, __ALT_ ## feature, #feature)
+
+#define _ALTERNATIVE(oldinstr, feature, feature_str)   \
+	__take_second_arg(feature oldinstr, \
+		".err Feature " feature_str " not supported in fips140 module")
+
+#endif /* BUILD_FIPS140_KO */
 #endif /* __ASM_ALTERNATIVE_MACROS_H */

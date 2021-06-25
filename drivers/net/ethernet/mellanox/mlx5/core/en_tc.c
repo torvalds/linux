@@ -2253,11 +2253,13 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 				    misc_parameters);
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
+	enum fs_flow_table_type fs_type;
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 	u8 *match_level;
 	int err;
 
+	fs_type = mlx5e_is_eswitch_flow(flow) ? FS_FT_FDB : FS_FT_NIC_RX;
 	match_level = outer_match_level;
 
 	if (dissector->used_keys &
@@ -2382,6 +2384,13 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		if (match.mask->vlan_id ||
 		    match.mask->vlan_priority ||
 		    match.mask->vlan_tpid) {
+			if (!MLX5_CAP_FLOWTABLE_TYPE(priv->mdev, ft_field_support.outer_second_vid,
+						     fs_type)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Matching on CVLAN is not supported");
+				return -EOPNOTSUPP;
+			}
+
 			if (match.key->vlan_tpid == htons(ETH_P_8021AD)) {
 				MLX5_SET(fte_match_set_misc, misc_c,
 					 outer_second_svlan_tag, 1);
@@ -4025,8 +4034,12 @@ static int add_vlan_push_action(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev),
-					dev_get_iflink(vlan_dev));
+	rcu_read_lock();
+	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev), dev_get_iflink(vlan_dev));
+	rcu_read_unlock();
+	if (!*out_dev)
+		return -ENODEV;
+
 	if (is_vlan_dev(*out_dev))
 		err = add_vlan_push_action(priv, attr, out_dev, action);
 
@@ -5490,7 +5503,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (chain) {
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+		tc_skb_ext = tc_skb_ext_alloc(skb);
 		if (WARN_ON(!tc_skb_ext))
 			return false;
 

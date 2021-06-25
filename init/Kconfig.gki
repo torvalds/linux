@@ -163,6 +163,8 @@ config GKI_HIDDEN_RPMSG_CONFIGS
 config GKI_HIDDEN_GPU_CONFIGS
 	bool "Hidden GPU configuration needed for GKI"
 	select TRACE_GPU_MEM
+	select MMU_NOTIFIER
+	select HMM_MIRROR
 	help
 	  Dummy config option used to enable the hidden GPU config.
 	  These are normally selected implicitly when a module
@@ -210,6 +212,20 @@ config GKI_HIDDEN_MM_CONFIGS
 	  Dummy config option used to enable hidden MM configs,
 	  currently required for VIRTIO_BALLOON
 
+config GKI_HIDDEN_DMA_CONFIGS
+	bool "Hidden DMA configuration needed for GKI"
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Dummy config option used to enable the hidden DMA configs,
+	  required by various SoC platforms.
+
+config GKI_HIDDEN_ETHERNET_CONFIGS
+	bool "Hidden Ethernet configuration needed for GKI"
+	select PHYLINK
+	help
+	  Dummy config option used to enable the hidden Ethernet PHYLINK
+	  configs, required by various ethernet devices.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -239,6 +255,8 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_NET_CONFIGS
 	select GKI_HIDDEN_PHY_CONFIGS
 	select GKI_HIDDEN_MM_CONFIGS
+	select GKI_HIDDEN_DMA_CONFIGS
+	select GKI_HIDDEN_ETHERNET_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.

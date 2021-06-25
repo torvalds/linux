@@ -486,6 +486,7 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 {
 	struct clk *clk;
 	struct clk_init_data init;
+	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
 
 	init.name = "pcf85063-clkout";
 	init.ops = &pcf85063_clkout_ops;
@@ -495,15 +496,13 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	pcf85063->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(pcf85063->rtc->dev.of_node,
-				"clock-output-names", &init.name);
+	of_property_read_string(node, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&pcf85063->rtc->dev, &pcf85063->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(pcf85063->rtc->dev.of_node,
-				    of_clk_src_simple_get, clk);
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 
 	return clk;
 }

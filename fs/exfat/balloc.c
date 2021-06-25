@@ -141,10 +141,6 @@ void exfat_free_bitmap(struct exfat_sb_info *sbi)
 	kfree(sbi->vol_amap);
 }
 
-/*
- * If the value of "clu" is 0, it means cluster 2 which is the first cluster of
- * the cluster heap.
- */
 int exfat_set_bitmap(struct inode *inode, unsigned int clu)
 {
 	int i, b;
@@ -162,10 +158,6 @@ int exfat_set_bitmap(struct inode *inode, unsigned int clu)
 	return 0;
 }
 
-/*
- * If the value of "clu" is 0, it means cluster 2 which is the first cluster of
- * the cluster heap.
- */
 void exfat_clear_bitmap(struct inode *inode, unsigned int clu)
 {
 	int i, b;
@@ -186,8 +178,7 @@ void exfat_clear_bitmap(struct inode *inode, unsigned int clu)
 		int ret_discard;
 
 		ret_discard = sb_issue_discard(sb,
-			exfat_cluster_to_sector(sbi, clu +
-						EXFAT_RESERVED_CLUSTERS),
+			exfat_cluster_to_sector(sbi, clu),
 			(1 << sbi->sect_per_clus_bits), GFP_NOFS, 0);
 
 		if (ret_discard == -EOPNOTSUPP) {

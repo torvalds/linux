@@ -299,6 +299,10 @@ DECLARE_HOOK(android_vh_account_task_time,
 	TP_PROTO(struct task_struct *p, struct rq *rq, int user_tick),
 	TP_ARGS(p, rq, user_tick));
 
+DECLARE_HOOK(android_vh_irqtime_account_process_tick,
+	TP_PROTO(struct task_struct *p, struct rq *rq, int user_tick, int ticks),
+	TP_ARGS(p, rq, user_tick, ticks));
+
 DECLARE_RESTRICTED_HOOK(android_rvh_post_init_entity_util_avg,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se), 1);
@@ -353,6 +357,26 @@ DECLARE_HOOK(android_vh_prepare_update_load_avg_se,
 DECLARE_HOOK(android_vh_finish_update_load_avg_se,
 	TP_PROTO(struct sched_entity *se, int flags),
 	TP_ARGS(se, flags));
+
+DECLARE_HOOK(android_vh_dup_task_struct,
+	TP_PROTO(struct task_struct *tsk, struct task_struct *orig),
+	TP_ARGS(tsk, orig));
+
+DECLARE_HOOK(android_vh_set_task_comm,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
+	TP_PROTO(struct cpumask *nohz_idle_cpus_mask, int *ilb),
+	TP_ARGS(nohz_idle_cpus_mask, ilb), 1);
+
+DECLARE_HOOK(android_vh_force_compatible_pre,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
+
+DECLARE_HOOK(android_vh_force_compatible_post,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
 
 /* macro versions of hooks are no longer required */
 

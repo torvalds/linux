@@ -217,6 +217,7 @@ int optee_open_session(struct tee_context *ctx,
 	struct optee_msg_arg *msg_arg;
 	phys_addr_t msg_parg;
 	struct optee_session *sess = NULL;
+	uuid_t client_uuid;
 
 	/* +2 for the meta parameters added below */
 	shm = get_msg_arg(ctx, arg->num_params + 2, &msg_arg, &msg_parg);
@@ -237,10 +238,11 @@ int optee_open_session(struct tee_context *ctx,
 	memcpy(&msg_arg->params[0].u.value, arg->uuid, sizeof(arg->uuid));
 	msg_arg->params[1].u.value.c = arg->clnt_login;
 
-	rc = tee_session_calc_client_uuid((uuid_t *)&msg_arg->params[1].u.value,
-					  arg->clnt_login, arg->clnt_uuid);
+	rc = tee_session_calc_client_uuid(&client_uuid, arg->clnt_login,
+					  arg->clnt_uuid);
 	if (rc)
 		goto out;
+	export_uuid(msg_arg->params[1].u.octets, &client_uuid);
 
 	rc = optee_to_msg_param(msg_arg->params + 2, arg->num_params, param);
 	if (rc)

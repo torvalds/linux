@@ -278,11 +278,13 @@ void cpu_maps_update_begin(void)
 {
 	mutex_lock(&cpu_add_remove_lock);
 }
+EXPORT_SYMBOL_GPL(cpu_maps_update_begin);
 
 void cpu_maps_update_done(void)
 {
 	mutex_unlock(&cpu_add_remove_lock);
 }
+EXPORT_SYMBOL_GPL(cpu_maps_update_done);
 
 /*
  * If set, cpu_up and cpu_down will return -EBUSY and do nothing.

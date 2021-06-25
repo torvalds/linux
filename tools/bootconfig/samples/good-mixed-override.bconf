@@ -1,0 +1,4 @@
+key.foo = bar
+key = value
+# mixed key value can be overridden
+key := value2

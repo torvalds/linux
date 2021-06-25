@@ -92,7 +92,6 @@
  * 3) module_addr_min/module_addr_max.
  * (delete and add uses RCU list operations). */
 DEFINE_MUTEX(module_mutex);
-EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
 
 /* Work queue for freeing init sections in success case */
@@ -645,7 +644,6 @@ struct module *find_module(const char *name)
 	module_assert_mutex();
 	return find_module_all(name, strlen(name), false);
 }
-EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
@@ -4254,6 +4252,11 @@ static inline int is_arm_mapping_symbol(const char *str)
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
+static inline int is_cfi_typeid_symbol(const char *str)
+{
+	return !strncmp(str, "__typeid__", 10);
+}
+
 static const char *kallsyms_symbol_name(struct mod_kallsyms *kallsyms, unsigned int symnum)
 {
 	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;
@@ -4292,7 +4295,8 @@ static const char *find_kallsyms_symbol(struct module *mod,
 		/* We ignore unnamed symbols: they're uninformative
 		 * and inserted at a whim. */
 		if (*kallsyms_symbol_name(kallsyms, i) == '\0'
-		    || is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i)))
+		    || is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i))
+		    || is_cfi_typeid_symbol(kallsyms_symbol_name(kallsyms, i)))
 			continue;
 
 		if (thisval <= addr && thisval > bestval) {

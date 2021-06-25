@@ -222,8 +222,10 @@ static inline void radix__set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * from ptesync, it should probably go into update_mmu_cache, rather
 	 * than set_pte_at (which is used to set ptes unrelated to faults).
 	 *
-	 * Spurious faults to vmalloc region are not tolerated, so there is
-	 * a ptesync in flush_cache_vmap.
+	 * Spurious faults from the kernel memory are not tolerated, so there
+	 * is a ptesync in flush_cache_vmap, and __map_kernel_page() follows
+	 * the pte update sequence from ISA Book III 6.10 Translation Table
+	 * Update Synchronization Requirements.
 	 */
 }
 

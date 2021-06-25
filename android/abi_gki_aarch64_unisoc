@@ -2564,7 +2564,7 @@
 	blk_status_to_errno
 	blkdev_get
 	filp_close
-	filp_open
+	filp_open_block
 	file_path
 	I_BDEV
 	set_blocksize

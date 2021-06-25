@@ -707,6 +707,11 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	struct resource mem;
 	int irq, type;
 	int ret;
+	bool spisel_boot = false;
+#if IS_ENABLED(CONFIG_FSL_SOC)
+	struct mpc8xxx_spi_probe_info *pinfo = NULL;
+#endif
+
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
 	if (ret)
@@ -715,9 +720,8 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	type = fsl_spi_get_type(&ofdev->dev);
 	if (type == TYPE_FSL) {
 		struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
-		bool spisel_boot = false;
 #if IS_ENABLED(CONFIG_FSL_SOC)
-		struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
+		pinfo = to_of_pinfo(pdata);
 
 		spisel_boot = of_property_read_bool(np, "fsl,spisel_boot");
 		if (spisel_boot) {
@@ -746,15 +750,24 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 
 	ret = of_address_to_resource(np, 0, &mem);
 	if (ret)
-		return ret;
+		goto unmap_out;
 
 	irq = platform_get_irq(ofdev, 0);
-	if (irq < 0)
-		return irq;
+	if (irq < 0) {
+		ret = irq;
+		goto unmap_out;
+	}
 
 	master = fsl_spi_probe(dev, &mem, irq);
 
 	return PTR_ERR_OR_ZERO(master);
+
+unmap_out:
+#if IS_ENABLED(CONFIG_FSL_SOC)
+	if (spisel_boot)
+		iounmap(pinfo->immr_spi_cs);
+#endif
+	return ret;
 }
 
 static int of_fsl_spi_remove(struct platform_device *ofdev)

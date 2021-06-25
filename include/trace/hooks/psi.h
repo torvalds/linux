@@ -7,12 +7,13 @@
 #if !defined(_TRACE_HOOK_PSI_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_PSI_H
 
-#include <linux/psi_types.h>
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
+struct psi_trigger;
+struct psi_group;
 DECLARE_HOOK(android_vh_psi_event,
 	TP_PROTO(struct psi_trigger *t),
 	TP_ARGS(t));

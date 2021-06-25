@@ -70,8 +70,21 @@ else
 ifeq ($(KBUILD_EXTMOD),)
 
 input-symdump := $(mixed-build-prefix)vmlinux.symvers
-output-symdump := Module.symvers
+output-symdump := modules-only.symvers
 module_srcpath := $(srctree)
+
+quiet_cmd_cat = GEN     $@
+      cmd_cat = cat $(real-prereqs) > $@
+
+ifneq ($(wildcard $(mixed-build-prefix)vmlinux.symvers),)
+
+__modpost: Module.symvers
+Module.symvers: $(mixed-build-prefix)vmlinux.symvers modules-only.symvers FORCE
+	$(call if_changed,cat)
+
+targets += Module.symvers
+
+endif
 
 else
 

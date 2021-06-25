@@ -50,11 +50,19 @@ struct erofs_fs_context {
 #ifdef CONFIG_EROFS_FS_ZIP
 	/* current strategy of how to use managed cache */
 	unsigned char cache_strategy;
+	/* strategy of sync decompression (false - auto, true - force on) */
+	bool readahead_sync_decompress;
 
 	/* threshold for decompression synchronously */
 	unsigned int max_sync_decompress_pages;
 #endif
 	unsigned int mount_opt;
+};
+
+/* all filesystem-wide lz4 configurations */
+struct erofs_sb_lz4_info {
+	/* # of pages needed for EROFS lz4 rolling decompression */
+	u16 max_distance_pages;
 };
 
 struct erofs_sb_info {
@@ -70,6 +78,8 @@ struct erofs_sb_info {
 
 	/* pseudo inode to manage cached pages */
 	struct inode *managed_cache;
+
+	struct erofs_sb_lz4_info lz4;
 #endif	/* CONFIG_EROFS_FS_ZIP */
 	u32 blocks;
 	u32 meta_blkaddr;
@@ -420,6 +430,8 @@ int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 				       struct erofs_workgroup *egrp);
 int erofs_try_to_free_cached_page(struct address_space *mapping,
 				  struct page *page);
+int z_erofs_load_lz4_config(struct super_block *sb,
+			    struct erofs_super_block *dsb);
 #else
 static inline void erofs_shrinker_register(struct super_block *sb) {}
 static inline void erofs_shrinker_unregister(struct super_block *sb) {}
@@ -427,6 +439,15 @@ static inline int erofs_init_shrinker(void) { return 0; }
 static inline void erofs_exit_shrinker(void) {}
 static inline int z_erofs_init_zip_subsystem(void) { return 0; }
 static inline void z_erofs_exit_zip_subsystem(void) {}
+static inline int z_erofs_load_lz4_config(struct super_block *sb,
+				struct erofs_super_block *dsb)
+{
+	if (dsb->lz4_max_distance) {
+		erofs_err(sb, "lz4 algorithm isn't enabled");
+		return -EINVAL;
+	}
+	return 0;
+}
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */

@@ -155,7 +155,7 @@ enum binder_stat_types {
 };
 
 struct binder_stats {
-	atomic_t br[_IOC_NR(BR_FROZEN_REPLY) + 1];
+	atomic_t br[_IOC_NR(BR_ONEWAY_SPAM_SUSPECT) + 1];
 	atomic_t bc[_IOC_NR(BC_REPLY_SG) + 1];
 	atomic_t obj_created[BINDER_STAT_COUNT];
 	atomic_t obj_deleted[BINDER_STAT_COUNT];
@@ -174,6 +174,7 @@ struct binder_work {
 	enum binder_work_type {
 		BINDER_WORK_TRANSACTION = 1,
 		BINDER_WORK_TRANSACTION_COMPLETE,
+		BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT,
 		BINDER_WORK_RETURN_ERROR,
 		BINDER_WORK_NODE,
 		BINDER_WORK_DEAD_BINDER,
@@ -430,6 +431,8 @@ struct binder_priority {
  * @outer_lock:           no nesting under innor or node lock
  *                        Lock order: 1) outer, 2) node, 3) inner
  * @binderfs_entry:       process-specific binderfs log file
+ * @oneway_spam_detection_enabled: process enabled oneway spam detection
+ *                        or not
  *
  * Bookkeeping structure for binder processes
  */
@@ -465,6 +468,7 @@ struct binder_proc {
 	spinlock_t inner_lock;
 	spinlock_t outer_lock;
 	struct dentry *binderfs_entry;
+	bool oneway_spam_detection_enabled;
 };
 
 /**

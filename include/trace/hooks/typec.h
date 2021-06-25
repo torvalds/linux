@@ -58,6 +58,10 @@ DECLARE_HOOK(android_vh_typec_tcpm_adj_current_limit,
 		  u32 *current_limit, bool *adjust),
 	TP_ARGS(state, port_current_limit, port_voltage, pd_capable, current_limit, adjust));
 
+DECLARE_HOOK(android_vh_typec_tcpm_log,
+	TP_PROTO(const char *log, bool *bypass),
+	TP_ARGS(log, bypass));
+
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

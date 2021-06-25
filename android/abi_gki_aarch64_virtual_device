@@ -109,6 +109,7 @@
   ethtool_op_get_link
   eth_validate_addr
   event_triggers_call
+  failure_tracking
   fd_install
   finish_wait
   flush_work
@@ -230,6 +231,7 @@
   of_find_property
   of_get_property
   of_property_read_variable_u32_array
+  __page_pinner_migration_failed
   param_ops_bint
   param_ops_bool
   param_ops_charp
@@ -1200,6 +1202,7 @@
   netif_set_real_num_tx_queues
   __netif_set_xps_queue
   net_ratelimit
+  __pskb_pull_tail
   _raw_spin_trylock
   sched_clock
   skb_coalesce_rx_frag

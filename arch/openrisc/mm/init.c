@@ -76,7 +76,6 @@ static void __init map_ram(void)
 	/* These mark extents of read-only kernel pages...
 	 * ...from vmlinux.lds.S
 	 */
-	struct memblock_region *region;
 
 	v = PAGE_OFFSET;
 
@@ -122,7 +121,7 @@ static void __init map_ram(void)
 		}
 
 		printk(KERN_INFO "%s: Memory: 0x%x-0x%x\n", __func__,
-		       region->base, region->base + region->size);
+		       start, end);
 	}
 }
 

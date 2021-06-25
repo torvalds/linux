@@ -149,6 +149,7 @@ void null_free_zoned_dev(struct nullb_device *dev)
 {
 	bitmap_free(dev->zone_locks);
 	kvfree(dev->zones);
+	dev->zones = NULL;
 }
 
 static inline void null_lock_zone(struct nullb_device *dev, unsigned int zno)

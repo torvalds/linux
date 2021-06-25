@@ -2803,8 +2803,8 @@ int rtrs_clt_remove_path_from_sysfs(struct rtrs_clt_sess *sess,
 	} while (!changed && old_state != RTRS_CLT_DEAD);
 
 	if (likely(changed)) {
-		rtrs_clt_destroy_sess_files(sess, sysfs_self);
 		rtrs_clt_remove_path_from_arr(sess);
+		rtrs_clt_destroy_sess_files(sess, sysfs_self);
 		kobject_put(&sess->kobj);
 	}
 

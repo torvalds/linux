@@ -500,8 +500,24 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	return system_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
 }
 
+static long system_get_pool_size(struct dma_heap *heap)
+{
+	int i;
+	long num_pages = 0;
+	struct dmabuf_page_pool **pool;
+
+	pool = pools;
+	for (i = 0; i < NUM_ORDERS; i++, pool++) {
+		num_pages += ((*pool)->count[POOL_LOWPAGE] +
+			      (*pool)->count[POOL_HIGHPAGE]) << (*pool)->order;
+	}
+
+	return num_pages << PAGE_SHIFT;
+}
+
 static const struct dma_heap_ops system_heap_ops = {
 	.allocate = system_heap_allocate,
+	.get_pool_size = system_get_pool_size,
 };
 
 static struct dma_buf *system_uncached_heap_allocate(struct dma_heap *heap,

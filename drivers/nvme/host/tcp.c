@@ -874,7 +874,7 @@ static void nvme_tcp_state_change(struct sock *sk)
 {
 	struct nvme_tcp_queue *queue;
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	queue = sk->sk_user_data;
 	if (!queue)
 		goto done;
@@ -895,7 +895,7 @@ static void nvme_tcp_state_change(struct sock *sk)
 
 	queue->state_change(sk);
 done:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 static inline bool nvme_tcp_queue_more(struct nvme_tcp_queue *queue)
@@ -940,7 +940,6 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 		if (ret <= 0)
 			return ret;
 
-		nvme_tcp_advance_req(req, ret);
 		if (queue->data_digest)
 			nvme_tcp_ddgst_update(queue->snd_hash, page,
 					offset, ret);
@@ -957,6 +956,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 			}
 			return 1;
 		}
+		nvme_tcp_advance_req(req, ret);
 	}
 	return -EAGAIN;
 }
@@ -1140,7 +1140,8 @@ static void nvme_tcp_io_work(struct work_struct *w)
 				pending = true;
 			else if (unlikely(result < 0))
 				break;
-		}
+		} else
+			pending = !llist_empty(&queue->req_list);
 
 		result = nvme_tcp_try_recv(queue);
 		if (result > 0)

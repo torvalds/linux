@@ -276,7 +276,7 @@ Date		April 2019
 Contact:	"Daniel Rosenberg" <drosen@google.com>
 Description:	If checkpoint=disable, it displays the number of blocks that
 		are unusable.
-		If checkpoint=enable it displays the enumber of blocks that
+		If checkpoint=enable it displays the number of blocks that
 		would be unusable if checkpoint=disable were to be set.
 
 What:		/sys/fs/f2fs/<disk>/encoding
@@ -410,6 +410,11 @@ Description:	Give a way to change checkpoint merge daemon's io priority.
 		and set the I/O priority within valid range of it. "," delimiter
 		is necessary in between I/O class and priority number.
 
+What:		/sys/fs/f2fs/<disk>/ovp_segments
+Date:		March 2021
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Shows the number of overprovision segments.
+
 What:		/sys/fs/f2fs/<disk>/compr_written_block
 Date:		March 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
@@ -433,3 +438,31 @@ Description:	Show the count of inode newly enabled for compression since mount.
 		Note that when the compression is disabled for the files, this count
 		doesn't decrease. If you write "0" here, you can initialize
 		compr_new_inode to "0".
+
+What:		/sys/fs/f2fs/<disk>/atgc_candidate_ratio
+Date:		May 2021
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:	When ATGC is on, it controls candidate ratio in order to limit total
+		number of potential victim in all candidates, the value should be in
+		range of [0, 100], by default it was initialized as 20(%).
+
+What:		/sys/fs/f2fs/<disk>/atgc_candidate_count
+Date:		May 2021
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:	When ATGC is on, it controls candidate count in order to limit total
+		number of potential victim in all candidates, by default it was
+		initialized as 10 (sections).
+
+What:		/sys/fs/f2fs/<disk>/atgc_age_weight
+Date:		May 2021
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:	When ATGC is on, it controls age weight to balance weight proportion
+		in between aging and valid blocks, the value should be in range of
+		[0, 100], by default it was initialized as 60(%).
+
+What:		/sys/fs/f2fs/<disk>/atgc_age_threshold
+Date:		May 2021
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:	When ATGC is on, it controls age threshold to bypass GCing young
+		candidates whose age is not beyond the threshold, by default it was
+		initialized as 604800 seconds (equals to 7 days).
