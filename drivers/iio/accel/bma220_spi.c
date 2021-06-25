@@ -218,14 +218,33 @@ static int bma220_init(struct spi_device *spi)
 	return 0;
 }
 
+static int bma220_power(struct spi_device *spi, bool up)
+{
+	int i, ret;
+
+	/**
+	 * The chip can be suspended/woken up by a simple register read.
+	 * So, we need up to 2 register reads of the suspend register
+	 * to make sure that the device is in the desired state.
+	 */
+	for (i = 0; i < 2; i++) {
+		ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
+		if (ret < 0)
+			return ret;
+
+		if (up && ret == BMA220_SUSPEND_SLEEP)
+			return 0;
+
+		if (!up && ret == BMA220_SUSPEND_WAKE)
+			return 0;
+	}
+
+	return -EBUSY;
+}
+
 static void bma220_deinit(void *spi)
 {
-	int ret;
-
-	/* Make sure the chip is powered off */
-	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
-	if (ret == BMA220_SUSPEND_SLEEP)
-		bma220_read_reg(spi, BMA220_REG_SUSPEND);
+	bma220_power(spi, false);
 }
 
 static int bma220_probe(struct spi_device *spi)
@@ -242,7 +261,6 @@ static int bma220_probe(struct spi_device *spi)
 
 	data = iio_priv(indio_dev);
 	data->spi_device = spi;
-	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&data->lock);
 
 	indio_dev->info = &bma220_info;
@@ -273,17 +291,16 @@ static int bma220_probe(struct spi_device *spi)
 
 static __maybe_unused int bma220_suspend(struct device *dev)
 {
-	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
+	struct spi_device *spi = to_spi_device(dev);
 
-	/* The chip can be suspended/woken up by a simple register read. */
-	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
+	return bma220_power(spi, false);
 }
 
 static __maybe_unused int bma220_resume(struct device *dev)
 {
-	struct bma220_data *data = iio_priv(dev_get_drvdata(dev));
+	struct spi_device *spi = to_spi_device(dev);
 
-	return bma220_read_reg(data->spi_device, BMA220_REG_SUSPEND);
+	return bma220_power(spi, true);
 }
 static SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
 
