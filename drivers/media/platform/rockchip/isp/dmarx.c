@@ -560,6 +560,10 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 
 	dmarx_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
+
+	if (stream->id == RKISP_STREAM_RAWRD2 &&
+	    (stream->ispdev->isp_ver == ISP_V20 || stream->ispdev->isp_ver == ISP_V21))
+		kfifo_reset(&stream->ispdev->rdbk_kfifo);
 }
 
 static int dmarx_start_streaming(struct vb2_queue *queue,
