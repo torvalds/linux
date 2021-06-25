@@ -1375,7 +1375,7 @@ xfs_attr_remove_iter(
 {
 	struct xfs_da_args		*args = dac->da_args;
 	struct xfs_da_state		*state = dac->da_state;
-	int				retval, error;
+	int				retval, error = 0;
 	struct xfs_inode		*dp = args->dp;
 
 	trace_xfs_attr_node_removename(args);
