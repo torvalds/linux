@@ -301,9 +301,54 @@ static int create_s2mpu_array(struct s2mpu **array)
 	return 0;
 }
 
+static int alloc_smpts(struct mpt *mpt)
+{
+	unsigned int gb;
+
+	for_each_gb(gb) {
+		/* The returned buffer is aligned to its size, as required. */
+		mpt->fmpt[gb].smpt = (u32 *)__get_free_pages(GFP_KERNEL, SMPT_ORDER);
+		if (!mpt->fmpt[gb].smpt)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void free_smpts(struct mpt *mpt)
+{
+	unsigned int gb;
+
+	for_each_gb(gb)
+		free_pages((unsigned long)mpt->fmpt[gb].smpt, SMPT_ORDER);
+}
+
+static int init_host_mpt(struct mpt *mpt)
+{
+	unsigned int gb;
+	int ret;
+
+	ret = alloc_smpts(mpt);
+	if (ret) {
+		kvm_err("Cannot allocate memory for S2MPU host MPT");
+		return ret;
+	}
+
+	/* Initialize the host MPT. Use 1G mappings with RW permissions. */
+	for_each_gb(gb) {
+		kvm_hyp_host_mpt.fmpt[gb] = (struct fmpt){
+			.gran_1g = true,
+			.prot = MPT_PROT_RW,
+			.smpt = kern_hyp_va(mpt->fmpt[gb].smpt),
+		};
+	}
+	return 0;
+}
+
 int kvm_s2mpu_init(void)
 {
 	struct s2mpu *s2mpus = NULL;
+	struct mpt mpt = {};
 	int ret;
 
 	ret = platform_driver_probe(&of_driver, s2mpu_probe);
@@ -314,10 +359,16 @@ int kvm_s2mpu_init(void)
 	if (ret)
 		goto out;
 
+	ret = init_host_mpt(&mpt);
+	if (ret)
+		goto out;
+
 	kvm_info("S2MPU driver initialized\n");
 
 out:
-	if (ret)
+	if (ret) {
 		free_s2mpu_array(s2mpus);
+		free_smpts(&mpt);
+	}
 	return ret;
 }

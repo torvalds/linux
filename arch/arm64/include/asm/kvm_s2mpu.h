@@ -29,6 +29,7 @@
 #define REG_NS_FAULT_PA_LOW(vid)		(0x2004 + ((vid) * 0x20))
 #define REG_NS_FAULT_PA_HIGH(vid)		(0x2008 + ((vid) * 0x20))
 #define REG_NS_FAULT_INFO(vid)			(0x2010 + ((vid) * 0x20))
+#define REG_NS_L1ENTRY_L2TABLE_ADDR(vid, gb)	(0x4000 + ((vid) * 0x200) + ((gb) * 0x8))
 #define REG_NS_L1ENTRY_ATTR(vid, gb)		(0x4004 + ((vid) * 0x200) + ((gb) * 0x8))
 
 #define CTRL0_ENABLE				BIT(0)
@@ -76,12 +77,40 @@
 #define FAULT_INFO_LEN_MASK			GENMASK(19, 16)
 #define FAULT_INFO_ID_MASK			GENMASK(15, 0)
 
+#define L1ENTRY_L2TABLE_ADDR(pa)		((pa) >> 4)
+
+#define L1ENTRY_ATTR_L2TABLE_EN			BIT(0)
+#define L1ENTRY_ATTR_GRAN_4K			0x0
+#define L1ENTRY_ATTR_GRAN_64K			0x1
+#define L1ENTRY_ATTR_GRAN_2M			0x2
 #define L1ENTRY_ATTR_PROT(prot)			FIELD_PREP(GENMASK(2, 1), prot)
+#define L1ENTRY_ATTR_GRAN(gran)			FIELD_PREP(GENMASK(5, 4), gran)
 #define L1ENTRY_ATTR_1G(prot)			L1ENTRY_ATTR_PROT(prot)
+#define L1ENTRY_ATTR_L2(gran)			(L1ENTRY_ATTR_GRAN(gran) | \
+						 L1ENTRY_ATTR_L2TABLE_EN)
 
 #define NR_GIGABYTES				64
 #define RO_GIGABYTES_FIRST			4
 #define RO_GIGABYTES_LAST			33
+#define NR_RO_GIGABYTES				(RO_GIGABYTES_LAST - RO_GIGABYTES_FIRST + 1)
+#define NR_RW_GIGABYTES				(NR_GIGABYTES - NR_RO_GIGABYTES)
+
+#ifdef CONFIG_ARM64_64K_PAGES
+#define SMPT_GRAN				SZ_64K
+#define SMPT_GRAN_ATTR				L1ENTRY_ATTR_GRAN_64K
+#else
+#define SMPT_GRAN				SZ_4K
+#define SMPT_GRAN_ATTR				L1ENTRY_ATTR_GRAN_4K
+#endif
+static_assert(SMPT_GRAN <= PAGE_SIZE);
+
+#define MPT_PROT_BITS				2
+#define SMPT_WORD_SIZE				sizeof(u32)
+#define SMPT_ELEMS_PER_BYTE			(BITS_PER_BYTE / MPT_PROT_BITS)
+#define SMPT_NUM_ELEMS				(SZ_1G / SMPT_GRAN)
+#define SMPT_NUM_WORDS				(SMPT_SIZE / SMPT_WORD_SIZE)
+#define SMPT_SIZE				(SMPT_NUM_ELEMS / SMPT_ELEMS_PER_BYTE)
+#define SMPT_ORDER				get_order(SMPT_SIZE)
 
 /*
  * Iterate over S2MPU gigabyte regions. Skip those that cannot be modified
@@ -123,10 +152,23 @@ enum mpt_prot {
 	MPT_PROT_MASK	= MPT_PROT_RW,
 };
 
+struct fmpt {
+	u32 *smpt;
+	bool gran_1g;
+	enum mpt_prot prot;
+};
+
+struct mpt {
+	struct fmpt fmpt[NR_GIGABYTES];
+};
+
 extern size_t kvm_nvhe_sym(kvm_hyp_nr_s2mpus);
 #define kvm_hyp_nr_s2mpus kvm_nvhe_sym(kvm_hyp_nr_s2mpus)
 
 extern struct s2mpu *kvm_nvhe_sym(kvm_hyp_s2mpus);
 #define kvm_hyp_s2mpus kvm_nvhe_sym(kvm_hyp_s2mpus)
+
+extern struct mpt kvm_nvhe_sym(kvm_hyp_host_mpt);
+#define kvm_hyp_host_mpt kvm_nvhe_sym(kvm_hyp_host_mpt)
 
 #endif /* __ARM64_KVM_S2MPU_H__ */

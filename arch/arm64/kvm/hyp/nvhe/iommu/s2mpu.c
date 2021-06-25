@@ -13,6 +13,7 @@
 
 #include <linux/arm-smccc.h>
 
+#include <nvhe/memory.h>
 #include <nvhe/mm.h>
 #include <nvhe/spinlock.h>
 #include <nvhe/trap_handler.h>
@@ -28,6 +29,7 @@
 
 size_t __ro_after_init		kvm_hyp_nr_s2mpus;
 struct s2mpu __ro_after_init	*kvm_hyp_s2mpus;
+struct mpt			kvm_hyp_host_mpt;
 
 static hyp_spinlock_t		s2mpu_lock;
 
@@ -122,6 +124,26 @@ static void __set_l1entry_attr_with_prot(struct s2mpu *dev, unsigned int gb,
 		       dev->va + REG_NS_L1ENTRY_ATTR(vid, gb));
 }
 
+static void __set_l1entry_attr_with_fmpt(struct s2mpu *dev, unsigned int gb,
+					 unsigned int vid, struct fmpt *fmpt)
+{
+	if (fmpt->gran_1g) {
+		__set_l1entry_attr_with_prot(dev, gb, vid, fmpt->prot);
+	} else {
+		/* Order against writes to the SMPT. */
+		writel(L1ENTRY_ATTR_L2(SMPT_GRAN_ATTR),
+		       dev->va + REG_NS_L1ENTRY_ATTR(vid, gb));
+	}
+}
+
+static void __set_l1entry_l2table_addr(struct s2mpu *dev, unsigned int gb,
+				       unsigned int vid, phys_addr_t addr)
+{
+	/* Order against writes to the SMPT. */
+	writel(L1ENTRY_L2TABLE_ADDR(addr),
+	       dev->va + REG_NS_L1ENTRY_L2TABLE_ADDR(vid, gb));
+}
+
 /**
  * Initialize S2MPU device and set all GB regions to 1G granularity with
  * given protection bits.
@@ -135,6 +157,29 @@ static void initialize_with_prot(struct s2mpu *dev, enum mpt_prot prot)
 
 	for_each_gb_and_vid(gb, vid)
 		__set_l1entry_attr_with_prot(dev, gb, vid, prot);
+	__all_invalidation(dev);
+
+	/* Set control registers, enable the S2MPU. */
+	__set_control_regs(dev);
+}
+
+/**
+ * Initialize S2MPU device, set L2 table addresses and configure L1TABLE_ATTR
+ * registers according to the given MPT struct.
+ */
+static void initialize_with_mpt(struct s2mpu *dev, struct mpt *mpt)
+{
+	unsigned int gb, vid;
+	struct fmpt *fmpt;
+
+	/* Must write CONTEXT_CFG_VALID_VID before setting L1ENTRY registers. */
+	__set_context_ids(dev);
+
+	for_each_gb_and_vid(gb, vid) {
+		fmpt = &mpt->fmpt[gb];
+		__set_l1entry_l2table_addr(dev, gb, vid, __hyp_pa(fmpt->smpt));
+		__set_l1entry_attr_with_fmpt(dev, gb, vid, fmpt);
+	}
 	__all_invalidation(dev);
 
 	/* Set control registers, enable the S2MPU. */
@@ -181,7 +226,7 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 
 			if (mode == SMC_MODE_POWER_UP) {
 				dev->power_state = S2MPU_POWER_ON;
-				initialize_with_prot(dev, MPT_PROT_RW);
+				initialize_with_mpt(dev, &kvm_hyp_host_mpt);
 			} else {
 				initialize_with_prot(dev, MPT_PROT_NONE);
 				dev->power_state = S2MPU_POWER_OFF;
@@ -197,6 +242,7 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 static int s2mpu_init(void)
 {
 	struct s2mpu *dev;
+	unsigned int gb;
 	int ret;
 
 	/* Map data structures in EL2 stage-1. */
@@ -205,6 +251,15 @@ static int s2mpu_init(void)
 				   PAGE_HYP);
 	if (ret)
 		return ret;
+
+	for_each_gb(gb) {
+		ret = pkvm_create_mappings(
+			kvm_hyp_host_mpt.fmpt[gb].smpt,
+			kvm_hyp_host_mpt.fmpt[gb].smpt + SMPT_NUM_WORDS,
+			PAGE_HYP);
+		if (ret)
+			return ret;
+	}
 
 	/* Map S2MPU MMIO regions in EL2 stage-1. */
 	for_each_s2mpu(dev) {
@@ -219,7 +274,7 @@ static int s2mpu_init(void)
 	 * the blocking reset state as the bootloader may have programmed them.
 	 */
 	for_each_powered_s2mpu(dev)
-		initialize_with_prot(dev, MPT_PROT_RW);
+		initialize_with_mpt(dev, &kvm_hyp_host_mpt);
 	return 0;
 }
 
