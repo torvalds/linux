@@ -588,6 +588,7 @@ struct spi_controller {
 	bool			(*can_dma)(struct spi_controller *ctlr,
 					   struct spi_device *spi,
 					   struct spi_transfer *xfer);
+	struct device *dma_map_dev;
 
 	/*
 	 * These hooks are for drivers that want to use the generic
