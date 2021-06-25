@@ -63,6 +63,8 @@
 
 #define PCAN_USB_MSG_HEADER_LEN		2
 
+#define PCAN_USB_MSG_TX_CAN		2	/* Tx msg is a CAN frame */
+
 /* PCAN-USB adapter internal clock (MHz) */
 #define PCAN_USB_CRYSTAL_HZ		16000000
 
@@ -834,8 +836,8 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 	u32 can_id_flags = cf->can_id & CAN_ERR_MASK;
 	u8 *pc;
 
-	obuf[0] = 2;
-	obuf[1] = 1;
+	obuf[0] = PCAN_USB_MSG_TX_CAN;
+	obuf[1] = 1;	/* only one CAN frame is stored in the packet */
 
 	pc = obuf + PCAN_USB_MSG_HEADER_LEN;
 
