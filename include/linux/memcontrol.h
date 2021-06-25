@@ -694,14 +694,28 @@ static inline bool mem_cgroup_below_min(struct mem_cgroup *memcg)
 		page_counter_read(&memcg->memory);
 }
 
-int __mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-			gfp_t gfp_mask);
-static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-				    gfp_t gfp_mask)
+int __mem_cgroup_charge(struct folio *folio, struct mm_struct *mm, gfp_t gfp);
+
+/**
+ * mem_cgroup_charge - Charge a newly allocated folio to a cgroup.
+ * @folio: Folio to charge.
+ * @mm: mm context of the allocating task.
+ * @gfp: Reclaim mode.
+ *
+ * Try to charge @folio to the memcg that @mm belongs to, reclaiming
+ * pages according to @gfp if necessary.  If @mm is NULL, try to
+ * charge to the active memcg.
+ *
+ * Do not use this for folios allocated for swapin.
+ *
+ * Return: 0 on success. Otherwise, an error code is returned.
+ */
+static inline int mem_cgroup_charge(struct folio *folio, struct mm_struct *mm,
+				    gfp_t gfp)
 {
 	if (mem_cgroup_disabled())
 		return 0;
-	return __mem_cgroup_charge(page, mm, gfp_mask);
+	return __mem_cgroup_charge(folio, mm, gfp);
 }
 
 int mem_cgroup_swapin_charge_page(struct page *page, struct mm_struct *mm,
@@ -1199,8 +1213,8 @@ static inline bool mem_cgroup_below_min(struct mem_cgroup *memcg)
 	return false;
 }
 
-static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-				    gfp_t gfp_mask)
+static inline int mem_cgroup_charge(struct folio *folio,
+		struct mm_struct *mm, gfp_t gfp)
 {
 	return 0;
 }

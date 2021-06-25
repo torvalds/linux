@@ -2578,7 +2578,8 @@ struct page *ksm_might_need_to_copy(struct page *page,
 		return page;		/* let do_swap_page report the error */
 
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-	if (new_page && mem_cgroup_charge(new_page, vma->vm_mm, GFP_KERNEL)) {
+	if (new_page &&
+	    mem_cgroup_charge(page_folio(new_page), vma->vm_mm, GFP_KERNEL)) {
 		put_page(new_page);
 		new_page = NULL;
 	}
