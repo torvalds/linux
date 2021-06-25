@@ -121,6 +121,10 @@ void do_syscall(struct pt_regs *regs)
 
 	regs->gprs[2] = nr;
 
+	if (nr == __NR_restart_syscall && !(current->restart_block.arch_data & 1)) {
+		regs->psw.addr = current->restart_block.arch_data;
+		current->restart_block.arch_data = 1;
+	}
 	nr = syscall_enter_from_user_mode_work(regs, nr);
 
 	/*
