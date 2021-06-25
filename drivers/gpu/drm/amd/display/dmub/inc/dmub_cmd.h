@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x2fe298ec9
+#define DMUB_FW_VERSION_GIT_HASH 0xc761b9efd
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 72
+#define DMUB_FW_VERSION_REVISION 73
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -365,6 +365,7 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
 		uint32_t reserved2: 1; /**< reserved for an unreleased feature */
+		uint32_t reserved_unreleased1: 1; /**< reserved for an unreleased feature */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
 		uint32_t reserved : 23; /**< reserved */
 	} bits; /**< boot bits */
@@ -1447,6 +1448,10 @@ struct dmub_cmd_psr_set_level_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad3[4];
 };
 
 /**
@@ -2500,7 +2505,7 @@ static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
 				      const union dmub_rb_out_cmd *cmd)
 {
 	uint8_t *dst = (uint8_t *)(rb->base_address) + rb->wrpt;
-	const uint8_t *src = (uint8_t *)cmd;
+	const uint8_t *src = (const uint8_t *)cmd;
 
 	if (dmub_rb_full(rb))
 		return false;
