@@ -145,7 +145,7 @@ static void hi6421_spmi_irq_unmask(struct irq_data *d)
 }
 
 static struct irq_chip hi6421_spmi_pmu_irqchip = {
-	.name		= "hisi-irq",
+	.name		= "hi6421v600-irq",
 	.irq_mask	= hi6421_spmi_irq_mask,
 	.irq_unmask	= hi6421_spmi_irq_unmask,
 	.irq_disable	= hi6421_spmi_irq_mask,
@@ -158,7 +158,7 @@ static int hi6421_spmi_irq_map(struct irq_domain *d, unsigned int virq,
 	struct hi6421_spmi_pmic *ddata = d->host_data;
 
 	irq_set_chip_and_handler_name(virq, &hi6421_spmi_pmu_irqchip,
-				      handle_simple_irq, "hisi");
+				      handle_simple_irq, "hi6421v600");
 	irq_set_chip_data(virq, ddata);
 	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
