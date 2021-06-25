@@ -218,20 +218,14 @@ static int bma220_init(struct spi_device *spi)
 	return 0;
 }
 
-static int bma220_deinit(struct spi_device *spi)
+static void bma220_deinit(void *spi)
 {
 	int ret;
 
 	/* Make sure the chip is powered off */
 	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
 	if (ret == BMA220_SUSPEND_SLEEP)
-		ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
-	if (ret < 0)
-		return ret;
-	if (ret == BMA220_SUSPEND_SLEEP)
-		return -EBUSY;
-
-	return 0;
+		bma220_read_reg(spi, BMA220_REG_SUSPEND);
 }
 
 static int bma220_probe(struct spi_device *spi)
@@ -262,34 +256,19 @@ static int bma220_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
-					 bma220_trigger_handler, NULL);
+	ret = devm_add_action_or_reset(&spi->dev, bma220_deinit, spi);
+	if (ret)
+		return ret;
+
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      bma220_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(&spi->dev, "iio triggered buffer setup failed\n");
-		goto err_suspend;
+		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&spi->dev, "iio_device_register failed\n");
-		iio_triggered_buffer_cleanup(indio_dev);
-		goto err_suspend;
-	}
-
-	return 0;
-
-err_suspend:
-	return bma220_deinit(spi);
-}
-
-static int bma220_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return bma220_deinit(spi);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static __maybe_unused int bma220_suspend(struct device *dev)
@@ -326,7 +305,6 @@ static struct spi_driver bma220_driver = {
 		.acpi_match_table = bma220_acpi_id,
 	},
 	.probe =            bma220_probe,
-	.remove =           bma220_remove,
 	.id_table =         bma220_spi_id,
 };
 module_spi_driver(bma220_driver);
