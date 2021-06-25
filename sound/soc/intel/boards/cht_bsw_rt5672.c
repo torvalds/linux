@@ -375,7 +375,6 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.name = "SSP2-Codec",
 		.id = 0,
 		.no_pcm = 1,
-		.nonatomic = true,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,

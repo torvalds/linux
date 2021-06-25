@@ -351,6 +351,19 @@ config SND_SOC_IMX_RPMSG
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a rpmsg devices.
 
+config SND_SOC_IMX_CARD
+	tristate "SoC Audio Graph Sound Card support for i.MX boards"
+	depends on OF && I2C
+	select SND_SOC_AK4458
+	select SND_SOC_AK5558
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SAI
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables audio sound card support for i.MX boards
+	  with OF-graph DT bindings.
+	  It also support DPCM of single CPU multi Codec ststem.
+
 endif # SND_IMX_SOC
 
 endmenu

@@ -277,10 +277,12 @@ struct hda_dsp_msg_code {
 	const char *msg;
 };
 
-static bool hda_use_msi = IS_ENABLED(CONFIG_PCI);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+static bool hda_use_msi = true;
 module_param_named(use_msi, hda_use_msi, bool, 0444);
 MODULE_PARM_DESC(use_msi, "SOF HDA use PCI MSI mode");
+#else
+#define hda_use_msi	(1)
 #endif
 
 static char *hda_model;
@@ -392,28 +394,21 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
-	u32 status, panic;
 
-	/* try APL specific status message types first */
+	/* print ROM/FW status */
 	hda_dsp_get_status(sdev);
 
-	/* now try generic SOF status messages */
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  HDA_DSP_SRAM_REG_FW_STATUS);
-	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
-
+	/* print panic info if FW boot is complete. Otherwise, print the extended ROM status */
 	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
+		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
+		u32 panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
+
 		hda_dsp_get_registers(sdev, &xoops, &panic_info, stack,
 				      HDA_DSP_STACK_DUMP_SIZE);
 		snd_sof_get_status(sdev, status, panic, &xoops, &panic_info,
 				   stack, HDA_DSP_STACK_DUMP_SIZE);
 	} else {
-		sof_dev_dbg_or_err(sdev->dev, flags & SOF_DBG_DUMP_FORCE_ERR_LEVEL,
-				   "status = 0x%8.8x panic = 0x%8.8x\n",
-				   status, panic);
-
 		hda_dsp_dump_ext_rom_status(sdev, flags);
-		hda_dsp_get_status(sdev);
 	}
 }
 
@@ -485,9 +480,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 	/* initialise hdac bus */
 	bus->addr = pci_resource_start(pci, 0);
-#if IS_ENABLED(CONFIG_PCI)
 	bus->remap_addr = pci_ioremap_bar(pci, 0);
-#endif
 	if (!bus->remap_addr) {
 		dev_err(bus->dev, "error: ioremap error\n");
 		return -ENXIO;
@@ -799,9 +792,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		goto hdac_bus_unmap;
 
 	/* DSP base */
-#if IS_ENABLED(CONFIG_PCI)
 	sdev->bar[HDA_DSP_BAR] = pci_ioremap_bar(pci, HDA_DSP_BAR);
-#endif
 	if (!sdev->bar[HDA_DSP_BAR]) {
 		dev_err(sdev->dev, "error: ioremap error\n");
 		ret = -ENXIO;
@@ -1069,7 +1060,7 @@ static bool link_slaves_found(struct snd_sof_dev *sdev,
 
 			/* find out how many identical parts are expected */
 			for (k = 0; k < link->num_adr; k++) {
-				u64 adr2 = link->adr_d[i].adr;
+				u64 adr2 = link->adr_d[k].adr;
 				unsigned int part_id2, link_id2, mfg_id2;
 
 				mfg_id2 = SDW_MFG_ID(adr2);
