@@ -5,7 +5,7 @@
 #include <vdso/datapage.h>
 
 /* Default link address for the vDSO */
-#define VDSO64_LBASE	0
+#define VDSO_LBASE	0
 
 #define __VVAR_PAGES	2
 
