@@ -205,35 +205,6 @@ struct regulator_dev *devm_regulator_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_register);
 
-static int devm_rdev_match(struct device *dev, void *res, void *data)
-{
-	struct regulator_dev **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
-}
-
-/**
- * devm_regulator_unregister - Resource managed regulator_unregister()
- * @dev:  device to supply
- * @rdev: regulator to free
- *
- * Unregister a regulator registered with devm_regulator_register().
- * Normally this function will not need to be called and the resource
- * management code will ensure that the resource is freed.
- */
-void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_rdev_release, devm_rdev_match, rdev);
-	if (rc != 0)
-		WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_regulator_unregister);
-
 struct regulator_supply_alias_match {
 	struct device *dev;
 	const char *id;
