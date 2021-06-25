@@ -359,7 +359,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 		rate =  clk_hw_get_rate(p);
 	}
 	req->best_parent_hw = p;
-	req->best_parent_rate = rate;
+	req->best_parent_rate = clk_hw_round_rate(p, rate);
 	req->rate = f->freq;
 
 	if (f->src_freq != FIXED_FREQ_SRC) {
