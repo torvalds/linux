@@ -222,12 +222,12 @@ static void check_return_regs_valid(struct pt_regs *regs)
 	u8 *validp;
 	char *h;
 
-	if (regs->trap == 0x3000)
+	if (trap_is_scv(regs))
 		return;
 
 	trap = regs->trap;
 	// EE in HV mode sets HSRRs like 0xea0
-	if (cpu_has_feature(CPU_FTR_HVMODE) && trap == 0x500)
+	if (cpu_has_feature(CPU_FTR_HVMODE) && trap == INTERRUPT_EXTERNAL)
 		trap = 0xea0;
 
 	switch (trap) {
