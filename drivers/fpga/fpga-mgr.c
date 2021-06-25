@@ -83,6 +83,14 @@ static inline int fpga_mgr_write_init(struct fpga_manager *mgr,
 	return 0;
 }
 
+static inline int fpga_mgr_write_sg(struct fpga_manager *mgr,
+				    struct sg_table *sgt)
+{
+	if (mgr->mops->write_sg)
+		return  mgr->mops->write_sg(mgr, sgt);
+	return -EOPNOTSUPP;
+}
+
 /**
  * fpga_image_info_alloc - Allocate an FPGA image info struct
  * @dev: owning device
@@ -225,7 +233,7 @@ static int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
 	/* Write the FPGA image to the FPGA. */
 	mgr->state = FPGA_MGR_STATE_WRITE;
 	if (mgr->mops->write_sg) {
-		ret = mgr->mops->write_sg(mgr, sgt);
+		ret = fpga_mgr_write_sg(mgr, sgt);
 	} else {
 		struct sg_mapping_iter miter;
 
