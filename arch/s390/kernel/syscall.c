@@ -108,7 +108,7 @@ SYSCALL_DEFINE0(ni_syscall)
 	return -ENOSYS;
 }
 
-void do_syscall(struct pt_regs *regs)
+static void do_syscall(struct pt_regs *regs)
 {
 	unsigned long nr;
 
