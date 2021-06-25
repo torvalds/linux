@@ -1549,7 +1549,9 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_pos)
 {
+#ifdef CONFIG_BCACHEFS_DEBUG
 	struct bpos old_pos = iter->real_pos;
+#endif
 	int cmp = bpos_cmp(new_pos, iter->real_pos);
 	unsigned l = iter->level;
 
