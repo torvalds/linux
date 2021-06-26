@@ -22,6 +22,7 @@ struct rpc_sysfs_xprt_switch {
 struct rpc_sysfs_xprt {
 	struct kobject kobject;
 	struct rpc_xprt *xprt;
+	struct rpc_xprt_switch *xprt_switch;
 };
 
 int rpc_sysfs_init(void);

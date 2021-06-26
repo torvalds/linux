@@ -65,7 +65,8 @@ static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
 {
 	if (unlikely(xprt == NULL))
 		return;
-	xps->xps_nactive--;
+	if (!test_bit(XPRT_OFFLINE, &xprt->state))
+		xps->xps_nactive--;
 	xps->xps_nxprts--;
 	if (xps->xps_nxprts == 0)
 		xps->xps_net = NULL;
@@ -230,7 +231,8 @@ void xprt_iter_default_rewind(struct rpc_xprt_iter *xpi)
 static
 bool xprt_is_active(const struct rpc_xprt *xprt)
 {
-	return kref_read(&xprt->kref) != 0;
+	return (kref_read(&xprt->kref) != 0 &&
+		!test_bit(XPRT_OFFLINE, &xprt->state));
 }
 
 static

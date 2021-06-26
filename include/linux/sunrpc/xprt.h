@@ -293,6 +293,7 @@ struct rpc_xprt {
 	struct rcu_head		rcu;
 	const struct xprt_class	*xprt_class;
 	struct rpc_sysfs_xprt	*xprt_sysfs;
+	bool			main; /*mark if this is the 1st transport */
 };
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
@@ -426,6 +427,8 @@ void			xprt_release_write(struct rpc_xprt *, struct rpc_task *);
 #define XPRT_BOUND		(4)
 #define XPRT_BINDING		(5)
 #define XPRT_CLOSING		(6)
+#define XPRT_OFFLINE		(7)
+#define XPRT_REMOVE		(8)
 #define XPRT_CONGESTED		(9)
 #define XPRT_CWND_WAIT		(10)
 #define XPRT_WRITE_SPACE	(11)
