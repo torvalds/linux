@@ -236,10 +236,10 @@ static int sparx5_create_targets(struct sparx5 *sparx5)
 					  iores[idx]->start,
 					  iores[idx]->end - iores[idx]->start
 					  + 1);
-		if (IS_ERR(iomem[idx])) {
+		if (!iomem[idx]) {
 			dev_err(sparx5->dev, "Unable to get switch registers: %s\n",
 				iores[idx]->name);
-			return PTR_ERR(iomem[idx]);
+			return -ENOMEM;
 		}
 		begin[idx] = iomem[idx] - sparx5_main_iomap[range_id[idx]].offset;
 	}
