@@ -317,14 +317,12 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 		return 0;
 	}
 
+	credit_charge = max(1, credit_charge);
 	max_len = max(req_len, expect_resp_len);
 	calc_credit_num = DIV_ROUND_UP(max_len, SMB2_MAX_BUFFER_SIZE);
-	if (!credit_charge && max_len > SMB2_MAX_BUFFER_SIZE) {
-		pr_err("credit charge is zero and payload size(%d) is bigger than 64K\n",
-		       max_len);
-		return 1;
-	} else if (credit_charge < calc_credit_num) {
-		pr_err("credit charge : %d, calc_credit_num : %d\n",
+
+	if (credit_charge < calc_credit_num) {
+		pr_err("Insufficient credit charge, given: %d, needed: %d\n",
 		       credit_charge, calc_credit_num);
 		return 1;
 	}
