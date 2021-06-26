@@ -1927,6 +1927,36 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 	}
 }
 
+static int hclge_dbg_dump_umv_info(struct hclge_dev *hdev, char *buf, int len)
+{
+	u8 func_num = pci_num_vf(hdev->pdev) + 1;
+	struct hclge_vport *vport;
+	int pos = 0;
+	u8 i;
+
+	pos += scnprintf(buf, len, "num_alloc_vport   : %u\n",
+			  hdev->num_alloc_vport);
+	pos += scnprintf(buf + pos, len - pos, "max_umv_size     : %u\n",
+			 hdev->max_umv_size);
+	pos += scnprintf(buf + pos, len - pos, "wanted_umv_size  : %u\n",
+			 hdev->wanted_umv_size);
+	pos += scnprintf(buf + pos, len - pos, "priv_umv_size    : %u\n",
+			 hdev->priv_umv_size);
+
+	mutex_lock(&hdev->vport_lock);
+	pos += scnprintf(buf + pos, len - pos, "share_umv_size   : %u\n",
+			 hdev->share_umv_size);
+	for (i = 0; i < func_num; i++) {
+		vport = &hdev->vport[i];
+		pos += scnprintf(buf + pos, len - pos,
+				 "vport(%u) used_umv_num : %u\n",
+				 i, vport->used_umv_num);
+	}
+	mutex_unlock(&hdev->vport_lock);
+
+	return 0;
+}
+
 static int hclge_get_vlan_rx_offload_cfg(struct hclge_dev *hdev, u8 vf_id,
 					 struct hclge_dbg_vlan_cfg *vlan_cfg)
 {
@@ -2411,6 +2441,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_FD_COUNTER,
 		.dbg_dump = hclge_dbg_dump_fd_counter,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_UMV_INFO,
+		.dbg_dump = hclge_dbg_dump_umv_info,
 	},
 };
 
