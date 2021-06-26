@@ -28,11 +28,11 @@
  */
 
 static unsigned int ks0108_port = CONFIG_KS0108_PORT;
-module_param(ks0108_port, uint, S_IRUGO);
+module_param(ks0108_port, uint, 0444);
 MODULE_PARM_DESC(ks0108_port, "Parallel port where the LCD is connected");
 
 static unsigned int ks0108_delay = CONFIG_KS0108_DELAY;
-module_param(ks0108_delay, uint, S_IRUGO);
+module_param(ks0108_delay, uint, 0444);
 MODULE_PARM_DESC(ks0108_delay, "Delay between each control writing (microseconds)");
 
 /*
