@@ -228,6 +228,10 @@ static int sparx5_create_targets(struct sparx5 *sparx5)
 	for (idx = 0; idx < IO_RANGES; idx++) {
 		iores[idx] = platform_get_resource(sparx5->pdev, IORESOURCE_MEM,
 						   idx);
+		if (!iores[idx]) {
+			dev_err(sparx5->dev, "Invalid resource\n");
+			return -EINVAL;
+		}
 		iomem[idx] = devm_ioremap(sparx5->dev,
 					  iores[idx]->start,
 					  iores[idx]->end - iores[idx]->start
