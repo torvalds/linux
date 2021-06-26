@@ -485,8 +485,10 @@ int sparx5_register_notifier_blocks(struct sparx5 *s5)
 		goto err_switchdev_blocking_nb;
 
 	sparx5_owq = alloc_ordered_workqueue("sparx5_order", 0);
-	if (!sparx5_owq)
+	if (!sparx5_owq) {
+		err = -ENOMEM;
 		goto err_switchdev_blocking_nb;
+	}
 
 	return 0;
 
