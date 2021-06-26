@@ -1549,6 +1549,39 @@ out:
 	return ret;
 }
 
+static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
+{
+	u8 func_num = pci_num_vf(hdev->pdev) + 1; /* pf and enabled vf num */
+	struct hclge_fd_ad_cnt_read_cmd *req;
+	char str_id[HCLGE_DBG_ID_LEN];
+	struct hclge_desc desc;
+	int pos = 0;
+	int ret;
+	u64 cnt;
+	u8 i;
+
+	pos += scnprintf(buf + pos, len - pos,
+			 "func_id\thit_times\n");
+
+	for (i = 0; i < func_num; i++) {
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_CNT_OP, true);
+		req = (struct hclge_fd_ad_cnt_read_cmd *)desc.data;
+		req->index = cpu_to_le16(i);
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev, "failed to get fd counter, ret = %d\n",
+				ret);
+			return ret;
+		}
+		cnt = le64_to_cpu(req->cnt);
+		hclge_dbg_get_func_id_str(str_id, i);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%s\t%llu\n", str_id, cnt);
+	}
+
+	return 0;
+}
+
 int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 {
 	int pos = 0;
@@ -2374,6 +2407,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_VLAN_CONFIG,
 		.dbg_dump = hclge_dbg_dump_vlan_config,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_FD_COUNTER,
+		.dbg_dump = hclge_dbg_dump_fd_counter,
 	},
 };
 
