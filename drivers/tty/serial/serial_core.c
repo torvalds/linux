@@ -2314,6 +2314,14 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	       port->dev ? ": " : "",
 	       port->name,
 	       address, port->irq, port->uartclk / 16, uart_type(port));
+
+	/* The magic multiplier feature is a bit obscure, so report it too.  */
+	if (port->flags & UPF_MAGIC_MULTIPLIER)
+		pr_info("%s%s%s extra baud rates supported: %d, %d",
+			port->dev ? dev_name(port->dev) : "",
+			port->dev ? ": " : "",
+			port->name,
+			port->uartclk / 8, port->uartclk / 4);
 }
 
 static void
