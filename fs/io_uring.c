@@ -6868,7 +6868,6 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 		cond_resched();
 		mutex_lock(&sqd->lock);
 	}
-	io_run_task_work();
 	return did_sig || test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 }
 
@@ -6897,7 +6896,6 @@ static int io_sq_thread(void *data)
 			if (io_sqd_handle_event(sqd))
 				break;
 			timeout = jiffies + sqd->sq_thread_idle;
-			continue;
 		}
 
 		cap_entries = !list_is_singular(&sqd->ctx_list);
@@ -6907,9 +6905,10 @@ static int io_sq_thread(void *data)
 			if (!sqt_spin && (ret > 0 || !list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
+		if (io_run_task_work())
+			sqt_spin = true;
 
 		if (sqt_spin || !time_after(jiffies, timeout)) {
-			io_run_task_work();
 			cond_resched();
 			if (sqt_spin)
 				timeout = jiffies + sqd->sq_thread_idle;
@@ -6917,7 +6916,7 @@ static int io_sq_thread(void *data)
 		}
 
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
-		if (!io_sqd_events_pending(sqd) && !io_run_task_work()) {
+		if (!io_sqd_events_pending(sqd) && !current->task_works) {
 			bool needs_sched = true;
 
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
