@@ -6506,7 +6506,7 @@ static inline bool io_check_restriction(struct io_ring_ctx *ctx,
 					struct io_kiocb *req,
 					unsigned int sqe_flags)
 {
-	if (!ctx->restricted)
+	if (likely(!ctx->restricted))
 		return true;
 
 	if (!test_bit(req->opcode, ctx->restrictions.sqe_op))
@@ -6549,7 +6549,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		return -EINVAL;
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
-	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
+	if (!io_check_restriction(ctx, req, sqe_flags))
 		return -EACCES;
 
 	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
