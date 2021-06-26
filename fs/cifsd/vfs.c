@@ -12,7 +12,6 @@
 #include <linux/xattr.h>
 #include <linux/falloc.h>
 #include <linux/genhd.h>
-#include <linux/blkdev.h>
 #include <linux/fsnotify.h>
 #include <linux/dcache.h>
 #include <linux/slab.h>
@@ -1117,28 +1116,6 @@ out:
 		ksmbd_debug(VFS, "failed to delete, err %d\n", err);
 
 	return err;
-}
-
-/*
- * ksmbd_vfs_get_logical_sector_size() - get logical sector size from inode
- * @inode: inode
- *
- * Return: logical sector size
- */
-unsigned short ksmbd_vfs_logical_sector_size(struct inode *inode)
-{
-	struct request_queue *q;
-	unsigned short ret_val = 512;
-
-	if (!inode->i_sb->s_bdev)
-		return ret_val;
-
-	q = inode->i_sb->s_bdev->bd_disk->queue;
-
-	if (q && q->limits.logical_block_size)
-		ret_val = q->limits.logical_block_size;
-
-	return ret_val;
 }
 
 /*

@@ -4739,16 +4739,12 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	case FS_SIZE_INFORMATION:
 	{
 		struct filesystem_info *info;
-		unsigned short logical_sector_size;
 
 		info = (struct filesystem_info *)(rsp->Buffer);
-		logical_sector_size =
-			ksmbd_vfs_logical_sector_size(d_inode(path.dentry));
-
 		info->TotalAllocationUnits = cpu_to_le64(stfs.f_blocks);
 		info->FreeAllocationUnits = cpu_to_le64(stfs.f_bfree);
-		info->SectorsPerAllocationUnit = cpu_to_le32(stfs.f_bsize >> 9);
-		info->BytesPerSector = cpu_to_le32(logical_sector_size);
+		info->SectorsPerAllocationUnit = cpu_to_le32(1);
+		info->BytesPerSector = cpu_to_le32(stfs.f_bsize);
 		rsp->OutputBufferLength = cpu_to_le32(24);
 		inc_rfc1001_len(rsp_org, 24);
 		fs_infoclass_size = FS_SIZE_INFORMATION_SIZE;
@@ -4757,19 +4753,15 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	case FS_FULL_SIZE_INFORMATION:
 	{
 		struct smb2_fs_full_size_info *info;
-		unsigned short logical_sector_size;
 
 		info = (struct smb2_fs_full_size_info *)(rsp->Buffer);
-		logical_sector_size =
-			ksmbd_vfs_logical_sector_size(d_inode(path.dentry));
-
 		info->TotalAllocationUnits = cpu_to_le64(stfs.f_blocks);
 		info->CallerAvailableAllocationUnits =
 					cpu_to_le64(stfs.f_bavail);
 		info->ActualAvailableAllocationUnits =
 					cpu_to_le64(stfs.f_bfree);
-		info->SectorsPerAllocationUnit = cpu_to_le32(stfs.f_bsize >> 9);
-		info->BytesPerSector = cpu_to_le32(logical_sector_size);
+		info->SectorsPerAllocationUnit = cpu_to_le32(1);
+		info->BytesPerSector = cpu_to_le32(stfs.f_bsize);
 		rsp->OutputBufferLength = cpu_to_le32(32);
 		inc_rfc1001_len(rsp_org, 32);
 		fs_infoclass_size = FS_FULL_SIZE_INFORMATION_SIZE;
@@ -4846,16 +4838,13 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	case FS_POSIX_INFORMATION:
 	{
 		struct filesystem_posix_info *info;
-		unsigned short logical_sector_size;
 
 		if (!work->tcon->posix_extensions) {
 			pr_err("client doesn't negotiate with SMB3.1.1 POSIX Extensions\n");
 			rc = -EOPNOTSUPP;
 		} else {
 			info = (struct filesystem_posix_info *)(rsp->Buffer);
-			logical_sector_size =
-				ksmbd_vfs_logical_sector_size(d_inode(path.dentry));
-			info->OptimalTransferSize = cpu_to_le32(logical_sector_size);
+			info->OptimalTransferSize = cpu_to_le32(stfs.f_bsize);
 			info->BlockSize = cpu_to_le32(stfs.f_bsize);
 			info->TotalBlocks = cpu_to_le64(stfs.f_blocks);
 			info->BlocksAvail = cpu_to_le64(stfs.f_bfree);
@@ -5588,13 +5577,13 @@ static int set_file_position_info(struct ksmbd_file *fp, char *buf)
 {
 	struct smb2_file_pos_info *file_info;
 	loff_t current_byte_offset;
-	unsigned short sector_size;
+	unsigned long sector_size;
 	struct inode *inode;
 
 	inode = file_inode(fp->filp);
 	file_info = (struct smb2_file_pos_info *)buf;
 	current_byte_offset = le64_to_cpu(file_info->CurrentByteOffset);
-	sector_size = ksmbd_vfs_logical_sector_size(inode);
+	sector_size = inode->i_sb->s_blocksize;
 
 	if (current_byte_offset < 0 ||
 	    (fp->coption == FILE_NO_INTERMEDIATE_BUFFERING_LE &&
