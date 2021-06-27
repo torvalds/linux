@@ -740,7 +740,6 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	dd_count(dd, inserted, prio);
 	blkcg = dd_blkcg_from_bio(rq->bio);
 	ddcg_count(blkcg, inserted, ioprio_class);
-	WARN_ON_ONCE(rq->elv.priv[0]);
 	rq->elv.priv[0] = blkcg;
 
 	if (blk_mq_sched_try_insert_merge(q, rq, &free)) {
