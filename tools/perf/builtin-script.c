@@ -55,6 +55,7 @@
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
 #include <linux/err.h>
+#include "util/dlfilter.h"
 #include "util/record.h"
 #include "util/util.h"
 #include "perf.h"
@@ -79,6 +80,7 @@ static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 static struct perf_stat_config	stat_config;
 static int			max_blocks;
 static bool			native_arch;
+static struct dlfilter		*dlfilter;
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
@@ -2175,6 +2177,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
 	struct addr_location addr_al;
+	int ret = 0;
 
 	if (perf_time__ranges_skip_sample(scr->ptime_range, scr->range_num,
 					  sample->time)) {
@@ -2213,6 +2216,13 @@ static int process_sample_event(struct perf_tool *tool,
 	if (evswitch__discard(&scr->evswitch, evsel))
 		goto out_put;
 
+	ret = dlfilter__filter_event(dlfilter, event, sample, evsel, machine, &al, &addr_al);
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
+		goto out_put;
+	}
+
 	if (scripting_ops) {
 		struct addr_location *addr_al_ptr = NULL;
 
@@ -2229,7 +2239,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 out_put:
 	addr_location__put(&al);
-	return 0;
+	return ret;
 }
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
@@ -3568,6 +3578,7 @@ int cmd_script(int argc, const char **argv)
 	};
 	struct utsname uts;
 	char *script_path = NULL;
+	const char *dlfilter_file = NULL;
 	const char **__argv;
 	int i, j, err = 0;
 	struct perf_script script = {
@@ -3615,6 +3626,7 @@ int cmd_script(int argc, const char **argv)
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-script.xx script in specified language"),
+	OPT_STRING(0, "dlfilter", &dlfilter_file, "file", "filter .so file name"),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
@@ -3933,6 +3945,12 @@ script_found:
 		exit(-1);
 	}
 
+	if (dlfilter_file) {
+		dlfilter = dlfilter__new(dlfilter_file);
+		if (!dlfilter)
+			return -1;
+	}
+
 	if (!script_name) {
 		setup_pager();
 		use_browser = 0;
@@ -4032,6 +4050,10 @@ script_found:
 		goto out_delete;
 	}
 
+	err = dlfilter__start(dlfilter, session);
+	if (err)
+		goto out_delete;
+
 	if (script_name) {
 		err = scripting_ops->start_script(script_name, argc, argv, session);
 		if (err)
@@ -4081,6 +4103,7 @@ out_delete:
 
 	if (script_started)
 		cleanup_scripting();
+	dlfilter__cleanup(dlfilter);
 out:
 	return err;
 }
