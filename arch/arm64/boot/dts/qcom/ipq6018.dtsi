@@ -557,7 +557,7 @@
 			resets = <&gcc GCC_USB1_BCR>;
 			status = "disabled";
 
-			dwc_1: dwc3@7000000 {
+			dwc_1: usb@7000000 {
 			       compatible = "snps,dwc3";
 			       reg = <0x0 0x7000000 0x0 0xcd00>;
 			       interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
