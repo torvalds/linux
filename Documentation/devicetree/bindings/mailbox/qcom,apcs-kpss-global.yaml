@@ -29,6 +29,7 @@ properties:
       - qcom,sdm660-apcs-hmss-global
       - qcom,sdm845-apss-shared
       - qcom,sm6125-apcs-hmss-global
+      - qcom,sm6115-apcs-hmss-global
       - qcom,sm8150-apss-shared
 
   reg:
