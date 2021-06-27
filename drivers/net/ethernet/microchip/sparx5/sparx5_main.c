@@ -670,7 +670,6 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	struct reset_control *reset;
 	struct sparx5 *sparx5;
 	int idx = 0, err = 0;
-	u8 *mac_addr;
 
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
@@ -761,12 +760,10 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_config;
 
-	if (of_get_mac_address(np, mac_addr)) {
+	if (!of_get_mac_address(np, sparx5->base_mac)) {
 		dev_info(sparx5->dev, "MAC addr was not set, use random MAC\n");
 		eth_random_addr(sparx5->base_mac);
 		sparx5->base_mac[5] = 0;
-	} else {
-		ether_addr_copy(sparx5->base_mac, mac_addr);
 	}
 
 	sparx5->xtr_irq = platform_get_irq_byname(sparx5->pdev, "xtr");
