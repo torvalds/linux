@@ -343,16 +343,63 @@ static int clk_divider_bestdiv(struct clk_hw *hw, struct clk_hw *parent,
 	return bestdiv;
 }
 
+int divider_determine_rate(struct clk_hw *hw, struct clk_rate_request *req,
+			   const struct clk_div_table *table, u8 width,
+			   unsigned long flags)
+{
+	int div;
+
+	div = clk_divider_bestdiv(hw, req->best_parent_hw, req->rate,
+				  &req->best_parent_rate, table, width, flags);
+
+	req->rate = DIV_ROUND_UP_ULL((u64)req->best_parent_rate, div);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(divider_determine_rate);
+
+int divider_ro_determine_rate(struct clk_hw *hw, struct clk_rate_request *req,
+			      const struct clk_div_table *table, u8 width,
+			      unsigned long flags, unsigned int val)
+{
+	int div;
+
+	div = _get_div(table, val, flags, width);
+
+	/* Even a read-only clock can propagate a rate change */
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
+		if (!req->best_parent_hw)
+			return -EINVAL;
+
+		req->best_parent_rate = clk_hw_round_rate(req->best_parent_hw,
+							  req->rate * div);
+	}
+
+	req->rate = DIV_ROUND_UP_ULL((u64)req->best_parent_rate, div);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(divider_ro_determine_rate);
+
 long divider_round_rate_parent(struct clk_hw *hw, struct clk_hw *parent,
 			       unsigned long rate, unsigned long *prate,
 			       const struct clk_div_table *table,
 			       u8 width, unsigned long flags)
 {
-	int div;
+	struct clk_rate_request req = {
+		.rate = rate,
+		.best_parent_rate = *prate,
+		.best_parent_hw = parent,
+	};
+	int ret;
 
-	div = clk_divider_bestdiv(hw, parent, rate, prate, table, width, flags);
+	ret = divider_determine_rate(hw, &req, table, width, flags);
+	if (ret)
+		return ret;
 
-	return DIV_ROUND_UP_ULL((u64)*prate, div);
+	*prate = req.best_parent_rate;
+
+	return req.rate;
 }
 EXPORT_SYMBOL_GPL(divider_round_rate_parent);
 
@@ -361,22 +408,22 @@ long divider_ro_round_rate_parent(struct clk_hw *hw, struct clk_hw *parent,
 				  const struct clk_div_table *table, u8 width,
 				  unsigned long flags, unsigned int val)
 {
-	int div;
+	struct clk_rate_request req = {
+		.rate = rate,
+		.best_parent_rate = *prate,
+		.best_parent_hw = parent,
+	};
+	int ret;
 
-	div = _get_div(table, val, flags, width);
+	ret = divider_ro_determine_rate(hw, &req, table, width, flags, val);
+	if (ret)
+		return ret;
 
-	/* Even a read-only clock can propagate a rate change */
-	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
-		if (!parent)
-			return -EINVAL;
+	*prate = req.best_parent_rate;
 
-		*prate = clk_hw_round_rate(parent, rate * div);
-	}
-
-	return DIV_ROUND_UP_ULL((u64)*prate, div);
+	return req.rate;
 }
 EXPORT_SYMBOL_GPL(divider_ro_round_rate_parent);
-
 
 static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *prate)
