@@ -1165,10 +1165,6 @@ static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_fdb_replay(bridge_dev, brport_dev, &ocelot_switchdev_nb);
-	if (err)
-		return err;
-
 	err = br_vlan_replay(bridge_dev, brport_dev,
 			     &ocelot_switchdev_blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
