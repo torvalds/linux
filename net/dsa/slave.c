@@ -2166,6 +2166,32 @@ dsa_slave_check_8021q_upper(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int
+dsa_slave_prechangeupper_sanity_check(struct net_device *dev,
+				      struct netdev_notifier_changeupper_info *info)
+{
+	struct dsa_switch *ds;
+	struct dsa_port *dp;
+	int err;
+
+	if (!dsa_slave_dev_check(dev))
+		return dsa_prevent_bridging_8021q_upper(dev, info);
+
+	dp = dsa_slave_to_port(dev);
+	ds = dp->ds;
+
+	if (ds->ops->port_prechangeupper) {
+		err = ds->ops->port_prechangeupper(ds, dp->index, info);
+		if (err)
+			return notifier_from_errno(err);
+	}
+
+	if (is_vlan_dev(info->upper_dev))
+		return dsa_slave_check_8021q_upper(dev, info);
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
@@ -2174,24 +2200,12 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER: {
 		struct netdev_notifier_changeupper_info *info = ptr;
-		struct dsa_switch *ds;
-		struct dsa_port *dp;
 		int err;
 
-		if (!dsa_slave_dev_check(dev))
-			return dsa_prevent_bridging_8021q_upper(dev, ptr);
+		err = dsa_slave_prechangeupper_sanity_check(dev, info);
+		if (err != NOTIFY_DONE)
+			return err;
 
-		dp = dsa_slave_to_port(dev);
-		ds = dp->ds;
-
-		if (ds->ops->port_prechangeupper) {
-			err = ds->ops->port_prechangeupper(ds, dp->index, info);
-			if (err)
-				return notifier_from_errno(err);
-		}
-
-		if (is_vlan_dev(info->upper_dev))
-			return dsa_slave_check_8021q_upper(dev, ptr);
 		break;
 	}
 	case NETDEV_CHANGEUPPER:
