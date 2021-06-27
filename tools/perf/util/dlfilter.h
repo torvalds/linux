@@ -23,6 +23,10 @@ struct dlfilter {
 	void				*data;
 	struct perf_session		*session;
 	bool				ctx_valid;
+	bool				in_start;
+	bool				in_stop;
+	int				dlargc;
+	char				**dlargv;
 
 	union perf_event		*event;
 	struct perf_sample		*sample;
@@ -47,7 +51,7 @@ struct dlfilter {
 	struct perf_dlfilter_fns *fns;
 };
 
-struct dlfilter *dlfilter__new(const char *file);
+struct dlfilter *dlfilter__new(const char *file, int dlargc, char **dlargv);
 
 int dlfilter__start(struct dlfilter *d, struct perf_session *session);
 

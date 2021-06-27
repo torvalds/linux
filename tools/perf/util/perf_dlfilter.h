@@ -90,8 +90,10 @@ struct perf_dlfilter_fns {
 	const struct perf_dlfilter_al *(*resolve_ip)(void *ctx);
 	/* Return information about addr (if addr_correlates_sym) */
 	const struct perf_dlfilter_al *(*resolve_addr)(void *ctx);
+	/* Return arguments from --dlarg option */
+	char **(*args)(void *ctx, int *dlargc);
 	/* Reserved */
-	void *(*reserved[126])(void *);
+	void *(*reserved[125])(void *);
 };
 
 /*

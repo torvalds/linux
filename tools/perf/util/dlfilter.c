@@ -133,9 +133,26 @@ static const struct perf_dlfilter_al *dlfilter__resolve_addr(void *ctx)
 	return d_addr_al;
 }
 
+static char **dlfilter__args(void *ctx, int *dlargc)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+
+	if (dlargc)
+		*dlargc = 0;
+	else
+		return NULL;
+
+	if (!d->ctx_valid && !d->in_start && !d->in_stop)
+		return NULL;
+
+	*dlargc = d->dlargc;
+	return d->dlargv;
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
+	.args            = dlfilter__args,
 };
 
 static char *find_dlfilter(const char *file)
@@ -169,7 +186,7 @@ out:
 
 #define CHECK_FLAG(x) BUILD_BUG_ON((u64)PERF_DLFILTER_FLAG_ ## x != (u64)PERF_IP_FLAG_ ## x)
 
-static int dlfilter__init(struct dlfilter *d, const char *file)
+static int dlfilter__init(struct dlfilter *d, const char *file, int dlargc, char **dlargv)
 {
 	CHECK_FLAG(BRANCH);
 	CHECK_FLAG(CALL);
@@ -189,6 +206,8 @@ static int dlfilter__init(struct dlfilter *d, const char *file)
 	d->file = find_dlfilter(file);
 	if (!d->file)
 		return -1;
+	d->dlargc = dlargc;
+	d->dlargv = dlargv;
 	return 0;
 }
 
@@ -219,14 +238,14 @@ static int dlfilter__close(struct dlfilter *d)
 	return dlclose(d->handle);
 }
 
-struct dlfilter *dlfilter__new(const char *file)
+struct dlfilter *dlfilter__new(const char *file, int dlargc, char **dlargv)
 {
 	struct dlfilter *d = malloc(sizeof(*d));
 
 	if (!d)
 		return NULL;
 
-	if (dlfilter__init(d, file))
+	if (dlfilter__init(d, file, dlargc, dlargv))
 		goto err_free;
 
 	if (dlfilter__open(d))
@@ -253,16 +272,28 @@ int dlfilter__start(struct dlfilter *d, struct perf_session *session)
 {
 	if (d) {
 		d->session = session;
-		if (d->start)
-			return d->start(&d->data, d);
+		if (d->start) {
+			int ret;
+
+			d->in_start = true;
+			ret = d->start(&d->data, d);
+			d->in_start = false;
+			return ret;
+		}
 	}
 	return 0;
 }
 
 static int dlfilter__stop(struct dlfilter *d)
 {
-	if (d && d->stop)
-		return d->stop(d->data, d);
+	if (d && d->stop) {
+		int ret;
+
+		d->in_stop = true;
+		ret = d->stop(d->data, d);
+		d->in_stop = false;
+		return ret;
+	}
 	return 0;
 }
 

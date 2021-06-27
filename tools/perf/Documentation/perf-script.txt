@@ -102,6 +102,10 @@ OPTIONS
 	Filter sample events using the given shared object file.
 	Refer linkperf:perf-dlfilter[1]
 
+--dlarg=<arg>::
+	Pass 'arg' as an argument to the dlfilter. --dlarg may be repeated
+	to add more arguments.
+
 --list-dlfilters=::
         Display a list of available dlfilters. Use with option -v (must come
         before option --list-dlfilters) to show long descriptions.

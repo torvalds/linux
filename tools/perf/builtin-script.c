@@ -81,6 +81,8 @@ static struct perf_stat_config	stat_config;
 static int			max_blocks;
 static bool			native_arch;
 static struct dlfilter		*dlfilter;
+static int			dlargc;
+static char			**dlargv;
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
@@ -3175,6 +3177,34 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	exit(0);
 }
 
+static int add_dlarg(const struct option *opt __maybe_unused,
+		     const char *s, int unset __maybe_unused)
+{
+	char *arg = strdup(s);
+	void *a;
+
+	if (!arg)
+		return -1;
+
+	a = realloc(dlargv, sizeof(dlargv[0]) * (dlargc + 1));
+	if (!a) {
+		free(arg);
+		return -1;
+	}
+
+	dlargv = a;
+	dlargv[dlargc++] = arg;
+
+	return 0;
+}
+
+static void free_dlarg(void)
+{
+	while (dlargc--)
+		free(dlargv[dlargc]);
+	free(dlargv);
+}
+
 /*
  * Some scripts specify the required events in their "xxx-record" file,
  * this function will check if the events in perf.data match those
@@ -3639,6 +3669,8 @@ int cmd_script(int argc, const char **argv)
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-script.xx script in specified language"),
 	OPT_STRING(0, "dlfilter", &dlfilter_file, "file", "filter .so file name"),
+	OPT_CALLBACK(0, "dlarg", NULL, "argument", "filter argument",
+		     add_dlarg),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
@@ -3958,7 +3990,7 @@ script_found:
 	}
 
 	if (dlfilter_file) {
-		dlfilter = dlfilter__new(dlfilter_file);
+		dlfilter = dlfilter__new(dlfilter_file, dlargc, dlargv);
 		if (!dlfilter)
 			return -1;
 	}
@@ -4116,6 +4148,7 @@ out_delete:
 	if (script_started)
 		cleanup_scripting();
 	dlfilter__cleanup(dlfilter);
+	free_dlarg();
 out:
 	return err;
 }

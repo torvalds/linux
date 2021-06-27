@@ -9,13 +9,14 @@ object file
 SYNOPSIS
 --------
 [verse]
-'perf script' [--dlfilter file.so ]
+'perf script' [--dlfilter file.so ] [ --dlarg arg ]...
 
 DESCRIPTION
 -----------
 
 This option is used to process data through a custom filter provided by a
-dynamically loaded shared object file.
+dynamically loaded shared object file. Arguments can be passed using --dlarg
+and retrieved using perf_dlfilter_fns.args().
 
 If 'file.so' does not contain "/", then it will be found either in the current
 directory, or perf tools exec path which is ~/libexec/perf-core/dlfilters for
@@ -121,13 +122,16 @@ file is loaded. The functions can be called by 'filter_event' or
 struct perf_dlfilter_fns {
 	const struct perf_dlfilter_al *(*resolve_ip)(void *ctx);
 	const struct perf_dlfilter_al *(*resolve_addr)(void *ctx);
-	void *(*reserved[126])(void *);
+	char **(*args)(void *ctx, int *dlargc);
+	void *(*reserved[125])(void *);
 };
 ----
 
 'resolve_ip' returns information about ip.
 
 'resolve_addr' returns information about addr (if addr_correlates_sym).
+
+'args' returns arguments from --dlarg options.
 
 The perf_dlfilter_al structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
