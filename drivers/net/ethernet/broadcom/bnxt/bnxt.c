@@ -1709,9 +1709,9 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	u8 *data_ptr, agg_bufs, cmp_type;
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
+	u32 flags, misc;
 	void *data;
 	int rc = 0;
-	u32 misc;
 
 	rxcmp = (struct rx_cmp *)
 			&cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
@@ -1809,7 +1809,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		goto next_rx_no_len;
 	}
 
-	len = le32_to_cpu(rxcmp->rx_cmp_len_flags_type) >> RX_CMP_LEN_SHIFT;
+	flags = le32_to_cpu(rxcmp->rx_cmp_len_flags_type);
+	len = flags >> RX_CMP_LEN_SHIFT;
 	dma_addr = rx_buf->mapping;
 
 	if (bnxt_rx_xdp(bp, rxr, cons, data, &data_ptr, &len, event)) {
@@ -1886,6 +1887,24 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		}
 	}
 
+	if (unlikely((flags & RX_CMP_FLAGS_ITYPES_MASK) ==
+		     RX_CMP_FLAGS_ITYPE_PTP_W_TS)) {
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			u32 cmpl_ts = le32_to_cpu(rxcmp1->rx_cmp_timestamp);
+			u64 ns, ts;
+
+			if (!bnxt_get_rx_ts_p5(bp, &ts, cmpl_ts)) {
+				struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+				spin_lock_bh(&ptp->ptp_lock);
+				ns = timecounter_cyc2time(&ptp->tc, ts);
+				spin_unlock_bh(&ptp->ptp_lock);
+				memset(skb_hwtstamps(skb), 0,
+				       sizeof(*skb_hwtstamps(skb)));
+				skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(ns);
+			}
+		}
+	}
 	bnxt_deliver_skb(bp, bnapi, skb);
 	rc = 1;
 
