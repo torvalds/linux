@@ -149,10 +149,39 @@ static char **dlfilter__args(void *ctx, int *dlargc)
 	return d->dlargv;
 }
 
+static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlfilter_al *d_al_p)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+	struct perf_dlfilter_al d_al;
+	struct addr_location al;
+	struct thread *thread;
+	__u32 sz;
+
+	if (!d->ctx_valid || !d_al_p)
+		return -1;
+
+	thread = get_thread(d);
+	if (!thread)
+		return -1;
+
+	thread__find_symbol_fb(thread, d->sample->cpumode, address, &al);
+
+	al_to_d_al(&al, &d_al);
+
+	d_al.is_kernel_ip = machine__kernel_ip(d->machine, address);
+
+	sz = d_al_p->size;
+	memcpy(d_al_p, &d_al, min((size_t)sz, sizeof(d_al)));
+	d_al_p->size = sz;
+
+	return 0;
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
 	.args            = dlfilter__args,
+	.resolve_address = dlfilter__resolve_address,
 };
 
 static char *find_dlfilter(const char *file)

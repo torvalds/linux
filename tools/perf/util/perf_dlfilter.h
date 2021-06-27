@@ -92,8 +92,13 @@ struct perf_dlfilter_fns {
 	const struct perf_dlfilter_al *(*resolve_addr)(void *ctx);
 	/* Return arguments from --dlarg option */
 	char **(*args)(void *ctx, int *dlargc);
+	/*
+	 * Return information about address (al->size must be set before
+	 * calling). Returns 0 on success, -1 otherwise.
+	 */
+	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	/* Reserved */
-	void *(*reserved[125])(void *);
+	void *(*reserved[124])(void *);
 };
 
 /*
