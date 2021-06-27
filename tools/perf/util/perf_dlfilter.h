@@ -101,8 +101,10 @@ struct perf_dlfilter_fns {
 	const __u8 *(*insn)(void *ctx, __u32 *length);
 	/* Return source file name and line number */
 	const char *(*srcline)(void *ctx, __u32 *line_number);
+	/* Return perf_event_attr, refer <linux/perf_event.h> */
+	struct perf_event_attr *(*attr)(void *ctx);
 	/* Reserved */
-	void *(*reserved[122])(void *);
+	void *(*reserved[121])(void *);
 };
 
 /*

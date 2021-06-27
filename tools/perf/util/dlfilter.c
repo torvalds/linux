@@ -235,6 +235,16 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 	return srcfile;
 }
 
+static struct perf_event_attr *dlfilter__attr(void *ctx)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+
+	if (!d->ctx_valid)
+		return NULL;
+
+	return &d->evsel->core.attr;
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
@@ -242,6 +252,7 @@ static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_address = dlfilter__resolve_address,
 	.insn            = dlfilter__insn,
 	.srcline         = dlfilter__srcline,
+	.attr            = dlfilter__attr,
 };
 
 static char *find_dlfilter(const char *file)
