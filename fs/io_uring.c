@@ -434,7 +434,7 @@ struct io_ring_ctx {
 		struct list_head	iopoll_list;
 		struct hlist_head	*cancel_hash;
 		unsigned		cancel_hash_bits;
-		bool			poll_multi_file;
+		bool			poll_multi_queue;
 	} ____cacheline_aligned_in_smp;
 
 	struct io_restriction		restrictions;
@@ -2314,7 +2314,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	 * Only spin for completions if we don't have multiple devices hanging
 	 * off our complete list, and we're under the requested amount.
 	 */
-	spin = !ctx->poll_multi_file && *nr_events < min;
+	spin = !ctx->poll_multi_queue && *nr_events < min;
 
 	ret = 0;
 	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, inflight_entry) {
@@ -2553,14 +2553,22 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * different devices.
 	 */
 	if (list_empty(&ctx->iopoll_list)) {
-		ctx->poll_multi_file = false;
-	} else if (!ctx->poll_multi_file) {
+		ctx->poll_multi_queue = false;
+	} else if (!ctx->poll_multi_queue) {
 		struct io_kiocb *list_req;
+		unsigned int queue_num0, queue_num1;
 
 		list_req = list_first_entry(&ctx->iopoll_list, struct io_kiocb,
 						inflight_entry);
-		if (list_req->file != req->file)
-			ctx->poll_multi_file = true;
+
+		if (list_req->file != req->file) {
+			ctx->poll_multi_queue = true;
+		} else {
+			queue_num0 = blk_qc_t_to_queue_num(list_req->rw.kiocb.ki_cookie);
+			queue_num1 = blk_qc_t_to_queue_num(req->rw.kiocb.ki_cookie);
+			if (queue_num0 != queue_num1)
+				ctx->poll_multi_queue = true;
+		}
 	}
 
 	/*
