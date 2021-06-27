@@ -708,7 +708,7 @@ err_port_stp_set:
 	return err;
 }
 
-static int prestera_port_obj_attr_set(struct net_device *dev,
+static int prestera_port_obj_attr_set(struct net_device *dev, const void *ctx,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
 {
@@ -1040,7 +1040,7 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 					     flag_pvid, extack);
 }
 
-static int prestera_port_obj_add(struct net_device *dev,
+static int prestera_port_obj_add(struct net_device *dev, const void *ctx,
 				 const struct switchdev_obj *obj,
 				 struct netlink_ext_ack *extack)
 {
@@ -1078,7 +1078,7 @@ static int prestera_port_vlans_del(struct prestera_port *port,
 	return 0;
 }
 
-static int prestera_port_obj_del(struct net_device *dev,
+static int prestera_port_obj_del(struct net_device *dev, const void *ctx,
 				 const struct switchdev_obj *obj)
 {
 	struct prestera_port *port = netdev_priv(dev);
