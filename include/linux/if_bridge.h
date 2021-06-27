@@ -104,8 +104,8 @@ static inline bool br_multicast_router(const struct net_device *dev)
 {
 	return false;
 }
-static inline int br_mdb_replay(struct net_device *br_dev,
-				struct net_device *dev, const void *ctx,
+static inline int br_mdb_replay(const struct net_device *br_dev,
+				const struct net_device *dev, const void *ctx,
 				struct notifier_block *nb,
 				struct netlink_ext_ack *extack)
 {
@@ -166,8 +166,8 @@ struct net_device *br_fdb_find_port(const struct net_device *br_dev,
 void br_fdb_clear_offload(const struct net_device *dev, u16 vid);
 bool br_port_flag_is_set(const struct net_device *dev, unsigned long flag);
 u8 br_port_get_stp_state(const struct net_device *dev);
-clock_t br_get_ageing_time(struct net_device *br_dev);
-int br_fdb_replay(struct net_device *br_dev, struct net_device *dev,
+clock_t br_get_ageing_time(const struct net_device *br_dev);
+int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 		  const void *ctx, struct notifier_block *nb);
 #else
 static inline struct net_device *
@@ -193,13 +193,13 @@ static inline u8 br_port_get_stp_state(const struct net_device *dev)
 	return BR_STATE_DISABLED;
 }
 
-static inline clock_t br_get_ageing_time(struct net_device *br_dev)
+static inline clock_t br_get_ageing_time(const struct net_device *br_dev)
 {
 	return 0;
 }
 
-static inline int br_fdb_replay(struct net_device *br_dev,
-				struct net_device *dev, const void *ctx,
+static inline int br_fdb_replay(const struct net_device *br_dev,
+				const struct net_device *dev, const void *ctx,
 				struct notifier_block *nb)
 {
 	return -EOPNOTSUPP;

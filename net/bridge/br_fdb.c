@@ -727,7 +727,7 @@ static inline size_t fdb_nlmsg_size(void)
 }
 
 static int br_fdb_replay_one(struct notifier_block *nb,
-			     struct net_bridge_fdb_entry *fdb,
+			     const struct net_bridge_fdb_entry *fdb,
 			     struct net_device *dev, const void *ctx)
 {
 	struct switchdev_notifier_fdb_info item;
@@ -745,7 +745,7 @@ static int br_fdb_replay_one(struct notifier_block *nb,
 	return notifier_to_errno(err);
 }
 
-int br_fdb_replay(struct net_device *br_dev, struct net_device *dev,
+int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 		  const void *ctx, struct notifier_block *nb)
 {
 	struct net_bridge_fdb_entry *fdb;
@@ -760,7 +760,7 @@ int br_fdb_replay(struct net_device *br_dev, struct net_device *dev,
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(fdb, &br->fdb_list, fdb_node) {
-		struct net_bridge_port *dst = READ_ONCE(fdb->dst);
+		const struct net_bridge_port *dst = READ_ONCE(fdb->dst);
 		struct net_device *dst_dev;
 
 		dst_dev = dst ? dst->dev : br->dev;

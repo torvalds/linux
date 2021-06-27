@@ -567,7 +567,7 @@ static void br_switchdev_mdb_populate(struct switchdev_obj_port_mdb *mdb,
 }
 
 static int br_mdb_replay_one(struct notifier_block *nb, struct net_device *dev,
-			     struct switchdev_obj_port_mdb *mdb,
+			     const struct switchdev_obj_port_mdb *mdb,
 			     const void *ctx, struct netlink_ext_ack *extack)
 {
 	struct switchdev_notifier_port_obj_info obj_info = {
@@ -607,7 +607,7 @@ int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
 		  const void *ctx, struct notifier_block *nb,
 		  struct netlink_ext_ack *extack)
 {
-	struct net_bridge_mdb_entry *mp;
+	const struct net_bridge_mdb_entry *mp;
 	struct switchdev_obj *obj, *tmp;
 	struct net_bridge *br;
 	LIST_HEAD(mdb_list);
@@ -634,8 +634,8 @@ int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(mp, &br->mdb_list, mdb_node) {
-		struct net_bridge_port_group __rcu **pp;
-		struct net_bridge_port_group *p;
+		struct net_bridge_port_group __rcu * const *pp;
+		const struct net_bridge_port_group *p;
 
 		if (mp->host_joined) {
 			err = br_mdb_queue_one(&mdb_list,
