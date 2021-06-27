@@ -334,6 +334,16 @@ EXPORT_SYMBOL(__sk_backlog_rcv);
 void sk_error_report(struct sock *sk)
 {
 	sk->sk_error_report(sk);
+
+	switch (sk->sk_family) {
+	case AF_INET:
+		fallthrough;
+	case AF_INET6:
+		trace_inet_sk_error_report(sk);
+		break;
+	default:
+		break;
+	}
 }
 EXPORT_SYMBOL(sk_error_report);
 
