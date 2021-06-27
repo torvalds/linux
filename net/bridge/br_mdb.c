@@ -568,12 +568,13 @@ static void br_switchdev_mdb_populate(struct switchdev_obj_port_mdb *mdb,
 
 static int br_mdb_replay_one(struct notifier_block *nb, struct net_device *dev,
 			     struct switchdev_obj_port_mdb *mdb,
-			     struct netlink_ext_ack *extack)
+			     const void *ctx, struct netlink_ext_ack *extack)
 {
 	struct switchdev_notifier_port_obj_info obj_info = {
 		.info = {
 			.dev = dev,
 			.extack = extack,
+			.ctx = ctx,
 		},
 		.obj = &mdb->obj,
 	};
@@ -603,7 +604,8 @@ static int br_mdb_queue_one(struct list_head *mdb_list,
 }
 
 int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
-		  struct notifier_block *nb, struct netlink_ext_ack *extack)
+		  const void *ctx, struct notifier_block *nb,
+		  struct netlink_ext_ack *extack)
 {
 	struct net_bridge_mdb_entry *mp;
 	struct switchdev_obj *obj, *tmp;
@@ -664,7 +666,7 @@ int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
 
 	list_for_each_entry(obj, &mdb_list, list) {
 		err = br_mdb_replay_one(nb, dev, SWITCHDEV_OBJ_PORT_MDB(obj),
-					extack);
+					ctx, extack);
 		if (err)
 			goto out_free_mdb;
 	}

@@ -1807,12 +1807,13 @@ out_kfree:
 static int br_vlan_replay_one(struct notifier_block *nb,
 			      struct net_device *dev,
 			      struct switchdev_obj_port_vlan *vlan,
-			      struct netlink_ext_ack *extack)
+			      const void *ctx, struct netlink_ext_ack *extack)
 {
 	struct switchdev_notifier_port_obj_info obj_info = {
 		.info = {
 			.dev = dev,
 			.extack = extack,
+			.ctx = ctx,
 		},
 		.obj = &vlan->obj,
 	};
@@ -1823,7 +1824,8 @@ static int br_vlan_replay_one(struct notifier_block *nb,
 }
 
 int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
-		   struct notifier_block *nb, struct netlink_ext_ack *extack)
+		   const void *ctx, struct notifier_block *nb,
+		   struct netlink_ext_ack *extack)
 {
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
@@ -1868,7 +1870,7 @@ int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
 		if (!br_vlan_should_use(v))
 			continue;
 
-		err = br_vlan_replay_one(nb, dev, &vlan, extack);
+		err = br_vlan_replay_one(nb, dev, &vlan, ctx, extack);
 		if (err)
 			return err;
 	}

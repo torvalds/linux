@@ -278,6 +278,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev, const void *ctx,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int ret;
 
+	if (ctx && ctx != dp)
+		return 0;
+
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		if (!dsa_port_offloads_bridge_port(dp, attr->orig_dev))
@@ -401,6 +404,9 @@ static int dsa_slave_port_obj_add(struct net_device *dev, const void *ctx,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int err;
 
+	if (ctx && ctx != dp)
+		return 0;
+
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		if (!dsa_port_offloads_bridge_port(dp, obj->orig_dev))
@@ -474,6 +480,9 @@ static int dsa_slave_port_obj_del(struct net_device *dev, const void *ctx,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int err;
+
+	if (ctx && ctx != dp)
+		return 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
