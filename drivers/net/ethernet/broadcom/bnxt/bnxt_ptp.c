@@ -15,9 +15,31 @@
 #include <linux/net_tstamp.h>
 #include <linux/timecounter.h>
 #include <linux/timekeeping.h>
+#include <linux/ptp_classify.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_ptp.h"
+
+int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id)
+{
+	unsigned int ptp_class;
+	struct ptp_header *hdr;
+
+	ptp_class = ptp_classify_raw(skb);
+
+	switch (ptp_class & PTP_CLASS_VMASK) {
+	case PTP_CLASS_V1:
+	case PTP_CLASS_V2:
+		hdr = ptp_parse_header(skb, ptp_class);
+		if (!hdr)
+			return -EINVAL;
+
+		*seq_id	 = ntohs(hdr->sequence_id);
+		return 0;
+	default:
+		return -ERANGE;
+	}
+}
 
 static int bnxt_ptp_settime(struct ptp_clock_info *ptp_info,
 			    const struct timespec64 *ts)
@@ -55,6 +77,28 @@ static void bnxt_ptp_get_current_time(struct bnxt *bp)
 	WRITE_ONCE(ptp->old_time, ptp->current_time);
 	ptp->current_time = bnxt_refclk_read(bp, NULL);
 	spin_unlock_bh(&ptp->ptp_lock);
+}
+
+static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
+{
+	struct hwrm_port_ts_query_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_port_ts_query_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_TS_QUERY, -1, -1);
+	req.flags = cpu_to_le32(flags);
+	if ((flags & PORT_TS_QUERY_REQ_FLAGS_PATH) ==
+	    PORT_TS_QUERY_REQ_FLAGS_PATH_TX) {
+		req.enables = cpu_to_le16(BNXT_PTP_QTS_TX_ENABLES);
+		req.ptp_seq_id = cpu_to_le32(bp->ptp_cfg->tx_seqid);
+		req.ts_req_timeout = cpu_to_le16(BNXT_PTP_QTS_TIMEOUT);
+	}
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*ts = le64_to_cpu(resp->ptp_msg_ts);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_ptp_gettimex(struct ptp_clock_info *ptp_info,
@@ -269,14 +313,60 @@ static u64 bnxt_cc_read(const struct cyclecounter *cc)
 	return bnxt_refclk_read(ptp->bp, NULL);
 }
 
+static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	struct skb_shared_hwtstamps timestamp;
+	u64 ts = 0, ns = 0;
+	int rc;
+
+	rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_PATH_TX, &ts);
+	if (!rc) {
+		memset(&timestamp, 0, sizeof(timestamp));
+		spin_lock_bh(&ptp->ptp_lock);
+		ns = timecounter_cyc2time(&ptp->tc, ts);
+		spin_unlock_bh(&ptp->ptp_lock);
+		timestamp.hwtstamp = ns_to_ktime(ns);
+		skb_tstamp_tx(ptp->tx_skb, &timestamp);
+	} else {
+		netdev_err(bp->dev, "TS query for TX timer failed rc = %x\n",
+			   rc);
+	}
+
+	dev_kfree_skb_any(ptp->tx_skb);
+	ptp->tx_skb = NULL;
+	atomic_inc(&ptp->tx_avail);
+}
+
 static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
+	unsigned long now = jiffies;
 	struct bnxt *bp = ptp->bp;
 
+	if (ptp->tx_skb)
+		bnxt_stamp_tx_skb(bp, ptp->tx_skb);
+
+	if (!time_after_eq(now, ptp->next_period))
+		return ptp->next_period - now;
+
 	bnxt_ptp_get_current_time(bp);
+	ptp->next_period = now + HZ;
 	return HZ;
+}
+
+int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (ptp->tx_skb) {
+		netdev_err(bp->dev, "deferring skb:one SKB is still outstanding\n");
+		return -EBUSY;
+	}
+	ptp->tx_skb = skb;
+	ptp_schedule_worker(ptp->ptp_clock, 0);
+	return 0;
 }
 
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
@@ -375,5 +465,9 @@ void bnxt_ptp_clear(struct bnxt *bp)
 		ptp_clock_unregister(ptp->ptp_clock);
 
 	ptp->ptp_clock = NULL;
+	if (ptp->tx_skb) {
+		dev_kfree_skb_any(ptp->tx_skb);
+		ptp->tx_skb = NULL;
+	}
 	bnxt_unmap_ptp_regs(bp);
 }
