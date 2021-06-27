@@ -1313,7 +1313,7 @@ static int xsk_notifier(struct notifier_block *this,
 			if (xs->dev == dev) {
 				sk->sk_err = ENETDOWN;
 				if (!sock_flag(sk, SOCK_DEAD))
-					sk->sk_error_report(sk);
+					sk_error_report(sk);
 
 				xsk_unbind_dev(xs);
 

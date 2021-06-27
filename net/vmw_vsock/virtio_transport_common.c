@@ -1007,7 +1007,7 @@ destroy:
 	virtio_transport_reset(vsk, pkt);
 	sk->sk_state = TCP_CLOSE;
 	sk->sk_err = skerr;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	return err;
 }
 

@@ -1009,7 +1009,7 @@ void j1939_sk_send_loop_abort(struct sock *sk, int err)
 {
 	sk->sk_err = err;
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 }
 
 static int j1939_sk_send_loop(struct j1939_priv *priv,  struct sock *sk,
@@ -1189,7 +1189,7 @@ void j1939_sk_netdev_event_netdown(struct j1939_priv *priv)
 	list_for_each_entry(jsk, &priv->j1939_socks, list) {
 		jsk->sk.sk_err = error_code;
 		if (!sock_flag(&jsk->sk, SOCK_DEAD))
-			jsk->sk.sk_error_report(&jsk->sk);
+			sk_error_report(&jsk->sk);
 
 		j1939_sk_queue_drop_all(priv, jsk, error_code);
 	}

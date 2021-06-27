@@ -1294,7 +1294,7 @@ static void __msg_zerocopy_callback(struct ubuf_info *uarg)
 	}
 	spin_unlock_irqrestore(&q->lock, flags);
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 
 release:
 	consume_skb(skb);
@@ -4685,7 +4685,7 @@ int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb_queue_tail(&sk->sk_error_queue, skb);
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	return 0;
 }
 EXPORT_SYMBOL(sock_queue_err_skb);
@@ -4716,7 +4716,7 @@ struct sk_buff *sock_dequeue_err_skb(struct sock *sk)
 		sk->sk_err = 0;
 
 	if (skb_next)
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 
 	return skb;
 }

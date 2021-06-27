@@ -734,7 +734,7 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	vsk->peer_shutdown = SHUTDOWN_MASK;
 	sk->sk_state = SS_UNCONNECTED;
 	sk->sk_err = ECONNRESET;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 }
 
 static int vhost_vsock_dev_release(struct inode *inode, struct file *file)

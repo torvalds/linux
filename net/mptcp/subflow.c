@@ -1240,7 +1240,7 @@ void __mptcp_error_report(struct sock *sk)
 
 		/* This barrier is coupled with smp_rmb() in mptcp_poll() */
 		smp_wmb();
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 		break;
 	}
 }

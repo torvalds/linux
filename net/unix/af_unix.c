@@ -491,7 +491,7 @@ static void unix_dgram_disconnected(struct sock *sk, struct sock *other)
 		 */
 		if (!sock_flag(other, SOCK_DEAD) && unix_peer(other) == sk) {
 			other->sk_err = ECONNRESET;
-			other->sk_error_report(other);
+			sk_error_report(other);
 		}
 	}
 }

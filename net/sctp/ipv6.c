@@ -152,7 +152,7 @@ static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
 	icmpv6_err_convert(type, code, &err);
 	if (!sock_owned_by_user(sk) && np->recverr) {
 		sk->sk_err = err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	} else {
 		sk->sk_err_soft = err;
 	}
