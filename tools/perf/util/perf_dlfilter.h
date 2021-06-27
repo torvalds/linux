@@ -99,8 +99,10 @@ struct perf_dlfilter_fns {
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	/* Return instruction bytes and length */
 	const __u8 *(*insn)(void *ctx, __u32 *length);
+	/* Return source file name and line number */
+	const char *(*srcline)(void *ctx, __u32 *line_number);
 	/* Reserved */
-	void *(*reserved[123])(void *);
+	void *(*reserved[122])(void *);
 };
 
 /*

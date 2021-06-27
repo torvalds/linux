@@ -125,7 +125,8 @@ struct perf_dlfilter_fns {
 	char **(*args)(void *ctx, int *dlargc);
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	const __u8 *(*insn)(void *ctx, __u32 *length);
-	void *(*reserved[123])(void *);
+	const char *(*srcline)(void *ctx, __u32 *line_number);
+	void *(*reserved[122])(void *);
 };
 ----
 
@@ -139,6 +140,8 @@ struct perf_dlfilter_fns {
 before calling. Returns 0 on success, -1 otherwise.
 
 'insn' returns instruction bytes and length.
+
+'srcline' return source file name and line number.
 
 The perf_dlfilter_al structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

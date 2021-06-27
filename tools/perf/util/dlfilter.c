@@ -19,6 +19,7 @@
 #include "thread.h"
 #include "trace-event.h"
 #include "symbol.h"
+#include "srcline.h"
 #include "dlfilter.h"
 #include "perf_dlfilter.h"
 
@@ -208,12 +209,39 @@ static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
 	return (__u8 *)d->sample->insn;
 }
 
+static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+	struct addr_location *al;
+	unsigned int line = 0;
+	char *srcfile = NULL;
+	struct map *map;
+	u64 addr;
+
+	if (!d->ctx_valid || !line_no)
+		return NULL;
+
+	al = get_al(d);
+	if (!al)
+		return NULL;
+
+	map = al->map;
+	addr = al->addr;
+
+	if (map && map->dso)
+		srcfile = get_srcline_split(map->dso, map__rip_2objdump(map, addr), &line);
+
+	*line_no = line;
+	return srcfile;
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
 	.args            = dlfilter__args,
 	.resolve_address = dlfilter__resolve_address,
 	.insn            = dlfilter__insn,
+	.srcline         = dlfilter__srcline,
 };
 
 static char *find_dlfilter(const char *file)
