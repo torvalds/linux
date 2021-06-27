@@ -1,0 +1,49 @@
+/* Broadcom NetXtreme-C/E network driver.
+ *
+ * Copyright (c) 2021 Broadcom Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation.
+ */
+
+#ifndef BNXT_PTP_H
+#define BNXT_PTP_H
+
+struct bnxt_ptp_cfg {
+	struct ptp_clock_info	ptp_info;
+	struct ptp_clock	*ptp_clock;
+	struct cyclecounter	cc;
+	struct timecounter	tc;
+	/* serialize timecounter access */
+	spinlock_t		ptp_lock;
+	struct sk_buff		*tx_skb;
+	u64			current_time;
+	u64			old_time;
+	unsigned long		next_period;
+	u16			tx_seqid;
+	struct bnxt		*bp;
+	atomic_t		tx_avail;
+#define BNXT_MAX_TX_TS	1
+	u16			rxctl;
+#define BNXT_PTP_MSG_SYNC			(1 << 0)
+#define BNXT_PTP_MSG_DELAY_REQ			(1 << 1)
+#define BNXT_PTP_MSG_PDELAY_REQ			(1 << 2)
+#define BNXT_PTP_MSG_PDELAY_RESP		(1 << 3)
+#define BNXT_PTP_MSG_FOLLOW_UP			(1 << 8)
+#define BNXT_PTP_MSG_DELAY_RESP			(1 << 9)
+#define BNXT_PTP_MSG_PDELAY_RESP_FOLLOW_UP	(1 << 10)
+#define BNXT_PTP_MSG_ANNOUNCE			(1 << 11)
+#define BNXT_PTP_MSG_SIGNALING			(1 << 12)
+#define BNXT_PTP_MSG_MANAGEMENT			(1 << 13)
+#define BNXT_PTP_MSG_EVENTS		(BNXT_PTP_MSG_SYNC |		\
+					 BNXT_PTP_MSG_DELAY_REQ |	\
+					 BNXT_PTP_MSG_PDELAY_REQ |	\
+					 BNXT_PTP_MSG_PDELAY_RESP)
+	u8			tx_tstamp_en:1;
+	int			rx_filter;
+
+	u32			refclk_regs[2];
+	u32			refclk_mapped_regs[2];
+};
+#endif
