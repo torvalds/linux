@@ -2077,6 +2077,26 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	return err;
 }
 
+static int dsa_slave_prechangeupper(struct net_device *dev,
+				    struct netdev_notifier_changeupper_info *info)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct netlink_ext_ack *extack;
+	int err = 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
+		err = dsa_port_pre_bridge_leave(dp, info->upper_dev, extack);
+	else if (netif_is_lag_master(info->upper_dev) && !info->linking)
+		err = dsa_port_pre_lag_leave(dp, info->upper_dev, extack);
+	/* dsa_port_pre_hsr_leave is not yet necessary since hsr cannot be
+	 * meaningfully enslaved to a bridge yet
+	 */
+
+	return notifier_from_errno(err);
+}
+
 static int
 dsa_slave_lag_changeupper(struct net_device *dev,
 			  struct netdev_notifier_changeupper_info *info)
@@ -2096,6 +2116,35 @@ dsa_slave_lag_changeupper(struct net_device *dev,
 			continue;
 
 		err = dsa_slave_changeupper(lower, info);
+		if (notifier_to_errno(err))
+			break;
+	}
+
+	return err;
+}
+
+/* Same as dsa_slave_lag_changeupper() except that it calls
+ * dsa_slave_prechangeupper()
+ */
+static int
+dsa_slave_lag_prechangeupper(struct net_device *dev,
+			     struct netdev_notifier_changeupper_info *info)
+{
+	struct net_device *lower;
+	struct list_head *iter;
+	int err = NOTIFY_DONE;
+	struct dsa_port *dp;
+
+	netdev_for_each_lower_dev(dev, lower, iter) {
+		if (!dsa_slave_dev_check(lower))
+			continue;
+
+		dp = dsa_slave_to_port(lower);
+		if (!dp->lag_dev)
+			/* Software LAG */
+			continue;
+
+		err = dsa_slave_prechangeupper(lower, info);
 		if (notifier_to_errno(err))
 			break;
 	}
@@ -2205,6 +2254,12 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 		err = dsa_slave_prechangeupper_sanity_check(dev, info);
 		if (err != NOTIFY_DONE)
 			return err;
+
+		if (dsa_slave_dev_check(dev))
+			return dsa_slave_prechangeupper(dev, ptr);
+
+		if (netif_is_lag_master(dev))
+			return dsa_slave_lag_prechangeupper(dev, ptr);
 
 		break;
 	}
