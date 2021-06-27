@@ -88,4 +88,6 @@ static inline int dlfilter__filter_event_early(struct dlfilter *d,
 	return dlfilter__do_filter_event(d, event, sample, evsel, machine, al, addr_al, true);
 }
 
+int list_available_dlfilters(const struct option *opt, const char *s, int unset);
+
 #endif

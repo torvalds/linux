@@ -102,6 +102,10 @@ OPTIONS
 	Filter sample events using the given shared object file.
 	Refer linkperf:perf-dlfilter[1]
 
+--list-dlfilters=::
+        Display a list of available dlfilters. Use with option -v (must come
+        before option --list-dlfilters) to show long descriptions.
+
 -a::
         Force system-wide collection.  Scripts run without a <command>
         normally use -a by default, while scripts run with a <command>

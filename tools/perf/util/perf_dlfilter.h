@@ -126,4 +126,10 @@ int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ct
  */
 int filter_event_early(void *data, const struct perf_dlfilter_sample *sample, void *ctx);
 
+/*
+ * If implemented, return a one-line description of the filter, and optionally
+ * a longer description.
+ */
+const char *filter_description(const char **long_description);
+
 #endif

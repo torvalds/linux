@@ -6,6 +6,8 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <subcmd/exec-cmd.h>
 #include <linux/zalloc.h>
 #include <linux/build_bug.h>
 
@@ -136,6 +138,35 @@ static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_addr    = dlfilter__resolve_addr,
 };
 
+static char *find_dlfilter(const char *file)
+{
+	char path[PATH_MAX];
+	char *exec_path;
+
+	if (strchr(file, '/'))
+		goto out;
+
+	if (!access(file, R_OK)) {
+		/*
+		 * Prepend "./" so that dlopen will find the file in the
+		 * current directory.
+		 */
+		snprintf(path, sizeof(path), "./%s", file);
+		file = path;
+		goto out;
+	}
+
+	exec_path = get_argv_exec_path();
+	if (!exec_path)
+		goto out;
+	snprintf(path, sizeof(path), "%s/dlfilters/%s", exec_path, file);
+	free(exec_path);
+	if (!access(path, R_OK))
+		file = path;
+out:
+	return strdup(file);
+}
+
 #define CHECK_FLAG(x) BUILD_BUG_ON((u64)PERF_DLFILTER_FLAG_ ## x != (u64)PERF_IP_FLAG_ ## x)
 
 static int dlfilter__init(struct dlfilter *d, const char *file)
@@ -155,7 +186,7 @@ static int dlfilter__init(struct dlfilter *d, const char *file)
 	CHECK_FLAG(VMEXIT);
 
 	memset(d, 0, sizeof(*d));
-	d->file = strdup(file);
+	d->file = find_dlfilter(file);
 	if (!d->file)
 		return -1;
 	return 0;
@@ -332,4 +363,88 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	d->ctx_valid = false;
 
 	return ret;
+}
+
+static bool get_filter_desc(const char *dirname, const char *name,
+			    char **desc, char **long_desc)
+{
+	char path[PATH_MAX];
+	void *handle;
+	const char *(*desc_fn)(const char **long_description);
+
+	snprintf(path, sizeof(path), "%s/%s", dirname, name);
+	handle = dlopen(path, RTLD_NOW);
+	if (!handle || !(dlsym(handle, "filter_event") || dlsym(handle, "filter_event_early")))
+		return false;
+	desc_fn = dlsym(handle, "filter_description");
+	if (desc_fn) {
+		const char *dsc;
+		const char *long_dsc;
+
+		dsc = desc_fn(&long_dsc);
+		if (dsc)
+			*desc = strdup(dsc);
+		if (long_dsc)
+			*long_desc = strdup(long_dsc);
+	}
+	dlclose(handle);
+	return true;
+}
+
+static void list_filters(const char *dirname)
+{
+	struct dirent *entry;
+	DIR *dir;
+
+	dir = opendir(dirname);
+	if (!dir)
+		return;
+
+	while ((entry = readdir(dir)) != NULL)
+	{
+		size_t n = strlen(entry->d_name);
+		char *long_desc = NULL;
+		char *desc = NULL;
+
+		if (entry->d_type == DT_DIR || n < 4 ||
+		    strcmp(".so", entry->d_name + n - 3))
+			continue;
+		if (!get_filter_desc(dirname, entry->d_name, &desc, &long_desc))
+			continue;
+		printf("  %-36s %s\n", entry->d_name, desc ? desc : "");
+		if (verbose) {
+			char *p = long_desc;
+			char *line;
+
+			while ((line = strsep(&p, "\n")) != NULL)
+				printf("%39s%s\n", "", line);
+		}
+		free(long_desc);
+		free(desc);
+	}
+
+	closedir(dir);
+}
+
+int list_available_dlfilters(const struct option *opt __maybe_unused,
+			     const char *s __maybe_unused,
+			     int unset __maybe_unused)
+{
+	char path[PATH_MAX];
+	char *exec_path;
+
+	printf("List of available dlfilters:\n");
+
+	list_filters(".");
+
+	exec_path = get_argv_exec_path();
+	if (!exec_path)
+		goto out;
+	snprintf(path, sizeof(path), "%s/dlfilters", exec_path);
+
+	list_filters(path);
+
+	free(exec_path);
+out:
+	exit(0);
 }
