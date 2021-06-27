@@ -245,6 +245,39 @@ static struct perf_event_attr *dlfilter__attr(void *ctx)
 	return &d->evsel->core.attr;
 }
 
+static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+	struct addr_location *al;
+	struct addr_location a;
+	struct map *map;
+	u64 offset;
+
+	if (!d->ctx_valid)
+		return -1;
+
+	al = get_al(d);
+	if (!al)
+		return -1;
+
+	map = al->map;
+
+	if (map && ip >= map->start && ip < map->end &&
+	    machine__kernel_ip(d->machine, ip) == machine__kernel_ip(d->machine, d->sample->ip))
+		goto have_map;
+
+	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
+	if (!a.map)
+		return -1;
+
+	map = a.map;
+have_map:
+	offset = map->map_ip(map, ip);
+	if (ip + len >= map->end)
+		len = map->end - ip;
+	return dso__data_read_offset(map->dso, d->machine, offset, buf, len);
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
@@ -253,6 +286,7 @@ static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.insn            = dlfilter__insn,
 	.srcline         = dlfilter__srcline,
 	.attr            = dlfilter__attr,
+	.object_code     = dlfilter__object_code,
 };
 
 static char *find_dlfilter(const char *file)

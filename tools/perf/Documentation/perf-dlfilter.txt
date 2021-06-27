@@ -127,7 +127,8 @@ struct perf_dlfilter_fns {
 	const __u8 *(*insn)(void *ctx, __u32 *length);
 	const char *(*srcline)(void *ctx, __u32 *line_number);
 	struct perf_event_attr *(*attr)(void *ctx);
-	void *(*reserved[121])(void *);
+	__s32 (*object_code)(void *ctx, __u64 ip, void *buf, __u32 len);
+	void *(*reserved[120])(void *);
 };
 ----
 
@@ -145,6 +146,8 @@ before calling. Returns 0 on success, -1 otherwise.
 'srcline' return source file name and line number.
 
 'attr' returns perf_event_attr, refer <linux/perf_event.h>.
+
+'object_code' reads object code and returns the number of bytes read.
 
 The perf_dlfilter_al structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

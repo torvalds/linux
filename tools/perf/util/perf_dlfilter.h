@@ -103,8 +103,10 @@ struct perf_dlfilter_fns {
 	const char *(*srcline)(void *ctx, __u32 *line_number);
 	/* Return perf_event_attr, refer <linux/perf_event.h> */
 	struct perf_event_attr *(*attr)(void *ctx);
+	/* Read object code, return numbers of bytes read */
+	__s32 (*object_code)(void *ctx, __u64 ip, void *buf, __u32 len);
 	/* Reserved */
-	void *(*reserved[121])(void *);
+	void *(*reserved[120])(void *);
 };
 
 /*
