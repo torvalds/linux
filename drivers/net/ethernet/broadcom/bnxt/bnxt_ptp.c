@@ -45,6 +45,18 @@ static u64 bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts)
 	return ns;
 }
 
+static void bnxt_ptp_get_current_time(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (!ptp)
+		return;
+	spin_lock_bh(&ptp->ptp_lock);
+	WRITE_ONCE(ptp->old_time, ptp->current_time);
+	ptp->current_time = bnxt_refclk_read(bp, NULL);
+	spin_unlock_bh(&ptp->ptp_lock);
+}
+
 static int bnxt_ptp_gettimex(struct ptp_clock_info *ptp_info,
 			     struct timespec64 *ts,
 			     struct ptp_system_timestamp *sts)
@@ -257,6 +269,32 @@ static u64 bnxt_cc_read(const struct cyclecounter *cc)
 	return bnxt_refclk_read(ptp->bp, NULL);
 }
 
+static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
+{
+	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
+						ptp_info);
+	struct bnxt *bp = ptp->bp;
+
+	bnxt_ptp_get_current_time(bp);
+	return HZ;
+}
+
+void bnxt_ptp_start(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (!ptp)
+		return;
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		spin_lock_bh(&ptp->ptp_lock);
+		ptp->current_time = bnxt_refclk_read(bp, NULL);
+		WRITE_ONCE(ptp->old_time, ptp->current_time);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp_schedule_worker(ptp->ptp_clock, 0);
+	}
+}
+
 static const struct ptp_clock_info bnxt_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "bnxt clock",
@@ -268,6 +306,7 @@ static const struct ptp_clock_info bnxt_ptp_caps = {
 	.pps		= 0,
 	.adjfreq	= bnxt_ptp_adjfreq,
 	.adjtime	= bnxt_ptp_adjtime,
+	.do_aux_work	= bnxt_ptp_ts_aux_work,
 	.gettimex64	= bnxt_ptp_gettimex,
 	.settime64	= bnxt_ptp_settime,
 	.enable		= bnxt_ptp_enable,
