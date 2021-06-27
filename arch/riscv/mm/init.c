@@ -123,7 +123,7 @@ void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
-	phys_addr_t dram_end = memblock_end_of_DRAM();
+	phys_addr_t dram_end;
 	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
 
 #ifdef CONFIG_XIP_KERNEL
@@ -145,6 +145,8 @@ void __init setup_bootmem(void)
 	vmlinux_end = (vmlinux_end + PMD_SIZE - 1) & PMD_MASK;
 #endif
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
+
+	dram_end = memblock_end_of_DRAM();
 
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
