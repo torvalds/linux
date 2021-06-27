@@ -124,7 +124,8 @@ struct perf_dlfilter_fns {
 	const struct perf_dlfilter_al *(*resolve_addr)(void *ctx);
 	char **(*args)(void *ctx, int *dlargc);
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
-	void *(*reserved[124])(void *);
+	const __u8 *(*insn)(void *ctx, __u32 *length);
+	void *(*reserved[123])(void *);
 };
 ----
 
@@ -136,6 +137,8 @@ struct perf_dlfilter_fns {
 
 'resolve_address' provides information about 'address'. al->size must be set
 before calling. Returns 0 on success, -1 otherwise.
+
+'insn' returns instruction bytes and length.
 
 The perf_dlfilter_al structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

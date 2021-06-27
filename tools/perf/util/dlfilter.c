@@ -17,6 +17,7 @@
 #include "dso.h"
 #include "map.h"
 #include "thread.h"
+#include "trace-event.h"
 #include "symbol.h"
 #include "dlfilter.h"
 #include "perf_dlfilter.h"
@@ -177,11 +178,42 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 	return 0;
 }
 
+static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
+{
+	struct dlfilter *d = (struct dlfilter *)ctx;
+
+	if (!len)
+		return NULL;
+
+	*len = 0;
+
+	if (!d->ctx_valid)
+		return NULL;
+
+	if (d->sample->ip && !d->sample->insn_len) {
+		struct addr_location *al = d->al;
+
+		if (!al->thread && machine__resolve(d->machine, al, d->sample) < 0)
+			return NULL;
+
+		if (al->thread->maps && al->thread->maps->machine)
+			script_fetch_insn(d->sample, al->thread, al->thread->maps->machine);
+	}
+
+	if (!d->sample->insn_len)
+		return NULL;
+
+	*len = d->sample->insn_len;
+
+	return (__u8 *)d->sample->insn;
+}
+
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_ip      = dlfilter__resolve_ip,
 	.resolve_addr    = dlfilter__resolve_addr,
 	.args            = dlfilter__args,
 	.resolve_address = dlfilter__resolve_address,
+	.insn            = dlfilter__insn,
 };
 
 static char *find_dlfilter(const char *file)

@@ -97,8 +97,10 @@ struct perf_dlfilter_fns {
 	 * calling). Returns 0 on success, -1 otherwise.
 	 */
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
+	/* Return instruction bytes and length */
+	const __u8 *(*insn)(void *ctx, __u32 *length);
 	/* Reserved */
-	void *(*reserved[124])(void *);
+	void *(*reserved[123])(void *);
 };
 
 /*
