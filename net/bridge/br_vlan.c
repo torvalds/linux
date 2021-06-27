@@ -1807,7 +1807,8 @@ out_kfree:
 static int br_vlan_replay_one(struct notifier_block *nb,
 			      struct net_device *dev,
 			      struct switchdev_obj_port_vlan *vlan,
-			      const void *ctx, struct netlink_ext_ack *extack)
+			      const void *ctx, unsigned long action,
+			      struct netlink_ext_ack *extack)
 {
 	struct switchdev_notifier_port_obj_info obj_info = {
 		.info = {
@@ -1819,18 +1820,19 @@ static int br_vlan_replay_one(struct notifier_block *nb,
 	};
 	int err;
 
-	err = nb->notifier_call(nb, SWITCHDEV_PORT_OBJ_ADD, &obj_info);
+	err = nb->notifier_call(nb, action, &obj_info);
 	return notifier_to_errno(err);
 }
 
 int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
-		   const void *ctx, struct notifier_block *nb,
+		   const void *ctx, bool adding, struct notifier_block *nb,
 		   struct netlink_ext_ack *extack)
 {
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
 	struct net_bridge_port *p;
 	struct net_bridge *br;
+	unsigned long action;
 	int err = 0;
 	u16 pvid;
 
@@ -1857,6 +1859,11 @@ int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
 	if (!vg)
 		return 0;
 
+	if (adding)
+		action = SWITCHDEV_PORT_OBJ_ADD;
+	else
+		action = SWITCHDEV_PORT_OBJ_DEL;
+
 	pvid = br_get_pvid(vg);
 
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
@@ -1870,7 +1877,7 @@ int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
 		if (!br_vlan_should_use(v))
 			continue;
 
-		err = br_vlan_replay_one(nb, dev, &vlan, ctx, extack);
+		err = br_vlan_replay_one(nb, dev, &vlan, ctx, action, extack);
 		if (err)
 			return err;
 	}

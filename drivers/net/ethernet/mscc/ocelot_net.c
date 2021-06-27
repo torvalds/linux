@@ -1175,12 +1175,12 @@ static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
 	ageing_time = br_get_ageing_time(bridge_dev);
 	ocelot_port_attr_ageing_set(ocelot, port, ageing_time);
 
-	err = br_mdb_replay(bridge_dev, brport_dev, priv,
+	err = br_mdb_replay(bridge_dev, brport_dev, priv, true,
 			    &ocelot_switchdev_blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_vlan_replay(bridge_dev, brport_dev, priv,
+	err = br_vlan_replay(bridge_dev, brport_dev, priv, true,
 			     &ocelot_switchdev_blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;

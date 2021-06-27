@@ -728,7 +728,8 @@ static inline size_t fdb_nlmsg_size(void)
 
 static int br_fdb_replay_one(struct notifier_block *nb,
 			     const struct net_bridge_fdb_entry *fdb,
-			     struct net_device *dev, const void *ctx)
+			     struct net_device *dev, unsigned long action,
+			     const void *ctx)
 {
 	struct switchdev_notifier_fdb_info item;
 	int err;
@@ -741,21 +742,27 @@ static int br_fdb_replay_one(struct notifier_block *nb,
 	item.info.dev = dev;
 	item.info.ctx = ctx;
 
-	err = nb->notifier_call(nb, SWITCHDEV_FDB_ADD_TO_DEVICE, &item);
+	err = nb->notifier_call(nb, action, &item);
 	return notifier_to_errno(err);
 }
 
 int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
-		  const void *ctx, struct notifier_block *nb)
+		  const void *ctx, bool adding, struct notifier_block *nb)
 {
 	struct net_bridge_fdb_entry *fdb;
 	struct net_bridge *br;
+	unsigned long action;
 	int err = 0;
 
 	if (!netif_is_bridge_master(br_dev) || !netif_is_bridge_port(dev))
 		return -EINVAL;
 
 	br = netdev_priv(br_dev);
+
+	if (adding)
+		action = SWITCHDEV_FDB_ADD_TO_DEVICE;
+	else
+		action = SWITCHDEV_FDB_DEL_TO_DEVICE;
 
 	rcu_read_lock();
 
@@ -767,7 +774,7 @@ int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 		if (dst_dev != br_dev && dst_dev != dev)
 			continue;
 
-		err = br_fdb_replay_one(nb, fdb, dst_dev, ctx);
+		err = br_fdb_replay_one(nb, fdb, dst_dev, action, ctx);
 		if (err)
 			break;
 	}
