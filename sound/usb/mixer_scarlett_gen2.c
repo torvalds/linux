@@ -1880,6 +1880,8 @@ static int scarlett2_mute_ctl_put(struct snd_kcontrol *kctl,
 	/* Send mute change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_MUTE_SWITCH,
 				       index, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2246,6 +2248,8 @@ static int scarlett2_air_ctl_put(struct snd_kcontrol *kctl,
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_AIR_SWITCH,
 				       index, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2302,6 +2306,8 @@ static int scarlett2_phantom_ctl_put(struct snd_kcontrol *kctl,
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_PHANTOM_SWITCH,
 				       index, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2351,6 +2357,8 @@ static int scarlett2_phantom_persistence_ctl_put(
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(
 		mixer, SCARLETT2_CONFIG_PHANTOM_PERSISTENCE, index, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2475,6 +2483,8 @@ static int scarlett2_direct_monitor_ctl_put(
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(
 		mixer, SCARLETT2_CONFIG_DIRECT_MONITOR, index, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2556,18 +2566,21 @@ static int scarlett2_speaker_switch_enum_ctl_get(
 /* when speaker switching gets enabled, switch the main/alt speakers
  * to HW volume and disable those controls
  */
-static void scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
+static int scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
-	int i;
+	int i, err;
 
 	for (i = 0; i < 4; i++) {
 		int index = line_out_remap(private, i);
 
 		/* switch the main/alt speakers to HW volume */
-		if (!private->vol_sw_hw_switch[index])
-			scarlett2_sw_hw_change(private->mixer, i, 1);
+		if (!private->vol_sw_hw_switch[index]) {
+			err = scarlett2_sw_hw_change(private->mixer, i, 1);
+			if (err < 0)
+				return err;
+		}
 
 		/* disable the line out SW/HW switch */
 		scarlett2_sw_hw_ctl_ro(private, i);
@@ -2579,6 +2592,8 @@ static void scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
 	 * configuration
 	 */
 	private->speaker_switching_switched = 1;
+
+	return 0;
 }
 
 /* when speaker switching gets disabled, reenable the hw/sw controls
@@ -2638,9 +2653,12 @@ static int scarlett2_speaker_switch_enum_ctl_put(
 
 	/* update controls if speaker switching gets enabled or disabled */
 	if (!oval && val)
-		scarlett2_speaker_switch_enable(mixer);
+		err = scarlett2_speaker_switch_enable(mixer);
 	else if (oval && !val)
 		scarlett2_speaker_switch_disable(mixer);
+
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2728,8 +2746,8 @@ static int scarlett2_talkback_enum_ctl_put(
 	err = scarlett2_usb_set_config(
 		mixer, SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH,
 		1, val == 2);
-	if (err < 0)
-		goto unlock;
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2787,8 +2805,8 @@ static int scarlett2_talkback_map_ctl_put(
 	/* Send updated bitmap to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_TALKBACK_MAP,
 				       0, bitmap);
-	if (err < 0)
-		goto unlock;
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -3402,6 +3420,8 @@ static int scarlett2_msd_ctl_put(struct snd_kcontrol *kctl,
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_MSD_SWITCH,
 				       0, val);
+	if (err == 0)
+		err = 1;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
