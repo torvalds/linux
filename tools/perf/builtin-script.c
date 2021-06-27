@@ -2179,9 +2179,20 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location addr_al;
 	int ret = 0;
 
+	/* Set thread to NULL to indicate addr_al and al are not initialized */
+	addr_al.thread = NULL;
+	al.thread = NULL;
+
+	ret = dlfilter__filter_event_early(dlfilter, event, sample, evsel, machine, &al, &addr_al);
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
+		goto out_put;
+	}
+
 	if (perf_time__ranges_skip_sample(scr->ptime_range, scr->range_num,
 					  sample->time)) {
-		return 0;
+		goto out_put;
 	}
 
 	if (debug_mode) {
@@ -2192,23 +2203,21 @@ static int process_sample_event(struct perf_tool *tool,
 			nr_unordered++;
 		}
 		last_timestamp = sample->time;
-		return 0;
+		goto out_put;
 	}
 
 	if (filter_cpu(sample))
-		return 0;
+		goto out_put;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
-		return -1;
+		ret = -1;
+		goto out_put;
 	}
 
 	if (al.filtered)
 		goto out_put;
-
-	/* Set thread to NULL to indicate addr_al is not initialized */
-	addr_al.thread = NULL;
 
 	if (!show_event(sample, evsel, al.thread, &al, &addr_al))
 		goto out_put;
@@ -2238,7 +2247,8 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 out_put:
-	addr_location__put(&al);
+	if (al.thread)
+		addr_location__put(&al);
 	return ret;
 }
 

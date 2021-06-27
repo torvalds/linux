@@ -40,6 +40,9 @@ struct dlfilter {
 	int (*filter_event)(void *data,
 			    const struct perf_dlfilter_sample *sample,
 			    void *ctx);
+	int (*filter_event_early)(void *data,
+				  const struct perf_dlfilter_sample *sample,
+				  void *ctx);
 
 	struct perf_dlfilter_fns *fns;
 };
@@ -54,7 +57,8 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 			      struct evsel *evsel,
 			      struct machine *machine,
 			      struct addr_location *al,
-			      struct addr_location *addr_al);
+			      struct addr_location *addr_al,
+			      bool early);
 
 void dlfilter__cleanup(struct dlfilter *d);
 
@@ -68,7 +72,20 @@ static inline int dlfilter__filter_event(struct dlfilter *d,
 {
 	if (!d || !d->filter_event)
 		return 0;
-	return dlfilter__do_filter_event(d, event, sample, evsel, machine, al, addr_al);
+	return dlfilter__do_filter_event(d, event, sample, evsel, machine, al, addr_al, false);
+}
+
+static inline int dlfilter__filter_event_early(struct dlfilter *d,
+					       union perf_event *event,
+					       struct perf_sample *sample,
+					       struct evsel *evsel,
+					       struct machine *machine,
+					       struct addr_location *al,
+					       struct addr_location *addr_al)
+{
+	if (!d || !d->filter_event_early)
+		return 0;
+	return dlfilter__do_filter_event(d, event, sample, evsel, machine, al, addr_al, true);
 }
 
 #endif

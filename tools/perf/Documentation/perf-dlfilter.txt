@@ -36,16 +36,17 @@ const struct perf_dlfilter_fns perf_dlfilter_fns;
 int start(void **data, void *ctx);
 int stop(void *data, void *ctx);
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx);
+int filter_event_early(void *data, const struct perf_dlfilter_sample *sample, void *ctx);
 ----
 
 If implemented, 'start' will be called at the beginning, before any
-calls to 'filter_event' . Return 0 to indicate success,
+calls to 'filter_event' or 'filter_event_early'. Return 0 to indicate success,
 or return a negative error code. '*data' can be assigned for use by other
 functions. 'ctx' is needed for calls to perf_dlfilter_fns, but most
 perf_dlfilter_fns are not valid when called from 'start'.
 
 If implemented, 'stop' will be called at the end, after any calls to
-'filter_event'. Return 0 to indicate success, or
+'filter_event' or 'filter_event_early'. Return 0 to indicate success, or
 return a negative error code. 'data' is set by 'start'. 'ctx' is needed
 for calls to perf_dlfilter_fns, but most perf_dlfilter_fns are not valid
 when called from 'stop'.
@@ -55,10 +56,13 @@ Return 0 to keep the sample event, 1 to filter it out, or return a negative
 error code. 'data' is set by 'start'. 'ctx' is needed for calls to
 'perf_dlfilter_fns'.
 
+'filter_event_early' is the same as 'filter_event' except it is called before
+internal filtering.
+
 The perf_dlfilter_sample structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-'filter_event' is passed a perf_dlfilter_sample
+'filter_event' and 'filter_event_early' are passed a perf_dlfilter_sample
 structure, which contains the following fields:
 [source,c]
 ----
@@ -105,7 +109,8 @@ The perf_dlfilter_fns structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 'perf_dlfilter_fns' structure is populated with function pointers when the
-file is loaded. The functions can be called by 'filter_event'.
+file is loaded. The functions can be called by 'filter_event' or
+'filter_event_early'.
 
 [source,c]
 ----

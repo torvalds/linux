@@ -120,4 +120,10 @@ int stop(void *data, void *ctx);
  */
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx);
 
+/*
+ * The same as 'filter_event' except it is called before internal
+ * filtering.
+ */
+int filter_event_early(void *data, const struct perf_dlfilter_sample *sample, void *ctx);
+
 #endif

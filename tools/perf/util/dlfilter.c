@@ -175,6 +175,7 @@ static int dlfilter__open(struct dlfilter *d)
 	}
 	d->start = dlsym(d->handle, "start");
 	d->filter_event = dlsym(d->handle, "filter_event");
+	d->filter_event_early = dlsym(d->handle, "filter_event_early");
 	d->stop = dlsym(d->handle, "stop");
 	d->fns = dlsym(d->handle, "perf_dlfilter_fns");
 	if (d->fns)
@@ -251,7 +252,8 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 			      struct evsel *evsel,
 			      struct machine *machine,
 			      struct addr_location *al,
-			      struct addr_location *addr_al)
+			      struct addr_location *addr_al,
+			      bool early)
 {
 	struct perf_dlfilter_sample d_sample;
 	struct perf_dlfilter_al d_ip_al;
@@ -322,7 +324,10 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 
 	d->ctx_valid = true;
 
-	ret = d->filter_event(d->data, &d_sample, d);
+	if (early)
+		ret = d->filter_event_early(d->data, &d_sample, d);
+	else
+		ret = d->filter_event(d->data, &d_sample, d);
 
 	d->ctx_valid = false;
 
