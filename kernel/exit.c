@@ -162,7 +162,6 @@ static void __exit_signal(struct task_struct *tsk)
 		flush_sigqueue(&sig->shared_pending);
 		tty_kref_put(tty);
 	}
-	exit_task_sigqueue_cache(tsk);
 }
 
 static void delayed_put_task_struct(struct rcu_head *rhp)
