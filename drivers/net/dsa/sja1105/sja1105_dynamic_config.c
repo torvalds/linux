@@ -258,11 +258,11 @@ sja1110_vl_policing_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 }
 
 static void
-sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
-				  enum packing_op op)
+sja1105pqrs_common_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+					 enum packing_op op, int entry_size)
 {
-	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
 	const int size = SJA1105_SIZE_DYN_CMD;
+	u8 *p = buf + entry_size;
 	u64 hostcmd;
 
 	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
@@ -315,6 +315,24 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 */
 	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
+}
+
+static void
+sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				  enum packing_op op)
+{
+	int size = SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+
+	return sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, size);
+}
+
+static void
+sja1110_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+			      enum packing_op op)
+{
+	int size = SJA1110_SIZE_L2_LOOKUP_ENTRY;
+
+	return sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, size);
 }
 
 /* The switch is so retarded that it makes our command/entry abstraction
@@ -1055,7 +1073,7 @@ const struct sja1105_dynamic_table_ops sja1110_dyn_ops[BLK_IDX_MAX_DYN] = {
 	},
 	[BLK_IDX_L2_LOOKUP] = {
 		.entry_packing = sja1110_dyn_l2_lookup_entry_packing,
-		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
+		.cmd_packing = sja1110_l2_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
 		.packed_size = SJA1110_SIZE_L2_LOOKUP_DYN_CMD,
