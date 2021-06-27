@@ -374,7 +374,7 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 		}
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
-		if (!iommu || !of_device_is_available(iommu->parent)) {
+		if (!iommu || !of_device_is_available(iommu)) {
 			DRM_DEV_DEBUG(dev,
 				      "no iommu attached for %pOF, using non-iommu buffers\n",
 				      port->parent);
