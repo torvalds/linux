@@ -101,6 +101,9 @@
 #define RKMODULE_GET_DCG_RATIO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 18, struct rkmodule_dcg_ratio)
 
+#define RKMODULE_GET_SONY_BRL	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 19, __u32)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -269,8 +272,8 @@ struct rkmodule_hdr_cfg {
  * eav: end of active video codes
  */
 struct rkmodule_sync_code {
-	u16 sav;
-	u16 eav;
+	__u16 sav;
+	__u16 eav;
 };
 
 /* sensor lvds difference sync code mode
@@ -426,9 +429,9 @@ struct rkmodule_bt656_mbus_info {
 
 /* DCG ratio (float) = integer + decimal / div_coeff */
 struct rkmodule_dcg_ratio {
-	u32 integer;
-	u32 decimal;
-	u32 div_coeff;
+	__u32 integer;
+	__u32 decimal;
+	__u32 div_coeff;
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
