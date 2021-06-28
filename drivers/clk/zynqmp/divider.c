@@ -284,6 +284,29 @@ static u32 zynqmp_clk_get_max_divisor(u32 clk_id, u32 type)
 	return ret_payload[1];
 }
 
+static inline unsigned long zynqmp_clk_map_divider_ccf_flags(
+					       const u32 zynqmp_type_flag)
+{
+	unsigned long ccf_flag = 0;
+
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_ONE_BASED)
+		ccf_flag |= CLK_DIVIDER_ONE_BASED;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_POWER_OF_TWO)
+		ccf_flag |= CLK_DIVIDER_POWER_OF_TWO;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_ALLOW_ZERO)
+		ccf_flag |= CLK_DIVIDER_ALLOW_ZERO;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_POWER_OF_TWO)
+		ccf_flag |= CLK_DIVIDER_HIWORD_MASK;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_ROUND_CLOSEST)
+		ccf_flag |= CLK_DIVIDER_ROUND_CLOSEST;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_READ_ONLY)
+		ccf_flag |= CLK_DIVIDER_READ_ONLY;
+	if (zynqmp_type_flag & ZYNQMP_CLK_DIVIDER_MAX_AT_ZERO)
+		ccf_flag |= CLK_DIVIDER_MAX_AT_ZERO;
+
+	return ccf_flag;
+}
+
 /**
  * zynqmp_clk_register_divider() - Register a divider clock
  * @name:		Name of this clock
@@ -321,7 +344,7 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 	/* struct clk_divider assignments */
 	div->is_frac = !!((nodes->flag & CLK_FRAC) |
 			  (nodes->custom_type_flag & CUSTOM_FLAG_CLK_FRAC));
-	div->flags = nodes->type_flag;
+	div->flags = zynqmp_clk_map_divider_ccf_flags(nodes->type_flag);
 	div->hw.init = &init;
 	div->clk_id = clk_id;
 	div->div_type = nodes->type;
