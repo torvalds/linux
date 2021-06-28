@@ -77,7 +77,7 @@ In addition to the regular trace fields (from TASK-PID to TIMESTAMP), the
 tracer prints a message at the end of each period for each CPU that is
 running an osnoise/ thread. The osnoise specific fields report:
 
- - The RUNTIME IN USE reports the amount of time in microseconds that
+ - The RUNTIME IN US reports the amount of time in microseconds that
    the osnoise thread kept looping reading the time.
  - The NOISE IN US reports the sum of noise in microseconds observed
    by the osnoise tracer during the associated runtime.
