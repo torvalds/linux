@@ -148,6 +148,7 @@
 #include <net/devlink.h>
 #include <linux/pm_runtime.h>
 #include <linux/prandom.h>
+#include <linux/once_lite.h>
 
 #include "net-sysfs.h"
 
@@ -3487,13 +3488,16 @@ EXPORT_SYMBOL(__skb_gso_segment);
 
 /* Take action when hardware reception checksum errors are detected. */
 #ifdef CONFIG_BUG
+static void do_netdev_rx_csum_fault(struct net_device *dev, struct sk_buff *skb)
+{
+	pr_err("%s: hw csum failure\n", dev ? dev->name : "<unknown>");
+	skb_dump(KERN_ERR, skb, true);
+	dump_stack();
+}
+
 void netdev_rx_csum_fault(struct net_device *dev, struct sk_buff *skb)
 {
-	if (net_ratelimit()) {
-		pr_err("%s: hw csum failure\n", dev ? dev->name : "<unknown>");
-		skb_dump(KERN_ERR, skb, true);
-		dump_stack();
-	}
+	DO_ONCE_LITE(do_netdev_rx_csum_fault, dev, skb);
 }
 EXPORT_SYMBOL(netdev_rx_csum_fault);
 #endif
