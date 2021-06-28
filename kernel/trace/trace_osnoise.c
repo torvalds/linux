@@ -1586,7 +1586,7 @@ static void osnoise_init_hotplug_support(void)
 #else /* CONFIG_HOTPLUG_CPU */
 static void osnoise_init_hotplug_support(void)
 {
-	return 0;
+	return;
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
