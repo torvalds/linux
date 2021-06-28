@@ -701,6 +701,27 @@ out:
 	return ret;
 }
 
+/* Copy state save area fields which are handled by VMRUN */
+void svm_copy_vmrun_state(struct vmcb_save_area *from_save,
+			  struct vmcb_save_area *to_save)
+{
+	to_save->es = from_save->es;
+	to_save->cs = from_save->cs;
+	to_save->ss = from_save->ss;
+	to_save->ds = from_save->ds;
+	to_save->gdtr = from_save->gdtr;
+	to_save->idtr = from_save->idtr;
+	to_save->rflags = from_save->rflags | X86_EFLAGS_FIXED;
+	to_save->efer = from_save->efer;
+	to_save->cr0 = from_save->cr0;
+	to_save->cr3 = from_save->cr3;
+	to_save->cr4 = from_save->cr4;
+	to_save->rax = from_save->rax;
+	to_save->rsp = from_save->rsp;
+	to_save->rip = from_save->rip;
+	to_save->cpl = 0;
+}
+
 void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 {
 	to_vmcb->save.fs = from_vmcb->save.fs;
@@ -1364,28 +1385,11 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
 
-	svm->vmcb01.ptr->save.es = save->es;
-	svm->vmcb01.ptr->save.cs = save->cs;
-	svm->vmcb01.ptr->save.ss = save->ss;
-	svm->vmcb01.ptr->save.ds = save->ds;
-	svm->vmcb01.ptr->save.gdtr = save->gdtr;
-	svm->vmcb01.ptr->save.idtr = save->idtr;
-	svm->vmcb01.ptr->save.rflags = save->rflags | X86_EFLAGS_FIXED;
-	svm->vmcb01.ptr->save.efer = save->efer;
-	svm->vmcb01.ptr->save.cr0 = save->cr0;
-	svm->vmcb01.ptr->save.cr3 = save->cr3;
-	svm->vmcb01.ptr->save.cr4 = save->cr4;
-	svm->vmcb01.ptr->save.rax = save->rax;
-	svm->vmcb01.ptr->save.rsp = save->rsp;
-	svm->vmcb01.ptr->save.rip = save->rip;
-	svm->vmcb01.ptr->save.cpl = 0;
-
+	svm_copy_vmrun_state(save, &svm->vmcb01.ptr->save);
 	nested_load_control_from_vmcb12(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
-
 	nested_vmcb02_prepare_control(svm);
-
 	kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	ret = 0;
 out_free:
