@@ -4362,6 +4362,7 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 		u64 saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
 		u64 guest = GET_SMSTATE(u64, smstate, 0x7ed8);
 		u64 vmcb12_gpa = GET_SMSTATE(u64, smstate, 0x7ee0);
+		struct vmcb *vmcb12;
 
 		if (guest) {
 			if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
@@ -4377,7 +4378,11 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 			if (svm_allocate_nested(svm))
 				return 1;
 
-			ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, map.hva);
+			vmcb12 = map.hva;
+
+			nested_load_control_from_vmcb12(svm, &vmcb12->control);
+
+			ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12);
 			kvm_vcpu_unmap(vcpu, &map, true);
 
 			/*

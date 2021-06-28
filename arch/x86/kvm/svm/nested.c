@@ -308,8 +308,8 @@ static bool nested_vmcb_valid_sregs(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-static void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
-					    struct vmcb_control_area *control)
+void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
+				     struct vmcb_control_area *control)
 {
 	copy_vmcb_control_area(&svm->nested.ctl, control);
 
