@@ -47,8 +47,8 @@ static void htvec_irq_dispatch(struct irq_desc *desc)
 		while (pending) {
 			int bit = __ffs(pending);
 
-			generic_handle_irq(irq_linear_revmap(priv->htvec_domain, bit +
-							     VEC_COUNT_PER_REG * i));
+			generic_handle_domain_irq(priv->htvec_domain,
+						  bit + VEC_COUNT_PER_REG * i);
 			pending &= ~BIT(bit);
 			handled = true;
 		}

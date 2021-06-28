@@ -273,6 +273,12 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_ACPI
+static const struct acpi_device_id mbigen_acpi_match[] = {
+	{ "HISI0152", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
+
 static int mbigen_acpi_create_domain(struct platform_device *pdev,
 				     struct mbigen_device *mgn_chip)
 {
@@ -368,12 +374,6 @@ static const struct of_device_id mbigen_of_match[] = {
 	{ /* END */ }
 };
 MODULE_DEVICE_TABLE(of, mbigen_of_match);
-
-static const struct acpi_device_id mbigen_acpi_match[] = {
-	{ "HISI0152", 0 },
-	{}
-};
-MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
 
 static struct platform_driver mbigen_platform_driver = {
 	.driver = {

@@ -49,8 +49,7 @@ static irqreturn_t intc_cascade(int irq, void *data)
 		while (pending) {
 			int bit = __fls(pending);
 
-			irq = irq_linear_revmap(domain, bit + (i * 32));
-			generic_handle_irq(irq);
+			generic_handle_domain_irq(domain, bit + (i * 32));
 			pending &= ~BIT(bit);
 		}
 	}

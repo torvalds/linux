@@ -250,7 +250,7 @@ static irqreturn_t ocores_isr(int irq, void *dev_id)
 }
 
 /**
- * Process timeout event
+ * ocores_process_timeout() - Process timeout event
  * @i2c: ocores I2C device instance
  */
 static void ocores_process_timeout(struct ocores_i2c *i2c)
@@ -264,7 +264,7 @@ static void ocores_process_timeout(struct ocores_i2c *i2c)
 }
 
 /**
- * Wait until something change in a given register
+ * ocores_wait() - Wait until something change in a given register
  * @i2c: ocores I2C device instance
  * @reg: register to query
  * @mask: bitmask to apply on register value
@@ -296,7 +296,7 @@ static int ocores_wait(struct ocores_i2c *i2c,
 }
 
 /**
- * Wait until is possible to process some data
+ * ocores_poll_wait() - Wait until is possible to process some data
  * @i2c: ocores I2C device instance
  *
  * Used when the device is in polling mode (interrupts disabled).
@@ -334,7 +334,7 @@ static int ocores_poll_wait(struct ocores_i2c *i2c)
 }
 
 /**
- * It handles an IRQ-less transfer
+ * ocores_process_polling() - It handles an IRQ-less transfer
  * @i2c: ocores I2C device instance
  *
  * Even if IRQ are disabled, the I2C OpenCore IP behavior is exactly the same
