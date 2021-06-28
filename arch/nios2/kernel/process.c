@@ -223,7 +223,7 @@ unsigned long get_wchan(struct task_struct *p)
 	unsigned long stack_page;
 	int count = 0;
 
-	if (!p || p == current || p->state == TASK_RUNNING)
+	if (!p || p == current || task_is_running(p))
 		return 0;
 
 	stack_page = (unsigned long)p;

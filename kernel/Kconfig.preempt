@@ -99,3 +99,23 @@ config PREEMPT_DYNAMIC
 
 	  Interesting if you want the same pre-built kernel should be used for
 	  both Server and Desktop workloads.
+
+config SCHED_CORE
+	bool "Core Scheduling for SMT"
+	default y
+	depends on SCHED_SMT
+	help
+	  This option permits Core Scheduling, a means of coordinated task
+	  selection across SMT siblings. When enabled -- see
+	  prctl(PR_SCHED_CORE) -- task selection ensures that all SMT siblings
+	  will execute a task from the same 'core group', forcing idle when no
+	  matching task is found.
+
+	  Use of this feature includes:
+	   - mitigation of some (not all) SMT side channels;
+	   - limiting SMT interference to improve determinism and/or performance.
+
+	  SCHED_CORE is default enabled when SCHED_SMT is enabled -- when
+	  unused there should be no impact on performance.
+
+
