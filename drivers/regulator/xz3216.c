@@ -109,11 +109,11 @@ static int xz3216_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
-				VSEL_MODE, VSEL_MODE);
+		return regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
+					  VSEL_MODE, VSEL_MODE);
 	case REGULATOR_MODE_NORMAL:
-		regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
-							VSEL_MODE, 0);
+		return regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
+					  VSEL_MODE, 0);
 	default:
 		DBG("error:dcdc_xz3216 only auto and pwm mode\n");
 		return -EINVAL;
@@ -162,11 +162,11 @@ static int xz3216_dcdc_set_suspend_mode(struct regulator_dev *dev,
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
-							VSEL_MODE, VSEL_MODE);
+		return regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
+					  VSEL_MODE, VSEL_MODE);
 	case REGULATOR_MODE_NORMAL:
-		regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
-						    VSEL_MODE, 0);
+		return regmap_update_bits(xz3216->regmap, xz3216->vol_reg,
+					  VSEL_MODE, 0);
 	default:
 		DBG_ERR("error:dcdc_xz3216 only auto and pwm mode\n");
 		return -EINVAL;
