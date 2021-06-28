@@ -96,6 +96,27 @@ static const struct clk_ops zynqmp_clk_mux_ro_ops = {
 	.get_parent = zynqmp_clk_mux_get_parent,
 };
 
+static inline unsigned long zynqmp_clk_map_mux_ccf_flags(
+				       const u32 zynqmp_type_flag)
+{
+	unsigned long ccf_flag = 0;
+
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_INDEX_ONE)
+		ccf_flag |= CLK_MUX_INDEX_ONE;
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_INDEX_BIT)
+		ccf_flag |= CLK_MUX_INDEX_BIT;
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_HIWORD_MASK)
+		ccf_flag |= CLK_MUX_HIWORD_MASK;
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_READ_ONLY)
+		ccf_flag |= CLK_MUX_READ_ONLY;
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_ROUND_CLOSEST)
+		ccf_flag |= CLK_MUX_ROUND_CLOSEST;
+	if (zynqmp_type_flag & ZYNQMP_CLK_MUX_BIG_ENDIAN)
+		ccf_flag |= CLK_MUX_BIG_ENDIAN;
+
+	return ccf_flag;
+}
+
 /**
  * zynqmp_clk_register_mux() - Register a mux table with the clock
  *			       framework
@@ -131,7 +152,7 @@ struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 
 	init.parent_names = parents;
 	init.num_parents = num_parents;
-	mux->flags = nodes->type_flag;
+	mux->flags = zynqmp_clk_map_mux_ccf_flags(nodes->type_flag);
 	mux->hw.init = &init;
 	mux->clk_id = clk_id;
 
