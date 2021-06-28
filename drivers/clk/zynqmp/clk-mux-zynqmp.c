@@ -126,7 +126,9 @@ struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 		init.ops = &zynqmp_clk_mux_ro_ops;
 	else
 		init.ops = &zynqmp_clk_mux_ops;
-	init.flags = nodes->flag;
+
+	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+
 	init.parent_names = parents;
 	init.num_parents = num_parents;
 	mux->flags = nodes->type_flag;
