@@ -371,8 +371,7 @@ static int es581_4_tx_can_msg(struct es58x_priv *priv,
 		return ret;
 
 	/* Fill message contents. */
-	tx_can_msg = (struct es581_4_tx_can_msg *)
-	    &es581_4_urb_cmd->bulk_tx_can_msg.tx_can_msg_buf[msg_len - 1];
+	tx_can_msg = (typeof(tx_can_msg))&es581_4_urb_cmd->raw_msg[msg_len];
 	put_unaligned_le32(es58x_get_raw_can_id(cf), &tx_can_msg->can_id);
 	put_unaligned_le32(priv->tx_head, &tx_can_msg->packet_idx);
 	put_unaligned_le16((u16)es58x_get_flags(skb), &tx_can_msg->flags);

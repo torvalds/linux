@@ -357,8 +357,7 @@ static int es58x_fd_tx_can_msg(struct es58x_priv *priv,
 		return ret;
 
 	/* Fill message contents. */
-	tx_can_msg = (struct es58x_fd_tx_can_msg *)
-	    &es58x_fd_urb_cmd->tx_can_msg_buf[msg_len];
+	tx_can_msg = (typeof(tx_can_msg))&es58x_fd_urb_cmd->raw_msg[msg_len];
 	tx_can_msg->packet_idx = (u8)priv->tx_head;
 	put_unaligned_le32(es58x_get_raw_can_id(cf), &tx_can_msg->can_id);
 	tx_can_msg->flags = (u8)es58x_get_flags(skb);
