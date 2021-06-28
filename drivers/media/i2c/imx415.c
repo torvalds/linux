@@ -1563,7 +1563,10 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ret = imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, IMX415_MODE_SW_STANDBY);
 		break;
-
+	case RKMODULE_GET_SONY_BRL:
+		if (imx415->cur_mode->width == 3864 && imx415->cur_mode->height == 2192)
+			*((u32 *)arg) = BRL;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1583,6 +1586,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 	u32  stream;
+	u32 brl = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1593,8 +1597,12 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = imx415_ioctl(sd, cmd, inf);
-		if (!ret)
-			ret = copy_to_user(up, inf, sizeof(*inf));
+		if (!ret) {
+			if (copy_to_user(up, inf, sizeof(*inf))) {
+				kfree(inf);
+				return -EFAULT;
+			}
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1604,9 +1612,11 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = imx415_ioctl(sd, cmd, cfg);
+		if (copy_from_user(cfg, up, sizeof(*cfg))) {
+			kfree(cfg);
+			return -EFAULT;
+		}
+		ret = imx415_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1617,8 +1627,12 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = imx415_ioctl(sd, cmd, hdr);
-		if (!ret)
-			ret = copy_to_user(up, hdr, sizeof(*hdr));
+		if (!ret) {
+			if (copy_to_user(up, hdr, sizeof(*hdr))) {
+				kfree(hdr);
+				return -EFAULT;
+			}
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1628,9 +1642,11 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdr, up, sizeof(*hdr));
-		if (!ret)
-			ret = imx415_ioctl(sd, cmd, hdr);
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+		ret = imx415_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1640,18 +1656,25 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-		if (!ret)
-			ret = imx415_ioctl(sd, cmd, hdrae);
+		if (copy_from_user(hdrae, up, sizeof(*hdrae))) {
+			kfree(hdrae);
+			return -EFAULT;
+		}
+		ret = imx415_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = imx415_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+		ret = imx415_ioctl(sd, cmd, &stream);
 		break;
-
+	case RKMODULE_GET_SONY_BRL:
+		ret = imx415_ioctl(sd, cmd, &brl);
+		if (!ret) {
+			if (copy_to_user(up, &brl, sizeof(u32)))
+				return -EFAULT;
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
