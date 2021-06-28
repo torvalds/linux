@@ -199,6 +199,8 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 		goto err_put_list;
 	}
 
+	rk_obj->pages = dst_pages;
+
 	/*
 	 * Fake up the SG table so that dma_sync_sg_for_device() can be used
 	 * to flush the pages associated with it.
