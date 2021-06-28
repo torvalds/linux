@@ -43,11 +43,11 @@ static unsigned int ksmbd_tools_pid;
 static bool ksmbd_ipc_validate_version(struct genl_info *m)
 {
 	if (m->genlhdr->version != KSMBD_GENL_VERSION) {
-		ksmbd_err("%s. ksmbd: %d, kernel module: %d. %s.\n",
-			  "Daemon and kernel module version mismatch",
-			  m->genlhdr->version,
-			  KSMBD_GENL_VERSION,
-			  "User-space ksmbd should terminate");
+		pr_err("%s. ksmbd: %d, kernel module: %d. %s.\n",
+		       "Daemon and kernel module version mismatch",
+		       m->genlhdr->version,
+		       KSMBD_GENL_VERSION,
+		       "User-space ksmbd should terminate");
 		return false;
 	}
 	return true;
@@ -267,8 +267,8 @@ static int handle_response(int type, void *payload, size_t sz)
 		 * request message type + 1.
 		 */
 		if (entry->type + 1 != type) {
-			ksmbd_err("Waiting for IPC type %d, got %d. Ignore.\n",
-				  entry->type + 1, type);
+			pr_err("Waiting for IPC type %d, got %d. Ignore.\n",
+			       entry->type + 1, type);
 		}
 
 		entry->response = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);
@@ -313,9 +313,9 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 	ret |= ksmbd_tcp_set_interfaces(KSMBD_STARTUP_CONFIG_INTERFACES(req),
 					req->ifc_list_sz);
 	if (ret) {
-		ksmbd_err("Server configuration error: %s %s %s\n",
-			  req->netbios_name, req->server_string,
-			  req->work_group);
+		pr_err("Server configuration error: %s %s %s\n",
+		       req->netbios_name, req->server_string,
+		       req->work_group);
 		return ret;
 	}
 
@@ -353,7 +353,7 @@ static int handle_startup_event(struct sk_buff *skb, struct genl_info *info)
 	mutex_lock(&startup_lock);
 	if (!ksmbd_server_configurable()) {
 		mutex_unlock(&startup_lock);
-		ksmbd_err("Server reset is in progress, can't start daemon\n");
+		pr_err("Server reset is in progress, can't start daemon\n");
 		return -EINVAL;
 	}
 
@@ -363,7 +363,7 @@ static int handle_startup_event(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 		}
 
-		ksmbd_err("Reconnect to a new user space daemon\n");
+		pr_err("Reconnect to a new user space daemon\n");
 	} else {
 		struct ksmbd_startup_request *req;
 
@@ -384,7 +384,7 @@ out:
 
 static int handle_unsupported_event(struct sk_buff *skb, struct genl_info *info)
 {
-	ksmbd_err("Unknown IPC event: %d, ignore.\n", info->genlhdr->cmd);
+	pr_err("Unknown IPC event: %d, ignore.\n", info->genlhdr->cmd);
 	return -EINVAL;
 }
 
@@ -827,7 +827,7 @@ static int __ipc_heartbeat(void)
 	WRITE_ONCE(server_conf.state, SERVER_STATE_RESETTING);
 	server_conf.ipc_last_active = 0;
 	ksmbd_tools_pid = 0;
-	ksmbd_err("No IPC daemon response for %lus\n", delta / HZ);
+	pr_err("No IPC daemon response for %lus\n", delta / HZ);
 	mutex_unlock(&startup_lock);
 	return -EINVAL;
 }
@@ -871,7 +871,7 @@ int ksmbd_ipc_init(void)
 
 	ret = genl_register_family(&ksmbd_genl_family);
 	if (ret) {
-		ksmbd_err("Failed to register KSMBD netlink interface %d\n", ret);
+		pr_err("Failed to register KSMBD netlink interface %d\n", ret);
 		cancel_delayed_work_sync(&ipc_timer_work);
 	}
 

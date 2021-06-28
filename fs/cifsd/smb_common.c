@@ -447,7 +447,7 @@ int ksmbd_smb_negotiate_common(struct ksmbd_work *work, unsigned int command)
 		return smb_handle_negotiate(work);
 	}
 
-	ksmbd_err("Unknown SMB negotiation command: %u\n", command);
+	pr_err("Unknown SMB negotiation command: %u\n", command);
 	return -EINVAL;
 }
 

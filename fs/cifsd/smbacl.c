@@ -264,8 +264,8 @@ static int sid_to_id(struct smb_sid *psid, uint sidtype,
 	 * Just return an error.
 	 */
 	if (unlikely(psid->num_subauth > SID_MAX_SUB_AUTHORITIES)) {
-		ksmbd_err("%s: %u subauthorities is too many!\n",
-			  __func__, psid->num_subauth);
+		pr_err("%s: %u subauthorities is too many!\n",
+		       __func__, psid->num_subauth);
 		return -EIO;
 	}
 
@@ -383,7 +383,7 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 	/* validate that we do not go past end of acl */
 	if (end_of_acl <= (char *)pdacl ||
 	    end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
-		ksmbd_err("ACL too small to parse DACL\n");
+		pr_err("ACL too small to parse DACL\n");
 		return;
 	}
 
@@ -477,8 +477,8 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 			temp_fattr.cf_uid = INVALID_UID;
 			ret = sid_to_id(&ppace[i]->sid, SIDOWNER, &temp_fattr);
 			if (ret || uid_eq(temp_fattr.cf_uid, INVALID_UID)) {
-				ksmbd_err("%s: Error %d mapping Owner SID to uid\n",
-					  __func__, ret);
+				pr_err("%s: Error %d mapping Owner SID to uid\n",
+				       __func__, ret);
 				continue;
 			}
 
@@ -764,7 +764,7 @@ static int parse_sid(struct smb_sid *psid, char *end_of_acl)
 	 * bytes long (assuming no sub-auths - e.g. the null SID
 	 */
 	if (end_of_acl < (char *)psid + 8) {
-		ksmbd_err("ACL too small to parse SID %p\n", psid);
+		pr_err("ACL too small to parse SID %p\n", psid);
 		return -EINVAL;
 	}
 
@@ -808,14 +808,14 @@ int parse_sec_desc(struct smb_ntsd *pntsd, int acl_len,
 	if (pntsd->osidoffset) {
 		rc = parse_sid(owner_sid_ptr, end_of_acl);
 		if (rc) {
-			ksmbd_err("%s: Error %d parsing Owner SID\n", __func__, rc);
+			pr_err("%s: Error %d parsing Owner SID\n", __func__, rc);
 			return rc;
 		}
 
 		rc = sid_to_id(owner_sid_ptr, SIDOWNER, fattr);
 		if (rc) {
-			ksmbd_err("%s: Error %d mapping Owner SID to uid\n",
-				  __func__, rc);
+			pr_err("%s: Error %d mapping Owner SID to uid\n",
+			       __func__, rc);
 			owner_sid_ptr = NULL;
 		}
 	}
@@ -823,14 +823,14 @@ int parse_sec_desc(struct smb_ntsd *pntsd, int acl_len,
 	if (pntsd->gsidoffset) {
 		rc = parse_sid(group_sid_ptr, end_of_acl);
 		if (rc) {
-			ksmbd_err("%s: Error %d mapping Owner SID to gid\n",
-				  __func__, rc);
+			pr_err("%s: Error %d mapping Owner SID to gid\n",
+			       __func__, rc);
 			return rc;
 		}
 		rc = sid_to_id(group_sid_ptr, SIDUNIX_GROUP, fattr);
 		if (rc) {
-			ksmbd_err("%s: Error %d mapping Group SID to gid\n",
-				  __func__, rc);
+			pr_err("%s: Error %d mapping Group SID to gid\n",
+			       __func__, rc);
 			group_sid_ptr = NULL;
 		}
 	}

@@ -160,7 +160,7 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 
 	ksmbd_conn_try_dequeue_request(work);
 	if (!rsp_hdr) {
-		ksmbd_err("NULL response header\n");
+		pr_err("NULL response header\n");
 		return -EINVAL;
 	}
 
@@ -192,7 +192,7 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 	ksmbd_conn_unlock(conn);
 
 	if (sent < 0) {
-		ksmbd_err("Failed to send message: %d\n", sent);
+		pr_err("Failed to send message: %d\n", sent);
 		return sent;
 	}
 
@@ -315,24 +315,23 @@ int ksmbd_conn_handler_loop(void *p)
 		 */
 		size = t->ops->read(t, conn->request_buf + 4, pdu_size);
 		if (size < 0) {
-			ksmbd_err("sock_read failed: %d\n", size);
+			pr_err("sock_read failed: %d\n", size);
 			break;
 		}
 
 		if (size != pdu_size) {
-			ksmbd_err("PDU error. Read: %d, Expected: %d\n",
-				  size,
-				  pdu_size);
+			pr_err("PDU error. Read: %d, Expected: %d\n",
+			       size, pdu_size);
 			continue;
 		}
 
 		if (!default_conn_ops.process_fn) {
-			ksmbd_err("No connection request callback\n");
+			pr_err("No connection request callback\n");
 			break;
 		}
 
 		if (default_conn_ops.process_fn(conn)) {
-			ksmbd_err("Cannot handle request\n");
+			pr_err("Cannot handle request\n");
 			break;
 		}
 	}

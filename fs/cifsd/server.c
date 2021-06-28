@@ -277,7 +277,7 @@ static int queue_ksmbd_work(struct ksmbd_conn *conn)
 
 	work = ksmbd_alloc_work_struct();
 	if (!work) {
-		ksmbd_err("allocation for work failed\n");
+		pr_err("allocation for work failed\n");
 		return -ENOMEM;
 	}
 
@@ -442,7 +442,7 @@ static ssize_t kill_server_store(struct class *class,
 	if (!sysfs_streq(buf, "hard"))
 		return len;
 
-	ksmbd_info("kill command received\n");
+	pr_info("kill command received\n");
 	mutex_lock(&ctrl_lock);
 	WRITE_ONCE(server_conf.state, SERVER_STATE_RESETTING);
 	__module_get(THIS_MODULE);
@@ -547,7 +547,7 @@ static int __init ksmbd_server_init(void)
 
 	ret = class_register(&ksmbd_control_class);
 	if (ret) {
-		ksmbd_err("Unable to register ksmbd-control class\n");
+		pr_err("Unable to register ksmbd-control class\n");
 		return ret;
 	}
 

@@ -178,14 +178,14 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 	da->version = ndr_read_int16(n);
 
 	if (da->version != 3 && da->version != 4) {
-		ksmbd_err("v%d version is not supported\n", da->version);
+		pr_err("v%d version is not supported\n", da->version);
 		return -EINVAL;
 	}
 
 	version2 = ndr_read_int32(n);
 	if (da->version != version2) {
-		ksmbd_err("ndr version mismatched(version: %d, version2: %d)\n",
-			  da->version, version2);
+		pr_err("ndr version mismatched(version: %d, version2: %d)\n",
+		       da->version, version2);
 		return -EINVAL;
 	}
 
@@ -309,14 +309,14 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	n->offset = 0;
 	acl->version = ndr_read_int16(n);
 	if (acl->version != 4) {
-		ksmbd_err("v%d version is not supported\n", acl->version);
+		pr_err("v%d version is not supported\n", acl->version);
 		return -EINVAL;
 	}
 
 	version2 = ndr_read_int32(n);
 	if (acl->version != version2) {
-		ksmbd_err("ndr version mismatched(version: %d, version2: %d)\n",
-			  acl->version, version2);
+		pr_err("ndr version mismatched(version: %d, version2: %d)\n",
+		       acl->version, version2);
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 
 	ndr_read_bytes(n, acl->desc, 10);
 	if (strncmp(acl->desc, "posix_acl", 9)) {
-		ksmbd_err("Invalid acl description : %s\n", acl->desc);
+		pr_err("Invalid acl description : %s\n", acl->desc);
 		return -EINVAL;
 	}
 

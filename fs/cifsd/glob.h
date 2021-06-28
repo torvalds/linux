@@ -31,31 +31,21 @@ extern int ksmbd_debug_types;
 				KSMBD_DEBUG_IPC | KSMBD_DEBUG_CONN |	\
 				KSMBD_DEBUG_RDMA)
 
-#ifndef ksmbd_pr_fmt
-#ifdef SUBMOD_NAME
-#define ksmbd_pr_fmt(fmt)	"ksmbd: " SUBMOD_NAME ": " fmt
-#else
-#define ksmbd_pr_fmt(fmt)	"ksmbd: " fmt
+#ifdef pr_fmt
+#undef pr_fmt
 #endif
+
+#ifdef SUBMOD_NAME
+#define pr_fmt(fmt)	"ksmbd: " SUBMOD_NAME ": " fmt
+#else
+#define pr_fmt(fmt)	"ksmbd: " fmt
 #endif
 
 #define ksmbd_debug(type, fmt, ...)				\
 	do {							\
 		if (ksmbd_debug_types & KSMBD_DEBUG_##type)	\
-			pr_info(ksmbd_pr_fmt("%s:%d: " fmt),	\
-				__func__,			\
-				__LINE__,			\
-				##__VA_ARGS__);			\
+			pr_info(fmt, ##__VA_ARGS__);		\
 	} while (0)
-
-#define ksmbd_info(fmt, ...)					\
-			pr_info(ksmbd_pr_fmt(fmt), ##__VA_ARGS__)
-
-#define ksmbd_err(fmt, ...)					\
-			pr_err(ksmbd_pr_fmt("%s:%d: " fmt),	\
-				__func__,			\
-				__LINE__,			\
-				##__VA_ARGS__)
 
 #define UNICODE_LEN(x)		((x) * 2)
 

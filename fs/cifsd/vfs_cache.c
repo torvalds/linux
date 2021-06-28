@@ -185,7 +185,7 @@ static struct ksmbd_inode *ksmbd_inode_get(struct ksmbd_file *fp)
 
 	rc = ksmbd_inode_init(ci, fp);
 	if (rc) {
-		ksmbd_err("inode initialized failed\n");
+		pr_err("inode initialized failed\n");
 		kfree(ci);
 		return NULL;
 	}
@@ -254,8 +254,8 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 		err = ksmbd_vfs_remove_xattr(filp->f_path.dentry,
 					     fp->stream.name);
 		if (err)
-			ksmbd_err("remove xattr failed : %s\n",
-				  fp->stream.name);
+			pr_err("remove xattr failed : %s\n",
+			       fp->stream.name);
 	}
 
 	if (atomic_dec_and_test(&ci->m_count)) {
@@ -542,7 +542,7 @@ struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp)
 
 	fp = kmem_cache_zalloc(filp_cache, GFP_KERNEL);
 	if (!fp) {
-		ksmbd_err("Failed to allocate memory\n");
+		pr_err("Failed to allocate memory\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -698,7 +698,7 @@ int ksmbd_init_file_cache(void)
 	return 0;
 
 out:
-	ksmbd_err("failed to allocate file cache\n");
+	pr_err("failed to allocate file cache\n");
 	return -ENOMEM;
 }
 

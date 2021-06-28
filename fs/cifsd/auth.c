@@ -342,7 +342,7 @@ int ksmbd_auth_ntlm(struct ksmbd_session *sess, char *pw_buf)
 	memcpy(p21, user_passkey(sess->user), CIFS_NTHASH_SIZE);
 	rc = ksmbd_enc_p24(p21, sess->ntlmssp.cryptkey, key);
 	if (rc) {
-		ksmbd_err("password processing failed\n");
+		pr_err("password processing failed\n");
 		return rc;
 	}
 
@@ -461,7 +461,7 @@ static int __ksmbd_auth_ntlmv2(struct ksmbd_session *sess, char *client_nonce,
 				       client_nonce,
 				       (char *)sess->ntlmssp.cryptkey, 8);
 	if (rc) {
-		ksmbd_err("password processing failed\n");
+		pr_err("password processing failed\n");
 		goto out;
 	}
 
@@ -469,7 +469,7 @@ static int __ksmbd_auth_ntlmv2(struct ksmbd_session *sess, char *client_nonce,
 	memcpy(p21, user_passkey(sess->user), CIFS_NTHASH_SIZE);
 	rc = ksmbd_enc_p24(p21, sess_key, key);
 	if (rc) {
-		ksmbd_err("password processing failed\n");
+		pr_err("password processing failed\n");
 		goto out;
 	}
 
@@ -1269,7 +1269,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 				      enc,
 				      key);
 	if (rc) {
-		ksmbd_err("Could not get %scryption key\n", enc ? "en" : "de");
+		pr_err("Could not get %scryption key\n", enc ? "en" : "de");
 		return rc;
 	}
 
@@ -1279,7 +1279,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	else
 		ctx = ksmbd_crypto_ctx_find_ccm();
 	if (!ctx) {
-		ksmbd_err("crypto alloc failed\n");
+		pr_err("crypto alloc failed\n");
 		return -ENOMEM;
 	}
 
@@ -1295,19 +1295,18 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	else
 		rc = crypto_aead_setkey(tfm, key, SMB3_GCM128_CRYPTKEY_SIZE);
 	if (rc) {
-		ksmbd_err("Failed to set aead key %d\n", rc);
+		pr_err("Failed to set aead key %d\n", rc);
 		goto free_ctx;
 	}
 
 	rc = crypto_aead_setauthsize(tfm, SMB2_SIGNATURE_SIZE);
 	if (rc) {
-		ksmbd_err("Failed to set authsize %d\n", rc);
+		pr_err("Failed to set authsize %d\n", rc);
 		goto free_ctx;
 	}
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		ksmbd_err("Failed to alloc aead request\n");
 		rc = -ENOMEM;
 		goto free_ctx;
 	}
@@ -1319,7 +1318,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 
 	sg = ksmbd_init_sg(iov, nvec, sign);
 	if (!sg) {
-		ksmbd_err("Failed to init sg\n");
+		pr_err("Failed to init sg\n");
 		rc = -ENOMEM;
 		goto free_req;
 	}
@@ -1327,7 +1326,6 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	iv_len = crypto_aead_ivsize(tfm);
 	iv = kzalloc(iv_len, GFP_KERNEL);
 	if (!iv) {
-		ksmbd_err("Failed to alloc IV\n");
 		rc = -ENOMEM;
 		goto free_sg;
 	}

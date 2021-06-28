@@ -525,9 +525,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
-			ksmbd_err("Recv error. status='%s (%d)' opcode=%d\n",
-				  ib_wc_status_msg(wc->status), wc->status,
-				  wc->opcode);
+			pr_err("Recv error. status='%s (%d)' opcode=%d\n",
+			       ib_wc_status_msg(wc->status), wc->status,
+			       wc->opcode);
 			smb_direct_disconnect_rdma_connection(t);
 		}
 		put_empty_recvmsg(t, recvmsg);
@@ -623,7 +623,7 @@ static int smb_direct_post_recv(struct smb_direct_transport *t,
 
 	ret = ib_post_recv(t->qp, &wr, NULL);
 	if (ret) {
-		ksmbd_err("Can't post recv: %d\n", ret);
+		pr_err("Can't post recv: %d\n", ret);
 		ib_dma_unmap_single(t->cm_id->device,
 				    recvmsg->sge.addr, recvmsg->sge.length,
 				    DMA_FROM_DEVICE);
@@ -645,7 +645,7 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 
 again:
 	if (st->status != SMB_DIRECT_CS_CONNECTED) {
-		ksmbd_err("disconnected\n");
+		pr_err("disconnected\n");
 		return -ENOTCONN;
 	}
 
@@ -794,7 +794,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 
 			ret = smb_direct_post_recv(t, recvmsg);
 			if (ret) {
-				ksmbd_err("Can't post recv: %d\n", ret);
+				pr_err("Can't post recv: %d\n", ret);
 				put_recvmsg(t, recvmsg);
 				break;
 			}
@@ -829,9 +829,9 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		    wc->opcode);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
-		ksmbd_err("Send error. status='%s (%d)', opcode=%d\n",
-			  ib_wc_status_msg(wc->status), wc->status,
-			  wc->opcode);
+		pr_err("Send error. status='%s (%d)', opcode=%d\n",
+		       ib_wc_status_msg(wc->status), wc->status,
+		       wc->opcode);
 		smb_direct_disconnect_rdma_connection(t);
 	}
 
@@ -880,7 +880,7 @@ static int smb_direct_post_send(struct smb_direct_transport *t,
 
 	ret = ib_post_send(t->qp, wr, NULL);
 	if (ret) {
-		ksmbd_err("failed to post send: %d\n", ret);
+		pr_err("failed to post send: %d\n", ret);
 		if (wr->num_sge > 1) {
 			if (atomic_dec_and_test(&t->send_payload_pending))
 				wake_up(&t->wait_send_payload_pending);
@@ -1158,11 +1158,11 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 					    sg, SMB_DIRECT_MAX_SEND_SGES - 1,
 					    DMA_TO_DEVICE);
 		if (sg_cnt <= 0) {
-			ksmbd_err("failed to map buffer\n");
+			pr_err("failed to map buffer\n");
 			ret = -ENOMEM;
 			goto err;
 		} else if (sg_cnt + msg->num_sge > SMB_DIRECT_MAX_SEND_SGES - 1) {
-			ksmbd_err("buffer not fitted into sges\n");
+			pr_err("buffer not fitted into sges\n");
 			ret = -E2BIG;
 			ib_dma_unmap_sg(t->cm_id->device, sg, sg_cnt,
 					DMA_TO_DEVICE);
@@ -1290,8 +1290,8 @@ static void read_write_done(struct ib_cq *cq, struct ib_wc *wc,
 	struct smb_direct_transport *t = msg->t;
 
 	if (wc->status != IB_WC_SUCCESS) {
-		ksmbd_err("read/write error. opcode = %d, status = %s(%d)\n",
-			  wc->opcode, ib_wc_status_msg(wc->status), wc->status);
+		pr_err("read/write error. opcode = %d, status = %s(%d)\n",
+		       wc->opcode, ib_wc_status_msg(wc->status), wc->status);
 		smb_direct_disconnect_rdma_connection(t);
 	}
 
@@ -1348,7 +1348,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t, void *buf,
 
 	ret = get_sg_list(buf, buf_len, msg->sgt.sgl, msg->sgt.orig_nents);
 	if (ret <= 0) {
-		ksmbd_err("failed to get pages\n");
+		pr_err("failed to get pages\n");
 		goto err;
 	}
 
@@ -1357,7 +1357,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t, void *buf,
 			       0, remote_offset, remote_key,
 			       is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	if (ret < 0) {
-		ksmbd_err("failed to init rdma_rw_ctx: %d\n", ret);
+		pr_err("failed to init rdma_rw_ctx: %d\n", ret);
 		goto err;
 	}
 
@@ -1369,7 +1369,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t, void *buf,
 
 	ret = ib_post_send(t->qp, first_wr, NULL);
 	if (ret) {
-		ksmbd_err("failed to post send wr: %d\n", ret);
+		pr_err("failed to post send wr: %d\n", ret);
 		goto err;
 	}
 
@@ -1445,9 +1445,9 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 		break;
 	}
 	default:
-		ksmbd_err("Unexpected RDMA CM event. cm_id=%p, event=%s (%d)\n",
-			  cm_id, rdma_event_msg(event->event),
-			  event->event);
+		pr_err("Unexpected RDMA CM event. cm_id=%p, event=%s (%d)\n",
+		       cm_id, rdma_event_msg(event->event),
+		       event->event);
 		break;
 	}
 	return 0;
@@ -1557,7 +1557,7 @@ static int smb_direct_accept_client(struct smb_direct_transport *t)
 
 	ret = rdma_accept(t->cm_id, &conn_param);
 	if (ret) {
-		ksmbd_err("error at rdma_accept: %d\n", ret);
+		pr_err("error at rdma_accept: %d\n", ret);
 		return ret;
 	}
 
@@ -1581,14 +1581,14 @@ static int smb_direct_negotiate(struct smb_direct_transport *t)
 
 	ret = smb_direct_post_recv(t, recvmsg);
 	if (ret) {
-		ksmbd_err("Can't post recv: %d\n", ret);
+		pr_err("Can't post recv: %d\n", ret);
 		goto out;
 	}
 
 	t->negotiation_requested = false;
 	ret = smb_direct_accept_client(t);
 	if (ret) {
-		ksmbd_err("Can't accept client\n");
+		pr_err("Can't accept client\n");
 		goto out;
 	}
 
@@ -1635,7 +1635,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	t->max_send_size = smb_direct_max_send_size;
 	max_send_sges = DIV_ROUND_UP(t->max_send_size, PAGE_SIZE) + 2;
 	if (max_send_sges > SMB_DIRECT_MAX_SEND_SGES) {
-		ksmbd_err("max_send_size %d is too large\n", t->max_send_size);
+		pr_err("max_send_size %d is too large\n", t->max_send_size);
 		return -EINVAL;
 	}
 
@@ -1655,31 +1655,31 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	max_send_wrs = smb_direct_send_credit_target + max_rw_wrs;
 	if (max_send_wrs > device->attrs.max_cqe ||
 	    max_send_wrs > device->attrs.max_qp_wr) {
-		ksmbd_err("consider lowering send_credit_target = %d, or max_outstanding_rw_ops = %d\n",
-			  smb_direct_send_credit_target,
-			  smb_direct_max_outstanding_rw_ops);
-		ksmbd_err("Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
-			  device->attrs.max_cqe, device->attrs.max_qp_wr);
+		pr_err("consider lowering send_credit_target = %d, or max_outstanding_rw_ops = %d\n",
+		       smb_direct_send_credit_target,
+		       smb_direct_max_outstanding_rw_ops);
+		pr_err("Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
+		       device->attrs.max_cqe, device->attrs.max_qp_wr);
 		return -EINVAL;
 	}
 
 	if (smb_direct_receive_credit_max > device->attrs.max_cqe ||
 	    smb_direct_receive_credit_max > device->attrs.max_qp_wr) {
-		ksmbd_err("consider lowering receive_credit_max = %d\n",
-			  smb_direct_receive_credit_max);
-		ksmbd_err("Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
-			  device->attrs.max_cqe, device->attrs.max_qp_wr);
+		pr_err("consider lowering receive_credit_max = %d\n",
+		       smb_direct_receive_credit_max);
+		pr_err("Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
+		       device->attrs.max_cqe, device->attrs.max_qp_wr);
 		return -EINVAL;
 	}
 
 	if (device->attrs.max_send_sge < SMB_DIRECT_MAX_SEND_SGES) {
-		ksmbd_err("warning: device max_send_sge = %d too small\n",
-			  device->attrs.max_send_sge);
+		pr_err("warning: device max_send_sge = %d too small\n",
+		       device->attrs.max_send_sge);
 		return -EINVAL;
 	}
 	if (device->attrs.max_recv_sge < SMB_DIRECT_MAX_RECV_SGES) {
-		ksmbd_err("warning: device max_recv_sge = %d too small\n",
-			  device->attrs.max_recv_sge);
+		pr_err("warning: device max_recv_sge = %d too small\n",
+		       device->attrs.max_recv_sge);
 		return -EINVAL;
 	}
 
@@ -1788,7 +1788,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 
 	t->pd = ib_alloc_pd(t->cm_id->device, 0);
 	if (IS_ERR(t->pd)) {
-		ksmbd_err("Can't create RDMA PD\n");
+		pr_err("Can't create RDMA PD\n");
 		ret = PTR_ERR(t->pd);
 		t->pd = NULL;
 		return ret;
@@ -1797,7 +1797,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 	t->send_cq = ib_alloc_cq(t->cm_id->device, t,
 				 t->send_credit_target, 0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(t->send_cq)) {
-		ksmbd_err("Can't create RDMA send CQ\n");
+		pr_err("Can't create RDMA send CQ\n");
 		ret = PTR_ERR(t->send_cq);
 		t->send_cq = NULL;
 		goto err;
@@ -1807,7 +1807,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 				 cap->max_send_wr + cap->max_rdma_ctxs,
 				 0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(t->recv_cq)) {
-		ksmbd_err("Can't create RDMA recv CQ\n");
+		pr_err("Can't create RDMA recv CQ\n");
 		ret = PTR_ERR(t->recv_cq);
 		t->recv_cq = NULL;
 		goto err;
@@ -1825,7 +1825,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 
 	ret = rdma_create_qp(t->cm_id, t->pd, &qp_attr);
 	if (ret) {
-		ksmbd_err("Can't create RDMA QP: %d\n", ret);
+		pr_err("Can't create RDMA QP: %d\n", ret);
 		goto err;
 	}
 
@@ -1861,25 +1861,25 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 
 	ret = smb_direct_init_params(st, &qp_cap);
 	if (ret) {
-		ksmbd_err("Can't configure RDMA parameters\n");
+		pr_err("Can't configure RDMA parameters\n");
 		return ret;
 	}
 
 	ret = smb_direct_create_pools(st);
 	if (ret) {
-		ksmbd_err("Can't init RDMA pool: %d\n", ret);
+		pr_err("Can't init RDMA pool: %d\n", ret);
 		return ret;
 	}
 
 	ret = smb_direct_create_qpair(st, &qp_cap);
 	if (ret) {
-		ksmbd_err("Can't accept RDMA client: %d\n", ret);
+		pr_err("Can't accept RDMA client: %d\n", ret);
 		return ret;
 	}
 
 	ret = smb_direct_negotiate(st);
 	if (ret) {
-		ksmbd_err("Can't negotiate: %d\n", ret);
+		pr_err("Can't negotiate: %d\n", ret);
 		return ret;
 	}
 
@@ -1917,7 +1917,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id)
 	if (IS_ERR(KSMBD_TRANS(t)->handler)) {
 		int ret = PTR_ERR(KSMBD_TRANS(t)->handler);
 
-		ksmbd_err("Can't start thread\n");
+		pr_err("Can't start thread\n");
 		free_transport(t);
 		return ret;
 	}
@@ -1933,7 +1933,7 @@ static int smb_direct_listen_handler(struct rdma_cm_id *cm_id,
 		int ret = smb_direct_handle_connect_request(cm_id);
 
 		if (ret) {
-			ksmbd_err("Can't create transport: %d\n", ret);
+			pr_err("Can't create transport: %d\n", ret);
 			return ret;
 		}
 
@@ -1942,8 +1942,8 @@ static int smb_direct_listen_handler(struct rdma_cm_id *cm_id,
 		break;
 	}
 	default:
-		ksmbd_err("Unexpected listen event. cm_id=%p, event=%s (%d)\n",
-			  cm_id, rdma_event_msg(event->event), event->event);
+		pr_err("Unexpected listen event. cm_id=%p, event=%s (%d)\n",
+		       cm_id, rdma_event_msg(event->event), event->event);
 		break;
 	}
 	return 0;
@@ -1962,13 +1962,13 @@ static int smb_direct_listen(int port)
 	cm_id = rdma_create_id(&init_net, smb_direct_listen_handler,
 			       &smb_direct_listener, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id)) {
-		ksmbd_err("Can't create cm id: %ld\n", PTR_ERR(cm_id));
+		pr_err("Can't create cm id: %ld\n", PTR_ERR(cm_id));
 		return PTR_ERR(cm_id);
 	}
 
 	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
 	if (ret) {
-		ksmbd_err("Can't bind: %d\n", ret);
+		pr_err("Can't bind: %d\n", ret);
 		goto err;
 	}
 
@@ -1976,7 +1976,7 @@ static int smb_direct_listen(int port)
 
 	ret = rdma_listen(cm_id, 10);
 	if (ret) {
-		ksmbd_err("Can't listen: %d\n", ret);
+		pr_err("Can't listen: %d\n", ret);
 		goto err;
 	}
 	return 0;
@@ -2006,7 +2006,7 @@ int ksmbd_rdma_init(void)
 	if (ret) {
 		destroy_workqueue(smb_direct_wq);
 		smb_direct_wq = NULL;
-		ksmbd_err("Can't listen: %d\n", ret);
+		pr_err("Can't listen: %d\n", ret);
 		return ret;
 	}
 

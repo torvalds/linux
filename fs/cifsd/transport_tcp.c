@@ -190,7 +190,7 @@ static int ksmbd_tcp_new_connection(struct socket *client_sk)
 
 	csin = KSMBD_TCP_PEER_SOCKADDR(KSMBD_TRANS(t)->conn);
 	if (kernel_getpeername(client_sk, csin) < 0) {
-		ksmbd_err("client ip resolution failed\n");
+		pr_err("client ip resolution failed\n");
 		rc = -EINVAL;
 		goto out_error;
 	}
@@ -200,7 +200,7 @@ static int ksmbd_tcp_new_connection(struct socket *client_sk)
 					      "ksmbd:%u",
 					      ksmbd_tcp_get_port(csin));
 	if (IS_ERR(KSMBD_TRANS(t)->handler)) {
-		ksmbd_err("cannot start conn thread\n");
+		pr_err("cannot start conn thread\n");
 		rc = PTR_ERR(KSMBD_TRANS(t)->handler);
 		free_transport(t);
 	}
@@ -380,7 +380,7 @@ static void tcp_destroy_socket(struct socket *ksmbd_socket)
 
 	ret = kernel_sock_shutdown(ksmbd_socket, SHUT_RDWR);
 	if (ret)
-		ksmbd_err("Failed to shutdown socket: %d\n", ret);
+		pr_err("Failed to shutdown socket: %d\n", ret);
 	else
 		sock_release(ksmbd_socket);
 }
@@ -400,11 +400,11 @@ static int create_socket(struct interface *iface)
 
 	ret = sock_create(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &ksmbd_socket);
 	if (ret) {
-		ksmbd_err("Can't create socket for ipv6, try ipv4: %d\n", ret);
+		pr_err("Can't create socket for ipv6, try ipv4: %d\n", ret);
 		ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP,
 				  &ksmbd_socket);
 		if (ret) {
-			ksmbd_err("Can't create socket for ipv4: %d\n", ret);
+			pr_err("Can't create socket for ipv4: %d\n", ret);
 			goto out_error;
 		}
 
@@ -427,7 +427,7 @@ static int create_socket(struct interface *iface)
 			      KERNEL_SOCKPTR(iface->name),
 			      strlen(iface->name));
 	if (ret != -ENODEV && ret < 0) {
-		ksmbd_err("Failed to set SO_BINDTODEVICE: %d\n", ret);
+		pr_err("Failed to set SO_BINDTODEVICE: %d\n", ret);
 		goto out_error;
 	}
 
@@ -438,7 +438,7 @@ static int create_socket(struct interface *iface)
 		ret = kernel_bind(ksmbd_socket, (struct sockaddr *)&sin6,
 				  sizeof(sin6));
 	if (ret) {
-		ksmbd_err("Failed to bind socket: %d\n", ret);
+		pr_err("Failed to bind socket: %d\n", ret);
 		goto out_error;
 	}
 
@@ -447,14 +447,14 @@ static int create_socket(struct interface *iface)
 
 	ret = kernel_listen(ksmbd_socket, KSMBD_SOCKET_BACKLOG);
 	if (ret) {
-		ksmbd_err("Port listen() error: %d\n", ret);
+		pr_err("Port listen() error: %d\n", ret);
 		goto out_error;
 	}
 
 	iface->ksmbd_socket = ksmbd_socket;
 	ret = ksmbd_tcp_run_kthread(iface);
 	if (ret) {
-		ksmbd_err("Can't start ksmbd main kthread: %d\n", ret);
+		pr_err("Can't start ksmbd main kthread: %d\n", ret);
 		goto out_error;
 	}
 	iface->state = IFACE_STATE_CONFIGURED;
@@ -540,7 +540,7 @@ static void tcp_stop_kthread(struct task_struct *kthread)
 
 	ret = kthread_stop(kthread);
 	if (ret)
-		ksmbd_err("failed to stop forker thread\n");
+		pr_err("failed to stop forker thread\n");
 }
 
 void ksmbd_tcp_destroy(void)

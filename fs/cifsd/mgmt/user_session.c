@@ -87,7 +87,7 @@ static int __rpc_method(char *rpc_name)
 	if (!strcmp(rpc_name, "\\lsarpc") || !strcmp(rpc_name, "lsarpc"))
 		return KSMBD_RPC_LSARPC_METHOD_INVOKE;
 
-	ksmbd_err("Unsupported RPC: %s\n", rpc_name);
+	pr_err("Unsupported RPC: %s\n", rpc_name);
 	return 0;
 }
 
@@ -232,7 +232,7 @@ int get_session(struct ksmbd_session *sess)
 void put_session(struct ksmbd_session *sess)
 {
 	if (atomic_dec_and_test(&sess->refcnt))
-		ksmbd_err("get/%s seems to be mismatched.", __func__);
+		pr_err("get/%s seems to be mismatched.", __func__);
 }
 
 struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id)

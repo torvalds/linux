@@ -48,12 +48,12 @@ static struct crypto_aead *alloc_aead(int id)
 		tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
 		break;
 	default:
-		ksmbd_err("Does not support encrypt ahead(id : %d)\n", id);
+		pr_err("Does not support encrypt ahead(id : %d)\n", id);
 		return NULL;
 	}
 
 	if (IS_ERR(tfm)) {
-		ksmbd_err("Failed to alloc encrypt aead : %ld\n", PTR_ERR(tfm));
+		pr_err("Failed to alloc encrypt aead : %ld\n", PTR_ERR(tfm));
 		return NULL;
 	}
 

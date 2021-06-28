@@ -107,7 +107,7 @@ static int ksmbd_validate_stream_name(char *stream_name)
 
 		stream_name++;
 		if (c == '/' || c == ':' || c == '\\') {
-			ksmbd_err("Stream name validation failed: %c\n", c);
+			pr_err("Stream name validation failed: %c\n", c);
 			return -ENOENT;
 		}
 	}
