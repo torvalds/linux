@@ -2665,7 +2665,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		(hba->clk_gating.state != CLKS_ON));
 
 	lrbp = &hba->lrb[tag];
-	if (unlikely(test_bit(tag, &hba->outstanding_reqs))) {
+	if (unlikely(lrbp->in_use)) {
 		if (hba->pm_op_in_progress)
 			set_host_byte(cmd, DID_BAD_TARGET);
 		else
@@ -2925,7 +2925,7 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 
 	init_completion(&wait);
 	lrbp = &hba->lrb[tag];
-	if (unlikely(test_bit(tag, &hba->outstanding_reqs))) {
+	if (unlikely(lrbp->in_use)) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -5134,9 +5134,8 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 	bool update_scaling = false;
 
 	for_each_set_bit(index, &completed_reqs, hba->nutrs) {
-		if (!test_and_clear_bit(index, &hba->outstanding_reqs))
-			continue;
 		lrbp = &hba->lrb[index];
+		lrbp->in_use = false;
 		lrbp->compl_time_stamp = ktime_get();
 		cmd = lrbp->cmd;
 		if (cmd) {
@@ -5167,6 +5166,9 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 		if (ufshcd_is_clkscaling_supported(hba) && update_scaling)
 			hba->clk_scaling.active_reqs--;
 	}
+
+	/* clear corresponding bits of completed commands */
+	hba->outstanding_reqs ^= completed_reqs;
 
 	ufshcd_clk_scaling_update_busy(hba);
 }
@@ -6601,11 +6603,11 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 	WARN_ON_ONCE(!ufshcd_valid_tag(hba, tag));
 
 	init_completion(&wait);
-	if (unlikely(test_bit(tag, &hba->outstanding_reqs))) {
+	lrbp = &hba->lrb[tag];
+	if (unlikely(lrbp->in_use)) {
 		err = -EBUSY;
 		goto out;
 	}
-	lrbp = &hba->lrb[tag];
 
 	WARN_ON(lrbp->cmd);
 	lrbp->cmd = NULL;
@@ -6974,6 +6976,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		if (lrbp->cmd) {
 			__ufshcd_transfer_req_compl(hba, (1UL << tag));
 			__set_bit(tag, &hba->outstanding_reqs);
+			lrbp->in_use = true;
 			hba->force_reset = true;
 			ufshcd_schedule_eh_work(hba);
 		}
