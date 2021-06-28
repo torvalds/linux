@@ -435,6 +435,12 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 		 * Preallocation does not hold sighand::siglock so it can't
 		 * use the cache. The lockless caching requires that only
 		 * one consumer and only one producer run at a time.
+		 *
+		 * For the regular allocation case it is sufficient to
+		 * check @q for NULL because this code can only be called
+		 * if the target task @t has not been reaped yet; which
+		 * means this code can never observe the error pointer which is
+		 * written to @t->sigqueue_cache in exit_task_sigqueue_cache().
 		 */
 		q = READ_ONCE(t->sigqueue_cache);
 		if (!q || sigqueue_flags)
@@ -463,13 +469,18 @@ void exit_task_sigqueue_cache(struct task_struct *tsk)
 	struct sigqueue *q = tsk->sigqueue_cache;
 
 	if (q) {
-		tsk->sigqueue_cache = NULL;
 		/*
 		 * Hand it back to the cache as the task might
 		 * be self reaping which would leak the object.
 		 */
 		 kmem_cache_free(sigqueue_cachep, q);
 	}
+
+	/*
+	 * Set an error pointer to ensure that @tsk will not cache a
+	 * sigqueue when it is reaping it's child tasks
+	 */
+	tsk->sigqueue_cache = ERR_PTR(-1);
 }
 
 static void sigqueue_cache_or_free(struct sigqueue *q)
@@ -481,6 +492,10 @@ static void sigqueue_cache_or_free(struct sigqueue *q)
 	 * is intentional when run without holding current->sighand->siglock,
 	 * which is fine as current obviously cannot run __sigqueue_free()
 	 * concurrently.
+	 *
+	 * The NULL check is safe even if current has been reaped already,
+	 * in which case exit_task_sigqueue_cache() wrote an error pointer
+	 * into current->sigqueue_cache.
 	 */
 	if (!READ_ONCE(current->sigqueue_cache))
 		WRITE_ONCE(current->sigqueue_cache, q);

@@ -75,7 +75,7 @@ void copy_page(void *to, void *from);
  *
  * With page table isolation enabled, we map the LDT in ... [stay tuned]
  */
-static inline unsigned long task_size_max(void)
+static __always_inline unsigned long task_size_max(void)
 {
 	unsigned long ret;
 
