@@ -545,6 +545,11 @@ struct mt76_rx_status {
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
 
+struct mt76_freq_range_power {
+	const struct cfg80211_sar_freq_ranges *range;
+	s8 power;
+};
+
 struct mt76_testmode_ops {
 	int (*set_state)(struct mt76_phy *phy, enum mt76_testmode_state state);
 	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
@@ -636,6 +641,8 @@ struct mt76_phy {
 		struct sk_buff **tail;
 		u16 seqno;
 	} rx_amsdu[__MT_RXQ_MAX];
+
+	struct mt76_freq_range_power *frp;
 };
 
 struct mt76_dev {
@@ -769,6 +776,7 @@ enum mt76_phy_type {
 }
 
 extern struct ieee80211_rate mt76_rates[12];
+extern const struct cfg80211_sar_capa mt76_sar_capa;
 
 #define __mt76_rr(dev, ...)	(dev)->bus->rr((dev), __VA_ARGS__)
 #define __mt76_wr(dev, ...)	(dev)->bus->wr((dev), __VA_ARGS__)
