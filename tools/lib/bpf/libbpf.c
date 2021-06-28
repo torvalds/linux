@@ -4001,6 +4001,10 @@ bpf_object__probe_loading(struct bpf_object *obj)
 
 	ret = bpf_load_program_xattr(&attr, NULL, 0);
 	if (ret < 0) {
+		attr.prog_type = BPF_PROG_TYPE_TRACEPOINT;
+		ret = bpf_load_program_xattr(&attr, NULL, 0);
+	}
+	if (ret < 0) {
 		ret = errno;
 		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
 		pr_warn("Error in %s():%s(%d). Couldn't load trivial BPF "

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
-libbpf API naming convention
-============================
+API naming convention
+=====================
 
 libbpf API provides access to a few logically separated groups of
 functions and types. Every group has its own naming convention
@@ -10,14 +10,14 @@ new function or type is added to keep libbpf API clean and consistent.
 
 All types and functions provided by libbpf API should have one of the
 following prefixes: ``bpf_``, ``btf_``, ``libbpf_``, ``xsk_``,
-``perf_buffer_``.
+``btf_dump_``, ``ring_buffer_``, ``perf_buffer_``.
 
 System call wrappers
 --------------------
 
 System call wrappers are simple wrappers for commands supported by
 sys_bpf system call. These wrappers should go to ``bpf.h`` header file
-and map one-on-one to corresponding commands.
+and map one to one to corresponding commands.
 
 For example ``bpf_map_lookup_elem`` wraps ``BPF_MAP_LOOKUP_ELEM``
 command of sys_bpf, ``bpf_prog_attach`` wraps ``BPF_PROG_ATTACH``, etc.
@@ -49,10 +49,6 @@ object, ``bpf_object``, double underscore and ``open`` that defines the
 purpose of the function to open ELF file and create ``bpf_object`` from
 it.
 
-Another example: ``bpf_program__load`` is named for corresponding
-object, ``bpf_program``, that is separated from other part of the name
-by double underscore.
-
 All objects and corresponding functions other than BTF related should go
 to ``libbpf.h``. BTF types and functions should go to ``btf.h``.
 
@@ -72,11 +68,7 @@ of both low-level ring access functions and high-level configuration
 functions. These can be mixed and matched. Note that these functions
 are not reentrant for performance reasons.
 
-Please take a look at Documentation/networking/af_xdp.rst in the Linux
-kernel source tree on how to use XDP sockets and for some common
-mistakes in case you do not get any traffic up to user space.
-
-libbpf ABI
+ABI
 ==========
 
 libbpf can be both linked statically or used as DSO. To avoid possible
@@ -116,7 +108,8 @@ This bump in ABI version is at most once per kernel development cycle.
 
 For example, if current state of ``libbpf.map`` is:
 
-.. code-block::
+.. code-block:: c
+
         LIBBPF_0.0.1 {
         	global:
                         bpf_func_a;
@@ -128,7 +121,8 @@ For example, if current state of ``libbpf.map`` is:
 , and a new symbol ``bpf_func_c`` is being introduced, then
 ``libbpf.map`` should be changed like this:
 
-.. code-block::
+.. code-block:: c
+
         LIBBPF_0.0.1 {
         	global:
                         bpf_func_a;
@@ -148,7 +142,7 @@ Format of version script and ways to handle ABI changes, including
 incompatible ones, described in details in [1].
 
 Stand-alone build
-=================
+-------------------
 
 Under https://github.com/libbpf/libbpf there is a (semi-)automated
 mirror of the mainline's version of libbpf for a stand-alone build.
@@ -157,12 +151,12 @@ However, all changes to libbpf's code base must be upstreamed through
 the mainline kernel tree.
 
 License
-=======
+-------------------
 
 libbpf is dual-licensed under LGPL 2.1 and BSD 2-Clause.
 
 Links
-=====
+-------------------
 
 [1] https://www.akkadia.org/drepper/dsohowto.pdf
     (Chapter 3. Maintaining APIs and ABIs).

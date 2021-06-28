@@ -3877,8 +3877,6 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 	int rx_done = 0;
 	u32 xdp_ret = 0;
 
-	rcu_read_lock();
-
 	xdp_prog = READ_ONCE(port->xdp_prog);
 
 	/* Get number of received packets and clamp the to-do */
@@ -4023,8 +4021,6 @@ err_drop_frame:
 		else
 			mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 	}
-
-	rcu_read_unlock();
 
 	if (xdp_ret & MVPP2_XDP_REDIR)
 		xdp_do_flush_map();

@@ -113,7 +113,12 @@ static void mem_allocator_disconnect(void *allocator)
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 {
 	struct xdp_mem_allocator *xa;
+	int type = xdp_rxq->mem.type;
 	int id = xdp_rxq->mem.id;
+
+	/* Reset mem info to defaults */
+	xdp_rxq->mem.id = 0;
+	xdp_rxq->mem.type = 0;
 
 	if (xdp_rxq->reg_state != REG_STATE_REGISTERED) {
 		WARN(1, "Missing register, driver bug");
@@ -123,7 +128,7 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 	if (id == 0)
 		return;
 
-	if (xdp_rxq->mem.type == MEM_TYPE_PAGE_POOL) {
+	if (type == MEM_TYPE_PAGE_POOL) {
 		rcu_read_lock();
 		xa = rhashtable_lookup(mem_id_ht, &id, mem_id_rht_params);
 		page_pool_destroy(xa->page_pool);
@@ -144,10 +149,6 @@ void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 
 	xdp_rxq->reg_state = REG_STATE_UNREGISTERED;
 	xdp_rxq->dev = NULL;
-
-	/* Reset mem info to defaults */
-	xdp_rxq->mem.id = 0;
-	xdp_rxq->mem.type = 0;
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_unreg);
 
