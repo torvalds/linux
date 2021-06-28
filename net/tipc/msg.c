@@ -41,6 +41,7 @@
 #include "name_table.h"
 #include "crypto.h"
 
+#define BUF_ALIGN(x) ALIGN(x, 4)
 #define MAX_FORWARD_SIZE 1024
 #ifdef CONFIG_TIPC_CRYPTO
 #define BUF_HEADROOM ALIGN(((LL_MAX_HEADER + 48) + EHDR_MAX_SIZE), 16)
@@ -52,11 +53,6 @@
 
 const int one_page_mtu = PAGE_SIZE - SKB_DATA_ALIGN(BUF_OVERHEAD) -
 			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-
-static unsigned int align(unsigned int i)
-{
-	return (i + 3) & ~3u;
-}
 
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
@@ -489,7 +485,7 @@ static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
 
 	msz = msg_size(msg);
 	bsz = msg_size(bmsg);
-	offset = align(bsz);
+	offset = BUF_ALIGN(bsz);
 	pad = offset - bsz;
 
 	if (unlikely(skb_tailroom(bskb) < (pad + msz)))
@@ -546,7 +542,7 @@ bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
 
 	/* Make a new bundle of the two messages if possible */
 	tsz = msg_size(buf_msg(tskb));
-	if (unlikely(mss < align(INT_H_SIZE + tsz) + msg_size(msg)))
+	if (unlikely(mss < BUF_ALIGN(INT_H_SIZE + tsz) + msg_size(msg)))
 		return true;
 	if (unlikely(pskb_expand_head(tskb, INT_H_SIZE, mss - tsz - INT_H_SIZE,
 				      GFP_ATOMIC)))
@@ -605,7 +601,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
 
-	*pos += align(imsz);
+	*pos += BUF_ALIGN(imsz);
 	return true;
 none:
 	kfree_skb(skb);
