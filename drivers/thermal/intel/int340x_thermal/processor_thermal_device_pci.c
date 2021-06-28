@@ -254,8 +254,10 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	pci_info->tzone = thermal_zone_device_register("TCPU_PCI", 1, 1, pci_info,
 							&tzone_ops,
 							&tzone_params, 0, 0);
-	if (IS_ERR(pci_info->tzone))
+	if (IS_ERR(pci_info->tzone)) {
+		ret = PTR_ERR(pci_info->tzone);
 		goto err_ret_mmio;
+	}
 
 	/* request and enable interrupt */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
