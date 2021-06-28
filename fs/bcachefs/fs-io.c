@@ -2305,16 +2305,17 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	int ret = 0;
 
 	/*
-	 * Don't update timestamps if we're not doing anything:
+	 * If the truncate call with change the size of the file, the
+	 * cmtimes should be updated. If the size will not change, we
+	 * do not need to update the cmtimes.
 	 */
-	if (iattr->ia_size == inode->v.i_size)
-		return 0;
-
-	if (!(iattr->ia_valid & ATTR_MTIME))
-		ktime_get_coarse_real_ts64(&iattr->ia_mtime);
-	if (!(iattr->ia_valid & ATTR_CTIME))
-		ktime_get_coarse_real_ts64(&iattr->ia_ctime);
-	iattr->ia_valid |= ATTR_MTIME|ATTR_CTIME;
+	if (iattr->ia_size != inode->v.i_size) {
+		if (!(iattr->ia_valid & ATTR_MTIME))
+			ktime_get_coarse_real_ts64(&iattr->ia_mtime);
+		if (!(iattr->ia_valid & ATTR_CTIME))
+			ktime_get_coarse_real_ts64(&iattr->ia_ctime);
+		iattr->ia_valid |= ATTR_MTIME|ATTR_CTIME;
+	}
 
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
