@@ -1017,7 +1017,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 
 		if (!is_shadow_present_pte(iter.old_spte)) {
 			/*
-			 * If SPTE has been forzen by another thread, just
+			 * If SPTE has been frozen by another thread, just
 			 * give up and retry, avoiding unnecessary page table
 			 * allocation and free.
 			 */
