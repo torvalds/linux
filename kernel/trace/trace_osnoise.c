@@ -1202,7 +1202,7 @@ static struct cpumask save_cpumask;
  */
 static int osnoise_main(void *data)
 {
-	s64 interval;
+	u64 interval;
 
 	while (!kthread_should_stop()) {
 
