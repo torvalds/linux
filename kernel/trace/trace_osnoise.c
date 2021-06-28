@@ -1216,8 +1216,11 @@ static int osnoise_main(void *data)
 		 * differently from hwlat_detector, the osnoise tracer can run
 		 * without a pause because preemption is on.
 		 */
-		if (interval < 1)
+		if (interval < 1) {
+			/* Let synchronize_rcu_tasks() make progress */
+			cond_resched_tasks_rcu_qs();
 			continue;
+		}
 
 		if (msleep_interruptible(interval))
 			break;
