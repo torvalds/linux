@@ -70,7 +70,7 @@ MODULE_DEVICE_TABLE(usb, es58x_id_table);
  * bytes (the start of frame) are skipped and the CRC calculation
  * starts on the third byte.
  */
-#define ES58X_CRC_CALC_OFFSET 2
+#define ES58X_CRC_CALC_OFFSET sizeof_field(union es58x_urb_cmd, sof)
 
 /**
  * es58x_calculate_crc() - Compute the crc16 of a given URB.

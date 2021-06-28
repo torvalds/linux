@@ -355,7 +355,7 @@ static int es581_4_tx_can_msg(struct es58x_priv *priv,
 		return -EMSGSIZE;
 
 	if (priv->tx_can_msg_cnt == 0) {
-		msg_len = 1; /* struct es581_4_bulk_tx_can_msg:num_can_msg */
+		msg_len = sizeof(es581_4_urb_cmd->bulk_tx_can_msg.num_can_msg);
 		es581_4_fill_urb_header(urb_cmd, ES581_4_CAN_COMMAND_TYPE,
 					ES581_4_CMD_ID_TX_MSG,
 					priv->channel_idx, msg_len);
