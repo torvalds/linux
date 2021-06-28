@@ -45,6 +45,18 @@ static inline bool dm_iot_idle_for(struct dm_io_tracker *iot, unsigned long j)
 	return r;
 }
 
+static inline unsigned long dm_iot_idle_time(struct dm_io_tracker *iot)
+{
+	unsigned long r = 0;
+
+	spin_lock_irq(&iot->lock);
+	if (!iot->in_flight)
+		r = jiffies - iot->idle_time;
+	spin_unlock_irq(&iot->lock);
+
+	return r;
+}
+
 static inline void dm_iot_io_begin(struct dm_io_tracker *iot, sector_t len)
 {
 	spin_lock_irq(&iot->lock);

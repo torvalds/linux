@@ -12,7 +12,6 @@ first sector should contain valid superblock from previous invocation.
 Constructor parameters:
 
 1. type of the cache device - "p" or "s"
-
 	- p - persistent memory
 	- s - SSD
 2. the underlying device that will be cached
@@ -21,7 +20,6 @@ Constructor parameters:
    size)
 5. the number of optional parameters (the parameters with an argument
    count as two)
-
 	start_sector n		(default: 0)
 		offset from the start of cache device in 512-byte sectors
 	high_watermark n	(default: 50)
@@ -71,6 +69,9 @@ Constructor parameters:
 	metadata_only
 		only metadata is promoted to the cache. This option
 		improves performance for heavier REQ_META workloads.
+	pause_writeback n	(default: 3000)
+		pause writeback if there was some write I/O redirected to
+		the origin volume in the last n milliseconds
 
 Status:
 1. error indicator - 0 if there was no error, otherwise error number

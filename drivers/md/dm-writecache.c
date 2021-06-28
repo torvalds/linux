@@ -30,6 +30,7 @@
 #define AUTOCOMMIT_MSEC			1000
 #define MAX_AGE_DIV			16
 #define MAX_AGE_UNSPECIFIED		-1UL
+#define PAUSE_WRITEBACK			(HZ * 3)
 
 #define BITMAP_GRANULARITY	65536
 #if BITMAP_GRANULARITY < PAGE_SIZE
@@ -125,6 +126,7 @@ struct dm_writecache {
 	size_t freelist_high_watermark;
 	size_t freelist_low_watermark;
 	unsigned long max_age;
+	unsigned long pause;
 
 	unsigned uncommitted_blocks;
 	unsigned autocommit_blocks;
@@ -174,11 +176,13 @@ struct dm_writecache {
 	bool cleaner:1;
 	bool cleaner_set:1;
 	bool metadata_only:1;
+	bool pause_set:1;
 
 	unsigned high_wm_percent_value;
 	unsigned low_wm_percent_value;
 	unsigned autocommit_time_value;
 	unsigned max_age_value;
+	unsigned pause_value;
 
 	unsigned writeback_all;
 	struct workqueue_struct *writeback_wq;
@@ -1470,9 +1474,11 @@ bio_copy:
 	}
 
 unlock_remap_origin:
-	if (bio_data_dir(bio) != READ) {
-		dm_iot_io_begin(&wc->iot, 1);
-		bio->bi_private = (void *)2;
+	if (likely(wc->pause != 0)) {
+		 if (bio_op(bio) == REQ_OP_WRITE) {
+			dm_iot_io_begin(&wc->iot, 1);
+			bio->bi_private = (void *)2;
+		}
 	}
 	bio_set_dev(bio, wc->dev->bdev);
 	wc_unlock(wc);
@@ -1837,10 +1843,19 @@ static void writecache_writeback(struct work_struct *work)
 		dm_kcopyd_client_flush(wc->dm_kcopyd);
 	}
 
-	if (!wc->writeback_all && !dm_suspended(wc->ti)) {
-		while (!dm_iot_idle_for(&wc->iot, HZ)) {
-			cond_resched();
-			msleep(1000);
+	if (likely(wc->pause != 0)) {
+		while (1) {
+			unsigned long idle;
+			if (unlikely(wc->cleaner) || unlikely(wc->writeback_all) ||
+			    unlikely(dm_suspended(wc->ti)))
+				break;
+			idle = dm_iot_idle_time(&wc->iot);
+			if (idle >= wc->pause)
+				break;
+			idle = wc->pause - idle;
+			if (idle > HZ)
+				idle = HZ;
+			schedule_timeout_idle(idle);
 		}
 	}
 
@@ -2113,7 +2128,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct wc_memory_superblock s;
 
 	static struct dm_arg _args[] = {
-		{0, 17, "Invalid number of feature args"},
+		{0, 18, "Invalid number of feature args"},
 	};
 
 	as.argc = argc;
@@ -2206,6 +2221,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			goto bad;
 		}
 	} else {
+		wc->pause = PAUSE_WRITEBACK;
 		r = mempool_init_kmalloc_pool(&wc->copy_pool, 1, sizeof(struct copy_struct));
 		if (r) {
 			ti->error = "Could not allocate mempool";
@@ -2344,6 +2360,18 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			} else goto invalid_optional;
 		} else if (!strcasecmp(string, "metadata_only")) {
 			wc->metadata_only = true;
+		} else if (!strcasecmp(string, "pause_writeback") && opt_params >= 1) {
+			unsigned pause_msecs;
+			if (WC_MODE_PMEM(wc))
+				goto invalid_optional;
+			string = dm_shift_arg(&as), opt_params--;
+			if (sscanf(string, "%u%c", &pause_msecs, &dummy) != 1)
+				goto invalid_optional;
+			if (pause_msecs > 60000)
+				goto invalid_optional;
+			wc->pause = msecs_to_jiffies(pause_msecs);
+			wc->pause_set = true;
+			wc->pause_value = pause_msecs;
 		} else {
 invalid_optional:
 			r = -EINVAL;
@@ -2569,6 +2597,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			extra_args++;
 		if (wc->metadata_only)
 			extra_args++;
+		if (wc->pause_set)
+			extra_args += 2;
 
 		DMEMIT("%u", extra_args);
 		if (wc->start_sector_set)
@@ -2591,6 +2621,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %sfua", wc->writeback_fua ? "" : "no");
 		if (wc->metadata_only)
 			DMEMIT(" metadata_only");
+		if (wc->pause_set)
+			DMEMIT(" pause_writeback %u", wc->pause_value);
 		break;
 	}
 }
