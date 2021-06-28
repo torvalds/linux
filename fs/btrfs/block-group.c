@@ -1501,6 +1501,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	mutex_lock(&fs_info->reclaim_bgs_lock);
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
+		u64 zone_unusable;
 		int ret = 0;
 
 		bg = list_first_entry(&fs_info->reclaim_bgs,
@@ -1534,13 +1535,22 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			goto next;
 		}
 
+		/*
+		 * Cache the zone_unusable value before turning the block group
+		 * to read only. As soon as the blog group is read only it's
+		 * zone_unusable value gets moved to the block group's read-only
+		 * bytes and isn't available for calculations anymore.
+		 */
+		zone_unusable = bg->zone_unusable;
 		ret = inc_block_group_ro(bg, 0);
 		up_write(&space_info->groups_sem);
 		if (ret < 0)
 			goto next;
 
-		btrfs_info(fs_info, "reclaiming chunk %llu with %llu%% used",
-				bg->start, div64_u64(bg->used * 100, bg->length));
+		btrfs_info(fs_info,
+			"reclaiming chunk %llu with %llu%% used %llu%% unusable",
+				bg->start, div_u64(bg->used * 100, bg->length),
+				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
 		if (ret)
