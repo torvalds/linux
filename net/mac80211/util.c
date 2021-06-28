@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * utilities for mac80211
  */
@@ -1693,7 +1693,10 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	if (auth_alg == WLAN_AUTH_SHARED_KEY && transaction == 3) {
 		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		err = ieee80211_wep_encrypt(local, skb, key, key_len, key_idx);
-		WARN_ON(err);
+		if (WARN_ON(err)) {
+			kfree_skb(skb);
+			return;
+		}
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
@@ -1934,13 +1937,26 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_sta_cap(sband);
-	if (he_cap) {
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(&sdata->vif));
+	if (he_cap &&
+	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
+					 IEEE80211_CHAN_NO_HE)) {
 		pos = ieee80211_ie_build_he_cap(pos, he_cap, end);
 		if (!pos)
 			goto out_err;
+	}
 
-		if (sband->band == NL80211_BAND_6GHZ) {
+	if (cfg80211_any_usable_channels(local->hw.wiphy,
+					 BIT(NL80211_BAND_6GHZ),
+					 IEEE80211_CHAN_NO_HE)) {
+		struct ieee80211_supported_band *sband6;
+
+		sband6 = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
+		he_cap = ieee80211_get_he_iftype_cap(sband6,
+				ieee80211_vif_type_p2p(&sdata->vif));
+
+		if (he_cap) {
 			enum nl80211_iftype iftype =
 				ieee80211_vif_type_p2p(&sdata->vif);
 			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
@@ -2944,12 +2960,15 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 	u16 cap;
 
-	sband = ieee80211_get_sband(sdata);
-	if (!sband)
+	if (!cfg80211_any_usable_channels(sdata->local->hw.wiphy,
+					  BIT(NL80211_BAND_6GHZ),
+					  IEEE80211_CHAN_NO_HE))
 		return;
 
+	sband = sdata->local->hw.wiphy->bands[NL80211_BAND_6GHZ];
+
 	iftd = ieee80211_get_sband_iftype_data(sband, iftype);
-	if (WARN_ON(!iftd))
+	if (!iftd)
 		return;
 
 	/* Check for device HE 6 GHz capability before adding element */

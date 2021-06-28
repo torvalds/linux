@@ -638,7 +638,7 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 
 static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
-				   u16 duration)
+				   struct ieee80211_prep_tx_info *info)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 
