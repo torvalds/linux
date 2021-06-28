@@ -101,6 +101,9 @@ struct mlx5dr_action *mlx5dr_action_create_drop(void);
 struct mlx5dr_action *mlx5dr_action_create_tag(u32 tag_value);
 
 struct mlx5dr_action *
+mlx5dr_action_create_flow_sampler(struct mlx5dr_domain *dmn, u32 sampler_id);
+
+struct mlx5dr_action *
 mlx5dr_action_create_flow_counter(u32 counter_id);
 
 struct mlx5dr_action *
