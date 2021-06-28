@@ -79,7 +79,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 		.n_linear_ranges = 2,
 		.n_voltages =	   0xf8,
 		.vsel_reg =	   FAN53880_BUCKVOUT,
-		.vsel_mask =	   0x7f,
+		.vsel_mask =	   0xff,
 		.enable_reg =	   FAN53880_ENABLE,
 		.enable_mask =	   0x10,
 		.enable_time =	   480,
@@ -114,8 +114,7 @@ static const struct regmap_config fan53880_regmap = {
 	.max_register = FAN53880_ENABLE_BOOST,
 };
 
-static int fan53880_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int fan53880_i2c_probe(struct i2c_client *i2c)
 {
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
@@ -177,7 +176,7 @@ static struct i2c_driver fan53880_regulator_driver = {
 		.name = "fan53880",
 		.of_match_table	= of_match_ptr(fan53880_dt_ids),
 	},
-	.probe = fan53880_i2c_probe,
+	.probe_new = fan53880_i2c_probe,
 	.id_table = fan53880_i2c_id,
 };
 module_i2c_driver(fan53880_regulator_driver);

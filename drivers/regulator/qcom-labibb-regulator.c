@@ -307,12 +307,20 @@ end:
 	return IRQ_HANDLED;
 }
 
-static int qcom_labibb_set_ocp(struct regulator_dev *rdev)
+static int qcom_labibb_set_ocp(struct regulator_dev *rdev, int lim,
+			       int severity, bool enable)
 {
 	struct labibb_regulator *vreg = rdev_get_drvdata(rdev);
 	char *ocp_irq_name;
 	u32 irq_flags = IRQF_ONESHOT;
 	int irq_trig_low, ret;
+
+	/*
+	 * labibb supports only protection - and does not support setting
+	 * limit. Furthermore, we don't support disabling protection.
+	 */
+	if (lim || severity != REGULATOR_SEVERITY_PROT || !enable)
+		return -EINVAL;
 
 	/* If there is no OCP interrupt, there's nothing to set */
 	if (vreg->ocp_irq <= 0)
