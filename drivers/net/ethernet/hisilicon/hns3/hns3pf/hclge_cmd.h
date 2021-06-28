@@ -248,6 +248,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_FD_KEY_CONFIG		= 0x1202,
 	HCLGE_OPC_FD_TCAM_OP		= 0x1203,
 	HCLGE_OPC_FD_AD_OP		= 0x1204,
+	HCLGE_OPC_FD_CNT_OP		= 0x1205,
 	HCLGE_OPC_FD_USER_DEF_OP	= 0x1207,
 
 	/* MDIO command */
@@ -1106,6 +1107,14 @@ struct hclge_fd_ad_config_cmd {
 	u8 rsv1[3];
 	__le32 index;
 	__le64 ad_data;
+	u8 rsv2[8];
+};
+
+struct hclge_fd_ad_cnt_read_cmd {
+	u8 rsv0[4];
+	__le16 index;
+	u8 rsv1[2];
+	__le64 cnt;
 	u8 rsv2[8];
 };
 

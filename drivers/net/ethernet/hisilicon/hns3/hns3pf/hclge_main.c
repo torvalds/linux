@@ -6000,8 +6000,14 @@ static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
 		ad_data.queue_id = rule->queue_id;
 	}
 
-	ad_data.use_counter = false;
-	ad_data.counter_id = 0;
+	if (hdev->fd_cfg.cnt_num[HCLGE_FD_STAGE_1]) {
+		ad_data.use_counter = true;
+		ad_data.counter_id = rule->vf_id %
+				     hdev->fd_cfg.cnt_num[HCLGE_FD_STAGE_1];
+	} else {
+		ad_data.use_counter = false;
+		ad_data.counter_id = 0;
+	}
 
 	ad_data.use_next_stage = false;
 	ad_data.next_input_key = 0;

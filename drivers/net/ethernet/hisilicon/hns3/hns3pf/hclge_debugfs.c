@@ -1549,6 +1549,39 @@ out:
 	return ret;
 }
 
+static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
+{
+	u8 func_num = pci_num_vf(hdev->pdev) + 1; /* pf and enabled vf num */
+	struct hclge_fd_ad_cnt_read_cmd *req;
+	char str_id[HCLGE_DBG_ID_LEN];
+	struct hclge_desc desc;
+	int pos = 0;
+	int ret;
+	u64 cnt;
+	u8 i;
+
+	pos += scnprintf(buf + pos, len - pos,
+			 "func_id\thit_times\n");
+
+	for (i = 0; i < func_num; i++) {
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_CNT_OP, true);
+		req = (struct hclge_fd_ad_cnt_read_cmd *)desc.data;
+		req->index = cpu_to_le16(i);
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev, "failed to get fd counter, ret = %d\n",
+				ret);
+			return ret;
+		}
+		cnt = le64_to_cpu(req->cnt);
+		hclge_dbg_get_func_id_str(str_id, i);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%s\t%llu\n", str_id, cnt);
+	}
+
+	return 0;
+}
+
 int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 {
 	int pos = 0;
@@ -1892,6 +1925,36 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 		}
 		spin_unlock_bh(&vport->mac_list_lock);
 	}
+}
+
+static int hclge_dbg_dump_umv_info(struct hclge_dev *hdev, char *buf, int len)
+{
+	u8 func_num = pci_num_vf(hdev->pdev) + 1;
+	struct hclge_vport *vport;
+	int pos = 0;
+	u8 i;
+
+	pos += scnprintf(buf, len, "num_alloc_vport   : %u\n",
+			  hdev->num_alloc_vport);
+	pos += scnprintf(buf + pos, len - pos, "max_umv_size     : %u\n",
+			 hdev->max_umv_size);
+	pos += scnprintf(buf + pos, len - pos, "wanted_umv_size  : %u\n",
+			 hdev->wanted_umv_size);
+	pos += scnprintf(buf + pos, len - pos, "priv_umv_size    : %u\n",
+			 hdev->priv_umv_size);
+
+	mutex_lock(&hdev->vport_lock);
+	pos += scnprintf(buf + pos, len - pos, "share_umv_size   : %u\n",
+			 hdev->share_umv_size);
+	for (i = 0; i < func_num; i++) {
+		vport = &hdev->vport[i];
+		pos += scnprintf(buf + pos, len - pos,
+				 "vport(%u) used_umv_num : %u\n",
+				 i, vport->used_umv_num);
+	}
+	mutex_unlock(&hdev->vport_lock);
+
+	return 0;
 }
 
 static int hclge_get_vlan_rx_offload_cfg(struct hclge_dev *hdev, u8 vf_id,
@@ -2374,6 +2437,14 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_VLAN_CONFIG,
 		.dbg_dump = hclge_dbg_dump_vlan_config,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_FD_COUNTER,
+		.dbg_dump = hclge_dbg_dump_fd_counter,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_UMV_INFO,
+		.dbg_dump = hclge_dbg_dump_umv_info,
 	},
 };
 
