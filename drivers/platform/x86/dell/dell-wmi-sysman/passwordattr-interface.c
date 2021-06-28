@@ -95,9 +95,9 @@ int set_new_password(const char *password_type, const char *new)
 
 	print_hex_dump_bytes("set new password data: ", DUMP_PREFIX_NONE, buffer, buffer_size);
 	ret = call_password_interface(wmi_priv.password_attr_wdev, buffer, buffer_size);
-	/* clear current_password here and use user input from wmi_priv.current_password */
+	/* on success copy the new password to current password */
 	if (!ret)
-		memset(current_password, 0, MAX_BUFF);
+		strscpy(current_password, new, MAX_BUFF);
 	/* explain to user the detailed failure reason */
 	else if (ret == -EOPNOTSUPP)
 		dev_err(&wmi_priv.password_attr_wdev->dev, "admin password must be configured\n");
