@@ -99,6 +99,8 @@ static void mem_abort_decode(unsigned int esr)
 	pr_alert("  EA = %lu, S1PTW = %lu\n",
 		 (esr & ESR_ELx_EA) >> ESR_ELx_EA_SHIFT,
 		 (esr & ESR_ELx_S1PTW) >> ESR_ELx_S1PTW_SHIFT);
+	pr_alert("  FSC = 0x%02x: %s\n", (esr & ESR_ELx_FSC),
+		 esr_to_fault_info(esr)->name);
 
 	if (esr_is_data_abort(esr))
 		data_abort_decode(esr);
@@ -232,13 +234,17 @@ static bool is_el1_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
 }
 
+static bool is_el1_data_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_DABT_CUR;
+}
+
 static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
 					   struct pt_regs *regs)
 {
-	unsigned int ec       = ESR_ELx_EC(esr);
 	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
 
-	if (ec != ESR_ELx_EC_DABT_CUR && ec != ESR_ELx_EC_IABT_CUR)
+	if (!is_el1_data_abort(esr) && !is_el1_instruction_abort(esr))
 		return false;
 
 	if (fsc_type == ESR_ELx_FSC_PERM)
@@ -258,7 +264,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	unsigned long flags;
 	u64 par, dfsc;
 
-	if (ESR_ELx_EC(esr) != ESR_ELx_EC_DABT_CUR ||
+	if (!is_el1_data_abort(esr) ||
 	    (esr & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT)
 		return false;
 
@@ -346,10 +352,9 @@ static void do_tag_recovery(unsigned long addr, unsigned int esr,
 
 static bool is_el1_mte_sync_tag_check_fault(unsigned int esr)
 {
-	unsigned int ec = ESR_ELx_EC(esr);
 	unsigned int fsc = esr & ESR_ELx_FSC;
 
-	if (ec != ESR_ELx_EC_DABT_CUR)
+	if (!is_el1_data_abort(esr))
 		return false;
 
 	if (fsc == ESR_ELx_FSC_MTE)
@@ -504,7 +509,7 @@ static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 	 */
 	if (!(vma->vm_flags & vm_flags))
 		return VM_FAULT_BADACCESS;
-	return handle_mm_fault(vma, addr & PAGE_MASK, mm_flags, regs);
+	return handle_mm_fault(vma, addr, mm_flags, regs);
 }
 
 static bool is_el0_instruction_abort(unsigned int esr)
@@ -836,13 +841,6 @@ void do_mem_abort(unsigned long far, unsigned int esr, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(do_mem_abort);
 
-void do_el0_irq_bp_hardening(void)
-{
-	/* PC has already been checked in entry.S */
-	arm64_apply_bp_hardening();
-}
-NOKPROBE_SYMBOL(do_el0_irq_bp_hardening);
-
 void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	arm64_notify_die("SP/PC alignment exception", regs, SIGBUS, BUS_ADRALN,
@@ -921,3 +919,29 @@ void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
 	debug_exception_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug_exception);
+
+/*
+ * Used during anonymous page fault handling.
+ */
+struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+						unsigned long vaddr)
+{
+	gfp_t flags = GFP_HIGHUSER_MOVABLE | __GFP_ZERO;
+
+	/*
+	 * If the page is mapped with PROT_MTE, initialise the tags at the
+	 * point of allocation and page zeroing as this is usually faster than
+	 * separate DC ZVA and STGM.
+	 */
+	if (vma->vm_flags & VM_MTE)
+		flags |= __GFP_ZEROTAGS;
+
+	return alloc_page_vma(flags, vma, vaddr);
+}
+
+void tag_clear_highpage(struct page *page)
+{
+	mte_zero_clear_page_tags(page_address(page));
+	page_kasan_tag_reset(page);
+	set_bit(PG_mte_tagged, &page->flags);
+}

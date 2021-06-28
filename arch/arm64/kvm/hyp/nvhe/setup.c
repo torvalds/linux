@@ -134,7 +134,8 @@ static void update_nvhe_init_params(void)
 	for (i = 0; i < hyp_nr_cpus; i++) {
 		params = per_cpu_ptr(&kvm_init_params, i);
 		params->pgd_pa = __hyp_pa(pkvm_pgtable.pgd);
-		__flush_dcache_area(params, sizeof(*params));
+		dcache_clean_inval_poc((unsigned long)params,
+				    (unsigned long)params + sizeof(*params));
 	}
 }
 
