@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
-#include <linux/init.h>
 
 #define DEFAULT_COUNT 10
 
