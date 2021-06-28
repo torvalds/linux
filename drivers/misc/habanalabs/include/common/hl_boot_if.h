@@ -78,6 +78,26 @@
  * CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	Device is unusable and customer support
  *					should be contacted.
  *
+ * CPU_BOOT_ERR0_ARC0_HALT_ACK_NOT_RCVD	HALT ACK from ARC0 is not received
+ *					within specified retries after issuing
+ *					HALT request. ARC0 appears to be in bad
+ *					reset.
+ *
+ * CPU_BOOT_ERR0_ARC1_HALT_ACK_NOT_RCVD	HALT ACK from ARC1 is not received
+ *					within specified retries after issuing
+ *					HALT request. ARC1 appears to be in bad
+ *					reset.
+ *
+ * CPU_BOOT_ERR0_ARC0_RUN_ACK_NOT_RCVD	RUN ACK from ARC0 is not received
+ *					within specified timeout after issuing
+ *					RUN request. ARC0 appears to be in bad
+ *					reset.
+ *
+ * CPU_BOOT_ERR0_ARC1_RUN_ACK_NOT_RCVD	RUN ACK from ARC1 is not received
+ *					within specified timeout after issuing
+ *					RUN request. ARC1 appears to be in bad
+ *					reset.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -98,6 +118,10 @@
 #define CPU_BOOT_ERR0_SEC_IMG_VER_FAIL		(1 << 11)
 #define CPU_BOOT_ERR0_PLL_FAIL			(1 << 12)
 #define CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	(1 << 13)
+#define CPU_BOOT_ERR0_ARC0_HALT_ACK_NOT_RCVD	(1 << 14)
+#define CPU_BOOT_ERR0_ARC1_HALT_ACK_NOT_RCVD	(1 << 15)
+#define CPU_BOOT_ERR0_ARC0_RUN_ACK_NOT_RCVD	(1 << 16)
+#define CPU_BOOT_ERR0_ARC1_RUN_ACK_NOT_RCVD	(1 << 17)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
 #define CPU_BOOT_ERR1_ENABLED			(1 << 31)
 
@@ -313,10 +337,7 @@ struct cpu_dyn_regs {
 	__le32 hw_state;
 	__le32 kmd_msg_to_cpu;
 	__le32 cpu_cmd_status_to_host;
-	union {
-		__le32 gic_host_irq_ctrl;
-		__le32 gic_host_pi_upd_irq;
-	};
+	__le32 gic_host_pi_upd_irq;
 	__le32 gic_tpc_qm_irq_ctrl;
 	__le32 gic_mme_qm_irq_ctrl;
 	__le32 gic_dma_qm_irq_ctrl;
@@ -462,6 +483,11 @@ struct lkd_fw_comms_msg {
  *				Do not wait for BMC response.
  *
  * COMMS_LOW_PLL_OPP		Initialize PLLs for low OPP.
+ *
+ * COMMS_PREP_DESC_ELBI		Same as COMMS_PREP_DESC only that the memory
+ *				space is allocated in a ELBI access only
+ *				address range.
+ *
  */
 enum comms_cmd {
 	COMMS_NOOP = 0,
@@ -474,6 +500,7 @@ enum comms_cmd {
 	COMMS_GOTO_WFE = 7,
 	COMMS_SKIP_BMC = 8,
 	COMMS_LOW_PLL_OPP = 9,
+	COMMS_PREP_DESC_ELBI = 10,
 	COMMS_INVLD_LAST
 };
 

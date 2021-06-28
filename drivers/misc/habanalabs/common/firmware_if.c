@@ -1953,8 +1953,8 @@ static void hl_fw_dynamic_update_linux_interrupt_if(struct hl_device *hdev)
 	if (!hdev->asic_prop.gic_interrupts_enable &&
 			!(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN)) {
-		dyn_regs->gic_host_halt_irq = dyn_regs->gic_host_irq_ctrl;
-		dyn_regs->gic_host_ints_irq = dyn_regs->gic_host_irq_ctrl;
+		dyn_regs->gic_host_halt_irq = dyn_regs->gic_host_pi_upd_irq;
+		dyn_regs->gic_host_ints_irq = dyn_regs->gic_host_pi_upd_irq;
 
 		dev_warn(hdev->dev,
 			"Using a single interrupt interface towards cpucp");
