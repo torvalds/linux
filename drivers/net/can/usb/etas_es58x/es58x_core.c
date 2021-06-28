@@ -19,7 +19,7 @@
 #include "es58x_core.h"
 
 #define DRV_VERSION "1.00"
-MODULE_AUTHOR("Mailhol Vincent <mailhol.vincent@wanadoo.fr>");
+MODULE_AUTHOR("Vincent Mailhol <mailhol.vincent@wanadoo.fr>");
 MODULE_AUTHOR("Arunachalam Santhanam <arunachalam.santhanam@in.bosch.com>");
 MODULE_DESCRIPTION("Socket CAN driver for ETAS ES58X USB adapters");
 MODULE_VERSION(DRV_VERSION);
