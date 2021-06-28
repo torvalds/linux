@@ -26,9 +26,16 @@ properties:
 
   reg:
     items:
-      - description: NPE0 register range
-      - description: NPE1 register range
-      - description: NPE2 register range
+      - description: NPE0 (NPE-A) register range
+      - description: NPE1 (NPE-B) register range
+      - description: NPE2 (NPE-C) register range
+
+  crypto:
+    $ref: /schemas/crypto/intel,ixp4xx-crypto.yaml#
+    type: object
+    description: Optional node for the embedded crypto engine, the node
+      should be named with the instance number of the NPE engine used for
+      the crypto engine.
 
 required:
   - compatible
@@ -38,8 +45,15 @@ additionalProperties: false
 
 examples:
   - |
-    npe@c8006000 {
+    npe: npe@c8006000 {
          compatible = "intel,ixp4xx-network-processing-engine";
          reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+
+         crypto {
+             compatible = "intel,ixp4xx-crypto";
+             intel,npe-handle = <&npe 2>;
+             queue-rx = <&qmgr 30>;
+             queue-txready = <&qmgr 29>;
+         };
     };
 ...

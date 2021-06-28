@@ -68,19 +68,13 @@ CFLAGS_aes-glue-ce.o	:= -DUSE_V8_CRYPTO_EXTENSIONS
 $(obj)/aes-glue-%.o: $(src)/aes-glue.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
-ifdef REGENERATE_ARM64_CRYPTO
 quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $(<) void $(@)
 
-$(src)/poly1305-core.S_shipped: $(src)/poly1305-armv8.pl
+$(obj)/%-core.S: $(src)/%-armv8.pl
 	$(call cmd,perlasm)
 
-$(src)/sha256-core.S_shipped: $(src)/sha512-armv8.pl
+$(obj)/sha256-core.S: $(src)/sha512-armv8.pl
 	$(call cmd,perlasm)
-
-$(src)/sha512-core.S_shipped: $(src)/sha512-armv8.pl
-	$(call cmd,perlasm)
-
-endif
 
 clean-files += poly1305-core.S sha256-core.S sha512-core.S
