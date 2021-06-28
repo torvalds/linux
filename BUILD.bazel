@@ -14,24 +14,6 @@
 
 load("//build/kleaf:kernel.bzl", "kernel_build")
 
-filegroup(
-    name = "build_configs",
-    srcs = glob(["build.config.*"]),
-)
-
-filegroup(
-    name = "sources",
-    srcs = glob(
-        ["**"],
-        exclude = [
-            "build.config.*",
-            "android/*",
-            "BUILD.bazel",
-            "**/*.bzl",
-        ],
-    ),
-)
-
 common_outs = [
     "System.map",
     "modules.builtin",
@@ -53,8 +35,14 @@ x86_64_outs = common_outs + ["bzImage"]
     name = name,
     outs = outs,
     build_config = config,
-    build_configs = "//common:build_configs",
-    sources = "//common:sources",
+    sources = glob(
+        ["**"],
+        exclude = [
+            "android/*",
+            "BUILD.bazel",
+            "**/*.bzl",
+        ],
+    ),
 ) for name, config, outs in [
     (
         "kernel_aarch64",
