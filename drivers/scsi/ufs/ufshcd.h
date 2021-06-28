@@ -893,16 +893,8 @@ static inline bool ufshcd_is_rpm_autosuspend_allowed(struct ufs_hba *hba)
 
 static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
 {
-/* DWC UFS Core has the Interrupt aggregation feature but is not detectable*/
-#ifndef CONFIG_SCSI_UFS_DWC
-	if ((hba->caps & UFSHCD_CAP_INTR_AGGR) &&
-	    !(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR))
-		return true;
-	else
-		return false;
-#else
-return true;
-#endif
+	return (hba->caps & UFSHCD_CAP_INTR_AGGR) &&
+		!(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR);
 }
 
 static inline bool ufshcd_can_aggressive_pc(struct ufs_hba *hba)
