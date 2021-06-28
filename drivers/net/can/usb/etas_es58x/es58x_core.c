@@ -2108,6 +2108,25 @@ static int es58x_init_netdev(struct es58x_device *es58x_dev, int channel_idx)
 }
 
 /**
+ * es58x_free_netdevs() - Release all network resources of the device.
+ * @es58x_dev: ES58X device.
+ */
+static void es58x_free_netdevs(struct es58x_device *es58x_dev)
+{
+	int i;
+
+	for (i = 0; i < es58x_dev->num_can_ch; i++) {
+		struct net_device *netdev = es58x_dev->netdev[i];
+
+		if (!netdev)
+			continue;
+		unregister_candev(netdev);
+		es58x_dev->netdev[i] = NULL;
+		free_candev(netdev);
+	}
+}
+
+/**
  * es58x_get_product_info() - Get the product information and print them.
  * @es58x_dev: ES58X device.
  *
@@ -2240,18 +2259,11 @@ static int es58x_probe(struct usb_interface *intf,
 
 	for (ch_idx = 0; ch_idx < es58x_dev->num_can_ch; ch_idx++) {
 		ret = es58x_init_netdev(es58x_dev, ch_idx);
-		if (ret)
-			goto cleanup_candev;
-	}
-
-	return ret;
-
- cleanup_candev:
-	for (ch_idx = 0; ch_idx < es58x_dev->num_can_ch; ch_idx++)
-		if (es58x_dev->netdev[ch_idx]) {
-			unregister_candev(es58x_dev->netdev[ch_idx]);
-			free_candev(es58x_dev->netdev[ch_idx]);
+		if (ret) {
+			es58x_free_netdevs(es58x_dev);
+			return ret;
 		}
+	}
 
 	return ret;
 }
@@ -2266,21 +2278,11 @@ static int es58x_probe(struct usb_interface *intf,
 static void es58x_disconnect(struct usb_interface *intf)
 {
 	struct es58x_device *es58x_dev = usb_get_intfdata(intf);
-	struct net_device *netdev;
-	int i;
 
 	dev_info(&intf->dev, "Disconnecting %s %s\n",
 		 es58x_dev->udev->manufacturer, es58x_dev->udev->product);
 
-	for (i = 0; i < es58x_dev->num_can_ch; i++) {
-		netdev = es58x_dev->netdev[i];
-		if (!netdev)
-			continue;
-		unregister_candev(netdev);
-		es58x_dev->netdev[i] = NULL;
-		free_candev(netdev);
-	}
-
+	es58x_free_netdevs(es58x_dev);
 	es58x_free_urbs(es58x_dev);
 	usb_set_intfdata(intf, NULL);
 }
