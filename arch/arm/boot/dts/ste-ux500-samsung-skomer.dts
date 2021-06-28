@@ -222,7 +222,9 @@
 			};
 		};
 
-		// eMMC
+		/*
+		 * eMMC seems to be mostly Samsung KLM4G1YE4C "4YMD1R"
+		 */
 		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
@@ -232,6 +234,8 @@
 			mmc-ddr-1_8v;
 			no-sdio;
 			no-sd;
+			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
+			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
