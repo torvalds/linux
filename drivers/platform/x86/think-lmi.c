@@ -571,6 +571,11 @@ static ssize_t current_value_store(struct kobject *kobj,
 	else
 		ret = tlmi_save_bios_settings("");
 
+	if (!ret && !tlmi_priv.pending_changes) {
+		tlmi_priv.pending_changes = true;
+		/* let userland know it may need to check reboot pending again */
+		kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
+	}
 out:
 	kfree(auth_str);
 	kfree(set_str);
@@ -647,6 +652,14 @@ static struct kobj_type tlmi_pwd_setting_ktype = {
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };
 
+static ssize_t pending_reboot_show(struct kobject *kobj, struct kobj_attribute *attr,
+				   char *buf)
+{
+	return sprintf(buf, "%d\n", tlmi_priv.pending_changes);
+}
+
+static struct kobj_attribute pending_reboot = __ATTR_RO(pending_reboot);
+
 /* ---- Initialisation --------------------------------------------------------- */
 static void tlmi_release_attr(void)
 {
@@ -667,6 +680,7 @@ static void tlmi_release_attr(void)
 	sysfs_remove_group(&tlmi_priv.pwd_power->kobj, &auth_attr_group);
 	kobject_put(&tlmi_priv.pwd_power->kobj);
 	kset_unregister(tlmi_priv.authentication_kset);
+	sysfs_remove_file(&tlmi_priv.class_dev->kobj, &pending_reboot.attr);
 }
 
 static int tlmi_sysfs_init(void)
@@ -743,6 +757,11 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 
 	ret = sysfs_create_group(&tlmi_priv.pwd_power->kobj, &auth_attr_group);
+	if (ret)
+		goto fail_create_attr;
+
+	/* Create global sysfs files */
+	ret = sysfs_create_file(&tlmi_priv.class_dev->kobj, &pending_reboot.attr);
 	if (ret)
 		goto fail_create_attr;
 
