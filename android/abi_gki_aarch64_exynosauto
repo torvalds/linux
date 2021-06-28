@@ -10,6 +10,7 @@
   arm64_use_ng_mappings
   __arm_smccc_smc
   atomic_notifier_chain_register
+  __bitmap_and
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
@@ -98,6 +99,7 @@
   _dev_warn
   disable_irq
   disable_irq_nosync
+  display_timings_release
   dma_alloc_attrs
   dma_buf_attach
   dma_buf_begin_cpu_access
@@ -147,6 +149,7 @@
   drm_connector_init
   drm_connector_register
   drm_connector_update_edid_property
+  drm_display_mode_from_videomode
   __drm_err
   drm_helper_probe_single_connector_modes
   drm_kms_helper_hotplug_event
@@ -237,6 +240,7 @@
   kobject_init_and_add
   kobject_put
   krealloc
+  kset_unregister
   kstrdup
   kstrtoint
   kstrtou8
@@ -306,6 +310,7 @@
   of_find_node_opts_by_path
   of_find_property
   of_get_child_by_name
+  of_get_display_timings
   of_get_named_gpio_flags
   of_get_next_child
   of_get_property
@@ -526,6 +531,7 @@
   video_device_alloc
   video_device_release
   video_ioctl2
+  videomode_from_timings
   __video_register_device
   video_unregister_device
   vmalloc
@@ -589,6 +595,7 @@
   input_register_handler
   input_unregister_handle
   irq_to_desc
+  kmsg_dump_get_line
   kmsg_dump_rewind
   kstat
   nr_irqs
@@ -674,6 +681,8 @@
   console_unlock
   debugfs_lookup
   device_rename
+  drm_atomic_bridge_chain_enable
+  drm_atomic_bridge_chain_pre_enable
   drm_atomic_helper_check
   drm_atomic_helper_cleanup_planes
   drm_atomic_helper_commit
@@ -683,10 +692,12 @@
   drm_atomic_helper_crtc_duplicate_state
   drm_atomic_helper_crtc_reset
   drm_atomic_helper_disable_plane
+  drm_atomic_helper_disable_planes_on_crtc
   drm_atomic_helper_fake_vblank
   drm_atomic_helper_page_flip
   __drm_atomic_helper_plane_destroy_state
   __drm_atomic_helper_plane_duplicate_state
+  __drm_atomic_helper_plane_reset
   drm_atomic_helper_set_config
   drm_atomic_helper_shutdown
   drm_atomic_helper_update_plane
@@ -709,6 +720,7 @@
   drm_crtc_vblank_off
   drm_crtc_vblank_on
   drm_crtc_vblank_put
+  drm_crtc_vblank_waitqueue
   __drm_dbg
   drm_debugfs_create_files
   drm_dev_alloc
@@ -723,13 +735,19 @@
   drm_dp_bw_code_to_link_rate
   drm_dp_channel_eq_ok
   drm_dp_clock_recovery_ok
+  drm_dp_downstream_debug
   drm_dp_dpcd_read
   drm_dp_dpcd_read_link_status
   drm_dp_dpcd_write
+  drm_dp_dsc_sink_line_buf_depth
+  drm_dp_dsc_sink_max_slice_count
   drm_dp_get_adjust_request_pre_emphasis
   drm_dp_get_adjust_request_voltage
   drm_dp_link_train_channel_eq_delay
   drm_dp_link_train_clock_recovery_delay
+  drm_dp_mst_dump_topology
+  drm_dsc_compute_rc_parameters
+  drm_dsc_pps_payload_pack
   drm_encoder_cleanup
   drm_encoder_init
   drm_flip_work_cleanup
@@ -766,6 +784,7 @@
   drm_mode_object_get
   drm_mode_object_put
   drm_of_component_match_add
+  drm_of_crtc_port_mask
   drm_of_find_possible_crtcs
   drm_open
   drm_panel_disable
@@ -776,6 +795,7 @@
   drm_plane_cleanup
   drm_plane_create_alpha_property
   drm_plane_create_blend_mode_property
+  drm_plane_create_zpos_immutable_property
   drm_plane_create_zpos_property
   drm_poll
   drm_prime_gem_destroy
@@ -790,6 +810,7 @@
   of_drm_find_panel
   of_graph_get_endpoint_by_regs
   of_graph_get_next_endpoint
+  of_graph_get_port_by_id
   of_graph_get_remote_port
   of_graph_get_remote_port_parent
   of_graph_parse_endpoint
@@ -851,6 +872,7 @@
 
 # required by lt8912.ko
   drm_mode_duplicate
+  of_get_drm_display_mode
 
 # required by mali_kbase.ko
   anon_inode_getfd
@@ -1161,6 +1183,8 @@
   iterate_fd
   mutex_trylock
   of_reserved_mem_device_release
+  __traceiter_android_vh_show_mem
+  __tracepoint_android_vh_show_mem
   vm_insert_page
 
 # required by samsung_iommu.ko
@@ -1180,6 +1204,7 @@
   iommu_group_for_each_dev
   iommu_group_get
   iommu_group_get_iommudata
+  iommu_group_remove_device
   iommu_group_set_iommudata
   iommu_put_dma_cookie
   iommu_report_device_fault
@@ -1211,6 +1236,7 @@
   v4l2_m2m_next_buf
   v4l2_m2m_poll
   v4l2_m2m_qbuf
+  v4l2_m2m_querybuf
   v4l2_m2m_release
   v4l2_m2m_reqbufs
   v4l2_m2m_streamoff
@@ -1274,6 +1300,7 @@
   syscon_node_to_regmap
 
 # required by ufs-exynosauto-core.ko
+  blk_ksm_init_passthrough
   of_property_read_variable_u16_array
   __traceiter_android_vh_ufs_fill_prdt
   __tracepoint_android_vh_ufs_fill_prdt
@@ -1341,6 +1368,7 @@
   sigprocmask
 
 # required by vlx-vmq-module.ko
+  default_wake_function
   remove_wait_queue
 
 # required by vrpc-module.ko
