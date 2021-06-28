@@ -94,26 +94,11 @@ static void __kprobes handler_post(struct kprobe *p, struct pt_regs *regs,
 #endif
 }
 
-/*
- * fault_handler: this is called if an exception is generated for any
- * instruction within the pre- or post-handler, or when Kprobes
- * single-steps the probed instruction.
- */
-static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trapnr)
-{
-	pr_info("fault_handler: p->addr = 0x%p, trap #%dn", p->addr, trapnr);
-	/* Return 0 because we don't handle the fault. */
-	return 0;
-}
-/* NOKPROBE_SYMBOL() is also available */
-NOKPROBE_SYMBOL(handler_fault);
-
 static int __init kprobe_init(void)
 {
 	int ret;
 	kp.pre_handler = handler_pre;
 	kp.post_handler = handler_post;
-	kp.fault_handler = handler_fault;
 
 	ret = register_kprobe(&kp);
 	if (ret < 0) {

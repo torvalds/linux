@@ -1183,23 +1183,6 @@ static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 }
 NOKPROBE_SYMBOL(aggr_post_handler);
 
-static int aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
-			      int trapnr)
-{
-	struct kprobe *cur = __this_cpu_read(kprobe_instance);
-
-	/*
-	 * if we faulted "during" the execution of a user specified
-	 * probe handler, invoke just that probe's fault handler
-	 */
-	if (cur && cur->fault_handler) {
-		if (cur->fault_handler(cur, regs, trapnr))
-			return 1;
-	}
-	return 0;
-}
-NOKPROBE_SYMBOL(aggr_fault_handler);
-
 /* Walks the list and increments nmissed count for multiprobe case */
 void kprobes_inc_nmissed_count(struct kprobe *p)
 {
@@ -1330,7 +1313,6 @@ static void init_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	ap->addr = p->addr;
 	ap->flags = p->flags & ~KPROBE_FLAG_OPTIMIZED;
 	ap->pre_handler = aggr_pre_handler;
-	ap->fault_handler = aggr_fault_handler;
 	/* We don't care the kprobe which has gone. */
 	if (p->post_handler && !kprobe_gone(p))
 		ap->post_handler = aggr_post_handler;
@@ -2014,7 +1996,6 @@ int register_kretprobe(struct kretprobe *rp)
 
 	rp->kp.pre_handler = pre_handler_kretprobe;
 	rp->kp.post_handler = NULL;
-	rp->kp.fault_handler = NULL;
 
 	/* Pre-allocate memory for max kretprobe instances */
 	if (rp->maxactive <= 0) {
