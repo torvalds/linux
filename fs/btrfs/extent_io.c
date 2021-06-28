@@ -3266,7 +3266,6 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 		return 0;
 	}
 
-	ASSERT(fs_info->max_zone_append_size > 0);
 	/* Ordered extent not yet created, so we're good */
 	ordered = btrfs_lookup_ordered_extent(inode, logical);
 	if (!ordered) {
