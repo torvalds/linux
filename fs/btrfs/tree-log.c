@@ -4468,7 +4468,8 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 				ret = btrfs_truncate_inode_items(trans,
 							 root->log_root,
 							 inode, truncate_offset,
-							 BTRFS_EXTENT_DATA_KEY);
+							 BTRFS_EXTENT_DATA_KEY,
+							 NULL);
 			} while (ret == -EAGAIN);
 			if (ret)
 				goto out;
@@ -5416,7 +5417,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 					  &inode->runtime_flags);
 				while(1) {
 					ret = btrfs_truncate_inode_items(trans,
-						log, inode, 0, 0);
+						log, inode, 0, 0, NULL);
 					if (ret != -EAGAIN)
 						break;
 				}
@@ -5466,13 +5467,23 @@ log_extents:
 	btrfs_release_path(dst_path);
 	if (need_log_inode_item) {
 		err = log_inode_item(trans, log, dst_path, inode);
-		if (!err && !xattrs_logged) {
-			err = btrfs_log_all_xattrs(trans, root, inode, path,
-						   dst_path);
-			btrfs_release_path(path);
-		}
 		if (err)
 			goto out_unlock;
+		/*
+		 * If we are doing a fast fsync and the inode was logged before
+		 * in this transaction, we don't need to log the xattrs because
+		 * they were logged before. If xattrs were added, changed or
+		 * deleted since the last time we logged the inode, then we have
+		 * already logged them because the inode had the runtime flag
+		 * BTRFS_INODE_COPY_EVERYTHING set.
+		 */
+		if (!xattrs_logged && inode->logged_trans < trans->transid) {
+			err = btrfs_log_all_xattrs(trans, root, inode, path,
+						   dst_path);
+			if (err)
+				goto out_unlock;
+			btrfs_release_path(path);
+		}
 	}
 	if (fast_search) {
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path,
@@ -6371,6 +6382,7 @@ next:
 error:
 	if (wc.trans)
 		btrfs_end_transaction(wc.trans);
+	clear_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 	btrfs_free_path(path);
 	return ret;
 }

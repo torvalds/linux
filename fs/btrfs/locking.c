@@ -57,7 +57,7 @@ void btrfs_tree_read_lock(struct extent_buffer *eb)
 /*
  * Try-lock for read.
  *
- * Retrun 1 if the rwlock has been taken, 0 otherwise
+ * Return 1 if the rwlock has been taken, 0 otherwise
  */
 int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 {
@@ -72,7 +72,7 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 /*
  * Try-lock for write.
  *
- * Retrun 1 if the rwlock has been taken, 0 otherwise
+ * Return 1 if the rwlock has been taken, 0 otherwise
  */
 int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 {
