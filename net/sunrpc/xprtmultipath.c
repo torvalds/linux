@@ -7,13 +7,13 @@
  * Trond Myklebust <trond.myklebust@primarydata.com>
  *
  */
+#include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
-#include <asm/cmpxchg.h>
 #include <linux/spinlock.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/addr.h>

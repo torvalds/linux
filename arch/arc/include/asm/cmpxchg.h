@@ -63,7 +63,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 #endif
 
-#define cmpxchg(ptr, o, n) ({				\
+#define arch_cmpxchg(ptr, o, n) ({			\
 	(typeof(*(ptr)))__cmpxchg((ptr),		\
 				  (unsigned long)(o),	\
 				  (unsigned long)(n));	\
@@ -75,7 +75,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
  *  !LLSC: cmpxchg() has to use an external lock atomic_ops_lock to guarantee
  *         semantics, and this lock also happens to be used by atomic_*()
  */
-#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
 
 
 /*
@@ -123,7 +123,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 #if !defined(CONFIG_ARC_HAS_LLSC) && defined(CONFIG_SMP)
 
-#define xchg(ptr, with)			\
+#define arch_xchg(ptr, with)		\
 ({					\
 	unsigned long flags;		\
 	typeof(*(ptr)) old_val;		\
@@ -136,7 +136,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 #else
 
-#define xchg(ptr, with)  _xchg(ptr, with)
+#define arch_xchg(ptr, with)  _xchg(ptr, with)
 
 #endif
 
@@ -153,6 +153,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *         can't be clobbered by others. Thus no serialization required when
  *         atomic_xchg is involved.
  */
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #endif

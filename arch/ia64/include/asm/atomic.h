@@ -21,11 +21,11 @@
 
 #define ATOMIC64_INIT(i)	{ (i) }
 
-#define atomic_read(v)		READ_ONCE((v)->counter)
-#define atomic64_read(v)	READ_ONCE((v)->counter)
+#define arch_atomic_read(v)	READ_ONCE((v)->counter)
+#define arch_atomic64_read(v)	READ_ONCE((v)->counter)
 
-#define atomic_set(v,i)		WRITE_ONCE(((v)->counter), (i))
-#define atomic64_set(v,i)	WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic_set(v,i)	WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic64_set(v,i)	WRITE_ONCE(((v)->counter), (i))
 
 #define ATOMIC_OP(op, c_op)						\
 static __inline__ int							\
@@ -36,7 +36,7 @@ ia64_atomic_##op (int i, atomic_t *v)					\
 									\
 	do {								\
 		CMPXCHG_BUGCHECK(v);					\
-		old = atomic_read(v);					\
+		old = arch_atomic_read(v);				\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old); \
 	return new;							\
@@ -51,7 +51,7 @@ ia64_atomic_fetch_##op (int i, atomic_t *v)				\
 									\
 	do {								\
 		CMPXCHG_BUGCHECK(v);					\
-		old = atomic_read(v);					\
+		old = arch_atomic_read(v);				\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old); \
 	return old;							\
@@ -74,7 +74,7 @@ ATOMIC_OPS(sub, -)
 #define __ia64_atomic_const(i)	0
 #endif
 
-#define atomic_add_return(i,v)						\
+#define arch_atomic_add_return(i,v)					\
 ({									\
 	int __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -82,7 +82,7 @@ ATOMIC_OPS(sub, -)
 		: ia64_atomic_add(__ia64_aar_i, v);			\
 })
 
-#define atomic_sub_return(i,v)						\
+#define arch_atomic_sub_return(i,v)					\
 ({									\
 	int __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -90,7 +90,7 @@ ATOMIC_OPS(sub, -)
 		: ia64_atomic_sub(__ia64_asr_i, v);			\
 })
 
-#define atomic_fetch_add(i,v)						\
+#define arch_atomic_fetch_add(i,v)					\
 ({									\
 	int __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -98,7 +98,7 @@ ATOMIC_OPS(sub, -)
 		: ia64_atomic_fetch_add(__ia64_aar_i, v);		\
 })
 
-#define atomic_fetch_sub(i,v)						\
+#define arch_atomic_fetch_sub(i,v)					\
 ({									\
 	int __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -110,13 +110,13 @@ ATOMIC_FETCH_OP(and, &)
 ATOMIC_FETCH_OP(or, |)
 ATOMIC_FETCH_OP(xor, ^)
 
-#define atomic_and(i,v)	(void)ia64_atomic_fetch_and(i,v)
-#define atomic_or(i,v)	(void)ia64_atomic_fetch_or(i,v)
-#define atomic_xor(i,v)	(void)ia64_atomic_fetch_xor(i,v)
+#define arch_atomic_and(i,v)	(void)ia64_atomic_fetch_and(i,v)
+#define arch_atomic_or(i,v)	(void)ia64_atomic_fetch_or(i,v)
+#define arch_atomic_xor(i,v)	(void)ia64_atomic_fetch_xor(i,v)
 
-#define atomic_fetch_and(i,v)	ia64_atomic_fetch_and(i,v)
-#define atomic_fetch_or(i,v)	ia64_atomic_fetch_or(i,v)
-#define atomic_fetch_xor(i,v)	ia64_atomic_fetch_xor(i,v)
+#define arch_atomic_fetch_and(i,v)	ia64_atomic_fetch_and(i,v)
+#define arch_atomic_fetch_or(i,v)	ia64_atomic_fetch_or(i,v)
+#define arch_atomic_fetch_xor(i,v)	ia64_atomic_fetch_xor(i,v)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -131,7 +131,7 @@ ia64_atomic64_##op (s64 i, atomic64_t *v)				\
 									\
 	do {								\
 		CMPXCHG_BUGCHECK(v);					\
-		old = atomic64_read(v);					\
+		old = arch_atomic64_read(v);				\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old); \
 	return new;							\
@@ -146,7 +146,7 @@ ia64_atomic64_fetch_##op (s64 i, atomic64_t *v)				\
 									\
 	do {								\
 		CMPXCHG_BUGCHECK(v);					\
-		old = atomic64_read(v);					\
+		old = arch_atomic64_read(v);				\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old); \
 	return old;							\
@@ -159,7 +159,7 @@ ia64_atomic64_fetch_##op (s64 i, atomic64_t *v)				\
 ATOMIC64_OPS(add, +)
 ATOMIC64_OPS(sub, -)
 
-#define atomic64_add_return(i,v)					\
+#define arch_atomic64_add_return(i,v)					\
 ({									\
 	s64 __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -167,7 +167,7 @@ ATOMIC64_OPS(sub, -)
 		: ia64_atomic64_add(__ia64_aar_i, v);			\
 })
 
-#define atomic64_sub_return(i,v)					\
+#define arch_atomic64_sub_return(i,v)					\
 ({									\
 	s64 __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -175,7 +175,7 @@ ATOMIC64_OPS(sub, -)
 		: ia64_atomic64_sub(__ia64_asr_i, v);			\
 })
 
-#define atomic64_fetch_add(i,v)						\
+#define arch_atomic64_fetch_add(i,v)					\
 ({									\
 	s64 __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -183,7 +183,7 @@ ATOMIC64_OPS(sub, -)
 		: ia64_atomic64_fetch_add(__ia64_aar_i, v);		\
 })
 
-#define atomic64_fetch_sub(i,v)						\
+#define arch_atomic64_fetch_sub(i,v)					\
 ({									\
 	s64 __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
@@ -195,29 +195,29 @@ ATOMIC64_FETCH_OP(and, &)
 ATOMIC64_FETCH_OP(or, |)
 ATOMIC64_FETCH_OP(xor, ^)
 
-#define atomic64_and(i,v)	(void)ia64_atomic64_fetch_and(i,v)
-#define atomic64_or(i,v)	(void)ia64_atomic64_fetch_or(i,v)
-#define atomic64_xor(i,v)	(void)ia64_atomic64_fetch_xor(i,v)
+#define arch_atomic64_and(i,v)	(void)ia64_atomic64_fetch_and(i,v)
+#define arch_atomic64_or(i,v)	(void)ia64_atomic64_fetch_or(i,v)
+#define arch_atomic64_xor(i,v)	(void)ia64_atomic64_fetch_xor(i,v)
 
-#define atomic64_fetch_and(i,v)	ia64_atomic64_fetch_and(i,v)
-#define atomic64_fetch_or(i,v)	ia64_atomic64_fetch_or(i,v)
-#define atomic64_fetch_xor(i,v)	ia64_atomic64_fetch_xor(i,v)
+#define arch_atomic64_fetch_and(i,v)	ia64_atomic64_fetch_and(i,v)
+#define arch_atomic64_fetch_or(i,v)	ia64_atomic64_fetch_or(i,v)
+#define arch_atomic64_fetch_xor(i,v)	ia64_atomic64_fetch_xor(i,v)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP
 
-#define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_cmpxchg(v, old, new) (arch_cmpxchg(&((v)->counter), old, new))
+#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
-#define atomic64_cmpxchg(v, old, new) \
-	(cmpxchg(&((v)->counter), old, new))
-#define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic64_cmpxchg(v, old, new) \
+	(arch_cmpxchg(&((v)->counter), old, new))
+#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
-#define atomic_add(i,v)			(void)atomic_add_return((i), (v))
-#define atomic_sub(i,v)			(void)atomic_sub_return((i), (v))
+#define arch_atomic_add(i,v)		(void)arch_atomic_add_return((i), (v))
+#define arch_atomic_sub(i,v)		(void)arch_atomic_sub_return((i), (v))
 
-#define atomic64_add(i,v)		(void)atomic64_add_return((i), (v))
-#define atomic64_sub(i,v)		(void)atomic64_sub_return((i), (v))
+#define arch_atomic64_add(i,v)		(void)arch_atomic64_add_return((i), (v))
+#define arch_atomic64_sub(i,v)		(void)arch_atomic64_sub_return((i), (v))
 
 #endif /* _ASM_IA64_ATOMIC_H */

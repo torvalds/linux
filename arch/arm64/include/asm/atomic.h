@@ -223,6 +223,4 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 
 #define arch_atomic64_dec_if_positive		arch_atomic64_dec_if_positive
 
-#define ARCH_ATOMIC
-
 #endif /* __ASM_ATOMIC_H */

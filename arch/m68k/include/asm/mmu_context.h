@@ -31,7 +31,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 
 	if (mm->context != NO_CONTEXT)
 		return;
-	while (atomic_dec_and_test_lt(&nr_free_contexts)) {
+	while (arch_atomic_dec_and_test_lt(&nr_free_contexts)) {
 		atomic_inc(&nr_free_contexts);
 		steal_context();
 	}
