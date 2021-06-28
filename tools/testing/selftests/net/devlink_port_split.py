@@ -239,6 +239,9 @@ def main(cmdline=None):
         assert stderr == ""
 
         devs = json.loads(stdout)['dev']
+        if len(devs.keys()) == 0:
+            print("no devlink device found")
+            sys.exit(1)
         dev = list(devs.keys())[0]
 
     cmd = "devlink dev show %s" % dev
