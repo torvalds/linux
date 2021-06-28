@@ -8771,22 +8771,6 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-icy.c
 
-IDE SUBSYSTEM
-M:	"David S. Miller" <davem@davemloft.net>
-L:	linux-ide@vger.kernel.org
-S:	Maintained
-Q:	http://patchwork.ozlabs.org/project/linux-ide/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/ide.git
-F:	Documentation/ide/
-F:	drivers/ide/
-F:	include/linux/ide.h
-
-IDE/ATAPI DRIVERS
-L:	linux-ide@vger.kernel.org
-S:	Orphan
-F:	Documentation/cdrom/ide-cd.rst
-F:	drivers/ide/ide-cd*
-
 IDEAPAD LAPTOP EXTRAS DRIVER
 M:	Ike Panhc <ike.pan@canonical.com>
 L:	platform-driver-x86@vger.kernel.org
