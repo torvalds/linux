@@ -4309,6 +4309,7 @@ static int svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	struct kvm_host_map map_save;
 	int ret;
 
 	if (is_guest_mode(vcpu)) {
@@ -4324,6 +4325,29 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 		ret = nested_svm_vmexit(svm);
 		if (ret)
 			return ret;
+
+		/*
+		 * KVM uses VMCB01 to store L1 host state while L2 runs but
+		 * VMCB01 is going to be used during SMM and thus the state will
+		 * be lost. Temporary save non-VMLOAD/VMSAVE state to the host save
+		 * area pointed to by MSR_VM_HSAVE_PA. APM guarantees that the
+		 * format of the area is identical to guest save area offsetted
+		 * by 0x400 (matches the offset of 'struct vmcb_save_area'
+		 * within 'struct vmcb'). Note: HSAVE area may also be used by
+		 * L1 hypervisor to save additional host context (e.g. KVM does
+		 * that, see svm_prepare_guest_switch()) which must be
+		 * preserved.
+		 */
+		if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
+				 &map_save) == -EINVAL)
+			return 1;
+
+		BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
+
+		svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
+				     map_save.hva + 0x400);
+
+		kvm_vcpu_unmap(vcpu, &map_save, true);
 	}
 	return 0;
 }
@@ -4331,7 +4355,7 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct kvm_host_map map;
+	struct kvm_host_map map, map_save;
 	int ret = 0;
 
 	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
@@ -4355,6 +4379,19 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 
 			ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, map.hva);
 			kvm_vcpu_unmap(vcpu, &map, true);
+
+			/*
+			 * Restore L1 host state from L1 HSAVE area as VMCB01 was
+			 * used during SMM (see svm_enter_smm())
+			 */
+			if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
+					 &map_save) == -EINVAL)
+				return 1;
+
+			svm_copy_vmrun_state(map_save.hva + 0x400,
+					     &svm->vmcb01.ptr->save);
+
+			kvm_vcpu_unmap(vcpu, &map_save, true);
 		}
 	}
 
