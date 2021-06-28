@@ -319,7 +319,7 @@ Conexant bt866 TV encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - is used in AVS6EYES, and
-- can generate: NTSC/PAL, PAL­M, PAL­N
+- can generate: NTSC/PAL, PAL-M, PAL-N
 
 The adv717x, should be able to produce PAL N. But you find nothing PAL N
 specific in the registers. Seem that you have to reuse a other standard

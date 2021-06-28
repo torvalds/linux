@@ -183,7 +183,7 @@ int amvdec_set_canvases(struct amvdec_session *sess,
 	u32 pixfmt = sess->pixfmt_cap;
 	u32 width = ALIGN(sess->width, 32);
 	u32 height = ALIGN(sess->height, 32);
-	u32 reg_cur = reg_base[0];
+	u32 reg_cur;
 	u32 reg_num_cur = 0;
 	u32 reg_base_cur = 0;
 	int i = 0;

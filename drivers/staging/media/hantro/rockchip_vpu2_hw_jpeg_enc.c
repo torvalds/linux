@@ -28,12 +28,12 @@
 #include "hantro.h"
 #include "hantro_v4l2.h"
 #include "hantro_hw.h"
-#include "rk3399_vpu_regs.h"
+#include "rockchip_vpu2_regs.h"
 
 #define VEPU_JPEG_QUANT_TABLE_COUNT 16
 
-static void rk3399_vpu_set_src_img_ctrl(struct hantro_dev *vpu,
-					struct hantro_ctx *ctx)
+static void rockchip_vpu2_set_src_img_ctrl(struct hantro_dev *vpu,
+					   struct hantro_ctx *ctx)
 {
 	struct v4l2_pix_format_mplane *pix_fmt = &ctx->src_fmt;
 	u32 reg;
@@ -59,9 +59,9 @@ static void rk3399_vpu_set_src_img_ctrl(struct hantro_dev *vpu,
 	vepu_write_relaxed(vpu, reg, VEPU_REG_ENC_CTRL1);
 }
 
-static void rk3399_vpu_jpeg_enc_set_buffers(struct hantro_dev *vpu,
-					    struct hantro_ctx *ctx,
-					    struct vb2_buffer *src_buf)
+static void rockchip_vpu2_jpeg_enc_set_buffers(struct hantro_dev *vpu,
+					       struct hantro_ctx *ctx,
+					       struct vb2_buffer *src_buf)
 {
 	struct v4l2_pix_format_mplane *pix_fmt = &ctx->src_fmt;
 	dma_addr_t src[3];
@@ -92,9 +92,9 @@ static void rk3399_vpu_jpeg_enc_set_buffers(struct hantro_dev *vpu,
 }
 
 static void
-rk3399_vpu_jpeg_enc_set_qtable(struct hantro_dev *vpu,
-			       unsigned char *luma_qtable,
-			       unsigned char *chroma_qtable)
+rockchip_vpu2_jpeg_enc_set_qtable(struct hantro_dev *vpu,
+				  unsigned char *luma_qtable,
+				  unsigned char *chroma_qtable)
 {
 	u32 reg, i;
 	__be32 *luma_qtable_p;
@@ -118,7 +118,7 @@ rk3399_vpu_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 	}
 }
 
-void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
+int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
@@ -141,11 +141,11 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	vepu_write_relaxed(vpu, VEPU_REG_ENCODE_FORMAT_JPEG,
 			   VEPU_REG_ENCODE_START);
 
-	rk3399_vpu_set_src_img_ctrl(vpu, ctx);
-	rk3399_vpu_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
-	rk3399_vpu_jpeg_enc_set_qtable(vpu,
-				       hantro_jpeg_get_qtable(0),
-				       hantro_jpeg_get_qtable(1));
+	rockchip_vpu2_set_src_img_ctrl(vpu, ctx);
+	rockchip_vpu2_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
+	rockchip_vpu2_jpeg_enc_set_qtable(vpu,
+					  hantro_jpeg_get_qtable(0),
+					  hantro_jpeg_get_qtable(1));
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16
@@ -168,4 +168,6 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	/* Kick the watchdog and start encoding */
 	hantro_end_prepare_run(ctx);
 	vepu_write(vpu, reg, VEPU_REG_ENCODE_START);
+
+	return 0;
 }

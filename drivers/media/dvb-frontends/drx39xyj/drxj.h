@@ -75,9 +75,9 @@ TYPEDEFS
 		u16 result_len;
 			/*< result length in byte */
 		u16 *parameter;
-			/*< General purpous param */
+			/*< General purpose param */
 		u16 *result;
-			/*< General purpous param */};
+			/*< General purpose param */};
 
 /*============================================================================*/
 /*============================================================================*/
@@ -131,7 +131,7 @@ TYPEDEFS
 		DRXJ_CFG_MAX	/* dummy, never to be used */};
 
 /*
-* /struct enum drxj_cfg_smart_ant_io * smart antenna i/o.
+* /enum drxj_cfg_smart_ant_io * smart antenna i/o.
 */
 enum drxj_cfg_smart_ant_io {
 	DRXJ_SMT_ANT_OUTPUT = 0,
@@ -139,7 +139,7 @@ enum drxj_cfg_smart_ant_io {
 };
 
 /*
-* /struct struct drxj_cfg_smart_ant * Set smart antenna.
+* /struct drxj_cfg_smart_ant * Set smart antenna.
 */
 	struct drxj_cfg_smart_ant {
 		enum drxj_cfg_smart_ant_io io;
@@ -159,7 +159,7 @@ struct drxj_agc_status {
 /* DRXJ_CFG_AGC_RF, DRXJ_CFG_AGC_IF */
 
 /*
-* /struct enum drxj_agc_ctrl_mode * Available AGCs modes in the DRXJ.
+* /enum drxj_agc_ctrl_mode * Available AGCs modes in the DRXJ.
 */
 	enum drxj_agc_ctrl_mode {
 		DRX_AGC_CTRL_AUTO = 0,
@@ -167,7 +167,7 @@ struct drxj_agc_status {
 		DRX_AGC_CTRL_OFF};
 
 /*
-* /struct struct drxj_cfg_agc * Generic interface for all AGCs present on the DRXJ.
+* /struct drxj_cfg_agc * Generic interface for all AGCs present on the DRXJ.
 */
 	struct drxj_cfg_agc {
 		enum drx_standard standard;	/* standard for which these settings apply */
@@ -183,7 +183,7 @@ struct drxj_agc_status {
 /* DRXJ_CFG_PRE_SAW */
 
 /*
-* /struct struct drxj_cfg_pre_saw * Interface to configure pre SAW sense.
+* /struct drxj_cfg_pre_saw * Interface to configure pre SAW sense.
 */
 	struct drxj_cfg_pre_saw {
 		enum drx_standard standard;	/* standard to which these settings apply */
@@ -193,7 +193,7 @@ struct drxj_agc_status {
 /* DRXJ_CFG_AFE_GAIN */
 
 /*
-* /struct struct drxj_cfg_afe_gain * Interface to configure gain of AFE (LNA + PGA).
+* /struct drxj_cfg_afe_gain * Interface to configure gain of AFE (LNA + PGA).
 */
 	struct drxj_cfg_afe_gain {
 		enum drx_standard standard;	/* standard to which these settings apply */
@@ -220,14 +220,14 @@ struct drxj_agc_status {
 	};
 
 /*
-* /struct struct drxj_cfg_vsb_misc * symbol error rate
+* /struct drxj_cfg_vsb_misc * symbol error rate
 */
 	struct drxj_cfg_vsb_misc {
 		u32 symb_error;
 			      /*< symbol error rate sps */};
 
 /*
-* /enum enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
+* /enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
 *
 */
 	enum drxj_mpeg_start_width {
@@ -235,7 +235,7 @@ struct drxj_agc_status {
 		DRXJ_MPEG_START_WIDTH_8CLKCYC};
 
 /*
-* /enum enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
+* /enum drxj_mpeg_output_clock_rate * Mpeg output clock rate.
 *
 */
 	enum drxj_mpeg_output_clock_rate {
@@ -261,7 +261,7 @@ struct drxj_agc_status {
 		enum drxj_mpeg_start_width mpeg_start_width;  /*< set MPEG output start width */};
 
 /*
-* /enum enum drxj_xtal_freq * Supported external crystal reference frequency.
+* /enum drxj_xtal_freq * Supported external crystal reference frequency.
 */
 	enum drxj_xtal_freq {
 		DRXJ_XTAL_FREQ_RSVD,
@@ -270,14 +270,15 @@ struct drxj_agc_status {
 		DRXJ_XTAL_FREQ_4MHZ};
 
 /*
-* /enum enum drxj_xtal_freq * Supported external crystal reference frequency.
+* /enum drxj_xtal_freq * Supported external crystal reference frequency.
 */
 	enum drxji2c_speed {
 		DRXJ_I2C_SPEED_400KBPS,
 		DRXJ_I2C_SPEED_100KBPS};
 
 /*
-* /struct struct drxj_cfg_hw_cfg * Get hw configuration, such as crystal reference frequency, I2C speed, etc...
+* /struct drxj_cfg_hw_cfg * Get hw configuration, such as crystal
+*  reference frequency, I2C speed, etc...
 */
 	struct drxj_cfg_hw_cfg {
 		enum drxj_xtal_freq xtal_freq;
@@ -364,7 +365,7 @@ struct drxj_cfg_oob_misc {
 		DRXJ_SIF_ATTENUATION_9DB};
 
 /*
-* /struct struct drxj_cfg_atv_output * SIF attenuation setting.
+* /struct drxj_cfg_atv_output * SIF attenuation setting.
 *
 */
 struct drxj_cfg_atv_output {
@@ -453,10 +454,10 @@ struct drxj_cfg_atv_output {
 		enum drxuio_mode uio_gpio_mode; /*< current mode of ASEL pin                         */
 		enum drxuio_mode uio_irqn_mode; /*< current mode of IRQN pin                         */
 
-		/* IQM fs frequecy shift and inversion */
+		/* IQM fs frequency shift and inversion */
 		u32 iqm_fs_rate_ofs;	   /*< frequency shifter setting after setchannel      */
 		bool pos_image;	   /*< True: positive image                            */
-		/* IQM RC frequecy shift */
+		/* IQM RC frequency shift */
 		u32 iqm_rc_rate_ofs;	   /*< frequency shifter setting after setchannel      */
 
 		/* ATV configuration */

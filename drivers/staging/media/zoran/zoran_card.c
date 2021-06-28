@@ -37,9 +37,10 @@ module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "Card type");
 
 /*
- * The video mem address of the video card. The driver has a little database for some videocards
- * to determine it from there. If your video card is not in there you have either to give it to
- * the driver as a parameter or set in in a VIDIOCSFBUF ioctl
+ * The video mem address of the video card. The driver has a little database
+ * for some videocards to determine it from there. If your video card is not
+ * in there you have either to give it to the driver as a parameter or set
+ * in a VIDIOCSFBUF ioctl
  */
 
 static unsigned long vidmem;	/* default = 0 - Video memory base address */

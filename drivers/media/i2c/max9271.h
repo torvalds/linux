@@ -86,6 +86,15 @@ struct max9271_device {
 };
 
 /**
+ * max9271_wake_up() - Wake up the serializer by issuing an i2c transaction
+ * @dev: The max9271 device
+ *
+ * This function shall be called before any other interaction with the
+ * serializer.
+ */
+void max9271_wake_up(struct max9271_device *dev);
+
+/**
  * max9271_set_serial_link() - Enable/disable serial link
  * @dev: The max9271 device
  * @enable: Serial link enable/disable flag

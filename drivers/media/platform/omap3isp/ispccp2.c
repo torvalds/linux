@@ -618,11 +618,13 @@ static const unsigned int ccp2_fmts[] = {
  * return format structure or NULL on error
  */
 static struct v4l2_mbus_framefmt *
-__ccp2_get_format(struct isp_ccp2_device *ccp2, struct v4l2_subdev_pad_config *cfg,
-		     unsigned int pad, enum v4l2_subdev_format_whence which)
+__ccp2_get_format(struct isp_ccp2_device *ccp2,
+		  struct v4l2_subdev_state *sd_state,
+		  unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ccp2->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&ccp2->subdev, sd_state,
+						  pad);
 	else
 		return &ccp2->formats[pad];
 }
@@ -636,7 +638,8 @@ __ccp2_get_format(struct isp_ccp2_device *ccp2, struct v4l2_subdev_pad_config *c
  * @which : wanted subdev format
  */
 static void ccp2_try_format(struct isp_ccp2_device *ccp2,
-			       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+			       struct v4l2_subdev_state *sd_state,
+			       unsigned int pad,
 			       struct v4l2_mbus_framefmt *fmt,
 			       enum v4l2_subdev_format_whence which)
 {
@@ -670,7 +673,8 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 		 * When CCP2 write to memory feature will be added this
 		 * should be changed properly.
 		 */
-		format = __ccp2_get_format(ccp2, cfg, CCP2_PAD_SINK, which);
+		format = __ccp2_get_format(ccp2, sd_state, CCP2_PAD_SINK,
+					   which);
 		memcpy(fmt, format, sizeof(*fmt));
 		fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
@@ -688,7 +692,7 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
  * return -EINVAL or zero on success
  */
 static int ccp2_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct isp_ccp2_device *ccp2 = v4l2_get_subdevdata(sd);
@@ -703,8 +707,8 @@ static int ccp2_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index != 0)
 			return -EINVAL;
 
-		format = __ccp2_get_format(ccp2, cfg, CCP2_PAD_SINK,
-					      code->which);
+		format = __ccp2_get_format(ccp2, sd_state, CCP2_PAD_SINK,
+					   code->which);
 		code->code = format->code;
 	}
 
@@ -712,7 +716,7 @@ static int ccp2_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ccp2_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct isp_ccp2_device *ccp2 = v4l2_get_subdevdata(sd);
@@ -724,7 +728,7 @@ static int ccp2_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ccp2_try_format(ccp2, cfg, fse->pad, &format, fse->which);
+	ccp2_try_format(ccp2, sd_state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -734,7 +738,7 @@ static int ccp2_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ccp2_try_format(ccp2, cfg, fse->pad, &format, fse->which);
+	ccp2_try_format(ccp2, sd_state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -748,13 +752,14 @@ static int ccp2_enum_frame_size(struct v4l2_subdev *sd,
  * @fmt   : pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int ccp2_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			      struct v4l2_subdev_format *fmt)
+static int ccp2_get_format(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *fmt)
 {
 	struct isp_ccp2_device *ccp2 = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ccp2_get_format(ccp2, cfg, fmt->pad, fmt->which);
+	format = __ccp2_get_format(ccp2, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -769,25 +774,27 @@ static int ccp2_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
  * @fmt   : pointer to v4l2 subdev format structure
  * returns zero
  */
-static int ccp2_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			      struct v4l2_subdev_format *fmt)
+static int ccp2_set_format(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *fmt)
 {
 	struct isp_ccp2_device *ccp2 = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ccp2_get_format(ccp2, cfg, fmt->pad, fmt->which);
+	format = __ccp2_get_format(ccp2, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	ccp2_try_format(ccp2, cfg, fmt->pad, &fmt->format, fmt->which);
+	ccp2_try_format(ccp2, sd_state, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == CCP2_PAD_SINK) {
-		format = __ccp2_get_format(ccp2, cfg, CCP2_PAD_SOURCE,
+		format = __ccp2_get_format(ccp2, sd_state, CCP2_PAD_SOURCE,
 					   fmt->which);
 		*format = fmt->format;
-		ccp2_try_format(ccp2, cfg, CCP2_PAD_SOURCE, format, fmt->which);
+		ccp2_try_format(ccp2, sd_state, CCP2_PAD_SOURCE, format,
+				fmt->which);
 	}
 
 	return 0;
@@ -812,7 +819,7 @@ static int ccp2_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
-	ccp2_set_format(sd, fh ? fh->pad : NULL, &format);
+	ccp2_set_format(sd, fh ? fh->state : NULL, &format);
 
 	return 0;
 }

@@ -217,6 +217,7 @@ config VIDEO_ADV7180
 	depends on GPIOLIB && VIDEO_V4L2 && I2C
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
 	help
 	  Support for the Analog Devices ADV7180 video decoder.
 
@@ -534,6 +535,7 @@ config VIDEO_ADV7175
 config VIDEO_ADV7343
 	tristate "ADV7343 video encoder"
 	depends on I2C
+	select V4L2_ASYNC
 	help
 	  Support for Analog Devices I2C bus based ADV7343 encoder.
 
@@ -652,6 +654,7 @@ config SDR_MAX2175
 	tristate "Maxim 2175 RF to Bits tuner"
 	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
 	select REGMAP_I2C
+	select V4L2_ASYNC
 	help
 	  Support for Maxim 2175 tuner. It is an advanced analog/digital
 	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
@@ -668,6 +671,7 @@ menu "Miscellaneous helper chips"
 config VIDEO_THS7303
 	tristate "THS7303/53 Video Amplifier"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for TI THS7303/53 video amplifier
 
@@ -737,6 +741,17 @@ config VIDEO_HI556
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hi556.
+
+config VIDEO_IMX208
+	tristate "Sony IMX208 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX208 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx208.
 
 config VIDEO_IMX214
 	tristate "Sony IMX214 sensor support"
@@ -1341,6 +1356,7 @@ config VIDEO_AD5820
 	tristate "AD5820 lens voice coil support"
 	depends on GPIOLIB && I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
+	select V4L2_ASYNC
 	help
 	  This is a driver for the AD5820 camera lens voice coil.
 	  It is used for example in Nokia N900 (RX-51).
@@ -1350,6 +1366,7 @@ config VIDEO_AK7375
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
 	help
 	  This is a driver for the AK7375 camera lens voice coil.
 	  AK7375 is a 12 bit DAC with 120mA output current sink
@@ -1361,6 +1378,7 @@ config VIDEO_DW9714
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
 	help
 	  This is a driver for the DW9714 camera lens voice coil.
 	  DW9714 is a 10 bit DAC with 120mA output current sink
@@ -1384,6 +1402,7 @@ config VIDEO_DW9807_VCM
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
 	help
 	  This is a driver for the DW9807 camera lens voice coil.
 	  DW9807 is a 10 bit DAC with 100mA output current sink
@@ -1399,6 +1418,7 @@ config VIDEO_ADP1653
 	tristate "ADP1653 flash support"
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
+	select V4L2_ASYNC
 	help
 	  This is a driver for the ADP1653 flash controller. It is used for
 	  example in Nokia N900.
@@ -1408,6 +1428,7 @@ config VIDEO_LM3560
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select REGMAP_I2C
+	select V4L2_ASYNC
 	help
 	  This is a driver for the lm3560 dual flash controllers. It controls
 	  flash, torch LEDs.
@@ -1417,6 +1438,7 @@ config VIDEO_LM3646
 	depends on I2C && VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select REGMAP_I2C
+	select V4L2_ASYNC
 	help
 	  This is a driver for the lm3646 dual flash controllers. It controls
 	  flash, torch LEDs.
