@@ -218,6 +218,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			pr_err("failed to create ptp aux_worker %d\n", err);
 			goto kworker_err;
 		}
+		ptp->pps_source->lookup_cookie = ptp;
 	}
 
 	err = ptp_populate_pin_groups(ptp);
