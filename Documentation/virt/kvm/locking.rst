@@ -16,6 +16,11 @@ The acquisition orders for mutexes are as follows:
 - kvm->slots_lock is taken outside kvm->irq_lock, though acquiring
   them together is quite rare.
 
+- Unlike kvm->slots_lock, kvm->slots_arch_lock is released before
+  synchronize_srcu(&kvm->srcu).  Therefore kvm->slots_arch_lock
+  can be taken inside a kvm->srcu read-side critical section,
+  while kvm->slots_lock cannot.
+
 On x86:
 
 - vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock

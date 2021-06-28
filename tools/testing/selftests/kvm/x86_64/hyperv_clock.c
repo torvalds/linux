@@ -7,6 +7,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "hyperv.h"
 
 struct ms_hyperv_tsc_page {
 	volatile u32 tsc_sequence;
@@ -14,13 +15,6 @@ struct ms_hyperv_tsc_page {
 	volatile u64 tsc_scale;
 	volatile s64 tsc_offset;
 } __packed;
-
-#define HV_X64_MSR_GUEST_OS_ID			0x40000000
-#define HV_X64_MSR_TIME_REF_COUNT		0x40000020
-#define HV_X64_MSR_REFERENCE_TSC		0x40000021
-#define HV_X64_MSR_TSC_FREQUENCY		0x40000022
-#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
-#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
 
 /* Simplified mul_u64_u64_shr() */
 static inline u64 mul_u64_u64_shr64(u64 a, u64 b)
@@ -220,7 +214,7 @@ int main(void)
 
 	vcpu_set_hv_cpuid(vm, VCPU_ID);
 
-	tsc_page_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	tsc_page_gva = vm_vaddr_alloc_page(vm);
 	memset(addr_gpa2hva(vm, tsc_page_gva), 0x0, getpagesize());
 	TEST_ASSERT((addr_gva2gpa(vm, tsc_page_gva) & (getpagesize() - 1)) == 0,
 		"TSC page has to be page aligned\n");

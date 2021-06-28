@@ -14,15 +14,11 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "apic.h"
 
 #define N_VCPU 2
 #define VCPU_ID0 0
 #define VCPU_ID1 1
-
-static uint32_t get_bsp_flag(void)
-{
-	return rdmsr(MSR_IA32_APICBASE) & MSR_IA32_APICBASE_BSP;
-}
 
 static void guest_bsp_vcpu(void *arg)
 {
@@ -94,7 +90,7 @@ static struct kvm_vm *create_vm(void)
 	pages = vm_adjust_num_guest_pages(VM_MODE_DEFAULT, pages);
 	vm = vm_create(VM_MODE_DEFAULT, pages, O_RDWR);
 
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+	kvm_vm_elf_load(vm, program_invocation_name);
 	vm_create_irqchip(vm);
 
 	return vm;
@@ -106,8 +102,6 @@ static void add_x86_vcpu(struct kvm_vm *vm, uint32_t vcpuid, bool bsp_code)
 		vm_vcpu_add_default(vm, vcpuid, guest_bsp_vcpu);
 	else
 		vm_vcpu_add_default(vm, vcpuid, guest_not_bsp_vcpu);
-
-	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
 }
 
 static void run_vm_bsp(uint32_t bsp_vcpu)

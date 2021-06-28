@@ -376,3 +376,16 @@ data:
 	write '1' to bit 0 of the MSR, this causes the host to re-scan its queue
 	and check if there are more notifications pending. The MSR is available
 	if KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
+
+MSR_KVM_MIGRATION_CONTROL:
+        0x4b564d08
+
+data:
+        This MSR is available if KVM_FEATURE_MIGRATION_CONTROL is present in
+        CPUID.  Bit 0 represents whether live migration of the guest is allowed.
+
+        When a guest is started, bit 0 will be 0 if the guest has encrypted
+        memory and 1 if the guest does not have encrypted memory.  If the
+        guest is communicating page encryption status to the host using the
+        ``KVM_HC_MAP_GPA_RANGE`` hypercall, it can set bit 0 in this MSR to
+        allow live migration of the guest.

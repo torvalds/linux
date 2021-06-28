@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+/aarch64/debug-exceptions
 /aarch64/get-reg-list
-/aarch64/get-reg-list-sve
 /aarch64/vgic_init
 /s390x/memop
 /s390x/resets
@@ -8,12 +8,15 @@
 /x86_64/cr4_cpuid_sync_test
 /x86_64/debug_regs
 /x86_64/evmcs_test
+/x86_64/emulator_error_test
 /x86_64/get_cpuid_test
 /x86_64/get_msr_index_features
 /x86_64/kvm_pv_test
 /x86_64/hyperv_clock
 /x86_64/hyperv_cpuid
+/x86_64/hyperv_features
 /x86_64/mmio_warning_test
+/x86_64/mmu_role_test
 /x86_64/platform_info_test
 /x86_64/set_boot_cpu_id
 /x86_64/set_sregs_test
@@ -29,6 +32,7 @@
 /x86_64/vmx_preemption_timer_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
+/x86_64/vmx_nested_tsc_scaling_test
 /x86_64/xapic_ipi_test
 /x86_64/xen_shinfo_test
 /x86_64/xen_vmcall_test
@@ -44,3 +48,4 @@
 /memslot_perf_test
 /set_memory_region_test
 /steal_time
+/kvm_binary_stats_test
