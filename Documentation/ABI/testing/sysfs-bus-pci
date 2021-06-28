@@ -139,8 +139,8 @@ Description:
 		binary file containing the Vital Product Data for the
 		device.  It should follow the VPD format defined in
 		PCI Specification 2.1 or 2.2, but users should consider
-		that some devices may have malformatted data.  If the
-		underlying VPD has a writable section then the
+		that some devices may have incorrectly formatted data.  
+		If the underlying VPD has a writable section then the
 		corresponding section of this file will be writable.
 
 What:		/sys/bus/pci/devices/.../virtfnN

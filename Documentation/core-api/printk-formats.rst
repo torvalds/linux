@@ -37,14 +37,13 @@ Integer types
 		u64			%llu or %llx
 
 
-If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
-format specifier of its largest possible type and explicitly cast to it.
+If <type> is architecture-dependent for its size (e.g., cycles_t, tcflag_t) or
+is dependent on a config option for its size (e.g., blk_status_t), use a format
+specifier of its largest possible type and explicitly cast to it.
 
 Example::
 
-	printk("test: sector number/total blocks: %llu/%llu\n",
-		(unsigned long long)sector, (unsigned long long)blockcount);
+	printk("test: latency: %llu cycles\n", (unsigned long long)time);
 
 Reminder: sizeof() returns type size_t.
 
