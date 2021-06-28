@@ -76,6 +76,7 @@ static int mlx5_esw_bridge_switchdev_port_event(struct notifier_block *nb,
 }
 
 static int mlx5_esw_bridge_port_obj_add(struct net_device *dev,
+					const void *ctx,
 					const struct switchdev_obj *obj,
 					struct netlink_ext_ack *extack)
 {
@@ -107,6 +108,7 @@ static int mlx5_esw_bridge_port_obj_add(struct net_device *dev,
 }
 
 static int mlx5_esw_bridge_port_obj_del(struct net_device *dev,
+					const void *ctx,
 					const struct switchdev_obj *obj)
 {
 	const struct switchdev_obj_port_vlan *vlan;
@@ -136,6 +138,7 @@ static int mlx5_esw_bridge_port_obj_del(struct net_device *dev,
 }
 
 static int mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
+					     const void *ctx,
 					     const struct switchdev_attr *attr,
 					     struct netlink_ext_ack *extack)
 {

@@ -271,12 +271,15 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phylink_mii_ioctl(p->dp->pl, ifr, cmd);
 }
 
-static int dsa_slave_port_attr_set(struct net_device *dev,
+static int dsa_slave_port_attr_set(struct net_device *dev, const void *ctx,
 				   const struct switchdev_attr *attr,
 				   struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int ret;
+
+	if (ctx && ctx != dp)
+		return 0;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
@@ -394,12 +397,15 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	return vlan_vid_add(master, htons(ETH_P_8021Q), vlan.vid);
 }
 
-static int dsa_slave_port_obj_add(struct net_device *dev,
+static int dsa_slave_port_obj_add(struct net_device *dev, const void *ctx,
 				  const struct switchdev_obj *obj,
 				  struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int err;
+
+	if (ctx && ctx != dp)
+		return 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
@@ -469,11 +475,14 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	return 0;
 }
 
-static int dsa_slave_port_obj_del(struct net_device *dev,
+static int dsa_slave_port_obj_del(struct net_device *dev, const void *ctx,
 				  const struct switchdev_obj *obj)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int err;
+
+	if (ctx && ctx != dp)
+		return 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
@@ -2068,6 +2077,26 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	return err;
 }
 
+static int dsa_slave_prechangeupper(struct net_device *dev,
+				    struct netdev_notifier_changeupper_info *info)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct netlink_ext_ack *extack;
+	int err = 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
+		err = dsa_port_pre_bridge_leave(dp, info->upper_dev, extack);
+	else if (netif_is_lag_master(info->upper_dev) && !info->linking)
+		err = dsa_port_pre_lag_leave(dp, info->upper_dev, extack);
+	/* dsa_port_pre_hsr_leave is not yet necessary since hsr cannot be
+	 * meaningfully enslaved to a bridge yet
+	 */
+
+	return notifier_from_errno(err);
+}
+
 static int
 dsa_slave_lag_changeupper(struct net_device *dev,
 			  struct netdev_notifier_changeupper_info *info)
@@ -2087,6 +2116,35 @@ dsa_slave_lag_changeupper(struct net_device *dev,
 			continue;
 
 		err = dsa_slave_changeupper(lower, info);
+		if (notifier_to_errno(err))
+			break;
+	}
+
+	return err;
+}
+
+/* Same as dsa_slave_lag_changeupper() except that it calls
+ * dsa_slave_prechangeupper()
+ */
+static int
+dsa_slave_lag_prechangeupper(struct net_device *dev,
+			     struct netdev_notifier_changeupper_info *info)
+{
+	struct net_device *lower;
+	struct list_head *iter;
+	int err = NOTIFY_DONE;
+	struct dsa_port *dp;
+
+	netdev_for_each_lower_dev(dev, lower, iter) {
+		if (!dsa_slave_dev_check(lower))
+			continue;
+
+		dp = dsa_slave_to_port(lower);
+		if (!dp->lag_dev)
+			/* Software LAG */
+			continue;
+
+		err = dsa_slave_prechangeupper(lower, info);
 		if (notifier_to_errno(err))
 			break;
 	}
@@ -2157,6 +2215,32 @@ dsa_slave_check_8021q_upper(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int
+dsa_slave_prechangeupper_sanity_check(struct net_device *dev,
+				      struct netdev_notifier_changeupper_info *info)
+{
+	struct dsa_switch *ds;
+	struct dsa_port *dp;
+	int err;
+
+	if (!dsa_slave_dev_check(dev))
+		return dsa_prevent_bridging_8021q_upper(dev, info);
+
+	dp = dsa_slave_to_port(dev);
+	ds = dp->ds;
+
+	if (ds->ops->port_prechangeupper) {
+		err = ds->ops->port_prechangeupper(ds, dp->index, info);
+		if (err)
+			return notifier_from_errno(err);
+	}
+
+	if (is_vlan_dev(info->upper_dev))
+		return dsa_slave_check_8021q_upper(dev, info);
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
@@ -2165,24 +2249,18 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER: {
 		struct netdev_notifier_changeupper_info *info = ptr;
-		struct dsa_switch *ds;
-		struct dsa_port *dp;
 		int err;
 
-		if (!dsa_slave_dev_check(dev))
-			return dsa_prevent_bridging_8021q_upper(dev, ptr);
+		err = dsa_slave_prechangeupper_sanity_check(dev, info);
+		if (err != NOTIFY_DONE)
+			return err;
 
-		dp = dsa_slave_to_port(dev);
-		ds = dp->ds;
+		if (dsa_slave_dev_check(dev))
+			return dsa_slave_prechangeupper(dev, ptr);
 
-		if (ds->ops->port_prechangeupper) {
-			err = ds->ops->port_prechangeupper(ds, dp->index, info);
-			if (err)
-				return notifier_from_errno(err);
-		}
+		if (netif_is_lag_master(dev))
+			return dsa_slave_lag_prechangeupper(dev, ptr);
 
-		if (is_vlan_dev(info->upper_dev))
-			return dsa_slave_check_8021q_upper(dev, ptr);
 		break;
 	}
 	case NETDEV_CHANGEUPPER:

@@ -194,26 +194,51 @@ static int dsa_port_switchdev_sync(struct dsa_port *dp,
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_mdb_replay(br, brport_dev,
-			    &dsa_slave_switchdev_blocking_notifier,
-			    extack);
+	err = br_mdb_replay(br, brport_dev, dp, true,
+			    &dsa_slave_switchdev_blocking_notifier, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_fdb_replay(br, brport_dev, &dsa_slave_switchdev_notifier);
+	err = br_fdb_replay(br, brport_dev, dp, true,
+			    &dsa_slave_switchdev_notifier);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_vlan_replay(br, brport_dev,
-			     &dsa_slave_switchdev_blocking_notifier,
-			     extack);
+	err = br_vlan_replay(br, brport_dev, dp, true,
+			     &dsa_slave_switchdev_blocking_notifier, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	return 0;
 }
 
-static void dsa_port_switchdev_unsync(struct dsa_port *dp)
+static int dsa_port_switchdev_unsync_objs(struct dsa_port *dp,
+					  struct net_device *br,
+					  struct netlink_ext_ack *extack)
+{
+	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
+	int err;
+
+	/* Delete the switchdev objects left on this port */
+	err = br_mdb_replay(br, brport_dev, dp, false,
+			    &dsa_slave_switchdev_blocking_notifier, extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_fdb_replay(br, brport_dev, dp, false,
+			    &dsa_slave_switchdev_notifier);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_vlan_replay(br, brport_dev, dp, false,
+			     &dsa_slave_switchdev_blocking_notifier, extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
+}
+
+static void dsa_port_switchdev_unsync_attrs(struct dsa_port *dp)
 {
 	/* Configure the port for standalone mode (no address learning,
 	 * flood everything).
@@ -279,6 +304,12 @@ out_rollback:
 	return err;
 }
 
+int dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br,
+			      struct netlink_ext_ack *extack)
+{
+	return dsa_port_switchdev_unsync_objs(dp, br, extack);
+}
+
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
 	struct dsa_notifier_bridge_info info = {
@@ -298,7 +329,7 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	if (err)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
-	dsa_port_switchdev_unsync(dp);
+	dsa_port_switchdev_unsync_attrs(dp);
 }
 
 int dsa_port_lag_change(struct dsa_port *dp,
@@ -364,6 +395,15 @@ err_lag_join:
 	dp->lag_dev = NULL;
 	dsa_lag_unmap(dp->ds->dst, lag);
 	return err;
+}
+
+int dsa_port_pre_lag_leave(struct dsa_port *dp, struct net_device *lag,
+			   struct netlink_ext_ack *extack)
+{
+	if (dp->bridge_dev)
+		return dsa_port_pre_bridge_leave(dp, dp->bridge_dev, extack);
+
+	return 0;
 }
 
 void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag)
