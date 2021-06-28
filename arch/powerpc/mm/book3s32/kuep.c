@@ -5,7 +5,7 @@
 
 struct static_key_false disable_kuep_key;
 
-void __init setup_kuep(bool disabled)
+void setup_kuep(bool disabled)
 {
 	if (!disabled)
 		kuep_lock();

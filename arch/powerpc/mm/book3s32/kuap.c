@@ -18,7 +18,7 @@ void kuap_unlock_all_ool(void)
 }
 EXPORT_SYMBOL(kuap_unlock_all_ool);
 
-void __init setup_kuap(bool disabled)
+void setup_kuap(bool disabled)
 {
 	if (!disabled)
 		kuap_lock_all_ool();
