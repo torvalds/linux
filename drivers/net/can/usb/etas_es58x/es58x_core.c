@@ -2152,14 +2152,13 @@ static int es58x_get_product_info(struct es58x_device *es58x_dev)
 /**
  * es58x_init_es58x_dev() - Initialize the ES58X device.
  * @intf: USB interface.
- * @p_es58x_dev: pointer to the address of the ES58X device.
  * @driver_info: Quirks of the device.
  *
- * Return: zero on success, errno when any error occurs.
+ * Return: pointer to an ES58X device on success, error pointer when
+ *	any error occurs.
  */
-static int es58x_init_es58x_dev(struct usb_interface *intf,
-				struct es58x_device **p_es58x_dev,
-				kernel_ulong_t driver_info)
+static struct es58x_device *es58x_init_es58x_dev(struct usb_interface *intf,
+						 kernel_ulong_t driver_info)
 {
 	struct device *dev = &intf->dev;
 	struct es58x_device *es58x_dev;
@@ -2176,7 +2175,7 @@ static int es58x_init_es58x_dev(struct usb_interface *intf,
 	ret = usb_find_common_endpoints(intf->cur_altsetting, &ep_in, &ep_out,
 					NULL, NULL);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	if (driver_info & ES58X_FD_FAMILY) {
 		param = &es58x_fd_param;
@@ -2188,7 +2187,7 @@ static int es58x_init_es58x_dev(struct usb_interface *intf,
 
 	es58x_dev = kzalloc(es58x_sizeof_es58x_device(param), GFP_KERNEL);
 	if (!es58x_dev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	es58x_dev->param = param;
 	es58x_dev->ops = ops;
@@ -2213,9 +2212,7 @@ static int es58x_init_es58x_dev(struct usb_interface *intf,
 					     ep_out->bEndpointAddress);
 	es58x_dev->rx_max_packet_size = le16_to_cpu(ep_in->wMaxPacketSize);
 
-	*p_es58x_dev = es58x_dev;
-
-	return 0;
+	return es58x_dev;
 }
 
 /**
@@ -2232,9 +2229,9 @@ static int es58x_probe(struct usb_interface *intf,
 	struct es58x_device *es58x_dev;
 	int ch_idx, ret;
 
-	ret = es58x_init_es58x_dev(intf, &es58x_dev, id->driver_info);
-	if (ret)
-		return ret;
+	es58x_dev = es58x_init_es58x_dev(intf, id->driver_info);
+	if (IS_ERR(es58x_dev))
+		return PTR_ERR(es58x_dev);
 
 	ret = es58x_get_product_info(es58x_dev);
 	if (ret)
