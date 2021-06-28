@@ -29,7 +29,6 @@ struct inno_video_phy {
 	struct clk *pclk;
 	struct regmap *regmap;
 	struct reset_control *rst;
-	enum phy_mode mode;
 };
 
 static const struct reg_sequence ttl_mode[] = {
@@ -83,6 +82,7 @@ static const struct reg_sequence lvds_mode_dual_channel[] = {
 static int inno_video_phy_power_on(struct phy *phy)
 {
 	struct inno_video_phy *inno = phy_get_drvdata(phy);
+	enum phy_mode mode = phy_get_mode(phy);
 	const struct reg_sequence *wseq;
 	bool dual_channel = phy_get_bus_width(phy) == 2 ? true : false;
 	int nregs;
@@ -92,8 +92,8 @@ static int inno_video_phy_power_on(struct phy *phy)
 	clk_prepare_enable(inno->pclk);
 	pm_runtime_get_sync(inno->dev);
 
-	switch (inno->mode) {
-	case PHY_MODE_VIDEO_LVDS:
+	switch (mode) {
+	case PHY_MODE_LVDS:
 		if (dual_channel) {
 			wseq = lvds_mode_dual_channel;
 			nregs = ARRAY_SIZE(lvds_mode_dual_channel);
@@ -102,12 +102,10 @@ static int inno_video_phy_power_on(struct phy *phy)
 			nregs = ARRAY_SIZE(lvds_mode_single_channel);
 		}
 		break;
-	case PHY_MODE_VIDEO_TTL:
+	default:
 		wseq = ttl_mode;
 		nregs = ARRAY_SIZE(ttl_mode);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	regmap_multi_reg_write(inno->regmap, wseq, nregs);
@@ -140,17 +138,6 @@ static int inno_video_phy_power_off(struct phy *phy)
 
 static int inno_video_phy_set_mode(struct phy *phy, enum phy_mode mode)
 {
-	struct inno_video_phy *inno = phy_get_drvdata(phy);
-
-	switch (mode) {
-	case PHY_MODE_VIDEO_LVDS:
-	case PHY_MODE_VIDEO_TTL:
-		inno->mode = mode;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
