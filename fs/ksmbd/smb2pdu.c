@@ -4888,9 +4888,11 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 	int addition_info = le32_to_cpu(req->AdditionalInformation);
 	int rc;
 
-	if (addition_info & ~(OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO)) {
-		ksmbd_debug(SMB, "Unsupported addition info: 0x%x)\n",
-			    addition_info);
+	if (addition_info & ~(OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO |
+			      PROTECTED_DACL_SECINFO |
+			      UNPROTECTED_DACL_SECINFO)) {
+		pr_err("Unsupported addition info: 0x%x)\n",
+		       addition_info);
 
 		pntsd->revision = cpu_to_le16(1);
 		pntsd->type = cpu_to_le16(SELF_RELATIVE | DACL_PROTECTED);
