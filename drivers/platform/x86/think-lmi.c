@@ -626,6 +626,7 @@ static void tlmi_attr_setting_release(struct kobject *kobj)
 {
 	struct tlmi_attr_setting *setting = to_tlmi_attr_setting(kobj);
 
+	kfree(setting->possible_values);
 	kfree(setting);
 }
 
@@ -654,7 +655,6 @@ static void tlmi_release_attr(void)
 	/* Attribute structures */
 	for (i = 0; i < TLMI_SETTINGS_COUNT; i++) {
 		if (tlmi_priv.setting[i]) {
-			kfree(tlmi_priv.setting[i]->possible_values);
 			sysfs_remove_group(&tlmi_priv.setting[i]->kobj, &tlmi_attr_group);
 			kobject_put(&tlmi_priv.setting[i]->kobj);
 		}
