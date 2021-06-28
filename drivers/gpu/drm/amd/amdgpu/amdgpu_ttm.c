@@ -590,10 +590,6 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev,
 
 		mem->bus.offset += adev->gmc.aper_base;
 		mem->bus.is_iomem = true;
-		if (adev->gmc.xgmi.connected_to_cpu)
-			mem->bus.caching = ttm_cached;
-		else
-			mem->bus.caching = ttm_write_combined;
 		break;
 	default:
 		return -EINVAL;
