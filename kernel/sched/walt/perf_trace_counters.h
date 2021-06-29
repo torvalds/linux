@@ -19,6 +19,7 @@
 #define C5 0x20
 #define C_ALL (CC | C0 | C1 | C2 | C3 | C4 | C5)
 #define NUM_L1_CTRS 6
+#define NUM_AMU_CTRS 2
 
 #include <linux/sched.h>
 #include <linux/cpumask.h>
@@ -27,6 +28,7 @@
 DECLARE_PER_CPU(u32, cntenset_val);
 DECLARE_PER_CPU(u32, previous_ccnt);
 DECLARE_PER_CPU(u32[NUM_L1_CTRS], previous_l1_cnts);
+DECLARE_PER_CPU(u64[NUM_AMU_CTRS], previous_amu_cnts);
 TRACE_EVENT(sched_switch_with_ctrs,
 
 		TP_PROTO(pid_t prev, pid_t next),
@@ -43,6 +45,8 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__field(u32, ctr3)
 			__field(u32, ctr4)
 			__field(u32, ctr5)
+			__field(u64, amu0)
+			__field(u64, amu1)
 		),
 
 		TP_fast_assign(
@@ -51,7 +55,9 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			u32 cnten_val;
 			u32 total_ccnt = 0;
 			u32 total_cnt = 0;
+			u64 amu_cnt = 0;
 			u32 delta_l1_cnts[NUM_L1_CTRS];
+			u64 delta_amu_cnts[NUM_AMU_CTRS] = {0};
 
 			__entry->old_pid	= prev;
 			__entry->new_pid	= next;
@@ -80,20 +86,35 @@ TRACE_EVENT(sched_switch_with_ctrs,
 					delta_l1_cnts[i] = 0;
 			}
 
+			if (IS_ENABLED(CONFIG_ARM64_AMU_EXTN)) {
+				amu_cnt = read_sysreg_s(SYS_AMEVCNTR0_CORE_EL0);
+				delta_amu_cnts[0] = amu_cnt -
+					per_cpu(previous_amu_cnts[0], cpu);
+				per_cpu(previous_amu_cnts[0], cpu) = amu_cnt;
+
+				amu_cnt = read_sysreg_s(SYS_AMEVCNTR0_INST_RET_EL0);
+				delta_amu_cnts[1] = amu_cnt -
+					per_cpu(previous_amu_cnts[1], cpu);
+				per_cpu(previous_amu_cnts[1], cpu) = amu_cnt;
+			}
+
 			__entry->ctr0 = delta_l1_cnts[0];
 			__entry->ctr1 = delta_l1_cnts[1];
 			__entry->ctr2 = delta_l1_cnts[2];
 			__entry->ctr3 = delta_l1_cnts[3];
 			__entry->ctr4 = delta_l1_cnts[4];
 			__entry->ctr5 = delta_l1_cnts[5];
+			__entry->amu0 = delta_amu_cnts[0];
+			__entry->amu1 = delta_amu_cnts[1];
 		),
 
-		TP_printk("prev_pid=%d, next_pid=%d, CCNTR: %u, CTR0: %u, CTR1: %u, CTR2: %u, CTR3: %u, CTR4: %u, CTR5: %u",
+		TP_printk("prev_pid=%d, next_pid=%d, CCNTR: %u, CTR0: %u, CTR1: %u, CTR2: %u, CTR3: %u, CTR4: %u, CTR5: %u, CYC: %llu, INST: %llu",
 				__entry->old_pid, __entry->new_pid,
 				__entry->cctr,
 				__entry->ctr0, __entry->ctr1,
 				__entry->ctr2, __entry->ctr3,
-				__entry->ctr4, __entry->ctr5)
+				__entry->ctr4, __entry->ctr5,
+				__entry->amu0, __entry->amu1)
 );
 
 #endif

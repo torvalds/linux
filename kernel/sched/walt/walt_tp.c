@@ -17,6 +17,7 @@ unsigned int sysctl_sched_dynamic_tp_enable;
 DEFINE_PER_CPU(u32, cntenset_val);
 DEFINE_PER_CPU(u32, previous_ccnt);
 DEFINE_PER_CPU(u32[NUM_L1_CTRS], previous_l1_cnts);
+DEFINE_PER_CPU(u64[NUM_AMU_CTRS], previous_amu_cnts);
 DEFINE_PER_CPU(u32, old_pid);
 DEFINE_PER_CPU(u32, hotplug_flag);
 
