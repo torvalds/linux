@@ -507,6 +507,7 @@ struct igc_nfc_rule {
 	struct igc_nfc_filter filter;
 	u32 location;
 	u16 action;
+	bool flex;
 };
 
 /* IGC supports a total of 32 NFC rules: 16 MAC address based, 8 VLAN priority

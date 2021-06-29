@@ -3385,14 +3385,8 @@ static int igc_enable_nfc_rule(struct igc_adapter *adapter,
 {
 	int err;
 
-	/* Check for user data first: When user data is set, the only option is
-	 * to use a flex filter. When more options are set (ethertype, vlan tci,
-	 * ...) construct a flex filter matching all of that.
-	 */
-	if (rule->filter.match_flags & IGC_FILTER_FLAG_USER_DATA) {
-		err = igc_add_flex_filter(adapter, rule);
-		if (err)
-			return err;
+	if (rule->flex) {
+		return igc_add_flex_filter(adapter, rule);
 	}
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
@@ -3431,8 +3425,10 @@ static int igc_enable_nfc_rule(struct igc_adapter *adapter,
 static void igc_disable_nfc_rule(struct igc_adapter *adapter,
 				 const struct igc_nfc_rule *rule)
 {
-	if (rule->filter.match_flags & IGC_FILTER_FLAG_USER_DATA)
+	if (rule->flex) {
 		igc_del_flex_filter(adapter, rule->filter.flex_index);
+		return;
+	}
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
 		igc_del_etype_filter(adapter, rule->filter.etype);
