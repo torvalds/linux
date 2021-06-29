@@ -1300,12 +1300,6 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	if ((fsp->flow_type & FLOW_EXT) &&
-	    fsp->m_ext.vlan_tci != htons(VLAN_PRIO_MASK)) {
-		netdev_dbg(netdev, "VLAN mask not supported\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (fsp->ring_cookie >= adapter->num_rx_queues) {
 		netdev_dbg(netdev, "Invalid action\n");
 		return -EINVAL;
