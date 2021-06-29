@@ -702,3 +702,5 @@ foreach my $module (keys(%modules)) {
 	print STDERR "\n";
     }
 }
+
+# vim: softtabstop=4
