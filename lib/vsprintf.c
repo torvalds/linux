@@ -1798,7 +1798,8 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	      struct printf_spec spec, const char *fmt)
 {
 	bool have_t = true, have_d = true;
-	bool raw = false;
+	bool raw = false, iso8601_separator = true;
+	bool found = true;
 	int count = 2;
 
 	if (check_pointer(&buf, end, tm, spec))
@@ -1815,14 +1816,25 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 		break;
 	}
 
-	raw = fmt[count] == 'r';
+	do {
+		switch (fmt[count++]) {
+		case 'r':
+			raw = true;
+			break;
+		case 's':
+			iso8601_separator = false;
+			break;
+		default:
+			found = false;
+			break;
+		}
+	} while (found);
 
 	if (have_d)
 		buf = date_str(buf, end, tm, raw);
 	if (have_d && have_t) {
-		/* Respect ISO 8601 */
 		if (buf < end)
-			*buf = 'T';
+			*buf = iso8601_separator ? 'T' : ' ';
 		buf++;
 	}
 	if (have_t)
@@ -2261,7 +2273,7 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
  * - 'g' For block_device name (gendisk + partition number)
- * - 't[RT][dt][r]' For time and date as represented by:
+ * - 't[RT][dt][r][s]' For time and date as represented by:
  *      R    struct rtc_time
  *      T    time64_t
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
