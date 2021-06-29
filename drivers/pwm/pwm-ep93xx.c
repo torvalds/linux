@@ -137,6 +137,7 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 				writew(duty_cycles, base + EP93XX_PWMx_DUTY_CYCLE);
 				writew(period_cycles, base + EP93XX_PWMx_TERM_COUNT);
 			}
+			ret = 0;
 		} else {
 			ret = -EINVAL;
 		}
