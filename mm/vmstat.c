@@ -44,7 +44,7 @@ static void zero_zone_numa_counters(struct zone *zone)
 	for (item = 0; item < NR_VM_NUMA_STAT_ITEMS; item++) {
 		atomic_long_set(&zone->vm_numa_stat[item], 0);
 		for_each_online_cpu(cpu)
-			per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item]
+			per_cpu_ptr(zone->per_cpu_zonestats, cpu)->vm_numa_stat_diff[item]
 						= 0;
 	}
 }
@@ -266,7 +266,7 @@ void refresh_zone_stat_thresholds(void)
 		for_each_online_cpu(cpu) {
 			int pgdat_threshold;
 
-			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+			per_cpu_ptr(zone->per_cpu_zonestats, cpu)->stat_threshold
 							= threshold;
 
 			/* Base nodestat threshold on the largest populated zone. */
@@ -303,7 +303,7 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 
 		threshold = (*calculate_pressure)(zone);
 		for_each_online_cpu(cpu)
-			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+			per_cpu_ptr(zone->per_cpu_zonestats, cpu)->stat_threshold
 							= threshold;
 	}
 }
@@ -316,7 +316,7 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 			   long delta)
 {
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	struct per_cpu_zonestat __percpu *pcp = zone->per_cpu_zonestats;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
 	long x;
 	long t;
@@ -389,7 +389,7 @@ EXPORT_SYMBOL(__mod_node_page_state);
  */
 void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 {
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	struct per_cpu_zonestat __percpu *pcp = zone->per_cpu_zonestats;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
 	s8 v, t;
 
@@ -435,7 +435,7 @@ EXPORT_SYMBOL(__inc_node_page_state);
 
 void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 {
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	struct per_cpu_zonestat __percpu *pcp = zone->per_cpu_zonestats;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
 	s8 v, t;
 
@@ -495,7 +495,7 @@ EXPORT_SYMBOL(__dec_node_page_state);
 static inline void mod_zone_state(struct zone *zone,
        enum zone_stat_item item, long delta, int overstep_mode)
 {
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	struct per_cpu_zonestat __percpu *pcp = zone->per_cpu_zonestats;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
 	long o, n, t, z;
 
@@ -781,19 +781,22 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 	int changes = 0;
 
 	for_each_populated_zone(zone) {
-		struct per_cpu_pageset __percpu *p = zone->pageset;
+		struct per_cpu_zonestat __percpu *pzstats = zone->per_cpu_zonestats;
+#ifdef CONFIG_NUMA
+		struct per_cpu_pages __percpu *pcp = zone->per_cpu_pageset;
+#endif
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
 			int v;
 
-			v = this_cpu_xchg(p->vm_stat_diff[i], 0);
+			v = this_cpu_xchg(pzstats->vm_stat_diff[i], 0);
 			if (v) {
 
 				atomic_long_add(v, &zone->vm_stat[i]);
 				global_zone_diff[i] += v;
 #ifdef CONFIG_NUMA
 				/* 3 seconds idle till flush */
-				__this_cpu_write(p->expire, 3);
+				__this_cpu_write(pcp->expire, 3);
 #endif
 			}
 		}
@@ -801,12 +804,12 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
 			int v;
 
-			v = this_cpu_xchg(p->vm_numa_stat_diff[i], 0);
+			v = this_cpu_xchg(pzstats->vm_numa_stat_diff[i], 0);
 			if (v) {
 
 				atomic_long_add(v, &zone->vm_numa_stat[i]);
 				global_numa_diff[i] += v;
-				__this_cpu_write(p->expire, 3);
+				__this_cpu_write(pcp->expire, 3);
 			}
 		}
 
@@ -819,23 +822,23 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 			 * Check if there are pages remaining in this pageset
 			 * if not then there is nothing to expire.
 			 */
-			if (!__this_cpu_read(p->expire) ||
-			       !__this_cpu_read(p->pcp.count))
+			if (!__this_cpu_read(pcp->expire) ||
+			       !__this_cpu_read(pcp->count))
 				continue;
 
 			/*
 			 * We never drain zones local to this processor.
 			 */
 			if (zone_to_nid(zone) == numa_node_id()) {
-				__this_cpu_write(p->expire, 0);
+				__this_cpu_write(pcp->expire, 0);
 				continue;
 			}
 
-			if (__this_cpu_dec_return(p->expire))
+			if (__this_cpu_dec_return(pcp->expire))
 				continue;
 
-			if (__this_cpu_read(p->pcp.count)) {
-				drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
+			if (__this_cpu_read(pcp->count)) {
+				drain_zone_pages(zone, this_cpu_ptr(pcp));
 				changes++;
 			}
 		}
@@ -882,27 +885,27 @@ void cpu_vm_stats_fold(int cpu)
 	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
 
 	for_each_populated_zone(zone) {
-		struct per_cpu_pageset *p;
+		struct per_cpu_zonestat *pzstats;
 
-		p = per_cpu_ptr(zone->pageset, cpu);
+		pzstats = per_cpu_ptr(zone->per_cpu_zonestats, cpu);
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-			if (p->vm_stat_diff[i]) {
+			if (pzstats->vm_stat_diff[i]) {
 				int v;
 
-				v = p->vm_stat_diff[i];
-				p->vm_stat_diff[i] = 0;
+				v = pzstats->vm_stat_diff[i];
+				pzstats->vm_stat_diff[i] = 0;
 				atomic_long_add(v, &zone->vm_stat[i]);
 				global_zone_diff[i] += v;
 			}
 
 #ifdef CONFIG_NUMA
 		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-			if (p->vm_numa_stat_diff[i]) {
+			if (pzstats->vm_numa_stat_diff[i]) {
 				int v;
 
-				v = p->vm_numa_stat_diff[i];
-				p->vm_numa_stat_diff[i] = 0;
+				v = pzstats->vm_numa_stat_diff[i];
+				pzstats->vm_numa_stat_diff[i] = 0;
 				atomic_long_add(v, &zone->vm_numa_stat[i]);
 				global_numa_diff[i] += v;
 			}
@@ -936,24 +939,24 @@ void cpu_vm_stats_fold(int cpu)
  * this is only called if !populated_zone(zone), which implies no other users of
  * pset->vm_stat_diff[] exist.
  */
-void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
+void drain_zonestat(struct zone *zone, struct per_cpu_zonestat *pzstats)
 {
 	int i;
 
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		if (pset->vm_stat_diff[i]) {
-			int v = pset->vm_stat_diff[i];
-			pset->vm_stat_diff[i] = 0;
+		if (pzstats->vm_stat_diff[i]) {
+			int v = pzstats->vm_stat_diff[i];
+			pzstats->vm_stat_diff[i] = 0;
 			atomic_long_add(v, &zone->vm_stat[i]);
 			atomic_long_add(v, &vm_zone_stat[i]);
 		}
 
 #ifdef CONFIG_NUMA
 	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-		if (pset->vm_numa_stat_diff[i]) {
-			int v = pset->vm_numa_stat_diff[i];
+		if (pzstats->vm_numa_stat_diff[i]) {
+			int v = pzstats->vm_numa_stat_diff[i];
 
-			pset->vm_numa_stat_diff[i] = 0;
+			pzstats->vm_numa_stat_diff[i] = 0;
 			atomic_long_add(v, &zone->vm_numa_stat[i]);
 			atomic_long_add(v, &vm_numa_stat[i]);
 		}
@@ -965,8 +968,8 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
 void __inc_numa_state(struct zone *zone,
 				 enum numa_stat_item item)
 {
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
-	u16 __percpu *p = pcp->vm_numa_stat_diff + item;
+	struct per_cpu_zonestat __percpu *pzstats = zone->per_cpu_zonestats;
+	u16 __percpu *p = pzstats->vm_numa_stat_diff + item;
 	u16 v;
 
 	v = __this_cpu_inc_return(*p);
@@ -1693,21 +1696,23 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 
 	seq_printf(m, "\n  pagesets");
 	for_each_online_cpu(i) {
-		struct per_cpu_pageset *pageset;
+		struct per_cpu_pages *pcp;
+		struct per_cpu_zonestat __maybe_unused *pzstats;
 
-		pageset = per_cpu_ptr(zone->pageset, i);
+		pcp = per_cpu_ptr(zone->per_cpu_pageset, i);
 		seq_printf(m,
 			   "\n    cpu: %i"
 			   "\n              count: %i"
 			   "\n              high:  %i"
 			   "\n              batch: %i",
 			   i,
-			   pageset->pcp.count,
-			   pageset->pcp.high,
-			   pageset->pcp.batch);
+			   pcp->count,
+			   pcp->high,
+			   pcp->batch);
 #ifdef CONFIG_SMP
+		pzstats = per_cpu_ptr(zone->per_cpu_zonestats, i);
 		seq_printf(m, "\n  vm stats threshold: %d",
-				pageset->stat_threshold);
+				pzstats->stat_threshold);
 #endif
 	}
 	seq_printf(m,
@@ -1927,17 +1932,18 @@ static bool need_update(int cpu)
 	struct zone *zone;
 
 	for_each_populated_zone(zone) {
-		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
+		struct per_cpu_zonestat *pzstats = per_cpu_ptr(zone->per_cpu_zonestats, cpu);
 		struct per_cpu_nodestat *n;
+
 		/*
 		 * The fast way of checking if there are any vmstat diffs.
 		 */
-		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS *
-			       sizeof(p->vm_stat_diff[0])))
+		if (memchr_inv(pzstats->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS *
+			       sizeof(pzstats->vm_stat_diff[0])))
 			return true;
 #ifdef CONFIG_NUMA
-		if (memchr_inv(p->vm_numa_stat_diff, 0, NR_VM_NUMA_STAT_ITEMS *
-			       sizeof(p->vm_numa_stat_diff[0])))
+		if (memchr_inv(pzstats->vm_numa_stat_diff, 0, NR_VM_NUMA_STAT_ITEMS *
+			       sizeof(pzstats->vm_numa_stat_diff[0])))
 			return true;
 #endif
 		if (last_pgdat == zone->zone_pgdat)

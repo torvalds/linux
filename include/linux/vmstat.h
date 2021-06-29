@@ -163,7 +163,7 @@ static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
+		x += per_cpu_ptr(zone->per_cpu_zonestats, cpu)->vm_numa_stat_diff[item];
 
 	return x;
 }
@@ -236,7 +236,7 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
 #ifdef CONFIG_SMP
 	int cpu;
 	for_each_online_cpu(cpu)
-		x += per_cpu_ptr(zone->pageset, cpu)->vm_stat_diff[item];
+		x += per_cpu_ptr(zone->per_cpu_zonestats, cpu)->vm_stat_diff[item];
 
 	if (x < 0)
 		x = 0;
@@ -291,7 +291,7 @@ struct ctl_table;
 int vmstat_refresh(struct ctl_table *, int write, void *buffer, size_t *lenp,
 		loff_t *ppos);
 
-void drain_zonestat(struct zone *zone, struct per_cpu_pageset *);
+void drain_zonestat(struct zone *zone, struct per_cpu_zonestat *);
 
 int calculate_pressure_threshold(struct zone *zone);
 int calculate_normal_threshold(struct zone *zone);
@@ -399,7 +399,7 @@ static inline void cpu_vm_stats_fold(int cpu) { }
 static inline void quiet_vmstat(void) { }
 
 static inline void drain_zonestat(struct zone *zone,
-			struct per_cpu_pageset *pset) { }
+			struct per_cpu_zonestat *pzstats) { }
 #endif		/* CONFIG_SMP */
 
 static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
