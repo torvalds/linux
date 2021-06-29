@@ -317,11 +317,11 @@ struct hw_queue_properties {
 };
 
 /**
- * enum vm_type_t - virtual memory mapping request information.
+ * enum vm_type - virtual memory mapping request information.
  * @VM_TYPE_USERPTR: mapping of user memory to device virtual address.
  * @VM_TYPE_PHYS_PACK: mapping of DRAM memory to device virtual address.
  */
-enum vm_type_t {
+enum vm_type {
 	VM_TYPE_USERPTR = 0x1,
 	VM_TYPE_PHYS_PACK = 0x2
 };
@@ -1421,7 +1421,7 @@ struct hl_ctx_mgr {
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
  */
 struct hl_userptr {
-	enum vm_type_t		vm_type; /* must be first */
+	enum vm_type		vm_type; /* must be first */
 	struct list_head	job_node;
 	struct page		**pages;
 	unsigned int		npages;
@@ -1635,7 +1635,7 @@ struct hl_vm_hw_block_list_node {
  * @created_from_userptr: is product of host virtual address.
  */
 struct hl_vm_phys_pg_pack {
-	enum vm_type_t		vm_type; /* must be first */
+	enum vm_type		vm_type; /* must be first */
 	u64			*pages;
 	u64			npages;
 	u64			total_size;

@@ -607,8 +607,7 @@ static u64 get_va_block(struct hl_device *hdev,
 			do_div(tmp_hint_addr, va_range->page_size))) {
 
 		if (force_hint) {
-			/* Hint must be repected, so here we just fail.
-			 */
+			/* Hint must be respected, so here we just fail */
 			dev_err(hdev->dev,
 				"Hint address 0x%llx is not page aligned - cannot be respected\n",
 				hint_addr);
@@ -1067,7 +1066,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_userptr *userptr = NULL;
 	struct hl_vm_hash_node *hnode;
 	struct hl_va_range *va_range;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	u64 ret_vaddr, hint_addr;
 	u32 handle = 0, va_block_align;
 	int rc;
@@ -1098,7 +1097,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 			goto init_page_pack_err;
 		}
 
-		vm_type = (enum vm_type_t *) userptr;
+		vm_type = (enum vm_type *) userptr;
 		hint_addr = args->map_host.hint_addr;
 		handle = phys_pg_pack->handle;
 
@@ -1140,7 +1139,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 		spin_unlock(&vm->idr_lock);
 
-		vm_type = (enum vm_type_t *) phys_pg_pack;
+		vm_type = (enum vm_type *) phys_pg_pack;
 
 		hint_addr = args->map_device.hint_addr;
 
@@ -1171,8 +1170,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	if (hint_addr && phys_pg_pack->offset) {
 		if (args->flags & HL_MEM_FORCE_HINT) {
-			/* If hint must be repected, since we can't - just fail.
-			 */
+			/* Fail if hint must be respected but it can't be */
 			dev_err(hdev->dev,
 				"Hint address 0x%llx cannot be respected because source memory is not aligned 0x%x\n",
 				hint_addr, phys_pg_pack->offset);
@@ -1273,7 +1271,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_userptr *userptr = NULL;
 	struct hl_va_range *va_range;
 	u64 vaddr = args->unmap.device_virt_addr;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool is_userptr;
 	int rc = 0;
 

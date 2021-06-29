@@ -235,7 +235,7 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool once = true;
 	u64 j;
 	int i;
@@ -492,7 +492,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 	struct hl_ctx *ctx = hdev->compute_ctx;
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool valid = false;
 	u64 end_address;
 	u32 range_size;
