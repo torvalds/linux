@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
+#include <linux/regulator/consumer.h>
 #include <linux/rockchip/cpu.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
@@ -35,6 +36,7 @@
 struct cluster_info {
 	struct opp_table *opp_table;
 	struct list_head list_head;
+	struct monitor_dev_info *mdev_info;
 	cpumask_t cpus;
 	int scale;
 	bool offline;
@@ -243,8 +245,89 @@ static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
 	return NULL;
 }
 
+static int rockchip_cpufreq_set_volt(struct device *dev,
+				     struct regulator *reg,
+				     struct dev_pm_opp_supply *supply,
+				     char *reg_name)
+{
+	int ret;
+
+	dev_dbg(dev, "%s: %s voltages (mV): %lu %lu %lu\n", __func__, reg_name,
+		supply->u_volt_min, supply->u_volt, supply->u_volt_max);
+
+	ret = regulator_set_voltage_triplet(reg, supply->u_volt_min,
+					    supply->u_volt, supply->u_volt_max);
+	if (ret)
+		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu mV): %d\n",
+			__func__, supply->u_volt_min, supply->u_volt,
+			supply->u_volt_max, ret);
+
+	return ret;
+}
+
+static int opp_helper(struct dev_pm_set_opp_data *data)
+{
+	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
+	struct dev_pm_opp_supply *new_supply_vdd = &data->new_opp.supplies[0];
+	struct regulator *vdd_reg = data->regulators[0];
+	struct device *dev = data->dev;
+	struct clk *clk = data->clk;
+	struct cluster_info *cluster;
+	unsigned long old_freq = data->old_opp.rate;
+	unsigned long new_freq = data->new_opp.rate;
+	int ret = 0;
+
+	cluster = rockchip_cluster_info_lookup(dev->id);
+	if (!cluster)
+		return -ENOMEM;
+
+	rockchip_monitor_volt_adjust_lock(cluster->mdev_info);
+
+	/* Scaling up? Scale voltage before frequency */
+	if (new_freq >= old_freq) {
+		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
+						"vdd");
+		if (ret)
+			goto restore_voltage;
+	}
+
+	/* Change frequency */
+	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
+		old_freq, new_freq);
+	ret = clk_set_rate(clk, new_freq);
+	if (ret) {
+		dev_err(dev, "%s: failed to set clk rate: %d\n", __func__, ret);
+		goto restore_voltage;
+	}
+
+	/* Scaling down? Scale voltage after frequency */
+	if (new_freq < old_freq) {
+		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
+						"vdd");
+		if (ret)
+			goto restore_freq;
+	}
+
+	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
+
+	return 0;
+
+restore_freq:
+	if (clk_set_rate(clk, old_freq))
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_freq);
+restore_voltage:
+	if (old_supply_vdd->u_volt)
+		rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
+
+	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
+
+	return ret;
+}
+
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
+	struct opp_table *pname_table = NULL;
 	struct opp_table *opp_table;
 	struct device_node *np;
 	struct device *dev;
@@ -280,9 +363,19 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	rockchip_get_soc_info(dev, rockchip_cpufreq_of_match, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
-	opp_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
-	if (IS_ERR(opp_table))
+	pname_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
+	if (IS_ERR(pname_table)) {
+		ret = PTR_ERR(pname_table);
+		goto np_err;
+	}
+
+	opp_table = dev_pm_opp_register_set_opp_helper(dev, opp_helper);
+	if (IS_ERR(opp_table)) {
 		ret = PTR_ERR(opp_table);
+		if (pname_table)
+			dev_pm_opp_put_prop_name(pname_table);
+	}
+
 np_err:
 	of_node_put(np);
 
@@ -313,6 +406,56 @@ static int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
 	return ret;
 }
 
+static int rockchip_cpufreq_notifier(struct notifier_block *nb,
+				     unsigned long event, void *data)
+{
+	struct device *dev;
+	struct cpufreq_policy *policy = data;
+	struct cluster_info *cluster;
+	struct monitor_dev_profile *mdevp = NULL;
+	struct monitor_dev_info *mdev_info = NULL;
+
+	dev = get_cpu_device(policy->cpu);
+	if (!dev)
+		return NOTIFY_BAD;
+
+	cluster = rockchip_cluster_info_lookup(policy->cpu);
+	if (!cluster)
+		return NOTIFY_BAD;
+
+	if (event == CPUFREQ_CREATE_POLICY) {
+		mdevp = kzalloc(sizeof(*mdevp), GFP_KERNEL);
+		if (!mdevp)
+			return NOTIFY_BAD;
+		mdevp->type = MONITOR_TPYE_CPU;
+		mdevp->low_temp_adjust = rockchip_monitor_cpu_low_temp_adjust;
+		mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
+		mdevp->update_volt = rockchip_monitor_check_rate_volt;
+		mdevp->data = (void *)policy;
+		cpumask_copy(&mdevp->allowed_cpus, policy->cpus);
+		mdev_info = rockchip_system_monitor_register(dev, mdevp);
+		if (IS_ERR(mdev_info)) {
+			kfree(mdevp);
+			dev_err(dev, "failed to register system monitor\n");
+			return NOTIFY_BAD;
+		}
+		mdev_info->devp = mdevp;
+		cluster->mdev_info = mdev_info;
+	} else if (event == CPUFREQ_REMOVE_POLICY) {
+		if (cluster->mdev_info) {
+			kfree(cluster->mdev_info->devp);
+			rockchip_system_monitor_unregister(cluster->mdev_info);
+			cluster->mdev_info = NULL;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_cpufreq_notifier_block = {
+	.notifier_call = rockchip_cpufreq_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
 	struct cluster_info *cluster, *pos;
@@ -340,6 +483,13 @@ static int __init rockchip_cpufreq_driver_init(void)
 
 	pdata.have_governor_per_policy = true;
 	pdata.suspend = rockchip_cpufreq_suspend;
+
+	ret = cpufreq_register_notifier(&rockchip_cpufreq_notifier_block,
+					CPUFREQ_POLICY_NOTIFIER);
+	if (ret) {
+		pr_err("failed to register cpufreq notifier\n");
+		goto release_cluster_info;
+	}
 
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
 			       -1, (void *)&pdata,
