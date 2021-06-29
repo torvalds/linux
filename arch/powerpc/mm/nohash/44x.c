@@ -25,6 +25,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/code-patching.h>
+#include <asm/smp.h>
 
 #include <mm/mmu_decl.h>
 
@@ -241,8 +242,11 @@ void __init mmu_init_secondary(int cpu)
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+void setup_kuep(bool disabled)
 {
+	if (smp_processor_id() != boot_cpuid)
+		return;
+
 	if (disabled)
 		patch_instruction_site(&patch__tlb_44x_kuep, ppc_inst(PPC_RAW_NOP()));
 	else
