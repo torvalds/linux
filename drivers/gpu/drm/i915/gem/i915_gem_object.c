@@ -665,6 +665,7 @@ static const struct drm_gem_object_funcs i915_gem_object_funcs = {
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/huge_gem_object.c"
 #include "selftests/huge_pages.c"
+#include "selftests/i915_gem_migrate.c"
 #include "selftests/i915_gem_object.c"
 #include "selftests/i915_gem_coherency.c"
 #endif
