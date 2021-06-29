@@ -348,6 +348,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 	if (dp->setup)
 		return 0;
 
+	INIT_LIST_HEAD(&dp->fdbs);
 	INIT_LIST_HEAD(&dp->mdbs);
 
 	switch (dp->type) {
@@ -469,6 +470,11 @@ static void dsa_port_teardown(struct dsa_port *dp)
 			dp->slave = NULL;
 		}
 		break;
+	}
+
+	list_for_each_entry_safe(a, tmp, &dp->fdbs, list) {
+		list_del(&a->list);
+		kfree(a);
 	}
 
 	list_for_each_entry_safe(a, tmp, &dp->mdbs, list) {
