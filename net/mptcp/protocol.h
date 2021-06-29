@@ -112,6 +112,7 @@
 #define MPTCP_ERROR_REPORT	8
 #define MPTCP_RETRANSMIT	9
 #define MPTCP_WORK_SYNC_SETSOCKOPT 10
+#define MPTCP_CONNECTED		11
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {
@@ -600,6 +601,7 @@ void mptcp_get_options(const struct sock *sk,
 		       struct mptcp_options_received *mp_opt);
 
 void mptcp_finish_connect(struct sock *sk);
+void __mptcp_set_connected(struct sock *sk);
 static inline bool mptcp_is_fully_established(struct sock *sk)
 {
 	return inet_sk_state_load(sk) == TCP_ESTABLISHED &&
@@ -614,6 +616,14 @@ int mptcp_setsockopt(struct sock *sk, int level, int optname,
 int mptcp_getsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int __user *option);
 
+u64 __mptcp_expand_seq(u64 old_seq, u64 cur_seq);
+static inline u64 mptcp_expand_seq(u64 old_seq, u64 cur_seq, bool use_64bit)
+{
+	if (use_64bit)
+		return cur_seq;
+
+	return __mptcp_expand_seq(old_seq, cur_seq);
+}
 void __mptcp_check_push(struct sock *sk, struct sock *ssk);
 void __mptcp_data_acked(struct sock *sk);
 void __mptcp_error_report(struct sock *sk);
@@ -774,9 +784,6 @@ unsigned int mptcp_pm_get_add_addr_signal_max(struct mptcp_sock *msk);
 unsigned int mptcp_pm_get_add_addr_accept_max(struct mptcp_sock *msk);
 unsigned int mptcp_pm_get_subflows_max(struct mptcp_sock *msk);
 unsigned int mptcp_pm_get_local_addr_max(struct mptcp_sock *msk);
-
-int mptcp_setsockopt(struct sock *sk, int level, int optname,
-		     sockptr_t optval, unsigned int optlen);
 
 void mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk);
 void mptcp_sockopt_sync_all(struct mptcp_sock *msk);

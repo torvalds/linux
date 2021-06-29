@@ -701,6 +701,34 @@ static void at803x_remove(struct phy_device *phydev)
 		regulator_disable(priv->vddio);
 }
 
+static int at803x_get_features(struct phy_device *phydev)
+{
+	int err;
+
+	err = genphy_read_abilities(phydev);
+	if (err)
+		return err;
+
+	if (!at803x_match_phy_id(phydev, ATH8031_PHY_ID))
+		return 0;
+
+	/* AR8031/AR8033 have different status registers
+	 * for copper and fiber operation. However, the
+	 * extended status register is the same for both
+	 * operation modes.
+	 *
+	 * As a result of that, ESTATUS_1000_XFULL is set
+	 * to 1 even when operating in copper TP mode.
+	 *
+	 * Remove this mode from the supported link modes,
+	 * as this driver currently only supports copper
+	 * operation.
+	 */
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+			   phydev->supported);
+	return 0;
+}
+
 static int at803x_smarteee_config(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
@@ -1344,7 +1372,7 @@ static struct phy_driver at803x_driver[] = {
 	.resume			= at803x_resume,
 	.read_page		= at803x_read_page,
 	.write_page		= at803x_write_page,
-	/* PHY_GBIT_FEATURES */
+	.get_features		= at803x_get_features,
 	.read_status		= at803x_read_status,
 	.config_intr		= &at803x_config_intr,
 	.handle_interrupt	= at803x_handle_interrupt,

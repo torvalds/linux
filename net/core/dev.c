@@ -5304,9 +5304,9 @@ another_round:
 	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret2;
 
-		preempt_disable();
+		migrate_disable();
 		ret2 = do_xdp_generic(rcu_dereference(skb->dev->xdp_prog), skb);
-		preempt_enable();
+		migrate_enable();
 
 		if (ret2 != XDP_PASS) {
 			ret = NET_RX_DROP;

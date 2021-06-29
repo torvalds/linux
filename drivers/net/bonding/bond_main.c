@@ -1600,6 +1600,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	int link_reporting;
 	int res = 0, i;
 
+	if (slave_dev->flags & IFF_MASTER &&
+	    !netif_is_bond_master(slave_dev)) {
+		NL_SET_ERR_MSG(extack, "Device with IFF_MASTER cannot be enslaved");
+		netdev_err(bond_dev,
+			   "Error: Device with IFF_MASTER cannot be enslaved\n");
+		return -EPERM;
+	}
+
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
 	    slave_ops->ndo_do_ioctl == NULL) {

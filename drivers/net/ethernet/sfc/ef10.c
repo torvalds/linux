@@ -1069,7 +1069,8 @@ static int efx_ef10_probe_vf(struct efx_nic *efx)
 
 	/* If the parent PF has no VF data structure, it doesn't know about this
 	 * VF so fail probe.  The VF needs to be re-created.  This can happen
-	 * if the PF driver is unloaded while the VF is assigned to a guest.
+	 * if the PF driver was unloaded while any VF was assigned to a guest
+	 * (using Xen, only).
 	 */
 	pci_dev_pf = efx->pci_dev->physfn;
 	if (pci_dev_pf) {
