@@ -717,6 +717,8 @@ static void __init setup_vm_final(void)
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
 			start = __pa(PAGE_OFFSET);
+		if (end >= __pa(PAGE_OFFSET) + memory_limit)
+			end = __pa(PAGE_OFFSET) + memory_limit;
 
 		map_size = best_map_size(start, end - start);
 		for (pa = start; pa < end; pa += map_size) {
