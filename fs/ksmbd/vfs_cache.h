@@ -25,11 +25,6 @@
 #define KSMBD_NO_FID		(UINT_MAX)
 #define SMB2_NO_FID		(0xFFFFFFFFFFFFFFFFULL)
 
-#define ATTR_FP(fp) ((fp)->attrib_only && \
-		     ((fp)->cdoption != FILE_OVERWRITE_IF_LE && \
-		      (fp)->cdoption != FILE_OVERWRITE_LE && \
-		      (fp)->cdoption != FILE_SUPERSEDE_LE))
-
 struct ksmbd_conn;
 struct ksmbd_session;
 
