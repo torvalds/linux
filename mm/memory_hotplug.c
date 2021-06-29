@@ -1541,7 +1541,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn,
 				       MIGRATE_MOVABLE,
-				       MEMORY_OFFLINE | REPORT_FAILURE);
+				       MEMORY_OFFLINE | REPORT_FAILURE, NULL);
 	if (ret) {
 		reason = "failure to isolate range";
 		goto failed_removal;
@@ -1608,7 +1608,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 		 * because has_unmovable_pages explicitly checks for
 		 * PageBuddy on freed pages on other zones.
 		 */
-		ret = test_pages_isolated(start_pfn, end_pfn, MEMORY_OFFLINE);
+		ret = test_pages_isolated(start_pfn, end_pfn, MEMORY_OFFLINE, NULL);
 		if (ret)
 			drain_all_pages(zone);
 	} while (ret);

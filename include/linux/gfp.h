@@ -642,6 +642,8 @@ static inline bool pm_suspended_storage(void)
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_CONTIG_ALLOC
+extern unsigned long pfn_max_align_up(unsigned long pfn);
+
 #define ACR_ERR_ISOLATE	(1 << 0)
 #define ACR_ERR_MIGRATE	(1 << 1)
 #define ACR_ERR_TEST	(1 << 2)
@@ -651,6 +653,7 @@ struct acr_info {
 	unsigned long nr_migrated;
 	unsigned long nr_reclaimed;
 	unsigned int err;
+	unsigned long failed_pfn;
 };
 
 /* The below functions must be run on a range from a single zone. */

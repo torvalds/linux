@@ -44,7 +44,8 @@ int move_freepages_block(struct zone *zone, struct page *page,
  */
 int
 start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-			 unsigned migratetype, int flags);
+			 unsigned migratetype, int flags,
+			 unsigned long *failed_pfn);
 
 /*
  * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
@@ -58,7 +59,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
  * Test all pages in [start_pfn, end_pfn) are isolated or not.
  */
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-			int isol_flags);
+			int isol_flags, unsigned long *failed_pfn);
 
 struct page *alloc_migrate_target(struct page *page, unsigned long private);
 
