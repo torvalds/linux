@@ -1200,8 +1200,6 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 #ifdef CONFIG_SPARSEMEM
 
 /*
- * SECTION_SHIFT    		#bits space required to store a section #
- *
  * PA_SECTION_SHIFT		physical address to/from section number
  * PFN_SECTION_SHIFT		pfn to/from section number
  */
