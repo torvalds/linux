@@ -21,6 +21,7 @@
 #include <soc/rockchip/rk3399_grf.h>
 
 #define PX30_PMUGRF_OS_REG2		0x208
+#define PX30_PMUGRF_OS_REG3		0x20c
 
 #define RK3128_GRF_SOC_CON0		0x140
 #define RK3128_GRF_OS_REG1		0x1cc
@@ -52,6 +53,8 @@
 #define MAX_DMC_NUM_CH			2
 #define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
 #define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
+#define READ_DRAMTYPE_INFO_V3(n, m)	((((n) >> 13) & 0x7) | ((((m) >> 12) & 0x3) << 3))
+#define READ_SYSREG_VERSION(m)		(((m) >> 28) & 0xf)
 /* DDRMON_CTRL */
 #define DDRMON_CTRL			0x04
 #define CLR_DDRMON_CTRL			(0x3f0000 << 0)
@@ -77,6 +80,7 @@ enum {
 	LPDDR2 = 5,
 	LPDDR3 = 6,
 	LPDDR4 = 7,
+	LPDDR4X = 8,
 	UNUSED = 0xFF
 };
 
@@ -344,7 +348,7 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	/* set ddr type to dfi */
 	if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
 		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
-	else if (info->dram_type == LPDDR4)
+	else if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
 	else if (info->dram_type == DDR4)
 		writel_relaxed(DDR4_EN, dfi_regs + DDRMON_CTRL);
@@ -378,10 +382,10 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 		info->ch_usage[i].total = readl_relaxed(dfi_regs +
 				DDRMON_CH0_COUNT_NUM + i * 20);
 
-		/* LPDDR4 BL = 16,other DDR type BL = 8 */
+		/* LPDDR4 and LPDDR4X BL = 16,other DDR type BL = 8 */
 		tmp = readl_relaxed(dfi_regs +
 				DDRMON_CH0_DFI_ACCESS_NUM + i * 20);
-		if (info->dram_type == LPDDR4)
+		if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
 			tmp *= 8;
 		else
 			tmp *= 4;
@@ -461,7 +465,7 @@ static __init int px30_dfi_init(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node, *node;
 	struct resource *res;
-	u32 val;
+	u32 val_2, val_3;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -475,8 +479,12 @@ static __init int px30_dfi_init(struct platform_device *pdev,
 			return PTR_ERR(data->regmap_pmugrf);
 	}
 
-	regmap_read(data->regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
-	data->dram_type = READ_DRAMTYPE_INFO(val);
+	regmap_read(data->regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val_2);
+	regmap_read(data->regmap_pmugrf, PX30_PMUGRF_OS_REG3, &val_3);
+	if (READ_SYSREG_VERSION(val_3) >= 0x3)
+		data->dram_type = READ_DRAMTYPE_INFO_V3(val_2, val_3);
+	else
+		data->dram_type = READ_DRAMTYPE_INFO(val_2);
 	data->ch_msk = 1;
 	data->clk = NULL;
 
