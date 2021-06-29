@@ -1194,6 +1194,8 @@ static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 	bool handled;
 
 	handled = kvm_host_psci_handler(host_ctxt);
+	if (!handled && kvm_iommu_ops.host_smc_handler)
+		handled = kvm_iommu_ops.host_smc_handler(host_ctxt);
 	if (!handled)
 		handled = kvm_host_ffa_handler(host_ctxt);
 	if (!handled)

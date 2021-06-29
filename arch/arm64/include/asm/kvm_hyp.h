@@ -133,6 +133,7 @@ extern unsigned int kvm_nvhe_sym(kvm_arm_vmid_bits);
 extern bool kvm_nvhe_sym(smccc_trng_available);
 struct kvm_iommu_ops {
 	int (*init)(void);
+	bool (*host_smc_handler)(struct kvm_cpu_context *host_ctxt);
 };
 
 extern struct kvm_iommu_ops kvm_iommu_ops;
