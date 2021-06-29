@@ -96,13 +96,6 @@ struct btrfs_transaction {
 
 	spinlock_t releasing_ebs_lock;
 	struct list_head releasing_ebs;
-
-	/*
-	 * The number of bytes currently reserved, by all transaction handles
-	 * attached to this transaction, for metadata extents of the chunk tree.
-	 */
-	atomic64_t chunk_bytes_reserved;
-	wait_queue_head_t chunk_reserve_wait;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)
