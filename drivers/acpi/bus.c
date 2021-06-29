@@ -262,8 +262,6 @@ out_success:
 
 out_kfree:
 	kfree(output.pointer);
-	if (status != AE_OK)
-		context->ret.pointer = NULL;
 	return status;
 }
 EXPORT_SYMBOL(acpi_run_osc);
@@ -1195,7 +1193,8 @@ void __init acpi_subsystem_init(void)
 
 static acpi_status acpi_bus_table_handler(u32 event, void *table, void *context)
 {
-	acpi_scan_table_handler(event, table, context);
+	if (event == ACPI_TABLE_EVENT_LOAD)
+		acpi_scan_table_notify();
 
 	return acpi_sysfs_table_handler(event, table, context);
 }

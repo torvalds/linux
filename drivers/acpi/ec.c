@@ -1627,7 +1627,7 @@ static int acpi_ec_add(struct acpi_device *device)
 	WARN(!ret, "Could not request EC cmd io port 0x%lx", ec->command_addr);
 
 	/* Reprobe devices depending on the EC */
-	acpi_walk_dep_device_list(ec->handle);
+	acpi_dev_clear_dependencies(device);
 
 	acpi_handle_debug(ec->handle, "enumerated.\n");
 	return 0;
