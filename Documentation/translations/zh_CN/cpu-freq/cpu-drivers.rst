@@ -64,8 +64,6 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
 
  .driver_data - cpufreq驱动程序的特定数据。
 
- .resolve_freq - 返回最适合目标频率的频率。不过并不能改变频率。
-
  .get_intermediate 和 target_intermediate - 用于在改变CPU频率时切换到稳定
  的频率。
 

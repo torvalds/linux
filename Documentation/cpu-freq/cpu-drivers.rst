@@ -58,9 +58,6 @@ And optionally
 
  .driver_data - cpufreq driver specific data.
 
- .resolve_freq - Returns the most appropriate frequency for a target
- frequency. Doesn't change the frequency though.
-
  .get_intermediate and target_intermediate - Used to switch to stable
  frequency while changing CPU frequency.
 
