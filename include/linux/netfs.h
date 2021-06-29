@@ -249,6 +249,7 @@ struct netfs_io_request {
 	struct bio_vec		*direct_bv;	/* DIO buffer list (when handling iovec-iter) */
 	unsigned int		direct_bv_count; /* Number of elements in direct_bv[] */
 	unsigned int		debug_id;
+	unsigned int		wsize;		/* Maximum write size (0 for none) */
 	unsigned int		subreq_counter;	/* Next subreq->debug_index */
 	atomic_t		nr_outstanding;	/* Number of ops in progress */
 	atomic_t		nr_copy_ops;	/* Number of copy-to-cache ops in progress */
@@ -271,6 +272,7 @@ struct netfs_io_request {
 #define NETFS_RREQ_WRITE_TO_CACHE	7	/* Need to write to the cache */
 #define NETFS_RREQ_UPLOAD_TO_SERVER	8	/* Need to write to the server */
 	const struct netfs_request_ops *netfs_ops;
+	void (*cleanup)(struct netfs_io_request *req);
 };
 
 /*
@@ -294,6 +296,11 @@ struct netfs_request_ops {
 
 	/* Modification handling */
 	void (*update_i_size)(struct inode *inode, loff_t i_size);
+
+	/* Write request handling */
+	void (*create_write_requests)(struct netfs_io_request *wreq,
+				      loff_t start, size_t len);
+	void (*invalidate_cache)(struct netfs_io_request *wreq);
 };
 
 /*
@@ -382,6 +389,12 @@ ssize_t netfs_extract_user_iter(struct iov_iter *orig, size_t orig_len,
 				iov_iter_extraction_t extraction_flags);
 size_t netfs_limit_iter(const struct iov_iter *iter, size_t start_offset,
 			size_t max_size, size_t max_segs);
+struct netfs_io_subrequest *netfs_create_write_request(
+	struct netfs_io_request *wreq, enum netfs_io_source dest,
+	loff_t start, size_t len, work_func_t worker);
+void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
+				       bool was_async);
+void netfs_queue_write_request(struct netfs_io_subrequest *subreq);
 
 int netfs_start_io_read(struct inode *inode);
 void netfs_end_io_read(struct inode *inode);
