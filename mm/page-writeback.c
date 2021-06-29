@@ -32,7 +32,6 @@
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
-#include <linux/buffer_head.h> /* __set_page_dirty_buffers */
 #include <linux/pagevec.h>
 #include <linux/timer.h>
 #include <linux/sched/rt.h>
@@ -2555,13 +2554,9 @@ EXPORT_SYMBOL(redirty_page_for_writepage);
 /*
  * Dirty a page.
  *
- * For pages with a mapping this should be done under the page lock
- * for the benefit of asynchronous memory errors who prefer a consistent
- * dirty state. This rule can be broken in some special cases,
- * but should be better not to.
- *
- * If the mapping doesn't provide a set_page_dirty a_op, then
- * just fall through and assume that it wants buffer_heads.
+ * For pages with a mapping this should be done under the page lock for the
+ * benefit of asynchronous memory errors who prefer a consistent dirty state.
+ * This rule can be broken in some special cases, but should be better not to.
  */
 int set_page_dirty(struct page *page)
 {
@@ -2569,7 +2564,6 @@ int set_page_dirty(struct page *page)
 
 	page = compound_head(page);
 	if (likely(mapping)) {
-		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
 		/*
 		 * readahead/lru_deactivate_page could remain
 		 * PG_readahead/PG_reclaim due to race with end_page_writeback
@@ -2582,11 +2576,7 @@ int set_page_dirty(struct page *page)
 		 */
 		if (PageReclaim(page))
 			ClearPageReclaim(page);
-#ifdef CONFIG_BLOCK
-		if (!spd)
-			spd = __set_page_dirty_buffers;
-#endif
-		return (*spd)(page);
+		return mapping->a_ops->set_page_dirty(page);
 	}
 	if (!PageDirty(page)) {
 		if (!TestSetPageDirty(page))

@@ -1754,6 +1754,7 @@ static int blkdev_writepages(struct address_space *mapping,
 }
 
 static const struct address_space_operations def_blk_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= blkdev_readpage,
 	.readahead	= blkdev_readahead,
 	.writepage	= blkdev_writepage,
