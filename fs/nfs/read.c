@@ -373,10 +373,10 @@ int nfs_readpage(struct file *file, struct page *page)
 			     &nfs_async_read_completion_ops);
 
 	ret = readpage_async_filler(&desc, page);
+	if (ret)
+		goto out;
 
-	if (!ret)
-		nfs_pageio_complete_read(&desc.pgio);
-
+	nfs_pageio_complete_read(&desc.pgio);
 	ret = desc.pgio.pg_error < 0 ? desc.pgio.pg_error : 0;
 	if (!ret) {
 		ret = wait_on_page_locked_killable(page);
