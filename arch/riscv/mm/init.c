@@ -127,10 +127,17 @@ void __init mem_init(void)
 }
 
 /*
- * The default maximal physical memory size is -PAGE_OFFSET,
- * limit the memory size via mem.
+ * The default maximal physical memory size is -PAGE_OFFSET for 32-bit kernel,
+ * whereas for 64-bit kernel, the end of the virtual address space is occupied
+ * by the modules/BPF/kernel mappings which reduces the available size of the
+ * linear mapping.
+ * Limit the memory size via mem.
  */
+#ifdef CONFIG_64BIT
+static phys_addr_t memory_limit = -PAGE_OFFSET - SZ_4G;
+#else
 static phys_addr_t memory_limit = -PAGE_OFFSET;
+#endif
 
 static int __init early_mem(char *p)
 {
