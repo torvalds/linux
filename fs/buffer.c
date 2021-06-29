@@ -611,7 +611,6 @@ void __set_page_dirty(struct page *page, struct address_space *mapping,
 	}
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
 }
-EXPORT_SYMBOL_GPL(__set_page_dirty);
 
 /*
  * Add a page to the dirty page list.
