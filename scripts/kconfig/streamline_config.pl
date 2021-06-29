@@ -601,12 +601,12 @@ if (defined($ENV{'LMC_KEEP'})) {
 sub in_preserved_kconfigs {
     my $kconfig = $config2kfile{$_[0]};
     if (!defined($kconfig)) {
-        return 0;
+	return 0;
     }
     foreach my $excl (@preserved_kconfigs) {
-        if($kconfig =~ /^$excl/) {
-            return 1;
-        }
+	if($kconfig =~ /^$excl/) {
+	    return 1;
+	}
     }
     return 0;
 }
@@ -629,52 +629,52 @@ foreach my $line (@config_file) {
     }
 
     if (/CONFIG_MODULE_SIG_KEY="(.+)"/) {
-        my $orig_cert = $1;
-        my $default_cert = "certs/signing_key.pem";
+	my $orig_cert = $1;
+	my $default_cert = "certs/signing_key.pem";
 
-        # Check that the logic in this script still matches the one in Kconfig
-        if (!defined($depends{"MODULE_SIG_KEY"}) ||
-            $depends{"MODULE_SIG_KEY"} !~ /"\Q$default_cert\E"/) {
-            print STDERR "WARNING: MODULE_SIG_KEY assertion failure, ",
-                "update needed to ", __FILE__, " line ", __LINE__, "\n";
-            print;
-        } elsif ($orig_cert ne $default_cert && ! -f $orig_cert) {
-            print STDERR "Module signature verification enabled but ",
-                "module signing key \"$orig_cert\" not found. Resetting ",
-                "signing key to default value.\n";
-            print "CONFIG_MODULE_SIG_KEY=\"$default_cert\"\n";
-        } else {
-            print;
-        }
-        next;
+	# Check that the logic in this script still matches the one in Kconfig
+	if (!defined($depends{"MODULE_SIG_KEY"}) ||
+	    $depends{"MODULE_SIG_KEY"} !~ /"\Q$default_cert\E"/) {
+	    print STDERR "WARNING: MODULE_SIG_KEY assertion failure, ",
+		"update needed to ", __FILE__, " line ", __LINE__, "\n";
+	    print;
+	} elsif ($orig_cert ne $default_cert && ! -f $orig_cert) {
+	    print STDERR "Module signature verification enabled but ",
+		"module signing key \"$orig_cert\" not found. Resetting ",
+		"signing key to default value.\n";
+	    print "CONFIG_MODULE_SIG_KEY=\"$default_cert\"\n";
+	} else {
+	    print;
+	}
+	next;
     }
 
     if (/CONFIG_SYSTEM_TRUSTED_KEYS="(.+)"/) {
-        my $orig_keys = $1;
+	my $orig_keys = $1;
 
-        if (! -f $orig_keys) {
-            print STDERR "System keyring enabled but keys \"$orig_keys\" ",
-                "not found. Resetting keys to default value.\n";
-            print "CONFIG_SYSTEM_TRUSTED_KEYS=\"\"\n";
-        } else {
-            print;
-        }
-        next;
+	if (! -f $orig_keys) {
+	    print STDERR "System keyring enabled but keys \"$orig_keys\" ",
+		"not found. Resetting keys to default value.\n";
+	    print "CONFIG_SYSTEM_TRUSTED_KEYS=\"\"\n";
+	} else {
+	    print;
+	}
+	next;
     }
 
     if (/^(CONFIG.*)=(m|y)/) {
-        if (in_preserved_kconfigs($1)) {
-            dprint "Preserve config $1";
-            print;
-            next;
-        }
+	if (in_preserved_kconfigs($1)) {
+	    dprint "Preserve config $1";
+	    print;
+	    next;
+	}
 	if (defined($configs{$1})) {
 	    if ($localyesconfig) {
-	        $setconfigs{$1} = 'y';
+		$setconfigs{$1} = 'y';
 		print "$1=y\n";
 		next;
 	    } else {
-	        $setconfigs{$1} = $2;
+		$setconfigs{$1} = $2;
 	    }
 	} elsif ($2 eq "m") {
 	    print "# $1 is not set\n";
