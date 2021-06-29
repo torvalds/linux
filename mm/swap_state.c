@@ -693,7 +693,12 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
 
 void exit_swap_address_space(unsigned int type)
 {
-	kvfree(swapper_spaces[type]);
+	int i;
+	struct address_space *spaces = swapper_spaces[type];
+
+	for (i = 0; i < nr_swapper_spaces[type]; i++)
+		VM_WARN_ON_ONCE(!mapping_empty(&spaces[i]));
+	kvfree(spaces);
 	nr_swapper_spaces[type] = 0;
 	swapper_spaces[type] = NULL;
 }
