@@ -100,11 +100,10 @@ atomic_t nr_rotate_swap = ATOMIC_INIT(0);
 
 static struct swap_info_struct *swap_type_to_swap_info(int type)
 {
-	if (type >= READ_ONCE(nr_swapfiles))
+	if (type >= MAX_SWAPFILES)
 		return NULL;
 
-	smp_rmb();	/* Pairs with smp_wmb in alloc_swap_info. */
-	return READ_ONCE(swap_info[type]);
+	return READ_ONCE(swap_info[type]); /* rcu_dereference() */
 }
 
 static inline unsigned char swap_count(unsigned char ent)
@@ -2863,14 +2862,12 @@ static struct swap_info_struct *alloc_swap_info(void)
 	}
 	if (type >= nr_swapfiles) {
 		p->type = type;
-		WRITE_ONCE(swap_info[type], p);
 		/*
-		 * Write swap_info[type] before nr_swapfiles, in case a
-		 * racing procfs swap_start() or swap_next() is reading them.
-		 * (We never shrink nr_swapfiles, we never free this entry.)
+		 * Publish the swap_info_struct after initializing it.
+		 * Note that kvzalloc() above zeroes all its fields.
 		 */
-		smp_wmb();
-		WRITE_ONCE(nr_swapfiles, nr_swapfiles + 1);
+		smp_store_release(&swap_info[type], p); /* rcu_assign_pointer() */
+		nr_swapfiles++;
 	} else {
 		defer = p;
 		p = swap_info[type];
