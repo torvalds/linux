@@ -83,3 +83,37 @@ bool __kprobes simulate_jalr(u32 opcode, unsigned long addr, struct pt_regs *reg
 
 	return ret;
 }
+
+#define auipc_rd_idx(opcode) \
+	((opcode >> 7) & 0x1f)
+
+#define auipc_imm(opcode) \
+	((((opcode) >> 12) & 0xfffff) << 12)
+
+#if __riscv_xlen == 64
+#define auipc_offset(opcode)	sign_extend64(auipc_imm(opcode), 31)
+#elif __riscv_xlen == 32
+#define auipc_offset(opcode)	auipc_imm(opcode)
+#else
+#error "Unexpected __riscv_xlen"
+#endif
+
+bool __kprobes simulate_auipc(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	/*
+	 * auipc instruction:
+	 *  31        12 11 7 6      0
+	 * | imm[31:12] | rd | opcode |
+	 *        20       5     7
+	 */
+
+	u32 rd_idx = auipc_rd_idx(opcode);
+	unsigned long rd_val = addr + auipc_offset(opcode);
+
+	if (!rv_insn_reg_set_val(regs, rd_idx, rd_val))
+		return false;
+
+	instruction_pointer_set(regs, addr + 4);
+
+	return true;
+}
