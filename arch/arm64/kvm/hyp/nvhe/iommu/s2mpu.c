@@ -21,6 +21,8 @@
 #define SMC_CMD_PREPARE_PD_ONOFF	0x82000410
 #define SMC_MODE_POWER_UP		1
 
+#define PA_MAX				((phys_addr_t)SZ_1G * NR_GIGABYTES)
+
 #define for_each_s2mpu(i) \
 	for ((i) = &kvm_hyp_s2mpus[0]; (i) != &kvm_hyp_s2mpus[kvm_hyp_nr_s2mpus]; (i)++)
 
@@ -117,6 +119,17 @@ static void __all_invalidation(struct s2mpu *dev)
 		       dev->va + REG_NS_ALL_INVALIDATION);
 }
 
+static void __range_invalidation(struct s2mpu *dev, phys_addr_t first_byte,
+				 phys_addr_t last_byte)
+{
+	u32 start_ppn = first_byte >> RANGE_INVALIDATION_PPN_SHIFT;
+	u32 end_ppn = last_byte >> RANGE_INVALIDATION_PPN_SHIFT;
+
+	writel_relaxed(start_ppn, dev->va + REG_NS_RANGE_INVALIDATION_START_PPN);
+	writel_relaxed(end_ppn, dev->va + REG_NS_RANGE_INVALIDATION_END_PPN);
+	writel_relaxed(INVALIDATION_INVALIDATE, dev->va + REG_NS_RANGE_INVALIDATION);
+}
+
 static void __set_l1entry_attr_with_prot(struct s2mpu *dev, unsigned int gb,
 					 unsigned int vid, enum mpt_prot prot)
 {
@@ -184,6 +197,77 @@ static void initialize_with_mpt(struct s2mpu *dev, struct mpt *mpt)
 
 	/* Set control registers, enable the S2MPU. */
 	__set_control_regs(dev);
+}
+
+/**
+ * Set MPT protection bits set to 'prot' in the give byte range (page-aligned).
+ * Update currently powered S2MPUs.
+ */
+static void set_mpt_range_locked(struct mpt *mpt, phys_addr_t first_byte,
+				 phys_addr_t last_byte, enum mpt_prot prot)
+{
+	unsigned int first_gb = first_byte / SZ_1G;
+	unsigned int last_gb = last_byte / SZ_1G;
+	size_t start_gb_byte, end_gb_byte;
+	unsigned int gb, vid;
+	struct s2mpu *dev;
+	struct fmpt *fmpt;
+	enum mpt_update_flags flags;
+
+	for_each_gb_in_range(gb, first_gb, last_gb) {
+		fmpt = &mpt->fmpt[gb];
+		start_gb_byte = (gb == first_gb) ? first_byte % SZ_1G : 0;
+		end_gb_byte = (gb == last_gb) ? (last_byte % SZ_1G) + 1 : SZ_1G;
+
+		flags = __set_fmpt_range(fmpt, start_gb_byte, end_gb_byte, prot);
+
+		if (flags & MPT_UPDATE_L2)
+			kvm_flush_dcache_to_poc(fmpt->smpt, SMPT_SIZE);
+
+		if (flags & MPT_UPDATE_L1) {
+			for_each_powered_s2mpu(dev) {
+				for_each_vid(vid)
+					__set_l1entry_attr_with_fmpt(dev, gb, vid, fmpt);
+			}
+		}
+	}
+
+	/* Invalidate range in all powered S2MPUs. */
+	for_each_powered_s2mpu(dev)
+		__range_invalidation(dev, first_byte, last_byte);
+}
+
+static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size, u32 owner_id)
+{
+	/* Grant access only to the default owner of the page table (ID=0). */
+	enum mpt_prot prot = owner_id ? MPT_PROT_NONE : MPT_PROT_RW;
+
+	/*
+	 * NOTE: The following code refers to 'end' as the exclusive upper
+	 * bound and 'last' as the inclusive one.
+	 */
+
+	/*
+	 * Sanitize inputs with S2MPU-specific physical address space bounds.
+	 * Ownership change requests outside this boundary will be ignored.
+	 * The S2MPU also specifies that the PA region 4-34GB always maps to
+	 * PROT_NONE and the corresponding MMIO registers are read-only.
+	 * Ownership changes in this region will have no effect.
+	 */
+
+	if (addr >= PA_MAX)
+		return;
+
+	size = min(size, (size_t)(PA_MAX - addr));
+	if (size == 0)
+		return;
+
+	hyp_spin_lock(&s2mpu_lock);
+	set_mpt_range_locked(&kvm_hyp_host_mpt,
+			     ALIGN_DOWN(addr, SMPT_GRAN),
+			     ALIGN(addr + size, SMPT_GRAN) - 1,
+			     prot);
+	hyp_spin_unlock(&s2mpu_lock);
 }
 
 static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
@@ -281,4 +365,5 @@ static int s2mpu_init(void)
 const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
 	.init = s2mpu_init,
 	.host_smc_handler = s2mpu_host_smc_handler,
+	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
 };
