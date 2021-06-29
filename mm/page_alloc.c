@@ -120,7 +120,6 @@ typedef int __bitwise fpi_t;
 
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
-#define MIN_PERCPU_PAGELIST_FRACTION	(8)
 
 struct pagesets {
 	local_lock_t lock;
@@ -193,7 +192,6 @@ EXPORT_SYMBOL(_totalram_pages);
 unsigned long totalreserve_pages __read_mostly;
 unsigned long totalcma_pages __read_mostly;
 
-int percpu_pagelist_fraction;
 gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
 DEFINE_STATIC_KEY_MAYBE(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, init_on_alloc);
 EXPORT_SYMBOL(init_on_alloc);
@@ -6735,22 +6733,15 @@ static void __zone_set_pageset_high_and_batch(struct zone *zone, unsigned long h
 
 /*
  * Calculate and set new high and batch values for all per-cpu pagesets of a
- * zone, based on the zone's size and the percpu_pagelist_fraction sysctl.
+ * zone based on the zone's size.
  */
 static void zone_set_pageset_high_and_batch(struct zone *zone)
 {
 	unsigned long new_high, new_batch;
 
-	if (percpu_pagelist_fraction) {
-		new_high = zone_managed_pages(zone) / percpu_pagelist_fraction;
-		new_batch = max(1UL, new_high / 4);
-		if ((new_high / 4) > (PAGE_SHIFT * 8))
-			new_batch = PAGE_SHIFT * 8;
-	} else {
-		new_batch = zone_batchsize(zone);
-		new_high = 6 * new_batch;
-		new_batch = max(1UL, 1 * new_batch);
-	}
+	new_batch = zone_batchsize(zone);
+	new_high = 6 * new_batch;
+	new_batch = max(1UL, 1 * new_batch);
 
 	if (zone->pageset_high == new_high &&
 	    zone->pageset_batch == new_batch)
@@ -8411,44 +8402,6 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
 
 	setup_per_zone_lowmem_reserve();
 	return 0;
-}
-
-/*
- * percpu_pagelist_fraction - changes the pcp->high for each zone on each
- * cpu.  It is the fraction of total pages in each zone that a hot per cpu
- * pagelist can have before it gets flushed back to buddy allocator.
- */
-int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
-{
-	struct zone *zone;
-	int old_percpu_pagelist_fraction;
-	int ret;
-
-	mutex_lock(&pcp_batch_high_lock);
-	old_percpu_pagelist_fraction = percpu_pagelist_fraction;
-
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (!write || ret < 0)
-		goto out;
-
-	/* Sanity checking to avoid pcp imbalance */
-	if (percpu_pagelist_fraction &&
-	    percpu_pagelist_fraction < MIN_PERCPU_PAGELIST_FRACTION) {
-		percpu_pagelist_fraction = old_percpu_pagelist_fraction;
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* No change? */
-	if (percpu_pagelist_fraction == old_percpu_pagelist_fraction)
-		goto out;
-
-	for_each_populated_zone(zone)
-		zone_set_pageset_high_and_batch(zone);
-out:
-	mutex_unlock(&pcp_batch_high_lock);
-	return ret;
 }
 
 #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
