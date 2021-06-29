@@ -1492,8 +1492,8 @@ static inline void unlock_page_lruvec_irqrestore(struct lruvec *lruvec,
 	spin_unlock_irqrestore(&lruvec->lru_lock, flags);
 }
 
-static inline bool lruvec_holds_page_lru_lock(struct page *page,
-					      struct lruvec *lruvec)
+/* Test requires a stable page->memcg binding, see page_memcg() */
+static inline bool page_matches_lruvec(struct page *page, struct lruvec *lruvec)
 {
 	return lruvec_pgdat(lruvec) == page_pgdat(page) &&
 	       lruvec_memcg(lruvec) == page_memcg(page);
@@ -1504,7 +1504,7 @@ static inline struct lruvec *relock_page_lruvec_irq(struct page *page,
 		struct lruvec *locked_lruvec)
 {
 	if (locked_lruvec) {
-		if (lruvec_holds_page_lru_lock(page, locked_lruvec))
+		if (page_matches_lruvec(page, locked_lruvec))
 			return locked_lruvec;
 
 		unlock_page_lruvec_irq(locked_lruvec);
@@ -1518,7 +1518,7 @@ static inline struct lruvec *relock_page_lruvec_irqsave(struct page *page,
 		struct lruvec *locked_lruvec, unsigned long *flags)
 {
 	if (locked_lruvec) {
-		if (lruvec_holds_page_lru_lock(page, locked_lruvec))
+		if (page_matches_lruvec(page, locked_lruvec))
 			return locked_lruvec;
 
 		unlock_page_lruvec_irqrestore(locked_lruvec, *flags);
