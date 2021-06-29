@@ -1042,15 +1042,16 @@ static void osnoise_stop_tracing(void)
 static int run_osnoise(void)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
-	u64 noise = 0, sum_noise = 0, max_noise = 0;
 	struct trace_array *tr = osnoise_trace;
 	u64 start, sample, last_sample;
 	u64 last_int_count, int_count;
+	s64 noise = 0, max_noise = 0;
 	s64 total, last_total = 0;
 	struct osnoise_sample s;
 	unsigned int threshold;
-	int hw_count = 0;
 	u64 runtime, stop_in;
+	u64 sum_noise = 0;
+	int hw_count = 0;
 	int ret = -1;
 
 	/*
