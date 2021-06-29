@@ -3947,12 +3947,12 @@ int ndo_dflt_fdb_add(struct ndmsg *ndm,
 	 * implement its own handler for this.
 	 */
 	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
-		pr_info("%s: FDB only supports static addresses\n", dev->name);
+		netdev_info(dev, "default FDB implementation only supports local addresses\n");
 		return err;
 	}
 
 	if (vid) {
-		pr_info("%s: vlans aren't supported yet for dev_uc|mc_add()\n", dev->name);
+		netdev_info(dev, "vlans aren't supported yet for dev_uc|mc_add()\n");
 		return err;
 	}
 
@@ -4086,7 +4086,7 @@ int ndo_dflt_fdb_del(struct ndmsg *ndm,
 	 * implement its own handler for this.
 	 */
 	if (!(ndm->ndm_state & NUD_PERMANENT)) {
-		pr_info("%s: FDB only supports static addresses\n", dev->name);
+		netdev_info(dev, "default FDB implementation only supports local addresses\n");
 		return err;
 	}
 
