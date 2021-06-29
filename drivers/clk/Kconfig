@@ -57,6 +57,7 @@ config CLK_HSDK
 
 config LMK04832
 	tristate "Ti LMK04832 JESD204B Compliant Clock Jitter Cleaner"
+	depends on SPI
 	select REGMAP_SPI
 	help
 	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
