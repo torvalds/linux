@@ -14,7 +14,6 @@
 #include "smb_common.h"
 #include "server.h"
 #include "misc.h"
-#include "ksmbd_server.h"
 #include "mgmt/share_config.h"
 
 static const struct smb_sid domain = {1, 4, {0, 0, 0, 0, 0, 5},

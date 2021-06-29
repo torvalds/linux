@@ -12,7 +12,6 @@
 #include "connection.h"
 #include "ksmbd_work.h"
 #include "mgmt/ksmbd_ida.h"
-#include "ksmbd_server.h"
 
 static struct kmem_cache *work_cache;
 static struct workqueue_struct *ksmbd_wq;

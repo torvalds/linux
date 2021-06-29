@@ -12,7 +12,6 @@
 #include "connection.h"
 #include "smb_common.h"
 #include "server.h"
-#include "ksmbd_server.h"
 
 static struct smb_version_values smb21_server_values = {
 	.version_string = SMB21_VERSION_STRING,
