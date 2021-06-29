@@ -2207,6 +2207,13 @@ error:
 	return ret;
 }
 
+/*
+ * This function, insert_block_group_item(), belongs to the phase 2 of chunk
+ * allocation.
+ *
+ * See the comment at btrfs_chunk_alloc() for details about the chunk allocation
+ * phases.
+ */
 static int insert_block_group_item(struct btrfs_trans_handle *trans,
 				   struct btrfs_block_group *block_group)
 {
@@ -2229,14 +2236,18 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	return btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
 }
 
+/*
+ * This function, btrfs_create_pending_block_groups(), belongs to the phase 2 of
+ * chunk allocation.
+ *
+ * See the comment at btrfs_chunk_alloc() for details about the chunk allocation
+ * phases.
+ */
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group *block_group;
 	int ret = 0;
-
-	if (!trans->can_flush_pending_bgs)
-		return;
 
 	while (!list_empty(&trans->new_bgs)) {
 		int index;
@@ -2252,6 +2263,13 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 		ret = insert_block_group_item(trans, block_group);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
+		if (!block_group->chunk_item_inserted) {
+			mutex_lock(&fs_info->chunk_mutex);
+			ret = btrfs_chunk_alloc_add_chunk_item(trans, block_group);
+			mutex_unlock(&fs_info->chunk_mutex);
+			if (ret)
+				btrfs_abort_transaction(trans, ret);
+		}
 		ret = btrfs_finish_chunk_alloc(trans, block_group->start,
 					block_group->length);
 		if (ret)
@@ -2275,8 +2293,9 @@ next:
 	btrfs_trans_release_chunk_metadata(trans);
 }
 
-int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
-			   u64 type, u64 chunk_offset, u64 size)
+struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *trans,
+						 u64 bytes_used, u64 type,
+						 u64 chunk_offset, u64 size)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group *cache;
@@ -2286,7 +2305,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 
 	cache = btrfs_create_block_group_cache(fs_info, chunk_offset);
 	if (!cache)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	cache->length = size;
 	set_free_space_tree_thresholds(cache);
@@ -2300,7 +2319,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	ret = btrfs_load_block_group_zone_info(cache, true);
 	if (ret) {
 		btrfs_put_block_group(cache);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	ret = exclude_super_stripes(cache);
@@ -2308,7 +2327,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 		/* We may have excluded something, so call this just in case */
 		btrfs_free_excluded_extents(cache);
 		btrfs_put_block_group(cache);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	add_new_free_space(cache, chunk_offset, chunk_offset + size);
@@ -2335,7 +2354,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	if (ret) {
 		btrfs_remove_free_space_cache(cache);
 		btrfs_put_block_group(cache);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	/*
@@ -2354,7 +2373,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	btrfs_update_delayed_refs_rsv(trans);
 
 	set_avail_alloc_bits(fs_info, type);
-	return 0;
+	return cache;
 }
 
 /*
@@ -3232,11 +3251,203 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type)
 	return btrfs_chunk_alloc(trans, alloc_flags, CHUNK_ALLOC_FORCE);
 }
 
+static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
+{
+	struct btrfs_block_group *bg;
+	int ret;
+
+	/*
+	 * Check if we have enough space in the system space info because we
+	 * will need to update device items in the chunk btree and insert a new
+	 * chunk item in the chunk btree as well. This will allocate a new
+	 * system block group if needed.
+	 */
+	check_system_chunk(trans, flags);
+
+	bg = btrfs_alloc_chunk(trans, flags);
+	if (IS_ERR(bg)) {
+		ret = PTR_ERR(bg);
+		goto out;
+	}
+
+	/*
+	 * If this is a system chunk allocation then stop right here and do not
+	 * add the chunk item to the chunk btree. This is to prevent a deadlock
+	 * because this system chunk allocation can be triggered while COWing
+	 * some extent buffer of the chunk btree and while holding a lock on a
+	 * parent extent buffer, in which case attempting to insert the chunk
+	 * item (or update the device item) would result in a deadlock on that
+	 * parent extent buffer. In this case defer the chunk btree updates to
+	 * the second phase of chunk allocation and keep our reservation until
+	 * the second phase completes.
+	 *
+	 * This is a rare case and can only be triggered by the very few cases
+	 * we have where we need to touch the chunk btree outside chunk allocation
+	 * and chunk removal. These cases are basically adding a device, removing
+	 * a device or resizing a device.
+	 */
+	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		return 0;
+
+	ret = btrfs_chunk_alloc_add_chunk_item(trans, bg);
+	/*
+	 * Normally we are not expected to fail with -ENOSPC here, since we have
+	 * previously reserved space in the system space_info and allocated one
+	 * new system chunk if necessary. However there are two exceptions:
+	 *
+	 * 1) We may have enough free space in the system space_info but all the
+	 *    existing system block groups have a profile which can not be used
+	 *    for extent allocation.
+	 *
+	 *    This happens when mounting in degraded mode. For example we have a
+	 *    RAID1 filesystem with 2 devices, lose one device and mount the fs
+	 *    using the other device in degraded mode. If we then allocate a chunk,
+	 *    we may have enough free space in the existing system space_info, but
+	 *    none of the block groups can be used for extent allocation since they
+	 *    have a RAID1 profile, and because we are in degraded mode with a
+	 *    single device, we are forced to allocate a new system chunk with a
+	 *    SINGLE profile. Making check_system_chunk() iterate over all system
+	 *    block groups and check if they have a usable profile and enough space
+	 *    can be slow on very large filesystems, so we tolerate the -ENOSPC and
+	 *    try again after forcing allocation of a new system chunk. Like this
+	 *    we avoid paying the cost of that search in normal circumstances, when
+	 *    we were not mounted in degraded mode;
+	 *
+	 * 2) We had enough free space info the system space_info, and one suitable
+	 *    block group to allocate from when we called check_system_chunk()
+	 *    above. However right after we called it, the only system block group
+	 *    with enough free space got turned into RO mode by a running scrub,
+	 *    and in this case we have to allocate a new one and retry. We only
+	 *    need do this allocate and retry once, since we have a transaction
+	 *    handle and scrub uses the commit root to search for block groups.
+	 */
+	if (ret == -ENOSPC) {
+		const u64 sys_flags = btrfs_system_alloc_profile(trans->fs_info);
+		struct btrfs_block_group *sys_bg;
+
+		sys_bg = btrfs_alloc_chunk(trans, sys_flags);
+		if (IS_ERR(sys_bg)) {
+			ret = PTR_ERR(sys_bg);
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+
+		ret = btrfs_chunk_alloc_add_chunk_item(trans, sys_bg);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+
+		ret = btrfs_chunk_alloc_add_chunk_item(trans, bg);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+	} else if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+out:
+	btrfs_trans_release_chunk_metadata(trans);
+
+	return ret;
+}
+
 /*
- * If force is CHUNK_ALLOC_FORCE:
+ * Chunk allocation is done in 2 phases:
+ *
+ * 1) Phase 1 - through btrfs_chunk_alloc() we allocate device extents for
+ *    the chunk, the chunk mapping, create its block group and add the items
+ *    that belong in the chunk btree to it - more specifically, we need to
+ *    update device items in the chunk btree and add a new chunk item to it.
+ *
+ * 2) Phase 2 - through btrfs_create_pending_block_groups(), we add the block
+ *    group item to the extent btree and the device extent items to the devices
+ *    btree.
+ *
+ * This is done to prevent deadlocks. For example when COWing a node from the
+ * extent btree we are holding a write lock on the node's parent and if we
+ * trigger chunk allocation and attempted to insert the new block group item
+ * in the extent btree right way, we could deadlock because the path for the
+ * insertion can include that parent node. At first glance it seems impossible
+ * to trigger chunk allocation after starting a transaction since tasks should
+ * reserve enough transaction units (metadata space), however while that is true
+ * most of the time, chunk allocation may still be triggered for several reasons:
+ *
+ * 1) When reserving metadata, we check if there is enough free space in the
+ *    metadata space_info and therefore don't trigger allocation of a new chunk.
+ *    However later when the task actually tries to COW an extent buffer from
+ *    the extent btree or from the device btree for example, it is forced to
+ *    allocate a new block group (chunk) because the only one that had enough
+ *    free space was just turned to RO mode by a running scrub for example (or
+ *    device replace, block group reclaim thread, etc), so we can not use it
+ *    for allocating an extent and end up being forced to allocate a new one;
+ *
+ * 2) Because we only check that the metadata space_info has enough free bytes,
+ *    we end up not allocating a new metadata chunk in that case. However if
+ *    the filesystem was mounted in degraded mode, none of the existing block
+ *    groups might be suitable for extent allocation due to their incompatible
+ *    profile (for e.g. mounting a 2 devices filesystem, where all block groups
+ *    use a RAID1 profile, in degraded mode using a single device). In this case
+ *    when the task attempts to COW some extent buffer of the extent btree for
+ *    example, it will trigger allocation of a new metadata block group with a
+ *    suitable profile (SINGLE profile in the example of the degraded mount of
+ *    the RAID1 filesystem);
+ *
+ * 3) The task has reserved enough transaction units / metadata space, but when
+ *    it attempts to COW an extent buffer from the extent or device btree for
+ *    example, it does not find any free extent in any metadata block group,
+ *    therefore forced to try to allocate a new metadata block group.
+ *    This is because some other task allocated all available extents in the
+ *    meanwhile - this typically happens with tasks that don't reserve space
+ *    properly, either intentionally or as a bug. One example where this is
+ *    done intentionally is fsync, as it does not reserve any transaction units
+ *    and ends up allocating a variable number of metadata extents for log
+ *    tree extent buffers.
+ *
+ * We also need this 2 phases setup when adding a device to a filesystem with
+ * a seed device - we must create new metadata and system chunks without adding
+ * any of the block group items to the chunk, extent and device btrees. If we
+ * did not do it this way, we would get ENOSPC when attempting to update those
+ * btrees, since all the chunks from the seed device are read-only.
+ *
+ * Phase 1 does the updates and insertions to the chunk btree because if we had
+ * it done in phase 2 and have a thundering herd of tasks allocating chunks in
+ * parallel, we risk having too many system chunks allocated by many tasks if
+ * many tasks reach phase 1 without the previous ones completing phase 2. In the
+ * extreme case this leads to exhaustion of the system chunk array in the
+ * superblock. This is easier to trigger if using a btree node/leaf size of 64K
+ * and with RAID filesystems (so we have more device items in the chunk btree).
+ * This has happened before and commit eafa4fd0ad0607 ("btrfs: fix exhaustion of
+ * the system chunk array due to concurrent allocations") provides more details.
+ *
+ * For allocation of system chunks, we defer the updates and insertions into the
+ * chunk btree to phase 2. This is to prevent deadlocks on extent buffers because
+ * if the chunk allocation is triggered while COWing an extent buffer of the
+ * chunk btree, we are holding a lock on the parent of that extent buffer and
+ * doing the chunk btree updates and insertions can require locking that parent.
+ * This is for the very few and rare cases where we update the chunk btree that
+ * are not chunk allocation or chunk removal: adding a device, removing a device
+ * or resizing a device.
+ *
+ * The reservation of system space, done through check_system_chunk(), as well
+ * as all the updates and insertions into the chunk btree must be done while
+ * holding fs_info->chunk_mutex. This is important to guarantee that while COWing
+ * an extent buffer from the chunks btree we never trigger allocation of a new
+ * system chunk, which would result in a deadlock (trying to lock twice an
+ * extent buffer of the chunk btree, first time before triggering the chunk
+ * allocation and the second time during chunk allocation while attempting to
+ * update the chunks btree). The system chunk array is also updated while holding
+ * that mutex. The same logic applies to removing chunks - we must reserve system
+ * space, update the chunk btree and the system chunk array in the superblock
+ * while holding fs_info->chunk_mutex.
+ *
+ * This function, btrfs_chunk_alloc(), belongs to phase 1.
+ *
+ * If @force is CHUNK_ALLOC_FORCE:
  *    - return 1 if it successfully allocates a chunk,
  *    - return errors including -ENOSPC otherwise.
- * If force is NOT CHUNK_ALLOC_FORCE:
+ * If @force is NOT CHUNK_ALLOC_FORCE:
  *    - return 0 if it doesn't need to allocate a new chunk,
  *    - return 1 if it successfully allocates a chunk,
  *    - return errors including -ENOSPC otherwise.
@@ -3252,6 +3463,13 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 
 	/* Don't re-enter if we're already allocating a chunk */
 	if (trans->allocating_chunk)
+		return -ENOSPC;
+	/*
+	 * If we are removing a chunk, don't re-enter or we would deadlock.
+	 * System space reservation and system chunk allocation is done by the
+	 * chunk remove operation (btrfs_remove_chunk()).
+	 */
+	if (trans->removing_chunk)
 		return -ENOSPC;
 
 	space_info = btrfs_find_space_info(fs_info, flags);
@@ -3316,13 +3534,7 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 			force_metadata_allocation(fs_info);
 	}
 
-	/*
-	 * Check if we have enough space in SYSTEM chunk because we may need
-	 * to update devices.
-	 */
-	check_system_chunk(trans, flags);
-
-	ret = btrfs_alloc_chunk(trans, flags);
+	ret = do_chunk_alloc(trans, flags);
 	trans->allocating_chunk = false;
 
 	spin_lock(&space_info->lock);
@@ -3341,22 +3553,6 @@ out:
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
 	mutex_unlock(&fs_info->chunk_mutex);
-	/*
-	 * When we allocate a new chunk we reserve space in the chunk block
-	 * reserve to make sure we can COW nodes/leafs in the chunk tree or
-	 * add new nodes/leafs to it if we end up needing to do it when
-	 * inserting the chunk item and updating device items as part of the
-	 * second phase of chunk allocation, performed by
-	 * btrfs_finish_chunk_alloc(). So make sure we don't accumulate a
-	 * large number of new block groups to create in our transaction
-	 * handle's new_bgs list to avoid exhausting the chunk block reserve
-	 * in extreme cases - like having a single transaction create many new
-	 * block groups when starting to write out the free space caches of all
-	 * the block groups that were made dirty during the lifetime of the
-	 * transaction.
-	 */
-	if (trans->chunk_bytes_reserved >= (u64)SZ_2M)
-		btrfs_create_pending_block_groups(trans);
 
 	return ret;
 }
@@ -3409,14 +3605,31 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 
 	if (left < thresh) {
 		u64 flags = btrfs_system_alloc_profile(fs_info);
+		struct btrfs_block_group *bg;
 
 		/*
 		 * Ignore failure to create system chunk. We might end up not
 		 * needing it, as we might not need to COW all nodes/leafs from
 		 * the paths we visit in the chunk tree (they were already COWed
 		 * or created in the current transaction for example).
+		 *
+		 * Also, if our caller is allocating a system chunk, do not
+		 * attempt to insert the chunk item in the chunk btree, as we
+		 * could deadlock on an extent buffer since our caller may be
+		 * COWing an extent buffer from the chunk btree.
 		 */
-		ret = btrfs_alloc_chunk(trans, flags);
+		bg = btrfs_alloc_chunk(trans, flags);
+		if (IS_ERR(bg)) {
+			ret = PTR_ERR(bg);
+		} else if (!(type & BTRFS_BLOCK_GROUP_SYSTEM)) {
+			/*
+			 * If we fail to add the chunk item here, we end up
+			 * trying again at phase 2 of chunk allocation, at
+			 * btrfs_create_pending_block_groups(). So ignore
+			 * any error here.
+			 */
+			btrfs_chunk_alloc_add_chunk_item(trans, bg);
+		}
 	}
 
 	if (!ret) {
