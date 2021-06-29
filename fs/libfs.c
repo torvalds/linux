@@ -512,7 +512,7 @@ int simple_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 }
 EXPORT_SYMBOL(simple_setattr);
 
-int simple_readpage(struct file *file, struct page *page)
+static int simple_readpage(struct file *file, struct page *page)
 {
 	clear_highpage(page);
 	flush_dcache_page(page);
@@ -520,7 +520,6 @@ int simple_readpage(struct file *file, struct page *page)
 	unlock_page(page);
 	return 0;
 }
-EXPORT_SYMBOL(simple_readpage);
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
@@ -568,7 +567,7 @@ EXPORT_SYMBOL(simple_write_begin);
  *
  * Use *ONLY* with simple_readpage()
  */
-int simple_write_end(struct file *file, struct address_space *mapping,
+static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
@@ -597,7 +596,17 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	return copied;
 }
-EXPORT_SYMBOL(simple_write_end);
+
+/*
+ * Provides ramfs-style behavior: data in the pagecache, but no writeback.
+ */
+const struct address_space_operations ram_aops = {
+	.readpage	= simple_readpage,
+	.write_begin	= simple_write_begin,
+	.write_end	= simple_write_end,
+	.set_page_dirty	= __set_page_dirty_no_writeback,
+};
+EXPORT_SYMBOL(ram_aops);
 
 /*
  * the inodes created here are not hashed. If you use iunique to generate
