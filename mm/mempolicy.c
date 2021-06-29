@@ -975,7 +975,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 		 * want to return MPOL_DEFAULT in this case.
 		 */
 		mmap_read_lock(mm);
-		vma = find_vma_intersection(mm, addr, addr+1);
+		vma = vma_lookup(mm, addr);
 		if (!vma) {
 			mmap_read_unlock(mm);
 			return -EFAULT;
