@@ -488,7 +488,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 	 */
 	read_lock(&curr_fp->f_ci->m_lock);
 	list_for_each_entry(prev_fp, &curr_fp->f_ci->m_fp_list, node) {
-		if (file_inode(filp) != FP_INODE(prev_fp))
+		if (file_inode(filp) != file_inode(prev_fp->filp))
 			continue;
 
 		if (filp == prev_fp->filp)

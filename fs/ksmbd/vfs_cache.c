@@ -83,7 +83,7 @@ static struct ksmbd_inode *__ksmbd_inode_lookup(struct inode *inode)
 
 static struct ksmbd_inode *ksmbd_inode_lookup(struct ksmbd_file *fp)
 {
-	return __ksmbd_inode_lookup(FP_INODE(fp));
+	return __ksmbd_inode_lookup(file_inode(fp->filp));
 }
 
 static struct ksmbd_inode *ksmbd_inode_lookup_by_vfsinode(struct inode *inode)
@@ -156,7 +156,7 @@ static void ksmbd_inode_unhash(struct ksmbd_inode *ci)
 
 static int ksmbd_inode_init(struct ksmbd_inode *ci, struct ksmbd_file *fp)
 {
-	ci->m_inode = FP_INODE(fp);
+	ci->m_inode = file_inode(fp->filp);
 	atomic_set(&ci->m_count, 1);
 	atomic_set(&ci->op_count, 0);
 	atomic_set(&ci->sop_count, 0);
@@ -479,7 +479,7 @@ struct ksmbd_file *ksmbd_lookup_fd_inode(struct inode *inode)
 
 	read_lock(&ci->m_lock);
 	list_for_each_entry(lfp, &ci->m_fp_list, node) {
-		if (inode == FP_INODE(lfp)) {
+		if (inode == file_inode(lfp->filp)) {
 			atomic_dec(&ci->m_count);
 			read_unlock(&ci->m_lock);
 			return lfp;

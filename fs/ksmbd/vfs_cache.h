@@ -25,7 +25,6 @@
 #define KSMBD_NO_FID		(UINT_MAX)
 #define SMB2_NO_FID		(0xFFFFFFFFFFFFFFFFULL)
 
-#define FP_INODE(fp)		d_inode((fp)->filp->f_path.dentry)
 #define PARENT_INODE(fp)	d_inode((fp)->filp->f_path.dentry->d_parent)
 
 #define ATTR_FP(fp) ((fp)->attrib_only && \
