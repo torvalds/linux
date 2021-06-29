@@ -167,7 +167,7 @@ config KASAN_STACK
 	  instrumentation is also disabled as it adds inline-style
 	  instrumentation that is run unconditionally.
 
-config KASAN_SW_TAGS_IDENTIFY
+config KASAN_TAGS_IDENTIFY
 	bool "Enable memory corruption identification"
 	depends on KASAN_SW_TAGS
 	help
