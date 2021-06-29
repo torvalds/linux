@@ -22,6 +22,15 @@
 
 struct cma;
 
+struct cma_alloc_info {
+	unsigned long nr_migrated;
+	unsigned long nr_reclaimed;
+	unsigned long nr_mapped;
+	unsigned int nr_isolate_fail;
+	unsigned int nr_migrate_fail;
+	unsigned int nr_test_fail;
+};
+
 extern unsigned long totalcma_pages;
 extern phys_addr_t cma_get_base(const struct cma *cma);
 extern unsigned long cma_get_size(const struct cma *cma);
