@@ -8,7 +8,6 @@
  * Author: Jarkko Nikula <jarkko.nikula@linux.intel.com>
  * Author: Raymond Tan <raymond.tan@intel.com>
  */
-#include <linux/bitops.h>
 #include <linux/counter.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
