@@ -84,13 +84,13 @@ struct nvs_page {
 static LIST_HEAD(nvs_list);
 
 /**
- *	suspend_nvs_register - register platform NVS memory region to save
- *	@start - physical address of the region
- *	@size - size of the region
+ * suspend_nvs_register - register platform NVS memory region to save
+ * @start: Physical address of the region.
+ * @size: Size of the region.
  *
- *	The NVS region need not be page-aligned (both ends) and we arrange
- *	things so that the data from page-aligned addresses in this region will
- *	be copied into separate RAM pages.
+ * The NVS region need not be page-aligned (both ends) and we arrange
+ * things so that the data from page-aligned addresses in this region will
+ * be copied into separate RAM pages.
  */
 static int suspend_nvs_register(unsigned long start, unsigned long size)
 {
@@ -125,7 +125,7 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 }
 
 /**
- *	suspend_nvs_free - free data pages allocated for saving NVS regions
+ * suspend_nvs_free - free data pages allocated for saving NVS regions
  */
 void suspend_nvs_free(void)
 {
@@ -149,7 +149,7 @@ void suspend_nvs_free(void)
 }
 
 /**
- *	suspend_nvs_alloc - allocate memory necessary for saving NVS regions
+ * suspend_nvs_alloc - allocate memory necessary for saving NVS regions
  */
 int suspend_nvs_alloc(void)
 {
@@ -166,7 +166,7 @@ int suspend_nvs_alloc(void)
 }
 
 /**
- *	suspend_nvs_save - save NVS memory regions
+ * suspend_nvs_save - save NVS memory regions
  */
 int suspend_nvs_save(void)
 {
@@ -195,10 +195,10 @@ int suspend_nvs_save(void)
 }
 
 /**
- *	suspend_nvs_restore - restore NVS memory regions
+ * suspend_nvs_restore - restore NVS memory regions
  *
- *	This function is going to be called with interrupts disabled, so it
- *	cannot iounmap the virtual addresses used to access the NVS region.
+ * This function is going to be called with interrupts disabled, so it
+ * cannot iounmap the virtual addresses used to access the NVS region.
  */
 void suspend_nvs_restore(void)
 {
