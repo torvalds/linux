@@ -1403,9 +1403,9 @@ static int timerlat_main(void *data)
 		trace_timerlat_sample(&s);
 
 #ifdef CONFIG_STACKTRACE
-	if (osnoise_data.print_stack)
-		if (osnoise_data.print_stack <= time_to_us(diff))
-			timerlat_dump_stack();
+		if (osnoise_data.print_stack)
+			if (osnoise_data.print_stack <= time_to_us(diff))
+				timerlat_dump_stack();
 #endif /* CONFIG_STACKTRACE */
 
 		tlat->tracing_thread = false;
