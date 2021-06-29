@@ -182,6 +182,7 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, bool set)
 
 out_unlock:
 	mutex_unlock(&dev->lock);
+	amd_pmc_dump_registers(dev);
 	return rc;
 }
 
@@ -194,7 +195,6 @@ static int __maybe_unused amd_pmc_suspend(struct device *dev)
 	if (rc)
 		dev_err(pdev->dev, "suspend failed\n");
 
-	amd_pmc_dump_registers(pdev);
 	return 0;
 }
 
@@ -207,7 +207,6 @@ static int __maybe_unused amd_pmc_resume(struct device *dev)
 	if (rc)
 		dev_err(pdev->dev, "resume failed\n");
 
-	amd_pmc_dump_registers(pdev);
 	return 0;
 }
 
@@ -278,8 +277,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 				    AMD_PMC_MAPPING_SIZE);
 	if (!dev->regbase)
 		return -ENOMEM;
-
-	amd_pmc_dump_registers(dev);
 
 	mutex_init(&dev->lock);
 	platform_set_drvdata(pdev, dev);
