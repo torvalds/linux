@@ -6,10 +6,6 @@ config HAVE_CLK
 	  The <linux/clk.h> calls support software clock gating and
 	  thus are a key power management tool on many systems.
 
-config CLKDEV_LOOKUP
-	bool
-	select HAVE_CLK
-
 config HAVE_CLK_PREPARE
 	bool
 
@@ -26,7 +22,7 @@ menuconfig COMMON_CLK
 	bool "Common Clock Framework"
 	depends on !HAVE_LEGACY_CLK
 	select HAVE_CLK_PREPARE
-	select CLKDEV_LOOKUP
+	select HAVE_CLK
 	select SRCU
 	select RATIONAL
 	help
