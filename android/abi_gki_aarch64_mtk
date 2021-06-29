@@ -739,6 +739,7 @@
   get_cpu_iowait_time_us
   get_device
   get_each_dmabuf
+  get_freelist_nr_pages
   __get_free_pages
   get_governor_parent_kobj
   get_kernel_pages
