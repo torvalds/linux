@@ -614,7 +614,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *slot,
 
 		/* Fetch the VMA if addr is not in the latest fetched one */
 		if (!vma || addr >= vma->vm_end) {
-			vma = find_vma_intersection(kvm->mm, addr, addr+1);
+			vma = vma_lookup(kvm->mm, addr);
 			if (!vma) {
 				pr_err("Can't find VMA for gfn:0x%lx\n", gfn);
 				break;
