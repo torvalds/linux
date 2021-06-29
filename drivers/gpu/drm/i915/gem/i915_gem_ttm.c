@@ -617,7 +617,8 @@ struct ttm_device_funcs *i915_ttm_driver(void)
 	return &i915_ttm_bo_driver;
 }
 
-static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
+static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
+				struct ttm_placement *placement)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
 	struct ttm_operation_ctx ctx = {
@@ -625,19 +626,12 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 		.no_wait_gpu = false,
 	};
 	struct sg_table *st;
-	struct ttm_place requested, busy[I915_TTM_MAX_PLACEMENTS];
-	struct ttm_placement placement;
 	int real_num_busy;
 	int ret;
 
-	GEM_BUG_ON(obj->mm.n_placements > I915_TTM_MAX_PLACEMENTS);
-
-	/* Move to the requested placement. */
-	i915_ttm_placement_from_obj(obj, &requested, busy, &placement);
-
 	/* First try only the requested placement. No eviction. */
-	real_num_busy = fetch_and_zero(&placement.num_busy_placement);
-	ret = ttm_bo_validate(bo, &placement, &ctx);
+	real_num_busy = fetch_and_zero(&placement->num_busy_placement);
+	ret = ttm_bo_validate(bo, placement, &ctx);
 	if (ret) {
 		ret = i915_ttm_err_to_gem(ret);
 		/*
@@ -652,8 +646,8 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 		 * If the initial attempt fails, allow all accepted placements,
 		 * evicting if necessary.
 		 */
-		placement.num_busy_placement = real_num_busy;
-		ret = ttm_bo_validate(bo, &placement, &ctx);
+		placement->num_busy_placement = real_num_busy;
+		ret = ttm_bo_validate(bo, placement, &ctx);
 		if (ret)
 			return i915_ttm_err_to_gem(ret);
 	}
@@ -668,6 +662,7 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 		i915_ttm_adjust_gem_after_move(obj);
 	}
 
+	GEM_WARN_ON(obj->mm.pages);
 	/* Object either has a page vector or is an iomem object */
 	st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
 	if (IS_ERR(st))
@@ -676,6 +671,63 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 	__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
 
 	return ret;
+}
+
+static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
+{
+	struct ttm_place requested, busy[I915_TTM_MAX_PLACEMENTS];
+	struct ttm_placement placement;
+
+	GEM_BUG_ON(obj->mm.n_placements > I915_TTM_MAX_PLACEMENTS);
+
+	/* Move to the requested placement. */
+	i915_ttm_placement_from_obj(obj, &requested, busy, &placement);
+
+	return __i915_ttm_get_pages(obj, &placement);
+}
+
+/**
+ * DOC: Migration vs eviction
+ *
+ * GEM migration may not be the same as TTM migration / eviction. If
+ * the TTM core decides to evict an object it may be evicted to a
+ * TTM memory type that is not in the object's allowable GEM regions, or
+ * in fact theoretically to a TTM memory type that doesn't correspond to
+ * a GEM memory region. In that case the object's GEM region is not
+ * updated, and the data is migrated back to the GEM region at
+ * get_pages time. TTM may however set up CPU ptes to the object even
+ * when it is evicted.
+ * Gem forced migration using the i915_ttm_migrate() op, is allowed even
+ * to regions that are not in the object's list of allowable placements.
+ */
+static int i915_ttm_migrate(struct drm_i915_gem_object *obj,
+			    struct intel_memory_region *mr)
+{
+	struct ttm_place requested;
+	struct ttm_placement placement;
+	int ret;
+
+	i915_ttm_place_from_region(mr, &requested, obj->flags);
+	placement.num_placement = 1;
+	placement.num_busy_placement = 1;
+	placement.placement = &requested;
+	placement.busy_placement = &requested;
+
+	ret = __i915_ttm_get_pages(obj, &placement);
+	if (ret)
+		return ret;
+
+	/*
+	 * Reinitialize the region bindings. This is primarily
+	 * required for objects where the new region is not in
+	 * its allowable placements.
+	 */
+	if (obj->mm.region != mr) {
+		i915_gem_object_release_memory_region(obj);
+		i915_gem_object_init_memory_region(obj, mr);
+	}
+
+	return 0;
 }
 
 static void i915_ttm_put_pages(struct drm_i915_gem_object *obj,
@@ -814,6 +866,7 @@ static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 	.truncate = i915_ttm_purge,
 	.adjust_lru = i915_ttm_adjust_lru,
 	.delayed_free = i915_ttm_delayed_free,
+	.migrate = i915_ttm_migrate,
 	.mmap_offset = i915_ttm_mmap_offset,
 	.mmap_ops = &vm_ops_ttm,
 };

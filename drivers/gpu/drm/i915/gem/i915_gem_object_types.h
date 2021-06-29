@@ -18,6 +18,7 @@
 
 struct drm_i915_gem_object;
 struct intel_fronbuffer;
+struct intel_memory_region;
 
 /*
  * struct i915_lut_handle tracks the fast lookups from handle to vma used
@@ -77,6 +78,14 @@ struct drm_i915_gem_object_ops {
 	 * delayed_free - Override the default delayed free implementation
 	 */
 	void (*delayed_free)(struct drm_i915_gem_object *obj);
+
+	/**
+	 * migrate - Migrate object to a different region either for
+	 * pinning or for as long as the object lock is held.
+	 */
+	int (*migrate)(struct drm_i915_gem_object *obj,
+		       struct intel_memory_region *mr);
+
 	void (*release)(struct drm_i915_gem_object *obj);
 
 	const struct vm_operations_struct *mmap_ops;

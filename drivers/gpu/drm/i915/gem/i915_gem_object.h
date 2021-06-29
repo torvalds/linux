@@ -17,6 +17,8 @@
 #include "i915_gem_ww.h"
 #include "i915_vma_types.h"
 
+enum intel_region_id;
+
 /*
  * XXX: There is a prevalence of the assumption that we fit the
  * object's page count inside a 32bit _signed_ variable. Let's document
@@ -596,6 +598,16 @@ bool i915_gem_object_evictable(struct drm_i915_gem_object *obj);
 bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
 
 bool i915_gem_object_validates_to_lmem(struct drm_i915_gem_object *obj);
+
+int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    enum intel_region_id id);
+
+bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
+				 enum intel_region_id id);
+
+int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
+				   unsigned int flags);
 
 #ifdef CONFIG_MMU_NOTIFIER
 static inline bool

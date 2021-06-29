@@ -513,6 +513,118 @@ bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
 	return obj->mem_flags & I915_BO_FLAG_IOMEM;
 }
 
+/**
+ * i915_gem_object_can_migrate - Whether an object likely can be migrated
+ *
+ * @obj: The object to migrate
+ * @id: The region intended to migrate to
+ *
+ * Check whether the object backend supports migration to the
+ * given region. Note that pinning may affect the ability to migrate as
+ * returned by this function.
+ *
+ * This function is primarily intended as a helper for checking the
+ * possibility to migrate objects and might be slightly less permissive
+ * than i915_gem_object_migrate() when it comes to objects with the
+ * I915_BO_ALLOC_USER flag set.
+ *
+ * Return: true if migration is possible, false otherwise.
+ */
+bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
+				 enum intel_region_id id)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	unsigned int num_allowed = obj->mm.n_placements;
+	struct intel_memory_region *mr;
+	unsigned int i;
+
+	GEM_BUG_ON(id >= INTEL_REGION_UNKNOWN);
+	GEM_BUG_ON(obj->mm.madv != I915_MADV_WILLNEED);
+
+	mr = i915->mm.regions[id];
+	if (!mr)
+		return false;
+
+	if (obj->mm.region == mr)
+		return true;
+
+	if (!i915_gem_object_evictable(obj))
+		return false;
+
+	if (!obj->ops->migrate)
+		return false;
+
+	if (!(obj->flags & I915_BO_ALLOC_USER))
+		return true;
+
+	if (num_allowed == 0)
+		return false;
+
+	for (i = 0; i < num_allowed; ++i) {
+		if (mr == obj->mm.placements[i])
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * i915_gem_object_migrate - Migrate an object to the desired region id
+ * @obj: The object to migrate.
+ * @ww: An optional struct i915_gem_ww_ctx. If NULL, the backend may
+ * not be successful in evicting other objects to make room for this object.
+ * @id: The region id to migrate to.
+ *
+ * Attempt to migrate the object to the desired memory region. The
+ * object backend must support migration and the object may not be
+ * pinned, (explicitly pinned pages or pinned vmas). The object must
+ * be locked.
+ * On successful completion, the object will have pages pointing to
+ * memory in the new region, but an async migration task may not have
+ * completed yet, and to accomplish that, i915_gem_object_wait_migration()
+ * must be called.
+ *
+ * This function is a bit more permissive than i915_gem_object_can_migrate()
+ * to allow for migrating objects where the caller knows exactly what is
+ * happening. For example within selftests. More specifically this
+ * function allows migrating I915_BO_ALLOC_USER objects to regions
+ * that are not in the list of allowable regions.
+ *
+ * Note: the @ww parameter is not used yet, but included to make sure
+ * callers put some effort into obtaining a valid ww ctx if one is
+ * available.
+ *
+ * Return: 0 on success. Negative error code on failure. In particular may
+ * return -ENXIO on lack of region space, -EDEADLK for deadlock avoidance
+ * if @ww is set, -EINTR or -ERESTARTSYS if signal pending, and
+ * -EBUSY if the object is pinned.
+ */
+int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    enum intel_region_id id)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct intel_memory_region *mr;
+
+	GEM_BUG_ON(id >= INTEL_REGION_UNKNOWN);
+	GEM_BUG_ON(obj->mm.madv != I915_MADV_WILLNEED);
+	assert_object_held(obj);
+
+	mr = i915->mm.regions[id];
+	GEM_BUG_ON(!mr);
+
+	if (obj->mm.region == mr)
+		return 0;
+
+	if (!i915_gem_object_evictable(obj))
+		return -EBUSY;
+
+	if (!obj->ops->migrate)
+		return -EOPNOTSUPP;
+
+	return obj->ops->migrate(obj, mr);
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
