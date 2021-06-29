@@ -479,7 +479,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
 	if (!mlx5_sf_max_functions(dev))
 		return 0;
 	if (sf_vec < MLX5_IRQ_VEC_COMP_BASE_SF) {
-		mlx5_core_err(dev, "Not enough IRQs for SFs. SF may run at lower performance\n");
+		mlx5_core_dbg(dev, "Not enught IRQs for SFs. SF may run at lower performance\n");
 		return 0;
 	}
 
