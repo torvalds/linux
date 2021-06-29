@@ -2015,8 +2015,10 @@
   rproc_add_subdev
   rproc_alloc
   rproc_boot
+  rproc_coredump
   rproc_coredump_add_custom_segment
   rproc_coredump_add_segment
+  rproc_coredump_cleanup
   rproc_coredump_set_elf_info
   rproc_coredump_using_sections
   rproc_del
