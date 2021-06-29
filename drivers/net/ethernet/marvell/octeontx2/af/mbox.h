@@ -1283,6 +1283,9 @@ struct set_vf_perm  {
 struct lmtst_tbl_setup_req {
 	struct mbox_msghdr hdr;
 	u16 base_pcifunc;
+	u8  use_local_lmt_region;
+	u64 lmt_iova;
+	u64 rsvd[4];
 };
 
 /* CPT mailbox error codes
