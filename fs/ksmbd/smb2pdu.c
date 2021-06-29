@@ -3711,8 +3711,8 @@ int smb2_query_dir(struct ksmbd_work *work)
 	if (!(dir_fp->daccess & FILE_LIST_DIRECTORY_LE) ||
 	    inode_permission(&init_user_ns, file_inode(dir_fp->filp),
 			     MAY_READ | MAY_EXEC)) {
-		pr_err("no right to enumerate directory (%s)\n",
-		       FP_FILENAME(dir_fp));
+		pr_err("no right to enumerate directory (%pd)\n",
+		       dir_fp->filp->f_path.dentry);
 		rc = -EACCES;
 		goto err_out2;
 	}
@@ -4266,14 +4266,15 @@ static void get_file_alternate_info(struct ksmbd_work *work,
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct smb2_file_alt_name_info *file_info;
+	struct dentry *dentry = fp->filp->f_path.dentry;
 	int conv_len;
-	char *filename;
 
-	filename = (char *)FP_FILENAME(fp);
+	spin_lock(&dentry->d_lock);
 	file_info = (struct smb2_file_alt_name_info *)rsp->Buffer;
 	conv_len = ksmbd_extract_shortname(conn,
-					   filename,
+					   dentry->d_name.name,
 					   file_info->FileName);
+	spin_unlock(&dentry->d_lock);
 	file_info->FileNameLength = cpu_to_le32(conv_len);
 	rsp->OutputBufferLength =
 		cpu_to_le32(sizeof(struct smb2_file_alt_name_info) + conv_len);
@@ -5938,8 +5939,8 @@ int smb2_read(struct ksmbd_work *work)
 		goto out;
 	}
 
-	ksmbd_debug(SMB, "filename %s, offset %lld, len %zu\n", FP_FILENAME(fp),
-		    offset, length);
+	ksmbd_debug(SMB, "filename %pd, offset %lld, len %zu\n",
+		    fp->filp->f_path.dentry, offset, length);
 
 	work->aux_payload_buf = kvmalloc(length, GFP_KERNEL | __GFP_ZERO);
 	if (!work->aux_payload_buf) {
@@ -6216,8 +6217,8 @@ int smb2_write(struct ksmbd_work *work)
 		if (le32_to_cpu(req->Flags) & SMB2_WRITEFLAG_WRITE_THROUGH)
 			writethrough = true;
 
-		ksmbd_debug(SMB, "filename %s, offset %lld, len %zu\n",
-			    FP_FILENAME(fp), offset, length);
+		ksmbd_debug(SMB, "filename %pd, offset %lld, len %zu\n",
+			    fp->filp->f_path.dentry, offset, length);
 		err = ksmbd_vfs_write(work, fp, data_buf, length, &offset,
 				      writethrough, &nbytes);
 		if (err < 0)
