@@ -342,7 +342,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "mgag200drmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &mgag200_driver);
 	if (ret)
 		return ret;
 

@@ -110,7 +110,7 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "bochsdrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &bochs_driver);
 	if (ret)
 		return ret;
 
