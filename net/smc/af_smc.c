@@ -2218,7 +2218,7 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 						   optval, optlen);
 	if (smc->clcsock->sk->sk_err) {
 		sk->sk_err = smc->clcsock->sk->sk_err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	}
 
 	if (optlen < sizeof(int))

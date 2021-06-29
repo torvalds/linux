@@ -1281,7 +1281,7 @@ static void vsock_connect_timeout(struct work_struct *work)
 	    (sk->sk_shutdown != SHUTDOWN_MASK)) {
 		sk->sk_state = TCP_CLOSE;
 		sk->sk_err = ETIMEDOUT;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 		vsock_transport_cancel_pkt(vsk);
 	}
 	release_sock(sk);

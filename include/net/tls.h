@@ -469,7 +469,7 @@ static inline bool tls_is_sk_tx_device_offloaded(struct sock *sk)
 static inline void tls_err_abort(struct sock *sk, int err)
 {
 	sk->sk_err = err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 }
 
 static inline bool tls_bigint_increment(unsigned char *seq, int len)

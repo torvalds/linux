@@ -2281,6 +2281,8 @@ static inline int sock_error(struct sock *sk)
 	return -err;
 }
 
+void sk_error_report(struct sock *sk);
+
 static inline unsigned long sock_wspace(struct sock *sk)
 {
 	int amt = 0;

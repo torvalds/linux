@@ -347,7 +347,7 @@ static inline void sk_psock_report_error(struct sk_psock *psock, int err)
 	struct sock *sk = psock->sk;
 
 	sk->sk_err = err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 }
 
 struct sk_psock *sk_psock_init(struct sock *sk, int node);
