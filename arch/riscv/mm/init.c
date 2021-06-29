@@ -159,7 +159,7 @@ static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
-	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
+	phys_addr_t __maybe_unused max_mapped_addr;
 	phys_addr_t dram_end;
 
 #ifdef CONFIG_XIP_KERNEL
@@ -183,14 +183,20 @@ static void __init setup_bootmem(void)
 
 	dram_end = memblock_end_of_DRAM();
 
+#ifndef CONFIG_64BIT
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
 	 * the addressable memory can not be mapped because of IS_ERR_VALUE
 	 * macro. Make sure that last 4k bytes are not usable by memblock
-	 * if end of dram is equal to maximum addressable memory.
+	 * if end of dram is equal to maximum addressable memory.  For 64-bit
+	 * kernel, this problem can't happen here as the end of the virtual
+	 * address space is occupied by the kernel mapping then this check must
+	 * be done in create_kernel_page_table.
 	 */
+	max_mapped_addr = __pa(~(ulong)0);
 	if (max_mapped_addr == (dram_end - 1))
 		memblock_set_current_limit(max_mapped_addr - 4096);
+#endif
 
 	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
 	max_low_pfn = max_pfn = PFN_DOWN(dram_end);
@@ -577,6 +583,14 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	/* Sanity check alignment and size */
 	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
 	BUG_ON((kernel_map.phys_addr % map_size) != 0);
+
+#ifdef CONFIG_64BIT
+	/*
+	 * The last 4K bytes of the addressable memory can not be mapped because
+	 * of IS_ERR_VALUE macro.
+	 */
+	BUG_ON((kernel_map.virt_addr + kernel_map.size) > ADDRESS_SPACE_END - SZ_4K);
+#endif
 
 	pt_ops.alloc_pte = alloc_pte_early;
 	pt_ops.get_pte_virt = get_pte_virt_early;
