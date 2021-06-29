@@ -394,6 +394,12 @@ static void ucsi_qti_notify_work(struct work_struct *work)
 					struct constat_info_entry, node);
 		list_del(&entry->node);
 		mutex_unlock(&udev->notify_lock);
+		pr_debug("acc: %d usb: %d alt_mode: %d change: %d connect: %d\n",
+			entry->constat_info.acc,
+			entry->constat_info.partner_usb,
+			entry->constat_info.partner_alternate_mode,
+			entry->constat_info.partner_change,
+			entry->constat_info.connect);
 		raw_notifier_call_chain(&ucsi_glink_notifier,
 					0, &entry->constat_info);
 		kfree(entry);
