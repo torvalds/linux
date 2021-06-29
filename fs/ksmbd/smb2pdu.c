@@ -5538,6 +5538,9 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 			   char *buf)
 {
 	struct ksmbd_file *parent_fp;
+	struct dentry *parent;
+	struct dentry *dentry = fp->filp->f_path.dentry;
+	int ret;
 
 	if (!(fp->daccess & FILE_DELETE_LE)) {
 		pr_err("no right to delete : 0x%x\n", fp->daccess);
@@ -5547,7 +5550,17 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 	if (ksmbd_stream_fd(fp))
 		goto next;
 
-	parent_fp = ksmbd_lookup_fd_inode(PARENT_INODE(fp));
+	parent = dget_parent(dentry);
+	ret = ksmbd_vfs_lock_parent(parent, dentry);
+	if (ret) {
+		dput(parent);
+		return ret;
+	}
+
+	parent_fp = ksmbd_lookup_fd_inode(d_inode(parent));
+	inode_unlock(d_inode(parent));
+	dput(parent);
+
 	if (parent_fp) {
 		if (parent_fp->daccess & FILE_DELETE_LE) {
 			pr_err("parent dir is opened with delete access\n");

@@ -69,7 +69,7 @@ static void ksmbd_vfs_inherit_owner(struct ksmbd_work *work,
  *
  * the reference count of @parent isn't incremented.
  */
-static int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child)
+int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child)
 {
 	struct dentry *dentry;
 	int ret = 0;
