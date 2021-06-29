@@ -32,6 +32,8 @@
 #define IGC_WUFC_FLX6		BIT(22)	   /* Flexible Filter 6 Enable */
 #define IGC_WUFC_FLX7		BIT(23)	   /* Flexible Filter 7 Enable */
 
+#define IGC_WUFC_FILTER_MASK GENMASK(23, 14)
+
 #define IGC_CTRL_ADVD3WUC	0x00100000  /* D3 WUC */
 
 /* Wake Up Status */
@@ -80,6 +82,8 @@
 #define IGC_WUFC_EXT_FLX29	BIT(29)	/* Flexible Filter 29 Enable */
 #define IGC_WUFC_EXT_FLX30	BIT(30)	/* Flexible Filter 30 Enable */
 #define IGC_WUFC_EXT_FLX31	BIT(31)	/* Flexible Filter 31 Enable */
+
+#define IGC_WUFC_EXT_FILTER_MASK GENMASK(31, 8)
 
 /* Physical Func Reset Done Indication */
 #define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
