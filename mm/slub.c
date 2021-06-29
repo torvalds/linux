@@ -36,6 +36,7 @@
 #include <linux/prefetch.h>
 #include <linux/memcontrol.h>
 #include <linux/random.h>
+#include <kunit/test.h>
 
 #include <trace/events/kmem.h>
 
@@ -449,6 +450,26 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 static unsigned long object_map[BITS_TO_LONGS(MAX_OBJS_PER_PAGE)];
 static DEFINE_SPINLOCK(object_map_lock);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+static bool slab_add_kunit_errors(void)
+{
+	struct kunit_resource *resource;
+
+	if (likely(!current->kunit_test))
+		return false;
+
+	resource = kunit_find_named_resource(current->kunit_test, "slab_errors");
+	if (!resource)
+		return false;
+
+	(*(int *)resource->data)++;
+	kunit_put_resource(resource);
+	return true;
+}
+#else
+static inline bool slab_add_kunit_errors(void) { return false; }
+#endif
+
 /*
  * Determine a map of object in use on a page.
  *
@@ -679,6 +700,9 @@ static void slab_fix(struct kmem_cache *s, char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
+	if (slab_add_kunit_errors())
+		return;
+
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
@@ -742,6 +766,9 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 void object_err(struct kmem_cache *s, struct page *page,
 			u8 *object, char *reason)
 {
+	if (slab_add_kunit_errors())
+		return;
+
 	slab_bug(s, "%s", reason);
 	print_trailer(s, page, object);
 }
@@ -751,6 +778,9 @@ static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
 {
 	va_list args;
 	char buf[100];
+
+	if (slab_add_kunit_errors())
+		return;
 
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
@@ -801,12 +831,16 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
 	while (end > fault && end[-1] == value)
 		end--;
 
+	if (slab_add_kunit_errors())
+		goto skip_bug_print;
+
 	slab_bug(s, "%s overwritten", what);
 	pr_err("0x%p-0x%p @offset=%tu. First byte 0x%x instead of 0x%x\n",
 					fault, end - 1, fault - addr,
 					fault[0], value);
 	print_trailer(s, page, object);
 
+skip_bug_print:
 	restore_bytes(s, what, value, fault, end);
 	return 0;
 }
@@ -4649,9 +4683,11 @@ static int validate_slab_node(struct kmem_cache *s,
 		validate_slab(s, page);
 		count++;
 	}
-	if (count != n->nr_partial)
+	if (count != n->nr_partial) {
 		pr_err("SLUB %s: %ld partial slabs counted but counter=%ld\n",
 		       s->name, count, n->nr_partial);
+		slab_add_kunit_errors();
+	}
 
 	if (!(s->flags & SLAB_STORE_USER))
 		goto out;
@@ -4660,16 +4696,18 @@ static int validate_slab_node(struct kmem_cache *s,
 		validate_slab(s, page);
 		count++;
 	}
-	if (count != atomic_long_read(&n->nr_slabs))
+	if (count != atomic_long_read(&n->nr_slabs)) {
 		pr_err("SLUB: %s %ld slabs counted but counter=%ld\n",
 		       s->name, count, atomic_long_read(&n->nr_slabs));
+		slab_add_kunit_errors();
+	}
 
 out:
 	spin_unlock_irqrestore(&n->list_lock, flags);
 	return count;
 }
 
-static long validate_slab_cache(struct kmem_cache *s)
+long validate_slab_cache(struct kmem_cache *s)
 {
 	int node;
 	unsigned long count = 0;
@@ -4681,6 +4719,8 @@ static long validate_slab_cache(struct kmem_cache *s)
 
 	return count;
 }
+EXPORT_SYMBOL(validate_slab_cache);
+
 /*
  * Generate lists of code addresses where slabcache objects are allocated
  * and freed.
