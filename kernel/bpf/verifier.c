@@ -11707,37 +11707,6 @@ static void free_states(struct bpf_verifier_env *env)
 	}
 }
 
-/* The verifier is using insn_aux_data[] to store temporary data during
- * verification and to store information for passes that run after the
- * verification like dead code sanitization. do_check_common() for subprogram N
- * may analyze many other subprograms. sanitize_insn_aux_data() clears all
- * temporary data after do_check_common() finds that subprogram N cannot be
- * verified independently. pass_cnt counts the number of times
- * do_check_common() was run and insn->aux->seen tells the pass number
- * insn_aux_data was touched. These variables are compared to clear temporary
- * data from failed pass. For testing and experiments do_check_common() can be
- * run multiple times even when prior attempt to verify is unsuccessful.
- *
- * Note that special handling is needed on !env->bypass_spec_v1 if this is
- * ever called outside of error path with subsequent program rejection.
- */
-static void sanitize_insn_aux_data(struct bpf_verifier_env *env)
-{
-	struct bpf_insn *insn = env->prog->insnsi;
-	struct bpf_insn_aux_data *aux;
-	int i, class;
-
-	for (i = 0; i < env->prog->len; i++) {
-		class = BPF_CLASS(insn[i].code);
-		if (class != BPF_LDX && class != BPF_STX)
-			continue;
-		aux = &env->insn_aux_data[i];
-		if (aux->seen != env->pass_cnt)
-			continue;
-		memset(aux, 0, offsetof(typeof(*aux), orig_idx));
-	}
-}
-
 static int do_check_common(struct bpf_verifier_env *env, int subprog)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
@@ -11807,9 +11776,6 @@ out:
 	if (!ret && pop_log)
 		bpf_vlog_reset(&env->log, 0);
 	free_states(env);
-	if (ret)
-		/* clean aux data in case subprog was rejected */
-		sanitize_insn_aux_data(env);
 	return ret;
 }
 
