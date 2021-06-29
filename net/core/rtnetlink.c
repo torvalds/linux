@@ -3947,7 +3947,7 @@ int ndo_dflt_fdb_add(struct ndmsg *ndm,
 	 * implement its own handler for this.
 	 */
 	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
-		netdev_info(dev, "FDB only supports static addresses\n");
+		netdev_info(dev, "default FDB implementation only supports local addresses\n");
 		return err;
 	}
 
@@ -4086,7 +4086,7 @@ int ndo_dflt_fdb_del(struct ndmsg *ndm,
 	 * implement its own handler for this.
 	 */
 	if (!(ndm->ndm_state & NUD_PERMANENT)) {
-		netdev_info(dev, "FDB only supports static addresses\n");
+		netdev_info(dev, "default FDB implementation only supports local addresses\n");
 		return err;
 	}
 
