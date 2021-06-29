@@ -525,7 +525,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	struct gve_priv *priv = rx->gve;
 	u16 buf_len;
 
-	if (unlikely(buffer_id > rx->dqo.num_buf_states)) {
+	if (unlikely(buffer_id >= rx->dqo.num_buf_states)) {
 		net_err_ratelimited("%s: Invalid RX buffer_id=%u\n",
 				    priv->dev->name, buffer_id);
 		return -EINVAL;
