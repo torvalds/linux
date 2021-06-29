@@ -916,6 +916,13 @@ out_free:
 
 static void h5_btrtl_open(struct h5 *h5)
 {
+	/*
+	 * Since h5_btrtl_resume() does a device_reprobe() the suspend handling
+	 * done by the hci_suspend_notifier is not necessary; it actually causes
+	 * delays and a bunch of errors to get logged, so disable it.
+	 */
+	set_bit(HCI_UART_NO_SUSPEND_NOTIFIER, &h5->hu->flags);
+
 	/* Devices always start with these fixed parameters */
 	serdev_device_set_flow_control(h5->hu->serdev, false);
 	serdev_device_set_parity(h5->hu->serdev, SERDEV_PARITY_EVEN);
