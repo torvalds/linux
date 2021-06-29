@@ -64,6 +64,7 @@ Currently, these files are in /proc/sys/vm:
 - overcommit_ratio
 - page-cluster
 - panic_on_oom
+- percpu_pagelist_high_fraction
 - stat_interval
 - stat_refresh
 - numa_stat
@@ -787,6 +788,26 @@ according to your policy of failover.
 
 panic_on_oom=2+kdump gives you very strong tool to investigate
 why oom happens. You can get snapshot.
+
+
+percpu_pagelist_high_fraction
+=============================
+
+This is the fraction of pages in each zone that are can be stored to
+per-cpu page lists. It is an upper boundary that is divided depending
+on the number of online CPUs. The min value for this is 8 which means
+that we do not allow more than 1/8th of pages in each zone to be stored
+on per-cpu page lists. This entry only changes the value of hot per-cpu
+page lists. A user can specify a number like 100 to allocate 1/100th of
+each zone between per-cpu lists.
+
+The batch value of each per-cpu page list remains the same regardless of
+the value of the high fraction so allocation latencies are unaffected.
+
+The initial value is zero. Kernel uses this value to set the high pcp->high
+mark based on the low watermark for the zone and the number of local
+online CPUs.  If the user writes '0' to this sysctl, it will revert to
+this default behavior.
 
 
 stat_interval
