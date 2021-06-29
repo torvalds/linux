@@ -88,4 +88,61 @@ Spec references:
 
 New parallel submission uAPI
 ============================
-Details to come in a following patch.
+The existing bonding uAPI is completely broken with GuC submission because
+whether a submission is a single context submit or parallel submit isn't known
+until execbuf time activated via the I915_SUBMIT_FENCE. To submit multiple
+contexts in parallel with the GuC the context must be explicitly registered with
+N contexts and all N contexts must be submitted in a single command to the GuC.
+The GuC interfaces do not support dynamically changing between N contexts as the
+bonding uAPI does. Hence the need for a new parallel submission interface. Also
+the legacy bonding uAPI is quite confusing and not intuitive at all. Furthermore
+I915_SUBMIT_FENCE is by design a future fence, so not really something we should
+continue to support.
+
+The new parallel submission uAPI consists of 3 parts:
+
+* Export engines logical mapping
+* A 'set_parallel' extension to configure contexts for parallel
+  submission
+* Extend execbuf2 IOCTL to support submitting N BBs in a single IOCTL
+
+Export engines logical mapping
+------------------------------
+Certain use cases require BBs to be placed on engine instances in logical order
+(e.g. split-frame on gen11+). The logical mapping of engine instances can change
+based on fusing. Rather than making UMDs be aware of fusing, simply expose the
+logical mapping with the existing query engine info IOCTL. Also the GuC
+submission interface currently only supports submitting multiple contexts to
+engines in logical order which is a new requirement compared to execlists.
+Lastly, all current platforms have at most 2 engine instances and the logical
+order is the same as uAPI order. This will change on platforms with more than 2
+engine instances.
+
+A single bit will be added to drm_i915_engine_info.flags indicating that the
+logical instance has been returned and a new field,
+drm_i915_engine_info.logical_instance, returns the logical instance.
+
+A 'set_parallel' extension to configure contexts for parallel submission
+------------------------------------------------------------------------
+The 'set_parallel' extension configures a slot for parallel submission of N BBs.
+It is a setup step that must be called before using any of the contexts. See
+I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE or I915_CONTEXT_ENGINES_EXT_BOND for
+similar existing examples. Once a slot is configured for parallel submission the
+execbuf2 IOCTL can be called submitting N BBs in a single IOCTL. Initially only
+supports GuC submission. Execlists supports can be added later if needed.
+
+Add I915_CONTEXT_ENGINES_EXT_PARALLEL_SUBMIT and
+drm_i915_context_engines_parallel_submit to the uAPI to implement this
+extension.
+
+.. kernel-doc:: Documentation/gpu/rfc/i915_parallel_execbuf.h
+        :functions: drm_i915_context_engines_parallel_submit
+
+Extend execbuf2 IOCTL to support submitting N BBs in a single IOCTL
+-------------------------------------------------------------------
+Contexts that have been configured with the 'set_parallel' extension can only
+submit N BBs in a single execbuf2 IOCTL. The BBs are either the last N objects
+in the drm_i915_gem_exec_object2 list or the first N if I915_EXEC_BATCH_FIRST is
+set. The number of BBs is implicit based on the slot submitted and how it has
+been configured by 'set_parallel' or other extensions. No uAPI changes are
+required to the execbuf2 IOCTL.
