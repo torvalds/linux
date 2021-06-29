@@ -24,6 +24,7 @@ struct dw_mci_rockchip_priv_data {
 	int			num_phases;
 	bool			use_v2_tuning;
 	int			last_degree;
+	u32			f_min;
 };
 
 static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
@@ -45,6 +46,9 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	 * Note: div can only be 0 or 1, but div must be set to 1 for eMMC
 	 * DDR52 8-bit mode.
 	 */
+	if (ios->clock < priv->f_min)
+		ios->clock = priv->f_min;
+
 	if (ios->bus_width == MMC_BUS_WIDTH_8 &&
 	    ios->timing == MMC_TIMING_MMC_DDR52)
 		cclkin = 2 * ios->clock * RK3288_CLKGEN_DIV;
@@ -312,6 +316,17 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 	if (!priv)
 		return -ENOMEM;
 
+	/*
+	 * RK356X SoCs only support 375KHz for ID mode, so any clk request
+	 * that less than 1.6MHz(2 * 400KHz * RK3288_CLKGEN_DIV) should be
+	 * wrapped  into 375KHz
+	 */
+	if (of_device_is_compatible(host->dev->of_node,
+				    "rockchip,rk3568-dw-mshc"))
+		priv->f_min = 375000;
+	else
+		priv->f_min = 100000;
+
 	if (of_property_read_u32(np, "rockchip,desired-num-phases",
 					&priv->num_phases))
 		priv->num_phases = 360;
@@ -345,9 +360,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 				    "rockchip,rk3288-dw-mshc"))
 		host->bus_hz /= RK3288_CLKGEN_DIV;
 
-
 	host->need_xfer_timer = true;
-
 	return 0;
 }
 
