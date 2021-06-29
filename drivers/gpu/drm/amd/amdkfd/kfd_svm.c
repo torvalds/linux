@@ -1590,6 +1590,7 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 		unsigned long start, unsigned long last)
 {
 	struct svm_range_list *svms = prange->svms;
+	struct svm_range *pchild;
 	struct kfd_process *p;
 	int r = 0;
 
@@ -1601,7 +1602,19 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 	if (!p->xnack_enabled) {
 		int evicted_ranges;
 
-		atomic_inc(&prange->invalid);
+		list_for_each_entry(pchild, &prange->child_list, child_list) {
+			mutex_lock_nested(&pchild->lock, 1);
+			if (pchild->start <= last && pchild->last >= start) {
+				pr_debug("increment pchild invalid [0x%lx 0x%lx]\n",
+					 pchild->start, pchild->last);
+				atomic_inc(&pchild->invalid);
+			}
+			mutex_unlock(&pchild->lock);
+		}
+
+		if (prange->start <= last && prange->last >= start)
+			atomic_inc(&prange->invalid);
+
 		evicted_ranges = atomic_inc_return(&svms->evicted_ranges);
 		if (evicted_ranges != 1)
 			return r;
@@ -1618,7 +1631,6 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 		schedule_delayed_work(&svms->restore_work,
 			msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
 	} else {
-		struct svm_range *pchild;
 		unsigned long s, l;
 
 		pr_debug("invalidate unmap svms 0x%p [0x%lx 0x%lx] from GPUs\n",
