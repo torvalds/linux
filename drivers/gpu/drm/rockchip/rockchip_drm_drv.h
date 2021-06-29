@@ -182,6 +182,9 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
 
 int rockchip_drm_endpoint_is_subdriver(struct device_node *ep);
+uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
+					     struct device_node *port);
+
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
 extern struct platform_driver dw_mipi_dsi_rockchip_driver;
