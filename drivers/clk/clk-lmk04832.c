@@ -519,7 +519,7 @@ static long lmk04832_vco_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	vco_rate = lmk04832_calc_pll2_params(*prate, rate, &n, &p, &r);
 	if (vco_rate < 0) {
-		dev_err(lmk->dev, "PLL2 parmeters out of range\n");
+		dev_err(lmk->dev, "PLL2 parameters out of range\n");
 		return vco_rate;
 	}
 
@@ -550,7 +550,7 @@ static int lmk04832_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	vco_rate = lmk04832_calc_pll2_params(prate, rate, &n, &p, &r);
 	if (vco_rate < 0) {
-		dev_err(lmk->dev, "failed to determine PLL2 parmeters\n");
+		dev_err(lmk->dev, "failed to determine PLL2 parameters\n");
 		return vco_rate;
 	}
 
@@ -573,7 +573,7 @@ static int lmk04832_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/*
 	 * PLL2_N registers must be programmed after other PLL2 dividers are
-	 * programed to ensure proper VCO frequency calibration
+	 * programmed to ensure proper VCO frequency calibration
 	 */
 	ret = regmap_write(lmk->regmap, LMK04832_REG_PLL2_N_0,
 			   FIELD_GET(0x030000, n));
@@ -1120,7 +1120,7 @@ static int lmk04832_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 	}
 
-	/* Enable Duty Cycle Corretion */
+	/* Enable Duty Cycle Correction */
 	if (dclk_div == 1) {
 		ret = regmap_update_bits(lmk->regmap,
 					 LMK04832_REG_CLKOUT_CTRL3(dclk->id),
