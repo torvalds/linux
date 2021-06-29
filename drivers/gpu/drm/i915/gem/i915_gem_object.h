@@ -597,8 +597,6 @@ bool i915_gem_object_evictable(struct drm_i915_gem_object *obj);
 
 bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
 
-bool i915_gem_object_validates_to_lmem(struct drm_i915_gem_object *obj);
-
 int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
 			    struct i915_gem_ww_ctx *ww,
 			    enum intel_region_id id);

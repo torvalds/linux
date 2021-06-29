@@ -375,7 +375,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	/* Frame buffer must be in LMEM (no migration yet) */
+	/* Frame buffer must be in LMEM */
 	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
 		return ERR_PTR(-EINVAL);
 
