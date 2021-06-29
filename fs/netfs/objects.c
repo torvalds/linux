@@ -13,12 +13,12 @@
  */
 struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 					     struct file *file,
-					     const struct netfs_request_ops *ops,
-					     void *netfs_priv,
 					     loff_t start, size_t len,
 					     enum netfs_io_origin origin)
 {
 	static atomic_t debug_ids;
+	struct inode *inode = file ? file_inode(file) : mapping->host;
+	struct netfs_i_context *ctx = netfs_i_context(inode);
 	struct netfs_io_request *rreq;
 	int ret;
 
@@ -29,11 +29,10 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	rreq->start	= start;
 	rreq->len	= len;
 	rreq->origin	= origin;
-	rreq->netfs_ops	= ops;
-	rreq->netfs_priv = netfs_priv;
+	rreq->netfs_ops	= ctx->ops;
 	rreq->mapping	= mapping;
-	rreq->inode	= file_inode(file);
-	rreq->i_size	= i_size_read(rreq->inode);
+	rreq->inode	= inode;
+	rreq->i_size	= i_size_read(inode);
 	rreq->debug_id	= atomic_inc_return(&debug_ids);
 	INIT_LIST_HEAD(&rreq->subrequests);
 	INIT_WORK(&rreq->work, netfs_rreq_work);
@@ -76,6 +75,7 @@ static void netfs_free_request(struct work_struct *work)
 {
 	struct netfs_io_request *rreq =
 		container_of(work, struct netfs_io_request, work);
+
 	netfs_clear_subrequests(rreq, false);
 	if (rreq->netfs_priv)
 		rreq->netfs_ops->cleanup(rreq->mapping, rreq->netfs_priv);

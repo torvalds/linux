@@ -6,6 +6,7 @@
  */
 
 #include <linux/netfs.h>
+#include <linux/fscache.h>
 #include <trace/events/netfs.h>
 
 #ifdef pr_fmt
@@ -19,8 +20,6 @@
  */
 struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 					     struct file *file,
-					     const struct netfs_request_ops *ops,
-					     void *netfs_priv,
 					     loff_t start, size_t len,
 					     enum netfs_io_origin origin);
 void netfs_get_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
@@ -80,6 +79,21 @@ static inline void netfs_stat_d(atomic_t *stat)
 #define netfs_stat(x) do {} while(0)
 #define netfs_stat_d(x) do {} while(0)
 #endif
+
+/*
+ * Miscellaneous functions.
+ */
+static inline bool netfs_is_cache_enabled(struct netfs_i_context *ctx)
+{
+#if IS_ENABLED(CONFIG_FSCACHE)
+	struct fscache_cookie *cookie = ctx->cache;
+
+	return fscache_cookie_valid(cookie) && cookie->cache_priv &&
+		fscache_cookie_enabled(cookie);
+#else
+	return false;
+#endif
+}
 
 /*****************************************************************************/
 /*

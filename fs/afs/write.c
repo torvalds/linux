@@ -59,8 +59,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	ret = netfs_write_begin(file, mapping, pos, len, flags, &folio, fsdata,
-				&afs_req_ops, NULL);
+	ret = netfs_write_begin(file, mapping, pos, len, flags, &folio, fsdata);
 	if (ret < 0)
 		return ret;
 

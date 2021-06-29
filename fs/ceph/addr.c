@@ -403,7 +403,7 @@ static void ceph_readahead_cleanup(struct address_space *mapping, void *priv)
 		ceph_put_cap_refs(ci, got);
 }
 
-static const struct netfs_request_ops ceph_netfs_read_ops = {
+const struct netfs_request_ops ceph_netfs_ops = {
 	.init_request		= ceph_init_request,
 	.begin_cache_operation	= ceph_begin_cache_operation,
 	.issue_read		= ceph_netfs_issue_read,
@@ -412,28 +412,6 @@ static const struct netfs_request_ops ceph_netfs_read_ops = {
 	.check_write_begin	= ceph_netfs_check_write_begin,
 	.cleanup		= ceph_readahead_cleanup,
 };
-
-/* read a single page, without unlocking it. */
-static int ceph_readpage(struct file *file, struct page *subpage)
-{
-	struct folio *folio = page_folio(subpage);
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vino vino = ceph_vino(inode);
-	size_t len = folio_size(folio);
-	u64 off = folio_file_pos(folio);
-
-	dout("readpage ino %llx.%llx file %p off %llu len %zu folio %p index %lu\n inline %d",
-	     vino.ino, vino.snap, file, off, len, folio, folio_index(folio),
-	     ci->i_inline_version != CEPH_INLINE_NONE);
-
-	return netfs_readpage(file, folio, &ceph_netfs_read_ops, NULL);
-}
-
-static void ceph_readahead(struct readahead_control *ractl)
-{
-	netfs_readahead(ractl, &ceph_netfs_read_ops, NULL);
-}
 
 #ifdef CONFIG_CEPH_FSCACHE
 static void ceph_set_page_fscache(struct page *page)
@@ -1333,8 +1311,7 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 	struct folio *folio = NULL;
 	int r;
 
-	r = netfs_write_begin(file, inode->i_mapping, pos, len, 0, &folio, NULL,
-			      &ceph_netfs_read_ops, NULL);
+	r = netfs_write_begin(file, inode->i_mapping, pos, len, 0, &folio, NULL);
 	if (r == 0)
 		folio_wait_fscache(folio);
 	if (r < 0) {
@@ -1388,8 +1365,8 @@ out:
 }
 
 const struct address_space_operations ceph_aops = {
-	.readpage = ceph_readpage,
-	.readahead = ceph_readahead,
+	.readpage = netfs_readpage,
+	.readahead = netfs_readahead,
 	.writepage = ceph_writepage,
 	.writepages = ceph_writepages_start,
 	.write_begin = ceph_write_begin,

@@ -231,9 +231,6 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 	v9inode = kmem_cache_alloc(v9fs_inode_cache, GFP_KERNEL);
 	if (!v9inode)
 		return NULL;
-#ifdef CONFIG_9P_FSCACHE
-	v9inode->fscache = NULL;
-#endif
 	v9inode->writeback_fid = NULL;
 	v9inode->cache_validity = 0;
 	mutex_init(&v9inode->v_mutex);
@@ -248,6 +245,14 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 void v9fs_free_inode(struct inode *inode)
 {
 	kmem_cache_free(v9fs_inode_cache, V9FS_I(inode));
+}
+
+/*
+ * Set parameters for the netfs library
+ */
+static void v9fs_set_netfs_context(struct inode *inode)
+{
+	netfs_i_context_init(inode, &v9fs_req_ops);
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
@@ -338,6 +343,8 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 		err = -EINVAL;
 		goto error;
 	}
+
+	v9fs_set_netfs_context(inode);
 error:
 	return err;
 

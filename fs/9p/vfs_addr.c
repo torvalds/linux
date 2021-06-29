@@ -78,17 +78,6 @@ static void v9fs_req_cleanup(struct address_space *mapping, void *priv)
 }
 
 /**
- * v9fs_is_cache_enabled - Determine if caching is enabled for an inode
- * @inode: The inode to check
- */
-static bool v9fs_is_cache_enabled(struct inode *inode)
-{
-	struct fscache_cookie *cookie = v9fs_inode_cookie(V9FS_I(inode));
-
-	return fscache_cookie_enabled(cookie) && cookie->cache_priv;
-}
-
-/**
  * v9fs_begin_cache_operation - Begin a cache operation for a read
  * @rreq: The read request
  */
@@ -103,35 +92,12 @@ static int v9fs_begin_cache_operation(struct netfs_io_request *rreq)
 #endif
 }
 
-static const struct netfs_request_ops v9fs_req_ops = {
+const struct netfs_request_ops v9fs_req_ops = {
 	.init_request		= v9fs_init_request,
-	.is_cache_enabled	= v9fs_is_cache_enabled,
 	.begin_cache_operation	= v9fs_begin_cache_operation,
 	.issue_read		= v9fs_issue_read,
 	.cleanup		= v9fs_req_cleanup,
 };
-
-/**
- * v9fs_vfs_readpage - read an entire page in from 9P
- * @file: file being read
- * @page: structure to page
- *
- */
-static int v9fs_vfs_readpage(struct file *file, struct page *page)
-{
-	struct folio *folio = page_folio(page);
-
-	return netfs_readpage(file, folio, &v9fs_req_ops, NULL);
-}
-
-/**
- * v9fs_vfs_readahead - read a set of pages from 9P
- * @ractl: The readahead parameters
- */
-static void v9fs_vfs_readahead(struct readahead_control *ractl)
-{
-	netfs_readahead(ractl, &v9fs_req_ops, NULL);
-}
 
 /**
  * v9fs_release_page - release the private state associated with a page
@@ -326,8 +292,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	retval = netfs_write_begin(filp, mapping, pos, len, flags, &folio, fsdata,
-				   &v9fs_req_ops, NULL);
+	retval = netfs_write_begin(filp, mapping, pos, len, flags, &folio, fsdata);
 	if (retval < 0)
 		return retval;
 
@@ -388,8 +353,8 @@ static int v9fs_set_page_dirty(struct page *page)
 #endif
 
 const struct address_space_operations v9fs_addr_operations = {
-	.readpage = v9fs_vfs_readpage,
-	.readahead = v9fs_vfs_readahead,
+	.readpage = netfs_readpage,
+	.readahead = netfs_readahead,
 	.set_page_dirty = v9fs_set_page_dirty,
 	.writepage = v9fs_vfs_writepage,
 	.write_begin = v9fs_write_begin,

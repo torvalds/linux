@@ -54,6 +54,14 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
 }
 
 /*
+ * Set parameters for the netfs library
+ */
+static void afs_set_netfs_context(struct afs_vnode *vnode)
+{
+	netfs_i_context_init(&vnode->vfs_inode, &afs_req_ops);
+}
+
+/*
  * Initialise an inode from the vnode status.
  */
 static int afs_inode_init_from_status(struct afs_operation *op,
@@ -128,6 +136,7 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 	}
 
 	afs_set_i_size(vnode, status->size);
+	afs_set_netfs_context(vnode);
 
 	vnode->invalid_before	= status->data_version;
 	inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
@@ -420,7 +429,7 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
 	struct afs_vnode_cache_aux aux;
 
 	if (vnode->status.type != AFS_FTYPE_FILE) {
-		vnode->cache = NULL;
+		vnode->netfs_ctx.cache = NULL;
 		return;
 	}
 
@@ -430,12 +439,14 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
 	key.vnode_id_ext[1]	= htonl(vnode->fid.vnode_hi);
 	afs_set_cache_aux(vnode, &aux);
 
-	vnode->cache = fscache_acquire_cookie(
-		vnode->volume->cache,
-		vnode->status.type == AFS_FTYPE_FILE ? 0 : FSCACHE_ADV_SINGLE_CHUNK,
-		&key, sizeof(key),
-		&aux, sizeof(aux),
-		vnode->status.size);
+	afs_vnode_set_cache(vnode,
+			    fscache_acquire_cookie(
+				    vnode->volume->cache,
+				    vnode->status.type == AFS_FTYPE_FILE ?
+				    0 : FSCACHE_ADV_SINGLE_CHUNK,
+				    &key, sizeof(key),
+				    &aux, sizeof(aux),
+				    vnode->status.size));
 #endif
 }
 
@@ -528,6 +539,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 
 	vnode = AFS_FS_I(inode);
 	vnode->cb_v_break = as->volume->cb_v_break,
+	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);
 	if (IS_ERR(op)) {
@@ -786,11 +798,8 @@ void afs_evict_inode(struct inode *inode)
 		afs_put_wb_key(wbk);
 	}
 
-#ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache,
+	fscache_relinquish_cookie(afs_vnode_cache(vnode),
 				  test_bit(AFS_VNODE_DELETED, &vnode->flags));
-	vnode->cache = NULL;
-#endif
 
 	afs_prune_wb_keys(vnode);
 	afs_put_permits(rcu_access_pointer(vnode->permit_cache));

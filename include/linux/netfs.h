@@ -119,6 +119,16 @@ typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
 				      bool was_async);
 
 /*
+ * Per-inode description.  This must be directly after the inode struct.
+ */
+struct netfs_i_context {
+	const struct netfs_request_ops *ops;
+#if IS_ENABLED(CONFIG_FSCACHE)
+	struct fscache_cookie	*cache;
+#endif
+};
+
+/*
  * Resources required to do operations on a cache.
  */
 struct netfs_cache_resources {
@@ -192,7 +202,6 @@ struct netfs_io_request {
  * Operations the network filesystem can/must provide to the helpers.
  */
 struct netfs_request_ops {
-	bool (*is_cache_enabled)(struct inode *inode);
 	int (*init_request)(struct netfs_io_request *rreq, struct file *file);
 	int (*begin_cache_operation)(struct netfs_io_request *rreq);
 	void (*expand_readahead)(struct netfs_io_request *rreq);
@@ -263,18 +272,11 @@ struct netfs_cache_ops {
 };
 
 struct readahead_control;
-extern void netfs_readahead(struct readahead_control *,
-			    const struct netfs_request_ops *,
-			    void *);
-extern int netfs_readpage(struct file *,
-			  struct folio *,
-			  const struct netfs_request_ops *,
-			  void *);
+extern void netfs_readahead(struct readahead_control *);
+extern int netfs_readpage(struct file *, struct page *);
 extern int netfs_write_begin(struct file *, struct address_space *,
 			     loff_t, unsigned int, unsigned int, struct folio **,
-			     void **,
-			     const struct netfs_request_ops *,
-			     void *);
+			     void **);
 
 extern void netfs_subreq_terminated(struct netfs_io_subrequest *, ssize_t, bool);
 extern void netfs_get_subrequest(struct netfs_io_subrequest *subreq,
@@ -282,5 +284,62 @@ extern void netfs_get_subrequest(struct netfs_io_subrequest *subreq,
 extern void netfs_put_subrequest(struct netfs_io_subrequest *subreq,
 				 bool was_async, enum netfs_sreq_ref_trace what);
 extern void netfs_stats_show(struct seq_file *);
+
+/**
+ * netfs_i_context - Get the netfs inode context from the inode
+ * @inode: The inode to query
+ *
+ * Get the netfs lib inode context from the network filesystem's inode.  The
+ * context struct is expected to directly follow on from the VFS inode struct.
+ */
+static inline struct netfs_i_context *netfs_i_context(struct inode *inode)
+{
+	return (struct netfs_i_context *)(inode + 1);
+}
+
+/**
+ * netfs_inode - Get the netfs inode from the inode context
+ * @ctx: The context to query
+ *
+ * Get the netfs inode from the netfs library's inode context.  The VFS inode
+ * is expected to directly precede the context struct.
+ */
+static inline struct inode *netfs_inode(struct netfs_i_context *ctx)
+{
+	return ((struct inode *)ctx) - 1;
+}
+
+/**
+ * netfs_i_context_init - Initialise a netfs lib context
+ * @inode: The inode with which the context is associated
+ * @ops: The netfs's operations list
+ *
+ * Initialise the netfs library context struct.  This is expected to follow on
+ * directly from the VFS inode struct.
+ */
+static inline void netfs_i_context_init(struct inode *inode,
+					const struct netfs_request_ops *ops)
+{
+	struct netfs_i_context *ctx = netfs_i_context(inode);
+
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->ops = ops;
+}
+
+/**
+ * netfs_i_cookie - Get the cache cookie from the inode
+ * @inode: The inode to query
+ *
+ * Get the caching cookie (if enabled) from the network filesystem's inode.
+ */
+static inline struct fscache_cookie *netfs_i_cookie(struct inode *inode)
+{
+#if IS_ENABLED(CONFIG_FSCACHE)
+	struct netfs_i_context *ctx = netfs_i_context(inode);
+	return ctx->cache;
+#else
+	return NULL;
+#endif
+}
 
 #endif /* _LINUX_NETFS_H */

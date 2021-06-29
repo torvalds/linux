@@ -61,7 +61,7 @@ void cifs_fscache_fill_coherency(struct inode *inode,
 
 static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode)
 {
-	return CIFS_I(inode)->fscache;
+	return netfs_i_cookie(inode);
 }
 
 static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags)
