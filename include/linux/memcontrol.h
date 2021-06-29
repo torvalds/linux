@@ -192,7 +192,7 @@ enum memcg_kmem_state {
 struct memcg_padding {
 	char x[0];
 } ____cacheline_internodealigned_in_smp;
-#define MEMCG_PADDING(name)      struct memcg_padding name;
+#define MEMCG_PADDING(name)      struct memcg_padding name
 #else
 #define MEMCG_PADDING(name)
 #endif
