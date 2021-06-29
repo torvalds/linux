@@ -692,4 +692,9 @@
 #define LBK_LINK_CFG_ID_MASK		GENMASK_ULL(11, 6)
 #define LBK_LINK_CFG_BASE_MASK		GENMASK_ULL(5, 0)
 
+/* APR */
+#define	APR_AF_LMT_CFG			(0x000ull)
+#define	APR_AF_LMT_MAP_BASE		(0x008ull)
+#define	APR_AF_LMT_CTL			(0x010ull)
+
 #endif /* RVU_REG_H */
