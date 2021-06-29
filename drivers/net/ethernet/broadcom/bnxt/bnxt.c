@@ -2184,6 +2184,7 @@ static int bnxt_hwrm_handler(struct bnxt *bp, struct tx_cmp *txcmp)
 	case CMPL_BASE_TYPE_HWRM_ASYNC_EVENT:
 		bnxt_async_event_process(bp,
 					 (struct hwrm_async_event_cmpl *)txcmp);
+		break;
 
 	default:
 		break;
