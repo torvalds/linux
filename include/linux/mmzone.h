@@ -333,6 +333,24 @@ enum zone_watermarks {
 	NR_WMARK
 };
 
+/*
+ * One per migratetype for each PAGE_ALLOC_COSTLY_ORDER plus one additional
+ * for pageblock size for THP if configured.
+ */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define NR_PCP_THP 1
+#else
+#define NR_PCP_THP 0
+#endif
+#define NR_PCP_LISTS (MIGRATE_PCPTYPES * (PAGE_ALLOC_COSTLY_ORDER + 1 + NR_PCP_THP))
+
+/*
+ * Shift to encode migratetype and order in the same integer, with order
+ * in the least significant bits.
+ */
+#define NR_PCP_ORDER_WIDTH 8
+#define NR_PCP_ORDER_MASK ((1<<NR_PCP_ORDER_WIDTH) - 1)
+
 #define min_wmark_pages(z) (z->_watermark[WMARK_MIN] + z->watermark_boost)
 #define low_wmark_pages(z) (z->_watermark[WMARK_LOW] + z->watermark_boost)
 #define high_wmark_pages(z) (z->_watermark[WMARK_HIGH] + z->watermark_boost)
@@ -349,7 +367,7 @@ struct per_cpu_pages {
 #endif
 
 	/* Lists of pages, one per migrate type stored on the pcp-lists */
-	struct list_head lists[MIGRATE_PCPTYPES];
+	struct list_head lists[NR_PCP_LISTS];
 };
 
 struct per_cpu_zonestat {
