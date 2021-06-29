@@ -302,7 +302,7 @@ config NODES_SHIFT
 	int "Max num nodes shift(3-10)"
 	range 3 10
 	default "10"
-	depends on NEED_MULTIPLE_NODES
+	depends on NUMA
 	help
 	  This option specifies the maximum number of nodes in your SSI system.
 	  MAX_NUMNODES will be 2^(This value).

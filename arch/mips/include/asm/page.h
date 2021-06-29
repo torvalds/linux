@@ -239,7 +239,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 /* pfn_valid is defined in linux/mmzone.h */
 
-#elif defined(CONFIG_NEED_MULTIPLE_NODES)
+#elif defined(CONFIG_NUMA)
 
 #define pfn_valid(pfn)							\
 ({									\

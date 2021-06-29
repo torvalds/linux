@@ -475,7 +475,7 @@ config NUMA
 
 config NODES_SHIFT
 	int
-	depends on NEED_MULTIPLE_NODES
+	depends on NUMA
 	default "1"
 
 config SCHED_SMT
