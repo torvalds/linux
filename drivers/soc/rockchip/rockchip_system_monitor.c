@@ -17,11 +17,12 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
-#include <linux/uaccess.h>
+#include <linux/regulator/consumer.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/thermal.h>
+#include <linux/uaccess.h>
 #include <linux/version.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
@@ -677,24 +678,9 @@ static int monitor_device_parse_dt(struct device *dev,
 	return ret;
 }
 
-int rockchip_monitor_opp_set_rate(struct monitor_dev_info *info,
-				  unsigned long target_freq)
-{
-	int ret = 0;
-
-	mutex_lock(&info->volt_adjust_mutex);
-	ret = dev_pm_opp_set_rate(info->dev, target_freq);
-	mutex_unlock(&info->volt_adjust_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL(rockchip_monitor_opp_set_rate);
-
 int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
-	struct device *dev = info->dev;
-
 	if (info->low_limit) {
 		if (is_low)
 			freq_qos_update_request(&info->max_temp_freq_req,
@@ -703,10 +689,6 @@ int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 			freq_qos_update_request(&info->max_temp_freq_req,
 						FREQ_QOS_MAX_DEFAULT_VALUE);
 	}
-
-	mutex_lock(&info->volt_adjust_mutex);
-	dev_pm_opp_check_rate_volt(dev, false);
-	mutex_unlock(&info->volt_adjust_mutex);
 
 	return 0;
 }
@@ -827,6 +809,9 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 		ret = devp->low_temp_adjust(info, is_low);
 	if (!ret)
 		info->is_low_temp = is_low;
+
+	if (devp->update_volt)
+		devp->update_volt(info);
 }
 
 static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
@@ -934,7 +919,7 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 	if (ret || temp == THERMAL_TEMP_INVALID) {
 		dev_err(info->dev,
 			"failed to read out thermal zone (%d)\n", ret);
-		return;
+		goto out;
 	}
 
 	if (temp > info->high_temp) {
@@ -947,6 +932,10 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 			rockchip_adjust_low_temp_opp_volt(info, false);
 		info->is_low_temp = false;
 	}
+
+out:
+	if (info->is_low_temp)
+		rockchip_monitor_check_rate_volt(info);
 }
 
 static int
@@ -1108,6 +1097,107 @@ rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
 }
 EXPORT_SYMBOL(rockchip_system_monitor_adjust_cdev_state);
 
+static int rockchip_system_monitor_parse_supplies(struct device *dev,
+						  struct monitor_dev_info *info)
+{
+	struct opp_table *opp_table;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
+
+	if (opp_table->clk)
+		info->clk = opp_table->clk;
+	if (opp_table->regulators)
+		info->regulators = opp_table->regulators;
+
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return 0;
+}
+
+void rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info)
+{
+	if (info)
+		mutex_lock(&info->volt_adjust_mutex);
+}
+EXPORT_SYMBOL(rockchip_monitor_volt_adjust_lock);
+
+void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
+{
+	if (info)
+		mutex_unlock(&info->volt_adjust_mutex);
+}
+EXPORT_SYMBOL(rockchip_monitor_volt_adjust_unlock);
+
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
+{
+	struct device *dev = info->dev;
+	struct dev_pm_opp *opp;
+	unsigned long old_rate, new_rate, new_volt;
+	int old_volt;
+	int ret = 0;
+
+	if (!info->regulators || !info->clk)
+		return 0;
+
+	mutex_lock(&info->volt_adjust_mutex);
+
+	old_rate = clk_get_rate(info->clk);
+	old_volt = regulator_get_voltage(info->regulators[0]);
+
+	new_rate = old_rate;
+	opp = dev_pm_opp_find_freq_ceil(dev, &new_rate);
+	if (IS_ERR(opp)) {
+		opp = dev_pm_opp_find_freq_floor(dev, &new_rate);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
+			goto out;
+		}
+	}
+	new_volt = opp->supplies[0].u_volt;
+	dev_pm_opp_put(opp);
+
+	if (old_rate == new_rate && old_volt == new_volt)
+		goto out;
+	dev_dbg(dev, "%s: %lu Hz %d uV --> %lu Hz %lu uV\n",
+		__func__, old_rate, old_volt, new_rate, new_volt);
+	if (new_rate >= old_rate) {
+		ret = regulator_set_voltage(info->regulators[0], new_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "%s: failed to set volt: %lu\n",
+				__func__, new_volt);
+			goto out;
+		}
+		if (new_rate == old_rate)
+			goto out;
+	}
+
+	ret = clk_set_rate(info->clk, new_rate);
+	if (ret) {
+		dev_err(dev, "%s: failed to set clock rate: %lu\n",
+			__func__, new_rate);
+		goto out;
+	}
+
+	if (new_rate < old_rate) {
+		ret = regulator_set_voltage(info->regulators[0], new_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "%s: failed to set volt: %lu\n",
+				__func__, new_volt);
+			goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&info->volt_adjust_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_monitor_check_rate_volt);
+
 struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp)
@@ -1123,6 +1213,10 @@ rockchip_system_monitor_register(struct device *dev,
 	info->dev = dev;
 	info->devp = devp;
 
+	mutex_init(&info->volt_adjust_mutex);
+	rockchip_system_monitor_parse_supplies(dev, info);
+	rockchip_monitor_check_rate_volt(info);
+
 	if (monitor_device_parse_dt(dev, info))
 		goto free_info;
 
@@ -1132,8 +1226,6 @@ rockchip_system_monitor_register(struct device *dev,
 	rockchip_system_monitor_wide_temp_init(info);
 	if (rockchip_system_monitor_freq_qos_requset(info))
 		goto free_info;
-
-	mutex_init(&info->volt_adjust_mutex);
 
 	down_write(&mdev_list_sem);
 	list_add(&info->node, &monitor_dev_list);

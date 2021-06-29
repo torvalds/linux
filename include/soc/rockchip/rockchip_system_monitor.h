@@ -93,6 +93,8 @@ struct monitor_dev_info {
 	struct freq_qos_request min_sta_freq_req;
 	struct freq_qos_request max_sta_freq_req;
 	struct dev_pm_qos_request dev_max_freq_req;
+	struct regulator **regulators;
+	struct clk *clk;
 	unsigned long low_limit;
 	unsigned long high_limit;
 	unsigned long max_volt;
@@ -117,6 +119,7 @@ struct monitor_dev_profile {
 	void *data;
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
+	int (*update_volt)(struct monitor_dev_info *info);
 	struct cpumask allowed_cpus;
 };
 
@@ -129,6 +132,9 @@ int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
+void rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info);
+void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info);
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info);
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
@@ -137,8 +143,6 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu);
 int
 rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
 					  int temp, unsigned long *state);
-int rockchip_monitor_opp_set_rate(struct monitor_dev_info *info,
-				  unsigned long target_freq);
 #else
 static inline struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
@@ -165,6 +169,22 @@ rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 	return 0;
 };
 
+static inline void
+rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info)
+{
+}
+
+static inline void
+rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
+{
+}
+
+static inline int
+rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
+{
+	return 0;
+}
+
 static inline int
 rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info, bool is_low)
 {
@@ -190,11 +210,6 @@ rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static inline int rockchip_monitor_opp_set_rate(struct monitor_dev_info *info,
-						unsigned long target_freq)
-{
-	return 0;
-}
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
 
 #endif
