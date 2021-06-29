@@ -33,6 +33,8 @@ void igc_ethtool_set_ops(struct net_device *);
 #define IGC_N_PEROUT	2
 #define IGC_N_SDP	4
 
+#define MAX_FLEX_FILTER			32
+
 enum igc_mac_filter_type {
 	IGC_MAC_FILTER_TYPE_DST = 0,
 	IGC_MAC_FILTER_TYPE_SRC
@@ -501,6 +503,17 @@ struct igc_nfc_rule {
  * based, and 8 ethertype based.
  */
 #define IGC_MAX_RXNFC_RULES		32
+
+struct igc_flex_filter {
+	u8 index;
+	u8 data[128];
+	u8 mask[16];
+	u8 length;
+	u8 rx_queue;
+	u8 prio;
+	u8 immediate_irq;
+	u8 drop;
+};
 
 /* igc_desc_unused - calculate if we have unused descriptors */
 static inline u16 igc_desc_unused(const struct igc_ring *ring)
