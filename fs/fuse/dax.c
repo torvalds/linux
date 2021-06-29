@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/dax.h>
 #include <linux/uio.h>
+#include <linux/pagemap.h>
 #include <linux/pfn_t.h>
 #include <linux/iomap.h>
 #include <linux/interval_tree.h>
