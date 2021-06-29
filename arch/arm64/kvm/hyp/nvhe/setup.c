@@ -301,6 +301,16 @@ static int fix_hyp_pgtable_refcnt(void)
 				&walker);
 }
 
+int select_iommu_ops(enum kvm_iommu_driver driver)
+{
+	switch (driver) {
+	case KVM_IOMMU_DRIVER_NONE:
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 void __noreturn __pkvm_init_finalise(void)
 {
 	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
@@ -319,6 +329,13 @@ void __noreturn __pkvm_init_finalise(void)
 	ret = kvm_host_prepare_stage2(host_s2_pgt_base);
 	if (ret)
 		goto out;
+
+	if (kvm_iommu_ops.init) {
+		ret = kvm_iommu_ops.init();
+		if (ret)
+			goto out;
+	}
+
 
 	pkvm_pgtable_mm_ops = (struct kvm_pgtable_mm_ops) {
 		.zalloc_page = hyp_zalloc_hyp_page,
@@ -358,7 +375,8 @@ out:
 }
 
 int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
-		unsigned long *per_cpu_base, u32 hyp_va_bits)
+		unsigned long *per_cpu_base, u32 hyp_va_bits,
+		enum kvm_iommu_driver iommu_driver)
 {
 	struct kvm_nvhe_init_params *params;
 	void *virt = hyp_phys_to_virt(phys);
@@ -378,6 +396,10 @@ int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
 		return ret;
 
 	ret = recreate_hyp_mappings(phys, size, per_cpu_base, hyp_va_bits);
+	if (ret)
+		return ret;
+
+	ret = select_iommu_ops(iommu_driver);
 	if (ret)
 		return ret;
 
