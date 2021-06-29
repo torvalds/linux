@@ -396,6 +396,7 @@ static void cgwb_release_workfn(struct work_struct *work)
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 	percpu_ref_exit(&wb->refcnt);
 	wb_exit(wb);
+	WARN_ON_ONCE(!list_empty(&wb->b_attached));
 	kfree_rcu(wb, rcu);
 }
 
@@ -472,6 +473,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 
 	wb->memcg_css = memcg_css;
 	wb->blkcg_css = blkcg_css;
+	INIT_LIST_HEAD(&wb->b_attached);
 	INIT_WORK(&wb->release_work, cgwb_release_workfn);
 	set_bit(WB_registered, &wb->state);
 
