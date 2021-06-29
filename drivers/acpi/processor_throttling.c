@@ -6,7 +6,7 @@
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2004       Dominik Brodowski <linux@brodo.de>
  *  Copyright (C) 2004  Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
- *  			- Added processor hotplug support
+ *                      - Added processor hotplug support
  */
 
 #include <linux/kernel.h>
@@ -195,15 +195,13 @@ void acpi_processor_throttling_init(void)
 {
 	if (acpi_processor_update_tsd_coord())
 		pr_debug("Assume no T-state coordination\n");
-
-	return;
 }
 
 static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 {
 	struct throttling_tstate *p_tstate = data;
 	struct acpi_processor *pr;
-	unsigned int cpu ;
+	unsigned int cpu;
 	int target_state;
 	struct acpi_processor_limit *p_limit;
 	struct acpi_processor_throttling *p_throttling;
@@ -408,7 +406,7 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 	acpi_status status = 0;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *ptc = NULL;
-	union acpi_object obj = { 0 };
+	union acpi_object obj;
 	struct acpi_processor_throttling *throttling;
 
 	status = acpi_evaluate_object(pr->handle, "_PTC", NULL, &buffer);
@@ -477,7 +475,7 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 		goto end;
 	}
 
-      end:
+end:
 	kfree(buffer.pointer);
 
 	return result;
@@ -554,7 +552,7 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
 		}
 	}
 
-      end:
+end:
 	kfree(buffer.pointer);
 
 	return result;
@@ -639,7 +637,7 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 		pthrottling->shared_type = DOMAIN_COORD_TYPE_SW_ALL;
 	}
 
-      end:
+end:
 	kfree(buffer.pointer);
 	return result;
 }
@@ -717,7 +715,7 @@ static int acpi_throttling_rdmsr(u64 *value)
 		msr_low = 0;
 		msr_high = 0;
 		rdmsr_safe(MSR_IA32_THERM_CONTROL,
-			(u32 *)&msr_low , (u32 *) &msr_high);
+			(u32 *)&msr_low, (u32 *) &msr_high);
 		msr = (msr_high << 32) | msr_low;
 		*value = (u64) msr;
 		ret = 0;
@@ -1185,8 +1183,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	 */
 	if (acpi_processor_get_throttling_control(pr) ||
 		acpi_processor_get_throttling_states(pr) ||
-		acpi_processor_get_platform_limit(pr))
-	{
+		acpi_processor_get_platform_limit(pr)) {
 		pr->throttling.acpi_processor_get_throttling =
 		    &acpi_processor_get_throttling_fadt;
 		pr->throttling.acpi_processor_set_throttling =
@@ -1246,7 +1243,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 			goto end;
 	}
 
-      end:
+end:
 	if (result)
 		pr->flags.throttling = 0;
 
