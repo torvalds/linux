@@ -285,6 +285,11 @@ struct dsa_port {
 	 */
 	const struct dsa_netdevice_ops *netdev_ops;
 
+	/* List of MAC addresses that must be forwarded on this port.
+	 * These are only valid on CPU ports and DSA links.
+	 */
+	struct list_head	mdbs;
+
 	bool setup;
 };
 
@@ -296,6 +301,13 @@ struct dsa_port {
 struct dsa_link {
 	struct dsa_port *dp;
 	struct dsa_port *link_dp;
+	struct list_head list;
+};
+
+struct dsa_mac_addr {
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	refcount_t refcount;
 	struct list_head list;
 };
 
