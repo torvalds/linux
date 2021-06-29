@@ -1573,18 +1573,20 @@ static int lmk04832_remove(struct spi_device *spi)
 }
 static const struct spi_device_id lmk04832_id[] = {
 	{ "lmk04832", LMK04832 },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(spi, lmk04832_id);
 
 static const struct of_device_id lmk04832_of_id[] = {
 	{ .compatible = "ti,lmk04832" },
-	{},
+	{}
 };
+MODULE_DEVICE_TABLE(of, lmk04832_of_id);
 
 static struct spi_driver lmk04832_driver = {
 	.driver = {
 		.name	= "lmk04832",
+		.of_match_table = lmk04832_of_id,
 	},
 	.probe		= lmk04832_probe,
 	.remove		= lmk04832_remove,
