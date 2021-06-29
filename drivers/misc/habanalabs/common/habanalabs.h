@@ -1429,7 +1429,7 @@ struct hl_userptr {
 	enum dma_data_direction dir;
 	struct list_head	debugfs_list;
 	u64			addr;
-	u32			size;
+	u64			size;
 	u8			dma_mapped;
 };
 

@@ -213,7 +213,7 @@ static int userptr_show(struct seq_file *s, void *data)
 			seq_puts(s, "----------------------------------------------------------\n");
 		}
 		seq_printf(s,
-			"    0x%-14llx      %-10u    %-30s\n",
+			"    0x%-14llx      %-10llu    %-30s\n",
 			userptr->addr, userptr->size, dma_dir[userptr->dir]);
 	}
 
@@ -261,7 +261,7 @@ static int vm_show(struct seq_file *s, void *data)
 			if (*vm_type == VM_TYPE_USERPTR) {
 				userptr = hnode->ptr;
 				seq_printf(s,
-					"    0x%-14llx      %-10u\n",
+					"    0x%-14llx      %-10llu\n",
 					hnode->vaddr, userptr->size);
 			} else {
 				phys_pg_pack = hnode->ptr;
