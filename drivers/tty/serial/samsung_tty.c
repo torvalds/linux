@@ -305,8 +305,9 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 		dmaengine_pause(dma->tx_chan);
 		dmaengine_tx_status(dma->tx_chan, dma->tx_cookie, &state);
 		dmaengine_terminate_all(dma->tx_chan);
-		dma_sync_single_for_cpu(ourport->port.dev,
-			dma->tx_transfer_addr, dma->tx_size, DMA_TO_DEVICE);
+		dma_sync_single_for_cpu(dma->tx_chan->device->dev,
+					dma->tx_transfer_addr, dma->tx_size,
+					DMA_TO_DEVICE);
 		async_tx_ack(dma->tx_desc);
 		count = dma->tx_bytes_requested - state.residue;
 		xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
@@ -338,8 +339,9 @@ static void s3c24xx_serial_tx_dma_complete(void *args)
 	count = dma->tx_bytes_requested - state.residue;
 	async_tx_ack(dma->tx_desc);
 
-	dma_sync_single_for_cpu(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(dma->tx_chan->device->dev,
+				dma->tx_transfer_addr, dma->tx_size,
+				DMA_TO_DEVICE);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -443,8 +445,9 @@ static int s3c24xx_serial_start_tx_dma(struct s3c24xx_uart_port *ourport,
 	dma->tx_size = count & ~(dma_get_cache_alignment() - 1);
 	dma->tx_transfer_addr = dma->tx_addr + xmit->tail;
 
-	dma_sync_single_for_device(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(dma->tx_chan->device->dev,
+				   dma->tx_transfer_addr, dma->tx_size,
+				   DMA_TO_DEVICE);
 
 	dma->tx_desc = dmaengine_prep_slave_single(dma->tx_chan,
 				dma->tx_transfer_addr, dma->tx_size,
@@ -515,7 +518,7 @@ static void s3c24xx_uart_copy_rx_to_tty(struct s3c24xx_uart_port *ourport,
 	if (!count)
 		return;
 
-	dma_sync_single_for_cpu(ourport->port.dev, dma->rx_addr,
+	dma_sync_single_for_cpu(dma->rx_chan->device->dev, dma->rx_addr,
 				dma->rx_size, DMA_FROM_DEVICE);
 
 	ourport->port.icount.rx += count;
@@ -636,8 +639,8 @@ static void s3c64xx_start_rx_dma(struct s3c24xx_uart_port *ourport)
 {
 	struct s3c24xx_uart_dma *dma = ourport->dma;
 
-	dma_sync_single_for_device(ourport->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
+	dma_sync_single_for_device(dma->rx_chan->device->dev, dma->rx_addr,
+				   dma->rx_size, DMA_FROM_DEVICE);
 
 	dma->rx_desc = dmaengine_prep_slave_single(dma->rx_chan,
 				dma->rx_addr, dma->rx_size, DMA_DEV_TO_MEM,
@@ -1102,18 +1105,19 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 		goto err_release_tx;
 	}
 
-	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
-				dma->rx_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+	dma->rx_addr = dma_map_single(dma->rx_chan->device->dev, dma->rx_buf,
+				      dma->rx_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dma->rx_chan->device->dev, dma->rx_addr)) {
 		reason = "DMA mapping error for RX buffer";
 		ret = -EIO;
 		goto err_free_rx;
 	}
 
 	/* TX buffer */
-	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+	dma->tx_addr = dma_map_single(dma->tx_chan->device->dev,
+				      p->port.state->xmit.buf, UART_XMIT_SIZE,
+				      DMA_TO_DEVICE);
+	if (dma_mapping_error(dma->tx_chan->device->dev, dma->tx_addr)) {
 		reason = "DMA mapping error for TX buffer";
 		ret = -EIO;
 		goto err_unmap_rx;
@@ -1122,8 +1126,8 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	return 0;
 
 err_unmap_rx:
-	dma_unmap_single(p->port.dev, dma->rx_addr, dma->rx_size,
-			 DMA_FROM_DEVICE);
+	dma_unmap_single(dma->rx_chan->device->dev, dma->rx_addr,
+			 dma->rx_size, DMA_FROM_DEVICE);
 err_free_rx:
 	kfree(dma->rx_buf);
 err_release_tx:
@@ -1142,8 +1146,8 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->rx_chan) {
 		dmaengine_terminate_all(dma->rx_chan);
-		dma_unmap_single(p->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
+		dma_unmap_single(dma->rx_chan->device->dev, dma->rx_addr,
+				 dma->rx_size, DMA_FROM_DEVICE);
 		kfree(dma->rx_buf);
 		dma_release_channel(dma->rx_chan);
 		dma->rx_chan = NULL;
@@ -1151,8 +1155,8 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->tx_chan) {
 		dmaengine_terminate_all(dma->tx_chan);
-		dma_unmap_single(p->port.dev, dma->tx_addr,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
+		dma_unmap_single(dma->tx_chan->device->dev, dma->tx_addr,
+				 UART_XMIT_SIZE, DMA_TO_DEVICE);
 		dma_release_channel(dma->tx_chan);
 		dma->tx_chan = NULL;
 	}
