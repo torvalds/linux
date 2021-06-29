@@ -1329,7 +1329,7 @@ bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi)
 static const struct address_space_operations fuse_dax_file_aops  = {
 	.writepages	= fuse_dax_writepages,
 	.direct_IO	= noop_direct_IO,
-	.set_page_dirty	= noop_set_page_dirty,
+	.set_page_dirty	= __set_page_dirty_no_writeback,
 	.invalidatepage	= noop_invalidatepage,
 };
 
