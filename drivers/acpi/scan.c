@@ -3,6 +3,8 @@
  * scan.c - support for transforming the ACPI namespace into individual objects
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -723,7 +725,7 @@ static int __acpi_device_add(struct acpi_device *device,
 
 	result = acpi_device_setup_files(device);
 	if (result)
-		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n",
+		pr_err("Error creating sysfs interface for device %s\n",
 		       dev_name(&device->dev));
 
 	return 0;
@@ -1325,8 +1327,7 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 
 		acpi_get_object_info(handle, &info);
 		if (!info) {
-			pr_err(PREFIX "%s: Error reading device info\n",
-					__func__);
+			pr_err("%s: Error reading device info\n", __func__);
 			return;
 		}
 
@@ -2403,7 +2404,7 @@ static void __init acpi_get_spcr_uart_addr(void)
 	status = acpi_get_table(ACPI_SIG_SPCR, 0,
 				(struct acpi_table_header **)&spcr_ptr);
 	if (ACPI_FAILURE(status)) {
-		pr_warn(PREFIX "STAO table present, but SPCR is missing\n");
+		pr_warn("STAO table present, but SPCR is missing\n");
 		return;
 	}
 
@@ -2444,7 +2445,7 @@ int __init acpi_scan_init(void)
 				(struct acpi_table_header **)&stao_ptr);
 	if (ACPI_SUCCESS(status)) {
 		if (stao_ptr->header.length > sizeof(struct acpi_table_stao))
-			pr_info(PREFIX "STAO Name List not yet supported.\n");
+			pr_info("STAO Name List not yet supported.\n");
 
 		if (stao_ptr->ignore_uart)
 			acpi_get_spcr_uart_addr();

@@ -11,8 +11,6 @@
 
 #include <linux/idr.h>
 
-#define PREFIX "ACPI: "
-
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);

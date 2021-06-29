@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(osc_sb_native_usb4_control);
 
 static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 {
-	printk(KERN_INFO PREFIX "%s USB3%c DisplayPort%c PCIe%c XDomain%c\n", msg,
+	pr_info("%s USB3%c DisplayPort%c PCIe%c XDomain%c\n", msg,
 	       (bits & OSC_USB_USB3_TUNNELING) ? '+' : '-',
 	       (bits & OSC_USB_DP_TUNNELING) ? '+' : '-',
 	       (bits & OSC_USB_PCIE_TUNNELING) ? '+' : '-',
@@ -398,7 +398,7 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 		return;
 
 	if (context.ret.length != sizeof(capbuf)) {
-		printk(KERN_INFO PREFIX "USB4 _OSC: returned invalid length buffer\n");
+		pr_info("USB4 _OSC: returned invalid length buffer\n");
 		goto out_free;
 	}
 
