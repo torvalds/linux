@@ -4747,7 +4747,7 @@ fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
 					  const bool force_disable_dcc)
 {
 	const uint64_t modifier = afb->base.modifier;
-	int ret;
+	int ret = 0;
 
 	fill_gfx9_tiling_info_from_modifier(adev, tiling_info, modifier);
 	tiling_info->gfx9.swizzle = modifier_gfx9_swizzle_mode(modifier);
@@ -4765,9 +4765,9 @@ fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
 
 	ret = validate_dcc(adev, format, rotation, tiling_info, dcc, address, plane_size);
 	if (ret)
-		return ret;
+		drm_dbg_kms(adev_to_drm(adev), "validate_dcc: returned error: %d\n", ret);
 
-	return 0;
+	return ret;
 }
 
 static int
