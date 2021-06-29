@@ -34,7 +34,7 @@
  *                   mapping->private_lock (in __set_page_dirty_buffers)
  *                     lock_page_memcg move_lock (in __set_page_dirty_buffers)
  *                       i_pages lock (widely used)
- *                         lruvec->lru_lock (in lock_page_lruvec_irq)
+ *                         lruvec->lru_lock (in folio_lruvec_lock_irq)
  *                   inode->i_lock (in set_page_dirty's __mark_inode_dirty)
  *                   bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
  *                     sb_lock (within inode_lock in fs/fs-writeback.c)

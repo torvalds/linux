@@ -2090,6 +2090,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
  */
 int isolate_lru_page(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	int ret = -EBUSY;
 
 	VM_BUG_ON_PAGE(!page_count(page), page);
@@ -2099,7 +2100,7 @@ int isolate_lru_page(struct page *page)
 		struct lruvec *lruvec;
 
 		get_page(page);
-		lruvec = lock_page_lruvec_irq(page);
+		lruvec = folio_lruvec_lock_irq(folio);
 		del_page_from_lru_list(page, lruvec);
 		unlock_page_lruvec_irq(lruvec);
 		ret = 0;
