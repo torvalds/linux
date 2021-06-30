@@ -76,8 +76,6 @@ void zpci_event_error(void *data)
 
 static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 {
-	enum zpci_state state;
-
 	zdev->fh = fh;
 	/* Give the driver a hint that the function is
 	 * already unusable.
@@ -88,15 +86,12 @@ static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 	 */
 	zpci_disable_device(zdev);
 	zdev->state = ZPCI_FN_STATE_STANDBY;
-	if (!clp_get_state(zdev->fid, &state) &&
-	    state == ZPCI_FN_STATE_RESERVED) {
-		zpci_zdev_put(zdev);
-	}
 }
 
 static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
+	enum zpci_state state;
 
 	zpci_err("avail CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
@@ -113,7 +108,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 				break;
 			zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		}
-		zpci_configure_device(zdev, ccdf->fh);
+		zpci_scan_configured_device(zdev, ccdf->fh);
 		break;
 	case 0x0302: /* Reserved -> Standby */
 		if (!zdev)
@@ -123,13 +118,28 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (zdev) {
+			/* The event may have been queued before we confirgured
+			 * the device.
+			 */
+			if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
+				break;
 			zdev->fh = ccdf->fh;
 			zpci_deconfigure_device(zdev);
 		}
 		break;
 	case 0x0304: /* Configured -> Standby|Reserved */
-		if (zdev)
-			zpci_event_hard_deconfigured(zdev, ccdf->fh);
+		if (zdev) {
+			/* The event may have been queued before we confirgured
+			 * the device.:
+			 */
+			if (zdev->state == ZPCI_FN_STATE_CONFIGURED)
+				zpci_event_hard_deconfigured(zdev, ccdf->fh);
+			/* The 0x0304 event may immediately reserve the device */
+			if (!clp_get_state(zdev->fid, &state) &&
+			    state == ZPCI_FN_STATE_RESERVED) {
+				zpci_zdev_put(zdev);
+			}
+		}
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
 		zpci_remove_reserved_devices();

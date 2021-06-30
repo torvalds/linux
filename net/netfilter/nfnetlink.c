@@ -295,6 +295,7 @@ replay:
 			nfnl_unlock(subsys_id);
 			break;
 		default:
+			rcu_read_unlock();
 			err = -EINVAL;
 			break;
 		}

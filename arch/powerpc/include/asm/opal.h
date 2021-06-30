@@ -28,9 +28,6 @@ extern struct device_node *opal_node;
 
 /* API functions */
 int64_t opal_invalid_call(void);
-int64_t opal_npu_destroy_context(uint64_t phb_id, uint64_t pid, uint64_t bdf);
-int64_t opal_npu_init_context(uint64_t phb_id, int pasid, uint64_t msr,
-			uint64_t bdf);
 int64_t opal_npu_map_lpar(uint64_t phb_id, uint64_t bdf, uint64_t lparid,
 			uint64_t lpcr);
 int64_t opal_npu_spa_setup(uint64_t phb_id, uint32_t bdfn,

@@ -738,17 +738,19 @@ error:
 }
 
 /**
- * zpci_configure_device() - Configure a zpci_dev
+ * zpci_scan_configured_device() - Scan a freshly configured zpci_dev
  * @zdev: The zpci_dev to be configured
  * @fh: The general function handle supplied by the platform
  *
  * Given a device in the configuration state Configured, enables, scans and
- * adds it to the common code PCI subsystem. If any failure occurs, the
- * zpci_dev is left disabled.
+ * adds it to the common code PCI subsystem if possible. If the PCI device is
+ * parked because we can not yet create a PCI bus because we have not seen
+ * function 0, it is ignored but will be scanned once function 0 appears.
+ * If any failure occurs, the zpci_dev is left disabled.
  *
  * Return: 0 on success, or an error code otherwise
  */
-int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
+int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh)
 {
 	int rc;
 

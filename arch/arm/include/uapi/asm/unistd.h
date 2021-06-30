@@ -24,7 +24,6 @@
 #include <asm/unistd-oabi.h>
 #endif
 
-#include <asm/unistd-common.h>
 #define __NR_sync_file_range2		__NR_arm_sync_file_range
 
 /*

@@ -1874,6 +1874,11 @@ S: Krosenska' 543
 S: 181 00 Praha 8
 S: Czech Republic
 
+N: Murali Karicheri
+E: m-karicheri2@ti.com
+D: Keystone NetCP driver
+D: Keystone PCIe host controller driver
+
 N: Jan "Yenya" Kasprzak
 E: kas@fi.muni.cz
 D: Author of the COSA/SRP sync serial board driver.

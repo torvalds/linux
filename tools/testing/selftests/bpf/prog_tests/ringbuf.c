@@ -86,8 +86,9 @@ void test_ringbuf(void)
 	const size_t rec_sz = BPF_RINGBUF_HDR_SZ + sizeof(struct sample);
 	pthread_t thread;
 	long bg_ret = -1;
-	int err, cnt;
+	int err, cnt, rb_fd;
 	int page_size = getpagesize();
+	void *mmap_ptr, *tmp_ptr;
 
 	skel = test_ringbuf__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
@@ -100,6 +101,52 @@ void test_ringbuf(void)
 	err = test_ringbuf__load(skel);
 	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
 		goto cleanup;
+
+	rb_fd = bpf_map__fd(skel->maps.ringbuf);
+	/* good read/write cons_pos */
+	mmap_ptr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, rb_fd, 0);
+	ASSERT_OK_PTR(mmap_ptr, "rw_cons_pos");
+	tmp_ptr = mremap(mmap_ptr, page_size, 2 * page_size, MREMAP_MAYMOVE);
+	if (!ASSERT_ERR_PTR(tmp_ptr, "rw_extend"))
+		goto cleanup;
+	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_EXEC), "exec_cons_pos_protect");
+	ASSERT_OK(munmap(mmap_ptr, page_size), "unmap_rw");
+
+	/* bad writeable prod_pos */
+	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, page_size);
+	err = -errno;
+	ASSERT_ERR_PTR(mmap_ptr, "wr_prod_pos");
+	ASSERT_EQ(err, -EPERM, "wr_prod_pos_err");
+
+	/* bad writeable data pages */
+	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, 2 * page_size);
+	err = -errno;
+	ASSERT_ERR_PTR(mmap_ptr, "wr_data_page_one");
+	ASSERT_EQ(err, -EPERM, "wr_data_page_one_err");
+	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, 3 * page_size);
+	ASSERT_ERR_PTR(mmap_ptr, "wr_data_page_two");
+	mmap_ptr = mmap(NULL, 2 * page_size, PROT_WRITE, MAP_SHARED, rb_fd, 2 * page_size);
+	ASSERT_ERR_PTR(mmap_ptr, "wr_data_page_all");
+
+	/* good read-only pages */
+	mmap_ptr = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED, rb_fd, 0);
+	if (!ASSERT_OK_PTR(mmap_ptr, "ro_prod_pos"))
+		goto cleanup;
+
+	ASSERT_ERR(mprotect(mmap_ptr, 4 * page_size, PROT_WRITE), "write_protect");
+	ASSERT_ERR(mprotect(mmap_ptr, 4 * page_size, PROT_EXEC), "exec_protect");
+	ASSERT_ERR_PTR(mremap(mmap_ptr, 0, 4 * page_size, MREMAP_MAYMOVE), "ro_remap");
+	ASSERT_OK(munmap(mmap_ptr, 4 * page_size), "unmap_ro");
+
+	/* good read-only pages with initial offset */
+	mmap_ptr = mmap(NULL, page_size, PROT_READ, MAP_SHARED, rb_fd, page_size);
+	if (!ASSERT_OK_PTR(mmap_ptr, "ro_prod_pos"))
+		goto cleanup;
+
+	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_WRITE), "write_protect");
+	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_EXEC), "exec_protect");
+	ASSERT_ERR_PTR(mremap(mmap_ptr, 0, 3 * page_size, MREMAP_MAYMOVE), "ro_remap");
+	ASSERT_OK(munmap(mmap_ptr, page_size), "unmap_ro");
 
 	/* only trigger BPF program for current process */
 	skel->bss->pid = getpid();

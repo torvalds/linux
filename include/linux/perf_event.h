@@ -954,8 +954,6 @@ extern void perf_event_itrace_started(struct perf_event *event);
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
 extern void perf_pmu_unregister(struct pmu *pmu);
 
-extern int perf_num_counters(void);
-extern const char *perf_pmu_name(void);
 extern void __perf_event_task_sched_in(struct task_struct *prev,
 				       struct task_struct *task);
 extern void __perf_event_task_sched_out(struct task_struct *prev,

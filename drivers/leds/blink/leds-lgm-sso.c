@@ -793,7 +793,7 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(priv->gclk);
 	if (ret) {
-		dev_err(dev, "Failed to prepate/enable sso gate clock!\n");
+		dev_err(dev, "Failed to prepare/enable sso gate clock!\n");
 		return ret;
 	}
 

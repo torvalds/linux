@@ -11,7 +11,6 @@
 #include <linux/minmax.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/pagemap.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/wait.h>
 #include <linux/mempool.h>
@@ -676,11 +675,6 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
-
-static inline bool blk_account_rq(struct request *rq)
-{
-	return (rq->rq_flags & RQF_STARTED) && !blk_rq_is_passthrough(rq);
-}
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 

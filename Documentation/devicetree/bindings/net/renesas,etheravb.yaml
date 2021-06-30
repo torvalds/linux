@@ -51,12 +51,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: AVB functional clock
       - description: Optional TXC reference clock
 
   clock-names:
+    minItems: 1
     items:
       - const: fck
       - const: refclk

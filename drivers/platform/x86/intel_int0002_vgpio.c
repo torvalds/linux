@@ -51,6 +51,12 @@
 #define GPE0A_STS_PORT			0x420
 #define GPE0A_EN_PORT			0x428
 
+struct int0002_data {
+	struct gpio_chip chip;
+	int parent_irq;
+	int wake_enable_count;
+};
+
 /*
  * As this is not a real GPIO at all, but just a hack to model an event in
  * ACPI the get / set functions are dummy functions.
@@ -98,14 +104,16 @@ static void int0002_irq_mask(struct irq_data *data)
 static int int0002_irq_set_wake(struct irq_data *data, unsigned int on)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct platform_device *pdev = to_platform_device(chip->parent);
-	int irq = platform_get_irq(pdev, 0);
+	struct int0002_data *int0002 = container_of(chip, struct int0002_data, chip);
 
-	/* Propagate to parent irq */
+	/*
+	 * Applying of the wakeup flag to our parent IRQ is delayed till system
+	 * suspend, because we only want to do this when using s2idle.
+	 */
 	if (on)
-		enable_irq_wake(irq);
+		int0002->wake_enable_count++;
 	else
-		disable_irq_wake(irq);
+		int0002->wake_enable_count--;
 
 	return 0;
 }
@@ -135,7 +143,7 @@ static bool int0002_check_wake(void *data)
 	return (gpe_sts_reg & GPE0A_PME_B0_STS_BIT);
 }
 
-static struct irq_chip int0002_byt_irqchip = {
+static struct irq_chip int0002_irqchip = {
 	.name			= DRV_NAME,
 	.irq_ack		= int0002_irq_ack,
 	.irq_mask		= int0002_irq_mask,
@@ -143,21 +151,9 @@ static struct irq_chip int0002_byt_irqchip = {
 	.irq_set_wake		= int0002_irq_set_wake,
 };
 
-static struct irq_chip int0002_cht_irqchip = {
-	.name			= DRV_NAME,
-	.irq_ack		= int0002_irq_ack,
-	.irq_mask		= int0002_irq_mask,
-	.irq_unmask		= int0002_irq_unmask,
-	/*
-	 * No set_wake, on CHT the IRQ is typically shared with the ACPI SCI
-	 * and we don't want to mess with the ACPI SCI irq settings.
-	 */
-	.flags			= IRQCHIP_SKIP_SET_WAKE,
-};
-
 static const struct x86_cpu_id int0002_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&int0002_byt_irqchip),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&int0002_cht_irqchip),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT, NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT, NULL),
 	{}
 };
 
@@ -172,8 +168,9 @@ static int int0002_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct x86_cpu_id *cpu_id;
-	struct gpio_chip *chip;
+	struct int0002_data *int0002;
 	struct gpio_irq_chip *girq;
+	struct gpio_chip *chip;
 	int irq, ret;
 
 	/* Menlow has a different INT0002 device? <sigh> */
@@ -185,10 +182,13 @@ static int int0002_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
+	int0002 = devm_kzalloc(dev, sizeof(*int0002), GFP_KERNEL);
+	if (!int0002)
 		return -ENOMEM;
 
+	int0002->parent_irq = irq;
+
+	chip = &int0002->chip;
 	chip->label = DRV_NAME;
 	chip->parent = dev;
 	chip->owner = THIS_MODULE;
@@ -214,7 +214,7 @@ static int int0002_probe(struct platform_device *pdev)
 	}
 
 	girq = &chip->irq;
-	girq->chip = (struct irq_chip *)cpu_id->driver_data;
+	girq->chip = &int0002_irqchip;
 	/* This let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
@@ -230,6 +230,7 @@ static int int0002_probe(struct platform_device *pdev)
 
 	acpi_register_wakeup_handler(irq, int0002_check_wake, NULL);
 	device_init_wakeup(dev, true);
+	dev_set_drvdata(dev, int0002);
 	return 0;
 }
 
@@ -239,6 +240,36 @@ static int int0002_remove(struct platform_device *pdev)
 	acpi_unregister_wakeup_handler(int0002_check_wake, NULL);
 	return 0;
 }
+
+static int int0002_suspend(struct device *dev)
+{
+	struct int0002_data *int0002 = dev_get_drvdata(dev);
+
+	/*
+	 * The INT0002 parent IRQ is often shared with the ACPI GPE IRQ, don't
+	 * muck with it when firmware based suspend is used, otherwise we may
+	 * cause spurious wakeups from firmware managed suspend.
+	 */
+	if (!pm_suspend_via_firmware() && int0002->wake_enable_count)
+		enable_irq_wake(int0002->parent_irq);
+
+	return 0;
+}
+
+static int int0002_resume(struct device *dev)
+{
+	struct int0002_data *int0002 = dev_get_drvdata(dev);
+
+	if (!pm_suspend_via_firmware() && int0002->wake_enable_count)
+		disable_irq_wake(int0002->parent_irq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops int0002_pm_ops = {
+	.suspend = int0002_suspend,
+	.resume = int0002_resume,
+};
 
 static const struct acpi_device_id int0002_acpi_ids[] = {
 	{ "INT0002", 0 },
@@ -250,6 +281,7 @@ static struct platform_driver int0002_driver = {
 	.driver = {
 		.name			= DRV_NAME,
 		.acpi_match_table	= int0002_acpi_ids,
+		.pm			= &int0002_pm_ops,
 	},
 	.probe	= int0002_probe,
 	.remove	= int0002_remove,

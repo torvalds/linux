@@ -226,7 +226,6 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	pc->chip.ops = &ecap_pwm_ops;
 	pc->chip.of_xlate = of_pwm_xlate_with_flags;
 	pc->chip.of_pwm_n_cells = 3;
-	pc->chip.base = -1;
 	pc->chip.npwm = 1;
 
 	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);

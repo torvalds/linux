@@ -168,7 +168,7 @@ nfs4_xattr_entry_lru_del(struct nfs4_xattr_entry *entry)
  *	   make it easier to copy the value after an RPC, even if
  *	   the value will not be passed up to application (e.g.
  *	   for a 'query' getxattr with NULL buffer).
- * @len:   Length of the value. Can be 0 for zero-length attribues.
+ * @len:   Length of the value. Can be 0 for zero-length attributes.
  *         @value and @pages will be NULL if @len is 0.
  */
 static struct nfs4_xattr_entry *

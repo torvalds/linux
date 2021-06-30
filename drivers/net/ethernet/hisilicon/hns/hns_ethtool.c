@@ -192,7 +192,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 }
 
 /**
- *hns_nic_set_link_settings - implement ethtool set link ksettings
+ *hns_nic_set_link_ksettings - implement ethtool set link ksettings
  *@net_dev: net_device
  *@cmd: ethtool_link_ksettings
  *retuen 0 - success , negative --fail
@@ -827,7 +827,7 @@ hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
 }
 
 /**
- * get_ethtool_stats - get detail statistics.
+ * hns_get_ethtool_stats - get detail statistics.
  * @netdev: net device
  * @stats: statistics info.
  * @data: statistics data.
@@ -885,7 +885,7 @@ static void hns_get_ethtool_stats(struct net_device *netdev,
 }
 
 /**
- * get_strings: Return a set of strings that describe the requested objects
+ * hns_get_strings: Return a set of strings that describe the requested objects
  * @netdev: net device
  * @stringset: string set ID.
  * @data: objects data.

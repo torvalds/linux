@@ -1339,6 +1339,7 @@ config RTC_DRV_DIGICOLOR
 config RTC_DRV_IMXDI
 	tristate "Freescale IMX DryIce Real Time Clock"
 	depends on ARCH_MXC
+	depends on OF
 	help
 	   Support for Freescale IMX DryIce RTC
 
@@ -1906,7 +1907,7 @@ config RTC_DRV_HID_SENSOR_TIME
 
 config RTC_DRV_GOLDFISH
 	tristate "Goldfish Real Time Clock"
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  Say yes to enable RTC driver for the Goldfish based virtual platform.
 

@@ -190,13 +190,25 @@ struct page **msm_gem_get_pages(struct drm_gem_object *obj)
 	}
 
 	p = get_pages(obj);
+
+	if (!IS_ERR(p)) {
+		msm_obj->pin_count++;
+		update_inactive(msm_obj);
+	}
+
 	msm_gem_unlock(obj);
 	return p;
 }
 
 void msm_gem_put_pages(struct drm_gem_object *obj)
 {
-	/* when we start tracking the pin count, then do something here */
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	msm_gem_lock(obj);
+	msm_obj->pin_count--;
+	GEM_WARN_ON(msm_obj->pin_count < 0);
+	update_inactive(msm_obj);
+	msm_gem_unlock(obj);
 }
 
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
@@ -646,6 +658,8 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 			ret = -ENOMEM;
 			goto fail;
 		}
+
+		update_inactive(msm_obj);
 	}
 
 	return msm_obj->vaddr;

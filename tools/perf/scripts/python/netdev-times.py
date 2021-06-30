@@ -356,7 +356,7 @@ def handle_irq_softirq_exit(event_info):
 		return
 	rec_data = {'sirq_ent_t':sirq_ent_t, 'sirq_ext_t':time,
 			'irq_list':irq_list, 'event_list':event_list}
-	# merge information realted to a NET_RX softirq
+	# merge information related to a NET_RX softirq
 	receive_hunk_list.append(rec_data)
 
 def handle_napi_poll(event_info):

@@ -41,6 +41,9 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 	int i, ret = 0;
 
 	ksz8 = devm_kzalloc(&spi->dev, sizeof(struct ksz8), GFP_KERNEL);
+	if (!ksz8)
+		return -ENOMEM;
+
 	ksz8->priv = spi;
 
 	dev = ksz_switch_alloc(&spi->dev, ksz8);

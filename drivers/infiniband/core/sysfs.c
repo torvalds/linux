@@ -62,7 +62,7 @@ struct ib_port {
 	const struct attribute_group *pma_table;
 	struct attribute_group *hw_stats_ag;
 	struct rdma_hw_stats   *hw_stats;
-	u8                     port_num;
+	u32                     port_num;
 };
 
 struct port_attribute {
@@ -94,7 +94,7 @@ struct hw_stats_attribute {
 					 const char *buf,
 					 size_t count);
 	int			index;
-	u8			port_num;
+	u32			port_num;
 };
 
 static ssize_t port_attr_show(struct kobject *kobj,
@@ -297,7 +297,7 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 
 static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 {
-	static const char * phys_state_str[] = {
+	static const char *phys_state_str[] = {
 		"<unknown>",
 		"Sleep",
 		"Polling",
@@ -470,14 +470,14 @@ static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
 struct port_table_attribute port_pma_attr_##_name = {			\
 	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
 	.index = (_offset) | ((_width) << 16) | ((_counter) << 24),	\
-	.attr_id = IB_PMA_PORT_COUNTERS ,				\
+	.attr_id = IB_PMA_PORT_COUNTERS,				\
 }
 
 #define PORT_PMA_ATTR_EXT(_name, _width, _offset)			\
 struct port_table_attribute port_pma_attr_ext_##_name = {		\
 	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
 	.index = (_offset) | ((_width) << 16),				\
-	.attr_id = IB_PMA_PORT_COUNTERS_EXT ,				\
+	.attr_id = IB_PMA_PORT_COUNTERS_EXT,				\
 }
 
 /*
@@ -812,7 +812,7 @@ static const struct attribute_group *get_counter_table(struct ib_device *dev,
 }
 
 static int update_hw_stats(struct ib_device *dev, struct rdma_hw_stats *stats,
-			   u8 port_num, int index)
+			   u32 port_num, int index)
 {
 	int ret;
 
@@ -938,7 +938,7 @@ static void free_hsag(struct kobject *kobj, struct attribute_group *attr_group)
 	kfree(attr_group);
 }
 
-static struct attribute *alloc_hsa(int index, u8 port_num, const char *name)
+static struct attribute *alloc_hsa(int index, u32 port_num, const char *name)
 {
 	struct hw_stats_attribute *hsa;
 
@@ -956,7 +956,7 @@ static struct attribute *alloc_hsa(int index, u8 port_num, const char *name)
 	return &hsa->attr;
 }
 
-static struct attribute *alloc_hsa_lifespan(char *name, u8 port_num)
+static struct attribute *alloc_hsa_lifespan(char *name, u32 port_num)
 {
 	struct hw_stats_attribute *hsa;
 
@@ -975,7 +975,7 @@ static struct attribute *alloc_hsa_lifespan(char *name, u8 port_num)
 }
 
 static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
-			   u8 port_num)
+			   u32 port_num)
 {
 	struct attribute_group *hsag;
 	struct rdma_hw_stats *stats;
@@ -1049,7 +1049,6 @@ err_free_hsag:
 	kfree(hsag);
 err_free_stats:
 	kfree(stats);
-	return;
 }
 
 static int add_port(struct ib_core_device *coredev, int port_num)
@@ -1075,9 +1074,8 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	ret = kobject_init_and_add(&p->kobj, &port_type,
 				   coredev->ports_kobj,
 				   "%d", port_num);
-	if (ret) {
+	if (ret)
 		goto err_put;
-	}
 
 	p->gid_attr_group = kzalloc(sizeof(*p->gid_attr_group), GFP_KERNEL);
 	if (!p->gid_attr_group) {
@@ -1088,9 +1086,8 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	p->gid_attr_group->port = p;
 	ret = kobject_init_and_add(&p->gid_attr_group->kobj, &gid_attr_type,
 				   &p->kobj, "gid_attrs");
-	if (ret) {
+	if (ret)
 		goto err_put_gid_attrs;
-	}
 
 	if (device->ops.process_mad && is_full_dev) {
 		p->pma_table = get_counter_table(device, port_num);
@@ -1383,7 +1380,7 @@ void ib_free_port_attrs(struct ib_core_device *coredev)
 int ib_setup_port_attrs(struct ib_core_device *coredev)
 {
 	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
-	unsigned int port;
+	u32 port;
 	int ret;
 
 	coredev->ports_kobj = kobject_create_and_add("ports",
@@ -1437,7 +1434,7 @@ void ib_device_unregister_sysfs(struct ib_device *device)
  * @ktype: pointer to the ktype for this kobject.
  * @name: the name of the kobject
  */
-int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
+int ib_port_register_module_stat(struct ib_device *device, u32 port_num,
 				 struct kobject *kobj, struct kobj_type *ktype,
 				 const char *name)
 {

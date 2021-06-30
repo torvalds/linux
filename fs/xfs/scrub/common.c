@@ -74,7 +74,9 @@ __xchk_process_error(
 		return true;
 	case -EDEADLOCK:
 		/* Used to restart an op with deadlock avoidance. */
-		trace_xchk_deadlock_retry(sc->ip, sc->sm, *error);
+		trace_xchk_deadlock_retry(
+				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
+				sc->sm, *error);
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:

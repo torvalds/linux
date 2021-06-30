@@ -29,7 +29,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 static int
 mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
-	int num_ports = mlx5_eswitch_get_total_vports(dev);
+	u32 num_ports = mlx5_eswitch_get_total_vports(dev);
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
 	int vport_index;
@@ -110,7 +110,7 @@ struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 
 struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 						   struct mlx5_ib_sq *sq,
-						   u16 port)
+						   u32 port)
 {
 	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
 	struct mlx5_eswitch_rep *rep;

@@ -72,7 +72,7 @@ static inline int qedr_ib_copy_to_udata(struct ib_udata *udata, void *src,
 	return ib_copy_to_udata(udata, src, min_len);
 }
 
-int qedr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
+int qedr_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey)
 {
 	if (index >= QEDR_ROCE_PKEY_TABLE_LEN)
 		return -EINVAL;
@@ -81,7 +81,7 @@ int qedr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	return 0;
 }
 
-int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
+int qedr_iw_query_gid(struct ib_device *ibdev, u32 port,
 		      int index, union ib_gid *sgid)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
@@ -210,7 +210,8 @@ static inline void get_link_speed_and_width(int speed, u16 *ib_speed,
 	}
 }
 
-int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
+int qedr_query_port(struct ib_device *ibdev, u32 port,
+		    struct ib_port_attr *attr)
 {
 	struct qedr_dev *dev;
 	struct qed_rdma_port *rdma_port;
@@ -4483,7 +4484,7 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 }
 
 int qedr_process_mad(struct ib_device *ibdev, int process_mad_flags,
-		     u8 port_num, const struct ib_wc *in_wc,
+		     u32 port_num, const struct ib_wc *in_wc,
 		     const struct ib_grh *in_grh, const struct ib_mad *in,
 		     struct ib_mad *out_mad, size_t *out_mad_size,
 		     u16 *out_mad_pkey_index)

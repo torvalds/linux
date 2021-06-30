@@ -15,18 +15,30 @@ static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 
 	desc = wq->descs[idx];
 	memset(desc->hw, 0, sizeof(struct dsa_hw_desc));
-	memset(desc->completion, 0, idxd->compl_size);
+	memset(desc->completion, 0, idxd->data->compl_size);
 	desc->cpu = cpu;
 
 	if (device_pasid_enabled(idxd))
 		desc->hw->pasid = idxd->pasid;
 
 	/*
-	 * Descriptor completion vectors are 1-8 for MSIX. We will round
-	 * robin through the 8 vectors.
+	 * Descriptor completion vectors are 1...N for MSIX. We will round
+	 * robin through the N vectors.
 	 */
 	wq->vec_ptr = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
-	desc->hw->int_handle = wq->vec_ptr;
+	if (!idxd->int_handles) {
+		desc->hw->int_handle = wq->vec_ptr;
+	} else {
+		desc->vector = wq->vec_ptr;
+		/*
+		 * int_handles are only for descriptor completion. However for device
+		 * MSIX enumeration, vec 0 is used for misc interrupts. Therefore even
+		 * though we are rotating through 1...N for descriptor interrupts, we
+		 * need to acqurie the int_handles from 0..N-1.
+		 */
+		desc->hw->int_handle = idxd->int_handles[desc->vector - 1];
+	}
+
 	return desc;
 }
 
@@ -79,12 +91,14 @@ void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
 	struct idxd_device *idxd = wq->idxd;
-	int vec = desc->hw->int_handle;
 	void __iomem *portal;
 	int rc;
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
+
+	if (!percpu_ref_tryget_live(&wq->wq_active))
+		return -ENXIO;
 
 	portal = wq->portal;
 
@@ -108,13 +122,25 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 			return rc;
 	}
 
+	percpu_ref_put(&wq->wq_active);
+
 	/*
 	 * Pending the descriptor to the lockless list for the irq_entry
 	 * that we designated the descriptor to.
 	 */
-	if (desc->hw->flags & IDXD_OP_FLAG_RCI)
-		llist_add(&desc->llnode,
-			  &idxd->irq_entries[vec].pending_llist);
+	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
+		int vec;
+
+		/*
+		 * If the driver is on host kernel, it would be the value
+		 * assigned to interrupt handle, which is index for MSIX
+		 * vector. If it's guest then can't use the int_handle since
+		 * that is the index to IMS for the entire device. The guest
+		 * device local index will be used.
+		 */
+		vec = !idxd->int_handles ? desc->hw->int_handle : desc->vector;
+		llist_add(&desc->llnode, &idxd->irq_entries[vec].pending_llist);
+	}
 
 	return 0;
 }

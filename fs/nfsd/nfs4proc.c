@@ -3317,9 +3317,3 @@ const struct svc_version nfsd_version4 = {
 	.vs_rpcb_optnl		= true,
 	.vs_need_cong_ctrl	= true,
 };
-
-/*
- * Local variables:
- *  c-basic-offset: 8
- * End:
- */

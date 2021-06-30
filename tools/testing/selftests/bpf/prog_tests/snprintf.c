@@ -43,6 +43,8 @@ void test_snprintf_positive(void)
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		return;
 
+	skel->bss->pid = getpid();
+
 	if (!ASSERT_OK(test_snprintf__attach(skel), "skel_attach"))
 		goto cleanup;
 

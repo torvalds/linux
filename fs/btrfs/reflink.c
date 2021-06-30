@@ -129,12 +129,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	 * So what's in the range [500, 4095] corresponds to zeroes.
 	 */
 	if (datal < block_size) {
-		char *map;
-
-		map = kmap(page);
-		memset(map + datal, 0, block_size - datal);
+		memzero_page(page, datal, block_size - datal);
 		flush_dcache_page(page);
-		kunmap(page);
 	}
 
 	SetPageUptodate(page);
@@ -285,6 +281,11 @@ copy_inline_extent:
 	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
 out:
 	if (!ret && !trans) {
+		/*
+		 * Release path before starting a new transaction so we don't
+		 * hold locks that would confuse lockdep.
+		 */
+		btrfs_release_path(path);
 		/*
 		 * No transaction here means we copied the inline extent into a
 		 * page of the destination inode.

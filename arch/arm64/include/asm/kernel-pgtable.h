@@ -136,7 +136,7 @@
  * has a direct correspondence, and needs to appear sufficiently aligned
  * in the virtual address space.
  */
-#if defined(CONFIG_SPARSEMEM_VMEMMAP) && ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
+#if ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
 #define ARM64_MEMSTART_ALIGN	(1UL << SECTION_SIZE_BITS)
 #else
 #define ARM64_MEMSTART_ALIGN	(1UL << ARM64_MEMSTART_SHIFT)

@@ -33,6 +33,16 @@ endif # CONFIG_SYSTEM_TRUSTED_KEYRING
 clean-files := x509_certificate_list .x509.list x509_revocation_list
 
 ifeq ($(CONFIG_MODULE_SIG),y)
+	SIGN_KEY = y
+endif
+
+ifeq ($(CONFIG_IMA_APPRAISE_MODSIG),y)
+ifeq ($(CONFIG_MODULES),y)
+	SIGN_KEY = y
+endif
+endif
+
+ifdef SIGN_KEY
 ###############################################################################
 #
 # If module signing is requested, say by allyesconfig, but a key has not been

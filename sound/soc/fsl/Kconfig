@@ -119,6 +119,7 @@ config SND_SOC_FSL_RPMSG
 	tristate "NXP Audio Base On RPMSG support"
 	depends on COMMON_CLK
 	depends on RPMSG
+	depends on SND_IMX_SOC || SND_IMX_SOC = n
 	select SND_SOC_IMX_RPMSG if SND_IMX_SOC != n
 	help
 	  Say Y if you want to add rpmsg audio support for the Freescale CPUs.

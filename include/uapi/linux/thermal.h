@@ -60,7 +60,7 @@ enum thermal_genl_event {
 	THERMAL_GENL_EVENT_UNSPEC,
 	THERMAL_GENL_EVENT_TZ_CREATE,		/* Thermal zone creation */
 	THERMAL_GENL_EVENT_TZ_DELETE,		/* Thermal zone deletion */
-	THERMAL_GENL_EVENT_TZ_DISABLE,		/* Thermal zone disabed */
+	THERMAL_GENL_EVENT_TZ_DISABLE,		/* Thermal zone disabled */
 	THERMAL_GENL_EVENT_TZ_ENABLE,		/* Thermal zone enabled */
 	THERMAL_GENL_EVENT_TZ_TRIP_UP,		/* Trip point crossed the way up */
 	THERMAL_GENL_EVENT_TZ_TRIP_DOWN,	/* Trip point crossed the way down */

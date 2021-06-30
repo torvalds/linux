@@ -1649,8 +1649,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	}
 
 	/* Get the read only section offset */
-	ro_start = pci_vpd_find_tag(vpd_data, 0, vpd_size,
-				    PCI_VPD_LRDT_RO_DATA);
+	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
 	if (unlikely(ro_start < 0)) {
 		dev_err(dev, "%s: VPD Read-only data not found\n", __func__);
 		rc = -ENODEV;

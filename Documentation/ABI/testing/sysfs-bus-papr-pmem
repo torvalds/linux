@@ -1,7 +1,7 @@
 What:		/sys/bus/nd/devices/nmemX/papr/flags
 Date:		Apr, 2020
 KernelVersion:	v5.8
-Contact:	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-nvdimm@lists.01.org,
+Contact:	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, nvdimm@lists.linux.dev,
 Description:
 		(RO) Report flags indicating various states of a
 		papr-pmem NVDIMM device. Each flag maps to a one or
@@ -36,7 +36,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/papr/perf_stats
 Date:		May, 2020
 KernelVersion:	v5.9
-Contact:	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-nvdimm@lists.01.org,
+Contact:	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, nvdimm@lists.linux.dev,
 Description:
 		(RO) Report various performance stats related to papr-scm NVDIMM
 		device.  Each stat is reported on a new line with each line

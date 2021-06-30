@@ -278,7 +278,6 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 
 	pwm->stmpe = stmpe;
 	pwm->chip.dev = &pdev->dev;
-	pwm->chip.base = -1;
 
 	if (stmpe->partnum == STMPE2401 || stmpe->partnum == STMPE2403) {
 		pwm->chip.ops = &stmpe_24xx_pwm_ops;

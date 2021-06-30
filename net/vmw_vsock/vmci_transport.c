@@ -944,8 +944,6 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	bool old_request = false;
 	bool old_pkt_proto = false;
 
-	err = 0;
-
 	/* Because we are in the listen state, we could be receiving a packet
 	 * for ourself or any previous connection requests that we received.
 	 * If it's the latter, we try to find a socket in our list of pending

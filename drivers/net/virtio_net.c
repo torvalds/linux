@@ -2870,9 +2870,13 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 {
 	int i;
 
-	vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
-	if (!vi->ctrl)
-		goto err_ctrl;
+	if (vi->has_cvq) {
+		vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
+		if (!vi->ctrl)
+			goto err_ctrl;
+	} else {
+		vi->ctrl = NULL;
+	}
 	vi->sq = kcalloc(vi->max_queue_pairs, sizeof(*vi->sq), GFP_KERNEL);
 	if (!vi->sq)
 		goto err_sq;

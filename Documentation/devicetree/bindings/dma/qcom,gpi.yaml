@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - qcom,sdm845-gpi-dma
+      - qcom,sm8150-gpi-dma
 
   reg:
     maxItems: 1

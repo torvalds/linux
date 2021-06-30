@@ -146,7 +146,7 @@ xfs_end_io(
 	while ((ioend = list_first_entry_or_null(&tmp, struct iomap_ioend,
 			io_list))) {
 		list_del_init(&ioend->io_list);
-		iomap_ioend_try_merge(ioend, &tmp, NULL);
+		iomap_ioend_try_merge(ioend, &tmp);
 		xfs_end_ioend(ioend);
 	}
 }

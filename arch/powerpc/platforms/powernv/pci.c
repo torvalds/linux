@@ -926,17 +926,6 @@ void __init pnv_pci_init(void)
 	for_each_compatible_node(np, NULL, "ibm,ioda3-phb")
 		pnv_pci_init_ioda2_phb(np);
 
-	/* Look for NPU PHBs */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
-		pnv_pci_init_npu_phb(np);
-
-	/*
-	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
-	 * the exception of TCE kill which requires an OPAL call.
-	 */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
-		pnv_pci_init_npu_phb(np);
-
 	/* Look for NPU2 OpenCAPI PHBs */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-opencapi-phb")
 		pnv_pci_init_npu2_opencapi_phb(np);

@@ -18,6 +18,7 @@ on the Qualcomm ADSP Hexagon core.
 		    "qcom,sc7180-mpss-pas"
 		    "qcom,sdm845-adsp-pas"
 		    "qcom,sdm845-cdsp-pas"
+                    "qcom,sdx55-mpss-pas"
 		    "qcom,sm8150-adsp-pas"
 		    "qcom,sm8150-cdsp-pas"
 		    "qcom,sm8150-mpss-pas"
@@ -61,6 +62,7 @@ on the Qualcomm ADSP Hexagon core.
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,qcs404-wcss-pas:
 	qcom,sc7180-mpss-pas:
+        qcom,sdx55-mpss-pas:
 	qcom,sm8150-mpss-pas:
 	qcom,sm8350-mpss-pas:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
@@ -128,6 +130,8 @@ on the Qualcomm ADSP Hexagon core.
 	qcom,sm8150-mpss-pas:
 	qcom,sm8350-mpss-pas:
 		    must be "cx", "load_state", "mss"
+        qcom,sdx55-mpss-pas:
+                    must be "cx", "mss"
 	qcom,sm8250-adsp-pas:
 	qcom,sm8350-adsp-pas:
 	qcom,sm8150-slpi-pas:

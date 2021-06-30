@@ -454,11 +454,6 @@ void sbus_set_sbus64(struct device *, int);
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
 
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
 #endif
 
 #endif /* !(__SPARC64_IO_H) */

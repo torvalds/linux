@@ -877,7 +877,7 @@ append_chain_children(struct callchain_node *root,
 	if (!node)
 		return -1;
 
-	/* lookup in childrens */
+	/* lookup in children */
 	while (*p) {
 		enum match_result ret;
 

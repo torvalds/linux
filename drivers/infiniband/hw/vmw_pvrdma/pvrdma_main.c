@@ -121,7 +121,7 @@ static int pvrdma_init_device(struct pvrdma_dev *dev)
 	return 0;
 }
 
-static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int pvrdma_port_immutable(struct ib_device *ibdev, u32 port_num,
 				 struct ib_port_immutable *immutable)
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);

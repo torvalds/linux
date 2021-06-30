@@ -37,16 +37,16 @@
 #include "usnic_ib.h"
 
 enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
-						u8 port_num);
+					      u32 port_num);
 int usnic_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props,
 			  struct ib_udata *uhw);
-int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
+int usnic_ib_query_port(struct ib_device *ibdev, u32 port,
 				struct ib_port_attr *props);
 int usnic_ib_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 				int qp_attr_mask,
 				struct ib_qp_init_attr *qp_init_attr);
-int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+int usnic_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 				union ib_gid *gid);
 int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);

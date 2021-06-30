@@ -100,6 +100,8 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+#define IORING_MAX_REG_BUFFERS	(1U << 14)
+
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
 				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
 				IOSQE_BUFFER_SELECT)
@@ -251,7 +253,7 @@ struct io_rsrc_data {
 struct io_buffer {
 	struct list_head list;
 	__u64 addr;
-	__s32 len;
+	__u32 len;
 	__u16 bid;
 };
 
@@ -456,6 +458,7 @@ struct io_ring_ctx {
 	spinlock_t			rsrc_ref_lock;
 	struct io_rsrc_node		*rsrc_node;
 	struct io_rsrc_node		*rsrc_backup_node;
+	struct io_mapped_ubuf		*dummy_ubuf;
 
 	struct io_restriction		restrictions;
 
@@ -702,7 +705,8 @@ enum {
 	REQ_F_FORCE_ASYNC_BIT	= IOSQE_ASYNC_BIT,
 	REQ_F_BUFFER_SELECT_BIT	= IOSQE_BUFFER_SELECT_BIT,
 
-	REQ_F_FAIL_LINK_BIT,
+	/* first byte is taken by user flags, shift it to not overlap */
+	REQ_F_FAIL_LINK_BIT	= 8,
 	REQ_F_INFLIGHT_BIT,
 	REQ_F_CUR_POS_BIT,
 	REQ_F_NOWAIT_BIT,
@@ -1157,6 +1161,12 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 	__hash_init(ctx->cancel_hash, 1U << hash_bits);
 
+	ctx->dummy_ubuf = kzalloc(sizeof(*ctx->dummy_ubuf), GFP_KERNEL);
+	if (!ctx->dummy_ubuf)
+		goto err;
+	/* set invalid range, so io_import_fixed() fails meeting it */
+	ctx->dummy_ubuf->ubuf = -1UL;
+
 	if (percpu_ref_init(&ctx->refs, io_ring_ctx_ref_free,
 			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL))
 		goto err;
@@ -1184,6 +1194,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->submit_state.comp.locked_free_list);
 	return ctx;
 err:
+	kfree(ctx->dummy_ubuf);
 	kfree(ctx->cancel_hash);
 	kfree(ctx);
 	return NULL;
@@ -3977,7 +3988,7 @@ static int io_add_buffers(struct io_provide_buf *pbuf, struct io_buffer **head)
 			break;
 
 		buf->addr = addr;
-		buf->len = pbuf->len;
+		buf->len = min_t(__u32, pbuf->len, MAX_RW_COUNT);
 		buf->bid = bid;
 		addr += pbuf->len;
 		bid++;
@@ -4026,7 +4037,7 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 #if defined(CONFIG_EPOLL)
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
 	req->epoll.epfd = READ_ONCE(sqe->fd);
@@ -4141,7 +4152,7 @@ static int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
@@ -5008,10 +5019,10 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 		 * Can't handle multishot for double wait for now, turn it
 		 * into one-shot mode.
 		 */
-		if (!(req->poll.events & EPOLLONESHOT))
-			req->poll.events |= EPOLLONESHOT;
+		if (!(poll_one->events & EPOLLONESHOT))
+			poll_one->events |= EPOLLONESHOT;
 		/* double add on the same waitqueue head, ignore */
-		if (poll->head == head)
+		if (poll_one->head == head)
 			return;
 		poll = kmalloc(sizeof(*poll), GFP_ATOMIC);
 		if (!poll) {
@@ -5818,8 +5829,6 @@ done:
 static int io_rsrc_update_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
-	if (unlikely(req->ctx->flags & IORING_SETUP_SQPOLL))
-		return -EINVAL;
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->rw_flags)
@@ -6345,19 +6354,20 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 * We don't expect the list to be empty, that will only happen if we
 	 * race with the completion of the linked work.
 	 */
-	if (prev && req_ref_inc_not_zero(prev))
+	if (prev) {
 		io_remove_next_linked(prev);
-	else
-		prev = NULL;
+		if (!req_ref_inc_not_zero(prev))
+			prev = NULL;
+	}
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (prev) {
 		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
 		io_put_req_deferred(prev, 1);
+		io_put_req_deferred(req, 1);
 	} else {
 		io_req_complete_post(req, -ETIME, 0);
 	}
-	io_put_req_deferred(req, 1);
 	return HRTIMER_NORESTART;
 }
 
@@ -6503,14 +6513,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->work.creds = NULL;
 
 	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
-		req->flags = 0;
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
 		return -EINVAL;
-	}
-
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
-
 	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
 		return -EACCES;
 
@@ -7539,6 +7545,7 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 			io_ring_submit_lock(ctx, lock_ring);
 			spin_lock_irqsave(&ctx->completion_lock, flags);
 			io_cqring_fill_event(ctx, prsrc->tag, 0, 0);
+			ctx->cq_extra++;
 			io_commit_cqring(ctx);
 			spin_unlock_irqrestore(&ctx->completion_lock, flags);
 			io_cqring_ev_posted(ctx);
@@ -8111,11 +8118,13 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	struct io_mapped_ubuf *imu = *slot;
 	unsigned int i;
 
-	for (i = 0; i < imu->nr_bvecs; i++)
-		unpin_user_page(imu->bvec[i].bv_page);
-	if (imu->acct_pages)
-		io_unaccount_mem(ctx, imu->acct_pages);
-	kvfree(imu);
+	if (imu != ctx->dummy_ubuf) {
+		for (i = 0; i < imu->nr_bvecs; i++)
+			unpin_user_page(imu->bvec[i].bv_page);
+		if (imu->acct_pages)
+			io_unaccount_mem(ctx, imu->acct_pages);
+		kvfree(imu);
+	}
 	*slot = NULL;
 }
 
@@ -8132,7 +8141,7 @@ static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 	for (i = 0; i < ctx->nr_user_bufs; i++)
 		io_buffer_unmap(ctx, &ctx->user_bufs[i]);
 	kfree(ctx->user_bufs);
-	kfree(ctx->buf_data);
+	io_rsrc_data_free(ctx->buf_data);
 	ctx->user_bufs = NULL;
 	ctx->buf_data = NULL;
 	ctx->nr_user_bufs = 0;
@@ -8255,6 +8264,11 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	size_t size;
 	int ret, pret, nr_pages, i;
 
+	if (!iov->iov_base) {
+		*pimu = ctx->dummy_ubuf;
+		return 0;
+	}
+
 	ubuf = (unsigned long) iov->iov_base;
 	end = (ubuf + iov->iov_len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	start = ubuf >> PAGE_SHIFT;
@@ -8352,7 +8366,9 @@ static int io_buffer_validate(struct iovec *iov)
 	 * constraints here, we'll -EINVAL later when IO is
 	 * submitted if they are wrong.
 	 */
-	if (!iov->iov_base || !iov->iov_len)
+	if (!iov->iov_base)
+		return iov->iov_len ? -EFAULT : 0;
+	if (!iov->iov_len)
 		return -EFAULT;
 
 	/* arbitrary limit, but we need something */
@@ -8375,7 +8391,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (ctx->user_bufs)
 		return -EBUSY;
-	if (!nr_args || nr_args > UIO_MAXIOV)
+	if (!nr_args || nr_args > IORING_MAX_REG_BUFFERS)
 		return -EINVAL;
 	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
@@ -8385,7 +8401,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -ENOMEM;
 	ret = io_buffers_map_alloc(ctx, nr_args);
 	if (ret) {
-		kfree(data);
+		io_rsrc_data_free(data);
 		return ret;
 	}
 
@@ -8402,6 +8418,10 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
+		if (!iov.iov_base && tag) {
+			ret = -EINVAL;
+			break;
+		}
 
 		ret = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
 					     &last_hpage);
@@ -8451,12 +8471,16 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		err = io_buffer_validate(&iov);
 		if (err)
 			break;
+		if (!iov.iov_base && tag) {
+			err = -EINVAL;
+			break;
+		}
 		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
 		if (err)
 			break;
 
 		i = array_index_nospec(offset, ctx->nr_user_bufs);
-		if (ctx->user_bufs[i]) {
+		if (ctx->user_bufs[i] != ctx->dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, offset,
 						    ctx->rsrc_node, ctx->user_bufs[i]);
 			if (unlikely(err)) {
@@ -8604,6 +8628,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->hash_map)
 		io_wq_put_hash(ctx->hash_map);
 	kfree(ctx->cancel_hash);
+	kfree(ctx->dummy_ubuf);
 	kfree(ctx);
 }
 
@@ -9010,14 +9035,19 @@ static void io_uring_del_task_file(unsigned long index)
 
 static void io_uring_clean_tctx(struct io_uring_task *tctx)
 {
+	struct io_wq *wq = tctx->io_wq;
 	struct io_tctx_node *node;
 	unsigned long index;
 
 	xa_for_each(&tctx->xa, index, node)
 		io_uring_del_task_file(index);
-	if (tctx->io_wq) {
-		io_wq_put_and_exit(tctx->io_wq);
+	if (wq) {
+		/*
+		 * Must be after io_uring_del_task_file() (removes nodes under
+		 * uring_lock) to avoid race with io_uring_try_cancel_iowq().
+		 */
 		tctx->io_wq = NULL;
+		io_wq_put_and_exit(wq);
 	}
 }
 
@@ -9053,6 +9083,9 @@ static void io_uring_cancel_sqpoll(struct io_sq_data *sqd)
 
 	if (!current->io_uring)
 		return;
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
+
 	WARN_ON_ONCE(!sqd || sqd->thread != current);
 
 	atomic_inc(&tctx->in_idle);
@@ -9086,6 +9119,9 @@ void __io_uring_cancel(struct files_struct *files)
 	struct io_uring_task *tctx = current->io_uring;
 	DEFINE_WAIT(wait);
 	s64 inflight;
+
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
 
 	/* make sure overflow events are dropped */
 	atomic_inc(&tctx->in_idle);
@@ -9607,7 +9643,9 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	if (ret)
 		goto err;
 	/* always set a rsrc node */
-	io_rsrc_node_switch_start(ctx);
+	ret = io_rsrc_node_switch_start(ctx);
+	if (ret)
+		goto err;
 	io_rsrc_node_switch(ctx, NULL);
 
 	memset(&p->sq_off, 0, sizeof(p->sq_off));
@@ -10135,6 +10173,13 @@ static int __init io_uring_init(void)
 	BUILD_BUG_SQE_ELEM(40, __u16,  buf_index);
 	BUILD_BUG_SQE_ELEM(42, __u16,  personality);
 	BUILD_BUG_SQE_ELEM(44, __s32,  splice_fd_in);
+
+	BUILD_BUG_ON(sizeof(struct io_uring_files_update) !=
+		     sizeof(struct io_uring_rsrc_update));
+	BUILD_BUG_ON(sizeof(struct io_uring_rsrc_update) >
+		     sizeof(struct io_uring_rsrc_update2));
+	/* should fit into one byte */
+	BUILD_BUG_ON(SQE_VALID_FLAGS >= (1 << 8));
 
 	BUILD_BUG_ON(ARRAY_SIZE(io_op_defs) != IORING_OP_LAST);
 	BUILD_BUG_ON(__REQ_F_LAST_BIT >= 8 * sizeof(int));
