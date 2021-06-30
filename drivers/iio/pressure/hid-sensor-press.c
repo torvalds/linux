@@ -259,8 +259,8 @@ static int hid_press_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	indio_dev->channels = kmemdup(press_channels, sizeof(press_channels),
-				      GFP_KERNEL);
+	indio_dev->channels = devm_kmemdup(&pdev->dev, press_channels,
+					   sizeof(press_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		return -ENOMEM;
@@ -271,7 +271,7 @@ static int hid_press_probe(struct platform_device *pdev)
 				 HID_USAGE_SENSOR_PRESSURE, press_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	indio_dev->num_channels =
@@ -286,7 +286,7 @@ static int hid_press_probe(struct platform_device *pdev)
 				&press_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -311,8 +311,6 @@ error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
 	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
-error_free_dev_mem:
-	kfree(indio_dev->channels);
 	return ret;
 }
 
@@ -326,7 +324,6 @@ static int hid_press_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_PRESSURE);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
-	kfree(indio_dev->channels);
 
 	return 0;
 }
