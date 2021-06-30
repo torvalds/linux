@@ -1,7 +1,143 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#define pr_fmt(fmt)	"ioremap: " fmt
+
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/arm-smccc.h>
+#include <linux/slab.h>
+
+#include <asm/fixmap.h>
+#include <asm/tlbflush.h>
+#include <asm/hypervisor.h>
+
+#ifndef ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP
+#define ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP	7
+
+#define ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID			\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
+			   ARM_SMCCC_SMC_64,				\
+			   ARM_SMCCC_OWNER_VENDOR_HYP,			\
+			   ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP)
+#endif	/* ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP */
+
+#ifndef ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP
+#define ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP	8
+
+#define ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_UNMAP_FUNC_ID			\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
+			   ARM_SMCCC_SMC_64,				\
+			   ARM_SMCCC_OWNER_VENDOR_HYP,			\
+			   ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP)
+#endif	/* ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP */
+
+struct ioremap_guard_ref {
+	refcount_t	count;
+};
+
+static DEFINE_STATIC_KEY_FALSE(ioremap_guard_key);
+static DEFINE_XARRAY(ioremap_guard_array);
+static DEFINE_MUTEX(ioremap_guard_lock);
+
+void ioremap_phys_range_hook(phys_addr_t phys_addr, size_t size, pgprot_t prot)
+{
+	if (!static_branch_unlikely(&ioremap_guard_key))
+		return;
+
+	if (pfn_valid(__phys_to_pfn(phys_addr)))
+		return;
+
+	mutex_lock(&ioremap_guard_lock);
+
+	while (size) {
+		u64 pfn = phys_addr >> PAGE_SHIFT;
+		struct ioremap_guard_ref *ref;
+		struct arm_smccc_res res;
+
+		ref = xa_load(&ioremap_guard_array, pfn);
+		if (ref) {
+			refcount_inc(&ref->count);
+			goto next;
+		}
+
+		/*
+		 * It is acceptable for the allocation to fail, specially
+		 * if trying to ioremap something very early on, like with
+		 * earlycon, which happens long before kmem_cache_init.
+		 * This page will be permanently accessible, similar to a
+		 * saturated refcount.
+		 */
+		if (slab_is_available())
+			ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+		if (ref) {
+			refcount_set(&ref->count, 1);
+			if (xa_err(xa_store(&ioremap_guard_array, pfn, ref,
+					    GFP_KERNEL))) {
+				kfree(ref);
+				ref = NULL;
+			}
+		}
+
+		arm_smccc_1_1_hvc(ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_MAP_FUNC_ID,
+				  phys_addr, prot, &res);
+		if (res.a0 != SMCCC_RET_SUCCESS) {
+			pr_warn_ratelimited("Failed to register %llx\n",
+					    phys_addr);
+			xa_erase(&ioremap_guard_array, pfn);
+			kfree(ref);
+			goto out;
+		}
+
+	next:
+		size -= PAGE_SIZE;
+		phys_addr += PAGE_SIZE;
+	}
+out:
+	mutex_unlock(&ioremap_guard_lock);
+}
+
+void iounmap_phys_range_hook(phys_addr_t phys_addr, size_t size)
+{
+	if (!static_branch_unlikely(&ioremap_guard_key))
+		return;
+
+	VM_BUG_ON(phys_addr & ~PAGE_MASK || size & ~PAGE_MASK);
+
+	mutex_lock(&ioremap_guard_lock);
+
+	while (size) {
+		u64 pfn = phys_addr >> PAGE_SHIFT;
+		struct ioremap_guard_ref *ref;
+		struct arm_smccc_res res;
+
+		ref = xa_load(&ioremap_guard_array, pfn);
+		if (!ref) {
+			pr_warn_ratelimited("%llx not tracked, left mapped\n",
+					    phys_addr);
+			goto next;
+		}
+
+		if (!refcount_dec_and_test(&ref->count))
+			goto next;
+
+		xa_erase(&ioremap_guard_array, pfn);
+		kfree(ref);
+
+		arm_smccc_1_1_hvc(ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_UNMAP_FUNC_ID,
+				  phys_addr, &res);
+		if (res.a0 != SMCCC_RET_SUCCESS) {
+			pr_warn_ratelimited("Failed to unregister %llx\n",
+					    phys_addr);
+			goto out;
+		}
+
+	next:
+		size -= PAGE_SIZE;
+		phys_addr += PAGE_SIZE;
+	}
+out:
+	mutex_unlock(&ioremap_guard_lock);
+}
 
 bool ioremap_allowed(phys_addr_t phys_addr, size_t size, unsigned long prot)
 {
