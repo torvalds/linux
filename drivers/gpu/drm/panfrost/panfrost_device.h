@@ -109,6 +109,7 @@ struct panfrost_device {
 	struct mutex sched_lock;
 
 	struct {
+		struct workqueue_struct *wq;
 		struct work_struct work;
 		atomic_t pending;
 	} reset;
@@ -247,9 +248,8 @@ const char *panfrost_exception_name(u32 exception_code);
 static inline void
 panfrost_device_schedule_reset(struct panfrost_device *pfdev)
 {
-	/* Schedule a reset if there's no reset in progress. */
-	if (!atomic_xchg(&pfdev->reset.pending, 1))
-		schedule_work(&pfdev->reset.work);
+	atomic_set(&pfdev->reset.pending, 1);
+	queue_work(pfdev->reset.wq, &pfdev->reset.work);
 }
 
 #endif
