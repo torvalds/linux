@@ -3384,7 +3384,7 @@ static int mlx5e_modify_channels_scatter_fcs(struct mlx5e_channels *chs, bool en
 
 static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 {
-	int err = 0;
+	int err;
 	int i;
 
 	for (i = 0; i < chs->num; i++) {
@@ -3392,6 +3392,8 @@ static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 		if (err)
 			return err;
 	}
+	if (chs->ptp && test_bit(MLX5E_PTP_STATE_RX, chs->ptp->state))
+		return mlx5e_modify_rq_vsd(&chs->ptp->rq, vsd);
 
 	return 0;
 }
