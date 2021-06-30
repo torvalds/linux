@@ -5596,11 +5596,18 @@ static struct intel_uncore_type spr_uncore_chabox = {
 	.format_group		= &spr_uncore_chabox_format_group,
 };
 
+static struct intel_uncore_type spr_uncore_iio = {
+	.name			= "iio",
+	.event_mask		= SNBEP_PMON_RAW_EVENT_MASK,
+	.event_mask_ext		= SNR_IIO_PMON_RAW_EVENT_MASK_EXT,
+	.format_group		= &snr_uncore_iio_format_group,
+};
+
 #define UNCORE_SPR_NUM_UNCORE_TYPES		12
 
 static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
 	&spr_uncore_chabox,
-	NULL,
+	&spr_uncore_iio,
 	NULL,
 	NULL,
 	NULL,
