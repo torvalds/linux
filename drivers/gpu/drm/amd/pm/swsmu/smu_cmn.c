@@ -710,7 +710,7 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 			return 0;
 	}
 
-	size =  sprintf(buf + size, "features high: 0x%08x low: 0x%08x\n",
+	size =  sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
 			feature_mask[1], feature_mask[0]);
 
 	memset(sort_feature, -1, sizeof(sort_feature));
@@ -725,14 +725,14 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 		sort_feature[feature_index] = i;
 	}
 
-	size += sprintf(buf + size, "%-2s. %-20s  %-3s : %-s\n",
+	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
 			"No", "Feature", "Bit", "State");
 
 	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
 		if (sort_feature[i] < 0)
 			continue;
 
-		size += sprintf(buf + size, "%02d. %-20s (%2d) : %s\n",
+		size += sysfs_emit_at(buf, size, "%02d. %-20s (%2d) : %s\n",
 				count++,
 				smu_get_feature_name(smu, sort_feature[i]),
 				i,
