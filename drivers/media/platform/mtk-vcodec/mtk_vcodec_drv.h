@@ -304,6 +304,7 @@ enum mtk_chip {
 	MTK_MT8173,
 	MTK_MT8183,
 	MTK_MT8192,
+	MTK_MT8195,
 };
 
 /**
