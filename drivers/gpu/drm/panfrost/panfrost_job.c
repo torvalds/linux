@@ -34,6 +34,7 @@ struct panfrost_queue_state {
 struct panfrost_job_slot {
 	struct panfrost_queue_state queue[NUM_JOB_SLOTS];
 	spinlock_t job_lock;
+	int irq;
 };
 
 static struct panfrost_job *
@@ -389,6 +390,15 @@ static void panfrost_reset(struct panfrost_device *pfdev,
 	if (bad)
 		drm_sched_increase_karma(bad);
 
+	/* Mask job interrupts and synchronize to make sure we won't be
+	 * interrupted during our reset.
+	 */
+	job_write(pfdev, JOB_INT_MASK, 0);
+	synchronize_irq(pfdev->js->irq);
+
+	/* Schedulers are stopped and interrupts are masked+flushed, we don't
+	 * need to protect the 'evict unfinished jobs' lock with the job_lock.
+	 */
 	spin_lock(&pfdev->js->job_lock);
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		if (pfdev->jobs[i]) {
@@ -486,7 +496,14 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 			struct panfrost_job *job;
 
 			job = pfdev->jobs[j];
-			/* Only NULL if job timeout occurred */
+			/* The only reason this job could be NULL is if the
+			 * job IRQ handler is called just after the
+			 * in-flight job eviction in the reset path, and
+			 * this shouldn't happen because the job IRQ has
+			 * been masked and synchronized when this eviction
+			 * happens.
+			 */
+			WARN_ON(!job);
 			if (job) {
 				pfdev->jobs[j] = NULL;
 
@@ -546,7 +563,7 @@ static void panfrost_reset_work(struct work_struct *work)
 int panfrost_job_init(struct panfrost_device *pfdev)
 {
 	struct panfrost_job_slot *js;
-	int ret, j, irq;
+	int ret, j;
 
 	INIT_WORK(&pfdev->reset.work, panfrost_reset_work);
 
@@ -556,11 +573,11 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 
 	spin_lock_init(&js->job_lock);
 
-	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "job");
-	if (irq <= 0)
+	js->irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "job");
+	if (js->irq <= 0)
 		return -ENODEV;
 
-	ret = devm_request_threaded_irq(pfdev->dev, irq,
+	ret = devm_request_threaded_irq(pfdev->dev, js->irq,
 					panfrost_job_irq_handler,
 					panfrost_job_irq_handler_thread,
 					IRQF_SHARED, KBUILD_MODNAME "-job",
