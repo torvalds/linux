@@ -24,10 +24,11 @@
 #define PTP_PPS_EVENT PPS_CAPTUREASSERT
 #define PTP_PPS_MODE (PTP_PPS_DEFAULTS | PPS_CANWAIT | PPS_TSFMT_TSPEC)
 
+struct class *ptp_class;
+
 /* private globals */
 
 static dev_t ptp_devt;
-static struct class *ptp_class;
 
 static DEFINE_IDA(ptp_clocks_map);
 

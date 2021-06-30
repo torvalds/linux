@@ -96,6 +96,8 @@ static inline bool ptp_vclock_in_use(struct ptp_clock *ptp)
 	return in_use;
 }
 
+extern struct class *ptp_class;
+
 /*
  * see ptp_chardev.c
  */
