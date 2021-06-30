@@ -94,7 +94,7 @@ u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req)
 		req->execute = nvmet_execute_prop_get;
 		break;
 	default:
-		pr_err("received unknown capsule type 0x%x\n",
+		pr_debug("received unknown capsule type 0x%x\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -284,13 +284,13 @@ u16 nvmet_parse_connect_cmd(struct nvmet_req *req)
 	struct nvme_command *cmd = req->cmd;
 
 	if (!nvme_is_fabrics(cmd)) {
-		pr_err("invalid command 0x%x on unconnected queue.\n",
+		pr_debug("invalid command 0x%x on unconnected queue.\n",
 			cmd->fabrics.opcode);
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 	if (cmd->fabrics.fctype != nvme_fabrics_type_connect) {
-		pr_err("invalid capsule type 0x%x on unconnected queue.\n",
+		pr_debug("invalid capsule type 0x%x on unconnected queue.\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;

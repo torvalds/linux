@@ -13,7 +13,7 @@
 #include "misc.h"
 
 #include <asm/pgtable_types.h>
-#include <asm/sev-es.h>
+#include <asm/sev.h>
 #include <asm/trapnr.h>
 #include <asm/trap_pf.h>
 #include <asm/msr-index.h>
@@ -117,7 +117,7 @@ static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
 #include "../../lib/insn.c"
 
 /* Include code for early handlers */
-#include "../../kernel/sev-es-shared.c"
+#include "../../kernel/sev-shared.c"
 
 static bool early_setup_sev_es(void)
 {

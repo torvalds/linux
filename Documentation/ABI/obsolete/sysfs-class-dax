@@ -1,7 +1,7 @@
 What:           /sys/class/dax/
 Date:           May, 2016
 KernelVersion:  v4.7
-Contact:        linux-nvdimm@lists.01.org
+Contact:        nvdimm@lists.linux.dev
 Description:	Device DAX is the device-centric analogue of Filesystem
 		DAX (CONFIG_FS_DAX).  It allows memory ranges to be
 		allocated and mapped without need of an intervening file
