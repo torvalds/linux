@@ -5628,13 +5628,18 @@ static struct intel_uncore_type spr_uncore_irp = {
 
 };
 
+static struct intel_uncore_type spr_uncore_m2pcie = {
+	SPR_UNCORE_COMMON_FORMAT(),
+	.name			= "m2pcie",
+};
+
 #define UNCORE_SPR_NUM_UNCORE_TYPES		12
 
 static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
 	&spr_uncore_chabox,
 	&spr_uncore_iio,
 	&spr_uncore_irp,
-	NULL,
+	&spr_uncore_m2pcie,
 	NULL,
 	NULL,
 	NULL,
