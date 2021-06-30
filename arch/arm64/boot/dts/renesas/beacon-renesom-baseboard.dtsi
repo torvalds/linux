@@ -197,6 +197,14 @@
 		compatible = "audio-graph-card";
 		label = "rcar-sound";
 		dais = <&rsnd_port0>, <&rsnd_port1>;
+		widgets = "Microphone", "Mic Jack",
+			  "Line", "Line In Jack",
+			  "Headphone", "Headphone Jack";
+		mic-det-gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		routing = "Headphone Jack", "HPOUTL",
+			 "Headphone Jack", "HPOUTR",
+			 "IN3R", "MICBIAS",
+			 "Mic Jack", "IN3R";
 	};
 
 	vccq_sdhi0: regulator-vccq-sdhi0 {
