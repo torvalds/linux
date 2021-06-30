@@ -184,6 +184,7 @@ enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_KABOOM = 0x05,
 	DRM_PANFROST_EXCEPTION_EUREKA = 0x06,
 	DRM_PANFROST_EXCEPTION_ACTIVE = 0x08,
+	DRM_PANFROST_EXCEPTION_MAX_NON_FAULT = 0x3f,
 	DRM_PANFROST_EXCEPTION_JOB_CONFIG_FAULT = 0x40,
 	DRM_PANFROST_EXCEPTION_JOB_POWER_FAULT = 0x41,
 	DRM_PANFROST_EXCEPTION_JOB_READ_FAULT = 0x42,
@@ -243,6 +244,12 @@ enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_2 = 0xee,
 	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_3 = 0xef,
 };
+
+static inline bool
+panfrost_exception_is_fault(u32 exception_code)
+{
+	return exception_code > DRM_PANFROST_EXCEPTION_MAX_NON_FAULT;
+}
 
 const char *panfrost_exception_name(u32 exception_code);
 bool panfrost_exception_needs_reset(const struct panfrost_device *pfdev,

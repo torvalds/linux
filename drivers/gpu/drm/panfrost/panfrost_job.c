@@ -483,14 +483,21 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 
 		if (status & JOB_INT_MASK_ERR(j)) {
 			u32 js_status = job_read(pfdev, JS_STATUS(j));
+			const char *exception_name = panfrost_exception_name(js_status);
 
 			job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_NOP);
 
-			dev_err(pfdev->dev, "js fault, js=%d, status=%s, head=0x%x, tail=0x%x",
-				j,
-				panfrost_exception_name(js_status),
-				job_read(pfdev, JS_HEAD_LO(j)),
-				job_read(pfdev, JS_TAIL_LO(j)));
+			if (!panfrost_exception_is_fault(js_status)) {
+				dev_dbg(pfdev->dev, "js interrupt, js=%d, status=%s, head=0x%x, tail=0x%x",
+					j, exception_name,
+					job_read(pfdev, JS_HEAD_LO(j)),
+					job_read(pfdev, JS_TAIL_LO(j)));
+			} else {
+				dev_err(pfdev->dev, "js fault, js=%d, status=%s, head=0x%x, tail=0x%x",
+					j, exception_name,
+					job_read(pfdev, JS_HEAD_LO(j)),
+					job_read(pfdev, JS_TAIL_LO(j)));
+			}
 
 			/* If we need a reset, signal it to the timeout
 			 * handler, otherwise, update the fence error field and
@@ -499,7 +506,16 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 			if (panfrost_exception_needs_reset(pfdev, js_status)) {
 				drm_sched_fault(&pfdev->js->queue[j].sched);
 			} else {
-				dma_fence_set_error(pfdev->jobs[j]->done_fence, -EINVAL);
+				int error = 0;
+
+				if (js_status == DRM_PANFROST_EXCEPTION_TERMINATED)
+					error = -ECANCELED;
+				else if (panfrost_exception_is_fault(js_status))
+					error = -EINVAL;
+
+				if (error)
+					dma_fence_set_error(pfdev->jobs[j]->done_fence, error);
+
 				status |= JOB_INT_MASK_DONE(j);
 			}
 		}
@@ -665,10 +681,24 @@ int panfrost_job_open(struct panfrost_file_priv *panfrost_priv)
 
 void panfrost_job_close(struct panfrost_file_priv *panfrost_priv)
 {
+	struct panfrost_device *pfdev = panfrost_priv->pfdev;
 	int i;
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
 		drm_sched_entity_destroy(&panfrost_priv->sched_entity[i]);
+
+	/* Kill in-flight jobs */
+	spin_lock(&pfdev->js->job_lock);
+	for (i = 0; i < NUM_JOB_SLOTS; i++) {
+		struct drm_sched_entity *entity = &panfrost_priv->sched_entity[i];
+		struct panfrost_job *job = pfdev->jobs[i];
+
+		if (!job || job->base.entity != entity)
+			continue;
+
+		job_write(pfdev, JS_COMMAND(i), JS_COMMAND_HARD_STOP);
+	}
+	spin_unlock(&pfdev->js->job_lock);
 }
 
 int panfrost_job_is_idle(struct panfrost_device *pfdev)
