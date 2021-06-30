@@ -49,7 +49,7 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 		goto out;
 
 	ret = (int)msgbuf[1];
-	if (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK && ret >= 0)
+	if (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE && ret >= 0)
 		ret = -1;
 
 out:
