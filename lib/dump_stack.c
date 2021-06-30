@@ -73,10 +73,10 @@ void show_regs_print_info(const char *log_lvl)
 	dump_stack_print_info(log_lvl);
 }
 
-static void __dump_stack(void)
+static void __dump_stack(const char *log_lvl)
 {
-	dump_stack_print_info(KERN_DEFAULT);
-	show_stack(NULL, NULL, KERN_DEFAULT);
+	dump_stack_print_info(log_lvl);
+	show_stack(NULL, NULL, log_lvl);
 }
 
 /**
@@ -84,7 +84,7 @@ static void __dump_stack(void)
  *
  * Architectures can override this implementation by implementing its own.
  */
-asmlinkage __visible void dump_stack(void)
+asmlinkage __visible void dump_stack_lvl(const char *log_lvl)
 {
 	unsigned long flags;
 
@@ -93,7 +93,13 @@ asmlinkage __visible void dump_stack(void)
 	 * against other CPUs
 	 */
 	printk_cpu_lock_irqsave(flags);
-	__dump_stack();
+	__dump_stack(log_lvl);
 	printk_cpu_unlock_irqrestore(flags);
+}
+EXPORT_SYMBOL(dump_stack_lvl);
+
+asmlinkage __visible void dump_stack(void)
+{
+	dump_stack_lvl(KERN_DEFAULT);
 }
 EXPORT_SYMBOL(dump_stack);
