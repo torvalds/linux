@@ -604,6 +604,16 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 				   mask, tdm_val);
 		regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
 				   mask, tdm_val);
+
+		if (val == I2S_TXCR_TFS_TDM_I2S && !i2s_tdm->tdm_fsync_half_frame) {
+			/* refine frame width for TDM_I2S_ONE_FRAME */
+			mask = TDM_FRAME_WIDTH_MSK;
+			tdm_val = TDM_FRAME_WIDTH(i2s_tdm->bclk_fs >> 1);
+			regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR,
+					   mask, tdm_val);
+			regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
+					   mask, tdm_val);
+		}
 	}
 
 err_pm_put:
@@ -964,6 +974,63 @@ static int rockchip_i2s_trcm_mode(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rockchip_i2s_tdm_params_channels(struct snd_pcm_substream *substream,
+					    struct snd_pcm_hw_params *params,
+					    struct snd_soc_dai *dai)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
+	unsigned int reg_fmt, fmt;
+	int ret = 0;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		reg_fmt = I2S_TXCR;
+	else
+		reg_fmt = I2S_RXCR;
+
+	regmap_read(i2s_tdm->regmap, reg_fmt, &fmt);
+	fmt &= I2S_TXCR_TFS_MASK;
+
+	if (fmt == I2S_TXCR_TFS_TDM_I2S && !i2s_tdm->tdm_fsync_half_frame) {
+		switch (params_channels(params)) {
+		case 16:
+			ret = I2S_CHN_8;
+			break;
+		case 12:
+			ret = I2S_CHN_6;
+			break;
+		case 8:
+			ret = I2S_CHN_4;
+			break;
+		case 4:
+			ret = I2S_CHN_2;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+	} else {
+		switch (params_channels(params)) {
+		case 8:
+			ret = I2S_CHN_8;
+			break;
+		case 6:
+			ret = I2S_CHN_6;
+			break;
+		case 4:
+			ret = I2S_CHN_4;
+			break;
+		case 2:
+			ret = I2S_CHN_2;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params,
 				      struct snd_soc_dai *dai)
@@ -1014,24 +1081,11 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 		goto err;
 	}
 
-	switch (params_channels(params)) {
-	case 8:
-		val |= I2S_CHN_8;
-		break;
-	case 6:
-		val |= I2S_CHN_6;
-		break;
-	case 4:
-		val |= I2S_CHN_4;
-		break;
-	case 2:
-		val |= I2S_CHN_2;
-		break;
-	default:
-		ret = -EINVAL;
+	ret = rockchip_i2s_tdm_params_channels(substream, params, dai);
+	if (ret < 0)
 		goto err;
-	}
 
+	val |= ret;
 	if (i2s_tdm->clk_trcm) {
 		rockchip_i2s_trcm_mode(substream, dai, div_bclk, div_lrck, val);
 	} else if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -1443,7 +1497,7 @@ static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 		.playback = {
 			.stream_name = "Playback",
 			.channels_min = 2,
-			.channels_max = 8,
+			.channels_max = 16,
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = (SNDRV_PCM_FMTBIT_S8 |
 				    SNDRV_PCM_FMTBIT_S16_LE |
@@ -1454,7 +1508,7 @@ static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 		.capture = {
 			.stream_name = "Capture",
 			.channels_min = 2,
-			.channels_max = 8,
+			.channels_max = 16,
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = (SNDRV_PCM_FMTBIT_S8 |
 				    SNDRV_PCM_FMTBIT_S16_LE |
