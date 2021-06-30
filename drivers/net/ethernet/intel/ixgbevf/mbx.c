@@ -224,14 +224,14 @@ static s32 ixgbevf_obtain_mbx_lock_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbevf_write_mbx_vf - Write a message to the mailbox
+ *  ixgbevf_write_mbx_vf_legacy - Write a message to the mailbox
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
  *  returns 0 if it successfully copied message into the buffer
  **/
-static s32 ixgbevf_write_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
+static s32 ixgbevf_write_mbx_vf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	s32 ret_val;
 	u16 i;
@@ -260,14 +260,14 @@ out_no_write:
 }
 
 /**
- *  ixgbevf_read_mbx_vf - Reads a message from the inbox intended for VF
+ *  ixgbevf_read_mbx_vf_legacy - Reads a message from the inbox intended for VF
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
  *  returns 0 if it successfully read message from buffer
  **/
-static s32 ixgbevf_read_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
+static s32 ixgbevf_read_mbx_vf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	s32 ret_val = 0;
 	u16 i;
@@ -318,10 +318,10 @@ static s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
 	return 0;
 }
 
-const struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
+const struct ixgbe_mbx_operations ixgbevf_mbx_ops_legacy = {
 	.init_params	= ixgbevf_init_mbx_params_vf,
-	.read		= ixgbevf_read_mbx_vf,
-	.write		= ixgbevf_write_mbx_vf,
+	.read		= ixgbevf_read_mbx_vf_legacy,
+	.write		= ixgbevf_write_mbx_vf_legacy,
 	.read_posted	= ixgbevf_read_posted_mbx,
 	.write_posted	= ixgbevf_write_posted_mbx,
 	.check_for_msg	= ixgbevf_check_for_msg_vf,
