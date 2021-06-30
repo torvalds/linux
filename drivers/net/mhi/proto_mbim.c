@@ -16,6 +16,7 @@
 #include <linux/ip.h>
 #include <linux/mii.h>
 #include <linux/netdevice.h>
+#include <linux/wwan.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
@@ -56,7 +57,7 @@ static void __mbim_errors_inc(struct mhi_net_dev *dev)
 
 static int mbim_rx_verify_nth16(struct sk_buff *skb)
 {
-	struct mhi_net_dev *dev = netdev_priv(skb->dev);
+	struct mhi_net_dev *dev = wwan_netdev_drvpriv(skb->dev);
 	struct mbim_context *ctx = dev->proto_data;
 	struct usb_cdc_ncm_nth16 *nth16;
 	int len;
@@ -102,7 +103,7 @@ static int mbim_rx_verify_nth16(struct sk_buff *skb)
 
 static int mbim_rx_verify_ndp16(struct sk_buff *skb, struct usb_cdc_ncm_ndp16 *ndp16)
 {
-	struct mhi_net_dev *dev = netdev_priv(skb->dev);
+	struct mhi_net_dev *dev = wwan_netdev_drvpriv(skb->dev);
 	int ret;
 
 	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {

@@ -27,6 +27,7 @@
 #include "smc_close.h"
 #include "smc_ism.h"
 #include "smc_tx.h"
+#include "smc_stats.h"
 
 #define SMC_TX_WORK_DELAY	0
 #define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
@@ -45,6 +46,8 @@ static void smc_tx_write_space(struct sock *sk)
 
 	/* similar to sk_stream_write_space */
 	if (atomic_read(&smc->conn.sndbuf_space) && sock) {
+		if (test_bit(SOCK_NOSPACE, &sock->flags))
+			SMC_STAT_RMB_TX_FULL(smc, !smc->conn.lnk);
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 		rcu_read_lock();
 		wq = rcu_dereference(sk->sk_wq);
@@ -151,9 +154,19 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		goto out_err;
 	}
 
+	if (sk->sk_state == SMC_INIT)
+		return -ENOTCONN;
+
+	if (len > conn->sndbuf_desc->len)
+		SMC_STAT_RMB_TX_SIZE_SMALL(smc, !conn->lnk);
+
+	if (len > conn->peer_rmbe_size)
+		SMC_STAT_RMB_TX_PEER_SIZE_SMALL(smc, !conn->lnk);
+
+	if (msg->msg_flags & MSG_OOB)
+		SMC_STAT_INC(smc, urg_data_cnt);
+
 	while (msg_data_left(msg)) {
-		if (sk->sk_state == SMC_INIT)
-			return -ENOTCONN;
 		if (smc->sk.sk_shutdown & SEND_SHUTDOWN ||
 		    (smc->sk.sk_err == ECONNABORTED) ||
 		    conn->killed)
@@ -419,8 +432,12 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
 	/* destination: RMBE */
 	/* cf. snd_wnd */
 	rmbespace = atomic_read(&conn->peer_rmbe_space);
-	if (rmbespace <= 0)
+	if (rmbespace <= 0) {
+		struct smc_sock *smc = container_of(conn, struct smc_sock,
+						    conn);
+		SMC_STAT_RMB_TX_PEER_FULL(smc, !conn->lnk);
 		return 0;
+	}
 	smc_curs_copy(&prod, &conn->local_tx_ctrl.prod, conn);
 	smc_curs_copy(&cons, &conn->local_rx_ctrl.cons, conn);
 

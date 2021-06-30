@@ -153,7 +153,6 @@ static int ipcomp4_rcv_cb(struct sk_buff *skb, int err)
 }
 
 static const struct xfrm_type ipcomp_type = {
-	.description	= "IPCOMP4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_COMP,
 	.init_state	= ipcomp4_init_state,

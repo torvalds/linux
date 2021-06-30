@@ -47,6 +47,7 @@
 
 /* bar registers for common func */
 #define HCLGEVF_GRO_EN_REG			0x28000
+#define HCLGEVF_RXD_ADV_LAYOUT_EN_REG		0x28008
 
 /* bar registers for rcb */
 #define HCLGEVF_RING_RX_ADDR_L_REG		0x80000
@@ -284,6 +285,7 @@ struct hclgevf_dev {
 	struct semaphore reset_sem;	/* protect reset process */
 
 	u32 fw_version;
+	u16 mbx_api_version;
 	u16 num_tqps;		/* num task queue pairs of this VF */
 
 	u16 alloc_rss_size;	/* allocated RSS task queue */

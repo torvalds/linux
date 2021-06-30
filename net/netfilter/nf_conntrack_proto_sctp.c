@@ -351,7 +351,7 @@ static bool sctp_error(struct sk_buff *skb,
 	}
 	return false;
 out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_SCTP, "%s", logmsg);
 	return true;
 }
 

@@ -31,7 +31,7 @@ static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 }
 
 #define EMIT(bytes, len) \
-	do { prog = emit_code(prog, bytes, len); cnt += len; } while (0)
+	do { prog = emit_code(prog, bytes, len); } while (0)
 
 #define EMIT1(b1)		EMIT(b1, 1)
 #define EMIT2(b1, b2)		EMIT((b1) + ((b2) << 8), 2)
@@ -239,7 +239,6 @@ struct jit_context {
 static void push_callee_regs(u8 **pprog, bool *callee_regs_used)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (callee_regs_used[0])
 		EMIT1(0x53);         /* push rbx */
@@ -255,7 +254,6 @@ static void push_callee_regs(u8 **pprog, bool *callee_regs_used)
 static void pop_callee_regs(u8 **pprog, bool *callee_regs_used)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (callee_regs_used[3])
 		EMIT2(0x41, 0x5F);   /* pop r15 */
@@ -277,13 +275,12 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 			  bool tail_call_reachable, bool is_subprog)
 {
 	u8 *prog = *pprog;
-	int cnt = X86_PATCH_SIZE;
 
 	/* BPF trampoline can be made to work without these nops,
 	 * but let's waste 5 bytes for now and optimize later
 	 */
-	memcpy(prog, x86_nops[5], cnt);
-	prog += cnt;
+	memcpy(prog, x86_nops[5], X86_PATCH_SIZE);
+	prog += X86_PATCH_SIZE;
 	if (!ebpf_from_cbpf) {
 		if (tail_call_reachable && !is_subprog)
 			EMIT2(0x31, 0xC0); /* xor eax, eax */
@@ -303,7 +300,6 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 static int emit_patch(u8 **pprog, void *func, void *ip, u8 opcode)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 	s64 offset;
 
 	offset = func - (ip + X86_PATCH_SIZE);
@@ -423,7 +419,6 @@ static void emit_bpf_tail_call_indirect(u8 **pprog, bool *callee_regs_used,
 	int off1 = 42;
 	int off2 = 31;
 	int off3 = 9;
-	int cnt = 0;
 
 	/* count the additional bytes used for popping callee regs from stack
 	 * that need to be taken into account for each of the offsets that
@@ -513,7 +508,6 @@ static void emit_bpf_tail_call_direct(struct bpf_jit_poke_descriptor *poke,
 	int pop_bytes = 0;
 	int off1 = 20;
 	int poke_off;
-	int cnt = 0;
 
 	/* count the additional bytes used for popping callee regs to stack
 	 * that need to be taken into account for jump offset that is used for
@@ -615,7 +609,6 @@ static void emit_mov_imm32(u8 **pprog, bool sign_propagate,
 {
 	u8 *prog = *pprog;
 	u8 b1, b2, b3;
-	int cnt = 0;
 
 	/*
 	 * Optimization: if imm32 is positive, use 'mov %eax, imm32'
@@ -655,7 +648,6 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 			   const u32 imm32_hi, const u32 imm32_lo)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
 		/*
@@ -678,7 +670,6 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 static void emit_mov_reg(u8 **pprog, bool is64, u32 dst_reg, u32 src_reg)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (is64) {
 		/* mov dst, src */
@@ -697,7 +688,6 @@ static void emit_mov_reg(u8 **pprog, bool is64, u32 dst_reg, u32 src_reg)
 static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (is_imm8(off)) {
 		/* 1-byte signed displacement.
@@ -720,7 +710,6 @@ static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 static void maybe_emit_mod(u8 **pprog, u32 dst_reg, u32 src_reg, bool is64)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	if (is64)
 		EMIT1(add_2mod(0x48, dst_reg, src_reg));
@@ -733,7 +722,6 @@ static void maybe_emit_mod(u8 **pprog, u32 dst_reg, u32 src_reg, bool is64)
 static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	switch (size) {
 	case BPF_B:
@@ -764,7 +752,6 @@ static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 static void emit_stx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	switch (size) {
 	case BPF_B:
@@ -799,7 +786,6 @@ static int emit_atomic(u8 **pprog, u8 atomic_op,
 		       u32 dst_reg, u32 src_reg, s16 off, u8 bpf_size)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 
 	EMIT1(0xF0); /* lock prefix */
 
@@ -869,10 +855,10 @@ static void detect_reg_usage(struct bpf_insn *insn, int insn_cnt,
 	}
 }
 
-static int emit_nops(u8 **pprog, int len)
+static void emit_nops(u8 **pprog, int len)
 {
 	u8 *prog = *pprog;
-	int i, noplen, cnt = 0;
+	int i, noplen;
 
 	while (len > 0) {
 		noplen = len;
@@ -886,8 +872,6 @@ static int emit_nops(u8 **pprog, int len)
 	}
 
 	*pprog = prog;
-
-	return cnt;
 }
 
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
@@ -902,7 +886,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 	bool tail_call_seen = false;
 	bool seen_exit = false;
 	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
-	int i, cnt = 0, excnt = 0;
+	int i, excnt = 0;
 	int ilen, proglen = 0;
 	u8 *prog = temp;
 	int err;
@@ -1297,7 +1281,7 @@ st:			if (is_imm8(insn->off))
 			emit_ldx(&prog, BPF_SIZE(insn->code), dst_reg, src_reg, insn->off);
 			if (BPF_MODE(insn->code) == BPF_PROBE_MEM) {
 				struct exception_table_entry *ex;
-				u8 *_insn = image + proglen;
+				u8 *_insn = image + proglen + (start_of_ldx - temp);
 				s64 delta;
 
 				/* populate jmp_offset for JMP above */
@@ -1576,7 +1560,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 						       nops);
 						return -EFAULT;
 					}
-					cnt += emit_nops(&prog, nops);
+					emit_nops(&prog, nops);
 				}
 				EMIT2(jmp_cond, jmp_offset);
 			} else if (is_simm32(jmp_offset)) {
@@ -1622,7 +1606,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 						       nops);
 						return -EFAULT;
 					}
-					cnt += emit_nops(&prog, nops);
+					emit_nops(&prog, nops);
 				}
 				break;
 			}
@@ -1647,7 +1631,7 @@ emit_jmp:
 						       nops);
 						return -EFAULT;
 					}
-					cnt += emit_nops(&prog, INSN_SZ_DIFF - 2);
+					emit_nops(&prog, INSN_SZ_DIFF - 2);
 				}
 				EMIT2(0xEB, jmp_offset);
 			} else if (is_simm32(jmp_offset)) {
@@ -1754,7 +1738,6 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 {
 	u8 *prog = *pprog;
 	u8 *jmp_insn;
-	int cnt = 0;
 
 	/* arg1: mov rdi, progs[i] */
 	emit_mov_imm64(&prog, BPF_REG_1, (long) p >> 32, (u32) (long) p);
@@ -1822,7 +1805,6 @@ static void emit_align(u8 **pprog, u32 align)
 static int emit_cond_near_jump(u8 **pprog, void *func, void *ip, u8 jmp_cond)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
 	s64 offset;
 
 	offset = func - (ip + 2 + 4);
@@ -1854,7 +1836,7 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
 			      u8 **branches)
 {
 	u8 *prog = *pprog;
-	int i, cnt = 0;
+	int i;
 
 	/* The first fmod_ret program will receive a garbage return value.
 	 * Set this to 0 to avoid confusing the program.
@@ -1950,7 +1932,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 				struct bpf_tramp_progs *tprogs,
 				void *orig_call)
 {
-	int ret, i, cnt = 0, nr_args = m->nr_args;
+	int ret, i, nr_args = m->nr_args;
 	int stack_size = nr_args * 8;
 	struct bpf_tramp_progs *fentry = &tprogs[BPF_TRAMP_FENTRY];
 	struct bpf_tramp_progs *fexit = &tprogs[BPF_TRAMP_FEXIT];
@@ -2095,8 +2077,6 @@ static int emit_fallback_jump(u8 **pprog)
 	 */
 	err = emit_jump(&prog, __x86_indirect_thunk_rdx, prog);
 #else
-	int cnt = 0;
-
 	EMIT2(0xFF, 0xE2);	/* jmp rdx */
 #endif
 	*pprog = prog;
@@ -2106,7 +2086,7 @@ static int emit_fallback_jump(u8 **pprog)
 static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs)
 {
 	u8 *jg_reloc, *prog = *pprog;
-	int pivot, err, jg_bytes = 1, cnt = 0;
+	int pivot, err, jg_bytes = 1;
 	s64 jg_offset;
 
 	if (a == b) {

@@ -785,6 +785,7 @@ static int bcm_delete_rx_op(struct list_head *ops, struct bcm_msg_head *mh,
 						  bcm_rx_handler, op);
 
 			list_del(&op->list);
+			synchronize_rcu();
 			bcm_remove_op(op);
 			return 1; /* done */
 		}
@@ -1417,7 +1418,7 @@ static void bcm_notify(struct bcm_sock *bo, unsigned long msg,
 		if (notify_enodev) {
 			sk->sk_err = ENODEV;
 			if (!sock_flag(sk, SOCK_DEAD))
-				sk->sk_error_report(sk);
+				sk_error_report(sk);
 		}
 		break;
 
@@ -1425,7 +1426,7 @@ static void bcm_notify(struct bcm_sock *bo, unsigned long msg,
 		if (bo->bound && bo->ifindex == dev->ifindex) {
 			sk->sk_err = ENETDOWN;
 			if (!sock_flag(sk, SOCK_DEAD))
-				sk->sk_error_report(sk);
+				sk_error_report(sk);
 		}
 	}
 }
@@ -1533,8 +1534,12 @@ static int bcm_release(struct socket *sock)
 					  REGMASK(op->can_id),
 					  bcm_rx_handler, op);
 
-		bcm_remove_op(op);
 	}
+
+	synchronize_rcu();
+
+	list_for_each_entry_safe(op, next, &bo->rx_ops, list)
+		bcm_remove_op(op);
 
 #if IS_ENABLED(CONFIG_PROC_FS)
 	/* remove procfs entry */

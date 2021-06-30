@@ -51,11 +51,20 @@ properties:
         - allwinner,sun8i-r40-emac
         - allwinner,sun8i-v3s-emac
         - allwinner,sun50i-a64-emac
+        - loongson,ls2k-dwmac
+        - loongson,ls7a-dwmac
         - amlogic,meson6-dwmac
         - amlogic,meson8b-dwmac
         - amlogic,meson8m2-dwmac
         - amlogic,meson-gxbb-dwmac
         - amlogic,meson-axg-dwmac
+        - loongson,ls2k-dwmac
+        - loongson,ls7a-dwmac
+        - ingenic,jz4775-mac
+        - ingenic,x1000-mac
+        - ingenic,x1600-mac
+        - ingenic,x1830-mac
+        - ingenic,x2000-mac
         - rockchip,px30-gmac
         - rockchip,rk3128-gmac
         - rockchip,rk3228-gmac
@@ -310,6 +319,11 @@ allOf:
               - allwinner,sun8i-r40-emac
               - allwinner,sun8i-v3s-emac
               - allwinner,sun50i-a64-emac
+              - ingenic,jz4775-mac
+              - ingenic,x1000-mac
+              - ingenic,x1600-mac
+              - ingenic,x1830-mac
+              - ingenic,x2000-mac
               - snps,dwxgmac
               - snps,dwxgmac-2.10
               - st,spear600-gmac
@@ -353,6 +367,13 @@ allOf:
               - allwinner,sun8i-r40-emac
               - allwinner,sun8i-v3s-emac
               - allwinner,sun50i-a64-emac
+              - loongson,ls2k-dwmac
+              - loongson,ls7a-dwmac
+              - ingenic,jz4775-mac
+              - ingenic,x1000-mac
+              - ingenic,x1600-mac
+              - ingenic,x1830-mac
+              - ingenic,x2000-mac
               - snps,dwmac-4.00
               - snps,dwmac-4.10a
               - snps,dwmac-4.20a

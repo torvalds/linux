@@ -711,6 +711,8 @@ static inline u64 acpi_arch_get_root_pointer(void)
 }
 #endif
 
+int acpi_get_local_address(acpi_handle handle, u32 *addr);
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -964,6 +966,11 @@ static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
 static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
 {
 	return NULL;
+}
+
+static inline int acpi_get_local_address(acpi_handle handle, u32 *addr)
+{
+	return -ENODEV;
 }
 
 #endif	/* !CONFIG_ACPI */

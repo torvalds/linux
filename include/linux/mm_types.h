@@ -97,6 +97,13 @@ struct page {
 		};
 		struct {	/* page_pool used by netstack */
 			/**
+			 * @pp_magic: magic value to avoid recycling non
+			 * page_pool allocated pages.
+			 */
+			unsigned long pp_magic;
+			struct page_pool *pp;
+			unsigned long _pp_mapping_pad;
+			/**
 			 * @dma_addr: might require a 64-bit value on
 			 * 32-bit architectures.
 			 */

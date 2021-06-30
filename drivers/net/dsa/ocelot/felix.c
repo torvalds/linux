@@ -940,6 +940,8 @@ static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
 
 	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
 
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, tx_pause);
+
 	/* Undo the effects of felix_phylink_mac_link_down:
 	 * enable MAC module
 	 */

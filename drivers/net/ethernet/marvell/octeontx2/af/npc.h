@@ -33,6 +33,10 @@ enum npc_kpu_la_ltype {
 	NPC_LT_LA_IH_2_ETHER,
 	NPC_LT_LA_HIGIG2_ETHER,
 	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
+	NPC_LT_LA_CUSTOM_L2_90B_ETHER,
+	NPC_LT_LA_CH_LEN_90B_ETHER,
+	NPC_LT_LA_CPT_HDR,
+	NPC_LT_LA_CUSTOM_L2_24B_ETHER,
 	NPC_LT_LA_CUSTOM0 = 0xE,
 	NPC_LT_LA_CUSTOM1 = 0xF,
 };
@@ -42,7 +46,7 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_CTAG,
 	NPC_LT_LB_STAG_QINQ,
 	NPC_LT_LB_BTAG,
-	NPC_LT_LB_ITAG,
+	NPC_LT_LB_PPPOE,
 	NPC_LT_LB_DSA,
 	NPC_LT_LB_DSA_VLAN,
 	NPC_LT_LB_EDSA,
@@ -50,6 +54,7 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_EXDSA,
 	NPC_LT_LB_EXDSA_VLAN,
 	NPC_LT_LB_FDSA,
+	NPC_LT_LB_VLAN_EXDSA,
 	NPC_LT_LB_CUSTOM0 = 0xE,
 	NPC_LT_LB_CUSTOM1 = 0xF,
 };
@@ -65,6 +70,7 @@ enum npc_kpu_lc_ltype {
 	NPC_LT_LC_NSH,
 	NPC_LT_LC_PTP,
 	NPC_LT_LC_FCOE,
+	NPC_LT_LC_NGIO,
 	NPC_LT_LC_CUSTOM0 = 0xE,
 	NPC_LT_LC_CUSTOM1 = 0xF,
 };
@@ -146,7 +152,14 @@ enum npc_kpu_lh_ltype {
  * Ethernet interfaces, LBK interfaces, etc.
  */
 enum npc_pkind_type {
-	NPC_TX_DEF_PKIND = 63ULL,	/* NIX-TX PKIND */
+	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
+	NPC_RX_CHLEN24B_PKIND = 57ULL,
+	NPC_RX_CPT_HDR_PKIND,
+	NPC_RX_CHLEN90B_PKIND,
+	NPC_TX_HIGIG_PKIND,
+	NPC_RX_HIGIG_PKIND,
+	NPC_RX_EDSA_PKIND,
+	NPC_TX_DEF_PKIND,	/* NIX-TX PKIND */
 };
 
 /* list of known and supported fields in packet header and
@@ -213,7 +226,7 @@ struct npc_kpu_profile_cam {
 	u16 dp1_mask;
 	u16 dp2;
 	u16 dp2_mask;
-};
+} __packed;
 
 struct npc_kpu_profile_action {
 	u8 errlev;
@@ -233,13 +246,13 @@ struct npc_kpu_profile_action {
 	u8 mask;
 	u8 right;
 	u8 shift;
-};
+} __packed;
 
 struct npc_kpu_profile {
 	int cam_entries;
 	int action_entries;
-	const struct npc_kpu_profile_cam *cam;
-	const struct npc_kpu_profile_action *action;
+	struct npc_kpu_profile_cam *cam;
+	struct npc_kpu_profile_action *action;
 };
 
 /* NPC KPU register formats */
@@ -425,7 +438,19 @@ struct nix_tx_action {
 /* NPC MCAM reserved entry index per nixlf */
 #define NIXLF_UCAST_ENTRY	0
 #define NIXLF_BCAST_ENTRY	1
-#define NIXLF_PROMISC_ENTRY	2
+#define NIXLF_ALLMULTI_ENTRY	2
+#define NIXLF_PROMISC_ENTRY	3
+
+struct npc_coalesced_kpu_prfl {
+#define NPC_SIGN	0x00666f727063706e
+#define NPC_PRFL_NAME   "npc_prfls_array"
+#define NPC_NAME_LEN	32
+	__le64 signature; /* "npcprof\0" (8 bytes/ASCII characters) */
+	u8 name[NPC_NAME_LEN]; /* KPU Profile name */
+	u64 version; /* KPU firmware/profile version */
+	u8 num_prfl; /* No of NPC profiles. */
+	u16 prfl_sz[0];
+};
 
 struct npc_mcam_kex {
 	/* MKEX Profle Header */
@@ -445,6 +470,15 @@ struct npc_mcam_kex {
 	u64 intf_ld_flags[NPC_MAX_INTF][NPC_MAX_LD][NPC_MAX_LFL];
 } __packed;
 
+struct npc_kpu_fwdata {
+	int	entries;
+	/* What follows is:
+	 * struct npc_kpu_profile_cam[entries];
+	 * struct npc_kpu_profile_action[entries];
+	 */
+	u8	data[0];
+} __packed;
+
 struct npc_lt_def {
 	u8	ltype_mask;
 	u8	ltype_match;
@@ -458,6 +492,29 @@ struct npc_lt_def_ipsec {
 	u8	spi_offset;
 	u8	spi_nz;
 };
+
+struct npc_lt_def_apad {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	valid;
+} __packed;
+
+struct npc_lt_def_color {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	noffset;
+	u8	offset;
+} __packed;
+
+struct npc_lt_def_et {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	valid;
+	u8	offset;
+} __packed;
 
 struct npc_lt_def_cfg {
 	struct npc_lt_def	rx_ol2;
@@ -476,7 +533,41 @@ struct npc_lt_def_cfg {
 	struct npc_lt_def	pck_oip4;
 	struct npc_lt_def	pck_oip6;
 	struct npc_lt_def	pck_iip4;
-};
+	struct npc_lt_def_apad	rx_apad0;
+	struct npc_lt_def_apad	rx_apad1;
+	struct npc_lt_def_color	ovlan;
+	struct npc_lt_def_color	ivlan;
+	struct npc_lt_def_color	rx_gen0_color;
+	struct npc_lt_def_color	rx_gen1_color;
+	struct npc_lt_def_et	rx_et[2];
+} __packed;
+
+/* Loadable KPU profile firmware data */
+struct npc_kpu_profile_fwdata {
+#define KPU_SIGN	0x00666f727075706b
+#define KPU_NAME_LEN	32
+/** Maximum number of custom KPU entries supported by the built-in profile. */
+#define KPU_MAX_CST_ENT	2
+	/* KPU Profle Header */
+	__le64	signature; /* "kpuprof\0" (8 bytes/ASCII characters) */
+	u8	name[KPU_NAME_LEN]; /* KPU Profile name */
+	__le64	version; /* KPU profile version */
+	u8	kpus;
+	u8	reserved[7];
+
+	/* Default MKEX profile to be used with this KPU profile. May be
+	 * overridden with mkex_profile module parameter. Format is same as for
+	 * the MKEX profile to streamline processing.
+	 */
+	struct npc_mcam_kex	mkex;
+	/* LTYPE values for specific HW offloaded protocols. */
+	struct npc_lt_def_cfg	lt_def;
+	/* Dynamically sized data:
+	 *  Custom KPU CAM and ACTION configuration entries.
+	 * struct npc_kpu_fwdata kpu[kpus];
+	 */
+	u8	data[0];
+} __packed;
 
 struct rvu_npc_mcam_rule {
 	struct flow_msg packet;

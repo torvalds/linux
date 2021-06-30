@@ -325,7 +325,7 @@ found:
 	 * Found it -- move to the front on the connection list.
 	 */
 	if(lcs == ocs) {
- 		/* found at most recently used */
+		/* found at most recently used */
 	} else if (cs == ocs) {
 		/* found at least recently used */
 		comp->xmit_oldest = lcs->cs_this;

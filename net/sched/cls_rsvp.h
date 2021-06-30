@@ -7,7 +7,7 @@
 
 /*
    Comparing to general packet classification problem,
-   RSVP needs only sevaral relatively simple rules:
+   RSVP needs only several relatively simple rules:
 
    * (dst, protocol) are always specified,
      so that we are able to hash them.

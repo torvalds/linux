@@ -292,3 +292,71 @@ configuration.
 
     # bring up the bridge devices
     ip link set br0 up
+
+Forwarding database (FDB) management
+------------------------------------
+
+The existing DSA switches do not have the necessary hardware support to keep
+the software FDB of the bridge in sync with the hardware tables, so the two
+tables are managed separately (``bridge fdb show`` queries both, and depending
+on whether the ``self`` or ``master`` flags are being used, a ``bridge fdb
+add`` or ``bridge fdb del`` command acts upon entries from one or both tables).
+
+Up until kernel v4.14, DSA only supported user space management of bridge FDB
+entries using the bridge bypass operations (which do not update the software
+FDB, just the hardware one) using the ``self`` flag (which is optional and can
+be omitted).
+
+  .. code-block:: sh
+
+    bridge fdb add dev swp0 00:01:02:03:04:05 self static
+    # or shorthand
+    bridge fdb add dev swp0 00:01:02:03:04:05 static
+
+Due to a bug, the bridge bypass FDB implementation provided by DSA did not
+distinguish between ``static`` and ``local`` FDB entries (``static`` are meant
+to be forwarded, while ``local`` are meant to be locally terminated, i.e. sent
+to the host port). Instead, all FDB entries with the ``self`` flag (implicit or
+explicit) are treated by DSA as ``static`` even if they are ``local``.
+
+  .. code-block:: sh
+
+    # This command:
+    bridge fdb add dev swp0 00:01:02:03:04:05 static
+    # behaves the same for DSA as this command:
+    bridge fdb add dev swp0 00:01:02:03:04:05 local
+    # or shorthand, because the 'local' flag is implicit if 'static' is not
+    # specified, it also behaves the same as:
+    bridge fdb add dev swp0 00:01:02:03:04:05
+
+The last command is an incorrect way of adding a static bridge FDB entry to a
+DSA switch using the bridge bypass operations, and works by mistake. Other
+drivers will treat an FDB entry added by the same command as ``local`` and as
+such, will not forward it, as opposed to DSA.
+
+Between kernel v4.14 and v5.14, DSA has supported in parallel two modes of
+adding a bridge FDB entry to the switch: the bridge bypass discussed above, as
+well as a new mode using the ``master`` flag which installs FDB entries in the
+software bridge too.
+
+  .. code-block:: sh
+
+    bridge fdb add dev swp0 00:01:02:03:04:05 master static
+
+Since kernel v5.14, DSA has gained stronger integration with the bridge's
+software FDB, and the support for its bridge bypass FDB implementation (using
+the ``self`` flag) has been removed. This results in the following changes:
+
+  .. code-block:: sh
+
+    # This is the only valid way of adding an FDB entry that is supported,
+    # compatible with v4.14 kernels and later:
+    bridge fdb add dev swp0 00:01:02:03:04:05 master static
+    # This command is no longer buggy and the entry is properly treated as
+    # 'local' instead of being forwarded:
+    bridge fdb add dev swp0 00:01:02:03:04:05
+    # This command no longer installs a static FDB entry to hardware:
+    bridge fdb add dev swp0 00:01:02:03:04:05 static
+
+Script writers are therefore encouraged to use the ``master static`` set of
+flags when working with bridge FDB entries on DSA switch interfaces.

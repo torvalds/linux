@@ -497,6 +497,7 @@ drivers:
 
   * Documentation/networking/devlink/netdevsim.rst
   * Documentation/networking/devlink/mlxsw.rst
+  * Documentation/networking/devlink/prestera.rst
 
 .. _Generic-Packet-Trap-Groups:
 

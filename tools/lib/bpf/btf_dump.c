@@ -128,7 +128,7 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 
 	d = calloc(1, sizeof(struct btf_dump));
 	if (!d)
-		return ERR_PTR(-ENOMEM);
+		return libbpf_err_ptr(-ENOMEM);
 
 	d->btf = btf;
 	d->btf_ext = btf_ext;
@@ -156,7 +156,7 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 	return d;
 err:
 	btf_dump__free(d);
-	return ERR_PTR(err);
+	return libbpf_err_ptr(err);
 }
 
 static int btf_dump_resize(struct btf_dump *d)
@@ -236,16 +236,16 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 	int err, i;
 
 	if (id > btf__get_nr_types(d->btf))
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	err = btf_dump_resize(d);
 	if (err)
-		return err;
+		return libbpf_err(err);
 
 	d->emit_queue_cnt = 0;
 	err = btf_dump_order_type(d, id, false);
 	if (err < 0)
-		return err;
+		return libbpf_err(err);
 
 	for (i = 0; i < d->emit_queue_cnt; i++)
 		btf_dump_emit_type(d, d->emit_queue[i], 0 /*top-level*/);
@@ -1075,11 +1075,11 @@ int btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
 	int lvl, err;
 
 	if (!OPTS_VALID(opts, btf_dump_emit_type_decl_opts))
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	err = btf_dump_resize(d);
 	if (err)
-		return -EINVAL;
+		return libbpf_err(err);
 
 	fname = OPTS_GET(opts, field_name, "");
 	lvl = OPTS_GET(opts, indent_level, 0);

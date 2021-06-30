@@ -71,6 +71,18 @@
  */
 #define lower_32_bits(n) ((u32)((n) & 0xffffffff))
 
+/**
+ * upper_16_bits - return bits 16-31 of a number
+ * @n: the number we're accessing
+ */
+#define upper_16_bits(n) ((u16)((n) >> 16))
+
+/**
+ * lower_16_bits - return bits 0-15 of a number
+ * @n: the number we're accessing
+ */
+#define lower_16_bits(n) ((u16)((n) & 0xffff))
+
 struct completion;
 struct pt_regs;
 struct user;

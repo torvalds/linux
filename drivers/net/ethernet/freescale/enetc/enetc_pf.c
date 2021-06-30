@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2017-2019 NXP */
 
+#include <asm/unaligned.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/fsl/enetc_mdio.h>
@@ -17,15 +18,15 @@ static void enetc_pf_get_primary_mac_addr(struct enetc_hw *hw, int si, u8 *addr)
 	u32 upper = __raw_readl(hw->port + ENETC_PSIPMAR0(si));
 	u16 lower = __raw_readw(hw->port + ENETC_PSIPMAR1(si));
 
-	*(u32 *)addr = upper;
-	*(u16 *)(addr + 4) = lower;
+	put_unaligned_le32(upper, addr);
+	put_unaligned_le16(lower, addr + 4);
 }
 
 static void enetc_pf_set_primary_mac_addr(struct enetc_hw *hw, int si,
 					  const u8 *addr)
 {
-	u32 upper = *(const u32 *)addr;
-	u16 lower = *(const u16 *)(addr + 4);
+	u32 upper = get_unaligned_le32(addr);
+	u16 lower = get_unaligned_le16(addr + 4);
 
 	__raw_writel(upper, hw->port + ENETC_PSIPMAR0(si));
 	__raw_writew(lower, hw->port + ENETC_PSIPMAR1(si));

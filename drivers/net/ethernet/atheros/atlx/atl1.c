@@ -1011,7 +1011,7 @@ static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 }
 
 /**
- * atl1_setup_mem_resources - allocate Tx / RX descriptor resources
+ * atl1_setup_ring_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
  * Return 0 on success, negative on failure

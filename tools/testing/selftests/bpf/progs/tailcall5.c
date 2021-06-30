@@ -10,7 +10,7 @@ struct {
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
 
-static volatile int selector;
+int selector = 0;
 
 #define TAIL_FUNC(x)				\
 	SEC("classifier/" #x)			\

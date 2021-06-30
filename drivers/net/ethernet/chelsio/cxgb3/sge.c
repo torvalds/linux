@@ -665,7 +665,7 @@ static void t3_reset_qset(struct sge_qset *q)
 
 
 /**
- *	free_qset - free the resources of an SGE queue set
+ *	t3_free_qset - free the resources of an SGE queue set
  *	@adapter: the adapter owning the queue set
  *	@q: the queue set
  *
@@ -1256,7 +1256,7 @@ static inline void t3_stop_tx_queue(struct netdev_queue *txq,
 }
 
 /**
- *	eth_xmit - add a packet to the Ethernet Tx queue
+ *	t3_eth_xmit - add a packet to the Ethernet Tx queue
  *	@skb: the packet
  *	@dev: the egress net device
  *
@@ -1518,14 +1518,15 @@ static int ctrl_xmit(struct adapter *adap, struct sge_txq *q,
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@t: pointer to the tasklet associated with this handler
+ *	@w: pointer to the work associated with this handler
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
-static void restart_ctrlq(struct tasklet_struct *t)
+static void restart_ctrlq(struct work_struct *w)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_CTRL].qresume_tsk);
+	struct sge_qset *qs = container_of(w, struct sge_qset,
+					   txq[TXQ_CTRL].qresume_task);
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 
 	spin_lock(&q->lock);
@@ -1736,14 +1737,15 @@ again:	reclaim_completed_tx(adap, q, TX_RECLAIM_CHUNK);
 
 /**
  *	restart_offloadq - restart a suspended offload queue
- *	@t: pointer to the tasklet associated with this handler
+ *	@w: pointer to the work associated with this handler
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */
-static void restart_offloadq(struct tasklet_struct *t)
+static void restart_offloadq(struct work_struct *w)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_OFLD].qresume_tsk);
+	struct sge_qset *qs = container_of(w, struct sge_qset,
+					   txq[TXQ_OFLD].qresume_task);
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
 	const struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
@@ -1998,13 +2000,17 @@ static void restart_tx(struct sge_qset *qs)
 	    should_restart_tx(&qs->txq[TXQ_OFLD]) &&
 	    test_and_clear_bit(TXQ_OFLD, &qs->txq_stopped)) {
 		qs->txq[TXQ_OFLD].restarts++;
-		tasklet_schedule(&qs->txq[TXQ_OFLD].qresume_tsk);
+
+		/* The work can be quite lengthy so we use driver's own queue */
+		queue_work(cxgb3_wq, &qs->txq[TXQ_OFLD].qresume_task);
 	}
 	if (test_bit(TXQ_CTRL, &qs->txq_stopped) &&
 	    should_restart_tx(&qs->txq[TXQ_CTRL]) &&
 	    test_and_clear_bit(TXQ_CTRL, &qs->txq_stopped)) {
 		qs->txq[TXQ_CTRL].restarts++;
-		tasklet_schedule(&qs->txq[TXQ_CTRL].qresume_tsk);
+
+		/* The work can be quite lengthy so we use driver's own queue */
+		queue_work(cxgb3_wq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
 
@@ -3085,8 +3091,8 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		skb_queue_head_init(&q->txq[i].sendq);
 	}
 
-	tasklet_setup(&q->txq[TXQ_OFLD].qresume_tsk, restart_offloadq);
-	tasklet_setup(&q->txq[TXQ_CTRL].qresume_tsk, restart_ctrlq);
+	INIT_WORK(&q->txq[TXQ_OFLD].qresume_task, restart_offloadq);
+	INIT_WORK(&q->txq[TXQ_CTRL].qresume_task, restart_ctrlq);
 
 	q->fl[0].gen = q->fl[1].gen = 1;
 	q->fl[0].size = p->fl_size;
@@ -3276,11 +3282,11 @@ void t3_sge_start(struct adapter *adap)
  *
  *	Can be invoked from interrupt context e.g.  error handler.
  *
- *	Note that this function cannot disable the restart of tasklets as
+ *	Note that this function cannot disable the restart of works as
  *	it cannot wait if called from interrupt context, however the
- *	tasklets will have no effect since the doorbells are disabled. The
+ *	works will have no effect since the doorbells are disabled. The
  *	driver will call tg3_sge_stop() later from process context, at
- *	which time the tasklets will be stopped if they are still running.
+ *	which time the works will be stopped if they are still running.
  */
 void t3_sge_stop_dma(struct adapter *adap)
 {
@@ -3292,7 +3298,7 @@ void t3_sge_stop_dma(struct adapter *adap)
  *	@adap: the adapter
  *
  *	Called from process context. Disables the DMA engine and any
- *	pending queue restart tasklets.
+ *	pending queue restart works.
  */
 void t3_sge_stop(struct adapter *adap)
 {
@@ -3303,8 +3309,8 @@ void t3_sge_stop(struct adapter *adap)
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *qs = &adap->sge.qs[i];
 
-		tasklet_kill(&qs->txq[TXQ_OFLD].qresume_tsk);
-		tasklet_kill(&qs->txq[TXQ_CTRL].qresume_tsk);
+		cancel_work_sync(&qs->txq[TXQ_OFLD].qresume_task);
+		cancel_work_sync(&qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
 
@@ -3371,7 +3377,7 @@ void t3_sge_prep(struct adapter *adap, struct sge_params *p)
 		q->coalesce_usecs = 5;
 		q->rspq_size = 1024;
 		q->fl_size = 1024;
- 		q->jumbo_size = 512;
+		q->jumbo_size = 512;
 		q->txq_size[TXQ_ETH] = 1024;
 		q->txq_size[TXQ_OFLD] = 1024;
 		q->txq_size[TXQ_CTRL] = 256;

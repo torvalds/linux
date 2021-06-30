@@ -53,23 +53,30 @@ static void test_hashmap(unsigned int task, void *data)
 
 	value = 0;
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update_elem(fd, &key, &value, -1) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, -1) < 0 &&
 	       errno == EINVAL);
 
 	/* Check that key=1 can be found. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 1234);
 
 	key = 2;
+	value = 1234;
+	/* Insert key=2 element. */
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
+
+	/* Check that key=2 matches the value and delete it */
+	assert(bpf_map_lookup_and_delete_elem(fd, &key, &value) == 0 && value == 1234);
+
 	/* Check that key=2 is not found. */
-	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) < 0 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) < 0 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
@@ -80,7 +87,7 @@ static void test_hashmap(unsigned int task, void *data)
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Update existing element, though the map is full. */
@@ -89,12 +96,12 @@ static void test_hashmap(unsigned int task, void *data)
 	key = 2;
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 	key = 3;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
 	key = 0;
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == ENOENT);
 
 	/* Iterate over two elements. */
 	assert(bpf_map_get_next_key(fd, NULL, &first_key) == 0 &&
@@ -104,7 +111,7 @@ static void test_hashmap(unsigned int task, void *data)
 	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
 	       (next_key == 1 || next_key == 2) &&
 	       (next_key != first_key));
-	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) < 0 &&
 	       errno == ENOENT);
 
 	/* Delete both elements. */
@@ -112,13 +119,13 @@ static void test_hashmap(unsigned int task, void *data)
 	assert(bpf_map_delete_elem(fd, &key) == 0);
 	key = 2;
 	assert(bpf_map_delete_elem(fd, &key) == 0);
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == ENOENT);
 
 	key = 0;
 	/* Check that map is empty. */
-	assert(bpf_map_get_next_key(fd, NULL, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) < 0 &&
 	       errno == ENOENT);
-	assert(bpf_map_get_next_key(fd, &key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &key, &next_key) < 0 &&
 	       errno == ENOENT);
 
 	close(fd);
@@ -166,15 +173,25 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	/* Insert key=1 element. */
 	assert(!(expected_key_mask & key));
 	assert(bpf_map_update_elem(fd, &key, value, BPF_ANY) == 0);
+
+	/* Lookup and delete elem key=1 and check value. */
+	assert(bpf_map_lookup_and_delete_elem(fd, &key, value) == 0 &&
+	       bpf_percpu(value,0) == 100);
+
+	for (i = 0; i < nr_cpus; i++)
+		bpf_percpu(value,i) = i + 100;
+
+	/* Insert key=1 element which should not exist. */
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == 0);
 	expected_key_mask |= key;
 
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) < 0 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update_elem(fd, &key, value, -1) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, -1) < 0 &&
 	       errno == EINVAL);
 
 	/* Check that key=1 can be found. Value could be 0 if the lookup
@@ -186,10 +203,10 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 
 	key = 2;
 	/* Check that key=2 is not found. */
-	assert(bpf_map_lookup_elem(fd, &key, value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, value) < 0 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) < 0 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
@@ -202,11 +219,11 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == ENOENT);
 
 	/* Iterate over two elements. */
 	assert(bpf_map_get_next_key(fd, NULL, &first_key) == 0 &&
@@ -237,13 +254,13 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	assert(bpf_map_delete_elem(fd, &key) == 0);
 	key = 2;
 	assert(bpf_map_delete_elem(fd, &key) == 0);
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == ENOENT);
 
 	key = 0;
 	/* Check that map is empty. */
-	assert(bpf_map_get_next_key(fd, NULL, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) < 0 &&
 	       errno == ENOENT);
-	assert(bpf_map_get_next_key(fd, &key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &key, &next_key) < 0 &&
 	       errno == ENOENT);
 
 	close(fd);
@@ -360,7 +377,7 @@ static void test_arraymap(unsigned int task, void *data)
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	value = 0;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
@@ -374,11 +391,11 @@ static void test_arraymap(unsigned int task, void *data)
 	 * due to max_entries limit.
 	 */
 	key = 2;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
-	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) < 0 && errno == ENOENT);
 
 	/* Iterate over two elements. */
 	assert(bpf_map_get_next_key(fd, NULL, &next_key) == 0 &&
@@ -387,12 +404,12 @@ static void test_arraymap(unsigned int task, void *data)
 	       next_key == 0);
 	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
 	       next_key == 1);
-	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) < 0 &&
 	       errno == ENOENT);
 
 	/* Delete shouldn't succeed. */
 	key = 1;
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == EINVAL);
 
 	close(fd);
 }
@@ -418,7 +435,7 @@ static void test_arraymap_percpu(unsigned int task, void *data)
 	assert(bpf_map_update_elem(fd, &key, values, BPF_ANY) == 0);
 
 	bpf_percpu(values, 0) = 0;
-	assert(bpf_map_update_elem(fd, &key, values, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, values, BPF_NOEXIST) < 0 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
@@ -433,11 +450,11 @@ static void test_arraymap_percpu(unsigned int task, void *data)
 
 	/* Check that key=2 cannot be inserted due to max_entries limit. */
 	key = 2;
-	assert(bpf_map_update_elem(fd, &key, values, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, values, BPF_EXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
-	assert(bpf_map_lookup_elem(fd, &key, values) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, values) < 0 && errno == ENOENT);
 
 	/* Iterate over two elements. */
 	assert(bpf_map_get_next_key(fd, NULL, &next_key) == 0 &&
@@ -446,12 +463,12 @@ static void test_arraymap_percpu(unsigned int task, void *data)
 	       next_key == 0);
 	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
 	       next_key == 1);
-	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) < 0 &&
 	       errno == ENOENT);
 
 	/* Delete shouldn't succeed. */
 	key = 1;
-	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, &key) < 0 && errno == EINVAL);
 
 	close(fd);
 }
@@ -555,7 +572,7 @@ static void test_queuemap(unsigned int task, void *data)
 		assert(bpf_map_update_elem(fd, NULL, &vals[i], 0) == 0);
 
 	/* Check that element cannot be pushed due to max_entries limit */
-	assert(bpf_map_update_elem(fd, NULL, &val, 0) == -1 &&
+	assert(bpf_map_update_elem(fd, NULL, &val, 0) < 0 &&
 	       errno == E2BIG);
 
 	/* Peek element */
@@ -571,12 +588,12 @@ static void test_queuemap(unsigned int task, void *data)
 		       val == vals[i]);
 
 	/* Check that there are not elements left */
-	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == -1 &&
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) < 0 &&
 	       errno == ENOENT);
 
 	/* Check that non supported functions set errno to EINVAL */
-	assert(bpf_map_delete_elem(fd, NULL) == -1 && errno == EINVAL);
-	assert(bpf_map_get_next_key(fd, NULL, NULL) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, NULL) < 0 && errno == EINVAL);
+	assert(bpf_map_get_next_key(fd, NULL, NULL) < 0 && errno == EINVAL);
 
 	close(fd);
 }
@@ -613,7 +630,7 @@ static void test_stackmap(unsigned int task, void *data)
 		assert(bpf_map_update_elem(fd, NULL, &vals[i], 0) == 0);
 
 	/* Check that element cannot be pushed due to max_entries limit */
-	assert(bpf_map_update_elem(fd, NULL, &val, 0) == -1 &&
+	assert(bpf_map_update_elem(fd, NULL, &val, 0) < 0 &&
 	       errno == E2BIG);
 
 	/* Peek element */
@@ -629,12 +646,12 @@ static void test_stackmap(unsigned int task, void *data)
 		       val == vals[i]);
 
 	/* Check that there are not elements left */
-	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == -1 &&
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) < 0 &&
 	       errno == ENOENT);
 
 	/* Check that non supported functions set errno to EINVAL */
-	assert(bpf_map_delete_elem(fd, NULL) == -1 && errno == EINVAL);
-	assert(bpf_map_get_next_key(fd, NULL, NULL) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, NULL) < 0 && errno == EINVAL);
+	assert(bpf_map_get_next_key(fd, NULL, NULL) < 0 && errno == EINVAL);
 
 	close(fd);
 }
@@ -835,7 +852,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	bpf_map_rx = bpf_object__find_map_by_name(obj, "sock_map_rx");
-	if (IS_ERR(bpf_map_rx)) {
+	if (!bpf_map_rx) {
 		printf("Failed to load map rx from verdict prog\n");
 		goto out_sockmap;
 	}
@@ -847,7 +864,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	bpf_map_tx = bpf_object__find_map_by_name(obj, "sock_map_tx");
-	if (IS_ERR(bpf_map_tx)) {
+	if (!bpf_map_tx) {
 		printf("Failed to load map tx from verdict prog\n");
 		goto out_sockmap;
 	}
@@ -859,7 +876,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	bpf_map_msg = bpf_object__find_map_by_name(obj, "sock_map_msg");
-	if (IS_ERR(bpf_map_msg)) {
+	if (!bpf_map_msg) {
 		printf("Failed to load map msg from msg_verdict prog\n");
 		goto out_sockmap;
 	}
@@ -871,7 +888,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	bpf_map_break = bpf_object__find_map_by_name(obj, "sock_map_break");
-	if (IS_ERR(bpf_map_break)) {
+	if (!bpf_map_break) {
 		printf("Failed to load map tx from verdict prog\n");
 		goto out_sockmap;
 	}
@@ -1153,7 +1170,7 @@ static void test_map_in_map(void)
 	}
 
 	map = bpf_object__find_map_by_name(obj, "mim_array");
-	if (IS_ERR(map)) {
+	if (!map) {
 		printf("Failed to load array of maps from test prog\n");
 		goto out_map_in_map;
 	}
@@ -1164,7 +1181,7 @@ static void test_map_in_map(void)
 	}
 
 	map = bpf_object__find_map_by_name(obj, "mim_hash");
-	if (IS_ERR(map)) {
+	if (!map) {
 		printf("Failed to load hash of maps from test prog\n");
 		goto out_map_in_map;
 	}
@@ -1177,7 +1194,7 @@ static void test_map_in_map(void)
 	bpf_object__load(obj);
 
 	map = bpf_object__find_map_by_name(obj, "mim_array");
-	if (IS_ERR(map)) {
+	if (!map) {
 		printf("Failed to load array of maps from test prog\n");
 		goto out_map_in_map;
 	}
@@ -1194,7 +1211,7 @@ static void test_map_in_map(void)
 	}
 
 	map = bpf_object__find_map_by_name(obj, "mim_hash");
-	if (IS_ERR(map)) {
+	if (!map) {
 		printf("Failed to load hash of maps from test prog\n");
 		goto out_map_in_map;
 	}
@@ -1246,7 +1263,7 @@ static void test_map_large(void)
 	}
 
 	key.c = -1;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       errno == E2BIG);
 
 	/* Iterate through all elements. */
@@ -1254,12 +1271,12 @@ static void test_map_large(void)
 	key.c = -1;
 	for (i = 0; i < MAP_SIZE; i++)
 		assert(bpf_map_get_next_key(fd, &key, &key) == 0);
-	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &key) < 0 && errno == ENOENT);
 
 	key.c = 0;
 	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 0);
 	key.a = 1;
-	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) < 0 && errno == ENOENT);
 
 	close(fd);
 }
@@ -1391,7 +1408,7 @@ static void test_map_parallel(void)
 	run_parallel(TASKS, test_update_delete, data);
 
 	/* Check that key=0 is already there. */
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) < 0 &&
 	       errno == EEXIST);
 
 	/* Check that all elements were inserted. */
@@ -1399,7 +1416,7 @@ static void test_map_parallel(void)
 	key = -1;
 	for (i = 0; i < MAP_SIZE; i++)
 		assert(bpf_map_get_next_key(fd, &key, &key) == 0);
-	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &key) < 0 && errno == ENOENT);
 
 	/* Another check for all elements */
 	for (i = 0; i < MAP_SIZE; i++) {
@@ -1415,8 +1432,8 @@ static void test_map_parallel(void)
 
 	/* Nothing should be left. */
 	key = -1;
-	assert(bpf_map_get_next_key(fd, NULL, &key) == -1 && errno == ENOENT);
-	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, NULL, &key) < 0 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &key) < 0 && errno == ENOENT);
 }
 
 static void test_map_rdonly(void)
@@ -1434,12 +1451,12 @@ static void test_map_rdonly(void)
 	key = 1;
 	value = 1234;
 	/* Try to insert key=1 element. */
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) < 0 &&
 	       errno == EPERM);
 
 	/* Check that key=1 is not found. */
-	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
-	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) < 0 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &value) < 0 && errno == ENOENT);
 
 	close(fd);
 }
@@ -1462,8 +1479,8 @@ static void test_map_wronly_hash(void)
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	/* Check that reading elements and keys from the map is not allowed. */
-	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == EPERM);
-	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
+	assert(bpf_map_lookup_elem(fd, &key, &value) < 0 && errno == EPERM);
+	assert(bpf_map_get_next_key(fd, &key, &value) < 0 && errno == EPERM);
 
 	close(fd);
 }
@@ -1490,10 +1507,10 @@ static void test_map_wronly_stack_or_queue(enum bpf_map_type map_type)
 	assert(bpf_map_update_elem(fd, NULL, &value, BPF_ANY) == 0);
 
 	/* Peek element should fail */
-	assert(bpf_map_lookup_elem(fd, NULL, &value) == -1 && errno == EPERM);
+	assert(bpf_map_lookup_elem(fd, NULL, &value) < 0 && errno == EPERM);
 
 	/* Pop element should fail */
-	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &value) == -1 &&
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &value) < 0 &&
 	       errno == EPERM);
 
 	close(fd);
@@ -1547,7 +1564,7 @@ static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
 			value = &fd32;
 		}
 		err = bpf_map_update_elem(map_fd, &index0, value, BPF_ANY);
-		CHECK(err != -1 || errno != EINVAL,
+		CHECK(err >= 0 || errno != EINVAL,
 		      "reuseport array update unbound sk",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
@@ -1576,7 +1593,7 @@ static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
 			 */
 			err = bpf_map_update_elem(map_fd, &index0, value,
 						  BPF_ANY);
-			CHECK(err != -1 || errno != EINVAL,
+			CHECK(err >= 0 || errno != EINVAL,
 			      "reuseport array update non-listening sk",
 			      "sock_type:%d err:%d errno:%d\n",
 			      type, err, errno);
@@ -1606,31 +1623,31 @@ static void test_reuseport_array(void)
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
 				sizeof(__u32), sizeof(__u64), array_size, 0);
-	CHECK(map_fd == -1, "reuseport array create",
+	CHECK(map_fd < 0, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
 
 	/* Test lookup/update/delete with invalid index */
 	err = bpf_map_delete_elem(map_fd, &bad_index);
-	CHECK(err != -1 || errno != E2BIG, "reuseport array del >=max_entries",
+	CHECK(err >= 0 || errno != E2BIG, "reuseport array del >=max_entries",
 	      "err:%d errno:%d\n", err, errno);
 
 	err = bpf_map_update_elem(map_fd, &bad_index, &fd64, BPF_ANY);
-	CHECK(err != -1 || errno != E2BIG,
+	CHECK(err >= 0 || errno != E2BIG,
 	      "reuseport array update >=max_entries",
 	      "err:%d errno:%d\n", err, errno);
 
 	err = bpf_map_lookup_elem(map_fd, &bad_index, &map_cookie);
-	CHECK(err != -1 || errno != ENOENT,
+	CHECK(err >= 0 || errno != ENOENT,
 	      "reuseport array update >=max_entries",
 	      "err:%d errno:%d\n", err, errno);
 
 	/* Test lookup/delete non existence elem */
 	err = bpf_map_lookup_elem(map_fd, &index3, &map_cookie);
-	CHECK(err != -1 || errno != ENOENT,
+	CHECK(err >= 0 || errno != ENOENT,
 	      "reuseport array lookup not-exist elem",
 	      "err:%d errno:%d\n", err, errno);
 	err = bpf_map_delete_elem(map_fd, &index3);
-	CHECK(err != -1 || errno != ENOENT,
+	CHECK(err >= 0 || errno != ENOENT,
 	      "reuseport array del not-exist elem",
 	      "err:%d errno:%d\n", err, errno);
 
@@ -1644,7 +1661,7 @@ static void test_reuseport_array(void)
 		/* BPF_EXIST failure case */
 		err = bpf_map_update_elem(map_fd, &index3, &grpa_fds64[fds_idx],
 					  BPF_EXIST);
-		CHECK(err != -1 || errno != ENOENT,
+		CHECK(err >= 0 || errno != ENOENT,
 		      "reuseport array update empty elem BPF_EXIST",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
@@ -1653,7 +1670,7 @@ static void test_reuseport_array(void)
 		/* BPF_NOEXIST success case */
 		err = bpf_map_update_elem(map_fd, &index3, &grpa_fds64[fds_idx],
 					  BPF_NOEXIST);
-		CHECK(err == -1,
+		CHECK(err < 0,
 		      "reuseport array update empty elem BPF_NOEXIST",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
@@ -1662,7 +1679,7 @@ static void test_reuseport_array(void)
 		/* BPF_EXIST success case. */
 		err = bpf_map_update_elem(map_fd, &index3, &grpa_fds64[fds_idx],
 					  BPF_EXIST);
-		CHECK(err == -1,
+		CHECK(err < 0,
 		      "reuseport array update same elem BPF_EXIST",
 		      "sock_type:%d err:%d errno:%d\n", type, err, errno);
 		fds_idx = REUSEPORT_FD_IDX(err, fds_idx);
@@ -1670,7 +1687,7 @@ static void test_reuseport_array(void)
 		/* BPF_NOEXIST failure case */
 		err = bpf_map_update_elem(map_fd, &index3, &grpa_fds64[fds_idx],
 					  BPF_NOEXIST);
-		CHECK(err != -1 || errno != EEXIST,
+		CHECK(err >= 0 || errno != EEXIST,
 		      "reuseport array update non-empty elem BPF_NOEXIST",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
@@ -1679,7 +1696,7 @@ static void test_reuseport_array(void)
 		/* BPF_ANY case (always succeed) */
 		err = bpf_map_update_elem(map_fd, &index3, &grpa_fds64[fds_idx],
 					  BPF_ANY);
-		CHECK(err == -1,
+		CHECK(err < 0,
 		      "reuseport array update same sk with BPF_ANY",
 		      "sock_type:%d err:%d errno:%d\n", type, err, errno);
 
@@ -1688,32 +1705,32 @@ static void test_reuseport_array(void)
 
 		/* The same sk cannot be added to reuseport_array twice */
 		err = bpf_map_update_elem(map_fd, &index3, &fd64, BPF_ANY);
-		CHECK(err != -1 || errno != EBUSY,
+		CHECK(err >= 0 || errno != EBUSY,
 		      "reuseport array update same sk with same index",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
 
 		err = bpf_map_update_elem(map_fd, &index0, &fd64, BPF_ANY);
-		CHECK(err != -1 || errno != EBUSY,
+		CHECK(err >= 0 || errno != EBUSY,
 		      "reuseport array update same sk with different index",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
 
 		/* Test delete elem */
 		err = bpf_map_delete_elem(map_fd, &index3);
-		CHECK(err == -1, "reuseport array delete sk",
+		CHECK(err < 0, "reuseport array delete sk",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
 
 		/* Add it back with BPF_NOEXIST */
 		err = bpf_map_update_elem(map_fd, &index3, &fd64, BPF_NOEXIST);
-		CHECK(err == -1,
+		CHECK(err < 0,
 		      "reuseport array re-add with BPF_NOEXIST after del",
 		      "sock_type:%d err:%d errno:%d\n", type, err, errno);
 
 		/* Test cookie */
 		err = bpf_map_lookup_elem(map_fd, &index3, &map_cookie);
-		CHECK(err == -1 || sk_cookie != map_cookie,
+		CHECK(err < 0 || sk_cookie != map_cookie,
 		      "reuseport array lookup re-added sk",
 		      "sock_type:%d err:%d errno:%d sk_cookie:0x%llx map_cookie:0x%llxn",
 		      type, err, errno, sk_cookie, map_cookie);
@@ -1722,7 +1739,7 @@ static void test_reuseport_array(void)
 		for (f = 0; f < ARRAY_SIZE(grpa_fds64); f++)
 			close(grpa_fds64[f]);
 		err = bpf_map_lookup_elem(map_fd, &index3, &map_cookie);
-		CHECK(err != -1 || errno != ENOENT,
+		CHECK(err >= 0 || errno != ENOENT,
 		      "reuseport array lookup after close()",
 		      "sock_type:%d err:%d errno:%d\n",
 		      type, err, errno);
@@ -1733,7 +1750,7 @@ static void test_reuseport_array(void)
 	CHECK(fd64 == -1, "socket(SOCK_RAW)", "err:%d errno:%d\n",
 	      err, errno);
 	err = bpf_map_update_elem(map_fd, &index3, &fd64, BPF_NOEXIST);
-	CHECK(err != -1 || errno != ENOTSUPP, "reuseport array update SOCK_RAW",
+	CHECK(err >= 0 || errno != ENOTSUPP, "reuseport array update SOCK_RAW",
 	      "err:%d errno:%d\n", err, errno);
 	close(fd64);
 
@@ -1743,16 +1760,16 @@ static void test_reuseport_array(void)
 	/* Test 32 bit fd */
 	map_fd = bpf_create_map(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
 				sizeof(__u32), sizeof(__u32), array_size, 0);
-	CHECK(map_fd == -1, "reuseport array create",
+	CHECK(map_fd < 0, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
 	prepare_reuseport_grp(SOCK_STREAM, map_fd, sizeof(__u32), &fd64,
 			      &sk_cookie, 1);
 	fd = fd64;
 	err = bpf_map_update_elem(map_fd, &index3, &fd, BPF_NOEXIST);
-	CHECK(err == -1, "reuseport array update 32 bit fd",
+	CHECK(err < 0, "reuseport array update 32 bit fd",
 	      "err:%d errno:%d\n", err, errno);
 	err = bpf_map_lookup_elem(map_fd, &index3, &map_cookie);
-	CHECK(err != -1 || errno != ENOSPC,
+	CHECK(err >= 0 || errno != ENOSPC,
 	      "reuseport array lookup 32 bit fd",
 	      "err:%d errno:%d\n", err, errno);
 	close(fd);
@@ -1797,6 +1814,8 @@ static void run_all_tests(void)
 int main(void)
 {
 	srand(time(NULL));
+
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	map_flags = 0;
 	run_all_tests();

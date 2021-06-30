@@ -604,7 +604,7 @@ drop_it:
 static int dn_route_discard(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	/*
-	 * I know we drop the packet here, but thats considered success in
+	 * I know we drop the packet here, but that's considered success in
 	 * this case
 	 */
 	kfree_skb(skb);

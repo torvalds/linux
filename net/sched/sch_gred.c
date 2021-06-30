@@ -6,7 +6,7 @@
  *
  *             991129: -  Bug fix with grio mode
  *		       - a better sing. AvgQ mode with Grio(WRED)
- *		       - A finer grained VQ dequeue based on sugestion
+ *		       - A finer grained VQ dequeue based on suggestion
  *		         from Ren Liu
  *		       - More error checks
  *

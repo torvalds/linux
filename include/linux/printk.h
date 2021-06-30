@@ -8,6 +8,7 @@
 #include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/ratelimit_types.h>
+#include <linux/once_lite.h>
 
 extern const char linux_banner[];
 extern const char linux_proc_banner[];
@@ -482,27 +483,9 @@ extern int kptr_restrict;
 
 #ifdef CONFIG_PRINTK
 #define printk_once(fmt, ...)					\
-({								\
-	static bool __section(".data.once") __print_once;	\
-	bool __ret_print_once = !__print_once;			\
-								\
-	if (!__print_once) {					\
-		__print_once = true;				\
-		printk(fmt, ##__VA_ARGS__);			\
-	}							\
-	unlikely(__ret_print_once);				\
-})
+	DO_ONCE_LITE(printk, fmt, ##__VA_ARGS__)
 #define printk_deferred_once(fmt, ...)				\
-({								\
-	static bool __section(".data.once") __print_once;	\
-	bool __ret_print_once = !__print_once;			\
-								\
-	if (!__print_once) {					\
-		__print_once = true;				\
-		printk_deferred(fmt, ##__VA_ARGS__);		\
-	}							\
-	unlikely(__ret_print_once);				\
-})
+	DO_ONCE_LITE(printk_deferred, fmt, ##__VA_ARGS__)
 #else
 #define printk_once(fmt, ...)					\
 	no_printk(fmt, ##__VA_ARGS__)

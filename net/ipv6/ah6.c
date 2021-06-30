@@ -755,7 +755,6 @@ static int ah6_rcv_cb(struct sk_buff *skb, int err)
 }
 
 static const struct xfrm_type ah6_type = {
-	.description	= "AH6",
 	.owner		= THIS_MODULE,
 	.proto		= IPPROTO_AH,
 	.flags		= XFRM_TYPE_REPLAY_PROT,
@@ -763,7 +762,6 @@ static const struct xfrm_type ah6_type = {
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,
 	.output		= ah6_output,
-	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct xfrm6_protocol ah6_protocol = {

@@ -36,7 +36,7 @@ enum nfp_net_mbox_cmsg_state {
 };
 
 /**
- * struct nfp_ccm_mbox_skb_cb - CCM mailbox specific info
+ * struct nfp_ccm_mbox_cmsg_cb - CCM mailbox specific info
  * @state:	processing state (/stage) of the message
  * @err:	error encountered during processing if any
  * @max_len:	max(request_len, reply_len)

@@ -21,6 +21,16 @@
 static void nix_free_tx_vtag_entries(struct rvu *rvu, u16 pcifunc);
 static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 			    int type, int chan_id);
+static int nix_update_mce_rule(struct rvu *rvu, u16 pcifunc,
+			       int type, bool add);
+static int nix_setup_ipolicers(struct rvu *rvu,
+			       struct nix_hw *nix_hw, int blkaddr);
+static void nix_ipolicer_freemem(struct nix_hw *nix_hw);
+static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
+			       struct nix_hw *nix_hw, u16 pcifunc);
+static int nix_free_all_bandprof(struct rvu *rvu, u16 pcifunc);
+static void nix_clear_ratelimit_aggr(struct rvu *rvu, struct nix_hw *nix_hw,
+				     u32 leaf_prof);
 
 enum mc_tbl_sz {
 	MC_TBL_SZ_256,
@@ -129,6 +139,22 @@ int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf, int *nix_blkaddr)
 	if (nix_blkaddr)
 		*nix_blkaddr = blkaddr;
 
+	return 0;
+}
+
+int nix_get_struct_ptrs(struct rvu *rvu, u16 pcifunc,
+			struct nix_hw **nix_hw, int *blkaddr)
+{
+	struct rvu_pfvf *pfvf;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	*blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || *blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	*nix_hw = get_nix_hw(rvu->hw, *blkaddr);
+	if (!*nix_hw)
+		return NIX_AF_ERR_INVALID_NIXBLK;
 	return 0;
 }
 
@@ -274,7 +300,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 		pfvf->tx_chan_cnt = 1;
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
-					      pfvf->rx_chan_cnt, false);
+					      pfvf->rx_chan_cnt);
 		break;
 	}
 
@@ -285,16 +311,17 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 				    pfvf->rx_chan_base, pfvf->mac_addr);
 
 	/* Add this PF_FUNC to bcast pkt replication list */
-	err = nix_update_bcast_mce_list(rvu, pcifunc, true);
+	err = nix_update_mce_rule(rvu, pcifunc, NIXLF_BCAST_ENTRY, true);
 	if (err) {
 		dev_err(rvu->dev,
 			"Bcast list, failed to enable PF_FUNC 0x%x\n",
 			pcifunc);
 		return err;
 	}
-
+	/* Install MCAM rule matching Ethernet broadcast mac address */
 	rvu_npc_install_bcast_match_entry(rvu, pcifunc,
 					  nixlf, pfvf->rx_chan_base);
+
 	pfvf->maxlen = NIC_HW_MIN_FRS;
 	pfvf->minlen = NIC_HW_MIN_FRS;
 
@@ -310,7 +337,7 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 	pfvf->minlen = 0;
 
 	/* Remove this PF_FUNC from bcast pkt replication list */
-	err = nix_update_bcast_mce_list(rvu, pcifunc, false);
+	err = nix_update_mce_rule(rvu, pcifunc, NIXLF_BCAST_ENTRY, false);
 	if (err) {
 		dev_err(rvu->dev,
 			"Bcast list, failed to disable PF_FUNC 0x%x\n",
@@ -680,8 +707,11 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
 
-	/* Skip NIXLF check for broadcast MCE entry init */
-	if (!(!rsp && req->ctype == NIX_AQ_CTYPE_MCE)) {
+	/* Skip NIXLF check for broadcast MCE entry and bandwidth profile
+	 * operations done by AF itself.
+	 */
+	if (!((!rsp && req->ctype == NIX_AQ_CTYPE_MCE) ||
+	      (req->ctype == NIX_AQ_CTYPE_BANDPROF && !pcifunc))) {
 		if (!pfvf->nixlf || nixlf < 0)
 			return NIX_AF_ERR_AF_LF_INVALID;
 	}
@@ -720,6 +750,11 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 		 */
 		if (rsp)
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
+	case NIX_AQ_CTYPE_BANDPROF:
+		if (nix_verify_bandprof((struct nix_cn10k_aq_enq_req *)req,
+					nix_hw, pcifunc))
+			rc = NIX_AF_ERR_INVALID_BANDPROF;
 		break;
 	default:
 		rc = NIX_AF_ERR_AQ_ENQUEUE;
@@ -777,6 +812,9 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 		else if (req->ctype == NIX_AQ_CTYPE_MCE)
 			memcpy(mask, &req->mce_mask,
 			       sizeof(struct nix_rx_mce_s));
+		else if (req->ctype == NIX_AQ_CTYPE_BANDPROF)
+			memcpy(mask, &req->prof_mask,
+			       sizeof(struct nix_bandprof_s));
 		fallthrough;
 	case NIX_AQ_INSTOP_INIT:
 		if (req->ctype == NIX_AQ_CTYPE_RQ)
@@ -789,6 +827,8 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 			memcpy(ctx, &req->rss, sizeof(struct nix_rsse_s));
 		else if (req->ctype == NIX_AQ_CTYPE_MCE)
 			memcpy(ctx, &req->mce, sizeof(struct nix_rx_mce_s));
+		else if (req->ctype == NIX_AQ_CTYPE_BANDPROF)
+			memcpy(ctx, &req->prof, sizeof(struct nix_bandprof_s));
 		break;
 	case NIX_AQ_INSTOP_NOP:
 	case NIX_AQ_INSTOP_READ:
@@ -866,6 +906,9 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 			else if (req->ctype == NIX_AQ_CTYPE_MCE)
 				memcpy(&rsp->mce, ctx,
 				       sizeof(struct nix_rx_mce_s));
+			else if (req->ctype == NIX_AQ_CTYPE_BANDPROF)
+				memcpy(&rsp->prof, ctx,
+				       sizeof(struct nix_bandprof_s));
 		}
 	}
 
@@ -2203,8 +2246,8 @@ static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
 	aq_req.op = op;
 	aq_req.qidx = mce;
 
-	/* Forward bcast pkts to RQ0, RSS not needed */
-	aq_req.mce.op = 0;
+	/* Use RSS with RSS index 0 */
+	aq_req.mce.op = 1;
 	aq_req.mce.index = 0;
 	aq_req.mce.eol = eol;
 	aq_req.mce.pf_func = pcifunc;
@@ -2222,8 +2265,8 @@ static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
 	return 0;
 }
 
-static int nix_update_mce_list(struct nix_mce_list *mce_list,
-			       u16 pcifunc, bool add)
+static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
+				     u16 pcifunc, bool add)
 {
 	struct mce *mce, *tail = NULL;
 	bool delete = false;
@@ -2234,6 +2277,9 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 		if (mce->pcifunc == pcifunc && !add) {
 			delete = true;
 			break;
+		} else if (mce->pcifunc == pcifunc && add) {
+			/* entry already exists */
+			return 0;
 		}
 		tail = mce;
 	}
@@ -2261,36 +2307,23 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 	return 0;
 }
 
-int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
+int nix_update_mce_list(struct rvu *rvu, u16 pcifunc,
+			struct nix_mce_list *mce_list,
+			int mce_idx, int mcam_index, bool add)
 {
-	int err = 0, idx, next_idx, last_idx;
-	struct nix_mce_list *mce_list;
+	int err = 0, idx, next_idx, last_idx, blkaddr, npc_blkaddr;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct nix_mcast *mcast;
 	struct nix_hw *nix_hw;
-	struct rvu_pfvf *pfvf;
 	struct mce *mce;
-	int blkaddr;
 
-	/* Broadcast pkt replication is not needed for AF's VFs, hence skip */
-	if (is_afvf(pcifunc))
-		return 0;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
-	if (blkaddr < 0)
-		return 0;
-
-	nix_hw = get_nix_hw(rvu->hw, blkaddr);
-	if (!nix_hw)
-		return 0;
-
-	mcast = &nix_hw->mcast;
+	if (!mce_list)
+		return -EINVAL;
 
 	/* Get this PF/VF func's MCE index */
-	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
-	idx = pfvf->bcast_mce_idx + (pcifunc & RVU_PFVF_FUNC_MASK);
+	idx = mce_idx + (pcifunc & RVU_PFVF_FUNC_MASK);
 
-	mce_list = &pfvf->bcast_mce_list;
-	if (idx > (pfvf->bcast_mce_idx + mce_list->max)) {
+	if (idx > (mce_idx + mce_list->max)) {
 		dev_err(rvu->dev,
 			"%s: Idx %d > max MCE idx %d, for PF%d bcast list\n",
 			__func__, idx, mce_list->max,
@@ -2298,20 +2331,26 @@ int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 		return -EINVAL;
 	}
 
+	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mcast = &nix_hw->mcast;
 	mutex_lock(&mcast->mce_lock);
 
-	err = nix_update_mce_list(mce_list, pcifunc, add);
+	err = nix_update_mce_list_entry(mce_list, pcifunc, add);
 	if (err)
 		goto end;
 
 	/* Disable MCAM entry in NPC */
 	if (!mce_list->count) {
-		rvu_npc_enable_bcast_entry(rvu, pcifunc, false);
+		npc_blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+		npc_enable_mcam_entry(rvu, mcam, npc_blkaddr, mcam_index, false);
 		goto end;
 	}
 
 	/* Dump the updated list to HW */
-	idx = pfvf->bcast_mce_idx;
+	idx = mce_idx;
 	last_idx = idx + mce_list->count - 1;
 	hlist_for_each_entry(mce, &mce_list->head, node) {
 		if (idx > last_idx)
@@ -2332,7 +2371,71 @@ end:
 	return err;
 }
 
-static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
+void nix_get_mce_list(struct rvu *rvu, u16 pcifunc, int type,
+		      struct nix_mce_list **mce_list, int *mce_idx)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_pfvf *pfvf;
+
+	if (!hw->cap.nix_rx_multicast ||
+	    !is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc & ~RVU_PFVF_FUNC_MASK))) {
+		*mce_list = NULL;
+		*mce_idx = 0;
+		return;
+	}
+
+	/* Get this PF/VF func's MCE index */
+	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+
+	if (type == NIXLF_BCAST_ENTRY) {
+		*mce_list = &pfvf->bcast_mce_list;
+		*mce_idx = pfvf->bcast_mce_idx;
+	} else if (type == NIXLF_ALLMULTI_ENTRY) {
+		*mce_list = &pfvf->mcast_mce_list;
+		*mce_idx = pfvf->mcast_mce_idx;
+	} else if (type == NIXLF_PROMISC_ENTRY) {
+		*mce_list = &pfvf->promisc_mce_list;
+		*mce_idx = pfvf->promisc_mce_idx;
+	}  else {
+		*mce_list = NULL;
+		*mce_idx = 0;
+	}
+}
+
+static int nix_update_mce_rule(struct rvu *rvu, u16 pcifunc,
+			       int type, bool add)
+{
+	int err = 0, nixlf, blkaddr, mcam_index, mce_idx;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct nix_mce_list *mce_list;
+
+	/* skip multicast pkt replication for AF's VFs */
+	if (is_afvf(pcifunc))
+		return 0;
+
+	if (!hw->cap.nix_rx_multicast)
+		return 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return -EINVAL;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return -EINVAL;
+
+	nix_get_mce_list(rvu, pcifunc, type, &mce_list, &mce_idx);
+
+	mcam_index = npc_get_nixlf_mcam_index(mcam,
+					      pcifunc & ~RVU_PFVF_FUNC_MASK,
+					      nixlf, type);
+	err = nix_update_mce_list(rvu, pcifunc, mce_list,
+				  mce_idx, mcam_index, add);
+	return err;
+}
+
+static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 {
 	struct nix_mcast *mcast = &nix_hw->mcast;
 	int err, pf, numvfs, idx;
@@ -2355,10 +2458,17 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 		if (pfvf->nix_blkaddr != nix_hw->blkaddr)
 			continue;
 
-		/* Save the start MCE */
+		/* save start idx of broadcast mce list */
 		pfvf->bcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
-
 		nix_mce_list_init(&pfvf->bcast_mce_list, numvfs + 1);
+
+		/* save start idx of multicast mce list */
+		pfvf->mcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+		nix_mce_list_init(&pfvf->mcast_mce_list, numvfs + 1);
+
+		/* save the start idx of promisc mce list */
+		pfvf->promisc_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+		nix_mce_list_init(&pfvf->promisc_mce_list, numvfs + 1);
 
 		for (idx = 0; idx < (numvfs + 1); idx++) {
 			/* idx-0 is for PF, followed by VFs */
@@ -2371,6 +2481,22 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			 */
 			err = nix_blk_setup_mce(rvu, nix_hw,
 						pfvf->bcast_mce_idx + idx,
+						NIX_AQ_INSTOP_INIT,
+						pcifunc, 0, true);
+			if (err)
+				return err;
+
+			/* add dummy entries to multicast mce list */
+			err = nix_blk_setup_mce(rvu, nix_hw,
+						pfvf->mcast_mce_idx + idx,
+						NIX_AQ_INSTOP_INIT,
+						pcifunc, 0, true);
+			if (err)
+				return err;
+
+			/* add dummy entries to promisc mce list */
+			err = nix_blk_setup_mce(rvu, nix_hw,
+						pfvf->promisc_mce_idx + idx,
 						NIX_AQ_INSTOP_INIT,
 						pcifunc, 0, true);
 			if (err)
@@ -2421,7 +2547,7 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 
 	mutex_init(&mcast->mce_lock);
 
-	return nix_setup_bcast_tables(rvu, nix_hw);
+	return nix_setup_mce_tables(rvu, nix_hw);
 }
 
 static int nix_setup_txvlan(struct rvu *rvu, struct nix_hw *nix_hw)
@@ -3035,14 +3161,21 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 
-	/* VF can't overwrite admin(PF) changes */
-	if (from_vf && pfvf->pf_set_vf_cfg)
+	/* untrusted VF can't overwrite admin(PF) changes */
+	if (!test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) &&
+	    (from_vf && test_bit(PF_SET_VF_MAC, &pfvf->flags))) {
+		dev_warn(rvu->dev,
+			 "MAC address set by admin(PF) cannot be overwritten by untrusted VF");
 		return -EPERM;
+	}
 
 	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
 
 	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
 				    pfvf->rx_chan_base, req->mac_addr);
+
+	if (test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) && from_vf)
+		ether_addr_copy(pfvf->default_mac, req->mac_addr);
 
 	return 0;
 }
@@ -3067,30 +3200,75 @@ int rvu_mbox_handler_nix_get_mac_addr(struct rvu *rvu,
 int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 				     struct msg_rsp *rsp)
 {
-	bool allmulti = false, disable_promisc = false;
+	bool allmulti, promisc, nix_rx_multicast;
 	u16 pcifunc = req->hdr.pcifunc;
-	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
+	int nixlf, err;
 
-	err = nix_get_nixlf(rvu, pcifunc, &nixlf, &blkaddr);
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	promisc = req->mode & NIX_RX_MODE_PROMISC ? true : false;
+	allmulti = req->mode & NIX_RX_MODE_ALLMULTI ? true : false;
+	pfvf->use_mce_list = req->mode & NIX_RX_MODE_USE_MCE ? true : false;
+
+	nix_rx_multicast = rvu->hw->cap.nix_rx_multicast & pfvf->use_mce_list;
+
+	if (is_vf(pcifunc) && !nix_rx_multicast &&
+	    (promisc || allmulti)) {
+		dev_warn_ratelimited(rvu->dev,
+				     "VF promisc/multicast not supported\n");
+		return 0;
+	}
+
+	/* untrusted VF can't configure promisc/allmulti */
+	if (is_vf(pcifunc) && !test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) &&
+	    (promisc || allmulti))
+		return 0;
+
+	err = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
 	if (err)
 		return err;
 
-	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	if (nix_rx_multicast) {
+		/* add/del this PF_FUNC to/from mcast pkt replication list */
+		err = nix_update_mce_rule(rvu, pcifunc, NIXLF_ALLMULTI_ENTRY,
+					  allmulti);
+		if (err) {
+			dev_err(rvu->dev,
+				"Failed to update pcifunc 0x%x to multicast list\n",
+				pcifunc);
+			return err;
+		}
 
-	if (req->mode & NIX_RX_MODE_PROMISC)
-		allmulti = false;
-	else if (req->mode & NIX_RX_MODE_ALLMULTI)
-		allmulti = true;
-	else
-		disable_promisc = true;
+		/* add/del this PF_FUNC to/from promisc pkt replication list */
+		err = nix_update_mce_rule(rvu, pcifunc, NIXLF_PROMISC_ENTRY,
+					  promisc);
+		if (err) {
+			dev_err(rvu->dev,
+				"Failed to update pcifunc 0x%x to promisc list\n",
+				pcifunc);
+			return err;
+		}
+	}
 
-	if (disable_promisc)
-		rvu_npc_disable_promisc_entry(rvu, pcifunc, nixlf);
-	else
+	/* install/uninstall allmulti entry */
+	if (allmulti) {
+		rvu_npc_install_allmulti_entry(rvu, pcifunc, nixlf,
+					       pfvf->rx_chan_base);
+	} else {
+		if (!nix_rx_multicast)
+			rvu_npc_enable_allmulti_entry(rvu, pcifunc, nixlf, false);
+	}
+
+	/* install/uninstall promisc entry */
+	if (promisc) {
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
-					      pfvf->rx_chan_cnt, allmulti);
+					      pfvf->rx_chan_cnt);
+	} else {
+		if (!nix_rx_multicast)
+			rvu_npc_enable_promisc_entry(rvu, pcifunc, nixlf, false);
+	}
+
 	return 0;
 }
 
@@ -3470,6 +3648,10 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		if (err)
 			return err;
 
+		err = nix_setup_ipolicers(rvu, nix_hw, blkaddr);
+		if (err)
+			return err;
+
 		err = nix_af_mark_format_setup(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
@@ -3522,6 +3704,40 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ISCTP,
 			    (ltdefs->rx_isctp.lid << 8) | (ltdefs->rx_isctp.ltype_match << 4) |
 			    ltdefs->rx_isctp.ltype_mask);
+
+		if (!is_rvu_otx2(rvu)) {
+			/* Enable APAD calculation for other protocols
+			 * matching APAD0 and APAD1 lt def registers.
+			 */
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_CST_APAD0,
+				    (ltdefs->rx_apad0.valid << 11) |
+				    (ltdefs->rx_apad0.lid << 8) |
+				    (ltdefs->rx_apad0.ltype_match << 4) |
+				    ltdefs->rx_apad0.ltype_mask);
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_CST_APAD1,
+				    (ltdefs->rx_apad1.valid << 11) |
+				    (ltdefs->rx_apad1.lid << 8) |
+				    (ltdefs->rx_apad1.ltype_match << 4) |
+				    ltdefs->rx_apad1.ltype_mask);
+
+			/* Receive ethertype defination register defines layer
+			 * information in NPC_RESULT_S to identify the Ethertype
+			 * location in L2 header. Used for Ethertype overwriting
+			 * in inline IPsec flow.
+			 */
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ET(0),
+				    (ltdefs->rx_et[0].offset << 12) |
+				    (ltdefs->rx_et[0].valid << 11) |
+				    (ltdefs->rx_et[0].lid << 8) |
+				    (ltdefs->rx_et[0].ltype_match << 4) |
+				    ltdefs->rx_et[0].ltype_mask);
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ET(1),
+				    (ltdefs->rx_et[1].offset << 12) |
+				    (ltdefs->rx_et[1].valid << 11) |
+				    (ltdefs->rx_et[1].lid << 8) |
+				    (ltdefs->rx_et[1].ltype_match << 4) |
+				    ltdefs->rx_et[1].ltype_mask);
+		}
 
 		err = nix_rx_flowkey_alg_cfg(rvu, blkaddr);
 		if (err)
@@ -3584,6 +3800,8 @@ static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
 			kfree(txsch->schq.bmap);
 		}
 
+		nix_ipolicer_freemem(nix_hw);
+
 		vlan = &nix_hw->txvlan;
 		kfree(vlan->rsrc.bmap);
 		mutex_destroy(&vlan->rsrc_lock);
@@ -3614,6 +3832,7 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 				     struct msg_rsp *rsp)
 {
 	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
 	int nixlf, err;
 
 	err = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
@@ -3624,6 +3843,9 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 
 	npc_mcam_enable_flows(rvu, pcifunc);
 
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	set_bit(NIXLF_INITIALIZED, &pfvf->flags);
+
 	return rvu_cgx_start_stop_io(rvu, pcifunc, true);
 }
 
@@ -3631,6 +3853,7 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 				    struct msg_rsp *rsp)
 {
 	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
 	int nixlf, err;
 
 	err = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
@@ -3638,6 +3861,9 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 		return err;
 
 	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	clear_bit(NIXLF_INITIALIZED, &pfvf->flags);
 
 	return rvu_cgx_start_stop_io(rvu, pcifunc, false);
 }
@@ -3656,6 +3882,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 	nix_rx_sync(rvu, blkaddr);
 	nix_txschq_free(rvu, pcifunc);
+
+	clear_bit(NIXLF_INITIALIZED, &pfvf->flags);
 
 	rvu_cgx_start_stop_io(rvu, pcifunc, false);
 
@@ -3681,6 +3909,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	}
 
 	nix_ctx_free(rvu, pfvf);
+
+	nix_free_all_bandprof(rvu, pcifunc);
 }
 
 #define NIX_AF_LFX_TX_CFG_PTP_EN	BIT_ULL(32)
@@ -3788,4 +4018,587 @@ void rvu_nix_reset_mac(struct rvu_pfvf *pfvf, int pcifunc)
 	/* overwrite vf mac address with default_mac */
 	if (from_vf)
 		ether_addr_copy(pfvf->mac_addr, pfvf->default_mac);
+}
+
+/* NIX ingress policers or bandwidth profiles APIs */
+static void nix_config_rx_pkt_policer_precolor(struct rvu *rvu, int blkaddr)
+{
+	struct npc_lt_def_cfg defs, *ltdefs;
+
+	ltdefs = &defs;
+	memcpy(ltdefs, rvu->kpu.lt_def, sizeof(struct npc_lt_def_cfg));
+
+	/* Extract PCP and DEI fields from outer VLAN from byte offset
+	 * 2 from the start of LB_PTR (ie TAG).
+	 * VLAN0 is Outer VLAN and VLAN1 is Inner VLAN. Inner VLAN
+	 * fields are considered when 'Tunnel enable' is set in profile.
+	 */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_VLAN0_PCP_DEI,
+		    (2UL << 12) | (ltdefs->ovlan.lid << 8) |
+		    (ltdefs->ovlan.ltype_match << 4) |
+		    ltdefs->ovlan.ltype_mask);
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_VLAN1_PCP_DEI,
+		    (2UL << 12) | (ltdefs->ivlan.lid << 8) |
+		    (ltdefs->ivlan.ltype_match << 4) |
+		    ltdefs->ivlan.ltype_mask);
+
+	/* DSCP field in outer and tunneled IPv4 packets */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP4_DSCP,
+		    (1UL << 12) | (ltdefs->rx_oip4.lid << 8) |
+		    (ltdefs->rx_oip4.ltype_match << 4) |
+		    ltdefs->rx_oip4.ltype_mask);
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_IIP4_DSCP,
+		    (1UL << 12) | (ltdefs->rx_iip4.lid << 8) |
+		    (ltdefs->rx_iip4.ltype_match << 4) |
+		    ltdefs->rx_iip4.ltype_mask);
+
+	/* DSCP field (traffic class) in outer and tunneled IPv6 packets */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP6_DSCP,
+		    (1UL << 11) | (ltdefs->rx_oip6.lid << 8) |
+		    (ltdefs->rx_oip6.ltype_match << 4) |
+		    ltdefs->rx_oip6.ltype_mask);
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_IIP6_DSCP,
+		    (1UL << 11) | (ltdefs->rx_iip6.lid << 8) |
+		    (ltdefs->rx_iip6.ltype_match << 4) |
+		    ltdefs->rx_iip6.ltype_mask);
+}
+
+static int nix_init_policer_context(struct rvu *rvu, struct nix_hw *nix_hw,
+				    int layer, int prof_idx)
+{
+	struct nix_cn10k_aq_enq_req aq_req;
+	int rc;
+
+	memset(&aq_req, 0, sizeof(struct nix_cn10k_aq_enq_req));
+
+	aq_req.qidx = (prof_idx & 0x3FFF) | (layer << 14);
+	aq_req.ctype = NIX_AQ_CTYPE_BANDPROF;
+	aq_req.op = NIX_AQ_INSTOP_INIT;
+
+	/* Context is all zeros, submit to AQ */
+	rc = rvu_nix_blk_aq_enq_inst(rvu, nix_hw,
+				     (struct nix_aq_enq_req *)&aq_req, NULL);
+	if (rc)
+		dev_err(rvu->dev, "Failed to INIT bandwidth profile layer %d profile %d\n",
+			layer, prof_idx);
+	return rc;
+}
+
+static int nix_setup_ipolicers(struct rvu *rvu,
+			       struct nix_hw *nix_hw, int blkaddr)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct nix_ipolicer *ipolicer;
+	int err, layer, prof_idx;
+	u64 cfg;
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST);
+	if (!(cfg & BIT_ULL(61))) {
+		hw->cap.ipolicer = false;
+		return 0;
+	}
+
+	hw->cap.ipolicer = true;
+	nix_hw->ipolicer = devm_kcalloc(rvu->dev, BAND_PROF_NUM_LAYERS,
+					sizeof(*ipolicer), GFP_KERNEL);
+	if (!nix_hw->ipolicer)
+		return -ENOMEM;
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_PL_CONST);
+
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		ipolicer = &nix_hw->ipolicer[layer];
+		switch (layer) {
+		case BAND_PROF_LEAF_LAYER:
+			ipolicer->band_prof.max = cfg & 0XFFFF;
+			break;
+		case BAND_PROF_MID_LAYER:
+			ipolicer->band_prof.max = (cfg >> 16) & 0XFFFF;
+			break;
+		case BAND_PROF_TOP_LAYER:
+			ipolicer->band_prof.max = (cfg >> 32) & 0XFFFF;
+			break;
+		}
+
+		if (!ipolicer->band_prof.max)
+			continue;
+
+		err = rvu_alloc_bitmap(&ipolicer->band_prof);
+		if (err)
+			return err;
+
+		ipolicer->pfvf_map = devm_kcalloc(rvu->dev,
+						  ipolicer->band_prof.max,
+						  sizeof(u16), GFP_KERNEL);
+		if (!ipolicer->pfvf_map)
+			return -ENOMEM;
+
+		ipolicer->match_id = devm_kcalloc(rvu->dev,
+						  ipolicer->band_prof.max,
+						  sizeof(u16), GFP_KERNEL);
+		if (!ipolicer->match_id)
+			return -ENOMEM;
+
+		for (prof_idx = 0;
+		     prof_idx < ipolicer->band_prof.max; prof_idx++) {
+			/* Set AF as current owner for INIT ops to succeed */
+			ipolicer->pfvf_map[prof_idx] = 0x00;
+
+			/* There is no enable bit in the profile context,
+			 * so no context disable. So let's INIT them here
+			 * so that PF/VF later on have to just do WRITE to
+			 * setup policer rates and config.
+			 */
+			err = nix_init_policer_context(rvu, nix_hw,
+						       layer, prof_idx);
+			if (err)
+				return err;
+		}
+
+		/* Allocate memory for maintaining ref_counts for MID level
+		 * profiles, this will be needed for leaf layer profiles'
+		 * aggregation.
+		 */
+		if (layer != BAND_PROF_MID_LAYER)
+			continue;
+
+		ipolicer->ref_count = devm_kcalloc(rvu->dev,
+						   ipolicer->band_prof.max,
+						   sizeof(u16), GFP_KERNEL);
+	}
+
+	/* Set policer timeunit to 2us ie  (19 + 1) * 100 nsec = 2us */
+	rvu_write64(rvu, blkaddr, NIX_AF_PL_TS, 19);
+
+	nix_config_rx_pkt_policer_precolor(rvu, blkaddr);
+
+	return 0;
+}
+
+static void nix_ipolicer_freemem(struct nix_hw *nix_hw)
+{
+	struct nix_ipolicer *ipolicer;
+	int layer;
+
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		ipolicer = &nix_hw->ipolicer[layer];
+
+		if (!ipolicer->band_prof.max)
+			continue;
+
+		kfree(ipolicer->band_prof.bmap);
+	}
+}
+
+static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
+			       struct nix_hw *nix_hw, u16 pcifunc)
+{
+	struct nix_ipolicer *ipolicer;
+	int layer, hi_layer, prof_idx;
+
+	/* Bits [15:14] in profile index represent layer */
+	layer = (req->qidx >> 14) & 0x03;
+	prof_idx = req->qidx & 0x3FFF;
+
+	ipolicer = &nix_hw->ipolicer[layer];
+	if (prof_idx >= ipolicer->band_prof.max)
+		return -EINVAL;
+
+	/* Check if the profile is allocated to the requesting PCIFUNC or not
+	 * with the exception of AF. AF is allowed to read and update contexts.
+	 */
+	if (pcifunc && ipolicer->pfvf_map[prof_idx] != pcifunc)
+		return -EINVAL;
+
+	/* If this profile is linked to higher layer profile then check
+	 * if that profile is also allocated to the requesting PCIFUNC
+	 * or not.
+	 */
+	if (!req->prof.hl_en)
+		return 0;
+
+	/* Leaf layer profile can link only to mid layer and
+	 * mid layer to top layer.
+	 */
+	if (layer == BAND_PROF_LEAF_LAYER)
+		hi_layer = BAND_PROF_MID_LAYER;
+	else if (layer == BAND_PROF_MID_LAYER)
+		hi_layer = BAND_PROF_TOP_LAYER;
+	else
+		return -EINVAL;
+
+	ipolicer = &nix_hw->ipolicer[hi_layer];
+	prof_idx = req->prof.band_prof_id;
+	if (prof_idx >= ipolicer->band_prof.max ||
+	    ipolicer->pfvf_map[prof_idx] != pcifunc)
+		return -EINVAL;
+
+	return 0;
+}
+
+int rvu_mbox_handler_nix_bandprof_alloc(struct rvu *rvu,
+					struct nix_bandprof_alloc_req *req,
+					struct nix_bandprof_alloc_rsp *rsp)
+{
+	int blkaddr, layer, prof, idx, err;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct nix_ipolicer *ipolicer;
+	struct nix_hw *nix_hw;
+
+	if (!rvu->hw->cap.ipolicer)
+		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+
+	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mutex_lock(&rvu->rsrc_lock);
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		if (layer == BAND_PROF_INVAL_LAYER)
+			continue;
+		if (!req->prof_count[layer])
+			continue;
+
+		ipolicer = &nix_hw->ipolicer[layer];
+		for (idx = 0; idx < req->prof_count[layer]; idx++) {
+			/* Allocate a max of 'MAX_BANDPROF_PER_PFFUNC' profiles */
+			if (idx == MAX_BANDPROF_PER_PFFUNC)
+				break;
+
+			prof = rvu_alloc_rsrc(&ipolicer->band_prof);
+			if (prof < 0)
+				break;
+			rsp->prof_count[layer]++;
+			rsp->prof_idx[layer][idx] = prof;
+			ipolicer->pfvf_map[prof] = pcifunc;
+		}
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+	return 0;
+}
+
+static int nix_free_all_bandprof(struct rvu *rvu, u16 pcifunc)
+{
+	int blkaddr, layer, prof_idx, err;
+	struct nix_ipolicer *ipolicer;
+	struct nix_hw *nix_hw;
+
+	if (!rvu->hw->cap.ipolicer)
+		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+
+	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mutex_lock(&rvu->rsrc_lock);
+	/* Free all the profiles allocated to the PCIFUNC */
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		if (layer == BAND_PROF_INVAL_LAYER)
+			continue;
+		ipolicer = &nix_hw->ipolicer[layer];
+
+		for (prof_idx = 0; prof_idx < ipolicer->band_prof.max; prof_idx++) {
+			if (ipolicer->pfvf_map[prof_idx] != pcifunc)
+				continue;
+
+			/* Clear ratelimit aggregation, if any */
+			if (layer == BAND_PROF_LEAF_LAYER &&
+			    ipolicer->match_id[prof_idx])
+				nix_clear_ratelimit_aggr(rvu, nix_hw, prof_idx);
+
+			ipolicer->pfvf_map[prof_idx] = 0x00;
+			ipolicer->match_id[prof_idx] = 0;
+			rvu_free_rsrc(&ipolicer->band_prof, prof_idx);
+		}
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+	return 0;
+}
+
+int rvu_mbox_handler_nix_bandprof_free(struct rvu *rvu,
+				       struct nix_bandprof_free_req *req,
+				       struct msg_rsp *rsp)
+{
+	int blkaddr, layer, prof_idx, idx, err;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct nix_ipolicer *ipolicer;
+	struct nix_hw *nix_hw;
+
+	if (req->free_all)
+		return nix_free_all_bandprof(rvu, pcifunc);
+
+	if (!rvu->hw->cap.ipolicer)
+		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+
+	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mutex_lock(&rvu->rsrc_lock);
+	/* Free the requested profile indices */
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		if (layer == BAND_PROF_INVAL_LAYER)
+			continue;
+		if (!req->prof_count[layer])
+			continue;
+
+		ipolicer = &nix_hw->ipolicer[layer];
+		for (idx = 0; idx < req->prof_count[layer]; idx++) {
+			prof_idx = req->prof_idx[layer][idx];
+			if (prof_idx >= ipolicer->band_prof.max ||
+			    ipolicer->pfvf_map[prof_idx] != pcifunc)
+				continue;
+
+			/* Clear ratelimit aggregation, if any */
+			if (layer == BAND_PROF_LEAF_LAYER &&
+			    ipolicer->match_id[prof_idx])
+				nix_clear_ratelimit_aggr(rvu, nix_hw, prof_idx);
+
+			ipolicer->pfvf_map[prof_idx] = 0x00;
+			ipolicer->match_id[prof_idx] = 0;
+			rvu_free_rsrc(&ipolicer->band_prof, prof_idx);
+			if (idx == MAX_BANDPROF_PER_PFFUNC)
+				break;
+		}
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+	return 0;
+}
+
+int nix_aq_context_read(struct rvu *rvu, struct nix_hw *nix_hw,
+			struct nix_cn10k_aq_enq_req *aq_req,
+			struct nix_cn10k_aq_enq_rsp *aq_rsp,
+			u16 pcifunc, u8 ctype, u32 qidx)
+{
+	memset(aq_req, 0, sizeof(struct nix_cn10k_aq_enq_req));
+	aq_req->hdr.pcifunc = pcifunc;
+	aq_req->ctype = ctype;
+	aq_req->op = NIX_AQ_INSTOP_READ;
+	aq_req->qidx = qidx;
+
+	return rvu_nix_blk_aq_enq_inst(rvu, nix_hw,
+				       (struct nix_aq_enq_req *)aq_req,
+				       (struct nix_aq_enq_rsp *)aq_rsp);
+}
+
+static int nix_ipolicer_map_leaf_midprofs(struct rvu *rvu,
+					  struct nix_hw *nix_hw,
+					  struct nix_cn10k_aq_enq_req *aq_req,
+					  struct nix_cn10k_aq_enq_rsp *aq_rsp,
+					  u32 leaf_prof, u16 mid_prof)
+{
+	memset(aq_req, 0, sizeof(struct nix_cn10k_aq_enq_req));
+	aq_req->hdr.pcifunc = 0x00;
+	aq_req->ctype = NIX_AQ_CTYPE_BANDPROF;
+	aq_req->op = NIX_AQ_INSTOP_WRITE;
+	aq_req->qidx = leaf_prof;
+
+	aq_req->prof.band_prof_id = mid_prof;
+	aq_req->prof_mask.band_prof_id = GENMASK(6, 0);
+	aq_req->prof.hl_en = 1;
+	aq_req->prof_mask.hl_en = 1;
+
+	return rvu_nix_blk_aq_enq_inst(rvu, nix_hw,
+				       (struct nix_aq_enq_req *)aq_req,
+				       (struct nix_aq_enq_rsp *)aq_rsp);
+}
+
+int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
+				 u16 rq_idx, u16 match_id)
+{
+	int leaf_prof, mid_prof, leaf_match;
+	struct nix_cn10k_aq_enq_req aq_req;
+	struct nix_cn10k_aq_enq_rsp aq_rsp;
+	struct nix_ipolicer *ipolicer;
+	struct nix_hw *nix_hw;
+	int blkaddr, idx, rc;
+
+	if (!rvu->hw->cap.ipolicer)
+		return 0;
+
+	rc = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
+	if (rc)
+		return rc;
+
+	/* Fetch the RQ's context to see if policing is enabled */
+	rc = nix_aq_context_read(rvu, nix_hw, &aq_req, &aq_rsp, pcifunc,
+				 NIX_AQ_CTYPE_RQ, rq_idx);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to fetch RQ%d context of PFFUNC 0x%x\n",
+			__func__, rq_idx, pcifunc);
+		return rc;
+	}
+
+	if (!aq_rsp.rq.policer_ena)
+		return 0;
+
+	/* Get the bandwidth profile ID mapped to this RQ */
+	leaf_prof = aq_rsp.rq.band_prof_id;
+
+	ipolicer = &nix_hw->ipolicer[BAND_PROF_LEAF_LAYER];
+	ipolicer->match_id[leaf_prof] = match_id;
+
+	/* Check if any other leaf profile is marked with same match_id */
+	for (idx = 0; idx < ipolicer->band_prof.max; idx++) {
+		if (idx == leaf_prof)
+			continue;
+		if (ipolicer->match_id[idx] != match_id)
+			continue;
+
+		leaf_match = idx;
+		break;
+	}
+
+	if (idx == ipolicer->band_prof.max)
+		return 0;
+
+	/* Fetch the matching profile's context to check if it's already
+	 * mapped to a mid level profile.
+	 */
+	rc = nix_aq_context_read(rvu, nix_hw, &aq_req, &aq_rsp, 0x00,
+				 NIX_AQ_CTYPE_BANDPROF, leaf_match);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to fetch context of leaf profile %d\n",
+			__func__, leaf_match);
+		return rc;
+	}
+
+	ipolicer = &nix_hw->ipolicer[BAND_PROF_MID_LAYER];
+	if (aq_rsp.prof.hl_en) {
+		/* Get Mid layer prof index and map leaf_prof index
+		 * also such that flows that are being steered
+		 * to different RQs and marked with same match_id
+		 * are rate limited in a aggregate fashion
+		 */
+		mid_prof = aq_rsp.prof.band_prof_id;
+		rc = nix_ipolicer_map_leaf_midprofs(rvu, nix_hw,
+						    &aq_req, &aq_rsp,
+						    leaf_prof, mid_prof);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: Failed to map leaf(%d) and mid(%d) profiles\n",
+				__func__, leaf_prof, mid_prof);
+			goto exit;
+		}
+
+		mutex_lock(&rvu->rsrc_lock);
+		ipolicer->ref_count[mid_prof]++;
+		mutex_unlock(&rvu->rsrc_lock);
+		goto exit;
+	}
+
+	/* Allocate a mid layer profile and
+	 * map both 'leaf_prof' and 'leaf_match' profiles to it.
+	 */
+	mutex_lock(&rvu->rsrc_lock);
+	mid_prof = rvu_alloc_rsrc(&ipolicer->band_prof);
+	if (mid_prof < 0) {
+		dev_err(rvu->dev,
+			"%s: Unable to allocate mid layer profile\n", __func__);
+		mutex_unlock(&rvu->rsrc_lock);
+		goto exit;
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+	ipolicer->pfvf_map[mid_prof] = 0x00;
+	ipolicer->ref_count[mid_prof] = 0;
+
+	/* Initialize mid layer profile same as 'leaf_prof' */
+	rc = nix_aq_context_read(rvu, nix_hw, &aq_req, &aq_rsp, 0x00,
+				 NIX_AQ_CTYPE_BANDPROF, leaf_prof);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to fetch context of leaf profile %d\n",
+			__func__, leaf_prof);
+		goto exit;
+	}
+
+	memset(&aq_req, 0, sizeof(struct nix_cn10k_aq_enq_req));
+	aq_req.hdr.pcifunc = 0x00;
+	aq_req.qidx = (mid_prof & 0x3FFF) | (BAND_PROF_MID_LAYER << 14);
+	aq_req.ctype = NIX_AQ_CTYPE_BANDPROF;
+	aq_req.op = NIX_AQ_INSTOP_WRITE;
+	memcpy(&aq_req.prof, &aq_rsp.prof, sizeof(struct nix_bandprof_s));
+	/* Clear higher layer enable bit in the mid profile, just in case */
+	aq_req.prof.hl_en = 0;
+	aq_req.prof_mask.hl_en = 1;
+
+	rc = rvu_nix_blk_aq_enq_inst(rvu, nix_hw,
+				     (struct nix_aq_enq_req *)&aq_req, NULL);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to INIT context of mid layer profile %d\n",
+			__func__, mid_prof);
+		goto exit;
+	}
+
+	/* Map both leaf profiles to this mid layer profile */
+	rc = nix_ipolicer_map_leaf_midprofs(rvu, nix_hw,
+					    &aq_req, &aq_rsp,
+					    leaf_prof, mid_prof);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to map leaf(%d) and mid(%d) profiles\n",
+			__func__, leaf_prof, mid_prof);
+		goto exit;
+	}
+
+	mutex_lock(&rvu->rsrc_lock);
+	ipolicer->ref_count[mid_prof]++;
+	mutex_unlock(&rvu->rsrc_lock);
+
+	rc = nix_ipolicer_map_leaf_midprofs(rvu, nix_hw,
+					    &aq_req, &aq_rsp,
+					    leaf_match, mid_prof);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to map leaf(%d) and mid(%d) profiles\n",
+			__func__, leaf_match, mid_prof);
+		ipolicer->ref_count[mid_prof]--;
+		goto exit;
+	}
+
+	mutex_lock(&rvu->rsrc_lock);
+	ipolicer->ref_count[mid_prof]++;
+	mutex_unlock(&rvu->rsrc_lock);
+
+exit:
+	return rc;
+}
+
+/* Called with mutex rsrc_lock */
+static void nix_clear_ratelimit_aggr(struct rvu *rvu, struct nix_hw *nix_hw,
+				     u32 leaf_prof)
+{
+	struct nix_cn10k_aq_enq_req aq_req;
+	struct nix_cn10k_aq_enq_rsp aq_rsp;
+	struct nix_ipolicer *ipolicer;
+	u16 mid_prof;
+	int rc;
+
+	mutex_unlock(&rvu->rsrc_lock);
+
+	rc = nix_aq_context_read(rvu, nix_hw, &aq_req, &aq_rsp, 0x00,
+				 NIX_AQ_CTYPE_BANDPROF, leaf_prof);
+
+	mutex_lock(&rvu->rsrc_lock);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to fetch context of leaf profile %d\n",
+			__func__, leaf_prof);
+		return;
+	}
+
+	if (!aq_rsp.prof.hl_en)
+		return;
+
+	mid_prof = aq_rsp.prof.band_prof_id;
+	ipolicer = &nix_hw->ipolicer[BAND_PROF_MID_LAYER];
+	ipolicer->ref_count[mid_prof]--;
+	/* If ref_count is zero, free mid layer profile */
+	if (!ipolicer->ref_count[mid_prof]) {
+		ipolicer->pfvf_map[mid_prof] = 0x00;
+		rvu_free_rsrc(&ipolicer->band_prof, mid_prof);
+	}
 }
