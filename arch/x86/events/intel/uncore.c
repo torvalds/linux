@@ -842,6 +842,18 @@ static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
+void uncore_get_alias_name(char *pmu_name, struct intel_uncore_pmu *pmu)
+{
+	struct intel_uncore_type *type = pmu->type;
+
+	if (type->num_boxes == 1)
+		sprintf(pmu_name, "uncore_type_%u", type->type_id);
+	else {
+		sprintf(pmu_name, "uncore_type_%u_%d",
+			type->type_id, type->box_ids[pmu->pmu_idx]);
+	}
+}
+
 static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
 {
 	struct intel_uncore_type *type = pmu->type;
@@ -851,12 +863,7 @@ static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
 	 * Use uncore_type_&typeid_&boxid as name.
 	 */
 	if (!type->name) {
-		if (type->num_boxes == 1)
-			sprintf(pmu->name, "uncore_type_%u", type->type_id);
-		else {
-			sprintf(pmu->name, "uncore_type_%u_%d",
-				type->type_id, type->box_ids[pmu->pmu_idx]);
-		}
+		uncore_get_alias_name(pmu->name, pmu);
 		return;
 	}
 
