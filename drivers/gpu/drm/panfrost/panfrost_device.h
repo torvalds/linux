@@ -97,6 +97,7 @@ struct panfrost_device {
 	spinlock_t as_lock;
 	unsigned long as_in_use_mask;
 	unsigned long as_alloc_mask;
+	unsigned long as_faulty_mask;
 	struct list_head as_lru_list;
 
 	struct panfrost_job_slot *js;

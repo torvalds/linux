@@ -154,6 +154,7 @@ u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
 	as = mmu->as;
 	if (as >= 0) {
 		int en = atomic_inc_return(&mmu->as_count);
+		u32 mask = BIT(as) | BIT(16 + as);
 
 		/*
 		 * AS can be retained by active jobs or a perfcnt context,
@@ -162,6 +163,18 @@ u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
 		WARN_ON(en >= (NUM_JOB_SLOTS + 1));
 
 		list_move(&mmu->list, &pfdev->as_lru_list);
+
+		if (pfdev->as_faulty_mask & mask) {
+			/* Unhandled pagefault on this AS, the MMU was
+			 * disabled. We need to re-enable the MMU after
+			 * clearing+unmasking the AS interrupts.
+			 */
+			mmu_write(pfdev, MMU_INT_CLEAR, mask);
+			mmu_write(pfdev, MMU_INT_MASK, ~pfdev->as_faulty_mask);
+			pfdev->as_faulty_mask &= ~mask;
+			panfrost_mmu_enable(pfdev, mmu);
+		}
+
 		goto out;
 	}
 
@@ -211,6 +224,7 @@ void panfrost_mmu_reset(struct panfrost_device *pfdev)
 	spin_lock(&pfdev->as_lock);
 
 	pfdev->as_alloc_mask = 0;
+	pfdev->as_faulty_mask = 0;
 
 	list_for_each_entry_safe(mmu, mmu_tmp, &pfdev->as_lru_list, list) {
 		mmu->as = -1;
@@ -661,7 +675,7 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 		if ((status & mask) == BIT(as) && (exception_type & 0xF8) == 0xC0)
 			ret = panfrost_mmu_map_fault_addr(pfdev, as, addr);
 
-		if (ret)
+		if (ret) {
 			/* terminal fault, print info about the fault */
 			dev_err(pfdev->dev,
 				"Unhandled Page fault in AS%d at VA 0x%016llX\n"
@@ -679,14 +693,28 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 				access_type, access_type_name(pfdev, fault_status),
 				source_id);
 
+			spin_lock(&pfdev->as_lock);
+			/* Ignore MMU interrupts on this AS until it's been
+			 * re-enabled.
+			 */
+			pfdev->as_faulty_mask |= mask;
+
+			/* Disable the MMU to kill jobs on this AS. */
+			panfrost_mmu_disable(pfdev, as);
+			spin_unlock(&pfdev->as_lock);
+		}
+
 		status &= ~mask;
 
 		/* If we received new MMU interrupts, process them before returning. */
 		if (!status)
-			status = mmu_read(pfdev, MMU_INT_RAWSTAT);
+			status = mmu_read(pfdev, MMU_INT_RAWSTAT) & ~pfdev->as_faulty_mask;
 	}
 
-	mmu_write(pfdev, MMU_INT_MASK, ~0);
+	spin_lock(&pfdev->as_lock);
+	mmu_write(pfdev, MMU_INT_MASK, ~pfdev->as_faulty_mask);
+	spin_unlock(&pfdev->as_lock);
+
 	return IRQ_HANDLED;
 };
 
