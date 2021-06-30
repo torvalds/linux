@@ -325,6 +325,8 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  * @psmid: Pointer to program supplied message identifier
  * @msg: The message text
  * @length: The message length
+ * @reslength: Resitual length on return
+ * @resgr0: input: gr0 value (only used if != 0), output: resitual gr0 content
  *
  * Returns AP queue status structure.
  * Condition code 1 on DQAP means the receive has taken place
@@ -336,12 +338,25 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  * Note that gpr2 is used by the DQAP instruction to keep track of
  * any 'residual' length, in case the instruction gets interrupted.
  * Hence it gets zeroed before the instruction.
+ * If the message does not fit into the buffer, this function will
+ * return with a truncated message and the reply in the firmware queue
+ * is not removed. This is indicated to the caller with an
+ * ap_queue_status response_code value of all bits on (0xFF) and (if
+ * the reslength ptr is given) the remaining length is stored in
+ * *reslength and (if the resgr0 ptr is given) the updated gr0 value
+ * for further processing of this msg entry is stored in *resgr0. The
+ * caller needs to detect this situation and should invoke ap_dqap
+ * with a valid resgr0 ptr and a value in there != 0 to indicate that
+ * *resgr0 is to be used instead of qid to further process this entry.
  */
 static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 					     unsigned long long *psmid,
-					     void *msg, size_t length)
+					     void *msg, size_t length,
+					     size_t *reslength,
+					     unsigned long *resgr0)
 {
-	register unsigned long reg0 asm("0") = qid | 0x80000000UL;
+	register unsigned long reg0 asm("0") =
+		resgr0 && *resgr0 ? *resgr0 : qid | 0x80000000UL;
 	register struct ap_queue_status reg1 asm ("1");
 	register unsigned long reg2 asm("2") = 0UL;
 	register unsigned long reg4 asm("4") = (unsigned long) msg;
@@ -349,14 +364,33 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 	register unsigned long reg6 asm("6") = 0UL;
 	register unsigned long reg7 asm("7") = 0UL;
 
-
 	asm volatile(
-		"0: .long 0xb2ae0064\n"		/* DQAP */
-		"   brc   6,0b\n"
+		"0: ltgr  %[bl],%[bl]\n" /* if avail. buf len is 0 then */
+		"   jz    2f\n"		 /* go out of this asm block */
+		"1: .long 0xb2ae0064\n"  /* DQAP */
+		"   brc   6,0b\n"	 /* if partially do again */
+		"2:\n"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
-		  "+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7)
+		  "+d" (reg4), [bl] "+d" (reg5), "+d" (reg6), "+d" (reg7)
 		: : "cc", "memory");
-	*psmid = (((unsigned long long) reg6) << 32) + reg7;
+
+	if (reslength)
+		*reslength = reg2;
+	if (reg2 != 0 && reg5 == 0) {
+		/*
+		 * Partially complete, status in gr1 is not set.
+		 * Signal the caller that this dqap is only partially received
+		 * with a special status response code 0xFF and *resgr0 updated
+		 */
+		reg1.response_code = 0xFF;
+		if (resgr0)
+			*resgr0 = reg0;
+	} else {
+		*psmid = (((unsigned long long) reg6) << 32) + reg7;
+		if (resgr0)
+			*resgr0 = 0;
+	}
+
 	return reg1;
 }
 
