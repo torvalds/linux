@@ -29,7 +29,6 @@ struct block_device {
 	int			bd_openers;
 	struct inode *		bd_inode;	/* will die */
 	struct super_block *	bd_super;
-	struct mutex		bd_mutex;	/* open/close mutex */
 	void *			bd_claiming;
 	struct device		bd_device;
 	void *			bd_holder;
@@ -40,9 +39,6 @@ struct block_device {
 #endif
 	struct kobject		*bd_holder_dir;
 	u8			bd_partno;
-	/* number of times partitions within this device have been opened. */
-	unsigned		bd_part_count;
-
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;

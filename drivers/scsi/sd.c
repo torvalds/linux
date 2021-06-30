@@ -1416,7 +1416,7 @@ static bool sd_need_revalidate(struct block_device *bdev,
  *	In the latter case @inode and @filp carry an abridged amount
  *	of information as noted above.
  *
- *	Locking: called with bdev->bd_mutex held.
+ *	Locking: called with bdev->bd_disk->open_mutex held.
  **/
 static int sd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -1490,7 +1490,7 @@ error_out:
  *	Note: may block (uninterruptible) if error recovery is underway
  *	on this disk.
  *
- *	Locking: called with bdev->bd_mutex held.
+ *	Locking: called with bdev->bd_disk->open_mutex held.
  **/
 static void sd_release(struct gendisk *disk, fmode_t mode)
 {
