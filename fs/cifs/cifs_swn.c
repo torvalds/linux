@@ -447,15 +447,13 @@ static int cifs_swn_store_swn_addr(const struct sockaddr_storage *new,
 				   const struct sockaddr_storage *old,
 				   struct sockaddr_storage *dst)
 {
-	__be16 port;
+	__be16 port = cpu_to_be16(CIFS_PORT);
 
 	if (old->ss_family == AF_INET) {
 		struct sockaddr_in *ipv4 = (struct sockaddr_in *)old;
 
 		port = ipv4->sin_port;
-	}
-
-	if (old->ss_family == AF_INET6) {
+	} else if (old->ss_family == AF_INET6) {
 		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)old;
 
 		port = ipv6->sin6_port;
@@ -465,9 +463,7 @@ static int cifs_swn_store_swn_addr(const struct sockaddr_storage *new,
 		struct sockaddr_in *ipv4 = (struct sockaddr_in *)new;
 
 		ipv4->sin_port = port;
-	}
-
-	if (new->ss_family == AF_INET6) {
+	} else if (new->ss_family == AF_INET6) {
 		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)new;
 
 		ipv6->sin6_port = port;
