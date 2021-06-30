@@ -222,7 +222,9 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 	return 0;
 }
 
-int ndr_encode_posix_acl(struct ndr *n, struct inode *inode,
+int ndr_encode_posix_acl(struct ndr *n,
+			 struct user_namespace *user_ns,
+			 struct inode *inode,
 			 struct xattr_smb_acl *acl,
 			 struct xattr_smb_acl *def_acl)
 {
@@ -250,8 +252,8 @@ int ndr_encode_posix_acl(struct ndr *n, struct inode *inode,
 		ndr_write_int32(n, 0);
 	}
 
-	ndr_write_int64(n, from_kuid(&init_user_ns, inode->i_uid));
-	ndr_write_int64(n, from_kgid(&init_user_ns, inode->i_gid));
+	ndr_write_int64(n, from_kuid(user_ns, inode->i_uid));
+	ndr_write_int64(n, from_kgid(user_ns, inode->i_gid));
 	ndr_write_int32(n, inode->i_mode);
 
 	if (acl) {
