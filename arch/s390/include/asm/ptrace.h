@@ -162,6 +162,14 @@ static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 	return !!(regs->flags & (1UL << flag));
 }
 
+static inline int test_and_clear_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	int ret = test_pt_regs_flag(regs, flag);
+
+	clear_pt_regs_flag(regs, flag);
+	return ret;
+}
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
