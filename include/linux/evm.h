@@ -23,18 +23,25 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     struct integrity_iint_cache *iint);
 extern int evm_inode_setattr(struct dentry *dentry, struct iattr *attr);
 extern void evm_inode_post_setattr(struct dentry *dentry, int ia_valid);
-extern int evm_inode_setxattr(struct dentry *dentry, const char *name,
+extern int evm_inode_setxattr(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, const char *name,
 			      const void *value, size_t size);
 extern void evm_inode_post_setxattr(struct dentry *dentry,
 				    const char *xattr_name,
 				    const void *xattr_value,
 				    size_t xattr_value_len);
-extern int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name);
+extern int evm_inode_removexattr(struct user_namespace *mnt_userns,
+				 struct dentry *dentry, const char *xattr_name);
 extern void evm_inode_post_removexattr(struct dentry *dentry,
 				       const char *xattr_name);
 extern int evm_inode_init_security(struct inode *inode,
 				   const struct xattr *xattr_array,
 				   struct xattr *evm);
+extern bool evm_revalidate_status(const char *xattr_name);
+extern int evm_protected_xattr_if_enabled(const char *req_xattr_name);
+extern int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
+				     int buffer_size, char type,
+				     bool canonical_fmt);
 #ifdef CONFIG_FS_POSIX_ACL
 extern int posix_xattr_acl(const char *xattrname);
 #else
@@ -71,7 +78,8 @@ static inline void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 	return;
 }
 
-static inline int evm_inode_setxattr(struct dentry *dentry, const char *name,
+static inline int evm_inode_setxattr(struct user_namespace *mnt_userns,
+				     struct dentry *dentry, const char *name,
 				     const void *value, size_t size)
 {
 	return 0;
@@ -85,7 +93,8 @@ static inline void evm_inode_post_setxattr(struct dentry *dentry,
 	return;
 }
 
-static inline int evm_inode_removexattr(struct dentry *dentry,
+static inline int evm_inode_removexattr(struct user_namespace *mnt_userns,
+					struct dentry *dentry,
 					const char *xattr_name)
 {
 	return 0;
@@ -102,6 +111,23 @@ static inline int evm_inode_init_security(struct inode *inode,
 					  struct xattr *evm)
 {
 	return 0;
+}
+
+static inline bool evm_revalidate_status(const char *xattr_name)
+{
+	return false;
+}
+
+static inline int evm_protected_xattr_if_enabled(const char *req_xattr_name)
+{
+	return false;
+}
+
+static inline int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
+					    int buffer_size, char type,
+					    bool canonical_fmt)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif /* CONFIG_EVM */

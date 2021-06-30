@@ -632,6 +632,6 @@ static inline enum dma_data_direction mmc_get_dma_dir(struct mmc_data *data)
 }
 
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
-int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
+int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode);
 
 #endif /* LINUX_MMC_HOST_H */

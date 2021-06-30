@@ -118,6 +118,15 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 	_enter("{%llx:%llu},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
 
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			copied = 0;
+			goto out;
+		}
+
+		SetPageUptodate(page);
+	}
+
 	if (copied == 0)
 		goto out;
 
@@ -131,8 +140,6 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
 		write_sequnlock(&vnode->cb_lock);
 	}
-
-	ASSERT(PageUptodate(page));
 
 	if (PagePrivate(page)) {
 		priv = page_private(page);

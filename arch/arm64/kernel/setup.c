@@ -87,12 +87,6 @@ void __init smp_setup_processor_id(void)
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	set_cpu_logical_map(0, mpidr);
 
-	/*
-	 * clear __my_cpu_offset on boot CPU to avoid hang caused by
-	 * using percpu variable early, for example, lockdep will
-	 * access percpu variable inside lock_release
-	 */
-	set_my_cpu_offset(0);
 	pr_info("Booting Linux on physical CPU 0x%010lx [0x%08x]\n",
 		(unsigned long)mpidr, read_cpuid_id());
 }
@@ -381,7 +375,7 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	 * faults in case uaccess_enable() is inadvertently called by the init
 	 * thread.
 	 */
-	init_task.thread_info.ttbr0 = __pa_symbol(reserved_pg_dir);
+	init_task.thread_info.ttbr0 = phys_to_ttbr(__pa_symbol(reserved_pg_dir));
 #endif
 
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {

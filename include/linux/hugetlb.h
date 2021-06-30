@@ -451,7 +451,7 @@ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
 extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
-				struct user_struct **user, int creat_flags,
+				struct ucounts **ucounts, int creat_flags,
 				int page_size_log);
 
 static inline bool is_file_hugepages(struct file *file)
@@ -471,7 +471,7 @@ static inline struct hstate *hstate_inode(struct inode *i)
 #define is_file_hugepages(file)			false
 static inline struct file *
 hugetlb_file_setup(const char *name, size_t size, vm_flags_t acctflag,
-		struct user_struct **user, int creat_flags,
+		struct ucounts **ucounts, int creat_flags,
 		int page_size_log)
 {
 	return ERR_PTR(-ENOSYS);
@@ -741,17 +741,6 @@ static inline int hstate_index(struct hstate *h)
 	return h - hstates;
 }
 
-pgoff_t __basepage_index(struct page *page);
-
-/* Return page->index in PAGE_SIZE units */
-static inline pgoff_t basepage_index(struct page *page)
-{
-	if (!PageCompound(page))
-		return page->index;
-
-	return __basepage_index(page);
-}
-
 extern int dissolve_free_huge_page(struct page *page);
 extern int dissolve_free_huge_pages(unsigned long start_pfn,
 				    unsigned long end_pfn);
@@ -986,11 +975,6 @@ static inline unsigned hstate_index_to_shift(unsigned index)
 static inline int hstate_index(struct hstate *h)
 {
 	return 0;
-}
-
-static inline pgoff_t basepage_index(struct page *page)
-{
-	return page->index;
 }
 
 static inline int dissolve_free_huge_page(struct page *page)

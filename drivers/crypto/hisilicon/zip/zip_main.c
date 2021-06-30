@@ -68,6 +68,7 @@
 #define HZIP_CORE_INT_RAS_CE_ENABLE	0x1
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
+#define HZIP_OOO_SHUTDOWN_SEL		0x30120C
 #define HZIP_CORE_INT_RAS_NFE_ENABLE	0x1FFE
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
@@ -95,6 +96,16 @@
 #define HZIP_RO_CNT_CLR_CE_EN		BIT(2)
 #define HZIP_RD_CNT_CLR_CE_EN		(HZIP_CNT_CLR_CE_EN | \
 					 HZIP_RO_CNT_CLR_CE_EN)
+
+#define HZIP_PREFETCH_CFG		0x3011B0
+#define HZIP_SVA_TRANS			0x3011C4
+#define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
+#define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
+#define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
+#define HZIP_SHAPER_RATE_COMPRESS	252
+#define HZIP_SHAPER_RATE_DECOMPRESS	229
+#define HZIP_DELAY_1_US		1
+#define HZIP_POLL_TIMEOUT_US	1000
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
@@ -262,6 +273,45 @@ int zip_create_qps(struct hisi_qp **qps, int qp_num, int node)
 	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
 }
 
+static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	/* Enable prefetch */
+	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
+	val &= HZIP_PREFETCH_ENABLE;
+	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_PREFETCH_CFG,
+					 val, !(val & HZIP_SVA_PREFETCH_DISABLE),
+					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to open sva prefetch\n");
+}
+
+static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
+	val |= HZIP_SVA_PREFETCH_DISABLE;
+	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_SVA_TRANS,
+					 val, !(val & HZIP_SVA_DISABLE_READY),
+					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to close sva prefetch\n");
+}
+
 static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	void __iomem *base = qm->io_base;
@@ -312,10 +362,27 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	return 0;
 }
 
+static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
+{
+	u32 val1, val2;
+
+	val1 = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	if (enable) {
+		val1 |= HZIP_AXI_SHUTDOWN_ENABLE;
+		val2 = HZIP_CORE_INT_RAS_NFE_ENABLE;
+	} else {
+		val1 &= ~HZIP_AXI_SHUTDOWN_ENABLE;
+		val2 = 0x0;
+	}
+
+	if (qm->ver > QM_HW_V2)
+		writel(val2, qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+
+	writel(val1, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+}
+
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
 		       qm->io_base + HZIP_CORE_INT_MASK_REG);
@@ -333,26 +400,20 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
 	       qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
+	/* enable ZIP block master OOO when nfe occurs on Kunpeng930 */
+	hisi_zip_master_ooo_ctrl(qm, true);
+
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
-
-	/* enable ZIP block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
-	val = val | HZIP_AXI_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
 }
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	/* disable ZIP hw error interrupts */
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
-	/* disable ZIP block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
-	val = val & ~HZIP_AXI_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	/* disable ZIP block master OOO when nfe occurs on Kunpeng930 */
+	hisi_zip_master_ooo_ctrl(qm, false);
 }
 
 static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
@@ -684,6 +745,8 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.log_dev_hw_err		= hisi_zip_log_hw_error,
 	.open_axi_master_ooo	= hisi_zip_open_axi_master_ooo,
 	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
+	.open_sva_prefetch	= hisi_zip_open_sva_prefetch,
+	.close_sva_prefetch	= hisi_zip_close_sva_prefetch,
 	.err_info_init		= hisi_zip_err_info_init,
 };
 
@@ -702,6 +765,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	qm->err_ini->err_info_init(qm);
 
 	hisi_zip_set_user_domain_and_cache(qm);
+	hisi_zip_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);
 
@@ -761,6 +825,7 @@ static void hisi_zip_qm_uninit(struct hisi_qm *qm)
 
 static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
 {
+	u32 type_rate = HZIP_SHAPER_RATE_COMPRESS;
 	struct hisi_qm *qm = &hisi_zip->qm;
 	int ret;
 
@@ -768,6 +833,14 @@ static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
 		ret = hisi_zip_pf_probe_init(hisi_zip);
 		if (ret)
 			return ret;
+		/* enable shaper type 0 */
+		if (qm->ver >= QM_HW_V3) {
+			type_rate |= QM_SHAPER_ENABLE;
+
+			/* ZIP need to enable shaper type 1 */
+			type_rate |= HZIP_SHAPER_RATE_DECOMPRESS << QM_SHAPER_TYPE1_OFFSET;
+			qm->type_rate = type_rate;
+		}
 	}
 
 	return 0;

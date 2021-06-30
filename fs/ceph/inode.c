@@ -777,6 +777,8 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 	umode_t mode = le32_to_cpu(info->mode);
 	dev_t rdev = le32_to_cpu(info->rdev);
 
+	lockdep_assert_held(&mdsc->snap_rwsem);
+
 	dout("%s %p ino %llx.%llx v %llu had %llu\n", __func__,
 	     inode, ceph_vinop(inode), le64_to_cpu(info->version),
 	     ci->i_version);

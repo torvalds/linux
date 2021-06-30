@@ -710,7 +710,7 @@ static int imx258_write_regs(struct imx258 *imx258,
 static int imx258_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
@@ -820,7 +820,7 @@ static const struct v4l2_ctrl_ops imx258_ctrl_ops = {
 };
 
 static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Only one bayer order(GRBG) is supported */
@@ -833,7 +833,7 @@ static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx258_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -860,11 +860,12 @@ static void imx258_update_pad_format(const struct imx258_mode *mode,
 }
 
 static int __imx258_get_pad_format(struct imx258 *imx258,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&imx258->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&imx258->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		imx258_update_pad_format(imx258->cur_mode, fmt);
@@ -873,21 +874,21 @@ static int __imx258_get_pad_format(struct imx258 *imx258,
 }
 
 static int imx258_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
 	int ret;
 
 	mutex_lock(&imx258->mutex);
-	ret = __imx258_get_pad_format(imx258, cfg, fmt);
+	ret = __imx258_get_pad_format(imx258, sd_state, fmt);
 	mutex_unlock(&imx258->mutex);
 
 	return ret;
 }
 
 static int imx258_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
@@ -909,7 +910,7 @@ static int imx258_set_pad_format(struct v4l2_subdev *sd,
 		fmt->format.width, fmt->format.height);
 	imx258_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx258->cur_mode = mode;
@@ -1039,11 +1040,9 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values

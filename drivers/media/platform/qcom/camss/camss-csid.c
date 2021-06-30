@@ -156,11 +156,9 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	int ret;
 
 	if (on) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0) {
-			pm_runtime_put_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0)
 			return ret;
-		}
 
 		ret = regulator_enable(csid->vdda);
 		if (ret < 0) {
@@ -247,12 +245,13 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
  */
 static struct v4l2_mbus_framefmt *
 __csid_get_format(struct csid_device *csid,
-		  struct v4l2_subdev_pad_config *cfg,
+		  struct v4l2_subdev_state *sd_state,
 		  unsigned int pad,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&csid->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&csid->subdev, sd_state,
+						  pad);
 
 	return &csid->fmt[pad];
 }
@@ -266,7 +265,7 @@ __csid_get_format(struct csid_device *csid,
  * @which: wanted subdev format
  */
 static void csid_try_format(struct csid_device *csid,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    unsigned int pad,
 			    struct v4l2_mbus_framefmt *fmt,
 			    enum v4l2_subdev_format_whence which)
@@ -299,7 +298,7 @@ static void csid_try_format(struct csid_device *csid,
 			/* keep pad formats in sync */
 			u32 code = fmt->code;
 
-			*fmt = *__csid_get_format(csid, cfg,
+			*fmt = *__csid_get_format(csid, sd_state,
 						      MSM_CSID_PAD_SINK, which);
 			fmt->code = csid->ops->src_pad_code(csid, fmt->code, 0, code);
 		} else {
@@ -333,7 +332,7 @@ static void csid_try_format(struct csid_device *csid,
  * return -EINVAL or zero on success
  */
 static int csid_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct csid_device *csid = v4l2_get_subdevdata(sd);
@@ -347,7 +346,7 @@ static int csid_enum_mbus_code(struct v4l2_subdev *sd,
 		if (csid->testgen_mode->cur.val == 0) {
 			struct v4l2_mbus_framefmt *sink_fmt;
 
-			sink_fmt = __csid_get_format(csid, cfg,
+			sink_fmt = __csid_get_format(csid, sd_state,
 						     MSM_CSID_PAD_SINK,
 						     code->which);
 
@@ -374,7 +373,7 @@ static int csid_enum_mbus_code(struct v4l2_subdev *sd,
  * return -EINVAL or zero on success
  */
 static int csid_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct csid_device *csid = v4l2_get_subdevdata(sd);
@@ -386,7 +385,7 @@ static int csid_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	csid_try_format(csid, cfg, fse->pad, &format, fse->which);
+	csid_try_format(csid, sd_state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -396,7 +395,7 @@ static int csid_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	csid_try_format(csid, cfg, fse->pad, &format, fse->which);
+	csid_try_format(csid, sd_state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -412,13 +411,13 @@ static int csid_enum_frame_size(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int csid_get_format(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csid_device *csid = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __csid_get_format(csid, cfg, fmt->pad, fmt->which);
+	format = __csid_get_format(csid, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -436,26 +435,26 @@ static int csid_get_format(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int csid_set_format(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csid_device *csid = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __csid_get_format(csid, cfg, fmt->pad, fmt->which);
+	format = __csid_get_format(csid, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	csid_try_format(csid, cfg, fmt->pad, &fmt->format, fmt->which);
+	csid_try_format(csid, sd_state, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == MSM_CSID_PAD_SINK) {
-		format = __csid_get_format(csid, cfg, MSM_CSID_PAD_SRC,
+		format = __csid_get_format(csid, sd_state, MSM_CSID_PAD_SRC,
 					   fmt->which);
 
 		*format = fmt->format;
-		csid_try_format(csid, cfg, MSM_CSID_PAD_SRC, format,
+		csid_try_format(csid, sd_state, MSM_CSID_PAD_SRC, format,
 				fmt->which);
 	}
 
@@ -484,7 +483,7 @@ static int csid_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		}
 	};
 
-	return csid_set_format(sd, fh ? fh->pad : NULL, &format);
+	return csid_set_format(sd, fh ? fh->state : NULL, &format);
 }
 
 /*
@@ -566,8 +565,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	csid->base = devm_ioremap_resource(dev, r);
+	csid->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(csid->base))
 		return PTR_ERR(csid->base);
 
@@ -584,13 +582,12 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	snprintf(csid->irq_name, sizeof(csid->irq_name), "%s_%s%d",
 		 dev_name(dev), MSM_CSID_NAME, csid->id);
 	ret = devm_request_irq(dev, csid->irq, csid->ops->isr,
-			       IRQF_TRIGGER_RISING, csid->irq_name, csid);
+			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
+			       csid->irq_name, csid);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
 		return ret;
 	}
-
-	disable_irq(csid->irq);
 
 	/* Clocks */
 

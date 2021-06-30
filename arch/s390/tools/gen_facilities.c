@@ -115,6 +115,10 @@ static struct facility_def facility_defs[] = {
 			12, /* AP Query Configuration Information */
 			15, /* AP Facilities Test */
 			156, /* etoken facility */
+			165, /* nnpa facility */
+			193, /* bear enhancement facility */
+			194, /* rdp enhancement facility */
+			196, /* processor activity instrumentation facility */
 			-1  /* END */
 		}
 	},

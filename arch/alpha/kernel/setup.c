@@ -79,11 +79,6 @@ int alpha_l3_cacheshape;
 unsigned long alpha_verbose_mcheck = CONFIG_VERBOSE_MCHECK_ON;
 #endif
 
-#ifdef CONFIG_NUMA
-struct cpumask node_to_cpumask_map[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_to_cpumask_map);
-#endif
-
 /* Which processor we booted from.  */
 int boot_cpuid;
 
@@ -305,7 +300,6 @@ move_initrd(unsigned long mem_limit)
 }
 #endif
 
-#ifndef CONFIG_DISCONTIGMEM
 static void __init
 setup_memory(void *kernel_end)
 {
@@ -389,9 +383,6 @@ setup_memory(void *kernel_end)
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
-#else
-extern void setup_memory(void *);
-#endif /* !CONFIG_DISCONTIGMEM */
 
 int __init
 page_is_ram(unsigned long pfn)
@@ -616,13 +607,6 @@ setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_VERBOSE_MCHECK
 	       "VERBOSE_MCHECK "
-#endif
-
-#ifdef CONFIG_DISCONTIGMEM
-	       "DISCONTIGMEM "
-#ifdef CONFIG_NUMA
-	       "NUMA "
-#endif
 #endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK

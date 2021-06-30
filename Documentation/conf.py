@@ -41,15 +41,7 @@ extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'maintainers_include', 'sphinx.ext.autosectionlabel',
               'kernel_abi', 'kernel_feat']
 
-#
-# cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*
-# of the docs correctly, but not all.  Scream bloody murder but allow
-# the process to proceed; hopefully somebody will fix this properly soon.
-#
 if major >= 3:
-    sys.stderr.write('''WARNING: The kernel documentation build process
-        support for Sphinx v3.0 and above is brand new. Be prepared for
-        possible issues in the generated output.\n''')
     if (major > 3) or (minor > 0 or patch >= 2):
         # Sphinx c function parser is more pedantic with regards to type
         # checking. Due to that, having macros at c:function cause problems.
@@ -353,6 +345,8 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
+	% Prevent column squeezing of tabulary.
+	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
         \\setsansfont{DejaVu Sans}
@@ -366,11 +360,23 @@ latex_elements = {
 
 cjk_cmd = check_output(['fc-list', '--format="%{family[0]}\n"']).decode('utf-8', 'ignore')
 if cjk_cmd.find("Noto Sans CJK SC") >= 0:
-    print ("enabling CJK for LaTeX builder")
     latex_elements['preamble']  += '''
 	% This is needed for translations
         \\usepackage{xeCJK}
         \\setCJKmainfont{Noto Sans CJK SC}
+	% Define custom macros to on/off CJK
+	\\newcommand{\\kerneldocCJKon}{\\makexeCJKactive}
+	\\newcommand{\\kerneldocCJKoff}{\\makexeCJKinactive}
+	% To customize \sphinxtableofcontents
+	\\usepackage{etoolbox}
+	% Inactivate CJK after tableofcontents
+	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
+     '''
+else:
+    latex_elements['preamble']  += '''
+	% Custom macros to on/off CJK (Dummy)
+	\\newcommand{\\kerneldocCJKon}{}
+	\\newcommand{\\kerneldocCJKoff}{}
      '''
 
 # Fix reference escape troubles with Sphinx 1.4.x

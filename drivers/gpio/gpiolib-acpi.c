@@ -1233,14 +1233,14 @@ static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_gpio_chip *acpi_gpio;
-	acpi_handle handle;
+	struct acpi_device *adev;
 	acpi_status status;
 
 	if (!chip || !chip->parent)
 		return;
 
-	handle = ACPI_HANDLE(chip->parent);
-	if (!handle)
+	adev = ACPI_COMPANION(chip->parent);
+	if (!adev)
 		return;
 
 	acpi_gpio = kzalloc(sizeof(*acpi_gpio), GFP_KERNEL);
@@ -1254,7 +1254,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	INIT_LIST_HEAD(&acpi_gpio->events);
 	INIT_LIST_HEAD(&acpi_gpio->deferred_req_irqs_list_entry);
 
-	status = acpi_attach_data(handle, acpi_gpio_chip_dh, acpi_gpio);
+	status = acpi_attach_data(adev->handle, acpi_gpio_chip_dh, acpi_gpio);
 	if (ACPI_FAILURE(status)) {
 		dev_err(chip->parent, "Failed to attach ACPI GPIO chip\n");
 		kfree(acpi_gpio);
@@ -1263,7 +1263,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 
 	acpi_gpiochip_request_regions(acpi_gpio);
 	acpi_gpiochip_scan_gpios(acpi_gpio);
-	acpi_walk_dep_device_list(handle);
+	acpi_dev_clear_dependencies(adev);
 }
 
 void acpi_gpiochip_remove(struct gpio_chip *chip)

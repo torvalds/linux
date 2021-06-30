@@ -11,7 +11,6 @@
 
 #include <linux/linkage.h>
 #include <linux/smp.h>
-#include <linux/irqdomain.h>
 
 #include <asm/mipsmtregs.h>
 

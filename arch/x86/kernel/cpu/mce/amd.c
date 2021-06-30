@@ -77,27 +77,29 @@ struct smca_bank_name {
 };
 
 static struct smca_bank_name smca_names[] = {
-	[SMCA_LS]	= { "load_store",	"Load Store Unit" },
-	[SMCA_LS_V2]	= { "load_store",	"Load Store Unit" },
-	[SMCA_IF]	= { "insn_fetch",	"Instruction Fetch Unit" },
-	[SMCA_L2_CACHE]	= { "l2_cache",		"L2 Cache" },
-	[SMCA_DE]	= { "decode_unit",	"Decode Unit" },
-	[SMCA_RESERVED]	= { "reserved",		"Reserved" },
-	[SMCA_EX]	= { "execution_unit",	"Execution Unit" },
-	[SMCA_FP]	= { "floating_point",	"Floating Point Unit" },
-	[SMCA_L3_CACHE]	= { "l3_cache",		"L3 Cache" },
-	[SMCA_CS]	= { "coherent_slave",	"Coherent Slave" },
-	[SMCA_CS_V2]	= { "coherent_slave",	"Coherent Slave" },
-	[SMCA_PIE]	= { "pie",		"Power, Interrupts, etc." },
-	[SMCA_UMC]	= { "umc",		"Unified Memory Controller" },
-	[SMCA_PB]	= { "param_block",	"Parameter Block" },
-	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
-	[SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
-	[SMCA_SMU]	= { "smu",		"System Management Unit" },
-	[SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
-	[SMCA_MP5]	= { "mp5",		"Microprocessor 5 Unit" },
-	[SMCA_NBIO]	= { "nbio",		"Northbridge IO Unit" },
-	[SMCA_PCIE]	= { "pcie",		"PCI Express Unit" },
+	[SMCA_LS ... SMCA_LS_V2]	= { "load_store",	"Load Store Unit" },
+	[SMCA_IF]			= { "insn_fetch",	"Instruction Fetch Unit" },
+	[SMCA_L2_CACHE]			= { "l2_cache",		"L2 Cache" },
+	[SMCA_DE]			= { "decode_unit",	"Decode Unit" },
+	[SMCA_RESERVED]			= { "reserved",		"Reserved" },
+	[SMCA_EX]			= { "execution_unit",	"Execution Unit" },
+	[SMCA_FP]			= { "floating_point",	"Floating Point Unit" },
+	[SMCA_L3_CACHE]			= { "l3_cache",		"L3 Cache" },
+	[SMCA_CS ... SMCA_CS_V2]	= { "coherent_slave",	"Coherent Slave" },
+	[SMCA_PIE]			= { "pie",		"Power, Interrupts, etc." },
+
+	/* UMC v2 is separate because both of them can exist in a single system. */
+	[SMCA_UMC]			= { "umc",		"Unified Memory Controller" },
+	[SMCA_UMC_V2]			= { "umc_v2",		"Unified Memory Controller v2" },
+	[SMCA_PB]			= { "param_block",	"Parameter Block" },
+	[SMCA_PSP ... SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
+	[SMCA_SMU ... SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
+	[SMCA_MP5]			= { "mp5",		"Microprocessor 5 Unit" },
+	[SMCA_NBIO]			= { "nbio",		"Northbridge IO Unit" },
+	[SMCA_PCIE ... SMCA_PCIE_V2]	= { "pcie",		"PCI Express Unit" },
+	[SMCA_XGMI_PCS]			= { "xgmi_pcs",		"Ext Global Memory Interconnect PCS Unit" },
+	[SMCA_XGMI_PHY]			= { "xgmi_phy",		"Ext Global Memory Interconnect PHY Unit" },
+	[SMCA_WAFL_PHY]			= { "wafl_phy",		"WAFL PHY Unit" },
 };
 
 static const char *smca_get_name(enum smca_bank_types t)
@@ -155,6 +157,7 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 
 	/* Unified Memory Controller MCA type */
 	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0)	},
+	{ SMCA_UMC_V2,	 HWID_MCATYPE(0x96, 0x1)	},
 
 	/* Parameter Block MCA type */
 	{ SMCA_PB,	 HWID_MCATYPE(0x05, 0x0)	},
@@ -175,6 +178,16 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 
 	/* PCI Express Unit MCA type */
 	{ SMCA_PCIE,	 HWID_MCATYPE(0x46, 0x0)	},
+	{ SMCA_PCIE_V2,	 HWID_MCATYPE(0x46, 0x1)	},
+
+	/* xGMI PCS MCA type */
+	{ SMCA_XGMI_PCS, HWID_MCATYPE(0x50, 0x0)	},
+
+	/* xGMI PHY MCA type */
+	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
+
+	/* WAFL PHY MCA type */
+	{ SMCA_WAFL_PHY, HWID_MCATYPE(0x267, 0x0)	},
 };
 
 struct smca_bank smca_banks[MAX_NR_BANKS];

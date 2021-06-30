@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <acpi/apei.h>
 #include <linux/suspend.h>
+#include <linux/prmt.h>
 
 #include "internal.h"
 
@@ -262,8 +263,6 @@ out_success:
 
 out_kfree:
 	kfree(output.pointer);
-	if (status != AE_OK)
-		context->ret.pointer = NULL;
 	return status;
 }
 EXPORT_SYMBOL(acpi_run_osc);
@@ -304,6 +303,7 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PRM_SUPPORT;
 
 #ifdef CONFIG_ARM64
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(osc_sb_native_usb4_control);
 
 static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 {
-	printk(KERN_INFO PREFIX "%s USB3%c DisplayPort%c PCIe%c XDomain%c\n", msg,
+	pr_info("%s USB3%c DisplayPort%c PCIe%c XDomain%c\n", msg,
 	       (bits & OSC_USB_USB3_TUNNELING) ? '+' : '-',
 	       (bits & OSC_USB_DP_TUNNELING) ? '+' : '-',
 	       (bits & OSC_USB_PCIE_TUNNELING) ? '+' : '-',
@@ -398,7 +398,7 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 		return;
 
 	if (context.ret.length != sizeof(capbuf)) {
-		printk(KERN_INFO PREFIX "USB4 _OSC: returned invalid length buffer\n");
+		pr_info("USB4 _OSC: returned invalid length buffer\n");
 		goto out_free;
 	}
 
@@ -1195,7 +1195,8 @@ void __init acpi_subsystem_init(void)
 
 static acpi_status acpi_bus_table_handler(u32 event, void *table, void *context)
 {
-	acpi_scan_table_handler(event, table, context);
+	if (event == ACPI_TABLE_EVENT_LOAD)
+		acpi_scan_table_notify();
 
 	return acpi_sysfs_table_handler(event, table, context);
 }
@@ -1314,13 +1315,13 @@ static int __init acpi_init(void)
 	}
 
 	acpi_kobj = kobject_create_and_add("acpi", firmware_kobj);
-	if (!acpi_kobj) {
+	if (!acpi_kobj)
 		pr_debug("%s: kset create error\n", __func__);
-		acpi_kobj = NULL;
-	}
 
+	init_prmt();
 	result = acpi_bus_init();
 	if (result) {
+		kobject_put(acpi_kobj);
 		disable_acpi();
 		return result;
 	}

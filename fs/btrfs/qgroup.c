@@ -2521,7 +2521,7 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	int ret = 0;
 
 	/*
-	 * If quotas get disabled meanwhile, the resouces need to be freed and
+	 * If quotas get disabled meanwhile, the resources need to be freed and
 	 * we can't just exit here.
 	 */
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
@@ -3545,13 +3545,7 @@ static int try_flush_qgroup(struct btrfs_root *root)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	/*
-	 * Can't hold an open transaction or we run the risk of deadlocking,
-	 * and can't either be under the context of a send operation (where
-	 * current->journal_info is set to BTRFS_SEND_TRANS_STUB), as that
-	 * would result in a crash when starting a transaction and does not
-	 * make sense either (send is a read-only operation).
-	 */
+	/* Can't hold an open transaction or we run the risk of deadlocking. */
 	ASSERT(current->journal_info == NULL);
 	if (WARN_ON(current->journal_info))
 		return 0;

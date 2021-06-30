@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 #include <linux/tick.h>

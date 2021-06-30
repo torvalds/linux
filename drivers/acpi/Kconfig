@@ -543,3 +543,8 @@ config X86_PM_TIMER
 
 	  You should nearly always say Y here because many modern
 	  systems require this timer.
+
+config ACPI_PRMT
+	bool "Platform Runtime Mechanism Support"
+	depends on EFI && X86_64
+	default y

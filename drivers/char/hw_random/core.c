@@ -319,11 +319,11 @@ static int enable_best_rng(void)
 	return ret;
 }
 
-static ssize_t hwrng_attr_current_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t len)
+static ssize_t rng_current_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len)
 {
-	int err = -ENODEV;
+	int err;
 	struct hwrng *rng, *old_rng, *new_rng;
 
 	err = mutex_lock_interruptible(&rng_mutex);
@@ -354,9 +354,9 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 	return err ? : len;
 }
 
-static ssize_t hwrng_attr_current_show(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
+static ssize_t rng_current_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
 {
 	ssize_t ret;
 	struct hwrng *rng;
@@ -371,9 +371,9 @@ static ssize_t hwrng_attr_current_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t hwrng_attr_available_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
+static ssize_t rng_available_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int err;
 	struct hwrng *rng;
@@ -392,22 +392,16 @@ static ssize_t hwrng_attr_available_show(struct device *dev,
 	return strlen(buf);
 }
 
-static ssize_t hwrng_attr_selected_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t rng_selected_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	return sysfs_emit(buf, "%d\n", cur_rng_set_by_user);
 }
 
-static DEVICE_ATTR(rng_current, S_IRUGO | S_IWUSR,
-		   hwrng_attr_current_show,
-		   hwrng_attr_current_store);
-static DEVICE_ATTR(rng_available, S_IRUGO,
-		   hwrng_attr_available_show,
-		   NULL);
-static DEVICE_ATTR(rng_selected, S_IRUGO,
-		   hwrng_attr_selected_show,
-		   NULL);
+static DEVICE_ATTR_RW(rng_current);
+static DEVICE_ATTR_RO(rng_available);
+static DEVICE_ATTR_RO(rng_selected);
 
 static struct attribute *rng_dev_attrs[] = {
 	&dev_attr_rng_current.attr,

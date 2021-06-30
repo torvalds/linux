@@ -257,7 +257,7 @@ drivers-$(CONFIG_FB) += arch/x86/video/
 
 boot := arch/x86/boot
 
-BOOT_TARGETS = bzdisk fdimage fdimage144 fdimage288 isoimage
+BOOT_TARGETS = bzdisk fdimage fdimage144 fdimage288 hdimage isoimage
 
 PHONY += bzImage $(BOOT_TARGETS)
 
@@ -315,8 +315,9 @@ define archhelp
   echo  '  fdimage		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
   echo  '  fdimage144		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
   echo  '  fdimage288		- Create 2.8MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  hdimage		- Create a BIOS/EFI hard disk image (arch/x86/boot/hdimage)'
   echo  '  isoimage		- Create a boot CD-ROM image (arch/x86/boot/image.iso)'
-  echo  '			  bzdisk/fdimage*/isoimage also accept:'
+  echo  '			  bzdisk/fdimage*/hdimage/isoimage also accept:'
   echo  '			  FDARGS="..."  arguments for the booted kernel'
   echo  '                  	  FDINITRD=file initrd for the booted kernel'
   echo  ''

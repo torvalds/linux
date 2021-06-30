@@ -512,7 +512,6 @@ void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal)
 
 	/* No handlers present - check for system call restart */
 	clear_pt_regs_flag(regs, PIF_SYSCALL);
-	clear_pt_regs_flag(regs, PIF_SYSCALL_RESTART);
 	if (current->thread.system_call) {
 		regs->int_code = current->thread.system_call;
 		switch (regs->gprs[2]) {

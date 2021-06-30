@@ -376,8 +376,7 @@ unsigned long get_wchan(struct task_struct *task)
 	struct reg_window32 *rw;
 	int count = 0;
 
-	if (!task || task == current ||
-            task->state == TASK_RUNNING)
+	if (!task || task == current || task_is_running(task))
 		goto out;
 
 	fp = task_thread_info(task)->ksp + bias;

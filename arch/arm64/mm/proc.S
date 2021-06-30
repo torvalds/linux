@@ -46,9 +46,13 @@
 #endif
 
 #ifdef CONFIG_KASAN_HW_TAGS
-#define TCR_KASAN_HW_FLAGS SYS_TCR_EL1_TCMA1 | TCR_TBI1 | TCR_TBID1
+#define TCR_MTE_FLAGS SYS_TCR_EL1_TCMA1 | TCR_TBI1 | TCR_TBID1
 #else
-#define TCR_KASAN_HW_FLAGS 0
+/*
+ * The mte_zero_clear_page_tags() implementation uses DC GZVA, which relies on
+ * TBI being enabled at EL1.
+ */
+#define TCR_MTE_FLAGS TCR_TBI1 | TCR_TBID1
 #endif
 
 /*
@@ -58,10 +62,8 @@
 #define MAIR_EL1_SET							\
 	(MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRnE, MT_DEVICE_nGnRnE) |	\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRE, MT_DEVICE_nGnRE) |	\
-	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_GRE, MT_DEVICE_GRE) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_NC, MT_NORMAL_NC) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |			\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL_TAGGED))
 
 #ifdef CONFIG_CPU_PM
@@ -83,11 +85,7 @@ SYM_FUNC_START(cpu_do_suspend)
 	mrs	x9, mdscr_el1
 	mrs	x10, oslsr_el1
 	mrs	x11, sctlr_el1
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x12, tpidr_el1
-alternative_else
-	mrs	x12, tpidr_el2
-alternative_endif
+	get_this_cpu_offset x12
 	mrs	x13, sp_el0
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
@@ -145,11 +143,7 @@ SYM_FUNC_START(cpu_do_resume)
 	msr	mdscr_el1, x10
 
 	msr	sctlr_el1, x12
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	msr	tpidr_el1, x13
-alternative_else
-	msr	tpidr_el2, x13
-alternative_endif
+	set_this_cpu_offset x13
 	msr	sp_el0, x14
 	/*
 	 * Restore oslsr_el1 by writing oslar_el1
@@ -464,7 +458,7 @@ SYM_FUNC_START(__cpu_setup)
 	msr_s	SYS_TFSRE0_EL1, xzr
 
 	/* set the TCR_EL1 bits */
-	mov_q	x10, TCR_KASAN_HW_FLAGS
+	mov_q	x10, TCR_MTE_FLAGS
 	orr	tcr, tcr, x10
 1:
 #endif
