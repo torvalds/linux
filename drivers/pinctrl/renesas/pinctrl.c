@@ -841,7 +841,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	return pinctrl_enable(pmx->pctl);
 }
 
-static const struct pinmux_bias_reg *
+const struct pinmux_bias_reg *
 rcar_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
 		     unsigned int *bit)
 {
