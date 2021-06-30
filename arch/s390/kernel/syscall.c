@@ -134,6 +134,7 @@ static void do_syscall(struct pt_regs *regs)
 	 * work, the ptrace code sets PIF_SYSCALL_RET_SET, which is checked here
 	 * and if set, the syscall will be skipped.
 	 */
+
 	if (unlikely(test_and_clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)))
 		goto out;
 	regs->gprs[2] = -ENOSYS;
@@ -141,7 +142,7 @@ static void do_syscall(struct pt_regs *regs)
 		goto out;
 	do {
 		regs->gprs[2] = current->thread.sys_call_table[nr](regs);
-	} while (test_and_clear_pt_regs_flag(regs, PIF_SYSCALL_RESTART));
+	} while (test_and_clear_pt_regs_flag(regs, PIF_EXECVE_PGSTE_RESTART));
 out:
 	syscall_exit_to_user_mode_work(regs);
 }

@@ -172,7 +172,7 @@ struct arch_elf_state {
 	    !current->mm->context.alloc_pgste) {		\
 		set_thread_flag(TIF_PGSTE);			\
 		set_pt_regs_flag(task_pt_regs(current),		\
-				 PIF_SYSCALL_RESTART);		\
+				 PIF_EXECVE_PGSTE_RESTART);	\
 		_state->rc = -EAGAIN;				\
 	}							\
 	_state->rc;						\
