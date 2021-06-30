@@ -1497,6 +1497,13 @@ static void logi_dj_ll_stop(struct hid_device *hid)
 	dbg_hid("%s\n", __func__);
 }
 
+static bool logi_dj_ll_may_wakeup(struct hid_device *hid)
+{
+	struct dj_device *djdev = hid->driver_data;
+	struct dj_receiver_dev *djrcv_dev = djdev->dj_receiver_dev;
+
+	return hid_hw_may_wakeup(djrcv_dev->hidpp);
+}
 
 static struct hid_ll_driver logi_dj_ll_driver = {
 	.parse = logi_dj_ll_parse,
@@ -1505,6 +1512,7 @@ static struct hid_ll_driver logi_dj_ll_driver = {
 	.open = logi_dj_ll_open,
 	.close = logi_dj_ll_close,
 	.raw_request = logi_dj_ll_raw_request,
+	.may_wakeup = logi_dj_ll_may_wakeup,
 };
 
 static int logi_dj_dj_event(struct hid_device *hdev,
