@@ -675,7 +675,7 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 				"TODO",
 				fault_status,
 				(fault_status & (1 << 10) ? "DECODER FAULT" : "SLAVE FAULT"),
-				exception_type, panfrost_exception_name(pfdev, exception_type),
+				exception_type, panfrost_exception_name(exception_type),
 				access_type, access_type_name(pfdev, fault_status),
 				source_id);
 

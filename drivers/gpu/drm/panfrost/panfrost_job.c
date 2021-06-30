@@ -489,7 +489,7 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 
 			dev_err(pfdev->dev, "js fault, js=%d, status=%s, head=0x%x, tail=0x%x",
 				j,
-				panfrost_exception_name(pfdev, job_read(pfdev, JS_STATUS(j))),
+				panfrost_exception_name(job_read(pfdev, JS_STATUS(j))),
 				job_read(pfdev, JS_HEAD_LO(j)),
 				job_read(pfdev, JS_TAIL_LO(j)));
 

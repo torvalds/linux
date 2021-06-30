@@ -292,7 +292,7 @@ void panfrost_device_fini(struct panfrost_device *pfdev)
 	panfrost_clk_fini(pfdev);
 }
 
-const char *panfrost_exception_name(struct panfrost_device *pfdev, u32 exception_code)
+const char *panfrost_exception_name(u32 exception_code)
 {
 	switch (exception_code) {
 		/* Non-Fault Status code */

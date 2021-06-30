@@ -173,6 +173,6 @@ void panfrost_device_reset(struct panfrost_device *pfdev);
 int panfrost_device_resume(struct device *dev);
 int panfrost_device_suspend(struct device *dev);
 
-const char *panfrost_exception_name(struct panfrost_device *pfdev, u32 exception_code);
+const char *panfrost_exception_name(u32 exception_code);
 
 #endif
