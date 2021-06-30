@@ -61,10 +61,11 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	unsigned long addr;
 
-	/* mmap ioctl is disallowed for all platforms after TGL-LP.  This also
-	 * covers all platforms with local memory.
+	/*
+	 * mmap ioctl is disallowed for all discrete platforms,
+	 * and for all platforms with GRAPHICS_VER > 12.
 	 */
-	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (IS_DGFX(i915) || GRAPHICS_VER(i915) > 12)
 		return -EOPNOTSUPP;
 
 	if (args->flags & ~(I915_MMAP_WC))
