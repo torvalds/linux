@@ -39,7 +39,7 @@ static struct oplock_info *alloc_opinfo(struct ksmbd_work *work,
 
 	opinfo->sess = sess;
 	opinfo->conn = sess->conn;
-	opinfo->level = OPLOCK_NONE;
+	opinfo->level = SMB2_OPLOCK_LEVEL_NONE;
 	opinfo->op_state = OPLOCK_STATE_NONE;
 	opinfo->pending_break = 0;
 	opinfo->fid = id;
