@@ -1502,25 +1502,22 @@ void dcn10_init_hw(struct dc *dc)
 void dcn10_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
-	struct dc_link *edp_link;
+	struct dc_link *edp_link = NULL;
 	int edp_num;
 	int i = 0;
 
 	get_edp_links(dc, edp_links, &edp_num);
+	if (edp_num)
+		edp_link = edp_links[0];
 
-	if (edp_num) {
-		for (i = 0; i < edp_num; i++) {
-			edp_link = edp_links[i];
-			if (edp_link->link_enc->funcs->is_dig_enabled &&
-					edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-					dc->hwseq->funcs.edp_backlight_control &&
-					dc->hwss.power_down &&
-					dc->hwss.edp_power_control) {
-				dc->hwseq->funcs.edp_backlight_control(edp_link, false);
-				dc->hwss.power_down(dc);
-				dc->hwss.edp_power_control(edp_link, false);
-			}
-		}
+	if (edp_link && edp_link->link_enc->funcs->is_dig_enabled &&
+			edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+			dc->hwseq->funcs.edp_backlight_control &&
+			dc->hwss.power_down &&
+			dc->hwss.edp_power_control) {
+		dc->hwseq->funcs.edp_backlight_control(edp_link, false);
+		dc->hwss.power_down(dc);
+		dc->hwss.edp_power_control(edp_link, false);
 	} else {
 		for (i = 0; i < dc->link_count; i++) {
 			struct dc_link *link = dc->links[i];
