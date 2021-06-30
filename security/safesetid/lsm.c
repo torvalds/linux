@@ -22,7 +22,7 @@
 #include "lsm.h"
 
 /* Flag indicating whether initialization completed */
-int safesetid_initialized;
+int safesetid_initialized __initdata;
 
 struct setid_ruleset __rcu *safesetid_setuid_rules;
 struct setid_ruleset __rcu *safesetid_setgid_rules;
