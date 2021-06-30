@@ -324,8 +324,6 @@ static int rockchip_get_bin_sel(struct device_node *np, char *name,
 static int rockchip_parse_pvtm_config(struct device_node *np,
 				      struct pvtm_config *pvtm)
 {
-	if (!of_find_property(np, "rockchip,pvtm-voltage-sel", NULL))
-		return -EINVAL;
 	if (of_property_read_u32(np, "rockchip,pvtm-freq", &pvtm->freq))
 		return -EINVAL;
 	if (of_property_read_u32(np, "rockchip,pvtm-volt", &pvtm->volt))
