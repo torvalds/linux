@@ -73,13 +73,22 @@
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 extern char __end_soft_masked[];
 unsigned long search_kernel_restart_table(unsigned long addr);
-#endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
 DECLARE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
+
+static inline bool is_implicit_soft_masked(struct pt_regs *regs)
+{
+	if (regs->msr & MSR_PR)
+		return false;
+
+	if (regs->nip >= (unsigned long)__end_soft_masked)
+		return false;
+
+	return true;
+}
 
 static inline void srr_regs_clobbered(void)
 {
@@ -87,6 +96,11 @@ static inline void srr_regs_clobbered(void)
 	local_paca->hsrr_valid = 0;
 }
 #else
+static inline bool is_implicit_soft_masked(struct pt_regs *regs)
+{
+	return false;
+}
+
 static inline void srr_regs_clobbered(void)
 {
 }
@@ -150,11 +164,13 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		 */
 		if (TRAP(regs) != INTERRUPT_PROGRAM) {
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
-			BUG_ON(regs->nip < (unsigned long)__end_soft_masked);
+			BUG_ON(is_implicit_soft_masked(regs));
 		}
+#ifdef CONFIG_PPC_BOOK3S
 		/* Move this under a debugging check */
 		if (arch_irq_disabled_regs(regs))
 			BUG_ON(search_kernel_restart_table(regs->nip));
+#endif
 	}
 #endif
 
@@ -244,10 +260,9 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	local_paca->irq_soft_mask = IRQS_ALL_DISABLED;
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !(regs->msr & MSR_PR) &&
-				regs->nip < (unsigned long)__end_soft_masked) {
-		// Kernel code running below __end_soft_masked is
-		// implicitly soft-masked.
+	if (is_implicit_soft_masked(regs)) {
+		// Adjust regs->softe soft implicit soft-mask, so
+		// arch_irq_disabled_regs(regs) behaves as expected.
 		regs->softe = IRQS_ALL_DISABLED;
 	}
 
@@ -282,6 +297,7 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 	 */
 
 #ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	if (arch_irq_disabled_regs(regs)) {
 		unsigned long rst = search_kernel_restart_table(regs->nip);
 		if (rst)
@@ -289,7 +305,6 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 	}
 #endif
 
-#ifdef CONFIG_PPC64
 	if (nmi_disables_ftrace(regs))
 		this_cpu_set_ftrace_enabled(state->ftrace_enabled);
 

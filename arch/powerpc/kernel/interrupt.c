@@ -36,7 +36,7 @@ static inline bool exit_must_hard_disable(void)
 #else
 static inline bool exit_must_hard_disable(void)
 {
-	return IS_ENABLED(CONFIG_PPC32);
+	return true;
 }
 #endif
 
