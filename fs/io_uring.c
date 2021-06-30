@@ -465,7 +465,8 @@ struct io_ring_ctx {
 		struct mm_struct		*mm_account;
 
 		/* ctx exit and cancelation */
-		struct callback_head		*exit_task_work;
+		struct llist_head		fallback_llist;
+		struct delayed_work		fallback_work;
 		struct work_struct		exit_work;
 		struct list_head		tctx_list;
 		struct completion		ref_comp;
@@ -859,6 +860,8 @@ struct io_kiocb {
 	struct io_wq_work		work;
 	const struct cred		*creds;
 
+	struct llist_node		fallback_node;
+
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 };
@@ -1071,6 +1074,8 @@ static void io_submit_flush_completions(struct io_ring_ctx *ctx);
 static bool io_poll_remove_waitqs(struct io_kiocb *req);
 static int io_req_prep_async(struct io_kiocb *req);
 
+static void io_fallback_req_func(struct work_struct *unused);
+
 static struct kmem_cache *req_cachep;
 
 static const struct file_operations io_uring_fops;
@@ -1202,6 +1207,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->tctx_list);
 	INIT_LIST_HEAD(&ctx->submit_state.comp.free_list);
 	INIT_LIST_HEAD(&ctx->locked_free_list);
+	INIT_DELAYED_WORK(&ctx->fallback_work, io_fallback_req_func);
 	return ctx;
 err:
 	kfree(ctx->dummy_ubuf);
@@ -1999,44 +2005,12 @@ static int io_req_task_work_add(struct io_kiocb *req)
 	return ret;
 }
 
-static bool io_run_task_work_head(struct callback_head **work_head)
-{
-	struct callback_head *work, *next;
-	bool executed = false;
-
-	do {
-		work = xchg(work_head, NULL);
-		if (!work)
-			break;
-
-		do {
-			next = work->next;
-			work->func(work);
-			work = next;
-			cond_resched();
-		} while (work);
-		executed = true;
-	} while (1);
-
-	return executed;
-}
-
-static void io_task_work_add_head(struct callback_head **work_head,
-				  struct callback_head *task_work)
-{
-	struct callback_head *head;
-
-	do {
-		head = READ_ONCE(*work_head);
-		task_work->next = head;
-	} while (cmpxchg(work_head, head, task_work) != head);
-}
-
 static void io_req_task_work_add_fallback(struct io_kiocb *req,
 					  task_work_func_t cb)
 {
 	init_task_work(&req->task_work, cb);
-	io_task_work_add_head(&req->ctx->exit_task_work, &req->task_work);
+	if (llist_add(&req->fallback_node, &req->ctx->fallback_llist))
+		schedule_delayed_work(&req->ctx->fallback_work, 1);
 }
 
 static void io_req_task_cancel(struct callback_head *cb)
@@ -2484,6 +2458,17 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	return false;
 }
 #endif
+
+static void io_fallback_req_func(struct work_struct *work)
+{
+	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,
+						fallback_work.work);
+	struct llist_node *node = llist_del_all(&ctx->fallback_llist);
+	struct io_kiocb *req, *tmp;
+
+	llist_for_each_entry_safe(req, tmp, node, fallback_node)
+		req->task_work.func(&req->task_work);
+}
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     unsigned int issue_flags)
@@ -8767,11 +8752,6 @@ static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 	return -EINVAL;
 }
 
-static inline bool io_run_ctx_fallback(struct io_ring_ctx *ctx)
-{
-	return io_run_task_work_head(&ctx->exit_task_work);
-}
-
 struct io_tctx_exit {
 	struct callback_head		task_work;
 	struct completion		completion;
@@ -9036,7 +9016,6 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 		ret |= io_kill_timeouts(ctx, task, cancel_all);
 		if (task)
 			ret |= io_run_task_work();
-		ret |= io_run_ctx_fallback(ctx);
 		if (!ret)
 			break;
 		cond_resched();
