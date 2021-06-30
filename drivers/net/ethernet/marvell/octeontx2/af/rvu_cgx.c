@@ -63,7 +63,7 @@ static u16 cgxlmac_to_pfmap(struct rvu *rvu, u8 cgx_id, u8 lmac_id)
 	return rvu->cgxlmac2pf_map[CGX_OFFSET(cgx_id) + lmac_id];
 }
 
-static int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
+int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
 {
 	unsigned long pfmap;
 

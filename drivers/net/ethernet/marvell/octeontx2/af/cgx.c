@@ -266,6 +266,34 @@ int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 	return 0;
 }
 
+u64 cgx_read_dmac_ctrl(void *cgxd, int lmac_id)
+{
+	struct mac_ops *mac_ops;
+	struct cgx *cgx = cgxd;
+
+	if (!cgxd || !is_lmac_valid(cgxd, lmac_id))
+		return 0;
+
+	cgx = cgxd;
+	/* Get mac_ops to know csr offset */
+	mac_ops = cgx->mac_ops;
+
+	return cgx_read(cgxd, lmac_id, CGXX_CMRX_RX_DMAC_CTL0);
+}
+
+u64 cgx_read_dmac_entry(void *cgxd, int index)
+{
+	struct mac_ops *mac_ops;
+	struct cgx *cgx;
+
+	if (!cgxd)
+		return 0;
+
+	cgx = cgxd;
+	mac_ops = cgx->mac_ops;
+	return cgx_read(cgx, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (index * 8)));
+}
+
 int cgx_lmac_addr_add(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 {
 	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
