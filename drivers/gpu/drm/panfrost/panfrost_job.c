@@ -459,18 +459,11 @@ static const struct drm_sched_backend_ops panfrost_sched_ops = {
 	.free_job = panfrost_job_free
 };
 
-static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
+static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 {
-	struct panfrost_device *pfdev = data;
-	u32 status = job_read(pfdev, JOB_INT_STAT);
 	int j;
 
 	dev_dbg(pfdev->dev, "jobslot irq status=%x\n", status);
-
-	if (!status)
-		return IRQ_NONE;
-
-	pm_runtime_mark_last_busy(pfdev->dev);
 
 	for (j = 0; status; j++) {
 		u32 mask = MK_JS_MASK(j);
@@ -508,7 +501,6 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 		if (status & JOB_INT_MASK_DONE(j)) {
 			struct panfrost_job *job;
 
-			spin_lock(&pfdev->js->job_lock);
 			job = pfdev->jobs[j];
 			/* Only NULL if job timeout occurred */
 			if (job) {
@@ -520,13 +512,42 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 				dma_fence_signal_locked(job->done_fence);
 				pm_runtime_put_autosuspend(pfdev->dev);
 			}
-			spin_unlock(&pfdev->js->job_lock);
 		}
 
 		status &= ~mask;
 	}
+}
 
+static irqreturn_t panfrost_job_irq_handler_thread(int irq, void *data)
+{
+	struct panfrost_device *pfdev = data;
+	u32 status = job_read(pfdev, JOB_INT_RAWSTAT);
+
+	while (status) {
+		pm_runtime_mark_last_busy(pfdev->dev);
+
+		spin_lock(&pfdev->js->job_lock);
+		panfrost_job_handle_irq(pfdev, status);
+		spin_unlock(&pfdev->js->job_lock);
+		status = job_read(pfdev, JOB_INT_RAWSTAT);
+	}
+
+	job_write(pfdev, JOB_INT_MASK,
+		  GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |
+		  GENMASK(NUM_JOB_SLOTS - 1, 0));
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
+{
+	struct panfrost_device *pfdev = data;
+	u32 status = job_read(pfdev, JOB_INT_STAT);
+
+	if (!status)
+		return IRQ_NONE;
+
+	job_write(pfdev, JOB_INT_MASK, 0);
+	return IRQ_WAKE_THREAD;
 }
 
 static void panfrost_reset(struct work_struct *work)
@@ -534,7 +555,6 @@ static void panfrost_reset(struct work_struct *work)
 	struct panfrost_device *pfdev = container_of(work,
 						     struct panfrost_device,
 						     reset.work);
-	unsigned long flags;
 	unsigned int i;
 	bool cookie;
 
@@ -564,7 +584,7 @@ static void panfrost_reset(struct work_struct *work)
 	/* All timers have been stopped, we can safely reset the pending state. */
 	atomic_set(&pfdev->reset.pending, 0);
 
-	spin_lock_irqsave(&pfdev->js->job_lock, flags);
+	spin_lock(&pfdev->js->job_lock);
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		if (pfdev->jobs[i]) {
 			pm_runtime_put_noidle(pfdev->dev);
@@ -572,7 +592,7 @@ static void panfrost_reset(struct work_struct *work)
 			pfdev->jobs[i] = NULL;
 		}
 	}
-	spin_unlock_irqrestore(&pfdev->js->job_lock, flags);
+	spin_unlock(&pfdev->js->job_lock);
 
 	panfrost_device_reset(pfdev);
 
@@ -599,8 +619,11 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 	if (irq <= 0)
 		return -ENODEV;
 
-	ret = devm_request_irq(pfdev->dev, irq, panfrost_job_irq_handler,
-			       IRQF_SHARED, KBUILD_MODNAME "-job", pfdev);
+	ret = devm_request_threaded_irq(pfdev->dev, irq,
+					panfrost_job_irq_handler,
+					panfrost_job_irq_handler_thread,
+					IRQF_SHARED, KBUILD_MODNAME "-job",
+					pfdev);
 	if (ret) {
 		dev_err(pfdev->dev, "failed to request job irq");
 		return ret;
