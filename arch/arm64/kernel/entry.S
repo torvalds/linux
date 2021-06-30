@@ -182,7 +182,7 @@ alternative_else_nop_endif
 	 * the RRND (bit[16]) setting.
 	 */
 	mrs_s	\tmp2, SYS_GCR_EL1
-	bfi	\tmp2, \tmp, #0, #16
+	bfxil	\tmp2, \tmp, #MTE_CTRL_GCR_USER_EXCL_SHIFT, #16
 	msr_s	SYS_GCR_EL1, \tmp2
 #endif
 	.endm
@@ -205,7 +205,7 @@ alternative_else_nop_endif
 alternative_if_not ARM64_MTE
 	b	1f
 alternative_else_nop_endif
-	ldr	\tmp, [\tsk, #THREAD_GCR_EL1_USER]
+	ldr	\tmp, [\tsk, #THREAD_MTE_CTRL]
 
 	mte_set_gcr \tmp, \tmp2
 1:
