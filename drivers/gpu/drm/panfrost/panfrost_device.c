@@ -379,6 +379,15 @@ const char *panfrost_exception_name(u32 exception_code)
 	return panfrost_exception_infos[exception_code].name;
 }
 
+bool panfrost_exception_needs_reset(const struct panfrost_device *pfdev,
+				    u32 exception_code)
+{
+	/* Right now, none of the GPU we support need a reset, but this
+	 * might change.
+	 */
+	return false;
+}
+
 void panfrost_device_reset(struct panfrost_device *pfdev)
 {
 	panfrost_gpu_soft_reset(pfdev);

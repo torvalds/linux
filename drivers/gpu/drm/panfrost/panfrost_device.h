@@ -245,6 +245,8 @@ enum drm_panfrost_exception_type {
 };
 
 const char *panfrost_exception_name(u32 exception_code);
+bool panfrost_exception_needs_reset(const struct panfrost_device *pfdev,
+				    u32 exception_code);
 
 static inline void
 panfrost_device_schedule_reset(struct panfrost_device *pfdev)

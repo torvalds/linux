@@ -482,14 +482,26 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 		job_write(pfdev, JOB_INT_CLEAR, mask);
 
 		if (status & JOB_INT_MASK_ERR(j)) {
+			u32 js_status = job_read(pfdev, JS_STATUS(j));
+
 			job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_NOP);
 
 			dev_err(pfdev->dev, "js fault, js=%d, status=%s, head=0x%x, tail=0x%x",
 				j,
-				panfrost_exception_name(job_read(pfdev, JS_STATUS(j))),
+				panfrost_exception_name(js_status),
 				job_read(pfdev, JS_HEAD_LO(j)),
 				job_read(pfdev, JS_TAIL_LO(j)));
-			drm_sched_fault(&pfdev->js->queue[j].sched);
+
+			/* If we need a reset, signal it to the timeout
+			 * handler, otherwise, update the fence error field and
+			 * signal the job fence.
+			 */
+			if (panfrost_exception_needs_reset(pfdev, js_status)) {
+				drm_sched_fault(&pfdev->js->queue[j].sched);
+			} else {
+				dma_fence_set_error(pfdev->jobs[j]->done_fence, -EINVAL);
+				status |= JOB_INT_MASK_DONE(j);
+			}
 		}
 
 		if (status & JOB_INT_MASK_DONE(j)) {
