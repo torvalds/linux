@@ -208,6 +208,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		break;
 
 	case DMUB_ASIC_DCN31:
+		dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
 		funcs->reset = dmub_dcn31_reset;
 		funcs->reset_release = dmub_dcn31_reset_release;
 		funcs->backdoor_load = dmub_dcn31_backdoor_load;
@@ -231,9 +232,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn31_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
-		if (asic == DMUB_ASIC_DCN31) {
-			dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
-		}
+		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
 
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
