@@ -25,15 +25,20 @@ enum {
 	ACCESS_DENIED,
 };
 
-#define SIDOWNER 1
-#define SIDGROUP 2
-#define SIDCREATOR_OWNER 3
-#define SIDCREATOR_GROUP 4
-#define SIDUNIX_USER 5
-#define SIDUNIX_GROUP 6
-#define SIDNFS_USER 7
-#define SIDNFS_GROUP 8
-#define SIDNFS_MODE 9
+/*
+ * Security ID types
+ */
+enum {
+	SIDOWNER = 1,
+	SIDGROUP,
+	SIDCREATOR_OWNER,
+	SIDCREATOR_GROUP,
+	SIDUNIX_USER,
+	SIDUNIX_GROUP,
+	SIDNFS_USER,
+	SIDNFS_GROUP,
+	SIDNFS_MODE,
+};
 
 /* Revision for ACLs */
 #define SD_REVISION	1
