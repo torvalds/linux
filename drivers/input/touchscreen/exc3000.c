@@ -25,11 +25,13 @@
 #define EXC3000_NUM_SLOTS		10
 #define EXC3000_SLOTS_PER_FRAME		5
 #define EXC3000_LEN_FRAME		66
+#define EXC3000_LEN_VENDOR_REQUEST	68
 #define EXC3000_LEN_POINT		10
 
 #define EXC3000_LEN_MODEL_NAME		16
 #define EXC3000_LEN_FW_VERSION		16
 
+#define EXC3000_VENDOR_EVENT		0x03
 #define EXC3000_MT1_EVENT		0x06
 #define EXC3000_MT2_EVENT		0x18
 
@@ -76,9 +78,6 @@ struct exc3000_data {
 	u8 buf[2 * EXC3000_LEN_FRAME];
 	struct completion wait_event;
 	struct mutex query_lock;
-	int query_result;
-	char model[EXC3000_LEN_MODEL_NAME];
-	char fw_version[EXC3000_LEN_FW_VERSION];
 };
 
 static void exc3000_report_slots(struct input_dev *input,
@@ -105,14 +104,15 @@ static void exc3000_timer(struct timer_list *t)
 	input_sync(data->input);
 }
 
+static inline void exc3000_schedule_timer(struct exc3000_data *data)
+{
+	mod_timer(&data->timer, jiffies + msecs_to_jiffies(EXC3000_TIMEOUT_MS));
+}
+
 static int exc3000_read_frame(struct exc3000_data *data, u8 *buf)
 {
 	struct i2c_client *client = data->client;
-	u8 expected_event = EXC3000_MT1_EVENT;
 	int ret;
-
-	if (data->info->max_xy == SZ_16K - 1)
-		expected_event = EXC3000_MT2_EVENT;
 
 	ret = i2c_master_send(client, "'", 2);
 	if (ret < 0)
@@ -131,81 +131,32 @@ static int exc3000_read_frame(struct exc3000_data *data, u8 *buf)
 	if (get_unaligned_le16(buf) != EXC3000_LEN_FRAME)
 		return -EINVAL;
 
-	if (buf[2] != expected_event)
-		return -EINVAL;
-
 	return 0;
 }
 
-static int exc3000_read_data(struct exc3000_data *data,
-			     u8 *buf, int *n_slots)
+static int exc3000_handle_mt_event(struct exc3000_data *data)
 {
-	int error;
+	struct input_dev *input = data->input;
+	int ret, total_slots;
+	u8 *buf = data->buf;
 
-	error = exc3000_read_frame(data, buf);
-	if (error)
-		return error;
+	total_slots = buf[3];
+	if (!total_slots || total_slots > EXC3000_NUM_SLOTS) {
+		ret = -EINVAL;
+		goto out_fail;
+	}
 
-	*n_slots = buf[3];
-	if (!*n_slots || *n_slots > EXC3000_NUM_SLOTS)
-		return -EINVAL;
-
-	if (*n_slots > EXC3000_SLOTS_PER_FRAME) {
+	if (total_slots > EXC3000_SLOTS_PER_FRAME) {
 		/* Read 2nd frame to get the rest of the contacts. */
-		error = exc3000_read_frame(data, buf + EXC3000_LEN_FRAME);
-		if (error)
-			return error;
+		ret = exc3000_read_frame(data, buf + EXC3000_LEN_FRAME);
+		if (ret)
+			goto out_fail;
 
 		/* 2nd chunk must have number of contacts set to 0. */
-		if (buf[EXC3000_LEN_FRAME + 3] != 0)
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int exc3000_query_interrupt(struct exc3000_data *data)
-{
-	u8 *buf = data->buf;
-	int error;
-
-	error = i2c_master_recv(data->client, buf, EXC3000_LEN_FRAME);
-	if (error < 0)
-		return error;
-
-	if (buf[0] != 'B')
-		return -EPROTO;
-
-	if (buf[4] == 'E')
-		strlcpy(data->model, buf + 5, sizeof(data->model));
-	else if (buf[4] == 'D')
-		strlcpy(data->fw_version, buf + 5, sizeof(data->fw_version));
-	else
-		return -EPROTO;
-
-	return 0;
-}
-
-static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
-{
-	struct exc3000_data *data = dev_id;
-	struct input_dev *input = data->input;
-	u8 *buf = data->buf;
-	int slots, total_slots;
-	int error;
-
-	if (mutex_is_locked(&data->query_lock)) {
-		data->query_result = exc3000_query_interrupt(data);
-		complete(&data->wait_event);
-		goto out;
-	}
-
-	error = exc3000_read_data(data, buf, &total_slots);
-	if (error) {
-		/* Schedule a timer to release "stuck" contacts */
-		mod_timer(&data->timer,
-			  jiffies + msecs_to_jiffies(EXC3000_TIMEOUT_MS));
-		goto out;
+		if (buf[EXC3000_LEN_FRAME + 3] != 0) {
+			ret = -EINVAL;
+			goto out_fail;
+		}
 	}
 
 	/*
@@ -214,7 +165,8 @@ static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
 	del_timer_sync(&data->timer);
 
 	while (total_slots > 0) {
-		slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);
+		int slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);
+
 		exc3000_report_slots(input, &data->prop, buf + 4, slots);
 		total_slots -= slots;
 		buf += EXC3000_LEN_FRAME;
@@ -223,8 +175,84 @@ static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
 	input_mt_sync_frame(input);
 	input_sync(input);
 
+	return 0;
+
+out_fail:
+	/* Schedule a timer to release "stuck" contacts */
+	exc3000_schedule_timer(data);
+
+	return ret;
+}
+
+static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
+{
+	struct exc3000_data *data = dev_id;
+	u8 *buf = data->buf;
+	int ret;
+
+	ret = exc3000_read_frame(data, buf);
+	if (ret) {
+		/* Schedule a timer to release "stuck" contacts */
+		exc3000_schedule_timer(data);
+		goto out;
+	}
+
+	switch (buf[2]) {
+	case EXC3000_VENDOR_EVENT:
+		complete(&data->wait_event);
+		break;
+
+	case EXC3000_MT1_EVENT:
+	case EXC3000_MT2_EVENT:
+		exc3000_handle_mt_event(data);
+		break;
+
+	default:
+		break;
+	}
+
 out:
 	return IRQ_HANDLED;
+}
+
+static int exc3000_vendor_data_request(struct exc3000_data *data, u8 *request,
+				       u8 request_len, u8 *response, int timeout)
+{
+	u8 buf[EXC3000_LEN_VENDOR_REQUEST] = { 0x67, 0x00, 0x42, 0x00, 0x03 };
+	int ret;
+
+	mutex_lock(&data->query_lock);
+
+	reinit_completion(&data->wait_event);
+
+	buf[5] = request_len;
+	memcpy(&buf[6], request, request_len);
+
+	ret = i2c_master_send(data->client, buf, EXC3000_LEN_VENDOR_REQUEST);
+	if (ret < 0)
+		goto out_unlock;
+
+	if (response) {
+		ret = wait_for_completion_timeout(&data->wait_event,
+						  timeout * HZ);
+		if (ret <= 0) {
+			ret = -ETIMEDOUT;
+			goto out_unlock;
+		}
+
+		if (data->buf[3] >= EXC3000_LEN_FRAME) {
+			ret = -ENOSPC;
+			goto out_unlock;
+		}
+
+		memcpy(response, &data->buf[4], data->buf[3]);
+		ret = data->buf[3];
+	}
+
+out_unlock:
+	mutex_unlock(&data->query_lock);
+
+	return ret;
 }
 
 static ssize_t fw_version_show(struct device *dev,
@@ -232,74 +260,67 @@ static ssize_t fw_version_show(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct exc3000_data *data = i2c_get_clientdata(client);
-	static const u8 request[68] = {
-		0x67, 0x00, 0x42, 0x00, 0x03, 0x01, 'D', 0x00
-	};
-	int error;
+	u8 response[EXC3000_LEN_FRAME];
+	int ret;
 
-	mutex_lock(&data->query_lock);
+	/* query bootloader info */
+	ret = exc3000_vendor_data_request(data,
+					  (u8[]){0x39, 0x02}, 2, response, 1);
+	if (ret < 0)
+		return ret;
 
-	data->query_result = -ETIMEDOUT;
-	reinit_completion(&data->wait_event);
+	/*
+	 * If the bootloader version is non-zero then the device is in
+	 * bootloader mode and won't answer a query for the application FW
+	 * version, so we just use the bootloader version info.
+	 */
+	if (response[2] || response[3])
+		return sprintf(buf, "%d.%d\n", response[2], response[3]);
 
-	error = i2c_master_send(client, request, sizeof(request));
-	if (error < 0) {
-		mutex_unlock(&data->query_lock);
-		return error;
-	}
+	ret = exc3000_vendor_data_request(data, (u8[]){'D'}, 1, response, 1);
+	if (ret < 0)
+		return ret;
 
-	wait_for_completion_interruptible_timeout(&data->wait_event, 1 * HZ);
-	mutex_unlock(&data->query_lock);
-
-	if (data->query_result < 0)
-		return data->query_result;
-
-	return sprintf(buf, "%s\n", data->fw_version);
+	return sprintf(buf, "%s\n", &response[1]);
 }
 static DEVICE_ATTR_RO(fw_version);
-
-static ssize_t exc3000_get_model(struct exc3000_data *data)
-{
-	static const u8 request[68] = {
-		0x67, 0x00, 0x42, 0x00, 0x03, 0x01, 'E', 0x00
-	};
-	struct i2c_client *client = data->client;
-	int error;
-
-	mutex_lock(&data->query_lock);
-	data->query_result = -ETIMEDOUT;
-	reinit_completion(&data->wait_event);
-
-	error = i2c_master_send(client, request, sizeof(request));
-	if (error < 0) {
-		mutex_unlock(&data->query_lock);
-		return error;
-	}
-
-	wait_for_completion_interruptible_timeout(&data->wait_event, 1 * HZ);
-	mutex_unlock(&data->query_lock);
-
-	return data->query_result;
-}
 
 static ssize_t model_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct exc3000_data *data = i2c_get_clientdata(client);
-	int error;
+	u8 response[EXC3000_LEN_FRAME];
+	int ret;
 
-	error = exc3000_get_model(data);
-	if (error < 0)
-		return error;
+	ret = exc3000_vendor_data_request(data, (u8[]){'E'}, 1, response, 1);
+	if (ret < 0)
+		return ret;
 
-	return sprintf(buf, "%s\n", data->model);
+	return sprintf(buf, "%s\n", &response[1]);
 }
 static DEVICE_ATTR_RO(model);
+
+static ssize_t type_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct exc3000_data *data = i2c_get_clientdata(client);
+	u8 response[EXC3000_LEN_FRAME];
+	int ret;
+
+	ret = exc3000_vendor_data_request(data, (u8[]){'F'}, 1, response, 1);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%s\n", &response[1]);
+}
+static DEVICE_ATTR_RO(type);
 
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_model.attr,
+	&dev_attr_type.attr,
 	NULL
 };
 
@@ -379,17 +400,21 @@ static int exc3000_probe(struct i2c_client *client)
 	 * or two touch events anyways).
 	 */
 	for (retry = 0; retry < 3; retry++) {
-		error = exc3000_get_model(data);
-		if (!error)
+		u8 response[EXC3000_LEN_FRAME];
+
+		error = exc3000_vendor_data_request(data, (u8[]){'E'}, 1,
+						    response, 1);
+		if (error > 0) {
+			dev_dbg(&client->dev, "TS Model: %s", &response[1]);
+			error = 0;
 			break;
+		}
 		dev_warn(&client->dev, "Retry %d get EETI EXC3000 model: %d\n",
 			 retry + 1, error);
 	}
 
 	if (error)
 		return error;
-
-	dev_dbg(&client->dev, "TS Model: %s", data->model);
 
 	i2c_set_clientdata(client, data);
 

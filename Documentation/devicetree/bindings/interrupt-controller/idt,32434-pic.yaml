@@ -22,6 +22,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   interrupt-controller: true
 
 required:
@@ -29,6 +32,7 @@ required:
   - compatible
   - reg
   - interrupt-controller
+  - interrupts
 
 additionalProperties: false
 

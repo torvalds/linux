@@ -274,7 +274,7 @@ enum iwl_dev_tx_power_cmd_mode {
 #define IWL_NUM_CHAIN_TABLES	1
 #define IWL_NUM_CHAIN_TABLES_V2	2
 #define IWL_NUM_CHAIN_LIMITS	2
-#define IWL_NUM_SUB_BANDS	5
+#define IWL_NUM_SUB_BANDS_V1	5
 #define IWL_NUM_SUB_BANDS_V2	11
 
 /**
@@ -300,7 +300,7 @@ struct iwl_dev_tx_power_common {
  * @per_chain: per chain restrictions
  */
 struct iwl_dev_tx_power_cmd_v3 {
-	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
@@ -313,7 +313,7 @@ struct iwl_dev_tx_power_cmd_v3 {
  * @reserved: reserved (padding)
  */
 struct iwl_dev_tx_power_cmd_v4 {
-	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
@@ -332,7 +332,7 @@ struct iwl_dev_tx_power_cmd_v4 {
  *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
  */
 struct iwl_dev_tx_power_cmd_v5 {
-	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 	u8 enable_ack_reduction;
 	u8 per_chain_restriction_changed;
 	u8 reserved[2];
@@ -454,21 +454,23 @@ struct iwl_geo_tx_power_profiles_resp {
 
 /**
  * union iwl_ppag_table_cmd - union for all versions of PPAG command
- * @v1: version 1, table revision = 0
- * @v2: version 2, table revision = 1
+ * @v1: version 1
+ * @v2: version 2
  *
- * @enabled: 1 if PPAG is enabled, 0 otherwise
+ * @flags: bit 0 - indicates enablement of PPAG for ETSI
+ *         bit 1 - indicates enablement of PPAG for CHINA BIOS
+ *         bit 1 can be used only in v3 (identical to v2)
  * @gain: table of antenna gain values per chain and sub-band
  * @reserved: reserved
  */
 union iwl_ppag_table_cmd {
 	struct {
-		__le32 enabled;
-		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+		__le32 flags;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 		s8 reserved[2];
 	} v1;
 	struct {
-		__le32 enabled;
+		__le32 flags;
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
 		s8 reserved[2];
 	} v2;

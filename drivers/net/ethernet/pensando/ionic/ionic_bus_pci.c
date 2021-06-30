@@ -184,6 +184,10 @@ static int ionic_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	struct device *dev = ionic->dev;
 	int ret = 0;
 
+	if (ionic->lif &&
+	    test_bit(IONIC_LIF_F_FW_RESET, ionic->lif->state))
+		return -EBUSY;
+
 	if (num_vfs > 0) {
 		ret = pci_enable_sriov(pdev, num_vfs);
 		if (ret) {

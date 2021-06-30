@@ -75,6 +75,9 @@ void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 			 FIELD_PREP(HAL_TCL_DATA_CMD_INFO3_CACHE_SET_NUM,
 				    ti->bss_ast_hash);
 	tcl_cmd->info4 = 0;
+
+	if (ti->enable_mesh)
+		ab->hw_params.hw_ops->tx_mesh_enable(ab, tcl_cmd);
 }
 
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id)

@@ -411,18 +411,10 @@ done:
 	return txtime;
 }
 
-static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
-			  struct sk_buff **to_free)
+static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
+			      struct Qdisc *child, struct sk_buff **to_free)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
-	struct Qdisc *child;
-	int queue;
-
-	queue = skb_get_queue_mapping(skb);
-
-	child = q->qdiscs[queue];
-	if (unlikely(!child))
-		return qdisc_drop(skb, sch, to_free);
 
 	if (skb->sk && sock_flag(skb->sk, SOCK_TXTIME)) {
 		if (!is_valid_interval(skb, sch))
@@ -437,6 +429,58 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	sch->q.qlen++;
 
 	return qdisc_enqueue(skb, child, to_free);
+}
+
+static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			  struct sk_buff **to_free)
+{
+	struct taprio_sched *q = qdisc_priv(sch);
+	struct Qdisc *child;
+	int queue;
+
+	queue = skb_get_queue_mapping(skb);
+
+	child = q->qdiscs[queue];
+	if (unlikely(!child))
+		return qdisc_drop(skb, sch, to_free);
+
+	/* Large packets might not be transmitted when the transmission duration
+	 * exceeds any configured interval. Therefore, segment the skb into
+	 * smaller chunks. Skip it for the full offload case, as the driver
+	 * and/or the hardware is expected to handle this.
+	 */
+	if (skb_is_gso(skb) && !FULL_OFFLOAD_IS_ENABLED(q->flags)) {
+		unsigned int slen = 0, numsegs = 0, len = qdisc_pkt_len(skb);
+		netdev_features_t features = netif_skb_features(skb);
+		struct sk_buff *segs, *nskb;
+		int ret;
+
+		segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
+		if (IS_ERR_OR_NULL(segs))
+			return qdisc_drop(skb, sch, to_free);
+
+		skb_list_walk_safe(segs, segs, nskb) {
+			skb_mark_not_on_list(segs);
+			qdisc_skb_cb(segs)->pkt_len = segs->len;
+			slen += segs->len;
+
+			ret = taprio_enqueue_one(segs, sch, child, to_free);
+			if (ret != NET_XMIT_SUCCESS) {
+				if (net_xmit_drop_count(ret))
+					qdisc_qstats_drop(sch);
+			} else {
+				numsegs++;
+			}
+		}
+
+		if (numsegs > 1)
+			qdisc_tree_reduce_backlog(sch, 1 - numsegs, len - slen);
+		consume_skb(skb);
+
+		return numsegs > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
+	}
+
+	return taprio_enqueue_one(skb, sch, child, to_free);
 }
 
 static struct sk_buff *taprio_peek_soft(struct Qdisc *sch)
@@ -901,6 +945,12 @@ static int parse_taprio_schedule(struct taprio_sched *q, struct nlattr **tb,
 
 		list_for_each_entry(entry, &new->entries, list)
 			cycle = ktime_add_ns(cycle, entry->interval);
+
+		if (!cycle) {
+			NL_SET_ERR_MSG(extack, "'cycle_time' can never be 0");
+			return -EINVAL;
+		}
+
 		new->cycle_time = cycle;
 	}
 

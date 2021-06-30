@@ -3228,10 +3228,6 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	func->function.os_desc_n =
 		c->cdev->use_os_string ? ffs->interfaces_count : 0;
 
-	if (likely(super)) {
-		func->function.ssp_descriptors =
-			usb_copy_descriptors(func->function.ss_descriptors);
-	}
 	/* And we're done */
 	ffs_event_add(ffs, FUNCTIONFS_BIND);
 	return 0;
@@ -3570,6 +3566,9 @@ static void ffs_func_unbind(struct usb_configuration *c,
 		ffs_func_eps_disable(func);
 		ffs->func = NULL;
 	}
+
+	/* Drain any pending AIO completions */
+	drain_workqueue(ffs->io_completion_wq);
 
 	if (!--opts->refcnt)
 		functionfs_unbind(ffs);

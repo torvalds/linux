@@ -13,11 +13,11 @@
 #include <linux/io.h>
 #include <linux/mdio/mdio-xgene.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
-#include <linux/of_net.h>
 #include <linux/of_mdio.h>
-#include <linux/prefetch.h>
+#include <linux/of_net.h>
+#include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/prefetch.h>
 #include <net/ip.h>
 
 static bool xgene_mdio_status;

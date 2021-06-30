@@ -65,7 +65,7 @@ config SPI_ALTERA
 	  This is the driver for the Altera SPI Controller.
 
 config SPI_ALTERA_CORE
-	tristate "Altera SPI Controller core code"
+	tristate "Altera SPI Controller core code" if COMPILE_TEST
 	select REGMAP
 	help
 	  "The core code for the Altera SPI Controller"

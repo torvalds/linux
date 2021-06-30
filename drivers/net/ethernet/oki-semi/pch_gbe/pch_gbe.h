@@ -612,15 +612,6 @@ void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 			       struct pch_gbe_rx_ring *rx_ring);
 void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-u32 pch_ch_control_read(struct pci_dev *pdev);
-void pch_ch_control_write(struct pci_dev *pdev, u32 val);
-u32 pch_ch_event_read(struct pci_dev *pdev);
-void pch_ch_event_write(struct pci_dev *pdev, u32 val);
-u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
-u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
-u64 pch_rx_snap_read(struct pci_dev *pdev);
-u64 pch_tx_snap_read(struct pci_dev *pdev);
-int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
 
 /* pch_gbe_param.c */
 void pch_gbe_check_options(struct pch_gbe_adapter *adapter);

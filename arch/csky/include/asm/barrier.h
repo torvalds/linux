@@ -64,7 +64,7 @@
 
 /*
  * sync:        completion barrier, all sync.xx instructions
- *              guarantee the last response recieved by bus transaction
+ *              guarantee the last response received by bus transaction
  *              made by ld/st instructions before sync.s
  * sync.s:      inherit from sync, but also shareable to other cores
  * sync.i:      inherit from sync, but also flush cpu pipeline

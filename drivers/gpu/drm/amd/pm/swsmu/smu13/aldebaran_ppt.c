@@ -78,6 +78,8 @@
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
+#define CLOCK_VALID (1 << 31)
+
 static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -405,6 +407,9 @@ static int aldebaran_setup_pptable(struct smu_context *smu)
 {
 	int ret = 0;
 
+	/* VBIOS pptable is the first choice */
+	smu->smu_table.boot_values.pp_table_id = 0;
+
 	ret = smu_v13_0_setup_pptable(smu);
 	if (ret)
 		return ret;
@@ -670,6 +675,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	struct smu_13_0_dpm_context *dpm_context = NULL;
 	uint32_t display_levels;
 	uint32_t freq_values[3] = {0};
+	uint32_t min_clk, max_clk;
 
 	if (amdgpu_ras_intr_triggered())
 		return snprintf(buf, PAGE_SIZE, "unavailable\n");
@@ -697,12 +703,20 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 
 		display_levels = clocks.num_levels;
 
+		min_clk = smu->gfx_actual_hard_min_freq & CLOCK_VALID ?
+				  smu->gfx_actual_hard_min_freq & ~CLOCK_VALID :
+				  single_dpm_table->dpm_levels[0].value;
+		max_clk = smu->gfx_actual_soft_max_freq & CLOCK_VALID ?
+				  smu->gfx_actual_soft_max_freq & ~CLOCK_VALID :
+				  single_dpm_table->dpm_levels[1].value;
+
+		freq_values[0] = min_clk;
+		freq_values[1] = max_clk;
+
 		/* fine-grained dpm has only 2 levels */
-		if (now > single_dpm_table->dpm_levels[0].value &&
-				now < single_dpm_table->dpm_levels[1].value) {
+		if (now > min_clk && now < max_clk) {
 			display_levels = clocks.num_levels + 1;
-			freq_values[0] = single_dpm_table->dpm_levels[0].value;
-			freq_values[2] = single_dpm_table->dpm_levels[1].value;
+			freq_values[2] = max_clk;
 			freq_values[1] = now;
 		}
 
@@ -712,12 +726,15 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		 */
 		if (display_levels == clocks.num_levels) {
 			for (i = 0; i < clocks.num_levels; i++)
-				size += sprintf(buf + size, "%d: %uMhz %s\n", i,
-						clocks.data[i].clocks_in_khz / 1000,
-						(clocks.num_levels == 1) ? "*" :
+				size += sprintf(
+					buf + size, "%d: %uMhz %s\n", i,
+					freq_values[i],
+					(clocks.num_levels == 1) ?
+						"*" :
 						(aldebaran_freqs_in_same_level(
-								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+							 freq_values[i], now) ?
+							 "*" :
+							 ""));
 		} else {
 			for (i = 0; i < display_levels; i++)
 				size += sprintf(buf + size, "%d: %uMhz %s\n", i,
@@ -1117,6 +1134,9 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 			&& (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
 		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
 
+	/* Reset user min/max gfx clock */
+	smu->gfx_actual_hard_min_freq = 0;
+	smu->gfx_actual_soft_max_freq = 0;
 
 	switch (level) {
 
@@ -1158,7 +1178,14 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
 		min_clk = max(min, dpm_context->dpm_tables.gfx_table.min);
 		max_clk = min(max, dpm_context->dpm_tables.gfx_table.max);
-		return smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK,
+							    min_clk, max_clk);
+
+		if (!ret) {
+			smu->gfx_actual_hard_min_freq = min_clk | CLOCK_VALID;
+			smu->gfx_actual_soft_max_freq = max_clk | CLOCK_VALID;
+		}
+		return ret;
 	}
 
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
@@ -1178,9 +1205,15 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 			ret = smu_cmn_send_smc_msg_with_param(smu,
 					SMU_MSG_EnableDeterminism,
 					max, NULL);
-			if (ret)
+			if (ret) {
 				dev_err(adev->dev,
 						"Failed to enable determinism at GFX clock %d MHz\n", max);
+			} else {
+				smu->gfx_actual_hard_min_freq =
+					min_clk | CLOCK_VALID;
+				smu->gfx_actual_soft_max_freq =
+					max | CLOCK_VALID;
+			}
 		}
 	}
 

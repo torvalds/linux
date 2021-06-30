@@ -20,4 +20,4 @@ tools/lib/bitmap.c
 tools/lib/str_error_r.c
 tools/lib/vsprintf.c
 tools/lib/zalloc.c
-scripts/bpf_helpers_doc.py
+scripts/bpf_doc.py

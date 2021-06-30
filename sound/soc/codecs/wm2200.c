@@ -72,13 +72,6 @@ static const char *wm2200_core_supply_names[WM2200_NUM_CORE_SUPPLIES] = {
 	"LDOVDD",
 };
 
-struct wm2200_fll {
-	int fref;
-	int fout;
-	int src;
-	struct completion lock;
-};
-
 /* codec private data */
 struct wm2200_priv {
 	struct wm_adsp dsp[2];

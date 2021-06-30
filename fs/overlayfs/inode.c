@@ -97,7 +97,7 @@ out:
 	return err;
 }
 
-static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
+static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 {
 	bool samefs = ovl_same_fs(dentry->d_sb);
 	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
@@ -110,21 +110,21 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 * which is friendly to du -x.
 		 */
 		stat->dev = dentry->d_sb->s_dev;
-		return 0;
+		return;
 	} else if (xinobits) {
 		/*
 		 * All inode numbers of underlying fs should not be using the
 		 * high xinobits, so we use high xinobits to partition the
 		 * overlay st_ino address space. The high bits holds the fsid
 		 * (upper fsid is 0). The lowest xinobit is reserved for mapping
-		 * the non-peresistent inode numbers range in case of overflow.
+		 * the non-persistent inode numbers range in case of overflow.
 		 * This way all overlay inode numbers are unique and use the
 		 * overlay st_dev.
 		 */
 		if (likely(!(stat->ino >> xinoshift))) {
 			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
-			return 0;
+			return;
 		} else if (ovl_xino_warn(dentry->d_sb)) {
 			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
@@ -153,8 +153,6 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 */
 		stat->dev = OVL_FS(dentry->d_sb)->fs[fsid].pseudo_dev;
 	}
-
-	return 0;
 }
 
 int ovl_getattr(struct user_namespace *mnt_userns, const struct path *path,
@@ -253,9 +251,7 @@ int ovl_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		}
 	}
 
-	err = ovl_map_dev_ino(dentry, stat, fsid);
-	if (err)
-		goto out;
+	ovl_map_dev_ino(dentry, stat, fsid);
 
 	/*
 	 * It's probably not worth it to count subdirs to get the
@@ -410,7 +406,7 @@ static bool ovl_can_list(struct super_block *sb, const char *s)
 	if (ovl_is_private_xattr(sb, s))
 		return false;
 
-	/* List all non-trusted xatts */
+	/* List all non-trusted xattrs */
 	if (strncmp(s, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
 		return true;
 
@@ -615,7 +611,7 @@ static const struct address_space_operations ovl_aops = {
  * stackable i_mutex locks according to stack level of the super
  * block instance. An overlayfs instance can never be in stack
  * depth 0 (there is always a real fs below it).  An overlayfs
- * inode lock will use the lockdep annotaion ovl_i_mutex_key[depth].
+ * inode lock will use the lockdep annotation ovl_i_mutex_key[depth].
  *
  * For example, here is a snip from /proc/lockdep_chains after
  * dir_iterate of nested overlayfs:

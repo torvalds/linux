@@ -154,7 +154,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to get machine info %d\n",
 			ret);
-		goto dbg_err;
+		goto dsp_err;
 	}
 
 	/* set up platform component driver */
@@ -232,8 +232,11 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	}
 
 	ret = snd_sof_machine_register(sdev, plat_data);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to register machine driver %d\n", ret);
 		goto fw_trace_err;
+	}
 
 	/*
 	 * Some platforms in SOF, ex: BYT, may not have their platform PM
@@ -257,8 +260,9 @@ fw_run_err:
 fw_load_err:
 	snd_sof_ipc_free(sdev);
 ipc_err:
-	snd_sof_free_debug(sdev);
 dbg_err:
+	snd_sof_free_debug(sdev);
+dsp_err:
 	snd_sof_remove(sdev);
 
 	/* all resources freed, update state to match */
@@ -308,8 +312,10 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
 	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->ipc_pcm_params ||
-	    !sof_ops(sdev)->fw_ready)
+	    !sof_ops(sdev)->fw_ready) {
+		dev_err(dev, "error: missing mandatory ops\n");
 		return -EINVAL;
+	}
 
 	INIT_LIST_HEAD(&sdev->pcm_list);
 	INIT_LIST_HEAD(&sdev->kcontrol_list);

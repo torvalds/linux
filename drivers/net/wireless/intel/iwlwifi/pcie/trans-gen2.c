@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -108,8 +108,8 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
 				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
 	if (!ret)
-		IWL_ERR(trans,
-			"firmware didn't ACK the reset - continue anyway\n");
+		IWL_INFO(trans,
+			 "firmware didn't ACK the reset - continue anyway\n");
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
@@ -143,7 +143,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
-		iwl_txq_gen2_tx_stop(trans);
+		iwl_txq_gen2_tx_free(trans);
 		iwl_pcie_rx_stop(trans);
 	}
 

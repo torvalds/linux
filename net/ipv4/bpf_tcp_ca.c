@@ -5,6 +5,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/btf_ids.h>
 #include <linux/filter.h>
 #include <net/tcp.h>
 #include <net/bpf_sk_storage.h>
@@ -178,10 +179,54 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	}
 }
 
+BTF_SET_START(bpf_tcp_ca_kfunc_ids)
+BTF_ID(func, tcp_reno_ssthresh)
+BTF_ID(func, tcp_reno_cong_avoid)
+BTF_ID(func, tcp_reno_undo_cwnd)
+BTF_ID(func, tcp_slow_start)
+BTF_ID(func, tcp_cong_avoid_ai)
+#ifdef CONFIG_X86
+#ifdef CONFIG_DYNAMIC_FTRACE
+#if IS_BUILTIN(CONFIG_TCP_CONG_CUBIC)
+BTF_ID(func, cubictcp_init)
+BTF_ID(func, cubictcp_recalc_ssthresh)
+BTF_ID(func, cubictcp_cong_avoid)
+BTF_ID(func, cubictcp_state)
+BTF_ID(func, cubictcp_cwnd_event)
+BTF_ID(func, cubictcp_acked)
+#endif
+#if IS_BUILTIN(CONFIG_TCP_CONG_DCTCP)
+BTF_ID(func, dctcp_init)
+BTF_ID(func, dctcp_update_alpha)
+BTF_ID(func, dctcp_cwnd_event)
+BTF_ID(func, dctcp_ssthresh)
+BTF_ID(func, dctcp_cwnd_undo)
+BTF_ID(func, dctcp_state)
+#endif
+#if IS_BUILTIN(CONFIG_TCP_CONG_BBR)
+BTF_ID(func, bbr_init)
+BTF_ID(func, bbr_main)
+BTF_ID(func, bbr_sndbuf_expand)
+BTF_ID(func, bbr_undo_cwnd)
+BTF_ID(func, bbr_cwnd_event)
+BTF_ID(func, bbr_ssthresh)
+BTF_ID(func, bbr_min_tso_segs)
+BTF_ID(func, bbr_set_state)
+#endif
+#endif  /* CONFIG_DYNAMIC_FTRACE */
+#endif	/* CONFIG_X86 */
+BTF_SET_END(bpf_tcp_ca_kfunc_ids)
+
+static bool bpf_tcp_ca_check_kfunc_call(u32 kfunc_btf_id)
+{
+	return btf_id_set_contains(&bpf_tcp_ca_kfunc_ids, kfunc_btf_id);
+}
+
 static const struct bpf_verifier_ops bpf_tcp_ca_verifier_ops = {
 	.get_func_proto		= bpf_tcp_ca_get_func_proto,
 	.is_valid_access	= bpf_tcp_ca_is_valid_access,
 	.btf_struct_access	= bpf_tcp_ca_btf_struct_access,
+	.check_kfunc_call	= bpf_tcp_ca_check_kfunc_call,
 };
 
 static int bpf_tcp_ca_init_member(const struct btf_type *t,

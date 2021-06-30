@@ -42,6 +42,10 @@ enum {
 	ETHTOOL_MSG_CABLE_TEST_ACT,
 	ETHTOOL_MSG_CABLE_TEST_TDR_ACT,
 	ETHTOOL_MSG_TUNNEL_INFO_GET,
+	ETHTOOL_MSG_FEC_GET,
+	ETHTOOL_MSG_FEC_SET,
+	ETHTOOL_MSG_MODULE_EEPROM_GET,
+	ETHTOOL_MSG_STATS_GET,
 
 	/* add new constants above here */
 	__ETHTOOL_MSG_USER_CNT,
@@ -80,6 +84,10 @@ enum {
 	ETHTOOL_MSG_CABLE_TEST_NTF,
 	ETHTOOL_MSG_CABLE_TEST_TDR_NTF,
 	ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY,
+	ETHTOOL_MSG_FEC_GET_REPLY,
+	ETHTOOL_MSG_FEC_NTF,
+	ETHTOOL_MSG_MODULE_EEPROM_GET_REPLY,
+	ETHTOOL_MSG_STATS_GET_REPLY,
 
 	/* add new constants above here */
 	__ETHTOOL_MSG_KERNEL_CNT,
@@ -627,6 +635,185 @@ enum {
 	/* add new constants above here */
 	__ETHTOOL_A_TUNNEL_INFO_CNT,
 	ETHTOOL_A_TUNNEL_INFO_MAX = (__ETHTOOL_A_TUNNEL_INFO_CNT - 1)
+};
+
+/* FEC */
+
+enum {
+	ETHTOOL_A_FEC_UNSPEC,
+	ETHTOOL_A_FEC_HEADER,				/* nest - _A_HEADER_* */
+	ETHTOOL_A_FEC_MODES,				/* bitset */
+	ETHTOOL_A_FEC_AUTO,				/* u8 */
+	ETHTOOL_A_FEC_ACTIVE,				/* u32 */
+	ETHTOOL_A_FEC_STATS,				/* nest - _A_FEC_STAT */
+
+	__ETHTOOL_A_FEC_CNT,
+	ETHTOOL_A_FEC_MAX = (__ETHTOOL_A_FEC_CNT - 1)
+};
+
+enum {
+	ETHTOOL_A_FEC_STAT_UNSPEC,
+	ETHTOOL_A_FEC_STAT_PAD,
+
+	ETHTOOL_A_FEC_STAT_CORRECTED,			/* array, u64 */
+	ETHTOOL_A_FEC_STAT_UNCORR,			/* array, u64 */
+	ETHTOOL_A_FEC_STAT_CORR_BITS,			/* array, u64 */
+
+	/* add new constants above here */
+	__ETHTOOL_A_FEC_STAT_CNT,
+	ETHTOOL_A_FEC_STAT_MAX = (__ETHTOOL_A_FEC_STAT_CNT - 1)
+};
+
+/* MODULE EEPROM */
+
+enum {
+	ETHTOOL_A_MODULE_EEPROM_UNSPEC,
+	ETHTOOL_A_MODULE_EEPROM_HEADER,			/* nest - _A_HEADER_* */
+
+	ETHTOOL_A_MODULE_EEPROM_OFFSET,			/* u32 */
+	ETHTOOL_A_MODULE_EEPROM_LENGTH,			/* u32 */
+	ETHTOOL_A_MODULE_EEPROM_PAGE,			/* u8 */
+	ETHTOOL_A_MODULE_EEPROM_BANK,			/* u8 */
+	ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS,		/* u8 */
+	ETHTOOL_A_MODULE_EEPROM_DATA,			/* nested */
+
+	__ETHTOOL_A_MODULE_EEPROM_CNT,
+	ETHTOOL_A_MODULE_EEPROM_MAX = (__ETHTOOL_A_MODULE_EEPROM_CNT - 1)
+};
+
+/* STATS */
+
+enum {
+	ETHTOOL_A_STATS_UNSPEC,
+	ETHTOOL_A_STATS_PAD,
+	ETHTOOL_A_STATS_HEADER,			/* nest - _A_HEADER_* */
+	ETHTOOL_A_STATS_GROUPS,			/* bitset */
+
+	ETHTOOL_A_STATS_GRP,			/* nest - _A_STATS_GRP_* */
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_CNT,
+	ETHTOOL_A_STATS_MAX = (__ETHTOOL_A_STATS_CNT - 1)
+};
+
+enum {
+	ETHTOOL_STATS_ETH_PHY,
+	ETHTOOL_STATS_ETH_MAC,
+	ETHTOOL_STATS_ETH_CTRL,
+	ETHTOOL_STATS_RMON,
+
+	/* add new constants above here */
+	__ETHTOOL_STATS_CNT
+};
+
+enum {
+	ETHTOOL_A_STATS_GRP_UNSPEC,
+	ETHTOOL_A_STATS_GRP_PAD,
+
+	ETHTOOL_A_STATS_GRP_ID,			/* u32 */
+	ETHTOOL_A_STATS_GRP_SS_ID,		/* u32 */
+
+	ETHTOOL_A_STATS_GRP_STAT,		/* nest */
+
+	ETHTOOL_A_STATS_GRP_HIST_RX,		/* nest */
+	ETHTOOL_A_STATS_GRP_HIST_TX,		/* nest */
+
+	ETHTOOL_A_STATS_GRP_HIST_BKT_LOW,	/* u32 */
+	ETHTOOL_A_STATS_GRP_HIST_BKT_HI,	/* u32 */
+	ETHTOOL_A_STATS_GRP_HIST_VAL,		/* u64 */
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_GRP_CNT,
+	ETHTOOL_A_STATS_GRP_MAX = (__ETHTOOL_A_STATS_CNT - 1)
+};
+
+enum {
+	/* 30.3.2.1.5 aSymbolErrorDuringCarrier */
+	ETHTOOL_A_STATS_ETH_PHY_5_SYM_ERR,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_ETH_PHY_CNT,
+	ETHTOOL_A_STATS_ETH_PHY_MAX = (__ETHTOOL_A_STATS_ETH_PHY_CNT - 1)
+};
+
+enum {
+	/* 30.3.1.1.2 aFramesTransmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_2_TX_PKT,
+	/* 30.3.1.1.3 aSingleCollisionFrames */
+	ETHTOOL_A_STATS_ETH_MAC_3_SINGLE_COL,
+	/* 30.3.1.1.4 aMultipleCollisionFrames */
+	ETHTOOL_A_STATS_ETH_MAC_4_MULTI_COL,
+	/* 30.3.1.1.5 aFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_5_RX_PKT,
+	/* 30.3.1.1.6 aFrameCheckSequenceErrors */
+	ETHTOOL_A_STATS_ETH_MAC_6_FCS_ERR,
+	/* 30.3.1.1.7 aAlignmentErrors */
+	ETHTOOL_A_STATS_ETH_MAC_7_ALIGN_ERR,
+	/* 30.3.1.1.8 aOctetsTransmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_8_TX_BYTES,
+	/* 30.3.1.1.9 aFramesWithDeferredXmissions */
+	ETHTOOL_A_STATS_ETH_MAC_9_TX_DEFER,
+	/* 30.3.1.1.10 aLateCollisions */
+	ETHTOOL_A_STATS_ETH_MAC_10_LATE_COL,
+	/* 30.3.1.1.11 aFramesAbortedDueToXSColls */
+	ETHTOOL_A_STATS_ETH_MAC_11_XS_COL,
+	/* 30.3.1.1.12 aFramesLostDueToIntMACXmitError */
+	ETHTOOL_A_STATS_ETH_MAC_12_TX_INT_ERR,
+	/* 30.3.1.1.13 aCarrierSenseErrors */
+	ETHTOOL_A_STATS_ETH_MAC_13_CS_ERR,
+	/* 30.3.1.1.14 aOctetsReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_14_RX_BYTES,
+	/* 30.3.1.1.15 aFramesLostDueToIntMACRcvError */
+	ETHTOOL_A_STATS_ETH_MAC_15_RX_INT_ERR,
+
+	/* 30.3.1.1.18 aMulticastFramesXmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_18_TX_MCAST,
+	/* 30.3.1.1.19 aBroadcastFramesXmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_19_TX_BCAST,
+	/* 30.3.1.1.20 aFramesWithExcessiveDeferral */
+	ETHTOOL_A_STATS_ETH_MAC_20_XS_DEFER,
+	/* 30.3.1.1.21 aMulticastFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_21_RX_MCAST,
+	/* 30.3.1.1.22 aBroadcastFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_22_RX_BCAST,
+	/* 30.3.1.1.23 aInRangeLengthErrors */
+	ETHTOOL_A_STATS_ETH_MAC_23_IR_LEN_ERR,
+	/* 30.3.1.1.24 aOutOfRangeLengthField */
+	ETHTOOL_A_STATS_ETH_MAC_24_OOR_LEN,
+	/* 30.3.1.1.25 aFrameTooLongErrors */
+	ETHTOOL_A_STATS_ETH_MAC_25_TOO_LONG_ERR,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_ETH_MAC_CNT,
+	ETHTOOL_A_STATS_ETH_MAC_MAX = (__ETHTOOL_A_STATS_ETH_MAC_CNT - 1)
+};
+
+enum {
+	/* 30.3.3.3 aMACControlFramesTransmitted */
+	ETHTOOL_A_STATS_ETH_CTRL_3_TX,
+	/* 30.3.3.4 aMACControlFramesReceived */
+	ETHTOOL_A_STATS_ETH_CTRL_4_RX,
+	/* 30.3.3.5 aUnsupportedOpcodesReceived */
+	ETHTOOL_A_STATS_ETH_CTRL_5_RX_UNSUP,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_ETH_CTRL_CNT,
+	ETHTOOL_A_STATS_ETH_CTRL_MAX = (__ETHTOOL_A_STATS_ETH_CTRL_CNT - 1)
+};
+
+enum {
+	/* etherStatsUndersizePkts */
+	ETHTOOL_A_STATS_RMON_UNDERSIZE,
+	/* etherStatsOversizePkts */
+	ETHTOOL_A_STATS_RMON_OVERSIZE,
+	/* etherStatsFragments */
+	ETHTOOL_A_STATS_RMON_FRAG,
+	/* etherStatsJabbers */
+	ETHTOOL_A_STATS_RMON_JABBER,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_RMON_CNT,
+	ETHTOOL_A_STATS_RMON_MAX = (__ETHTOOL_A_STATS_RMON_CNT - 1)
 };
 
 /* generic netlink info */

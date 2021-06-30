@@ -369,7 +369,7 @@ static void isci_task_build_abort_task_tmf(struct isci_tmf *tmf,
 	tmf->io_tag = old_request->io_tag;
 }
 
-/**
+/*
  * isci_task_send_lu_reset_sas() - This function is called by of the SAS Domain
  *    Template functions.
  * @lun: This parameter specifies the lun to be reset.
@@ -668,7 +668,6 @@ int isci_task_clear_task_set(
  *    returned, libsas turns this into a LUN reset; when FUNC_FAILED is
  *    returned, libsas will turn this into a target reset
  * @task: This parameter specifies the sas task being queried.
- * @lun: This parameter specifies the lun associated with this request.
  *
  * status, zero indicates success.
  */

@@ -309,7 +309,7 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 		smp_mb();
 		if (__netif_subqueue_stopped(tx_ring->netdev,
 					     tx_ring->q_index) &&
-		    !test_bit(__ICE_DOWN, vsi->state)) {
+		    !test_bit(ICE_VSI_DOWN, vsi->state)) {
 			netif_wake_subqueue(tx_ring->netdev,
 					    tx_ring->q_index);
 			++tx_ring->tx_stats.restart_q;
@@ -523,7 +523,7 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
 	    struct bpf_prog *xdp_prog)
 {
 	struct ice_ring *xdp_ring;
-	int err;
+	int err, result;
 	u32 act;
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
@@ -532,14 +532,20 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
 		return ICE_XDP_PASS;
 	case XDP_TX:
 		xdp_ring = rx_ring->vsi->xdp_rings[smp_processor_id()];
-		return ice_xmit_xdp_buff(xdp, xdp_ring);
+		result = ice_xmit_xdp_buff(xdp, xdp_ring);
+		if (result == ICE_XDP_CONSUMED)
+			goto out_failure;
+		return result;
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		return !err ? ICE_XDP_REDIR : ICE_XDP_CONSUMED;
+		if (err)
+			goto out_failure;
+		return ICE_XDP_REDIR;
 	default:
 		bpf_warn_invalid_xdp_action(act);
 		fallthrough;
 	case XDP_ABORTED:
+out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_DROP:
@@ -554,8 +560,8 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
  * @frames: XDP frames to be transmitted
  * @flags: transmit flags
  *
- * Returns number of frames successfully sent. Frames that fail are
- * free'ed via XDP return API.
+ * Returns number of frames successfully sent. Failed frames
+ * will be free'ed by XDP core.
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
  */
@@ -567,9 +573,9 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	unsigned int queue_index = smp_processor_id();
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_ring *xdp_ring;
-	int drops = 0, i;
+	int nxmit = 0, i;
 
-	if (test_bit(__ICE_DOWN, vsi->state))
+	if (test_bit(ICE_VSI_DOWN, vsi->state))
 		return -ENETDOWN;
 
 	if (!ice_is_xdp_ena_vsi(vsi) || queue_index >= vsi->num_xdp_txq)
@@ -584,16 +590,15 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		int err;
 
 		err = ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
-		if (err != ICE_XDP_TX) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (err != ICE_XDP_TX)
+			break;
+		nxmit++;
 	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		ice_xdp_ring_update_tail(xdp_ring);
 
-	return n - drops;
+	return nxmit;
 }
 
 /**
@@ -1098,6 +1103,11 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		dma_rmb();
 
 		if (rx_desc->wb.rxdid == FDIR_DESC_RXDID || !rx_ring->netdev) {
+			struct ice_vsi *ctrl_vsi = rx_ring->vsi;
+
+			if (rx_desc->wb.rxdid == FDIR_DESC_RXDID &&
+			    ctrl_vsi->vf_id != ICE_INVAL_VFID)
+				ice_vc_fdir_irq_handler(ctrl_vsi, rx_desc);
 			ice_put_rx_buf(rx_ring, NULL, 0);
 			cleaned_count++;
 			continue;
@@ -1219,216 +1229,50 @@ construct_skb:
 }
 
 /**
- * ice_adjust_itr_by_size_and_speed - Adjust ITR based on current traffic
- * @port_info: port_info structure containing the current link speed
- * @avg_pkt_size: average size of Tx or Rx packets based on clean routine
- * @itr: ITR value to update
+ * ice_net_dim - Update net DIM algorithm
+ * @q_vector: the vector associated with the interrupt
  *
- * Calculate how big of an increment should be applied to the ITR value passed
- * in based on wmem_default, SKB overhead, ethernet overhead, and the current
- * link speed.
+ * Create a DIM sample and notify net_dim() so that it can possibly decide
+ * a new ITR value based on incoming packets, bytes, and interrupts.
  *
- * The following is a calculation derived from:
- *  wmem_default / (size + overhead) = desired_pkts_per_int
- *  rate / bits_per_byte / (size + ethernet overhead) = pkt_rate
- *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
- *
- * Assuming wmem_default is 212992 and overhead is 640 bytes per
- * packet, (256 skb, 64 headroom, 320 shared info), we can reduce the
- * formula down to:
- *
- *	 wmem_default * bits_per_byte * usecs_per_sec   pkt_size + 24
- * ITR = -------------------------------------------- * --------------
- *			     rate			pkt_size + 640
+ * This function is a no-op if the ring is not configured to dynamic ITR.
  */
-static unsigned int
-ice_adjust_itr_by_size_and_speed(struct ice_port_info *port_info,
-				 unsigned int avg_pkt_size,
-				 unsigned int itr)
+static void ice_net_dim(struct ice_q_vector *q_vector)
 {
-	switch (port_info->phy.link_info.link_speed) {
-	case ICE_AQ_LINK_SPEED_100GB:
-		itr += DIV_ROUND_UP(17 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	case ICE_AQ_LINK_SPEED_50GB:
-		itr += DIV_ROUND_UP(34 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	case ICE_AQ_LINK_SPEED_40GB:
-		itr += DIV_ROUND_UP(43 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	case ICE_AQ_LINK_SPEED_25GB:
-		itr += DIV_ROUND_UP(68 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	case ICE_AQ_LINK_SPEED_20GB:
-		itr += DIV_ROUND_UP(85 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	case ICE_AQ_LINK_SPEED_10GB:
-	default:
-		itr += DIV_ROUND_UP(170 * (avg_pkt_size + 24),
-				    avg_pkt_size + 640);
-		break;
-	}
+	struct ice_ring_container *tx = &q_vector->tx;
+	struct ice_ring_container *rx = &q_vector->rx;
 
-	if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
-		itr &= ICE_ITR_ADAPTIVE_LATENCY;
-		itr += ICE_ITR_ADAPTIVE_MAX_USECS;
-	}
+	if (ITR_IS_DYNAMIC(tx)) {
+		struct dim_sample dim_sample = {};
+		u64 packets = 0, bytes = 0;
+		struct ice_ring *ring;
 
-	return itr;
-}
-
-/**
- * ice_update_itr - update the adaptive ITR value based on statistics
- * @q_vector: structure containing interrupt and ring information
- * @rc: structure containing ring performance data
- *
- * Stores a new ITR value based on packets and byte
- * counts during the last interrupt.  The advantage of per interrupt
- * computation is faster updates and more accurate ITR for the current
- * traffic pattern.  Constants in this function were computed
- * based on theoretical maximum wire speed and thresholds were set based
- * on testing data as well as attempting to minimize response time
- * while increasing bulk throughput.
- */
-static void
-ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
-{
-	unsigned long next_update = jiffies;
-	unsigned int packets, bytes, itr;
-	bool container_is_rx;
-
-	if (!rc->ring || !ITR_IS_DYNAMIC(rc->itr_setting))
-		return;
-
-	/* If itr_countdown is set it means we programmed an ITR within
-	 * the last 4 interrupt cycles. This has a side effect of us
-	 * potentially firing an early interrupt. In order to work around
-	 * this we need to throw out any data received for a few
-	 * interrupts following the update.
-	 */
-	if (q_vector->itr_countdown) {
-		itr = rc->target_itr;
-		goto clear_counts;
-	}
-
-	container_is_rx = (&q_vector->rx == rc);
-	/* For Rx we want to push the delay up and default to low latency.
-	 * for Tx we want to pull the delay down and default to high latency.
-	 */
-	itr = container_is_rx ?
-		ICE_ITR_ADAPTIVE_MIN_USECS | ICE_ITR_ADAPTIVE_LATENCY :
-		ICE_ITR_ADAPTIVE_MAX_USECS | ICE_ITR_ADAPTIVE_LATENCY;
-
-	/* If we didn't update within up to 1 - 2 jiffies we can assume
-	 * that either packets are coming in so slow there hasn't been
-	 * any work, or that there is so much work that NAPI is dealing
-	 * with interrupt moderation and we don't need to do anything.
-	 */
-	if (time_after(next_update, rc->next_update))
-		goto clear_counts;
-
-	prefetch(q_vector->vsi->port_info);
-
-	packets = rc->total_pkts;
-	bytes = rc->total_bytes;
-
-	if (container_is_rx) {
-		/* If Rx there are 1 to 4 packets and bytes are less than
-		 * 9000 assume insufficient data to use bulk rate limiting
-		 * approach unless Tx is already in bulk rate limiting. We
-		 * are likely latency driven.
-		 */
-		if (packets && packets < 4 && bytes < 9000 &&
-		    (q_vector->tx.target_itr & ICE_ITR_ADAPTIVE_LATENCY)) {
-			itr = ICE_ITR_ADAPTIVE_LATENCY;
-			goto adjust_by_size_and_speed;
+		ice_for_each_ring(ring, q_vector->tx) {
+			packets += ring->stats.pkts;
+			bytes += ring->stats.bytes;
 		}
-	} else if (packets < 4) {
-		/* If we have Tx and Rx ITR maxed and Tx ITR is running in
-		 * bulk mode and we are receiving 4 or fewer packets just
-		 * reset the ITR_ADAPTIVE_LATENCY bit for latency mode so
-		 * that the Rx can relax.
-		 */
-		if (rc->target_itr == ICE_ITR_ADAPTIVE_MAX_USECS &&
-		    (q_vector->rx.target_itr & ICE_ITR_MASK) ==
-		    ICE_ITR_ADAPTIVE_MAX_USECS)
-			goto clear_counts;
-	} else if (packets > 32) {
-		/* If we have processed over 32 packets in a single interrupt
-		 * for Tx assume we need to switch over to "bulk" mode.
-		 */
-		rc->target_itr &= ~ICE_ITR_ADAPTIVE_LATENCY;
+
+		dim_update_sample(q_vector->total_events, packets, bytes,
+				  &dim_sample);
+
+		net_dim(&tx->dim, dim_sample);
 	}
 
-	/* We have no packets to actually measure against. This means
-	 * either one of the other queues on this vector is active or
-	 * we are a Tx queue doing TSO with too high of an interrupt rate.
-	 *
-	 * Between 4 and 56 we can assume that our current interrupt delay
-	 * is only slightly too low. As such we should increase it by a small
-	 * fixed amount.
-	 */
-	if (packets < 56) {
-		itr = rc->target_itr + ICE_ITR_ADAPTIVE_MIN_INC;
-		if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
-			itr &= ICE_ITR_ADAPTIVE_LATENCY;
-			itr += ICE_ITR_ADAPTIVE_MAX_USECS;
+	if (ITR_IS_DYNAMIC(rx)) {
+		struct dim_sample dim_sample = {};
+		u64 packets = 0, bytes = 0;
+		struct ice_ring *ring;
+
+		ice_for_each_ring(ring, q_vector->rx) {
+			packets += ring->stats.pkts;
+			bytes += ring->stats.bytes;
 		}
-		goto clear_counts;
+
+		dim_update_sample(q_vector->total_events, packets, bytes,
+				  &dim_sample);
+
+		net_dim(&rx->dim, dim_sample);
 	}
-
-	if (packets <= 256) {
-		itr = min(q_vector->tx.current_itr, q_vector->rx.current_itr);
-		itr &= ICE_ITR_MASK;
-
-		/* Between 56 and 112 is our "goldilocks" zone where we are
-		 * working out "just right". Just report that our current
-		 * ITR is good for us.
-		 */
-		if (packets <= 112)
-			goto clear_counts;
-
-		/* If packet count is 128 or greater we are likely looking
-		 * at a slight overrun of the delay we want. Try halving
-		 * our delay to see if that will cut the number of packets
-		 * in half per interrupt.
-		 */
-		itr >>= 1;
-		itr &= ICE_ITR_MASK;
-		if (itr < ICE_ITR_ADAPTIVE_MIN_USECS)
-			itr = ICE_ITR_ADAPTIVE_MIN_USECS;
-
-		goto clear_counts;
-	}
-
-	/* The paths below assume we are dealing with a bulk ITR since
-	 * number of packets is greater than 256. We are just going to have
-	 * to compute a value and try to bring the count under control,
-	 * though for smaller packet sizes there isn't much we can do as
-	 * NAPI polling will likely be kicking in sooner rather than later.
-	 */
-	itr = ICE_ITR_ADAPTIVE_BULK;
-
-adjust_by_size_and_speed:
-
-	/* based on checks above packets cannot be 0 so division is safe */
-	itr = ice_adjust_itr_by_size_and_speed(q_vector->vsi->port_info,
-					       bytes / packets, itr);
-
-clear_counts:
-	/* write back value */
-	rc->target_itr = itr;
-
-	/* next update should occur within next jiffy */
-	rc->next_update = next_update + 1;
-
-	rc->total_bytes = 0;
-	rc->total_pkts = 0;
 }
 
 /**
@@ -1452,72 +1296,46 @@ static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 		(itr << (GLINT_DYN_CTL_INTERVAL_S - ICE_ITR_GRAN_S));
 }
 
-/* The act of updating the ITR will cause it to immediately trigger. In order
- * to prevent this from throwing off adaptive update statistics we defer the
- * update so that it can only happen so often. So after either Tx or Rx are
- * updated we make the adaptive scheme wait until either the ITR completely
- * expires via the next_update expiration or we have been through at least
- * 3 interrupts.
- */
-#define ITR_COUNTDOWN_START 3
-
 /**
- * ice_update_ena_itr - Update ITR and re-enable MSIX interrupt
- * @q_vector: q_vector for which ITR is being updated and interrupt enabled
+ * ice_update_ena_itr - Update ITR moderation and re-enable MSI-X interrupt
+ * @q_vector: the vector associated with the interrupt to enable
+ *
+ * Update the net_dim() algorithm and re-enable the interrupt associated with
+ * this vector.
+ *
+ * If the VSI is down, the interrupt will not be re-enabled.
  */
 static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 {
-	struct ice_ring_container *tx = &q_vector->tx;
-	struct ice_ring_container *rx = &q_vector->rx;
 	struct ice_vsi *vsi = q_vector->vsi;
+	bool wb_en = q_vector->wb_on_itr;
 	u32 itr_val;
 
-	/* when exiting WB_ON_ITR just reset the countdown and let ITR
-	 * resume it's normal "interrupts-enabled" path
-	 */
-	if (q_vector->itr_countdown == ICE_IN_WB_ON_ITR_MODE)
-		q_vector->itr_countdown = 0;
+	if (test_bit(ICE_DOWN, vsi->state))
+		return;
 
-	/* This will do nothing if dynamic updates are not enabled */
-	ice_update_itr(q_vector, tx);
-	ice_update_itr(q_vector, rx);
-
-	/* This block of logic allows us to get away with only updating
-	 * one ITR value with each interrupt. The idea is to perform a
-	 * pseudo-lazy update with the following criteria.
-	 *
-	 * 1. Rx is given higher priority than Tx if both are in same state
-	 * 2. If we must reduce an ITR that is given highest priority.
-	 * 3. We then give priority to increasing ITR based on amount.
+	/* When exiting WB_ON_ITR, let ITR resume its normal
+	 * interrupts-enabled path.
 	 */
-	if (rx->target_itr < rx->current_itr) {
-		/* Rx ITR needs to be reduced, this is highest priority */
-		itr_val = ice_buildreg_itr(rx->itr_idx, rx->target_itr);
-		rx->current_itr = rx->target_itr;
-		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-	} else if ((tx->target_itr < tx->current_itr) ||
-		   ((rx->target_itr - rx->current_itr) <
-		    (tx->target_itr - tx->current_itr))) {
-		/* Tx ITR needs to be reduced, this is second priority
-		 * Tx ITR needs to be increased more than Rx, fourth priority
-		 */
-		itr_val = ice_buildreg_itr(tx->itr_idx, tx->target_itr);
-		tx->current_itr = tx->target_itr;
-		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-	} else if (rx->current_itr != rx->target_itr) {
-		/* Rx ITR needs to be increased, third priority */
-		itr_val = ice_buildreg_itr(rx->itr_idx, rx->target_itr);
-		rx->current_itr = rx->target_itr;
-		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-	} else {
-		/* Still have to re-enable the interrupts */
-		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
-		if (q_vector->itr_countdown)
-			q_vector->itr_countdown--;
+	if (wb_en)
+		q_vector->wb_on_itr = false;
+
+	/* This will do nothing if dynamic updates are not enabled. */
+	ice_net_dim(q_vector);
+
+	/* net_dim() updates ITR out-of-band using a work item */
+	itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	/* trigger an immediate software interrupt when exiting
+	 * busy poll, to make sure to catch any pending cleanups
+	 * that might have been missed due to interrupt state
+	 * transition.
+	 */
+	if (wb_en) {
+		itr_val |= GLINT_DYN_CTL_SWINT_TRIG_M |
+			   GLINT_DYN_CTL_SW_ITR_INDX_M |
+			   GLINT_DYN_CTL_SW_ITR_INDX_ENA_M;
 	}
-
-	if (!test_bit(__ICE_DOWN, vsi->state))
-		wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx), itr_val);
+	wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx), itr_val);
 }
 
 /**
@@ -1539,7 +1357,7 @@ static void ice_set_wb_on_itr(struct ice_q_vector *q_vector)
 	struct ice_vsi *vsi = q_vector->vsi;
 
 	/* already in wb_on_itr mode no need to change it */
-	if (q_vector->itr_countdown == ICE_IN_WB_ON_ITR_MODE)
+	if (q_vector->wb_on_itr)
 		return;
 
 	/* use previously set ITR values for all of the ITR indices by
@@ -1551,7 +1369,7 @@ static void ice_set_wb_on_itr(struct ice_q_vector *q_vector)
 	      GLINT_DYN_CTL_ITR_INDX_M) | GLINT_DYN_CTL_INTENA_MSK_M |
 	     GLINT_DYN_CTL_WB_ON_ITR_M);
 
-	q_vector->itr_countdown = ICE_IN_WB_ON_ITR_MODE;
+	q_vector->wb_on_itr = true;
 }
 
 /**
@@ -2331,6 +2149,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 	struct ice_tx_offload_params offload = { 0 };
 	struct ice_vsi *vsi = tx_ring->vsi;
 	struct ice_tx_buf *first;
+	struct ethhdr *eth;
 	unsigned int count;
 	int tso, csum;
 
@@ -2377,7 +2196,9 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 		goto out_drop;
 
 	/* allow CONTROL frames egress from main VSI if FW LLDP disabled */
-	if (unlikely(skb->priority == TC_PRIO_CONTROL &&
+	eth = (struct ethhdr *)skb_mac_header(skb);
+	if (unlikely((skb->priority == TC_PRIO_CONTROL ||
+		      eth->h_proto == htons(ETH_P_LLDP)) &&
 		     vsi->type == ICE_VSI_PF &&
 		     vsi->port_info->qos_cfg.is_sw_lldp))
 		offload.cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |

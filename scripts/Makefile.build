@@ -35,27 +35,28 @@ subdir-ccflags-y :=
 # Read auto.conf if it exists, otherwise ignore
 -include include/config/auto.conf
 
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
+include $(srctree)/scripts/Makefile.compiler
 
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 kbuild-file := $(if $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Kbuild,$(kbuild-dir)/Makefile)
 include $(kbuild-file)
 
-include scripts/Makefile.lib
+include $(srctree)/scripts/Makefile.lib
 
 # Do not include hostprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 hostprogs := $(sort $(hostprogs))
 ifneq ($(hostprogs),)
-include scripts/Makefile.host
+include $(srctree)/scripts/Makefile.host
 endif
 
 # Do not include userprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 userprogs := $(sort $(userprogs))
 ifneq ($(userprogs),)
-include scripts/Makefile.userprogs
+include $(srctree)/scripts/Makefile.userprogs
 endif
 
 ifndef obj
@@ -238,8 +239,8 @@ endif # CONFIG_STACK_VALIDATION
 
 # Rebuild all objects when objtool changes, or is enabled/disabled.
 objtool_dep = $(objtool_obj)					\
-	      $(wildcard include/config/orc/unwinder.h		\
-			 include/config/stack/validation.h)
+	      $(wildcard include/config/ORC_UNWINDER		\
+			 include/config/STACK_VALIDATION)
 
 ifdef CONFIG_TRIM_UNUSED_KSYMS
 cmd_gen_ksymdeps = \
@@ -353,7 +354,7 @@ $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y))
 targets += $(filter-out $(subdir-modorder), $(real-obj-m))
-targets += $(lib-y) $(always-y) $(MAKECMDGOALS)
+targets += $(real-dtb-y) $(lib-y) $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -444,11 +445,11 @@ quiet_cmd_link_multi-m = LD [M]  $@
       cmd_link_multi-m = $(LD) $(ld_flags) -r -o $@ $(filter %.o,$^)
 endif
 
-$(multi-used-m): FORCE
+$(multi-obj-m): FORCE
 	$(call if_changed,link_multi-m)
-$(call multi_depend, $(multi-used-m), .o, -objs -y -m)
+$(call multi_depend, $(multi-obj-m), .o, -objs -y -m)
 
-targets += $(multi-used-m)
+targets += $(multi-obj-m)
 targets := $(filter-out $(PHONY), $(targets))
 
 # Add intermediate targets:

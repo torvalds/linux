@@ -128,10 +128,12 @@ struct perf_stat_config {
 	bool			 all_user;
 	bool			 percore_show_thread;
 	bool			 summary;
+	bool			 no_csv_summary;
 	bool			 metric_no_group;
 	bool			 metric_no_merge;
 	bool			 stop_read_counter;
 	bool			 quiet;
+	bool			 iostat_run;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
@@ -160,6 +162,7 @@ struct perf_stat_config {
 };
 
 void perf_stat__set_big_num(int set);
+void perf_stat__set_no_csv_summary(int set);
 
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
@@ -187,11 +190,10 @@ struct perf_aggr_thread_value {
 	u64 ena;
 };
 
-bool __perf_evsel_stat__is(struct evsel *evsel,
-			   enum perf_stat_evsel_id id);
+bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
-	__perf_evsel_stat__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
+	__perf_stat_evsel__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
 
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;

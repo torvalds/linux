@@ -229,6 +229,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			(aconnector->edid->extensions + 1) * EDID_LENGTH,
 			&init_params);
 
+		if (!dc_sink) {
+			DRM_ERROR("Unable to add a remote sink\n");
+			return 0;
+		}
+
 		dc_sink->priv = aconnector;
 		/* dc_link_add_remote_sink returns a new reference */
 		aconnector->dc_sink = dc_sink;
@@ -745,8 +750,8 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		if (!dc_dsc_compute_bandwidth_range(
 				stream->sink->ctx->dc->res_pool->dscs[0],
 				stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
-				dsc_policy.min_target_bpp,
-				dsc_policy.max_target_bpp,
+				dsc_policy.min_target_bpp * 16,
+				dsc_policy.max_target_bpp * 16,
 				&stream->sink->dsc_caps.dsc_dec_caps,
 				&stream->timing, &params[count].bw_range))
 			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);

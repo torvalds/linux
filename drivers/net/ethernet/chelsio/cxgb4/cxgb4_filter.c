@@ -174,31 +174,31 @@ static void set_nat_params(struct adapter *adap, struct filter_entry *f,
 				      WORD_MASK, f->fs.nat_lip[15] |
 				      f->fs.nat_lip[14] << 8 |
 				      f->fs.nat_lip[13] << 16 |
-				      f->fs.nat_lip[12] << 24, 1);
+				      (u64)f->fs.nat_lip[12] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 1,
 				      WORD_MASK, f->fs.nat_lip[11] |
 				      f->fs.nat_lip[10] << 8 |
 				      f->fs.nat_lip[9] << 16 |
-				      f->fs.nat_lip[8] << 24, 1);
+				      (u64)f->fs.nat_lip[8] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 2,
 				      WORD_MASK, f->fs.nat_lip[7] |
 				      f->fs.nat_lip[6] << 8 |
 				      f->fs.nat_lip[5] << 16 |
-				      f->fs.nat_lip[4] << 24, 1);
+				      (u64)f->fs.nat_lip[4] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 3,
 				      WORD_MASK, f->fs.nat_lip[3] |
 				      f->fs.nat_lip[2] << 8 |
 				      f->fs.nat_lip[1] << 16 |
-				      f->fs.nat_lip[0] << 24, 1);
+				      (u64)f->fs.nat_lip[0] << 24, 1);
 		} else {
 			set_tcb_field(adap, f, tid, TCB_RX_FRAG3_LEN_RAW_W,
 				      WORD_MASK, f->fs.nat_lip[3] |
 				      f->fs.nat_lip[2] << 8 |
 				      f->fs.nat_lip[1] << 16 |
-				      f->fs.nat_lip[0] << 24, 1);
+				      (u64)f->fs.nat_lip[0] << 24, 1);
 		}
 	}
 
@@ -208,25 +208,25 @@ static void set_nat_params(struct adapter *adap, struct filter_entry *f,
 				      WORD_MASK, f->fs.nat_fip[15] |
 				      f->fs.nat_fip[14] << 8 |
 				      f->fs.nat_fip[13] << 16 |
-				      f->fs.nat_fip[12] << 24, 1);
+				      (u64)f->fs.nat_fip[12] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 1,
 				      WORD_MASK, f->fs.nat_fip[11] |
 				      f->fs.nat_fip[10] << 8 |
 				      f->fs.nat_fip[9] << 16 |
-				      f->fs.nat_fip[8] << 24, 1);
+				      (u64)f->fs.nat_fip[8] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 2,
 				      WORD_MASK, f->fs.nat_fip[7] |
 				      f->fs.nat_fip[6] << 8 |
 				      f->fs.nat_fip[5] << 16 |
-				      f->fs.nat_fip[4] << 24, 1);
+				      (u64)f->fs.nat_fip[4] << 24, 1);
 
 			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 3,
 				      WORD_MASK, f->fs.nat_fip[3] |
 				      f->fs.nat_fip[2] << 8 |
 				      f->fs.nat_fip[1] << 16 |
-				      f->fs.nat_fip[0] << 24, 1);
+				      (u64)f->fs.nat_fip[0] << 24, 1);
 
 		} else {
 			set_tcb_field(adap, f, tid,
@@ -234,13 +234,13 @@ static void set_nat_params(struct adapter *adap, struct filter_entry *f,
 				      WORD_MASK, f->fs.nat_fip[3] |
 				      f->fs.nat_fip[2] << 8 |
 				      f->fs.nat_fip[1] << 16 |
-				      f->fs.nat_fip[0] << 24, 1);
+				      (u64)f->fs.nat_fip[0] << 24, 1);
 		}
 	}
 
 	set_tcb_field(adap, f, tid, TCB_PDU_HDR_LEN_W, WORD_MASK,
 		      (dp ? (nat_lp[1] | nat_lp[0] << 8) : 0) |
-		      (sp ? (nat_fp[1] << 16 | nat_fp[0] << 24) : 0),
+		      (sp ? (nat_fp[1] << 16 | (u64)nat_fp[0] << 24) : 0),
 		      1);
 }
 
@@ -979,7 +979,7 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 {
 	struct port_info *pi = netdev_priv(f->dev);
 
-	/* If the new or old filter have loopback rewriteing rules then we'll
+	/* If the new or old filter have loopback rewriting rules then we'll
 	 * need to free any existing L2T, SMT, CLIP entries of filter
 	 * rule.
 	 */
@@ -1042,7 +1042,7 @@ void clear_all_filters(struct adapter *adapter)
 				cxgb4_del_filter(dev, f->tid, &f->fs);
 		}
 
-		sb = t4_read_reg(adapter, LE_DB_SRVR_START_INDEX_A);
+		sb = adapter->tids.stid_base;
 		for (i = 0; i < sb; i++) {
 			f = (struct filter_entry *)adapter->tids.tid_tab[i];
 

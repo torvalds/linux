@@ -541,6 +541,12 @@ static void nft_rbtree_gc(struct work_struct *work)
 	write_seqcount_end(&priv->count);
 	write_unlock_bh(&priv->lock);
 
+	rbe = nft_set_catchall_gc(set);
+	if (rbe) {
+		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
+		if (gcb)
+			nft_set_gc_batch_add(gcb, rbe);
+	}
 	nft_set_gc_batch_complete(gcb);
 
 	queue_delayed_work(system_power_efficient_wq, &priv->gc_work,

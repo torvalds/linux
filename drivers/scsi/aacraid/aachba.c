@@ -786,8 +786,8 @@ static int _aac_probe_container(struct scsi_cmnd * scsicmd, int (*callback)(stru
 }
 
 /**
- *	aac_probe_container		-	query a logical volume
- * @scsicmd: the scsi command block
+ *	aac_probe_container_callback1	-	query a logical volume
+ *	@scsicmd: the scsi command block
  *
  *	Queries the controller about the given volume. The volume information
  *	is updated in the struct fsa_dev_info structure rather than returned.
@@ -838,7 +838,7 @@ struct scsi_inq {
 };
 
 /**
- *	InqStrCopy	-	string merge
+ *	inqstrcpy	-	string merge
  *	@a:	string to copy from
  *	@b:	string to copy to
  *
@@ -1804,7 +1804,7 @@ static inline void aac_free_safw_ciss_luns(struct aac_dev *dev)
 }
 
 /**
- *	aac_get_safw_ciss_luns()	Process topology change
+ *	aac_get_safw_ciss_luns() - Process topology change
  *	@dev:		aac_dev structure
  *
  *	Execute a CISS REPORT PHYS LUNS and process the results into
@@ -1879,11 +1879,6 @@ static inline u32 aac_get_safw_phys_attribs(struct aac_dev *dev, int lun)
 static inline u32 aac_get_safw_phys_nexus(struct aac_dev *dev, int lun)
 {
 	return *((u32 *)&dev->safw_phys_luns->lun[lun].node_ident[12]);
-}
-
-static inline u32 aac_get_safw_phys_device_type(struct aac_dev *dev, int lun)
-{
-	return dev->safw_phys_luns->lun[lun].node_ident[8];
 }
 
 static inline void aac_free_safw_identify_resp(struct aac_dev *dev,

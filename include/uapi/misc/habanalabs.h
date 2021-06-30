@@ -239,6 +239,39 @@ enum gaudi_engine_id {
 	GAUDI_ENGINE_ID_SIZE
 };
 
+/*
+ * ASIC specific PLL index
+ *
+ * Used to retrieve in frequency info of different IPs via
+ * HL_INFO_PLL_FREQUENCY under HL_IOCTL_INFO IOCTL. The enums need to be
+ * used as an index in struct hl_pll_frequency_info
+ */
+
+enum hl_goya_pll_index {
+	HL_GOYA_CPU_PLL = 0,
+	HL_GOYA_IC_PLL,
+	HL_GOYA_MC_PLL,
+	HL_GOYA_MME_PLL,
+	HL_GOYA_PCI_PLL,
+	HL_GOYA_EMMC_PLL,
+	HL_GOYA_TPC_PLL,
+	HL_GOYA_PLL_MAX
+};
+
+enum hl_gaudi_pll_index {
+	HL_GAUDI_CPU_PLL = 0,
+	HL_GAUDI_PCI_PLL,
+	HL_GAUDI_SRAM_PLL,
+	HL_GAUDI_HBM_PLL,
+	HL_GAUDI_NIC_PLL,
+	HL_GAUDI_DMA_PLL,
+	HL_GAUDI_MESH_PLL,
+	HL_GAUDI_MME_PLL,
+	HL_GAUDI_TPC_PLL,
+	HL_GAUDI_IF_PLL,
+	HL_GAUDI_PLL_MAX
+};
+
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,

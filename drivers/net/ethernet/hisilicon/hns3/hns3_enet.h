@@ -298,7 +298,12 @@ struct hns3_desc_cb {
 
 	/* priv data for the desc, e.g. skb when use with ip stack */
 	void *priv;
-	u32 page_offset;
+
+	union {
+		u32 page_offset;	/* for rx */
+		u32 send_bytes;		/* for tx */
+	};
+
 	u32 length;     /* length of the buffer */
 
 	u16 reuse_flag;
@@ -376,6 +381,8 @@ struct ring_stats {
 			u64 tx_l4_proto_err;
 			u64 tx_l2l3l4_err;
 			u64 tx_tso_err;
+			u64 over_max_recursion;
+			u64 hw_limitation;
 		};
 		struct {
 			u64 rx_pkts;

@@ -656,8 +656,7 @@ static void cvm_mmc_dma_request(struct mmc_host *mmc,
 
 	if (!mrq->data || !mrq->data->sg || !mrq->data->sg_len ||
 	    !mrq->stop || mrq->stop->opcode != MMC_STOP_TRANSMISSION) {
-		dev_err(&mmc->card->dev,
-			"Error: cmv_mmc_dma_request no data\n");
+		dev_err(&mmc->card->dev, "Error: %s no data\n", __func__);
 		goto error;
 	}
 

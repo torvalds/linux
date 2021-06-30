@@ -331,7 +331,7 @@ static int __fillup_metapath(struct gfs2_inode *ip, struct metapath *mp,
 
 		if (!dblock)
 			break;
-		ret = gfs2_meta_indirect_buffer(ip, x + 1, dblock, &mp->mp_bh[x + 1]);
+		ret = gfs2_meta_buffer(ip, GFS2_METATYPE_IN, dblock, &mp->mp_bh[x + 1]);
 		if (ret)
 			return ret;
 	}
@@ -632,7 +632,7 @@ enum alloc_state {
 };
 
 /**
- * gfs2_iomap_alloc - Build a metadata tree of the requested height
+ * __gfs2_iomap_alloc - Build a metadata tree of the requested height
  * @inode: The GFS2 inode
  * @iomap: The iomap structure
  * @mp: The metapath, with proper height information calculated
@@ -642,7 +642,7 @@ enum alloc_state {
  *  ii) Indirect blocks to fill in lower part of the metadata tree
  * iii) Data blocks
  *
- * This function is called after gfs2_iomap_get, which works out the
+ * This function is called after __gfs2_iomap_get, which works out the
  * total number of blocks which we need via gfs2_alloc_size.
  *
  * We then do the actual allocation asking for an extent at a time (if
@@ -660,8 +660,8 @@ enum alloc_state {
  * Returns: errno on error
  */
 
-static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
-			    struct metapath *mp)
+static int __gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
+			      struct metapath *mp)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -802,10 +802,10 @@ static u64 gfs2_alloc_size(struct inode *inode, struct metapath *mp, u64 size)
 
 	/*
 	 * For writes to stuffed files, this function is called twice via
-	 * gfs2_iomap_get, before and after unstuffing. The size we return the
+	 * __gfs2_iomap_get, before and after unstuffing. The size we return the
 	 * first time needs to be large enough to get the reservation and
 	 * allocation sizes right.  The size we return the second time must
-	 * be exact or else gfs2_iomap_alloc won't do the right thing.
+	 * be exact or else __gfs2_iomap_alloc won't do the right thing.
 	 */
 
 	if (gfs2_is_stuffed(ip) || mp->mp_fheight != mp->mp_aheight) {
@@ -829,7 +829,7 @@ static u64 gfs2_alloc_size(struct inode *inode, struct metapath *mp, u64 size)
 }
 
 /**
- * gfs2_iomap_get - Map blocks from an inode to disk blocks
+ * __gfs2_iomap_get - Map blocks from an inode to disk blocks
  * @inode: The inode
  * @pos: Starting position in bytes
  * @length: Length to map, in bytes
@@ -839,9 +839,9 @@ static u64 gfs2_alloc_size(struct inode *inode, struct metapath *mp, u64 size)
  *
  * Returns: errno
  */
-static int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
-			  unsigned flags, struct iomap *iomap,
-			  struct metapath *mp)
+static int __gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
+			    unsigned flags, struct iomap *iomap,
+			    struct metapath *mp)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -959,32 +959,6 @@ hole_found:
 	iomap->addr = IOMAP_NULL_ADDR;
 	iomap->type = IOMAP_HOLE;
 	goto out;
-}
-
-/**
- * gfs2_lblk_to_dblk - convert logical block to disk block
- * @inode: the inode of the file we're mapping
- * @lblock: the block relative to the start of the file
- * @dblock: the returned dblock, if no error
- *
- * This function maps a single block from a file logical block (relative to
- * the start of the file) to a file system absolute block using iomap.
- *
- * Returns: the absolute file system block, or an error
- */
-int gfs2_lblk_to_dblk(struct inode *inode, u32 lblock, u64 *dblock)
-{
-	struct iomap iomap = { };
-	struct metapath mp = { .mp_aheight = 1, };
-	loff_t pos = (loff_t)lblock << inode->i_blkbits;
-	int ret;
-
-	ret = gfs2_iomap_get(inode, pos, i_blocksize(inode), 0, &iomap, &mp);
-	release_metapath(&mp);
-	if (ret == 0)
-		*dblock = iomap.addr >> inode->i_blkbits;
-
-	return ret;
 }
 
 static int gfs2_write_lock(struct inode *inode)
@@ -1109,14 +1083,14 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 			if (ret)
 				goto out_trans_end;
 			release_metapath(mp);
-			ret = gfs2_iomap_get(inode, iomap->offset,
-					     iomap->length, flags, iomap, mp);
+			ret = __gfs2_iomap_get(inode, iomap->offset,
+					       iomap->length, flags, iomap, mp);
 			if (ret)
 				goto out_trans_end;
 		}
 
 		if (iomap->type == IOMAP_HOLE) {
-			ret = gfs2_iomap_alloc(inode, iomap, mp);
+			ret = __gfs2_iomap_alloc(inode, iomap, mp);
 			if (ret) {
 				gfs2_trans_end(sdp);
 				gfs2_inplace_release(ip);
@@ -1168,7 +1142,7 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 			goto out;
 	}
 
-	ret = gfs2_iomap_get(inode, pos, length, flags, iomap, &mp);
+	ret = __gfs2_iomap_get(inode, pos, length, flags, iomap, &mp);
 	if (ret)
 		goto out_unlock;
 
@@ -1290,9 +1264,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	loff_t pos = (loff_t)lblock << inode->i_blkbits;
 	loff_t length = bh_map->b_size;
-	struct metapath mp = { .mp_aheight = 1, };
 	struct iomap iomap = { };
-	int flags = create ? IOMAP_WRITE : 0;
 	int ret;
 
 	clear_buffer_mapped(bh_map);
@@ -1300,10 +1272,10 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_boundary(bh_map);
 	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
 
-	ret = gfs2_iomap_get(inode, pos, length, flags, &iomap, &mp);
-	if (create && !ret && iomap.type == IOMAP_HOLE)
-		ret = gfs2_iomap_alloc(inode, &iomap, &mp);
-	release_metapath(&mp);
+	if (!create)
+		ret = gfs2_iomap_get(inode, pos, length, &iomap);
+	else
+		ret = gfs2_iomap_alloc(inode, pos, length, &iomap);
 	if (ret)
 		goto out;
 
@@ -1324,28 +1296,47 @@ out:
 	return ret;
 }
 
-/*
- * Deprecated: do not use in new code
- */
-int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
+int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+		    unsigned int *extlen)
 {
-	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
+	unsigned int blkbits = inode->i_blkbits;
+	struct iomap iomap = { };
+	unsigned int len;
 	int ret;
-	int create = *new;
 
-	BUG_ON(!extlen);
-	BUG_ON(!dblock);
-	BUG_ON(!new);
+	ret = gfs2_iomap_get(inode, lblock << blkbits, *extlen << blkbits,
+			     &iomap);
+	if (ret)
+		return ret;
+	if (iomap.type != IOMAP_MAPPED)
+		return -EIO;
+	*dblock = iomap.addr >> blkbits;
+	len = iomap.length >> blkbits;
+	if (len < *extlen)
+		*extlen = len;
+	return 0;
+}
 
-	bh.b_size = BIT(inode->i_blkbits + (create ? 0 : 5));
-	ret = gfs2_block_map(inode, lblock, &bh, create);
-	*extlen = bh.b_size >> inode->i_blkbits;
-	*dblock = bh.b_blocknr;
-	if (buffer_new(&bh))
-		*new = 1;
-	else
-		*new = 0;
-	return ret;
+int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+		      unsigned int *extlen, bool *new)
+{
+	unsigned int blkbits = inode->i_blkbits;
+	struct iomap iomap = { };
+	unsigned int len;
+	int ret;
+
+	ret = gfs2_iomap_alloc(inode, lblock << blkbits, *extlen << blkbits,
+			       &iomap);
+	if (ret)
+		return ret;
+	if (iomap.type != IOMAP_MAPPED)
+		return -EIO;
+	*dblock = iomap.addr >> blkbits;
+	len = iomap.length >> blkbits;
+	if (len < *extlen)
+		*extlen = len;
+	*new = iomap.flags & IOMAP_F_NEW;
+	return 0;
 }
 
 /*
@@ -1461,15 +1452,26 @@ out:
 	return error;
 }
 
-int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
-			 struct iomap *iomap)
+int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
+		   struct iomap *iomap)
 {
 	struct metapath mp = { .mp_aheight = 1, };
 	int ret;
 
-	ret = gfs2_iomap_get(inode, pos, length, IOMAP_WRITE, iomap, &mp);
+	ret = __gfs2_iomap_get(inode, pos, length, 0, iomap, &mp);
+	release_metapath(&mp);
+	return ret;
+}
+
+int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
+		     struct iomap *iomap)
+{
+	struct metapath mp = { .mp_aheight = 1, };
+	int ret;
+
+	ret = __gfs2_iomap_get(inode, pos, length, IOMAP_WRITE, iomap, &mp);
 	if (!ret && iomap->type == IOMAP_HOLE)
-		ret = gfs2_iomap_alloc(inode, iomap, &mp);
+		ret = __gfs2_iomap_alloc(inode, iomap, &mp);
 	release_metapath(&mp);
 	return ret;
 }
@@ -1477,7 +1479,7 @@ int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
 /**
  * sweep_bh_for_rgrps - find an rgrp in a meta buffer and free blocks therein
  * @ip: inode
- * @rg_gh: holder of resource group glock
+ * @rd_gh: holder of resource group glock
  * @bh: buffer head to sweep
  * @start: starting point in bh
  * @end: end point in bh
@@ -1658,8 +1660,11 @@ static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
 
 /**
  * find_nonnull_ptr - find a non-null pointer given a metapath and height
+ * @sdp: The superblock
  * @mp: starting metapath
  * @h: desired height to search
+ * @end_list: See punch_hole().
+ * @end_aligned: See punch_hole().
  *
  * Assumes the metapath is valid (with buffers) out to height h.
  * Returns: true if a non-null pointer was found in the metapath buffer
@@ -2519,7 +2524,6 @@ out:
 static int gfs2_map_blocks(struct iomap_writepage_ctx *wpc, struct inode *inode,
 		loff_t offset)
 {
-	struct metapath mp = { .mp_aheight = 1, };
 	int ret;
 
 	if (WARN_ON_ONCE(gfs2_is_stuffed(GFS2_I(inode))))
@@ -2530,8 +2534,7 @@ static int gfs2_map_blocks(struct iomap_writepage_ctx *wpc, struct inode *inode,
 		return 0;
 
 	memset(&wpc->iomap, 0, sizeof(wpc->iomap));
-	ret = gfs2_iomap_get(inode, offset, INT_MAX, 0, &wpc->iomap, &mp);
-	release_metapath(&mp);
+	ret = gfs2_iomap_get(inode, offset, INT_MAX, &wpc->iomap);
 	return ret;
 }
 

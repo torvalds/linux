@@ -13,17 +13,14 @@ int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 	if (!mt76_is_mmio(dev))
 		return 0;
 
+	cancel_delayed_work_sync(&pm->ps_work);
 	if (!test_bit(MT76_STATE_PM, &phy->state))
 		return 0;
 
-	if (test_bit(MT76_HW_SCANNING, &phy->state) ||
-	    test_bit(MT76_HW_SCHED_SCANNING, &phy->state))
-		return 0;
-
-	if (queue_work(dev->wq, &pm->wake_work))
-		reinit_completion(&pm->wake_cmpl);
-
-	if (!wait_for_completion_timeout(&pm->wake_cmpl, 3 * HZ)) {
+	queue_work(dev->wq, &pm->wake_work);
+	if (!wait_event_timeout(pm->wait,
+				!test_bit(MT76_STATE_PM, &phy->state),
+				3 * HZ)) {
 		ieee80211_wake_queues(phy->hw);
 		return -ETIMEDOUT;
 	}
@@ -40,17 +37,15 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 	if (!mt76_is_mmio(dev))
 		return;
 
-	if (!pm->enable || !test_bit(MT76_STATE_RUNNING, &phy->state))
+	if (!pm->enable)
 		return;
 
 	pm->last_activity = jiffies;
 
-	if (test_bit(MT76_HW_SCANNING, &phy->state) ||
-	    test_bit(MT76_HW_SCHED_SCANNING, &phy->state))
-		return;
-
-	if (!test_bit(MT76_STATE_PM, &phy->state))
+	if (!test_bit(MT76_STATE_PM, &phy->state)) {
+		cancel_delayed_work(&phy->mac_work);
 		queue_delayed_work(dev->wq, &pm->ps_work, pm->idle_timeout);
+	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac_power_save_sched);
 

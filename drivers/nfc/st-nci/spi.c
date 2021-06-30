@@ -95,17 +95,14 @@ static int st_nci_spi_write(void *phy_id, struct sk_buff *skb)
 	 */
 	if (!r) {
 		skb_rx = alloc_skb(skb->len, GFP_KERNEL);
-		if (!skb_rx) {
-			r = -ENOMEM;
-			goto exit;
-		}
+		if (!skb_rx)
+			return -ENOMEM;
 
 		skb_put(skb_rx, skb->len);
 		memcpy(skb_rx->data, buf, skb->len);
 		ndlc_recv(phy->ndlc, skb_rx);
 	}
 
-exit:
 	return r;
 }
 

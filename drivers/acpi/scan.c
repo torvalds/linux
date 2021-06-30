@@ -700,6 +700,7 @@ int acpi_device_add(struct acpi_device *device,
 
 		result = acpi_device_set_name(device, acpi_device_bus_id);
 		if (result) {
+			kfree_const(acpi_device_bus_id->bus_id);
 			kfree(acpi_device_bus_id);
 			goto err_unlock;
 		}
@@ -2359,7 +2360,7 @@ int __init acpi_scan_init(void)
 		}
 	}
 
-	acpi_turn_off_unused_power_resources();
+	acpi_turn_off_unused_power_resources(true);
 
 	acpi_scan_initialized = true;
 

@@ -21,7 +21,7 @@
  * @MT76_TM_ATTR_TX_COUNT: configured number of frames to send when setting
  *	state to MT76_TM_STATE_TX_FRAMES (u32)
  * @MT76_TM_ATTR_TX_PENDING: pending frames during MT76_TM_STATE_TX_FRAMES (u32)
- * @MT76_TM_ATTR_TX_LENGTH: packet tx msdu length (u32)
+ * @MT76_TM_ATTR_TX_LENGTH: packet tx mpdu length (u32)
  * @MT76_TM_ATTR_TX_RATE_MODE: packet tx mode (u8, see &enum mt76_testmode_tx_mode)
  * @MT76_TM_ATTR_TX_RATE_NSS: packet tx number of spatial streams (u8)
  * @MT76_TM_ATTR_TX_RATE_IDX: packet tx rate/MCS index (u8)

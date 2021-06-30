@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # We need this for the "cc-option" macro.
-include ../../../scripts/Kbuild.include
+include ../../build/Build.include
 
 VERSION = 1.0
 

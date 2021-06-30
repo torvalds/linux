@@ -73,7 +73,7 @@ static int bp_modify1(void)
 	/*
 	 * The parent does following steps:
 	 *  - creates a new breakpoint (id 0) for bp_2 function
-	 *  - changes that breakponit to bp_1 function
+	 *  - changes that breakpoint to bp_1 function
 	 *  - waits for the breakpoint to hit and checks
 	 *    it has proper rip of bp_1 function
 	 *  - detaches the child

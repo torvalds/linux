@@ -3336,6 +3336,47 @@ enum atom_smu11_syspll3_1_clock_id {
   SMU11_SYSPLL3_1_LCLK_ID = 2,         //	LCLK
 };
 
+enum atom_smu12_syspll_id {
+  SMU12_SYSPLL0_ID          = 0,
+  SMU12_SYSPLL1_ID          = 1,
+  SMU12_SYSPLL2_ID          = 2,
+  SMU12_SYSPLL3_0_ID        = 3,
+  SMU12_SYSPLL3_1_ID        = 4,
+};
+
+enum atom_smu12_syspll0_clock_id {
+  SMU12_SYSPLL0_SMNCLK_ID   = 0,			//	SOCCLK
+  SMU12_SYSPLL0_SOCCLK_ID   = 1,			//	SOCCLK
+  SMU12_SYSPLL0_MP0CLK_ID   = 2,			//	MP0CLK
+  SMU12_SYSPLL0_MP1CLK_ID   = 3,			//	MP1CLK
+  SMU12_SYSPLL0_MP2CLK_ID   = 4,			//	MP2CLK
+  SMU12_SYSPLL0_VCLK_ID     = 5,			//	VCLK
+  SMU12_SYSPLL0_LCLK_ID     = 6,			//	LCLK
+  SMU12_SYSPLL0_DCLK_ID     = 7,			//	DCLK
+  SMU12_SYSPLL0_ACLK_ID     = 8,			//	ACLK
+  SMU12_SYSPLL0_ISPCLK_ID   = 9,			//	ISPCLK
+  SMU12_SYSPLL0_SHUBCLK_ID  = 10,			//	SHUBCLK
+};
+
+enum atom_smu12_syspll1_clock_id {
+  SMU12_SYSPLL1_DISPCLK_ID  = 0,      //	DISPCLK
+  SMU12_SYSPLL1_DPPCLK_ID   = 1,      //	DPPCLK
+  SMU12_SYSPLL1_DPREFCLK_ID = 2,      //	DPREFCLK
+  SMU12_SYSPLL1_DCFCLK_ID   = 3,      //	DCFCLK
+};
+
+enum atom_smu12_syspll2_clock_id {
+  SMU12_SYSPLL2_Pre_GFXCLK_ID = 0,   // Pre_GFXCLK
+};
+
+enum atom_smu12_syspll3_0_clock_id {
+  SMU12_SYSPLL3_0_FCLK_ID = 0,      //	FCLK
+};
+
+enum atom_smu12_syspll3_1_clock_id {
+  SMU12_SYSPLL3_1_UMCCLK_ID = 0,    //	UMCCLK
+};
+
 struct  atom_get_smu_clock_info_output_parameters_v3_1
 {
   union {

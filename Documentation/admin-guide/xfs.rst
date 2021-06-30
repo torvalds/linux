@@ -522,7 +522,7 @@ and the short name of the data device.  They all can be found in:
 ================  ===========
   xfs_iwalk-$pid  Inode scans of the entire filesystem. Currently limited to
                   mount time quotacheck.
-  xfs-blockgc     Background garbage collection of disk space that have been
+  xfs-gc          Background garbage collection of disk space that have been
                   speculatively allocated beyond EOF or for staging copy on
                   write operations.
 ================  ===========

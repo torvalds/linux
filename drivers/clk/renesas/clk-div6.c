@@ -216,7 +216,7 @@ struct clk * __init cpg_div6_register(const char *name,
 				      struct raw_notifier_head *notifiers)
 {
 	unsigned int valid_parents;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct div6_clock *clock;
 	struct clk *clk;
 	unsigned int i;
@@ -267,7 +267,6 @@ struct clk * __init cpg_div6_register(const char *name,
 	/* Register the clock. */
 	init.name = name;
 	init.ops = &cpg_div6_clock_ops;
-	init.flags = 0;
 	init.parent_names = parent_names;
 	init.num_parents = valid_parents;
 

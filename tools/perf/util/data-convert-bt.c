@@ -21,7 +21,7 @@
 #include <babeltrace/ctf/events.h>
 #include <traceevent/event-parse.h>
 #include "asm/bug.h"
-#include "data-convert-bt.h"
+#include "data-convert.h"
 #include "session.h"
 #include "debug.h"
 #include "tool.h"
@@ -949,7 +949,7 @@ static char *change_name(char *name, char *orig_name, int dup)
 	/*
 	 * Add '_' prefix to potential keywork.  According to
 	 * Mathieu Desnoyers (https://lore.kernel.org/lkml/1074266107.40857.1422045946295.JavaMail.zimbra@efficios.com),
-	 * futher CTF spec updating may require us to use '$'.
+	 * further CTF spec updating may require us to use '$'.
 	 */
 	if (dup < 0)
 		len = strlen(name) + sizeof("_");

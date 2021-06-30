@@ -316,52 +316,6 @@ static void cf_diag_read(struct perf_event *event)
 	debug_sprintf_event(cf_diag_dbg, 5, "%s event %p\n", __func__, event);
 }
 
-/* Return the maximum possible counter set size (in number of 8 byte counters)
- * depending on type and model number.
- */
-static size_t cf_diag_ctrset_size(enum cpumf_ctr_set ctrset,
-				 struct cpumf_ctr_info *info)
-{
-	size_t ctrset_size = 0;
-
-	switch (ctrset) {
-	case CPUMF_CTR_SET_BASIC:
-		if (info->cfvn >= 1)
-			ctrset_size = 6;
-		break;
-	case CPUMF_CTR_SET_USER:
-		if (info->cfvn == 1)
-			ctrset_size = 6;
-		else if (info->cfvn >= 3)
-			ctrset_size = 2;
-		break;
-	case CPUMF_CTR_SET_CRYPTO:
-		if (info->csvn >= 1 && info->csvn <= 5)
-			ctrset_size = 16;
-		else if (info->csvn == 6)
-			ctrset_size = 20;
-		break;
-	case CPUMF_CTR_SET_EXT:
-		if (info->csvn == 1)
-			ctrset_size = 32;
-		else if (info->csvn == 2)
-			ctrset_size = 48;
-		else if (info->csvn >= 3 && info->csvn <= 5)
-			ctrset_size = 128;
-		else if (info->csvn == 6)
-			ctrset_size = 160;
-		break;
-	case CPUMF_CTR_SET_MT_DIAG:
-		if (info->csvn > 3)
-			ctrset_size = 48;
-		break;
-	case CPUMF_CTR_SET_MAX:
-		break;
-	}
-
-	return ctrset_size;
-}
-
 /* Calculate memory needed to store all counter sets together with header and
  * trailer data. This is independend of the counter set authorization which
  * can vary depending on the configuration.
@@ -372,7 +326,7 @@ static size_t cf_diag_ctrset_maxsize(struct cpumf_ctr_info *info)
 	enum cpumf_ctr_set i;
 
 	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i) {
-		size_t size = cf_diag_ctrset_size(i, info);
+		size_t size = cpum_cf_ctrset_size(i, info);
 
 		if (size)
 			max_size += size * sizeof(u64) +
@@ -405,7 +359,7 @@ static size_t cf_diag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
 	ctrdata->def = CF_DIAG_CTRSET_DEF;
 	ctrdata->set = ctrset;
 	ctrdata->res1 = 0;
-	ctrset_size = cf_diag_ctrset_size(ctrset, &cpuhw->info);
+	ctrset_size = cpum_cf_ctrset_size(ctrset, &cpuhw->info);
 
 	if (ctrset_size) {			/* Save data */
 		need = ctrset_size * sizeof(u64) + sizeof(*ctrdata);
@@ -845,7 +799,7 @@ static void cf_diag_cpu_read(void *parm)
 
 		if (!(p->sets & cpumf_ctr_ctl[set]))
 			continue;	/* Counter set not in list */
-		set_size = cf_diag_ctrset_size(set, &cpuhw->info);
+		set_size = cpum_cf_ctrset_size(set, &cpuhw->info);
 		space = sizeof(csd->data) - csd->used;
 		space = cf_diag_cpuset_read(sp, set, set_size, space);
 		if (space) {
@@ -975,7 +929,7 @@ static size_t cf_diag_needspace(unsigned int sets)
 	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i) {
 		if (!(sets & cpumf_ctr_ctl[i]))
 			continue;
-		bytes += cf_diag_ctrset_size(i, &cpuhw->info) * sizeof(u64) +
+		bytes += cpum_cf_ctrset_size(i, &cpuhw->info) * sizeof(u64) +
 			 sizeof(((struct s390_ctrset_setdata *)0)->set) +
 			 sizeof(((struct s390_ctrset_setdata *)0)->no_cnts);
 	}

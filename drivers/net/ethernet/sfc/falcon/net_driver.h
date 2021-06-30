@@ -637,7 +637,7 @@ union ef4_multicast_hash {
  * struct ef4_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
- * @node: List node for maintaning primary/secondary function lists
+ * @node: List node for maintaining primary/secondary function lists
  * @primary: &struct ef4_nic instance for the primary function of this
  *	controller.  May be the same structure, and may be %NULL if no
  *	primary function is bound.  Serialised by rtnl_lock.

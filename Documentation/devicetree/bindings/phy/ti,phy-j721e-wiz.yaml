@@ -222,7 +222,7 @@ examples:
            };
 
            serdes@5000000 {
-                  compatible = "cdns,ti,sierra-phy-t0";
+                  compatible = "ti,sierra-phy-t0";
                   reg-names = "serdes";
                   reg = <0x5000000 0x10000>;
                   #address-cells = <1>;

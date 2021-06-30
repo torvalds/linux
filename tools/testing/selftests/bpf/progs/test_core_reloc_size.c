@@ -21,6 +21,7 @@ struct core_reloc_size_output {
 	int arr_elem_sz;
 	int ptr_sz;
 	int enum_sz;
+	int float_sz;
 };
 
 struct core_reloc_size {
@@ -30,6 +31,7 @@ struct core_reloc_size {
 	int arr_field[4];
 	void *ptr_field;
 	enum { VALUE = 123 } enum_field;
+	float float_field;
 };
 
 SEC("raw_tracepoint/sys_enter")
@@ -45,6 +47,7 @@ int test_core_size(void *ctx)
 	out->arr_elem_sz = bpf_core_field_size(in->arr_field[0]);
 	out->ptr_sz = bpf_core_field_size(in->ptr_field);
 	out->enum_sz = bpf_core_field_size(in->enum_field);
+	out->float_sz = bpf_core_field_size(in->float_field);
 
 	return 0;
 }

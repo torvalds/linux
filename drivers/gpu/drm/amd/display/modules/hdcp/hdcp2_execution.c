@@ -564,8 +564,6 @@ static enum mod_hdcp_status authenticated(struct mod_hdcp *hdcp,
 		event_ctx->unexpected_event = 1;
 		goto out;
 	}
-	if (!mod_hdcp_is_link_encryption_enabled(hdcp))
-		goto out;
 
 	process_rxstatus(hdcp, event_ctx, input, &status);
 

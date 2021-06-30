@@ -1079,6 +1079,46 @@ TRACE_EVENT(xprt_transmit,
 		__entry->seqno, __entry->status)
 );
 
+TRACE_EVENT(xprt_retransmit,
+	TP_PROTO(
+		const struct rpc_rqst *rqst
+	),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__field(int, ntrans)
+		__field(int, version)
+		__string(progname,
+			 rqst->rq_task->tk_client->cl_program->name)
+		__string(procedure,
+			 rqst->rq_task->tk_msg.rpc_proc->p_name)
+	),
+
+	TP_fast_assign(
+		struct rpc_task *task = rqst->rq_task;
+
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client ?
+			task->tk_client->cl_clid : -1;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->ntrans = rqst->rq_ntrans;
+		__assign_str(progname,
+			     task->tk_client->cl_program->name)
+		__entry->version = task->tk_client->cl_vers;
+		__assign_str(procedure, task->tk_msg.rpc_proc->p_name)
+	),
+
+	TP_printk(
+		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d",
+		__entry->task_id, __entry->client_id, __entry->xid,
+		__get_str(progname), __entry->version, __get_str(procedure),
+		__entry->ntrans)
+);
+
 TRACE_EVENT(xprt_ping,
 	TP_PROTO(const struct rpc_xprt *xprt, int status),
 
@@ -1141,7 +1181,6 @@ DECLARE_EVENT_CLASS(xprt_writelock_event,
 
 DEFINE_WRITELOCK_EVENT(reserve_xprt);
 DEFINE_WRITELOCK_EVENT(release_xprt);
-DEFINE_WRITELOCK_EVENT(transmit_queued);
 
 DECLARE_EVENT_CLASS(xprt_cong_event,
 	TP_PROTO(

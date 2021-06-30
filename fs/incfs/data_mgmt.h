@@ -199,6 +199,38 @@ struct mount_info {
 	u64		mi_le_time_us;
 	u32		mi_le_page;
 	u32		mi_le_errno;
+	uid_t		mi_le_uid;
+
+	/* Number of reads timed out */
+	u32 mi_reads_failed_timed_out;
+
+	/* Number of reads failed because hash verification failed */
+	u32 mi_reads_failed_hash_verification;
+
+	/* Number of reads failed for another reason */
+	u32 mi_reads_failed_other;
+
+	/* Number of reads delayed because page had to be fetched */
+	u32 mi_reads_delayed_pending;
+
+	/* Total time waiting for pages to be fetched */
+	u64 mi_reads_delayed_pending_us;
+
+	/*
+	 * Number of reads delayed because of per-uid min_time_us or
+	 * min_pending_time_us settings
+	 */
+	u32 mi_reads_delayed_min;
+
+	/* Total time waiting because of per-uid min_time_us or
+	 * min_pending_time_us settings.
+	 *
+	 * Note that if a read is initially delayed because we have to wait for
+	 * the page, then further delayed because of min_pending_time_us
+	 * setting, this counter gets incremented by only the further delay
+	 * time.
+	 */
+	u64 mi_reads_delayed_min_us;
 };
 
 struct data_file_block {

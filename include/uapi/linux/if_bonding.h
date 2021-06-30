@@ -153,14 +153,3 @@ enum {
 #define BOND_3AD_STAT_MAX (__BOND_3AD_STAT_MAX - 1)
 
 #endif /* _LINUX_IF_BONDING_H */
-
-/*
- * Local variables:
- *  version-control: t
- *  kept-new-versions: 5
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */
-

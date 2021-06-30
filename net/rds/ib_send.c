@@ -294,7 +294,6 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	rds_ib_ring_free(&ic->i_send_ring, completed);
 	rds_ib_sub_signaled(ic, nr_sig);
-	nr_sig = 0;
 
 	if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
 	    test_bit(0, &conn->c_map_queued))

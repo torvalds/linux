@@ -36,6 +36,7 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_FUNC_PROTO]	= "FUNC_PROTO",
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
+	[BTF_KIND_FLOAT]	= "FLOAT",
 };
 
 struct btf_attach_table {
@@ -70,7 +71,9 @@ static const char *btf_var_linkage_str(__u32 linkage)
 	case BTF_VAR_STATIC:
 		return "static";
 	case BTF_VAR_GLOBAL_ALLOCATED:
-		return "global-alloc";
+		return "global";
+	case BTF_VAR_GLOBAL_EXTERN:
+		return "extern";
 	default:
 		return "(unknown)";
 	}
@@ -97,26 +100,28 @@ static const char *btf_str(const struct btf *btf, __u32 off)
 	return btf__name_by_offset(btf, off) ? : "(invalid)";
 }
 
+static int btf_kind_safe(int kind)
+{
+	return kind <= BTF_KIND_MAX ? kind : BTF_KIND_UNKN;
+}
+
 static int dump_btf_type(const struct btf *btf, __u32 id,
 			 const struct btf_type *t)
 {
 	json_writer_t *w = json_wtr;
-	int kind, safe_kind;
-
-	kind = BTF_INFO_KIND(t->info);
-	safe_kind = kind <= BTF_KIND_MAX ? kind : BTF_KIND_UNKN;
+	int kind = btf_kind(t);
 
 	if (json_output) {
 		jsonw_start_object(w);
 		jsonw_uint_field(w, "id", id);
-		jsonw_string_field(w, "kind", btf_kind_str[safe_kind]);
+		jsonw_string_field(w, "kind", btf_kind_str[btf_kind_safe(kind)]);
 		jsonw_string_field(w, "name", btf_str(btf, t->name_off));
 	} else {
-		printf("[%u] %s '%s'", id, btf_kind_str[safe_kind],
+		printf("[%u] %s '%s'", id, btf_kind_str[btf_kind_safe(kind)],
 		       btf_str(btf, t->name_off));
 	}
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (kind) {
 	case BTF_KIND_INT: {
 		__u32 v = *(__u32 *)(t + 1);
 		const char *enc;
@@ -299,7 +304,8 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 		break;
 	}
 	case BTF_KIND_DATASEC: {
-		const struct btf_var_secinfo *v = (const void *)(t+1);
+		const struct btf_var_secinfo *v = (const void *)(t + 1);
+		const struct btf_type *vt;
 		__u16 vlen = BTF_INFO_VLEN(t->info);
 		int i;
 
@@ -321,10 +327,24 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			} else {
 				printf("\n\ttype_id=%u offset=%u size=%u",
 				       v->type, v->offset, v->size);
+
+				if (v->type <= btf__get_nr_types(btf)) {
+					vt = btf__type_by_id(btf, v->type);
+					printf(" (%s '%s')",
+					       btf_kind_str[btf_kind_safe(btf_kind(vt))],
+					       btf_str(btf, vt->name_off));
+				}
 			}
 		}
 		if (json_output)
 			jsonw_end_array(w);
+		break;
+	}
+	case BTF_KIND_FLOAT: {
+		if (json_output)
+			jsonw_uint_field(w, "size", t->size);
+		else
+			printf(" size=%u", t->size);
 		break;
 	}
 	default:
@@ -538,6 +558,7 @@ static int do_dump(int argc, char **argv)
 			NEXT_ARG();
 			if (argc < 1) {
 				p_err("expecting value for 'format' option\n");
+				err = -EINVAL;
 				goto done;
 			}
 			if (strcmp(*argv, "c") == 0) {
@@ -547,11 +568,13 @@ static int do_dump(int argc, char **argv)
 			} else {
 				p_err("unrecognized format specifier: '%s', possible values: raw, c",
 				      *argv);
+				err = -EINVAL;
 				goto done;
 			}
 			NEXT_ARG();
 		} else {
 			p_err("unrecognized option: '%s'", *argv);
+			err = -EINVAL;
 			goto done;
 		}
 	}

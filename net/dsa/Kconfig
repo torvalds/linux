@@ -1,26 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config HAVE_NET_DSA
-	def_bool y
-	depends on INET && NETDEVICES && !S390
-
-# Drivers must select NET_DSA and the appropriate tagging format
 
 menuconfig NET_DSA
 	tristate "Distributed Switch Architecture"
-	depends on HAVE_NET_DSA
 	depends on BRIDGE || BRIDGE=n
 	depends on HSR || HSR=n
+	depends on INET && NETDEVICES
 	select GRO_CELLS
 	select NET_SWITCHDEV
 	select PHYLINK
 	select NET_DEVLINK
+	imply NET_SELFTESTS
 	help
 	  Say Y if you want to enable support for the hardware switches supported
 	  by the Distributed Switch Architecture.
 
 if NET_DSA
 
-# tagging formats
+# Drivers must select the appropriate tagging format(s)
+
 config NET_DSA_TAG_8021Q
 	tristate
 	select VLAN_8021Q
@@ -48,6 +45,13 @@ config NET_DSA_TAG_BRCM
 	  Say Y if you want to enable support for tagging frames for the
 	  Broadcom switches which place the tag after the MAC source address.
 
+config NET_DSA_TAG_BRCM_LEGACY
+	tristate "Tag driver for Broadcom legacy switches using in-frame headers"
+	select NET_DSA_TAG_BRCM_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Broadcom legacy switches which place the tag after the MAC source
+	  address.
 
 config NET_DSA_TAG_BRCM_PREPEND
 	tristate "Tag driver for Broadcom switches using prepended headers"
@@ -107,6 +111,8 @@ config NET_DSA_TAG_RTL4_A
 
 config NET_DSA_TAG_OCELOT
 	tristate "Tag driver for Ocelot family of switches, using NPI port"
+	depends on MSCC_OCELOT_SWITCH_LIB || \
+		   (MSCC_OCELOT_SWITCH_LIB=n && COMPILE_TEST)
 	select PACKING
 	help
 	  Say Y or M if you want to enable NPI tagging for the Ocelot switches

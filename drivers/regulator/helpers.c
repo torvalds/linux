@@ -948,7 +948,7 @@ int regulator_set_ramp_delay_regmap(struct regulator_dev *rdev, int ramp_delay)
 	int ret;
 	unsigned int sel;
 
-	if (!rdev->desc->n_ramp_values)
+	if (WARN_ON(!rdev->desc->n_ramp_values || !rdev->desc->ramp_delay_table))
 		return -EINVAL;
 
 	ret = find_closest_bigger(ramp_delay, rdev->desc->ramp_delay_table,

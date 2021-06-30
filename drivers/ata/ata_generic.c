@@ -151,7 +151,7 @@ static int is_intel_ider(struct pci_dev *dev)
 }
 
 /**
- *	ata_generic_init		-	attach generic IDE
+ *	ata_generic_init_one		-	attach generic IDE
  *	@dev: PCI device found
  *	@id: match entry
  *

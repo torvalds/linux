@@ -13,3 +13,7 @@ endif
 ifneq ($(CONFIG_XFRM_OFFLOAD),)
 netdevsim-objs += ipsec.o
 endif
+
+ifneq ($(CONFIG_PSAMPLE),)
+netdevsim-objs += psample.o
+endif

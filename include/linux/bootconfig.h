@@ -16,6 +16,26 @@
 #define BOOTCONFIG_ALIGN	(1 << BOOTCONFIG_ALIGN_SHIFT)
 #define BOOTCONFIG_ALIGN_MASK	(BOOTCONFIG_ALIGN - 1)
 
+/**
+ * xbc_calc_checksum() - Calculate checksum of bootconfig
+ * @data: Bootconfig data.
+ * @size: The size of the bootconfig data.
+ *
+ * Calculate the checksum value of the bootconfig data.
+ * The checksum will be used with the BOOTCONFIG_MAGIC and the size for
+ * embedding the bootconfig in the initrd image.
+ */
+static inline __init u32 xbc_calc_checksum(void *data, u32 size)
+{
+	unsigned char *p = data;
+	u32 ret = 0;
+
+	while (size--)
+		ret += *p++;
+
+	return ret;
+}
+
 /* XBC tree node */
 struct xbc_node {
 	u16 next;
@@ -71,7 +91,7 @@ static inline __init bool xbc_node_is_key(struct xbc_node *node)
  */
 static inline __init bool xbc_node_is_array(struct xbc_node *node)
 {
-	return xbc_node_is_value(node) && node->next != 0;
+	return xbc_node_is_value(node) && node->child != 0;
 }
 
 /**
@@ -80,6 +100,8 @@ static inline __init bool xbc_node_is_array(struct xbc_node *node)
  *
  * Test the @node is a leaf key node which is a key node and has a value node
  * or no child. Returns true if it is a leaf node, or false if not.
+ * Note that the leaf node can have subkey nodes in addition to the
+ * value node.
  */
 static inline __init bool xbc_node_is_leaf(struct xbc_node *node)
 {
@@ -130,6 +152,23 @@ static inline struct xbc_node * __init xbc_find_node(const char *key)
 }
 
 /**
+ * xbc_node_get_subkey() - Return the first subkey node if exists
+ * @node: Parent node
+ *
+ * Return the first subkey node of the @node. If the @node has no child
+ * or only value node, this will return NULL.
+ */
+static inline struct xbc_node * __init xbc_node_get_subkey(struct xbc_node *node)
+{
+	struct xbc_node *child = xbc_node_get_child(node);
+
+	if (child && xbc_node_is_value(child))
+		return xbc_node_get_next(child);
+	else
+		return child;
+}
+
+/**
  * xbc_array_for_each_value() - Iterate value nodes on an array
  * @anode: An XBC arraied value node
  * @value: A value
@@ -140,7 +179,7 @@ static inline struct xbc_node * __init xbc_find_node(const char *key)
  */
 #define xbc_array_for_each_value(anode, value)				\
 	for (value = xbc_node_get_data(anode); anode != NULL ;		\
-	     anode = xbc_node_get_next(anode),				\
+	     anode = xbc_node_get_child(anode),				\
 	     value = anode ? xbc_node_get_data(anode) : NULL)
 
 /**
@@ -149,9 +188,22 @@ static inline struct xbc_node * __init xbc_find_node(const char *key)
  * @child: Iterated XBC node.
  *
  * Iterate child nodes of @parent. Each child nodes are stored to @child.
+ * The @child can be mixture of a value node and subkey nodes.
  */
 #define xbc_node_for_each_child(parent, child)				\
 	for (child = xbc_node_get_child(parent); child != NULL ;	\
+	     child = xbc_node_get_next(child))
+
+/**
+ * xbc_node_for_each_subkey() - Iterate child subkey nodes
+ * @parent: An XBC node.
+ * @child: Iterated XBC node.
+ *
+ * Iterate subkey nodes of @parent. Each child nodes are stored to @child.
+ * The @child is only the subkey node.
+ */
+#define xbc_node_for_each_subkey(parent, child)				\
+	for (child = xbc_node_get_subkey(parent); child != NULL ;	\
 	     child = xbc_node_get_next(child))
 
 /**
@@ -171,7 +223,7 @@ static inline struct xbc_node * __init xbc_find_node(const char *key)
  */
 #define xbc_node_for_each_array_value(node, key, anode, value)		\
 	for (value = xbc_node_find_value(node, key, &anode); value != NULL; \
-	     anode = xbc_node_get_next(anode),				\
+	     anode = xbc_node_get_child(anode),				\
 	     value = anode ? xbc_node_get_data(anode) : NULL)
 
 /**

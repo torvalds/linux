@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Endpoint Function Driver to implement Non-Transparent Bridge functionality
  *
  * Copyright (C) 2020 Texas Instruments
@@ -696,7 +696,8 @@ reset_handler:
 
 /**
  * epf_ntb_peer_spad_bar_clear() - Clear Peer Scratchpad BAR
- * @ntb: NTB device that facilitates communication between HOST1 and HOST2
+ * @ntb_epc: EPC associated with one of the HOST which holds peer's outbound
+ *	     address.
  *
  *+-----------------+------->+------------------+        +-----------------+
  *|       BAR0      |        |  CONFIG REGION   |        |       BAR0      |
@@ -740,6 +741,7 @@ static void epf_ntb_peer_spad_bar_clear(struct epf_ntb_epc *ntb_epc)
 /**
  * epf_ntb_peer_spad_bar_set() - Set peer scratchpad BAR
  * @ntb: NTB device that facilitates communication between HOST1 and HOST2
+ * @type: PRIMARY interface or SECONDARY interface
  *
  *+-----------------+------->+------------------+        +-----------------+
  *|       BAR0      |        |  CONFIG REGION   |        |       BAR0      |
@@ -808,7 +810,8 @@ static int epf_ntb_peer_spad_bar_set(struct epf_ntb *ntb,
 
 /**
  * epf_ntb_config_sspad_bar_clear() - Clear Config + Self scratchpad BAR
- * @ntb: NTB device that facilitates communication between HOST1 and HOST2
+ * @ntb_epc: EPC associated with one of the HOST which holds peer's outbound
+ *	     address.
  *
  * +-----------------+------->+------------------+        +-----------------+
  * |       BAR0      |        |  CONFIG REGION   |        |       BAR0      |
@@ -851,7 +854,8 @@ static void epf_ntb_config_sspad_bar_clear(struct epf_ntb_epc *ntb_epc)
 
 /**
  * epf_ntb_config_sspad_bar_set() - Set Config + Self scratchpad BAR
- * @ntb: NTB device that facilitates communication between HOST1 and HOST2
+ * @ntb_epc: EPC associated with one of the HOST which holds peer's outbound
+ *	     address.
  *
  * +-----------------+------->+------------------+        +-----------------+
  * |       BAR0      |        |  CONFIG REGION   |        |       BAR0      |
@@ -1312,6 +1316,7 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb,
 
 /**
  * epf_ntb_alloc_peer_mem() - Allocate memory in peer's outbound address space
+ * @dev: The PCI device.
  * @ntb_epc: EPC associated with one of the HOST whose BAR holds peer's outbound
  *   address
  * @bar: BAR of @ntb_epc in for which memory has to be allocated (could be
@@ -1660,7 +1665,6 @@ static int epf_ntb_init_epc_bar_interface(struct epf_ntb *ntb,
  * epf_ntb_init_epc_bar() - Identify BARs to be used for each of the NTB
  * constructs (scratchpad region, doorbell, memorywindow)
  * @ntb: NTB device that facilitates communication between HOST1 and HOST2
- * @type: PRIMARY interface or SECONDARY interface
  *
  * Wrapper to epf_ntb_init_epc_bar_interface() to identify the free BARs
  * to be used for each of BAR_CONFIG, BAR_PEER_SPAD, BAR_DB_MW1, BAR_MW2,
@@ -2037,6 +2041,8 @@ static const struct config_item_type ntb_group_type = {
 /**
  * epf_ntb_add_cfs() - Add configfs directory specific to NTB
  * @epf: NTB endpoint function device
+ * @group: A pointer to the config_group structure referencing a group of
+ *	   config_items of a specific type that belong to a specific sub-system.
  *
  * Add configfs directory specific to NTB. This directory will hold
  * NTB specific properties like db_count, spad_count, num_mws etc.,

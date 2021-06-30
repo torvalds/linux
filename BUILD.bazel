@@ -1,0 +1,84 @@
+# Copyright (C) 2021 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("//build/kleaf:kernel.bzl", "kernel_build")
+
+filegroup(
+    name = "build_configs",
+    srcs = glob(["build.config.*"]),
+)
+
+filegroup(
+    name = "sources",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "build.config.*",
+            "android/*",
+            "BUILD.bazel",
+            "**/*.bzl",
+        ],
+    ),
+)
+
+common_outs = [
+    "System.map",
+    "modules.builtin",
+    "modules.builtin.modinfo",
+    "vmlinux",
+    "vmlinux.symvers",
+    "kernel-headers.tar.gz",
+    "kernel-uapi-headers.tar.gz",
+]
+
+aarch64_outs = common_outs + [
+    "Image",
+    "Image.lz4",
+]
+
+x86_64_outs = common_outs + ["bzImage"]
+
+[kernel_build(
+    name = name,
+    outs = outs,
+    build_config = config,
+    build_configs = "//common:build_configs",
+    sources = "//common:sources",
+) for name, config, outs in [
+    (
+        "kernel_aarch64",
+        "common/build.config.gki.aarch64",
+        aarch64_outs,
+    ),
+    (
+        "kernel_aarch64_debug",
+        "common/build.config.gki-debug.aarch64",
+        aarch64_outs,
+    ),
+    (
+        "kernel_x86_64",
+        "common/build.config.gki.x86_64",
+        x86_64_outs,
+    ),
+    (
+        "kernel_x86_64_debug",
+        "common/build.config.gki-debug.x86_64",
+        x86_64_outs,
+    ),
+]]
+
+alias(
+    name = "kernel",
+    actual = ":kernel_aarch64",
+)

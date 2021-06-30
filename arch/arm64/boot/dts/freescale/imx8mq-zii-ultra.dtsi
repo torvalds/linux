@@ -45,8 +45,8 @@
 	reg_12p0_main: regulator-12p0-main {
 		compatible = "regulator-fixed";
 		regulator-name = "12V_MAIN";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		regulator-always-on;
 	};
 
@@ -69,15 +69,6 @@
 	};
 
 	reg_gen_3p3: regulator-gen-3p3 {
-		compatible = "regulator-fixed";
-		vin-supply = <&reg_3p3_main>;
-		regulator-name = "GEN_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		vin-supply = <&reg_3p3_main>;
 		regulator-name = "GEN_3V3";
@@ -415,11 +406,11 @@
 		pinctrl-0 = <&pinctrl_codec1>;
 		reg = <0x18>;
 		#sound-dai-cells = <0>;
-		HPVDD-supply = <&reg_3p3v>;
-		SPRVDD-supply = <&reg_3p3v>;
-		SPLVDD-supply = <&reg_3p3v>;
-		AVDD-supply = <&reg_3p3v>;
-		IOVDD-supply = <&reg_3p3v>;
+		HPVDD-supply = <&reg_gen_3p3>;
+		SPRVDD-supply = <&reg_gen_3p3>;
+		SPLVDD-supply = <&reg_gen_3p3>;
+		AVDD-supply = <&reg_gen_3p3>;
+		IOVDD-supply = <&reg_gen_3p3>;
 		DVDD-supply = <&vgen4_reg>;
 		reset-gpios = <&gpio3 3 GPIO_ACTIVE_LOW>;
 	};

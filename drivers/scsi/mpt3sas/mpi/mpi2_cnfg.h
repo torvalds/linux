@@ -992,7 +992,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
  *one and check the value returned for GPIOCount at runtime.
  */
 #ifndef MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX
-#define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (1)
+#define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (36)
 #endif
 
 typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_3 {

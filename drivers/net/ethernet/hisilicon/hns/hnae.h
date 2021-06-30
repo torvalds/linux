@@ -414,10 +414,6 @@ enum hnae_media_type {
  *   get ring bd number limit
  * get_pauseparam()
  *   get tx and rx of pause frame use
- * set_autoneg()
- *   set auto autonegotiation of pause frame use
- * get_autoneg()
- *   get auto autonegotiation of pause frame use
  * set_pauseparam()
  *   set tx and rx of pause frame use
  * get_coalesce_usecs()
@@ -487,8 +483,6 @@ struct hnae_ae_ops {
 				     u32 *uplimit);
 	void (*get_pauseparam)(struct hnae_handle *handle,
 			       u32 *auto_neg, u32 *rx_en, u32 *tx_en);
-	int (*set_autoneg)(struct hnae_handle *handle, u8 enable);
-	int (*get_autoneg)(struct hnae_handle *handle);
 	int (*set_pauseparam)(struct hnae_handle *handle,
 			      u32 auto_neg, u32 rx_en, u32 tx_en);
 	void (*get_coalesce_usecs)(struct hnae_handle *handle,

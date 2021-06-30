@@ -958,7 +958,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 
 
 /**
- * dc395x_queue_command - queue scsi command passed from the mid
+ * dc395x_queue_command_lck - queue scsi command passed from the mid
  * layer, invoke 'done' on completion
  *
  * @cmd: pointer to scsi command object
@@ -2918,7 +2918,7 @@ static void disconnect(struct AdapterCtlBlk *acb)
 	} else {
 		if ((srb->state & (SRB_START_ + SRB_MSGOUT))
 		    || !(srb->
-			 state & (SRB_DISCONNECT + SRB_COMPLETED))) {
+			 state & (SRB_DISCONNECT | SRB_COMPLETED))) {
 			/*
 			 * Selection time out 
 			 * SRB_START_ || SRB_MSGOUT || (!SRB_DISCONNECT && !SRB_COMPLETED)
@@ -3258,10 +3258,10 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		/*
 		 * target status..........................
 		 */
-		if (status_byte(status) == CHECK_CONDITION) {
+		if (status >> 1 == CHECK_CONDITION) {
 			request_sense(acb, dcb, srb);
 			return;
-		} else if (status_byte(status) == QUEUE_FULL) {
+		} else if (status >> 1 == QUEUE_FULL) {
 			tempcnt = (u8)list_size(&dcb->srb_going_list);
 			dprintkl(KERN_INFO, "QUEUE_FULL for dev <%02i-%i> with %i cmnds\n",
 			     dcb->target_id, dcb->target_lun, tempcnt);
@@ -4248,7 +4248,7 @@ static void adapter_init_params(struct AdapterCtlBlk *acb)
 
 
 /**
- * adapter_init_host - Initialize the scsi host instance based on
+ * adapter_init_scsi_host - Initialize the scsi host instance based on
  * values that we have already stored in the adapter instance. There's
  * some mention that a lot of these are deprecated, so we won't use
  * them (we'll use the ones in the adapter instance) but we'll fill
@@ -4336,13 +4336,14 @@ static void adapter_init_chip(struct AdapterCtlBlk *acb)
 
 
 /**
- * init_adapter - Grab the resource for the card, setup the adapter
+ * adapter_init - Grab the resource for the card, setup the adapter
  * information, set the card into a known state, create the various
  * tables etc etc. This basically gets all adapter information all up
  * to date, initialised and gets the chip in sync with it.
  *
- * @host:	This hosts adapter structure
+ * @acb:	The adapter which we are to init.
  * @io_port:	The base I/O port
+ * @io_port_len: The I/O port size
  * @irq:	IRQ
  *
  * Returns 0 if the initialization succeeds, any other value on

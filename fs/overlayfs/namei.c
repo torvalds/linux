@@ -108,8 +108,7 @@ int ovl_check_fb_len(struct ovl_fb *fb, int fb_len)
 static struct ovl_fh *ovl_get_fh(struct ovl_fs *ofs, struct dentry *dentry,
 				 enum ovl_xattr ox)
 {
-	ssize_t res;
-	int err;
+	int res, err;
 	struct ovl_fh *fh = NULL;
 
 	res = ovl_do_getxattr(ofs, dentry, ox, NULL, 0);
@@ -144,10 +143,10 @@ out:
 	return NULL;
 
 fail:
-	pr_warn_ratelimited("failed to get origin (%zi)\n", res);
+	pr_warn_ratelimited("failed to get origin (%i)\n", res);
 	goto out;
 invalid:
-	pr_warn_ratelimited("invalid origin (%*phN)\n", (int)res, fh);
+	pr_warn_ratelimited("invalid origin (%*phN)\n", res, fh);
 	goto out;
 }
 
@@ -920,6 +919,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			continue;
 
 		if ((uppermetacopy || d.metacopy) && !ofs->config.metacopy) {
+			dput(this);
 			err = -EPERM;
 			pr_warn_ratelimited("refusing to follow metacopy origin for (%pd2)\n", dentry);
 			goto out_put;

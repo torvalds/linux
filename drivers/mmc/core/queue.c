@@ -60,7 +60,7 @@ enum mmc_issue_type mmc_issue_type(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_host *host = mq->card->host;
 
-	if (mq->use_cqe && !host->hsq_enabled)
+	if (host->cqe_enabled && !host->hsq_enabled)
 		return mmc_cqe_issue_type(host, req);
 
 	if (req_op(req) == REQ_OP_READ || req_op(req) == REQ_OP_WRITE)
@@ -127,7 +127,7 @@ static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req,
 	bool ignore_tout;
 
 	spin_lock_irqsave(&mq->lock, flags);
-	ignore_tout = mq->recovery_needed || !mq->use_cqe || host->hsq_enabled;
+	ignore_tout = mq->recovery_needed || !host->cqe_enabled || host->hsq_enabled;
 	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return ignore_tout ? BLK_EH_RESET_TIMER : mmc_cqe_timed_out(req);
@@ -144,7 +144,7 @@ static void mmc_mq_recovery_handler(struct work_struct *work)
 
 	mq->in_recovery = true;
 
-	if (mq->use_cqe && !host->hsq_enabled)
+	if (host->cqe_enabled && !host->hsq_enabled)
 		mmc_blk_cqe_recovery(mq);
 	else
 		mmc_blk_mq_recovery(mq);
@@ -315,7 +315,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (get_card)
 		mmc_get_card(card, &mq->ctx);
 
-	if (mq->use_cqe) {
+	if (host->cqe_enabled) {
 		host->retune_now = host->need_retune && cqe_retune_ok &&
 				   !host->hold_retune;
 	}
@@ -430,7 +430,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	int ret;
 
 	mq->card = card;
-	mq->use_cqe = host->cqe_enabled;
 	
 	spin_lock_init(&mq->lock);
 
@@ -440,7 +439,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	 * The queue depth for CQE must match the hardware because the request
 	 * tag is used to index the hardware queue.
 	 */
-	if (mq->use_cqe && !host->hsq_enabled)
+	if (host->cqe_enabled && !host->hsq_enabled)
 		mq->tag_set.queue_depth =
 			min_t(int, card->ext_csd.cmdq_depth, host->cqe_qdepth);
 	else

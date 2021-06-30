@@ -631,8 +631,7 @@ config ARCH_SUPPORTS_LTO_CLANG_THIN
 config HAS_LTO_CLANG
 	def_bool y
 	# Clang >= 11: https://github.com/ClangBuiltLinux/linux/issues/510
-	depends on CC_IS_CLANG && CLANG_VERSION >= 110000 && LD_IS_LLD
-	depends on $(success,test $(LLVM_IAS) -eq 1)
+	depends on CC_IS_CLANG && CLANG_VERSION >= 110000 && LD_IS_LLD && AS_IS_LLVM
 	depends on $(success,$(NM) --help | head -n 1 | grep -qi llvm)
 	depends on $(success,$(AR) --help | head -n 1 | grep -qi llvm)
 	depends on ARCH_SUPPORTS_LTO_CLANG
@@ -828,6 +827,17 @@ config HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	bool
 
 config HAVE_ARCH_HUGE_VMAP
+	bool
+
+#
+#  Archs that select this would be capable of PMD-sized vmaps (i.e.,
+#  arch_vmap_pmd_supported() returns true), and they must make no assumptions
+#  that vmalloc memory is mapped with PAGE_SIZE ptes. The VM_NO_HUGE_VMAP flag
+#  can be used to prohibit arch-specific allocations from using hugepages to
+#  help with this (e.g., modules may require it).
+#
+config HAVE_ARCH_HUGE_VMALLOC
+	depends on HAVE_ARCH_HUGE_VMAP
 	bool
 
 config ARCH_WANT_HUGE_PMD_SHARE
@@ -1057,6 +1067,13 @@ config COMPAT_32BIT_TIME
 
 config ARCH_NO_PREEMPT
 	bool
+
+config ARCH_EPHEMERAL_INODES
+	def_bool n
+	help
+	  An arch should select this symbol if it doesn't keep track of inode
+	  instances on its own, but instead relies on something else (e.g. the
+	  host kernel for an UML kernel).
 
 config ARCH_SUPPORTS_RT
 	bool

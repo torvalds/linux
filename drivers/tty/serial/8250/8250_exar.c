@@ -553,7 +553,11 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 {
 	struct exar8250 *priv = pci_get_drvdata(pcidev);
 	struct uart_8250_port *port = serial8250_get_port(priv->line[0]);
-	struct platform_device *pdev = port->port.private_data;
+	struct platform_device *pdev;
+
+	pdev = port->port.private_data;
+	if (!pdev)
+		return;
 
 	device_remove_software_node(&pdev->dev);
 	platform_device_unregister(pdev);

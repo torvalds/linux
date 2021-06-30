@@ -112,6 +112,8 @@ OPTIONS
 	- ins_lat: Instruction latency in core cycles. This is the global instruction
 	  latency
 	- local_ins_lat: Local instruction latency version
+	- p_stage_cyc: On powerpc, this presents the number of cycles spent in a
+	  pipeline stage. And currently supported only on powerpc.
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -223,6 +225,9 @@ OPTIONS
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
+
+--disable-order::
+	Disable raw trace ordering.
 
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
@@ -472,7 +477,7 @@ OPTIONS
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf report' with no events
-	explicitely specified does.
+	explicitly specified does.
 
 --itrace::
 	Options for decoding instruction tracing data. The options are:
@@ -565,6 +570,9 @@ include::itrace.txt[]
 	'Avg Cycles%'     - block average sampled cycles / sum of total block average
 			    sampled cycles
 	'Avg Cycles'      - block average sampled cycles
+
+--skip-empty::
+	Do not print 0 results in the --stat output.
 
 include::callchain-overhead-calculation.txt[]
 

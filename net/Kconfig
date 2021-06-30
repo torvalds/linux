@@ -245,6 +245,14 @@ source "net/l3mdev/Kconfig"
 source "net/qrtr/Kconfig"
 source "net/ncsi/Kconfig"
 
+config PCPU_DEV_REFCNT
+	bool "Use percpu variables to maintain network device refcount"
+	depends on SMP
+	default y
+	help
+	  network device refcount are using per cpu variables if this option is set.
+	  This can be forced to N to detect underflows (with a performance drop).
+
 config RPS
 	bool
 	depends on SMP && SYSFS
@@ -294,21 +302,6 @@ config BQL
 	select DQL
 	default y
 
-config BPF_JIT
-	bool "enable BPF Just In Time compiler"
-	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
-	depends on MODULES
-	help
-	  Berkeley Packet Filter filtering capabilities are normally handled
-	  by an interpreter. This option allows kernel to generate a native
-	  code when filter is loaded in memory. This should speedup
-	  packet sniffing (libpcap/tcpdump).
-
-	  Note, admin should enable this feature changing:
-	  /proc/sys/net/core/bpf_jit_enable
-	  /proc/sys/net/core/bpf_jit_harden   (optional)
-	  /proc/sys/net/core/bpf_jit_kallsyms (optional)
-
 config BPF_STREAM_PARSER
 	bool "enable BPF STREAM_PARSER"
 	depends on INET
@@ -317,12 +310,8 @@ config BPF_STREAM_PARSER
 	select STREAM_PARSER
 	select NET_SOCK_MSG
 	help
-	  Enabling this allows a stream parser to be used with
+	  Enabling this allows a TCP stream parser to be used with
 	  BPF_MAP_TYPE_SOCKMAP.
-
-	  BPF_MAP_TYPE_SOCKMAP provides a map type to use with network sockets.
-	  It can be used to enforce socket policy, implement socket redirects,
-	  etc.
 
 config NET_FLOW_LIMIT
 	bool
@@ -425,6 +414,10 @@ config GRO_CELLS
 config SOCK_VALIDATE_XMIT
 	bool
 
+config NET_SELFTESTS
+	def_tristate PHYLIB
+	depends on PHYLIB && INET
+
 config NET_SOCK_MSG
 	bool
 	default n
@@ -462,15 +455,3 @@ config ETHTOOL_NETLINK
 	  e.g. notification messages.
 
 endif   # if NET
-
-# Used by archs to tell that they support BPF JIT compiler plus which flavour.
-# Only one of the two can be selected for a specific arch since eBPF JIT supersedes
-# the cBPF JIT.
-
-# Classic BPF JIT (cBPF)
-config HAVE_CBPF_JIT
-	bool
-
-# Extended BPF JIT (eBPF)
-config HAVE_EBPF_JIT
-	bool

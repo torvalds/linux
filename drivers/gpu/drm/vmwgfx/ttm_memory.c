@@ -280,7 +280,7 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 		spin_unlock(&glob->lock);
 		ret = ttm_global_swapout(ctx, GFP_KERNEL);
 		spin_lock(&glob->lock);
-		if (unlikely(ret < 0))
+		if (unlikely(ret <= 0))
 			break;
 	}
 

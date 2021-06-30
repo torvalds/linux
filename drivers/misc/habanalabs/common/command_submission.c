@@ -2017,7 +2017,7 @@ wait_again:
 		if (completion_value >= target_value) {
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
-			timeout -= jiffies_to_usecs(completion_rc);
+			timeout = completion_rc;
 			goto wait_again;
 		}
 	} else {

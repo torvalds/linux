@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  * Functions only useful for debugging.
  *
@@ -9,7 +9,7 @@
 
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * ecryptfs_dump_auth_tok - debug function to print auth toks
  *
  * This function will print the contents of an ecryptfs authentication

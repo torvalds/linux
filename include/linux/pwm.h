@@ -48,17 +48,6 @@ enum {
 	PWMF_EXPORTED = 1 << 1,
 };
 
-/**
- * enum pwm_output_type - output type of the PWM signal
- * @PWM_OUTPUT_FIXED: PWM output is fixed until a change request
- * @PWM_OUTPUT_MODULATED: PWM output is modulated in hardware
- * autonomously with a predefined pattern
- */
-enum pwm_output_type {
-	PWM_OUTPUT_FIXED = 1 << 0,
-	PWM_OUTPUT_MODULATED = 1 << 1,
-};
-
 /*
  * struct pwm_state - state of a PWM channel
  * @period: PWM period (in nanoseconds)
@@ -70,7 +59,6 @@ struct pwm_state {
 	u64 period;
 	u64 duty_cycle;
 	enum pwm_polarity polarity;
-	enum pwm_output_type output_type;
 	bool enabled;
 };
 
@@ -103,6 +91,11 @@ struct pwm_device {
  * pwm_get_state() - retrieve the current PWM state
  * @pwm: PWM device
  * @state: state to fill with the current PWM state
+ *
+ * The returned PWM state represents the state that was applied by a previous call to
+ * pwm_apply_state(). Drivers may have to slightly tweak that state before programming it to
+ * hardware. If pwm_apply_state() was never called, this returns either the current hardware
+ * state (if supported) or the default settings.
  */
 static inline void pwm_get_state(const struct pwm_device *pwm,
 				 struct pwm_state *state)
@@ -156,16 +149,6 @@ static inline enum pwm_polarity pwm_get_polarity(const struct pwm_device *pwm)
 	pwm_get_state(pwm, &state);
 
 	return state.polarity;
-}
-
-static inline enum pwm_output_type pwm_get_output_type(
-		const struct pwm_device *pwm)
-{
-	struct pwm_state state;
-
-	pwm_get_state(pwm, &state);
-
-	return state.output_type;
 }
 
 static inline void pwm_get_args(const struct pwm_device *pwm,
@@ -271,7 +254,6 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
  * @get_state: get the current PWM state. This function is only
  *	       called once per PWM device when the PWM chip is
  *	       registered.
- * @get_output_type_supported: get the supported output type of this PWM
  * @owner: helps prevent removal of modules exporting active PWMs
  * @config: configure duty cycles and period length for this PWM
  * @set_polarity: configure the polarity of this PWM
@@ -287,8 +269,6 @@ struct pwm_ops {
 		     const struct pwm_state *state);
 	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
 			  struct pwm_state *state);
-	int (*get_output_type_supported)(struct pwm_chip *chip,
-			struct pwm_device *pwm);
 	struct module *owner;
 
 	/* Only used by legacy drivers */
@@ -342,24 +322,6 @@ struct pwm_device *pwm_request(int pwm_id, const char *label);
 void pwm_free(struct pwm_device *pwm);
 int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state);
 int pwm_adjust_config(struct pwm_device *pwm);
-
-/**
- * pwm_get_output_type_supported() - obtain output type of a PWM device.
- * @pwm: PWM device
- *
- * Returns:  output type supported by the PWM device
- */
-static inline int pwm_get_output_type_supported(struct pwm_device *pwm)
-{
-	if (!pwm)
-		return -EINVAL;
-
-	if (pwm->chip->ops->get_output_type_supported)
-		return pwm->chip->ops->get_output_type_supported(pwm->chip,
-				pwm);
-
-	return PWM_OUTPUT_FIXED;
-}
 
 /**
  * pwm_config() - change a PWM device configuration
@@ -435,8 +397,6 @@ int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
-int pwmchip_add_with_polarity(struct pwm_chip *chip,
-			      enum pwm_polarity polarity);
 int pwmchip_add(struct pwm_chip *chip);
 int pwmchip_remove(struct pwm_chip *chip);
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
@@ -477,11 +437,6 @@ static inline int pwm_apply_state(struct pwm_device *pwm,
 static inline int pwm_adjust_config(struct pwm_device *pwm)
 {
 	return -ENOTSUPP;
-}
-
-static inline int pwm_get_output_type_supported(struct pwm_device *pwm)
-{
-	return -EINVAL;
 }
 
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,

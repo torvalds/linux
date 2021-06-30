@@ -813,6 +813,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 				if (ctx->spkamp == SPKAMP_MAX98390) {
 					broxton_dais[i].codecs = max98390_codec;
 					broxton_dais[i].num_codecs = ARRAY_SIZE(max98390_codec);
+					broxton_dais[i].dpcm_capture = 1;
 				}
 			}
 			/* DIALOG_CODEC is connected to SSP0 */

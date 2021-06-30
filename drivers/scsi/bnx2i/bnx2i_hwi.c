@@ -2206,10 +2206,8 @@ static void bnx2i_process_iscsi_error(struct bnx2i_hba *hba,
 {
 	struct bnx2i_conn *bnx2i_conn;
 	u32 iscsi_cid;
-	char warn_notice[] = "iscsi_warning";
-	char error_notice[] = "iscsi_error";
-	char additional_notice[64];
-	char *message;
+	const char *additional_notice = "";
+	const char *message;
 	int need_recovery;
 	u64 err_mask64;
 
@@ -2224,133 +2222,132 @@ static void bnx2i_process_iscsi_error(struct bnx2i_hba *hba,
 
 	if (err_mask64 & iscsi_error_mask) {
 		need_recovery = 0;
-		message = warn_notice;
+		message = "iscsi_warning";
 	} else {
 		need_recovery = 1;
-		message = error_notice;
+		message = "iscsi_error";
 	}
 
 	switch (iscsi_err->completion_status) {
 	case ISCSI_KCQE_COMPLETION_STATUS_HDR_DIG_ERR:
-		strcpy(additional_notice, "hdr digest err");
+		additional_notice = "hdr digest err";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_DATA_DIG_ERR:
-		strcpy(additional_notice, "data digest err");
+		additional_notice = "data digest err";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_OPCODE:
-		strcpy(additional_notice, "wrong opcode rcvd");
+		additional_notice = "wrong opcode rcvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_AHS_LEN:
-		strcpy(additional_notice, "AHS len > 0 rcvd");
+		additional_notice = "AHS len > 0 rcvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_ITT:
-		strcpy(additional_notice, "invalid ITT rcvd");
+		additional_notice = "invalid ITT rcvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_STATSN:
-		strcpy(additional_notice, "wrong StatSN rcvd");
+		additional_notice = "wrong StatSN rcvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_EXP_DATASN:
-		strcpy(additional_notice, "wrong DataSN rcvd");
+		additional_notice = "wrong DataSN rcvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_PEND_R2T:
-		strcpy(additional_notice, "pend R2T violation");
+		additional_notice = "pend R2T violation";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_0:
-		strcpy(additional_notice, "ERL0, UO");
+		additional_notice = "ERL0, UO";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_1:
-		strcpy(additional_notice, "ERL0, U1");
+		additional_notice = "ERL0, U1";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_2:
-		strcpy(additional_notice, "ERL0, U2");
+		additional_notice = "ERL0, U2";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_3:
-		strcpy(additional_notice, "ERL0, U3");
+		additional_notice = "ERL0, U3";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_4:
-		strcpy(additional_notice, "ERL0, U4");
+		additional_notice = "ERL0, U4";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_5:
-		strcpy(additional_notice, "ERL0, U5");
+		additional_notice = "ERL0, U5";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_O_U_6:
-		strcpy(additional_notice, "ERL0, U6");
+		additional_notice = "ERL0, U6";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_REMAIN_RCV_LEN:
-		strcpy(additional_notice, "invalid resi len");
+		additional_notice = "invalid resi len";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_MAX_RCV_PDU_LEN:
-		strcpy(additional_notice, "MRDSL violation");
+		additional_notice = "MRDSL violation";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_F_BIT_ZERO:
-		strcpy(additional_notice, "F-bit not set");
+		additional_notice = "F-bit not set";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_TTT_NOT_RSRV:
-		strcpy(additional_notice, "invalid TTT");
+		additional_notice = "invalid TTT";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_DATASN:
-		strcpy(additional_notice, "invalid DataSN");
+		additional_notice = "invalid DataSN";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_REMAIN_BURST_LEN:
-		strcpy(additional_notice, "burst len violation");
+		additional_notice = "burst len violation";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_BUFFER_OFF:
-		strcpy(additional_notice, "buf offset violation");
+		additional_notice = "buf offset violation";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_LUN:
-		strcpy(additional_notice, "invalid LUN field");
+		additional_notice = "invalid LUN field";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_R2TSN:
-		strcpy(additional_notice, "invalid R2TSN field");
+		additional_notice = "invalid R2TSN field";
 		break;
 #define BNX2I_ERR_DESIRED_DATA_TRNS_LEN_0 	\
 	ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_DESIRED_DATA_TRNS_LEN_0
 	case BNX2I_ERR_DESIRED_DATA_TRNS_LEN_0:
-		strcpy(additional_notice, "invalid cmd len1");
+		additional_notice = "invalid cmd len1";
 		break;
 #define BNX2I_ERR_DESIRED_DATA_TRNS_LEN_1 	\
 	ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_DESIRED_DATA_TRNS_LEN_1
 	case BNX2I_ERR_DESIRED_DATA_TRNS_LEN_1:
-		strcpy(additional_notice, "invalid cmd len2");
+		additional_notice = "invalid cmd len2";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_PEND_R2T_EXCEED:
-		strcpy(additional_notice,
-		       "pend r2t exceeds MaxOutstandingR2T value");
+		additional_notice = "pend r2t exceeds MaxOutstandingR2T value";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_TTT_IS_RSRV:
-		strcpy(additional_notice, "TTT is rsvd");
+		additional_notice = "TTT is rsvd";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_MAX_BURST_LEN:
-		strcpy(additional_notice, "MBL violation");
+		additional_notice = "MBL violation";
 		break;
 #define BNX2I_ERR_DATA_SEG_LEN_NOT_ZERO 	\
 	ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_DATA_SEG_LEN_NOT_ZERO
 	case BNX2I_ERR_DATA_SEG_LEN_NOT_ZERO:
-		strcpy(additional_notice, "data seg len != 0");
+		additional_notice = "data seg len != 0";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_REJECT_PDU_LEN:
-		strcpy(additional_notice, "reject pdu len error");
+		additional_notice = "reject pdu len error";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_ASYNC_PDU_LEN:
-		strcpy(additional_notice, "async pdu len error");
+		additional_notice = "async pdu len error";
 		break;
 	case ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_NOPIN_PDU_LEN:
-		strcpy(additional_notice, "nopin pdu len error");
+		additional_notice = "nopin pdu len error";
 		break;
 #define BNX2_ERR_PEND_R2T_IN_CLEANUP			\
 	ISCSI_KCQE_COMPLETION_STATUS_PROTOCOL_ERR_PEND_R2T_IN_CLEANUP
 	case BNX2_ERR_PEND_R2T_IN_CLEANUP:
-		strcpy(additional_notice, "pend r2t in cleanup");
+		additional_notice = "pend r2t in cleanup";
 		break;
 
 	case ISCI_KCQE_COMPLETION_STATUS_TCP_ERROR_IP_FRAGMENT:
-		strcpy(additional_notice, "IP fragments rcvd");
+		additional_notice = "IP fragments rcvd";
 		break;
 	case ISCI_KCQE_COMPLETION_STATUS_TCP_ERROR_IP_OPTIONS:
-		strcpy(additional_notice, "IP options error");
+		additional_notice = "IP options error";
 		break;
 	case ISCI_KCQE_COMPLETION_STATUS_TCP_ERROR_URGENT_FLAG:
-		strcpy(additional_notice, "urgent flag error");
+		additional_notice = "urgent flag error";
 		break;
 	default:
 		printk(KERN_ALERT "iscsi_err - unknown err %x\n",

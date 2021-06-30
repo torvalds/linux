@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==========================================
-Submitting devicetree (DT) binding patches
+Submitting Devicetree (DT) binding patches
 ==========================================
 
 I. For patch submitters
@@ -25,7 +25,7 @@ I. For patch submitters
 
        make dt_binding_check
 
-     See Documentation/devicetree/writing-schema.rst for more details about
+     See Documentation/devicetree/bindings/writing-schema.rst for more details about
      schema and tools setup.
 
   3) DT binding files should be dual licensed. The preferred license tag is
@@ -84,7 +84,7 @@ II. For kernel maintainers
 III. Notes
 ==========
 
-  0) Please see ...bindings/ABI.txt for details regarding devicetree ABI.
+  0) Please see :doc:`ABI` for details regarding devicetree ABI.
 
   1) This document is intended as a general familiarization with the process as
      decided at the 2013 Kernel Summit.  When in doubt, the current word of the

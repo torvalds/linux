@@ -2442,16 +2442,16 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group *cache)
 	spin_lock(&sinfo->lock);
 	spin_lock(&cache->lock);
 	if (!--cache->ro) {
-		num_bytes = cache->length - cache->reserved -
-			    cache->pinned - cache->bytes_super -
-			    cache->zone_unusable - cache->used;
-		sinfo->bytes_readonly -= num_bytes;
 		if (btrfs_is_zoned(cache->fs_info)) {
 			/* Migrate zone_unusable bytes back */
 			cache->zone_unusable = cache->alloc_offset - cache->used;
 			sinfo->bytes_zone_unusable += cache->zone_unusable;
 			sinfo->bytes_readonly -= cache->zone_unusable;
 		}
+		num_bytes = cache->length - cache->reserved -
+			    cache->pinned - cache->bytes_super -
+			    cache->zone_unusable - cache->used;
+		sinfo->bytes_readonly -= num_bytes;
 		list_del_init(&cache->ro_list);
 	}
 	spin_unlock(&cache->lock);

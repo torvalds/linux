@@ -568,22 +568,6 @@ static int lg_ultrax_remote_mapping(struct hid_input *hi,
 	return 1;
 }
 
-static int lg_dinovo_mapping(struct hid_input *hi, struct hid_usage *usage,
-		unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
-		return 0;
-
-	switch (usage->hid & HID_USAGE) {
-
-	case 0x00d: lg_map_key_clear(KEY_MEDIA);	break;
-	default:
-		return 0;
-
-	}
-	return 1;
-}
-
 static int lg_wireless_mapping(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
@@ -666,10 +650,6 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_RECEIVER &&
 			lg_ultrax_remote_mapping(hi, usage, bit, max))
-		return 1;
-
-	if (hdev->product == USB_DEVICE_ID_DINOVO_MINI &&
-			lg_dinovo_mapping(hi, usage, bit, max))
 		return 1;
 
 	if ((drv_data->quirks & LG_WIRELESS) && lg_wireless_mapping(hi, usage, bit, max))
@@ -878,10 +858,6 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_BAD_RELATIVE_KEYS },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_DESKTOP),
-		.driver_data = LG_DUPLICATE_USAGES },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_EDGE),
-		.driver_data = LG_DUPLICATE_USAGES },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_MINI),
 		.driver_data = LG_DUPLICATE_USAGES },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_ELITE_KBD),

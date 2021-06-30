@@ -543,6 +543,11 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 		hsdev->sactive_issued |= qcmd_tag_to_mask(tag);
 
 		qc = ata_qc_from_tag(ap, tag);
+		if (unlikely(!qc)) {
+			dev_err(ap->dev, "failed to get qc");
+			handled = 1;
+			goto DONE;
+		}
 		/*
 		 * Start FP DMA for NCQ command.  At this point the tag is the
 		 * active tag.  It is the tag that matches the command about to
@@ -658,6 +663,11 @@ DRVSTILLBUSY:
 
 		tag_mask &= (~0x00000001);
 		qc = ata_qc_from_tag(ap, tag);
+		if (unlikely(!qc)) {
+			dev_err(ap->dev, "failed to get qc");
+			handled = 1;
+			goto DONE;
+		}
 
 		/* To be picked up by completion functions */
 		qc->ap->link.active_tag = tag;

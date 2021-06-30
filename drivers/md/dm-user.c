@@ -15,10 +15,17 @@
 #include <linux/poll.h>
 #include <linux/uio.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #define DM_MSG_PREFIX "user"
 
 #define MAX_OUTSTANDING_MESSAGES 128
+
+static unsigned int daemon_timeout_msec = 4000;
+module_param_named(dm_user_daemon_timeout_msec, daemon_timeout_msec, uint,
+		   0644);
+MODULE_PARM_DESC(dm_user_daemon_timeout_msec,
+		 "IO Timeout in msec if daemon does not process");
 
 /*
  * dm-user uses four structures:
@@ -80,6 +87,10 @@ struct message {
 	 */
 	u64 return_type;
 	u64 return_flags;
+
+	struct delayed_work work;
+	bool delayed;
+	struct target *t;
 };
 
 struct target {
@@ -132,6 +143,7 @@ struct target {
 	 */
 	struct kref references;
 	int dm_destroyed;
+	bool daemon_terminated;
 };
 
 struct channel {
@@ -171,6 +183,92 @@ struct channel {
 	 */
 	struct message scratch_message_from_user;
 };
+
+static void message_kill(struct message *m, mempool_t *pool)
+{
+	m->bio->bi_status = BLK_STS_IOERR;
+	bio_endio(m->bio);
+	bio_put(m->bio);
+	mempool_free(m, pool);
+}
+
+static inline bool is_user_space_thread_present(struct target *t)
+{
+	lockdep_assert_held(&t->lock);
+	return (kref_read(&t->references) > 1);
+}
+
+static void process_delayed_work(struct work_struct *work)
+{
+	struct delayed_work *del_work = to_delayed_work(work);
+	struct message *msg = container_of(del_work, struct message, work);
+
+	struct target *t = msg->t;
+
+	mutex_lock(&t->lock);
+
+	/*
+	 * There is at least one thread to process the IO.
+	 */
+	if (is_user_space_thread_present(t)) {
+		mutex_unlock(&t->lock);
+		return;
+	}
+
+	/*
+	 * Terminate the IO with an error
+	 */
+	list_del(&msg->to_user);
+	pr_err("I/O error: sector %llu: no user-space daemon for %s target\n",
+	       msg->bio->bi_iter.bi_sector,
+	       t->miscdev.name);
+	message_kill(msg, &t->message_pool);
+	mutex_unlock(&t->lock);
+}
+
+static void enqueue_delayed_work(struct message *m, bool is_delay)
+{
+	unsigned long delay = 0;
+
+	m->delayed = true;
+	INIT_DELAYED_WORK(&m->work, process_delayed_work);
+
+	/*
+	 * Snapuserd daemon is the user-space process
+	 * which processes IO request from dm-user
+	 * when OTA is applied. Per the current design,
+	 * when a dm-user target is created, daemon
+	 * attaches to target and starts processing
+	 * the IO's. Daemon is terminated only when
+	 * dm-user target is destroyed.
+	 *
+	 * If for some reason, daemon crashes or terminates early,
+	 * without destroying the dm-user target; then
+	 * there is no mechanism to restart the daemon
+	 * and start processing the IO's from the same target.
+	 * Theoretically, it is possible but that infrastructure
+	 * doesn't exist in the android ecosystem.
+	 *
+	 * Thus, when the daemon terminates, there is no way the IO's
+	 * issued on that target will be processed. Hence,
+	 * we set the delay to 0 and fail the IO's immediately.
+	 *
+	 * On the other hand, when a new dm-user target is created,
+	 * we wait for the daemon to get attached for the first time.
+	 * This primarily happens when init first stage spins up
+	 * the daemon. At this point, since the snapshot device is mounted
+	 * of a root filesystem, dm-user target may receive IO request
+	 * even though daemon is not fully launched. We don't want
+	 * to fail those IO requests immediately. Thus, we queue these
+	 * requests with a timeout so that daemon is ready to process
+	 * those IO requests. Again, if the daemon fails to launch within
+	 * the timeout period, then IO's will be failed.
+	 */
+	if (is_delay)
+		delay = msecs_to_jiffies(daemon_timeout_msec);
+
+	queue_delayed_work(system_wq, &m->work, delay);
+}
 
 static inline struct target *target_from_target(struct dm_target *target)
 {
@@ -500,7 +598,25 @@ static struct message *msg_get_to_user(struct target *t)
 		return NULL;
 
 	m = list_first_entry(&t->to_user, struct message, to_user);
+
 	list_del(&m->to_user);
+
+	/*
+	 * If the IO was queued to workqueue since there
+	 * was no daemon to service the IO, then we
+	 * will have to cancel the delayed work as the
+	 * IO will be processed by this user-space thread.
+	 *
+	 * If the delayed work was already picked up for
+	 * processing, then wait for it to complete. Note
+	 * that the IO will not be terminated by the work
+	 * queue thread.
+	 */
+	if (unlikely(m->delayed)) {
+		mutex_unlock(&t->lock);
+		cancel_delayed_work_sync(&m->work);
+		mutex_lock(&t->lock);
+	}
 	return m;
 }
 
@@ -520,14 +636,6 @@ static struct message *msg_get_from_user(struct channel *c, u64 seq)
 	}
 
 	return NULL;
-}
-
-static void message_kill(struct message *m, mempool_t *pool)
-{
-	m->bio->bi_status = BLK_STS_IOERR;
-	bio_endio(m->bio);
-	bio_put(m->bio);
-	mempool_free(m, pool);
 }
 
 /*
@@ -552,8 +660,18 @@ static void target_release(struct kref *ref)
 	 * there are and will never be any channels.
 	 */
 	list_for_each_safe (cur, tmp, &t->to_user) {
-		message_kill(list_entry(cur, struct message, to_user),
-			     &t->message_pool);
+		struct message *m = list_entry(cur, struct message, to_user);
+
+		if (unlikely(m->delayed)) {
+			bool ret;
+
+			mutex_unlock(&t->lock);
+			ret = cancel_delayed_work_sync(&m->work);
+			mutex_lock(&t->lock);
+			if (!ret)
+				continue;
+		}
+		message_kill(m, &t->message_pool);
 	}
 
 	mempool_exit(&t->message_pool);
@@ -571,8 +689,31 @@ static void target_put(struct target *t)
 	 */
 	lockdep_assert_held(&t->lock);
 
-	if (!kref_put(&t->references, target_release))
+	if (!kref_put(&t->references, target_release)) {
+		/*
+		 * User-space thread is getting terminated.
+		 * We need to scan the list for all those
+		 * pending IO's which were not processed yet
+		 * and put them back to work-queue for delayed
+		 * processing.
+		 */
+		if (!is_user_space_thread_present(t)) {
+			struct list_head *cur, *tmp;
+
+			list_for_each_safe(cur, tmp, &t->to_user) {
+				struct message *m = list_entry(cur,
+							       struct message,
+							       to_user);
+				if (!m->delayed)
+					enqueue_delayed_work(m, false);
+			}
+			/*
+			 * Daemon attached to this target is terminated.
+			 */
+			t->daemon_terminated = true;
+		}
 		mutex_unlock(&t->lock);
+	}
 }
 
 static struct channel *channel_alloc(struct target *t)
@@ -916,8 +1057,8 @@ static int user_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * channels have been closed.
 	 */
 	kref_init(&t->references);
-	kref_get(&t->references);
 
+	t->daemon_terminated = false;
 	mutex_init(&t->lock);
 	init_waitqueue_head(&t->wq);
 	INIT_LIST_HEAD(&t->to_user);
@@ -1096,9 +1237,20 @@ static int user_map(struct dm_target *ti, struct bio *bio)
 	entry->total_to_user = bio_bytes_needed_to_user(bio);
 	entry->posn_from_user = 0;
 	entry->total_from_user = bio_bytes_needed_from_user(bio);
+	entry->delayed = false;
+	entry->t = t;
 	/* Pairs with the barrier in dev_read() */
 	smp_wmb();
 	list_add_tail(&entry->to_user, &t->to_user);
+
+	/*
+	 * If there is no daemon to process the IO's,
+	 * queue these messages into a workqueue with
+	 * a timeout.
+	 */
+	if (!is_user_space_thread_present(t))
+		enqueue_delayed_work(entry, !t->daemon_terminated);
+
 	wake_up_interruptible(&t->wq);
 	mutex_unlock(&t->lock);
 	return DM_MAPIO_SUBMITTED;

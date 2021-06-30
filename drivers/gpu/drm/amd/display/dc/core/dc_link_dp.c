@@ -1132,11 +1132,6 @@ static inline enum link_training_result perform_link_training_int(
 	enum link_training_result status)
 {
 	union lane_count_set lane_count_set = { {0} };
-	union dpcd_training_pattern dpcd_pattern = { {0} };
-
-	/* 3. set training not in progress*/
-	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
-	dpcd_set_training_pattern(link, dpcd_pattern);
 
 	/* 4. mainlink output idle pattern*/
 	dp_set_hw_test_pattern(link, DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
@@ -1560,6 +1555,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings lt_settings;
+	union dpcd_training_pattern dpcd_pattern = { { 0 } };
 
 	bool fec_enable;
 	uint8_t repeater_cnt;
@@ -1624,6 +1620,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 		}
 	}
 
+	/* 3. set training not in progress*/
+	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
+	dpcd_set_training_pattern(link, dpcd_pattern);
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
 		status = perform_link_training_int(link,
 				&lt_settings,
@@ -2490,7 +2489,7 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	return false;
 }
 
-static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
+bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
 {
 	struct dc_link_settings initial_link_setting;
 	struct dc_link_settings current_link_setting;
@@ -3582,6 +3581,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
 		if (is_lttpr_present)
 			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 	}
 
 	if (!is_lttpr_present)
@@ -3892,7 +3893,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
-			(link->dc->config.optimize_edp_link_rate ||
+			(link->dc->debug.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
@@ -4718,3 +4719,51 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link)
 	}
 	return false;
 }
+
+bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing)
+{
+	struct dc_link_settings link_setting;
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
+	uint32_t req_bw;
+	union lane_count_set lane_count_set = { {0} };
+
+	ASSERT(link || crtc_timing); // invalid input
+
+	if (link->dpcd_caps.edp_supported_link_rates_count == 0 ||
+			!link->dc->debug.optimize_edp_link_rate)
+		return false;
+
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+				&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS used link_bw_set\n");
+		return true;
+	}
+
+	// Read DPCD 00115h to find the edp link rate set used
+	core_link_read_dpcd(link, DP_LINK_RATE_SET,
+			    &link_rate_set, sizeof(link_rate_set));
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+				&lane_count_set.raw, sizeof(lane_count_set));
+
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+
+	decide_edp_link_settings(link, &link_setting, req_bw);
+
+	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
+			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS link_rate_set not optimal\n");
+		return true;
+	}
+
+	DC_LOG_EVENT_LINK_TRAINING("eDP ILR: No optimization required, VBIOS set optimal link_rate_set\n");
+	return false;
+}
+
+

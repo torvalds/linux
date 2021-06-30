@@ -216,7 +216,7 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 	mod->clk	= clk;
 	mod->priv	= priv;
 
-	return ret;
+	return 0;
 }
 
 void rsnd_mod_quit(struct rsnd_mod *mod)
@@ -230,12 +230,12 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io))
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dai_stream *io;
 	struct rsnd_dai *rdai;
 	int i;
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		io = &rdai->playback;
+		struct rsnd_dai_stream *io = &rdai->playback;
+
 		if (mod == io->mod[mod->type])
 			callback(mod, io);
 
@@ -486,13 +486,12 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 			       enum rsnd_mod_type *array,
 			       int array_size)
 {
-	struct rsnd_mod *mod;
-	enum rsnd_mod_type type;
 	int max = array ? array_size : RSND_MOD_MAX;
 
 	for (; *iterator < max; (*iterator)++) {
-		type = (array) ? array[*iterator] : *iterator;
-		mod = rsnd_io_to_mod(io, type);
+		enum rsnd_mod_type type = (array) ? array[*iterator] : *iterator;
+		struct rsnd_mod *mod = rsnd_io_to_mod(io, type);
+
 		if (mod)
 			return mod;
 	}
@@ -1061,7 +1060,7 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
 	struct device_node *np;
 	int is_play = rsnd_io_is_play(io);
-	int i, j;
+	int i;
 
 	if (!ssiu_np)
 		return;
@@ -1078,13 +1077,11 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 		if (!node)
 			break;
 
-		j = 0;
 		for_each_child_of_node(ssiu_np, np) {
 			if (np == node) {
 				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
 				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
 			}
-			j++;
 		}
 
 		of_node_put(node);
@@ -1140,7 +1137,6 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device_node *np;
-	struct rsnd_mod *mod;
 	int i;
 
 	if (!node)
@@ -1148,7 +1144,8 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		mod = mod_get(priv, i);
+		struct rsnd_mod *mod = mod_get(priv, i);
+
 		if (np == playback)
 			rsnd_dai_connect(mod, &rdai->playback, mod->type);
 		if (np == capture)
@@ -1258,7 +1255,6 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
 			     int dai_i)
 {
-	struct device_node *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
 	struct rsnd_dai_stream *io_capture;
 	struct snd_soc_dai_driver *drv;
@@ -1301,8 +1297,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rsnd_rdai_width_set(rdai, 32);   /* default 32bit width */
 
 	for (io_i = 0;; io_i++) {
-		playback = of_parse_phandle(dai_np, "playback", io_i);
-		capture  = of_parse_phandle(dai_np, "capture", io_i);
+		struct device_node *playback = of_parse_phandle(dai_np, "playback", io_i);
+		struct device_node *capture  = of_parse_phandle(dai_np, "capture", io_i);
 
 		if (!playback && !capture)
 			break;
@@ -1366,7 +1362,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_endpoint_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+				rdai = rsnd_rdai_get(priv, dai_i);
 
 				rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
 				rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
@@ -1377,7 +1373,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_child_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+				rdai = rsnd_rdai_get(priv, dai_i);
 
 				rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
 				rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
@@ -1416,11 +1412,11 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 		struct rsnd_priv *priv = rsnd_io_to_priv(io);
 		struct device *dev = rsnd_priv_to_dev(priv);
 		struct snd_soc_dpcm *dpcm;
-		struct snd_pcm_hw_params *be_params;
 		int stream = substream->stream;
 
 		for_each_dpcm_be(fe, stream, dpcm) {
-			be_params = &dpcm->hw_params;
+			struct snd_pcm_hw_params *be_params = &dpcm->hw_params;
+
 			if (params_channels(hw_params) != params_channels(be_params))
 				io->converted_chan = params_channels(be_params);
 			if (params_rate(hw_params) != params_rate(be_params))
@@ -1428,8 +1424,75 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 		}
 		if (io->converted_chan)
 			dev_dbg(dev, "convert channels = %d\n", io->converted_chan);
-		if (io->converted_rate)
+		if (io->converted_rate) {
+			/*
+			 * SRC supports convert rates from params_rate(hw_params)/k_down
+			 * to params_rate(hw_params)*k_up, where k_up is always 6, and
+			 * k_down depends on number of channels and SRC unit.
+			 * So all SRC units can upsample audio up to 6 times regardless
+			 * its number of channels. And all SRC units can downsample
+			 * 2 channel audio up to 6 times too.
+			 */
+			int k_up = 6;
+			int k_down = 6;
+			int channel;
+			struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
+
 			dev_dbg(dev, "convert rate     = %d\n", io->converted_rate);
+
+			channel = io->converted_chan ? io->converted_chan :
+				  params_channels(hw_params);
+
+			switch (rsnd_mod_id(src_mod)) {
+			/*
+			 * SRC0 can downsample 4, 6 and 8 channel audio up to 4 times.
+			 * SRC1, SRC3 and SRC4 can downsample 4 channel audio
+			 * up to 4 times.
+			 * SRC1, SRC3 and SRC4 can downsample 6 and 8 channel audio
+			 * no more than twice.
+			 */
+			case 1:
+			case 3:
+			case 4:
+				if (channel > 4) {
+					k_down = 2;
+					break;
+				}
+				fallthrough;
+			case 0:
+				if (channel > 2)
+					k_down = 4;
+				break;
+
+			/* Other SRC units do not support more than 2 channels */
+			default:
+				if (channel > 2)
+					return -EINVAL;
+			}
+
+			if (params_rate(hw_params) > io->converted_rate * k_down) {
+				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->min =
+					io->converted_rate * k_down;
+				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->max =
+					io->converted_rate * k_down;
+				hw_params->cmask |= SNDRV_PCM_HW_PARAM_RATE;
+			} else if (params_rate(hw_params) * k_up < io->converted_rate) {
+				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->min =
+					(io->converted_rate + k_up - 1) / k_up;
+				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->max =
+					(io->converted_rate + k_up - 1) / k_up;
+				hw_params->cmask |= SNDRV_PCM_HW_PARAM_RATE;
+			}
+
+			/*
+			 * TBD: Max SRC input and output rates also depend on number
+			 * of channels and SRC unit:
+			 * SRC1, SRC3 and SRC4 do not support more than 128kHz
+			 * for 6 channel and 96kHz for 8 channel audio.
+			 * Perhaps this function should return EINVAL if the input or
+			 * the output rate exceeds the limitation.
+			 */
+		}
 	}
 
 	return rsnd_dai_call(hw_params, io, substream, hw_params);
