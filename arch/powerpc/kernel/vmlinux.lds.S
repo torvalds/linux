@@ -9,6 +9,14 @@
 #define EMITS_PT_NOTE
 #define RO_EXCEPTION_TABLE_ALIGN	0
 
+#define SOFT_MASK_TABLE(align)						\
+	. = ALIGN(align);						\
+	__soft_mask_table : AT(ADDR(__soft_mask_table) - LOAD_OFFSET) {	\
+		__start___soft_mask_table = .;				\
+		KEEP(*(__soft_mask_table))				\
+		__stop___soft_mask_table = .;				\
+	}
+
 #define RESTART_TABLE(align)						\
 	. = ALIGN(align);						\
 	__restart_table : AT(ADDR(__restart_table) - LOAD_OFFSET) {	\
@@ -132,6 +140,7 @@ SECTIONS
 	RO_DATA(PAGE_SIZE)
 
 #ifdef CONFIG_PPC64
+	SOFT_MASK_TABLE(8)
 	RESTART_TABLE(8)
 
 	. = ALIGN(8);

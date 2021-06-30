@@ -428,21 +428,31 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 
 		/* If coming from user, skip soft-mask tests. */
 		andi.	r10,r12,MSR_PR
-		bne	2f
+		bne	3f
 
 		/*
-		 * Kernel code running below __end_soft_masked is implicitly
-		 * soft-masked
+		 * Kernel code running below __end_soft_masked may be
+		 * implicitly soft-masked if it is within the regions
+		 * in the soft mask table.
 		 */
 		LOAD_HANDLER(r10, __end_soft_masked)
 		cmpld	r11,r10
+		bge+	1f
 
+		/* SEARCH_SOFT_MASK_TABLE clobbers r9,r10,r12 */
+		mtctr	r12
+		stw	r9,PACA_EXGEN+EX_CCR(r13)
+		SEARCH_SOFT_MASK_TABLE
+		cmpdi	r12,0
+		mfctr	r12		/* Restore r12 to SRR1 */
+		lwz	r9,PACA_EXGEN+EX_CCR(r13)
+		beq	1f		/* Not in soft-mask table */
 		li	r10,IMASK
-		blt-	1f
+		b	2f		/* In soft-mask table, always mask */
 
 		/* Test the soft mask state against our interrupt's bit */
-		lbz	r10,PACAIRQSOFTMASK(r13)
-1:		andi.	r10,r10,IMASK
+1:		lbz	r10,PACAIRQSOFTMASK(r13)
+2:		andi.	r10,r10,IMASK
 		/* Associate vector numbers with bits in paca->irq_happened */
 		.if IVEC == 0x500 || IVEC == 0xea0
 		li	r10,PACA_IRQ_EE
@@ -473,7 +483,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 
 	.if ISTACK
 	andi.	r10,r12,MSR_PR		/* See if coming from user	*/
-2:	mr	r10,r1			/* Save r1			*/
+3:	mr	r10,r1			/* Save r1			*/
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc frame on kernel stack	*/
 	beq-	100f
 	ld	r1,PACAKSAVE(r13)	/* kernel stack to use		*/
@@ -624,6 +634,36 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 303:
 .endm
 
+.macro SEARCH_SOFT_MASK_TABLE
+#ifdef CONFIG_RELOCATABLE
+	mr	r12,r2
+	ld	r2,PACATOC(r13)
+	LOAD_REG_ADDR(r9, __start___soft_mask_table)
+	LOAD_REG_ADDR(r10, __stop___soft_mask_table)
+	mr	r2,r12
+#else
+	LOAD_REG_IMMEDIATE_SYM(r9, r12, __start___soft_mask_table)
+	LOAD_REG_IMMEDIATE_SYM(r10, r12, __stop___soft_mask_table)
+#endif
+300:
+	cmpd	r9,r10
+	beq	302f
+	ld	r12,0(r9)
+	cmpld	r11,r12
+	blt	301f
+	ld	r12,8(r9)
+	cmpld	r11,r12
+	bge	301f
+	li	r12,1
+	b	303f
+301:
+	addi	r9,r9,16
+	b	300b
+302:
+	li	r12,0
+303:
+.endm
+
 /*
  * Restore all registers including H/SRR0/1 saved in a stack frame of a
  * standard exception.
@@ -754,8 +794,8 @@ __start_interrupts:
  * scv instructions enter the kernel without changing EE, RI, ME, or HV.
  * In particular, this means we can take a maskable interrupt at any point
  * in the scv handler, which is unlike any other interrupt. This is solved
- * by treating the instruction addresses below __end_soft_masked as being
- * soft-masked.
+ * by treating the instruction addresses in the handler as being soft-masked,
+ * by adding a SOFT_MASK_TABLE entry for them.
  *
  * AIL-0 mode scv exceptions go to 0x17000-0x17fff, but we set AIL-3 and
  * ensure scv is never executed with relocation off, which means AIL-0
@@ -772,6 +812,7 @@ __start_interrupts:
  * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
  */
 EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
+1:
 	/* SCV 0 */
 	mr	r9,r13
 	GET_PACA(r13)
@@ -801,7 +842,10 @@ EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
 	b	system_call_vectored_sigill
 #endif
 	.endr
+2:
 EXC_VIRT_END(system_call_vectored, 0x3000, 0x1000)
+
+SOFT_MASK_TABLE(1b, 2b) // Treat scv vectors as soft-masked, see comment above.
 
 #ifdef CONFIG_RELOCATABLE
 TRAMP_VIRT_BEGIN(system_call_vectored_tramp)

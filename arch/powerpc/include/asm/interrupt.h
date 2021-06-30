@@ -75,6 +75,7 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 extern char __end_soft_masked[];
+bool search_kernel_soft_mask_table(unsigned long addr);
 unsigned long search_kernel_restart_table(unsigned long addr);
 
 DECLARE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
@@ -87,7 +88,7 @@ static inline bool is_implicit_soft_masked(struct pt_regs *regs)
 	if (regs->nip >= (unsigned long)__end_soft_masked)
 		return false;
 
-	return true;
+	return search_kernel_soft_mask_table(regs->nip);
 }
 
 static inline void srr_regs_clobbered(void)

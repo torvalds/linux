@@ -207,7 +207,9 @@ syscall_vectored_\name\()_restart:
 	bl	syscall_exit_restart
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_vectored_\name\()_rst_start
+1:
 
+SOFT_MASK_TABLE(.Lsyscall_vectored_\name\()_rst_start, 1b)
 RESTART_TABLE(.Lsyscall_vectored_\name\()_rst_start, .Lsyscall_vectored_\name\()_rst_end, syscall_vectored_\name\()_restart)
 
 .endm
@@ -410,7 +412,9 @@ syscall_restart:
 	bl	syscall_exit_restart
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_rst_start
+1:
 
+SOFT_MASK_TABLE(.Lsyscall_rst_start, 1b)
 RESTART_TABLE(.Lsyscall_rst_start, .Lsyscall_rst_end, syscall_restart)
 #endif
 
@@ -607,7 +611,9 @@ interrupt_return_\srr\()_user_restart:
 	bl	interrupt_exit_user_restart
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_user_rst_start
+1:
 
+SOFT_MASK_TABLE(.Linterrupt_return_\srr\()_user_rst_start, 1b)
 RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr\()_user_rst_end, interrupt_return_\srr\()_user_restart)
 #endif
 
@@ -738,7 +744,9 @@ interrupt_return_\srr\()_kernel_restart:
 	bl	interrupt_exit_kernel_restart
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_kernel_rst_start
+1:
 
+SOFT_MASK_TABLE(.Linterrupt_return_\srr\()_kernel_rst_start, 1b)
 RESTART_TABLE(.Linterrupt_return_\srr\()_kernel_rst_start, .Linterrupt_return_\srr\()_kernel_rst_end, interrupt_return_\srr\()_kernel_restart)
 #endif
 
