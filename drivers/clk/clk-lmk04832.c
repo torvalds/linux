@@ -1425,23 +1425,23 @@ static int lmk04832_probe(struct spi_device *spi)
 
 	lmk->dclk = devm_kcalloc(lmk->dev, info->num_channels >> 1,
 				 sizeof(struct lmk_dclk), GFP_KERNEL);
-	if (IS_ERR(lmk->dclk)) {
-		ret = PTR_ERR(lmk->dclk);
+	if (!lmk->dclk) {
+		ret = -ENOMEM;
 		goto err_disable_oscin;
 	}
 
 	lmk->clkout = devm_kcalloc(lmk->dev, info->num_channels,
 				   sizeof(*lmk->clkout), GFP_KERNEL);
-	if (IS_ERR(lmk->clkout)) {
-		ret = PTR_ERR(lmk->clkout);
+	if (!lmk->clkout) {
+		ret = -ENOMEM;
 		goto err_disable_oscin;
 	}
 
 	lmk->clk_data = devm_kzalloc(lmk->dev, struct_size(lmk->clk_data, hws,
 							   info->num_channels),
 				     GFP_KERNEL);
-	if (IS_ERR(lmk->clk_data)) {
-		ret = PTR_ERR(lmk->clk_data);
+	if (!lmk->clk_data) {
+		ret = -ENOMEM;
 		goto err_disable_oscin;
 	}
 
