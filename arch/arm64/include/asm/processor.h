@@ -22,6 +22,9 @@
 #define MTE_CTRL_GCR_USER_EXCL_SHIFT	0
 #define MTE_CTRL_GCR_USER_EXCL_MASK	0xffff
 
+#define MTE_CTRL_TCF_SYNC		(1UL << 16)
+#define MTE_CTRL_TCF_ASYNC		(1UL << 17)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/build_bug.h>
