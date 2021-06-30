@@ -197,8 +197,24 @@ Description:
 		Drivers may emit a CHANGE uevent when a password is set or unset
 		userspace may check it again.
 
-		On Dell systems, if Admin password is set, then all BIOS attributes
+		On Dell and Lenovo systems, if Admin password is set, then all BIOS attributes
 		require password validation.
+		On Lenovo systems if you change the Admin password the new password is not active until
+		the next boot.
+
+		Lenovo specific class extensions
+		------------------------------
+
+		On Lenovo systems the following additional settings are available:
+
+		lenovo_encoding:
+					The encoding method that is used. This can be either "ascii"
+					or "scancode". Default is set to "ascii"
+
+		lenovo_kbdlang:
+					The keyboard language method that is used. This is generally a
+					two char code (e.g. "us", "fr", "gr") and may vary per platform.
+					Default is set to "us"
 
 What:		/sys/class/firmware-attributes/*/attributes/pending_reboot
 Date:		February 2021

@@ -2,7 +2,7 @@
 /*
  * SSH packet transport layer.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <asm/unaligned.h>
@@ -1567,9 +1567,7 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 		clear_bit(SSH_PACKET_SF_PENDING_BIT, &p->state);
 
 		atomic_dec(&ptl->pending.count);
-		list_del(&p->pending_node);
-
-		list_add_tail(&p->pending_node, &claimed);
+		list_move_tail(&p->pending_node, &claimed);
 	}
 
 	spin_unlock(&ptl->pending.lock);
@@ -1957,8 +1955,7 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
 		smp_mb__before_atomic();
 		clear_bit(SSH_PACKET_SF_QUEUED_BIT, &p->state);
 
-		list_del(&p->queue_node);
-		list_add_tail(&p->queue_node, &complete_q);
+		list_move_tail(&p->queue_node, &complete_q);
 	}
 	spin_unlock(&ptl->queue.lock);
 
@@ -1970,8 +1967,7 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
 		smp_mb__before_atomic();
 		clear_bit(SSH_PACKET_SF_PENDING_BIT, &p->state);
 
-		list_del(&p->pending_node);
-		list_add_tail(&p->pending_node, &complete_q);
+		list_move_tail(&p->pending_node, &complete_q);
 	}
 	atomic_set(&ptl->pending.count, 0);
 	spin_unlock(&ptl->pending.lock);
