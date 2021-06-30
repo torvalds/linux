@@ -252,6 +252,11 @@ static int rfd77402_powerdown(struct i2c_client *client)
 				  RFD77402_STATUS_STANDBY);
 }
 
+static void rfd77402_disable(void *client)
+{
+	rfd77402_powerdown(client);
+}
+
 static int rfd77402_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -270,7 +275,6 @@ static int rfd77402_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	mutex_init(&data->lock);
 
@@ -284,25 +288,11 @@ static int rfd77402_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_add_action_or_reset(&client->dev, rfd77402_disable, client);
 	if (ret)
-		goto err_powerdown;
+		return ret;
 
-	return 0;
-
-err_powerdown:
-	rfd77402_powerdown(client);
-	return ret;
-}
-
-static int rfd77402_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	rfd77402_powerdown(client);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -331,7 +321,6 @@ static struct i2c_driver rfd77402_driver = {
 		.pm     = &rfd77402_pm_ops,
 	},
 	.probe  = rfd77402_probe,
-	.remove = rfd77402_remove,
 	.id_table = rfd77402_id,
 };
 
