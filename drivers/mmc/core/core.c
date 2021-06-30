@@ -936,14 +936,16 @@ int mmc_execute_tuning(struct mmc_card *card)
 		opcode = MMC_SEND_TUNING_BLOCK;
 
 	err = host->ops->execute_tuning(host, opcode);
-
-	if (err) {
-		pr_err("%s: tuning execution failed: %d\n",
-			mmc_hostname(host), err);
-	} else {
+	if (!err) {
 		mmc_retune_clear(host);
 		mmc_retune_enable(host);
+		return 0;
 	}
+
+	/* Only print error when we don't check for card removal */
+	if (!host->detect_change)
+		pr_err("%s: tuning execution failed: %d\n",
+			mmc_hostname(host), err);
 
 	return err;
 }
