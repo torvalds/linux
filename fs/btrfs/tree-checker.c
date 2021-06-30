@@ -24,6 +24,7 @@
 #include "compression.h"
 #include "volumes.h"
 #include "misc.h"
+#include "btrfs_inode.h"
 
 /*
  * Error message should follow the following format:
@@ -1008,6 +1009,8 @@ static int check_inode_item(struct extent_buffer *leaf,
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
 	u32 mode;
 	int ret;
+	u32 flags;
+	u32 ro_flags;
 
 	ret = check_inode_key(leaf, key, slot);
 	if (unlikely(ret < 0))
@@ -1063,11 +1066,17 @@ static int check_inode_item(struct extent_buffer *leaf,
 			btrfs_inode_nlink(leaf, iitem));
 		return -EUCLEAN;
 	}
-	if (unlikely(btrfs_inode_flags(leaf, iitem) & ~BTRFS_INODE_FLAG_MASK)) {
+	btrfs_inode_split_flags(btrfs_inode_flags(leaf, iitem), &flags, &ro_flags);
+	if (unlikely(flags & ~BTRFS_INODE_FLAG_MASK)) {
 		inode_item_err(leaf, slot,
-			       "unknown flags detected: 0x%llx",
-			       btrfs_inode_flags(leaf, iitem) &
-			       ~BTRFS_INODE_FLAG_MASK);
+			       "unknown incompat flags detected: 0x%x", flags);
+		return -EUCLEAN;
+	}
+	if (unlikely(!sb_rdonly(fs_info->sb) &&
+		     (ro_flags & ~BTRFS_INODE_RO_FLAG_MASK))) {
+		inode_item_err(leaf, slot,
+			"unknown ro-compat flags detected on writeable mount: 0x%x",
+			ro_flags);
 		return -EUCLEAN;
 	}
 	return 0;
