@@ -244,4 +244,12 @@ enum drm_panfrost_exception_type {
 
 const char *panfrost_exception_name(u32 exception_code);
 
+static inline void
+panfrost_device_schedule_reset(struct panfrost_device *pfdev)
+{
+	/* Schedule a reset if there's no reset in progress. */
+	if (!atomic_xchg(&pfdev->reset.pending, 1))
+		schedule_work(&pfdev->reset.work);
+}
+
 #endif

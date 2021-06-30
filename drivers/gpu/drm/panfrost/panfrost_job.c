@@ -447,9 +447,7 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 	if (!panfrost_scheduler_stop(&pfdev->js->queue[js], sched_job))
 		return DRM_GPU_SCHED_STAT_NOMINAL;
 
-	/* Schedule a reset if there's no reset in progress. */
-	if (!atomic_xchg(&pfdev->reset.pending, 1))
-		schedule_work(&pfdev->reset.work);
+	panfrost_device_schedule_reset(pfdev);
 
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
