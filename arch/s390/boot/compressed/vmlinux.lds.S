@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/vmlinux.lds.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -69,6 +71,17 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
+		/*
+		 * Stacks for the decompressor
+		 */
+		. = ALIGN(PAGE_SIZE);
+		_dump_info_stack_start = .;
+		. += PAGE_SIZE;
+		_dump_info_stack_end = .;
+		. = ALIGN(PAGE_SIZE);
+		_stack_start = .;
+		. += BOOT_STACK_SIZE;
+		_stack_end = .;
 		_ebss = .;
 	}
 

@@ -125,8 +125,8 @@ out:
 
 static noinline void print_stacktrace(void)
 {
-	struct stack_info boot_stack = { STACK_TYPE_TASK, BOOT_STACK_OFFSET,
-					 BOOT_STACK_OFFSET + BOOT_STACK_SIZE };
+	struct stack_info boot_stack = { STACK_TYPE_TASK, (unsigned long)_stack_start,
+					 (unsigned long)_stack_end };
 	unsigned long sp = S390_lowcore.gpregs_save_area[15];
 	bool first = true;
 

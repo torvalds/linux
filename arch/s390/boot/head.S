@@ -25,10 +25,8 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include "boot.h"
 
 #define ARCH_OFFSET	4
 
@@ -320,13 +318,11 @@ SYM_CODE_START_LOCAL(startup_normal)
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	l	%r15,.Lstack-.LPG0(%r13)
+	larl	%r15,_stack_end-STACK_FRAME_OVERHEAD
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
 SYM_CODE_END(startup_normal)
 
-.Lstack:
-	.long	BOOT_STACK_OFFSET + BOOT_STACK_SIZE - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 .Lext_new_psw:
@@ -386,15 +382,13 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
 	larl	%r9,.Lold_psw_disabled_wait
 	stg	%r9,__LC_PGM_NEW_PSW+8
-	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r9)
+	larl	%r15,_dump_info_stack_end-STACK_FRAME_OVERHEAD
 	brasl	%r14,print_pgm_check_info
 .Lold_psw_disabled_wait:
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
 	lpswe	__LC_RETURN_PSW		# disabled wait
 SYM_CODE_END(startup_pgm_check_handler)
-.Ldump_info_stack:
-	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
 
 #
 # params at 10400 (setup.h)
