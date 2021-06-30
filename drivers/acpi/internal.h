@@ -234,6 +234,15 @@ static inline int suspend_nvs_save(void) { return 0; }
 static inline void suspend_nvs_restore(void) {}
 #endif
 
+#ifdef CONFIG_X86
+bool force_storage_d3(void);
+#else
+static inline bool force_storage_d3(void)
+{
+	return false;
+}
+#endif
+
 /*--------------------------------------------------------------------------
 				Device properties
   -------------------------------------------------------------------------- */

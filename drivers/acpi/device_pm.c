@@ -1368,4 +1368,36 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_pm_attach);
+
+/**
+ * acpi_storage_d3 - Check if D3 should be used in the suspend path
+ * @dev: Device to check
+ *
+ * Return %true if the platform firmware wants @dev to be programmed
+ * into D3hot or D3cold (if supported) in the suspend path, or %false
+ * when there is no specific preference. On some platforms, if this
+ * hint is ignored, @dev may remain unresponsive after suspending the
+ * platform as a whole.
+ *
+ * Although the property has storage in the name it actually is
+ * applied to the PCIe slot and plugging in a non-storage device the
+ * same platform restrictions will likely apply.
+ */
+bool acpi_storage_d3(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	u8 val;
+
+	if (force_storage_d3())
+		return true;
+
+	if (!adev)
+		return false;
+	if (fwnode_property_read_u8(acpi_fwnode_handle(adev), "StorageD3Enable",
+			&val))
+		return false;
+	return val == 1;
+}
+EXPORT_SYMBOL_GPL(acpi_storage_d3);
+
 #endif /* CONFIG_PM */

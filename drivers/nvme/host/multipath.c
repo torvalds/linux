@@ -349,6 +349,25 @@ static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
 	nvme_put_ns_head(disk->private_data);
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int nvme_ns_head_report_zones(struct gendisk *disk, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
+{
+	struct nvme_ns_head *head = disk->private_data;
+	struct nvme_ns *ns;
+	int srcu_idx, ret = -EWOULDBLOCK;
+
+	srcu_idx = srcu_read_lock(&head->srcu);
+	ns = nvme_find_path(head);
+	if (ns)
+		ret = nvme_ns_report_zones(ns, sector, nr_zones, cb, data);
+	srcu_read_unlock(&head->srcu, srcu_idx);
+	return ret;
+}
+#else
+#define nvme_ns_head_report_zones	NULL
+#endif /* CONFIG_BLK_DEV_ZONED */
+
 const struct block_device_operations nvme_ns_head_ops = {
 	.owner		= THIS_MODULE,
 	.submit_bio	= nvme_ns_head_submit_bio,
@@ -356,7 +375,7 @@ const struct block_device_operations nvme_ns_head_ops = {
 	.release	= nvme_ns_head_release,
 	.ioctl		= nvme_ns_head_ioctl,
 	.getgeo		= nvme_getgeo,
-	.report_zones	= nvme_report_zones,
+	.report_zones	= nvme_ns_head_report_zones,
 	.pr_ops		= &nvme_pr_ops,
 };
 
@@ -416,11 +435,6 @@ static void nvme_requeue_work(struct work_struct *work)
 		next = bio->bi_next;
 		bio->bi_next = NULL;
 
-		/*
-		 * Reset disk to the mpath node and resubmit to select a new
-		 * path.
-		 */
-		bio_set_dev(bio, head->disk->part0);
 		submit_bio_noacct(bio);
 	}
 }
@@ -778,6 +792,13 @@ int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	if (!multipath || !ctrl->subsys ||
 	    !(ctrl->subsys->cmic & NVME_CTRL_CMIC_ANA))
 		return 0;
+
+	if (!ctrl->max_namespaces ||
+	    ctrl->max_namespaces > le32_to_cpu(id->nn)) {
+		dev_err(ctrl->device,
+			"Invalid MNAN value %u\n", ctrl->max_namespaces);
+		return -EINVAL;
+	}
 
 	ctrl->anacap = id->anacap;
 	ctrl->anatt = id->anatt;

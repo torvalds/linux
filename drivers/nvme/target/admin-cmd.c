@@ -162,15 +162,8 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
+static void nvmet_get_cmd_effects_nvm(struct nvme_effects_log *log)
 {
-	u16 status = NVME_SC_INTERNAL;
-	struct nvme_effects_log *log;
-
-	log = kzalloc(sizeof(*log), GFP_KERNEL);
-	if (!log)
-		goto out;
-
 	log->acs[nvme_admin_get_log_page]	= cpu_to_le32(1 << 0);
 	log->acs[nvme_admin_identify]		= cpu_to_le32(1 << 0);
 	log->acs[nvme_admin_abort_cmd]		= cpu_to_le32(1 << 0);
@@ -184,9 +177,45 @@ static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
 	log->iocs[nvme_cmd_flush]		= cpu_to_le32(1 << 0);
 	log->iocs[nvme_cmd_dsm]			= cpu_to_le32(1 << 0);
 	log->iocs[nvme_cmd_write_zeroes]	= cpu_to_le32(1 << 0);
+}
+
+static void nvmet_get_cmd_effects_zns(struct nvme_effects_log *log)
+{
+	log->iocs[nvme_cmd_zone_append]		= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_zone_mgmt_send]	= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_zone_mgmt_recv]	= cpu_to_le32(1 << 0);
+}
+
+static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
+{
+	struct nvme_effects_log *log;
+	u16 status = NVME_SC_SUCCESS;
+
+	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	if (!log) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	switch (req->cmd->get_log_page.csi) {
+	case NVME_CSI_NVM:
+		nvmet_get_cmd_effects_nvm(log);
+		break;
+	case NVME_CSI_ZNS:
+		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			status = NVME_SC_INVALID_IO_CMD_SET;
+			goto free;
+		}
+		nvmet_get_cmd_effects_nvm(log);
+		nvmet_get_cmd_effects_zns(log);
+		break;
+	default:
+		status = NVME_SC_INVALID_LOG_PAGE;
+		goto free;
+	}
 
 	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
-
+free:
 	kfree(log);
 out:
 	nvmet_req_complete(req, status);
@@ -313,22 +342,6 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 	nvmet_req_complete(req, NVME_SC_INVALID_FIELD | NVME_SC_DNR);
 }
 
-static u16 nvmet_set_model_number(struct nvmet_subsys *subsys)
-{
-	u16 status = 0;
-
-	mutex_lock(&subsys->lock);
-	if (!subsys->model_number) {
-		subsys->model_number =
-			kstrdup(NVMET_DEFAULT_CTRL_MODEL, GFP_KERNEL);
-		if (!subsys->model_number)
-			status = NVME_SC_INTERNAL;
-	}
-	mutex_unlock(&subsys->lock);
-
-	return status;
-}
-
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -337,14 +350,10 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	u32 cmd_capsule_size;
 	u16 status = 0;
 
-	/*
-	 * If there is no model number yet, set it now.  It will then remain
-	 * stable for the life time of the subsystem.
-	 */
-	if (!subsys->model_number) {
-		status = nvmet_set_model_number(subsys);
-		if (status)
-			goto out;
+	if (!subsys->subsys_discovered) {
+		mutex_lock(&subsys->lock);
+		subsys->subsys_discovered = true;
+		mutex_unlock(&subsys->lock);
 	}
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
@@ -357,9 +366,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->vid = 0;
 	id->ssvid = 0;
 
-	memset(id->sn, ' ', sizeof(id->sn));
-	bin2hex(id->sn, &ctrl->subsys->serial,
-		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
+	memcpy(id->sn, ctrl->subsys->serial, NVMET_SN_MAX_SIZE);
 	memcpy_and_pad(id->mn, sizeof(id->mn), subsys->model_number,
 		       strlen(subsys->model_number), ' ');
 	memcpy_and_pad(id->fr, sizeof(id->fr),
@@ -415,7 +422,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	/* no enforcement soft-limit for maxcmd - pick arbitrary high value */
 	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
 
-	id->nn = cpu_to_le32(ctrl->subsys->max_nsid);
+	id->nn = cpu_to_le32(NVMET_MAX_NAMESPACES);
 	id->mnan = cpu_to_le32(NVMET_MAX_NAMESPACES);
 	id->oncs = cpu_to_le16(NVME_CTRL_ONCS_DSM |
 			NVME_CTRL_ONCS_WRITE_ZEROES);
@@ -635,12 +642,35 @@ static void nvmet_execute_identify_desclist(struct nvmet_req *req)
 			goto out;
 	}
 
+	status = nvmet_copy_ns_identifier(req, NVME_NIDT_CSI,
+					  NVME_NIDT_CSI_LEN,
+					  &req->ns->csi, &off);
+	if (status)
+		goto out;
+
 	if (sg_zero_buffer(req->sg, req->sg_cnt, NVME_IDENTIFY_DATA_SIZE - off,
 			off) != NVME_IDENTIFY_DATA_SIZE - off)
 		status = NVME_SC_INTERNAL | NVME_SC_DNR;
 
 out:
 	nvmet_req_complete(req, status);
+}
+
+static bool nvmet_handle_identify_desclist(struct nvmet_req *req)
+{
+	switch (req->cmd->identify.csi) {
+	case NVME_CSI_NVM:
+		nvmet_execute_identify_desclist(req);
+		return true;
+	case NVME_CSI_ZNS:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			nvmet_execute_identify_desclist(req);
+			return true;
+		}
+		return false;
+	default:
+		return false;
+	}
 }
 
 static void nvmet_execute_identify(struct nvmet_req *req)
@@ -650,19 +680,54 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 
 	switch (req->cmd->identify.cns) {
 	case NVME_ID_CNS_NS:
-		return nvmet_execute_identify_ns(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_ns(req);
+		default:
+			break;
+		}
+		break;
+	case NVME_ID_CNS_CS_NS:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				return nvmet_execute_identify_cns_cs_ns(req);
+			default:
+				break;
+			}
+		}
+		break;
 	case NVME_ID_CNS_CTRL:
-		return nvmet_execute_identify_ctrl(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_ctrl(req);
+		}
+		break;
+	case NVME_ID_CNS_CS_CTRL:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				return nvmet_execute_identify_cns_cs_ctrl(req);
+			default:
+				break;
+			}
+		}
+		break;
 	case NVME_ID_CNS_NS_ACTIVE_LIST:
-		return nvmet_execute_identify_nslist(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_nslist(req);
+		default:
+			break;
+		}
+		break;
 	case NVME_ID_CNS_NS_DESC_LIST:
-		return nvmet_execute_identify_desclist(req);
+		if (nvmet_handle_identify_desclist(req) == true)
+			return;
+		break;
 	}
 
-	pr_debug("unhandled identify cns %d on qid %d\n",
-	       req->cmd->identify.cns, req->sq->qid);
-	req->error_loc = offsetof(struct nvme_identify, cns);
-	nvmet_req_complete(req, NVME_SC_INVALID_FIELD | NVME_SC_DNR);
+	nvmet_req_cns_error_complete(req);
 }
 
 /*
