@@ -26,7 +26,7 @@
 module_param(mtk_v4l2_dbg_level, int, S_IRUGO | S_IWUSR);
 module_param(mtk_vcodec_dbg, bool, S_IRUGO | S_IWUSR);
 
-static const struct mtk_video_fmt mtk_video_formats_output_mt8173[] = {
+static const struct mtk_video_fmt mtk_video_formats_output[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,
 		.type = MTK_FMT_FRAME,
@@ -49,7 +49,7 @@ static const struct mtk_video_fmt mtk_video_formats_output_mt8173[] = {
 	},
 };
 
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_avc[] =  {
+static const struct mtk_video_fmt mtk_video_formats_capture_h264[] =  {
 	{
 		.fourcc = V4L2_PIX_FMT_H264,
 		.type = MTK_FMT_ENC,
@@ -57,17 +57,9 @@ static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_avc[] =  {
 	},
 };
 
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_vp8[] =  {
+static const struct mtk_video_fmt mtk_video_formats_capture_vp8[] =  {
 	{
 		.fourcc = V4L2_PIX_FMT_VP8,
-		.type = MTK_FMT_ENC,
-		.num_planes = 1,
-	},
-};
-
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8183[] =  {
-	{
-		.fourcc = V4L2_PIX_FMT_H264,
 		.type = MTK_FMT_ENC,
 		.num_planes = 1,
 	},
@@ -392,10 +384,10 @@ err_enc_pm:
 
 static const struct mtk_vcodec_enc_pdata mt8173_avc_pdata = {
 	.chip = MTK_MT8173,
-	.capture_formats = mtk_video_formats_capture_mt8173_avc,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8173_avc),
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 1,
 	.max_bitrate = 4000000,
 	.core_id = VENC_SYS,
@@ -403,10 +395,10 @@ static const struct mtk_vcodec_enc_pdata mt8173_avc_pdata = {
 
 static const struct mtk_vcodec_enc_pdata mt8173_vp8_pdata = {
 	.chip = MTK_MT8173,
-	.capture_formats = mtk_video_formats_capture_mt8173_vp8,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8173_vp8),
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_vp8,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_vp8),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
 	.max_bitrate = 4000000,
 	.core_id = VENC_LT_SYS,
@@ -415,11 +407,10 @@ static const struct mtk_vcodec_enc_pdata mt8173_vp8_pdata = {
 static const struct mtk_vcodec_enc_pdata mt8183_pdata = {
 	.chip = MTK_MT8183,
 	.uses_ext = true,
-	.capture_formats = mtk_video_formats_capture_mt8183,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8183),
-	/* MT8183 supports the same output formats as MT8173 */
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
 	.max_bitrate = 40000000,
 	.core_id = VENC_SYS,
@@ -428,16 +419,15 @@ static const struct mtk_vcodec_enc_pdata mt8183_pdata = {
 static const struct mtk_vcodec_enc_pdata mt8192_pdata = {
 	.chip = MTK_MT8192,
 	.uses_ext = true,
-	/* MT8192 supports the same capture formats as MT8183 */
-	.capture_formats = mtk_video_formats_capture_mt8183,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8183),
-	/* MT8192 supports the same output formats as MT8173 */
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
 	.max_bitrate = 100000000,
 	.core_id = VENC_SYS,
 };
+
 static const struct of_device_id mtk_vcodec_enc_match[] = {
 	{.compatible = "mediatek,mt8173-vcodec-enc",
 			.data = &mt8173_avc_pdata},
