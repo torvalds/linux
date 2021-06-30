@@ -36,8 +36,11 @@ static int wait_ready(struct panfrost_device *pfdev, u32 as_nr)
 	ret = readl_relaxed_poll_timeout_atomic(pfdev->iomem + AS_STATUS(as_nr),
 		val, !(val & AS_STATUS_AS_ACTIVE), 10, 1000);
 
-	if (ret)
+	if (ret) {
+		/* The GPU hung, let's trigger a reset */
+		panfrost_device_schedule_reset(pfdev);
 		dev_err(pfdev->dev, "AS_ACTIVE bit stuck\n");
+	}
 
 	return ret;
 }
