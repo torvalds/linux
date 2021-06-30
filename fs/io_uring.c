@@ -785,9 +785,14 @@ struct async_poll {
 	struct io_poll_iocb	*double_poll;
 };
 
+typedef void (*io_req_tw_func_t)(struct io_kiocb *req);
+
 struct io_task_work {
-	struct io_wq_work_node	node;
-	task_work_func_t	func;
+	union {
+		struct io_wq_work_node	node;
+		struct llist_node	fallback_node;
+	};
+	io_req_tw_func_t		func;
 };
 
 enum {
@@ -850,17 +855,12 @@ struct io_kiocb {
 
 	/* used with ctx->iopoll_list with reads/writes */
 	struct list_head		inflight_entry;
-	union {
-		struct io_task_work	io_task_work;
-		struct callback_head	task_work;
-	};
+	struct io_task_work		io_task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	struct hlist_node		hash_node;
 	struct async_poll		*apoll;
 	struct io_wq_work		work;
 	const struct cred		*creds;
-
-	struct llist_node		fallback_node;
 
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
@@ -1935,7 +1935,7 @@ static void tctx_task_work(struct callback_head *cb)
 				ctx = req->ctx;
 				percpu_ref_get(&ctx->refs);
 			}
-			req->task_work.func(&req->task_work);
+			req->io_task_work.func(req);
 			node = next;
 		}
 		if (wq_list_empty(&tctx->task_list)) {
@@ -2006,16 +2006,16 @@ static int io_req_task_work_add(struct io_kiocb *req)
 }
 
 static void io_req_task_work_add_fallback(struct io_kiocb *req,
-					  task_work_func_t cb)
+					  io_req_tw_func_t cb)
 {
-	init_task_work(&req->task_work, cb);
-	if (llist_add(&req->fallback_node, &req->ctx->fallback_llist))
+	req->io_task_work.func = cb;
+	if (llist_add(&req->io_task_work.fallback_node,
+		      &req->ctx->fallback_llist))
 		schedule_delayed_work(&req->ctx->fallback_work, 1);
 }
 
-static void io_req_task_cancel(struct callback_head *cb)
+static void io_req_task_cancel(struct io_kiocb *req)
 {
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct io_ring_ctx *ctx = req->ctx;
 
 	/* ctx is guaranteed to stay alive while we hold uring_lock */
@@ -2024,7 +2024,7 @@ static void io_req_task_cancel(struct callback_head *cb)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static void __io_req_task_submit(struct io_kiocb *req)
+static void io_req_task_submit(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -2037,17 +2037,10 @@ static void __io_req_task_submit(struct io_kiocb *req)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static void io_req_task_submit(struct callback_head *cb)
-{
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-
-	__io_req_task_submit(req);
-}
-
 static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 {
 	req->result = ret;
-	req->task_work.func = io_req_task_cancel;
+	req->io_task_work.func = io_req_task_cancel;
 
 	if (unlikely(io_req_task_work_add(req)))
 		io_req_task_work_add_fallback(req, io_req_task_cancel);
@@ -2055,7 +2048,7 @@ static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 
 static void io_req_task_queue(struct io_kiocb *req)
 {
-	req->task_work.func = io_req_task_submit;
+	req->io_task_work.func = io_req_task_submit;
 
 	if (unlikely(io_req_task_work_add(req)))
 		io_req_task_queue_fail(req, -ECANCELED);
@@ -2169,18 +2162,11 @@ static inline void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static void io_put_req_deferred_cb(struct callback_head *cb)
-{
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-
-	io_free_req(req);
-}
-
 static void io_free_req_deferred(struct io_kiocb *req)
 {
-	req->task_work.func = io_put_req_deferred_cb;
+	req->io_task_work.func = io_free_req;
 	if (unlikely(io_req_task_work_add(req)))
-		io_req_task_work_add_fallback(req, io_put_req_deferred_cb);
+		io_req_task_work_add_fallback(req, io_free_req);
 }
 
 static inline void io_put_req_deferred(struct io_kiocb *req, int refs)
@@ -2466,8 +2452,8 @@ static void io_fallback_req_func(struct work_struct *work)
 	struct llist_node *node = llist_del_all(&ctx->fallback_llist);
 	struct io_kiocb *req, *tmp;
 
-	llist_for_each_entry_safe(req, tmp, node, fallback_node)
-		req->task_work.func(&req->task_work);
+	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
+		req->io_task_work.func(req);
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
@@ -4835,7 +4821,7 @@ struct io_poll_table {
 };
 
 static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
-			   __poll_t mask, task_work_func_t func)
+			   __poll_t mask, io_req_tw_func_t func)
 {
 	int ret;
 
@@ -4848,7 +4834,7 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	list_del_init(&poll->wait.entry);
 
 	req->result = mask;
-	req->task_work.func = func;
+	req->io_task_work.func = func;
 
 	/*
 	 * If this fails, then the task is exiting. When a task exits, the
@@ -4945,9 +4931,8 @@ static bool io_poll_complete(struct io_kiocb *req, __poll_t mask)
 	return !(flags & IORING_CQE_F_MORE);
 }
 
-static void io_poll_task_func(struct callback_head *cb)
+static void io_poll_task_func(struct io_kiocb *req)
 {
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *nxt;
 
@@ -4969,7 +4954,7 @@ static void io_poll_task_func(struct callback_head *cb)
 		if (done) {
 			nxt = io_put_req_find_next(req);
 			if (nxt)
-				__io_req_task_submit(nxt);
+				io_req_task_submit(nxt);
 		}
 	}
 }
@@ -5078,9 +5063,8 @@ static void io_async_queue_proc(struct file *file, struct wait_queue_head *head,
 	__io_queue_proc(&apoll->poll, pt, head, &apoll->double_poll);
 }
 
-static void io_async_task_func(struct callback_head *cb)
+static void io_async_task_func(struct io_kiocb *req)
 {
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct async_poll *apoll = req->apoll;
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -5096,7 +5080,7 @@ static void io_async_task_func(struct callback_head *cb)
 	spin_unlock_irq(&ctx->completion_lock);
 
 	if (!READ_ONCE(apoll->poll.canceled))
-		__io_req_task_submit(req);
+		io_req_task_submit(req);
 	else
 		io_req_complete_failed(req, -ECANCELED);
 }
@@ -8817,7 +8801,7 @@ static void io_ring_exit_work(struct work_struct *work)
 	/*
 	 * Some may use context even when all refs and requests have been put,
 	 * and they are free to do so while still holding uring_lock or
-	 * completion_lock, see __io_req_task_submit(). Apart from other work,
+	 * completion_lock, see io_req_task_submit(). Apart from other work,
 	 * this lock/unlock section also waits them to finish.
 	 */
 	mutex_lock(&ctx->uring_lock);
