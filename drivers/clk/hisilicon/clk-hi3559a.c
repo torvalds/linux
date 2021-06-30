@@ -107,25 +107,25 @@ static const struct hisi_fixed_rate_clock hi3559av100_fixed_rate_clks_crg[] = {
 };
 
 
-static const char *fmc_mux_p[] __initconst = {
+static const char *fmc_mux_p[] = {
 	"24m", "75m", "125m", "150m", "200m", "250m", "300m", "400m"
 };
 
-static const char *mmc_mux_p[] __initconst = {
+static const char *mmc_mux_p[] = {
 	"100k", "25m", "49p5m", "99m", "187p5m", "150m", "198m", "400k"
 };
 
-static const char *sysapb_mux_p[] __initconst = {
+static const char *sysapb_mux_p[] = {
 	"24m", "50m",
 };
 
-static const char *sysbus_mux_p[] __initconst = {
+static const char *sysbus_mux_p[] = {
 	"24m", "300m"
 };
 
-static const char *uart_mux_p[] __initconst = { "50m", "24m", "3m" };
+static const char *uart_mux_p[] = { "50m", "24m", "3m" };
 
-static const char *a73_clksel_mux_p[] __initconst = {
+static const char *a73_clksel_mux_p[] = {
 	"24m", "apll", "1000m"
 };
 
@@ -136,7 +136,7 @@ static const u32 sysbus_mux_table[]	= { 0, 1 };
 static const u32 uart_mux_table[]	= { 0, 1, 2 };
 static const u32 a73_clksel_mux_table[] = { 0, 1, 2 };
 
-static struct hisi_mux_clock hi3559av100_mux_clks_crg[] __initdata = {
+static struct hisi_mux_clock hi3559av100_mux_clks_crg[] = {
 	{
 		HI3559AV100_FMC_MUX, "fmc_mux", fmc_mux_p, ARRAY_SIZE(fmc_mux_p),
 		CLK_SET_RATE_PARENT, 0x170, 2, 3, 0, fmc_mux_table,
@@ -181,7 +181,7 @@ static struct hisi_mux_clock hi3559av100_mux_clks_crg[] __initdata = {
 	},
 };
 
-static struct hisi_gate_clock hi3559av100_gate_clks[] __initdata = {
+static struct hisi_gate_clock hi3559av100_gate_clks[] = {
 	{
 		HI3559AV100_FMC_CLK, "clk_fmc", "fmc_mux",
 		CLK_SET_RATE_PARENT, 0x170, 1, 0,
@@ -336,7 +336,7 @@ static struct hisi_gate_clock hi3559av100_gate_clks[] __initdata = {
 	},
 };
 
-static struct hi3559av100_pll_clock hi3559av100_pll_clks[] __initdata = {
+static struct hi3559av100_pll_clock hi3559av100_pll_clks[] = {
 	{
 		HI3559AV100_APLL_CLK, "apll", NULL, 0x0, 0, 24, 24, 3, 28, 3,
 		0x4, 0, 12, 12, 6
@@ -502,7 +502,7 @@ static void hisi_clk_register_pll(struct hi3559av100_pll_clock *clks,
 	}
 }
 
-static __init struct hisi_clock_data *hi3559av100_clk_register(
+static struct hisi_clock_data *hi3559av100_clk_register(
 	struct platform_device *pdev)
 {
 	struct hisi_clock_data *clk_data;
@@ -549,7 +549,7 @@ unregister_fixed_rate:
 	return ERR_PTR(ret);
 }
 
-static __init void hi3559av100_clk_unregister(struct platform_device *pdev)
+static void hi3559av100_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
@@ -568,8 +568,7 @@ static const struct hisi_crg_funcs hi3559av100_crg_funcs = {
 	.unregister_clks = hi3559av100_clk_unregister,
 };
 
-static struct hisi_fixed_rate_clock hi3559av100_shub_fixed_rate_clks[]
-	__initdata = {
+static struct hisi_fixed_rate_clock hi3559av100_shub_fixed_rate_clks[] = {
 	{ HI3559AV100_SHUB_SOURCE_SOC_24M, "clk_source_24M", NULL, 0, 24000000UL, },
 	{ HI3559AV100_SHUB_SOURCE_SOC_200M, "clk_source_200M", NULL, 0, 200000000UL, },
 	{ HI3559AV100_SHUB_SOURCE_SOC_300M, "clk_source_300M", NULL, 0, 300000000UL, },
@@ -587,16 +586,16 @@ static struct hisi_fixed_rate_clock hi3559av100_shub_fixed_rate_clks[]
 
 /* shub mux clk */
 static u32 shub_source_clk_mux_table[] = {0, 1, 2, 3};
-static const char *shub_source_clk_mux_p[] __initconst = {
+static const char *shub_source_clk_mux_p[] = {
 	"clk_source_24M", "clk_source_200M", "clk_source_300M", "clk_source_PLL"
 };
 
 static u32 shub_uart_source_clk_mux_table[] = {0, 1, 2, 3};
-static const char *shub_uart_source_clk_mux_p[] __initconst = {
+static const char *shub_uart_source_clk_mux_p[] = {
 	"clk_uart_32K", "clk_uart_div_clk", "clk_uart_div_clk", "clk_source_24M"
 };
 
-static struct hisi_mux_clock hi3559av100_shub_mux_clks[] __initdata = {
+static struct hisi_mux_clock hi3559av100_shub_mux_clks[] = {
 	{
 		HI3559AV100_SHUB_SOURCE_CLK, "shub_clk", shub_source_clk_mux_p,
 		ARRAY_SIZE(shub_source_clk_mux_p),
@@ -615,7 +614,7 @@ static struct hisi_mux_clock hi3559av100_shub_mux_clks[] __initdata = {
 static struct clk_div_table shub_spi_clk_table[] = {{0, 8}, {1, 4}, {2, 2}};
 static struct clk_div_table shub_uart_div_clk_table[] = {{1, 8}, {2, 4}};
 
-static struct hisi_divider_clock hi3559av100_shub_div_clks[] __initdata = {
+static struct hisi_divider_clock hi3559av100_shub_div_clks[] = {
 	{ HI3559AV100_SHUB_SPI_SOURCE_CLK, "clk_spi_clk", "shub_clk", 0, 0x20, 24, 2,
 	  CLK_DIVIDER_ALLOW_ZERO, shub_spi_clk_table,
 	},
@@ -625,7 +624,7 @@ static struct hisi_divider_clock hi3559av100_shub_div_clks[] __initdata = {
 };
 
 /* shub gate clk */
-static struct hisi_gate_clock hi3559av100_shub_gate_clks[] __initdata = {
+static struct hisi_gate_clock hi3559av100_shub_gate_clks[] = {
 	{
 		HI3559AV100_SHUB_SPI0_CLK, "clk_shub_spi0", "clk_spi_clk",
 		0, 0x20, 1, 0,
@@ -697,7 +696,7 @@ static int hi3559av100_shub_default_clk_set(void)
 	return 0;
 }
 
-static __init struct hisi_clock_data *hi3559av100_shub_clk_register(
+static struct hisi_clock_data *hi3559av100_shub_clk_register(
 	struct platform_device *pdev)
 {
 	struct hisi_clock_data *clk_data = NULL;
@@ -751,7 +750,7 @@ unregister_fixed_rate:
 	return ERR_PTR(ret);
 }
 
-static __init void hi3559av100_shub_clk_unregister(struct platform_device *pdev)
+static void hi3559av100_shub_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
