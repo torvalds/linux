@@ -129,3 +129,6 @@ void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);
 void intel_uncore_generic_uncore_mmio_init(void);
+
+struct intel_uncore_type **
+intel_uncore_generic_init_uncores(enum uncore_access_type type_id);

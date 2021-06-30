@@ -568,7 +568,7 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 	return true;
 }
 
-static struct intel_uncore_type **
+struct intel_uncore_type **
 intel_uncore_generic_init_uncores(enum uncore_access_type type_id)
 {
 	struct intel_uncore_discovery_type *type;

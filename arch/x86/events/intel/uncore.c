@@ -865,9 +865,13 @@ static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
 			sprintf(pmu->name, "uncore_%s", type->name);
 		else
 			sprintf(pmu->name, "uncore");
-	} else
-		sprintf(pmu->name, "uncore_%s_%d", type->name, pmu->pmu_idx);
-
+	} else {
+		/*
+		 * Use the box ID from the discovery table if applicable.
+		 */
+		sprintf(pmu->name, "uncore_%s_%d", type->name,
+			type->box_ids ? type->box_ids[pmu->pmu_idx] : pmu->pmu_idx);
+	}
 }
 
 static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
@@ -1663,6 +1667,7 @@ struct intel_uncore_init_fun {
 	void	(*cpu_init)(void);
 	int	(*pci_init)(void);
 	void	(*mmio_init)(void);
+	bool	use_discovery;
 };
 
 static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
@@ -1765,6 +1770,13 @@ static const struct intel_uncore_init_fun snr_uncore_init __initconst = {
 	.mmio_init = snr_uncore_mmio_init,
 };
 
+static const struct intel_uncore_init_fun spr_uncore_init __initconst = {
+	.cpu_init = spr_uncore_cpu_init,
+	.pci_init = spr_uncore_pci_init,
+	.mmio_init = spr_uncore_mmio_init,
+	.use_discovery = true,
+};
+
 static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
 	.cpu_init = intel_uncore_generic_uncore_cpu_init,
 	.pci_init = intel_uncore_generic_uncore_pci_init,
@@ -1809,6 +1821,7 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&rkl_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&adl_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&adl_uncore_init),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&spr_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&snr_uncore_init),
 	{},
 };
@@ -1832,8 +1845,13 @@ static int __init intel_uncore_init(void)
 			uncore_init = (struct intel_uncore_init_fun *)&generic_uncore_init;
 		else
 			return -ENODEV;
-	} else
+	} else {
 		uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
+		if (uncore_no_discover && uncore_init->use_discovery)
+			return -ENODEV;
+		if (uncore_init->use_discovery && !intel_uncore_has_discovery_tables())
+			return -ENODEV;
+	}
 
 	if (uncore_init->pci_init) {
 		pret = uncore_init->pci_init();
