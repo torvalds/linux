@@ -1808,7 +1808,10 @@ static void __bch2_read_endio(struct work_struct *work)
 	struct bvec_iter dst_iter = rbio->bvec_iter;
 	struct bch_extent_crc_unpacked crc = rbio->pick.crc;
 	struct nonce nonce = extent_nonce(rbio->version, crc);
+	unsigned nofs_flags;
 	struct bch_csum csum;
+
+	nofs_flags = memalloc_nofs_save();
 
 	/* Reset iterator for checksumming and copying bounced data: */
 	if (rbio->bounce) {
@@ -1874,6 +1877,8 @@ nodecode:
 		rbio = bch2_rbio_free(rbio);
 		bch2_rbio_done(rbio);
 	}
+out:
+	memalloc_nofs_restore(nofs_flags);
 	return;
 csum_err:
 	/*
@@ -1884,7 +1889,7 @@ csum_err:
 	if (!rbio->bounce && (rbio->flags & BCH_READ_USER_MAPPED)) {
 		rbio->flags |= BCH_READ_MUST_BOUNCE;
 		bch2_rbio_error(rbio, READ_RETRY, BLK_STS_IOERR);
-		return;
+		goto out;
 	}
 
 	bch2_dev_inum_io_error(ca, rbio->read_pos.inode, (u64) rbio->bvec_iter.bi_sector,
@@ -1892,12 +1897,12 @@ csum_err:
 		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
 		csum.hi, csum.lo, crc.csum_type);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
-	return;
+	goto out;
 decompression_err:
 	bch_err_inum_ratelimited(c, rbio->read_pos.inode,
 				 "decompression error");
 	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
-	return;
+	goto out;
 }
 
 static void bch2_read_endio(struct bio *bio)
