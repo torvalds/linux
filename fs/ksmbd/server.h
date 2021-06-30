@@ -18,9 +18,14 @@ enum {
 	SERVER_STATE_SHUTTING_DOWN,
 };
 
-#define SERVER_CONF_NETBIOS_NAME	0
-#define SERVER_CONF_SERVER_STRING	1
-#define SERVER_CONF_WORK_GROUP		2
+/*
+ * Server global config string index
+ */
+enum {
+	SERVER_CONF_NETBIOS_NAME,
+	SERVER_CONF_SERVER_STRING,
+	SERVER_CONF_WORK_GROUP,
+};
 
 struct ksmbd_server_config {
 	unsigned int		flags;
