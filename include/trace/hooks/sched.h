@@ -378,6 +378,13 @@ DECLARE_HOOK(android_vh_force_compatible_post,
 	TP_PROTO(void *unused),
 	TP_ARGS(unused));
 
+DECLARE_RESTRICTED_HOOK(android_rvh_force_compatible_pre,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_force_compatible_post,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused), 1);
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */

@@ -109,6 +109,9 @@ config GENERIC_IRQ_MATRIX_ALLOCATOR
 config GENERIC_IRQ_RESERVATION_MODE
 	bool
 
+config ARCH_WANTS_IRQ_RAW
+	bool
+
 # Support forced irq threading
 config IRQ_FORCED_THREADING
        bool

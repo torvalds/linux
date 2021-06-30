@@ -115,7 +115,7 @@ void etm4x_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 	}
 }
 
-u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
+static u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 {
 	u64 res = 0;
 
@@ -132,7 +132,7 @@ u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 	return res;
 }
 
-void ete_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
+static void ete_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 {
 	if (!_relaxed)
 		__iowmb();	/* Imitate the !relaxed I/O helpers */

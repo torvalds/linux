@@ -475,17 +475,17 @@ static int __init page_pinner_init(void)
 
 	pp_debugfs_root = debugfs_create_dir("page_pinner", NULL);
 
-	debugfs_create_file("longterm_pinner", 0400, pp_debugfs_root, NULL,
+	debugfs_create_file("longterm_pinner", 0444, pp_debugfs_root, NULL,
 			    &proc_longterm_pinner_operations);
 
-	debugfs_create_file("threshold", 0444, pp_debugfs_root, NULL,
+	debugfs_create_file("threshold", 0644, pp_debugfs_root, NULL,
 			    &pp_threshold_fops);
 
-	debugfs_create_file("alloc_contig_failed", 0400,
+	debugfs_create_file("alloc_contig_failed", 0444,
 			    pp_debugfs_root, NULL,
 			    &proc_alloc_contig_failed_operations);
 
-	debugfs_create_file("failure_tracking", 0444,
+	debugfs_create_file("failure_tracking", 0644,
 			    pp_debugfs_root, NULL,
 			    &failure_tracking_fops);
 	return 0;

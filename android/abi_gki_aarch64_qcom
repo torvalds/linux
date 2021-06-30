@@ -1261,6 +1261,7 @@
   kfree_const
   kfree_sensitive
   kfree_skb
+  kfree_skb_list
   kick_all_cpus_sync
   kill_anon_super
   kill_fasync
@@ -2131,7 +2132,9 @@
   sg_pcopy_from_buffer
   sg_pcopy_to_buffer
   sg_scsi_ioctl
+  shmem_file_setup
   shmem_mark_page_lazyfree
+  shmem_read_mapping_page_gfp
   shmem_truncate_range
   show_rcu_gp_kthreads
   show_regs
@@ -2429,6 +2432,8 @@
   __traceiter_android_rvh_find_busiest_queue
   __traceiter_android_rvh_find_lowest_rq
   __traceiter_android_rvh_flush_task
+  __traceiter_android_rvh_force_compatible_post
+  __traceiter_android_rvh_force_compatible_pre
   __traceiter_android_rvh_gic_v3_set_affinity
   __traceiter_android_rvh_irqs_disable
   __traceiter_android_rvh_irqs_enable
@@ -2523,6 +2528,8 @@
   __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_flush_task
+  __tracepoint_android_rvh_force_compatible_post
+  __tracepoint_android_rvh_force_compatible_pre
   __tracepoint_android_rvh_gic_v3_set_affinity
   __tracepoint_android_rvh_irqs_disable
   __tracepoint_android_rvh_irqs_enable
@@ -2560,6 +2567,7 @@
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_allow_domain_state
+  __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_transaction_init
@@ -2910,6 +2918,9 @@
   xa_find_after
   xa_load
   xa_store
+  __xfrm_decode_session
+  xfrm_lookup
+  xfrm_output
   xhci_alloc_command
   xhci_alloc_erst
   xhci_free_command

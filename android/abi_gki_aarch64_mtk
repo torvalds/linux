@@ -363,8 +363,10 @@
   devm_extcon_register_notifier
   devm_free_irq
   devm_fwnode_pwm_get
+  devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_index
+  devm_gpiod_get_optional
   devm_gpiod_put
   devm_gpio_free
   devm_gpio_request
@@ -770,6 +772,7 @@
   gpiod_set_debounce
   gpiod_set_raw_value
   gpiod_set_value
+  gpiod_set_value_cansleep
   gpiod_to_irq
   gpio_free
   gpio_request
@@ -1197,6 +1200,7 @@
   of_get_next_parent
   of_get_parent
   of_get_property
+  of_get_regulator_init_data
   of_graph_get_next_endpoint
   of_graph_get_remote_node
   of_graph_get_remote_port_parent
@@ -1297,7 +1301,6 @@
   pinctrl_utils_free_map
   pinctrl_utils_reserve_map
   pin_user_pages_fast
-  pin_user_pages_remote
   platform_bus_type
   platform_device_add
   platform_device_add_data
@@ -1379,9 +1382,11 @@
   raw_notifier_chain_unregister
   _raw_read_lock
   _raw_read_lock_bh
+  _raw_read_lock_irqsave
   _raw_read_trylock
   _raw_read_unlock
   _raw_read_unlock_bh
+  _raw_read_unlock_irqrestore
   _raw_spin_lock
   _raw_spin_lock_bh
   _raw_spin_lock_irq
@@ -1410,6 +1415,7 @@
   rdev_get_dev
   rdev_get_drvdata
   rdev_get_id
+  rdev_get_regmap
   refcount_warn_saturate
   __refrigerator
   regcache_cache_only
@@ -1462,9 +1468,11 @@
   regulator_list_voltage_linear_range
   regulator_list_voltage_table
   regulator_map_voltage_iterate
+  regulator_map_voltage_linear
   regulator_map_voltage_linear_range
   regulator_notifier_call_chain
   regulator_put
+  regulator_set_active_discharge_regmap
   regulator_set_current_limit
   regulator_set_current_limit_regmap
   regulator_set_mode
@@ -1805,6 +1813,7 @@
   __traceiter_android_vh_finish_update_load_avg_se
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
+  __traceiter_android_vh_logbuf
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_revert_creds
@@ -1861,6 +1870,7 @@
   __tracepoint_android_vh_finish_update_load_avg_se
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
+  __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_revert_creds
@@ -1938,6 +1948,7 @@
   ufshcd_fixup_dev_quirks
   ufshcd_get_pwr_dev_param
   ufshcd_hba_enable
+  ufshcd_hba_stop
   ufshcd_link_recovery
   ufshcd_make_hba_operational
   ufshcd_pltfrm_init
@@ -1951,7 +1962,6 @@
   ufshcd_uic_hibern8_exit
   unlock_page
   unmap_mapping_range
-  unpin_user_page
   unpin_user_pages
   unregister_blkdev
   __unregister_chrdev
@@ -1995,6 +2005,8 @@
   usb_ep_queue
   usb_ep_set_halt
   usb_ep_set_maxpacket_limit
+  usb_function_register
+  usb_function_unregister
   usb_gadget_giveback_request
   usb_gadget_map_request
   usb_gadget_set_state
@@ -2175,6 +2187,8 @@
   woken_wake_function
   work_busy
   work_on_cpu
+  ww_mutex_lock
+  ww_mutex_unlock
   xhci_add_endpoint
   xhci_check_bandwidth
   xhci_drop_endpoint
@@ -2193,7 +2207,9 @@
   debugfs_create_u8
   devm_of_pwm_get
   led_classdev_unregister
+  pin_user_pages_remote
   send_sig_info
   syscore_resume
   syscore_suspend
+  unpin_user_page
   v4l2_m2m_buf_remove_by_buf

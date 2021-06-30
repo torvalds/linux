@@ -5,6 +5,8 @@
  * device (ETE) thus generating required trace data. Trace can be enabled
  * via the perf framework.
  *
+ * The AUX buffer handling is inspired from Arm SPE PMU driver.
+ *
  * Copyright (C) 2020 ARM Ltd.
  *
  * Author: Anshuman Khandual <anshuman.khandual@arm.com>
@@ -515,7 +517,7 @@ static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
 	if (!buf->trbe_base) {
 		kfree(pglist);
 		kfree(buf);
-		return ERR_PTR(buf->trbe_base);
+		return ERR_PTR(-ENOMEM);
 	}
 	buf->trbe_limit = buf->trbe_base + nr_pages * PAGE_SIZE;
 	buf->trbe_write = buf->trbe_base;
@@ -614,9 +616,10 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 		/*
 		 * Otherwise, the buffer is full and the write pointer
 		 * has reached base. Adjust this back to the Limit pointer
-		 * for correct size.
+		 * for correct size. Also, mark the buffer truncated.
 		 */
 		write = get_trbe_limit_pointer();
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 	}
 
 	offset = write - base;
@@ -703,7 +706,12 @@ static void trbe_handle_overflow(struct perf_output_handle *handle)
 	if (buf->snapshot)
 		handle->head += size;
 
-	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
+	/*
+	 * Mark the buffer as truncated, as we have stopped the trace
+	 * collection upon the WRAP event, without stopping the source.
+	 */
+	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW |
+				     PERF_AUX_FLAG_TRUNCATED);
 	perf_aux_output_end(handle, size);
 	event_data = perf_aux_output_begin(handle, event);
 	if (!event_data) {
@@ -863,7 +871,7 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 
 	dev = &cpudata->drvdata->pdev->dev;
 	desc.name = devm_kasprintf(dev, GFP_KERNEL, "trbe%d", cpu);
-	if (IS_ERR(desc.name))
+	if (!desc.name)
 		goto cpu_clear;
 
 	desc.type = CORESIGHT_DEV_TYPE_SINK;
@@ -1038,7 +1046,7 @@ static int arm_trbe_probe_irq(struct platform_device *pdev,
 	if (irq_get_percpu_devid_partition(drvdata->irq, &drvdata->supported_cpus))
 		return -EINVAL;
 
-	drvdata->handle = alloc_percpu(typeof(*drvdata->handle));
+	drvdata->handle = alloc_percpu(struct perf_output_handle *);
 	if (!drvdata->handle)
 		return -ENOMEM;
 

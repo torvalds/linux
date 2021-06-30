@@ -1958,6 +1958,8 @@ static size_t log_output(int facility, int level, enum log_flags lflags,
 			} else {
 				prb_commit(&e);
 			}
+
+			trace_android_vh_logbuf_pr_cont(&r, text_len);
 			return text_len;
 		}
 	}

@@ -72,6 +72,7 @@ enum irqchip_irq_state;
  *				  mechanism and from core side polling.
  * IRQ_DISABLE_UNLAZY		- Disable lazy irq disable
  * IRQ_HIDDEN			- Don't show up in /proc/interrupts
+ * IRQ_RAW			- Skip tick management and irqtime accounting
  */
 enum {
 	IRQ_TYPE_NONE		= 0x00000000,
@@ -99,6 +100,7 @@ enum {
 	IRQ_IS_POLLED		= (1 << 18),
 	IRQ_DISABLE_UNLAZY	= (1 << 19),
 	IRQ_HIDDEN		= (1 << 20),
+	IRQ_RAW			= (1 << 21),
 };
 
 #define IRQF_MODIFY_MASK	\
@@ -750,6 +752,9 @@ irq_set_chained_handler(unsigned int irq, irq_flow_handler_t handle)
 void
 irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 				 void *data);
+
+void __irq_modify_status(unsigned int irq, unsigned long clr,
+			 unsigned long set, unsigned long mask);
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set);
 

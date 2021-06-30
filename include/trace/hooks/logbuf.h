@@ -10,16 +10,16 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct printk_ringbuffer;
 struct printk_record;
 
 DECLARE_HOOK(android_vh_logbuf,
 	TP_PROTO(struct printk_ringbuffer *rb, struct printk_record *r),
 	TP_ARGS(rb, r))
-#else
-#define trace_android_vh_logbuf(rb, r)
-#endif
+
+DECLARE_HOOK(android_vh_logbuf_pr_cont,
+	TP_PROTO(struct printk_record *r, size_t text_len),
+	TP_ARGS(r, text_len))
 
 #endif /* _TRACE_HOOK_LOGBUF_H */
 /* This part must be outside protection */

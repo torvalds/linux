@@ -37,7 +37,11 @@ properties:
   out-ports:
     description: |
       Output connections from the ETE to legacy CoreSight trace bus.
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port:
+        description: Output connection from the ETE to legacy CoreSight Trace bus.
+        $ref: /schemas/graph.yaml#/properties/port required:
 
 required:
   - compatible
