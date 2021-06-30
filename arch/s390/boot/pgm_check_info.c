@@ -29,7 +29,6 @@ static char *symstart(char *p)
 	return p + 1;
 }
 
-extern char _decompressor_syms_start[], _decompressor_syms_end[];
 static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned short *len)
 {
 	/* symbol entries are in a form "10000 c4 startup\0" */
