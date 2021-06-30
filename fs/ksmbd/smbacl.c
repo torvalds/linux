@@ -941,7 +941,8 @@ static void smb_set_ace(struct smb_ace *ace, const struct smb_sid *sid, u8 type,
 	ace->size = cpu_to_le16(1 + 1 + 2 + 4 + 1 + 1 + 6 + (sid->num_subauth * 4));
 }
 
-int smb_inherit_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
+int smb_inherit_dacl(struct ksmbd_conn *conn,
+		     struct path *path,
 		     unsigned int uid, unsigned int gid)
 {
 	const struct smb_sid *psid, *creator = NULL;
@@ -949,11 +950,11 @@ int smb_inherit_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 	struct smb_acl *parent_pdacl;
 	struct smb_ntsd *parent_pntsd = NULL;
 	struct smb_sid owner_sid, group_sid;
-	struct dentry *parent = dentry->d_parent;
+	struct dentry *parent = path->dentry->d_parent;
 	int inherited_flags = 0, flags = 0, i, ace_cnt = 0, nt_size = 0;
 	int rc = -ENOENT, num_aces, dacloffset, pntsd_type, acl_len;
 	char *aces_base;
-	bool is_dir = S_ISDIR(d_inode(dentry)->i_mode);
+	bool is_dir = S_ISDIR(d_inode(path->dentry)->i_mode);
 
 	acl_len = ksmbd_vfs_get_sd_xattr(conn, parent, &parent_pntsd);
 	if (acl_len <= 0)
@@ -1086,7 +1087,7 @@ pass:
 			pntsd_size += sizeof(struct smb_acl) + nt_size;
 		}
 
-		ksmbd_vfs_set_sd_xattr(conn, dentry, pntsd, pntsd_size);
+		ksmbd_vfs_set_sd_xattr(conn, path->dentry, pntsd, pntsd_size);
 		kfree(pntsd);
 		rc = 0;
 	}
@@ -1109,7 +1110,7 @@ bool smb_inherit_flags(int flags, bool is_dir)
 	return false;
 }
 
-int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
+int smb_check_perm_dacl(struct ksmbd_conn *conn, struct path *path,
 			__le32 *pdaccess, int uid)
 {
 	struct smb_ntsd *pntsd = NULL;
@@ -1127,7 +1128,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 	char *end_of_acl;
 
 	ksmbd_debug(SMB, "check permission using windows acl\n");
-	acl_size = ksmbd_vfs_get_sd_xattr(conn, dentry, &pntsd);
+	acl_size = ksmbd_vfs_get_sd_xattr(conn, path->dentry, &pntsd);
 	if (acl_size <= 0 || !pntsd || !pntsd->dacloffset) {
 		kfree(pntsd);
 		return 0;
@@ -1201,7 +1202,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 			granted = GENERIC_ALL_FLAGS;
 	}
 
-	posix_acls = get_acl(d_inode(dentry), ACL_TYPE_ACCESS);
+	posix_acls = get_acl(d_inode(path->dentry), ACL_TYPE_ACCESS);
 	if (posix_acls && !found) {
 		unsigned int id = -1;
 
@@ -1261,12 +1262,12 @@ err_out:
 }
 
 int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
-		 struct dentry *dentry, struct smb_ntsd *pntsd, int ntsd_len,
+		 struct path *path, struct smb_ntsd *pntsd, int ntsd_len,
 		 bool type_check)
 {
 	int rc;
 	struct smb_fattr fattr = {{0}};
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 
 	fattr.cf_uid = INVALID_UID;
 	fattr.cf_gid = INVALID_GID;
@@ -1283,7 +1284,7 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 		inode->i_gid = fattr.cf_gid;
 	mark_inode_dirty(inode);
 
-	ksmbd_vfs_remove_acl_xattrs(dentry);
+	ksmbd_vfs_remove_acl_xattrs(path->dentry);
 	/* Update posix acls */
 	if (fattr.cf_dacls) {
 		rc = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS,
@@ -1299,8 +1300,8 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 
 	if (test_share_config_flag(tcon->share_conf, KSMBD_SHARE_FLAG_ACL_XATTR)) {
 		/* Update WinACL in xattr */
-		ksmbd_vfs_remove_sd_xattrs(dentry);
-		ksmbd_vfs_set_sd_xattr(conn, dentry, pntsd, ntsd_len);
+		ksmbd_vfs_remove_sd_xattrs(path->dentry);
+		ksmbd_vfs_set_sd_xattr(conn, path->dentry, pntsd, ntsd_len);
 	}
 
 out:

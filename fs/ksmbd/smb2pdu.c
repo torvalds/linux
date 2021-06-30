@@ -2172,13 +2172,13 @@ static noinline int smb2_set_stream_name_xattr(struct path *path,
 	return 0;
 }
 
-static int smb2_remove_smb_xattrs(struct dentry *dentry)
+static int smb2_remove_smb_xattrs(struct path *path)
 {
 	char *name, *xattr_list = NULL;
 	ssize_t xattr_list_len;
 	int err = 0;
 
-	xattr_list_len = ksmbd_vfs_listxattr(dentry, &xattr_list);
+	xattr_list_len = ksmbd_vfs_listxattr(path->dentry, &xattr_list);
 	if (xattr_list_len < 0) {
 		goto out;
 	} else if (!xattr_list_len) {
@@ -2196,7 +2196,7 @@ static int smb2_remove_smb_xattrs(struct dentry *dentry)
 		    strncmp(&name[XATTR_USER_PREFIX_LEN], STREAM_PREFIX, STREAM_PREFIX_LEN))
 			continue;
 
-		err = ksmbd_vfs_remove_xattr(dentry, name);
+		err = ksmbd_vfs_remove_xattr(path->dentry, name);
 		if (err)
 			ksmbd_debug(SMB, "remove xattr failed : %s\n", name);
 	}
@@ -2214,7 +2214,7 @@ static int smb2_create_truncate(struct path *path)
 		return rc;
 	}
 
-	rc = smb2_remove_smb_xattrs(path->dentry);
+	rc = smb2_remove_smb_xattrs(path);
 	if (rc == -EOPNOTSUPP)
 		rc = 0;
 	if (rc)
@@ -2305,7 +2305,7 @@ static int smb2_creat(struct ksmbd_work *work, struct path *path, char *name,
 
 static int smb2_create_sd_buffer(struct ksmbd_work *work,
 				 struct smb2_create_req *req,
-				 struct dentry *dentry)
+				 struct path *path)
 {
 	struct create_context *context;
 	int rc = -ENOENT;
@@ -2321,7 +2321,8 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 		ksmbd_debug(SMB,
 			    "Set ACLs using SMB2_CREATE_SD_BUFFER context\n");
 		sd_buf = (struct create_sd_buf_req *)context;
-		rc = set_info_sec(work->conn, work->tcon, dentry, &sd_buf->ntsd,
+		rc = set_info_sec(work->conn, work->tcon,
+				  path, &sd_buf->ntsd,
 				  le32_to_cpu(sd_buf->ccontext.DataLength), true);
 	}
 
@@ -2684,7 +2685,7 @@ int smb2_open(struct ksmbd_work *work)
 	daccess = smb_map_generic_desired_access(req->DesiredAccess);
 
 	if (file_present && !(req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)) {
-		rc = smb_check_perm_dacl(conn, path.dentry, &daccess,
+		rc = smb_check_perm_dacl(conn, &path, &daccess,
 					 sess->user->uid);
 		if (rc)
 			goto err_out;
@@ -2814,12 +2815,12 @@ int smb2_open(struct ksmbd_work *work)
 
 		if (test_share_config_flag(work->tcon->share_conf,
 					   KSMBD_SHARE_FLAG_ACL_XATTR)) {
-			rc = smb_inherit_dacl(conn, path.dentry, sess->user->uid,
+			rc = smb_inherit_dacl(conn, &path, sess->user->uid,
 					      sess->user->gid);
 		}
 
 		if (rc) {
-			rc = smb2_create_sd_buffer(work, req, path.dentry);
+			rc = smb2_create_sd_buffer(work, req, &path);
 			if (rc) {
 				if (posix_acl_rc)
 					ksmbd_vfs_set_init_posix_acl(inode);
@@ -5719,7 +5720,7 @@ static int smb2_set_info_sec(struct ksmbd_file *fp, int addition_info,
 
 	fp->saccess |= FILE_SHARE_DELETE_LE;
 
-	return set_info_sec(fp->conn, fp->tcon, fp->filp->f_path.dentry, pntsd,
+	return set_info_sec(fp->conn, fp->tcon, &fp->filp->f_path, pntsd,
 			buf_len, false);
 }
 
