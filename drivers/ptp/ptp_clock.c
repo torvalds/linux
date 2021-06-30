@@ -196,6 +196,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 {
 	struct ptp_clock *ptp;
 	int err = 0, index, major = MAJOR(ptp_devt);
+	size_t size;
 
 	if (info->n_alarm > PTP_MAX_ALARMS)
 		return ERR_PTR(-EINVAL);
@@ -238,8 +239,16 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	    strcmp(parent->class->name, "ptp") == 0)
 		ptp->is_virtual_clock = true;
 
-	if (!ptp->is_virtual_clock)
+	if (!ptp->is_virtual_clock) {
 		ptp->max_vclocks = PTP_DEFAULT_MAX_VCLOCKS;
+
+		size = sizeof(int) * ptp->max_vclocks;
+		ptp->vclock_index = kzalloc(size, GFP_KERNEL);
+		if (!ptp->vclock_index) {
+			err = -ENOMEM;
+			goto no_mem_for_vclocks;
+		}
+	}
 
 	err = ptp_populate_pin_groups(ptp);
 	if (err)
@@ -285,6 +294,8 @@ no_clock:
 no_pps:
 	ptp_cleanup_pin_groups(ptp);
 no_pin_groups:
+	kfree(ptp->vclock_index);
+no_mem_for_vclocks:
 	if (ptp->kworker)
 		kthread_destroy_worker(ptp->kworker);
 kworker_err:
@@ -308,6 +319,8 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
+
+	kfree(ptp->vclock_index);
 
 	if (ptp->kworker) {
 		kthread_cancel_delayed_work_sync(&ptp->aux_work);

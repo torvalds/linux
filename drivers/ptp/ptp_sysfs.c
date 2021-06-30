@@ -213,6 +213,9 @@ static ssize_t n_vclocks_store(struct device *dev,
 			if (!vclock)
 				goto out;
 
+			*(ptp->vclock_index + ptp->n_vclocks + i) =
+				vclock->clock->index;
+
 			dev_info(dev, "new virtual clock ptp%d\n",
 				 vclock->clock->index);
 		}
@@ -223,6 +226,9 @@ static ssize_t n_vclocks_store(struct device *dev,
 		i = ptp->n_vclocks - num;
 		device_for_each_child_reverse(dev, &i,
 					      unregister_vclock);
+
+		for (i = 1; i <= ptp->n_vclocks - num; i++)
+			*(ptp->vclock_index + ptp->n_vclocks - i) = -1;
 	}
 
 	if (num == 0)
@@ -256,6 +262,9 @@ static ssize_t max_vclocks_store(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	unsigned int *vclock_index;
+	int err = -EINVAL;
+	size_t size;
 	u32 max;
 
 	if (kstrtou32(buf, 0, &max) || max == 0)
@@ -267,16 +276,29 @@ static ssize_t max_vclocks_store(struct device *dev,
 	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
 		return -ERESTARTSYS;
 
-	if (max < ptp->n_vclocks) {
-		mutex_unlock(&ptp->n_vclocks_mux);
-		return -EINVAL;
+	if (max < ptp->n_vclocks)
+		goto out;
+
+	size = sizeof(int) * max;
+	vclock_index = kzalloc(size, GFP_KERNEL);
+	if (!vclock_index) {
+		err = -ENOMEM;
+		goto out;
 	}
 
+	size = sizeof(int) * ptp->n_vclocks;
+	memcpy(vclock_index, ptp->vclock_index, size);
+
+	kfree(ptp->vclock_index);
+	ptp->vclock_index = vclock_index;
 	ptp->max_vclocks = max;
 
 	mutex_unlock(&ptp->n_vclocks_mux);
 
 	return count;
+out:
+	mutex_unlock(&ptp->n_vclocks_mux);
+	return err;
 }
 static DEVICE_ATTR_RW(max_vclocks);
 
