@@ -281,6 +281,9 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ERR_INVALID_MAC_ADDR	-1
 #define IXGBE_ERR_RESET_FAILED		-2
 #define IXGBE_ERR_INVALID_ARGUMENT	-3
+#define IXGBE_ERR_CONFIG		-4
+#define IXGBE_ERR_MBX			-5
+#define IXGBE_ERR_TIMEOUT		-6
 
 /* Transmit Config masks */
 #define IXGBE_TXDCTL_ENABLE		0x02000000 /* Ena specific Tx Queue */

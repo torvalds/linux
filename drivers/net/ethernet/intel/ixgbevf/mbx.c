@@ -15,6 +15,9 @@ static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
+	if (!countdown || !mbx->ops.check_for_msg)
+		return IXGBE_ERR_CONFIG;
+
 	while (countdown && mbx->ops.check_for_msg(hw)) {
 		countdown--;
 		udelay(mbx->udelay);
@@ -24,7 +27,7 @@ static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 	if (!countdown)
 		mbx->timeout = 0;
 
-	return countdown ? 0 : IXGBE_ERR_MBX;
+	return countdown ? 0 : IXGBE_ERR_TIMEOUT;
 }
 
 /**
@@ -38,6 +41,9 @@ static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
+	if (!countdown || !mbx->ops.check_for_ack)
+		return IXGBE_ERR_CONFIG;
+
 	while (countdown && mbx->ops.check_for_ack(hw)) {
 		countdown--;
 		udelay(mbx->udelay);
@@ -47,7 +53,7 @@ static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 	if (!countdown)
 		mbx->timeout = 0;
 
-	return countdown ? 0 : IXGBE_ERR_MBX;
+	return countdown ? 0 : IXGBE_ERR_TIMEOUT;
 }
 
 /**
@@ -62,7 +68,7 @@ static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 static s32 ixgbevf_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = IXGBE_ERR_MBX;
+	s32 ret_val = IXGBE_ERR_CONFIG;
 
 	if (!mbx->ops.read)
 		goto out;
@@ -88,7 +94,7 @@ out:
 static s32 ixgbevf_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = IXGBE_ERR_MBX;
+	s32 ret_val = IXGBE_ERR_CONFIG;
 
 	/* exit if either we can't write or there isn't a defined timeout */
 	if (!mbx->ops.write || !mbx->timeout)
