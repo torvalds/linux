@@ -76,6 +76,11 @@ static int ptp_clock_settime(struct posix_clock *pc, const struct timespec64 *tp
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 
+	if (ptp_vclock_in_use(ptp)) {
+		pr_err("ptp: virtual clock in use\n");
+		return -EBUSY;
+	}
+
 	return  ptp->info->settime64(ptp->info, tp);
 }
 
@@ -96,6 +101,11 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops;
 	int err = -EOPNOTSUPP;
+
+	if (ptp_vclock_in_use(ptp)) {
+		pr_err("ptp: virtual clock in use\n");
+		return -EBUSY;
+	}
 
 	ops = ptp->info;
 
@@ -161,6 +171,7 @@ static void ptp_clock_release(struct device *dev)
 	ptp_cleanup_pin_groups(ptp);
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
+	mutex_destroy(&ptp->n_vclocks_mux);
 	ida_simple_remove(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
 }
@@ -208,6 +219,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	spin_lock_init(&ptp->tsevq.lock);
 	mutex_init(&ptp->tsevq_mux);
 	mutex_init(&ptp->pincfg_mux);
+	mutex_init(&ptp->n_vclocks_mux);
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	if (ptp->info->do_aux_work) {
@@ -220,6 +232,14 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		}
 		ptp->pps_source->lookup_cookie = ptp;
 	}
+
+	/* PTP virtual clock is being registered under physical clock */
+	if (parent->class && parent->class->name &&
+	    strcmp(parent->class->name, "ptp") == 0)
+		ptp->is_virtual_clock = true;
+
+	if (!ptp->is_virtual_clock)
+		ptp->max_vclocks = PTP_DEFAULT_MAX_VCLOCKS;
 
 	err = ptp_populate_pin_groups(ptp);
 	if (err)
@@ -270,6 +290,7 @@ no_pin_groups:
 kworker_err:
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
+	mutex_destroy(&ptp->n_vclocks_mux);
 	ida_simple_remove(&ptp_clocks_map, index);
 no_slot:
 	kfree(ptp);
@@ -280,6 +301,11 @@ EXPORT_SYMBOL(ptp_clock_register);
 
 int ptp_clock_unregister(struct ptp_clock *ptp)
 {
+	if (ptp_vclock_in_use(ptp)) {
+		pr_err("ptp: virtual clock in use\n");
+		return -EBUSY;
+	}
+
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
 
