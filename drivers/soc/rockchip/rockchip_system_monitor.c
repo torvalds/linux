@@ -27,8 +27,9 @@
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 
-#include "../../opp/opp.h"
 #include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+#include "../../opp/opp.h"
+#include "../../thermal/thermal_core.h"
 
 #define CPU_REBOOT_FREQ		816000 /* kHz */
 #define VIDEO_1080P_SIZE	(1920 * 1080)
@@ -1266,7 +1267,9 @@ EXPORT_SYMBOL(rockchip_system_monitor_unregister);
 static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 {
 	struct device_node *np = monitor->dev->of_node;
+	struct thermal_governor **governor;
 	const char *tz_name, *buf = NULL;
+	const char *gov_name;
 
 	if (of_property_read_string(np, "rockchip,video-4k-offline-cpus", &buf))
 		cpumask_clear(&system_monitor->video_4k_offline_cpus);
@@ -1295,6 +1298,20 @@ static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 		system_monitor->offline_cpus_temp = INT_MAX;
 	of_property_read_u32(np, "rockchip,temp-hysteresis",
 			     &system_monitor->temp_hysteresis);
+
+	if (of_property_read_string(np, "rockchip,thermal-governor", &gov_name))
+		goto out;
+	for_each_governor_table(governor) {
+		if (!strncasecmp((*governor)->name, gov_name,
+				 THERMAL_NAME_LENGTH)) {
+			if (monitor->tz->governor->unbind_from_tz)
+				monitor->tz->governor->unbind_from_tz(monitor->tz);
+			if ((*governor)->bind_to_tz)
+				(*governor)->bind_to_tz(monitor->tz);
+			monitor->tz->governor = (*governor);
+			break;
+		}
+	}
 out:
 	return 0;
 }
