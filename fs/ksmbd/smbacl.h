@@ -17,8 +17,13 @@
 #define NUM_AUTHS (6)	/* number of authority fields */
 #define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
 
-#define ACCESS_ALLOWED	0
-#define ACCESS_DENIED	1
+/*
+ * ACE types - see MS-DTYP 2.4.4.1
+ */
+enum {
+	ACCESS_ALLOWED,
+	ACCESS_DENIED,
+};
 
 #define SIDOWNER 1
 #define SIDGROUP 2
