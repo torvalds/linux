@@ -32,8 +32,10 @@
 
 #ifdef CONFIG_DEBUG_MUTEXES
 # include "mutex-debug.h"
+# define MUTEX_WARN_ON(cond) DEBUG_LOCKS_WARN_ON(cond)
 #else
 # include "mutex.h"
+# define MUTEX_WARN_ON(cond)
 #endif
 
 void
@@ -113,9 +115,7 @@ static inline struct task_struct *__mutex_trylock_common(struct mutex *lock, boo
 				break;
 			}
 		} else {
-#ifdef CONFIG_DEBUG_MUTEXES
-			DEBUG_LOCKS_WARN_ON(flags & (MUTEX_FLAG_HANDOFF | MUTEX_FLAG_PICKUP));
-#endif
+			MUTEX_WARN_ON(flags & (MUTEX_FLAG_HANDOFF | MUTEX_FLAG_PICKUP));
 			task = curr;
 		}
 
@@ -218,10 +218,8 @@ static void __mutex_handoff(struct mutex *lock, struct task_struct *task)
 	for (;;) {
 		unsigned long new;
 
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(__owner_task(owner) != current);
-		DEBUG_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
-#endif
+		MUTEX_WARN_ON(__owner_task(owner) != current);
+		MUTEX_WARN_ON(owner & MUTEX_FLAG_PICKUP);
 
 		new = (owner & MUTEX_FLAG_WAITERS);
 		new |= (unsigned long)task;
@@ -754,9 +752,7 @@ void __sched ww_mutex_unlock(struct ww_mutex *lock)
 	 * into 'unlocked' state:
 	 */
 	if (lock->ctx) {
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(!lock->ctx->acquired);
-#endif
+		MUTEX_WARN_ON(!lock->ctx->acquired);
 		if (lock->ctx->acquired > 0)
 			lock->ctx->acquired--;
 		lock->ctx = NULL;
@@ -931,9 +927,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 
 	might_sleep();
 
-#ifdef CONFIG_DEBUG_MUTEXES
-	DEBUG_LOCKS_WARN_ON(lock->magic != lock);
-#endif
+	MUTEX_WARN_ON(lock->magic != lock);
 
 	ww = container_of(lock, struct ww_mutex, base);
 	if (ww_ctx) {
@@ -1227,10 +1221,8 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	 */
 	owner = atomic_long_read(&lock->owner);
 	for (;;) {
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(__owner_task(owner) != current);
-		DEBUG_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
-#endif
+		MUTEX_WARN_ON(__owner_task(owner) != current);
+		MUTEX_WARN_ON(owner & MUTEX_FLAG_PICKUP);
 
 		if (owner & MUTEX_FLAG_HANDOFF)
 			break;
@@ -1396,9 +1388,7 @@ int __sched mutex_trylock(struct mutex *lock)
 {
 	bool locked;
 
-#ifdef CONFIG_DEBUG_MUTEXES
-	DEBUG_LOCKS_WARN_ON(lock->magic != lock);
-#endif
+	MUTEX_WARN_ON(lock->magic != lock);
 
 	locked = __mutex_trylock(lock);
 	if (locked)
