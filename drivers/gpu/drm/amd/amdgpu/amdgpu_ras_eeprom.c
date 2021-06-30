@@ -880,13 +880,17 @@ static ssize_t amdgpu_ras_debugfs_table_read(struct file *f, char __user *buf,
 	if (*pos < data_len && size > 0) {
 		u8 dare[RAS_TABLE_RECORD_SIZE];
 		u8 data[rec_hdr_fmt_size + 1];
+		struct eeprom_table_record record;
+		int s, r;
+
 		/* Find the starting record index
 		 */
-		int s = (*pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
-			 strlen(rec_hdr_str)) / rec_hdr_fmt_size;
-		int r = (*pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
-			 strlen(rec_hdr_str)) % rec_hdr_fmt_size;
-		struct eeprom_table_record record;
+		s = *pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
+			strlen(rec_hdr_str);
+		s = s / rec_hdr_fmt_size;
+		r = *pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
+			strlen(rec_hdr_str);
+		r = r % rec_hdr_fmt_size;
 
 		for ( ; size > 0 && s < control->ras_num_recs; s++) {
 			u32 ai = RAS_RI_TO_AI(control, s);
