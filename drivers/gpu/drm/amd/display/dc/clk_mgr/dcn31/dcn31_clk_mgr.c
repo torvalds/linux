@@ -139,10 +139,10 @@ static void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower) {
-		if (new_clocks->z9_support == DCN_Z9_SUPPORT_ALLOW &&
-				new_clocks->z9_support != clk_mgr_base->clks.z9_support) {
+		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_ALLOW &&
+				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
 			dcn31_smu_set_Z9_support(clk_mgr, true);
-			clk_mgr_base->clks.z9_support = new_clocks->z9_support;
+			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
 
 		if (clk_mgr_base->clks.dtbclk_en && !new_clocks->dtbclk_en) {
@@ -163,10 +163,10 @@ static void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 			}
 		}
 	} else {
-		if (new_clocks->z9_support == DCN_Z9_SUPPORT_DISALLOW &&
-				new_clocks->z9_support != clk_mgr_base->clks.z9_support) {
+		if (new_clocks->zstate_support == DCN_ZSTATE_SUPPORT_DISALLOW &&
+				new_clocks->zstate_support != clk_mgr_base->clks.zstate_support) {
 			dcn31_smu_set_Z9_support(clk_mgr, false);
-			clk_mgr_base->clks.z9_support = new_clocks->z9_support;
+			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
 
 		if (!clk_mgr_base->clks.dtbclk_en && new_clocks->dtbclk_en) {
@@ -286,7 +286,7 @@ static void dcn31_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
 	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
-	clk_mgr->clks.z9_support = DCN_Z9_SUPPORT_UNKNOWN;
+	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKNOWN;
 }
 
 static bool dcn31_are_clock_states_equal(struct dc_clocks *a,
@@ -300,7 +300,7 @@ static bool dcn31_are_clock_states_equal(struct dc_clocks *a,
 		return false;
 	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
 		return false;
-	else if (a->z9_support != b->z9_support)
+	else if (a->zstate_support != b->zstate_support)
 		return false;
 	else if (a->dtbclk_en != b->dtbclk_en)
 		return false;
