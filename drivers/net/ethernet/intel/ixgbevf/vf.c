@@ -13,13 +13,12 @@
 static inline s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
 					     u32 *retmsg, u16 size)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 retval = mbx->ops.write_posted(hw, msg, size);
+	s32 retval = ixgbevf_write_mbx(hw, msg, size);
 
 	if (retval)
 		return retval;
 
-	return mbx->ops.read_posted(hw, retmsg, size);
+	return ixgbevf_poll_mbx(hw, retmsg, size);
 }
 
 /**
@@ -92,7 +91,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
 
 	msgbuf[0] = IXGBE_VF_RESET;
-	mbx->ops.write_posted(hw, msgbuf, 1);
+	ixgbevf_write_mbx(hw, msgbuf, 1);
 
 	mdelay(10);
 
@@ -100,7 +99,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	 * also set up the mc_filter_type which is piggy backed
 	 * on the mac address in word 3
 	 */
-	ret_val = mbx->ops.read_posted(hw, msgbuf, IXGBE_VF_PERMADDR_MSG_LEN);
+	ret_val = ixgbevf_poll_mbx(hw, msgbuf, IXGBE_VF_PERMADDR_MSG_LEN);
 	if (ret_val)
 		return ret_val;
 
@@ -323,12 +322,12 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 
 	msgbuf[0] = IXGBE_VF_GET_RETA;
 
-	err = hw->mbx.ops.write_posted(hw, msgbuf, 1);
+	err = ixgbevf_write_mbx(hw, msgbuf, 1);
 
 	if (err)
 		return err;
 
-	err = hw->mbx.ops.read_posted(hw, msgbuf, dwords + 1);
+	err = ixgbevf_poll_mbx(hw, msgbuf, dwords + 1);
 
 	if (err)
 		return err;
@@ -390,12 +389,12 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	}
 
 	msgbuf[0] = IXGBE_VF_GET_RSS_KEY;
-	err = hw->mbx.ops.write_posted(hw, msgbuf, 1);
+	err = ixgbevf_write_mbx(hw, msgbuf, 1);
 
 	if (err)
 		return err;
 
-	err = hw->mbx.ops.read_posted(hw, msgbuf, 11);
+	err = ixgbevf_poll_mbx(hw, msgbuf, 11);
 
 	if (err)
 		return err;

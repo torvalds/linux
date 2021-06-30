@@ -40,11 +40,11 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	ret = hw->mbx.ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	ret = ixgbevf_write_mbx(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
 	if (ret)
 		goto out;
 
-	ret = hw->mbx.ops.read_posted(hw, msgbuf, 2);
+	ret = ixgbevf_poll_mbx(hw, msgbuf, 2);
 	if (ret)
 		goto out;
 
@@ -77,11 +77,11 @@ static int ixgbevf_ipsec_del_pf_sa(struct ixgbevf_adapter *adapter, int pfsa)
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	err = hw->mbx.ops.write_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_mbx(hw, msgbuf, 2);
 	if (err)
 		goto out;
 
-	err = hw->mbx.ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_poll_mbx(hw, msgbuf, 2);
 	if (err)
 		goto out;
 

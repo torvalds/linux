@@ -284,6 +284,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ERR_CONFIG		-4
 #define IXGBE_ERR_MBX			-5
 #define IXGBE_ERR_TIMEOUT		-6
+#define IXGBE_ERR_PARAM			-7
 
 /* Transmit Config masks */
 #define IXGBE_TXDCTL_ENABLE		0x02000000 /* Ena specific Tx Queue */
