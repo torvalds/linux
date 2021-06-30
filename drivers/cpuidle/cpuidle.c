@@ -428,7 +428,7 @@ void cpuidle_uninstall_idle_handler(void)
 {
 	if (enabled_devices) {
 		initialized = 0;
-		wake_up_all_idle_cpus();
+		wake_up_all_online_idle_cpus();
 	}
 
 	/*
