@@ -49,6 +49,15 @@
  * So when fsverity asks for page 0 of the merkle tree, we pull up one page
  * starting at offset 0 for this key type.  These are also opaque to btrfs,
  * we're blindly storing whatever fsverity sends down.
+ *
+ * Another important consideration is the fact that the Merkle tree data scales
+ * linearly with the size of the file (with 4K pages/blocks and SHA-256, it's
+ * ~1/127th the size) so for large files, writing the tree can be a lengthy
+ * operation. For that reason, we guard the whole enable verity operation
+ * (between begin_enable_verity and end_enable_verity) with an orphan item.
+ * Again, because the data can be pretty large, it's quite possible that we
+ * could run out of space writing it, so we try our best to handle errors by
+ * stopping and rolling back rather than aborting the victim transaction.
  */
 
 #define MERKLE_START_ALIGN			65536
@@ -397,6 +406,39 @@ out:
 }
 
 /*
+ * Delete an fsverity orphan
+ *
+ * @trans:  transaction to do the delete in
+ * @inode:  inode to orphan
+ *
+ * Capture verity orphan specific logic that is repeated in the couple places
+ * we delete verity orphans. Specifically, handling ENOENT and ignoring inodes
+ * with 0 links.
+ *
+ * Returns zero on success or a negative error code on failure.
+ */
+static int del_orphan(struct btrfs_trans_handle *trans, struct btrfs_inode *inode)
+{
+	struct btrfs_root *root = inode->root;
+	int ret;
+
+	/*
+	 * If the inode has no links, it is either already unlinked, or was
+	 * created with O_TMPFILE. In either case, it should have an orphan from
+	 * that other operation. Rather than reference count the orphans, we
+	 * simply ignore them here, because we only invoke the verity path in
+	 * the orphan logic when i_nlink is 1.
+	 */
+	if (!inode->vfs_inode.i_nlink)
+		return 0;
+
+	ret = btrfs_del_orphan_item(trans, root, btrfs_ino(inode));
+	if (ret == -ENOENT)
+		ret = 0;
+	return ret;
+}
+
+/*
  * Rollback in-progress verity if we encounter an error.
  *
  * @inode:  inode verity had an error for
@@ -424,8 +466,11 @@ static int rollback_verity(struct btrfs_inode *inode)
 		goto out;
 	}
 
-	/* 1 for updating the inode flag */
-	trans = btrfs_start_transaction(root, 1);
+	/*
+	 * 1 for updating the inode flag
+	 * 1 for deleting the orphan
+	 */
+	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		btrfs_handle_fs_error(root->fs_info, ret,
@@ -436,6 +481,11 @@ static int rollback_verity(struct btrfs_inode *inode)
 	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
 	ret = btrfs_update_inode(trans, root, inode);
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+	ret = del_orphan(trans, inode);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -457,6 +507,7 @@ out:
  *
  * - write out the descriptor items
  * - mark the inode with the verity flag
+ * - delete the orphan item
  * - mark the ro compat bit
  * - clear the in progress bit
  *
@@ -484,8 +535,11 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	if (ret)
 		goto out;
 
-	/* 1 for updating the inode flag */
-	trans = btrfs_start_transaction(root, 1);
+	/*
+	 * 1 for updating the inode flag
+	 * 1 for deleting the orphan
+	 */
+	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto out;
@@ -493,6 +547,9 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
 	ret = btrfs_update_inode(trans, root, inode);
+	if (ret)
+		goto end_trans;
+	ret = del_orphan(trans, inode);
 	if (ret)
 		goto end_trans;
 	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
@@ -509,14 +566,16 @@ out:
  *
  * @filp:  file to enable verity on
  *
- * Begin enabling fsverity for the file. We drop any existing verity items
- * and set the in progress bit.
+ * Begin enabling fsverity for the file. We drop any existing verity items, add
+ * an orphan and set the in progress bit.
  *
  * Returns 0 on success, negative error code on failure.
  */
 static int btrfs_begin_enable_verity(struct file *filp)
 {
 	struct btrfs_inode *inode = BTRFS_I(file_inode(filp));
+	struct btrfs_root *root = inode->root;
+	struct btrfs_trans_handle *trans;
 	int ret;
 
 	ASSERT(inode_is_locked(file_inode(filp)));
@@ -524,11 +583,25 @@ static int btrfs_begin_enable_verity(struct file *filp)
 	if (test_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags))
 		return -EBUSY;
 
+	/*
+	 * This should almost never do anything, but theoretically, it's
+	 * possible that we failed to enable verity on a file, then were
+	 * interrupted or failed while rolling back, failed to cleanup the
+	 * orphan, and finally attempt to enable verity again.
+	 */
 	ret = btrfs_drop_verity_items(inode);
 	if (ret)
 		return ret;
 
-	set_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
+	/* 1 for the orphan item */
+	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	ret = btrfs_orphan_add(trans, inode);
+	if (!ret)
+		set_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
+	btrfs_end_transaction(trans);
 
 	return 0;
 }
