@@ -58,14 +58,15 @@ static LIST_HEAD(cluster_info_list);
 static int px30_get_soc_info(struct device *dev, struct device_node *np,
 			     int *bin, int *process)
 {
-	int ret = 0, value = -EINVAL;
+	int ret = 0;
+	u8 value = 0;
 
 	if (!bin)
 		return 0;
 
 	if (of_property_match_string(np, "nvmem-cell-names",
 				     "performance") >= 0) {
-		ret = rockchip_get_efuse_value(np, "performance", &value);
+		ret = rockchip_nvmem_cell_read_u8(np, "performance", &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc performance value\n");
 			return ret;
@@ -81,13 +82,14 @@ static int px30_get_soc_info(struct device *dev, struct device_node *np,
 static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
-	int ret = 0, value = -EINVAL;
+	int ret = 0;
+	u8 value = 0;
 	char *name;
 
 	if (!bin)
 		goto next;
 	if (of_property_match_string(np, "nvmem-cell-names", "special") >= 0) {
-		ret = rockchip_get_efuse_value(np, "special", &value);
+		ret = rockchip_nvmem_cell_read_u8(np, "special", &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc special value\n");
 			goto out;
@@ -104,7 +106,7 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 		name = "performance";
 
 	if (of_property_match_string(np, "nvmem-cell-names", name) >= 0) {
-		ret = rockchip_get_efuse_value(np, name, &value);
+		ret = rockchip_nvmem_cell_read_u8(np, name, &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc performance value\n");
 			goto out;
@@ -122,7 +124,7 @@ next:
 		goto out;
 	if (of_property_match_string(np, "nvmem-cell-names",
 				     "process") >= 0) {
-		ret = rockchip_get_efuse_value(np, "process", &value);
+		ret = rockchip_nvmem_cell_read_u8(np, "process", &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc process version\n");
 			goto out;
@@ -140,16 +142,17 @@ out:
 static int rk3399_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
-	int ret = 0, value = -EINVAL;
+	int ret = 0;
+	u8 value = 0;
 
 	if (!bin)
 		return 0;
 
 	if (of_property_match_string(np, "nvmem-cell-names",
 				     "specification_serial_number") >= 0) {
-		ret = rockchip_get_efuse_value(np,
-					       "specification_serial_number",
-					       &value);
+		ret = rockchip_nvmem_cell_read_u8(np,
+						  "specification_serial_number",
+						  &value);
 		if (ret) {
 			dev_err(dev,
 				"Failed to get specification_serial_number\n");
@@ -161,9 +164,9 @@ static int rk3399_get_soc_info(struct device *dev, struct device_node *np,
 		} else if (value == 0x1) {
 			if (of_property_match_string(np, "nvmem-cell-names",
 						     "customer_demand") >= 0) {
-				ret = rockchip_get_efuse_value(np,
-							       "customer_demand",
-							       &value);
+				ret = rockchip_nvmem_cell_read_u8(np,
+								  "customer_demand",
+								  &value);
 				if (ret) {
 					dev_err(dev, "Failed to get customer_demand\n");
 					goto out;
@@ -188,10 +191,11 @@ out:
 static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
-	int ret = 0, value = -EINVAL;
+	int ret = 0;
+	u8 value = 0;
 
 	if (of_property_match_string(np, "nvmem-cell-names", "performance") >= 0) {
-		ret = rockchip_get_efuse_value(np, "performance", &value);
+		ret = rockchip_nvmem_cell_read_u8(np, "performance", &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc performance value\n");
 			return ret;

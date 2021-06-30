@@ -22,7 +22,6 @@
 
 #define MAX_PROP_NAME_LEN	6
 #define SEL_TABLE_END		~1
-#define LEAKAGE_INVALID		0xff
 #define AVS_DELETE_OPP		0
 #define AVS_SCALING_RATE	1
 
@@ -120,35 +119,6 @@ static const struct lkg_conversion_table conv_table[] = {
 	{ 400, 53 },
 };
 
-int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
-			     int *value)
-{
-	struct nvmem_cell *cell;
-	unsigned char *buf;
-	size_t len;
-
-	cell = of_nvmem_cell_get(np, porp_name);
-	if (IS_ERR(cell))
-		return PTR_ERR(cell);
-
-	buf = (unsigned char *)nvmem_cell_read(cell, &len);
-
-	nvmem_cell_put(cell);
-
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	if (buf[0] == LEAKAGE_INVALID)
-		return -EINVAL;
-
-	*value = buf[0];
-
-	kfree(buf);
-
-	return 0;
-}
-EXPORT_SYMBOL(rockchip_get_efuse_value);
-
 static int rockchip_nvmem_cell_read_common(struct device_node *np,
 					   const char *cell_id,
 					   void *val, size_t count)
@@ -178,19 +148,19 @@ static int rockchip_nvmem_cell_read_common(struct device_node *np,
 	return 0;
 }
 
-static int rockchip_nvmem_cell_read_u8(struct device_node *np,
-					const char *cell_id,
-					u8 *val)
+int rockchip_nvmem_cell_read_u8(struct device_node *np, const char *cell_id,
+				u8 *val)
 {
 	return rockchip_nvmem_cell_read_common(np, cell_id, val, sizeof(*val));
 }
+EXPORT_SYMBOL(rockchip_nvmem_cell_read_u8);
 
-static int rockchip_nvmem_cell_read_u16(struct device_node *np,
-					const char *cell_id,
-					u16 *val)
+int rockchip_nvmem_cell_read_u16(struct device_node *np, const char *cell_id,
+				 u16 *val)
 {
 	return rockchip_nvmem_cell_read_common(np, cell_id, val, sizeof(*val));
 }
+EXPORT_SYMBOL(rockchip_nvmem_cell_read_u16);
 
 static int rockchip_get_sel_table(struct device_node *np, char *porp_name,
 				  struct sel_table **table)
@@ -503,7 +473,8 @@ static int rockchip_adjust_leakage(struct device *dev, struct device_node *np,
 				   int *leakage)
 {
 	struct nvmem_cell *cell;
-	u32 value = 0, temp;
+	u8 value = 0;
+	u32 temp;
 	int conversion;
 	int ret;
 
@@ -511,7 +482,7 @@ static int rockchip_adjust_leakage(struct device *dev, struct device_node *np,
 	if (IS_ERR(cell))
 		goto next;
 	nvmem_cell_put(cell);
-	ret = rockchip_get_efuse_value(np, "leakage_temp", &value);
+	ret = rockchip_nvmem_cell_read_u8(np, "leakage_temp", &value);
 	if (ret) {
 		dev_err(dev, "Failed to get leakage temp\n");
 		return -EINVAL;
@@ -523,7 +494,8 @@ static int rockchip_adjust_leakage(struct device *dev, struct device_node *np,
 	 * The ambient temp : temp = (temp_efuse / 63) * (40 - 20) + 20
 	 * Reserves a decimal point : temp = temp * 10
 	 */
-	temp = mul_frac((int_to_frac(value) / 63 * 20 + int_to_frac(20)),
+	temp = value;
+	temp = mul_frac((int_to_frac(temp) / 63 * 20 + int_to_frac(20)),
 			int_to_frac(10));
 	conversion = temp_to_conversion_rate(frac_to_int(temp));
 	*leakage = *leakage * conversion / 100;
@@ -533,7 +505,7 @@ next:
 	if (IS_ERR(cell))
 		return 0;
 	nvmem_cell_put(cell);
-	ret = rockchip_get_efuse_value(np, "leakage_volt", &value);
+	ret = rockchip_nvmem_cell_read_u8(np, "leakage_volt", &value);
 	if (ret) {
 		dev_err(dev, "Failed to get leakage volt\n");
 		return -EINVAL;
@@ -569,16 +541,19 @@ static int rockchip_get_leakage_v1(struct device *dev, struct device_node *np,
 {
 	struct nvmem_cell *cell;
 	int ret = 0;
+	u8 value = 0;
 
 	cell = of_nvmem_cell_get(np, "leakage");
 	if (IS_ERR(cell)) {
-		ret = rockchip_get_efuse_value(np, lkg_name, leakage);
+		ret = rockchip_nvmem_cell_read_u8(np, lkg_name, &value);
 	} else {
 		nvmem_cell_put(cell);
-		ret = rockchip_get_efuse_value(np, "leakage", leakage);
+		ret = rockchip_nvmem_cell_read_u8(np, "leakage", &value);
 	}
 	if (ret)
 		dev_err(dev, "Failed to get %s\n", lkg_name);
+	else
+		*leakage = value;
 
 	return ret;
 }
