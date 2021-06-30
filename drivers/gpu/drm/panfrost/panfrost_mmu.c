@@ -34,7 +34,7 @@ static int wait_ready(struct panfrost_device *pfdev, u32 as_nr)
 	/* Wait for the MMU status to indicate there is no active command, in
 	 * case one is pending. */
 	ret = readl_relaxed_poll_timeout_atomic(pfdev->iomem + AS_STATUS(as_nr),
-		val, !(val & AS_STATUS_AS_ACTIVE), 10, 1000);
+		val, !(val & AS_STATUS_AS_ACTIVE), 10, 100000);
 
 	if (ret) {
 		/* The GPU hung, let's trigger a reset */
