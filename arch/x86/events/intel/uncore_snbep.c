@@ -5708,6 +5708,11 @@ static struct intel_uncore_type spr_uncore_m3upi = {
 	.name			= "m3upi",
 };
 
+static struct intel_uncore_type spr_uncore_mdf = {
+	SPR_UNCORE_COMMON_FORMAT(),
+	.name			= "mdf",
+};
+
 #define UNCORE_SPR_NUM_UNCORE_TYPES		12
 
 static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
@@ -5722,7 +5727,7 @@ static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
 	&spr_uncore_upi,
 	&spr_uncore_m3upi,
 	NULL,
-	NULL,
+	&spr_uncore_mdf,
 };
 
 static void uncore_type_customized_copy(struct intel_uncore_type *to_type,
