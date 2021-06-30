@@ -12,6 +12,7 @@
 #include <linux/pps_kernel.h>
 #include <linux/ptp_clock.h>
 #include <linux/timecounter.h>
+#include <linux/skbuff.h>
 
 #define PTP_CLOCK_NAME_LEN	32
 /**
@@ -318,6 +319,15 @@ void ptp_cancel_worker_sync(struct ptp_clock *ptp);
  */
 int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
 
+/**
+ * ptp_convert_timestamp() - convert timestamp to a ptp vclock time
+ *
+ * @hwtstamps:    skb_shared_hwtstamps structure pointer
+ * @vclock_index: phc index of ptp vclock.
+ */
+void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+			   int vclock_index);
+
 #else
 static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 						   struct device *parent)
@@ -339,6 +349,9 @@ static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
 { }
 static inline int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
 { return 0; }
+static inline void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+					 int vclock_index)
+{ }
 
 #endif
 

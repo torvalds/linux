@@ -183,3 +183,37 @@ out:
 	return num;
 }
 EXPORT_SYMBOL(ptp_get_vclocks_index);
+
+void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+			   int vclock_index)
+{
+	char name[PTP_CLOCK_NAME_LEN] = "";
+	struct ptp_vclock *vclock;
+	struct ptp_clock *ptp;
+	unsigned long flags;
+	struct device *dev;
+	u64 ns;
+
+	snprintf(name, PTP_CLOCK_NAME_LEN, "ptp%d", vclock_index);
+	dev = class_find_device_by_name(ptp_class, name);
+	if (!dev)
+		return;
+
+	ptp = dev_get_drvdata(dev);
+	if (!ptp->is_virtual_clock) {
+		put_device(dev);
+		return;
+	}
+
+	vclock = info_to_vclock(ptp->info);
+
+	ns = ktime_to_ns(hwtstamps->hwtstamp);
+
+	spin_lock_irqsave(&vclock->lock, flags);
+	ns = timecounter_cyc2time(&vclock->tc, ns);
+	spin_unlock_irqrestore(&vclock->lock, flags);
+
+	put_device(dev);
+	hwtstamps->hwtstamp = ns_to_ktime(ns);
+}
+EXPORT_SYMBOL(ptp_convert_timestamp);
