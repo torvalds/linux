@@ -149,4 +149,4 @@ u64 intel_generic_uncore_pci_read_counter(struct intel_uncore_box *box,
 					  struct perf_event *event);
 
 struct intel_uncore_type **
-intel_uncore_generic_init_uncores(enum uncore_access_type type_id);
+intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra);
