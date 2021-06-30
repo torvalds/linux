@@ -92,7 +92,8 @@ struct rk_cam_zoom_pos {
 };
 
 struct rk_cam_set_zoom {
-	bool is_need_reback;
+	bool is_need_zoom_reback;
+	bool is_need_focus_reback;
 	u32 setzoom_cnt;
 	struct rk_cam_zoom_pos zoom_pos[VCMDRV_SETZOOM_MAXCNT];
 };
