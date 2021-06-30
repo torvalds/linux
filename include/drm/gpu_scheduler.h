@@ -239,6 +239,20 @@ struct drm_sched_backend_ops {
 	 * @timedout_job: Called when a job has taken too long to execute,
 	 * to trigger GPU recovery.
 	 *
+	 * This method is called in a workqueue context.
+	 *
+	 * Drivers typically issue a reset to recover from GPU hangs, and this
+	 * procedure usually follows the following workflow:
+	 *
+	 * 1. Stop the scheduler using drm_sched_stop(). This will park the
+	 *    scheduler thread and cancel the timeout work, guaranteeing that
+	 *    nothing is queued while we reset the hardware queue
+	 * 2. Try to gracefully stop non-faulty jobs (optional)
+	 * 3. Issue a GPU reset (driver-specific)
+	 * 4. Re-submit jobs using drm_sched_resubmit_jobs()
+	 * 5. Restart the scheduler using drm_sched_start(). At that point, new
+	 *    jobs can be queued, and the scheduler thread is unblocked
+	 *
 	 * Return DRM_GPU_SCHED_STAT_NOMINAL, when all is normal,
 	 * and the underlying driver has started or completed recovery.
 	 *
