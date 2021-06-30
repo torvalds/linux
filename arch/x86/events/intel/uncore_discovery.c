@@ -337,17 +337,17 @@ static const struct attribute_group generic_uncore_format_group = {
 	.attrs = generic_uncore_formats_attr,
 };
 
-static void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
+void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
 {
 	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
 }
 
-static void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
+void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
 {
 	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
 }
 
-static void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box)
+void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box)
 {
 	wrmsrl(uncore_msr_box_ctl(box), 0);
 }
