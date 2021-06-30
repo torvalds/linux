@@ -667,6 +667,9 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
 	if (orig_addr == INVALID_PHYS_ADDR)
 		return;
 
+	orig_addr += (tlb_addr & (IO_TLB_SIZE - 1)) -
+		swiotlb_align_offset(hwdev, orig_addr);
+
 	switch (target) {
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))

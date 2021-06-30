@@ -221,28 +221,18 @@ sanitize_restored_user_xstate(union fpregs_state *state,
 
 	if (use_xsave()) {
 		/*
-		 * Note: we don't need to zero the reserved bits in the
-		 * xstate_header here because we either didn't copy them at all,
-		 * or we checked earlier that they aren't set.
+		 * Clear all feature bits which are not set in
+		 * user_xfeatures and clear all extended features
+		 * for fx_only mode.
 		 */
+		u64 mask = fx_only ? XFEATURE_MASK_FPSSE : user_xfeatures;
 
 		/*
-		 * 'user_xfeatures' might have bits clear which are
-		 * set in header->xfeatures. This represents features that
-		 * were in init state prior to a signal delivery, and need
-		 * to be reset back to the init state.  Clear any user
-		 * feature bits which are set in the kernel buffer to get
-		 * them back to the init state.
-		 *
-		 * Supervisor state is unchanged by input from userspace.
-		 * Ensure supervisor state bits stay set and supervisor
-		 * state is not modified.
+		 * Supervisor state has to be preserved. The sigframe
+		 * restore can only modify user features, i.e. @mask
+		 * cannot contain them.
 		 */
-		if (fx_only)
-			header->xfeatures = XFEATURE_MASK_FPSSE;
-		else
-			header->xfeatures &= user_xfeatures |
-					     xfeatures_mask_supervisor();
+		header->xfeatures &= mask | xfeatures_mask_supervisor();
 	}
 
 	if (use_fxsr()) {
