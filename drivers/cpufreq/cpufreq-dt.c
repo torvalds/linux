@@ -23,6 +23,9 @@
 #include <linux/thermal.h>
 
 #include "cpufreq-dt.h"
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include "rockchip-cpufreq.h"
+#endif
 
 struct private_data {
 	struct list_head node;
@@ -278,6 +281,10 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
 				__func__, ret);
 	}
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_adjust_power_scale(cpu_dev);
+#endif
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &priv->freq_table);
 	if (ret) {
