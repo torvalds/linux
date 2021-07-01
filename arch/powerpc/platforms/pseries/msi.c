@@ -530,6 +530,19 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 }
 
 /*
+ * ->msi_free() is called before irq_domain_free_irqs_top() when the
+ * handler data is still available. Use that to clear the XIVE
+ * controller data.
+ */
+static void pseries_msi_ops_msi_free(struct irq_domain *domain,
+				     struct msi_domain_info *info,
+				     unsigned int irq)
+{
+	if (xive_enabled())
+		xive_irq_free_data(irq);
+}
+
+/*
  * RTAS can not disable one MSI at a time. It's all or nothing. Do it
  * at the end after all IRQs have been freed.
  */
@@ -546,6 +559,7 @@ static void pseries_msi_domain_free_irqs(struct irq_domain *domain,
 
 static struct msi_domain_ops pseries_pci_msi_domain_ops = {
 	.msi_prepare	= pseries_msi_ops_prepare,
+	.msi_free	= pseries_msi_ops_msi_free,
 	.domain_free_irqs = pseries_msi_domain_free_irqs,
 };
 
@@ -660,7 +674,7 @@ static void pseries_irq_domain_free(struct irq_domain *domain, unsigned int virq
 
 	pr_debug("%s bridge %pOF %d #%d\n", __func__, phb->dn, virq, nr_irqs);
 
-	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
+	/* XIVE domain data is cleared through ->msi_free() */
 }
 
 static const struct irq_domain_ops pseries_irq_domain_ops = {
