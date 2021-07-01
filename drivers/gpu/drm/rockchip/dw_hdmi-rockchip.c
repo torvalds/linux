@@ -1141,6 +1141,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == hdmi->quant_range) {
 		hdmi->hdmi_quant_range = val;
+		dw_hdmi_set_quant_range(hdmi->hdmi);
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
 		return 0;
