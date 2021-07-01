@@ -713,7 +713,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	u32 target, old_target;
 	int rc = 0;
 
-	pr_devel("xive_irq_set_affinity: irq %d\n", d->irq);
+	pr_debug("%s: irq %d/%x\n", __func__, d->irq, hw_irq);
 
 	/* Is this valid ? */
 	if (cpumask_any_and(cpumask, cpu_online_mask) >= nr_cpu_ids)
@@ -758,7 +758,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 		return rc;
 	}
 
-	pr_devel("  target: 0x%x\n", target);
+	pr_debug("  target: 0x%x\n", target);
 	xd->target = target;
 
 	/* Give up previous target */
