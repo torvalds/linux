@@ -26,6 +26,8 @@
 #include <linux/mmu_notifier.h>
 #include <linux/memory_hotplug.h>
 
+#include "internal.h"
+
 struct hmm_vma_walk {
 	struct hmm_range	*range;
 	unsigned long		last;
@@ -269,6 +271,9 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		}
 
 		if (!non_swap_entry(entry))
+			goto fault;
+
+		if (is_device_exclusive_entry(entry))
 			goto fault;
 
 		if (is_migration_entry(entry)) {
