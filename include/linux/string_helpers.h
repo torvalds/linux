@@ -26,6 +26,8 @@ void string_get_size(u64 size, u64 blk_size, enum string_size_units units,
 #define UNESCAPE_ANY		\
 	(UNESCAPE_SPACE | UNESCAPE_OCTAL | UNESCAPE_HEX | UNESCAPE_SPECIAL)
 
+#define UNESCAPE_ALL_MASK	GENMASK(3, 0)
+
 int string_unescape(char *src, char *dst, size_t size, unsigned int flags);
 
 static inline int string_unescape_inplace(char *buf, unsigned int flags)
@@ -55,6 +57,8 @@ static inline int string_unescape_any_inplace(char *buf)
 #define ESCAPE_NA		BIT(6)
 #define ESCAPE_NAP		BIT(7)
 #define ESCAPE_APPEND		BIT(8)
+
+#define ESCAPE_ALL_MASK		GENMASK(8, 0)
 
 int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		unsigned int flags, const char *only);
