@@ -32,9 +32,8 @@ static const char * const dsi_6g_bus_clk_names[] = {
 static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 4,
+		.num = 3,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdd", 150000, 100},	/* 3.0 V */
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
@@ -53,9 +52,8 @@ static const char * const dsi_8916_bus_clk_names[] = {
 static const struct msm_dsi_config msm8916_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 3,
+		.num = 2,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 		},
@@ -73,9 +71,8 @@ static const char * const dsi_8976_bus_clk_names[] = {
 static const struct msm_dsi_config msm8976_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 3,
+		.num = 2,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 		},
@@ -89,9 +86,8 @@ static const struct msm_dsi_config msm8976_dsi_cfg = {
 static const struct msm_dsi_config msm8994_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 7,
+		.num = 6,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.25 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 			{"vcca", 10000, 100},	/* 1.0 V */

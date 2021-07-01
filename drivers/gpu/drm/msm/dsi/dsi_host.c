@@ -207,35 +207,22 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	struct device *dev = &msm_host->pdev->dev;
-	struct regulator *gdsc_reg;
 	struct clk *ahb_clk;
 	int ret;
 	u32 major = 0, minor = 0;
 
-	gdsc_reg = regulator_get(dev, "gdsc");
-	if (IS_ERR(gdsc_reg)) {
-		pr_err("%s: cannot get gdsc\n", __func__);
-		goto exit;
-	}
-
 	ahb_clk = msm_clk_get(msm_host->pdev, "iface");
 	if (IS_ERR(ahb_clk)) {
 		pr_err("%s: cannot get interface clock\n", __func__);
-		goto put_gdsc;
+		goto exit;
 	}
 
 	pm_runtime_get_sync(dev);
 
-	ret = regulator_enable(gdsc_reg);
-	if (ret) {
-		pr_err("%s: unable to enable gdsc\n", __func__);
-		goto put_gdsc;
-	}
-
 	ret = clk_prepare_enable(ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
-		goto disable_gdsc;
+		goto runtime_put;
 	}
 
 	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
@@ -250,11 +237,8 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 
 disable_clks:
 	clk_disable_unprepare(ahb_clk);
-disable_gdsc:
-	regulator_disable(gdsc_reg);
+runtime_put:
 	pm_runtime_put_sync(dev);
-put_gdsc:
-	regulator_put(gdsc_reg);
 exit:
 	return cfg_hnd;
 }
