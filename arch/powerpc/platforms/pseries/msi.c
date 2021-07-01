@@ -529,8 +529,24 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 	return rtas_prepare_msi_irqs(pdev, nvec, type, arg);
 }
 
+/*
+ * RTAS can not disable one MSI at a time. It's all or nothing. Do it
+ * at the end after all IRQs have been freed.
+ */
+static void pseries_msi_domain_free_irqs(struct irq_domain *domain,
+					 struct device *dev)
+{
+	if (WARN_ON_ONCE(!dev_is_pci(dev)))
+		return;
+
+	__msi_domain_free_irqs(domain, dev);
+
+	rtas_disable_msi(to_pci_dev(dev));
+}
+
 static struct msi_domain_ops pseries_pci_msi_domain_ops = {
 	.msi_prepare	= pseries_msi_ops_prepare,
+	.domain_free_irqs = pseries_msi_domain_free_irqs,
 };
 
 static void pseries_msi_shutdown(struct irq_data *d)
