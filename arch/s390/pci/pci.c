@@ -724,6 +724,65 @@ int zpci_disable_device(struct zpci_dev *zdev)
 }
 
 /**
+ * zpci_hot_reset_device - perform a reset of the given zPCI function
+ * @zdev: the slot which should be reset
+ *
+ * Performs a low level reset of the zPCI function. The reset is low level in
+ * the sense that the zPCI function can be reset without detaching it from the
+ * common PCI subsystem. The reset may be performed while under control of
+ * either DMA or IOMMU APIs in which case the existing DMA/IOMMU translation
+ * table is reinstated at the end of the reset.
+ *
+ * After the reset the functions internal state is reset to an initial state
+ * equivalent to its state during boot when first probing a driver.
+ * Consequently after reset the PCI function requires re-initialization via the
+ * common PCI code including re-enabling IRQs via pci_alloc_irq_vectors()
+ * and enabling the function via e.g.pci_enablde_device_flags().The caller
+ * must guard against concurrent reset attempts.
+ *
+ * In most cases this function should not be called directly but through
+ * pci_reset_function() or pci_reset_bus() which handle the save/restore and
+ * locking.
+ *
+ * Return: 0 on success and an error value otherwise
+ */
+int zpci_hot_reset_device(struct zpci_dev *zdev)
+{
+	int rc;
+
+	zpci_dbg(3, "rst fid:%x, fh:%x\n", zdev->fid, zdev->fh);
+	if (zdev_enabled(zdev)) {
+		/* Disables device access, DMAs and IRQs (reset state) */
+		rc = zpci_disable_device(zdev);
+		/*
+		 * Due to a z/VM vs LPAR inconsistency in the error state the
+		 * FH may indicate an enabled device but disable says the
+		 * device is already disabled don't treat it as an error here.
+		 */
+		if (rc == -EINVAL)
+			rc = 0;
+		if (rc)
+			return rc;
+	}
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		return rc;
+
+	if (zdev->dma_table)
+		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+					(u64)zdev->dma_table);
+	else
+		rc = zpci_dma_init_device(zdev);
+	if (rc) {
+		zpci_disable_device(zdev);
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
  * zpci_create_device() - Create a new zpci_dev and add it to the zbus
  * @fid: Function ID of the device to be created
  * @fh: Current Function Handle of the device to be created
