@@ -2722,9 +2722,9 @@ int sysctl_compaction_handler(struct ctl_table *table, int write,
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-static ssize_t sysfs_compact_node(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t compact_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int nid = dev->id;
 
@@ -2737,7 +2737,7 @@ static ssize_t sysfs_compact_node(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(compact, 0200, NULL, sysfs_compact_node);
+static DEVICE_ATTR_WO(compact);
 
 int compaction_register_node(struct node *node)
 {
