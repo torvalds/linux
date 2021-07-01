@@ -86,13 +86,11 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible:		Should be one of:
-			  "fsl,imx8qm-clock"
-			  "fsl,imx8qxp-clock"
+			  "fsl,imx8qm-clk"
+			  "fsl,imx8qxp-clk"
 			followed by "fsl,scu-clk"
-- #clock-cells:		Should be either
-			2: Contains the Resource and Clock ID value.
-			or
-			1: Contains the Clock ID value. (DEPRECATED)
+- #clock-cells:		Should be 2.
+			Contains the Resource and Clock ID value.
 - clocks:		List of clock specifiers, must contain an entry for
 			each required entry in clock-names
 - clock-names:		Should include entries "xtal_32KHz", "xtal_24MHz"

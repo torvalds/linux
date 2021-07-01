@@ -353,7 +353,6 @@ config ARCH_EP93XX
 	select ARM_VIC
 	select GENERIC_IRQ_MULTI_HANDLER
 	select AUTO_ZRELADDR
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CPU_ARM920T
 	select GPIOLIB
@@ -504,7 +503,6 @@ config ARCH_OMAP1
 	bool "TI OMAP1"
 	depends on MMU
 	select ARCH_OMAP
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_MULTI_HANDLER
