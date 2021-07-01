@@ -36,6 +36,7 @@
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
 #include <asm/mmzone.h>
+#include <asm/xive.h>
 
 #include <misc/cxl-base.h>
 
@@ -2100,6 +2101,189 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 	return 0;
 }
 
+/*
+ * The msi_free() op is called before irq_domain_free_irqs_top() when
+ * the handler data is still available. Use that to clear the XIVE
+ * controller.
+ */
+static void pnv_msi_ops_msi_free(struct irq_domain *domain,
+				 struct msi_domain_info *info,
+				 unsigned int irq)
+{
+	if (xive_enabled())
+		xive_irq_free_data(irq);
+}
+
+static struct msi_domain_ops pnv_pci_msi_domain_ops = {
+	.msi_free	= pnv_msi_ops_msi_free,
+};
+
+static void pnv_msi_shutdown(struct irq_data *d)
+{
+	d = d->parent_data;
+	if (d->chip->irq_shutdown)
+		d->chip->irq_shutdown(d);
+}
+
+static void pnv_msi_mask(struct irq_data *d)
+{
+	pci_msi_mask_irq(d);
+	irq_chip_mask_parent(d);
+}
+
+static void pnv_msi_unmask(struct irq_data *d)
+{
+	pci_msi_unmask_irq(d);
+	irq_chip_unmask_parent(d);
+}
+
+static struct irq_chip pnv_pci_msi_irq_chip = {
+	.name		= "PNV-PCI-MSI",
+	.irq_shutdown	= pnv_msi_shutdown,
+	.irq_mask	= pnv_msi_mask,
+	.irq_unmask	= pnv_msi_unmask,
+	.irq_eoi	= irq_chip_eoi_parent,
+};
+
+static struct msi_domain_info pnv_msi_domain_info = {
+	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		  MSI_FLAG_MULTI_PCI_MSI  | MSI_FLAG_PCI_MSIX),
+	.ops   = &pnv_pci_msi_domain_ops,
+	.chip  = &pnv_pci_msi_irq_chip,
+};
+
+static void pnv_msi_compose_msg(struct irq_data *d, struct msi_msg *msg)
+{
+	struct msi_desc *entry = irq_data_get_msi_desc(d);
+	struct pci_dev *pdev = msi_desc_to_pci_dev(entry);
+	struct pci_controller *hose = irq_data_get_irq_chip_data(d);
+	struct pnv_phb *phb = hose->private_data;
+	int rc;
+
+	rc = __pnv_pci_ioda_msi_setup(phb, pdev, d->hwirq,
+				      entry->msi_attrib.is_64, msg);
+	if (rc)
+		dev_err(&pdev->dev, "Failed to setup %s-bit MSI #%ld : %d\n",
+			entry->msi_attrib.is_64 ? "64" : "32", d->hwirq, rc);
+}
+
+static struct irq_chip pnv_msi_irq_chip = {
+	.name			= "PNV-MSI",
+	.irq_shutdown		= pnv_msi_shutdown,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.irq_compose_msi_msg	= pnv_msi_compose_msg,
+};
+
+static int pnv_irq_parent_domain_alloc(struct irq_domain *domain,
+				       unsigned int virq, int hwirq)
+{
+	struct irq_fwspec parent_fwspec;
+	int ret;
+
+	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.param_count = 2;
+	parent_fwspec.param[0] = hwirq;
+	parent_fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
+
+	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &parent_fwspec);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int pnv_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				unsigned int nr_irqs, void *arg)
+{
+	struct pci_controller *hose = domain->host_data;
+	struct pnv_phb *phb = hose->private_data;
+	msi_alloc_info_t *info = arg;
+	struct pci_dev *pdev = msi_desc_to_pci_dev(info->desc);
+	int hwirq;
+	int i, ret;
+
+	hwirq = msi_bitmap_alloc_hwirqs(&phb->msi_bmp, nr_irqs);
+	if (hwirq < 0) {
+		dev_warn(&pdev->dev, "failed to find a free MSI\n");
+		return -ENOSPC;
+	}
+
+	dev_dbg(&pdev->dev, "%s bridge %pOF %d/%x #%d\n", __func__,
+		hose->dn, virq, hwirq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++) {
+		ret = pnv_irq_parent_domain_alloc(domain, virq + i,
+						  phb->msi_base + hwirq + i);
+		if (ret)
+			goto out;
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
+					      &pnv_msi_irq_chip, hose);
+	}
+
+	return 0;
+
+out:
+	irq_domain_free_irqs_parent(domain, virq, i - 1);
+	msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, nr_irqs);
+	return ret;
+}
+
+static void pnv_irq_domain_free(struct irq_domain *domain, unsigned int virq,
+				unsigned int nr_irqs)
+{
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	struct pci_controller *hose = irq_data_get_irq_chip_data(d);
+	struct pnv_phb *phb = hose->private_data;
+
+	pr_debug("%s bridge %pOF %d/%lx #%d\n", __func__, hose->dn,
+		 virq, d->hwirq, nr_irqs);
+
+	msi_bitmap_free_hwirqs(&phb->msi_bmp, d->hwirq, nr_irqs);
+	/* XIVE domain is cleared through ->msi_free() */
+}
+
+static const struct irq_domain_ops pnv_irq_domain_ops = {
+	.alloc  = pnv_irq_domain_alloc,
+	.free   = pnv_irq_domain_free,
+};
+
+static int pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int count)
+{
+	struct pnv_phb *phb = hose->private_data;
+	struct irq_domain *parent = irq_get_default_host();
+
+	hose->fwnode = irq_domain_alloc_named_id_fwnode("PNV-MSI", phb->opal_id);
+	if (!hose->fwnode)
+		return -ENOMEM;
+
+	hose->dev_domain = irq_domain_create_hierarchy(parent, 0, count,
+						       hose->fwnode,
+						       &pnv_irq_domain_ops, hose);
+	if (!hose->dev_domain) {
+		pr_err("PCI: failed to create IRQ domain bridge %pOF (domain %d)\n",
+		       hose->dn, hose->global_number);
+		irq_domain_free_fwnode(hose->fwnode);
+		return -ENOMEM;
+	}
+
+	hose->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(hose->dn),
+						     &pnv_msi_domain_info,
+						     hose->dev_domain);
+	if (!hose->msi_domain) {
+		pr_err("PCI: failed to create MSI IRQ domain bridge %pOF (domain %d)\n",
+		       hose->dn, hose->global_number);
+		irq_domain_free_fwnode(hose->fwnode);
+		irq_domain_remove(hose->dev_domain);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 {
 	unsigned int count;
@@ -2124,6 +2308,10 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 	phb->msi32_support = 1;
 	pr_info("  Allocated bitmap for %d MSIs (base IRQ 0x%x)\n",
 		count, phb->msi_base);
+
+	/* Only supported by the XIVE driver */
+	if (xive_enabled())
+		pnv_msi_allocate_domains(phb->hose, count);
 }
 
 static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
