@@ -1170,6 +1170,144 @@ static int userfaultfd_minor_test(void)
 	return stats.missing_faults != 0 || stats.minor_faults != nr_pages;
 }
 
+#define BIT_ULL(nr)                   (1ULL << (nr))
+#define PM_SOFT_DIRTY                 BIT_ULL(55)
+#define PM_MMAP_EXCLUSIVE             BIT_ULL(56)
+#define PM_UFFD_WP                    BIT_ULL(57)
+#define PM_FILE                       BIT_ULL(61)
+#define PM_SWAP                       BIT_ULL(62)
+#define PM_PRESENT                    BIT_ULL(63)
+
+static int pagemap_open(void)
+{
+	int fd = open("/proc/self/pagemap", O_RDONLY);
+
+	if (fd < 0)
+		err("open pagemap");
+
+	return fd;
+}
+
+static uint64_t pagemap_read_vaddr(int fd, void *vaddr)
+{
+	uint64_t value;
+	int ret;
+
+	ret = pread(fd, &value, sizeof(uint64_t),
+		    ((uint64_t)vaddr >> 12) * sizeof(uint64_t));
+	if (ret != sizeof(uint64_t))
+		err("pread() on pagemap failed");
+
+	return value;
+}
+
+/* This macro let __LINE__ works in err() */
+#define  pagemap_check_wp(value, wp) do {				\
+		if (!!(value & PM_UFFD_WP) != wp)			\
+			err("pagemap uffd-wp bit error: 0x%"PRIx64, value); \
+	} while (0)
+
+static int pagemap_test_fork(bool present)
+{
+	pid_t child = fork();
+	uint64_t value;
+	int fd, result;
+
+	if (!child) {
+		/* Open the pagemap fd of the child itself */
+		fd = pagemap_open();
+		value = pagemap_read_vaddr(fd, area_dst);
+		/*
+		 * After fork() uffd-wp bit should be gone as long as we're
+		 * without UFFD_FEATURE_EVENT_FORK
+		 */
+		pagemap_check_wp(value, false);
+		/* Succeed */
+		exit(0);
+	}
+	waitpid(child, &result, 0);
+	return result;
+}
+
+static void userfaultfd_pagemap_test(unsigned int test_pgsize)
+{
+	struct uffdio_register uffdio_register;
+	int pagemap_fd;
+	uint64_t value;
+
+	/* Pagemap tests uffd-wp only */
+	if (!test_uffdio_wp)
+		return;
+
+	/* Not enough memory to test this page size */
+	if (test_pgsize > nr_pages * page_size)
+		return;
+
+	printf("testing uffd-wp with pagemap (pgsize=%u): ", test_pgsize);
+	/* Flush so it doesn't flush twice in parent/child later */
+	fflush(stdout);
+
+	uffd_test_ops->release_pages(area_dst);
+
+	if (test_pgsize > page_size) {
+		/* This is a thp test */
+		if (madvise(area_dst, nr_pages * page_size, MADV_HUGEPAGE))
+			err("madvise(MADV_HUGEPAGE) failed");
+	} else if (test_pgsize == page_size) {
+		/* This is normal page test; force no thp */
+		if (madvise(area_dst, nr_pages * page_size, MADV_NOHUGEPAGE))
+			err("madvise(MADV_NOHUGEPAGE) failed");
+	}
+
+	if (userfaultfd_open(0))
+		err("userfaultfd_open");
+
+	uffdio_register.range.start = (unsigned long) area_dst;
+	uffdio_register.range.len = nr_pages * page_size;
+	uffdio_register.mode = UFFDIO_REGISTER_MODE_WP;
+	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+		err("register failed");
+
+	pagemap_fd = pagemap_open();
+
+	/* Touch the page */
+	*area_dst = 1;
+	wp_range(uffd, (uint64_t)area_dst, test_pgsize, true);
+	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	pagemap_check_wp(value, true);
+	/* Make sure uffd-wp bit dropped when fork */
+	if (pagemap_test_fork(true))
+		err("Detected stall uffd-wp bit in child");
+
+	/* Exclusive required or PAGEOUT won't work */
+	if (!(value & PM_MMAP_EXCLUSIVE))
+		err("multiple mapping detected: 0x%"PRIx64, value);
+
+	if (madvise(area_dst, test_pgsize, MADV_PAGEOUT))
+		err("madvise(MADV_PAGEOUT) failed");
+
+	/* Uffd-wp should persist even swapped out */
+	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	pagemap_check_wp(value, true);
+	/* Make sure uffd-wp bit dropped when fork */
+	if (pagemap_test_fork(false))
+		err("Detected stall uffd-wp bit in child");
+
+	/* Unprotect; this tests swap pte modifications */
+	wp_range(uffd, (uint64_t)area_dst, page_size, false);
+	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	pagemap_check_wp(value, false);
+
+	/* Fault in the page from disk */
+	*area_dst = 2;
+	value = pagemap_read_vaddr(pagemap_fd, area_dst);
+	pagemap_check_wp(value, false);
+
+	close(pagemap_fd);
+	close(uffd);
+	printf("done\n");
+}
+
 static int userfaultfd_stress(void)
 {
 	void *area;
@@ -1341,6 +1479,22 @@ static int userfaultfd_stress(void)
 	}
 
 	close(uffd);
+
+	if (test_type == TEST_ANON) {
+		/*
+		 * shmem/hugetlb won't be able to run since they have different
+		 * behavior on fork() (file-backed memory normally drops ptes
+		 * directly when fork), meanwhile the pagemap test will verify
+		 * pgtable entry of fork()ed child.
+		 */
+		userfaultfd_pagemap_test(page_size);
+		/*
+		 * Hard-code for x86_64 for now for 2M THP, as x86_64 is
+		 * currently the only one that supports uffd-wp
+		 */
+		userfaultfd_pagemap_test(page_size * 512);
+	}
+
 	return userfaultfd_zeropage_test() || userfaultfd_sig_test()
 		|| userfaultfd_events_test() || userfaultfd_minor_test();
 }
