@@ -3055,6 +3055,7 @@ enum {
 	ALC269_TYPE_ALC257,
 	ALC269_TYPE_ALC215,
 	ALC269_TYPE_ALC225,
+	ALC269_TYPE_ALC287,
 	ALC269_TYPE_ALC294,
 	ALC269_TYPE_ALC300,
 	ALC269_TYPE_ALC623,
@@ -3091,6 +3092,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	case ALC269_TYPE_ALC257:
 	case ALC269_TYPE_ALC215:
 	case ALC269_TYPE_ALC225:
+	case ALC269_TYPE_ALC287:
 	case ALC269_TYPE_ALC294:
 	case ALC269_TYPE_ALC300:
 	case ALC269_TYPE_ALC623:
@@ -3561,11 +3563,69 @@ static void alc256_shutup(struct hda_codec *codec)
 	}
 }
 
+static void alc285_hp_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = alc_get_hp_pin(spec);
+	int i, val;
+	int coef38, coef0d, coef36;
+
+	alc_update_coef_idx(codec, 0x4a, 1<<15, 1<<15); /* Reset HP JD */
+	coef38 = alc_read_coef_idx(codec, 0x38); /* Amp control */
+	coef0d = alc_read_coef_idx(codec, 0x0d); /* Digital Misc control */
+	coef36 = alc_read_coef_idx(codec, 0x36); /* Passthrough Control */
+	alc_update_coef_idx(codec, 0x38, 1<<4, 0x0);
+	alc_update_coef_idx(codec, 0x0d, 0x110, 0x0);
+
+	alc_update_coef_idx(codec, 0x67, 0xf000, 0x3000);
+
+	if (hp_pin)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	msleep(130);
+	alc_update_coef_idx(codec, 0x36, 1<<14, 1<<14);
+	alc_update_coef_idx(codec, 0x36, 1<<13, 0x0);
+
+	if (hp_pin)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+	msleep(10);
+	alc_write_coef_idx(codec, 0x67, 0x0); /* Set HP depop to manual mode */
+	alc_write_coefex_idx(codec, 0x58, 0x00, 0x7880);
+	alc_write_coefex_idx(codec, 0x58, 0x0f, 0xf049);
+	alc_update_coefex_idx(codec, 0x58, 0x03, 0x00f0, 0x00c0);
+
+	alc_write_coefex_idx(codec, 0x58, 0x00, 0xf888); /* HP depop procedure start */
+	val = alc_read_coefex_idx(codec, 0x58, 0x00);
+	for (i = 0; i < 20 && val & 0x8000; i++) {
+		msleep(50);
+		val = alc_read_coefex_idx(codec, 0x58, 0x00);
+	} /* Wait for depop procedure finish  */
+
+	alc_write_coefex_idx(codec, 0x58, 0x00, val); /* write back the result */
+	alc_update_coef_idx(codec, 0x38, 1<<4, coef38);
+	alc_update_coef_idx(codec, 0x0d, 0x110, coef0d);
+	alc_update_coef_idx(codec, 0x36, 3<<13, coef36);
+
+	msleep(50);
+	alc_update_coef_idx(codec, 0x4a, 1<<15, 0);
+}
+
 static void alc225_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t hp_pin = alc_get_hp_pin(spec);
 	bool hp1_pin_sense, hp2_pin_sense;
+
+	if (spec->codec_variant != ALC269_TYPE_ALC287)
+		/* required only at boot or S3 and S4 resume time */
+		if (!spec->done_hp_init ||
+			is_s3_resume(codec) ||
+			is_s4_resume(codec)) {
+			alc285_hp_init(codec);
+			spec->done_hp_init = true;
+		}
 
 	if (!hp_pin)
 		hp_pin = 0x21;
@@ -8363,6 +8423,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 		      ALC285_FIXUP_HP_GPIO_AMP_INIT),
 	SND_PCI_QUIRK(0x103c, 0x87c8, "HP", ALC287_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x87e5, "HP ProBook 440 G8 Notebook PC", ALC236_FIXUP_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x87e7, "HP ProBook 450 G8 Notebook PC", ALC236_FIXUP_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x87f1, "HP ProBook 630 G8 Notebook PC", ALC236_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x87f2, "HP ProBook 640 G8 Notebook PC", ALC236_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x87f4, "HP", ALC287_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x87f5, "HP", ALC287_FIXUP_HP_GPIO_LED),
@@ -8372,6 +8434,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x8847, "HP EliteBook x360 830 G8 Notebook PC", ALC285_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x884b, "HP EliteBook 840 Aero G8 Notebook PC", ALC285_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x884c, "HP EliteBook 840 G8 Notebook PC", ALC285_FIXUP_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x8862, "HP ProBook 445 G8 Notebook PC", ALC236_FIXUP_HP_MUTE_LED_MICMUTE_VREF),
+	SND_PCI_QUIRK(0x103c, 0x8863, "HP ProBook 445 G8 Notebook PC", ALC236_FIXUP_HP_MUTE_LED_MICMUTE_VREF),
 	SND_PCI_QUIRK(0x103c, 0x886d, "HP ZBook Fury 17.3 Inch G8 Mobile Workstation PC", ALC285_FIXUP_HP_GPIO_AMP_INIT),
 	SND_PCI_QUIRK(0x103c, 0x8870, "HP ZBook Fury 15.6 Inch G8 Mobile Workstation PC", ALC285_FIXUP_HP_GPIO_AMP_INIT),
 	SND_PCI_QUIRK(0x103c, 0x8873, "HP ZBook Studio 15.6 Inch G8 Mobile Workstation PC", ALC285_FIXUP_HP_GPIO_AMP_INIT),
@@ -9387,7 +9451,6 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0215:
 	case 0x10ec0245:
 	case 0x10ec0285:
-	case 0x10ec0287:
 	case 0x10ec0289:
 		spec->codec_variant = ALC269_TYPE_ALC215;
 		spec->shutup = alc225_shutup;
@@ -9401,6 +9464,12 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->shutup = alc225_shutup;
 		spec->init_hook = alc225_init;
 		spec->gen.mixer_nid = 0; /* no loopback on ALC225, ALC295 and ALC299 */
+		break;
+	case 0x10ec0287:
+		spec->codec_variant = ALC269_TYPE_ALC287;
+		spec->shutup = alc225_shutup;
+		spec->init_hook = alc225_init;
+		spec->gen.mixer_nid = 0; /* no loopback on ALC287 */
 		break;
 	case 0x10ec0234:
 	case 0x10ec0274:
