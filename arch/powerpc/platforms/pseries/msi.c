@@ -164,12 +164,12 @@ static int check_req_msix(struct pci_dev *pdev, int nvec)
 
 /* Quota calculation */
 
-static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
+static struct device_node *__find_pe_total_msi(struct device_node *node, int *total)
 {
 	struct device_node *dn;
 	const __be32 *p;
 
-	dn = of_node_get(pci_device_to_OF_node(dev));
+	dn = of_node_get(node);
 	while (dn) {
 		p = of_get_property(dn, "ibm,pe-total-#msi", NULL);
 		if (p) {
@@ -183,6 +183,11 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 	}
 
 	return NULL;
+}
+
+static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
+{
+	return __find_pe_total_msi(pci_device_to_OF_node(dev), total);
 }
 
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
