@@ -4134,8 +4134,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 done:
 	mutex_unlock(&session->s_mutex);
 done_unlocked:
-	ceph_put_string(extra_info.pool_ns);
 	iput(inode);
+out:
+	ceph_put_string(extra_info.pool_ns);
 	return;
 
 flush_cap_releases:
@@ -4150,7 +4151,7 @@ flush_cap_releases:
 bad:
 	pr_err("ceph_handle_caps: corrupt message\n");
 	ceph_msg_dump(msg);
-	return;
+	goto out;
 }
 
 /*
