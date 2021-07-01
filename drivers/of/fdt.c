@@ -200,9 +200,6 @@ static void populate_properties(const void *blob,
 				 nodename, (char *)pp->value);
 		}
 	}
-
-	if (!dryrun)
-		*pprev = NULL;
 }
 
 static int populate_node(const void *blob,
