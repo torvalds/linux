@@ -2046,7 +2046,8 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto unlock_and_free_fence;
 	}
 
-	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address),
+									4)) {
 		dev_err(hdev->dev,
 			"Failed to copy completion value from user\n");
 		rc = -EFAULT;
@@ -2077,18 +2078,28 @@ wait_again:
 	 * If comparison fails, keep waiting until timeout expires
 	 */
 	if (completion_rc > 0) {
+		spin_lock(&interrupt->wait_list_lock);
+
 		if (copy_from_user(&completion_value,
 				u64_to_user_ptr(user_address), 4)) {
+
+			spin_unlock(&interrupt->wait_list_lock);
+
 			dev_err(hdev->dev,
 				"Failed to copy completion value from user\n");
 			rc = -EFAULT;
+
 			goto remove_pending_user_interrupt;
 		}
 
 		if (completion_value >= target_value) {
+			spin_unlock(&interrupt->wait_list_lock);
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
+			reinit_completion(&pend->fence.completion);
 			timeout = completion_rc;
+
+			spin_unlock(&interrupt->wait_list_lock);
 			goto wait_again;
 		}
 	} else {
