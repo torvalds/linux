@@ -12,6 +12,8 @@ mremap_test
 on-fault-limit
 transhuge-stress
 protection_keys
+protection_keys_32
+protection_keys_64
 userfaultfd
 mlock-intersect-test
 mlock-random-test
