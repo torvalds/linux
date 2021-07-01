@@ -66,6 +66,19 @@ int sysctl_memory_failure_recovery __read_mostly = 1;
 
 atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
+static bool __page_handle_poison(struct page *page)
+{
+	bool ret;
+
+	zone_pcp_disable(page_zone(page));
+	ret = dissolve_free_huge_page(page);
+	if (!ret)
+		ret = take_page_off_buddy(page);
+	zone_pcp_enable(page_zone(page));
+
+	return ret;
+}
+
 static bool page_handle_poison(struct page *page, bool hugepage_or_freepage, bool release)
 {
 	if (hugepage_or_freepage) {
@@ -73,7 +86,7 @@ static bool page_handle_poison(struct page *page, bool hugepage_or_freepage, boo
 		 * Doing this check for free pages is also fine since dissolve_free_huge_page
 		 * returns 0 for non-hugetlb pages as well.
 		 */
-		if (dissolve_free_huge_page(page) || !take_page_off_buddy(page))
+		if (!__page_handle_poison(page))
 			/*
 			 * We could fail to take off the target page from buddy
 			 * for example due to racy page allocation, but that's
@@ -985,7 +998,7 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 		 */
 		if (PageAnon(hpage))
 			put_page(hpage);
-		if (!dissolve_free_huge_page(p) && take_page_off_buddy(p)) {
+		if (__page_handle_poison(p)) {
 			page_ref_inc(p);
 			res = MF_RECOVERED;
 		}
@@ -1446,7 +1459,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int flags)
 			}
 			unlock_page(head);
 			res = MF_FAILED;
-			if (!dissolve_free_huge_page(p) && take_page_off_buddy(p)) {
+			if (__page_handle_poison(p)) {
 				page_ref_inc(p);
 				res = MF_RECOVERED;
 			}
