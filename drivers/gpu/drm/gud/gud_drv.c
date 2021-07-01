@@ -393,14 +393,15 @@ static const struct drm_driver gud_drm_driver = {
 	.minor			= 0,
 };
 
-static void gud_free_buffers_and_mutex(struct drm_device *drm, void *unused)
+static void gud_free_buffers_and_mutex(void *data)
 {
-	struct gud_device *gdrm = to_gud_device(drm);
+	struct gud_device *gdrm = data;
 
 	vfree(gdrm->compress_buf);
+	gdrm->compress_buf = NULL;
 	kfree(gdrm->bulk_buf);
+	gdrm->bulk_buf = NULL;
 	mutex_destroy(&gdrm->ctrl_lock);
-	mutex_destroy(&gdrm->damage_lock);
 }
 
 static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -454,7 +455,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_WORK(&gdrm->work, gud_flush_work);
 	gud_clear_damage(gdrm);
 
-	ret = drmm_add_action_or_reset(drm, gud_free_buffers_and_mutex, NULL);
+	ret = devm_add_action(dev, gud_free_buffers_and_mutex, gdrm);
 	if (ret)
 		return ret;
 
