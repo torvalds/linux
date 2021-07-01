@@ -741,8 +741,8 @@ static inline void arch_clear_hugepage_flags(struct page *page) { }
 #endif
 
 #ifndef arch_make_huge_pte
-static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-				       struct page *page, int writable)
+static inline pte_t arch_make_huge_pte(pte_t entry, unsigned int shift,
+				       vm_flags_t flags)
 {
 	return entry;
 }
