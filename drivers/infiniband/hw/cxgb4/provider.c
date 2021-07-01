@@ -377,14 +377,11 @@ static const char * const names[] = {
 	[IP6OUTRSTS] = "ip6OutRsts"
 };
 
-static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
-					      u32 port_num)
+static struct rdma_hw_stats *c4iw_alloc_device_stats(struct ib_device *ibdev)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
 
-	if (port_num != 0)
-		return NULL;
-
+	/* FIXME: these look like port stats */
 	return rdma_alloc_hw_stats_struct(names, NR_COUNTERS,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
@@ -455,7 +452,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.driver_id = RDMA_DRIVER_CXGB4,
 	.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION,
 
-	.alloc_hw_stats = c4iw_alloc_stats,
+	.alloc_hw_device_stats = c4iw_alloc_device_stats,
 	.alloc_mr = c4iw_alloc_mr,
 	.alloc_pd = c4iw_allocate_pd,
 	.alloc_ucontext = c4iw_alloc_ucontext,
@@ -468,6 +465,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.destroy_cq = c4iw_destroy_cq,
 	.destroy_qp = c4iw_destroy_qp,
 	.destroy_srq = c4iw_destroy_srq,
+	.device_group = &c4iw_attr_group,
 	.fill_res_cq_entry = c4iw_fill_res_cq_entry,
 	.fill_res_cm_id_entry = c4iw_fill_res_cm_id_entry,
 	.fill_res_mr_entry = c4iw_fill_res_mr_entry,
@@ -542,7 +540,6 @@ void c4iw_register_device(struct work_struct *work)
 	memcpy(dev->ibdev.iw_ifname, dev->rdev.lldi.ports[0]->name,
 	       sizeof(dev->ibdev.iw_ifname));
 
-	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
 	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
 	ret = set_netdevs(&dev->ibdev, &dev->rdev);
 	if (ret)

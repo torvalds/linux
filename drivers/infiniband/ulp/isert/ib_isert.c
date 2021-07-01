@@ -35,10 +35,10 @@ static const struct kernel_param_ops sg_tablesize_ops = {
 	.get = param_get_int,
 };
 
-static int isert_sg_tablesize = ISCSI_ISER_DEF_SG_TABLESIZE;
+static int isert_sg_tablesize = ISCSI_ISER_MIN_SG_TABLESIZE;
 module_param_cb(sg_tablesize, &sg_tablesize_ops, &isert_sg_tablesize, 0644);
 MODULE_PARM_DESC(sg_tablesize,
-		 "Number of gather/scatter entries in a single scsi command, should >= 128 (default: 256, max: 4096)");
+		 "Number of gather/scatter entries in a single scsi command, should >= 128 (default: 128, max: 4096)");
 
 static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
@@ -2231,6 +2231,16 @@ isert_setup_id(struct isert_np *isert_np)
 	}
 	isert_dbg("id %p context %p\n", id, id->context);
 
+	/*
+	 * Allow both IPv4 and IPv6 sockets to bind a single port
+	 * at the same time.
+	 */
+	ret = rdma_set_afonly(id, 1);
+	if (ret) {
+		isert_err("rdma_set_afonly() failed: %d\n", ret);
+		goto out_id;
+	}
+
 	ret = rdma_bind_addr(id, sa);
 	if (ret) {
 		isert_err("rdma_bind_addr() failed: %d\n", ret);
@@ -2387,10 +2397,10 @@ accept_wait:
 		spin_unlock_bh(&np->np_thread_lock);
 		isert_dbg("np_thread_state %d\n",
 			 np->np_thread_state);
-		/**
+		/*
 		 * No point in stalling here when np_thread
 		 * is in state RESET/SHUTDOWN/EXIT - bail
-		 **/
+		 */
 		return -ENODEV;
 	}
 	spin_unlock_bh(&np->np_thread_lock);
