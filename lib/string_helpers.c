@@ -454,8 +454,8 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *
  *	1. The character is not matched to the one from @only string and thus
  *	   must go as-is to the output.
- *	2. The character is matched to the printable class, if asked, and in
- *	   case of match it passes through to the output.
+ *	2. The character is matched to the printable or ASCII class, if asked,
+ *	   and in case of match it passes through to the output.
  *	3. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
  *	   character. Note that they actually can't go together, otherwise
@@ -463,7 +463,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *
  * Caller must provide valid source and destination pointers. Be aware that
  * destination buffer will not be NULL-terminated, thus caller have to append
- * it if needs.   The supported flags are::
+ * it if needs. The supported flags are::
  *
  *	%ESCAPE_SPACE: (special white space, not space itself)
  *		'\f' - form feed
@@ -482,11 +482,18 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	%ESCAPE_ANY:
  *		all previous together
  *	%ESCAPE_NP:
- *		escape only non-printable characters (checked by isprint)
+ *		escape only non-printable characters, checked by isprint()
  *	%ESCAPE_ANY_NP:
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
+ *	%ESCAPE_NA:
+ *		escape only non-ascii characters, checked by isascii()
+ *
+ * One notable caveat, the %ESCAPE_NP and %ESCAPE_NA have higher priority
+ * than the rest of the flags (%ESCAPE_NP is higher than %ESCAPE_NA).
+ * It doesn't make much sense to use either of them without %ESCAPE_OCTAL
+ * or %ESCAPE_HEX, because they cover most of the other character classes.
  *
  * Return:
  * The total size of the escaped output that would be generated for
@@ -510,6 +517,8 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		 *	  character under question
 		 *	- the character is printable, when @flags has
 		 *	  %ESCAPE_NP bit set
+		 *	- the character is ASCII, when @flags has
+		 *	  %ESCAPE_NA bit set
 		 *	- the character doesn't fall into a class of symbols
 		 *	  defined by given @flags
 		 * In these cases we just pass through a character to the
@@ -521,6 +530,10 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 
 		if (isprint(c) &&
 		    flags & ESCAPE_NP && escape_passthrough(c, &p, end))
+			continue;
+
+		if (isascii(c) &&
+		    flags & ESCAPE_NA && escape_passthrough(c, &p, end))
 			continue;
 
 		if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
