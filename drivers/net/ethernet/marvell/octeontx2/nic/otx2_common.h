@@ -218,8 +218,8 @@ struct otx2_hw {
 	unsigned long		cap_flag;
 
 #define LMT_LINE_SIZE		128
-#define NIX_LMTID_BASE		72 /* RX + TX + XDP */
-	void __iomem		*lmt_base;
+#define LMT_BURST_SIZE		32 /* 32 LMTST lines for burst SQE flush */
+	u64			*lmt_base;
 	u64			*npa_lmt_base;
 	u64			*nix_lmt_base;
 };
@@ -363,8 +363,9 @@ struct otx2_nic {
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
 	/* LMTST Lines info */
+	struct qmem		*dync_lmt;
 	u16			tot_lmt_lines;
-	u16			nix_lmt_lines;
+	u16			npa_lmt_lines;
 	u32			nix_lmt_size;
 
 	struct otx2_ptp		*ptp;
