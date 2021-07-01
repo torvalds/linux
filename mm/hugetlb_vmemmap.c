@@ -258,9 +258,8 @@ void free_huge_page_vmemmap(struct hstate *h, struct page *head)
 	 * to the page which @vmemmap_reuse is mapped to, then free the pages
 	 * which the range [@vmemmap_addr, @vmemmap_end] is mapped to.
 	 */
-	vmemmap_remap_free(vmemmap_addr, vmemmap_end, vmemmap_reuse);
-
-	SetHPageVmemmapOptimized(head);
+	if (!vmemmap_remap_free(vmemmap_addr, vmemmap_end, vmemmap_reuse))
+		SetHPageVmemmapOptimized(head);
 }
 
 void __init hugetlb_vmemmap_init(struct hstate *h)

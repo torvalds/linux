@@ -3076,8 +3076,8 @@ static inline void print_vma_addr(char *prefix, unsigned long rip)
 }
 #endif
 
-void vmemmap_remap_free(unsigned long start, unsigned long end,
-			unsigned long reuse);
+int vmemmap_remap_free(unsigned long start, unsigned long end,
+		       unsigned long reuse);
 int vmemmap_remap_alloc(unsigned long start, unsigned long end,
 			unsigned long reuse, gfp_t gfp_mask);
 
