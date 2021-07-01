@@ -41,6 +41,7 @@
 #include <linux/node.h>
 #include <linux/page_owner.h>
 #include "internal.h"
+#include "hugetlb_vmemmap.h"
 
 int hugetlb_max_hstate __read_mostly;
 unsigned int default_hstate_idx;
@@ -1493,8 +1494,9 @@ static void __prep_account_new_huge_page(struct hstate *h, int nid)
 	h->nr_huge_pages_node[nid]++;
 }
 
-static void __prep_new_huge_page(struct page *page)
+static void __prep_new_huge_page(struct hstate *h, struct page *page)
 {
+	free_huge_page_vmemmap(h, page);
 	INIT_LIST_HEAD(&page->lru);
 	set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
 	hugetlb_set_page_subpool(page, NULL);
@@ -1504,7 +1506,7 @@ static void __prep_new_huge_page(struct page *page)
 
 static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 {
-	__prep_new_huge_page(page);
+	__prep_new_huge_page(h, page);
 	spin_lock_irq(&hugetlb_lock);
 	__prep_account_new_huge_page(h, nid);
 	spin_unlock_irq(&hugetlb_lock);
@@ -2351,14 +2353,15 @@ static int alloc_and_dissolve_huge_page(struct hstate *h, struct page *old_page,
 
 	/*
 	 * Before dissolving the page, we need to allocate a new one for the
-	 * pool to remain stable. Using alloc_buddy_huge_page() allows us to
-	 * not having to deal with prep_new_huge_page() and avoids dealing of any
-	 * counters. This simplifies and let us do the whole thing under the
-	 * lock.
+	 * pool to remain stable.  Here, we allocate the page and 'prep' it
+	 * by doing everything but actually updating counters and adding to
+	 * the pool.  This simplifies and let us do most of the processing
+	 * under the lock.
 	 */
 	new_page = alloc_buddy_huge_page(h, gfp_mask, nid, NULL, NULL);
 	if (!new_page)
 		return -ENOMEM;
+	__prep_new_huge_page(h, new_page);
 
 retry:
 	spin_lock_irq(&hugetlb_lock);
@@ -2397,14 +2400,9 @@ retry:
 		remove_hugetlb_page(h, old_page, false);
 
 		/*
-		 * new_page needs to be initialized with the standard hugetlb
-		 * state. This is normally done by prep_new_huge_page() but
-		 * that takes hugetlb_lock which is already held so we need to
-		 * open code it here.
 		 * Reference count trick is needed because allocator gives us
 		 * referenced page but the pool requires pages with 0 refcount.
 		 */
-		__prep_new_huge_page(new_page);
 		__prep_account_new_huge_page(h, nid);
 		page_ref_dec(new_page);
 		enqueue_huge_page(h, new_page);
@@ -2420,7 +2418,7 @@ retry:
 
 free_new:
 	spin_unlock_irq(&hugetlb_lock);
-	__free_pages(new_page, huge_page_order(h));
+	update_and_free_page(h, new_page);
 
 	return ret;
 }
