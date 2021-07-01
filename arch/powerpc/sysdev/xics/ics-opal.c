@@ -157,26 +157,13 @@ static struct irq_chip ics_opal_irq_chip = {
 	.irq_retrigger = xics_retrigger,
 };
 
-static int ics_opal_map(struct ics *ics, unsigned int virq);
-static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec);
-static long ics_opal_get_server(struct ics *ics, unsigned long vec);
-
 static int ics_opal_host_match(struct ics *ics, struct device_node *node)
 {
 	return 1;
 }
 
-/* Only one global & state struct ics */
-static struct ics ics_hal = {
-	.map		= ics_opal_map,
-	.mask_unknown	= ics_opal_mask_unknown,
-	.get_server	= ics_opal_get_server,
-	.host_match	= ics_opal_host_match,
-};
-
-static int ics_opal_map(struct ics *ics, unsigned int virq)
+static int ics_opal_check(struct ics *ics, unsigned int hw_irq)
 {
-	unsigned int hw_irq = (unsigned int)virq_to_hw(virq);
 	int64_t rc;
 	__be16 server;
 	int8_t priority;
@@ -188,9 +175,6 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 	rc = opal_get_xive(hw_irq, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -ENXIO;
-
-	irq_set_chip_and_handler(virq, &ics_opal_irq_chip, handle_fasteoi_irq);
-	irq_set_chip_data(virq, &ics_hal);
 
 	return 0;
 }
@@ -221,6 +205,15 @@ static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 		return -1;
 	return ics_opal_unmangle_server(be16_to_cpu(server));
 }
+
+/* Only one global & state struct ics */
+static struct ics ics_hal = {
+	.check		= ics_opal_check,
+	.mask_unknown	= ics_opal_mask_unknown,
+	.get_server	= ics_opal_get_server,
+	.host_match	= ics_opal_host_match,
+	.chip		= &ics_opal_irq_chip,
+};
 
 int __init ics_opal_init(void)
 {

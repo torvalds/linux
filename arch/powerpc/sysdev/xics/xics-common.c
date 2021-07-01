@@ -318,10 +318,10 @@ static struct irq_chip xics_ipi_chip = {
 	.irq_unmask = xics_ipi_unmask,
 };
 
-static int xics_host_map(struct irq_domain *h, unsigned int virq,
-			 irq_hw_number_t hw)
+static int xics_host_map(struct irq_domain *domain, unsigned int virq,
+			 irq_hw_number_t hwirq)
 {
-	pr_devel("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
+	pr_devel("xics: map virq %d, hwirq 0x%lx\n", virq, hwirq);
 
 	/*
 	 * Mark interrupts as edge sensitive by default so that resend
@@ -331,7 +331,7 @@ static int xics_host_map(struct irq_domain *h, unsigned int virq,
 	irq_clear_status_flags(virq, IRQ_LEVEL);
 
 	/* Don't call into ICS for IPIs */
-	if (hw == XICS_IPI) {
+	if (hwirq == XICS_IPI) {
 		irq_set_chip_and_handler(virq, &xics_ipi_chip,
 					 handle_percpu_irq);
 		return 0;
@@ -340,9 +340,12 @@ static int xics_host_map(struct irq_domain *h, unsigned int virq,
 	if (WARN_ON(!xics_ics))
 		return -EINVAL;
 
-	/* Let the ICS setup the chip data */
-	if (xics_ics->map(xics_ics, virq))
+	if (xics_ics->check(xics_ics, hwirq))
 		return -EINVAL;
+
+	/* No chip data for the XICS domain */
+	irq_domain_set_info(domain, virq, hwirq, xics_ics->chip,
+			    NULL, handle_fasteoi_irq, NULL, NULL);
 
 	return 0;
 }
