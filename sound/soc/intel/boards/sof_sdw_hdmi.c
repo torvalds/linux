@@ -13,10 +13,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
-#include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
-
-static struct snd_soc_jack hdmi[MAX_HDMI_NUM];
 
 struct hdmi_pcm {
 	struct list_head head;
@@ -49,8 +46,6 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct hdmi_pcm *pcm;
 	struct snd_soc_component *component = NULL;
-	int err, i = 0;
-	char jack_name[NAME_SIZE];
 
 	if (!ctx->idisp_codec)
 		return 0;
@@ -62,35 +57,5 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 			       head);
 	component = pcm->codec_dai->component;
 
-	if (ctx->common_hdmi_codec_drv)
-		return hda_dsp_hdmi_build_controls(card, component);
-
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &hdmi[i],
-					    NULL, 0);
-
-		if (err)
-			return err;
-
-		err = snd_jack_add_new_kctl(hdmi[i].jack,
-					    jack_name, SND_JACK_AVOUT);
-		if (err)
-			dev_warn(component->dev, "failed creating Jack kctl\n");
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &hdmi[i]);
-		if (err < 0)
-			return err;
-
-		i++;
-	}
-
-	if (!component)
-		return -EINVAL;
-
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	return hda_dsp_hdmi_build_controls(card, component);
 }
