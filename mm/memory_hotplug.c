@@ -1908,7 +1908,7 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 }
 
 /**
- * remove_memory
+ * __remove_memory - Remove memory if every memory block is offline
  * @nid: the node ID
  * @start: physical address of the region to remove
  * @size: size of the region to remove
