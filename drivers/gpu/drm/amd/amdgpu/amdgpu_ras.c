@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
+#include <linux/pm_runtime.h>
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
@@ -1043,29 +1044,36 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 }
 
 /* get the total error counts on all IPs */
-unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
-		bool is_ce)
+void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+				  unsigned long *ce_count,
+				  unsigned long *ue_count)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
-	struct ras_err_data data = {0, 0};
+	unsigned long ce, ue;
 
 	if (!adev->ras_enabled || !con)
-		return 0;
+		return;
 
+	ce = 0;
+	ue = 0;
 	list_for_each_entry(obj, &con->head, node) {
 		struct ras_query_if info = {
 			.head = obj->head,
 		};
 
 		if (amdgpu_ras_query_error_status(adev, &info))
-			return 0;
+			return;
 
-		data.ce_count += info.ce_count;
-		data.ue_count += info.ue_count;
+		ce += info.ce_count;
+		ue += info.ue_count;
 	}
 
-	return is_ce ? data.ce_count : data.ue_count;
+	if (ce_count)
+		*ce_count = ce;
+
+	if (ue_count)
+		*ue_count = ue;
 }
 /* query/inject/cure end */
 
@@ -1976,6 +1984,9 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			goto free;
+
+		if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
+			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.num_recs);
 	}
 
 	return 0;
@@ -2055,7 +2066,9 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev)
 		return;
 
 	if (strnstr(ctx->vbios_version, "D16406",
-		    sizeof(ctx->vbios_version)))
+		    sizeof(ctx->vbios_version)) ||
+		strnstr(ctx->vbios_version, "D36002",
+			sizeof(ctx->vbios_version)))
 		adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__GFX);
 }
 
@@ -2109,6 +2122,30 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 		adev->ras_hw_enabled & amdgpu_ras_mask;
 }
 
+static void amdgpu_ras_counte_dw(struct work_struct *work)
+{
+	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
+					      ras_counte_delay_work.work);
+	struct amdgpu_device *adev = con->adev;
+	struct drm_device *dev = adev_to_drm(adev);
+	unsigned long ce_count, ue_count;
+	int res;
+
+	res = pm_runtime_get_sync(dev->dev);
+	if (res < 0)
+		goto Out;
+
+	/* Cache new values.
+	 */
+	amdgpu_ras_query_error_count(adev, &ce_count, &ue_count);
+	atomic_set(&con->ras_ce_count, ce_count);
+	atomic_set(&con->ras_ue_count, ue_count);
+
+	pm_runtime_mark_last_busy(dev->dev);
+Out:
+	pm_runtime_put_autosuspend(dev->dev);
+}
+
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -2122,6 +2159,11 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			GFP_KERNEL|__GFP_ZERO);
 	if (!con)
 		return -ENOMEM;
+
+	con->adev = adev;
+	INIT_DELAYED_WORK(&con->ras_counte_delay_work, amdgpu_ras_counte_dw);
+	atomic_set(&con->ras_ce_count, 0);
+	atomic_set(&con->ras_ue_count, 0);
 
 	con->objs = (struct ras_manager *)(con + 1);
 
@@ -2226,6 +2268,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 			 struct ras_fs_if *fs_info,
 			 struct ras_ih_if *ih_info)
 {
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	unsigned long ue_count, ce_count;
 	int r;
 
 	/* disable RAS feature per IP block if it is not supported */
@@ -2265,6 +2309,12 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 	r = amdgpu_ras_sysfs_create(adev, fs_info);
 	if (r)
 		goto sysfs;
+
+	/* Those are the cached values at init.
+	 */
+	amdgpu_ras_query_error_count(adev, &ce_count, &ue_count);
+	atomic_set(&con->ras_ce_count, ce_count);
+	atomic_set(&con->ras_ue_count, ue_count);
 
 	return 0;
 cleanup:
@@ -2362,6 +2412,7 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 	if (!adev->ras_enabled || !con)
 		return 0;
 
+
 	/* Need disable ras on all IPs here before ip [hw/sw]fini */
 	amdgpu_ras_disable_all_features(adev, 0);
 	amdgpu_ras_recovery_fini(adev);
@@ -2382,6 +2433,8 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 	if (con->features)
 		amdgpu_ras_disable_all_features(adev, 1);
+
+	cancel_delayed_work_sync(&con->ras_counte_delay_work);
 
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);

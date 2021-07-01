@@ -575,7 +575,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	if (info->flags & QMI_WWAN_FLAG_PASS_THROUGH) {
 		skb->protocol = htons(ETH_P_MAP);
-		return (netif_rx(skb) == NET_RX_SUCCESS);
+		return 1;
 	}
 
 	switch (skb->data[0] & 0xf0) {

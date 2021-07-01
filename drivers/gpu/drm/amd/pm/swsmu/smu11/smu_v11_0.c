@@ -1474,7 +1474,8 @@ int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 	return smu_cmn_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME, NULL);
 }
 
-static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v11_0_baco_seq baco_seq)
+int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu,
+				      enum smu_v11_0_baco_seq baco_seq)
 {
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ArmD3, baco_seq, NULL);
 }
@@ -1483,7 +1484,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
-	if (!smu_baco->platform_support)
+	if (amdgpu_sriov_vf(smu->adev) || !smu_baco->platform_support)
 		return false;
 
 	/* Arcturus does not support this bit mask */
@@ -1578,15 +1579,7 @@ out:
 
 int smu_v11_0_baco_enter(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-
-	/* Arcturus does not need this audio workaround */
-	if (adev->asic_type != CHIP_ARCTURUS) {
-		ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
-		if (ret)
-			return ret;
-	}
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
 	if (ret)

@@ -76,6 +76,7 @@ struct psp_ring
 	uint64_t			ring_mem_mc_addr;
 	void				*ring_mem_handle;
 	uint32_t			ring_size;
+	uint32_t			ring_wptr;
 };
 
 /* More registers may will be supported */
@@ -224,6 +225,61 @@ struct psp_memory_training_context {
 
 	enum psp_memory_training_init_flag init;
 	u32 training_cnt;
+	bool enable_mem_training;
+};
+
+/** PSP runtime DB **/
+#define PSP_RUNTIME_DB_SIZE_IN_BYTES		0x10000
+#define PSP_RUNTIME_DB_OFFSET			0x100000
+#define PSP_RUNTIME_DB_COOKIE_ID		0x0ed5
+#define PSP_RUNTIME_DB_VER_1			0x0100
+#define PSP_RUNTIME_DB_DIAG_ENTRY_MAX_COUNT	0x40
+
+enum psp_runtime_entry_type {
+	PSP_RUNTIME_ENTRY_TYPE_INVALID		= 0x0,
+	PSP_RUNTIME_ENTRY_TYPE_TEST		= 0x1,
+	PSP_RUNTIME_ENTRY_TYPE_MGPU_COMMON	= 0x2,  /* Common mGPU runtime data */
+	PSP_RUNTIME_ENTRY_TYPE_MGPU_WAFL	= 0x3,  /* WAFL runtime data */
+	PSP_RUNTIME_ENTRY_TYPE_MGPU_XGMI	= 0x4,  /* XGMI runtime data */
+	PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG	= 0x5,  /* Boot Config runtime data */
+};
+
+/* PSP runtime DB header */
+struct psp_runtime_data_header {
+	/* determine the existence of runtime db */
+	uint16_t cookie;
+	/* version of runtime db */
+	uint16_t version;
+};
+
+/* PSP runtime DB entry */
+struct psp_runtime_entry {
+	/* type of runtime db entry */
+	uint32_t entry_type;
+	/* offset of entry in bytes */
+	uint16_t offset;
+	/* size of entry in bytes */
+	uint16_t size;
+};
+
+/* PSP runtime DB directory */
+struct psp_runtime_data_directory {
+	/* number of valid entries */
+	uint16_t			entry_count;
+	/* db entries*/
+	struct psp_runtime_entry	entry_list[PSP_RUNTIME_DB_DIAG_ENTRY_MAX_COUNT];
+};
+
+/* PSP runtime DB boot config feature bitmask */
+enum psp_runtime_boot_cfg_feature {
+	BOOT_CFG_FEATURE_GECC                       = 0x1,
+	BOOT_CFG_FEATURE_TWO_STAGE_DRAM_TRAINING    = 0x2,
+};
+
+/* PSP runtime DB boot config entry */
+struct psp_runtime_boot_cfg_entry {
+	uint32_t boot_cfg_bitmask;
+	uint32_t reserved;
 };
 
 struct psp_context
@@ -324,6 +380,8 @@ struct psp_context
 	struct psp_securedisplay_context	securedisplay_context;
 	struct mutex			mutex;
 	struct psp_memory_training_context mem_train_ctx;
+
+	uint32_t			boot_cfg_bitmask;
 };
 
 struct amdgpu_psp_funcs {
@@ -423,4 +481,6 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 
 int psp_load_fw_list(struct psp_context *psp,
 		     struct amdgpu_firmware_info **ucode_list, int ucode_count);
+void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
+
 #endif

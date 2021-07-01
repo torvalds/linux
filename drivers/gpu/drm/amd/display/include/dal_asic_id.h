@@ -224,6 +224,17 @@ enum {
 #define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
 #endif
 
+#define FAMILY_YELLOW_CARP                     146
+
+#define YELLOW_CARP_A0 0x01
+#define YELLOW_CARP_B0 0x02		// TODO: DCN31 - update with correct B0 ID
+#define YELLOW_CARP_UNKNOWN 0xFF
+
+#ifndef ASICREV_IS_YELLOW_CARP
+#define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKNOWN))
+#endif
+
+
 /*
  * ASIC chip ID
  */

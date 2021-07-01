@@ -39,6 +39,7 @@
 struct amdgpu_bo_va;
 struct amdgpu_job;
 struct amdgpu_bo_list_entry;
+struct amdgpu_bo_vm;
 
 /*
  * GPUVM handling
@@ -151,13 +152,6 @@ struct amdgpu_vm_bo_base {
 	bool				moved;
 };
 
-struct amdgpu_vm_pt {
-	struct amdgpu_vm_bo_base	base;
-
-	/* array of page tables, one for each directory entry */
-	struct amdgpu_vm_pt		*entries;
-};
-
 /* provided by hw blocks that can write ptes, e.g., sdma */
 struct amdgpu_vm_pte_funcs {
 	/* number of dw to reserve per operation */
@@ -239,11 +233,11 @@ struct amdgpu_vm_update_params {
 };
 
 struct amdgpu_vm_update_funcs {
-	int (*map_table)(struct amdgpu_bo *bo);
+	int (*map_table)(struct amdgpu_bo_vm *bo);
 	int (*prepare)(struct amdgpu_vm_update_params *p, struct dma_resv *resv,
 		       enum amdgpu_sync_mode sync_mode);
 	int (*update)(struct amdgpu_vm_update_params *p,
-		      struct amdgpu_bo *bo, uint64_t pe, uint64_t addr,
+		      struct amdgpu_bo_vm *bo, uint64_t pe, uint64_t addr,
 		      unsigned count, uint32_t incr, uint64_t flags);
 	int (*commit)(struct amdgpu_vm_update_params *p,
 		      struct dma_fence **fence);
@@ -283,7 +277,7 @@ struct amdgpu_vm {
 	struct list_head        done;
 
 	/* contains the page directory */
-	struct amdgpu_vm_pt     root;
+	struct amdgpu_vm_bo_base     root;
 	struct dma_fence	*last_update;
 
 	/* Scheduler entities for page table updates */
@@ -412,7 +406,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				struct dma_fence **fence, bool *free_table);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			bool clear);
+			bool clear, bool *table_freed);
 bool amdgpu_vm_evictable(struct amdgpu_bo *bo);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo, bool evicted);

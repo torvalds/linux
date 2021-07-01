@@ -231,9 +231,13 @@ static int vcn_v1_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	cancel_delayed_work_sync(&adev->vcn.idle_work);
+
 	if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
-		RREG32_SOC15(VCN, 0, mmUVD_STATUS))
+		(adev->vcn.cur_state != AMD_PG_STATE_GATE &&
+		 RREG32_SOC15(VCN, 0, mmUVD_STATUS))) {
 		vcn_v1_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
+	}
 
 	return 0;
 }
@@ -765,7 +769,7 @@ static void vcn_1_0_enable_static_power_gating(struct amdgpu_device *adev)
 }
 
 /**
- * vcn_v1_0_start - start VCN block
+ * vcn_v1_0_start_spg_mode - start VCN block
  *
  * @adev: amdgpu_device pointer
  *
@@ -1101,7 +1105,7 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 }
 
 /**
- * vcn_v1_0_stop - stop VCN block
+ * vcn_v1_0_stop_spg_mode - stop VCN block
  *
  * @adev: amdgpu_device pointer
  *

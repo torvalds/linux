@@ -75,7 +75,7 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
  * @root: root of the tree to traversal
  * @cpu: target cpu
  *
- * Walks the udpated rstat_cpu tree on @cpu from @root.  %NULL @pos starts
+ * Walks the updated rstat_cpu tree on @cpu from @root.  %NULL @pos starts
  * the traversal and %NULL return indicates the end.  During traversal,
  * each returned cgroup is unlinked from the tree.  Must be called with the
  * matching cgroup_rstat_cpu_lock held.

@@ -254,7 +254,7 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
@@ -263,7 +263,7 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_SHADER;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	res->backup_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
@@ -282,7 +282,7 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	} *cmd;
 	struct vmw_fence_obj *fence;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
@@ -402,7 +402,7 @@ static int vmw_dx_shader_unscrub(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = shader->ctx->id;
 	cmd->body.shid = shader->id;
-	cmd->body.mobid = res->backup->base.mem.start;
+	cmd->body.mobid = res->backup->base.resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
@@ -450,7 +450,7 @@ static int vmw_dx_shader_bind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_shader_unscrub(res);
 	mutex_unlock(&dev_priv->binding_mutex);
@@ -513,7 +513,7 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	ret = vmw_dx_shader_scrub(res);

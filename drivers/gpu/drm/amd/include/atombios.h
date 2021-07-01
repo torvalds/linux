@@ -5178,11 +5178,11 @@ typedef struct  _ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 typedef struct  _ATOM_SVID2_VOLTAGE_OBJECT_V3
 {
    ATOM_VOLTAGE_OBJECT_HEADER_V3 sHeader;    // voltage mode = VOLTAGE_OBJ_SVID2
-// 14:7 � PSI0_VID
-// 6 � PSI0_EN
-// 5 � PSI1
-// 4:2 � load line slope trim.
-// 1:0 � offset trim,
+// 14:7 - PSI0_VID
+// 6 - PSI0_EN
+// 5 - PSI1
+// 4:2 - load line slope trim.
+// 1:0 - offset trim,
    USHORT   usLoadLine_PSI;
 // GPU GPIO pin Id to SVID2 regulator VRHot pin. possible value 0~31. 0 means GPIO0, 31 means GPIO31
    UCHAR    ucSVDGpioId;     //0~31 indicate GPIO0~31

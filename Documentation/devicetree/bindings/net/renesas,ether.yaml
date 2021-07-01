@@ -10,7 +10,7 @@ allOf:
   - $ref: ethernet-controller.yaml#
 
 maintainers:
-  - Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+  - Sergei Shtylyov <sergei.shtylyov@gmail.com>
 
 properties:
   compatible:

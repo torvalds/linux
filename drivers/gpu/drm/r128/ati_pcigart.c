@@ -71,6 +71,8 @@ static void drm_ati_free_pcigart_table(struct drm_device *dev,
 	drm_dma_handle_t *dmah = gart_info->table_handle;
 
 	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr, dmah->busaddr);
+	kfree(dmah);
+
 	gart_info->table_handle = NULL;
 }
 

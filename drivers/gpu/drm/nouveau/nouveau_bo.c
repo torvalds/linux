@@ -433,7 +433,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 	if (nvbo->bo.pin_count) {
 		bool error = evict;
 
-		switch (bo->mem.mem_type) {
+		switch (bo->resource->mem_type) {
 		case TTM_PL_VRAM:
 			error |= !(domain & NOUVEAU_GEM_DOMAIN_VRAM);
 			break;
@@ -446,7 +446,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 		if (error) {
 			NV_ERROR(drm, "bo %p pinned elsewhere: "
 				      "0x%08x vs 0x%08x\n", bo,
-				 bo->mem.mem_type, domain);
+				 bo->resource->mem_type, domain);
 			ret = -EBUSY;
 		}
 		ttm_bo_pin(&nvbo->bo);
@@ -467,7 +467,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 
 	ttm_bo_pin(&nvbo->bo);
 
-	switch (bo->mem.mem_type) {
+	switch (bo->resource->mem_type) {
 	case TTM_PL_VRAM:
 		drm->gem.vram_available -= bo->base.size;
 		break;
@@ -498,7 +498,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 
 	ttm_bo_unpin(&nvbo->bo);
 	if (!nvbo->bo.pin_count) {
-		switch (bo->mem.mem_type) {
+		switch (bo->resource->mem_type) {
 		case TTM_PL_VRAM:
 			drm->gem.vram_available += bo->base.size;
 			break;
@@ -523,7 +523,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages, &nvbo->kmap);
+	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.resource->num_pages, &nvbo->kmap);
 
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -737,7 +737,7 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	switch (bo->mem.mem_type) {
+	switch (bo->resource->mem_type) {
 	case TTM_PL_VRAM:
 		nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_GART,
 					 NOUVEAU_GEM_DOMAIN_CPU);
@@ -754,7 +754,7 @@ static int
 nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 		     struct ttm_resource *reg)
 {
-	struct nouveau_mem *old_mem = nouveau_mem(&bo->mem);
+	struct nouveau_mem *old_mem = nouveau_mem(bo->resource);
 	struct nouveau_mem *new_mem = nouveau_mem(reg);
 	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	int ret;
@@ -809,7 +809,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 		mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
 	ret = nouveau_fence_sync(nouveau_bo(bo), chan, true, ctx->interruptible);
 	if (ret == 0) {
-		ret = drm->ttm.move(chan, bo, &bo->mem, new_reg);
+		ret = drm->ttm.move(chan, bo, bo->resource, new_reg);
 		if (ret == 0) {
 			ret = nouveau_fence_new(chan, false, &fence);
 			if (ret == 0) {
@@ -918,12 +918,8 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 		}
 	}
 
-	if (new_reg) {
-		if (new_reg->mm_node)
-			nvbo->offset = (new_reg->start << PAGE_SHIFT);
-		else
-			nvbo->offset = 0;
-	}
+	if (new_reg)
+		nvbo->offset = (new_reg->start << PAGE_SHIFT);
 
 }
 
@@ -955,7 +951,7 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
-	struct dma_fence *fence = dma_resv_get_excl(bo->base.resv);
+	struct dma_fence *fence = dma_resv_excl_fence(bo->base.resv);
 
 	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;
@@ -969,7 +965,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct ttm_resource *old_reg = &bo->mem;
+	struct ttm_resource *old_reg = bo->resource;
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
@@ -1009,7 +1005,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (old_reg->mem_type == TTM_PL_TT &&
 	    new_reg->mem_type == TTM_PL_SYSTEM) {
 		nouveau_ttm_tt_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, &bo->mem);
+		ttm_resource_free(bo, &bo->resource);
 		ttm_bo_assign_mem(bo, new_reg);
 		goto out;
 	}
@@ -1045,18 +1041,9 @@ out:
 	}
 out_ntfy:
 	if (ret) {
-		nouveau_bo_move_ntfy(bo, &bo->mem);
+		nouveau_bo_move_ntfy(bo, bo->resource);
 	}
 	return ret;
-}
-
-static int
-nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-
-	return drm_vma_node_verify_access(&nvbo->bo.base.vma_node,
-					  filp->private_data);
 }
 
 static void
@@ -1179,7 +1166,7 @@ out:
 			list_del_init(&nvbo->io_reserve_lru);
 			drm_vma_node_unmap(&nvbo->bo.base.vma_node,
 					   bdev->dev_mapping);
-			nouveau_ttm_io_mem_free_locked(drm, &nvbo->bo.mem);
+			nouveau_ttm_io_mem_free_locked(drm, nvbo->bo.resource);
 			goto retry;
 		}
 
@@ -1209,12 +1196,12 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
 	 */
-	if (bo->mem.mem_type != TTM_PL_VRAM) {
+	if (bo->resource->mem_type != TTM_PL_VRAM) {
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
 		    !nvbo->kind)
 			return 0;
 
-		if (bo->mem.mem_type != TTM_PL_SYSTEM)
+		if (bo->resource->mem_type != TTM_PL_SYSTEM)
 			return 0;
 
 		nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_GART, 0);
@@ -1222,7 +1209,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	} else {
 		/* make sure bo is in mappable vram */
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
-		    bo->mem.start + bo->mem.num_pages < mappable)
+		    bo->resource->start + bo->resource->num_pages < mappable)
 			return 0;
 
 		for (i = 0; i < nvbo->placement.num_placement; ++i) {
@@ -1331,7 +1318,6 @@ struct ttm_device_funcs nouveau_bo_driver = {
 	.evict_flags = nouveau_bo_evict_flags,
 	.delete_mem_notify = nouveau_bo_delete_mem_notify,
 	.move = nouveau_bo_move,
-	.verify_access = nouveau_bo_verify_access,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,
 };

@@ -40,12 +40,12 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 	const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
 
 	drm_printf_indent(p, indent, "placement=");
-	drm_print_bits(p, bo->mem.placement, plname, ARRAY_SIZE(plname));
+	drm_print_bits(p, bo->resource->placement, plname, ARRAY_SIZE(plname));
 	drm_printf(p, "\n");
 
-	if (bo->mem.bus.is_iomem)
+	if (bo->resource->bus.is_iomem)
 		drm_printf_indent(p, indent, "bus.offset=%lx\n",
-				  (unsigned long)bo->mem.bus.offset);
+				  (unsigned long)bo->resource->bus.offset);
 }
 EXPORT_SYMBOL(drm_gem_ttm_print_info);
 

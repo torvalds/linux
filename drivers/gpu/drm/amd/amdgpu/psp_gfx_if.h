@@ -332,11 +332,16 @@ struct psp_gfx_uresp_fwar_db_info
     uint32_t fwar_db_addr_hi;
 };
 
+/* Command-specific response for boot config. */
+struct psp_gfx_uresp_bootcfg {
+	uint32_t boot_cfg;	/* boot config data */
+};
+
 /* Union of command-specific responses for GPCOM ring. */
-union psp_gfx_uresp
-{
-    struct psp_gfx_uresp_reserved reserved;
-    struct psp_gfx_uresp_fwar_db_info fwar_db_info;
+union psp_gfx_uresp {
+	struct psp_gfx_uresp_reserved		reserved;
+	struct psp_gfx_uresp_bootcfg		boot_cfg;
+	struct psp_gfx_uresp_fwar_db_info	fwar_db_info;
 };
 
 /* Structure of GFX Response buffer.

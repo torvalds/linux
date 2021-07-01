@@ -54,6 +54,8 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
+#include "inc/dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1403,6 +1405,9 @@ void dcn10_init_hw(struct dc *dc)
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
 
+			/* DP 2.0 requires that LTTPR Caps be read first */
+			dp_retrieve_lttpr_cap(dc->links[i]);
+
 			/*
 			 * If any of the displays are lit up turn them off.
 			 * The reason is that some MST hubs cannot be turned off
@@ -2407,83 +2412,6 @@ void dcn10_program_output_csc(struct dc *dc,
 	}
 }
 
-void dcn10_get_surface_visual_confirm_color(
-		const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color)
-{
-	uint32_t color_value = MAX_TG_COLOR_VALUE;
-
-	switch (pipe_ctx->plane_res.scl_data.format) {
-	case PIXEL_FORMAT_ARGB8888:
-		/* set border color to red */
-		color->color_r_cr = color_value;
-		break;
-
-	case PIXEL_FORMAT_ARGB2101010:
-		/* set border color to blue */
-		color->color_b_cb = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP8:
-		/* set border color to green */
-		color->color_g_y = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP10:
-		/* set border color to yellow */
-		color->color_g_y = color_value;
-		color->color_r_cr = color_value;
-		break;
-	case PIXEL_FORMAT_FP16:
-		/* set border color to white */
-		color->color_r_cr = color_value;
-		color->color_b_cb = color_value;
-		color->color_g_y = color_value;
-		break;
-	default:
-		break;
-	}
-}
-
-void dcn10_get_hdr_visual_confirm_color(
-		struct pipe_ctx *pipe_ctx,
-		struct tg_color *color)
-{
-	uint32_t color_value = MAX_TG_COLOR_VALUE;
-
-	// Determine the overscan color based on the top-most (desktop) plane's context
-	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
-
-	while (top_pipe_ctx->top_pipe != NULL)
-		top_pipe_ctx = top_pipe_ctx->top_pipe;
-
-	switch (top_pipe_ctx->plane_res.scl_data.format) {
-	case PIXEL_FORMAT_ARGB2101010:
-		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, ARGB2101010 - set border color to red */
-			color->color_r_cr = color_value;
-		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 ARGB2101010 - set border color to pink */
-			color->color_r_cr = color_value;
-			color->color_b_cb = color_value;
-		}
-		break;
-	case PIXEL_FORMAT_FP16:
-		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, FP16 - set border color to blue */
-			color->color_b_cb = color_value;
-		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 HDR - set border color to green */
-			color->color_g_y = color_value;
-		}
-		break;
-	default:
-		/* SDR - set border color to Gray */
-		color->color_r_cr = color_value/2;
-		color->color_b_cb = color_value/2;
-		color->color_g_y = color_value/2;
-		break;
-	}
-}
-
 static void dcn10_update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 {
 	struct dc_bias_and_scale bns_params = {0};
@@ -2504,13 +2432,14 @@ static void dcn10_update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state
 
 void dcn10_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
 {
-	struct dce_hwseq *hws = dc->hwseq;
 	struct mpc *mpc = dc->res_pool->mpc;
 
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
-		hws->funcs.get_hdr_visual_confirm_color(pipe_ctx, color);
+		get_hdr_visual_confirm_color(pipe_ctx, color);
 	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
-		hws->funcs.get_surface_visual_confirm_color(pipe_ctx, color);
+		get_surface_visual_confirm_color(pipe_ctx, color);
+	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
+		get_surface_tile_visual_confirm_color(pipe_ctx, color);
 	else
 		color_space_to_black_color(
 				dc, pipe_ctx->stream->output_color_space, color);
@@ -2560,11 +2489,10 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 */
 	mpcc_id = hubp->inst;
 
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
-
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
+		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 		return;
 	}
 
@@ -2586,6 +2514,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			NULL,
 			hubp->inst,
 			mpcc_id);
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
 
@@ -2599,7 +2528,7 @@ static void update_scaler(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
-	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_36BPP;
 	/* scaler configuration */
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
 			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
@@ -3316,10 +3245,17 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * about the actual size being incorrect, that's a limitation of
 	 * the hardware.
 	 */
-	x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
-			pipe_ctx->plane_state->dst_rect.width;
-	y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
-			pipe_ctx->plane_state->dst_rect.height;
+	if (param.rotation == ROTATION_ANGLE_90 || param.rotation == ROTATION_ANGLE_270) {
+		x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.height /
+				pipe_ctx->plane_state->dst_rect.width;
+		y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.width /
+				pipe_ctx->plane_state->dst_rect.height;
+	} else {
+		x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
+				pipe_ctx->plane_state->dst_rect.width;
+		y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
+				pipe_ctx->plane_state->dst_rect.height;
+	}
 
 	/**
 	 * If the cursor's source viewport is clipped then we need to

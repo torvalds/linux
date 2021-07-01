@@ -1035,31 +1035,42 @@ static int pp_set_power_limit(void *handle, uint32_t limit)
 }
 
 static int pp_get_power_limit(void *handle, uint32_t *limit,
-		uint32_t *max_limit, bool default_limit)
+			      enum pp_power_limit_level pp_limit_level,
+			      enum pp_power_type power_type)
 {
 	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en ||!limit)
 		return -EINVAL;
 
+	if (power_type != PP_PWR_TYPE_SUSTAINED)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&hwmgr->smu_lock);
 
-	if (default_limit) {
-		*limit = hwmgr->default_power_limit;
-		if (max_limit) {
-			*max_limit = *limit;
+	switch (pp_limit_level) {
+		case PP_PWR_LIMIT_CURRENT:
+			*limit = hwmgr->power_limit;
+			break;
+		case PP_PWR_LIMIT_DEFAULT:
+			*limit = hwmgr->default_power_limit;
+			break;
+		case PP_PWR_LIMIT_MAX:
+			*limit = hwmgr->default_power_limit;
 			if (hwmgr->od_enabled) {
-				*max_limit *= (100 + hwmgr->platform_descriptor.TDPODLimit);
-				*max_limit /= 100;
+				*limit *= (100 + hwmgr->platform_descriptor.TDPODLimit);
+				*limit /= 100;
 			}
-		}
+			break;
+		default:
+			ret = -EOPNOTSUPP;
+			break;
 	}
-	else
-		*limit = hwmgr->power_limit;
 
 	mutex_unlock(&hwmgr->smu_lock);
 
-	return 0;
+	return ret;
 }
 
 static int pp_display_configuration_change(void *handle,

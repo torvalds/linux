@@ -95,7 +95,7 @@ static inline u64 radeon_bo_gpu_offset(struct radeon_bo *bo)
 
 	rdev = radeon_get_rdev(bo->tbo.bdev);
 
-	switch (bo->tbo.mem.mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_TT:
 		start = rdev->mc.gtt_start;
 		break;
@@ -104,7 +104,7 @@ static inline u64 radeon_bo_gpu_offset(struct radeon_bo *bo)
 		break;
 	}
 
-	return (bo->tbo.mem.start << PAGE_SHIFT) + start;
+	return (bo->tbo.resource->start << PAGE_SHIFT) + start;
 }
 
 static inline unsigned long radeon_bo_size(struct radeon_bo *bo)

@@ -1176,7 +1176,7 @@ typedef struct {
   uint16_t         LedGpio;            //GeneriA GPIO flag used to control the radeon LEDs
   uint16_t         GfxPowerStagesGpio; //Genlk_vsync GPIO flag used to control gfx power stages 
 
-  uint32_t         SkuReserved[16];
+  uint32_t         SkuReserved[63];
 
 
 

@@ -661,14 +661,6 @@ static void vmw_evict_flags(struct ttm_buffer_object *bo,
 	*placement = vmw_sys_placement;
 }
 
-static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct ttm_object_file *tfile =
-		vmw_fpriv((struct drm_file *)filp->private_data)->tfile;
-
-	return vmw_user_bo_verify_access(bo, tfile);
-}
-
 static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
@@ -727,7 +719,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 		    struct ttm_resource *new_mem,
 		    struct ttm_place *hop)
 {
-	struct ttm_resource_manager *old_man = ttm_manager_type(bo->bdev, bo->mem.mem_type);
+	struct ttm_resource_manager *old_man = ttm_manager_type(bo->bdev, bo->resource->mem_type);
 	struct ttm_resource_manager *new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);
 	int ret;
 
@@ -737,11 +729,11 @@ static int vmw_move(struct ttm_buffer_object *bo,
 			return ret;
 	}
 
-	vmw_move_notify(bo, &bo->mem, new_mem);
+	vmw_move_notify(bo, bo->resource, new_mem);
 
 	if (old_man->use_tt && new_man->use_tt) {
-		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
-			ttm_bo_assign_mem(bo, new_mem);
+		if (bo->resource->mem_type == TTM_PL_SYSTEM) {
+			ttm_bo_move_null(bo, new_mem);
 			return 0;
 		}
 		ret = ttm_bo_wait_ctx(bo, ctx);
@@ -749,7 +741,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 			goto fail;
 
 		vmw_ttm_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, &bo->mem);
+		ttm_resource_free(bo, &bo->resource);
 		ttm_bo_assign_mem(bo, new_mem);
 		return 0;
 	} else {
@@ -759,7 +751,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 	}
 	return 0;
 fail:
-	vmw_move_notify(bo, new_mem, &bo->mem);
+	vmw_move_notify(bo, new_mem, bo->resource);
 	return ret;
 }
 
@@ -771,7 +763,6 @@ struct ttm_device_funcs vmw_bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
 	.move = vmw_move,
-	.verify_access = vmw_verify_access,
 	.swap_notify = vmw_swap_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 };

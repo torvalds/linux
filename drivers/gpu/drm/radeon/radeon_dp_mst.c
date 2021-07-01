@@ -642,7 +642,7 @@ radeon_dp_mst_init(struct radeon_connector *radeon_connector)
 	radeon_connector->mst_mgr.cbs = &mst_cbs;
 	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev,
 					    &radeon_connector->ddc_bus->aux, 16, 6,
-					    4, (u8)max_link_rate,
+					    4, drm_dp_bw_code_to_link_rate(max_link_rate),
 					    radeon_connector->base.base.id);
 }
 

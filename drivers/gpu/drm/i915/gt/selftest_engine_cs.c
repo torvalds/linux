@@ -52,7 +52,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		return PTR_ERR(cs);
 
 	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
-	if (INTEL_GEN(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->engine->i915) >= 8)
 		cmd++;
 	*cs++ = cmd;
 	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP(rq->engine->mmio_base));
@@ -125,7 +125,7 @@ static int perf_mi_bb_start(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	if (INTEL_GEN(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
 		return 0;
 
 	perf_begin(gt);
@@ -249,7 +249,7 @@ static int perf_mi_noop(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	if (INTEL_GEN(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
 		return 0;
 
 	perf_begin(gt);

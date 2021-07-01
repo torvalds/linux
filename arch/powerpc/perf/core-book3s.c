@@ -2254,7 +2254,7 @@ unsigned long perf_instruction_pointer(struct pt_regs *regs)
 	bool use_siar = regs_use_siar(regs);
 	unsigned long siar = mfspr(SPRN_SIAR);
 
-	if (ppmu->flags & PPMU_P10_DD1) {
+	if (ppmu && (ppmu->flags & PPMU_P10_DD1)) {
 		if (siar)
 			return siar;
 		else

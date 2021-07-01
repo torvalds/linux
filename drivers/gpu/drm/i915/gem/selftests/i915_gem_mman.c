@@ -273,7 +273,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 static unsigned int
 setup_tile_size(struct tile *tile, struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) <= 2) {
+	if (GRAPHICS_VER(i915) <= 2) {
 		tile->height = 16;
 		tile->width = 128;
 		tile->size = 11;
@@ -288,9 +288,9 @@ setup_tile_size(struct tile *tile, struct drm_i915_private *i915)
 		tile->size = 12;
 	}
 
-	if (INTEL_GEN(i915) < 4)
+	if (GRAPHICS_VER(i915) < 4)
 		return 8192 / tile->width;
-	else if (INTEL_GEN(i915) < 7)
+	else if (GRAPHICS_VER(i915) < 7)
 		return 128 * I965_FENCE_MAX_PITCH_VAL / tile->width;
 	else
 		return 128 * GEN7_FENCE_MAX_PITCH_VAL / tile->width;
@@ -386,7 +386,7 @@ static int igt_partial_tiling(void *arg)
 			if (err)
 				goto out_unlock;
 
-			if (pitch > 2 && INTEL_GEN(i915) >= 4) {
+			if (pitch > 2 && GRAPHICS_VER(i915) >= 4) {
 				tile.stride = tile.width * (pitch - 1);
 				err = check_partial_mappings(obj, &tile, end);
 				if (err == -EINTR)
@@ -395,7 +395,7 @@ static int igt_partial_tiling(void *arg)
 					goto out_unlock;
 			}
 
-			if (pitch < max_pitch && INTEL_GEN(i915) >= 4) {
+			if (pitch < max_pitch && GRAPHICS_VER(i915) >= 4) {
 				tile.stride = tile.width * (pitch + 1);
 				err = check_partial_mappings(obj, &tile, end);
 				if (err == -EINTR)
@@ -405,7 +405,7 @@ static int igt_partial_tiling(void *arg)
 			}
 		}
 
-		if (INTEL_GEN(i915) >= 4) {
+		if (GRAPHICS_VER(i915) >= 4) {
 			for_each_prime_number(pitch, max_pitch) {
 				tile.stride = tile.width * pitch;
 				err = check_partial_mappings(obj, &tile, end);
@@ -501,7 +501,7 @@ static int igt_smoke_tiling(void *arg)
 			tile.stride =
 				i915_prandom_u32_max_state(max_pitch, &prng);
 			tile.stride = (1 + tile.stride) * tile.width;
-			if (INTEL_GEN(i915) < 4)
+			if (GRAPHICS_VER(i915) < 4)
 				tile.stride = rounddown_pow_of_two(tile.stride);
 		}
 
@@ -842,6 +842,24 @@ static bool can_mmap(struct drm_i915_gem_object *obj, enum i915_mmap_type type)
 	return true;
 }
 
+static void object_set_placements(struct drm_i915_gem_object *obj,
+				  struct intel_memory_region **placements,
+				  unsigned int n_placements)
+{
+	GEM_BUG_ON(!n_placements);
+
+	if (n_placements == 1) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+		struct intel_memory_region *mr = placements[0];
+
+		obj->mm.placements = &i915->mm.regions[mr->id];
+		obj->mm.n_placements = 1;
+	} else {
+		obj->mm.placements = placements;
+		obj->mm.n_placements = n_placements;
+	}
+}
+
 #define expand32(x) (((x) << 0) | ((x) << 8) | ((x) << 16) | ((x) << 24))
 static int __igt_mmap(struct drm_i915_private *i915,
 		      struct drm_i915_gem_object *obj,
@@ -949,6 +967,8 @@ static int igt_mmap(void *arg)
 
 			if (IS_ERR(obj))
 				return PTR_ERR(obj);
+
+			object_set_placements(obj, &mr, 1);
 
 			err = __igt_mmap(i915, obj, I915_MMAP_TYPE_GTT);
 			if (err == 0)
@@ -1067,6 +1087,8 @@ static int igt_mmap_access(void *arg)
 
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
+
+		object_set_placements(obj, &mr, 1);
 
 		err = __igt_mmap_access(i915, obj, I915_MMAP_TYPE_GTT);
 		if (err == 0)
@@ -1211,6 +1233,8 @@ static int igt_mmap_gpu(void *arg)
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
 
+		object_set_placements(obj, &mr, 1);
+
 		err = __igt_mmap_gpu(i915, obj, I915_MMAP_TYPE_GTT);
 		if (err == 0)
 			err = __igt_mmap_gpu(i915, obj, I915_MMAP_TYPE_WC);
@@ -1353,6 +1377,8 @@ static int igt_mmap_revoke(void *arg)
 
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
+
+		object_set_placements(obj, &mr, 1);
 
 		err = __igt_mmap_revoke(i915, obj, I915_MMAP_TYPE_GTT);
 		if (err == 0)

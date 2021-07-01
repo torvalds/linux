@@ -74,6 +74,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
+	double sr_exit_z8_time_us;
+	double sr_enter_plus_exit_z8_time_us;
 	double urgent_latency_us;
 	double urgent_latency_pixel_data_only_us;
 	double urgent_latency_pixel_mixed_with_vm_data_us;
@@ -209,6 +211,12 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int is_line_buffer_bpp_fixed;
 	unsigned int line_buffer_fixed_bpp;
 	unsigned int dcc_supported;
+	unsigned int config_return_buffer_size_in_kbytes;
+	unsigned int compressed_buffer_segment_size_in_kbytes;
+	unsigned int meta_fifo_size_in_kentries;
+	unsigned int zero_size_buffer_entries;
+	unsigned int compbuf_reserved_space_64b;
+	unsigned int compbuf_reserved_space_zs;
 
 	unsigned int IsLineBufferBppFixed;
 	unsigned int LineBufferFixedBpp;
@@ -253,6 +261,8 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned int viewport_y_c;
 	unsigned int viewport_width_c;
 	unsigned int viewport_height_c;
+	unsigned int viewport_width_max;
+	unsigned int viewport_height_max;
 	unsigned int data_pitch;
 	unsigned int data_pitch_c;
 	unsigned int meta_pitch;

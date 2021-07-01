@@ -20,10 +20,13 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_property.h>
@@ -285,8 +288,8 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 					    struct drm_atomic_state *state)
 {
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
-	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state,
-									  plane);
+	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_plane_state *oldstate = drm_atomic_get_old_plane_state(state, plane);
 	const struct drm_format_info *finfo;
 	u32 ctrl, stride = 0, coef_index = 0, format = 0;
 	bool needs_modeset, upscaling_w, upscaling_h;
@@ -316,6 +319,9 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 		regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL,
 				JZ_IPU_CTRL_CHIP_EN | JZ_IPU_CTRL_LCDC_SEL);
 	}
+
+	if (ingenic_drm_map_noncoherent(ipu->master))
+		drm_fb_cma_sync_non_coherent(ipu->drm, oldstate, newstate);
 
 	/* New addresses will be committed in vblank handler... */
 	ipu->addr_y = drm_fb_cma_get_gem_addr(newstate->fb, newstate, 0);
@@ -541,7 +547,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 
 	if (!new_plane_state->crtc ||
 	    !crtc_state->mode.hdisplay || !crtc_state->mode.vdisplay)
-		return 0;
+		goto out_check_damage;
 
 	/* Plane must be fully visible */
 	if (new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0 ||
@@ -558,7 +564,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	if (!osd_changed(new_plane_state, old_plane_state))
-		return 0;
+		goto out_check_damage;
 
 	crtc_state->mode_changed = true;
 
@@ -591,6 +597,10 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	ipu->num_h = num_h;
 	ipu->denom_w = denom_w;
 	ipu->denom_h = denom_h;
+
+out_check_damage:
+	if (ingenic_drm_map_noncoherent(ipu->master))
+		drm_atomic_helper_check_plane_damage(state, new_plane_state);
 
 	return 0;
 }
@@ -772,6 +782,9 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 		dev_err(dev, "Failed to init plane: %i\n", err);
 		return err;
 	}
+
+	if (ingenic_drm_map_noncoherent(master))
+		drm_plane_enable_fb_damage_clips(plane);
 
 	/*
 	 * Sharpness settings range is [0,32]

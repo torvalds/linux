@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x992f4893d
+#define DMUB_FW_VERSION_GIT_HASH 0xf3da2b656
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 66
+#define DMUB_FW_VERSION_REVISION 71
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -117,10 +117,19 @@
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
 
-#define DMUB_MAX_SUBVP_STREAMS 2
-
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
+
+/**
+ *
+ * PSR control version legacy
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_UNKNOWN 0x0
+/**
+ * PSR control version with multi edp support
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_1 0x1
+
 
 /**
  * ABM control version legacy
@@ -300,6 +309,7 @@ struct dmcub_trace_buf_entry {
  * Current scratch register usage is as follows:
  *
  * SCRATCH0: FW Boot Status register
+ * SCRATCH5: LVTMA Status Register
  * SCRATCH15: FW Boot Options register
  */
 
@@ -326,6 +336,21 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
 };
 
+/* Register bit definition for SCRATCH5 */
+union dmub_lvtma_status {
+	struct {
+		uint32_t psp_ok : 1;
+		uint32_t edp_on : 1;
+		uint32_t reserved : 30;
+	} bits;
+	uint32_t all;
+};
+
+enum dmub_lvtma_status_bit {
+	DMUB_LVTMA_STATUS_BIT_PSP_OK = (1 << 0),
+	DMUB_LVTMA_STATUS_BIT_EDP_ON = (1 << 1),
+};
+
 /**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH15
  */
@@ -337,7 +362,7 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
-		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
+		uint32_t z10_disable: 1; /**< 1 to disable z10 */
 		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
@@ -603,6 +628,22 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
 	/**
+	 * Command type used for all idle optimization commands.
+	 */
+	DMUB_CMD__IDLE_OPT = 72,
+	/**
+	 * Command type used for all clock manager commands.
+	 */
+	DMUB_CMD__CLK_MGR = 73,
+	/**
+	 * Command type used for all panel control commands.
+	 */
+	DMUB_CMD__PANEL_CNTL = 74,
+	/**
+	 * Command type used for EDID CEA parsing
+	 */
+	DMUB_CMD__EDID_CEA = 79,
+	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -620,10 +661,6 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP AUX Reply data notification
 	 */
 	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
-	/**
-	 * Command type used for DP HPD event notification
-	 */
-	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
 };
 
 #pragma pack(push, 1)
@@ -809,6 +846,51 @@ struct dmub_rb_cmd_mall {
 
 	uint8_t reserved1; /**< Reserved bits */
 	uint8_t reserved2; /**< Reserved bits */
+};
+
+/**
+ * enum dmub_cmd_idle_opt_type - Idle optimization command type.
+ */
+enum dmub_cmd_idle_opt_type {
+	/**
+	 * DCN hardware restore.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_idle_opt_dcn_restore - DCN restore command data.
+ */
+struct dmub_rb_cmd_idle_opt_dcn_restore {
+	struct dmub_cmd_header header; /**< header */
+};
+
+/**
+ * struct dmub_clocks - Clock update notification.
+ */
+struct dmub_clocks {
+	uint32_t dispclk_khz; /**< dispclk kHz */
+	uint32_t dppclk_khz; /**< dppclk kHz */
+	uint32_t dcfclk_khz; /**< dcfclk kHz */
+	uint32_t dcfclk_deep_sleep_khz; /**< dcfclk deep sleep kHz */
+};
+
+/**
+ * enum dmub_cmd_clk_mgr_type - Clock manager commands.
+ */
+enum dmub_cmd_clk_mgr_type {
+	/**
+	 * Notify DMCUB of clock update.
+	 */
+	DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_clk_mgr_notify_clocks - Clock update notification.
+ */
+struct dmub_rb_cmd_clk_mgr_notify_clocks {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_clocks clocks; /**< clock data */
 };
 
 /**
@@ -1315,9 +1397,15 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t fec_enable_delay_in100us;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * PSR control version.
 	 */
-	uint8_t pad3[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1342,10 +1430,16 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-	/**
-	 * Explicit padding to 4 byte boundary.
+		/**
+	 * PSR control version.
 	 */
-	uint8_t pad[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1362,6 +1456,23 @@ struct dmub_rb_cmd_psr_set_level {
 	struct dmub_cmd_psr_set_level_data psr_set_level_data;
 };
 
+struct dmub_rb_cmd_psr_enable_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_ENABLE command.
  * PSR enable/disable is controlled using the sub_type.
@@ -1371,6 +1482,8 @@ struct dmub_rb_cmd_psr_enable {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_psr_enable_data data;
 };
 
 /**
@@ -1381,6 +1494,20 @@ struct dmub_cmd_psr_set_version_data {
 	 * PSR version that FW should implement.
 	 */
 	enum psr_version version;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1397,6 +1524,23 @@ struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
+struct dmub_cmd_psr_force_static_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_FORCE_STATIC command.
  */
@@ -1405,6 +1549,10 @@ struct dmub_rb_cmd_psr_force_static {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PSR_FORCE_STATIC command.
+	 */
+	struct dmub_cmd_psr_force_static_data psr_force_static_data;
 };
 
 /**
@@ -1479,7 +1627,6 @@ enum hw_lock_client {
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
-	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Invalid client.
 	 */
@@ -1957,6 +2104,41 @@ struct dmub_rb_cmd_drr_update {
 };
 
 /**
+ * enum dmub_cmd_panel_cntl_type - Panel control command.
+ */
+enum dmub_cmd_panel_cntl_type {
+	/**
+	 * Initializes embedded panel hardware blocks.
+	 */
+	DMUB_CMD__PANEL_CNTL_HW_INIT = 0,
+	/**
+	 * Queries backlight info for the embedded panel.
+	 */
+	DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO = 1,
+};
+
+/**
+ * struct dmub_cmd_panel_cntl_data - Panel control data.
+ */
+struct dmub_cmd_panel_cntl_data {
+	uint32_t inst; /**< panel instance */
+	uint32_t current_backlight; /* in/out */
+	uint32_t bl_pwm_cntl; /* in/out */
+	uint32_t bl_pwm_period_cntl; /* in/out */
+	uint32_t bl_pwm_ref_div1; /* in/out */
+	uint8_t is_backlight_on : 1; /* in/out */
+	uint8_t is_powered_on : 1; /* in/out */
+};
+
+/**
+ * struct dmub_rb_cmd_panel_cntl - Panel control command.
+ */
+struct dmub_rb_cmd_panel_cntl {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_cmd_panel_cntl_data data; /**< payload */
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
  */
 struct dmub_cmd_lvtma_control_data {
@@ -1978,6 +2160,68 @@ struct dmub_rb_cmd_lvtma_control {
 	 * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
 	struct dmub_cmd_lvtma_control_data data;
+};
+
+/**
+ * Maximum number of bytes a chunk sent to DMUB for parsing
+ */
+#define DMUB_EDID_CEA_DATA_CHUNK_BYTES 8
+
+/**
+ *  Represent a chunk of CEA blocks sent to DMUB for parsing
+ */
+struct dmub_cmd_send_edid_cea {
+	uint16_t offset;	/**< offset into the CEA block */
+	uint8_t length;	/**< number of bytes in payload to copy as part of CEA block */
+	uint16_t total_length;  /**< total length of the CEA block */
+	uint8_t payload[DMUB_EDID_CEA_DATA_CHUNK_BYTES]; /**< data chunk of the CEA block */
+	uint8_t pad[3]; /**< padding and for future expansion */
+};
+
+/**
+ * Result of VSDB parsing from CEA block
+ */
+struct dmub_cmd_edid_cea_amd_vsdb {
+	uint8_t vsdb_found;		/**< 1 if parsing has found valid AMD VSDB */
+	uint8_t freesync_supported;	/**< 1 if Freesync is supported */
+	uint16_t amd_vsdb_version;	/**< AMD VSDB version */
+	uint16_t min_frame_rate;	/**< Maximum frame rate */
+	uint16_t max_frame_rate;	/**< Minimum frame rate */
+};
+
+/**
+ * Result of sending a CEA chunk
+ */
+struct dmub_cmd_edid_cea_ack {
+	uint16_t offset;	/**< offset of the chunk into the CEA block */
+	uint8_t success;	/**< 1 if this sending of chunk succeeded */
+	uint8_t pad;		/**< padding and for future expansion */
+};
+
+/**
+ * Specify whether the result is an ACK/NACK or the parsing has finished
+ */
+enum dmub_cmd_edid_cea_reply_type {
+	DMUB_CMD__EDID_CEA_AMD_VSDB	= 1, /**< VSDB parsing has finished */
+	DMUB_CMD__EDID_CEA_ACK		= 2, /**< acknowledges the CEA sending is OK or failing */
+};
+
+/**
+ * Definition of a DMUB_CMD__EDID_CEA command.
+ */
+struct dmub_rb_cmd_edid_cea {
+	struct dmub_cmd_header header;	/**< Command header */
+	union dmub_cmd_edid_cea_data {
+		struct dmub_cmd_send_edid_cea input; /**< input to send CEA chunks */
+		struct dmub_cmd_edid_cea_output { /**< output with results */
+			uint8_t type;	/**< dmub_cmd_edid_cea_reply_type */
+			union {
+				struct dmub_cmd_edid_cea_amd_vsdb amd_vsdb;
+				struct dmub_cmd_edid_cea_ack ack;
+			};
+		} output;	/**< output to retrieve ACK/NACK or VSDB parsing results */
+	} data;	/**< Command data */
+
 };
 
 /**
@@ -2054,6 +2298,20 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_mall mall;
 	/**
+	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
+	 */
+	struct dmub_rb_cmd_idle_opt_dcn_restore dcn_restore;
+
+	/**
+	 * Definition of a DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS command.
+	 */
+	struct dmub_rb_cmd_clk_mgr_notify_clocks notify_clocks;
+
+	/**
+	 * Definition of DMUB_CMD__PANEL_CNTL commands.
+	 */
+	struct dmub_rb_cmd_panel_cntl panel_cntl;
+	/**
 	 * Definition of a DMUB_CMD__ABM_SET_PIPE command.
 	 */
 	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
@@ -2102,6 +2360,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
 	struct dmub_rb_cmd_lvtma_control lvtma_control;
+	/**
+	 * Definition of a DMUB_CMD__EDID_CEA command.
+	 */
+	struct dmub_rb_cmd_edid_cea edid_cea;
 };
 
 /**

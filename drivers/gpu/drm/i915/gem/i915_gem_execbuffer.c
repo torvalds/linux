@@ -500,7 +500,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	 * also covers all platforms with local memory.
 	 */
 	if (entry->relocation_count &&
-	    INTEL_GEN(eb->i915) >= 12 && !IS_TIGERLAKE(eb->i915))
+	    GRAPHICS_VER(eb->i915) >= 12 && !IS_TIGERLAKE(eb->i915))
 		return -EINVAL;
 
 	if (unlikely(entry->flags & eb->invalid_flags))
@@ -1439,7 +1439,7 @@ err_pool:
 
 static bool reloc_can_use_engine(const struct intel_engine_cs *engine)
 {
-	return engine->class != VIDEO_DECODE_CLASS || !IS_GEN(engine->i915, 6);
+	return engine->class != VIDEO_DECODE_CLASS || GRAPHICS_VER(engine->i915) != 6;
 }
 
 static u32 *reloc_gpu(struct i915_execbuffer *eb,
@@ -1481,7 +1481,7 @@ static inline bool use_reloc_gpu(struct i915_vma *vma)
 	if (DBG_FORCE_RELOC)
 		return false;
 
-	return !dma_resv_test_signaled_rcu(vma->resv, true);
+	return !dma_resv_test_signaled(vma->resv, true);
 }
 
 static unsigned long vma_phys_addr(struct i915_vma *vma, u32 offset)
@@ -1671,7 +1671,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		 * batchbuffers.
 		 */
 		if (reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-		    IS_GEN(eb->i915, 6)) {
+		    GRAPHICS_VER(eb->i915) == 6) {
 			err = i915_vma_bind(target->vma,
 					    target->vma->obj->cache_level,
 					    PIN_GLOBAL, NULL);
@@ -2332,7 +2332,7 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	u32 *cs;
 	int i;
 
-	if (!IS_GEN(rq->engine->i915, 7) || rq->engine->id != RCS0) {
+	if (GRAPHICS_VER(rq->engine->i915) != 7 || rq->engine->id != RCS0) {
 		drm_dbg(&rq->engine->i915->drm, "sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -3375,7 +3375,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	eb.batch_flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
-		if (INTEL_GEN(i915) >= 11)
+		if (GRAPHICS_VER(i915) >= 11)
 			return -ENODEV;
 
 		/* Return -EPERM to trigger fallback code on old binaries. */

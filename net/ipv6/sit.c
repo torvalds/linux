@@ -271,6 +271,9 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	if (ipip6_tunnel_create(dev) < 0)
 		goto failed_free;
 
+	if (!parms->name[0])
+		strcpy(parms->name, dev->name);
+
 	return nt;
 
 failed_free:

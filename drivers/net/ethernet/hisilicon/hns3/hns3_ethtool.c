@@ -1134,48 +1134,30 @@ static void hns3_get_channels(struct net_device *netdev,
 		h->ae_algo->ops->get_channels(h, ch);
 }
 
-static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
-				       struct ethtool_coalesce *cmd)
+static int hns3_get_coalesce(struct net_device *netdev,
+			     struct ethtool_coalesce *cmd)
 {
-	struct hns3_enet_tqp_vector *tx_vector, *rx_vector;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
+	struct hns3_enet_coalesce *rx_coal = &priv->rx_coal;
 	struct hnae3_handle *h = priv->ae_handle;
-	u16 queue_num = h->kinfo.num_tqps;
 
 	if (hns3_nic_resetting(netdev))
 		return -EBUSY;
 
-	if (queue >= queue_num) {
-		netdev_err(netdev,
-			   "Invalid queue value %u! Queue max id=%u\n",
-			   queue, queue_num - 1);
-		return -EINVAL;
-	}
+	cmd->use_adaptive_tx_coalesce = tx_coal->adapt_enable;
+	cmd->use_adaptive_rx_coalesce = rx_coal->adapt_enable;
 
-	tx_vector = priv->ring[queue].tqp_vector;
-	rx_vector = priv->ring[queue_num + queue].tqp_vector;
-
-	cmd->use_adaptive_tx_coalesce =
-			tx_vector->tx_group.coal.adapt_enable;
-	cmd->use_adaptive_rx_coalesce =
-			rx_vector->rx_group.coal.adapt_enable;
-
-	cmd->tx_coalesce_usecs = tx_vector->tx_group.coal.int_gl;
-	cmd->rx_coalesce_usecs = rx_vector->rx_group.coal.int_gl;
+	cmd->tx_coalesce_usecs = tx_coal->int_gl;
+	cmd->rx_coalesce_usecs = rx_coal->int_gl;
 
 	cmd->tx_coalesce_usecs_high = h->kinfo.int_rl_setting;
 	cmd->rx_coalesce_usecs_high = h->kinfo.int_rl_setting;
 
-	cmd->tx_max_coalesced_frames = tx_vector->tx_group.coal.int_ql;
-	cmd->rx_max_coalesced_frames = rx_vector->rx_group.coal.int_ql;
+	cmd->tx_max_coalesced_frames = tx_coal->int_ql;
+	cmd->rx_max_coalesced_frames = rx_coal->int_ql;
 
 	return 0;
-}
-
-static int hns3_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *cmd)
-{
-	return hns3_get_coalesce_per_queue(netdev, 0, cmd);
 }
 
 static int hns3_check_gl_coalesce_para(struct net_device *netdev,
@@ -1292,19 +1274,7 @@ static int hns3_check_coalesce_para(struct net_device *netdev,
 		return ret;
 	}
 
-	ret = hns3_check_ql_coalesce_param(netdev, cmd);
-	if (ret)
-		return ret;
-
-	if (cmd->use_adaptive_tx_coalesce == 1 ||
-	    cmd->use_adaptive_rx_coalesce == 1) {
-		netdev_info(netdev,
-			    "adaptive-tx=%u and adaptive-rx=%u, tx_usecs or rx_usecs will changed dynamically.\n",
-			    cmd->use_adaptive_tx_coalesce,
-			    cmd->use_adaptive_rx_coalesce);
-	}
-
-	return 0;
+	return hns3_check_ql_coalesce_param(netdev, cmd);
 }
 
 static void hns3_set_coalesce_per_queue(struct net_device *netdev,
@@ -1350,6 +1320,9 @@ static int hns3_set_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
+	struct hns3_enet_coalesce *rx_coal = &priv->rx_coal;
 	u16 queue_num = h->kinfo.num_tqps;
 	int ret;
 	int i;
@@ -1363,6 +1336,15 @@ static int hns3_set_coalesce(struct net_device *netdev,
 
 	h->kinfo.int_rl_setting =
 		hns3_rl_round_down(cmd->rx_coalesce_usecs_high);
+
+	tx_coal->adapt_enable = cmd->use_adaptive_tx_coalesce;
+	rx_coal->adapt_enable = cmd->use_adaptive_rx_coalesce;
+
+	tx_coal->int_gl = cmd->tx_coalesce_usecs;
+	rx_coal->int_gl = cmd->rx_coalesce_usecs;
+
+	tx_coal->int_ql = cmd->tx_max_coalesced_frames;
+	rx_coal->int_ql = cmd->rx_max_coalesced_frames;
 
 	for (i = 0; i < queue_num; i++)
 		hns3_set_coalesce_per_queue(netdev, cmd, i);

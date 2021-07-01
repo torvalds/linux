@@ -92,6 +92,7 @@ mmhub_v2_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 		status);
 	switch (adev->asic_type) {
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 		mmhub_cid = mmhub_client_ids_vangogh[cid][rw];
 		break;
 	default:

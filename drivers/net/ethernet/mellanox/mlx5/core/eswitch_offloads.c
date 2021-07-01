@@ -219,7 +219,8 @@ esw_setup_slow_path_dest(struct mlx5_flow_destination *dest,
 			 struct mlx5_fs_chains *chains,
 			 int i)
 {
-	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	if (mlx5_chains_ignore_flow_level_supported(chains))
+		flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = mlx5_chains_get_tc_end_ft(chains);
 }

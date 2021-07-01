@@ -216,6 +216,23 @@ static inline void get_edp_links(const struct dc *dc,
 	}
 }
 
+static inline bool dc_get_edp_link_panel_inst(const struct dc *dc,
+		const struct dc_link *link,
+		unsigned int *inst_out)
+{
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	int edp_num;
+
+	if (link->connector_signal != SIGNAL_TYPE_EDP)
+		return false;
+	get_edp_links(dc, edp_links, &edp_num);
+	if ((edp_num > 1) && (link->link_index > edp_links[0]->link_index))
+		*inst_out = 1;
+	else
+		*inst_out = 0;
+	return true;
+}
+
 /* Set backlight level of an embedded panel (eDP, LVDS).
  * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
  * and 16 bit fractional, where 1.0 is max backlight value.
@@ -316,7 +333,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
+	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
 bool dc_link_dp_sync_lt_begin(struct dc_link *link);

@@ -302,10 +302,10 @@ void touch_softlockup_watchdog_sync(void)
 	__this_cpu_write(watchdog_report_ts, SOFTLOCKUP_DELAY_REPORT);
 }
 
-static int is_softlockup(unsigned long touch_ts, unsigned long period_ts)
+static int is_softlockup(unsigned long touch_ts,
+			 unsigned long period_ts,
+			 unsigned long now)
 {
-	unsigned long now = get_timestamp();
-
 	if ((watchdog_enabled & SOFT_WATCHDOG_ENABLED) && watchdog_thresh){
 		/* Warn about unreasonable delays. */
 		if (time_after(now, period_ts + get_softlockup_thresh()))
@@ -353,8 +353,7 @@ static int softlockup_fn(void *data)
 /* watchdog kicker functions */
 static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 {
-	unsigned long touch_ts = __this_cpu_read(watchdog_touch_ts);
-	unsigned long period_ts = __this_cpu_read(watchdog_report_ts);
+	unsigned long touch_ts, period_ts, now;
 	struct pt_regs *regs = get_irq_regs();
 	int duration;
 	int softlockup_all_cpu_backtrace = sysctl_softlockup_all_cpu_backtrace;
@@ -377,11 +376,22 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	hrtimer_forward_now(hrtimer, ns_to_ktime(sample_period));
 
 	/*
+	 * Read the current timestamp first. It might become invalid anytime
+	 * when a virtual machine is stopped by the host or when the watchog
+	 * is touched from NMI.
+	 */
+	now = get_timestamp();
+	/*
 	 * If a virtual machine is stopped by the host it can look to
-	 * the watchdog like a soft lockup. Check to see if the host
-	 * stopped the vm before we process the timestamps.
+	 * the watchdog like a soft lockup. This function touches the watchdog.
 	 */
 	kvm_check_and_clear_guest_paused();
+	/*
+	 * The stored timestamp is comparable with @now only when not touched.
+	 * It might get touched anytime from NMI. Make sure that is_softlockup()
+	 * uses the same (valid) value.
+	 */
+	period_ts = READ_ONCE(*this_cpu_ptr(&watchdog_report_ts));
 
 	/* Reset the interval when touched by known problematic code. */
 	if (period_ts == SOFTLOCKUP_DELAY_REPORT) {
@@ -398,13 +408,9 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		return HRTIMER_RESTART;
 	}
 
-	/* check for a softlockup
-	 * This is done by making sure a high priority task is
-	 * being scheduled.  The task touches the watchdog to
-	 * indicate it is getting cpu time.  If it hasn't then
-	 * this is a good indication some task is hogging the cpu
-	 */
-	duration = is_softlockup(touch_ts, period_ts);
+	/* Check for a softlockup. */
+	touch_ts = __this_cpu_read(watchdog_touch_ts);
+	duration = is_softlockup(touch_ts, period_ts, now);
 	if (unlikely(duration)) {
 		/*
 		 * Prevent multiple soft-lockup reports if one cpu is already

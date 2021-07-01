@@ -162,10 +162,10 @@ static bool contains_event(struct evsel **metric_events, int num_events,
 	return false;
 }
 
-static bool evsel_same_pmu(struct evsel *ev1, struct evsel *ev2)
+static bool evsel_same_pmu_or_none(struct evsel *ev1, struct evsel *ev2)
 {
 	if (!ev1->pmu_name || !ev2->pmu_name)
-		return false;
+		return true;
 
 	return !strcmp(ev1->pmu_name, ev2->pmu_name);
 }
@@ -288,7 +288,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 */
 			if (!has_constraint &&
 			    ev->leader != metric_events[i]->leader &&
-			    evsel_same_pmu(ev->leader, metric_events[i]->leader))
+			    evsel_same_pmu_or_none(ev->leader, metric_events[i]->leader))
 				break;
 			if (!strcmp(metric_events[i]->name, ev->name)) {
 				set_bit(ev->idx, evlist_used);
@@ -1073,16 +1073,18 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 
 	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = resolve_metric(d->metric_no_group,
 				     d->metric_list, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	*(d->has_match) = true;
 
-	return *d->ret;
+out:
+	*(d->ret) = ret;
+	return ret;
 }
 
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,

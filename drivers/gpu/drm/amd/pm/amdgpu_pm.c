@@ -411,7 +411,8 @@ static ssize_t amdgpu_get_pp_num_states(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	struct pp_states_info data;
-	int i, buf_len, ret;
+	uint32_t i;
+	int buf_len, ret;
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
@@ -433,9 +434,9 @@ static ssize_t amdgpu_get_pp_num_states(struct device *dev,
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
-	buf_len = snprintf(buf, PAGE_SIZE, "states: %d\n", data.nums);
+	buf_len = sysfs_emit(buf, "states: %d\n", data.nums);
 	for (i = 0; i < data.nums; i++)
-		buf_len += snprintf(buf + buf_len, PAGE_SIZE, "%d %s\n", i,
+		buf_len += sysfs_emit_at(buf, buf_len, "%d %s\n", i,
 				(data.states[i] == POWER_STATE_TYPE_INTERNAL_BOOT) ? "boot" :
 				(data.states[i] == POWER_STATE_TYPE_BATTERY) ? "battery" :
 				(data.states[i] == POWER_STATE_TYPE_BALANCED) ? "balanced" :
@@ -923,7 +924,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf+size);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf+size);
 	} else {
-		size = snprintf(buf, PAGE_SIZE, "\n");
+		size = sysfs_emit(buf, "\n");
 	}
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -1009,7 +1010,7 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
 	if (adev->powerplay.pp_funcs->get_ppfeature_status)
 		size = amdgpu_dpm_get_ppfeature_status(adev, buf);
 	else
-		size = snprintf(buf, PAGE_SIZE, "\n");
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -1070,7 +1071,7 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 	if (adev->powerplay.pp_funcs->print_clock_levels)
 		size = amdgpu_dpm_print_clock_levels(adev, type, buf);
 	else
-		size = snprintf(buf, PAGE_SIZE, "\n");
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -1469,7 +1470,7 @@ static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
 	if (adev->powerplay.pp_funcs->get_power_profile_mode)
 		size = amdgpu_dpm_get_power_profile_mode(adev, buf);
 	else
-		size = snprintf(buf, PAGE_SIZE, "\n");
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -1817,6 +1818,190 @@ out:
 	return size;
 }
 
+/**
+ * DOC: smartshift_apu_power
+ *
+ * The amdgpu driver provides a sysfs API for reporting APU power
+ * share if it supports smartshift. The value is expressed as
+ * the proportion of stapm limit where stapm limit is the total APU
+ * power limit. The result is in percentage. If APU power is 130% of
+ * STAPM, then APU is using 30% of the dGPU's headroom.
+ */
+
+static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device_attribute *attr,
+					       char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t ss_power, size;
+	int r = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+				   (void *)&ss_power, &size);
+	if (r)
+		goto out;
+
+	r = sysfs_emit(buf, "%u%%\n", ss_power);
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+/**
+ * DOC: smartshift_dgpu_power
+ *
+ * The amdgpu driver provides a sysfs API for reporting the dGPU power
+ * share if the device is in HG and supports smartshift. The value
+ * is expressed as the proportion of stapm limit where stapm limit
+ * is the total APU power limit. The value is in percentage. If dGPU
+ * power is 20% higher than STAPM power(120%), it's using 20% of the
+ * APU's power headroom.
+ */
+
+static ssize_t amdgpu_get_smartshift_dgpu_power(struct device *dev, struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t ss_power, size;
+	int r = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+				   (void *)&ss_power, &size);
+
+	if (r)
+		goto out;
+
+	r = sysfs_emit(buf, "%u%%\n", ss_power);
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+/**
+ * DOC: smartshift_bias
+ *
+ * The amdgpu driver provides a sysfs API for reporting the
+ * smartshift(SS2.0) bias level. The value ranges from -100 to 100
+ * and the default is 0. -100 sets maximum preference to APU
+ * and 100 sets max perference to dGPU.
+ */
+
+static ssize_t amdgpu_get_smartshift_bias(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	int r = 0;
+
+	r = sysfs_emit(buf, "%d\n", amdgpu_smartshift_bias);
+
+	return r;
+}
+
+static ssize_t amdgpu_set_smartshift_bias(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int r = 0;
+	int bias = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = kstrtoint(buf, 10, &bias);
+	if (r)
+		goto out;
+
+	if (bias > AMDGPU_SMARTSHIFT_MAX_BIAS)
+		bias = AMDGPU_SMARTSHIFT_MAX_BIAS;
+	else if (bias < AMDGPU_SMARTSHIFT_MIN_BIAS)
+		bias = AMDGPU_SMARTSHIFT_MIN_BIAS;
+
+	amdgpu_smartshift_bias = bias;
+	r = count;
+
+	/* TODO: upadte bias level with SMU message */
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+
+static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+				uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	uint32_t ss_power, size;
+
+	if (!amdgpu_acpi_is_power_shift_control_supported())
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if ((adev->flags & AMD_IS_PX) &&
+		 !amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	return 0;
+}
+
+static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+			       uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	uint32_t ss_power, size;
+
+	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	return 0;
+}
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -1843,6 +2028,12 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RO(unique_id,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(thermal_throttling_logging,		ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RO(gpu_metrics,				ATTR_FLAG_BASIC),
+	AMDGPU_DEVICE_ATTR_RO(smartshift_apu_power,			ATTR_FLAG_BASIC,
+			      .attr_update = ss_power_attr_update),
+	AMDGPU_DEVICE_ATTR_RO(smartshift_dgpu_power,			ATTR_FLAG_BASIC,
+			      .attr_update = ss_power_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(smartshift_bias,				ATTR_FLAG_BASIC,
+			      .attr_update = ss_bias_attr_update),
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
@@ -1942,7 +2133,7 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 
 	BUG_ON(!attr);
 
-	attr_update = attr->attr_update ? attr_update : default_attr_update;
+	attr_update = attr->attr_update ? attr->attr_update : default_attr_update;
 
 	ret = attr_update(adev, attr, mask, &attr_states);
 	if (ret) {
@@ -2717,9 +2908,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int limit_type = to_sensor_dev_attr(attr)->index;
-	uint32_t limit = limit_type << 24;
-	uint32_t max_limit = 0;
+	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
+	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_MAX;
+	uint32_t limit;
 	ssize_t size;
 	int r;
 
@@ -2734,16 +2925,16 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 		return r;
 	}
 
-	if (is_support_sw_smu(adev)) {
-		smu_get_power_limit(&adev->smu, &limit, SMU_PPT_LIMIT_MAX);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle,
-				&limit, &max_limit, true);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", max_limit * 1000000);
-	} else {
-		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
+		size = sysfs_emit(buf, "%u\n", limit * 1000000);
+	else
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -2757,8 +2948,9 @@ static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int limit_type = to_sensor_dev_attr(attr)->index;
-	uint32_t limit = limit_type << 24;
+	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
+	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_CURRENT;
+	uint32_t limit;
 	ssize_t size;
 	int r;
 
@@ -2773,16 +2965,16 @@ static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 		return r;
 	}
 
-	if (is_support_sw_smu(adev)) {
-		smu_get_power_limit(&adev->smu, &limit, SMU_PPT_LIMIT_CURRENT);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle,
-				&limit, NULL, false);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else {
-		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
+		size = sysfs_emit(buf, "%u\n", limit * 1000000);
+	else
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -2796,8 +2988,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_default(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int limit_type = to_sensor_dev_attr(attr)->index;
-	uint32_t limit = limit_type << 24;
+	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
+	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_DEFAULT;
+	uint32_t limit;
 	ssize_t size;
 	int r;
 
@@ -2812,16 +3005,16 @@ static ssize_t amdgpu_hwmon_show_power_cap_default(struct device *dev,
 		return r;
 	}
 
-	if (is_support_sw_smu(adev)) {
-		smu_get_power_limit(&adev->smu, &limit, SMU_PPT_LIMIT_DEFAULT);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle,
-				&limit, NULL, true);
-		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else {
-		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
+		size = sysfs_emit(buf, "%u\n", limit * 1000000);
+	else
+		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);

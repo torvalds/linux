@@ -37,4 +37,6 @@ int sienna_cichlid_reg_base_init(struct amdgpu_device *adev);
 void vangogh_reg_base_init(struct amdgpu_device *adev);
 int dimgrey_cavefish_reg_base_init(struct amdgpu_device *adev);
 int beige_goby_reg_base_init(struct amdgpu_device *adev);
+int yellow_carp_reg_base_init(struct amdgpu_device *adev);
+
 #endif

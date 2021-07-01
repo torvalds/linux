@@ -1377,9 +1377,26 @@ enum drm_dp_phy {
 #define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+
+#define __DP_FEC1_BASE					    0xf0290 /* 1.4 */
+#define __DP_FEC2_BASE					    0xf0298 /* 1.4 */
+#define DP_FEC_BASE(dp_phy) \
+	(__DP_FEC1_BASE + ((__DP_FEC2_BASE - __DP_FEC1_BASE) * \
+			   ((dp_phy) - DP_PHY_LTTPR1)))
+
+#define DP_FEC_REG(dp_phy, fec1_reg) \
+	(DP_FEC_BASE(dp_phy) - DP_FEC_BASE(DP_PHY_LTTPR1) + fec1_reg)
+
 #define DP_FEC_STATUS_PHY_REPEATER1			    0xf0290 /* 1.4 */
+#define DP_FEC_STATUS_PHY_REPEATER(dp_phy) \
+	DP_FEC_REG(dp_phy, DP_FEC_STATUS_PHY_REPEATER1)
+
 #define DP_FEC_ERROR_COUNT_PHY_REPEATER1                    0xf0291 /* 1.4 */
 #define DP_FEC_CAPABILITY_PHY_REPEATER1                     0xf0294 /* 1.4a */
+
+#define DP_LTTPR_MAX_ADD				    0xf02ff /* 1.4 */
+
+#define DP_DPCD_MAX_ADD					    0xfffff /* 1.4 */
 
 /* Repeater modes */
 #define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */

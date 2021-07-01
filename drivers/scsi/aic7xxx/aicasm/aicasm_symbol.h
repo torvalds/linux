@@ -108,7 +108,7 @@ struct macro_arg {
 	regex_t	arg_regex;
 	char   *replacement_text;
 };
-STAILQ_HEAD(macro_arg_list, macro_arg) args;
+STAILQ_HEAD(macro_arg_list, macro_arg);
 
 struct macro_info {
 	struct macro_arg_list args;

@@ -384,8 +384,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 		i830_overlay_clock_gating(dev_priv, true);
 }
 
-__i915_active_call static void
-intel_overlay_last_flip_retire(struct i915_active *active)
+static void intel_overlay_last_flip_retire(struct i915_active *active)
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
@@ -1402,7 +1401,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	overlay->saturation = 146;
 
 	i915_active_init(&overlay->last_flip,
-			 NULL, intel_overlay_last_flip_retire);
+			 NULL, intel_overlay_last_flip_retire, 0);
 
 	ret = get_registers(overlay, OVERLAY_NEEDS_PHYSICAL(dev_priv));
 	if (ret)

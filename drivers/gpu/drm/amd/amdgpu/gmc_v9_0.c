@@ -1288,10 +1288,7 @@ static int gmc_v9_0_late_init(void *handle)
 static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 					struct amdgpu_gmc *mc)
 {
-	u64 base = 0;
-
-	if (!amdgpu_sriov_vf(adev))
-		base = adev->mmhub.funcs->get_fb_location(adev);
+	u64 base = adev->mmhub.funcs->get_fb_location(adev);
 
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
@@ -1615,7 +1612,6 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_unref(&adev->gmc.pdb0_bo);
 	amdgpu_bo_fini(adev);
-	amdgpu_gart_fini(adev);
 
 	return 0;
 }

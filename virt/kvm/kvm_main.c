@@ -307,6 +307,7 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	return kvm_make_all_cpus_request_except(kvm, req, NULL);
 }
+EXPORT_SYMBOL_GPL(kvm_make_all_cpus_request);
 
 #ifndef CONFIG_HAVE_KVM_ARCH_TLB_FLUSH_ALL
 void kvm_flush_remote_tlbs(struct kvm *kvm)
@@ -2929,6 +2930,8 @@ static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
 		goto out;
 	if (signal_pending(current))
 		goto out;
+	if (kvm_check_request(KVM_REQ_UNBLOCK, vcpu))
+		goto out;
 
 	ret = 0;
 out:
@@ -2973,8 +2976,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 				goto out;
 			}
 			poll_end = cur = ktime_get();
-		} while (single_task_running() && !need_resched() &&
-			 ktime_before(cur, stop));
+		} while (kvm_vcpu_can_poll(cur, stop));
 	}
 
 	prepare_to_rcuwait(&vcpu->wait);

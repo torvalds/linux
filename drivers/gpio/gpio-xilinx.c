@@ -542,7 +542,7 @@ static void xgpio_irqhandler(struct irq_desc *desc)
 }
 
 /**
- * xgpio_of_probe - Probe method for the GPIO device.
+ * xgpio_probe - Probe method for the GPIO device.
  * @pdev: pointer to the platform device
  *
  * Return:

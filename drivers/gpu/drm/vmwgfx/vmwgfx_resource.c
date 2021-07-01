@@ -1166,7 +1166,7 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 		if (bo->moving)
 			dma_fence_put(bo->moving);
 		bo->moving = dma_fence_get
-			(dma_resv_get_excl(bo->base.resv));
+			(dma_resv_excl_fence(bo->base.resv));
 	}
 
 	return 0;

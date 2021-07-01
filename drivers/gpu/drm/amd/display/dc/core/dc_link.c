@@ -49,6 +49,7 @@
 #include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
 #include "inc/link_enc_cfg.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -59,20 +60,6 @@
 #define RETIMER_REDRIVER_INFO(...) \
 	DC_LOG_RETIMER_REDRIVER(  \
 		__VA_ARGS__)
-/*******************************************************************************
- * Private structures
- ******************************************************************************/
-
-enum {
-	PEAK_FACTOR_X1000 = 1006,
-	/*
-	 * Some receivers fail to train on first try and are good
-	 * on subsequent tries. 2 retries should be plenty. If we
-	 * don't have a successful training then we don't expect to
-	 * ever get one.
-	 */
-	LINK_TRAINING_MAX_VERIFY_RETRY = 2
-};
 
 /*******************************************************************************
  * Private functions
@@ -718,11 +705,9 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 
 static bool detect_dp(struct dc_link *link,
 		      struct display_sink_capability *sink_caps,
-		      bool *converter_disable_audio,
-		      struct audio_support *audio_support,
 		      enum dc_detect_reason reason)
 {
-	bool boot = false;
+	struct audio_support *audio_support = &link->dc->res_pool->audio_support;
 
 	sink_caps->signal = link_detect_sink(link, reason);
 	sink_caps->transaction_type =
@@ -745,60 +730,12 @@ static bool detect_dp(struct dc_link *link,
 			 * of this function). */
 			query_hdcp_capability(SIGNAL_TYPE_DISPLAY_PORT_MST, link);
 #endif
-			/*
-			 * This call will initiate MST topology discovery. Which
-			 * will detect MST ports and add new DRM connector DRM
-			 * framework. Then read EDID via remote i2c over aux. In
-			 * the end, will notify DRM detect result and save EDID
-			 * into DRM framework.
-			 *
-			 * .detect is called by .fill_modes.
-			 * .fill_modes is called by user mode ioctl
-			 * DRM_IOCTL_MODE_GETCONNECTOR.
-			 *
-			 * .get_modes is called by .fill_modes.
-			 *
-			 * call .get_modes, AMDGPU DM implementation will create
-			 * new dc_sink and add to dc_link. For long HPD plug
-			 * in/out, MST has its own handle.
-			 *
-			 * Therefore, just after dc_create, link->sink is not
-			 * created for MST until user mode app calls
-			 * DRM_IOCTL_MODE_GETCONNECTOR.
-			 *
-			 * Need check ->sink usages in case ->sink = NULL
-			 * TODO: s3 resume check
-			 */
-			if (reason == DETECT_REASON_BOOT)
-				boot = true;
-
-			dm_helpers_dp_update_branch_info(link->ctx, link);
-
-			if (!dm_helpers_dp_mst_start_top_mgr(link->ctx,
-							     link, boot)) {
-				/* MST not supported */
-				link->type = dc_connection_single;
-				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
-			}
 		}
 
 		if (link->type != dc_connection_mst_branch &&
-		    is_dp_branch_device(link)) {
+				is_dp_branch_device(link))
 			/* DP SST branch */
 			link->type = dc_connection_sst_branch;
-			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
-				/*
-				 * SST branch unplug processing for short irq
-				 */
-				link_disconnect_sink(link);
-				return true;
-			}
-
-			if (is_dp_active_dongle(link) &&
-				(link->dpcd_caps.dongle_type !=
-					DISPLAY_DONGLE_DP_HDMI_CONVERTER))
-				*converter_disable_audio = true;
-		}
 	} else {
 		/* DP passive dongles */
 		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
@@ -884,7 +821,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
-	uint8_t i;
+	uint32_t i;
 	bool converter_disable_audio = false;
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
 	bool same_edid = false;
@@ -893,7 +830,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	struct dc_sink *sink = NULL;
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
-	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	enum dc_connection_type pre_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
@@ -904,9 +840,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	if (dc_is_virtual_signal(link->connector_signal))
 		return false;
 
-	if ((link->connector_signal == SIGNAL_TYPE_LVDS ||
-	     link->connector_signal == SIGNAL_TYPE_EDP) &&
-	    link->local_sink) {
+	if (((link->connector_signal == SIGNAL_TYPE_LVDS ||
+		link->connector_signal == SIGNAL_TYPE_EDP) &&
+		(!link->dc->config.allow_edp_hotplug_detection)) &&
+		link->local_sink) {
 		// need to re-write OUI and brightness in resume case
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
 			dpcd_set_source_specific_data(link);
@@ -983,33 +920,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					return false;
 			}
 
-			if (!detect_dp(link, &sink_caps,
-				       &converter_disable_audio,
-				       aud_support, reason)) {
+			if (!detect_dp(link, &sink_caps, reason)) {
 				if (prev_sink)
 					dc_sink_release(prev_sink);
 				return false;
-			}
-
-			// Check if dpcp block is the same
-			if (prev_sink) {
-				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps,
-					   sizeof(struct dpcd_caps)))
-					same_dpcd = false;
-			}
-			/* Active SST downstream branch device unplug*/
-			if (link->type == dc_connection_sst_branch &&
-			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
-				if (prev_sink)
-					/* Downstream unplug */
-					dc_sink_release(prev_sink);
-				return true;
-			}
-
-			// link switch from MST to non-MST stop topology manager
-			if (pre_connection_type == dc_connection_mst_branch &&
-				link->type != dc_connection_mst_branch) {
-				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 			}
 
 			if (link->type == dc_connection_mst_branch) {
@@ -1022,15 +936,69 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				 */
 				dp_verify_mst_link_cap(link);
 
-				if (prev_sink)
-					dc_sink_release(prev_sink);
-				return false;
+				/*
+				 * This call will initiate MST topology discovery. Which
+				 * will detect MST ports and add new DRM connector DRM
+				 * framework. Then read EDID via remote i2c over aux. In
+				 * the end, will notify DRM detect result and save EDID
+				 * into DRM framework.
+				 *
+				 * .detect is called by .fill_modes.
+				 * .fill_modes is called by user mode ioctl
+				 * DRM_IOCTL_MODE_GETCONNECTOR.
+				 *
+				 * .get_modes is called by .fill_modes.
+				 *
+				 * call .get_modes, AMDGPU DM implementation will create
+				 * new dc_sink and add to dc_link. For long HPD plug
+				 * in/out, MST has its own handle.
+				 *
+				 * Therefore, just after dc_create, link->sink is not
+				 * created for MST until user mode app calls
+				 * DRM_IOCTL_MODE_GETCONNECTOR.
+				 *
+				 * Need check ->sink usages in case ->sink = NULL
+				 * TODO: s3 resume check
+				 */
+
+				dm_helpers_dp_update_branch_info(link->ctx, link);
+				if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
+						link, reason == DETECT_REASON_BOOT)) {
+					if (prev_sink)
+						dc_sink_release(prev_sink);
+					return false;
+				} else {
+					link->type = dc_connection_sst_branch;
+					sink_caps.signal = SIGNAL_TYPE_DISPLAY_PORT;
+				}
 			}
+
+			/* Active SST downstream branch device unplug*/
+			if (link->type == dc_connection_sst_branch &&
+			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
+				if (prev_sink)
+					/* Downstream unplug */
+					dc_sink_release(prev_sink);
+				return true;
+			}
+
+			/* disable audio for non DP to HDMI active sst converter */
+			if (link->type == dc_connection_sst_branch &&
+					is_dp_active_dongle(link) &&
+					(link->dpcd_caps.dongle_type !=
+							DISPLAY_DONGLE_DP_HDMI_CONVERTER))
+				converter_disable_audio = true;
+
+			// link switch from MST to non-MST stop topology manager
+			if (pre_connection_type == dc_connection_mst_branch &&
+					link->type != dc_connection_mst_branch)
+				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
+
 
 			// For seamless boot, to skip verify link cap, we read UEFI settings and set them as verified.
 			if (reason == DETECT_REASON_BOOT &&
-			    !dc_ctx->dc->config.power_down_display_on_boot &&
-			    link->link_status.link_active)
+					!dc_ctx->dc->config.power_down_display_on_boot &&
+					link->link_status.link_active)
 				perform_dp_seamless_boot = true;
 
 			if (perform_dp_seamless_boot) {
@@ -1099,24 +1067,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			    dc_is_dvi_signal(link->connector_signal)) {
 				if (prev_sink)
 					dc_sink_release(prev_sink);
-				link_disconnect_sink(link);
-
-				return false;
-			}
-			/*
-			 * Abort detection for DP connectors if we have
-			 * no EDID and connector is active converter
-			 * as there are no display downstream
-			 *
-			 */
-			if (dc_is_dp_sst_signal(link->connector_signal) &&
-				(link->dpcd_caps.dongle_type ==
-						DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				link->dpcd_caps.dongle_type ==
-						DISPLAY_DONGLE_DP_DVI_CONVERTER)) {
-				if (prev_sink)
-					dc_sink_release(prev_sink);
-				link_disconnect_sink(link);
 
 				return false;
 			}
@@ -1231,11 +1181,11 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		link->dongle_max_pix_clk = 0;
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
 		  link->link_index, sink,
 		  (sink_caps.signal ==
 		   SIGNAL_TYPE_NONE ? "Disconnected" : "Connected"),
-		  prev_sink, same_dpcd, same_edid);
+		  prev_sink, same_edid);
 
 	if (prev_sink)
 		dc_sink_release(prev_sink);
@@ -1519,7 +1469,8 @@ static bool dc_link_construct(struct dc_link *link,
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
 		if (link->hpd_gpio) {
-			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			if (!link->dc->config.allow_edp_hotplug_detection)
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(link->hpd_gpio);
 		}
@@ -2701,16 +2652,24 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
 
 	if (psr == NULL && force_static)
 		return false;
 
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
 	link->psr_settings.psr_allow_active = allow_active;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (!allow_active)
+		dc_z10_restore(dc);
+#endif
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 		if (force_static && psr->funcs->psr_force_static)
-			psr->funcs->psr_force_static(psr);
-		psr->funcs->psr_enable(psr, allow_active, wait);
+			psr->funcs->psr_force_static(psr, panel_inst);
+		psr->funcs->psr_enable(psr, allow_active, wait, panel_inst);
 	} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 	else
@@ -2724,9 +2683,13 @@ bool dc_link_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_state(psr, state);
+		psr->funcs->psr_get_state(psr, state, panel_inst);
 	else if (dmcu != NULL && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, state);
 
@@ -2776,6 +2739,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 	int i;
+	unsigned int panel_inst;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
 
@@ -2789,6 +2753,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr = dc->res_pool->psr;
 
 	if (!dmcu && !psr)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
 
@@ -2875,8 +2842,16 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->psr_level.u32all = 0;
 
 	/*skip power down the single pipe since it blocks the cstate*/
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
+		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+		if (link->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP && !dc->debug.disable_z10)
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+	}
+#else
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+#endif
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
@@ -2897,7 +2872,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
+		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
+			link, psr_context, panel_inst);
 	else
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
@@ -2915,10 +2891,14 @@ void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
 
-	// PSR residency measurements only supported on DMCUB
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return;
+
+	/* PSR residency measurements only supported on DMCUB */
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_residency(psr, residency);
+		psr->funcs->psr_get_residency(psr, residency, panel_inst);
 	else
 		*residency = 0;
 }
@@ -3208,8 +3188,14 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 				dp_get_panel_mode(pipe_ctx->stream->link);
 
 		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
+		/*stream_enc_inst*/
 		config.dig_fe = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
+		config.link_enc_idx = pipe_ctx->stream->link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+		config.phy_idx = pipe_ctx->stream->link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+#endif
 		config.dpms_off = dpms_off;
 		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
 		config.assr_enabled = (panel_mode == DP_PANEL_MODE_EDP);

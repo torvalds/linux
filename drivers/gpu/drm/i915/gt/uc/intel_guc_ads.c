@@ -6,6 +6,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_lrc.h"
 #include "intel_guc_ads.h"
+#include "intel_guc_fwif.h"
 #include "intel_uc.h"
 #include "i915_drv.h"
 
@@ -104,7 +105,7 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 				GUC_MAX_INSTANCES_PER_CLASS;
 
 	for_each_engine(engine, gt, id) {
-		u8 guc_class = engine->class;
+		u8 guc_class = engine_class_to_guc_class(engine->class);
 
 		system_info->mapping_table[guc_class][engine->instance] =
 			engine->instance;
@@ -124,7 +125,7 @@ static void __guc_ads_init(struct intel_guc *guc)
 	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
-	u8 engine_class;
+	u8 engine_class, guc_class;
 
 	/* GuC scheduling policies */
 	guc_policies_init(&blob->policies);
@@ -140,29 +141,32 @@ static void __guc_ads_init(struct intel_guc *guc)
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
 		if (engine_class == OTHER_CLASS)
 			continue;
+
+		guc_class = engine_class_to_guc_class(engine_class);
+
 		/*
 		 * TODO: Set context pointer to default state to allow
 		 * GuC to re-init guilty contexts after internal reset.
 		 */
-		blob->ads.golden_context_lrca[engine_class] = 0;
-		blob->ads.eng_state_size[engine_class] =
+		blob->ads.golden_context_lrca[guc_class] = 0;
+		blob->ads.eng_state_size[guc_class] =
 			intel_engine_context_size(guc_to_gt(guc),
 						  engine_class) -
 			skipped_size;
 	}
 
 	/* System info */
-	blob->system_info.engine_enabled_masks[RENDER_CLASS] = 1;
-	blob->system_info.engine_enabled_masks[COPY_ENGINE_CLASS] = 1;
-	blob->system_info.engine_enabled_masks[VIDEO_DECODE_CLASS] = VDBOX_MASK(gt);
-	blob->system_info.engine_enabled_masks[VIDEO_ENHANCEMENT_CLASS] = VEBOX_MASK(gt);
+	blob->system_info.engine_enabled_masks[GUC_RENDER_CLASS] = 1;
+	blob->system_info.engine_enabled_masks[GUC_BLITTER_CLASS] = 1;
+	blob->system_info.engine_enabled_masks[GUC_VIDEO_CLASS] = VDBOX_MASK(gt);
+	blob->system_info.engine_enabled_masks[GUC_VIDEOENHANCE_CLASS] = VEBOX_MASK(gt);
 
 	blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED] =
 		hweight8(gt->info.sseu.slice_mask);
 	blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK] =
 		gt->info.vdbox_sfc_access;
 
-	if (INTEL_GEN(i915) >= 12 && !IS_DGFX(i915)) {
+	if (GRAPHICS_VER(i915) >= 12 && !IS_DGFX(i915)) {
 		u32 distdbreg = intel_uncore_read(gt->uncore,
 						  GEN12_DIST_DBS_POPULATED);
 		blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI] =

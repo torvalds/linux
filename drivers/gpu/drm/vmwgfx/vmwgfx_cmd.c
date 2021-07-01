@@ -576,11 +576,11 @@ static int vmw_cmd_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 	cmd->body.cid = cid;
 	cmd->body.type = SVGA3D_QUERYTYPE_OCCLUSION;
 
-	if (bo->mem.mem_type == TTM_PL_VRAM) {
+	if (bo->resource->mem_type == TTM_PL_VRAM) {
 		cmd->body.guestResult.gmrId = SVGA_GMR_FRAMEBUFFER;
-		cmd->body.guestResult.offset = bo->mem.start << PAGE_SHIFT;
+		cmd->body.guestResult.offset = bo->resource->start << PAGE_SHIFT;
 	} else {
-		cmd->body.guestResult.gmrId = bo->mem.start;
+		cmd->body.guestResult.gmrId = bo->resource->start;
 		cmd->body.guestResult.offset = 0;
 	}
 
@@ -621,8 +621,8 @@ static int vmw_cmd_emit_dummy_gb_query(struct vmw_private *dev_priv,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = cid;
 	cmd->body.type = SVGA3D_QUERYTYPE_OCCLUSION;
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
-	cmd->body.mobid = bo->mem.start;
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.offset = 0;
 
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));

@@ -162,6 +162,12 @@ void dm_set_dcn_clocks(
 
 bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable);
 
+void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us);
+
+// 0x1 = Result_OK, 0xFE = Result_UnkmownCmd
+#define IS_SMU_TIMEOUT(result) \
+	(!(result == 0x1 || result == 0xFE))
+
 int dm_helper_dmub_aux_transfer_sync(
 		struct dc_context *ctx,
 		const struct dc_link *link,

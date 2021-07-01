@@ -45,6 +45,8 @@ void mpc1_set_bg_color(struct mpc *mpc,
 	struct mpcc *bottommost_mpcc = mpc1_get_mpcc(mpc, mpcc_id);
 	uint32_t bg_r_cr, bg_g_y, bg_b_cb;
 
+	bottommost_mpcc->blnd_cfg.black_color = *bg_color;
+
 	/* find bottommost mpcc. */
 	while (bottommost_mpcc->mpcc_bot) {
 		bottommost_mpcc = bottommost_mpcc->mpcc_bot;
@@ -64,8 +66,6 @@ void mpc1_set_bg_color(struct mpc *mpc,
 			MPCC_BG_G_Y, bg_g_y);
 	REG_SET(MPCC_BG_B_CB[bottommost_mpcc->mpcc_id], 0,
 			MPCC_BG_B_CB, bg_b_cb);
-
-	bottommost_mpcc->blnd_cfg.black_color = *bg_color;
 }
 
 static void mpc1_update_blending(
@@ -83,7 +83,6 @@ static void mpc1_update_blending(
 			MPCC_GLOBAL_ALPHA,		blnd_cfg->global_alpha,
 			MPCC_GLOBAL_GAIN,		blnd_cfg->global_gain);
 
-	mpc1_set_bg_color(mpc, &blnd_cfg->black_color, mpcc_id);
 	mpcc->blnd_cfg = *blnd_cfg;
 }
 
@@ -247,8 +246,6 @@ struct mpcc *mpc1_insert_plane(
 						MPCC_MODE, MPCC_BLEND_MODE_TOP_BOT_BLENDING);
 		}
 	}
-
-	mpc->funcs->set_bg_color(mpc, &blnd_cfg->black_color, mpcc_id);
 
 	/* update the blending configuration */
 	mpc->funcs->update_blending(mpc, blnd_cfg, mpcc_id);

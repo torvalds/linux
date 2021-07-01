@@ -49,7 +49,7 @@ static int mhi_ndo_stop(struct net_device *ndev)
 	return 0;
 }
 
-static int mhi_ndo_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t mhi_ndo_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 	const struct mhi_net_proto *proto = mhi_netdev->proto;

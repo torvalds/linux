@@ -835,66 +835,47 @@ static struct wm_table lpddr4_wm_table_rn = {
 	}
 };
 
-static unsigned int find_max_fclk_for_voltage(struct dpm_clocks *clock_table,
-		unsigned int voltage)
+static unsigned int find_socclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
 	int i;
-	uint32_t max_clk = 0;
-
-	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
-		if (clock_table->FClocks[i].Vol <= voltage) {
-			max_clk = clock_table->FClocks[i].Freq > max_clk ?
-				clock_table->FClocks[i].Freq : max_clk;
-		}
-	}
-
-	return max_clk;
-}
-
-static unsigned int find_max_memclk_for_voltage(struct dpm_clocks *clock_table,
-		unsigned int voltage)
-{
-	int i;
-	uint32_t max_clk = 0;
-
-	for (i = 0; i < PP_SMU_NUM_MEMCLK_DPM_LEVELS; i++) {
-		if (clock_table->MemClocks[i].Vol <= voltage) {
-			max_clk = clock_table->MemClocks[i].Freq > max_clk ?
-				clock_table->MemClocks[i].Freq : max_clk;
-		}
-	}
-
-	return max_clk;
-}
-
-static unsigned int find_max_socclk_for_voltage(struct dpm_clocks *clock_table,
-		unsigned int voltage)
-{
-	int i;
-	uint32_t max_clk = 0;
 
 	for (i = 0; i < PP_SMU_NUM_SOCCLK_DPM_LEVELS; i++) {
-		if (clock_table->SocClocks[i].Vol <= voltage) {
-			max_clk = clock_table->SocClocks[i].Freq > max_clk ?
-				clock_table->SocClocks[i].Freq : max_clk;
-		}
+		if (clock_table->SocClocks[i].Vol == voltage)
+			return clock_table->SocClocks[i].Freq;
 	}
 
-	return max_clk;
+	ASSERT(0);
+	return 0;
+}
+
+static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
+{
+	int i;
+
+	for (i = 0; i < PP_SMU_NUM_DCFCLK_DPM_LEVELS; i++) {
+		if (clock_table->DcfClocks[i].Vol == voltage)
+			return clock_table->DcfClocks[i].Freq;
+	}
+
+	ASSERT(0);
+	return 0;
 }
 
 static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct integrated_info *bios_info)
 {
 	int i, j = 0;
-	unsigned int volt;
 
 	j = -1;
 
-	/* Find max DPM */
-	for (i = 0; i < PP_SMU_NUM_DCFCLK_DPM_LEVELS; ++i) {
-		if (clock_table->DcfClocks[i].Freq != 0 &&
-				clock_table->DcfClocks[i].Vol != 0)
+	ASSERT(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
+
+	/* Find lowest DPM, FCLK is filled in reverse order*/
+
+	for (i = PP_SMU_NUM_FCLK_DPM_LEVELS - 1; i >= 0; i--) {
+		if (clock_table->FClocks[i].Freq != 0 && clock_table->FClocks[i].Vol != 0) {
 			j = i;
+			break;
+		}
 	}
 
 	if (j == -1) {
@@ -905,18 +886,13 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 
 	bw_params->clk_table.num_entries = j + 1;
 
-	for (i = 0; i < bw_params->clk_table.num_entries; i++) {
-		volt = clock_table->DcfClocks[i].Vol;
-
-		bw_params->clk_table.entries[i].voltage = volt;
-		bw_params->clk_table.entries[i].dcfclk_mhz =
-			clock_table->DcfClocks[i].Freq;
-		bw_params->clk_table.entries[i].fclk_mhz =
-			find_max_fclk_for_voltage(clock_table, volt);
-		bw_params->clk_table.entries[i].memclk_mhz =
-			find_max_memclk_for_voltage(clock_table, volt);
-		bw_params->clk_table.entries[i].socclk_mhz =
-			find_max_socclk_for_voltage(clock_table, volt);
+	for (i = 0; i < bw_params->clk_table.num_entries; i++, j--) {
+		bw_params->clk_table.entries[i].fclk_mhz = clock_table->FClocks[j].Freq;
+		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[j].Freq;
+		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[j].Vol;
+		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
+		bw_params->clk_table.entries[i].socclk_mhz = find_socclk_for_voltage(clock_table,
+									bw_params->clk_table.entries[i].voltage);
 	}
 
 	bw_params->vram_type = bios_info->memory_type;

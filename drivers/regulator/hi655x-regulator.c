@@ -2,7 +2,7 @@
 //
 // Device driver for regulators in Hi655x IC
 //
-// Copyright (c) 2016 Hisilicon.
+// Copyright (c) 2016 HiSilicon Ltd.
 //
 // Authors:
 // Chen Feng <puck.chen@hisilicon.com>

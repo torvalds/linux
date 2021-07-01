@@ -29,6 +29,7 @@
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_mn.h"
+#include "amdgpu_res_cursor.h"
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 #include "kfd_migrate.h"
@@ -205,34 +206,6 @@ svm_migrate_copy_done(struct amdgpu_device *adev, struct dma_fence *mfence)
 	return r;
 }
 
-static uint64_t
-svm_migrate_node_physical_addr(struct amdgpu_device *adev,
-			       struct drm_mm_node **mm_node, uint64_t *offset)
-{
-	struct drm_mm_node *node = *mm_node;
-	uint64_t pos = *offset;
-
-	if (node->start == AMDGPU_BO_INVALID_OFFSET) {
-		pr_debug("drm node is not validated\n");
-		return 0;
-	}
-
-	pr_debug("vram node start 0x%llx npages 0x%llx\n", node->start,
-		 node->size);
-
-	if (pos >= node->size) {
-		do  {
-			pos -= node->size;
-			node++;
-		} while (pos >= node->size);
-
-		*mm_node = node;
-		*offset = pos;
-	}
-
-	return (node->start + pos) << PAGE_SHIFT;
-}
-
 unsigned long
 svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr)
 {
@@ -297,11 +270,9 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 {
 	uint64_t npages = migrate->cpages;
 	struct device *dev = adev->dev;
-	struct drm_mm_node *node;
+	struct amdgpu_res_cursor cursor;
 	dma_addr_t *src;
 	uint64_t *dst;
-	uint64_t vram_addr;
-	uint64_t offset;
 	uint64_t i, j;
 	int r;
 
@@ -317,19 +288,12 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 		goto out;
 	}
 
-	node = prange->ttm_res->mm_node;
-	offset = prange->offset;
-	vram_addr = svm_migrate_node_physical_addr(adev, &node, &offset);
-	if (!vram_addr) {
-		WARN_ONCE(1, "vram node address is 0\n");
-		r = -ENOMEM;
-		goto out;
-	}
-
+	amdgpu_res_first(prange->ttm_res, prange->offset << PAGE_SHIFT,
+			 npages << PAGE_SHIFT, &cursor);
 	for (i = j = 0; i < npages; i++) {
 		struct page *spage;
 
-		dst[i] = vram_addr + (j << PAGE_SHIFT);
+		dst[i] = cursor.start + (j << PAGE_SHIFT);
 		migrate->dst[i] = svm_migrate_addr_to_pfn(adev, dst[i]);
 		svm_migrate_get_vram_page(prange, migrate->dst[i]);
 
@@ -354,18 +318,10 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 						mfence);
 				if (r)
 					goto out_free_vram_pages;
-				offset += j;
-				vram_addr = (node->start + offset) << PAGE_SHIFT;
+				amdgpu_res_next(&cursor, j << PAGE_SHIFT);
 				j = 0;
 			} else {
-				offset++;
-				vram_addr += PAGE_SIZE;
-			}
-			if (offset >= node->size) {
-				node++;
-				pr_debug("next node size 0x%llx\n", node->size);
-				vram_addr = node->start << PAGE_SHIFT;
-				offset = 0;
+				amdgpu_res_next(&cursor, PAGE_SIZE);
 			}
 			continue;
 		}
@@ -373,19 +329,15 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 		pr_debug("dma mapping src to 0x%llx, page_to_pfn 0x%lx\n",
 			 src[i] >> PAGE_SHIFT, page_to_pfn(spage));
 
-		if (j + offset >= node->size - 1 && i < npages - 1) {
+		if (j >= (cursor.size >> PAGE_SHIFT) - 1 && i < npages - 1) {
 			r = svm_migrate_copy_memory_gart(adev, src + i - j,
 							 dst + i - j, j + 1,
 							 FROM_RAM_TO_VRAM,
 							 mfence);
 			if (r)
 				goto out_free_vram_pages;
-
-			node++;
-			pr_debug("next node size 0x%llx\n", node->size);
-			vram_addr = node->start << PAGE_SHIFT;
-			offset = 0;
-			j = 0;
+			amdgpu_res_next(&cursor, (j + 1) * PAGE_SIZE);
+			j= 0;
 		} else {
 			j++;
 		}
