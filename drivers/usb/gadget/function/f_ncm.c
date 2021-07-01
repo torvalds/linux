@@ -1025,9 +1025,6 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 	const int rem = le16_to_cpu(ntb_parameters.wNdpInPayloadRemainder);
 	const int dgram_idx_len = 2 * 2 * opts->dgram_item_len;
 
-	if (!skb && !ncm->skb_tx_data)
-		return NULL;
-
 	if (skb) {
 		/* Add the CRC if required up front */
 		if (ncm->is_crc) {
