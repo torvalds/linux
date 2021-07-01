@@ -63,7 +63,7 @@ static u16 cgxlmac_to_pfmap(struct rvu *rvu, u8 cgx_id, u8 lmac_id)
 	return rvu->cgxlmac2pf_map[CGX_OFFSET(cgx_id) + lmac_id];
 }
 
-static int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
+int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
 {
 	unsigned long pfmap;
 
@@ -454,6 +454,31 @@ int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
 	return 0;
 }
 
+void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
+{
+	int pf = rvu_get_pf(pcifunc);
+	int i = 0, lmac_count = 0;
+	u8 max_dmac_filters;
+	u8 cgx_id, lmac_id;
+	void *cgx_dev;
+
+	if (!is_cgx_config_permitted(rvu, pcifunc))
+		return;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgx_dev = cgx_get_pdata(cgx_id);
+	lmac_count = cgx_get_lmac_cnt(cgx_dev);
+	max_dmac_filters = MAX_DMAC_ENTRIES_PER_CGX / lmac_count;
+
+	for (i = 0; i < max_dmac_filters; i++)
+		cgx_lmac_addr_del(cgx_id, lmac_id, i);
+
+	/* As cgx_lmac_addr_del does not clear entry for index 0
+	 * so it needs to be done explicitly
+	 */
+	cgx_lmac_addr_reset(cgx_id, lmac_id);
+}
+
 int rvu_mbox_handler_cgx_start_rxtx(struct rvu *rvu, struct msg_req *req,
 				    struct msg_rsp *rsp)
 {
@@ -554,6 +579,63 @@ int rvu_mbox_handler_cgx_mac_addr_set(struct rvu *rvu,
 
 	cgx_lmac_addr_set(cgx_id, lmac_id, req->mac_addr);
 
+	return 0;
+}
+
+int rvu_mbox_handler_cgx_mac_addr_add(struct rvu *rvu,
+				      struct cgx_mac_addr_add_req *req,
+				      struct cgx_mac_addr_add_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_id, lmac_id;
+	int rc = 0;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return -EPERM;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	rc = cgx_lmac_addr_add(cgx_id, lmac_id, req->mac_addr);
+	if (rc >= 0) {
+		rsp->index = rc;
+		return 0;
+	}
+
+	return rc;
+}
+
+int rvu_mbox_handler_cgx_mac_addr_del(struct rvu *rvu,
+				      struct cgx_mac_addr_del_req *req,
+				      struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_id, lmac_id;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return -EPERM;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	return cgx_lmac_addr_del(cgx_id, lmac_id, req->index);
+}
+
+int rvu_mbox_handler_cgx_mac_max_entries_get(struct rvu *rvu,
+					     struct msg_req *req,
+					     struct cgx_max_dmac_entries_get_rsp
+					     *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_id, lmac_id;
+
+	/* If msg is received from PFs(which are not mapped to CGX LMACs)
+	 * or VF then no entries are allocated for DMAC filters at CGX level.
+	 * So returning zero.
+	 */
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc)) {
+		rsp->max_dmac_filters = 0;
+		return 0;
+	}
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	rsp->max_dmac_filters = cgx_lmac_addr_max_entries_get(cgx_id, lmac_id);
 	return 0;
 }
 
@@ -952,4 +1034,31 @@ int rvu_mbox_handler_cgx_set_link_mode(struct rvu *rvu,
 	cgxd = rvu_cgx_pdata(cgx_idx, rvu);
 	rsp->status = cgx_set_link_mode(cgxd, req->args, cgx_idx, lmac);
 	return 0;
+}
+
+int rvu_mbox_handler_cgx_mac_addr_reset(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_id, lmac_id;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return -EPERM;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	return cgx_lmac_addr_reset(cgx_id, lmac_id);
+}
+
+int rvu_mbox_handler_cgx_mac_addr_update(struct rvu *rvu,
+					 struct cgx_mac_addr_update_req *req,
+					 struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_id, lmac_id;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return -EPERM;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	return cgx_lmac_addr_update(cgx_id, lmac_id, req->mac_addr, req->index);
 }

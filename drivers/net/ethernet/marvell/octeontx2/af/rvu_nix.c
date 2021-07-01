@@ -346,6 +346,9 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 
 	/* Free and disable any MCAM entries used by this NIX LF */
 	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+
+	/* Disable DMAC filters used */
+	rvu_cgx_disable_dmac_entries(rvu, pcifunc);
 }
 
 int rvu_mbox_handler_nix_bp_disable(struct rvu *rvu,
