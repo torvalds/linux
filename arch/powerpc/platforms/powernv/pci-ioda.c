@@ -1963,12 +1963,21 @@ void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	pe->dma_setup_done = true;
 }
 
-int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
+/*
+ * Called from KVM in real mode to EOI passthru interrupts. The ICP
+ * EOI is handled directly in KVM in kvmppc_deliver_irq_passthru().
+ *
+ * The IRQ data is mapped in the PCI-MSI domain and the EOI OPAL call
+ * needs an HW IRQ number mapped in the XICS IRQ domain. The HW IRQ
+ * numbers of the in-the-middle MSI domain are vector numbers and it's
+ * good enough for OPAL. Use that.
+ */
+int64_t pnv_opal_pci_msi_eoi(struct irq_data *d)
 {
-	struct pnv_phb *phb = container_of(chip, struct pnv_phb,
-					   ioda.irq_chip);
+	struct pci_controller *hose = irq_data_get_irq_chip_data(d->parent_data);
+	struct pnv_phb *phb = hose->private_data;
 
-	return opal_pci_msi_eoi(phb->opal_id, hw_irq);
+	return opal_pci_msi_eoi(phb->opal_id, d->parent_data->hwirq);
 }
 
 /*
