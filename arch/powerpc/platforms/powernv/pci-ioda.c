@@ -2169,12 +2169,33 @@ static void pnv_msi_compose_msg(struct irq_data *d, struct msi_msg *msg)
 			entry->msi_attrib.is_64 ? "64" : "32", d->hwirq, rc);
 }
 
+/*
+ * The IRQ data is mapped in the MSI domain in which HW IRQ numbers
+ * correspond to vector numbers.
+ */
+static void pnv_msi_eoi(struct irq_data *d)
+{
+	struct pci_controller *hose = irq_data_get_irq_chip_data(d);
+	struct pnv_phb *phb = hose->private_data;
+
+	if (phb->model == PNV_PHB_MODEL_PHB3) {
+		/*
+		 * The EOI OPAL call takes an OPAL HW IRQ number but
+		 * since it is translated into a vector number in
+		 * OPAL, use that directly.
+		 */
+		WARN_ON_ONCE(opal_pci_msi_eoi(phb->opal_id, d->hwirq));
+	}
+
+	irq_chip_eoi_parent(d);
+}
+
 static struct irq_chip pnv_msi_irq_chip = {
 	.name			= "PNV-MSI",
 	.irq_shutdown		= pnv_msi_shutdown,
 	.irq_mask		= irq_chip_mask_parent,
 	.irq_unmask		= irq_chip_unmask_parent,
-	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_eoi		= pnv_msi_eoi,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.irq_compose_msi_msg	= pnv_msi_compose_msg,
 };
