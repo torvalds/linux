@@ -2094,16 +2094,16 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
 #endif
 
 /*
- * mempolicy_nodemask_intersects
+ * mempolicy_in_oom_domain
  *
- * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
- * policy.  Otherwise, check for intersection between mask and the policy
- * nodemask for 'bind' or 'interleave' policy.  For 'preferred' or 'local'
- * policy, always return true since it may allocate elsewhere on fallback.
+ * If tsk's mempolicy is "bind", check for intersection between mask and
+ * the policy nodemask. Otherwise, return true for all other policies
+ * including "interleave", as a tsk with "interleave" policy may have
+ * memory allocated from all nodes in system.
  *
  * Takes task_lock(tsk) to prevent freeing of its mempolicy.
  */
-bool mempolicy_nodemask_intersects(struct task_struct *tsk,
+bool mempolicy_in_oom_domain(struct task_struct *tsk,
 					const nodemask_t *mask)
 {
 	struct mempolicy *mempolicy;
@@ -2111,29 +2111,13 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
 
 	if (!mask)
 		return ret;
+
 	task_lock(tsk);
 	mempolicy = tsk->mempolicy;
-	if (!mempolicy)
-		goto out;
-
-	switch (mempolicy->mode) {
-	case MPOL_PREFERRED:
-		/*
-		 * MPOL_PREFERRED and MPOL_F_LOCAL are only preferred nodes to
-		 * allocate from, they may fallback to other nodes when oom.
-		 * Thus, it's possible for tsk to have allocated memory from
-		 * nodes in mask.
-		 */
-		break;
-	case MPOL_BIND:
-	case MPOL_INTERLEAVE:
+	if (mempolicy && mempolicy->mode == MPOL_BIND)
 		ret = nodes_intersects(mempolicy->v.nodes, *mask);
-		break;
-	default:
-		BUG();
-	}
-out:
 	task_unlock(tsk);
+
 	return ret;
 }
 
