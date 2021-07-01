@@ -2277,6 +2277,17 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCP sock list dumping. */
 
+static unsigned short seq_file_family(const struct seq_file *seq);
+
+static bool seq_sk_match(struct seq_file *seq, const struct sock *sk)
+{
+	unsigned short family = seq_file_family(seq);
+
+	/* AF_UNSPEC is used as a match all */
+	return ((family == AF_UNSPEC || family == sk->sk_family) &&
+		net_eq(sock_net(sk), seq_file_net(seq)));
+}
+
 /*
  * Get next listener socket follow cur.  If cur is NULL, get first socket
  * starting from bucket given in st->bucket; when st->bucket is zero the
@@ -2284,17 +2295,10 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
  */
 static void *listening_get_next(struct seq_file *seq, void *cur)
 {
-	struct tcp_seq_afinfo *afinfo;
 	struct tcp_iter_state *st = seq->private;
-	struct net *net = seq_file_net(seq);
 	struct inet_listen_hashbucket *ilb;
 	struct hlist_nulls_node *node;
 	struct sock *sk = cur;
-
-	if (st->bpf_seq_afinfo)
-		afinfo = st->bpf_seq_afinfo;
-	else
-		afinfo = PDE_DATA(file_inode(seq->file));
 
 	if (!sk) {
 get_head:
@@ -2311,10 +2315,7 @@ get_head:
 	sk = sk_nulls_next(sk);
 get_sk:
 	sk_nulls_for_each_from(sk, node) {
-		if (!net_eq(sock_net(sk), net))
-			continue;
-		if (afinfo->family == AF_UNSPEC ||
-		    sk->sk_family == afinfo->family)
+		if (seq_sk_match(seq, sk))
 			return sk;
 	}
 	spin_unlock(&ilb->lock);
@@ -2351,15 +2352,7 @@ static inline bool empty_bucket(const struct tcp_iter_state *st)
  */
 static void *established_get_first(struct seq_file *seq)
 {
-	struct tcp_seq_afinfo *afinfo;
 	struct tcp_iter_state *st = seq->private;
-	struct net *net = seq_file_net(seq);
-	void *rc = NULL;
-
-	if (st->bpf_seq_afinfo)
-		afinfo = st->bpf_seq_afinfo;
-	else
-		afinfo = PDE_DATA(file_inode(seq->file));
 
 	st->offset = 0;
 	for (; st->bucket <= tcp_hashinfo.ehash_mask; ++st->bucket) {
@@ -2373,32 +2366,20 @@ static void *established_get_first(struct seq_file *seq)
 
 		spin_lock_bh(lock);
 		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
-			if ((afinfo->family != AF_UNSPEC &&
-			     sk->sk_family != afinfo->family) ||
-			    !net_eq(sock_net(sk), net)) {
-				continue;
-			}
-			rc = sk;
-			goto out;
+			if (seq_sk_match(seq, sk))
+				return sk;
 		}
 		spin_unlock_bh(lock);
 	}
-out:
-	return rc;
+
+	return NULL;
 }
 
 static void *established_get_next(struct seq_file *seq, void *cur)
 {
-	struct tcp_seq_afinfo *afinfo;
 	struct sock *sk = cur;
 	struct hlist_nulls_node *node;
 	struct tcp_iter_state *st = seq->private;
-	struct net *net = seq_file_net(seq);
-
-	if (st->bpf_seq_afinfo)
-		afinfo = st->bpf_seq_afinfo;
-	else
-		afinfo = PDE_DATA(file_inode(seq->file));
 
 	++st->num;
 	++st->offset;
@@ -2406,9 +2387,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	sk = sk_nulls_next(sk);
 
 	sk_nulls_for_each_from(sk, node) {
-		if ((afinfo->family == AF_UNSPEC ||
-		     sk->sk_family == afinfo->family) &&
-		    net_eq(sock_net(sk), net))
+		if (seq_sk_match(seq, sk))
 			return sk;
 	}
 
@@ -2754,6 +2733,19 @@ static const struct seq_operations bpf_iter_tcp_seq_ops = {
 	.stop		= bpf_iter_tcp_seq_stop,
 };
 #endif
+static unsigned short seq_file_family(const struct seq_file *seq)
+{
+	const struct tcp_iter_state *st = seq->private;
+	const struct tcp_seq_afinfo *afinfo = st->bpf_seq_afinfo;
+
+	/* Iterated from bpf_iter.  Let the bpf prog to filter instead. */
+	if (afinfo)
+		return AF_UNSPEC;
+
+	/* Iterated from proc fs */
+	afinfo = PDE_DATA(file_inode(seq->file));
+	return afinfo->family;
+}
 
 static const struct seq_operations tcp4_seq_ops = {
 	.show		= tcp4_seq_show,
