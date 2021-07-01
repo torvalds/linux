@@ -44,8 +44,6 @@ struct temp_opp_table {
  * @opp_table:		Frequency and voltage information of device
  * @devp:		Device-specific system monitor profile
  * @node:		Node in monitor_dev_list
- * @temp_freq_table:	Maximum frequency at different temperature and the
- *			frequency will not be changed by thermal framework.
  * @high_limit_table:	Limit maximum frequency at different temperature,
  *			but the frequency is also changed by thermal framework.
  * @volt_adjust_mutex:	A mutex to protect changing voltage.
@@ -69,8 +67,6 @@ struct temp_opp_table {
  * @reboot_freq:	Limit maximum and minimum frequency when reboot, in KHz
  * @status_min_limit:	Minimum frequency of some status frequency, in KHz
  * @status_max_limit:	Minimum frequency of all status frequency, in KHz
- * @freq_table:		Optional list of frequencies in descending order
- * @max_state:		The size of freq_table
  * @low_temp:		Low temperature trip point, in millicelsius
  * @high_temp:		High temperature trip point, in millicelsius
  * @temp_hysteresis:	A low hysteresis value on low_temp, in millicelsius
@@ -86,7 +82,6 @@ struct monitor_dev_info {
 	struct temp_opp_table *opp_table;
 	struct monitor_dev_profile *devp;
 	struct list_head node;
-	struct temp_freq_table *temp_freq_table;
 	struct temp_freq_table *high_limit_table;
 	struct mutex volt_adjust_mutex;
 	struct freq_qos_request max_temp_freq_req;
@@ -104,8 +99,6 @@ struct monitor_dev_info {
 	unsigned int reboot_freq;
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
-	unsigned long *freq_table;
-	unsigned int max_state;
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;
@@ -140,9 +133,6 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 int rockchip_monitor_suspend_low_temp_adjust(int cpu);
-int
-rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
-					  int temp, unsigned long *state);
 #else
 static inline struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
@@ -202,13 +192,6 @@ static inline int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 {
 	return 0;
 };
-
-static inline int
-rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
-					  int temp, unsigned long *state)
-{
-	return 0;
-}
 
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
 

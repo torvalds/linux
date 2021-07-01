@@ -585,9 +585,12 @@ static int monitor_device_parse_wide_temp_config(struct device_node *np,
 	else
 		info->high_temp_max_volt = value;
 	rockchip_init_temp_opp_table(info);
-	if (rockchip_get_temp_freq_table(np, "rockchip,high-temp-limit-table",
-					 &info->high_limit_table)) {
-		info->high_limit_table = NULL;
+	rockchip_get_temp_freq_table(np, "rockchip,temp-freq-table",
+				     &info->high_limit_table);
+	if (!info->high_limit_table)
+		rockchip_get_temp_freq_table(np, "rockchip,high-temp-limit-table",
+					     &info->high_limit_table);
+	if (!info->high_limit_table) {
 		if (!of_property_read_u32(np, "rockchip,high-temp-max-freq",
 					  &value)) {
 			high_temp_max_freq = value * 1000;
@@ -656,7 +659,6 @@ static int monitor_device_parse_dt(struct device *dev,
 	int ret = 0;
 	bool is_wide_temp_en = false;
 	bool is_status_limit_en = false;
-	bool is_temp_freq_en = false;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np)
@@ -666,10 +668,7 @@ static int monitor_device_parse_dt(struct device *dev,
 		is_wide_temp_en = true;
 	if (!monitor_device_parse_status_config(np, info))
 		is_status_limit_en = true;
-	if (!rockchip_get_temp_freq_table(np, "rockchip,temp-freq-table",
-					  &info->temp_freq_table))
-		is_temp_freq_en = true;
-	if (is_wide_temp_en || is_status_limit_en || is_temp_freq_en)
+	if (is_wide_temp_en || is_status_limit_en)
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -999,105 +998,6 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 	return 0;
 }
 
-static int monitor_set_freq_table(struct device *dev,
-				  struct monitor_dev_info *info)
-{
-	struct dev_pm_opp *opp;
-	unsigned long *freq_table;
-	unsigned long rate;
-	int i, max_opps;
-
-	max_opps = dev_pm_opp_get_opp_count(dev);
-	if (max_opps <= 0)
-		return -EINVAL;
-
-	freq_table = kcalloc(max_opps, sizeof(*info->freq_table), GFP_KERNEL);
-	if (!freq_table)
-		return -ENOMEM;
-
-	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
-		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
-		if (IS_ERR(opp)) {
-			kfree(freq_table);
-			return PTR_ERR(opp);
-		}
-		freq_table[i] = rate / 1000;
-		dev_pm_opp_put(opp);
-	}
-
-	info->max_state = max_opps;
-	info->freq_table = freq_table;
-
-	return 0;
-}
-
-static unsigned long monitor_freq_to_state(struct monitor_dev_info *info,
-					   unsigned long freq)
-{
-	unsigned long i = 0;
-
-	if (!info->freq_table) {
-		dev_info(info->dev, "failed to get freq_table");
-		return 0;
-	}
-
-	for (i = 0; i < info->max_state; i++) {
-		if (freq >= info->freq_table[i])
-			return i;
-	}
-
-	return info->max_state - 1;
-}
-
-static int monitor_temp_to_state(struct monitor_dev_info *info,
-				 int temp, unsigned long *state)
-{
-	unsigned long target_state, target_freq = 0;
-	int i;
-
-	if (temp == THERMAL_TEMP_INVALID)
-		return 0;
-	if (info->temp_freq_table) {
-		for (i = 0; info->temp_freq_table[i].freq != UINT_MAX; i++) {
-			if (temp > info->temp_freq_table[i].temp)
-				target_freq = info->temp_freq_table[i].freq;
-		}
-		if (target_freq)
-			*state = monitor_freq_to_state(info,
-						       target_freq * 1000);
-		else
-			*state = 0;
-	}
-
-	if (info->status_min_limit) {
-		target_freq = info->status_min_limit * 1000;
-		target_state = monitor_freq_to_state(info, target_freq);
-		if (*state > target_state)
-			*state = target_state;
-	}
-
-	return 0;
-}
-
-int
-rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
-					  int temp, unsigned long *state)
-{
-	struct monitor_dev_info *info;
-
-	down_read(&mdev_list_sem);
-	list_for_each_entry(info, &monitor_dev_list, node) {
-		if (cdev->np != info->dev->of_node)
-			continue;
-		monitor_temp_to_state(info, temp, state);
-		break;
-	}
-	up_read(&mdev_list_sem);
-
-	return 0;
-}
-EXPORT_SYMBOL(rockchip_system_monitor_adjust_cdev_state);
-
 static int rockchip_system_monitor_parse_supplies(struct device *dev,
 						  struct monitor_dev_info *info)
 {
@@ -1221,9 +1121,6 @@ rockchip_system_monitor_register(struct device *dev,
 	if (monitor_device_parse_dt(dev, info))
 		goto free_info;
 
-	if (monitor_set_freq_table(dev, info))
-		goto free_info;
-
 	rockchip_system_monitor_wide_temp_init(info);
 	if (rockchip_system_monitor_freq_qos_requset(info))
 		goto free_info;
@@ -1259,7 +1156,6 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 
 	kfree(info->low_temp_adjust_table);
 	kfree(info->opp_table);
-	kfree(info->freq_table);
 	kfree(info);
 }
 EXPORT_SYMBOL(rockchip_system_monitor_unregister);
