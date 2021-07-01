@@ -38,7 +38,7 @@ DEFINE_PER_CPU(struct xics_cppr, xics_cppr);
 
 struct irq_domain *xics_host;
 
-static LIST_HEAD(ics_list);
+static struct ics *xics_ics;
 
 void xics_update_irq_servers(void)
 {
@@ -111,12 +111,11 @@ void xics_setup_cpu(void)
 
 void xics_mask_unknown_vec(unsigned int vec)
 {
-	struct ics *ics;
-
 	pr_err("Interrupt 0x%x (real) is invalid, disabling it.\n", vec);
 
-	list_for_each_entry(ics, &ics_list, link)
-		ics->mask_unknown(ics, vec);
+	if (WARN_ON(!xics_ics))
+		return;
+	xics_ics->mask_unknown(xics_ics, vec);
 }
 
 
@@ -198,7 +197,6 @@ void xics_migrate_irqs_away(void)
 		struct irq_chip *chip;
 		long server;
 		unsigned long flags;
-		struct ics *ics;
 
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NR_IRQS_LEGACY)
@@ -219,13 +217,10 @@ void xics_migrate_irqs_away(void)
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		/* Locate interrupt server */
-		server = -1;
-		ics = irq_desc_get_chip_data(desc);
-		if (ics)
-			server = ics->get_server(ics, irq);
+		server = xics_ics->get_server(xics_ics, irq);
 		if (server < 0) {
-			printk(KERN_ERR "%s: Can't find server for irq %d\n",
-			       __func__, irq);
+			pr_err("%s: Can't find server for irq %d/%x\n",
+			       __func__, virq, irq);
 			goto unlock;
 		}
 
@@ -307,13 +302,9 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 static int xics_host_match(struct irq_domain *h, struct device_node *node,
 			   enum irq_domain_bus_token bus_token)
 {
-	struct ics *ics;
-
-	list_for_each_entry(ics, &ics_list, link)
-		if (ics->host_match(ics, node))
-			return 1;
-
-	return 0;
+	if (WARN_ON(!xics_ics))
+		return 0;
+	return xics_ics->host_match(xics_ics, node) ? 1 : 0;
 }
 
 /* Dummies */
@@ -330,8 +321,6 @@ static struct irq_chip xics_ipi_chip = {
 static int xics_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
-	struct ics *ics;
-
 	pr_devel("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	/*
@@ -348,12 +337,14 @@ static int xics_host_map(struct irq_domain *h, unsigned int virq,
 		return 0;
 	}
 
-	/* Let the ICS setup the chip data */
-	list_for_each_entry(ics, &ics_list, link)
-		if (ics->map(ics, virq) == 0)
-			return 0;
+	if (WARN_ON(!xics_ics))
+		return -EINVAL;
 
-	return -EINVAL;
+	/* Let the ICS setup the chip data */
+	if (xics_ics->map(xics_ics, virq))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
@@ -427,7 +418,9 @@ static void __init xics_init_host(void)
 
 void __init xics_register_ics(struct ics *ics)
 {
-	list_add(&ics->link, &ics_list);
+	if (WARN_ONCE(xics_ics, "XICS: Source Controller is already defined !"))
+		return;
+	xics_ics = ics;
 }
 
 static void __init xics_get_server_size(void)
