@@ -111,21 +111,6 @@ static int rtas_query_irq_number(struct pci_dn *pdn, int offset)
 	return rtas_ret[0];
 }
 
-static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
-{
-	struct msi_desc *entry;
-
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->irq)
-			continue;
-
-		irq_set_msi_desc(entry->irq, NULL);
-		irq_dispose_mapping(entry->irq);
-	}
-
-	rtas_disable_msi(pdev);
-}
-
 static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
 	struct device_node *dn;
@@ -459,66 +444,6 @@ again:
 	return 0;
 }
 
-static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
-{
-	struct pci_dn *pdn;
-	int hwirq, virq, i;
-	int rc;
-	struct msi_desc *entry;
-	struct msi_msg msg;
-
-	rc = rtas_prepare_msi_irqs(pdev, nvec_in, type, NULL);
-	if (rc)
-		return rc;
-
-	pdn = pci_get_pdn(pdev);
-	i = 0;
-	for_each_pci_msi_entry(entry, pdev) {
-		hwirq = rtas_query_irq_number(pdn, i++);
-		if (hwirq < 0) {
-			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);
-			return hwirq;
-		}
-
-		/*
-		 * Depending on the number of online CPUs in the original
-		 * kernel, it is likely for CPU #0 to be offline in a kdump
-		 * kernel. The associated IRQs in the affinity mappings
-		 * provided by irq_create_affinity_masks() are thus not
-		 * started by irq_startup(), as per-design for managed IRQs.
-		 * This can be a problem with multi-queue block devices driven
-		 * by blk-mq : such a non-started IRQ is very likely paired
-		 * with the single queue enforced by blk-mq during kdump (see
-		 * blk_mq_alloc_tag_set()). This causes the device to remain
-		 * silent and likely hangs the guest at some point.
-		 *
-		 * We don't really care for fine-grained affinity when doing
-		 * kdump actually : simply ignore the pre-computed affinity
-		 * masks in this case and let the default mask with all CPUs
-		 * be used when creating the IRQ mappings.
-		 */
-		if (is_kdump_kernel())
-			virq = irq_create_mapping(NULL, hwirq);
-		else
-			virq = irq_create_mapping_affinity(NULL, hwirq,
-							   entry->affinity);
-
-		if (!virq) {
-			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);
-			return -ENOSPC;
-		}
-
-		dev_dbg(&pdev->dev, "rtas_msi: allocated virq %d\n", virq);
-		irq_set_msi_desc(virq, entry);
-
-		/* Read config space back so we can restore after reset */
-		__pci_read_msi_msg(entry, &msg);
-		entry->msg = msg;
-	}
-
-	return 0;
-}
-
 static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev,
 				   int nvec, msi_alloc_info_t *arg)
 {
@@ -759,8 +684,6 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 
 static int rtas_msi_init(void)
 {
-	struct pci_controller *phb;
-
 	query_token  = rtas_token("ibm,query-interrupt-source-number");
 	change_token = rtas_token("ibm,change-msi");
 
@@ -771,16 +694,6 @@ static int rtas_msi_init(void)
 	}
 
 	pr_debug("rtas_msi: Registering RTAS MSI callbacks.\n");
-
-	WARN_ON(pseries_pci_controller_ops.setup_msi_irqs);
-	pseries_pci_controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
-	pseries_pci_controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;
-
-	list_for_each_entry(phb, &hose_list, list_node) {
-		WARN_ON(phb->controller_ops.setup_msi_irqs);
-		phb->controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
-		phb->controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;
-	}
 
 	WARN_ON(ppc_md.pci_irq_fixup);
 	ppc_md.pci_irq_fixup = rtas_msi_pci_irq_fixup;
