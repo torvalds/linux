@@ -29,6 +29,7 @@ x86-specific Documentation
    microcode
    resctrl
    tsx_async_abort
+   buslock
    usb-legacy-support
    i386/index
    x86_64/index

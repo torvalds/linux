@@ -207,3 +207,10 @@ struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
 
 	return &alloc_meta->free_track[i];
 }
+
+void kasan_tag_mismatch(unsigned long addr, unsigned long access_info,
+			unsigned long ret_ip)
+{
+	kasan_report(addr, 1 << (access_info & 0xf), access_info & 0x10,
+		     ret_ip);
+}

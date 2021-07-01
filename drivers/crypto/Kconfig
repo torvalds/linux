@@ -266,6 +266,27 @@ config CRYPTO_DEV_NIAGARA2
 	  Group, which can perform encryption, decryption, hashing,
 	  checksumming, and raw copies.
 
+config CRYPTO_DEV_SL3516
+	tristate "Stormlink SL3516 crypto offloader"
+	depends on HAS_IOMEM
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ENGINE
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select HW_RANDOM
+	depends on PM
+	help
+	  This option allows you to have support for SL3516 crypto offloader.
+
+config CRYPTO_DEV_SL3516_DEBUG
+	bool "Enable SL3516 stats"
+	depends on CRYPTO_DEV_SL3516
+	depends on DEBUG_FS
+	help
+	  Say y to enable SL3516 debug stats.
+	  This will create /sys/kernel/debug/sl3516/stats for displaying
+	  the number of requests per algorithm and other internal stats.
+
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
 	select CRYPTO_LIB_DES
@@ -325,6 +346,11 @@ config CRYPTO_DEV_TALITOS2
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
 	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_CTR
 	select CRYPTO_LIB_DES
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
@@ -627,6 +653,12 @@ config CRYPTO_DEV_QCE_SHA
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 
+config CRYPTO_DEV_QCE_AEAD
+	bool
+	depends on CRYPTO_DEV_QCE
+	select CRYPTO_AUTHENC
+	select CRYPTO_LIB_DES
+
 choice
 	prompt "Algorithms enabled for QCE acceleration"
 	default CRYPTO_DEV_QCE_ENABLE_ALL
@@ -647,6 +679,7 @@ choice
 		bool "All supported algorithms"
 		select CRYPTO_DEV_QCE_SKCIPHER
 		select CRYPTO_DEV_QCE_SHA
+		select CRYPTO_DEV_QCE_AEAD
 		help
 		  Enable all supported algorithms:
 			- AES (CBC, CTR, ECB, XTS)
@@ -672,6 +705,14 @@ choice
 			- SHA1, HMAC-SHA1
 			- SHA256, HMAC-SHA256
 
+	config CRYPTO_DEV_QCE_ENABLE_AEAD
+		bool "AEAD algorithms only"
+		select CRYPTO_DEV_QCE_AEAD
+		help
+		  Enable AEAD algorithms only:
+			- authenc()
+			- ccm(aes)
+			- rfc4309(ccm(aes))
 endchoice
 
 config CRYPTO_DEV_QCE_SW_MAX_LEN

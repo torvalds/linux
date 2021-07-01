@@ -36,7 +36,7 @@ struct vmx_msrs {
 };
 
 struct vmx_uret_msr {
-	unsigned int slot; /* The MSR's slot in kvm_user_return_msrs. */
+	bool load_into_hardware;
 	u64 data;
 	u64 mask;
 };
@@ -245,8 +245,16 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
+	/*
+	 * User return MSRs are always emulated when enabled in the guest, but
+	 * only loaded into hardware when necessary, e.g. SYSCALL #UDs outside
+	 * of 64-bit mode or if EFER.SCE=1, thus the SYSCALL MSRs don't need to
+	 * be loaded into hardware if those conditions aren't met.
+	 * nr_active_uret_msrs tracks the number of MSRs that need to be loaded
+	 * into hardware when running the guest.  guest_uret_msrs[] is resorted
+	 * whenever the number of "active" uret MSRs is modified.
+	 */
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
-	int                   nr_uret_msrs;
 	int                   nr_active_uret_msrs;
 	bool                  guest_uret_msrs_loaded;
 #ifdef CONFIG_X86_64
@@ -314,8 +322,6 @@ struct vcpu_vmx {
 	/* apic deadline value in host tsc */
 	u64 hv_deadline_tsc;
 
-	u64 current_tsc_ratio;
-
 	unsigned long host_debugctlmsr;
 
 	/*
@@ -327,10 +333,6 @@ struct vcpu_vmx {
 	u64 msr_ia32_feature_control_valid_bits;
 	/* SGX Launch Control public key hash */
 	u64 msr_ia32_sgxlepubkeyhash[4];
-
-#if IS_ENABLED(CONFIG_HYPERV)
-	u64 hv_root_ept;
-#endif
 
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;
@@ -349,11 +351,6 @@ struct kvm_vmx {
 	unsigned int tss_addr;
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
-
-#if IS_ENABLED(CONFIG_HYPERV)
-	hpa_t hv_root_ept;
-	spinlock_t hv_root_ept_lock;
-#endif
 };
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
@@ -379,6 +376,7 @@ void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level);
 
+bool vmx_guest_inject_ac(struct kvm_vcpu *vcpu);
 void vmx_update_exception_bitmap(struct kvm_vcpu *vcpu);
 void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
 bool vmx_nmi_blocked(struct kvm_vcpu *vcpu);
@@ -395,6 +393,9 @@ void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu);
 
 void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
 void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
+
+u64 vmx_get_l2_tsc_offset(struct kvm_vcpu *vcpu);
+u64 vmx_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu);
 
 static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
 					     int type, bool value)
@@ -519,12 +520,6 @@ static inline struct vmcs *alloc_vmcs(bool shadow)
 {
 	return alloc_vmcs_cpu(shadow, raw_smp_processor_id(),
 			      GFP_KERNEL_ACCOUNT);
-}
-
-static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
-{
-	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
-	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 }
 
 static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)

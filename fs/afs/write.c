@@ -118,6 +118,15 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 	_enter("{%llx:%llu},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
 
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			copied = 0;
+			goto out;
+		}
+
+		SetPageUptodate(page);
+	}
+
 	if (copied == 0)
 		goto out;
 
@@ -131,8 +140,6 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
 		write_sequnlock(&vnode->cb_lock);
 	}
-
-	ASSERT(PageUptodate(page));
 
 	if (PagePrivate(page)) {
 		priv = page_private(page);
@@ -730,7 +737,7 @@ static int afs_writepages_region(struct address_space *mapping,
 			return ret;
 		}
 
-		start += ret * PAGE_SIZE;
+		start += ret;
 
 		cond_resched();
 	} while (wbc->nr_to_write > 0);
@@ -837,6 +844,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	struct inode *inode = file_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	unsigned long priv;
+	vm_fault_t ret = VM_FAULT_RETRY;
 
 	_enter("{{%llx:%llu}},{%lx}", vnode->fid.vid, vnode->fid.vnode, page->index);
 
@@ -848,14 +856,14 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 #ifdef CONFIG_AFS_FSCACHE
 	if (PageFsCache(page) &&
 	    wait_on_page_fscache_killable(page) < 0)
-		return VM_FAULT_RETRY;
+		goto out;
 #endif
 
 	if (wait_on_page_writeback_killable(page))
-		return VM_FAULT_RETRY;
+		goto out;
 
 	if (lock_page_killable(page) < 0)
-		return VM_FAULT_RETRY;
+		goto out;
 
 	/* We mustn't change page->private until writeback is complete as that
 	 * details the portion of the page we need to write back and we might
@@ -863,7 +871,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	 */
 	if (wait_on_page_writeback_killable(page) < 0) {
 		unlock_page(page);
-		return VM_FAULT_RETRY;
+		goto out;
 	}
 
 	priv = afs_page_dirty(page, 0, thp_size(page));
@@ -877,8 +885,10 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	}
 	file_update_time(file);
 
+	ret = VM_FAULT_LOCKED;
+out:
 	sb_end_pagefault(inode->i_sb);
-	return VM_FAULT_LOCKED;
+	return ret;
 }
 
 /*

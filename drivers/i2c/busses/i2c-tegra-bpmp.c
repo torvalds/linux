@@ -65,7 +65,7 @@ static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 		*out |= SERIALI2C_RECV_LEN;
 }
 
-/**
+/*
  * The serialized I2C format is simply the following:
  * [addr little-endian][flags little-endian][len little-endian][data if write]
  * [addr little-endian][flags little-endian][len little-endian][data if write]
@@ -109,7 +109,7 @@ static void tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 	request->xfer.data_size = pos;
 }
 
-/**
+/*
  * The data in the BPMP -> CPU direction is composed of sequential blocks for
  * those messages that have I2C_M_RD. So, for example, if you have:
  *

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
  * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrj�l� <juha.yrjola@nokia.com>
+ *		Juha Yrjola <juha.yrjola@nokia.com>
  */
 
 #include <linux/kernel.h>
@@ -1032,41 +1032,6 @@ static void omap2_mcspi_release_dma(struct spi_master *master)
 	}
 }
 
-static int omap2_mcspi_setup(struct spi_device *spi)
-{
-	int			ret;
-	struct omap2_mcspi	*mcspi = spi_master_get_devdata(spi->master);
-	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
-	struct omap2_mcspi_cs	*cs = spi->controller_state;
-
-	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
-		if (!cs)
-			return -ENOMEM;
-		cs->base = mcspi->base + spi->chip_select * 0x14;
-		cs->phys = mcspi->phys + spi->chip_select * 0x14;
-		cs->mode = 0;
-		cs->chconf0 = 0;
-		cs->chctrl0 = 0;
-		spi->controller_state = cs;
-		/* Link this to context save list */
-		list_add_tail(&cs->node, &ctx->cs);
-	}
-
-	ret = pm_runtime_get_sync(mcspi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(mcspi->dev);
-
-		return ret;
-	}
-
-	ret = omap2_mcspi_setup_transfer(spi, NULL);
-	pm_runtime_mark_last_busy(mcspi->dev);
-	pm_runtime_put_autosuspend(mcspi->dev);
-
-	return ret;
-}
-
 static void omap2_mcspi_cleanup(struct spi_device *spi)
 {
 	struct omap2_mcspi_cs	*cs;
@@ -1078,6 +1043,48 @@ static void omap2_mcspi_cleanup(struct spi_device *spi)
 
 		kfree(cs);
 	}
+}
+
+static int omap2_mcspi_setup(struct spi_device *spi)
+{
+	bool			initial_setup = false;
+	int			ret;
+	struct omap2_mcspi	*mcspi = spi_master_get_devdata(spi->master);
+	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
+	struct omap2_mcspi_cs	*cs = spi->controller_state;
+
+	if (!cs) {
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+		if (!cs)
+			return -ENOMEM;
+		cs->base = mcspi->base + spi->chip_select * 0x14;
+		cs->phys = mcspi->phys + spi->chip_select * 0x14;
+		cs->mode = 0;
+		cs->chconf0 = 0;
+		cs->chctrl0 = 0;
+		spi->controller_state = cs;
+		/* Link this to context save list */
+		list_add_tail(&cs->node, &ctx->cs);
+		initial_setup = true;
+	}
+
+	ret = pm_runtime_get_sync(mcspi->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(mcspi->dev);
+		if (initial_setup)
+			omap2_mcspi_cleanup(spi);
+
+		return ret;
+	}
+
+	ret = omap2_mcspi_setup_transfer(spi, NULL);
+	if (ret && initial_setup)
+		omap2_mcspi_cleanup(spi);
+
+	pm_runtime_mark_last_busy(mcspi->dev);
+	pm_runtime_put_autosuspend(mcspi->dev);
+
+	return ret;
 }
 
 static irqreturn_t omap2_mcspi_irq_handler(int irq, void *data)

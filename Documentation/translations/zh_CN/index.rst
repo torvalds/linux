@@ -4,6 +4,7 @@
 
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
+	\kerneldocCJKon
 
 .. _linux_doc_zh:
 
@@ -72,11 +73,11 @@ TODOlist:
    dev-tools/index
    doc-guide/index
    kernel-hacking/index
+   maintainer/index
 
 TODOList:
 
 * trace/index
-* maintainer/index
 * fault-injection/index
 * livepatch/index
 * rust/index
@@ -153,6 +154,7 @@ TODOList:
    arm64/index
    riscv/index
    openrisc/index
+   parisc/index
 
 TODOList:
 
@@ -160,7 +162,6 @@ TODOList:
 * ia64/index
 * m68k/index
 * nios2/index
-* parisc/index
 * powerpc/index
 * s390/index
 * sh/index

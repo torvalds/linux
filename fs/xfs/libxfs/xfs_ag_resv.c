@@ -325,10 +325,22 @@ out:
 		error2 = xfs_alloc_pagf_init(mp, tp, pag->pag_agno, 0);
 		if (error2)
 			return error2;
-		ASSERT(xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
-		       xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved <=
-		       pag->pagf_freeblks + pag->pagf_flcount);
+
+		/*
+		 * If there isn't enough space in the AG to satisfy the
+		 * reservation, let the caller know that there wasn't enough
+		 * space.  Callers are responsible for deciding what to do
+		 * next, since (in theory) we can stumble along with
+		 * insufficient reservation if data blocks are being freed to
+		 * replenish the AG's free space.
+		 */
+		if (!error &&
+		    xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
+		    xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved >
+		    pag->pagf_freeblks + pag->pagf_flcount)
+			error = -ENOSPC;
 	}
+
 	return error;
 }
 
@@ -354,7 +366,7 @@ xfs_ag_resv_alloc_extent(
 		break;
 	default:
 		ASSERT(0);
-		/* fall through */
+		fallthrough;
 	case XFS_AG_RESV_NONE:
 		field = args->wasdel ? XFS_TRANS_SB_RES_FDBLOCKS :
 				       XFS_TRANS_SB_FDBLOCKS;
@@ -396,7 +408,7 @@ xfs_ag_resv_free_extent(
 		break;
 	default:
 		ASSERT(0);
-		/* fall through */
+		fallthrough;
 	case XFS_AG_RESV_NONE:
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (int64_t)len);
 		return;

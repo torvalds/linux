@@ -34,7 +34,7 @@ Description
 
 This system call returns filtered data, which might be section or Packetized
 Elementary Stream (PES) data. The filtered data is transferred from
-the driver’s internal circular buffer to ``buf``. The maximum amount of data
+the driver's internal circular buffer to ``buf``. The maximum amount of data
 to be transferred is implied by count.
 
 .. note::

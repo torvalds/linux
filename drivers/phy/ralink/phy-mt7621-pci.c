@@ -341,7 +341,7 @@ static struct platform_driver mt7621_pci_phy_driver = {
 	.probe = mt7621_pci_phy_probe,
 	.driver = {
 		.name = "mt7621-pci-phy",
-		.of_match_table = of_match_ptr(mt7621_pci_phy_ids),
+		.of_match_table = mt7621_pci_phy_ids,
 	},
 };
 

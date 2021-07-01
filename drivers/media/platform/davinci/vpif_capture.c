@@ -99,7 +99,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * vpif_buffer_queue_setup : Callback function for buffer setup.
  * @vq: vb2_queue ptr
  * @nbuffers: ptr to number of buffers requested by application
- * @nplanes:: contains number of distinct video planes needed to hold a frame
+ * @nplanes: contains number of distinct video planes needed to hold a frame
  * @sizes: contains the size (in bytes) of each plane.
  * @alloc_devs: ptr to allocation context
  *

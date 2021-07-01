@@ -5,9 +5,10 @@
 #include "otx2_cptvf.h"
 #include "otx2_cptlf.h"
 #include "otx2_cptvf_algs.h"
+#include "cn10k_cpt.h"
 #include <rvu_reg.h>
 
-#define OTX2_CPTVF_DRV_NAME "octeontx2-cptvf"
+#define OTX2_CPTVF_DRV_NAME "rvu_cptvf"
 
 static void cptvf_enable_pfvf_mbox_intrs(struct otx2_cptvf_dev *cptvf)
 {
@@ -70,6 +71,8 @@ static int cptvf_register_interrupts(struct otx2_cptvf_dev *cptvf)
 
 static int cptvf_pfvf_mbox_init(struct otx2_cptvf_dev *cptvf)
 {
+	struct pci_dev *pdev = cptvf->pdev;
+	resource_size_t offset, size;
 	int ret;
 
 	cptvf->pfvf_mbox_wq = alloc_workqueue("cpt_pfvf_mailbox",
@@ -78,14 +81,39 @@ static int cptvf_pfvf_mbox_init(struct otx2_cptvf_dev *cptvf)
 	if (!cptvf->pfvf_mbox_wq)
 		return -ENOMEM;
 
+	if (test_bit(CN10K_MBOX, &cptvf->cap_flag)) {
+		/* For cn10k platform, VF mailbox region is in its BAR2
+		 * register space
+		 */
+		cptvf->pfvf_mbox_base = cptvf->reg_base +
+					CN10K_CPT_VF_MBOX_REGION;
+	} else {
+		offset = pci_resource_start(pdev, PCI_MBOX_BAR_NUM);
+		size = pci_resource_len(pdev, PCI_MBOX_BAR_NUM);
+		/* Map PF-VF mailbox memory */
+		cptvf->pfvf_mbox_base = devm_ioremap_wc(&pdev->dev, offset,
+							size);
+		if (!cptvf->pfvf_mbox_base) {
+			dev_err(&pdev->dev, "Unable to map BAR4\n");
+			ret = -ENOMEM;
+			goto free_wqe;
+		}
+	}
+
 	ret = otx2_mbox_init(&cptvf->pfvf_mbox, cptvf->pfvf_mbox_base,
-			     cptvf->pdev, cptvf->reg_base, MBOX_DIR_VFPF, 1);
+			     pdev, cptvf->reg_base, MBOX_DIR_VFPF, 1);
 	if (ret)
 		goto free_wqe;
+
+	ret = otx2_cpt_mbox_bbuf_init(cptvf, pdev);
+	if (ret)
+		goto destroy_mbox;
 
 	INIT_WORK(&cptvf->pfvf_mbox_work, otx2_cptvf_pfvf_mbox_handler);
 	return 0;
 
+destroy_mbox:
+	otx2_mbox_destroy(&cptvf->pfvf_mbox);
 free_wqe:
 	destroy_workqueue(cptvf->pfvf_mbox_wq);
 	return ret;
@@ -305,7 +333,6 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
-	resource_size_t offset, size;
 	struct otx2_cptvf_dev *cptvf;
 	int ret;
 
@@ -337,15 +364,12 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 
 	cptvf->reg_base = pcim_iomap_table(pdev)[PCI_PF_REG_BAR_NUM];
 
-	offset = pci_resource_start(pdev, PCI_MBOX_BAR_NUM);
-	size = pci_resource_len(pdev, PCI_MBOX_BAR_NUM);
-	/* Map PF-VF mailbox memory */
-	cptvf->pfvf_mbox_base = devm_ioremap_wc(dev, offset, size);
-	if (!cptvf->pfvf_mbox_base) {
-		dev_err(&pdev->dev, "Unable to map BAR4\n");
-		ret = -ENODEV;
+	otx2_cpt_set_hw_caps(pdev, &cptvf->cap_flag);
+
+	ret = cn10k_cptvf_lmtst_init(cptvf);
+	if (ret)
 		goto clear_drvdata;
-	}
+
 	/* Initialize PF<=>VF mailbox */
 	ret = cptvf_pfvf_mbox_init(cptvf);
 	if (ret)
@@ -392,6 +416,7 @@ static void otx2_cptvf_remove(struct pci_dev *pdev)
 /* Supported devices */
 static const struct pci_device_id otx2_cptvf_id_table[] = {
 	{PCI_VDEVICE(CAVIUM, OTX2_CPT_PCI_VF_DEVICE_ID), 0},
+	{PCI_VDEVICE(CAVIUM, CN10K_CPT_PCI_VF_DEVICE_ID), 0},
 	{ 0, }  /* end of table */
 };
 
@@ -405,6 +430,6 @@ static struct pci_driver otx2_cptvf_pci_driver = {
 module_pci_driver(otx2_cptvf_pci_driver);
 
 MODULE_AUTHOR("Marvell");
-MODULE_DESCRIPTION("Marvell OcteonTX2 CPT Virtual Function Driver");
+MODULE_DESCRIPTION("Marvell RVU CPT Virtual Function Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(pci, otx2_cptvf_id_table);

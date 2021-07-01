@@ -180,7 +180,7 @@ unsigned long get_wchan(struct task_struct *p)
 	struct unwind_state state;
 	unsigned long ip = 0;
 
-	if (!p || p == current || p->state == TASK_RUNNING || !task_stack_page(p))
+	if (!p || p == current || task_is_running(p) || !task_stack_page(p))
 		return 0;
 
 	if (!try_get_task_stack(p))

@@ -495,8 +495,8 @@ help debug packet drops caused by these exceptions. The following list includes
 links to the description of driver-specific traps registered by various device
 drivers:
 
-  * :doc:`netdevsim`
-  * :doc:`mlxsw`
+  * Documentation/networking/devlink/netdevsim.rst
+  * Documentation/networking/devlink/mlxsw.rst
 
 .. _Generic-Packet-Trap-Groups:
 

@@ -4473,6 +4473,7 @@ static int sctp_setsockopt_encap_port(struct sock *sk,
 				    transports)
 			t->encap_port = encap_port;
 
+		asoc->encap_port = encap_port;
 		return 0;
 	}
 

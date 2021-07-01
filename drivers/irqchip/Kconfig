@@ -415,7 +415,7 @@ config GOLDFISH_PIC
          for Goldfish based virtual platforms.
 
 config QCOM_PDC
-	bool "QCOM PDC"
+	tristate "QCOM PDC"
 	depends on ARCH_QCOM
 	select IRQ_DOMAIN_HIERARCHY
 	help
@@ -596,7 +596,7 @@ config IRQ_IDT3243X
 config APPLE_AIC
 	bool "Apple Interrupt Controller (AIC)"
 	depends on ARM64
-	default ARCH_APPLE
+	depends on ARCH_APPLE || COMPILE_TEST
 	help
 	  Support for the Apple Interrupt Controller found on Apple Silicon SoCs,
 	  such as the M1.

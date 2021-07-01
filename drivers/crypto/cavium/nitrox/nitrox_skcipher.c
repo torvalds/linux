@@ -20,7 +20,7 @@ struct nitrox_cipher {
 	enum flexi_cipher value;
 };
 
-/**
+/*
  * supported cipher list
  */
 static const struct nitrox_cipher flexi_cipher_table[] = {

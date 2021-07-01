@@ -4,7 +4,7 @@
  *		http://www.samsung.com/
  *
  * samsung - Common hr-timer support (s3c and s5p)
-*/
+ */
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -22,7 +22,6 @@
 
 #include <clocksource/samsung_pwm.h>
 
-
 /*
  * Clocksource driver
  */
@@ -38,8 +37,8 @@
 #define TCFG0_PRESCALER_MASK		0xff
 #define TCFG0_PRESCALER1_SHIFT		8
 
-#define TCFG1_SHIFT(x)	  		((x) * 4)
-#define TCFG1_MUX_MASK	  		0xf
+#define TCFG1_SHIFT(x)			((x) * 4)
+#define TCFG1_MUX_MASK			0xf
 
 /*
  * Each channel occupies 4 bits in TCON register, but there is a gap of 4
@@ -62,7 +61,7 @@ EXPORT_SYMBOL(samsung_pwm_lock);
 
 struct samsung_pwm_clocksource {
 	void __iomem *base;
-	void __iomem *source_reg;
+	const void __iomem *source_reg;
 	unsigned int irq[SAMSUNG_PWM_NUM];
 	struct samsung_pwm_variant variant;
 
@@ -183,7 +182,7 @@ static void samsung_time_start(unsigned int channel, bool periodic)
 }
 
 static int samsung_set_next_event(unsigned long cycles,
-				struct clock_event_device *evt)
+				  struct clock_event_device *evt)
 {
 	/*
 	 * This check is needed to account for internal rounding
@@ -225,6 +224,7 @@ static void samsung_clockevent_resume(struct clock_event_device *cev)
 
 	if (pwm.variant.has_tint_cstat) {
 		u32 mask = (1 << pwm.event_id);
+
 		writel(mask | (mask << 5), pwm.base + REG_TINT_CSTAT);
 	}
 }
@@ -248,6 +248,7 @@ static irqreturn_t samsung_clock_event_isr(int irq, void *dev_id)
 
 	if (pwm.variant.has_tint_cstat) {
 		u32 mask = (1 << pwm.event_id);
+
 		writel(mask | (mask << 5), pwm.base + REG_TINT_CSTAT);
 	}
 
@@ -272,7 +273,7 @@ static void __init samsung_clockevent_init(void)
 
 	time_event_device.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&time_event_device,
-						clock_rate, 1, pwm.tcnt_max);
+					clock_rate, 1, pwm.tcnt_max);
 
 	irq_number = pwm.irq[pwm.event_id];
 	if (request_irq(irq_number, samsung_clock_event_isr,
@@ -282,6 +283,7 @@ static void __init samsung_clockevent_init(void)
 
 	if (pwm.variant.has_tint_cstat) {
 		u32 mask = (1 << pwm.event_id);
+
 		writel(mask | (mask << 5), pwm.base + REG_TINT_CSTAT);
 	}
 }
@@ -347,7 +349,7 @@ static int __init samsung_clocksource_init(void)
 		pwm.source_reg = pwm.base + pwm.source_id * 0x0c + 0x14;
 
 	sched_clock_register(samsung_read_sched_clock,
-						pwm.variant.bits, clock_rate);
+			     pwm.variant.bits, clock_rate);
 
 	samsung_clocksource.mask = CLOCKSOURCE_MASK(pwm.variant.bits);
 	return clocksource_register_hz(&samsung_clocksource, clock_rate);
@@ -398,7 +400,8 @@ static int __init _samsung_pwm_clocksource_init(void)
 }
 
 void __init samsung_pwm_clocksource_init(void __iomem *base,
-			unsigned int *irqs, struct samsung_pwm_variant *variant)
+					 unsigned int *irqs,
+					 const struct samsung_pwm_variant *variant)
 {
 	pwm.base = base;
 	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
@@ -418,7 +421,7 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
-	int i;
+	int i, ret;
 
 	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
 	for (i = 0; i < SAMSUNG_PWM_NUM; ++i)
@@ -441,10 +444,24 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 	pwm.timerclk = of_clk_get_by_name(np, "timers");
 	if (IS_ERR(pwm.timerclk)) {
 		pr_crit("failed to get timers clock for timer\n");
-		return PTR_ERR(pwm.timerclk);
+		ret = PTR_ERR(pwm.timerclk);
+		goto err_clk;
 	}
 
-	return _samsung_pwm_clocksource_init();
+	ret = _samsung_pwm_clocksource_init();
+	if (ret)
+		goto err_clocksource;
+
+	return 0;
+
+err_clocksource:
+	clk_put(pwm.timerclk);
+	pwm.timerclk = NULL;
+err_clk:
+	iounmap(pwm.base);
+	pwm.base = NULL;
+
+	return ret;
 }
 
 static const struct samsung_pwm_variant s3c24xx_variant = {

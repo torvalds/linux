@@ -168,7 +168,7 @@ Description:	This file shows the manufacturing date in BCD format.
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/manufacturer_id
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
-Description:	This file shows the manufacturee ID. This is one of the
+Description:	This file shows the manufacturer ID. This is one of the
 		UFS device descriptor parameters. The full information about
 		the descriptor could be found at UFS specifications 2.1.
 
@@ -521,7 +521,7 @@ Description:	This file shows maximum VCC, VCCQ and VCCQ2 value for
 What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/manufacturer_name
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
-Description:	This file contains a device manufactureer name string.
+Description:	This file contains a device manufacturer name string.
 		The full information about the descriptor could be found at
 		UFS specifications 2.1.
 

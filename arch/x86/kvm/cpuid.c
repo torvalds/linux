@@ -202,10 +202,10 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
 
 	/*
-	 * Except for the MMU, which needs to be reset after any vendor
-	 * specific adjustments to the reserved GPA bits.
+	 * Except for the MMU, which needs to do its thing any vendor specific
+	 * adjustments to the reserved GPA bits.
 	 */
-	kvm_mmu_reset_context(vcpu);
+	kvm_mmu_after_set_cpuid(vcpu);
 }
 
 static int is_efer_nx(void)
@@ -458,7 +458,7 @@ void kvm_set_cpu_caps(void)
 		F(AVX512_VPOPCNTDQ) | F(UMIP) | F(AVX512_VBMI2) | F(GFNI) |
 		F(VAES) | F(VPCLMULQDQ) | F(AVX512_VNNI) | F(AVX512_BITALG) |
 		F(CLDEMOTE) | F(MOVDIRI) | F(MOVDIR64B) | 0 /*WAITPKG*/ |
-		F(SGX_LC)
+		F(SGX_LC) | F(BUS_LOCK_DETECT)
 	);
 	/* Set LA57 based on hardware capability. */
 	if (cpuid_ecx(7) & F(LA57))
@@ -567,6 +567,21 @@ void kvm_set_cpu_caps(void)
 		F(ACE2) | F(ACE2_EN) | F(PHE) | F(PHE_EN) |
 		F(PMM) | F(PMM_EN)
 	);
+
+	/*
+	 * Hide RDTSCP and RDPID if either feature is reported as supported but
+	 * probing MSR_TSC_AUX failed.  This is purely a sanity check and
+	 * should never happen, but the guest will likely crash if RDTSCP or
+	 * RDPID is misreported, and KVM has botched MSR_TSC_AUX emulation in
+	 * the past.  For example, the sanity check may fire if this instance of
+	 * KVM is running as L1 on top of an older, broken KVM.
+	 */
+	if (WARN_ON((kvm_cpu_cap_has(X86_FEATURE_RDTSCP) ||
+		     kvm_cpu_cap_has(X86_FEATURE_RDPID)) &&
+		     !kvm_is_supported_user_return_msr(MSR_TSC_AUX))) {
+		kvm_cpu_cap_clear(X86_FEATURE_RDTSCP);
+		kvm_cpu_cap_clear(X86_FEATURE_RDPID);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
@@ -637,8 +652,10 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	case 7:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		entry->eax = 0;
-		entry->ecx = F(RDPID);
+		if (kvm_cpu_cap_has(X86_FEATURE_RDTSCP))
+			entry->ecx = F(RDPID);
 		++array->nent;
+		break;
 	default:
 		break;
 	}

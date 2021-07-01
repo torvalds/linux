@@ -133,6 +133,10 @@ static int wiphy_resume(struct device *dev)
 	if (rdev->wiphy.registered && rdev->ops->resume)
 		ret = rdev_resume(rdev);
 	wiphy_unlock(&rdev->wiphy);
+
+	if (ret)
+		cfg80211_shutdown_all_interfaces(&rdev->wiphy);
+
 	rtnl_unlock();
 
 	return ret;

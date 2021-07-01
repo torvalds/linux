@@ -45,179 +45,6 @@ module_param(sensor_preferred, uint, 0644);
 MODULE_PARM_DESC(sensor_preferred,
 		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
 
-/* This is a list of the formats that the ISC can *output* */
-const struct isc_format controller_formats[] = {
-	{
-		.fourcc		= V4L2_PIX_FMT_ARGB444,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_ARGB555,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_RGB565,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_ABGR32,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_XBGR32,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUV420,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUV422P,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_GREY,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_Y10,
-	},
-};
-
-/* This is a list of formats that the ISC can receive as *input* */
-struct isc_format formats_list[] = {
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_BGBG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG8,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG8,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB8,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR10,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG10,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG10,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB10,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR12,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_BGBG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG12,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG12,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB12,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_GREY,
-		.mbus_code	= MEDIA_BUS_FMT_Y8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_RGB565,
-		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_Y10,
-		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-	},
-
-};
-
-/* Gamma table with gamma 1/2.2 */
-const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
-	/* 0 --> gamma 1/1.8 */
-	{      0x65,  0x66002F,  0x950025,  0xBB0020,  0xDB001D,  0xF8001A,
-	  0x1130018, 0x12B0017, 0x1420016, 0x1580014, 0x16D0013, 0x1810012,
-	  0x1940012, 0x1A60012, 0x1B80011, 0x1C90010, 0x1DA0010, 0x1EA000F,
-	  0x1FA000F, 0x209000F, 0x218000F, 0x227000E, 0x235000E, 0x243000E,
-	  0x251000E, 0x25F000D, 0x26C000D, 0x279000D, 0x286000D, 0x293000C,
-	  0x2A0000C, 0x2AC000C, 0x2B8000C, 0x2C4000C, 0x2D0000B, 0x2DC000B,
-	  0x2E7000B, 0x2F3000B, 0x2FE000B, 0x309000B, 0x314000B, 0x31F000A,
-	  0x32A000A, 0x334000B, 0x33F000A, 0x349000A, 0x354000A, 0x35E000A,
-	  0x368000A, 0x372000A, 0x37C000A, 0x386000A, 0x3900009, 0x399000A,
-	  0x3A30009, 0x3AD0009, 0x3B60009, 0x3BF000A, 0x3C90009, 0x3D20009,
-	  0x3DB0009, 0x3E40009, 0x3ED0009, 0x3F60009 },
-
-	/* 1 --> gamma 1/2 */
-	{      0x7F,  0x800034,  0xB50028,  0xDE0021, 0x100001E, 0x11E001B,
-	  0x1390019, 0x1520017, 0x16A0015, 0x1800014, 0x1940014, 0x1A80013,
-	  0x1BB0012, 0x1CD0011, 0x1DF0010, 0x1EF0010, 0x200000F, 0x20F000F,
-	  0x21F000E, 0x22D000F, 0x23C000E, 0x24A000E, 0x258000D, 0x265000D,
-	  0x273000C, 0x27F000D, 0x28C000C, 0x299000C, 0x2A5000C, 0x2B1000B,
-	  0x2BC000C, 0x2C8000B, 0x2D3000C, 0x2DF000B, 0x2EA000A, 0x2F5000A,
-	  0x2FF000B, 0x30A000A, 0x314000B, 0x31F000A, 0x329000A, 0x333000A,
-	  0x33D0009, 0x3470009, 0x350000A, 0x35A0009, 0x363000A, 0x36D0009,
-	  0x3760009, 0x37F0009, 0x3880009, 0x3910009, 0x39A0009, 0x3A30009,
-	  0x3AC0008, 0x3B40009, 0x3BD0008, 0x3C60008, 0x3CE0008, 0x3D60009,
-	  0x3DF0008, 0x3E70008, 0x3EF0008, 0x3F70008 },
-
-	/* 2 --> gamma 1/2.2 */
-	{      0x99,  0x9B0038,  0xD4002A,  0xFF0023, 0x122001F, 0x141001B,
-	  0x15D0019, 0x1760017, 0x18E0015, 0x1A30015, 0x1B80013, 0x1CC0012,
-	  0x1DE0011, 0x1F00010, 0x2010010, 0x2110010, 0x221000F, 0x230000F,
-	  0x23F000E, 0x24D000E, 0x25B000D, 0x269000C, 0x276000C, 0x283000C,
-	  0x28F000C, 0x29B000C, 0x2A7000C, 0x2B3000B, 0x2BF000B, 0x2CA000B,
-	  0x2D5000B, 0x2E0000A, 0x2EB000A, 0x2F5000A, 0x2FF000A, 0x30A000A,
-	  0x3140009, 0x31E0009, 0x327000A, 0x3310009, 0x33A0009, 0x3440009,
-	  0x34D0009, 0x3560009, 0x35F0009, 0x3680008, 0x3710008, 0x3790009,
-	  0x3820008, 0x38A0008, 0x3930008, 0x39B0008, 0x3A30008, 0x3AB0008,
-	  0x3B30008, 0x3BB0008, 0x3C30008, 0x3CB0007, 0x3D20008, 0x3DA0007,
-	  0x3E20007, 0x3E90007, 0x3F00008, 0x3F80007 },
-};
-
 #define ISC_IS_FORMAT_RAW(mbus_code) \
 	(((mbus_code) & 0xf000) == 0x3000)
 
@@ -294,9 +121,13 @@ static int isc_wait_clk_stable(struct clk_hw *hw)
 static int isc_clk_prepare(struct clk_hw *hw)
 {
 	struct isc_clk *isc_clk = to_isc_clk(hw);
+	int ret;
 
-	if (isc_clk->id == ISC_ISPCK)
-		pm_runtime_get_sync(isc_clk->dev);
+	if (isc_clk->id == ISC_ISPCK) {
+		ret = pm_runtime_resume_and_get(isc_clk->dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	return isc_wait_clk_stable(hw);
 }
@@ -319,8 +150,8 @@ static int isc_clk_enable(struct clk_hw *hw)
 	unsigned long flags;
 	unsigned int status;
 
-	dev_dbg(isc_clk->dev, "ISC CLK: %s, div = %d, parent id = %d\n",
-		__func__, isc_clk->div, isc_clk->parent_id);
+	dev_dbg(isc_clk->dev, "ISC CLK: %s, id = %d, div = %d, parent id = %d\n",
+		__func__, id, isc_clk->div, isc_clk->parent_id);
 
 	spin_lock_irqsave(&isc_clk->lock, flags);
 	regmap_update_bits(regmap, ISC_CLKCFG,
@@ -353,9 +184,13 @@ static int isc_clk_is_enabled(struct clk_hw *hw)
 {
 	struct isc_clk *isc_clk = to_isc_clk(hw);
 	u32 status;
+	int ret;
 
-	if (isc_clk->id == ISC_ISPCK)
-		pm_runtime_get_sync(isc_clk->dev);
+	if (isc_clk->id == ISC_ISPCK) {
+		ret = pm_runtime_resume_and_get(isc_clk->dev);
+		if (ret < 0)
+			return 0;
+	}
 
 	regmap_read(isc_clk->regmap, ISC_CLKSR, &status);
 
@@ -635,16 +470,20 @@ static void isc_start_dma(struct isc_device *isc)
 			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN);
 
 	addr0 = vb2_dma_contig_plane_dma_addr(&isc->cur_frm->vb.vb2_buf, 0);
-	regmap_write(regmap, ISC_DAD0, addr0);
+	regmap_write(regmap, ISC_DAD0 + isc->offsets.dma, addr0);
 
 	switch (isc->config.fourcc) {
 	case V4L2_PIX_FMT_YUV420:
-		regmap_write(regmap, ISC_DAD1, addr0 + (sizeimage * 2) / 3);
-		regmap_write(regmap, ISC_DAD2, addr0 + (sizeimage * 5) / 6);
+		regmap_write(regmap, ISC_DAD1 + isc->offsets.dma,
+			     addr0 + (sizeimage * 2) / 3);
+		regmap_write(regmap, ISC_DAD2 + isc->offsets.dma,
+			     addr0 + (sizeimage * 5) / 6);
 		break;
 	case V4L2_PIX_FMT_YUV422P:
-		regmap_write(regmap, ISC_DAD1, addr0 + sizeimage / 2);
-		regmap_write(regmap, ISC_DAD2, addr0 + (sizeimage * 3) / 4);
+		regmap_write(regmap, ISC_DAD1 + isc->offsets.dma,
+			     addr0 + sizeimage / 2);
+		regmap_write(regmap, ISC_DAD2 + isc->offsets.dma,
+			     addr0 + (sizeimage * 3) / 4);
 		break;
 	default:
 		break;
@@ -652,7 +491,8 @@ static void isc_start_dma(struct isc_device *isc)
 
 	dctrl_dview = isc->config.dctrl_dview;
 
-	regmap_write(regmap, ISC_DCTRL, dctrl_dview | ISC_DCTRL_IE_IS);
+	regmap_write(regmap, ISC_DCTRL + isc->offsets.dma,
+		     dctrl_dview | ISC_DCTRL_IE_IS);
 	spin_lock(&isc->awb_lock);
 	regmap_write(regmap, ISC_CTRLEN, ISC_CTRL_CAPTURE);
 	spin_unlock(&isc->awb_lock);
@@ -683,21 +523,16 @@ static void isc_set_pipeline(struct isc_device *isc, u32 pipeline)
 
 	regmap_write(regmap, ISC_CFA_CFG, bay_cfg | ISC_CFA_CFG_EITPOL);
 
-	gamma = &isc_gamma_table[ctrls->gamma_index][0];
+	gamma = &isc->gamma_table[ctrls->gamma_index][0];
 	regmap_bulk_write(regmap, ISC_GAM_BENTRY, gamma, GAMMA_ENTRIES);
 	regmap_bulk_write(regmap, ISC_GAM_GENTRY, gamma, GAMMA_ENTRIES);
 	regmap_bulk_write(regmap, ISC_GAM_RENTRY, gamma, GAMMA_ENTRIES);
 
-	/* Convert RGB to YUV */
-	regmap_write(regmap, ISC_CSC_YR_YG, 0x42 | (0x81 << 16));
-	regmap_write(regmap, ISC_CSC_YB_OY, 0x19 | (0x10 << 16));
-	regmap_write(regmap, ISC_CSC_CBR_CBG, 0xFDA | (0xFB6 << 16));
-	regmap_write(regmap, ISC_CSC_CBB_OCB, 0x70 | (0x80 << 16));
-	regmap_write(regmap, ISC_CSC_CRR_CRG, 0x70 | (0xFA2 << 16));
-	regmap_write(regmap, ISC_CSC_CRB_OCR, 0xFEE | (0x80 << 16));
-
-	regmap_write(regmap, ISC_CBC_BRIGHT, ctrls->brightness);
-	regmap_write(regmap, ISC_CBC_CONTRAST, ctrls->contrast);
+	isc->config_dpc(isc);
+	isc->config_csc(isc);
+	isc->config_cbc(isc);
+	isc->config_cc(isc);
+	isc->config_gam(isc);
 }
 
 static int isc_update_profile(struct isc_device *isc)
@@ -728,12 +563,13 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 	struct isc_ctrls *ctrls = &isc->ctrls;
 
 	if (enable) {
-		regmap_write(regmap, ISC_HIS_CFG,
+		regmap_write(regmap, ISC_HIS_CFG + isc->offsets.his,
 			     ISC_HIS_CFG_MODE_GR |
 			     (isc->config.sd_format->cfa_baycfg
 					<< ISC_HIS_CFG_BAYSEL_SHIFT) |
 					ISC_HIS_CFG_RAR);
-		regmap_write(regmap, ISC_HIS_CTRL, ISC_HIS_CTRL_EN);
+		regmap_write(regmap, ISC_HIS_CTRL + isc->offsets.his,
+			     ISC_HIS_CTRL_EN);
 		regmap_write(regmap, ISC_INTEN, ISC_INT_HISDONE);
 		ctrls->hist_id = ISC_HIS_CFG_MODE_GR;
 		isc_update_profile(isc);
@@ -742,7 +578,8 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 		ctrls->hist_stat = HIST_ENABLED;
 	} else {
 		regmap_write(regmap, ISC_INTDIS, ISC_INT_HISDONE);
-		regmap_write(regmap, ISC_HIS_CTRL, ISC_HIS_CTRL_DIS);
+		regmap_write(regmap, ISC_HIS_CTRL + isc->offsets.his,
+			     ISC_HIS_CTRL_DIS);
 
 		ctrls->hist_stat = HIST_DISABLED;
 	}
@@ -751,28 +588,25 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 static int isc_configure(struct isc_device *isc)
 {
 	struct regmap *regmap = isc->regmap;
-	u32 pfe_cfg0, rlp_mode, dcfg, mask, pipeline;
+	u32 pfe_cfg0, dcfg, mask, pipeline;
 	struct isc_subdev_entity *subdev = isc->current_subdev;
 
 	pfe_cfg0 = isc->config.sd_format->pfe_cfg0_bps;
-	rlp_mode = isc->config.rlp_cfg_mode;
 	pipeline = isc->config.bits_pipeline;
 
-	dcfg = isc->config.dcfg_imode |
-		       ISC_DCFG_YMBSIZE_BEATS8 | ISC_DCFG_CMBSIZE_BEATS8;
+	dcfg = isc->config.dcfg_imode | isc->dcfg;
 
 	pfe_cfg0  |= subdev->pfe_cfg0 | ISC_PFE_CFG0_MODE_PROGRESSIVE;
 	mask = ISC_PFE_CFG0_BPS_MASK | ISC_PFE_CFG0_HPOL_LOW |
 	       ISC_PFE_CFG0_VPOL_LOW | ISC_PFE_CFG0_PPOL_LOW |
 	       ISC_PFE_CFG0_MODE_MASK | ISC_PFE_CFG0_CCIR_CRC |
-		   ISC_PFE_CFG0_CCIR656;
+	       ISC_PFE_CFG0_CCIR656 | ISC_PFE_CFG0_MIPI;
 
 	regmap_update_bits(regmap, ISC_PFE_CFG0, mask, pfe_cfg0);
 
-	regmap_update_bits(regmap, ISC_RLP_CFG, ISC_RLP_CFG_MODE_MASK,
-			   rlp_mode);
+	isc->config_rlp(isc);
 
-	regmap_write(regmap, ISC_DCFG, dcfg);
+	regmap_write(regmap, ISC_DCFG + isc->offsets.dma, dcfg);
 
 	/* Set the pipeline */
 	isc_set_pipeline(isc, pipeline);
@@ -807,7 +641,12 @@ static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_start_stream;
 	}
 
-	pm_runtime_get_sync(isc->dev);
+	ret = pm_runtime_resume_and_get(isc->dev);
+	if (ret < 0) {
+		v4l2_err(&isc->v4l2_dev, "RPM resume failed in subdev %d\n",
+			 ret);
+		goto err_pm_get;
+	}
 
 	ret = isc_configure(isc);
 	if (unlikely(ret))
@@ -838,7 +677,7 @@ static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 err_configure:
 	pm_runtime_put_sync(isc->dev);
-
+err_pm_get:
 	v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 0);
 
 err_start_stream:
@@ -938,7 +777,7 @@ static int isc_querycap(struct file *file, void *priv,
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	strscpy(cap->driver, ATMEL_ISC_NAME, sizeof(cap->driver));
+	strscpy(cap->driver, "microchip-isc", sizeof(cap->driver));
 	strscpy(cap->card, "Atmel Image Sensor Controller", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", isc->v4l2_dev.name);
@@ -949,25 +788,25 @@ static int isc_querycap(struct file *file, void *priv,
 static int isc_enum_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
+	struct isc_device *isc = video_drvdata(file);
 	u32 index = f->index;
 	u32 i, supported_index;
 
-	if (index < ARRAY_SIZE(controller_formats)) {
-		f->pixelformat = controller_formats[index].fourcc;
+	if (index < isc->controller_formats_size) {
+		f->pixelformat = isc->controller_formats[index].fourcc;
 		return 0;
 	}
 
-	index -= ARRAY_SIZE(controller_formats);
+	index -= isc->controller_formats_size;
 
-	i = 0;
 	supported_index = 0;
 
-	for (i = 0; i < ARRAY_SIZE(formats_list); i++) {
-		if (!ISC_IS_FORMAT_RAW(formats_list[i].mbus_code) ||
-		    !formats_list[i].sd_support)
+	for (i = 0; i < isc->formats_list_size; i++) {
+		if (!ISC_IS_FORMAT_RAW(isc->formats_list[i].mbus_code) ||
+		    !isc->formats_list[i].sd_support)
 			continue;
 		if (supported_index == index) {
-			f->pixelformat = formats_list[i].fourcc;
+			f->pixelformat = isc->formats_list[i].fourcc;
 			return 0;
 		}
 		supported_index++;
@@ -1016,6 +855,8 @@ static int isc_try_validate_formats(struct isc_device *isc)
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
 		ret = 0;
 		yuv = true;
 		break;
@@ -1030,6 +871,7 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		break;
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y16:
 		ret = 0;
 		grey = true;
 		break;
@@ -1060,6 +902,8 @@ static int isc_try_validate_formats(struct isc_device *isc)
  */
 static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 {
+	isc->try_config.rlp_cfg_mode = 0;
+
 	switch (isc->try_config.fourcc) {
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGBRG8:
@@ -1126,7 +970,19 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.bpp = 16;
 		break;
 	case V4L2_PIX_FMT_YUYV:
-		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YYCC;
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_YUYV;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		isc->try_config.bpp = 16;
+		break;
+	case V4L2_PIX_FMT_UYVY:
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_UYVY;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		isc->try_config.bpp = 16;
+		break;
+	case V4L2_PIX_FMT_VYUY:
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_YCYC | ISC_RLP_CFG_YMODE_VYUY;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED32;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
@@ -1137,8 +993,11 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 8;
 		break;
+	case V4L2_PIX_FMT_Y16:
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY10 | ISC_RLP_CFG_LSH;
+		fallthrough;
 	case V4L2_PIX_FMT_Y10:
-		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY10;
+		isc->try_config.rlp_cfg_mode |= ISC_RLP_CFG_MODE_DATY10;
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 16;
@@ -1172,7 +1031,8 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 		/* if sensor format is RAW, we convert inside ISC */
 		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
-				WB_ENABLE | GAM_ENABLES;
+				WB_ENABLE | GAM_ENABLES | DPC_BLCENABLE |
+				CC_ENABLE;
 		} else {
 			isc->try_config.bits_pipeline = 0x0;
 		}
@@ -1181,8 +1041,9 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 		/* if sensor format is RAW, we convert inside ISC */
 		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
-				CSC_ENABLE | WB_ENABLE | GAM_ENABLES |
-				SUB420_ENABLE | SUB422_ENABLE | CBC_ENABLE;
+				CSC_ENABLE | GAM_ENABLES | WB_ENABLE |
+				SUB420_ENABLE | SUB422_ENABLE | CBC_ENABLE |
+				DPC_BLCENABLE;
 		} else {
 			isc->try_config.bits_pipeline = 0x0;
 		}
@@ -1192,39 +1053,49 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
 				CSC_ENABLE | WB_ENABLE | GAM_ENABLES |
-				SUB422_ENABLE | CBC_ENABLE;
+				SUB422_ENABLE | CBC_ENABLE | DPC_BLCENABLE;
 		} else {
 			isc->try_config.bits_pipeline = 0x0;
 		}
 		break;
 	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
 		/* if sensor format is RAW, we convert inside ISC */
 		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
 				CSC_ENABLE | WB_ENABLE | GAM_ENABLES |
-				SUB422_ENABLE | CBC_ENABLE;
+				SUB422_ENABLE | CBC_ENABLE | DPC_BLCENABLE;
 		} else {
 			isc->try_config.bits_pipeline = 0x0;
 		}
 		break;
 	case V4L2_PIX_FMT_GREY:
-		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
+	case V4L2_PIX_FMT_Y16:
 		/* if sensor format is RAW, we convert inside ISC */
+		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code)) {
 			isc->try_config.bits_pipeline = CFA_ENABLE |
 				CSC_ENABLE | WB_ENABLE | GAM_ENABLES |
-				CBC_ENABLE;
+				CBC_ENABLE | DPC_BLCENABLE;
 		} else {
 			isc->try_config.bits_pipeline = 0x0;
 		}
 		break;
 	default:
-		isc->try_config.bits_pipeline = 0x0;
+		if (ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
+			isc->try_config.bits_pipeline = WB_ENABLE | DPC_BLCENABLE;
+		else
+			isc->try_config.bits_pipeline = 0x0;
 	}
+
+	/* Tune the pipeline to product specific */
+	isc->adapt_pipeline(isc);
+
 	return 0;
 }
 
 static void isc_try_fse(struct isc_device *isc,
-			struct v4l2_subdev_pad_config *pad_cfg)
+			struct v4l2_subdev_state *sd_state)
 {
 	int ret;
 	struct v4l2_subdev_frame_size_enum fse = {};
@@ -1240,17 +1111,17 @@ static void isc_try_fse(struct isc_device *isc,
 	fse.which = V4L2_SUBDEV_FORMAT_TRY;
 
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
-			       pad_cfg, &fse);
+			       sd_state, &fse);
 	/*
 	 * Attempt to obtain format size from subdev. If not available,
 	 * just use the maximum ISC can receive.
 	 */
 	if (ret) {
-		pad_cfg->try_crop.width = ISC_MAX_SUPPORT_WIDTH;
-		pad_cfg->try_crop.height = ISC_MAX_SUPPORT_HEIGHT;
+		sd_state->pads->try_crop.width = isc->max_width;
+		sd_state->pads->try_crop.height = isc->max_height;
 	} else {
-		pad_cfg->try_crop.width = fse.max_width;
-		pad_cfg->try_crop.height = fse.max_height;
+		sd_state->pads->try_crop.width = fse.max_width;
+		sd_state->pads->try_crop.height = fse.max_height;
 	}
 }
 
@@ -1261,6 +1132,9 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	struct isc_format *sd_fmt = NULL, *direct_fmt = NULL;
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
+	struct v4l2_subdev_state pad_state = {
+		.pads = &pad_cfg
+		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1324,10 +1198,10 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	isc->try_config.sd_format = sd_fmt;
 
 	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > ISC_MAX_SUPPORT_WIDTH)
-		pixfmt->width = ISC_MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > ISC_MAX_SUPPORT_HEIGHT)
-		pixfmt->height = ISC_MAX_SUPPORT_HEIGHT;
+	if (pixfmt->width > isc->max_width)
+		pixfmt->width = isc->max_width;
+	if (pixfmt->height > isc->max_height)
+		pixfmt->height = isc->max_height;
 
 	/*
 	 * The mbus format is the one the subdev outputs.
@@ -1358,15 +1232,21 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 		goto isc_try_fmt_err;
 
 	/* Obtain frame sizes if possible to have crop requirements ready */
-	isc_try_fse(isc, &pad_cfg);
+	isc_try_fse(isc, &pad_state);
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, mbus_code);
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, set_fmt,
-			       &pad_cfg, &format);
+			       &pad_state, &format);
 	if (ret < 0)
 		goto isc_try_fmt_subdev_err;
 
 	v4l2_fill_pix_format(pixfmt, &format.format);
+
+	/* Limit to Atmel ISC hardware capabilities */
+	if (pixfmt->width > isc->max_width)
+		pixfmt->width = isc->max_width;
+	if (pixfmt->height > isc->max_height)
+		pixfmt->height = isc->max_height;
 
 	pixfmt->field = V4L2_FIELD_NONE;
 	pixfmt->bytesperline = (pixfmt->width * isc->try_config.bpp) >> 3;
@@ -1402,6 +1282,12 @@ static int isc_set_fmt(struct isc_device *isc, struct v4l2_format *f)
 			       set_fmt, NULL, &format);
 	if (ret < 0)
 		return ret;
+
+	/* Limit to Atmel ISC hardware capabilities */
+	if (f->fmt.pix.width > isc->max_width)
+		f->fmt.pix.width = isc->max_width;
+	if (f->fmt.pix.height > isc->max_height)
+		f->fmt.pix.height = isc->max_height;
 
 	isc->fmt = *f;
 
@@ -1496,8 +1382,8 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 		if (isc->user_formats[i]->fourcc == fsize->pixel_format)
 			ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(controller_formats); i++)
-		if (controller_formats[i].fourcc == fsize->pixel_format)
+	for (i = 0; i < isc->controller_formats_size; i++)
+		if (isc->controller_formats[i].fourcc == fsize->pixel_format)
 			ret = 0;
 
 	if (ret)
@@ -1533,8 +1419,8 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 		if (isc->user_formats[i]->fourcc == fival->pixel_format)
 			ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(controller_formats); i++)
-		if (controller_formats[i].fourcc == fival->pixel_format)
+	for (i = 0; i < isc->controller_formats_size; i++)
+		if (isc->controller_formats[i].fourcc == fival->pixel_format)
 			ret = 0;
 
 	if (ret)
@@ -1704,7 +1590,8 @@ static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 	*min = 0;
 	*max = HIST_ENTRIES;
 
-	regmap_bulk_read(regmap, ISC_HIS_ENTRY, hist_entry, HIST_ENTRIES);
+	regmap_bulk_read(regmap, ISC_HIS_ENTRY + isc->offsets.his_entry,
+			 hist_entry, HIST_ENTRIES);
 
 	*hist_count = 0;
 	/*
@@ -1809,6 +1696,7 @@ static void isc_awb_work(struct work_struct *w)
 	u32 baysel;
 	unsigned long flags;
 	u32 min, max;
+	int ret;
 
 	/* streaming is not active anymore */
 	if (isc->stop)
@@ -1831,7 +1719,9 @@ static void isc_awb_work(struct work_struct *w)
 	ctrls->hist_id = hist_id;
 	baysel = isc->config.sd_format->cfa_baycfg << ISC_HIS_CFG_BAYSEL_SHIFT;
 
-	pm_runtime_get_sync(isc->dev);
+	ret = pm_runtime_resume_and_get(isc->dev);
+	if (ret < 0)
+		return;
 
 	/*
 	 * only update if we have all the required histograms and controls
@@ -1860,7 +1750,8 @@ static void isc_awb_work(struct work_struct *w)
 			ctrls->awb = ISC_WB_NONE;
 		}
 	}
-	regmap_write(regmap, ISC_HIS_CFG, hist_id | baysel | ISC_HIS_CFG_RAR);
+	regmap_write(regmap, ISC_HIS_CFG + isc->offsets.his,
+		     hist_id | baysel | ISC_HIS_CFG_RAR);
 	isc_update_profile(isc);
 	/* if awb has been disabled, we don't need to start another histogram */
 	if (ctrls->awb)
@@ -2065,12 +1956,14 @@ static int isc_ctrl_init(struct isc_device *isc)
 	if (ret < 0)
 		return ret;
 
+	/* Initialize product specific controls. For example, contrast */
+	isc->config_ctrls(isc, ops);
+
 	ctrls->brightness = 0;
-	ctrls->contrast = 256;
 
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_BRIGHTNESS, -1024, 1023, 1, 0);
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_CONTRAST, -2048, 2047, 1, 256);
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAMMA, 0, GAMMA_MAX, 1, 2);
+	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAMMA, 0, isc->gamma_max, 1,
+			  isc->gamma_max);
 	isc->awb_ctrl = v4l2_ctrl_new_std(hdl, &isc_awb_ops,
 					  V4L2_CID_AUTO_WHITE_BALANCE,
 					  0, 1, 1, 1);
@@ -2138,12 +2031,13 @@ static void isc_async_unbind(struct v4l2_async_notifier *notifier,
 	v4l2_ctrl_handler_free(&isc->ctrls.handler);
 }
 
-static struct isc_format *find_format_by_code(unsigned int code, int *index)
+static struct isc_format *find_format_by_code(struct isc_device *isc,
+					      unsigned int code, int *index)
 {
-	struct isc_format *fmt = &formats_list[0];
+	struct isc_format *fmt = &isc->formats_list[0];
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(formats_list); i++) {
+	for (i = 0; i < isc->formats_list_size; i++) {
 		if (fmt->mbus_code == code) {
 			*index = i;
 			return fmt;
@@ -2160,7 +2054,7 @@ static int isc_formats_init(struct isc_device *isc)
 	struct isc_format *fmt;
 	struct v4l2_subdev *subdev = isc->current_subdev->sd;
 	unsigned int num_fmts, i, j;
-	u32 list_size = ARRAY_SIZE(formats_list);
+	u32 list_size = isc->formats_list_size;
 	struct v4l2_subdev_mbus_code_enum mbus_code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
@@ -2170,7 +2064,7 @@ static int isc_formats_init(struct isc_device *isc)
 	       NULL, &mbus_code)) {
 		mbus_code.index++;
 
-		fmt = find_format_by_code(mbus_code.code, &i);
+		fmt = find_format_by_code(isc, mbus_code.code, &i);
 		if (!fmt) {
 			v4l2_warn(&isc->v4l2_dev, "Mbus code %x not supported\n",
 				  mbus_code.code);
@@ -2191,7 +2085,7 @@ static int isc_formats_init(struct isc_device *isc)
 	if (!isc->user_formats)
 		return -ENOMEM;
 
-	fmt = &formats_list[0];
+	fmt = &isc->formats_list[0];
 	for (i = 0, j = 0; i < list_size; i++) {
 		if (fmt->sd_support)
 			isc->user_formats[j++] = fmt;
@@ -2287,7 +2181,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* Register video device */
-	strscpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, "microchip-isc", sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &isc_fops;
 	vdev->ioctl_ops		= &isc_ioctl_ops;
@@ -2338,8 +2232,14 @@ int isc_pipeline_init(struct isc_device *isc)
 	struct regmap_field *regs;
 	unsigned int i;
 
-	/* WB-->CFA-->CC-->GAM-->CSC-->CBC-->SUB422-->SUB420 */
+	/*
+	 * DPCEN-->GDCEN-->BLCEN-->WB-->CFA-->CC-->
+	 * GAM-->VHXS-->CSC-->CBC-->SUB422-->SUB420
+	 */
 	const struct reg_field regfields[ISC_PIPE_LINE_NODE_NUM] = {
+		REG_FIELD(ISC_DPC_CTRL, 0, 0),
+		REG_FIELD(ISC_DPC_CTRL, 1, 1),
+		REG_FIELD(ISC_DPC_CTRL, 2, 2),
 		REG_FIELD(ISC_WB_CTRL, 0, 0),
 		REG_FIELD(ISC_CFA_CTRL, 0, 0),
 		REG_FIELD(ISC_CC_CTRL, 0, 0),
@@ -2347,10 +2247,11 @@ int isc_pipeline_init(struct isc_device *isc)
 		REG_FIELD(ISC_GAM_CTRL, 1, 1),
 		REG_FIELD(ISC_GAM_CTRL, 2, 2),
 		REG_FIELD(ISC_GAM_CTRL, 3, 3),
-		REG_FIELD(ISC_CSC_CTRL, 0, 0),
-		REG_FIELD(ISC_CBC_CTRL, 0, 0),
-		REG_FIELD(ISC_SUB422_CTRL, 0, 0),
-		REG_FIELD(ISC_SUB420_CTRL, 0, 0),
+		REG_FIELD(ISC_VHXS_CTRL, 0, 0),
+		REG_FIELD(ISC_CSC_CTRL + isc->offsets.csc, 0, 0),
+		REG_FIELD(ISC_CBC_CTRL + isc->offsets.cbc, 0, 0),
+		REG_FIELD(ISC_SUB422_CTRL + isc->offsets.sub422, 0, 0),
+		REG_FIELD(ISC_SUB420_CTRL + isc->offsets.sub420, 0, 0),
 	};
 
 	for (i = 0; i < ISC_PIPE_LINE_NODE_NUM; i++) {
@@ -2365,7 +2266,7 @@ int isc_pipeline_init(struct isc_device *isc)
 }
 
 /* regmap configuration */
-#define ATMEL_ISC_REG_MAX    0xbfc
+#define ATMEL_ISC_REG_MAX    0xd5c
 const struct regmap_config isc_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,

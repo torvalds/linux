@@ -2521,7 +2521,7 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	int ret = 0;
 
 	/*
-	 * If quotas get disabled meanwhile, the resouces need to be freed and
+	 * If quotas get disabled meanwhile, the resources need to be freed and
 	 * we can't just exit here.
 	 */
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
@@ -3545,11 +3545,9 @@ static int try_flush_qgroup(struct btrfs_root *root)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	/* Can't hold an open transaction or we run the risk of deadlocking */
-	ASSERT(current->journal_info == NULL ||
-	       current->journal_info == BTRFS_SEND_TRANS_STUB);
-	if (WARN_ON(current->journal_info &&
-		    current->journal_info != BTRFS_SEND_TRANS_STUB))
+	/* Can't hold an open transaction or we run the risk of deadlocking. */
+	ASSERT(current->journal_info == NULL);
+	if (WARN_ON(current->journal_info))
 		return 0;
 
 	/*
@@ -3562,7 +3560,7 @@ static int try_flush_qgroup(struct btrfs_root *root)
 		return 0;
 	}
 
-	ret = btrfs_start_delalloc_snapshot(root);
+	ret = btrfs_start_delalloc_snapshot(root, true);
 	if (ret < 0)
 		goto out;
 	btrfs_wait_ordered_extents(root, U64_MAX, 0, (u64)-1);

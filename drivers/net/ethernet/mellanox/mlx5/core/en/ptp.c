@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2020 Mellanox Technologies
 
-#include <linux/ptp_classify.h>
 #include "en/ptp.h"
 #include "en/txrx.h"
 #include "en/params.h"

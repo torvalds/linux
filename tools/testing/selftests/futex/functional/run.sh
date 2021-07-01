@@ -73,3 +73,9 @@ echo
 echo
 ./futex_wait_uninitialized_heap $COLOR
 ./futex_wait_private_mapped_file $COLOR
+
+echo
+./futex_wait $COLOR
+
+echo
+./futex_requeue $COLOR

@@ -136,52 +136,9 @@ err_i2c:
 	return 0;
 }
 
-static int lp8755_buck_set_ramp(struct regulator_dev *rdev, int ramp)
-{
-	int ret;
-	unsigned int regval = 0x00;
-	enum lp8755_bucks id = rdev_get_id(rdev);
-
-	/* uV/us */
-	switch (ramp) {
-	case 0 ... 230:
-		regval = 0x07;
-		break;
-	case 231 ... 470:
-		regval = 0x06;
-		break;
-	case 471 ... 940:
-		regval = 0x05;
-		break;
-	case 941 ... 1900:
-		regval = 0x04;
-		break;
-	case 1901 ... 3800:
-		regval = 0x03;
-		break;
-	case 3801 ... 7500:
-		regval = 0x02;
-		break;
-	case 7501 ... 15000:
-		regval = 0x01;
-		break;
-	case 15001 ... 30000:
-		regval = 0x00;
-		break;
-	default:
-		dev_err(&rdev->dev,
-			"Not supported ramp value %d %s\n", ramp, __func__);
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(rdev->regmap, 0x07 + id, 0x07, regval);
-	if (ret < 0)
-		goto err_i2c;
-	return ret;
-err_i2c:
-	dev_err(&rdev->dev, "i2c access error %s\n", __func__);
-	return ret;
-}
+static const unsigned int lp8755_buck_ramp_table[] = {
+	30000, 15000, 7500, 3800, 1900, 940, 470, 230
+};
 
 static const struct regulator_ops lp8755_buck_ops = {
 	.map_voltage = regulator_map_voltage_linear,
@@ -194,7 +151,7 @@ static const struct regulator_ops lp8755_buck_ops = {
 	.enable_time = lp8755_buck_enable_time,
 	.set_mode = lp8755_buck_set_mode,
 	.get_mode = lp8755_buck_get_mode,
-	.set_ramp_delay = lp8755_buck_set_ramp,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
 #define lp8755_rail(_id) "lp8755_buck"#_id
@@ -269,6 +226,10 @@ out_i2c_error:
 	.enable_mask = LP8755_BUCK_EN_M,\
 	.vsel_reg = LP8755_REG_BUCK##_id,\
 	.vsel_mask = LP8755_BUCK_VOUT_M,\
+	.ramp_reg = (LP8755_BUCK##_id) + 0x7,\
+	.ramp_mask = 0x7,\
+	.ramp_delay_table = lp8755_buck_ramp_table,\
+	.n_ramp_values = ARRAY_SIZE(lp8755_buck_ramp_table),\
 }
 
 static const struct regulator_desc lp8755_regulators[] = {

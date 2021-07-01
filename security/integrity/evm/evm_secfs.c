@@ -66,12 +66,13 @@ static ssize_t evm_read_key(struct file *filp, char __user *buf,
 static ssize_t evm_write_key(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 
 	if (!capable(CAP_SYS_ADMIN) || (evm_initialized & EVM_SETUP_COMPLETE))
 		return -EPERM;
 
-	ret = kstrtoint_from_user(buf, count, 0, &i);
+	ret = kstrtouint_from_user(buf, count, 0, &i);
 
 	if (ret)
 		return ret;
@@ -80,12 +81,12 @@ static ssize_t evm_write_key(struct file *file, const char __user *buf,
 	if (!i || (i & ~EVM_INIT_MASK) != 0)
 		return -EINVAL;
 
-	/* Don't allow a request to freshly enable metadata writes if
-	 * keys are loaded.
+	/*
+	 * Don't allow a request to enable metadata writes if
+	 * an HMAC key is loaded.
 	 */
 	if ((i & EVM_ALLOW_METADATA_WRITES) &&
-	    ((evm_initialized & EVM_KEY_MASK) != 0) &&
-	    !(evm_initialized & EVM_ALLOW_METADATA_WRITES))
+	    (evm_initialized & EVM_INIT_HMAC) != 0)
 		return -EPERM;
 
 	if (i & EVM_INIT_HMAC) {
@@ -138,8 +139,12 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 	if (rc)
 		return -ERESTARTSYS;
 
-	list_for_each_entry(xattr, &evm_config_xattrnames, list)
+	list_for_each_entry(xattr, &evm_config_xattrnames, list) {
+		if (!xattr->enabled)
+			continue;
+
 		size += strlen(xattr->name) + 1;
+	}
 
 	temp = kmalloc(size + 1, GFP_KERNEL);
 	if (!temp) {
@@ -148,6 +153,9 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 	}
 
 	list_for_each_entry(xattr, &evm_config_xattrnames, list) {
+		if (!xattr->enabled)
+			continue;
+
 		sprintf(temp + offset, "%s\n", xattr->name);
 		offset += strlen(xattr->name) + 1;
 	}
@@ -189,7 +197,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 
 	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_INTEGRITY_EVM_XATTR);
-	if (!ab)
+	if (!ab && IS_ENABLED(CONFIG_AUDIT))
 		return -ENOMEM;
 
 	xattr = kmalloc(sizeof(struct xattr_list), GFP_KERNEL);
@@ -198,6 +206,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		goto out;
 	}
 
+	xattr->enabled = true;
 	xattr->name = memdup_user_nul(buf, count);
 	if (IS_ERR(xattr->name)) {
 		err = PTR_ERR(xattr->name);
@@ -244,6 +253,10 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	list_for_each_entry(tmp, &evm_config_xattrnames, list) {
 		if (strcmp(xattr->name, tmp->name) == 0) {
 			err = -EEXIST;
+			if (!tmp->enabled) {
+				tmp->enabled = true;
+				err = count;
+			}
 			mutex_unlock(&xattr_list_mutex);
 			goto out;
 		}
@@ -255,7 +268,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	audit_log_end(ab);
 	return count;
 out:
-	audit_log_format(ab, " res=%d", err);
+	audit_log_format(ab, " res=%d", (err < 0) ? err : 0);
 	audit_log_end(ab);
 	if (xattr) {
 		kfree(xattr->name);

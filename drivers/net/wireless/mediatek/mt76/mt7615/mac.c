@@ -1912,8 +1912,9 @@ void mt7615_pm_wake_work(struct work_struct *work)
 			napi_schedule(&dev->mt76.napi[i]);
 		mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
 		mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
-		ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
-					     MT7615_WATCHDOG_TIME);
+		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
+						     MT7615_WATCHDOG_TIME);
 	}
 
 	ieee80211_wake_queues(mphy->hw);

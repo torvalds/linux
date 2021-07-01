@@ -63,7 +63,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 #endif
 
-#define cmpxchg(ptr, o, n) ({				\
+#define arch_cmpxchg(ptr, o, n) ({			\
 	(typeof(*(ptr)))__cmpxchg((ptr),		\
 				  (unsigned long)(o),	\
 				  (unsigned long)(n));	\
@@ -75,7 +75,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
  *  !LLSC: cmpxchg() has to use an external lock atomic_ops_lock to guarantee
  *         semantics, and this lock also happens to be used by atomic_*()
  */
-#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
 
 
 /*
@@ -116,14 +116,14 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *
  * Technically the lock is also needed for UP (boils down to irq save/restore)
  * but we can cheat a bit since cmpxchg() atomic_ops_lock() would cause irqs to
- * be disabled thus can't possibly be interrpted/preempted/clobbered by xchg()
+ * be disabled thus can't possibly be interrupted/preempted/clobbered by xchg()
  * Other way around, xchg is one instruction anyways, so can't be interrupted
  * as such
  */
 
 #if !defined(CONFIG_ARC_HAS_LLSC) && defined(CONFIG_SMP)
 
-#define xchg(ptr, with)			\
+#define arch_xchg(ptr, with)		\
 ({					\
 	unsigned long flags;		\
 	typeof(*(ptr)) old_val;		\
@@ -136,14 +136,14 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 #else
 
-#define xchg(ptr, with)  _xchg(ptr, with)
+#define arch_xchg(ptr, with)  _xchg(ptr, with)
 
 #endif
 
 /*
  * "atomic" variant of xchg()
  * REQ: It needs to follow the same serialization rules as other atomic_xxx()
- * Since xchg() doesn't always do that, it would seem that following defintion
+ * Since xchg() doesn't always do that, it would seem that following definition
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
  *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC
@@ -153,6 +153,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *         can't be clobbered by others. Thus no serialization required when
  *         atomic_xchg is involved.
  */
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #endif

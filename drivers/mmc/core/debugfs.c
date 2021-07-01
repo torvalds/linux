@@ -26,6 +26,7 @@
 static DECLARE_FAULT_ATTR(fail_default_attr);
 static char *fail_request;
 module_param(fail_request, charp, 0);
+MODULE_PARM_DESC(fail_request, "default fault injection attributes");
 
 #endif /* CONFIG_FAIL_MMC_REQUEST */
 

@@ -65,7 +65,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 		dev_pm_opp_put(p_opp);
 
 		if (IS_ERR(opp))
-			return PTR_ERR(opp);
+			goto no_required_opp;
 
 		*freq = dev_pm_opp_get_freq(opp);
 		dev_pm_opp_put(opp);
@@ -73,6 +73,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 		return 0;
 	}
 
+no_required_opp:
 	/*
 	 * Get the OPP table's index of decided frequency by governor
 	 * of parent device.

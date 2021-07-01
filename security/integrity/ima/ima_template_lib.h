@@ -27,6 +27,8 @@ void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
 			   struct ima_field_data *field_data);
 void ima_show_template_buf(struct seq_file *m, enum ima_show_type show,
 			   struct ima_field_data *field_data);
+void ima_show_template_uint(struct seq_file *m, enum ima_show_type show,
+			    struct ima_field_data *field_data);
 int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
 		  int maxfields, struct ima_field_data *fields, int *curfields,
 		  unsigned long *len_mask, int enforce_mask, char *bufname);
@@ -46,4 +48,18 @@ int ima_eventbuf_init(struct ima_event_data *event_data,
 		      struct ima_field_data *field_data);
 int ima_eventmodsig_init(struct ima_event_data *event_data,
 			 struct ima_field_data *field_data);
+int ima_eventevmsig_init(struct ima_event_data *event_data,
+			 struct ima_field_data *field_data);
+int ima_eventinodeuid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data);
+int ima_eventinodegid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data);
+int ima_eventinodemode_init(struct ima_event_data *event_data,
+			    struct ima_field_data *field_data);
+int ima_eventinodexattrnames_init(struct ima_event_data *event_data,
+				  struct ima_field_data *field_data);
+int ima_eventinodexattrlengths_init(struct ima_event_data *event_data,
+				    struct ima_field_data *field_data);
+int ima_eventinodexattrvalues_init(struct ima_event_data *event_data,
+				   struct ima_field_data *field_data);
 #endif /* __LINUX_IMA_TEMPLATE_LIB_H */
