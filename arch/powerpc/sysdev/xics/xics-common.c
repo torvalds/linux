@@ -183,6 +183,8 @@ void xics_migrate_irqs_away(void)
 	unsigned int irq, virq;
 	struct irq_desc *desc;
 
+	pr_debug("%s: CPU %u\n", __func__, cpu);
+
 	/* If we used to be the default server, move to the new "boot_cpuid" */
 	if (hw_cpu == xics_default_server)
 		xics_update_irq_servers();
@@ -197,6 +199,7 @@ void xics_migrate_irqs_away(void)
 		struct irq_chip *chip;
 		long server;
 		unsigned long flags;
+		struct irq_data *irqd;
 
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NR_IRQS_LEGACY)
@@ -204,9 +207,11 @@ void xics_migrate_irqs_away(void)
 		/* We only need to migrate enabled IRQS */
 		if (!desc->action)
 			continue;
-		if (desc->irq_data.domain != xics_host)
+		/* We need a mapping in the XICS IRQ domain */
+		irqd = irq_domain_get_irq_data(xics_host, virq);
+		if (!irqd)
 			continue;
-		irq = desc->irq_data.hwirq;
+		irq = irqd_to_hwirq(irqd);
 		/* We need to get IPIs still. */
 		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;
