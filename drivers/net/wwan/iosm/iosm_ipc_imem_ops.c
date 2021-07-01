@@ -24,7 +24,7 @@ int ipc_imem_sys_wwan_open(struct iosm_imem *ipc_imem, int if_id)
 		return -EIO;
 	}
 
-	return ipc_mux_open_session(ipc_imem->mux, if_id - 1);
+	return ipc_mux_open_session(ipc_imem->mux, if_id);
 }
 
 /* Release a net link to CP. */
@@ -33,7 +33,7 @@ void ipc_imem_sys_wwan_close(struct iosm_imem *ipc_imem, int if_id,
 {
 	if (ipc_imem->mux && if_id >= IP_MUX_SESSION_START &&
 	    if_id <= IP_MUX_SESSION_END)
-		ipc_mux_close_session(ipc_imem->mux, if_id - 1);
+		ipc_mux_close_session(ipc_imem->mux, if_id);
 }
 
 /* Tasklet call to do uplink transfer. */
@@ -76,7 +76,7 @@ int ipc_imem_sys_wwan_transmit(struct iosm_imem *ipc_imem,
 	}
 
 	/* Route the UL packet through IP MUX Layer */
-	ret = ipc_mux_ul_trigger_encode(ipc_imem->mux, if_id - 1, skb);
+	ret = ipc_mux_ul_trigger_encode(ipc_imem->mux, if_id, skb);
 out:
 	return ret;
 }

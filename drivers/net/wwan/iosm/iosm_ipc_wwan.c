@@ -252,8 +252,8 @@ int ipc_wwan_receive(struct iosm_wwan *ipc_wwan, struct sk_buff *skb_arg,
 
 	skb->pkt_type = PACKET_HOST;
 
-	if (if_id < (IP_MUX_SESSION_START - 1) ||
-	    if_id > (IP_MUX_SESSION_END - 1)) {
+	if (if_id < IP_MUX_SESSION_START ||
+	    if_id > IP_MUX_SESSION_END) {
 		ret = -EINVAL;
 		goto free;
 	}

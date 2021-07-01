@@ -288,7 +288,7 @@ static int ipc_mux_net_receive(struct iosm_mux *ipc_mux, int if_id,
 	/* Pass the packet to the netif layer. */
 	dest_skb->priority = service_class;
 
-	return ipc_wwan_receive(wwan, dest_skb, false, if_id + 1);
+	return ipc_wwan_receive(wwan, dest_skb, false, if_id);
 }
 
 /* Decode Flow Credit Table in the block */
