@@ -539,6 +539,15 @@ static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+/*
+ * Select below from Sound Card, not Auto
+ *	SND_SOC_DAIFMT_CBC_CFC
+ *	SND_SOC_DAIFMT_CBP_CFP
+ */
+static u64 ak4613_dai_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops ak4613_dai_ops = {
 	.startup	= ak4613_dai_startup,
 	.shutdown	= ak4613_dai_shutdown,
@@ -546,6 +555,8 @@ static const struct snd_soc_dai_ops ak4613_dai_ops = {
 	.set_fmt	= ak4613_dai_set_fmt,
 	.trigger	= ak4613_dai_trigger,
 	.hw_params	= ak4613_dai_hw_params,
+	.auto_selectable_formats	= &ak4613_dai_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define AK4613_PCM_RATE		(SNDRV_PCM_RATE_32000  |\

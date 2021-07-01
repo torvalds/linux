@@ -45,6 +45,85 @@ struct rsnd_ssiu {
 static const int gen2_id[] = { 0, 4,  8, 12, 13, 14, 15, 16, 17, 18 };
 static const int gen3_id[] = { 0, 8, 16, 24, 32, 40, 41, 42, 43, 44 };
 
+/* enable busif buffer over/under run interrupt. */
+#define rsnd_ssiu_busif_err_irq_enable(mod)  rsnd_ssiu_busif_err_irq_ctrl(mod, 1)
+#define rsnd_ssiu_busif_err_irq_disable(mod) rsnd_ssiu_busif_err_irq_ctrl(mod, 0)
+static void rsnd_ssiu_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
+{
+	int id = rsnd_mod_id(mod);
+	int shift, offset;
+	int i;
+
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		shift  = id;
+		offset = 0;
+		break;
+	case 9:
+		shift  = 1;
+		offset = 1;
+		break;
+	}
+
+	for (i = 0; i < 4; i++) {
+		enum rsnd_reg reg = SSI_SYS_INT_ENABLE((i * 2) + offset);
+		u32 val = 0xf << (shift * 4);
+		u32 sys_int_enable = rsnd_mod_read(mod, reg);
+
+		if (enable)
+			sys_int_enable |= val;
+		else
+			sys_int_enable &= ~val;
+		rsnd_mod_write(mod, reg, sys_int_enable);
+	}
+}
+
+bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod)
+{
+	bool error = false;
+	int id = rsnd_mod_id(mod);
+	int shift, offset;
+	int i;
+
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		shift  = id;
+		offset = 0;
+		break;
+	case 9:
+		shift  = 1;
+		offset = 1;
+		break;
+	}
+
+	for (i = 0; i < 4; i++) {
+		u32 reg = SSI_SYS_STATUS(i * 2) + offset;
+		u32 status = rsnd_mod_read(mod, reg);
+		u32 val = 0xf << (shift * 4);
+
+		status &= val;
+		if (status) {
+			struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+			struct device *dev = rsnd_priv_to_dev(priv);
+
+			rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+					      rsnd_mod_name(mod), status);
+			error = true;
+		}
+		rsnd_mod_write(mod, reg, val);
+	}
+
+	return error;
+}
+
 static u32 *rsnd_ssiu_get_status(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io,
 				 enum rsnd_mod_type type)
@@ -65,23 +144,9 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	int id = rsnd_mod_id(mod);
 	int is_clk_master = rsnd_rdai_is_clk_master(rdai);
 	u32 val1, val2;
-	int i;
 
 	/* clear status */
-	switch (id) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
-		break;
-	case 9:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
-		break;
-	}
+	rsnd_ssiu_busif_err_status_clear(mod);
 
 	/*
 	 * SSI_MODE0
@@ -137,12 +202,31 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	rsnd_mod_bset(mod, SSI_MODE1, 0x0013001f, val1);
 	rsnd_mod_bset(mod, SSI_MODE2, 0x00000017, val2);
 
+	/*
+	 * Enable busif buffer over/under run interrupt.
+	 * It will be handled from ssi.c
+	 * see
+	 *	__rsnd_ssi_interrupt()
+	 */
+	rsnd_ssiu_busif_err_irq_enable(mod);
+
+	return 0;
+}
+
+static int rsnd_ssiu_quit(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
+			  struct rsnd_priv *priv)
+{
+	/* disable busif buffer over/under run interrupt. */
+	rsnd_ssiu_busif_err_irq_disable(mod);
+
 	return 0;
 }
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen1 = {
 	.name		= SSIU_NAME,
 	.init		= rsnd_ssiu_init,
+	.quit		= rsnd_ssiu_quit,
 	.get_status	= rsnd_ssiu_get_status,
 };
 
@@ -311,8 +395,21 @@ static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
 	name = is_play ? "rx" : "tx";
 
 	return rsnd_dma_request_channel(rsnd_ssiu_of_node(priv),
-					mod, name);
+					SSIU_NAME, mod, name);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_ssiu_debug_info(struct seq_file *m,
+				 struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSIU,
+				  rsnd_mod_id(mod) * 0x80, 0x80);
+}
+#define DEBUG_INFO .debug_info = rsnd_ssiu_debug_info
+#else
+#define DEBUG_INFO
+#endif
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
 	.name		= SSIU_NAME,
@@ -321,6 +418,7 @@ static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
 	.start		= rsnd_ssiu_start_gen2,
 	.stop		= rsnd_ssiu_stop_gen2,
 	.get_status	= rsnd_ssiu_get_status,
+	DEBUG_INFO
 };
 
 static struct rsnd_mod *rsnd_ssiu_mod_get(struct rsnd_priv *priv, int id)
@@ -336,16 +434,20 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_ssiu *ssiu;
+	int is_dma_mode;
 	int i;
 
 	if (!ssi_mod)
 		return;
 
+	is_dma_mode = rsnd_ssi_is_dma_mode(ssi_mod);
+
 	/* select BUSIF0 */
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		struct rsnd_mod *mod = rsnd_mod_get(ssiu);
 
-		if ((rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
+		if (is_dma_mode &&
+		    (rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
 		    (rsnd_mod_id_sub(mod) == 0)) {
 			rsnd_dai_connect(mod, io, mod->type);
 			return;
@@ -368,7 +470,11 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 		int i = 0;
 
 		for_each_child_of_node(node, np) {
-			struct rsnd_mod *mod = rsnd_ssiu_mod_get(priv, i);
+			struct rsnd_mod *mod;
+
+			i = rsnd_node_fixed_index(np, SSIU_NAME, i);
+
+			mod = rsnd_ssiu_mod_get(priv, i);
 
 			if (np == playback)
 				rsnd_dai_connect(mod, io_p, mod->type);
@@ -405,9 +511,12 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	 */
 	node = rsnd_ssiu_of_node(priv);
 	if (node)
-		nr = of_get_child_count(node);
+		nr = rsnd_node_count(priv, node, SSIU_NAME);
 	else
 		nr = priv->ssi_nr;
+
+	if (!nr)
+		return -EINVAL;
 
 	ssiu	= devm_kcalloc(dev, nr, sizeof(*ssiu), GFP_KERNEL);
 	if (!ssiu)

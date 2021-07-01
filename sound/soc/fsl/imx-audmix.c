@@ -209,10 +209,8 @@ static int imx_audmix_probe(struct platform_device *pdev)
 
 		/* for CPU/Codec/Platform x 2 */
 		dlc = devm_kcalloc(&pdev->dev, 6, sizeof(*dlc), GFP_KERNEL);
-		if (!dlc) {
-			dev_err(&pdev->dev, "failed to allocate dai_link\n");
+		if (!dlc)
 			return -ENOMEM;
-		}
 
 		ret = of_parse_phandle_with_args(audmix_np, "dais", NULL, i,
 						 &args);

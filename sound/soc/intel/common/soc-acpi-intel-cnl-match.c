@@ -36,7 +36,7 @@ static const struct snd_soc_acpi_endpoint single_endpoint = {
 
 static const struct snd_soc_acpi_adr_device rt5682_2_adr[] = {
 	{
-		.adr = 0x000220025D568200,
+		.adr = 0x000220025D568200ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt5682"

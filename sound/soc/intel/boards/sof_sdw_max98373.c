@@ -64,7 +64,7 @@ static int max98373_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/* enable max98373 first */
-		ret = max98373_trigger(substream, cmd);
+		ret = max_98373_trigger(substream, cmd);
 		if (ret < 0)
 			break;
 
@@ -77,7 +77,7 @@ static int max98373_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (ret < 0)
 			break;
 
-		ret = max98373_trigger(substream, cmd);
+		ret = max_98373_trigger(substream, cmd);
 		break;
 	default:
 		ret = -EINVAL;
