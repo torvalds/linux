@@ -783,7 +783,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, struct zone *z
 
 	/*
 	 * {on,off}lining is constrained to full memory sections (or more
-	 * precisly to memory blocks from the user space POV).
+	 * precisely to memory blocks from the user space POV).
 	 * memmap_on_memory is an exception because it reserves initial part
 	 * of the physical memory space for vmemmaps. That space is pageblock
 	 * aligned.
@@ -1580,7 +1580,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 
 	/*
 	 * {on,off}lining is constrained to full memory sections (or more
-	 * precisly to memory blocks from the user space POV).
+	 * precisely to memory blocks from the user space POV).
 	 * memmap_on_memory is an exception because it reserves initial part
 	 * of the physical memory space for vmemmaps. That space is pageblock
 	 * aligned.

@@ -1340,7 +1340,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 			 * could potentially call huge_pmd_unshare.  Because of
 			 * this, take semaphore in write mode here and set
 			 * TTU_RMAP_LOCKED to indicate we have taken the lock
-			 * at this higer level.
+			 * at this higher level.
 			 */
 			mapping = hugetlb_page_mapping_lock_write(hpage);
 			if (mapping) {
