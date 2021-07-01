@@ -54,14 +54,14 @@ DECLARE_HOOK(android_vh_meminfo_proc_show,
 DECLARE_HOOK(android_vh_exit_mm,
 	TP_PROTO(struct mm_struct *mm),
 	TP_ARGS(mm));
-DECLARE_HOOK(android_vh_get_unmapped_area_from_anti_fragment_pool,
+DECLARE_HOOK(android_vh_get_from_fragment_pool,
 	TP_PROTO(struct mm_struct *mm, struct vm_unmapped_area_info *info,
 		unsigned long *addr),
 	TP_ARGS(mm, info, addr));
 DECLARE_HOOK(android_vh_exclude_reserved_zone,
 	TP_PROTO(struct mm_struct *mm, struct vm_unmapped_area_info *info),
 	TP_ARGS(mm, info));
-DECLARE_HOOK(android_vh_get_unmapped_area_include_reserved_zone,
+DECLARE_HOOK(android_vh_include_reserved_zone,
 	TP_PROTO(struct mm_struct *mm, struct vm_unmapped_area_info *info,
 		unsigned long *addr),
 	TP_ARGS(mm, info, addr));
