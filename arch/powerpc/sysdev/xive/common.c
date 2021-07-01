@@ -312,11 +312,10 @@ void xmon_xive_get_irq_all(void)
 	struct irq_desc *desc;
 
 	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
-		unsigned int hwirq = (unsigned int)irqd_to_hwirq(d);
+		struct irq_data *d = irq_domain_get_irq_data(xive_irq_domain, i);
 
-		if (d->domain == xive_irq_domain)
-			xmon_xive_get_irq_config(hwirq, d);
+		if (d)
+			xmon_xive_get_irq_config(irqd_to_hwirq(d), d);
 	}
 }
 
@@ -1757,9 +1756,9 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 		xive_debug_show_cpu(m, cpu);
 
 	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
+		struct irq_data *d = irq_domain_get_irq_data(xive_irq_domain, i);
 
-		if (d->domain == xive_irq_domain)
+		if (d)
 			xive_debug_show_irq(m, d);
 	}
 	return 0;
