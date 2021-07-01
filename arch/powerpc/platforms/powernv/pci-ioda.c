@@ -1971,19 +1971,23 @@ int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
 	return opal_pci_msi_eoi(phb->opal_id, hw_irq);
 }
 
+/*
+ * The IRQ data is mapped in the XICS domain, with OPAL HW IRQ numbers
+ */
 static void pnv_ioda2_msi_eoi(struct irq_data *d)
 {
 	int64_t rc;
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	struct pci_controller *hose = irq_data_get_irq_chip_data(d);
+	struct pnv_phb *phb = hose->private_data;
 
-	rc = pnv_opal_pci_msi_eoi(chip, hw_irq);
+	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
 	WARN_ON_ONCE(rc);
 
 	icp_native_eoi(d);
 }
 
-
+/* P8/CXL only */
 void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 {
 	struct irq_data *idata;
@@ -2005,6 +2009,7 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 		phb->ioda.irq_chip.irq_eoi = pnv_ioda2_msi_eoi;
 	}
 	irq_set_chip(virq, &phb->ioda.irq_chip);
+	irq_set_chip_data(virq, phb->hose);
 }
 
 static struct irq_chip pnv_pci_msi_irq_chip;
