@@ -2332,9 +2332,7 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 	pr_info("  Allocated bitmap for %d MSIs (base IRQ 0x%x)\n",
 		count, phb->msi_base);
 
-	/* Only supported by the XIVE driver */
-	if (xive_enabled())
-		pnv_msi_allocate_domains(phb->hose, count);
+	pnv_msi_allocate_domains(phb->hose, count);
 }
 
 static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,

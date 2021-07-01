@@ -720,10 +720,6 @@ int pseries_msi_allocate_domains(struct pci_controller *phb)
 {
 	int count;
 
-	/* Only supported by the XIVE driver */
-	if (!xive_enabled())
-		return -ENODEV;
-
 	if (!__find_pe_total_msi(phb->dn, &count)) {
 		pr_err("PCI: failed to find MSIs for bridge %pOF (domain %d)\n",
 		       phb->dn, phb->global_number);
