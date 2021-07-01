@@ -432,4 +432,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 /* We provide our own get_unmapped_area to cope with VA holes for userland */
 #define HAVE_ARCH_UNMAPPED_AREA
 
+#define pmd_pgtable(pmd)	((pgtable_t)__pmd_page(pmd))
+
 #endif /* !(_SPARC_PGTABLE_H) */

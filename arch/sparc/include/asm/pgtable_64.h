@@ -1117,6 +1117,8 @@ extern unsigned long cmdline_memory_size;
 
 asmlinkage void do_sparc64_fault(struct pt_regs *regs);
 
+#define pmd_pgtable(PMD)	((pte_t *)pmd_page_vaddr(PMD))
+
 #ifdef CONFIG_HUGETLB_PAGE
 
 #define pud_leaf_size pud_leaf_size

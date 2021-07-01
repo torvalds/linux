@@ -239,7 +239,6 @@ static inline int pmd_bad(pmd_t pmd)
  * pmd_page - converts a PMD entry to a page pointer
  */
 #define pmd_page(pmd)  (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /**
  * pte_none - check if pte is mapped

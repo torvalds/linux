@@ -38,6 +38,15 @@
 #endif
 
 /*
+ * This defines the generic helper for accessing PMD page
+ * table page. Although platforms can still override this
+ * via their respective <asm/pgtable.h>.
+ */
+#ifndef pmd_pgtable
+#define pmd_pgtable(pmd) pmd_page(pmd)
+#endif
+
+/*
  * A page table page can be thought of an array like this: pXd_t[PTRS_PER_PxD]
  *
  * The pXx_index() functions return the index of the entry in the page

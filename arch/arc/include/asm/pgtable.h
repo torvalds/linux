@@ -350,6 +350,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 #define kern_addr_valid(addr)	(1)
 
+#define pmd_pgtable(pmd)       ((pgtable_t) pmd_page_vaddr(pmd))
+
 /*
  * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'

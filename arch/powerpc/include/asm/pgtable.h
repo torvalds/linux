@@ -152,6 +152,12 @@ static inline bool p4d_is_leaf(p4d_t p4d)
 }
 #endif
 
+#define pmd_pgtable pmd_pgtable
+static inline pgtable_t pmd_pgtable(pmd_t pmd)
+{
+	return (pgtable_t)pmd_page_vaddr(pmd);
+}
+
 #ifdef CONFIG_PPC64
 #define is_ioremap_addr is_ioremap_addr
 static inline bool is_ioremap_addr(const void *x)
