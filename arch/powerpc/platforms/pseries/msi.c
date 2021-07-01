@@ -373,12 +373,11 @@ static void rtas_hack_32bit_msi_gen2(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_HI, 0);
 }
 
-static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
+static int rtas_prepare_msi_irqs(struct pci_dev *pdev, int nvec_in, int type,
+				 msi_alloc_info_t *arg)
 {
 	struct pci_dn *pdn;
-	int hwirq, virq, i, quota, rc;
-	struct msi_desc *entry;
-	struct msi_msg msg;
+	int quota, rc;
 	int nvec = nvec_in;
 	int use_32bit_msi_hack = 0;
 
@@ -456,6 +455,22 @@ again:
 		return rc;
 	}
 
+	return 0;
+}
+
+static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
+{
+	struct pci_dn *pdn;
+	int hwirq, virq, i;
+	int rc;
+	struct msi_desc *entry;
+	struct msi_msg msg;
+
+	rc = rtas_prepare_msi_irqs(pdev, nvec_in, type, NULL);
+	if (rc)
+		return rc;
+
+	pdn = pci_get_pdn(pdev);
 	i = 0;
 	for_each_pci_msi_entry(entry, pdev) {
 		hwirq = rtas_query_irq_number(pdn, i++);
