@@ -1785,6 +1785,7 @@ struct smb_com_transaction2_sfi_req {
 	__u16 Fid;
 	__le16 InformationLevel;
 	__u16 Reserved4;
+	__u8  payload[];
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_rsp {
