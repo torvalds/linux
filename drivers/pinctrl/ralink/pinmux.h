@@ -47,6 +47,7 @@ struct rt2880_pmx_group {
 	int func_count;
 };
 
-extern struct rt2880_pmx_group *rt2880_pinmux_data;
+int rt2880_pinmux_init(struct platform_device *pdev,
+		       struct rt2880_pmx_group *data);
 
 #endif
