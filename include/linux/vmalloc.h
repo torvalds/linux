@@ -104,6 +104,14 @@ static inline bool arch_vmap_pmd_supported(pgprot_t prot)
 }
 #endif
 
+#ifndef arch_vmap_pte_range_map_size
+static inline unsigned long arch_vmap_pte_range_map_size(unsigned long addr, unsigned long end,
+							 u64 pfn, unsigned int max_page_shift)
+{
+	return PAGE_SIZE;
+}
+#endif
+
 /*
  *	Highlevel APIs for driver use
  */
