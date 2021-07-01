@@ -2015,7 +2015,7 @@ static struct irq_chip pnv_pci_msi_irq_chip;
  */
 bool is_pnv_opal_msi(struct irq_chip *chip)
 {
-	return chip->irq_eoi == pnv_ioda2_msi_eoi || chip == &pnv_pci_msi_irq_chip;
+	return chip == &pnv_pci_msi_irq_chip;
 }
 EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
