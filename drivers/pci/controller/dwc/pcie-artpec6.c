@@ -445,7 +445,6 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		pci->ep.ops = &pcie_ep_ops;
 
 		return dw_pcie_ep_init(&pci->ep);
-		break;
 	}
 	default:
 		dev_err(dev, "INVALID device type %d\n", artpec6_pcie->mode);
