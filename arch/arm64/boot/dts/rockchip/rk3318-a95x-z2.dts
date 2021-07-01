@@ -193,8 +193,6 @@
 };
 
 &hdmi {
-	ddc-i2c-scl-high-time-ns = <9625>;
-	ddc-i2c-scl-low-time-ns = <10000>;
 	status = "okay";
 };
 
