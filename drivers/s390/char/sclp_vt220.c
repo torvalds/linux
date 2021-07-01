@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/panic_notifier.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/timer.h>

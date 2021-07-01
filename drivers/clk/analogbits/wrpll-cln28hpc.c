@@ -23,8 +23,12 @@
 
 #include <linux/bug.h>
 #include <linux/err.h>
+#include <linux/limits.h>
 #include <linux/log2.h>
 #include <linux/math64.h>
+#include <linux/math.h>
+#include <linux/minmax.h>
+
 #include <linux/clk/analogbits-wrpll-cln28hpc.h>
 
 /* MIN_INPUT_FREQ: minimum input clock frequency, in Hz (Fref_min) */
