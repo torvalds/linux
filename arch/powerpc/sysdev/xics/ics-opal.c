@@ -62,17 +62,6 @@ static void ics_opal_unmask_irq(struct irq_data *d)
 
 static unsigned int ics_opal_startup(struct irq_data *d)
 {
-#ifdef CONFIG_PCI_MSI
-	/*
-	 * The generic MSI code returns with the interrupt disabled on the
-	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
-	 * at that level, so we do it here by hand.
-	 */
-	if (irq_data_get_msi_desc(d))
-		pci_msi_unmask_irq(d);
-#endif
-
-	/* unmask it */
 	ics_opal_unmask_irq(d);
 	return 0;
 }
