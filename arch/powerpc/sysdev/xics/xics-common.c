@@ -412,11 +412,22 @@ static const struct irq_domain_ops xics_host_ops = {
 	.xlate = xics_host_xlate,
 };
 
-static void __init xics_init_host(void)
+static int __init xics_allocate_domain(void)
 {
-	xics_host = irq_domain_add_tree(NULL, &xics_host_ops, NULL);
-	BUG_ON(xics_host == NULL);
+	struct fwnode_handle *fn;
+
+	fn = irq_domain_alloc_named_fwnode("XICS");
+	if (!fn)
+		return -ENOMEM;
+
+	xics_host = irq_domain_create_tree(fn, &xics_host_ops, NULL);
+	if (!xics_host) {
+		irq_domain_free_fwnode(fn);
+		return -ENOMEM;
+	}
+
 	irq_set_default_host(xics_host);
+	return 0;
 }
 
 void __init xics_register_ics(struct ics *ics)
@@ -480,6 +491,8 @@ void __init xics_init(void)
 	/* Initialize common bits */
 	xics_get_server_size();
 	xics_update_irq_servers();
-	xics_init_host();
+	rc = xics_allocate_domain();
+	if (rc < 0)
+		pr_err("XICS: Failed to create IRQ domain");
 	xics_setup_cpu();
 }
