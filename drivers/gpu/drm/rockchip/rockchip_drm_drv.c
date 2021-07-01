@@ -122,15 +122,18 @@ EXPORT_SYMBOL(rockchip_drm_unregister_sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
 {
 	struct rockchip_drm_sub_dev *sub_dev = NULL;
+	bool found = false;
 
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
-		if (sub_dev->of_node == node)
+		if (sub_dev->of_node == node) {
+			found = true;
 			break;
+		}
 	}
 	mutex_unlock(&rockchip_drm_sub_dev_lock);
 
-	return sub_dev;
+	return found ? sub_dev : NULL;
 }
 EXPORT_SYMBOL(rockchip_drm_get_sub_dev);
 
