@@ -393,13 +393,40 @@ static const struct drm_driver gud_drm_driver = {
 	.minor			= 0,
 };
 
+static int gud_alloc_bulk_buffer(struct gud_device *gdrm)
+{
+	unsigned int i, num_pages;
+	struct page **pages;
+	void *ptr;
+	int ret;
+
+	gdrm->bulk_buf = vmalloc_32(gdrm->bulk_len);
+	if (!gdrm->bulk_buf)
+		return -ENOMEM;
+
+	num_pages = DIV_ROUND_UP(gdrm->bulk_len, PAGE_SIZE);
+	pages = kmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	for (i = 0, ptr = gdrm->bulk_buf; i < num_pages; i++, ptr += PAGE_SIZE)
+		pages[i] = vmalloc_to_page(ptr);
+
+	ret = sg_alloc_table_from_pages(&gdrm->bulk_sgt, pages, num_pages,
+					0, gdrm->bulk_len, GFP_KERNEL);
+	kfree(pages);
+
+	return ret;
+}
+
 static void gud_free_buffers_and_mutex(void *data)
 {
 	struct gud_device *gdrm = data;
 
 	vfree(gdrm->compress_buf);
 	gdrm->compress_buf = NULL;
-	kfree(gdrm->bulk_buf);
+	sg_free_table(&gdrm->bulk_sgt);
+	vfree(gdrm->bulk_buf);
 	gdrm->bulk_buf = NULL;
 	mutex_destroy(&gdrm->ctrl_lock);
 }
@@ -536,23 +563,16 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	if (desc.max_buffer_size)
 		max_buffer_size = le32_to_cpu(desc.max_buffer_size);
-retry:
-	/*
-	 * Use plain kmalloc here since devm_kmalloc() places struct devres at the beginning
-	 * of the buffer it allocates. This wastes a lot of memory when allocating big buffers.
-	 * Asking for 2M would actually allocate 4M. This would also prevent getting the biggest
-	 * possible buffer potentially leading to split transfers.
-	 */
-	gdrm->bulk_buf = kmalloc(max_buffer_size, GFP_KERNEL | __GFP_NOWARN);
-	if (!gdrm->bulk_buf) {
-		max_buffer_size = roundup_pow_of_two(max_buffer_size) / 2;
-		if (max_buffer_size < SZ_512K)
-			return -ENOMEM;
-		goto retry;
-	}
+	/* Prevent a misbehaving device from allocating loads of RAM. 4096x4096@XRGB8888 = 64 MB */
+	if (max_buffer_size > SZ_64M)
+		max_buffer_size = SZ_64M;
 
 	gdrm->bulk_pipe = usb_sndbulkpipe(interface_to_usbdev(intf), usb_endpoint_num(bulk_out));
 	gdrm->bulk_len = max_buffer_size;
+
+	ret = gud_alloc_bulk_buffer(gdrm);
+	if (ret)
+		return ret;
 
 	if (gdrm->compression & GUD_COMPRESSION_LZ4) {
 		gdrm->lz4_comp_mem = devm_kmalloc(dev, LZ4_MEM_COMPRESS, GFP_KERNEL);

@@ -220,13 +220,51 @@ vunmap:
 	return ret;
 }
 
+struct gud_usb_bulk_context {
+	struct timer_list timer;
+	struct usb_sg_request sgr;
+};
+
+static void gud_usb_bulk_timeout(struct timer_list *t)
+{
+	struct gud_usb_bulk_context *ctx = from_timer(ctx, t, timer);
+
+	usb_sg_cancel(&ctx->sgr);
+}
+
+static int gud_usb_bulk(struct gud_device *gdrm, size_t len)
+{
+	struct gud_usb_bulk_context ctx;
+	int ret;
+
+	ret = usb_sg_init(&ctx.sgr, gud_to_usb_device(gdrm), gdrm->bulk_pipe, 0,
+			  gdrm->bulk_sgt.sgl, gdrm->bulk_sgt.nents, len, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	timer_setup_on_stack(&ctx.timer, gud_usb_bulk_timeout, 0);
+	mod_timer(&ctx.timer, jiffies + msecs_to_jiffies(3000));
+
+	usb_sg_wait(&ctx.sgr);
+
+	if (!del_timer_sync(&ctx.timer))
+		ret = -ETIMEDOUT;
+	else if (ctx.sgr.status < 0)
+		ret = ctx.sgr.status;
+	else if (ctx.sgr.bytes != len)
+		ret = -EIO;
+
+	destroy_timer_on_stack(&ctx.timer);
+
+	return ret;
+}
+
 static int gud_flush_rect(struct gud_device *gdrm, struct drm_framebuffer *fb,
 			  const struct drm_format_info *format, struct drm_rect *rect)
 {
-	struct usb_device *usb = gud_to_usb_device(gdrm);
 	struct gud_set_buffer_req req;
-	int ret, actual_length;
 	size_t len, trlen;
+	int ret;
 
 	drm_dbg(&gdrm->drm, "Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
@@ -255,10 +293,7 @@ static int gud_flush_rect(struct gud_device *gdrm, struct drm_framebuffer *fb,
 			return ret;
 	}
 
-	ret = usb_bulk_msg(usb, gdrm->bulk_pipe, gdrm->bulk_buf, trlen,
-			   &actual_length, msecs_to_jiffies(3000));
-	if (!ret && trlen != actual_length)
-		ret = -EIO;
+	ret = gud_usb_bulk(gdrm, trlen);
 	if (ret)
 		gdrm->stats_num_errors++;
 
