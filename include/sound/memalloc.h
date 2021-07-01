@@ -12,6 +12,7 @@
 #include <asm/page.h>
 
 struct device;
+struct vm_area_struct;
 
 /*
  * buffer device info
@@ -64,84 +65,19 @@ static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
 	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
-#ifdef CONFIG_SND_DMA_SGBUF
-/*
- * Scatter-Gather generic device pages
- */
-void *snd_malloc_sgbuf_pages(struct device *device,
-			     size_t size, struct snd_dma_buffer *dmab,
-			     size_t *res_size);
-int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
-
-struct snd_sg_page {
-	void *buf;
-	dma_addr_t addr;
-};
-
-struct snd_sg_buf {
-	int size;	/* allocated byte size */
-	int pages;	/* allocated pages */
-	int tblsize;	/* allocated table size */
-	struct snd_sg_page *table;	/* address table */
-	struct page **page_table;	/* page table (for vmap/vunmap) */
-	struct device *dev;
-};
-
-/*
- * return the physical address at the corresponding offset
- */
-static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
-					   size_t offset)
-{
-	struct snd_sg_buf *sgbuf = dmab->private_data;
-	dma_addr_t addr;
-
-	if (!sgbuf)
-		return dmab->addr + offset;
-	addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
-	addr &= ~((dma_addr_t)PAGE_SIZE - 1);
-	return addr + offset % PAGE_SIZE;
-}
-
-/*
- * return the virtual address at the corresponding offset
- */
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				     size_t offset)
-{
-	struct snd_sg_buf *sgbuf = dmab->private_data;
-
-	if (!sgbuf)
-		return dmab->area + offset;
-	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
-}
-
-unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
-				      unsigned int ofs, unsigned int size);
-#else
-/* non-SG versions */
-static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
-					    size_t offset)
-{
-	return dmab->addr + offset;
-}
-
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				      size_t offset)
-{
-	return dmab->area + offset;
-}
-
-#define snd_sgbuf_get_chunk_size(dmab, ofs, size)	(size)
-
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 /* allocate/release a buffer */
 int snd_dma_alloc_pages(int type, struct device *dev, size_t size,
 			struct snd_dma_buffer *dmab);
 int snd_dma_alloc_pages_fallback(int type, struct device *dev, size_t size,
                                  struct snd_dma_buffer *dmab);
 void snd_dma_free_pages(struct snd_dma_buffer *dmab);
+int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
+			struct vm_area_struct *area);
+
+dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab, size_t offset);
+struct page *snd_sgbuf_get_page(struct snd_dma_buffer *dmab, size_t offset);
+unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
+				      unsigned int ofs, unsigned int size);
 
 #endif /* __SOUND_MEMALLOC_H */
 

@@ -339,7 +339,8 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	int c;
 	struct wavefront_command *wfcmd;
 
-	if ((wfcmd = wavefront_get_command (cmd)) == NULL) {
+	wfcmd = wavefront_get_command(cmd);
+	if (!wfcmd) {
 		snd_printk ("command 0x%x not supported.\n",
 			cmd);
 		return 1;
@@ -391,7 +392,8 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 
 		for (i = 0; i < wfcmd->read_cnt; i++) {
 
-			if ((c = wavefront_read (dev)) == -1) {
+			c = wavefront_read(dev);
+			if (c == -1) {
 				DPRINT (WF_DEBUG_IO, "bad read for byte "
 						      "%d of 0x%x [%s].\n",
 						      i, cmd, wfcmd->action);
@@ -401,7 +403,8 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 			/* Now handle errors. Lots of special cases here */
 	    
 			if (c == 0xff) { 
-				if ((c = wavefront_read (dev)) == -1) {
+				c = wavefront_read(dev);
+				if (c == -1) {
 					DPRINT (WF_DEBUG_IO, "bad read for "
 							      "error byte at "
 							      "read byte %d "
@@ -459,9 +462,9 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 		   of the standard value.
 		*/
 	    
-		if ((ack = wavefront_read (dev)) == 0) {
+		ack = wavefront_read(dev);
+		if (ack == 0)
 			ack = WF_ACK;
-		}
 	
 		if (ack != WF_ACK) {
 			if (ack == -1) {
@@ -475,7 +478,8 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 
 				if (ack == 0xff) { /* explicit error */
 		    
-					if ((err = wavefront_read (dev)) == -1) {
+					err = wavefront_read(dev);
+					if (err == -1) {
 						DPRINT (WF_DEBUG_DATA,
 							"cannot read err "
 							"for 0x%x [%s].\n",
@@ -603,9 +607,9 @@ wavefront_delete_sample (snd_wavefront_t *dev, int sample_num)
 	wbuf[0] = sample_num & 0x7f;
 	wbuf[1] = sample_num >> 7;
 
-	if ((x = snd_wavefront_cmd (dev, WFC_DELETE_SAMPLE, NULL, wbuf)) == 0) {
+	x = snd_wavefront_cmd(dev, WFC_DELETE_SAMPLE, NULL, wbuf);
+	if (!x)
 		dev->sample_status[sample_num] = WF_ST_EMPTY;
-	}
 
 	return x;
 }
@@ -691,8 +695,9 @@ wavefront_get_patch_status (snd_wavefront_t *dev)
 		patchnum[0] = i & 0x7f;
 		patchnum[1] = i >> 7;
 
-		if ((x = snd_wavefront_cmd (dev, WFC_UPLOAD_PATCH, patchbuf,
-					patchnum)) == 0) {
+		x = snd_wavefront_cmd(dev, WFC_UPLOAD_PATCH, patchbuf,
+				      patchnum);
+		if (x == 0) {
 
 			dev->patch_status[i] |= WF_SLOT_FILLED;
 			p = (wavefront_patch *) patchbuf;
@@ -738,8 +743,9 @@ wavefront_get_program_status (snd_wavefront_t *dev)
 	for (i = 0; i < WF_MAX_PROGRAM; i++) {
 		prognum = i;
 
-		if ((x = snd_wavefront_cmd (dev, WFC_UPLOAD_PROGRAM, progbuf,
-					&prognum)) == 0) {
+		x = snd_wavefront_cmd(dev, WFC_UPLOAD_PROGRAM, progbuf,
+				      &prognum);
+		if (x == 0) {
 
 			dev->prog_status[i] |= WF_SLOT_USED;
 
@@ -894,9 +900,9 @@ wavefront_send_sample (snd_wavefront_t *dev,
 	if (header->number == WAVEFRONT_FIND_FREE_SAMPLE_SLOT) {
 		int x;
 
-		if ((x = wavefront_find_free_sample (dev)) < 0) {
+		x = wavefront_find_free_sample(dev);
+		if (x < 0)
 			return -ENOMEM;
-		}
 		snd_printk ("unspecified sample => %d\n", x);
 		header->number = x;
 	}
@@ -1137,7 +1143,8 @@ wavefront_send_sample (snd_wavefront_t *dev,
 		   nothing to do with DMA at all.
 		*/
 	
-		if ((dma_ack = wavefront_read (dev)) != WF_DMA_ACK) {
+		dma_ack = wavefront_read(dev);
+		if (dma_ack != WF_DMA_ACK) {
 			if (dma_ack == -1) {
 				snd_printk ("upload sample "
 					    "DMA ack timeout\n");
@@ -1282,14 +1289,16 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 		char d[2];
 		int val;
 	
-		if ((val = wavefront_read (dev)) == -1) {
+		val = wavefront_read(dev);
+		if (val == -1) {
 			snd_printk ("upload multisample failed "
 				    "during sample loop.\n");
 			return -EIO;
 		}
 		d[0] = val;
 
-		if ((val = wavefront_read (dev)) == -1) {
+		val = wavefront_read(dev);
+		if (val == -1) {
 			snd_printk ("upload multisample failed "
 				    "during sample loop.\n");
 			return -EIO;
@@ -1910,7 +1919,8 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 		goto gone_bad;
 	}
 	
-	if ((hwv[0] = wavefront_read (dev)) == -1) {
+	hwv[0] = wavefront_read(dev);
+	if (hwv[0] == -1) {
 		snd_printk ("board not responding correctly.\n");
 		goto gone_bad;
 	}
@@ -1921,7 +1931,8 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 		   and tell us about it either way.
 		*/
 		
-		if ((hwv[0] = wavefront_read (dev)) == -1) {
+		hwv[0] = wavefront_read(dev);
+		if (hwv[0] == -1) {
 			snd_printk ("on-board RAM test failed "
 				    "(bad error code).\n");
 		} else {
@@ -1934,7 +1945,8 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 
 	/* We're OK, just get the next byte of the HW version response */
 
-	if ((hwv[1] = wavefront_read (dev)) == -1) {
+	hwv[1] = wavefront_read(dev);
+	if (hwv[1] == -1) {
 		snd_printk ("incorrect h/w response.\n");
 		goto gone_bad;
 	}
@@ -2079,9 +2091,9 @@ wavefront_do_reset (snd_wavefront_t *dev)
 	   about it.
 	*/
 	
-	if ((dev->freemem = wavefront_freemem (dev)) < 0) {
+	dev->freemem = wavefront_freemem(dev);
+	if (dev->freemem < 0)
 		goto gone_bad;
-	}
 		
 	snd_printk ("available DRAM %dk\n", dev->freemem / 1024);
 

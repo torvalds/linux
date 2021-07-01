@@ -7,7 +7,7 @@
 
 #include "digi00x.h"
 
-#define CALLBACK_TIMEOUT 500
+#define READY_TIMEOUT_MS	200
 
 const unsigned int snd_dg00x_stream_rates[SND_DG00X_RATE_COUNT] = {
 	[SND_DG00X_RATE_44100] = 44100,
@@ -375,14 +375,15 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&dg00x->domain, 0);
+		// NOTE: The device doesn't start packet transmission till receiving any packet.
+		// It ignores presentation time expressed by the value of syt field of CIP header
+		// in received packets. The sequence of the number of data blocks per packet is
+		// important for media clock recovery.
+		err = amdtp_domain_start(&dg00x->domain, 0, true, true);
 		if (err < 0)
 			goto error;
 
-		if (!amdtp_stream_wait_callback(&dg00x->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&dg00x->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&dg00x->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}

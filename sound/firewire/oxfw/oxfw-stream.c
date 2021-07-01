@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 
 #define AVC_GENERIC_FRAME_MAXIMUM_BYTES	512
-#define CALLBACK_TIMEOUT	200
+#define READY_TIMEOUT_MS	200
 
 /*
  * According to datasheet of Oxford Semiconductor:
@@ -153,12 +153,23 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
 	enum amdtp_stream_direction s_dir;
+	unsigned int flags = CIP_UNAWARE_SYT;
 	int err;
+
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
+		flags |= CIP_NONBLOCKING;
+	else
+		flags |= CIP_BLOCKING;
 
 	if (stream == &oxfw->tx_stream) {
 		conn = &oxfw->out_conn;
 		c_dir = CMP_OUTPUT;
 		s_dir = AMDTP_IN_STREAM;
+
+		if (oxfw->quirks & SND_OXFW_QUIRK_JUMBO_PAYLOAD)
+			flags |= CIP_JUMBO_PAYLOAD;
+		if (oxfw->quirks & SND_OXFW_QUIRK_WRONG_DBS)
+			flags |= CIP_WRONG_DBS;
 	} else {
 		conn = &oxfw->in_conn;
 		c_dir = CMP_INPUT;
@@ -169,22 +180,10 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	if (err < 0)
 		return err;
 
-	err = amdtp_am824_init(stream, oxfw->unit, s_dir, CIP_NONBLOCKING);
+	err = amdtp_am824_init(stream, oxfw->unit, s_dir, flags);
 	if (err < 0) {
 		cmp_connection_destroy(conn);
 		return err;
-	}
-
-	/*
-	 * OXFW starts to transmit packets with non-zero dbc.
-	 * OXFW postpone transferring packets till handling any asynchronous
-	 * packets. As a result, next isochronous packet includes more data
-	 * blocks than IEC 61883-6 defines.
-	 */
-	if (stream == &oxfw->tx_stream) {
-		oxfw->tx_stream.flags |= CIP_JUMBO_PAYLOAD;
-		if (oxfw->wrong_dbs)
-			oxfw->tx_stream.flags |= CIP_WRONG_DBS;
 	}
 
 	return 0;
@@ -338,6 +337,9 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 	}
 
 	if (!amdtp_stream_running(&oxfw->rx_stream)) {
+		unsigned int tx_init_skip_cycles = 0;
+		bool replay_seq = false;
+
 		err = start_stream(oxfw, &oxfw->rx_stream);
 		if (err < 0) {
 			dev_err(&oxfw->unit->device,
@@ -353,25 +355,26 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 					"fail to prepare tx stream: %d\n", err);
 				goto error;
 			}
+
+			if (oxfw->quirks & SND_OXFW_QUIRK_JUMBO_PAYLOAD) {
+				// Just after changing sampling transfer frequency, many cycles are
+				// skipped for packet transmission.
+				tx_init_skip_cycles = 400;
+			} else {
+				replay_seq = true;
+			}
 		}
 
-		err = amdtp_domain_start(&oxfw->domain, 0);
+		// NOTE: The device ignores presentation time expressed by the value of syt field
+		// of CIP header in received packets. The sequence of the number of data blocks per
+		// packet is important for media clock recovery.
+		err = amdtp_domain_start(&oxfw->domain, tx_init_skip_cycles, replay_seq, false);
 		if (err < 0)
 			goto error;
 
-		// Wait first packet.
-		if (!amdtp_stream_wait_callback(&oxfw->rx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&oxfw->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
-		}
-
-		if (oxfw->has_output) {
-			if (!amdtp_stream_wait_callback(&oxfw->tx_stream,
-							CALLBACK_TIMEOUT)) {
-				err = -ETIMEDOUT;
-				goto error;
-			}
 		}
 	}
 

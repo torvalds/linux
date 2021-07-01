@@ -8,12 +8,12 @@
 
 #include "usb_stream.h"
 
-
 /*                             setup                                  */
 
-static unsigned usb_stream_next_packet_size(struct usb_stream_kernel *sk)
+static unsigned int usb_stream_next_packet_size(struct usb_stream_kernel *sk)
 {
 	struct usb_stream *s = sk->s;
+
 	sk->out_phase_peeked = (sk->out_phase & 0xffff) + sk->freqn;
 	return (sk->out_phase_peeked >> 16) * s->cfg.frame_size;
 }
@@ -25,6 +25,7 @@ static void playback_prep_freqn(struct usb_stream_kernel *sk, struct urb *urb)
 
 	for (pack = 0; pack < sk->n_o_ps; pack++) {
 		int l = usb_stream_next_packet_size(sk);
+
 		if (s->idle_outsize + lb + l > s->period_size)
 			goto check;
 
@@ -43,9 +44,10 @@ check:
 		    lb, s->period_size);
 }
 
-static int init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
-			   struct urb **urbs, char *transfer,
-			   struct usb_device *dev, int pipe)
+static int init_pipe_urbs(struct usb_stream_kernel *sk,
+			  unsigned int use_packsize,
+			  struct urb **urbs, char *transfer,
+			  struct usb_device *dev, int pipe)
 {
 	int u, p;
 	int maxpacket = use_packsize ?
@@ -56,6 +58,7 @@ static int init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
 	     ++u, transfer += transfer_length) {
 		struct urb *urb = urbs[u];
 		struct usb_iso_packet_descriptor *desc;
+
 		urb->transfer_buffer = transfer;
 		urb->dev = dev;
 		urb->pipe = pipe;
@@ -80,13 +83,12 @@ static int init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
 	return 0;
 }
 
-static int init_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
-		      struct usb_device *dev, int in_pipe, int out_pipe)
+static int init_urbs(struct usb_stream_kernel *sk, unsigned int use_packsize,
+		     struct usb_device *dev, int in_pipe, int out_pipe)
 {
 	struct usb_stream	*s = sk->s;
-	char			*indata = (char *)s + sizeof(*s) +
-					sizeof(struct usb_stream_packet) *
-					s->inpackets;
+	char			*indata =
+		(char *)s + sizeof(*s) + sizeof(struct usb_stream_packet) * s->inpackets;
 	int			u;
 
 	for (u = 0; u < USB_STREAM_NURBS; ++u) {
@@ -107,12 +109,11 @@ static int init_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
 	return 0;
 }
 
-
 /*
  * convert a sampling rate into our full speed format (fs/1000 in Q16.16)
  * this will overflow at approx 524 kHz
  */
-static inline unsigned get_usb_full_speed_rate(unsigned rate)
+static inline unsigned int get_usb_full_speed_rate(unsigned int rate)
 {
 	return ((rate << 13) + 62) / 125;
 }
@@ -121,7 +122,7 @@ static inline unsigned get_usb_full_speed_rate(unsigned rate)
  * convert a sampling rate into USB high speed format (fs/8000 in Q16.16)
  * this will overflow at approx 4 MHz
  */
-static inline unsigned get_usb_high_speed_rate(unsigned rate)
+static inline unsigned int get_usb_high_speed_rate(unsigned int rate)
 {
 	return ((rate << 10) + 62) / 125;
 }
@@ -129,7 +130,7 @@ static inline unsigned get_usb_high_speed_rate(unsigned rate)
 void usb_stream_free(struct usb_stream_kernel *sk)
 {
 	struct usb_stream *s;
-	unsigned u;
+	unsigned int u;
 
 	for (u = 0; u < USB_STREAM_NURBS; ++u) {
 		usb_free_urb(sk->inurb[u]);
@@ -142,17 +143,23 @@ void usb_stream_free(struct usb_stream_kernel *sk)
 	if (!s)
 		return;
 
-	free_pages_exact(sk->write_page, s->write_size);
-	sk->write_page = NULL;
+	if (sk->write_page) {
+		free_pages_exact(sk->write_page, s->write_size);
+		sk->write_page = NULL;
+	}
+
 	free_pages_exact(s, s->read_size);
 	sk->s = NULL;
 }
 
 struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 				  struct usb_device *dev,
-				  unsigned in_endpoint, unsigned out_endpoint,
-				  unsigned sample_rate, unsigned use_packsize,
-				  unsigned period_frames, unsigned frame_size)
+				  unsigned int in_endpoint,
+				  unsigned int out_endpoint,
+				  unsigned int sample_rate,
+				  unsigned int use_packsize,
+				  unsigned int period_frames,
+				  unsigned int frame_size)
 {
 	int packets, max_packsize;
 	int in_pipe, out_pipe;
@@ -231,12 +238,12 @@ out:
 	return sk->s;
 }
 
-
 /*                             start                                  */
 
 static bool balance_check(struct usb_stream_kernel *sk, struct urb *urb)
 {
 	bool r;
+
 	if (unlikely(urb->status)) {
 		if (urb->status != -ESHUTDOWN && urb->status != -ENOENT)
 			snd_printk(KERN_WARNING "status=%i\n", urb->status);
@@ -267,6 +274,7 @@ static void subs_set_complete(struct urb **urbs, void (*complete)(struct urb *))
 
 	for (u = 0; u < USB_STREAM_NURBS; u++) {
 		struct urb *urb = urbs[u];
+
 		urb->complete = complete;
 	}
 }
@@ -284,6 +292,7 @@ static int usb_stream_prepare_playback(struct usb_stream_kernel *sk,
 
 	for (; s->sync_packet < 0; ++p, ++s->sync_packet) {
 		struct urb *ii = sk->completed_inurb;
+
 		id = ii->iso_frame_desc +
 			ii->number_of_packets + s->sync_packet;
 		l = id->actual_length;
@@ -351,6 +360,7 @@ static int submit_urbs(struct usb_stream_kernel *sk,
 		       struct urb *inurb, struct urb *outurb)
 {
 	int err;
+
 	prepare_inurb(sk->idle_outurb->number_of_packets, sk->idle_inurb);
 	err = usb_submit_urb(sk->idle_inurb, GFP_ATOMIC);
 	if (err < 0)
@@ -447,6 +457,7 @@ static void stream_idle(struct usb_stream_kernel *sk,
 
 	for (p = 0; p < inurb->number_of_packets; ++p) {
 		struct usb_iso_packet_descriptor *id = inurb->iso_frame_desc;
+
 		l = id[p].actual_length;
 		if (unlikely(l == 0 || id[p].status)) {
 			snd_printk(KERN_WARNING "underrun, status=%u\n",
@@ -503,6 +514,7 @@ err_out:
 static void i_capture_idle(struct urb *urb)
 {
 	struct usb_stream_kernel *sk = urb->context;
+
 	if (balance_capture(sk, urb))
 		stream_idle(sk, urb, sk->i_urb);
 }
@@ -510,6 +522,7 @@ static void i_capture_idle(struct urb *urb)
 static void i_playback_idle(struct urb *urb)
 {
 	struct usb_stream_kernel *sk = urb->context;
+
 	if (balance_playback(sk, urb))
 		stream_idle(sk, sk->i_urb, urb);
 }
@@ -518,10 +531,12 @@ static void stream_start(struct usb_stream_kernel *sk,
 			 struct urb *inurb, struct urb *outurb)
 {
 	struct usb_stream *s = sk->s;
+
 	if (s->state >= usb_stream_sync1) {
 		int l, p, max_diff, max_diff_0;
 		int urb_size = 0;
-		unsigned frames_per_packet, min_frames = 0;
+		unsigned int frames_per_packet, min_frames = 0;
+
 		frames_per_packet = (s->period_size - s->idle_insize);
 		frames_per_packet <<= 8;
 		frames_per_packet /=
@@ -536,6 +551,7 @@ static void stream_start(struct usb_stream_kernel *sk,
 		max_diff = max_diff_0;
 		for (p = 0; p < inurb->number_of_packets; ++p) {
 			int diff;
+
 			l = inurb->iso_frame_desc[p].actual_length;
 			urb_size += l;
 
@@ -561,7 +577,8 @@ static void stream_start(struct usb_stream_kernel *sk,
 				(s->inpacket_head + 1) % s->inpackets;
 			s->next_inpacket_split_at = 0;
 		} else {
-			unsigned split = s->inpacket_head;
+			unsigned int split = s->inpacket_head;
+
 			l = s->idle_insize;
 			while (l > s->inpacket[split].length) {
 				l -= s->inpacket[split].length;
@@ -609,6 +626,7 @@ static void i_capture_start(struct urb *urb)
 
 	for (p = 0; p < urb->number_of_packets; ++p) {
 		int l = id[p].actual_length;
+
 		if (l < s->cfg.frame_size) {
 			++empty;
 			if (s->state >= usb_stream_sync0) {
@@ -628,6 +646,7 @@ static void i_capture_start(struct urb *urb)
 		       urb->iso_frame_desc[0].actual_length);
 		for (pack = 1; pack < urb->number_of_packets; ++pack) {
 			int l = urb->iso_frame_desc[pack].actual_length;
+
 			printk(KERN_CONT " %i", l);
 		}
 		printk(KERN_CONT "\n");
@@ -643,6 +662,7 @@ static void i_capture_start(struct urb *urb)
 static void i_playback_start(struct urb *urb)
 {
 	struct usb_stream_kernel *sk = urb->context;
+
 	if (balance_playback(sk, urb))
 		stream_start(sk, sk->i_urb, urb);
 }
@@ -671,6 +691,7 @@ dotry:
 	for (u = 0; u < 2; u++) {
 		struct urb *inurb = sk->inurb[u];
 		struct urb *outurb = sk->outurb[u];
+
 		playback_prep_freqn(sk, outurb);
 		inurb->number_of_packets = outurb->number_of_packets;
 		inurb->transfer_buffer_length =
@@ -680,6 +701,7 @@ dotry:
 		if (u == 0) {
 			int now;
 			struct usb_device *dev = inurb->dev;
+
 			frame = usb_get_current_frame_number(dev);
 			do {
 				now = usb_get_current_frame_number(dev);
@@ -688,14 +710,16 @@ dotry:
 		}
 		err = usb_submit_urb(inurb, GFP_ATOMIC);
 		if (err < 0) {
-			snd_printk(KERN_ERR"usb_submit_urb(sk->inurb[%i])"
-				   " returned %i\n", u, err);
+			snd_printk(KERN_ERR
+				   "usb_submit_urb(sk->inurb[%i]) returned %i\n",
+				   u, err);
 			return err;
 		}
 		err = usb_submit_urb(outurb, GFP_ATOMIC);
 		if (err < 0) {
-			snd_printk(KERN_ERR"usb_submit_urb(sk->outurb[%i])"
-				   " returned %i\n", u, err);
+			snd_printk(KERN_ERR
+				   "usb_submit_urb(sk->outurb[%i]) returned %i\n",
+				   u, err);
 			return err;
 		}
 
@@ -716,8 +740,8 @@ check_retry:
 			snd_printd(KERN_DEBUG "goto dotry;\n");
 			goto dotry;
 		}
-		snd_printk(KERN_WARNING"couldn't start"
-			   " all urbs on the same start_frame.\n");
+		snd_printk(KERN_WARNING
+			   "couldn't start all urbs on the same start_frame.\n");
 		return -EFAULT;
 	}
 
@@ -729,6 +753,7 @@ check_retry:
 /* wait, check */
 	{
 		int wait_ms = 3000;
+
 		while (s->state != usb_stream_ready && wait_ms > 0) {
 			snd_printdd(KERN_DEBUG "%i\n", s->state);
 			msleep(200);
@@ -745,6 +770,7 @@ check_retry:
 void usb_stream_stop(struct usb_stream_kernel *sk)
 {
 	int u;
+
 	if (!sk->s)
 		return;
 	for (u = 0; u < USB_STREAM_NURBS; ++u) {

@@ -580,7 +580,7 @@ int snd_soc_suspend(struct device *dev)
 	 * Due to the resume being scheduled into a workqueue we could
 	 * suspend before that's finished - wait for it to complete.
 	 */
-	snd_power_wait(card->snd_card, SNDRV_CTL_POWER_D0);
+	snd_power_wait(card->snd_card);
 
 	/* we're going to block userspace touching us until resume completes */
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D3hot);

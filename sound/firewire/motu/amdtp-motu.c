@@ -16,6 +16,14 @@
 #define CIP_FMT_MOTU_TX_V3	0x22
 #define MOTU_FDF_AM824		0x22
 
+#define TICKS_PER_CYCLE		3072
+#define CYCLES_PER_SECOND	8000
+#define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
+
+#define CIP_SPH_CYCLE_SHIFT	12
+#define CIP_SPH_CYCLE_MASK	0x01fff000
+#define CIP_SPH_OFFSET_MASK	0x00000fff
+
 /*
  * Nominally 3125 bytes/second, but the MIDI port's clock might be
  * 1% too slow, and the bus clock 100 ppm too fast.
@@ -23,14 +31,6 @@
 #define MIDI_BYTES_PER_SECOND	3093
 
 struct amdtp_motu {
-	/* For timestamp processing.  */
-	unsigned int quotient_ticks_per_event;
-	unsigned int remainder_ticks_per_event;
-	unsigned int next_ticks;
-	unsigned int next_accumulated;
-	unsigned int next_cycles;
-	unsigned int next_seconds;
-
 	unsigned int pcm_chunks;
 	unsigned int pcm_byte_offset;
 
@@ -41,26 +41,16 @@ struct amdtp_motu {
 
 	int midi_db_count;
 	unsigned int midi_db_interval;
+
+	struct amdtp_motu_cache *cache;
 };
 
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats)
 {
-	static const struct {
-		unsigned int quotient_ticks_per_event;
-		unsigned int remainder_ticks_per_event;
-	} params[] = {
-		[CIP_SFC_44100]  = { 557, 123 },
-		[CIP_SFC_48000]  = { 512,   0 },
-		[CIP_SFC_88200]  = { 278, 282 },
-		[CIP_SFC_96000]  = { 256,   0 },
-		[CIP_SFC_176400] = { 139, 141 },
-		[CIP_SFC_192000] = { 128,   0 },
-	};
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_chunks, data_chunks, data_block_quadlets;
-	unsigned int delay;
 	unsigned int mode;
 	int i, err;
 
@@ -96,19 +86,6 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 
 	p->midi_db_count = 0;
 	p->midi_db_interval = rate / MIDI_BYTES_PER_SECOND;
-
-	/* IEEE 1394 bus requires. */
-	delay = 0x2e00;
-
-	/* For no-data or empty packets to adjust PCM sampling frequency. */
-	delay += 8000 * 3072 * s->syt_interval / rate;
-
-	p->next_seconds = 0;
-	p->next_cycles = delay / 3072;
-	p->quotient_ticks_per_event = params[s->sfc].quotient_ticks_per_event;
-	p->remainder_ticks_per_event = params[s->sfc].remainder_ticks_per_event;
-	p->next_ticks = delay % 3072;
-	p->next_accumulated = 0;
 
 	return 0;
 }
@@ -322,6 +299,34 @@ static void probe_tracepoints_events(struct amdtp_stream *s,
 	}
 }
 
+static void cache_event_offsets(struct amdtp_motu_cache *cache, const __be32 *buf,
+				unsigned int data_blocks, unsigned int data_block_quadlets)
+{
+	unsigned int *event_offsets = cache->event_offsets;
+	const unsigned int cache_size = cache->size;
+	unsigned int cache_tail = cache->tail;
+	unsigned int base_tick = cache->tx_cycle_count * TICKS_PER_CYCLE;
+	int i;
+
+	for (i = 0; i < data_blocks; ++i) {
+		u32 sph = be32_to_cpu(*buf);
+		unsigned int tick;
+
+		tick = ((sph & CIP_SPH_CYCLE_MASK) >> CIP_SPH_CYCLE_SHIFT) * TICKS_PER_CYCLE +
+		       (sph & CIP_SPH_OFFSET_MASK);
+
+		if (tick < base_tick)
+			tick += TICKS_PER_SECOND;
+		event_offsets[cache_tail] = tick - base_tick;
+
+		cache_tail = (cache_tail + 1) % cache_size;
+		buf += data_block_quadlets;
+	}
+
+	cache->tail = cache_tail;
+	cache->tx_cycle_count = (cache->tx_cycle_count + 1) % CYCLES_PER_SECOND;
+}
+
 static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 					    const struct pkt_desc *descs,
 					    unsigned int packets,
@@ -331,11 +336,16 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 	unsigned int pcm_frames = 0;
 	int i;
 
+	if (p->cache->tx_cycle_count == UINT_MAX)
+		p->cache->tx_cycle_count = (s->domain->processing_cycle.tx_start % CYCLES_PER_SECOND);
+
 	// For data block processing.
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = descs + i;
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
+
+		cache_event_offsets(p->cache, buf, data_blocks, s->data_block_quadlets);
 
 		if (pcm) {
 			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
@@ -354,46 +364,26 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 	return pcm_frames;
 }
 
-static inline void compute_next_elapse_from_start(struct amdtp_motu *p)
+static void write_sph(struct amdtp_motu_cache *cache, __be32 *buffer, unsigned int data_blocks,
+		      unsigned int data_block_quadlets)
 {
-	p->next_accumulated += p->remainder_ticks_per_event;
-	if (p->next_accumulated >= 441) {
-		p->next_accumulated -= 441;
-		p->next_ticks++;
-	}
-
-	p->next_ticks += p->quotient_ticks_per_event;
-	if (p->next_ticks >= 3072) {
-		p->next_ticks -= 3072;
-		p->next_cycles++;
-	}
-
-	if (p->next_cycles >= 8000) {
-		p->next_cycles -= 8000;
-		p->next_seconds++;
-	}
-
-	if (p->next_seconds >= 128)
-		p->next_seconds -= 128;
-}
-
-static void write_sph(struct amdtp_stream *s, __be32 *buffer,
-		      unsigned int data_blocks)
-{
-	struct amdtp_motu *p = s->protocol;
-	unsigned int next_cycles;
-	unsigned int i;
-	u32 sph;
+	unsigned int *event_offsets = cache->event_offsets;
+	const unsigned int cache_size = cache->size;
+	unsigned int cache_head = cache->head;
+	unsigned int base_tick = cache->rx_cycle_count * TICKS_PER_CYCLE;
+	int i;
 
 	for (i = 0; i < data_blocks; i++) {
-		next_cycles = (s->start_cycle + p->next_cycles) % 8000;
-		sph = ((next_cycles << 12) | p->next_ticks) & 0x01ffffff;
+		unsigned int tick = (base_tick + event_offsets[cache_head]) % TICKS_PER_SECOND;
+		u32 sph = ((tick / TICKS_PER_CYCLE) << CIP_SPH_CYCLE_SHIFT) | (tick % TICKS_PER_CYCLE);
 		*buffer = cpu_to_be32(sph);
 
-		compute_next_elapse_from_start(p);
-
-		buffer += s->data_block_quadlets;
+		cache_head = (cache_head + 1) % cache_size;
+		buffer += data_block_quadlets;
 	}
+
+	cache->head = cache_head;
+	cache->rx_cycle_count = (cache->rx_cycle_count + 1) % CYCLES_PER_SECOND;
 }
 
 static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
@@ -404,6 +394,9 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
+
+	if (p->cache->rx_cycle_count == UINT_MAX)
+		p->cache->rx_cycle_count = (s->domain->processing_cycle.rx_start % CYCLES_PER_SECOND);
 
 	// For data block processing.
 	for (i = 0; i < packets; ++i) {
@@ -423,7 +416,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		// TODO: how to interact control messages between userspace?
 
-		write_sph(s, buf, data_blocks);
+		write_sph(p->cache, buf, data_blocks, s->data_block_quadlets);
 	}
 
 	// For tracepoints.
@@ -436,11 +429,12 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_spec *spec)
+		    const struct snd_motu_spec *spec, struct amdtp_motu_cache *cache)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
-	int flags = CIP_BLOCKING;
+	unsigned int flags = CIP_BLOCKING | CIP_UNAWARE_SYT;
+	struct amdtp_motu *p;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
@@ -478,9 +472,10 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 	if (dir == AMDTP_OUT_STREAM) {
 		// Use fixed value for FDF field.
 		s->ctx_data.rx.fdf = MOTU_FDF_AM824;
-		// Not used.
-		s->ctx_data.rx.syt_override = 0xffff;
 	}
+
+	p = s->protocol;
+	p->cache = cache;
 
 	return 0;
 }

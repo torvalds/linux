@@ -25,6 +25,8 @@ struct  rt711_priv {
 	struct work_struct calibration_work;
 	struct mutex calibrate_mutex; /* for headset calibration */
 	int jack_type, jd_src;
+	struct mutex disable_irq_lock; /* imp-def irq lock protection */
+	bool disable_irq;
 };
 
 struct sdw_stream_data {

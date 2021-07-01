@@ -492,7 +492,7 @@ int sdw_read_no_pm(struct sdw_slave *slave, u32 addr)
 }
 EXPORT_SYMBOL(sdw_read_no_pm);
 
-static int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 {
 	int tmp;
 
@@ -503,6 +503,21 @@ static int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 	tmp = (tmp & ~mask) | val;
 	return sdw_write_no_pm(slave, addr, tmp);
 }
+EXPORT_SYMBOL(sdw_update_no_pm);
+
+/* Read-Modify-Write Slave register */
+int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+{
+	int tmp;
+
+	tmp = sdw_read(slave, addr);
+	if (tmp < 0)
+		return tmp;
+
+	tmp = (tmp & ~mask) | val;
+	return sdw_write(slave, addr, tmp);
+}
+EXPORT_SYMBOL(sdw_update);
 
 /**
  * sdw_nread() - Read "n" contiguous SDW Slave registers

@@ -1166,6 +1166,8 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	rt711->sdw_regmap = sdw_regmap;
 	rt711->regmap = regmap;
 
+	mutex_init(&rt711->disable_irq_lock);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -1189,6 +1191,8 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
+
+	rt711->disable_irq = false;
 
 	if (rt711->hw_init)
 		return 0;
