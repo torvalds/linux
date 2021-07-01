@@ -15,6 +15,6 @@ function update_kprobes_config() {
          -e CONFIG_CHECKPOINT_RESTORE \
          -d CONFIG_RANDOMIZE_BASE
     (cd ${OUT_DIR} && \
-     make ${CC_LD_ARG} O=${OUT_DIR} olddefconfig)
+     make ${TOOL_ARGS} O=${OUT_DIR} olddefconfig)
 }
 
