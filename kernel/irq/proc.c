@@ -513,7 +513,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, " %8s", "None");
 	}
 	if (desc->irq_data.domain)
-		seq_printf(p, " %*d", prec, (int) desc->irq_data.hwirq);
+		seq_printf(p, " %*lu", prec, desc->irq_data.hwirq);
 	else
 		seq_printf(p, " %*s", prec, "");
 #ifdef CONFIG_GENERIC_IRQ_SHOW_LEVEL
