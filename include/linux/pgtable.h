@@ -29,6 +29,15 @@
 #endif
 
 /*
+ * This defines the first usable user address. Platforms
+ * can override its value with custom FIRST_USER_ADDRESS
+ * defined in their respective <asm/pgtable.h>.
+ */
+#ifndef FIRST_USER_ADDRESS
+#define FIRST_USER_ADDRESS	0UL
+#endif
+
+/*
  * A page table page can be thought of an array like this: pXd_t[PTRS_PER_PxD]
  *
  * The pXx_index() functions return the index of the entry in the page

@@ -41,7 +41,6 @@
 #endif
 
 #define USER_PTRS_PER_PGD ((TASK_SIZE + (PGDIR_SIZE - 1)) / PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0UL
 
 #define pte_ERROR(e) \
         printk("%s:%d: bad pte %p(%016lx).\n", __FILE__, __LINE__, &(e), \

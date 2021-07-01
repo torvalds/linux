@@ -222,12 +222,6 @@
  */
 #define	USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 
-/*
- * No special requirements for lowest virtual address we permit any user space
- * mapping to be mapped at.
- */
-#define FIRST_USER_ADDRESS      0UL
-
 
 /****************************************************************
  * Bucket load of VM Helpers

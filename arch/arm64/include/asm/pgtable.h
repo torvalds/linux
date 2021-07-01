@@ -26,8 +26,6 @@
 
 #define vmemmap			((struct page *)VMEMMAP_START - (memstart_addr >> PAGE_SHIFT))
 
-#define FIRST_USER_ADDRESS	0UL
-
 #ifndef __ASSEMBLY__
 
 #include <asm/cmpxchg.h>

@@ -65,8 +65,6 @@ extern unsigned long zero_page_mask;
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
 
-#define FIRST_USER_ADDRESS  0UL
-
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
 #define pmd_ERROR(e) \

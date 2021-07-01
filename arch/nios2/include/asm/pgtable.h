@@ -24,8 +24,6 @@
 #include <asm/pgtable-bits.h>
 #include <asm-generic/pgtable-nopmd.h>
 
-#define FIRST_USER_ADDRESS	0UL
-
 #define VMALLOC_START		CONFIG_NIOS2_KERNEL_MMU_REGION_BASE
 #define VMALLOC_END		(CONFIG_NIOS2_KERNEL_REGION_BASE - 1)
 

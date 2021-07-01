@@ -48,7 +48,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail);
 #define PTRS_PER_PMD    	64
 #define PTRS_PER_PGD    	256
 #define USER_PTRS_PER_PGD	PAGE_OFFSET / PGDIR_SIZE
-#define FIRST_USER_ADDRESS	0UL
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
 #define PAGE_NONE	SRMMU_PAGE_NONE

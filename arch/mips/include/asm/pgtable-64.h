@@ -137,7 +137,6 @@
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
 #define USER_PTRS_PER_PGD       ((TASK_SIZE64 / PGDIR_SIZE)?(TASK_SIZE64 / PGDIR_SIZE):1)
-#define FIRST_USER_ADDRESS	0UL
 
 /*
  * TLB refill handlers also map the vmalloc area into xuseg.  Avoid
