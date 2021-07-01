@@ -406,7 +406,48 @@ int xics_retrigger(struct irq_data *data)
 	return 0;
 }
 
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+static int xics_host_domain_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
+				      unsigned long *hwirq, unsigned int *type)
+{
+	return xics_host_xlate(d, to_of_node(fwspec->fwnode), fwspec->param,
+			       fwspec->param_count, hwirq, type);
+}
+
+static int xics_host_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				  unsigned int nr_irqs, void *arg)
+{
+	struct irq_fwspec *fwspec = arg;
+	irq_hw_number_t hwirq;
+	unsigned int type = IRQ_TYPE_NONE;
+	int i, rc;
+
+	rc = xics_host_domain_translate(domain, fwspec, &hwirq, &type);
+	if (rc)
+		return rc;
+
+	pr_debug("%s %d/%lx #%d\n", __func__, virq, hwirq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++)
+		irq_domain_set_info(domain, virq + i, hwirq + i, xics_ics->chip,
+				    xics_ics, handle_fasteoi_irq, NULL, NULL);
+
+	return 0;
+}
+
+static void xics_host_domain_free(struct irq_domain *domain,
+				  unsigned int virq, unsigned int nr_irqs)
+{
+	pr_debug("%s %d #%d\n", __func__, virq, nr_irqs);
+}
+#endif
+
 static const struct irq_domain_ops xics_host_ops = {
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	.alloc	= xics_host_domain_alloc,
+	.free	= xics_host_domain_free,
+	.translate = xics_host_domain_translate,
+#endif
 	.match = xics_host_match,
 	.map = xics_host_map,
 	.xlate = xics_host_xlate,
