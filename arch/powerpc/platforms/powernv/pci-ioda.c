@@ -2007,13 +2007,15 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 	irq_set_chip(virq, &phb->ioda.irq_chip);
 }
 
+static struct irq_chip pnv_pci_msi_irq_chip;
+
 /*
  * Returns true iff chip is something that we could call
  * pnv_opal_pci_msi_eoi for.
  */
 bool is_pnv_opal_msi(struct irq_chip *chip)
 {
-	return chip->irq_eoi == pnv_ioda2_msi_eoi;
+	return chip->irq_eoi == pnv_ioda2_msi_eoi || chip == &pnv_pci_msi_irq_chip;
 }
 EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
