@@ -384,6 +384,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	const struct artpec_pcie_of_data *data;
 	enum artpec_pcie_variants variant;
 	enum dw_pcie_device_mode mode;
+	u32 val;
 
 	match = of_match_device(artpec6_pcie_of_match, dev);
 	if (!match)
@@ -432,9 +433,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		if (ret < 0)
 			return ret;
 		break;
-	case DW_PCIE_EP_TYPE: {
-		u32 val;
-
+	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_EP))
 			return -ENODEV;
 
@@ -445,7 +444,6 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		pci->ep.ops = &pcie_ep_ops;
 
 		return dw_pcie_ep_init(&pci->ep);
-	}
 	default:
 		dev_err(dev, "INVALID device type %d\n", artpec6_pcie->mode);
 	}
