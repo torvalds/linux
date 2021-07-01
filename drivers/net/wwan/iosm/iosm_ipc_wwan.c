@@ -107,6 +107,7 @@ static int ipc_wwan_link_transmit(struct sk_buff *skb,
 {
 	struct iosm_netdev_priv *priv = wwan_netdev_drvpriv(netdev);
 	struct iosm_wwan *ipc_wwan = priv->ipc_wwan;
+	unsigned int len = skb->len;
 	int if_id = priv->if_id;
 	int ret;
 
@@ -123,6 +124,8 @@ static int ipc_wwan_link_transmit(struct sk_buff *skb,
 
 	/* Return code of zero is success */
 	if (ret == 0) {
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += len;
 		ret = NETDEV_TX_OK;
 	} else if (ret == -EBUSY) {
 		ret = NETDEV_TX_BUSY;
@@ -140,7 +143,8 @@ exit:
 			ret);
 
 	dev_kfree_skb_any(skb);
-	return ret;
+	netdev->stats.tx_dropped++;
+	return NETDEV_TX_OK;
 }
 
 /* Ops structure for wwan net link */
