@@ -316,7 +316,9 @@ struct bpf_local_storage;
   *	@sk_timer: sock cleanup timer
   *	@sk_stamp: time stamp of last packet received
   *	@sk_stamp_seq: lock for accessing sk_stamp on 32 bit architectures only
-  *	@sk_tsflags: SO_TIMESTAMPING socket options
+  *	@sk_tsflags: SO_TIMESTAMPING flags
+  *	@sk_bind_phc: SO_TIMESTAMPING bind PHC index of PTP virtual clock
+  *	              for timestamping
   *	@sk_tskey: counter to disambiguate concurrent tstamp requests
   *	@sk_zckey: counter to order MSG_ZEROCOPY notifications
   *	@sk_socket: Identd and reporting IO signals
@@ -493,6 +495,7 @@ struct sock {
 	seqlock_t		sk_stamp_seq;
 #endif
 	u16			sk_tsflags;
+	int			sk_bind_phc;
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
@@ -2755,7 +2758,8 @@ void sock_def_readable(struct sock *sk);
 
 int sock_bindtoindex(struct sock *sk, int ifindex, bool lock_sk);
 void sock_set_timestamp(struct sock *sk, int optname, bool valbool);
-int sock_set_timestamping(struct sock *sk, int optname, int val);
+int sock_set_timestamping(struct sock *sk, int optname,
+			  struct so_timestamping timestamping);
 
 void sock_enable_timestamps(struct sock *sk);
 void sock_no_linger(struct sock *sk);

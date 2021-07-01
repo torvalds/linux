@@ -758,6 +758,16 @@ ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
 			      enum ethtool_link_mode_bit_indices link_mode);
 
 /**
+ * ethtool_get_phc_vclocks - Derive phc vclocks information, and caller
+ *                           is responsible to free memory of vclock_index
+ * @dev: pointer to net_device structure
+ * @vclock_index: pointer to pointer of vclock index
+ *
+ * Return number of phc vclocks
+ */
+int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
+
+/**
  * ethtool_sprintf - Write formatted string to ethtool string data
  * @data: Pointer to start of string to update
  * @fmt: Format of string to write

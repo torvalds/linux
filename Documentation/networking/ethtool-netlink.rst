@@ -212,6 +212,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_FEC_SET``               set FEC settings
   ``ETHTOOL_MSG_MODULE_EEPROM_GET``     read SFP module EEPROM
   ``ETHTOOL_MSG_STATS_GET``             get standard statistics
+  ``ETHTOOL_MSG_PHC_VCLOCKS_GET``       get PHC virtual clocks info
   ===================================== ================================
 
 Kernel to userspace:
@@ -250,6 +251,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_FEC_NTF``                  FEC settings
   ``ETHTOOL_MSG_MODULE_EEPROM_GET_REPLY``  read SFP module EEPROM
   ``ETHTOOL_MSG_STATS_GET_REPLY``          standard statistics
+  ``ETHTOOL_MSG_PHC_VCLOCKS_GET_REPLY``    PHC virtual clocks info
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -1477,6 +1479,25 @@ Low and high bounds are inclusive, for example:
  etherStatsPkts512to1023Octets 512  1023
  ============================= ==== ====
 
+PHC_VCLOCKS_GET
+===============
+
+Query device PHC virtual clocks information.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PHC_VCLOCKS_HEADER``      nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PHC_VCLOCKS_HEADER``      nested  reply header
+  ``ETHTOOL_A_PHC_VCLOCKS_NUM``         u32     PHC virtual clocks number
+  ``ETHTOOL_A_PHC_VCLOCKS_INDEX``       s32     PHC index array
+  ====================================  ======  ==========================
+
 Request translation
 ===================
 
@@ -1575,4 +1596,5 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_CABLE_TEST_ACT``
   n/a                                 ``ETHTOOL_MSG_CABLE_TEST_TDR_ACT``
   n/a                                 ``ETHTOOL_MSG_TUNNEL_INFO_GET``
+  n/a                                 ``ETHTOOL_MSG_PHC_VCLOCKS_GET``
   =================================== =====================================
