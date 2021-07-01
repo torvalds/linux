@@ -712,6 +712,21 @@ late_initcall(swiotlb_create_default_debugfs);
 #endif
 
 #ifdef CONFIG_DMA_RESTRICTED_POOL
+
+#ifdef CONFIG_DEBUG_FS
+static void rmem_swiotlb_debugfs_init(struct reserved_mem *rmem)
+{
+	struct io_tlb_mem *mem = rmem->priv;
+
+	mem->debugfs = debugfs_create_dir(rmem->name, debugfs_dir);
+	swiotlb_create_debugfs_files(mem);
+}
+#else
+static void rmem_swiotlb_debugfs_init(struct reserved_mem *rmem)
+{
+}
+#endif
+
 struct page *swiotlb_alloc(struct device *dev, size_t size)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
@@ -766,11 +781,7 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 
 		rmem->priv = mem;
 
-		if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-			mem->debugfs =
-				debugfs_create_dir(rmem->name, debugfs_dir);
-			swiotlb_create_debugfs_files(mem);
-		}
+		rmem_swiotlb_debugfs_init(rmem);
 	}
 
 	dev->dma_io_tlb_mem = mem;
