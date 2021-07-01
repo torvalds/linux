@@ -1366,7 +1366,71 @@ static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 }
 #endif
 
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+static int xive_irq_domain_translate(struct irq_domain *d,
+				     struct irq_fwspec *fwspec,
+				     unsigned long *hwirq,
+				     unsigned int *type)
+{
+	return xive_irq_domain_xlate(d, to_of_node(fwspec->fwnode),
+				     fwspec->param, fwspec->param_count,
+				     hwirq, type);
+}
+
+static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				 unsigned int nr_irqs, void *arg)
+{
+	struct irq_fwspec *fwspec = arg;
+	irq_hw_number_t hwirq;
+	unsigned int type = IRQ_TYPE_NONE;
+	int i, rc;
+
+	rc = xive_irq_domain_translate(domain, fwspec, &hwirq, &type);
+	if (rc)
+		return rc;
+
+	pr_debug("%s %d/%lx #%d\n", __func__, virq, hwirq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++) {
+		/* TODO: call xive_irq_domain_map() */
+
+		/*
+		 * Mark interrupts as edge sensitive by default so that resend
+		 * actually works. Will fix that up below if needed.
+		 */
+		irq_clear_status_flags(virq, IRQ_LEVEL);
+
+		/* allocates and sets handler data */
+		rc = xive_irq_alloc_data(virq + i, hwirq + i);
+		if (rc)
+			return rc;
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
+					      &xive_irq_chip, domain->host_data);
+		irq_set_handler(virq + i, handle_fasteoi_irq);
+	}
+
+	return 0;
+}
+
+static void xive_irq_domain_free(struct irq_domain *domain,
+				 unsigned int virq, unsigned int nr_irqs)
+{
+	int i;
+
+	pr_debug("%s %d #%d\n", __func__, virq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++)
+		xive_irq_free_data(virq + i);
+}
+#endif
+
 static const struct irq_domain_ops xive_irq_domain_ops = {
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	.alloc	= xive_irq_domain_alloc,
+	.free	= xive_irq_domain_free,
+	.translate = xive_irq_domain_translate,
+#endif
 	.match = xive_irq_domain_match,
 	.map = xive_irq_domain_map,
 	.unmap = xive_irq_domain_unmap,
