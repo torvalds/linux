@@ -31,6 +31,8 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 
+#include <drm/drm_drv.h>
+
 /**
  * amdgpu_gmc_pdb0_alloc - allocate vram for pdb0
  *
@@ -99,7 +101,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 
-	switch (bo->tbo.mem.mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_TT:
 		*addr = bo->tbo.ttm->dma_address[0];
 		break;
@@ -110,7 +112,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 		*addr = 0;
 		break;
 	}
-	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, &bo->tbo.mem);
+	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, bo->tbo.resource);
 	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
 }
 
@@ -151,6 +153,10 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
+	int idx;
+
+	if (!drm_dev_enter(&adev->ddev, &idx))
+		return 0;
 
 	/*
 	 * The following is for PTE only. GART does not have PDEs.
@@ -158,6 +164,9 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
 	writeq(value, ptr + (gpu_page_idx * 8));
+
+	drm_dev_exit(idx);
+
 	return 0;
 }
 
@@ -333,6 +342,17 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 }
 
 /**
+ * amdgpu_gmc_fault_key - get hask key from vm fault address and pasid
+ *
+ * @addr: 48 bit physical address, page aligned (36 significant bits)
+ * @pasid: 16 bit process address space identifier
+ */
+static inline uint64_t amdgpu_gmc_fault_key(uint64_t addr, uint16_t pasid)
+{
+	return addr << 4 | pasid;
+}
+
+/**
  * amdgpu_gmc_filter_faults - filter VM faults
  *
  * @adev: amdgpu device structure
@@ -348,8 +368,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
-
-	uint64_t stamp, key = addr << 4 | pasid;
+	uint64_t stamp, key = amdgpu_gmc_fault_key(addr, pasid);
 	struct amdgpu_gmc_fault *fault;
 	uint32_t hash;
 
@@ -365,7 +384,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 	while (fault->timestamp >= stamp) {
 		uint64_t tmp;
 
-		if (fault->key == key)
+		if (atomic64_read(&fault->key) == key)
 			return true;
 
 		tmp = fault->timestamp;
@@ -378,13 +397,43 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 
 	/* Add the fault to the ring */
 	fault = &gmc->fault_ring[gmc->last_fault];
-	fault->key = key;
+	atomic64_set(&fault->key, key);
 	fault->timestamp = timestamp;
 
 	/* And update the hash */
 	fault->next = gmc->fault_hash[hash].idx;
 	gmc->fault_hash[hash].idx = gmc->last_fault++;
 	return false;
+}
+
+/**
+ * amdgpu_gmc_filter_faults_remove - remove address from VM faults filter
+ *
+ * @adev: amdgpu device structure
+ * @addr: address of the VM fault
+ * @pasid: PASID of the process causing the fault
+ *
+ * Remove the address from fault filter, then future vm fault on this address
+ * will pass to retry fault handler to recover.
+ */
+void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
+				     uint16_t pasid)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+	uint64_t key = amdgpu_gmc_fault_key(addr, pasid);
+	struct amdgpu_gmc_fault *fault;
+	uint32_t hash;
+	uint64_t tmp;
+
+	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
+	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
+	do {
+		if (atomic64_cmpxchg(&fault->key, key, 0) == key)
+			break;
+
+		tmp = fault->timestamp;
+		fault = &gmc->fault_ring[fault->next];
+	} while (fault->timestamp < tmp);
 }
 
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
@@ -415,6 +464,13 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
+	if (adev->hdp.ras_funcs &&
+	    adev->hdp.ras_funcs->ras_late_init) {
+		r = adev->hdp.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 
@@ -426,11 +482,15 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 
 	if (adev->mmhub.ras_funcs &&
 	    adev->mmhub.ras_funcs->ras_fini)
-		amdgpu_mmhub_ras_fini(adev);
+		adev->mmhub.ras_funcs->ras_fini(adev);
 
 	if (adev->gmc.xgmi.ras_funcs &&
 	    adev->gmc.xgmi.ras_funcs->ras_fini)
 		adev->gmc.xgmi.ras_funcs->ras_fini(adev);
+
+	if (adev->hdp.ras_funcs &&
+	    adev->hdp.ras_funcs->ras_fini)
+		adev->hdp.ras_funcs->ras_fini(adev);
 }
 
 	/*
@@ -477,7 +537,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_tmz_set -- check and set if a device supports TMZ
+ * amdgpu_gmc_tmz_set -- check and set if a device supports TMZ
  * @adev: amdgpu_device pointer
  *
  * Check and set if an the device @adev supports Trusted Memory
@@ -523,7 +583,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_noretry_set -- set per asic noretry defaults
+ * amdgpu_gmc_noretry_set -- set per asic noretry defaults
  * @adev: amdgpu_device pointer
  *
  * Set a per asic default for the no-retry parameter.
@@ -578,13 +638,18 @@ void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
 	for (i = 0; i < 16; i++) {
 		reg = hub->vm_context0_cntl + hub->ctx_distance * i;
 
-		tmp = RREG32(reg);
+		tmp = (hub_type == AMDGPU_GFXHUB_0) ?
+			RREG32_SOC15_IP(GC, reg) :
+			RREG32_SOC15_IP(MMHUB, reg);
+
 		if (enable)
 			tmp |= hub->vm_cntx_cntl_vm_fault;
 		else
 			tmp &= ~hub->vm_cntx_cntl_vm_fault;
 
-		WREG32(reg, tmp);
+		(hub_type == AMDGPU_GFXHUB_0) ?
+			WREG32_SOC15_IP(GC, reg, tmp) :
+			WREG32_SOC15_IP(MMHUB, reg, tmp);
 	}
 }
 
@@ -719,4 +784,23 @@ uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 {
 	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
+}
+
+void amdgpu_gmc_get_reserved_allocation(struct amdgpu_device *adev)
+{
+	/* Some ASICs need to reserve a region of video memory to avoid access
+	 * from driver */
+	adev->mman.stolen_reserved_offset = 0;
+	adev->mman.stolen_reserved_size = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_YELLOW_CARP:
+		if (amdgpu_discovery == 0) {
+			adev->mman.stolen_reserved_offset = 0x1ffb0000;
+			adev->mman.stolen_reserved_size = 64 * PAGE_SIZE;
+		}
+		break;
+	default:
+		break;
+	}
 }

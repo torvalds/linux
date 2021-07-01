@@ -42,6 +42,7 @@ struct mm_struct;
 #include "kfd_device_queue_manager.h"
 #include "kfd_dbgmgr.h"
 #include "kfd_iommu.h"
+#include "kfd_svm.h"
 
 /*
  * List of struct kfd_process (field kfd_process).
@@ -108,8 +109,6 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 
 	workarea = container_of(work, struct kfd_sdma_activity_handler_workarea,
 				sdma_activity_work);
-	if (!workarea)
-		return;
 
 	pdd = workarea->pdd;
 	if (!pdd)
@@ -250,7 +249,7 @@ cleanup:
 }
 
 /**
- * @kfd_get_cu_occupancy() - Collect number of waves in-flight on this device
+ * @kfd_get_cu_occupancy - Collect number of waves in-flight on this device
  * by current process. Translates acquired wave count into number of compute units
  * that are occupied.
  *
@@ -647,8 +646,9 @@ static void kfd_process_free_gpuvm(struct kgd_mem *mem,
 {
 	struct kfd_dev *dev = pdd->dev;
 
-	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->kgd, mem, pdd->vm);
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, mem, NULL);
+	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->kgd, mem, pdd->drm_priv);
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, mem, pdd->drm_priv,
+					       NULL);
 }
 
 /* kfd_process_alloc_gpuvm - Allocate GPU VM for the KFD process
@@ -667,11 +667,12 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 	int err;
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->kgd, gpu_va, size,
-						 pdd->vm, &mem, NULL, flags);
+						 pdd->drm_priv, &mem, NULL, flags);
 	if (err)
 		goto err_alloc_mem;
 
-	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->kgd, mem, pdd->vm);
+	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->kgd, mem,
+			pdd->drm_priv, NULL);
 	if (err)
 		goto err_map_mem;
 
@@ -712,7 +713,8 @@ sync_memory_failed:
 	return err;
 
 err_map_mem:
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->kgd, mem, NULL);
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->kgd, mem, pdd->drm_priv,
+					       NULL);
 err_alloc_mem:
 	*kptr = NULL;
 	return err;
@@ -901,13 +903,14 @@ static void kfd_process_device_free_bos(struct kfd_process_device *pdd)
 		for (i = 0; i < p->n_pdds; i++) {
 			struct kfd_process_device *peer_pdd = p->pdds[i];
 
-			if (!peer_pdd->vm)
+			if (!peer_pdd->drm_priv)
 				continue;
 			amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
-				peer_pdd->dev->kgd, mem, peer_pdd->vm);
+				peer_pdd->dev->kgd, mem, peer_pdd->drm_priv);
 		}
 
-		amdgpu_amdkfd_gpuvm_free_memory_of_gpu(pdd->dev->kgd, mem, NULL);
+		amdgpu_amdkfd_gpuvm_free_memory_of_gpu(pdd->dev->kgd, mem,
+						       pdd->drm_priv, NULL);
 		kfd_process_device_remove_obj_handle(pdd, id);
 	}
 }
@@ -932,7 +935,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		if (pdd->drm_file) {
 			amdgpu_amdkfd_gpuvm_release_process_vm(
-					pdd->dev->kgd, pdd->vm);
+					pdd->dev->kgd, pdd->drm_priv);
 			fput(pdd->drm_file);
 		}
 
@@ -1000,6 +1003,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 	kfd_iommu_unbind_process(p);
 
 	kfd_process_free_outstanding_kfd_bos(p);
+	svm_range_list_fini(p);
 
 	kfd_process_destroy_pdds(p);
 	dma_fence_put(p->ef);
@@ -1058,6 +1062,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	cancel_delayed_work_sync(&p->eviction_work);
 	cancel_delayed_work_sync(&p->restore_work);
+	cancel_delayed_work_sync(&p->svms.restore_work);
 
 	mutex_lock(&p->mutex);
 
@@ -1186,6 +1191,56 @@ void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
 	}
 }
 
+bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
+{
+	int i;
+
+	/* On most GFXv9 GPUs, the retry mode in the SQ must match the
+	 * boot time retry setting. Mixing processes with different
+	 * XNACK/retry settings can hang the GPU.
+	 *
+	 * Different GPUs can have different noretry settings depending
+	 * on HW bugs or limitations. We need to find at least one
+	 * XNACK mode for this process that's compatible with all GPUs.
+	 * Fortunately GPUs with retry enabled (noretry=0) can run code
+	 * built for XNACK-off. On GFXv9 it may perform slower.
+	 *
+	 * Therefore applications built for XNACK-off can always be
+	 * supported and will be our fallback if any GPU does not
+	 * support retry.
+	 */
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_dev *dev = p->pdds[i]->dev;
+
+		/* Only consider GFXv9 and higher GPUs. Older GPUs don't
+		 * support the SVM APIs and don't need to be considered
+		 * for the XNACK mode selection.
+		 */
+		if (dev->device_info->asic_family < CHIP_VEGA10)
+			continue;
+		/* Aldebaran can always support XNACK because it can support
+		 * per-process XNACK mode selection. But let the dev->noretry
+		 * setting still influence the default XNACK mode.
+		 */
+		if (supported &&
+		    dev->device_info->asic_family == CHIP_ALDEBARAN)
+			continue;
+
+		/* GFXv10 and later GPUs do not support shader preemption
+		 * during page faults. This can lead to poor QoS for queue
+		 * management and memory-manager-related preemptions or
+		 * even deadlocks.
+		 */
+		if (dev->device_info->asic_family >= CHIP_NAVI10)
+			return false;
+
+		if (dev->noretry)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * On return the kfd_process is fully operational and will be freed when the
  * mm is released
@@ -1224,6 +1279,13 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err != 0)
 		goto err_init_apertures;
 
+	/* Check XNACK support after PDDs are created in kfd_init_apertures */
+	process->xnack_enabled = kfd_process_xnack_mode(process, false);
+
+	err = svm_range_list_init(process);
+	if (err)
+		goto err_init_svm_range_list;
+
 	/* alloc_notifier needs to find the process in the hash table */
 	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
 			(uintptr_t)process->mm);
@@ -1246,6 +1308,8 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 
 err_register_notifier:
 	hash_del_rcu(&process->kfd_processes);
+	svm_range_list_fini(process);
+err_init_svm_range_list:
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
 err_init_apertures:
@@ -1375,7 +1439,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	if (!drm_file)
 		return -EINVAL;
 
-	if (pdd->vm)
+	if (pdd->drm_priv)
 		return -EBUSY;
 
 	p = pdd->process;
@@ -1383,13 +1447,12 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	ret = amdgpu_amdkfd_gpuvm_acquire_process_vm(
 		dev->kgd, drm_file, p->pasid,
-		&pdd->vm, &p->kgd_process_info, &p->ef);
+		&p->kgd_process_info, &p->ef);
 	if (ret) {
 		pr_err("Failed to create process VM object\n");
 		return ret;
 	}
-
-	amdgpu_vm_set_task_info(pdd->vm);
+	pdd->drm_priv = drm_file->private_data;
 
 	ret = kfd_process_device_reserve_ib_mem(pdd);
 	if (ret)
@@ -1405,7 +1468,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 err_init_cwsr:
 err_reserve_ib_mem:
 	kfd_process_device_free_bos(pdd);
-	pdd->vm = NULL;
+	pdd->drm_priv = NULL;
 
 	return ret;
 }
@@ -1429,7 +1492,7 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (!pdd->vm)
+	if (!pdd->drm_priv)
 		return ERR_PTR(-ENODEV);
 
 	/*
@@ -1600,6 +1663,32 @@ int kfd_process_restore_queues(struct kfd_process *p)
 	return ret;
 }
 
+int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id)
+{
+	int i;
+
+	for (i = 0; i < p->n_pdds; i++)
+		if (p->pdds[i] && gpu_id == p->pdds[i]->dev->id)
+			return i;
+	return -EINVAL;
+}
+
+int
+kfd_process_gpuid_from_kgd(struct kfd_process *p, struct amdgpu_device *adev,
+			   uint32_t *gpuid, uint32_t *gpuidx)
+{
+	struct kgd_dev *kgd = (struct kgd_dev *)adev;
+	int i;
+
+	for (i = 0; i < p->n_pdds; i++)
+		if (p->pdds[i] && p->pdds[i]->dev->kgd == kgd) {
+			*gpuid = p->pdds[i]->dev->id;
+			*gpuidx = i;
+			return 0;
+		}
+	return -EINVAL;
+}
+
 static void evict_process_worker(struct work_struct *work)
 {
 	int ret;
@@ -1748,7 +1837,7 @@ int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			       KFD_CWSR_TBA_TMA_SIZE, vma->vm_page_prot);
 }
 
-void kfd_flush_tlb(struct kfd_process_device *pdd)
+void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 {
 	struct kfd_dev *dev = pdd->dev;
 
@@ -1761,7 +1850,7 @@ void kfd_flush_tlb(struct kfd_process_device *pdd)
 							pdd->qpd.vmid);
 	} else {
 		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->kgd,
-						pdd->process->pasid);
+					pdd->process->pasid, type);
 	}
 }
 

@@ -31,6 +31,9 @@
 
 MODULE_FIRMWARE("amdgpu/aldebaran_sos.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_ta.bin");
+MODULE_FIRMWARE("amdgpu/yellow_carp_asd.bin");
+MODULE_FIRMWARE("amdgpu/yellow_carp_toc.bin");
+MODULE_FIRMWARE("amdgpu/yellow_carp_ta.bin");
 
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
@@ -42,17 +45,37 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case CHIP_ALDEBARAN:
 		chip_name = "aldebaran";
 		break;
+	case CHIP_YELLOW_CARP:
+		chip_name = "yellow_carp";
+		break;
+	default:
+		BUG();
+	}
+	switch (adev->asic_type) {
+	case CHIP_ALDEBARAN:
+		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_ta_microcode(&adev->psp, chip_name);
+		if (err)
+			return err;
+		break;
+	case CHIP_YELLOW_CARP:
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_toc_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_ta_microcode(psp, chip_name);
+		if (err)
+			return err;
+		break;
 	default:
 		BUG();
 	}
 
-	err = psp_init_sos_microcode(psp, chip_name);
-	if (err)
-		return err;
-
-	err = psp_init_ta_microcode(&adev->psp, chip_name);
-
-	return err;
+	return 0;
 }
 
 static bool psp_v13_0_is_sos_alive(struct psp_context *psp)

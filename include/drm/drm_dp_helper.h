@@ -29,6 +29,7 @@
 #include <drm/drm_connector.h>
 
 struct drm_device;
+struct drm_dp_aux;
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -687,14 +688,14 @@ struct drm_device;
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
 # define DP_DECOMPRESSION_EN                (1 << 0)
 
-#define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
-# define DP_PSR_ENABLE			    (1 << 0)
-# define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
-# define DP_PSR_CRC_VERIFICATION	    (1 << 2)
-# define DP_PSR_FRAME_CAPTURE		    (1 << 3)
-# define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
-# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
-# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
+#define DP_PSR_EN_CFG				0x170   /* XXX 1.2? */
+# define DP_PSR_ENABLE				BIT(0)
+# define DP_PSR_MAIN_LINK_ACTIVE		BIT(1)
+# define DP_PSR_CRC_VERIFICATION		BIT(2)
+# define DP_PSR_FRAME_CAPTURE			BIT(3)
+# define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
+# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS		BIT(5) /* eDP 1.4a */
+# define DP_PSR_ENABLE_PSR2			BIT(6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -1376,9 +1377,26 @@ enum drm_dp_phy {
 #define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+
+#define __DP_FEC1_BASE					    0xf0290 /* 1.4 */
+#define __DP_FEC2_BASE					    0xf0298 /* 1.4 */
+#define DP_FEC_BASE(dp_phy) \
+	(__DP_FEC1_BASE + ((__DP_FEC2_BASE - __DP_FEC1_BASE) * \
+			   ((dp_phy) - DP_PHY_LTTPR1)))
+
+#define DP_FEC_REG(dp_phy, fec1_reg) \
+	(DP_FEC_BASE(dp_phy) - DP_FEC_BASE(DP_PHY_LTTPR1) + fec1_reg)
+
 #define DP_FEC_STATUS_PHY_REPEATER1			    0xf0290 /* 1.4 */
+#define DP_FEC_STATUS_PHY_REPEATER(dp_phy) \
+	DP_FEC_REG(dp_phy, DP_FEC_STATUS_PHY_REPEATER1)
+
 #define DP_FEC_ERROR_COUNT_PHY_REPEATER1                    0xf0291 /* 1.4 */
 #define DP_FEC_CAPABILITY_PHY_REPEATER1                     0xf0294 /* 1.4a */
+
+#define DP_LTTPR_MAX_ADD				    0xf02ff /* 1.4 */
+
+#define DP_DPCD_MAX_ADD					    0xfffff /* 1.4 */
 
 /* Repeater modes */
 #define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */
@@ -1482,10 +1500,13 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 #define DP_LTTPR_COMMON_CAP_SIZE	8
 #define DP_LTTPR_PHY_CAP_SIZE		3
 
-void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
+					    const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_lttpr_link_train_clock_recovery_delay(void);
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
-void drm_dp_lttpr_link_train_channel_eq_delay(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
+void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
+					const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_lttpr_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
+					      const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
@@ -1840,6 +1861,8 @@ struct drm_dp_aux_cec {
  * @name: user-visible name of this AUX channel and the I2C-over-AUX adapter
  * @ddc: I2C adapter that can be used for I2C-over-AUX communication
  * @dev: pointer to struct device that is the parent for this AUX channel
+ * @drm_dev: pointer to the &drm_device that owns this AUX channel. Beware, this
+ * may be %NULL before drm_dp_aux_register() has been called.
  * @crtc: backpointer to the crtc that is currently using this AUX channel
  * @hw_mutex: internal mutex used for locking transfers
  * @crc_work: worker that captures CRCs for each frame
@@ -1847,7 +1870,11 @@ struct drm_dp_aux_cec {
  * @transfer: transfers a message representing a single AUX transaction
  *
  * The @dev field should be set to a pointer to the device that implements the
- * AUX channel.
+ * AUX channel. As well, the @drm_dev field should be set to the &drm_device
+ * that will be using this AUX channel as early as possible. For many graphics
+ * drivers this should happen before drm_dp_aux_init(), however it's perfectly
+ * fine to set this field later so long as it's assigned before calling
+ * drm_dp_aux_register().
  *
  * The @name field may be used to specify the name of the I2C adapter. If set to
  * %NULL, dev_name() of @dev will be used.
@@ -1879,6 +1906,7 @@ struct drm_dp_aux {
 	const char *name;
 	struct i2c_adapter ddc;
 	struct device *dev;
+	struct drm_device *drm_dev;
 	struct drm_crtc *crtc;
 	struct mutex hw_mutex;
 	struct work_struct crc_work;

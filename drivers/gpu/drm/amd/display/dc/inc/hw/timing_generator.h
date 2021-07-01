@@ -173,6 +173,7 @@ struct timing_generator_funcs {
 
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
+	bool (*immediate_disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
 	void (*get_position)(struct timing_generator *tg,
 				struct crtc_position *position);
@@ -223,6 +224,8 @@ struct timing_generator_funcs {
 	void (*enable_advanced_request)(struct timing_generator *tg,
 					bool enable, const struct dc_crtc_timing *timing);
 	void (*set_drr)(struct timing_generator *tg, const struct drr_params *params);
+	void (*set_vtotal_min_max)(struct timing_generator *optc, int vtotal_min, int vtotal_max);
+	void (*get_last_used_drr_vtotal)(struct timing_generator *optc, uint32_t *refresh_rate);
 	void (*set_static_screen_control)(struct timing_generator *tg,
 						uint32_t event_triggers,
 						uint32_t num_frames);

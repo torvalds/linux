@@ -61,7 +61,7 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 		int rel;
 
 		rcu_read_lock();
-		fobj = rcu_dereference(bo->tbo.base.resv->fence);
+		fobj = dma_resv_shared_list(bo->tbo.base.resv);
 		rel = fobj ? fobj->shared_count : 0;
 		rcu_read_unlock();
 

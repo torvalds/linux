@@ -271,7 +271,7 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 }
 
 /**
- * sdma_v2_4_hdp_flush_ring_emit - emit an hdp flush on the DMA ring
+ * sdma_v2_4_ring_emit_hdp_flush - emit an hdp flush on the DMA ring
  *
  * @ring: amdgpu ring pointer
  *

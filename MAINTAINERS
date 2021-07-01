@@ -878,7 +878,7 @@ M:	Harry Wentland <harry.wentland@amd.com>
 M:	Leo Li <sunpeng.li@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
-T:	git git://people.freedesktop.org/~agd5f/linux
+T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/display/
 
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
@@ -954,7 +954,7 @@ AMD POWERPLAY
 M:	Evan Quan <evan.quan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
-T:	git git://people.freedesktop.org/~agd5f/linux
+T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/pm/powerplay/
 
 AMD SEATTLE DEVICE TREE SUPPORT
@@ -5912,6 +5912,13 @@ S:	Orphan / Obsolete
 F:	drivers/gpu/drm/savage/
 F:	include/uapi/drm/savage_drm.h
 
+DRM DRIVER FOR SIMPLE FRAMEBUFFERS
+M:	Thomas Zimmermann <tzimmermann@suse.de>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	drivers/gpu/drm/tiny/simpledrm.c
+
 DRM DRIVER FOR SIS VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/sis/
@@ -6119,6 +6126,14 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/hisilicon/
 F:	drivers/gpu/drm/hisilicon/
 
+DRM DRIVER FOR HYPERV SYNTHETIC VIDEO DEVICE
+M:	Deepak Rawat <drawat.floss@gmail.com>
+L:	linux-hyperv@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	drivers/gpu/drm/hyperv
+
 DRM DRIVERS FOR LIMA
 M:	Qiang Yu <yuq825@gmail.com>
 L:	dri-devel@lists.freedesktop.org
@@ -6281,7 +6296,7 @@ M:	Christian Koenig <christian.koenig@amd.com>
 M:	Huang Rui <ray.huang@amd.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-T:	git git://people.freedesktop.org/~agd5f/linux
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/ttm/
 F:	include/drm/ttm/
 
@@ -9772,6 +9787,14 @@ W:	http://palosaari.fi/linux/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 F:	drivers/media/tuners/it913x*
+
+ITE IT66121 HDMI BRIDGE DRIVER
+M:	Phong LE <ple@baylibre.com>
+M:	Neil Armstrong <narmstrong@baylibre.com>
+S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	Documentation/devicetree/bindings/display/bridge/ite,it66121.yaml
+F:	drivers/gpu/drm/bridge/ite-it66121.c
 
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
@@ -15336,6 +15359,7 @@ F:	drivers/net/wireless/quantenna
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
+M:	Pan, Xinhui <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git

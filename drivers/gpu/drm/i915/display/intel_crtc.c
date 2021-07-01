@@ -302,11 +302,11 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		if (IS_CHERRYVIEW(dev_priv) ||
 		    IS_VALLEYVIEW(dev_priv) || IS_G4X(dev_priv))
 			funcs = &g4x_crtc_funcs;
-		else if (IS_DISPLAY_VER(dev_priv, 4))
+		else if (DISPLAY_VER(dev_priv) == 4)
 			funcs = &i965_crtc_funcs;
 		else if (IS_I945GM(dev_priv) || IS_I915GM(dev_priv))
 			funcs = &i915gm_crtc_funcs;
-		else if (IS_DISPLAY_VER(dev_priv, 3))
+		else if (DISPLAY_VER(dev_priv) == 3)
 			funcs = &i915_crtc_funcs;
 		else
 			funcs = &i8xx_crtc_funcs;

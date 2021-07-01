@@ -98,7 +98,7 @@ test_stream(struct i915_perf *perf)
 						   I915_ENGINE_CLASS_RENDER,
 						   0),
 		.sample_flags = SAMPLE_OA_REPORT,
-		.oa_format = IS_GEN(perf->i915, 12) ?
+		.oa_format = GRAPHICS_VER(perf->i915) == 12 ?
 		I915_OA_FORMAT_A32u40_A4u32_B8_C8 : I915_OA_FORMAT_C4_B8,
 	};
 	struct i915_perf_stream *stream;
@@ -162,7 +162,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		return PTR_ERR(cs);
 
 	len = 5;
-	if (INTEL_GEN(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->engine->i915) >= 8)
 		len++;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(len);
@@ -307,7 +307,7 @@ static int live_noa_gpr(void *arg)
 	}
 
 	/* Poison the ce->vm so we detect writes not to the GGTT gt->scratch */
-	scratch = kmap(__px_page(ce->vm->scratch[0]));
+	scratch = __px_vaddr(ce->vm->scratch[0]);
 	memset(scratch, POISON_FREE, PAGE_SIZE);
 
 	rq = intel_context_create_request(ce);
@@ -363,7 +363,7 @@ static int live_noa_gpr(void *arg)
 		}
 
 		cmd = MI_STORE_REGISTER_MEM;
-		if (INTEL_GEN(i915) >= 8)
+		if (GRAPHICS_VER(i915) >= 8)
 			cmd++;
 		cmd |= MI_USE_GGTT;
 
@@ -405,7 +405,6 @@ static int live_noa_gpr(void *arg)
 out_rq:
 	i915_request_put(rq);
 out_ce:
-	kunmap(__px_page(ce->vm->scratch[0]));
 	intel_context_put(ce);
 out:
 	stream_destroy(stream);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 1998-2015 VMware, Inc.
+ * Copyright 1998-2021 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -98,6 +98,10 @@ typedef uint32 SVGAMobId;
 #define SVGA_MAGIC         0x900000UL
 #define SVGA_MAKE_ID(ver)  (SVGA_MAGIC << 8 | (ver))
 
+/* Version 3 has the control bar instead of the FIFO */
+#define SVGA_VERSION_3     3
+#define SVGA_ID_3          SVGA_MAKE_ID(SVGA_VERSION_3)
+
 /* Version 2 let the address of the frame buffer be unsigned on Win32 */
 #define SVGA_VERSION_2     2
 #define SVGA_ID_2          SVGA_MAKE_ID(SVGA_VERSION_2)
@@ -129,11 +133,12 @@ typedef uint32 SVGAMobId;
  * Interrupts are only supported when the
  * SVGA_CAP_IRQMASK capability is present.
  */
-#define SVGA_IRQFLAG_ANY_FENCE            0x1    /* Any fence was passed */
-#define SVGA_IRQFLAG_FIFO_PROGRESS        0x2    /* Made forward progress in the FIFO */
-#define SVGA_IRQFLAG_FENCE_GOAL           0x4    /* SVGA_FIFO_FENCE_GOAL reached */
-#define SVGA_IRQFLAG_COMMAND_BUFFER       0x8    /* Command buffer completed */
-#define SVGA_IRQFLAG_ERROR                0x10   /* Error while processing commands */
+#define SVGA_IRQFLAG_ANY_FENCE            (1 << 0) /* Any fence was passed */
+#define SVGA_IRQFLAG_FIFO_PROGRESS        (1 << 1) /* Made forward progress in the FIFO */
+#define SVGA_IRQFLAG_FENCE_GOAL           (1 << 2) /* SVGA_FIFO_FENCE_GOAL reached */
+#define SVGA_IRQFLAG_COMMAND_BUFFER       (1 << 3) /* Command buffer completed */
+#define SVGA_IRQFLAG_ERROR                (1 << 4) /* Error while processing commands */
+#define SVGA_IRQFLAG_MAX                  (1 << 5)
 
 /*
  * The byte-size is the size of the actual cursor data,
@@ -286,7 +291,32 @@ enum {
     */
    SVGA_REG_GBOBJECT_MEM_SIZE_KB = 76,
 
-   SVGA_REG_TOP = 77,               /* Must be 1 more than the last register */
+   /*
+    +    * These registers are for the addresses of the memory BARs for SVGA3
+    */
+   SVGA_REG_REGS_START_HIGH32 = 77,
+   SVGA_REG_REGS_START_LOW32 = 78,
+   SVGA_REG_FB_START_HIGH32 = 79,
+   SVGA_REG_FB_START_LOW32 = 80,
+
+   /*
+    * A hint register that recommends which quality level the guest should
+    * currently use to define multisample surfaces.
+    *
+    * If the register is SVGA_REG_MSHINT_DISABLED,
+    * the guest is only allowed to use SVGA3D_MS_QUALITY_FULL.
+    *
+    * Otherwise, this is a live value that can change while the VM is
+    * powered on with the hint suggestion for which quality level the guest
+    * should be using.  Guests are free to ignore the hint and use either
+    * RESOLVE or FULL quality.
+    */
+   SVGA_REG_MSHINT = 81,
+
+   SVGA_REG_IRQ_STATUS = 82,
+   SVGA_REG_DIRTY_TRACKING = 83,
+
+   SVGA_REG_TOP = 84,               /* Must be 1 more than the last register */
 
    SVGA_PALETTE_BASE = 1024,        /* Base of SVGA color map */
    /* Next 768 (== 256*3) registers exist for colormap */
@@ -309,6 +339,17 @@ typedef enum SVGARegGuestDriverId {
 
    SVGA_REG_GUEST_DRIVER_ID_SUBMIT  = MAX_UINT32,
 } SVGARegGuestDriverId;
+
+typedef enum SVGARegMSHint {
+   SVGA_REG_MSHINT_DISABLED = 0,
+   SVGA_REG_MSHINT_FULL     = 1,
+   SVGA_REG_MSHINT_RESOLVED = 2,
+} SVGARegMSHint;
+
+typedef enum SVGARegDirtyTracking {
+   SVGA_REG_DIRTY_TRACKING_PER_IMAGE = 0,
+   SVGA_REG_DIRTY_TRACKING_PER_SURFACE = 1,
+} SVGARegDirtyTracking;
 
 
 /*

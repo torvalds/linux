@@ -121,6 +121,9 @@ static const struct file_operations amdgpu_fw_attestation_debugfs_ops = {
 
 static int amdgpu_is_fw_attestation_supported(struct amdgpu_device *adev)
 {
+	if (adev->flags & AMD_IS_APU)
+		return 0;
+
 	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
 		return 1;
 

@@ -696,6 +696,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WINBUF_START_ADDR_HI			0x80d
 
+#define DC_WINBUF_START_ADDR_HI_U		0x80f
+#define DC_WINBUF_START_ADDR_HI_V		0x811
+
 #define DC_WINBUF_CDE_CONTROL			0x82f
 #define  ENABLE_SURFACE (1 << 0)
 
@@ -711,14 +714,33 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_DISP_PCALC_HEAD_SET_CROPPED_POINT_IN_CURSOR	0x442
 #define DC_DISP_PCALC_HEAD_SET_CROPPED_SIZE_IN_CURSOR	0x446
 
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPA 0x500
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPB 0x501
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPC 0x502
+#define  MAX_PIXELS_5TAP444(x) ((x) & 0xffff)
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPD 0x503
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPE 0x504
+#define  MAX_PIXELS_2TAP444(x) ((x) & 0xffff)
+#define DC_WINC_PRECOMP_WGRP_PIPE_CAPF 0x505
+
 #define DC_WIN_CORE_WINDOWGROUP_SET_CONTROL	0x702
 #define OWNER_MASK (0xf << 0)
 #define OWNER(x) (((x) & 0xf) << 0)
 
 #define DC_WIN_CROPPED_SIZE			0x706
 
+#define DC_WIN_SET_INPUT_SCALER_H_START_PHASE	0x707
+#define DC_WIN_SET_INPUT_SCALER_V_START_PHASE	0x708
+
 #define DC_WIN_PLANAR_STORAGE			0x709
 #define PITCH(x) (((x) >> 6) & 0x1fff)
+
+#define DC_WIN_PLANAR_STORAGE_UV		0x70a
+#define  PITCH_U(x) ((((x) >> 6) & 0x1fff) <<  0)
+#define  PITCH_V(x) ((((x) >> 6) & 0x1fff) << 16)
+
+#define DC_WIN_SET_INPUT_SCALER_HPHASE_INCR	0x70b
+#define DC_WIN_SET_INPUT_SCALER_VPHASE_INCR	0x70c
 
 #define DC_WIN_SET_PARAMS			0x70d
 #define  CLAMP_BEFORE_BLEND (1 << 15)
@@ -739,6 +761,10 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define  HORIZONTAL_TAPS_5 (4 << 3)
 #define  VERTICAL_TAPS_2 (1 << 0)
 #define  VERTICAL_TAPS_5 (4 << 0)
+
+#define DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_COEFF 0x70f
+#define  COEFF_INDEX(x) (((x) & 0xff) << 15)
+#define  COEFF_DATA(x) (((x) & 0x3ff) << 0)
 
 #define DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_USAGE	0x711
 #define  INPUT_SCALER_USE422  (1 << 2)
