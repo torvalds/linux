@@ -72,7 +72,6 @@ struct f_ncm {
 	struct sk_buff			*skb_tx_data;
 	struct sk_buff			*skb_tx_ndp;
 	u16				ndp_dgram_count;
-	bool				timer_force_tx;
 	struct hrtimer			task_timer;
 	bool				timer_stopping;
 };
@@ -1126,8 +1125,11 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		dev_consume_skb_any(skb);
 		skb = NULL;
 
-	} else if (ncm->skb_tx_data && ncm->timer_force_tx) {
-		/* If the tx was requested because of a timeout then send */
+	} else if (ncm->skb_tx_data) {
+		/* If we get here ncm_wrap_ntb() was called with NULL skb,
+		 * because eth_start_xmit() was called with NULL skb by
+		 * ncm_tx_timeout() - hence, this is our signal to flush/send.
+		 */
 		skb2 = package_for_tx(ncm);
 		if (!skb2)
 			goto err;
@@ -1158,8 +1160,6 @@ static enum hrtimer_restart ncm_tx_timeout(struct hrtimer *data)
 
 	/* Only send if data is available. */
 	if (!ncm->timer_stopping && ncm->skb_tx_data) {
-		ncm->timer_force_tx = true;
-
 		/* XXX This allowance of a NULL skb argument to ndo_start_xmit
 		 * XXX is not sane.  The gadget layer should be redesigned so
 		 * XXX that the dev->wrap() invocations to build SKBs is transparent
@@ -1167,8 +1167,6 @@ static enum hrtimer_restart ncm_tx_timeout(struct hrtimer *data)
 		 * XXX interface.
 		 */
 		ncm->netdev->netdev_ops->ndo_start_xmit(NULL, ncm->netdev);
-
-		ncm->timer_force_tx = false;
 	}
 	return HRTIMER_NORESTART;
 }
