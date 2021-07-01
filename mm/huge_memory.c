@@ -2309,16 +2309,20 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
 
 static void unmap_page(struct page *page)
 {
-	enum ttu_flags ttu_flags = TTU_IGNORE_MLOCK | TTU_SYNC |
-		TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD;
+	enum ttu_flags ttu_flags = TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD |
+		TTU_SYNC;
 
 	VM_BUG_ON_PAGE(!PageHead(page), page);
 
-	/* If TTU_SPLIT_FREEZE is ever extended to file, update remap_page() */
+	/*
+	 * Anon pages need migration entries to preserve them, but file
+	 * pages can simply be left unmapped, then faulted back on demand.
+	 * If that is ever changed (perhaps for mlock), update remap_page().
+	 */
 	if (PageAnon(page))
-		ttu_flags |= TTU_SPLIT_FREEZE;
-
-	try_to_unmap(page, ttu_flags);
+		try_to_migrate(page, ttu_flags);
+	else
+		try_to_unmap(page, ttu_flags | TTU_IGNORE_MLOCK);
 
 	VM_WARN_ON_ONCE_PAGE(page_mapped(page), page);
 }
