@@ -162,7 +162,7 @@ char *strcat(char *dest, const char *src)
 		"	jo	0b\n"
 		"1:	mvst	%[dummy],%[src]\n"
 		"	jo	1b\n"
-		: [dummy] "=&a" (dummy), [dest] "+&a" (dest), [src] "+&a" (src)
+		: [dummy] "+&a" (dummy), [dest] "+&a" (dest), [src] "+&a" (src)
 		:
 		: "cc", "memory", "0");
 	return ret;
