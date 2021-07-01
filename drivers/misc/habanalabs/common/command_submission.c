@@ -2102,6 +2102,12 @@ wait_again:
 			spin_unlock(&interrupt->wait_list_lock);
 			goto wait_again;
 		}
+	} else if (completion_rc == -ERESTARTSYS) {
+		dev_err_ratelimited(hdev->dev,
+			"user process got signal while waiting for interrupt ID %d\n",
+			interrupt->interrupt_id);
+		*status = HL_WAIT_CS_STATUS_INTERRUPTED;
+		rc = -EINTR;
 	} else {
 		*status = CS_WAIT_STATUS_BUSY;
 	}
@@ -2159,8 +2165,9 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-			"interrupt_wait_ioctl failed (%d)\n", rc);
+		if (rc != -EINTR)
+			dev_err_ratelimited(hdev->dev,
+				"interrupt_wait_ioctl failed (%d)\n", rc);
 
 		return rc;
 	}
