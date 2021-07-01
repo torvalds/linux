@@ -516,7 +516,8 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	return 0;
 
 err_llb:
-	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_llb);
+	if (drm_mm_node_allocated(&fbc->compressed_llb))
+		i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_llb);
 err:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
 		drm_info_once(&dev_priv->drm, "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
