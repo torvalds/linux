@@ -922,13 +922,12 @@ int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 }
 
 int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
-			   struct irq_desc *host_desc)
+			   unsigned long host_irq)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
 	struct kvmppc_xive_src_block *sb;
 	struct kvmppc_xive_irq_state *state;
-	struct irq_data *host_data = irq_desc_get_irq_data(host_desc);
-	unsigned int host_irq = irq_desc_get_irq(host_desc);
+	struct irq_data *host_data = irq_get_irq_data(host_irq);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(host_data);
 	u16 idx;
 	u8 prio;
@@ -937,7 +936,8 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	if (!xive)
 		return -ENODEV;
 
-	pr_devel("set_mapped girq 0x%lx host HW irq 0x%x...\n",guest_irq, hw_irq);
+	pr_debug("%s: GIRQ 0x%lx host IRQ %ld XIVE HW IRQ 0x%x\n",
+		 __func__, guest_irq, host_irq, hw_irq);
 
 	sb = kvmppc_xive_find_source(xive, guest_irq, &idx);
 	if (!sb)
@@ -959,7 +959,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	 */
 	rc = irq_set_vcpu_affinity(host_irq, state);
 	if (rc) {
-		pr_err("Failed to set VCPU affinity for irq %d\n", host_irq);
+		pr_err("Failed to set VCPU affinity for host IRQ %ld\n", host_irq);
 		return rc;
 	}
 
@@ -1019,12 +1019,11 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 EXPORT_SYMBOL_GPL(kvmppc_xive_set_mapped);
 
 int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
-			   struct irq_desc *host_desc)
+			   unsigned long host_irq)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
 	struct kvmppc_xive_src_block *sb;
 	struct kvmppc_xive_irq_state *state;
-	unsigned int host_irq = irq_desc_get_irq(host_desc);
 	u16 idx;
 	u8 prio;
 	int rc;
@@ -1032,7 +1031,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	if (!xive)
 		return -ENODEV;
 
-	pr_devel("clr_mapped girq 0x%lx...\n", guest_irq);
+	pr_debug("%s: GIRQ 0x%lx host IRQ %ld\n", __func__, guest_irq, host_irq);
 
 	sb = kvmppc_xive_find_source(xive, guest_irq, &idx);
 	if (!sb)
@@ -1059,7 +1058,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	/* Release the passed-through interrupt to the host */
 	rc = irq_set_vcpu_affinity(host_irq, NULL);
 	if (rc) {
-		pr_err("Failed to clr VCPU affinity for irq %d\n", host_irq);
+		pr_err("Failed to clr VCPU affinity for host IRQ %ld\n", host_irq);
 		return rc;
 	}
 

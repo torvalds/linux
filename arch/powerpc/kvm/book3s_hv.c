@@ -5398,7 +5398,7 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 		pimap->n_mapped++;
 
 	if (xics_on_xive())
-		rc = kvmppc_xive_set_mapped(kvm, guest_gsi, desc);
+		rc = kvmppc_xive_set_mapped(kvm, guest_gsi, host_irq);
 	else
 		kvmppc_xics_set_mapped(kvm, guest_gsi, desc->irq_data.hwirq);
 	if (rc)
@@ -5439,7 +5439,7 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	}
 
 	if (xics_on_xive())
-		rc = kvmppc_xive_clr_mapped(kvm, guest_gsi, pimap->mapped[i].desc);
+		rc = kvmppc_xive_clr_mapped(kvm, guest_gsi, host_irq);
 	else
 		kvmppc_xics_clr_mapped(kvm, guest_gsi, pimap->mapped[i].r_hwirq);
 
