@@ -369,23 +369,6 @@ extern unsigned int munlock_vma_page(struct page *page);
  */
 extern void clear_page_mlock(struct page *page);
 
-/*
- * mlock_migrate_page - called only from migrate_misplaced_transhuge_page()
- * (because that does not go through the full procedure of migration ptes):
- * to migrate the Mlocked page flag; update statistics.
- */
-static inline void mlock_migrate_page(struct page *newpage, struct page *page)
-{
-	if (TestClearPageMlocked(page)) {
-		int nr_pages = thp_nr_pages(page);
-
-		/* Holding pmd lock, no change in irq context: __mod is safe */
-		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-		SetPageMlocked(newpage);
-		__mod_zone_page_state(page_zone(newpage), NR_MLOCK, nr_pages);
-	}
-}
-
 extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
 
 /*
@@ -461,7 +444,6 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 #else /* !CONFIG_MMU */
 static inline void clear_page_mlock(struct page *page) { }
 static inline void mlock_vma_page(struct page *page) { }
-static inline void mlock_migrate_page(struct page *new, struct page *old) { }
 static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
 {
 }
