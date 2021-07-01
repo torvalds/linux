@@ -526,10 +526,8 @@ static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
 	int err;
+	struct pwm_state initial_state = pwm->state;
 
-	/*
-	 * FIXME: restore the initial state in case of error.
-	 */
 	if (state->polarity != pwm->state.polarity) {
 		if (!chip->ops->set_polarity)
 			return -EINVAL;
@@ -550,7 +548,7 @@ static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		err = chip->ops->set_polarity(chip, pwm, state->polarity);
 		if (err)
-			return err;
+			goto rollback;
 
 		pwm->state.polarity = state->polarity;
 	}
@@ -573,7 +571,7 @@ static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
 				state->duty_cycle,
 				state->period);
 	if (err)
-		return err;
+		goto rollback;
 
 	pwm->state.period = state->period;
 	pwm->state.duty_cycle = state->duty_cycle;
@@ -581,10 +579,14 @@ static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!pwm->state.enabled) {
 		err = chip->ops->enable(chip, pwm);
 		if (err)
-			return err;
+			goto rollback;
 	}
 
 	return 0;
+
+rollback:
+	pwm->state = initial_state;
+	return err;
 }
 
 /**
