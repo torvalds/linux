@@ -2016,14 +2016,16 @@ bool is_pnv_opal_msi(struct irq_chip *chip)
 }
 EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
-static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
-				  unsigned int hwirq, unsigned int virq,
-				  unsigned int is_64, struct msi_msg *msg)
+static int __pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
+				    unsigned int xive_num,
+				    unsigned int is_64, struct msi_msg *msg)
 {
 	struct pnv_ioda_pe *pe = pnv_ioda_get_pe(dev);
-	unsigned int xive_num = hwirq - phb->msi_base;
 	__be32 data;
 	int rc;
+
+	dev_dbg(&dev->dev, "%s: setup %s-bit MSI for vector #%d\n", __func__,
+		is_64 ? "64" : "32", xive_num);
 
 	/* No PE assigned ? bail out ... no MSI for you ! */
 	if (pe == NULL)
@@ -2072,12 +2074,28 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 	}
 	msg->data = be32_to_cpu(data);
 
+	return 0;
+}
+
+static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
+				  unsigned int hwirq, unsigned int virq,
+				  unsigned int is_64, struct msi_msg *msg)
+{
+	struct pnv_ioda_pe *pe = pnv_ioda_get_pe(dev);
+	unsigned int xive_num = hwirq - phb->msi_base;
+	int rc;
+
+	rc = __pnv_pci_ioda_msi_setup(phb, dev, xive_num, is_64, msg);
+	if (rc)
+		return rc;
+
+	/* P8 only */
 	pnv_set_msi_irq_chip(phb, virq);
 
 	pr_devel("%s: %s-bit MSI on hwirq %x (xive #%d),"
 		 " address=%x_%08x data=%x PE# %x\n",
 		 pci_name(dev), is_64 ? "64" : "32", hwirq, xive_num,
-		 msg->address_hi, msg->address_lo, data, pe->pe_number);
+		 msg->address_hi, msg->address_lo, msg->data, pe->pe_number);
 
 	return 0;
 }
