@@ -48,10 +48,14 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_p2pdma *p2pdma;
 	size_t size = 0;
 
-	if (pdev->p2pdma->pool)
-		size = gen_pool_size(pdev->p2pdma->pool);
+	rcu_read_lock();
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	if (p2pdma && p2pdma->pool)
+		size = gen_pool_size(p2pdma->pool);
+	rcu_read_unlock();
 
 	return scnprintf(buf, PAGE_SIZE, "%zd\n", size);
 }
@@ -61,10 +65,14 @@ static ssize_t available_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_p2pdma *p2pdma;
 	size_t avail = 0;
 
-	if (pdev->p2pdma->pool)
-		avail = gen_pool_avail(pdev->p2pdma->pool);
+	rcu_read_lock();
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	if (p2pdma && p2pdma->pool)
+		avail = gen_pool_avail(p2pdma->pool);
+	rcu_read_unlock();
 
 	return scnprintf(buf, PAGE_SIZE, "%zd\n", avail);
 }
@@ -74,9 +82,16 @@ static ssize_t published_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_p2pdma *p2pdma;
+	bool published = false;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 pdev->p2pdma->p2pmem_published);
+	rcu_read_lock();
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	if (p2pdma)
+		published = p2pdma->p2pmem_published;
+	rcu_read_unlock();
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", published);
 }
 static DEVICE_ATTR_RO(published);
 
@@ -95,8 +110,9 @@ static const struct attribute_group p2pmem_group = {
 static void pci_p2pdma_release(void *data)
 {
 	struct pci_dev *pdev = data;
-	struct pci_p2pdma *p2pdma = pdev->p2pdma;
+	struct pci_p2pdma *p2pdma;
 
+	p2pdma = rcu_dereference_protected(pdev->p2pdma, 1);
 	if (!p2pdma)
 		return;
 
@@ -128,16 +144,14 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
 	if (error)
 		goto out_pool_destroy;
 
-	pdev->p2pdma = p2p;
-
 	error = sysfs_create_group(&pdev->dev.kobj, &p2pmem_group);
 	if (error)
 		goto out_pool_destroy;
 
+	rcu_assign_pointer(pdev->p2pdma, p2p);
 	return 0;
 
 out_pool_destroy:
-	pdev->p2pdma = NULL;
 	gen_pool_destroy(p2p->pool);
 out:
 	devm_kfree(&pdev->dev, p2p);
@@ -159,6 +173,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 {
 	struct pci_p2pdma_pagemap *p2p_pgmap;
 	struct dev_pagemap *pgmap;
+	struct pci_p2pdma *p2pdma;
 	void *addr;
 	int error;
 
@@ -200,7 +215,8 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 		goto pgmap_free;
 	}
 
-	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
+	p2pdma = rcu_dereference_protected(pdev->p2pdma, 1);
+	error = gen_pool_add_owner(p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
 			range_len(&pgmap->range), dev_to_node(&pdev->dev),
 			pgmap->ref);
@@ -437,6 +453,7 @@ calc_map_type_and_dist(struct pci_dev *provider, struct pci_dev *client,
 	enum pci_p2pdma_map_type map_type = PCI_P2PDMA_MAP_THRU_HOST_BRIDGE;
 	struct pci_dev *a = provider, *b = client, *bb;
 	bool acs_redirects = false;
+	struct pci_p2pdma *p2pdma;
 	struct seq_buf acs_list;
 	int acs_cnt = 0;
 	int dist_a = 0;
@@ -515,9 +532,12 @@ map_through_host_bridge:
 		map_type = PCI_P2PDMA_MAP_NOT_SUPPORTED;
 	}
 done:
-	if (provider->p2pdma)
-		xa_store(&provider->p2pdma->map_types, map_types_idx(client),
+	rcu_read_lock();
+	p2pdma = rcu_dereference(provider->p2pdma);
+	if (p2pdma)
+		xa_store(&p2pdma->map_types, map_types_idx(client),
 			 xa_mk_value(map_type), GFP_KERNEL);
+	rcu_read_unlock();
 	return map_type;
 }
 
@@ -586,7 +606,15 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_distance_many);
  */
 bool pci_has_p2pmem(struct pci_dev *pdev)
 {
-	return pdev->p2pdma && pdev->p2pdma->p2pmem_published;
+	struct pci_p2pdma *p2pdma;
+	bool res;
+
+	rcu_read_lock();
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	res = p2pdma && p2pdma->p2pmem_published;
+	rcu_read_unlock();
+
+	return res;
 }
 EXPORT_SYMBOL_GPL(pci_has_p2pmem);
 
@@ -666,6 +694,7 @@ void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
 {
 	void *ret = NULL;
 	struct percpu_ref *ref;
+	struct pci_p2pdma *p2pdma;
 
 	/*
 	 * Pairs with synchronize_rcu() in pci_p2pdma_release() to
@@ -673,16 +702,16 @@ void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
 	 * read-lock.
 	 */
 	rcu_read_lock();
-	if (unlikely(!pdev->p2pdma))
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	if (unlikely(!p2pdma))
 		goto out;
 
-	ret = (void *)gen_pool_alloc_owner(pdev->p2pdma->pool, size,
-			(void **) &ref);
+	ret = (void *)gen_pool_alloc_owner(p2pdma->pool, size, (void **) &ref);
 	if (!ret)
 		goto out;
 
 	if (unlikely(!percpu_ref_tryget_live(ref))) {
-		gen_pool_free(pdev->p2pdma->pool, (unsigned long) ret, size);
+		gen_pool_free(p2pdma->pool, (unsigned long) ret, size);
 		ret = NULL;
 		goto out;
 	}
@@ -701,8 +730,9 @@ EXPORT_SYMBOL_GPL(pci_alloc_p2pmem);
 void pci_free_p2pmem(struct pci_dev *pdev, void *addr, size_t size)
 {
 	struct percpu_ref *ref;
+	struct pci_p2pdma *p2pdma = rcu_dereference_protected(pdev->p2pdma, 1);
 
-	gen_pool_free_owner(pdev->p2pdma->pool, (uintptr_t)addr, size,
+	gen_pool_free_owner(p2pdma->pool, (uintptr_t)addr, size,
 			(void **) &ref);
 	percpu_ref_put(ref);
 }
@@ -716,9 +746,13 @@ EXPORT_SYMBOL_GPL(pci_free_p2pmem);
  */
 pci_bus_addr_t pci_p2pmem_virt_to_bus(struct pci_dev *pdev, void *addr)
 {
+	struct pci_p2pdma *p2pdma;
+
 	if (!addr)
 		return 0;
-	if (!pdev->p2pdma)
+
+	p2pdma = rcu_dereference_protected(pdev->p2pdma, 1);
+	if (!p2pdma)
 		return 0;
 
 	/*
@@ -726,7 +760,7 @@ pci_bus_addr_t pci_p2pmem_virt_to_bus(struct pci_dev *pdev, void *addr)
 	 * bus address as the physical address. So gen_pool_virt_to_phys()
 	 * actually returns the bus address despite the misleading name.
 	 */
-	return gen_pool_virt_to_phys(pdev->p2pdma->pool, (unsigned long)addr);
+	return gen_pool_virt_to_phys(p2pdma->pool, (unsigned long)addr);
 }
 EXPORT_SYMBOL_GPL(pci_p2pmem_virt_to_bus);
 
@@ -797,16 +831,23 @@ EXPORT_SYMBOL_GPL(pci_p2pmem_free_sgl);
  */
 void pci_p2pmem_publish(struct pci_dev *pdev, bool publish)
 {
-	if (pdev->p2pdma)
-		pdev->p2pdma->p2pmem_published = publish;
+	struct pci_p2pdma *p2pdma;
+
+	rcu_read_lock();
+	p2pdma = rcu_dereference(pdev->p2pdma);
+	if (p2pdma)
+		p2pdma->p2pmem_published = publish;
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(pci_p2pmem_publish);
 
 static enum pci_p2pdma_map_type pci_p2pdma_map_type(struct dev_pagemap *pgmap,
 						    struct device *dev)
 {
+	enum pci_p2pdma_map_type type = PCI_P2PDMA_MAP_NOT_SUPPORTED;
 	struct pci_dev *provider = to_p2p_pgmap(pgmap)->provider;
 	struct pci_dev *client;
+	struct pci_p2pdma *p2pdma;
 
 	if (!provider->p2pdma)
 		return PCI_P2PDMA_MAP_NOT_SUPPORTED;
@@ -816,8 +857,14 @@ static enum pci_p2pdma_map_type pci_p2pdma_map_type(struct dev_pagemap *pgmap,
 
 	client = to_pci_dev(dev);
 
-	return xa_to_value(xa_load(&provider->p2pdma->map_types,
-				   map_types_idx(client)));
+	rcu_read_lock();
+	p2pdma = rcu_dereference(provider->p2pdma);
+
+	if (p2pdma)
+		type = xa_to_value(xa_load(&p2pdma->map_types,
+					   map_types_idx(client)));
+	rcu_read_unlock();
+	return type;
 }
 
 static int __pci_p2pdma_map_sg(struct pci_p2pdma_pagemap *p2p_pgmap,
