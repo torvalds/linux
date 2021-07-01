@@ -2296,21 +2296,22 @@ static void *listening_get_first(struct seq_file *seq)
 	struct tcp_iter_state *st = seq->private;
 
 	st->offset = 0;
-	for (; st->bucket < INET_LHTABLE_SIZE; st->bucket++) {
-		struct inet_listen_hashbucket *ilb;
-		struct hlist_nulls_node *node;
+	for (; st->bucket <= tcp_hashinfo.lhash2_mask; st->bucket++) {
+		struct inet_listen_hashbucket *ilb2;
+		struct inet_connection_sock *icsk;
 		struct sock *sk;
 
-		ilb = &tcp_hashinfo.listening_hash[st->bucket];
-		if (hlist_nulls_empty(&ilb->nulls_head))
+		ilb2 = &tcp_hashinfo.lhash2[st->bucket];
+		if (hlist_empty(&ilb2->head))
 			continue;
 
-		spin_lock(&ilb->lock);
-		sk_nulls_for_each(sk, node, &ilb->nulls_head) {
+		spin_lock(&ilb2->lock);
+		inet_lhash2_for_each_icsk(icsk, &ilb2->head) {
+			sk = (struct sock *)icsk;
 			if (seq_sk_match(seq, sk))
 				return sk;
 		}
-		spin_unlock(&ilb->lock);
+		spin_unlock(&ilb2->lock);
 	}
 
 	return NULL;
@@ -2324,22 +2325,22 @@ static void *listening_get_first(struct seq_file *seq)
 static void *listening_get_next(struct seq_file *seq, void *cur)
 {
 	struct tcp_iter_state *st = seq->private;
-	struct inet_listen_hashbucket *ilb;
-	struct hlist_nulls_node *node;
+	struct inet_listen_hashbucket *ilb2;
+	struct inet_connection_sock *icsk;
 	struct sock *sk = cur;
 
 	++st->num;
 	++st->offset;
 
-	sk = sk_nulls_next(sk);
-
-	sk_nulls_for_each_from(sk, node) {
+	icsk = inet_csk(sk);
+	inet_lhash2_for_each_icsk_continue(icsk) {
+		sk = (struct sock *)icsk;
 		if (seq_sk_match(seq, sk))
 			return sk;
 	}
 
-	ilb = &tcp_hashinfo.listening_hash[st->bucket];
-	spin_unlock(&ilb->lock);
+	ilb2 = &tcp_hashinfo.lhash2[st->bucket];
+	spin_unlock(&ilb2->lock);
 	++st->bucket;
 	return listening_get_first(seq);
 }
@@ -2456,7 +2457,7 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 
 	switch (st->state) {
 	case TCP_SEQ_STATE_LISTENING:
-		if (st->bucket >= INET_LHTABLE_SIZE)
+		if (st->bucket > tcp_hashinfo.lhash2_mask)
 			break;
 		st->state = TCP_SEQ_STATE_LISTENING;
 		rc = listening_get_first(seq);
@@ -2541,7 +2542,7 @@ void tcp_seq_stop(struct seq_file *seq, void *v)
 	switch (st->state) {
 	case TCP_SEQ_STATE_LISTENING:
 		if (v != SEQ_START_TOKEN)
-			spin_unlock(&tcp_hashinfo.listening_hash[st->bucket].lock);
+			spin_unlock(&tcp_hashinfo.lhash2[st->bucket].lock);
 		break;
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
