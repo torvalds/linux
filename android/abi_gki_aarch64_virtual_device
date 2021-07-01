@@ -1325,3 +1325,28 @@
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+
+# required by gs_usb.ko
+  usb_kill_anchored_urbs
+  alloc_candev_mqs
+  register_candev
+  free_candev
+  can_change_mtu
+  open_candev
+  usb_anchor_urb
+  usb_unanchor_urb
+  alloc_can_skb
+  can_get_echo_skb
+  alloc_can_err_skb
+  close_candev
+  can_put_echo_skb
+  can_free_echo_skb
+  unregister_candev
+
+# required by vcan.ko
+  sock_efree
+
+# required by slcan.ko
+  tty_mode_ioctl
+  tty_hangup
+  hex_asc_upper
