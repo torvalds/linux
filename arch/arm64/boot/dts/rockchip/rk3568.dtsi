@@ -1063,6 +1063,8 @@
 		clock-names = "scmi_clk", "clk", "aclk", "hclk";
 		assigned-clocks = <&cru CLK_NPU>;
 		assigned-clock-rates = <600000000>;
+		resets = <&cru SRST_A_NPU>, <&cru SRST_H_NPU>;
+		reset-names = "srst_a", "srst_h";
 		power-domains = <&power RK3568_PD_NPU>;
 		operating-points-v2 = <&npu_opp_table>;
 		iommus = <&rknpu_mmu>;
