@@ -2735,12 +2735,13 @@ static const struct seq_operations bpf_iter_tcp_seq_ops = {
 #endif
 static unsigned short seq_file_family(const struct seq_file *seq)
 {
-	const struct tcp_iter_state *st = seq->private;
-	const struct tcp_seq_afinfo *afinfo = st->bpf_seq_afinfo;
+	const struct tcp_seq_afinfo *afinfo;
 
+#ifdef CONFIG_BPF_SYSCALL
 	/* Iterated from bpf_iter.  Let the bpf prog to filter instead. */
-	if (afinfo)
+	if (seq->op == &bpf_iter_tcp_seq_ops)
 		return AF_UNSPEC;
+#endif
 
 	/* Iterated from proc fs */
 	afinfo = PDE_DATA(file_inode(seq->file));
@@ -2998,27 +2999,11 @@ DEFINE_BPF_ITER_FUNC(tcp, struct bpf_iter_meta *meta,
 
 static int bpf_iter_init_tcp(void *priv_data, struct bpf_iter_aux_info *aux)
 {
-	struct tcp_iter_state *st = priv_data;
-	struct tcp_seq_afinfo *afinfo;
-	int ret;
-
-	afinfo = kmalloc(sizeof(*afinfo), GFP_USER | __GFP_NOWARN);
-	if (!afinfo)
-		return -ENOMEM;
-
-	afinfo->family = AF_UNSPEC;
-	st->bpf_seq_afinfo = afinfo;
-	ret = bpf_iter_init_seq_net(priv_data, aux);
-	if (ret)
-		kfree(afinfo);
-	return ret;
+	return bpf_iter_init_seq_net(priv_data, aux);
 }
 
 static void bpf_iter_fini_tcp(void *priv_data)
 {
-	struct tcp_iter_state *st = priv_data;
-
-	kfree(st->bpf_seq_afinfo);
 	bpf_iter_fini_seq_net(priv_data);
 }
 
