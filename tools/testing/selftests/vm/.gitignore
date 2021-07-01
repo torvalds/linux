@@ -14,6 +14,7 @@ transhuge-stress
 protection_keys
 protection_keys_32
 protection_keys_64
+madv_populate
 userfaultfd
 mlock-intersect-test
 mlock-random-test
