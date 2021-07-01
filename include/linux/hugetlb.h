@@ -532,12 +532,14 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
  *	modifications require hugetlb_lock.
  * HPG_freed - Set when page is on the free lists.
  *	Synchronization: hugetlb_lock held for examination and modification.
+ * HPG_vmemmap_optimized - Set when the vmemmap pages of the page are freed.
  */
 enum hugetlb_page_flags {
 	HPG_restore_reserve = 0,
 	HPG_migratable,
 	HPG_temporary,
 	HPG_freed,
+	HPG_vmemmap_optimized,
 	__NR_HPAGEFLAGS,
 };
 
@@ -583,6 +585,7 @@ HPAGEFLAG(RestoreReserve, restore_reserve)
 HPAGEFLAG(Migratable, migratable)
 HPAGEFLAG(Temporary, temporary)
 HPAGEFLAG(Freed, freed)
+HPAGEFLAG(VmemmapOptimized, vmemmap_optimized)
 
 #ifdef CONFIG_HUGETLB_PAGE
 
