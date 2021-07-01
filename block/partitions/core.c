@@ -546,12 +546,8 @@ void blk_drop_partitions(struct gendisk *disk)
 
 	lockdep_assert_held(&disk->open_mutex);
 
-	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
-		if (!bdgrab(part))
-			continue;
+	xa_for_each_start(&disk->part_tbl, idx, part, 1)
 		delete_partition(part);
-		bdput(part);
-	}
 }
 
 static bool blk_add_partition(struct gendisk *disk,
