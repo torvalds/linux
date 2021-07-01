@@ -733,6 +733,16 @@ int pseries_msi_allocate_domains(struct pci_controller *phb)
 	return __pseries_msi_allocate_domains(phb, count);
 }
 
+void pseries_msi_free_domains(struct pci_controller *phb)
+{
+	if (phb->msi_domain)
+		irq_domain_remove(phb->msi_domain);
+	if (phb->dev_domain)
+		irq_domain_remove(phb->dev_domain);
+	if (phb->fwnode)
+		irq_domain_free_fwnode(phb->fwnode);
+}
+
 static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 {
 	/* No LSI -> leave MSIs (if any) configured */
