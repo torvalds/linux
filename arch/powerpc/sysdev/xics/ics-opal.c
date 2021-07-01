@@ -133,7 +133,7 @@ static int ics_opal_set_affinity(struct irq_data *d,
 	}
 	server = ics_opal_mangle_server(wanted_server);
 
-	pr_devel("ics-hal: set-affinity irq %d [hw 0x%x] server: 0x%x/0x%x\n",
+	pr_debug("ics-hal: set-affinity irq %d [hw 0x%x] server: 0x%x/0x%x\n",
 		 d->irq, hw_irq, wanted_server, server);
 
 	rc = opal_set_xive(hw_irq, server, priority);

@@ -133,6 +133,9 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 		return -1;
 	}
 
+	pr_debug("%s: irq %d [hw 0x%x] server: 0x%x\n", __func__, d->irq,
+		 hw_irq, irq_server);
+
 	status = rtas_call_reentrant(ibm_set_xive, 3, 1, NULL,
 				     hw_irq, irq_server, xics_status[1]);
 
