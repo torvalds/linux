@@ -555,26 +555,33 @@ static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
 		pwm->state.polarity = state->polarity;
 	}
 
-	if (state->period != pwm->state.period ||
-	    state->duty_cycle != pwm->state.duty_cycle) {
-		err = chip->ops->config(pwm->chip, pwm,
-					state->duty_cycle,
-					state->period);
-		if (err)
-			return err;
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			chip->ops->disable(chip, pwm);
 
-		pwm->state.period = state->period;
-		pwm->state.duty_cycle = state->duty_cycle;
+		return 0;
 	}
 
-	if (state->enabled != pwm->state.enabled) {
-		if (!pwm->state.enabled) {
-			err = chip->ops->enable(chip, pwm);
-			if (err)
-				return err;
-		} else {
-			chip->ops->disable(chip, pwm);
-		}
+	/*
+	 * We cannot skip calling ->config even if state->period ==
+	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
+	 * because we might have exited early in the last call to
+	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm->state might not be configured in hardware.
+	 */
+	err = chip->ops->config(pwm->chip, pwm,
+				state->duty_cycle,
+				state->period);
+	if (err)
+		return err;
+
+	pwm->state.period = state->period;
+	pwm->state.duty_cycle = state->duty_cycle;
+
+	if (!pwm->state.enabled) {
+		err = chip->ops->enable(chip, pwm);
+		if (err)
+			return err;
 	}
 
 	return 0;
