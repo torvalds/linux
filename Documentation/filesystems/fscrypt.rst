@@ -1063,11 +1063,6 @@ astute users may notice some differences in behavior:
 
 - DAX (Direct Access) is not supported on encrypted files.
 
-- The st_size of an encrypted symlink will not necessarily give the
-  length of the symlink target as required by POSIX.  It will actually
-  give the length of the ciphertext, which will be slightly longer
-  than the plaintext due to NUL-padding and an extra 2-byte overhead.
-
 - The maximum length of an encrypted symlink is 2 bytes shorter than
   the maximum length of an unencrypted symlink.  For example, on an
   EXT4 filesystem with a 4K block size, unencrypted symlinks can be up
