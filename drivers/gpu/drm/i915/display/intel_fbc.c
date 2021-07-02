@@ -232,16 +232,16 @@ static void i965_fbc_recompress(struct drm_i915_private *dev_priv)
 /* This function forces a CFB recompression through the nuke operation. */
 static void snb_fbc_recompress(struct drm_i915_private *dev_priv)
 {
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	trace_intel_fbc_nuke(fbc->crtc);
-
 	intel_de_write(dev_priv, MSG_FBC_REND_STATE, FBC_REND_NUKE);
 	intel_de_posting_read(dev_priv, MSG_FBC_REND_STATE);
 }
 
 static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 {
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	trace_intel_fbc_nuke(fbc->crtc);
+
 	if (DISPLAY_VER(dev_priv) >= 6)
 		snb_fbc_recompress(dev_priv);
 	else if (DISPLAY_VER(dev_priv) >= 4)
@@ -280,8 +280,6 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		       params->fence_y_offset);
 	/* enable it... */
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	intel_fbc_recompress(dev_priv);
 }
 
 static void ilk_fbc_deactivate(struct drm_i915_private *dev_priv)
@@ -339,8 +337,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
 
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	intel_fbc_recompress(dev_priv);
 }
 
 static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
@@ -400,6 +396,12 @@ static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->fbc.active;
+}
+
+static void intel_fbc_activate(struct drm_i915_private *dev_priv)
+{
+	intel_fbc_hw_activate(dev_priv);
+	intel_fbc_recompress(dev_priv);
 }
 
 static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
@@ -1088,7 +1090,7 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		return;
 
 	if (!fbc->busy_bits)
-		intel_fbc_hw_activate(dev_priv);
+		intel_fbc_activate(dev_priv);
 	else
 		intel_fbc_deactivate(dev_priv, "frontbuffer write");
 }
