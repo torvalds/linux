@@ -5,6 +5,7 @@
 #define __MLX5E_FLOW_STEER_H__
 
 #include "mod_hdr.h"
+#include "lib/fs_ttc.h"
 
 enum {
 	MLX5E_TC_FT_LEVEL = 0,
@@ -67,21 +68,6 @@ struct mlx5e_l2_table {
 	bool                       promisc_enabled;
 };
 
-enum mlx5_traffic_types {
-	MLX5_TT_IPV4_TCP,
-	MLX5_TT_IPV6_TCP,
-	MLX5_TT_IPV4_UDP,
-	MLX5_TT_IPV6_UDP,
-	MLX5_TT_IPV4_IPSEC_AH,
-	MLX5_TT_IPV6_IPSEC_AH,
-	MLX5_TT_IPV4_IPSEC_ESP,
-	MLX5_TT_IPV6_IPSEC_ESP,
-	MLX5_TT_IPV4,
-	MLX5_TT_IPV6,
-	MLX5_TT_ANY,
-	MLX5_NUM_TT,
-};
-
 #define MLX5E_NUM_INDIR_TIRS (MLX5_NUM_TT - 1)
 
 #define MLX5_HASH_IP		(MLX5_HASH_FIELD_SEL_SRC_IP   |\
@@ -93,32 +79,6 @@ enum mlx5_traffic_types {
 #define MLX5_HASH_IP_IPSEC_SPI	(MLX5_HASH_FIELD_SEL_SRC_IP   |\
 				 MLX5_HASH_FIELD_SEL_DST_IP   |\
 				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
-
-enum mlx5_tunnel_types {
-	MLX5_TT_IPV4_GRE,
-	MLX5_TT_IPV6_GRE,
-	MLX5_TT_IPV4_IPIP,
-	MLX5_TT_IPV6_IPIP,
-	MLX5_TT_IPV4_IPV6,
-	MLX5_TT_IPV6_IPV6,
-	MLX5_NUM_TUNNEL_TT,
-};
-
-bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
-
-struct mlx5_ttc_rule {
-	struct mlx5_flow_handle *rule;
-	struct mlx5_flow_destination default_dest;
-};
-
-/* L3/L4 traffic type classifier */
-struct mlx5_ttc_table {
-	int num_groups;
-	struct mlx5_flow_table *t;
-	struct mlx5_flow_group **g;
-	struct mlx5_ttc_rule rules[MLX5_NUM_TT];
-	struct mlx5_flow_handle *tunnel_rules[MLX5_NUM_TUNNEL_TT];
-};
 
 /* NIC prio FTS */
 enum {
@@ -140,22 +100,6 @@ enum {
 	MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
 #endif
 };
-
-#define MLX5_TTC_NUM_GROUPS	3
-#define MLX5_TTC_GROUP1_SIZE	(BIT(3) + MLX5_NUM_TUNNEL_TT)
-#define MLX5_TTC_GROUP2_SIZE	 BIT(1)
-#define MLX5_TTC_GROUP3_SIZE	 BIT(0)
-#define MLX5_TTC_TABLE_SIZE	(MLX5_TTC_GROUP1_SIZE +\
-				 MLX5_TTC_GROUP2_SIZE +\
-				 MLX5_TTC_GROUP3_SIZE)
-
-#define MLX5_INNER_TTC_NUM_GROUPS	3
-#define MLX5_INNER_TTC_GROUP1_SIZE	BIT(3)
-#define MLX5_INNER_TTC_GROUP2_SIZE	BIT(1)
-#define MLX5_INNER_TTC_GROUP3_SIZE	BIT(0)
-#define MLX5_INNER_TTC_TABLE_SIZE	(MLX5_INNER_TTC_GROUP1_SIZE +\
-					 MLX5_INNER_TTC_GROUP2_SIZE +\
-					 MLX5_INNER_TTC_GROUP3_SIZE)
 
 struct mlx5e_priv;
 
@@ -238,29 +182,10 @@ struct mlx5e_flow_steering {
 	struct mlx5e_ptp_fs            *ptp_fs;
 };
 
-struct ttc_params {
-	struct mlx5_flow_namespace *ns;
-	struct mlx5_flow_table_attr ft_attr;
-	struct mlx5_flow_destination dests[MLX5_NUM_TT];
-	bool   inner_ttc;
-	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
-};
-
 void mlx5e_set_ttc_params(struct mlx5e_priv *priv,
 			  struct ttc_params *ttc_params, bool tunnel);
 
-int mlx5_create_ttc_table(struct mlx5_core_dev *dev, struct ttc_params *params,
-			  struct mlx5_ttc_table *ttc);
-void mlx5_destroy_ttc_table(struct mlx5_ttc_table *ttc);
-
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
-int mlx5_ttc_fwd_dest(struct mlx5_ttc_table *ttc, enum mlx5_traffic_types type,
-		      struct mlx5_flow_destination *new_dest);
-struct mlx5_flow_destination
-mlx5_ttc_get_default_dest(struct mlx5_ttc_table *ttc,
-			  enum mlx5_traffic_types type);
-int mlx5_ttc_fwd_default_dest(struct mlx5_ttc_table *ttc,
-			      enum mlx5_traffic_types type);
 
 void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
@@ -268,7 +193,6 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
-u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
