@@ -5669,8 +5669,7 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 		 * have a bpf_prog installed on an entry
 		 */
 		for (i = 0; i < new->aux->used_map_cnt; i++) {
-			if (dev_map_can_have_prog(new->aux->used_maps[i]) ||
-			    cpu_map_prog_allowed(new->aux->used_maps[i])) {
+			if (dev_map_can_have_prog(new->aux->used_maps[i])) {
 				mutex_unlock(&new->aux->used_maps_mutex);
 				return -EINVAL;
 			}
