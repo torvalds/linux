@@ -2904,14 +2904,13 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
- * @pasid: Process address space identifier
  *
  * Init @vm fields.
  *
  * Returns:
  * 0 for success, error for failure.
  */
-int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, u32 pasid)
+int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo *root_bo;
 	struct amdgpu_bo_vm *root;
@@ -2985,10 +2984,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, u32 pasid)
 
 	amdgpu_bo_unreserve(vm->root.bo);
 
-	r = amdgpu_vm_set_pasid(adev, vm, pasid);
-	if (r)
-		goto error_free_root;
-
 	INIT_KFIFO(vm->faults);
 
 	return 0;
@@ -3044,7 +3039,6 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
- * @pasid: pasid to use
  *
  * This only works on GFX VMs that don't have any BOs added and no
  * page tables allocated yet.
@@ -3052,7 +3046,6 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  * Changes the following VM parameters:
  * - use_cpu_for_update
  * - pte_supports_ats
- * - pasid (old PASID is released, because compute manages its own PASIDs)
  *
  * Reinitializes the page directory to reflect the changed ATS
  * setting.
@@ -3060,8 +3053,7 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  * Returns:
  * 0 for success, -errno for errors.
  */
-int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   u32 pasid)
+int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
 	int r;
@@ -3075,16 +3067,6 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		goto unreserve_bo;
 
-	/* Free the original amdgpu allocated pasid,
-	 * will be replaced with kfd allocated pasid.
-	 */
-	if (vm->pasid)
-		amdgpu_pasid_free(vm->pasid);
-
-	r = amdgpu_vm_set_pasid(adev, vm, pasid);
-	if (r)
-		goto unreserve_bo;
-
 	/* Check if PD needs to be reinitialized and do it before
 	 * changing any other state, in case it fails.
 	 */
@@ -3094,7 +3076,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 				       to_amdgpu_bo_vm(vm->root.bo),
 				       false);
 		if (r)
-			goto free_pasid_entry;
+			goto unreserve_bo;
 	}
 
 	/* Update VM state */
@@ -3111,7 +3093,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		r = amdgpu_bo_sync_wait(vm->root.bo,
 					AMDGPU_FENCE_OWNER_UNDEFINED, true);
 		if (r)
-			goto free_pasid_entry;
+			goto unreserve_bo;
 
 		vm->update_funcs = &amdgpu_vm_cpu_funcs;
 	} else {
@@ -3126,8 +3108,6 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	goto unreserve_bo;
 
-free_pasid_entry:
-	amdgpu_vm_set_pasid(adev, vm, 0);
 unreserve_bo:
 	amdgpu_bo_unreserve(vm->root.bo);
 	return r;

@@ -1179,9 +1179,13 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		pasid = 0;
 	}
 
-	r = amdgpu_vm_init(adev, &fpriv->vm, pasid);
+	r = amdgpu_vm_init(adev, &fpriv->vm);
 	if (r)
 		goto error_pasid;
+
+	r = amdgpu_vm_set_pasid(adev, &fpriv->vm, pasid);
+	if (r)
+		goto error_vm;
 
 	fpriv->prt_va = amdgpu_vm_bo_add(adev, &fpriv->vm, NULL);
 	if (!fpriv->prt_va) {
@@ -1210,8 +1214,10 @@ error_vm:
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 error_pasid:
-	if (pasid)
+	if (pasid) {
 		amdgpu_pasid_free(pasid);
+		amdgpu_vm_set_pasid(adev, &fpriv->vm, 0);
+	}
 
 	kfree(fpriv);
 
