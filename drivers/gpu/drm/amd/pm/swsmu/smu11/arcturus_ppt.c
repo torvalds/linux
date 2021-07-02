@@ -2022,7 +2022,7 @@ static const struct i2c_algorithm arcturus_i2c_algo = {
 
 
 static const struct i2c_adapter_quirks arcturus_i2c_control_quirks = {
-	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
 	.max_read_len  = MAX_SW_I2C_COMMANDS,
 	.max_write_len = MAX_SW_I2C_COMMANDS,
 	.max_comb_1st_msg_len = 2,
