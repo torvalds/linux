@@ -2674,6 +2674,8 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 		serial_port_out(port, UART_LCR, up->lcr | UART_LCR_DLAB);
 
 	serial_dl_write(up, quot);
+	if (port->type != PORT_16750)
+		serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	serial_port_out(port, UART_MCR, up->mcr);
@@ -2881,10 +2883,11 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
 	 * is written without DLAB set, this mode will be disabled.
 	 */
-	if (port->type == PORT_16750)
+	if (port->type == PORT_16750) {
 		serial_port_out(port, UART_FCR, up->fcr);
+		serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
+	}
 
-	serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
 	if (port->type != PORT_16750) {
 		/* emulated UARTs (Lucent Venus 167x) need two steps */
 		if (up->fcr & UART_FCR_ENABLE_FIFO)
