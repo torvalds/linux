@@ -145,7 +145,7 @@ static struct nand_info spi_nand_tbl[] = {
 };
 
 static struct nand_info *p_nand_info;
-static u32 gp_page_buf[SFC_NAND_PAGE_MAX_SIZE / 4];
+static u32 *gp_page_buf;
 static struct SFNAND_DEV sfc_nand_dev;
 
 static struct nand_info *sfc_nand_get_info(u8 *nand_id)
@@ -985,6 +985,10 @@ u32 sfc_nand_init(void)
 	if (!p_nand_info)
 		return (u32)FTL_UNSUPPORTED_FLASH;
 
+	gp_page_buf = (u32 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
+	if (!gp_page_buf)
+		return -ENOMEM;
+
 	sfc_nand_dev.manufacturer = id_byte[0];
 	sfc_nand_dev.mem_type = id_byte[1];
 	sfc_nand_dev.capacity = p_nand_info->density;
@@ -997,7 +1001,7 @@ u32 sfc_nand_init(void)
 	sfc_nand_dev.prog_lines = DATA_LINES_X1;
 	sfc_nand_dev.page_read_cmd = 0x03;
 	sfc_nand_dev.page_prog_cmd = 0x02;
-	sfc_nand_dev.recheck_buffer = kmalloc(SFC_NAND_PAGE_MAX_SIZE, GFP_KERNEL | GFP_DMA);
+	sfc_nand_dev.recheck_buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
 	if (!sfc_nand_dev.recheck_buffer) {
 		pr_err("%s recheck_buffer alloc failed\n", __func__);
 		return -ENOMEM;
@@ -1032,7 +1036,8 @@ u32 sfc_nand_init(void)
 void sfc_nand_deinit(void)
 {
 	/* to-do */
-	kfree(sfc_nand_dev.recheck_buffer);
+	free_pages((unsigned long)sfc_nand_dev.recheck_buffer, get_order(SFC_NAND_PAGE_MAX_SIZE));
+	free_pages((unsigned long)gp_page_buf, get_order(SFC_NAND_PAGE_MAX_SIZE));
 }
 
 struct SFNAND_DEV *sfc_nand_get_private_dev(void)

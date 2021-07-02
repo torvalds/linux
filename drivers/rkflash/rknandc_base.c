@@ -38,23 +38,14 @@ static struct completion nandc_irq_complete;
 
 unsigned long rknandc_dma_map_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_map_area((void *)ptr, size, dir);
-	return ((unsigned long)virt_to_phys((void *)ptr));
-#else
-	return dma_map_single(NULL, (void *)ptr, size
+	return dma_map_single(g_nandc_dev, (void *)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 
 void rknandc_dma_unmap_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_unmap_area(phys_to_virt(ptr), size, dir);
-#else
-	dma_unmap_single(NULL, (dma_addr_t)ptr, size
+	dma_unmap_single(g_nandc_dev, (dma_addr_t)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 
 static irqreturn_t rknandc_interrupt(int irq, void *dev_id)
@@ -135,7 +126,10 @@ static int rknandc_probe(struct platform_device *pdev)
 	rknandc_irq_init();
 	ret = rkflash_dev_init(g_nandc_info.reg_base, FLASH_TYPE_NANDC_NAND, &nandc_nand_ops);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	return dma_set_mask(g_nandc_dev, DMA_BIT_MASK(32));
 }
 
 static int __maybe_unused rknandc_suspend(struct device *dev)

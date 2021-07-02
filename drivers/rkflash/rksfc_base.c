@@ -40,23 +40,14 @@ static struct completion sfc_irq_complete;
 
 unsigned long rksfc_dma_map_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_map_area((void *)ptr, size, dir);
-	return ((unsigned long)virt_to_phys((void *)ptr));
-#else
-	return dma_map_single(NULL, (void *)ptr, size
+	return dma_map_single(g_sfc_dev, (void *)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 
 void rksfc_dma_unmap_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_unmap_area(phys_to_virt(ptr), size, dir);
-#else
-	dma_unmap_single(NULL, (dma_addr_t)ptr, size
+	dma_unmap_single(g_sfc_dev, (dma_addr_t)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 
 static irqreturn_t rksfc_interrupt(int irq, void *dev_id)
@@ -209,7 +200,10 @@ static int rksfc_probe(struct platform_device *pdev)
 		dev_result = rkflash_dev_init(g_sfc_info.reg_base, FLASH_TYPE_SFC_NAND, &sfc_nand_ops);
 #endif
 
-	return dev_result;
+	if (dev_result)
+		return dev_result;
+
+	return dma_set_mask(g_sfc_dev, DMA_BIT_MASK(32));
 }
 
 static int __maybe_unused rksfc_suspend(struct device *dev)
