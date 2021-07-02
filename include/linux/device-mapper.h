@@ -13,6 +13,7 @@
 #include <linux/dm-ioctl.h>
 #include <linux/math64.h>
 #include <linux/ratelimit.h>
+#include <linux/android_kabi.h>
 
 struct dm_dev;
 struct dm_target;
@@ -198,6 +199,9 @@ struct target_type {
 	dm_dax_copy_iter_fn dax_copy_to_iter;
 	dm_dax_zero_page_range_fn dax_zero_page_range;
 
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+
 	/* For internal device-mapper use. */
 	struct list_head list;
 };
@@ -349,6 +353,9 @@ struct dm_target {
 	 * Set if we need to limit the number of in-flight bios when swapping.
 	 */
 	bool limit_swap_bios:1;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);

@@ -598,6 +598,8 @@ struct mm_struct {
 #ifdef CONFIG_IOMMU_SUPPORT
 		u32 pasid;
 #endif
+
+		ANDROID_KABI_RESERVE(1);
 	} __randomize_layout;
 
 	/*

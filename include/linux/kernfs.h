@@ -157,6 +157,8 @@ struct kernfs_node {
 	unsigned short		flags;
 	umode_t			mode;
 	struct kernfs_iattrs	*iattr;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /*
@@ -198,6 +200,8 @@ struct kernfs_root {
 	struct list_head	supers;
 
 	wait_queue_head_t	deactivate_waitq;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct kernfs_open_file {
@@ -218,6 +222,8 @@ struct kernfs_open_file {
 	bool			mmapped:1;
 	bool			released:1;
 	const struct vm_operations_struct *vm_ops;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct kernfs_ops {
