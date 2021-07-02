@@ -823,7 +823,7 @@ static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
 	if (!EXT4_SB(sb)->s_journal)
 		return -ENODEV;
 
-	if (flags & ~JBD2_JOURNAL_FLUSH_VALID)
+	if (flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID)
 		return -EINVAL;
 
 	q = bdev_get_queue(EXT4_SB(sb)->s_journal->j_dev);
