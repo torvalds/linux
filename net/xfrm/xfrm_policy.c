@@ -2092,15 +2092,12 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	if (unlikely(!daddr || !saddr))
 		return NULL;
 
- retry:
-	sequence = read_seqcount_begin(&xfrm_policy_hash_generation);
 	rcu_read_lock();
-
-	chain = policy_hash_direct(net, daddr, saddr, family, dir);
-	if (read_seqcount_retry(&xfrm_policy_hash_generation, sequence)) {
-		rcu_read_unlock();
-		goto retry;
-	}
+ retry:
+	do {
+		sequence = read_seqcount_begin(&xfrm_policy_hash_generation);
+		chain = policy_hash_direct(net, daddr, saddr, family, dir);
+	} while (read_seqcount_retry(&xfrm_policy_hash_generation, sequence));
 
 	ret = NULL;
 	hlist_for_each_entry_rcu(pol, chain, bydst) {
@@ -2131,15 +2128,11 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	}
 
 skip_inexact:
-	if (read_seqcount_retry(&xfrm_policy_hash_generation, sequence)) {
-		rcu_read_unlock();
+	if (read_seqcount_retry(&xfrm_policy_hash_generation, sequence))
 		goto retry;
-	}
 
-	if (ret && !xfrm_pol_hold_rcu(ret)) {
-		rcu_read_unlock();
+	if (ret && !xfrm_pol_hold_rcu(ret))
 		goto retry;
-	}
 fail:
 	rcu_read_unlock();
 
