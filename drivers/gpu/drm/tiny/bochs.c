@@ -404,25 +404,6 @@ static void bochs_hw_setbase(struct bochs_device *bochs, int x, int y, int strid
 
 /* ---------------------------------------------------------------------- */
 
-static int bochs_mm_init(struct bochs_device *bochs)
-{
-	struct drm_vram_mm *vmm;
-
-	vmm = drm_vram_helper_alloc_mm(bochs->dev, bochs->fb_base,
-				       bochs->fb_size);
-	return PTR_ERR_OR_ZERO(vmm);
-}
-
-static void bochs_mm_fini(struct bochs_device *bochs)
-{
-	if (!bochs->dev->vram_mm)
-		return;
-
-	drm_vram_helper_release_mm(bochs->dev);
-}
-
-/* ---------------------------------------------------------------------- */
-
 static const uint32_t bochs_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_BGRX8888,
@@ -581,13 +562,6 @@ static int bochs_kms_init(struct bochs_device *bochs)
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static void bochs_unload(struct drm_device *dev)
-{
-	struct bochs_device *bochs = dev->dev_private;
-
-	bochs_mm_fini(bochs);
-}
-
 static int bochs_load(struct drm_device *dev)
 {
 	struct bochs_device *bochs;
@@ -601,21 +575,17 @@ static int bochs_load(struct drm_device *dev)
 
 	ret = bochs_hw_init(dev);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = bochs_mm_init(bochs);
+	ret = drmm_vram_helper_init(dev, bochs->fb_base, bochs->fb_size);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = bochs_kms_init(bochs);
 	if (ret)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	bochs_unload(dev);
-	return ret;
 }
 
 DEFINE_DRM_GEM_FOPS(bochs_fops);
@@ -629,7 +599,6 @@ static const struct drm_driver bochs_driver = {
 	.major			= 1,
 	.minor			= 0,
 	DRM_GEM_VRAM_DRIVER,
-	.release                = bochs_unload,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -691,13 +660,11 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_unload;
+		goto err_free_dev;
 
 	drm_fbdev_generic_setup(dev, 32);
 	return ret;
 
-err_unload:
-	bochs_unload(dev);
 err_free_dev:
 	drm_dev_put(dev);
 	return ret;
