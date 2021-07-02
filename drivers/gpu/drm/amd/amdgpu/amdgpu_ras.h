@@ -490,9 +490,9 @@ int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
 void amdgpu_ras_resume(struct amdgpu_device *adev);
 void amdgpu_ras_suspend(struct amdgpu_device *adev);
 
-void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
-				  unsigned long *ce_count,
-				  unsigned long *ue_count);
+int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+				 unsigned long *ce_count,
+				 unsigned long *ue_count);
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
