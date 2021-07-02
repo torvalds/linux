@@ -752,7 +752,7 @@ struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle
 		return NULL;
 
 	msg->type = KSMBD_EVENT_RPC_REQUEST;
-	req = (struct ksmbd_rpc_command *)req->payload;
+	req = (struct ksmbd_rpc_command *)msg->payload;
 	req->handle = handle;
 	req->flags = ksmbd_session_rpc_method(sess, handle);
 	req->flags |= rpc_context_flags(sess);
@@ -777,7 +777,7 @@ struct ksmbd_rpc_command *ksmbd_rpc_rap(struct ksmbd_session *sess, void *payloa
 		return NULL;
 
 	msg->type = KSMBD_EVENT_RPC_REQUEST;
-	req = (struct ksmbd_rpc_command *)req->payload;
+	req = (struct ksmbd_rpc_command *)msg->payload;
 	req->handle = ksmbd_acquire_id(&ipc_ida);
 	req->flags = rpc_context_flags(sess);
 	req->flags |= KSMBD_RPC_RAP_METHOD;
