@@ -1426,6 +1426,7 @@
   netif_napi_add
   __netif_napi_del
   netif_receive_skb
+  netif_receive_skb_core
   netif_receive_skb_list
   netif_rx
   netif_rx_ni
