@@ -110,12 +110,13 @@ static int zynqmp_fpga_probe(struct platform_device *pdev)
 	return devm_fpga_mgr_register(dev, mgr);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id zynqmp_fpga_of_match[] = {
 	{ .compatible = "xlnx,zynqmp-pcap-fpga", },
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, zynqmp_fpga_of_match);
+#endif
 
 static struct platform_driver zynqmp_fpga_driver = {
 	.probe = zynqmp_fpga_probe,
