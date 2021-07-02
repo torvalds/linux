@@ -355,7 +355,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(mdev);
 	dev = &mdev->base;
 
-	ret = drm_dev_register(dev, ent->driver_data);
+	ret = drm_dev_register(dev, 0);
 	if (ret)
 		return ret;
 
