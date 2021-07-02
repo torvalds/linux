@@ -2209,7 +2209,7 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 		 * to reduce queue depth temporarily.
 		 */
 		scmnd->result = len == -ENOMEM ?
-			DID_OK << 16 | QUEUE_FULL << 1 : DID_ERROR << 16;
+			DID_OK << 16 | SAM_STAT_TASK_SET_FULL : DID_ERROR << 16;
 		goto err_iu;
 	}
 

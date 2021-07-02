@@ -161,8 +161,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		       min_t(u32,
 			     virtio32_to_cpu(vscsi->vdev, resp->sense_len),
 			     VIRTIO_SCSI_SENSE_SIZE));
-		if (resp->sense_len)
-			set_driver_byte(sc, DRIVER_SENSE);
+		set_status_byte(sc, SAM_STAT_CHECK_CONDITION);
 	}
 
 	sc->scsi_done(sc);
@@ -355,7 +354,7 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 		if (result == 0 && inq_result[0] >> 5) {
 			/* PQ indicates the LUN is not attached */
 			scsi_remove_device(sdev);
-		} else if (host_byte(result) == DID_BAD_TARGET) {
+		} else if (result > 0 && host_byte(result) == DID_BAD_TARGET) {
 			/*
 			 * If all LUNs of a virtio-scsi device are unplugged
 			 * it will respond with BAD TARGET on any INQUIRY

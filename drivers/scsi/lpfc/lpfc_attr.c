@@ -3449,6 +3449,15 @@ LPFC_ATTR_R(fcf_failover_policy, 1, 1, 2,
 	"FCF Fast failover=1 Priority failover=2");
 
 /*
+ * lpfc_fcp_wait_abts_rsp: Modifies criteria for reporting completion of
+ * aborted IO.
+ * The range is [0,1]. Default value is 0
+ *      0, IO completes after ABTS issued (default).
+ *      1, IO completes after receipt of ABTS response or timeout.
+ */
+LPFC_ATTR_R(fcp_wait_abts_rsp, 0, 0, 1, "Wait for FCP ABTS completion");
+
+/*
 # lpfc_enable_rrq: Track XRI/OXID reuse after IO failures
 #	0x0 = disabled, XRI/OXID use not tracked.
 #	0x1 = XRI/OXID reuse is timed with ratov, RRQ sent.
@@ -6153,6 +6162,45 @@ LPFC_ATTR_RW(enable_dpp, 1, 0, 1, "Enable Direct Packet Push");
  */
 LPFC_ATTR_R(enable_mi, 1, 0, 1, "Enable MI");
 
+/*
+ * lpfc_max_vmid: Maximum number of VMs to be tagged. This is valid only if
+ * either vmid_app_header or vmid_priority_tagging is enabled.
+ *       4 - 255  = vmid support enabled for 4-255 VMs
+ *       Value range is [4,255].
+ */
+LPFC_ATTR_RW(max_vmid, LPFC_MIN_VMID, LPFC_MIN_VMID, LPFC_MAX_VMID,
+	     "Maximum number of VMs supported");
+
+/*
+ * lpfc_vmid_inactivity_timeout: Inactivity timeout duration in hours
+ *       0  = Timeout is disabled
+ * Value range is [0,24].
+ */
+LPFC_ATTR_RW(vmid_inactivity_timeout, 4, 0, 24,
+	     "Inactivity timeout in hours");
+
+/*
+ * lpfc_vmid_app_header: Enable App Header VMID support
+ *       0  = Support is disabled (default)
+ *       1  = Support is enabled
+ * Value range is [0,1].
+ */
+LPFC_ATTR_RW(vmid_app_header, LPFC_VMID_APP_HEADER_DISABLE,
+	     LPFC_VMID_APP_HEADER_DISABLE, LPFC_VMID_APP_HEADER_ENABLE,
+	     "Enable App Header VMID support");
+
+/*
+ * lpfc_vmid_priority_tagging: Enable Priority Tagging VMID support
+ *       0  = Support is disabled (default)
+ *       1  = Allow supported targets only
+ *       2  = Allow all targets
+ * Value range is [0,2].
+ */
+LPFC_ATTR_RW(vmid_priority_tagging, LPFC_VMID_PRIO_TAG_DISABLE,
+	     LPFC_VMID_PRIO_TAG_DISABLE,
+	     LPFC_VMID_PRIO_TAG_ALL_TARGETS,
+	     "Enable Priority Tagging VMID support");
+
 struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_nvme_info,
 	&dev_attr_scsi_stat,
@@ -6205,6 +6253,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_enable_npiv,
 	&dev_attr_lpfc_fcf_failover_policy,
 	&dev_attr_lpfc_enable_rrq,
+	&dev_attr_lpfc_fcp_wait_abts_rsp,
 	&dev_attr_nport_evt_cnt,
 	&dev_attr_board_mode,
 	&dev_attr_max_vpi,
@@ -6271,6 +6320,10 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_enable_bbcr,
 	&dev_attr_lpfc_enable_dpp,
 	&dev_attr_lpfc_enable_mi,
+	&dev_attr_lpfc_max_vmid,
+	&dev_attr_lpfc_vmid_inactivity_timeout,
+	&dev_attr_lpfc_vmid_app_header,
+	&dev_attr_lpfc_vmid_priority_tagging,
 	NULL,
 };
 
@@ -7332,6 +7385,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_fcf_failover_policy_init(phba, lpfc_fcf_failover_policy);
 	lpfc_enable_rrq_init(phba, lpfc_enable_rrq);
+	lpfc_fcp_wait_abts_rsp_init(phba, lpfc_fcp_wait_abts_rsp);
 	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);
 	lpfc_enable_SmartSAN_init(phba, lpfc_enable_SmartSAN);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
@@ -7346,6 +7400,11 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 
 	lpfc_EnableXLane_init(phba, lpfc_EnableXLane);
+	/* VMID Inits */
+	lpfc_max_vmid_init(phba, lpfc_max_vmid);
+	lpfc_vmid_inactivity_timeout_init(phba, lpfc_vmid_inactivity_timeout);
+	lpfc_vmid_app_header_init(phba, lpfc_vmid_app_header);
+	lpfc_vmid_priority_tagging_init(phba, lpfc_vmid_priority_tagging);
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		phba->cfg_EnableXLane = 0;
 	lpfc_XLanePriority_init(phba, lpfc_XLanePriority);

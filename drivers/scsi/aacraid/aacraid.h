@@ -1929,7 +1929,7 @@ struct aac_raw_io2 {
 	u8		bpComplete;	/* reserved for F/W use */
 	u8		sgeFirstIndex;	/* reserved for F/W use */
 	u8		unused[4];
-	struct sge_ieee1212	sge[1];
+	struct sge_ieee1212	sge[];
 };
 
 #define CT_FLUSH_CACHE 129
