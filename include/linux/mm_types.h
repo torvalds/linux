@@ -716,6 +716,8 @@ struct mm_struct {
 #endif
 		} lru_gen;
 #endif /* CONFIG_LRU_GEN */
+
+		ANDROID_KABI_RESERVE(1);
 	} __randomize_layout;
 
 	/*

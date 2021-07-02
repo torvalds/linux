@@ -116,6 +116,8 @@ struct tls_sw_context_tx {
 #define BIT_TX_SCHEDULED	0
 #define BIT_TX_CLOSING		1
 	unsigned long tx_bitmask;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tls_strparser {
@@ -150,6 +152,8 @@ struct tls_sw_context_rx {
 	spinlock_t decrypt_compl_lock;
 	struct sk_buff_head async_hold;
 	struct wait_queue_head wq;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tls_record_info {

@@ -9,6 +9,7 @@
 
 #include <linux/poll.h>
 #include <linux/seq_file.h>
+#include <linux/android_kabi.h>
 #include <sound/core.h>
 
 /* buffer for information */
@@ -55,6 +56,8 @@ struct snd_info_entry_ops {
 	int (*mmap)(struct snd_info_entry *entry, void *file_private_data,
 		    struct inode *inode, struct file *file,
 		    struct vm_area_struct *vma);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct snd_info_entry {
@@ -74,6 +77,8 @@ struct snd_info_entry {
 	struct mutex access;
 	struct list_head children;
 	struct list_head list;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_SND_PROC_FS)

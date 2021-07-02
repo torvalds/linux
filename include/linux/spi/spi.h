@@ -14,6 +14,7 @@
 #include <linux/completion.h>
 #include <linux/scatterlist.h>
 #include <linux/gpio/consumer.h>
+#include <linux/android_kabi.h>
 
 #include <uapi/linux/spi/spi.h>
 #include <linux/acpi.h>
@@ -209,6 +210,9 @@ struct spi_device {
 	/* The statistics */
 	struct spi_statistics __percpu	*pcpu_statistics;
 
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+
 	/*
 	 * likely need more hooks for more protocol options affecting how
 	 * the controller talks to each chip, like:
@@ -296,6 +300,8 @@ struct spi_driver {
 	void			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
 	struct device_driver	driver;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline struct spi_driver *to_spi_driver(struct device_driver *drv)
@@ -696,6 +702,9 @@ struct spi_controller {
 	/* Flag for enabling opportunistic skipping of the queue in spi_sync */
 	bool			queue_empty;
 	bool			must_async;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 static inline void *spi_controller_get_devdata(struct spi_controller *ctlr)
@@ -989,6 +998,8 @@ struct spi_transfer {
 
 #define SPI_TRANS_FAIL_NO_START	BIT(0)
 	u16		error;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -1059,6 +1070,8 @@ struct spi_message {
 
 	/* spi_prepare_message() was called for this message */
 	bool			prepared;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline void spi_message_init_no_memset(struct spi_message *m)
@@ -1471,6 +1484,8 @@ struct spi_board_info {
 	 * where the default of SPI_CS_HIGH = 0 is wrong.
 	 */
 	u32		mode;
+
+	ANDROID_KABI_RESERVE(1);
 
 	/* ... may need additional spi_device chip config data here.
 	 * avoid stuff protocol drivers can set; but include stuff

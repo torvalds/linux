@@ -145,6 +145,7 @@ struct snd_usb_endpoint {
 
 	spinlock_t lock;
 	struct list_head list;
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct media_ctl;
@@ -196,6 +197,8 @@ struct snd_usb_substream {
 	bool trigger_tstamp_pending_update; /* trigger timestamp being updated from initial estimate */
 	bool lowlatency_playback;	/* low-latency playback mode */
 	struct media_ctl *media_ctl;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct snd_usb_stream {

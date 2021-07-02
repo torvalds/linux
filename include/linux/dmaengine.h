@@ -12,6 +12,7 @@
 #include <linux/scatterlist.h>
 #include <linux/bitmap.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 #include <asm/page.h>
 
 /**
@@ -617,6 +618,11 @@ struct dma_async_tx_descriptor {
 	struct dma_async_tx_descriptor *parent;
 	spinlock_t lock;
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 #ifdef CONFIG_DMA_ENGINE

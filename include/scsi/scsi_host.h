@@ -716,6 +716,8 @@ struct Scsi_Host {
 	 */
 	struct device *dma_dev;
 
+	ANDROID_KABI_RESERVE(1);
+
 	/*
 	 * We should ensure that this is aligned, both for better performance
 	 * and also because some compilers (m68k) don't automatically force
