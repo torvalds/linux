@@ -630,8 +630,8 @@ efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
  * @image:	EFI loaded image protocol
  * @load_addr:	pointer to loaded initrd
  * @load_size:	size of loaded initrd
- * @soft_limit:	preferred size of allocated memory for loading the initrd
- * @hard_limit:	minimum size of allocated memory
+ * @soft_limit:	preferred address for loading the initrd
+ * @hard_limit:	upper limit address for loading the initrd
  *
  * Return:	status code
  */
