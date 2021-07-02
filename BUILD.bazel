@@ -20,8 +20,6 @@ common_outs = [
     "modules.builtin.modinfo",
     "vmlinux",
     "vmlinux.symvers",
-    "kernel-headers.tar.gz",
-    "kernel-uapi-headers.tar.gz",
 ]
 
 aarch64_outs = common_outs + [
