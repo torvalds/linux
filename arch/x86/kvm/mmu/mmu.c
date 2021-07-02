@@ -592,9 +592,9 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
  * Rules for using mmu_spte_clear_track_bits:
  * It sets the sptep from present to nonpresent, and track the
  * state bits, it is used to clear the last level sptep.
- * Returns non-zero if the PTE was previously valid.
+ * Returns the old PTE.
  */
-static int mmu_spte_clear_track_bits(u64 *sptep)
+static u64 mmu_spte_clear_track_bits(u64 *sptep)
 {
 	kvm_pfn_t pfn;
 	u64 old_spte = *sptep;
@@ -605,7 +605,7 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 		old_spte = __update_clear_spte_slow(sptep, 0ull);
 
 	if (!is_shadow_present_pte(old_spte))
-		return 0;
+		return old_spte;
 
 	pfn = spte_to_pfn(old_spte);
 
@@ -622,7 +622,7 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 	if (is_dirty_spte(old_spte))
 		kvm_set_pfn_dirty(pfn);
 
-	return 1;
+	return old_spte;
 }
 
 /*
@@ -1119,7 +1119,9 @@ out:
 
 static void drop_spte(struct kvm *kvm, u64 *sptep)
 {
-	if (mmu_spte_clear_track_bits(sptep))
+	u64 old_spte = mmu_spte_clear_track_bits(sptep);
+
+	if (is_shadow_present_pte(old_spte))
 		rmap_remove(kvm, sptep);
 }
 
