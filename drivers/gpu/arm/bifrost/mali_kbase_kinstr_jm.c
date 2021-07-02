@@ -813,22 +813,6 @@ void kbase_kinstr_jm_term(struct kbase_kinstr_jm *const ctx)
 	kbase_kinstr_jm_ref_put(ctx);
 }
 
-/**
- * timestamp() - Retrieves the current monotonic nanoseconds
- * Return: monotonic nanoseconds timestamp.
- */
-static u64 timestamp(void)
-{
-	struct timespec ts;
-	long ns;
-
-	getrawmonotonic(&ts);
-	ns = ((long)(ts.tv_sec) * NSEC_PER_SEC) + ts.tv_nsec;
-	if (unlikely(ns < 0))
-		return 0;
-	return ((u64)(ns));
-}
-
 void kbasep_kinstr_jm_atom_state(
 	struct kbase_jd_atom *const katom,
 	const enum kbase_kinstr_jm_reader_atom_state state)
@@ -837,7 +821,7 @@ void kbasep_kinstr_jm_atom_state(
 	struct kbase_kinstr_jm *const ctx = kctx->kinstr_jm;
 	const u8 id = kbase_jd_atom_id(kctx, katom);
 	struct kbase_kinstr_jm_atom_state_change change = {
-		.timestamp = timestamp(), .atom = id, .state = state
+		.timestamp = ktime_get_raw_ns(), .atom = id, .state = state
 	};
 	struct reader *reader;
 	struct hlist_bl_node *node;
