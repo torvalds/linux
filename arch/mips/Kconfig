@@ -112,6 +112,7 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
 	select DMA_NONCOHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select IRQ_MIPS_CPU
 	select PINCTRL
 	select GPIOLIB
@@ -427,6 +428,8 @@ config MACH_INGENIC_SOC
 	select MIPS_GENERIC
 	select MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -994,7 +997,6 @@ config CAVIUM_OCTEON_SOC
 	select HAVE_PLAT_FW_INIT_CMDLINE
 	select HAVE_PLAT_MEMCPY
 	select ZONE_DMA32
-	select HOLES_IN_ZONE
 	select GPIOLIB
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
@@ -1229,9 +1231,6 @@ config HAVE_PLAT_MEMCPY
 	bool
 
 config ISA_DMA_API
-	bool
-
-config HOLES_IN_ZONE
 	bool
 
 config SYS_SUPPORTS_RELOCATABLE

@@ -23,7 +23,7 @@
 		};
 	};
 
-	memory {
+	memory@200000 {
 		compatible = "memory";
 		device_type = "memory";
 		reg = <0x00000000 0x00200000 0x00000000 0x0ee00000>, /* 238 MB at 2 MB */
@@ -209,8 +209,8 @@
 			};
 
 			pci_bridge@a,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -224,8 +224,8 @@
 			};
 
 			pci_bridge@b,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -239,8 +239,8 @@
 			};
 
 			pci_bridge@c,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -269,8 +269,8 @@
 			};
 
 			pci_bridge@e,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
