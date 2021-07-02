@@ -2596,6 +2596,9 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 		drm_default_rgb_quant_range(mode) ==
 		HDMI_QUANTIZATION_RANGE_LIMITED;
 
+	if (!hdmi->sink_is_hdmi)
+		hdmi->hdmi_data.quant_range = HDMI_QUANTIZATION_RANGE_FULL;
+
 	/*
 	 * According to the dw-hdmi specification 6.4.2
 	 * vp_pr_cd[3:0]:
