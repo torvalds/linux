@@ -250,8 +250,8 @@ static bool __init check_fips140_module_hmac(void)
 	textsize	= &__fips140_text_end - &__fips140_text_start;
 	rodatasize	= &__fips140_rodata_end - &__fips140_rodata_start;
 
-	pr_warn("text size  : 0x%x\n", textsize);
-	pr_warn("rodata size: 0x%x\n", rodatasize);
+	pr_info("text size  : 0x%x\n", textsize);
+	pr_info("rodata size: 0x%x\n", rodatasize);
 
 	textcopy = kmalloc(textsize + rodatasize, GFP_KERNEL);
 	if (!textcopy) {
@@ -283,7 +283,7 @@ static bool __init check_fips140_module_hmac(void)
 		return false;
 	}
 
-	pr_warn("using '%s' for integrity check\n",
+	pr_info("using '%s' for integrity check\n",
 		crypto_shash_driver_name(desc->tfm));
 
 	err = crypto_shash_setkey(desc->tfm, fips140_integ_hmac_key,
@@ -528,7 +528,7 @@ fips140_init(void)
 {
 	const u32 *initcall;
 
-	pr_info("Loading FIPS 140 module\n");
+	pr_info("loading module\n");
 
 	unregister_existing_fips140_algos();
 
@@ -564,12 +564,12 @@ fips140_init(void)
 	 */
 
 	if (!check_fips140_module_hmac()) {
-		pr_crit("FIPS 140 integrity check failed -- giving up!\n");
+		pr_crit("integrity check failed -- giving up!\n");
 		goto panic;
 	}
+	pr_info("integrity check passed\n");
 
-	pr_info("FIPS 140 integrity check successful\n");
-	pr_info("FIPS 140 module successfully loaded\n");
+	pr_info("module successfully loaded\n");
 	return 0;
 
 panic:
