@@ -389,7 +389,7 @@ static void tb_test_path_single_hop_walk(struct kunit *test)
 		i++;
 	}
 
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(test_data));
+	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(test_data));
 
 	i = ARRAY_SIZE(test_data) - 1;
 	tb_for_each_port_on_path(dst_port, src_port, p) {
@@ -448,7 +448,7 @@ static void tb_test_path_daisy_chain_walk(struct kunit *test)
 		i++;
 	}
 
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(test_data));
+	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(test_data));
 
 	i = ARRAY_SIZE(test_data) - 1;
 	tb_for_each_port_on_path(dst_port, src_port, p) {
@@ -511,7 +511,7 @@ static void tb_test_path_simple_tree_walk(struct kunit *test)
 		i++;
 	}
 
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(test_data));
+	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(test_data));
 
 	i = ARRAY_SIZE(test_data) - 1;
 	tb_for_each_port_on_path(dst_port, src_port, p) {
@@ -595,7 +595,7 @@ static void tb_test_path_complex_tree_walk(struct kunit *test)
 		i++;
 	}
 
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(test_data));
+	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(test_data));
 
 	i = ARRAY_SIZE(test_data) - 1;
 	tb_for_each_port_on_path(dst_port, src_port, p) {
@@ -698,7 +698,7 @@ static void tb_test_path_max_length_walk(struct kunit *test)
 		i++;
 	}
 
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(test_data));
+	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(test_data));
 
 	i = ARRAY_SIZE(test_data) - 1;
 	tb_for_each_port_on_path(dst_port, src_port, p) {
@@ -780,7 +780,7 @@ static void tb_test_path_not_bonded_lane0(struct kunit *test)
 
 	path = tb_path_alloc(NULL, down, 8, up, 8, 0, "PCIe Down");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -842,7 +842,7 @@ static void tb_test_path_not_bonded_lane1(struct kunit *test)
 
 	path = tb_path_alloc(NULL, in, 9, out, 9, 1, "Video");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -922,7 +922,7 @@ static void tb_test_path_not_bonded_lane1_chain(struct kunit *test)
 
 	path = tb_path_alloc(NULL, in, 9, out, 9, 1, "Video");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -1002,7 +1002,7 @@ static void tb_test_path_not_bonded_lane1_chain_reverse(struct kunit *test)
 
 	path = tb_path_alloc(NULL, in, 9, out, 9, 1, "Video");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -1094,7 +1094,7 @@ static void tb_test_path_mixed_chain(struct kunit *test)
 
 	path = tb_path_alloc(NULL, in, 9, out, 9, 1, "Video");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -1186,7 +1186,7 @@ static void tb_test_path_mixed_chain_reverse(struct kunit *test)
 
 	path = tb_path_alloc(NULL, in, 9, out, 9, 1, "Video");
 	KUNIT_ASSERT_TRUE(test, path != NULL);
-	KUNIT_ASSERT_EQ(test, path->path_length, (int)ARRAY_SIZE(test_data));
+	KUNIT_ASSERT_EQ(test, path->path_length, ARRAY_SIZE(test_data));
 	for (i = 0; i < ARRAY_SIZE(test_data); i++) {
 		const struct tb_port *in_port, *out_port;
 
@@ -1230,10 +1230,10 @@ static void tb_test_tunnel_pcie(struct kunit *test)
 	up = &dev1->ports[9];
 	tunnel1 = tb_tunnel_alloc_pci(NULL, up, down);
 	KUNIT_ASSERT_TRUE(test, tunnel1 != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel1->type, (enum tb_tunnel_type)TB_TUNNEL_PCI);
+	KUNIT_EXPECT_EQ(test, tunnel1->type, TB_TUNNEL_PCI);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->src_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->dst_port, up);
-	KUNIT_ASSERT_EQ(test, tunnel1->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel1->npaths, 2);
 	KUNIT_ASSERT_EQ(test, tunnel1->paths[0]->path_length, 2);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->paths[0]->hops[0].in_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->paths[0]->hops[1].out_port, up);
@@ -1245,10 +1245,10 @@ static void tb_test_tunnel_pcie(struct kunit *test)
 	up = &dev2->ports[9];
 	tunnel2 = tb_tunnel_alloc_pci(NULL, up, down);
 	KUNIT_ASSERT_TRUE(test, tunnel2 != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel2->type, (enum tb_tunnel_type)TB_TUNNEL_PCI);
+	KUNIT_EXPECT_EQ(test, tunnel2->type, TB_TUNNEL_PCI);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->src_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->dst_port, up);
-	KUNIT_ASSERT_EQ(test, tunnel2->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel2->npaths, 2);
 	KUNIT_ASSERT_EQ(test, tunnel2->paths[0]->path_length, 2);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->paths[0]->hops[0].in_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->paths[0]->hops[1].out_port, up);
@@ -1282,10 +1282,10 @@ static void tb_test_tunnel_dp(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DP);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DP);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, out);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)3);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 3);
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 2);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[1].out_port, out);
@@ -1328,10 +1328,10 @@ static void tb_test_tunnel_dp_chain(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DP);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DP);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, out);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)3);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 3);
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 3);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[2].out_port, out);
@@ -1378,10 +1378,10 @@ static void tb_test_tunnel_dp_tree(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DP);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DP);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, out);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)3);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 3);
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 4);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[3].out_port, out);
@@ -1443,10 +1443,10 @@ static void tb_test_tunnel_dp_max_length(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DP);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DP);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, in);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, out);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)3);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 3);
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 13);
 	/* First hop */
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, in);
@@ -1499,10 +1499,10 @@ static void tb_test_tunnel_usb3(struct kunit *test)
 	up = &dev1->ports[16];
 	tunnel1 = tb_tunnel_alloc_usb3(NULL, up, down, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel1 != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel1->type, (enum tb_tunnel_type)TB_TUNNEL_USB3);
+	KUNIT_EXPECT_EQ(test, tunnel1->type, TB_TUNNEL_USB3);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->src_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->dst_port, up);
-	KUNIT_ASSERT_EQ(test, tunnel1->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel1->npaths, 2);
 	KUNIT_ASSERT_EQ(test, tunnel1->paths[0]->path_length, 2);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->paths[0]->hops[0].in_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel1->paths[0]->hops[1].out_port, up);
@@ -1514,10 +1514,10 @@ static void tb_test_tunnel_usb3(struct kunit *test)
 	up = &dev2->ports[16];
 	tunnel2 = tb_tunnel_alloc_usb3(NULL, up, down, 0, 0);
 	KUNIT_ASSERT_TRUE(test, tunnel2 != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel2->type, (enum tb_tunnel_type)TB_TUNNEL_USB3);
+	KUNIT_EXPECT_EQ(test, tunnel2->type, TB_TUNNEL_USB3);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->src_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->dst_port, up);
-	KUNIT_ASSERT_EQ(test, tunnel2->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel2->npaths, 2);
 	KUNIT_ASSERT_EQ(test, tunnel2->paths[0]->path_length, 2);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->paths[0]->hops[0].in_port, down);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel2->paths[0]->hops[1].out_port, up);
@@ -1618,10 +1618,10 @@ static void tb_test_tunnel_dma(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dma(NULL, nhi, port, 8, 1, 8, 1);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DMA);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DMA);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, nhi);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, port);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 2);
 	/* RX path */
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 1);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, port);
@@ -1661,10 +1661,10 @@ static void tb_test_tunnel_dma_rx(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dma(NULL, nhi, port, -1, -1, 15, 2);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DMA);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DMA);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, nhi);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, port);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)1);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 1);
 	/* RX path */
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 1);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, port);
@@ -1698,10 +1698,10 @@ static void tb_test_tunnel_dma_tx(struct kunit *test)
 
 	tunnel = tb_tunnel_alloc_dma(NULL, nhi, port, 15, 2, -1, -1);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DMA);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DMA);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, nhi);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, port);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)1);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 1);
 	/* TX path */
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 1);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, nhi);
@@ -1744,10 +1744,10 @@ static void tb_test_tunnel_dma_chain(struct kunit *test)
 	port = &dev2->ports[3];
 	tunnel = tb_tunnel_alloc_dma(NULL, nhi, port, 8, 1, 8, 1);
 	KUNIT_ASSERT_TRUE(test, tunnel != NULL);
-	KUNIT_EXPECT_EQ(test, tunnel->type, (enum tb_tunnel_type)TB_TUNNEL_DMA);
+	KUNIT_EXPECT_EQ(test, tunnel->type, TB_TUNNEL_DMA);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->src_port, nhi);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->dst_port, port);
-	KUNIT_ASSERT_EQ(test, tunnel->npaths, (size_t)2);
+	KUNIT_ASSERT_EQ(test, tunnel->npaths, 2);
 	/* RX path */
 	KUNIT_ASSERT_EQ(test, tunnel->paths[0]->path_length, 3);
 	KUNIT_EXPECT_PTR_EQ(test, tunnel->paths[0]->hops[0].in_port, port);
@@ -1906,7 +1906,7 @@ static void tb_test_property_parse(struct kunit *test)
 
 	p = tb_property_find(dir, "vendorid", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0xa27);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0xa27);
 
 	p = tb_property_find(dir, "deviceid", TB_PROPERTY_TYPE_TEXT);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
@@ -1914,7 +1914,7 @@ static void tb_test_property_parse(struct kunit *test)
 
 	p = tb_property_find(dir, "deviceid", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0xa);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0xa);
 
 	p = tb_property_find(dir, "missing", TB_PROPERTY_TYPE_DIRECTORY);
 	KUNIT_ASSERT_TRUE(test, !p);
@@ -1927,19 +1927,19 @@ static void tb_test_property_parse(struct kunit *test)
 
 	p = tb_property_find(network_dir, "prtcid", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0x1);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0x1);
 
 	p = tb_property_find(network_dir, "prtcvers", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0x1);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0x1);
 
 	p = tb_property_find(network_dir, "prtcrevs", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0x1);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0x1);
 
 	p = tb_property_find(network_dir, "prtcstns", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_ASSERT_TRUE(test, p != NULL);
-	KUNIT_EXPECT_EQ(test, p->value.immediate, (u32)0x0);
+	KUNIT_EXPECT_EQ(test, p->value.immediate, 0x0);
 
 	p = tb_property_find(network_dir, "deviceid", TB_PROPERTY_TYPE_VALUE);
 	KUNIT_EXPECT_TRUE(test, !p);
@@ -1960,7 +1960,7 @@ static void tb_test_property_format(struct kunit *test)
 	KUNIT_ASSERT_TRUE(test, dir != NULL);
 
 	ret = tb_property_format_dir(dir, NULL, 0);
-	KUNIT_ASSERT_EQ(test, ret, (int)ARRAY_SIZE(root_directory));
+	KUNIT_ASSERT_EQ(test, ret, ARRAY_SIZE(root_directory));
 
 	block_len = ret;
 
@@ -2063,7 +2063,7 @@ static void tb_test_property_copy(struct kunit *test)
 
 	/* Compare the resulting property block */
 	ret = tb_property_format_dir(dst, NULL, 0);
-	KUNIT_ASSERT_EQ(test, ret, (int)ARRAY_SIZE(root_directory));
+	KUNIT_ASSERT_EQ(test, ret, ARRAY_SIZE(root_directory));
 
 	block = kunit_kzalloc(test, sizeof(root_directory), GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, block != NULL);
