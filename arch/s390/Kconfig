@@ -2,9 +2,6 @@
 config MMU
 	def_bool y
 
-config ZONE_DMA
-	def_bool y
-
 config CPU_BIG_ENDIAN
 	def_bool y
 
@@ -62,7 +59,7 @@ config S390
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
-	select ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
@@ -211,6 +208,7 @@ config S390
 	select THREAD_INFO_IN_TASK
 	select TTY
 	select VIRT_CPU_ACCOUNTING
+	select ZONE_DMA
 	# Note: keep the above list sorted alphabetically
 
 config SCHED_OMIT_FRAME_POINTER

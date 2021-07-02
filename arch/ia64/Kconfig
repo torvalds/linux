@@ -60,6 +60,7 @@ config IA64
 	select NUMA if !FLATMEM
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select SET_FS
+	select ZONE_DMA32
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -71,9 +72,6 @@ config 64BIT
 	bool
 	select ATA_NONSTANDARD if ATA
 	default y
-
-config ZONE_DMA32
-	def_bool y
 
 config MMU
 	bool
@@ -307,9 +305,6 @@ config NODES_SHIFT
 	  This option specifies the maximum number of nodes in your SSI system.
 	  MAX_NUMNODES will be 2^(This value).
 	  If in doubt, use the default.
-
-config HOLES_IN_ZONE
-	bool
 
 config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y

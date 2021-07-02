@@ -40,6 +40,7 @@ config ALPHA
 	select MMU_GATHER_NO_RANGE
 	select SET_FS
 	select SPARSEMEM_EXTREME if SPARSEMEM
+	select ZONE_DMA
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -62,10 +63,6 @@ config ARCH_HAS_ILOG2_U64
 	default n
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config ZONE_DMA
 	bool
 	default y
 

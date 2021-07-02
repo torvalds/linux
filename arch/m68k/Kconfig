@@ -34,6 +34,7 @@ config M68K
 	select SET_FS
 	select UACCESS_MEMCPY if !MMU
 	select VIRT_TO_BUS
+	select ZONE_DMA
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -61,10 +62,6 @@ config TIME_LOW_RES
 
 config NO_IOPORT_MAP
 	def_bool y
-
-config ZONE_DMA
-	bool
-	default y
 
 config HZ
 	int

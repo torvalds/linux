@@ -11,6 +11,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/panic_notifier.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>

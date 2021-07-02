@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
+#include <linux/panic_notifier.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
 #include <linux/pci.h>
@@ -46,7 +47,6 @@
 #include <linux/log2.h>
 #include <linux/export.h>
 
-extern struct atomic_notifier_head panic_notifier_list;
 static int alpha_panic_event(struct notifier_block *, unsigned long, void *);
 static struct notifier_block alpha_panic_block = {
 	alpha_panic_event,

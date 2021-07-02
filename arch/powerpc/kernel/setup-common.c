@@ -9,6 +9,7 @@
 #undef DEBUG
 
 #include <linux/export.h>
+#include <linux/panic_notifier.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/init.h>
