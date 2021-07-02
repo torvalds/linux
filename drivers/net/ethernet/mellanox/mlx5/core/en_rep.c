@@ -647,25 +647,20 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5e_rx_res *res = priv->rx_res;
 	struct ttc_params ttc_params = {};
-	int tt, err;
+	int err;
 
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					      MLX5_FLOW_NAMESPACE_KERNEL);
 
 	/* The inner_ttc in the ttc params is intentionally not set */
-	ttc_params.any_tt_tirn = mlx5e_rx_res_get_tirn_direct(res, 0);
-	mlx5e_set_ttc_ft_params(&ttc_params);
+	mlx5e_set_ttc_params(priv, &ttc_params, false);
 
 	if (rep->vport != MLX5_VPORT_UPLINK)
 		/* To give uplik rep TTC a lower level for chaining from root ft */
 		ttc_params.ft_attr.level = MLX5E_TTC_FT_LEVEL + 1;
 
-	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = mlx5e_rx_res_get_tirn_rss(res, tt);
-
-	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
+	err = mlx5_create_ttc_table(priv->mdev, &ttc_params, &priv->fs.ttc);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create rep ttc table, err=%d\n", err);
 		return err;
@@ -685,7 +680,7 @@ static int mlx5e_create_rep_root_ft(struct mlx5e_priv *priv)
 		/* non uplik reps will skip any bypass tables and go directly to
 		 * their own ttc
 		 */
-		rpriv->root_ft = priv->fs.ttc.ft.t;
+		rpriv->root_ft = priv->fs.ttc.t;
 		return 0;
 	}
 
@@ -799,7 +794,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 err_destroy_root_ft:
 	mlx5e_destroy_rep_root_ft(priv);
 err_destroy_ttc_table:
-	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
+	mlx5_destroy_ttc_table(&priv->fs.ttc);
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
 err_close_drop_rq:
@@ -814,7 +809,7 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	mlx5e_ethtool_cleanup_steering(priv);
 	rep_vport_rx_rule_destroy(priv);
 	mlx5e_destroy_rep_root_ft(priv);
-	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
+	mlx5_destroy_ttc_table(&priv->fs.ttc);
 	mlx5e_rx_res_destroy(priv->rx_res);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_rx_res_free(priv->rx_res);

@@ -106,15 +106,17 @@ enum mlx5_tunnel_types {
 
 bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 
-struct mlx5e_ttc_rule {
+struct mlx5_ttc_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_destination default_dest;
 };
 
 /* L3/L4 traffic type classifier */
-struct mlx5e_ttc_table {
-	struct mlx5e_flow_table ft;
-	struct mlx5e_ttc_rule rules[MLX5_NUM_TT];
+struct mlx5_ttc_table {
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+	struct mlx5_ttc_rule rules[MLX5_NUM_TT];
 	struct mlx5_flow_handle *tunnel_rules[MLX5_NUM_TUNNEL_TT];
 };
 
@@ -223,8 +225,8 @@ struct mlx5e_flow_steering {
 	struct mlx5e_promisc_table      promisc;
 	struct mlx5e_vlan_table         *vlan;
 	struct mlx5e_l2_table           l2;
-	struct mlx5e_ttc_table          ttc;
-	struct mlx5e_ttc_table          inner_ttc;
+	struct mlx5_ttc_table           ttc;
+	struct mlx5_ttc_table           inner_ttc;
 #ifdef CONFIG_MLX5_EN_ARFS
 	struct mlx5e_arfs_tables       *arfs;
 #endif
@@ -237,28 +239,28 @@ struct mlx5e_flow_steering {
 };
 
 struct ttc_params {
+	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table_attr ft_attr;
-	u32 any_tt_tirn;
-	u32 indir_tirn[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_ttc_table *inner_ttc;
+	struct mlx5_flow_destination dests[MLX5_NUM_TT];
+	bool   inner_ttc;
+	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
 };
 
-void mlx5e_set_ttc_basic_params(struct mlx5e_priv *priv, struct ttc_params *ttc_params);
-void mlx5e_set_ttc_ft_params(struct ttc_params *ttc_params);
+void mlx5e_set_ttc_params(struct mlx5e_priv *priv,
+			  struct ttc_params *ttc_params, bool tunnel);
 
-int mlx5e_create_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
-			   struct mlx5e_ttc_table *ttc);
-void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv,
-			     struct mlx5e_ttc_table *ttc);
+int mlx5_create_ttc_table(struct mlx5_core_dev *dev, struct ttc_params *params,
+			  struct mlx5_ttc_table *ttc);
+void mlx5_destroy_ttc_table(struct mlx5_ttc_table *ttc);
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
-int mlx5e_ttc_fwd_dest(struct mlx5e_priv *priv, enum mlx5_traffic_types type,
-		       struct mlx5_flow_destination *new_dest);
+int mlx5_ttc_fwd_dest(struct mlx5_ttc_table *ttc, enum mlx5_traffic_types type,
+		      struct mlx5_flow_destination *new_dest);
 struct mlx5_flow_destination
-mlx5e_ttc_get_default_dest(struct mlx5e_priv *priv,
-			   enum mlx5_traffic_types type);
-int mlx5e_ttc_fwd_default_dest(struct mlx5e_priv *priv,
-			       enum mlx5_traffic_types type);
+mlx5_ttc_get_default_dest(struct mlx5_ttc_table *ttc,
+			  enum mlx5_traffic_types type);
+int mlx5_ttc_fwd_default_dest(struct mlx5_ttc_table *ttc,
+			      enum mlx5_traffic_types type);
 
 void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);

@@ -265,7 +265,7 @@ static int rx_create(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 	accel_esp = priv->ipsec->rx_fs;
 	fs_prot = &accel_esp->fs_prot[type];
 
-	fs_prot->default_dest = mlx5e_ttc_get_default_dest(priv, fs_esp2tt(type));
+	fs_prot->default_dest = mlx5_ttc_get_default_dest(&priv->fs.ttc, fs_esp2tt(type));
 
 	err = rx_err_create_ft(priv, fs_prot, &fs_prot->rx_err);
 	if (err)
@@ -301,7 +301,7 @@ static int rx_ft_get(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 	/* connect */
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = fs_prot->ft;
-	mlx5e_ttc_fwd_dest(priv, fs_esp2tt(type), &dest);
+	mlx5_ttc_fwd_dest(&priv->fs.ttc, fs_esp2tt(type), &dest);
 
 out:
 	mutex_unlock(&fs_prot->prot_mutex);
@@ -320,7 +320,7 @@ static void rx_ft_put(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 		goto out;
 
 	/* disconnect */
-	mlx5e_ttc_fwd_default_dest(priv, fs_esp2tt(type));
+	mlx5_ttc_fwd_default_dest(&priv->fs.ttc, fs_esp2tt(type));
 
 	/* remove FT */
 	rx_destroy(priv, type);

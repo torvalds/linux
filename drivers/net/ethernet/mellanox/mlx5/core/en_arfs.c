@@ -120,7 +120,7 @@ static int arfs_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < ARFS_NUM_TYPES; i++) {
 		/* Modify ttc rules destination back to their default */
-		err = mlx5e_ttc_fwd_default_dest(priv, arfs_get_tt(i));
+		err = mlx5_ttc_fwd_default_dest(&priv->fs.ttc, arfs_get_tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -149,7 +149,7 @@ int mlx5e_arfs_enable(struct mlx5e_priv *priv)
 	for (i = 0; i < ARFS_NUM_TYPES; i++) {
 		dest.ft = priv->fs.arfs->arfs_tables[i].ft.t;
 		/* Modify ttc rules destination to point on the aRFS FTs */
-		err = mlx5e_ttc_fwd_dest(priv, arfs_get_tt(i), &dest);
+		err = mlx5_ttc_fwd_dest(&priv->fs.ttc, arfs_get_tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] dest to arfs, failed err(%d)\n",
@@ -205,7 +205,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 		return -EINVAL;
 	}
 
-	/* FIXME: Must use mlx5e_ttc_get_default_dest(),
+	/* FIXME: Must use mlx5_ttc_get_default_dest(),
 	 * but can't since TTC default is not setup yet !
 	 */
 	dest.tir_num = mlx5e_rx_res_get_tirn_rss(priv->rx_res, tt);
