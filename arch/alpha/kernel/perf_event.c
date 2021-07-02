@@ -574,7 +574,7 @@ static void alpha_pmu_start(struct perf_event *event, int flags)
  * Check that CPU performance counters are supported.
  * - currently support EV67 and later CPUs.
  * - actually some later revisions of the EV6 have the same PMC model as the
- *     EV67 but we don't do suffiently deep CPU detection to detect them.
+ *     EV67 but we don't do sufficiently deep CPU detection to detect them.
  *     Bad luck to the very few people who might have one, I guess.
  */
 static int supported_cpu(void)
