@@ -104,7 +104,7 @@ enum mlx5_tunnel_types {
 	MLX5_NUM_TUNNEL_TT,
 };
 
-bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
+bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 
 struct mlx5e_ttc_rule {
 	struct mlx5_flow_handle *rule;
@@ -266,7 +266,7 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
-u8 mlx5e_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
+u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
