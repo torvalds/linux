@@ -675,11 +675,9 @@ static bool tiling_is_valid(struct drm_i915_private *dev_priv,
 {
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
-		if (DISPLAY_VER(dev_priv) >= 9)
-			return true;
-		return false;
-	case I915_FORMAT_MOD_X_TILED:
 	case I915_FORMAT_MOD_Y_TILED:
+		return DISPLAY_VER(dev_priv) >= 9;
+	case I915_FORMAT_MOD_X_TILED:
 		return true;
 	default:
 		return false;
