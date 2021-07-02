@@ -115,6 +115,7 @@ struct rockchip_hdmi {
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
 	bool mode_changed;
+	u8 force_output;
 	u8 id;
 
 	unsigned long bus_format;
@@ -129,6 +130,7 @@ struct rockchip_hdmi {
 	struct drm_property *colorimetry_property;
 	struct drm_property *quant_range;
 	struct drm_property *hdr_panel_metadata_property;
+	struct drm_property *output_hdmi_dvi;
 
 	struct drm_property_blob *hdr_panel_blob_ptr;
 
@@ -613,6 +615,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	unsigned long tmdsclock, pixclock = mode->crtc_clock;
 	unsigned int color_depth;
 	bool support_dc = false;
+	bool sink_is_hdmi = dw_hdmi_get_output_whether_hdmi(hdmi->hdmi);
 	u32 max_tmds_clock = info->max_tmds_clock;
 	int output_eotf;
 
@@ -672,6 +675,11 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		color_depth = 10;
 	else
 		color_depth = 8;
+
+	if (!sink_is_hdmi) {
+		*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+		color_depth = 8;
+	}
 
 	*eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	if (conn_state->hdr_output_metadata) {
@@ -939,6 +947,12 @@ static const struct drm_prop_enum_list colorimetry_enum_list[] = {
 	{ RK_HDMI_COLORIMETRY_BT2020, "ITU_2020" },
 };
 
+static const struct drm_prop_enum_list output_hdmi_dvi_enum_list[] = {
+	{ 0, "auto" },
+	{ 1, "force_hdmi" },
+	{ 2, "force_dvi" },
+};
+
 static void
 dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 				   unsigned int color, int version,
@@ -1059,6 +1073,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
+	prop = drm_property_create_enum(connector->dev, 0,
+					"output_hdmi_dvi",
+					output_hdmi_dvi_enum_list,
+					ARRAY_SIZE(output_hdmi_dvi_enum_list));
+	if (prop) {
+		hdmi->output_hdmi_dvi = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
 	if (version >= 0x211a)
 		drm_object_attach_property(&connector->base, prop, 0);
@@ -1112,6 +1135,12 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 				     hdmi->hdr_panel_metadata_property);
 		hdmi->hdr_panel_metadata_property = NULL;
 	}
+
+	if (hdmi->output_hdmi_dvi) {
+		drm_property_destroy(connector->dev,
+				     hdmi->output_hdmi_dvi);
+		hdmi->output_hdmi_dvi = NULL;
+	}
 }
 
 static int
@@ -1147,6 +1176,12 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == hdmi->colorimetry_property) {
 		hdmi->colorimetry = val;
+		return 0;
+	} else if (property == hdmi->output_hdmi_dvi) {
+		if (hdmi->force_output != val)
+			hdmi->color_changed++;
+		hdmi->force_output = val;
+		dw_hdmi_set_output_type(hdmi->hdmi, val);
 		return 0;
 	}
 
@@ -1212,6 +1247,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == private->connector_id_prop) {
 		*val = hdmi->id;
+		return 0;
+	} else if (property == hdmi->output_hdmi_dvi) {
+		*val = hdmi->force_output;
 		return 0;
 	}
 
