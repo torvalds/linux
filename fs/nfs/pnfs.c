@@ -2015,7 +2015,7 @@ lookup_again:
 	 * If the layout segment list is empty, but there are outstanding
 	 * layoutget calls, then they might be subject to a layoutrecall.
 	 */
-	if (list_empty(&lo->plh_segs) &&
+	if ((list_empty(&lo->plh_segs) || !pnfs_layout_is_valid(lo)) &&
 	    atomic_read(&lo->plh_outstanding) != 0) {
 		spin_unlock(&ino->i_lock);
 		lseg = ERR_PTR(wait_var_event_killable(&lo->plh_outstanding,
@@ -2391,11 +2391,13 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget;
 	}
 
+	if (!pnfs_layout_is_valid(lo) && !pnfs_is_first_layoutget(lo))
+		goto out_forget;
+
 	if (nfs4_stateid_match_other(&lo->plh_stateid, &res->stateid)) {
 		/* existing state ID, make sure the sequence number matches. */
 		if (pnfs_layout_stateid_blocked(lo, &res->stateid)) {
-			if (!pnfs_layout_is_valid(lo) &&
-			    pnfs_is_first_layoutget(lo))
+			if (!pnfs_layout_is_valid(lo))
 				lo->plh_barrier = 0;
 			dprintk("%s forget reply due to sequence\n", __func__);
 			goto out_forget;
@@ -2416,8 +2418,6 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget;
 	} else {
 		/* We have a completely new layout */
-		if (!pnfs_is_first_layoutget(lo))
-			goto out_forget;
 		pnfs_set_layout_stateid(lo, &res->stateid, lgp->cred, true);
 	}
 
