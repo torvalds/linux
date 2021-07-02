@@ -1582,6 +1582,27 @@ int __evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread, bool scale)
 	return 0;
 }
 
+static int evsel__match_other_cpu(struct evsel *evsel, struct evsel *other,
+				  int cpu)
+{
+	int cpuid;
+
+	cpuid = perf_cpu_map__cpu(evsel->core.cpus, cpu);
+	return perf_cpu_map__idx(other->core.cpus, cpuid);
+}
+
+static int evsel__hybrid_group_cpu(struct evsel *evsel, int cpu)
+{
+	struct evsel *leader = evsel->leader;
+
+	if ((evsel__is_hybrid(evsel) && !evsel__is_hybrid(leader)) ||
+	    (!evsel__is_hybrid(evsel) && evsel__is_hybrid(leader))) {
+		return evsel__match_other_cpu(evsel, leader, cpu);
+	}
+
+	return cpu;
+}
+
 static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 {
 	struct evsel *leader = evsel->leader;
@@ -1595,6 +1616,10 @@ static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 	 * if not it's a bug.
 	 */
 	BUG_ON(!leader->core.fd);
+
+	cpu = evsel__hybrid_group_cpu(evsel, cpu);
+	if (cpu == -1)
+		return -1;
 
 	fd = FD(leader, cpu, thread);
 	BUG_ON(fd == -1);

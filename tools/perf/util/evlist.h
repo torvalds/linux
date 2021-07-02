@@ -367,4 +367,5 @@ int evlist__ctlfd_ack(struct evlist *evlist);
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);
 
 int evlist__scnprintf_evsels(struct evlist *evlist, size_t size, char *bf);
+void evlist__check_mem_load_aux(struct evlist *evlist);
 #endif /* __PERF_EVLIST_H */
