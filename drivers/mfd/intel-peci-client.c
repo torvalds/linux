@@ -108,7 +108,7 @@ static int peci_client_probe(struct peci_client *client)
 {
 	struct device *dev = &client->dev;
 	struct peci_client_manager *priv;
-	uint cpu_no;
+	int device_id;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -117,13 +117,14 @@ static int peci_client_probe(struct peci_client *client)
 
 	dev_set_drvdata(dev, priv);
 	priv->client = client;
-	cpu_no = client->addr - PECI_BASE_ADDR;
 
 	ret = peci_client_get_cpu_gen_info(priv);
 	if (ret)
 		return ret;
 
-	ret = devm_mfd_add_devices(dev, cpu_no, peci_functions,
+	device_id = (client->adapter->nr << 4) | (client->addr - PECI_BASE_ADDR);
+
+	ret = devm_mfd_add_devices(dev, device_id, peci_functions,
 				   ARRAY_SIZE(peci_functions), NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register child devices: %d\n", ret);
