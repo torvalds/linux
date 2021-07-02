@@ -262,17 +262,26 @@ static void mgag200_g200se_init_unique_id(struct mga_device *mdev)
 		mdev->model.g200se.unique_rev_id);
 }
 
-static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
+static struct mga_device *
+mgag200_device_create(struct pci_dev *pdev, unsigned long flags)
 {
-	struct drm_device *dev = &mdev->base;
+	struct mga_device *mdev;
+	struct drm_device *dev;
 	int ret;
+
+	mdev = devm_drm_dev_alloc(&pdev->dev, &mgag200_driver, struct mga_device, base);
+	if (IS_ERR(mdev))
+		return mdev;
+	dev = &mdev->base;
+
+	pci_set_drvdata(pdev, dev);
 
 	mdev->flags = mgag200_flags_from_driver_data(flags);
 	mdev->type = mgag200_type_from_driver_data(flags);
 
 	ret = mgag200_regs_init(mdev);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	if (mdev->type == G200_PCI || mdev->type == G200_AGP)
 		mgag200_g200_init_refclk(mdev);
@@ -281,33 +290,9 @@ static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 
 	ret = mgag200_mm_init(mdev);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	ret = mgag200_modeset_init(mdev);
-	if (ret) {
-		drm_err(dev, "Fatal error during modeset init: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static struct mga_device *
-mgag200_device_create(struct pci_dev *pdev, unsigned long flags)
-{
-	struct drm_device *dev;
-	struct mga_device *mdev;
-	int ret;
-
-	mdev = devm_drm_dev_alloc(&pdev->dev, &mgag200_driver,
-				  struct mga_device, base);
-	if (IS_ERR(mdev))
-		return mdev;
-	dev = &mdev->base;
-
-	pci_set_drvdata(pdev, dev);
-
-	ret = mgag200_device_init(mdev, flags);
 	if (ret)
 		return ERR_PTR(ret);
 
