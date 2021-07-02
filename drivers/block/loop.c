@@ -1434,7 +1434,6 @@ static int
 loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 {
 	int err;
-	struct block_device *bdev;
 	kuid_t uid = current_uid();
 	int prev_lo_flags;
 	bool partscan = false;
@@ -1503,7 +1502,6 @@ out_unfreeze:
 	if (!err && (lo->lo_flags & LO_FLAGS_PARTSCAN) &&
 	     !(prev_lo_flags & LO_FLAGS_PARTSCAN)) {
 		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
-		bdev = lo->lo_device;
 		partscan = true;
 	}
 out_unlock:
