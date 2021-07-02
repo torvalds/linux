@@ -1509,6 +1509,14 @@ static const struct i2c_algorithm aldebaran_i2c_algo = {
 	.functionality = aldebaran_i2c_func,
 };
 
+static const struct i2c_adapter_quirks aldebaran_i2c_control_quirks = {
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR,
+	.max_read_len  = MAX_SW_I2C_COMMANDS,
+	.max_write_len = MAX_SW_I2C_COMMANDS,
+	.max_comb_1st_msg_len = 2,
+	.max_comb_2nd_msg_len = MAX_SW_I2C_COMMANDS - 2,
+};
+
 static int aldebaran_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
@@ -1519,6 +1527,7 @@ static int aldebaran_i2c_control_init(struct smu_context *smu, struct i2c_adapte
 	control->dev.parent = &adev->pdev->dev;
 	control->algo = &aldebaran_i2c_algo;
 	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
+	control->quirks = &aldebaran_i2c_control_quirks;
 
 	res = i2c_add_adapter(control);
 	if (res)
