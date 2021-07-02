@@ -792,13 +792,23 @@ int main(int argc, char **argv)
 
 	n_cpus = get_nprocs_conf();
 
-	/* Notice: choosing he queue size is very important with the
-	 * ixgbe driver, because it's driver page recycling trick is
-	 * dependend on pages being returned quickly.  The number of
-	 * out-standing packets in the system must be less-than 2x
-	 * RX-ring size.
+	/* Notice: Choosing the queue size is very important when CPU is
+	 * configured with power-saving states.
+	 *
+	 * If deepest state take 133 usec to wakeup from (133/10^6). When link
+	 * speed is 10Gbit/s ((10*10^9/8) in bytes/sec). How many bytes can
+	 * arrive with in 133 usec at this speed: (10*10^9/8)*(133/10^6) =
+	 * 166250 bytes. With MTU size packets this is 110 packets, and with
+	 * minimum Ethernet (MAC-preamble + intergap) 84 bytes is 1979 packets.
+	 *
+	 * Setting default cpumap queue to 2048 as worst-case (small packet)
+	 * should be +64 packet due kthread wakeup call (due to xdp_do_flush)
+	 * worst-case is 2043 packets.
+	 *
+	 * Sysadm can configured system to avoid deep-sleep via:
+	 *   tuned-adm profile network-latency
 	 */
-	qsize = 128+64;
+	qsize = 2048;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
