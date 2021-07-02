@@ -306,14 +306,15 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 	/* Display WA #0529: skl, kbl, bxt. */
 	if (DISPLAY_VER(dev_priv) == 9) {
-		u32 val = intel_de_read(dev_priv, CHICKEN_MISC_4);
+		u32 val = 0;
 
-		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
+		if (params->override_cfb_stride)
+			val |= CHICKEN_FBC_STRIDE_OVERRIDE |
+				CHICKEN_FBC_STRIDE(params->override_cfb_stride);
 
-		if (params->gen9_wa_cfb_stride)
-			val |= FBC_STRIDE_OVERRIDE | params->gen9_wa_cfb_stride;
-
-		intel_de_write(dev_priv, CHICKEN_MISC_4, val);
+		intel_de_rmw(dev_priv, CHICKEN_MISC_4,
+			     CHICKEN_FBC_STRIDE_OVERRIDE |
+			     CHICKEN_FBC_STRIDE_MASK, val);
 	}
 
 	dpfc_ctl = 0;
@@ -749,7 +750,7 @@ static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
 		fbc->compressed_fb.size * fbc->limit;
 }
 
-static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
+static u16 intel_fbc_override_cfb_stride(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
@@ -761,11 +762,11 @@ static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
 		return 0;
 }
 
-static bool intel_fbc_gen9_wa_cfb_stride_changed(struct drm_i915_private *dev_priv)
+static bool intel_fbc_override_cfb_stride_changed(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	return fbc->params.gen9_wa_cfb_stride != intel_fbc_gen9_wa_cfb_stride(dev_priv);
+	return fbc->params.override_cfb_stride != intel_fbc_override_cfb_stride(dev_priv);
 }
 
 static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
@@ -950,7 +951,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
 
-	params->gen9_wa_cfb_stride = cache->gen9_wa_cfb_stride;
+	params->override_cfb_stride = cache->override_cfb_stride;
 
 	params->plane_visible = cache->plane.visible;
 }
@@ -984,7 +985,7 @@ static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
 	if (params->cfb_size != intel_fbc_calculate_cfb_size(dev_priv, cache))
 		return false;
 
-	if (params->gen9_wa_cfb_stride != cache->gen9_wa_cfb_stride)
+	if (params->override_cfb_stride != cache->override_cfb_stride)
 		return false;
 
 	return true;
@@ -1258,7 +1259,7 @@ static void intel_fbc_enable(struct intel_atomic_state *state,
 	if (fbc->crtc) {
 		if (fbc->crtc != crtc ||
 		    (!intel_fbc_cfb_size_changed(dev_priv) &&
-		     !intel_fbc_gen9_wa_cfb_stride_changed(dev_priv)))
+		     !intel_fbc_override_cfb_stride_changed(dev_priv)))
 			goto out;
 
 		__intel_fbc_disable(dev_priv);
@@ -1280,7 +1281,7 @@ static void intel_fbc_enable(struct intel_atomic_state *state,
 		goto out;
 	}
 
-	cache->gen9_wa_cfb_stride = intel_fbc_gen9_wa_cfb_stride(dev_priv);
+	cache->override_cfb_stride = intel_fbc_override_cfb_stride(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling FBC on pipe %c\n",
 		    pipe_name(crtc->pipe));
