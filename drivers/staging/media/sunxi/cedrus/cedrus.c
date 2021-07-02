@@ -259,6 +259,7 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 
 			v4l2_ctrl_handler_free(hdl);
 			kfree(ctx->ctrls);
+			ctx->ctrls = NULL;
 			return hdl->error;
 		}
 
