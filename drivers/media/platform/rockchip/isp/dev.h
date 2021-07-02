@@ -45,6 +45,7 @@
 #include "isp_stats.h"
 #include "isp_mipi_luma.h"
 #include "procfs.h"
+#include "isp_external.h"
 
 #define DRIVER_NAME "rkisp"
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
@@ -227,5 +228,7 @@ struct rkisp_device {
 	int rdbk_cnt_x3;
 	u32 rd_mode;
 	u8 filt_state[RDBK_F_MAX];
+
+	struct rkisp_rx_buf_pool pv_pool[RKISP_RX_BUF_POOL_MAX];
 };
 #endif

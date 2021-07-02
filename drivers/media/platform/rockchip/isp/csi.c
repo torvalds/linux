@@ -12,6 +12,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include "dev.h"
+#include "isp_external.h"
 #include "regs.h"
 
 static void get_remote_mipi_sensor(struct rkisp_device *dev,
@@ -436,6 +437,10 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	} else {
 		if (dev->isp_inp & INP_CIF) {
 			struct rkmodule_hdr_cfg hdr_cfg;
+			struct rkisp_vicap_mode mode = {
+				.name = dev->name,
+				.is_rdbk = true,
+			};
 
 			get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 			dev->hdr.op_mode = HDR_NORMAL;
@@ -454,6 +459,30 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			/* normal read back mode */
 			if (dev->hdr.op_mode == HDR_NORMAL)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
+
+			if (dev->isp_inp == INP_CIF && dev->hw_dev->is_single)
+				mode.is_rdbk = false;
+			v4l2_subdev_call(mipi_sensor, core, ioctl,
+					 RKISP_VICAP_CMD_MODE, &mode);
+			/* vicap direct to isp */
+			if (dev->isp_ver == ISP_V30 && dev->hw_dev->is_single) {
+				switch (dev->hdr.op_mode) {
+				case HDR_RDBK_FRAME3:
+					dev->hdr.op_mode = HDR_LINEX3_DDR;
+					break;
+				case HDR_RDBK_FRAME2:
+					dev->hdr.op_mode = HDR_LINEX2_DDR;
+					break;
+				default:
+					dev->hdr.op_mode = HDR_NORMAL;
+				}
+				if (dev->hdr.op_mode != HDR_NORMAL && mipi_sensor) {
+					int cnt = RKISP_VICAP_BUF_CNT;
+
+					v4l2_subdev_call(mipi_sensor, core, ioctl,
+							 RKISP_VICAP_CMD_INIT_BUF, &cnt);
+				}
+			}
 		} else {
 			switch (dev->isp_inp & 0x7) {
 			case INP_RAWRD2 | INP_RAWRD0:
@@ -467,15 +496,26 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			}
 		}
 
-		if (dev->hdr.op_mode == HDR_RDBK_FRAME2)
-			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
-		else if (dev->hdr.op_mode == HDR_RDBK_FRAME3)
-			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX3;
-
 		if (!dev->hw_dev->is_mi_update)
 			rkisp_write(dev, CSI2RX_CTRL0,
 				    SW_IBUF_OP_MODE(dev->hdr.op_mode), true);
 
+		/* hdr merge */
+		switch (dev->hdr.op_mode) {
+		case HDR_RDBK_FRAME2:
+		case HDR_FRAMEX2_DDR:
+		case HDR_LINEX2_DDR:
+		case HDR_LINEX2_NO_DDR:
+			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
+			break;
+		case HDR_RDBK_FRAME3:
+		case HDR_FRAMEX3_DDR:
+		case HDR_LINEX3_DDR:
+			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX3;
+			break;
+		default:
+			val = 0;
+		}
 		if (is_feature_on) {
 			if ((ISP2X_MODULE_HDRMGE & ~iq_feature) && (val & SW_HDRMGE_EN)) {
 				v4l2_err(&dev->v4l2_dev, "hdrmge is not supported\n");

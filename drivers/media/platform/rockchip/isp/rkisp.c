@@ -49,6 +49,7 @@
 #include <media/media-entity.h>
 
 #include "common.h"
+#include "isp_external.h"
 #include "regs.h"
 #include "rkisp_tb_helper.h"
 
@@ -2324,6 +2325,107 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
+void rkisp_rx_buf_pool_free(struct rkisp_device *dev)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	struct rkisp_rx_buf_pool *pool;
+	int i;
+
+	for (i = 0; i < RKISP_RX_BUF_POOL_MAX; i++) {
+		pool = &dev->pv_pool[i];
+		if (!pool->dbufs)
+			break;
+		if (pool->mem_priv) {
+			g_ops->unmap_dmabuf(pool->mem_priv);
+			g_ops->detach_dmabuf(pool->mem_priv);
+			dma_buf_put(pool->dbufs->dbuf);
+			pool->mem_priv = NULL;
+		}
+		pool->dbufs = NULL;
+	}
+}
+
+static int rkisp_rx_buf_pool_init(struct rkisp_device *dev,
+				  struct rkisp_rx_buf *dbufs)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	struct rkisp_stream *stream;
+	struct rkisp_rx_buf_pool *pool;
+	struct sg_table  *sg_tbl;
+	int i, ret;
+	void *mem;
+
+	for (i = 0; i < RKISP_RX_BUF_POOL_MAX; i++) {
+		pool = &dev->pv_pool[i];
+		if (!pool->dbufs)
+			break;
+	}
+
+	pool->dbufs = dbufs;
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s type:0x%x dbufs[%d]:%p", __func__, dbufs->type, i, dbufs);
+
+	mem = g_ops->attach_dmabuf(dev->hw_dev->dev, dbufs->dbuf,
+				   dbufs->dbuf->size, DMA_BIDIRECTIONAL);
+	if (IS_ERR(mem)) {
+		ret = PTR_ERR(mem);
+		goto err;
+	}
+	pool->mem_priv = mem;
+	ret = g_ops->map_dmabuf(mem);
+	if (ret)
+		goto err;
+	if (dev->hw_dev->is_dma_sg_ops) {
+		sg_tbl = (struct sg_table *)g_ops->cookie(mem);
+		pool->dma = sg_dma_address(sg_tbl->sgl);
+	} else {
+		pool->dma = *((dma_addr_t *)g_ops->cookie(mem));
+	}
+	get_dma_buf(dbufs->dbuf);
+	pool->vaddr = g_ops->vaddr(mem);
+	dbufs->is_init = true;
+
+	switch (dbufs->type) {
+	case BUF_SHORT:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
+		break;
+	case BUF_MIDDLE:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0];
+		break;
+	case BUF_LONG:
+	default:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
+
+	}
+	stream->ops->config_mi(stream);
+	rkisp_write(dev, stream->config->mi.y_base_ad_init, pool->dma, false);
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s dma:0x%x vaddr:%p", __func__, (u32)pool->dma, pool->vaddr);
+	return 0;
+err:
+	rkisp_rx_buf_pool_free(dev);
+	return ret;
+}
+
+static int rkisp_sd_s_rx_buffer(struct v4l2_subdev *sd,
+				void *buf, unsigned int *size)
+{
+	struct rkisp_device *dev = sd_to_isp_dev(sd);
+	struct rkisp_rx_buf *dbufs;
+	int ret = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	dbufs = buf;
+	if (!dbufs->is_init)
+		ret = rkisp_rx_buf_pool_init(dev, dbufs);
+
+	/* TODO qbuf/debuf for more buffer */
+
+	return ret;
+}
+
 static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -2462,6 +2564,19 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		dev->dmarx_dev.trigger = T_MANUAL;
 	else
 		dev->dmarx_dev.trigger = T_AUTO;
+
+	if (dev->isp_inp & INP_CIF) {
+		struct v4l2_subdev *remote = get_remote_sensor(sd);
+		struct rkisp_vicap_mode mode;
+
+		mode.name = dev->name;
+		mode.is_rdbk = !!(dev->isp_inp & rawrd);
+		/* read back mode only */
+		if (dev->isp_ver < ISP_V30 || !dev->hw_dev->is_single)
+			mode.is_rdbk = true;
+		v4l2_subdev_call(remote, core, ioctl,
+				 RKISP_VICAP_CMD_MODE, &mode);
+	}
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "isp input:0x%x\n", dev->isp_inp);
@@ -2724,6 +2839,7 @@ static const struct media_entity_operations rkisp_isp_sd_media_ops = {
 
 static const struct v4l2_subdev_video_ops rkisp_isp_sd_video_ops = {
 	.s_stream = rkisp_isp_sd_s_stream,
+	.s_rx_buffer = rkisp_sd_s_rx_buffer,
 };
 
 static const struct v4l2_subdev_core_ops rkisp_isp_core_ops = {

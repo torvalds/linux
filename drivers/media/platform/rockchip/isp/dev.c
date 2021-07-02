@@ -126,7 +126,7 @@ static int __isp_pipeline_prepare(struct rkisp_pipeline *p,
 	p->num_subdevs = 0;
 	memset(p->subdevs, 0, sizeof(p->subdevs));
 
-	if (!(dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS)))
+	if (!(dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS | INP_CIF)))
 		return 0;
 
 	while (1) {
@@ -259,7 +259,12 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 
 static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 {
+	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
+
 	atomic_dec(&p->power_cnt);
+
+	if (dev->isp_ver == ISP_V30 && !atomic_read(&p->power_cnt))
+		rkisp_rx_buf_pool_free(dev);
 
 	return 0;
 }
