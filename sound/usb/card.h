@@ -54,6 +54,7 @@ struct snd_urb_ctx {
 	struct snd_usb_endpoint *ep;
 	int index;	/* index for urb array */
 	int packets;	/* number of packets per urb */
+	int queued;	/* queued data bytes by this urb */
 	int packet_size[MAX_PACKS_HS]; /* size of packets for next submission */
 	struct list_head ready_list;
 };
@@ -158,8 +159,10 @@ struct snd_usb_substream {
 
 	unsigned int running: 1;	/* running status */
 
+	unsigned int buffer_bytes;	/* buffer size in bytes */
+	unsigned int inflight_bytes;	/* in-flight data bytes on buffer (for playback) */
 	unsigned int hwptr_done;	/* processed byte position in the buffer */
-	unsigned int transfer_done;		/* processed frames since last period update */
+	unsigned int transfer_done;	/* processed frames since last period update */
 	unsigned int frame_limit;	/* limits number of packets in URB */
 
 	/* data and sync endpoints for this stream */
@@ -174,8 +177,7 @@ struct snd_usb_substream {
 	struct list_head fmt_list;	/* format list */
 	spinlock_t lock;
 
-	int last_frame_number;          /* stored frame number */
-	int last_delay;                 /* stored delay */
+	unsigned int last_frame_number;	/* stored frame number */
 
 	struct {
 		int marker;
