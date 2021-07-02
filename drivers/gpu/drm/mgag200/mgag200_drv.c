@@ -263,7 +263,7 @@ static void mgag200_g200se_init_unique_id(struct mga_device *mdev)
 }
 
 static struct mga_device *
-mgag200_device_create(struct pci_dev *pdev, unsigned long flags)
+mgag200_device_create(struct pci_dev *pdev, enum mga_type type, unsigned long flags)
 {
 	struct mga_device *mdev;
 	struct drm_device *dev;
@@ -276,8 +276,8 @@ mgag200_device_create(struct pci_dev *pdev, unsigned long flags)
 
 	pci_set_drvdata(pdev, dev);
 
-	mdev->flags = mgag200_flags_from_driver_data(flags);
-	mdev->type = mgag200_type_from_driver_data(flags);
+	mdev->flags = flags;
+	mdev->type = type;
 
 	ret = mgag200_regs_init(mdev);
 	if (ret)
@@ -320,9 +320,22 @@ static const struct pci_device_id mgag200_pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);
 
+static enum mga_type mgag200_type_from_driver_data(kernel_ulong_t driver_data)
+{
+	return (enum mga_type)(driver_data & MGAG200_TYPE_MASK);
+}
+
+static unsigned long mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
+{
+	return driver_data & MGAG200_FLAG_MASK;
+}
+
 static int
 mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	kernel_ulong_t driver_data = ent->driver_data;
+	enum mga_type type = mgag200_type_from_driver_data(driver_data);
+	unsigned long flags = mgag200_flags_from_driver_data(driver_data);
 	struct mga_device *mdev;
 	struct drm_device *dev;
 	int ret;
@@ -335,7 +348,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	mdev = mgag200_device_create(pdev, ent->driver_data);
+	mdev = mgag200_device_create(pdev, type, flags);
 	if (IS_ERR(mdev))
 		return PTR_ERR(mdev);
 	dev = &mdev->base;
