@@ -11,6 +11,7 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_ifork;
+struct xfs_perag;
 
 extern kmem_zone_t	*xfs_btree_cur_zone;
 
@@ -180,11 +181,11 @@ union xfs_btree_irec {
 
 /* Per-AG btree information. */
 struct xfs_btree_cur_ag {
+	struct xfs_perag	*pag;
 	union {
 		struct xfs_buf		*agbp;
 		struct xbtree_afakeroot	*afake;	/* for staging cursor */
 	};
-	xfs_agnumber_t		agno;
 	union {
 		struct {
 			unsigned long nr_ops;	/* # record updates */
@@ -231,6 +232,13 @@ typedef struct xfs_btree_cur
 	uint8_t		bc_blocklog;	/* log2(blocksize) of btree blocks */
 	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
 	int		bc_statoff;	/* offset of btre stats array */
+
+	/*
+	 * Short btree pointers need an agno to be able to turn the pointers
+	 * into physical addresses for IO, so the btree cursor switches between
+	 * bc_ino and bc_ag based on whether XFS_BTREE_LONG_PTRS is set for the
+	 * cursor.
+	 */
 	union {
 		struct xfs_btree_cur_ag	bc_ag;
 		struct xfs_btree_cur_ino bc_ino;

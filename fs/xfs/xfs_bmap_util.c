@@ -945,7 +945,7 @@ xfs_flush_unmap_range(
 	xfs_off_t		rounding, start, end;
 	int			error;
 
-	rounding = max_t(xfs_off_t, 1 << mp->m_sb.sb_blocklog, PAGE_SIZE);
+	rounding = max_t(xfs_off_t, mp->m_sb.sb_blocksize, PAGE_SIZE);
 	start = round_down(offset, rounding);
 	end = round_up(offset + len, rounding) - 1;
 
@@ -1053,9 +1053,9 @@ xfs_prepare_shift(
 	 * extent (after split) during the shift and corrupt the file. Start
 	 * with the block just prior to the start to stabilize the boundary.
 	 */
-	offset = round_down(offset, 1 << mp->m_sb.sb_blocklog);
+	offset = round_down(offset, mp->m_sb.sb_blocksize);
 	if (offset)
-		offset -= (1 << mp->m_sb.sb_blocklog);
+		offset -= mp->m_sb.sb_blocksize;
 
 	/*
 	 * Writeback and invalidate cache for the remainder of the file as we're

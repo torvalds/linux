@@ -21,6 +21,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_trans.h"
+#include "xfs_ialloc.h"
 
 /* ----- Kernel only functions below ----- */
 int
@@ -161,6 +162,7 @@ xfs_symlink(
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
 	uint			resblks;
+	xfs_ino_t		ino;
 
 	*ipp = NULL;
 
@@ -223,8 +225,11 @@ xfs_symlink(
 	/*
 	 * Allocate an inode for the symlink.
 	 */
-	error = xfs_dir_ialloc(mnt_userns, &tp, dp, S_IFLNK | (mode & ~S_IFMT),
-			       1, 0, prid, false, &ip);
+	error = xfs_dialloc(&tp, dp->i_ino, S_IFLNK, &ino);
+	if (!error)
+		error = xfs_init_new_inode(mnt_userns, tp, dp, ino,
+				S_IFLNK | (mode & ~S_IFMT), 1, 0, prid,
+				false, &ip);
 	if (error)
 		goto out_trans_cancel;
 
