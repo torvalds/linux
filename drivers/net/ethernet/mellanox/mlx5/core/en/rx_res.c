@@ -6,52 +6,52 @@
 #include "params.h"
 
 static const struct mlx5e_rss_params_traffic_type rss_default_config[MLX5E_NUM_INDIR_TIRS] = {
-	[MLX5E_TT_IPV4_TCP] = {
+	[MLX5_TT_IPV4_TCP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
 		.l4_prot_type = MLX5_L4_PROT_TYPE_TCP,
 		.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
 	},
-	[MLX5E_TT_IPV6_TCP] = {
+	[MLX5_TT_IPV6_TCP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
 		.l4_prot_type = MLX5_L4_PROT_TYPE_TCP,
 		.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
 	},
-	[MLX5E_TT_IPV4_UDP] = {
+	[MLX5_TT_IPV4_UDP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
 		.l4_prot_type = MLX5_L4_PROT_TYPE_UDP,
 		.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
 	},
-	[MLX5E_TT_IPV6_UDP] = {
+	[MLX5_TT_IPV6_UDP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
 		.l4_prot_type = MLX5_L4_PROT_TYPE_UDP,
 		.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
 	},
-	[MLX5E_TT_IPV4_IPSEC_AH] = {
+	[MLX5_TT_IPV4_IPSEC_AH] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
 	},
-	[MLX5E_TT_IPV6_IPSEC_AH] = {
+	[MLX5_TT_IPV6_IPSEC_AH] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
 	},
-	[MLX5E_TT_IPV4_IPSEC_ESP] = {
+	[MLX5_TT_IPV4_IPSEC_ESP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
 	},
-	[MLX5E_TT_IPV6_IPSEC_ESP] = {
+	[MLX5_TT_IPV6_IPSEC_ESP] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
 	},
-	[MLX5E_TT_IPV4] = {
+	[MLX5_TT_IPV4] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP,
 	},
-	[MLX5E_TT_IPV6] = {
+	[MLX5_TT_IPV6] = {
 		.l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
 		.l4_prot_type = 0,
 		.rx_hash_fields = MLX5_HASH_IP,
@@ -59,7 +59,7 @@ static const struct mlx5e_rss_params_traffic_type rss_default_config[MLX5E_NUM_I
 };
 
 struct mlx5e_rss_params_traffic_type
-mlx5e_rss_get_default_tt_config(enum mlx5e_traffic_types tt)
+mlx5e_rss_get_default_tt_config(enum mlx5_traffic_types tt)
 {
 	return rss_default_config[tt];
 }
@@ -106,7 +106,7 @@ struct mlx5e_rx_res *mlx5e_rx_res_alloc(void)
 
 static void mlx5e_rx_res_rss_params_init(struct mlx5e_rx_res *res, unsigned int init_nch)
 {
-	enum mlx5e_traffic_types tt;
+	enum mlx5_traffic_types tt;
 
 	res->rss_params.hash.hfunc = ETH_RSS_HASH_TOP;
 	netdev_rss_key_fill(res->rss_params.hash.toeplitz_hash_key,
@@ -121,7 +121,7 @@ static int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res,
 				 const struct mlx5e_lro_param *init_lro_param)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
-	enum mlx5e_traffic_types tt, max_tt;
+	enum mlx5_traffic_types tt, max_tt;
 	struct mlx5e_tir_builder *builder;
 	u32 indir_rqtn;
 	int err;
@@ -337,7 +337,7 @@ out:
 
 static void mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res)
 {
-	enum mlx5e_traffic_types tt;
+	enum mlx5_traffic_types tt;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		mlx5e_tir_destroy(&res->rss[tt].indir_tir);
@@ -432,12 +432,12 @@ u32 mlx5e_rx_res_get_tirn_xsk(struct mlx5e_rx_res *res, unsigned int ix)
 	return mlx5e_tir_get_tirn(&res->channels[ix].xsk_tir);
 }
 
-u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt)
+u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
 	return mlx5e_tir_get_tirn(&res->rss[tt].indir_tir);
 }
 
-u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt)
+u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
 	WARN_ON(!(res->features & MLX5E_RX_RES_FEATURE_INNER_FT));
 	return mlx5e_tir_get_tirn(&res->rss[tt].inner_indir_tir);
@@ -608,7 +608,7 @@ int mlx5e_rx_res_xsk_deactivate(struct mlx5e_rx_res *res, unsigned int ix)
 }
 
 struct mlx5e_rss_params_traffic_type
-mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt)
+mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
 	struct mlx5e_rss_params_traffic_type rss_tt;
 
@@ -643,7 +643,7 @@ void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 *indir, u8 *key, u8
 		*hfunc = res->rss_params.hash.hfunc;
 }
 
-static int mlx5e_rx_res_rss_update_tir(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt,
+static int mlx5e_rx_res_rss_update_tir(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				       bool inner)
 {
 	struct mlx5e_rss_params_traffic_type rss_tt;
@@ -668,7 +668,7 @@ static int mlx5e_rx_res_rss_update_tir(struct mlx5e_rx_res *res, enum mlx5e_traf
 int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, const u32 *indir,
 			      const u8 *key, const u8 *hfunc)
 {
-	enum mlx5e_traffic_types tt;
+	enum mlx5_traffic_types tt;
 	bool changed_indir = false;
 	bool changed_hash = false;
 	int err;
@@ -730,12 +730,12 @@ int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, const u32 *indir,
 	return 0;
 }
 
-u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt)
+u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
 	return res->rss_params.rx_hash_fields[tt];
 }
 
-int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt,
+int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				     u8 rx_hash_fields)
 {
 	u8 old_rx_hash_fields;
@@ -778,7 +778,7 @@ int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5e_traffi
 int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param *lro_param)
 {
 	struct mlx5e_tir_builder *builder;
-	enum mlx5e_traffic_types tt;
+	enum mlx5_traffic_types tt;
 	int err, final_err;
 	unsigned int ix;
 

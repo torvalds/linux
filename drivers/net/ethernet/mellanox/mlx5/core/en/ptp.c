@@ -617,7 +617,7 @@ static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 	if (err)
 		goto out_free;
 
-	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV4_UDP,
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5_TT_IPV4_UDP,
 						 tirn, PTP_EV_PORT);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -625,7 +625,7 @@ static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 	}
 	ptp_fs->udp_v4_rule = rule;
 
-	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV6_UDP,
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5_TT_IPV6_UDP,
 						 tirn, PTP_EV_PORT);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);

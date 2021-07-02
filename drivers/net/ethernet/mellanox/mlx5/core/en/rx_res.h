@@ -21,7 +21,7 @@ enum mlx5e_rx_res_features {
 };
 
 struct mlx5e_rss_params_traffic_type
-mlx5e_rss_get_default_tt_config(enum mlx5e_traffic_types tt);
+mlx5e_rss_get_default_tt_config(enum mlx5_traffic_types tt);
 
 /* Setup */
 struct mlx5e_rx_res *mlx5e_rx_res_alloc(void);
@@ -35,8 +35,8 @@ void mlx5e_rx_res_free(struct mlx5e_rx_res *res);
 /* TIRN getters for flow steering */
 u32 mlx5e_rx_res_get_tirn_direct(struct mlx5e_rx_res *res, unsigned int ix);
 u32 mlx5e_rx_res_get_tirn_xsk(struct mlx5e_rx_res *res, unsigned int ix);
-u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt);
-u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt);
+u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
+u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 u32 mlx5e_rx_res_get_tirn_ptp(struct mlx5e_rx_res *res);
 
 /* RQTN getters for modules that create their own TIRs */
@@ -51,13 +51,13 @@ int mlx5e_rx_res_xsk_deactivate(struct mlx5e_rx_res *res, unsigned int ix);
 
 /* Configuration API */
 struct mlx5e_rss_params_traffic_type
-mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt);
+mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch);
 void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 *indir, u8 *key, u8 *hfunc);
 int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, const u32 *indir,
 			      const u8 *key, const u8 *hfunc);
-u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt);
-int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt,
+u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
+int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				     u8 rx_hash_fields);
 int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param *lro_param);
 

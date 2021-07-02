@@ -538,7 +538,7 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 {
 	struct mlx5e_priv *priv = hp->func_priv;
 	struct mlx5e_rss_params_hash rss_hash;
-	enum mlx5e_traffic_types tt, max_tt;
+	enum mlx5_traffic_types tt, max_tt;
 	struct mlx5e_tir_builder *builder;
 	int err = 0;
 
@@ -600,7 +600,7 @@ static void mlx5e_hairpin_set_ttc_params(struct mlx5e_hairpin *hp,
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		ttc_params->indir_tirn[tt] = mlx5e_tir_get_tirn(&hp->indir_tir[tt]);
 
-	ft_attr->max_fte = MLX5E_TTC_TABLE_SIZE;
+	ft_attr->max_fte = MLX5_TTC_TABLE_SIZE;
 	ft_attr->level = MLX5E_TC_TTC_FT_LEVEL;
 	ft_attr->prio = MLX5E_TC_PRIO;
 }

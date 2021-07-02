@@ -41,11 +41,11 @@ struct mlx5e_ipsec_tx {
 };
 
 /* IPsec RX flow steering */
-static enum mlx5e_traffic_types fs_esp2tt(enum accel_fs_esp_type i)
+static enum mlx5_traffic_types fs_esp2tt(enum accel_fs_esp_type i)
 {
 	if (i == ACCEL_FS_ESP4)
-		return MLX5E_TT_IPV4_IPSEC_ESP;
-	return MLX5E_TT_IPV6_IPSEC_ESP;
+		return MLX5_TT_IPV4_IPSEC_ESP;
+	return MLX5_TT_IPV6_IPSEC_ESP;
 }
 
 static int rx_err_add_rule(struct mlx5e_priv *priv,

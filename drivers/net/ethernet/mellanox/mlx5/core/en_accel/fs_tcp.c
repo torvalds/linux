@@ -16,13 +16,13 @@ struct mlx5e_accel_fs_tcp {
 	struct mlx5_flow_handle *default_rules[ACCEL_FS_TCP_NUM_TYPES];
 };
 
-static enum mlx5e_traffic_types fs_accel2tt(enum accel_fs_tcp_type i)
+static enum mlx5_traffic_types fs_accel2tt(enum accel_fs_tcp_type i)
 {
 	switch (i) {
 	case ACCEL_FS_IPV4_TCP:
-		return MLX5E_TT_IPV4_TCP;
+		return MLX5_TT_IPV4_TCP;
 	default: /* ACCEL_FS_IPV6_TCP */
-		return MLX5E_TT_IPV6_TCP;
+		return MLX5_TT_IPV6_TCP;
 	}
 }
 

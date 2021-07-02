@@ -4211,7 +4211,7 @@ static bool mlx5e_tunnel_any_tx_proto_supported(struct mlx5_core_dev *mdev)
 {
 	int tt;
 
-	for (tt = 0; tt < MLX5E_NUM_TUNNEL_TT; tt++) {
+	for (tt = 0; tt < MLX5_NUM_TUNNEL_TT; tt++) {
 		if (mlx5e_tunnel_proto_supported_tx(mdev, mlx5e_get_proto_by_tunnel_type(tt)))
 			return true;
 	}
