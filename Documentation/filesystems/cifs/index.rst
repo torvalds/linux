@@ -6,5 +6,5 @@ CIFS
 .. toctree::
    :maxdepth: 1
 
-   cifsd
+   ksmbd
    cifsroot
