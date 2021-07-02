@@ -1545,12 +1545,14 @@ static void __setscheduler_uclamp(struct task_struct *p,
 	    attr->sched_util_min != -1) {
 		uclamp_se_set(&p->uclamp_req[UCLAMP_MIN],
 			      attr->sched_util_min, true);
+		trace_android_vh_setscheduler_uclamp(p, UCLAMP_MIN, attr->sched_util_min);
 	}
 
 	if (attr->sched_flags & SCHED_FLAG_UTIL_CLAMP_MAX &&
 	    attr->sched_util_max != -1) {
 		uclamp_se_set(&p->uclamp_req[UCLAMP_MAX],
 			      attr->sched_util_max, true);
+		trace_android_vh_setscheduler_uclamp(p, UCLAMP_MAX, attr->sched_util_max);
 	}
 }
 
@@ -2105,7 +2107,6 @@ void force_compatible_cpus_allowed_ptr(struct task_struct *p)
 	 * offlining of the chosen destination CPU, so take the hotplug
 	 * lock to ensure that the migration succeeds.
 	 */
-	trace_android_vh_force_compatible_pre(NULL);
 	trace_android_rvh_force_compatible_pre(NULL);
 	cpus_read_lock();
 	if (!cpumask_available(new_mask))
@@ -2131,7 +2132,6 @@ out_set_mask:
 	WARN_ON(set_cpus_allowed_ptr(p, override_mask));
 out_free_mask:
 	cpus_read_unlock();
-	trace_android_vh_force_compatible_post(NULL);
 	trace_android_rvh_force_compatible_post(NULL);
 	free_cpumask_var(new_mask);
 }

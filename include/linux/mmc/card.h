@@ -313,6 +313,8 @@ struct mmc_card {
 
 	unsigned int		bouncesz;	/* Bounce buffer size */
 	struct workqueue_struct *complete_wq;	/* Private workqueue */
+
+	ANDROID_VENDOR_DATA(1);
 };
 
 static inline bool mmc_large_sector(struct mmc_card *card)

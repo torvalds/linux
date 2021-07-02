@@ -62,7 +62,7 @@ static size_t free_one_item(enum df_reason reason)
 	return nr_pages;
 }
 
-static unsigned long get_freelist_nr_pages(void)
+unsigned long get_freelist_nr_pages(void)
 {
 	unsigned long nr_pages;
 	unsigned long flags;
@@ -72,6 +72,7 @@ static unsigned long get_freelist_nr_pages(void)
 	spin_unlock_irqrestore(&free_list_lock, flags);
 	return nr_pages;
 }
+EXPORT_SYMBOL_GPL(get_freelist_nr_pages);
 
 static unsigned long freelist_shrink_count(struct shrinker *shrinker,
 					   struct shrink_control *sc)
