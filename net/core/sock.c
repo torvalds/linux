@@ -1116,7 +1116,7 @@ set_sndbuf:
 	case SO_TIMESTAMP_NEW:
 	case SO_TIMESTAMPNS_OLD:
 	case SO_TIMESTAMPNS_NEW:
-		sock_set_timestamp(sk, valbool, optname);
+		sock_set_timestamp(sk, optname, valbool);
 		break;
 
 	case SO_TIMESTAMPING_NEW:
