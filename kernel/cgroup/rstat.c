@@ -220,7 +220,7 @@ void cgroup_rstat_flush_irqsafe(struct cgroup *cgrp)
 }
 
 /**
- * cgroup_rstat_flush_begin - flush stats in @cgrp's subtree and hold
+ * cgroup_rstat_flush_hold - flush stats in @cgrp's subtree and hold
  * @cgrp: target cgroup
  *
  * Flush stats in @cgrp's subtree and prevent further flushes.  Must be
