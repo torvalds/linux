@@ -5672,7 +5672,7 @@ M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	drivers/gpu/drm/bochs/
+F:	drivers/gpu/drm/tiny/bochs.c
 
 DRM DRIVER FOR BOE HIMAX8279D PANELS
 M:	Jerry Han <hanxu5@huaqin.corp-partner.google.com>
