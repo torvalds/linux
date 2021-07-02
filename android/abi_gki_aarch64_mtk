@@ -42,7 +42,9 @@
   bcmp
   bdget_disk
   bdput
+  bio_add_pc_page
   bio_endio
+  bio_reset
   __bitmap_andnot
   __bitmap_clear
   __bitmap_equal
@@ -59,6 +61,8 @@
   bitmap_zalloc
   blk_alloc_queue
   blk_cleanup_queue
+  blk_insert_cloned_request
+  blk_mq_sched_mark_restart_hctx
   blk_queue_flag_clear
   blk_queue_flag_set
   blk_queue_io_min
@@ -67,6 +71,7 @@
   blk_queue_max_discard_sectors
   blk_queue_max_write_zeroes_sectors
   blk_queue_physical_block_size
+  blk_rq_append_bio
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
@@ -96,10 +101,12 @@
   __check_object_size
   check_preempt_curr
   __class_create
+  class_create_file_ns
   class_destroy
   class_find_device
   class_for_each_device
   __class_register
+  class_remove_file_ns
   class_unregister
   clear_page
   __ClearPageMovable
@@ -371,6 +378,8 @@
   devm_platform_ioremap_resource_byname
   devm_power_supply_get_by_phandle
   devm_power_supply_register
+  devm_rc_allocate_device
+  devm_rc_register_device
   devm_regmap_add_irq_chip
   devm_regmap_field_alloc
   __devm_regmap_init
@@ -1491,6 +1500,7 @@
   rtnl_lock
   rtnl_unlock
   runqueues
+  __sbitmap_queue_get
   sched_clock
   sched_feat_keys
   sched_setattr_nocheck
@@ -1611,6 +1621,7 @@
   snd_soc_card_jack_new
   snd_soc_component_exit_regmap
   snd_soc_component_init_regmap
+  snd_soc_component_test_bits
   snd_soc_dai_set_sysclk
   snd_soc_dapm_add_routes
   snd_soc_dapm_disable_pin
@@ -1856,6 +1867,7 @@
   __tracepoint_android_vh_set_module_permit_before_init
   __tracepoint_android_vh_set_wake_flags
   __tracepoint_android_vh_syscall_prctl_finished
+  __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_cpu_frequency
   __tracepoint_gpu_mem_total
   __tracepoint_pelt_se_tp
@@ -2026,6 +2038,7 @@
   v4l2_fh_init
   v4l2_fh_is_singular
   v4l2_fh_open
+  v4l2_m2m_buf_copy_metadata
   v4l2_m2m_buf_queue
   v4l2_m2m_buf_remove
   v4l2_m2m_ctx_init
@@ -2048,11 +2061,14 @@
   v4l2_m2m_job_finish
   v4l2_m2m_next_buf
   v4l2_m2m_qbuf
+  v4l2_m2m_register_media_controller
   v4l2_m2m_release
+  v4l2_m2m_request_queue
   v4l2_m2m_resume
   v4l2_m2m_streamoff
   v4l2_m2m_suspend
   v4l2_m2m_try_schedule
+  v4l2_m2m_unregister_media_controller
   v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
   v4l2_subdev_init
