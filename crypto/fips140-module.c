@@ -523,7 +523,8 @@ static bool update_fips140_library_routines(void)
  * let's disable CFI locally when handling the initcall array, to avoid
  * surpises.
  */
-int __init __attribute__((__no_sanitize__("cfi"))) fips140_init(void)
+static int __init __attribute__((__no_sanitize__("cfi")))
+fips140_init(void)
 {
 	const u32 *initcall;
 
