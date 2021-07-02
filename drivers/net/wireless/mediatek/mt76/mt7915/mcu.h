@@ -43,6 +43,7 @@ enum {
 	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
 	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
 	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
+	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
 };
 
 enum {
@@ -503,6 +504,14 @@ struct bss_info_hw_amsdu {
 	u8 rsv;
 } __packed;
 
+struct bss_info_color {
+	__le16 tag;
+	__le16 len;
+	u8 disable;
+	u8 color;
+	u8 rsv[2];
+} __packed;
+
 struct bss_info_he {
 	__le16 tag;
 	__le16 len;
@@ -521,14 +530,7 @@ struct bss_info_bcn {
 	__le16 sub_ntlv;
 } __packed __aligned(4);
 
-struct bss_info_bcn_csa {
-	__le16 tag;
-	__le16 len;
-	u8 cnt;
-	u8 rsv[3];
-} __packed __aligned(4);
-
-struct bss_info_bcn_bcc {
+struct bss_info_bcn_cntdwn {
 	__le16 tag;
 	__le16 len;
 	u8 cnt;
@@ -1117,8 +1119,7 @@ enum {
 					 sizeof(struct bss_info_ext_bss))
 
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
-					 sizeof(struct bss_info_bcn_csa) + \
-					 sizeof(struct bss_info_bcn_bcc) + \
+					 sizeof(struct bss_info_bcn_cntdwn) + \
 					 sizeof(struct bss_info_bcn_mbss) + \
 					 sizeof(struct bss_info_bcn_cont))
 

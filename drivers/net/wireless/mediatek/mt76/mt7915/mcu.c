@@ -512,6 +512,15 @@ mt7915_mcu_rx_log_message(struct mt7915_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7915_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	if (!vif->color_change_active)
+		return;
+
+	ieee80211_color_change_finish(vif);
+}
+
+static void
 mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
@@ -528,6 +537,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 		break;
 	case MCU_EXT_EVENT_FW_LOG_2_HOST:
 		mt7915_mcu_rx_log_message(dev, skb);
+		break;
+	case MCU_EXT_EVENT_BCC_NOTIFY:
+		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
+				IEEE80211_IFACE_ITER_RESUME_ALL,
+				mt7915_mcu_cca_finish, dev);
 		break;
 	default:
 		break;
@@ -557,6 +571,7 @@ void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb)
 	    rxd->ext_eid == MCU_EXT_EVENT_FW_LOG_2_HOST ||
 	    rxd->ext_eid == MCU_EXT_EVENT_ASSERT_DUMP ||
 	    rxd->ext_eid == MCU_EXT_EVENT_PS_SYNC ||
+	    rxd->ext_eid == MCU_EXT_EVENT_BCC_NOTIFY ||
 	    !rxd->seq)
 		mt7915_mcu_rx_unsolicited_event(dev, skb);
 	else
@@ -2388,25 +2403,28 @@ int mt7915_mcu_add_dev_info(struct mt7915_phy *phy,
 }
 
 static void
-mt7915_mcu_beacon_csa(struct sk_buff *rskb, struct sk_buff *skb,
-		      struct bss_info_bcn *bcn,
-		      struct ieee80211_mutable_offsets *offs)
+mt7915_mcu_beacon_cntdwn(struct ieee80211_vif *vif, struct sk_buff *rskb,
+			 struct sk_buff *skb, struct bss_info_bcn *bcn,
+			 struct ieee80211_mutable_offsets *offs)
 {
-	if (offs->cntdwn_counter_offs[0]) {
-		struct tlv *tlv;
-		struct bss_info_bcn_csa *csa;
+	struct bss_info_bcn_cntdwn *info;
+	struct tlv *tlv;
+	int sub_tag;
 
-		tlv = mt7915_mcu_add_nested_subtlv(rskb, BSS_INFO_BCN_CSA,
-						   sizeof(*csa), &bcn->sub_ntlv,
-						   &bcn->len);
-		csa = (struct bss_info_bcn_csa *)tlv;
-		csa->cnt = skb->data[offs->cntdwn_counter_offs[0]];
-	}
+	if (!offs->cntdwn_counter_offs[0])
+		return;
+
+	sub_tag = vif->csa_active ? BSS_INFO_BCN_CSA : BSS_INFO_BCN_BCC;
+	tlv = mt7915_mcu_add_nested_subtlv(rskb, sub_tag, sizeof(*info),
+					   &bcn->sub_ntlv, &bcn->len);
+	info = (struct bss_info_bcn_cntdwn *)tlv;
+	info->cnt = skb->data[offs->cntdwn_counter_offs[0]];
 }
 
 static void
-mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct sk_buff *rskb,
-		       struct sk_buff *skb, struct bss_info_bcn *bcn,
+mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+		       struct sk_buff *rskb, struct sk_buff *skb,
+		       struct bss_info_bcn *bcn,
 		       struct ieee80211_mutable_offsets *offs)
 {
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
@@ -2422,8 +2440,14 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct sk_buff *rskb,
 	cont->pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	cont->tim_ofs = cpu_to_le16(offs->tim_offset);
 
-	if (offs->cntdwn_counter_offs[0])
-		cont->csa_ofs = cpu_to_le16(offs->cntdwn_counter_offs[0] - 4);
+	if (offs->cntdwn_counter_offs[0]) {
+		u16 offset = offs->cntdwn_counter_offs[0];
+
+		if (vif->csa_active)
+			cont->csa_ofs = cpu_to_le16(offset - 4);
+		if (vif->color_change_active)
+			cont->bcc_ofs = cpu_to_le16(offset - 3);
+	}
 
 	buf = (u8 *)tlv + sizeof(*cont);
 	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
@@ -2471,9 +2495,9 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
 		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
 	}
 
-	/* TODO: subtag - bss color count & 11v MBSSID */
-	mt7915_mcu_beacon_csa(rskb, skb, bcn, &offs);
-	mt7915_mcu_beacon_cont(dev, rskb, skb, bcn, &offs);
+	/* TODO: subtag - 11v MBSSID */
+	mt7915_mcu_beacon_cntdwn(vif, rskb, skb, bcn, &offs);
+	mt7915_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
 	dev_kfree_skb(skb);
 
 out:
@@ -3897,4 +3921,26 @@ out:
 	dev_kfree_skb(skb);
 
 	return ret;
+}
+
+int mt7915_mcu_update_bss_color(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+				struct cfg80211_he_bss_color *he_bss_color)
+{
+	int len = sizeof(struct sta_req_hdr) + sizeof(struct bss_info_color);
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct bss_info_color *bss_color;
+	struct sk_buff *skb;
+	struct tlv *tlv;
+
+	skb = mt7915_mcu_alloc_sta_req(dev, mvif, NULL, len);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_BSS_COLOR, sizeof(*bss_color));
+	bss_color = (struct bss_info_color *)tlv;
+	bss_color->disable = !he_bss_color->enabled;
+	bss_color->color = he_bss_color->color;
+
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_EXT_CMD(BSS_INFO_UPDATE), true);
 }
