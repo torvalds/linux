@@ -1236,8 +1236,8 @@ out:
  * intel_fbc_enable multiple times for the same pipe without an
  * intel_fbc_disable in the middle, as long as it is deactivated.
  */
-void intel_fbc_enable(struct intel_atomic_state *state,
-		      struct intel_crtc *crtc)
+static void intel_fbc_enable(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
@@ -1310,6 +1310,28 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 	if (fbc->crtc == crtc)
 		__intel_fbc_disable(dev_priv);
 	mutex_unlock(&fbc->lock);
+}
+
+/**
+ * intel_fbc_update: enable/disable FBC on the CRTC
+ * @state: atomic state
+ * @crtc: the CRTC
+ *
+ * This function checks if the given CRTC was chosen for FBC, then enables it if
+ * possible. Notice that it doesn't activate FBC. It is valid to call
+ * intel_fbc_update multiple times for the same pipe without an
+ * intel_fbc_disable in the middle.
+ */
+void intel_fbc_update(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (crtc_state->update_pipe && !crtc_state->enable_fbc)
+		intel_fbc_disable(crtc);
+	else
+		intel_fbc_enable(state, crtc);
 }
 
 /**
