@@ -173,7 +173,7 @@ static int igt_mock_reserve(void *arg)
 	if (IS_ERR(mem)) {
 		pr_err("failed to create memory region\n");
 		err = PTR_ERR(mem);
-		goto out_close;
+		goto out_free_order;
 	}
 
 	/* Reserve a bunch of ranges within the region */
@@ -224,9 +224,10 @@ static int igt_mock_reserve(void *arg)
 	}
 
 out_close:
-	kfree(order);
 	close_objects(mem, &objects);
 	intel_memory_region_put(mem);
+out_free_order:
+	kfree(order);
 	return err;
 }
 
