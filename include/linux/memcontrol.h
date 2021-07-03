@@ -331,6 +331,7 @@ struct mem_cgroup {
 	struct deferred_split deferred_split_queue;
 #endif
 
+	ANDROID_OEM_DATA(1);
 	struct mem_cgroup_per_node *nodeinfo[0];
 	/* WARNING: nodeinfo must be the last member here */
 };
