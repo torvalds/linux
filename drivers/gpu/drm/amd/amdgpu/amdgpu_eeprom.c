@@ -147,7 +147,7 @@ static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 		/* This constitutes a START-STOP transaction.
 		 */
 		r = i2c_transfer(i2c_adap, msgs, ARRAY_SIZE(msgs));
-		if (r < ARRAY_SIZE(msgs))
+		if (r != ARRAY_SIZE(msgs))
 			break;
 
 		if (!read) {
