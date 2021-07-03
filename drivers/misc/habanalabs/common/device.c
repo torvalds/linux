@@ -7,11 +7,11 @@
 
 #define pr_fmt(fmt)			"habanalabs: " fmt
 
+#include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
 #include <linux/pci.h>
 #include <linux/hwmon.h>
-#include <uapi/misc/habanalabs.h>
 
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
@@ -819,6 +819,10 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout)
 			usleep_range(1000, 10000);
 
 			put_task_struct(task);
+		} else {
+			dev_warn(hdev->dev,
+				"Can't get task struct for PID so giving up on killing process\n");
+			return -ETIME;
 		}
 	}
 
