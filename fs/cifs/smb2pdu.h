@@ -13,7 +13,7 @@
 #define _SMB2PDU_H
 
 #include <net/sock.h>
-#include <cifsacl.h>
+#include "cifsacl.h"
 
 /*
  * Note that, due to trying to use names similar to the protocol specifications,
