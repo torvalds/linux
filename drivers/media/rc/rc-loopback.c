@@ -111,8 +111,16 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	for (i = 0; i < count; i++) {
 		rawir.pulse = i % 2 ? false : true;
 		rawir.duration = txbuf[i];
-		if (rawir.duration)
-			ir_raw_event_store_with_filter(dev, &rawir);
+
+		ir_raw_event_store_with_filter(dev, &rawir);
+	}
+
+	if (lodev->carrierreport) {
+		rawir.pulse = false;
+		rawir.carrier_report = true;
+		rawir.carrier = lodev->txcarrier;
+
+		ir_raw_event_store(dev, &rawir);
 	}
 
 	/* Fake a silence long enough to cause us to go idle */
