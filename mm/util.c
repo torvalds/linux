@@ -357,6 +357,7 @@ unsigned long arch_mmap_rnd(void)
 
 	return rnd << PAGE_SHIFT;
 }
+EXPORT_SYMBOL_GPL(arch_mmap_rnd);
 
 static int mmap_is_legacy(struct rlimit *rlim_stack)
 {
