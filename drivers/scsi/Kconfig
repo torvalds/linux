@@ -235,19 +235,6 @@ config SCSI_FC_ATTRS
 	  each attached FiberChannel device to sysfs, say Y.
 	  Otherwise, say N.
 
-config FC_APPID
-	bool "Enable support to track FC I/O Traffic"
-	depends on BLOCK && BLK_CGROUP
-	depends on SCSI
-	select BLK_CGROUP_FC_APPID
-	default y
-	help
-	  If you say Y here, it enables the support to track
-	  FC I/O traffic over fabric. It enables the Fabric and the
-	  storage targets to identify, monitor, and handle FC traffic
-	  based on VM tags by inserting application specific
-	  identification into the FC frame.
-
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET
