@@ -324,8 +324,8 @@ struct pci_sriov {
 /**
  * pci_dev_set_io_state - Set the new error state if possible.
  *
- * @dev - pci device to set new error_state
- * @new - the state we want dev to be in
+ * @dev: PCI device to set new error_state
+ * @new: the state we want dev to be in
  *
  * Must be called with device_lock held.
  *

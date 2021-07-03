@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * APM X-Gene PCIe Driver
  *
  * Copyright (c) 2014 Applied Micro Circuits Corporation.
