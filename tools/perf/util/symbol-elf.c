@@ -1074,8 +1074,9 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 	return 0;
 }
 
-int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
-		  struct symsrc *runtime_ss, int kmodule)
+static int
+dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		       struct symsrc *runtime_ss, int kmodule, int dynsym)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct maps *kmaps = kmap ? map__kmaps(map) : NULL;
@@ -1098,34 +1099,15 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	if (kmap && !kmaps)
 		return -1;
 
-	dso->symtab_type = syms_ss->type;
-	dso->is_64_bit = syms_ss->is_64_bit;
-	dso->rel = syms_ss->ehdr.e_type == ET_REL;
-
-	/*
-	 * Modules may already have symbols from kallsyms, but those symbols
-	 * have the wrong values for the dso maps, so remove them.
-	 */
-	if (kmodule && syms_ss->symtab)
-		symbols__delete(&dso->symbols);
-
-	if (!syms_ss->symtab) {
-		/*
-		 * If the vmlinux is stripped, fail so we will fall back
-		 * to using kallsyms. The vmlinux runtime symbols aren't
-		 * of much use.
-		 */
-		if (dso->kernel)
-			goto out_elf_end;
-
-		syms_ss->symtab  = syms_ss->dynsym;
-		syms_ss->symshdr = syms_ss->dynshdr;
-	}
-
 	elf = syms_ss->elf;
 	ehdr = syms_ss->ehdr;
-	sec = syms_ss->symtab;
-	shdr = syms_ss->symshdr;
+	if (dynsym) {
+		sec  = syms_ss->dynsym;
+		shdr = syms_ss->dynshdr;
+	} else {
+		sec =  syms_ss->symtab;
+		shdr = syms_ss->symshdr;
+	}
 
 	if (elf_section_by_name(runtime_ss->elf, &runtime_ss->ehdr, &tshdr,
 				".text", NULL))
@@ -1309,6 +1291,50 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	}
 	err = nr;
 out_elf_end:
+	return err;
+}
+
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, int kmodule)
+{
+	int nr = 0;
+	int err = -1;
+
+	dso->symtab_type = syms_ss->type;
+	dso->is_64_bit = syms_ss->is_64_bit;
+	dso->rel = syms_ss->ehdr.e_type == ET_REL;
+
+	/*
+	 * Modules may already have symbols from kallsyms, but those symbols
+	 * have the wrong values for the dso maps, so remove them.
+	 */
+	if (kmodule && syms_ss->symtab)
+		symbols__delete(&dso->symbols);
+
+	if (!syms_ss->symtab) {
+		/*
+		 * If the vmlinux is stripped, fail so we will fall back
+		 * to using kallsyms. The vmlinux runtime symbols aren't
+		 * of much use.
+		 */
+		if (dso->kernel)
+			return err;
+	} else  {
+		err = dso__load_sym_internal(dso, map, syms_ss, runtime_ss,
+					     kmodule, 0);
+		if (err < 0)
+			return err;
+		nr = err;
+	}
+
+	if (syms_ss->dynsym) {
+		err = dso__load_sym_internal(dso, map, syms_ss, runtime_ss,
+					     kmodule, 1);
+		if (err < 0)
+			return err;
+		err += nr;
+	}
+
 	return err;
 }
 
