@@ -755,8 +755,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			task_lock(&init_task);
 			get_fs_root(init_task.fs, &root);
 			task_unlock(&init_task);
-			cprm.file = file_open_root(root.dentry, root.mnt,
-				cn.corename, open_flags, 0600);
+			cprm.file = file_open_root(&root, cn.corename,
+						   open_flags, 0600);
 			path_put(&root);
 		} else {
 			cprm.file = filp_open(cn.corename, open_flags, 0600);
