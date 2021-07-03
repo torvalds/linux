@@ -24,6 +24,19 @@
 #include "gud_internal.h"
 
 /*
+ * Some userspace rendering loops runs all displays in the same loop.
+ * This means that a fast display will have to wait for a slow one.
+ * For this reason gud does flushing asynchronous by default.
+ * The down side is that in e.g. a single display setup userspace thinks
+ * the display is insanely fast since the driver reports back immediately
+ * that the flush/pageflip is done. This wastes CPU and power.
+ * Such users might want to set this module parameter to false.
+ */
+static bool gud_async_flush = true;
+module_param_named(async_flush, gud_async_flush, bool, 0644);
+MODULE_PARM_DESC(async_flush, "Enable asynchronous flushing [default=true]");
+
+/*
  * FIXME: The driver is probably broken on Big Endian machines.
  * See discussion:
  * https://lore.kernel.org/dri-devel/CAKb7UvihLX0hgBOP3VBG7O+atwZcUVCPVuBdfmDMpg0NjXe-cQ@mail.gmail.com/
@@ -578,6 +591,8 @@ void gud_pipe_update(struct drm_simple_display_pipe *pipe,
 		if (gdrm->flags & GUD_DISPLAY_FLAG_FULL_UPDATE)
 			drm_rect_init(&damage, 0, 0, fb->width, fb->height);
 		gud_fb_queue_damage(gdrm, fb, &damage);
+		if (!gud_async_flush)
+			flush_work(&gdrm->work);
 	}
 
 	if (!crtc->state->enable)
