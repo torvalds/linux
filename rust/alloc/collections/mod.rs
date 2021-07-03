@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Collection types.
 
 #![stable(feature = "rust1", since = "1.0.0")]

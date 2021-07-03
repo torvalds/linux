@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #![unstable(feature = "raw_vec_internals", reason = "unstable const warnings", issue = "none")]
 
 use core::alloc::LayoutError;
@@ -307,6 +309,12 @@ impl<T, A: Allocator> RawVec<T, A> {
         }
     }
 
+    /// The same as `reserve_for_push`, but returns on errors instead of panicking or aborting.
+    #[inline(never)]
+    pub fn try_reserve_for_push(&mut self, len: usize) -> Result<(), TryReserveError> {
+        self.grow_amortized(len, 1)
+    }
+
     /// Ensures that the buffer contains at least enough space to hold `len +
     /// additional` elements. If it doesn't already, will reallocate the
     /// minimum possible amount of memory necessary. Generally this will be
@@ -421,6 +429,7 @@ impl<T, A: Allocator> RawVec<T, A> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn shrink(&mut self, cap: usize) -> Result<(), TryReserveError> {
         assert!(cap <= self.capacity(), "Tried to shrink to a larger capacity");
 

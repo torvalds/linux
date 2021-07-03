@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! A module for working with borrowed data.
 
 #![stable(feature = "rust1", since = "1.0.0")]
@@ -11,7 +13,7 @@ use core::ops::{Add, AddAssign};
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::borrow::{Borrow, BorrowMut};
 
-use crate::fmt;
+use core::fmt;
 #[cfg(not(no_global_oom_handling))]
 use crate::string::String;
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! A dynamically-sized view into a contiguous sequence, `[T]`.
 //!
 //! *[See also the slice primitive type](slice).*

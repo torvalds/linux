@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::alloc::Allocator;
 #[cfg(not(no_global_oom_handling))]
 use crate::borrow::Cow;

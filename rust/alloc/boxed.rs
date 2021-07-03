@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! A pointer type for heap allocation.
 //!
 //! [`Box<T>`], casually referred to as a 'box', provides the simplest form of
@@ -163,9 +165,11 @@ use crate::str::from_boxed_utf8_unchecked;
 #[cfg(not(no_global_oom_handling))]
 use crate::vec::Vec;
 
+#[cfg(not(no_thin))]
 #[unstable(feature = "thin_box", issue = "92791")]
 pub use thin::ThinBox;
 
+#[cfg(not(no_thin))]
 mod thin;
 
 /// A pointer type for heap allocation.

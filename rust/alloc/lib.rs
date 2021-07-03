@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! # The Rust core allocation and collections library
 //!
 //! This library provides smart pointers and collections for managing
@@ -192,6 +194,7 @@ extern crate std;
 extern crate test;
 
 // Module with internal macros used by other modules (needs to be included before other modules).
+#[cfg(not(no_macros))]
 #[macro_use]
 mod macros;
 
@@ -216,11 +219,16 @@ pub mod borrow;
 pub mod collections;
 #[cfg(not(no_global_oom_handling))]
 pub mod ffi;
+#[cfg(not(no_fmt))]
 pub mod fmt;
+#[cfg(not(no_rc))]
 pub mod rc;
 pub mod slice;
+#[cfg(not(no_str))]
 pub mod str;
+#[cfg(not(no_string))]
 pub mod string;
+#[cfg(not(no_sync))]
 #[cfg(target_has_atomic = "ptr")]
 pub mod sync;
 #[cfg(all(not(no_global_oom_handling), target_has_atomic = "ptr"))]

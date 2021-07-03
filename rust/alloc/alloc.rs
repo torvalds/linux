@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Memory allocation APIs
 
 #![stable(feature = "alloc_module", since = "1.28.0")]
