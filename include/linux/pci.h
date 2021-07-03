@@ -1775,6 +1775,10 @@ static inline int pci_request_regions(struct pci_dev *dev, const char *res_name)
 { return -EIO; }
 static inline void pci_release_regions(struct pci_dev *dev) { }
 
+static inline int pci_register_io_range(struct fwnode_handle *fwnode,
+					phys_addr_t addr, resource_size_t size)
+{ return -EINVAL; }
+
 static inline unsigned long pci_address_to_pio(phys_addr_t addr) { return -1; }
 
 static inline struct pci_bus *pci_find_next_bus(const struct pci_bus *from)

@@ -22,8 +22,8 @@ Required properties:
 - i2c-parent: The phandle of the I2C bus that this multiplexer's master-side
   port is connected to.
 - mux-gpios: list of gpios used to control the muxer
-* Standard I2C mux properties. See i2c-mux.txt in this directory.
-* I2C child bus nodes. See i2c-mux.txt in this directory.
+* Standard I2C mux properties. See i2c-mux.yaml in this directory.
+* I2C child bus nodes. See i2c-mux.yaml in this directory.
 
 Optional properties:
 - idle-state: value to set the muxer to when idle. When no value is

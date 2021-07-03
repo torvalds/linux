@@ -77,7 +77,6 @@ properties:
 
   nvmem-cell-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: calib
       - enum:

@@ -50,7 +50,6 @@ properties:
       - const: int2
       - const: int3
     minItems: 1
-    maxItems: 4
 
   '#interrupt-cells':
     const: 2
