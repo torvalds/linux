@@ -83,9 +83,24 @@
 #define DATA_LANE_0_SKEW_PHASE_MASK		GENMASK(2, 0)
 #define DATA_LANE_0_SKEW_PHASE(x)		UPDATE(x, 2, 0)
 /* Analog Register Part: reg08 */
+#define PRE_EMPHASIS_ENABLE_MASK		BIT(7)
+#define PRE_EMPHASIS_ENABLE			BIT(7)
+#define PRE_EMPHASIS_DISABLE			0
+#define PLL_POST_DIV_ENABLE_MASK		BIT(5)
+#define PLL_POST_DIV_ENABLE			BIT(5)
+#define PLL_POST_DIV_DISABLE			0
+#define DATA_LANE_VOD_RANGE_SET_MASK		GENMASK(3, 0)
+#define DATA_LANE_VOD_RANGE_SET(x)		UPDATE(x, 3, 0)
 #define SAMPLE_CLOCK_DIRECTION_MASK		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_REVERSE		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_FORWARD		0
+/* Analog Register Part: reg0b */
+#define CLOCK_LANE_VOD_RANGE_SET_MASK	GENMASK(3, 0)
+#define CLOCK_LANE_VOD_RANGE_SET(x)	UPDATE(x, 3, 0)
+#define VOD_MIN_RANGE			0x1
+#define VOD_MID_RANGE			0x3
+#define VOD_BIG_RANGE			0x7
+#define VOD_MAX_RANGE			0xf
 /* Digital Register Part: reg00 */
 #define REG_DIG_RSTN_MASK			BIT(0)
 #define REG_DIG_RSTN_NORMAL			BIT(0)
@@ -101,20 +116,22 @@
 #define T_LPX_CNT_MASK				GENMASK(5, 0)
 #define T_LPX_CNT(x)				UPDATE(x, 5, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg06 */
+#define T_HS_ZERO_CNT_HI_MASK			BIT(7)
+#define T_HS_ZERO_CNT_HI(x)			UPDATE(x, 7, 7)
 #define T_HS_PREPARE_CNT_MASK			GENMASK(6, 0)
 #define T_HS_PREPARE_CNT(x)			UPDATE(x, 6, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg07 */
-#define T_HS_ZERO_CNT_MASK			GENMASK(5, 0)
-#define T_HS_ZERO_CNT(x)			UPDATE(x, 5, 0)
+#define T_HS_ZERO_CNT_LO_MASK			GENMASK(5, 0)
+#define T_HS_ZERO_CNT_LO(x)			UPDATE(x, 5, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg08 */
 #define T_HS_TRAIL_CNT_MASK			GENMASK(6, 0)
 #define T_HS_TRAIL_CNT(x)			UPDATE(x, 6, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg09 */
-#define T_HS_EXIT_CNT_MASK			GENMASK(4, 0)
-#define T_HS_EXIT_CNT(x)			UPDATE(x, 4, 0)
+#define T_HS_EXIT_CNT_LO_MASK			GENMASK(4, 0)
+#define T_HS_EXIT_CNT_LO(x)			UPDATE(x, 4, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0a */
-#define T_CLK_POST_CNT_MASK			GENMASK(3, 0)
-#define T_CLK_POST_CNT(x)			UPDATE(x, 3, 0)
+#define T_CLK_POST_CNT_LO_MASK			GENMASK(3, 0)
+#define T_CLK_POST_CNT_LO(x)			UPDATE(x, 3, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0c */
 #define LPDT_TX_PPI_SYNC_MASK			BIT(2)
 #define LPDT_TX_PPI_SYNC_ENABLE			BIT(2)
@@ -128,9 +145,13 @@
 #define T_CLK_PRE_CNT_MASK			GENMASK(3, 0)
 #define T_CLK_PRE_CNT(x)			UPDATE(x, 3, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg10 */
+#define T_CLK_POST_HI_MASK			GENMASK(7, 6)
+#define T_CLK_POST_HI(x)			UPDATE(x, 7, 6)
 #define T_TA_GO_CNT_MASK			GENMASK(5, 0)
 #define T_TA_GO_CNT(x)				UPDATE(x, 5, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg11 */
+#define T_HS_EXIT_CNT_HI_MASK			BIT(6)
+#define T_HS_EXIT_CNT_HI(x)			UPDATE(x, 6, 6)
 #define T_TA_SURE_CNT_MASK			GENMASK(5, 0)
 #define T_TA_SURE_CNT(x)			UPDATE(x, 5, 0)
 /* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg12 */
@@ -168,6 +189,20 @@
 #define DSI_PHY_STATUS		0xb0
 #define PHY_LOCK		BIT(0)
 
+enum phy_max_rate {
+	MAX_1GHZ,
+	MAX_2_5GHZ,
+};
+
+struct inno_mipi_dphy_timing {
+	unsigned int max_lane_mbps;
+	u8 lpx;
+	u8 hs_prepare;
+	u8 clk_lane_hs_zero;
+	u8 data_lane_hs_zero;
+	u8 hs_trail;
+};
+
 struct inno_dsidphy {
 	struct device *dev;
 	struct clk *ref_clk;
@@ -178,6 +213,8 @@ struct inno_dsidphy {
 	struct reset_control *rst;
 	enum phy_mode mode;
 	struct phy_configure_opts_mipi_dphy dphy_cfg;
+	unsigned int lanes;
+	const struct inno_dsidphy_plat_data *pdata;
 
 	struct clk *pll_clk;
 	struct {
@@ -186,6 +223,12 @@ struct inno_dsidphy {
 		u16 fbdiv;
 		unsigned long rate;
 	} pll;
+};
+
+struct inno_dsidphy_plat_data {
+	const struct inno_mipi_dphy_timing *inno_mipi_dphy_timing_table;
+	const unsigned int num_timings;
+	enum phy_max_rate max_rate;
 };
 
 enum {
@@ -197,6 +240,44 @@ enum {
 	REGISTER_PART_DATA2_LANE,
 	REGISTER_PART_DATA3_LANE,
 	REGISTER_PART_LVDS,
+};
+
+static const
+struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1GHz[] = {
+	{ 110, 0x0, 0x20, 0x16, 0x02, 0x22},
+	{ 150, 0x0, 0x06, 0x16, 0x03, 0x45},
+	{ 200, 0x0, 0x18, 0x17, 0x04, 0x0b},
+	{ 250, 0x0, 0x05, 0x17, 0x05, 0x16},
+	{ 300, 0x0, 0x51, 0x18, 0x06, 0x2c},
+	{ 400, 0x0, 0x64, 0x19, 0x07, 0x33},
+	{ 500, 0x0, 0x20, 0x1b, 0x07, 0x4e},
+	{ 600, 0x0, 0x6a, 0x1d, 0x08, 0x3a},
+	{ 700, 0x0, 0x3e, 0x1e, 0x08, 0x6a},
+	{ 800, 0x0, 0x21, 0x1f, 0x09, 0x29},
+	{1000, 0x0, 0x09, 0x20, 0x09, 0x27},
+};
+
+static const
+struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_2_5GHz[] = {
+	{ 110, 0x02, 0x7f, 0x16, 0x02, 0x02},
+	{ 150, 0x02, 0x7f, 0x16, 0x03, 0x02},
+	{ 200, 0x02, 0x7f, 0x17, 0x04, 0x02},
+	{ 250, 0x02, 0x7f, 0x17, 0x05, 0x04},
+	{ 300, 0x02, 0x7f, 0x18, 0x06, 0x04},
+	{ 400, 0x03, 0x7e, 0x19, 0x07, 0x04},
+	{ 500, 0x03, 0x7c, 0x1b, 0x07, 0x08},
+	{ 600, 0x03, 0x70, 0x1d, 0x08, 0x10},
+	{ 700, 0x05, 0x40, 0x1e, 0x08, 0x30},
+	{ 800, 0x05, 0x02, 0x1f, 0x09, 0x30},
+	{1000, 0x05, 0x08, 0x20, 0x09, 0x30},
+	{1200, 0x06, 0x03, 0x32, 0x14, 0x0f},
+	{1400, 0x09, 0x03, 0x32, 0x14, 0x0f},
+	{1600, 0x0d, 0x42, 0x36, 0x0e, 0x0f},
+	{1800, 0x0e, 0x47, 0x7a, 0x0e, 0x0f},
+	{2000, 0x11, 0x64, 0x7a, 0x0e, 0x0b},
+	{2200, 0x13, 0x64, 0x7e, 0x15, 0x0b},
+	{2400, 0x13, 0x33, 0x7f, 0x15, 0x6a},
+	{2500, 0x15, 0x54, 0x7f, 0x15, 0x6a},
 };
 
 static inline struct inno_dsidphy *hw_to_inno(struct clk_hw *hw)
@@ -286,39 +367,48 @@ static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
 	return best_freq;
 }
 
-static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
+static const struct inno_mipi_dphy_timing *
+inno_mipi_dphy_get_timing(struct inno_dsidphy *inno)
 {
-	struct phy_configure_opts_mipi_dphy *cfg = &inno->dphy_cfg;
-	const struct {
-		unsigned long rate;
-		u8 hs_prepare;
-		u8 clk_lane_hs_zero;
-		u8 data_lane_hs_zero;
-		u8 hs_trail;
-	} timings[] = {
-		{ 110000000, 0x20, 0x16, 0x02, 0x22},
-		{ 150000000, 0x06, 0x16, 0x03, 0x45},
-		{ 200000000, 0x18, 0x17, 0x04, 0x0b},
-		{ 250000000, 0x05, 0x17, 0x05, 0x16},
-		{ 300000000, 0x51, 0x18, 0x06, 0x2c},
-		{ 400000000, 0x64, 0x19, 0x07, 0x33},
-		{ 500000000, 0x20, 0x1b, 0x07, 0x4e},
-		{ 600000000, 0x6a, 0x1d, 0x08, 0x3a},
-		{ 700000000, 0x3e, 0x1e, 0x08, 0x6a},
-		{ 800000000, 0x21, 0x1f, 0x09, 0x29},
-		{1000000000, 0x09, 0x20, 0x09, 0x27},
-	};
-	u32 t_txbyteclkhs, t_txclkesc;
-	u32 txbyteclkhs, txclkesc, esc_clk_div;
-	u32 hs_exit, clk_post, clk_pre, wakeup, lpx, ta_go, ta_sure, ta_wait;
-	u32 hs_prepare, hs_trail, hs_zero, clk_lane_hs_zero, data_lane_hs_zero;
+	const struct inno_mipi_dphy_timing *timings;
+	unsigned int num_timings;
+	unsigned int lane_mbps = inno->pll.rate / USEC_PER_SEC;
 	unsigned int i;
 
-	inno_dsidphy_pll_calc_rate(inno, cfg->hs_clk_rate);
+	timings = inno->pdata->inno_mipi_dphy_timing_table;
+	num_timings = inno->pdata->num_timings;
 
-	/* Select MIPI mode */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
-			MODE_ENABLE_MASK, MIPI_MODE_ENABLE);
+	for (i = 0; i < num_timings; i++)
+		if (lane_mbps <= timings[i].max_lane_mbps)
+			break;
+
+	if (i == num_timings)
+		--i;
+
+	return &timings[i];
+}
+
+static void inno_mipi_dphy_max_2_5GHz_pll_enable(struct inno_dsidphy *inno)
+{
+
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
+			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
+			CLOCK_LANE_VOD_RANGE_SET_MASK,
+			CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			 REG_LDOPD_MASK | REG_PLLPD_MASK,
+			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
+}
+
+static void inno_mipi_dphy_max_1GHz_pll_enable(struct inno_dsidphy *inno)
+{
 	/* Configure PLL */
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
 			REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
@@ -330,6 +420,10 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			REG_LDOPD_MASK | REG_PLLPD_MASK,
 			REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
+}
+
+static void inno_mipi_dphy_reset(struct inno_dsidphy *inno)
+{
 	/* Reset analog */
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			REG_SYNCRST_MASK, REG_SYNCRST_RESET);
@@ -342,6 +436,17 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	udelay(1);
 	phy_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
 			REG_DIG_RSTN_MASK, REG_DIG_RSTN_NORMAL);
+}
+
+static void inno_mipi_dphy_timing_init(struct inno_dsidphy *inno)
+{
+	struct phy_configure_opts_mipi_dphy *cfg = &inno->dphy_cfg;
+	u32 t_txbyteclkhs, t_txclkesc;
+	u32 txbyteclkhs, txclkesc, esc_clk_div;
+	u32 hs_exit, clk_post, clk_pre, wakeup, lpx, ta_go, ta_sure, ta_wait;
+	u32 hs_prepare, hs_trail, hs_zero, clk_lane_hs_zero, data_lane_hs_zero;
+	const struct inno_mipi_dphy_timing *timing;
+	unsigned int i;
 
 	txbyteclkhs = inno->pll.rate / 8;
 	t_txbyteclkhs = div_u64(PSEC_PER_SEC, txbyteclkhs);
@@ -365,15 +470,6 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	 * Tclk-pre = Tpin_txbyteclkhs * value
 	 */
 	clk_pre = DIV_ROUND_UP(cfg->clk_pre, t_txbyteclkhs);
-
-	/*
-	 * The value of counter for HS Tlpx Time
-	 * Tlpx = Tpin_txbyteclkhs * (2 + value)
-	 */
-	lpx = DIV_ROUND_UP(cfg->lpx, t_txbyteclkhs);
-	if (lpx >= 2)
-		lpx -= 2;
-
 	/*
 	 * The value of counter for HS Tta-go
 	 * Tta-go for turnaround
@@ -393,17 +489,22 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	 */
 	ta_wait = DIV_ROUND_UP(cfg->ta_get, t_txclkesc);
 
-	for (i = 0; i < ARRAY_SIZE(timings); i++)
-		if (inno->pll.rate <= timings[i].rate)
-			break;
+	timing = inno_mipi_dphy_get_timing(inno);
+	/*
+	 * The value of counter for HS Tlpx Time
+	 * Tlpx = Tpin_txbyteclkhs * (2 + value)
+	 */
+	if (inno->pdata->max_rate == MAX_1GHZ) {
+		lpx = DIV_ROUND_UP(cfg->lpx, t_txbyteclkhs);
+		if (lpx >= 2)
+			lpx -= 2;
+	} else
+		lpx = timing->lpx;
 
-	if (i == ARRAY_SIZE(timings))
-		--i;
-
-	hs_prepare = timings[i].hs_prepare;
-	hs_trail = timings[i].hs_trail;
-	clk_lane_hs_zero = timings[i].clk_lane_hs_zero;
-	data_lane_hs_zero = timings[i].data_lane_hs_zero;
+	hs_prepare = timing->hs_prepare;
+	hs_trail = timing->hs_trail;
+	clk_lane_hs_zero = timing->clk_lane_hs_zero;
+	data_lane_hs_zero = timing->data_lane_hs_zero;
 	wakeup = 0x3ff;
 
 	for (i = REGISTER_PART_CLOCK_LANE; i <= REGISTER_PART_DATA3_LANE; i++) {
@@ -416,14 +517,29 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 				T_LPX_CNT(lpx));
 		phy_update_bits(inno, i, 0x06, T_HS_PREPARE_CNT_MASK,
 				T_HS_PREPARE_CNT(hs_prepare));
-		phy_update_bits(inno, i, 0x07, T_HS_ZERO_CNT_MASK,
-				T_HS_ZERO_CNT(hs_zero));
+
+		if (inno->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inno, i, 0x06, T_HS_ZERO_CNT_HI_MASK,
+					T_HS_ZERO_CNT_HI(hs_zero >> 6));
+
+		phy_update_bits(inno, i, 0x07, T_HS_ZERO_CNT_LO_MASK,
+				T_HS_ZERO_CNT_LO(hs_zero));
 		phy_update_bits(inno, i, 0x08, T_HS_TRAIL_CNT_MASK,
 				T_HS_TRAIL_CNT(hs_trail));
-		phy_update_bits(inno, i, 0x09, T_HS_EXIT_CNT_MASK,
-				T_HS_EXIT_CNT(hs_exit));
-		phy_update_bits(inno, i, 0x0a, T_CLK_POST_CNT_MASK,
-				T_CLK_POST_CNT(clk_post));
+
+		if (inno->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inno, i, 0x11, T_HS_EXIT_CNT_HI_MASK,
+					T_HS_EXIT_CNT_HI(hs_exit >> 5));
+
+		phy_update_bits(inno, i, 0x09, T_HS_EXIT_CNT_LO_MASK,
+				T_HS_EXIT_CNT_LO(hs_exit));
+
+		if (inno->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inno, i, 0x10, T_CLK_POST_HI_MASK,
+					T_CLK_POST_HI(clk_post >> 4));
+
+		phy_update_bits(inno, i, 0x0a, T_CLK_POST_CNT_LO_MASK,
+				T_CLK_POST_CNT_LO(clk_post));
 		phy_update_bits(inno, i, 0x0e, T_CLK_PRE_CNT_MASK,
 				T_CLK_PRE_CNT(clk_pre));
 		phy_update_bits(inno, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
@@ -437,11 +553,46 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 		phy_update_bits(inno, i, 0x12, T_TA_WAIT_CNT_MASK,
 				T_TA_WAIT_CNT(ta_wait));
 	}
+}
 
-	/* Enable all lanes on analog part */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
-			LANE_EN_MASK, LANE_EN_CK | LANE_EN_3 | LANE_EN_2 |
-			LANE_EN_1 | LANE_EN_0);
+static void inno_mipi_dphy_lane_enable(struct inno_dsidphy *inno)
+{
+	u8 val = LANE_EN_CK;
+
+	switch (inno->lanes) {
+	case 1:
+		val |= LANE_EN_0;
+		break;
+	case 2:
+		val |= LANE_EN_1 | LANE_EN_0;
+		break;
+	case 3:
+		val |= LANE_EN_2 | LANE_EN_1 | LANE_EN_0;
+		break;
+	case 4:
+	default:
+		val |= LANE_EN_3 | LANE_EN_2 | LANE_EN_1 | LANE_EN_0;
+		break;
+	}
+
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, val);
+}
+
+static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
+{
+	/* Select MIPI mode */
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+			MODE_ENABLE_MASK, MIPI_MODE_ENABLE);
+
+	if (inno->pdata->max_rate == MAX_2_5GHZ)
+		inno_mipi_dphy_max_2_5GHz_pll_enable(inno);
+	else
+		inno_mipi_dphy_max_1GHz_pll_enable(inno);
+
+	inno_mipi_dphy_reset(inno);
+	inno_mipi_dphy_timing_init(inno);
+	inno_mipi_dphy_lane_enable(inno);
+	inno_mipi_dphy_lane_enable(inno);
 }
 
 static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
@@ -569,6 +720,7 @@ static int inno_dsidphy_configure(struct phy *phy,
 				  union phy_configure_opts *opts)
 {
 	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct phy_configure_opts_mipi_dphy *cfg = &inno->dphy_cfg;
 	int ret;
 
 	if (inno->mode != PHY_MODE_MIPI_DPHY)
@@ -579,6 +731,10 @@ static int inno_dsidphy_configure(struct phy *phy,
 		return ret;
 
 	memcpy(&inno->dphy_cfg, &opts->mipi_dphy, sizeof(inno->dphy_cfg));
+
+	inno_dsidphy_pll_calc_rate(inno, cfg->hs_clk_rate);
+	cfg->hs_clk_rate = inno->pll.rate;
+	opts->mipi_dphy.hs_clk_rate = inno->pll.rate;
 
 	return 0;
 }
@@ -604,6 +760,7 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	inno->dev = dev;
+	inno->pdata = of_device_get_match_data(inno->dev);
 	platform_set_drvdata(pdev, inno);
 
 	inno->phy_base = devm_platform_ioremap_resource(pdev, 0);
@@ -638,6 +795,9 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (of_property_read_u32(dev->of_node, "inno,lanes", &inno->lanes))
+		inno->lanes = 4;
+
 	phy_set_drvdata(phy, inno);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
@@ -652,6 +812,18 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct inno_dsidphy_plat_data px30_plat_data = {
+	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1GHz,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1GHz),
+	.max_rate = MAX_1GHZ,
+};
+
+static const struct inno_dsidphy_plat_data rk3568_plat_data = {
+	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5GHz,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5GHz),
+	.max_rate = MAX_2_5GHZ,
+};
+
 static int inno_dsidphy_remove(struct platform_device *pdev)
 {
 	struct inno_dsidphy *inno = platform_get_drvdata(pdev);
@@ -662,9 +834,18 @@ static int inno_dsidphy_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id inno_dsidphy_of_match[] = {
-	{ .compatible = "rockchip,px30-dsi-dphy", },
-	{ .compatible = "rockchip,rk3128-dsi-dphy", },
-	{ .compatible = "rockchip,rk3368-dsi-dphy", },
+	{ .compatible = "rockchip,px30-dsi-dphy",
+	  .data = &px30_plat_data,
+	}, {
+	  .compatible = "rockchip,rk3128-dsi-dphy",
+	  .data = &px30_plat_data,
+	}, {
+	  .compatible = "rockchip,rk3368-dsi-dphy",
+	  .data = &px30_plat_data,
+	}, {
+	  .compatible = "rockchip,rk3568-dsi-dphy",
+	  .data = &rk3568_plat_data,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, inno_dsidphy_of_match);
