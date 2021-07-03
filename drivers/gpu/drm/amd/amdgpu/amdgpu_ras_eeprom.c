@@ -978,9 +978,8 @@ const struct file_operations amdgpu_ras_debugfs_eeprom_table_ops = {
 static int __verify_ras_table_checksum(struct amdgpu_ras_eeprom_control *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	int res;
+	int buf_size, res;
 	u8  csum, *buf, *pp;
-	u32 buf_size;
 
 	buf_size = RAS_TABLE_HEADER_SIZE +
 		control->ras_num_recs * RAS_TABLE_RECORD_SIZE;
