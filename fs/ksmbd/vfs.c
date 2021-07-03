@@ -406,6 +406,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 				  size_t count)
 {
 	char *stream_buf = NULL, *wbuf;
+	struct user_namespace *user_ns = file_mnt_user_ns(fp->filp);
 	size_t size, v_len;
 	int err = 0;
 
@@ -418,7 +419,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 		count = (*pos + count) - XATTR_SIZE_MAX;
 	}
 
-	v_len = ksmbd_vfs_getcasexattr(file_mnt_user_ns(fp->filp),
+	v_len = ksmbd_vfs_getcasexattr(user_ns,
 				       fp->filp->f_path.dentry,
 				       fp->stream.name,
 				       fp->stream.size,
@@ -444,7 +445,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 
 	memcpy(&stream_buf[*pos], buf, count);
 
-	err = ksmbd_vfs_setxattr(file_mnt_user_ns(fp->filp),
+	err = ksmbd_vfs_setxattr(user_ns,
 				 fp->filp->f_path.dentry,
 				 fp->stream.name,
 				 (void *)stream_buf,
