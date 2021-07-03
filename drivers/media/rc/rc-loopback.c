@@ -15,9 +15,9 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
-#define DRIVER_NAME	"rc-loopback"
-#define RXMASK_REGULAR	0x1
-#define RXMASK_LEARNING	0x2
+#define DRIVER_NAME		"rc-loopback"
+#define RXMASK_NARROWBAND	0x1
+#define RXMASK_WIDEBAND		0x2
 
 struct loopback_dev {
 	struct rc_dev *dev;
@@ -25,7 +25,7 @@ struct loopback_dev {
 	u32 txcarrier;
 	u32 txduty;
 	bool idle;
-	bool learning;
+	bool wideband;
 	bool carrierreport;
 	u32 rxcarriermin;
 	u32 rxcarriermax;
@@ -37,7 +37,7 @@ static int loop_set_tx_mask(struct rc_dev *dev, u32 mask)
 {
 	struct loopback_dev *lodev = dev->priv;
 
-	if ((mask & (RXMASK_REGULAR | RXMASK_LEARNING)) != mask) {
+	if ((mask & (RXMASK_NARROWBAND | RXMASK_WIDEBAND)) != mask) {
 		dev_dbg(&dev->dev, "invalid tx mask: %u\n", mask);
 		return 2;
 	}
@@ -98,10 +98,10 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		goto out;
 	}
 
-	if (lodev->learning)
-		rxmask = RXMASK_LEARNING;
+	if (lodev->wideband)
+		rxmask = RXMASK_WIDEBAND;
 	else
-		rxmask = RXMASK_REGULAR;
+		rxmask = RXMASK_NARROWBAND;
 
 	if (!(rxmask & lodev->txmask)) {
 		dev_dbg(&dev->dev, "ignoring tx, rx mask mismatch\n");
@@ -144,13 +144,13 @@ static void loop_set_idle(struct rc_dev *dev, bool enable)
 	}
 }
 
-static int loop_set_learning_mode(struct rc_dev *dev, int enable)
+static int loop_set_wideband_receiver(struct rc_dev *dev, int enable)
 {
 	struct loopback_dev *lodev = dev->priv;
 
-	if (lodev->learning != enable) {
-		dev_dbg(&dev->dev, "%sing learning mode\n", enable ? "enter" : "exit");
-		lodev->learning = !!enable;
+	if (lodev->wideband != enable) {
+		dev_dbg(&dev->dev, "using %sband receiver\n", enable ? "wide" : "narrow");
+		lodev->wideband = !!enable;
 	}
 
 	return 0;
@@ -233,17 +233,17 @@ static int __init loop_init(void)
 	rc->s_rx_carrier_range	= loop_set_rx_carrier_range;
 	rc->tx_ir		= loop_tx_ir;
 	rc->s_idle		= loop_set_idle;
-	rc->s_learning_mode	= loop_set_learning_mode;
+	rc->s_wideband_receiver	= loop_set_wideband_receiver;
 	rc->s_carrier_report	= loop_set_carrier_report;
 	rc->s_wakeup_filter	= loop_set_wakeup_filter;
 
-	loopdev.txmask		= RXMASK_REGULAR;
+	loopdev.txmask		= RXMASK_NARROWBAND;
 	loopdev.txcarrier	= 36000;
 	loopdev.txduty		= 50;
 	loopdev.rxcarriermin	= 1;
 	loopdev.rxcarriermax	= ~0;
 	loopdev.idle		= true;
-	loopdev.learning	= false;
+	loopdev.wideband	= false;
 	loopdev.carrierreport	= false;
 
 	ret = rc_register_device(rc);
