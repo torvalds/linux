@@ -7,7 +7,8 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
@@ -132,8 +133,7 @@ struct sso_led_priv {
 	struct regmap *mmap;
 	struct device *dev;
 	struct platform_device *pdev;
-	struct clk *gclk;
-	struct clk *fpid_clk;
+	struct clk_bulk_data clocks[2];
 	u32 fpid_clkrate;
 	u32 gptc_clkrate;
 	u32 freq[MAX_FREQ_RANK];
@@ -259,7 +259,7 @@ static void sso_led_brightness_set(struct led_classdev *led_cdev,
 				   1 << desc->pin);
 	}
 
-	if (!desc->hw_trig && led->gpiod)
+	if (!desc->hw_trig)
 		gpiod_set_value(led->gpiod, val);
 }
 
@@ -423,7 +423,7 @@ static void sso_gpio_free(struct gpio_chip *chip, unsigned int offset)
 
 static int sso_gpio_get_dir(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int
@@ -763,12 +763,11 @@ static int sso_probe_gpios(struct sso_led_priv *priv)
 	return sso_gpio_gc_init(dev, priv);
 }
 
-static void sso_clk_disable(void *data)
+static void sso_clock_disable_unprepare(void *data)
 {
 	struct sso_led_priv *priv = data;
 
-	clk_disable_unprepare(priv->fpid_clk);
-	clk_disable_unprepare(priv->gclk);
+	clk_bulk_disable_unprepare(ARRAY_SIZE(priv->clocks), priv->clocks);
 }
 
 static int intel_sso_led_probe(struct platform_device *pdev)
@@ -785,36 +784,30 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 	priv->dev = dev;
 
 	/* gate clock */
-	priv->gclk = devm_clk_get(dev, "sso");
-	if (IS_ERR(priv->gclk)) {
-		dev_err(dev, "get sso gate clock failed!\n");
-		return PTR_ERR(priv->gclk);
-	}
+	priv->clocks[0].id = "sso";
 
-	ret = clk_prepare_enable(priv->gclk);
+	/* fpid clock */
+	priv->clocks[1].id = "fpid";
+
+	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(priv->clocks), priv->clocks);
 	if (ret) {
-		dev_err(dev, "Failed to prepare/enable sso gate clock!\n");
+		dev_err(dev, "Getting clocks failed!\n");
 		return ret;
 	}
 
-	priv->fpid_clk = devm_clk_get(dev, "fpid");
-	if (IS_ERR(priv->fpid_clk)) {
-		dev_err(dev, "Failed to get fpid clock!\n");
-		return PTR_ERR(priv->fpid_clk);
-	}
-
-	ret = clk_prepare_enable(priv->fpid_clk);
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(priv->clocks), priv->clocks);
 	if (ret) {
-		dev_err(dev, "Failed to prepare/enable fpid clock!\n");
+		dev_err(dev, "Failed to prepare and enable clocks!\n");
 		return ret;
 	}
-	priv->fpid_clkrate = clk_get_rate(priv->fpid_clk);
 
-	ret = devm_add_action_or_reset(dev, sso_clk_disable, priv);
-	if (ret) {
-		dev_err(dev, "Failed to devm_add_action_or_reset, %d\n", ret);
+	ret = devm_add_action_or_reset(dev, sso_clock_disable_unprepare, priv);
+	if (ret)
 		return ret;
-	}
+
+	priv->fpid_clkrate = clk_get_rate(priv->clocks[1].clk);
+
+	priv->mmap = syscon_node_to_regmap(dev->of_node);
 
 	priv->mmap = syscon_node_to_regmap(dev->of_node);
 	if (IS_ERR(priv->mmap)) {
@@ -859,8 +852,6 @@ static int intel_sso_led_remove(struct platform_device *pdev)
 		sso_led_shutdown(led);
 	}
 
-	clk_disable_unprepare(priv->fpid_clk);
-	clk_disable_unprepare(priv->gclk);
 	regmap_exit(priv->mmap);
 
 	return 0;
@@ -878,7 +869,7 @@ static struct platform_driver intel_sso_led_driver = {
 	.remove		= intel_sso_led_remove,
 	.driver		= {
 			.name = "lgm-ssoled",
-			.of_match_table = of_match_ptr(of_sso_led_match),
+			.of_match_table = of_sso_led_match,
 	},
 };
 

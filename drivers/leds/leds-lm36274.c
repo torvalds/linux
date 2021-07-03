@@ -7,9 +7,10 @@
 #include <linux/err.h>
 #include <linux/leds.h>
 #include <linux/leds-ti-lmu-common.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include <linux/mfd/ti-lmu.h>
 #include <linux/mfd/ti-lmu-register.h>
@@ -127,6 +128,7 @@ static int lm36274_probe(struct platform_device *pdev)
 
 	ret = lm36274_init(chip);
 	if (ret) {
+		fwnode_handle_put(init_data.fwnode);
 		dev_err(chip->dev, "Failed to init the device\n");
 		return ret;
 	}
