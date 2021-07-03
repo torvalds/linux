@@ -16,11 +16,8 @@
 #include <media/rc-core.h>
 
 #define DRIVER_NAME	"rc-loopback"
-#define dprintk(x...)	if (debug) printk(KERN_INFO DRIVER_NAME ": " x)
 #define RXMASK_REGULAR	0x1
 #define RXMASK_LEARNING	0x2
-
-static bool debug;
 
 struct loopback_dev {
 	struct rc_dev *dev;
@@ -41,11 +38,11 @@ static int loop_set_tx_mask(struct rc_dev *dev, u32 mask)
 	struct loopback_dev *lodev = dev->priv;
 
 	if ((mask & (RXMASK_REGULAR | RXMASK_LEARNING)) != mask) {
-		dprintk("invalid tx mask: %u\n", mask);
+		dev_dbg(&dev->dev, "invalid tx mask: %u\n", mask);
 		return 2;
 	}
 
-	dprintk("setting tx mask: %u\n", mask);
+	dev_dbg(&dev->dev, "setting tx mask: %u\n", mask);
 	lodev->txmask = mask;
 	return 0;
 }
@@ -54,7 +51,7 @@ static int loop_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 {
 	struct loopback_dev *lodev = dev->priv;
 
-	dprintk("setting tx carrier: %u\n", carrier);
+	dev_dbg(&dev->dev, "setting tx carrier: %u\n", carrier);
 	lodev->txcarrier = carrier;
 	return 0;
 }
@@ -64,11 +61,11 @@ static int loop_set_tx_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
 	struct loopback_dev *lodev = dev->priv;
 
 	if (duty_cycle < 1 || duty_cycle > 99) {
-		dprintk("invalid duty cycle: %u\n", duty_cycle);
+		dev_dbg(&dev->dev, "invalid duty cycle: %u\n", duty_cycle);
 		return -EINVAL;
 	}
 
-	dprintk("setting duty cycle: %u\n", duty_cycle);
+	dev_dbg(&dev->dev, "setting duty cycle: %u\n", duty_cycle);
 	lodev->txduty = duty_cycle;
 	return 0;
 }
@@ -78,11 +75,11 @@ static int loop_set_rx_carrier_range(struct rc_dev *dev, u32 min, u32 max)
 	struct loopback_dev *lodev = dev->priv;
 
 	if (min < 1 || min > max) {
-		dprintk("invalid rx carrier range %u to %u\n", min, max);
+		dev_dbg(&dev->dev, "invalid rx carrier range %u to %u\n", min, max);
 		return -EINVAL;
 	}
 
-	dprintk("setting rx carrier range %u to %u\n", min, max);
+	dev_dbg(&dev->dev, "setting rx carrier range %u to %u\n", min, max);
 	lodev->rxcarriermin = min;
 	lodev->rxcarriermax = max;
 	return 0;
@@ -97,7 +94,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	if (lodev->txcarrier < lodev->rxcarriermin ||
 	    lodev->txcarrier > lodev->rxcarriermax) {
-		dprintk("ignoring tx, carrier out of range\n");
+		dev_dbg(&dev->dev, "ignoring tx, carrier out of range\n");
 		goto out;
 	}
 
@@ -107,7 +104,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		rxmask = RXMASK_REGULAR;
 
 	if (!(rxmask & lodev->txmask)) {
-		dprintk("ignoring tx, rx mask mismatch\n");
+		dev_dbg(&dev->dev, "ignoring tx, rx mask mismatch\n");
 		goto out;
 	}
 
@@ -134,7 +131,7 @@ static void loop_set_idle(struct rc_dev *dev, bool enable)
 	struct loopback_dev *lodev = dev->priv;
 
 	if (lodev->idle != enable) {
-		dprintk("%sing idle mode\n", enable ? "enter" : "exit");
+		dev_dbg(&dev->dev, "%sing idle mode\n", enable ? "enter" : "exit");
 		lodev->idle = enable;
 	}
 }
@@ -144,7 +141,7 @@ static int loop_set_learning_mode(struct rc_dev *dev, int enable)
 	struct loopback_dev *lodev = dev->priv;
 
 	if (lodev->learning != enable) {
-		dprintk("%sing learning mode\n", enable ? "enter" : "exit");
+		dev_dbg(&dev->dev, "%sing learning mode\n", enable ? "enter" : "exit");
 		lodev->learning = !!enable;
 	}
 
@@ -156,7 +153,7 @@ static int loop_set_carrier_report(struct rc_dev *dev, int enable)
 	struct loopback_dev *lodev = dev->priv;
 
 	if (lodev->carrierreport != enable) {
-		dprintk("%sabling carrier reports\n", enable ? "en" : "dis");
+		dev_dbg(&dev->dev, "%sabling carrier reports\n", enable ? "en" : "dis");
 		lodev->carrierreport = !!enable;
 	}
 
@@ -204,10 +201,8 @@ static int __init loop_init(void)
 	int ret;
 
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
-	if (!rc) {
-		printk(KERN_ERR DRIVER_NAME ": rc_dev allocation failed\n");
+	if (!rc)
 		return -ENOMEM;
-	}
 
 	rc->device_name		= "rc-core loopback device";
 	rc->input_phys		= "rc-core/virtual";
@@ -245,7 +240,7 @@ static int __init loop_init(void)
 
 	ret = rc_register_device(rc);
 	if (ret < 0) {
-		printk(KERN_ERR DRIVER_NAME ": rc_dev registration failed\n");
+		dev_err(&rc->dev, "rc_dev registration failed\n");
 		rc_free_device(rc);
 		return ret;
 	}
@@ -261,9 +256,6 @@ static void __exit loop_exit(void)
 
 module_init(loop_init);
 module_exit(loop_exit);
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debug messages");
 
 MODULE_DESCRIPTION("Loopback device for rc-core debugging");
 MODULE_AUTHOR("David Härdeman <david@hardeman.nu>");
