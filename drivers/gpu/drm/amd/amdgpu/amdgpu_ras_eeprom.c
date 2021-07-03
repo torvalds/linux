@@ -821,7 +821,7 @@ static ssize_t amdgpu_ras_debugfs_table_read(struct file *f, char __user *buf,
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_eeprom_control *control = &ras->eeprom_control;
 	const size_t orig_size = size;
-	int res = -EINVAL;
+	int res = -EFAULT;
 	size_t data_len;
 
 	mutex_lock(&control->ras_tbl_mutex);
@@ -912,8 +912,10 @@ static ssize_t amdgpu_ras_debugfs_table_read(struct file *f, char __user *buf,
 				 record.retired_page);
 
 			data_len = min_t(size_t, rec_hdr_fmt_size - r, size);
-			if (copy_to_user(buf, &data[r], data_len))
-				return -EINVAL;
+			if (copy_to_user(buf, &data[r], data_len)) {
+				res = -EFAULT;
+				goto Out;
+			}
 			buf += data_len;
 			size -= data_len;
 			*pos += data_len;
