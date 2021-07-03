@@ -37,6 +37,8 @@
 *.o
 *.o.*
 *.patch
+*.rmeta
+*.rsi
 *.s
 *.so
 *.so.dbg

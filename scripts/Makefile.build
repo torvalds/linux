@@ -26,6 +26,7 @@ EXTRA_CPPFLAGS :=
 EXTRA_LDFLAGS  :=
 asflags-y  :=
 ccflags-y  :=
+rustflags-y :=
 cppflags-y :=
 ldflags-y  :=
 
@@ -270,6 +271,65 @@ quiet_cmd_cc_lst_c = MKLST   $@
 
 $(obj)/%.lst: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
+
+# Compile Rust sources (.rs)
+# ---------------------------------------------------------------------------
+
+rust_allowed_features := core_ffi_c
+
+rust_common_cmd = \
+	RUST_MODFILE=$(modfile) $(RUSTC_OR_CLIPPY) $(rust_flags) \
+	-Zallow-features=$(rust_allowed_features) \
+	-Zcrate-attr=no_std \
+	-Zcrate-attr='feature($(rust_allowed_features))' \
+	--extern alloc --extern kernel \
+	--crate-type rlib --out-dir $(obj) -L $(objtree)/rust/ \
+	--crate-name $(basename $(notdir $@))
+
+rust_handle_depfile = \
+	mv $(obj)/$(basename $(notdir $@)).d $(depfile); \
+	sed -i '/^\#/d' $(depfile)
+
+# `--emit=obj`, `--emit=asm` and `--emit=llvm-ir` imply a single codegen unit
+# will be used. We explicitly request `-Ccodegen-units=1` in any case, and
+# the compiler shows a warning if it is not 1. However, if we ever stop
+# requesting it explicitly and we start using some other `--emit` that does not
+# imply it (and for which codegen is performed), then we would be out of sync,
+# i.e. the outputs we would get for the different single targets (e.g. `.ll`)
+# would not match each other.
+
+quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
+      cmd_rustc_o_rs = \
+	$(rust_common_cmd) --emit=dep-info,obj $<; \
+	$(rust_handle_depfile)
+
+$(obj)/%.o: $(src)/%.rs FORCE
+	$(call if_changed_dep,rustc_o_rs)
+
+quiet_cmd_rustc_rsi_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
+      cmd_rustc_rsi_rs = \
+	$(rust_common_cmd) --emit=dep-info -Zunpretty=expanded $< >$@; \
+	command -v $(RUSTFMT) >/dev/null && $(RUSTFMT) $@; \
+	$(rust_handle_depfile)
+
+$(obj)/%.rsi: $(src)/%.rs FORCE
+	$(call if_changed_dep,rustc_rsi_rs)
+
+quiet_cmd_rustc_s_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
+      cmd_rustc_s_rs = \
+	$(rust_common_cmd) --emit=dep-info,asm $<; \
+	$(rust_handle_depfile)
+
+$(obj)/%.s: $(src)/%.rs FORCE
+	$(call if_changed_dep,rustc_s_rs)
+
+quiet_cmd_rustc_ll_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
+      cmd_rustc_ll_rs = \
+	$(rust_common_cmd) --emit=dep-info,llvm-ir $<; \
+	$(rust_handle_depfile)
+
+$(obj)/%.ll: $(src)/%.rs FORCE
+	$(call if_changed_dep,rustc_ll_rs)
 
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------
