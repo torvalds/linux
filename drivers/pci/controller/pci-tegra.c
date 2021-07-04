@@ -372,11 +372,6 @@ struct tegra_pcie_port {
 	struct gpio_desc *reset_gpio;
 };
 
-struct tegra_pcie_bus {
-	struct list_head list;
-	unsigned int nr;
-};
-
 static inline void afi_writel(struct tegra_pcie *pcie, u32 value,
 			      unsigned long offset)
 {
