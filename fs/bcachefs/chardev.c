@@ -157,6 +157,9 @@ static long bch2_ioctl_query_uuid(struct bch_fs *c,
 #if 0
 static long bch2_ioctl_start(struct bch_fs *c, struct bch_ioctl_start arg)
 {
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (arg.flags || arg.pad)
 		return -EINVAL;
 
@@ -165,6 +168,9 @@ static long bch2_ioctl_start(struct bch_fs *c, struct bch_ioctl_start arg)
 
 static long bch2_ioctl_stop(struct bch_fs *c)
 {
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	bch2_fs_stop(c);
 	return 0;
 }
@@ -174,6 +180,9 @@ static long bch2_ioctl_disk_add(struct bch_fs *c, struct bch_ioctl_disk arg)
 {
 	char *path;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (arg.flags || arg.pad)
 		return -EINVAL;
@@ -191,6 +200,9 @@ static long bch2_ioctl_disk_add(struct bch_fs *c, struct bch_ioctl_disk arg)
 static long bch2_ioctl_disk_remove(struct bch_fs *c, struct bch_ioctl_disk arg)
 {
 	struct bch_dev *ca;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if ((arg.flags & ~(BCH_FORCE_IF_DATA_LOST|
 			   BCH_FORCE_IF_METADATA_LOST|
@@ -211,6 +223,9 @@ static long bch2_ioctl_disk_online(struct bch_fs *c, struct bch_ioctl_disk arg)
 	char *path;
 	int ret;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (arg.flags || arg.pad)
 		return -EINVAL;
 
@@ -227,6 +242,9 @@ static long bch2_ioctl_disk_offline(struct bch_fs *c, struct bch_ioctl_disk arg)
 {
 	struct bch_dev *ca;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if ((arg.flags & ~(BCH_FORCE_IF_DATA_LOST|
 			   BCH_FORCE_IF_METADATA_LOST|
@@ -249,6 +267,9 @@ static long bch2_ioctl_disk_set_state(struct bch_fs *c,
 {
 	struct bch_dev *ca;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if ((arg.flags & ~(BCH_FORCE_IF_DATA_LOST|
 			   BCH_FORCE_IF_METADATA_LOST|
@@ -330,6 +351,9 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	struct file *file = NULL;
 	unsigned flags = O_RDONLY|O_CLOEXEC|O_NONBLOCK;
 	int ret, fd = -1;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (arg.op >= BCH_DATA_OP_NR || arg.flags)
 		return -EINVAL;
@@ -497,6 +521,9 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 	struct bch_sb *sb;
 	int ret = 0;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if ((arg.flags & ~(BCH_BY_INDEX|BCH_READ_DEV)) ||
 	    arg.pad)
 		return -EINVAL;
@@ -537,6 +564,9 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	struct bch_dev *ca;
 	unsigned i;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	for_each_online_member(ca, c, i)
 		if (ca->disk_sb.bdev->bd_dev == dev) {
 			percpu_ref_put(&ca->io_ref);
@@ -551,6 +581,9 @@ static long bch2_ioctl_disk_resize(struct bch_fs *c,
 {
 	struct bch_dev *ca;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if ((arg.flags & ~BCH_BY_INDEX) ||
 	    arg.pad)
@@ -571,6 +604,9 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 {
 	struct bch_dev *ca;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if ((arg.flags & ~BCH_BY_INDEX) ||
 	    arg.pad)
@@ -597,7 +633,6 @@ do {									\
 
 long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 {
-	/* ioctls that don't require admin cap: */
 	switch (cmd) {
 	case BCH_IOCTL_QUERY_UUID:
 		return bch2_ioctl_query_uuid(c, arg);
@@ -605,12 +640,6 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		return bch2_ioctl_fs_usage(c, arg);
 	case BCH_IOCTL_DEV_USAGE:
 		return bch2_ioctl_dev_usage(c, arg);
-	}
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	switch (cmd) {
 #if 0
 	case BCH_IOCTL_START:
 		BCH_IOCTL(start, struct bch_ioctl_start);
@@ -626,7 +655,6 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EINVAL;
 
-	/* ioctls that do require admin cap: */
 	switch (cmd) {
 	case BCH_IOCTL_DISK_ADD:
 		BCH_IOCTL(disk_add, struct bch_ioctl_disk);
