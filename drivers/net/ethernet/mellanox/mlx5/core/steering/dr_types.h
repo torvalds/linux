@@ -1285,6 +1285,7 @@ struct mlx5dr_send_ring {
 	u8 sync_buff[MIN_READ_SYNC];
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */
+	bool err_state; /* send_ring is not usable in err state */
 };
 
 int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn);
