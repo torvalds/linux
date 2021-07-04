@@ -6,9 +6,11 @@
  * Author: Georgi Djakov <georgi.djakov@linaro.org>
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/module.h>
 
@@ -33,6 +35,55 @@ static const struct regmap_config a53pll_regmap_config = {
 	.max_register		= 0x40,
 	.fast_io		= true,
 };
+
+static struct pll_freq_tbl *qcom_a53pll_get_freq_tbl(struct device *dev)
+{
+	struct pll_freq_tbl *freq_tbl;
+	unsigned long xo_freq;
+	unsigned long freq;
+	struct clk *xo_clk;
+	int count;
+	int ret;
+	int i;
+
+	xo_clk = devm_clk_get(dev, "xo");
+	if (IS_ERR(xo_clk))
+		return NULL;
+
+	xo_freq = clk_get_rate(xo_clk);
+
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret)
+		return NULL;
+
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count <= 0)
+		return NULL;
+
+	freq_tbl = devm_kcalloc(dev, count + 1, sizeof(*freq_tbl), GFP_KERNEL);
+	if (!freq_tbl)
+		return NULL;
+
+	for (i = 0, freq = 0; i < count; i++, freq++) {
+		struct dev_pm_opp *opp;
+
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			return NULL;
+
+		/* Skip the freq that is not divisible */
+		if (freq % xo_freq)
+			continue;
+
+		freq_tbl[i].freq = freq;
+		freq_tbl[i].l = freq / xo_freq;
+		freq_tbl[i].n = 1;
+
+		dev_pm_opp_put(opp);
+	}
+
+	return freq_tbl;
+}
 
 static int qcom_a53pll_probe(struct platform_device *pdev)
 {
@@ -65,7 +116,12 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 	pll->mode_reg = 0x00;
 	pll->status_reg = 0x1c;
 	pll->status_bit = 16;
-	pll->freq_tbl = a53pll_freq;
+
+	pll->freq_tbl = qcom_a53pll_get_freq_tbl(dev);
+	if (!pll->freq_tbl) {
+		/* Fall on a53pll_freq if no freq_tbl is found from OPP */
+		pll->freq_tbl = a53pll_freq;
+	}
 
 	/* Use an unique name by appending @unit-address */
 	init.name = devm_kasprintf(dev, GFP_KERNEL, "a53pll%s",
@@ -96,6 +152,7 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 
 static const struct of_device_id qcom_a53pll_match_table[] = {
 	{ .compatible = "qcom,msm8916-a53pll" },
+	{ .compatible = "qcom,msm8939-a53pll" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_a53pll_match_table);
