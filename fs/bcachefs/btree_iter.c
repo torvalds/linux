@@ -1779,7 +1779,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		if (!k.k ||
 		    ((iter->flags & BTREE_ITER_IS_EXTENTS)
 		     ? bkey_cmp(bkey_start_pos(k.k), iter->pos) >= 0
-		     : bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0))
+		     : bkey_cmp(k.k->p, iter->pos) > 0))
 			k = btree_iter_level_prev(iter, l);
 
 		if (likely(k.k))
