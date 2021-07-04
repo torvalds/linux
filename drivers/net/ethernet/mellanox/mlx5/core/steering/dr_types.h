@@ -804,10 +804,15 @@ struct mlx5dr_cmd_caps {
 	u8 isolate_vl_tc:1;
 };
 
+enum mlx5dr_domain_nic_type {
+	DR_DOMAIN_NIC_TYPE_RX,
+	DR_DOMAIN_NIC_TYPE_TX,
+};
+
 struct mlx5dr_domain_rx_tx {
 	u64 drop_icm_addr;
 	u64 default_icm_addr;
-	enum mlx5dr_ste_entry_type ste_type;
+	enum mlx5dr_domain_nic_type type;
 	struct mutex mutex; /* protect rx/tx domain */
 };
 
@@ -1216,7 +1221,7 @@ int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 				      bool update_hw_ste);
 void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  u16 gvmi,
-				  struct mlx5dr_domain_rx_tx *nic_dmn,
+				  enum mlx5dr_domain_nic_type nic_type,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,
 				  struct mlx5dr_htbl_connect_info *connect_info);

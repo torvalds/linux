@@ -434,7 +434,7 @@ dr_action_reformat_to_action_type(enum mlx5dr_action_reformat_type reformat_type
  * the new size of the STEs array, rule with actions.
  */
 static void dr_actions_apply(struct mlx5dr_domain *dmn,
-			     enum mlx5dr_ste_entry_type ste_type,
+			     enum mlx5dr_domain_nic_type nic_type,
 			     u8 *action_type_set,
 			     u8 *last_ste,
 			     struct mlx5dr_ste_actions_attr *attr,
@@ -443,7 +443,7 @@ static void dr_actions_apply(struct mlx5dr_domain *dmn,
 	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	u32 added_stes = 0;
 
-	if (ste_type == MLX5DR_STE_TYPE_RX)
+	if (nic_type == DR_DOMAIN_NIC_TYPE_RX)
 		mlx5dr_ste_set_actions_rx(ste_ctx, dmn, action_type_set,
 					  last_ste, attr, &added_stes);
 	else
@@ -455,7 +455,7 @@ static void dr_actions_apply(struct mlx5dr_domain *dmn,
 
 static enum dr_action_domain
 dr_action_get_action_domain(enum mlx5dr_domain_type domain,
-			    enum mlx5dr_ste_entry_type ste_type)
+			    enum mlx5dr_domain_nic_type nic_type)
 {
 	switch (domain) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -463,7 +463,7 @@ dr_action_get_action_domain(enum mlx5dr_domain_type domain,
 	case MLX5DR_DOMAIN_TYPE_NIC_TX:
 		return DR_ACTION_DOMAIN_NIC_EGRESS;
 	case MLX5DR_DOMAIN_TYPE_FDB:
-		if (ste_type == MLX5DR_STE_TYPE_RX)
+		if (nic_type == DR_DOMAIN_NIC_TYPE_RX)
 			return DR_ACTION_DOMAIN_FDB_INGRESS;
 		return DR_ACTION_DOMAIN_FDB_EGRESS;
 	default:
@@ -551,7 +551,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 				 u32 *new_hw_ste_arr_sz)
 {
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_matcher->nic_tbl->nic_dmn;
-	bool rx_rule = nic_dmn->ste_type == MLX5DR_STE_TYPE_RX;
+	bool rx_rule = nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	u8 action_type_set[DR_ACTION_TYP_MAX] = {};
 	struct mlx5dr_ste_actions_attr attr = {};
@@ -565,7 +565,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	attr.gvmi = dmn->info.caps.gvmi;
 	attr.hit_gvmi = dmn->info.caps.gvmi;
 	attr.final_icm_addr = nic_dmn->default_icm_addr;
-	action_domain = dr_action_get_action_domain(dmn->type, nic_dmn->ste_type);
+	action_domain = dr_action_get_action_domain(dmn->type, nic_dmn->type);
 
 	for (i = 0; i < num_actions; i++) {
 		struct mlx5dr_action_dest_tbl *dest_tbl;
@@ -752,7 +752,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	}
 
 	dr_actions_apply(dmn,
-			 nic_dmn->ste_type,
+			 nic_dmn->type,
 			 action_type_set,
 			 last_ste,
 			 &attr,

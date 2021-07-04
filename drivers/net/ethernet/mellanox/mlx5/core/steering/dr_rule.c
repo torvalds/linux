@@ -404,7 +404,7 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 	info.miss_icm_addr = nic_matcher->e_anchor->chunk->icm_addr;
 	mlx5dr_ste_set_formatted_ste(dmn->ste_ctx,
 				     dmn->info.caps.gvmi,
-				     nic_dmn,
+				     nic_dmn->type,
 				     new_htbl,
 				     formatted_ste,
 				     &info);
@@ -1015,12 +1015,12 @@ static enum mlx5dr_ipv dr_rule_get_ipv(struct mlx5dr_match_spec *spec)
 }
 
 static bool dr_rule_skip(enum mlx5dr_domain_type domain,
-			 enum mlx5dr_ste_entry_type ste_type,
+			 enum mlx5dr_domain_nic_type nic_type,
 			 struct mlx5dr_match_param *mask,
 			 struct mlx5dr_match_param *value,
 			 u32 flow_source)
 {
-	bool rx = ste_type == MLX5DR_STE_TYPE_RX;
+	bool rx = nic_type == DR_DOMAIN_NIC_TYPE_RX;
 
 	if (domain != MLX5DR_DOMAIN_TYPE_FDB)
 		return false;
@@ -1067,7 +1067,7 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	INIT_LIST_HEAD(&nic_rule->rule_members_list);
 
-	if (dr_rule_skip(dmn->type, nic_dmn->ste_type, &matcher->mask, param,
+	if (dr_rule_skip(dmn->type, nic_dmn->type, &matcher->mask, param,
 			 rule->flow_source))
 		return 0;
 

@@ -403,7 +403,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	int ret, i;
 
 	sb = nic_matcher->ste_builder_arr[outer_ipv][inner_ipv];
-	rx = nic_dmn->ste_type == MLX5DR_STE_TYPE_RX;
+	rx = nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX;
 
 	/* Create a temporary mask to track and clear used mask fields */
 	if (matcher->match_criteria & DR_MATCHER_CRITERIA_OUTER)
