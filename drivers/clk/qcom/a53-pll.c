@@ -37,6 +37,7 @@ static const struct regmap_config a53pll_regmap_config = {
 static int qcom_a53pll_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct regmap *regmap;
 	struct resource *res;
 	struct clk_pll *pll;
@@ -66,7 +67,12 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 	pll->status_bit = 16;
 	pll->freq_tbl = a53pll_freq;
 
-	init.name = "a53pll";
+	/* Use an unique name by appending @unit-address */
+	init.name = devm_kasprintf(dev, GFP_KERNEL, "a53pll%s",
+				   strchrnul(np->full_name, '@'));
+	if (!init.name)
+		return -ENOMEM;
+
 	init.parent_names = (const char *[]){ "xo" };
 	init.num_parents = 1;
 	init.ops = &clk_pll_sr2_ops;
