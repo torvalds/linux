@@ -1157,6 +1157,7 @@ dr_ste_v0_build_eth_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 				   u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
+	struct mlx5dr_match_misc *misc = &value->misc;
 
 	DR_STE_SET_TAG(eth_l4, tag, dst_port, spec, tcp_dport);
 	DR_STE_SET_TAG(eth_l4, tag, src_port, spec, tcp_sport);
@@ -1167,6 +1168,11 @@ dr_ste_v0_build_eth_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 	DR_STE_SET_TAG(eth_l4, tag, dscp, spec, ip_dscp);
 	DR_STE_SET_TAG(eth_l4, tag, ecn, spec, ip_ecn);
 	DR_STE_SET_TAG(eth_l4, tag, ipv6_hop_limit, spec, ttl_hoplimit);
+
+	if (sb->inner)
+		DR_STE_SET_TAG(eth_l4, tag, flow_label, misc, inner_ipv6_flow_label);
+	else
+		DR_STE_SET_TAG(eth_l4, tag, flow_label, misc, outer_ipv6_flow_label);
 
 	if (spec->tcp_flags) {
 		DR_STE_SET_TCP_FLAGS(eth_l4, tag, spec);
