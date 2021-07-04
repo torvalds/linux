@@ -171,8 +171,6 @@ struct mlx5dr_ste_htbl_ctrl {
 
 	/* total number of collisions entries attached to this table */
 	unsigned int num_of_collisions;
-	unsigned int increase_threshold;
-	u8 may_grow:1;
 };
 
 struct mlx5dr_ste_htbl {
@@ -1086,6 +1084,25 @@ mlx5dr_icm_pool_chunk_size_to_byte(enum mlx5dr_icm_chunk_size chunk_size,
 	num_of_entries = mlx5dr_icm_pool_chunk_size_to_entries(chunk_size);
 
 	return entry_size * num_of_entries;
+}
+
+static inline int
+mlx5dr_ste_htbl_increase_threshold(struct mlx5dr_ste_htbl *htbl)
+{
+	int num_of_entries =
+		mlx5dr_icm_pool_chunk_size_to_entries(htbl->chunk_size);
+
+	/* Threshold is 50%, one is added to table of size 1 */
+	return (num_of_entries + 1) / 2;
+}
+
+static inline bool
+mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
+{
+	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
+		return false;
+
+	return true;
 }
 
 static inline struct mlx5dr_cmd_vport_cap *
