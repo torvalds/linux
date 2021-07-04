@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
+#include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
@@ -13,12 +14,14 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include "pci.h"
 #include "cxl.h"
+#include "mem.h"
 
 /**
- * DOC: cxl mem
+ * DOC: cxl pci
  *
- * This implements a CXL memory device ("type-3") as it is defined by the
- * Compute Express Link specification.
+ * This implements the PCI exclusive functionality for a CXL device as it is
+ * defined by the Compute Express Link specification. CXL devices may surface
+ * certain functionality even if it isn't CXL enabled.
  *
  * The driver has several responsibilities, mainly:
  *  - Create the memX device and register on the CXL bus.
@@ -26,18 +29,10 @@
  *  - Probe the device attributes to establish sysfs interface.
  *  - Provide an IOCTL interface to userspace to communicate with the device for
  *    things like firmware update.
- *  - Support management of interleave sets.
- *  - Handle and manage error conditions.
  */
-
-/*
- * An entire PCI topology full of devices should be enough for any
- * config
- */
-#define CXL_MEM_MAX_DEVS 65536
 
 #define cxl_doorbell_busy(cxlm)                                                \
-	(readl((cxlm)->mbox_regs + CXLDEV_MBOX_CTRL_OFFSET) &                  \
+	(readl((cxlm)->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET) &                  \
 	 CXLDEV_MBOX_CTRL_DOORBELL)
 
 /* CXL 2.0 - 8.2.8.4 */
@@ -56,7 +51,14 @@ enum opcode {
 	CXL_MBOX_OP_GET_LSA		= 0x4102,
 	CXL_MBOX_OP_SET_LSA		= 0x4103,
 	CXL_MBOX_OP_GET_HEALTH_INFO	= 0x4200,
+	CXL_MBOX_OP_GET_ALERT_CONFIG	= 0x4201,
+	CXL_MBOX_OP_SET_ALERT_CONFIG	= 0x4202,
+	CXL_MBOX_OP_GET_SHUTDOWN_STATE	= 0x4203,
 	CXL_MBOX_OP_SET_SHUTDOWN_STATE	= 0x4204,
+	CXL_MBOX_OP_GET_POISON		= 0x4300,
+	CXL_MBOX_OP_INJECT_POISON	= 0x4301,
+	CXL_MBOX_OP_CLEAR_POISON	= 0x4302,
+	CXL_MBOX_OP_GET_SCAN_MEDIA_CAPS	= 0x4303,
 	CXL_MBOX_OP_SCAN_MEDIA		= 0x4304,
 	CXL_MBOX_OP_GET_SCAN_MEDIA	= 0x4305,
 	CXL_MBOX_OP_MAX			= 0x10000
@@ -90,20 +92,6 @@ struct mbox_cmd {
 	size_t size_out;
 	u16 return_code;
 #define CXL_MBOX_SUCCESS 0
-};
-
-/**
- * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
- * @dev: driver core device object
- * @cdev: char dev core object for ioctl operations
- * @cxlm: pointer to the parent device driver data
- * @id: id number of this memdev instance.
- */
-struct cxl_memdev {
-	struct device dev;
-	struct cdev cdev;
-	struct cxl_mem *cxlm;
-	int id;
 };
 
 static int cxl_mem_major;
@@ -178,6 +166,18 @@ static struct cxl_mem_command mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_LSA, 0x8, ~0, 0),
 	CXL_CMD(GET_HEALTH_INFO, 0, 0x12, 0),
 	CXL_CMD(GET_LOG, 0x18, ~0, CXL_CMD_FLAG_FORCE_ENABLE),
+	CXL_CMD(SET_PARTITION_INFO, 0x0a, 0, 0),
+	CXL_CMD(SET_LSA, ~0, 0, 0),
+	CXL_CMD(GET_ALERT_CONFIG, 0, 0x10, 0),
+	CXL_CMD(SET_ALERT_CONFIG, 0xc, 0, 0),
+	CXL_CMD(GET_SHUTDOWN_STATE, 0, 0x1, 0),
+	CXL_CMD(SET_SHUTDOWN_STATE, 0x1, 0, 0),
+	CXL_CMD(GET_POISON, 0x10, ~0, 0),
+	CXL_CMD(INJECT_POISON, 0x8, 0, 0),
+	CXL_CMD(CLEAR_POISON, 0x48, 0, 0),
+	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
+	CXL_CMD(SCAN_MEDIA, 0x11, 0, 0),
+	CXL_CMD(GET_SCAN_MEDIA, 0, ~0, 0),
 };
 
 /*
@@ -292,7 +292,7 @@ static void cxl_mem_mbox_timeout(struct cxl_mem *cxlm,
 static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 				   struct mbox_cmd *mbox_cmd)
 {
-	void __iomem *payload = cxlm->mbox_regs + CXLDEV_MBOX_PAYLOAD_OFFSET;
+	void __iomem *payload = cxlm->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
 	u64 cmd_reg, status_reg;
 	size_t out_len;
 	int rc;
@@ -335,12 +335,12 @@ static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 	}
 
 	/* #2, #3 */
-	writeq(cmd_reg, cxlm->mbox_regs + CXLDEV_MBOX_CMD_OFFSET);
+	writeq(cmd_reg, cxlm->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 
 	/* #4 */
 	dev_dbg(&cxlm->pdev->dev, "Sending command\n");
 	writel(CXLDEV_MBOX_CTRL_DOORBELL,
-	       cxlm->mbox_regs + CXLDEV_MBOX_CTRL_OFFSET);
+	       cxlm->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
 
 	/* #5 */
 	rc = cxl_mem_wait_for_doorbell(cxlm);
@@ -350,7 +350,7 @@ static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 	}
 
 	/* #6 */
-	status_reg = readq(cxlm->mbox_regs + CXLDEV_MBOX_STATUS_OFFSET);
+	status_reg = readq(cxlm->regs.mbox + CXLDEV_MBOX_STATUS_OFFSET);
 	mbox_cmd->return_code =
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
@@ -360,7 +360,7 @@ static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 	}
 
 	/* #7 */
-	cmd_reg = readq(cxlm->mbox_regs + CXLDEV_MBOX_CMD_OFFSET);
+	cmd_reg = readq(cxlm->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 	out_len = FIELD_GET(CXLDEV_MBOX_CMD_PAYLOAD_LENGTH_MASK, cmd_reg);
 
 	/* #8 */
@@ -421,7 +421,7 @@ static int cxl_mem_mbox_get(struct cxl_mem *cxlm)
 		goto out;
 	}
 
-	md_status = readq(cxlm->memdev_regs + CXLMDEV_STATUS_OFFSET);
+	md_status = readq(cxlm->regs.memdev + CXLMDEV_STATUS_OFFSET);
 	if (!(md_status & CXLMDEV_MBOX_IF_READY && CXLMDEV_READY(md_status))) {
 		dev_err(dev, "mbox: reported doorbell ready, but not mbox ready\n");
 		rc = -EBUSY;
@@ -890,75 +890,9 @@ static int cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm, u16 opcode,
 	return 0;
 }
 
-/**
- * cxl_mem_setup_regs() - Setup necessary MMIO.
- * @cxlm: The CXL memory device to communicate with.
- *
- * Return: 0 if all necessary registers mapped.
- *
- * A memory device is required by spec to implement a certain set of MMIO
- * regions. The purpose of this function is to enumerate and map those
- * registers.
- */
-static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
-{
-	struct device *dev = &cxlm->pdev->dev;
-	int cap, cap_count;
-	u64 cap_array;
-
-	cap_array = readq(cxlm->regs + CXLDEV_CAP_ARRAY_OFFSET);
-	if (FIELD_GET(CXLDEV_CAP_ARRAY_ID_MASK, cap_array) !=
-	    CXLDEV_CAP_ARRAY_CAP_ID)
-		return -ENODEV;
-
-	cap_count = FIELD_GET(CXLDEV_CAP_ARRAY_COUNT_MASK, cap_array);
-
-	for (cap = 1; cap <= cap_count; cap++) {
-		void __iomem *register_block;
-		u32 offset;
-		u16 cap_id;
-
-		cap_id = FIELD_GET(CXLDEV_CAP_HDR_CAP_ID_MASK,
-				   readl(cxlm->regs + cap * 0x10));
-		offset = readl(cxlm->regs + cap * 0x10 + 0x4);
-		register_block = cxlm->regs + offset;
-
-		switch (cap_id) {
-		case CXLDEV_CAP_CAP_ID_DEVICE_STATUS:
-			dev_dbg(dev, "found Status capability (0x%x)\n", offset);
-			cxlm->status_regs = register_block;
-			break;
-		case CXLDEV_CAP_CAP_ID_PRIMARY_MAILBOX:
-			dev_dbg(dev, "found Mailbox capability (0x%x)\n", offset);
-			cxlm->mbox_regs = register_block;
-			break;
-		case CXLDEV_CAP_CAP_ID_SECONDARY_MAILBOX:
-			dev_dbg(dev, "found Secondary Mailbox capability (0x%x)\n", offset);
-			break;
-		case CXLDEV_CAP_CAP_ID_MEMDEV:
-			dev_dbg(dev, "found Memory Device capability (0x%x)\n", offset);
-			cxlm->memdev_regs = register_block;
-			break;
-		default:
-			dev_dbg(dev, "Unknown cap ID: %d (0x%x)\n", cap_id, offset);
-			break;
-		}
-	}
-
-	if (!cxlm->status_regs || !cxlm->mbox_regs || !cxlm->memdev_regs) {
-		dev_err(dev, "registers not found: %s%s%s\n",
-			!cxlm->status_regs ? "status " : "",
-			!cxlm->mbox_regs ? "mbox " : "",
-			!cxlm->memdev_regs ? "memdev" : "");
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
 static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 {
-	const int cap = readl(cxlm->mbox_regs + CXLDEV_MBOX_CAPS_OFFSET);
+	const int cap = readl(cxlm->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
 
 	cxlm->payload_size =
 		1 << FIELD_GET(CXLDEV_MBOX_CAP_PAYLOAD_SIZE_MASK, cap);
@@ -983,53 +917,60 @@ static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev, u32 reg_lo,
-				      u32 reg_hi)
+static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cxl_mem *cxlm;
-	void __iomem *regs;
-	u64 offset;
-	u8 bar;
-	int rc;
 
-	cxlm = devm_kzalloc(&pdev->dev, sizeof(*cxlm), GFP_KERNEL);
+	cxlm = devm_kzalloc(dev, sizeof(*cxlm), GFP_KERNEL);
 	if (!cxlm) {
 		dev_err(dev, "No memory available\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
-
-	offset = ((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
-	bar = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
-
-	/* Basic sanity check that BAR is big enough */
-	if (pci_resource_len(pdev, bar) < offset) {
-		dev_err(dev, "BAR%d: %pr: too small (offset: %#llx)\n", bar,
-			&pdev->resource[bar], (unsigned long long)offset);
-		return NULL;
-	}
-
-	rc = pcim_iomap_regions(pdev, BIT(bar), pci_name(pdev));
-	if (rc) {
-		dev_err(dev, "failed to map registers\n");
-		return NULL;
-	}
-	regs = pcim_iomap_table(pdev)[bar];
 
 	mutex_init(&cxlm->mbox_mutex);
 	cxlm->pdev = pdev;
-	cxlm->regs = regs + offset;
 	cxlm->enabled_cmds =
 		devm_kmalloc_array(dev, BITS_TO_LONGS(cxl_cmd_count),
 				   sizeof(unsigned long),
 				   GFP_KERNEL | __GFP_ZERO);
 	if (!cxlm->enabled_cmds) {
 		dev_err(dev, "No memory available for bitmap\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	dev_dbg(dev, "Mapped CXL Memory Device resource\n");
 	return cxlm;
+}
+
+static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
+					  u8 bar, u64 offset)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	void __iomem *addr;
+
+	/* Basic sanity check that BAR is big enough */
+	if (pci_resource_len(pdev, bar) < offset) {
+		dev_err(dev, "BAR%d: %pr: too small (offset: %#llx)\n", bar,
+			&pdev->resource[bar], (unsigned long long)offset);
+		return IOMEM_ERR_PTR(-ENXIO);
+	}
+
+	addr = pci_iomap(pdev, bar, 0);
+	if (!addr) {
+		dev_err(dev, "failed to map registers\n");
+		return addr;
+	}
+
+	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %#llx\n",
+		bar, offset);
+
+	return addr;
+}
+
+static void cxl_mem_unmap_regblock(struct cxl_mem *cxlm, void __iomem *base)
+{
+	pci_iounmap(cxlm->pdev, base);
 }
 
 static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
@@ -1053,6 +994,171 @@ static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
 	}
 
 	return 0;
+}
+
+static int cxl_probe_regs(struct cxl_mem *cxlm, void __iomem *base,
+			  struct cxl_register_map *map)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	struct cxl_component_reg_map *comp_map;
+	struct cxl_device_reg_map *dev_map;
+
+	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_COMPONENT:
+		comp_map = &map->component_map;
+		cxl_probe_component_regs(dev, base, comp_map);
+		if (!comp_map->hdm_decoder.valid) {
+			dev_err(dev, "HDM decoder registers not found\n");
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "Set up component registers\n");
+		break;
+	case CXL_REGLOC_RBI_MEMDEV:
+		dev_map = &map->device_map;
+		cxl_probe_device_regs(dev, base, dev_map);
+		if (!dev_map->status.valid || !dev_map->mbox.valid ||
+		    !dev_map->memdev.valid) {
+			dev_err(dev, "registers not found: %s%s%s\n",
+				!dev_map->status.valid ? "status " : "",
+				!dev_map->mbox.valid ? "status " : "",
+				!dev_map->memdev.valid ? "status " : "");
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "Probing device registers...\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int cxl_map_regs(struct cxl_mem *cxlm, struct cxl_register_map *map)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+
+	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_COMPONENT:
+		cxl_map_component_regs(pdev, &cxlm->regs.component, map);
+		dev_dbg(dev, "Mapping component registers...\n");
+		break;
+	case CXL_REGLOC_RBI_MEMDEV:
+		cxl_map_device_regs(pdev, &cxlm->regs.device_regs, map);
+		dev_dbg(dev, "Probing device registers...\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
+				      u8 *bar, u64 *offset, u8 *reg_type)
+{
+	*offset = ((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
+	*bar = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
+	*reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
+}
+
+/**
+ * cxl_mem_setup_regs() - Setup necessary MMIO.
+ * @cxlm: The CXL memory device to communicate with.
+ *
+ * Return: 0 if all necessary registers mapped.
+ *
+ * A memory device is required by spec to implement a certain set of MMIO
+ * regions. The purpose of this function is to enumerate and map those
+ * registers.
+ */
+static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	u32 regloc_size, regblocks;
+	void __iomem *base;
+	int regloc, i;
+	struct cxl_register_map *map, *n;
+	LIST_HEAD(register_maps);
+	int ret = 0;
+
+	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
+	if (!regloc) {
+		dev_err(dev, "register location dvsec not found\n");
+		return -ENXIO;
+	}
+
+	if (pci_request_mem_regions(pdev, pci_name(pdev)))
+		return -ENODEV;
+
+	/* Get the size of the Register Locator DVSEC */
+	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
+	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
+
+	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
+	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
+
+	for (i = 0; i < regblocks; i++, regloc += 8) {
+		u32 reg_lo, reg_hi;
+		u8 reg_type;
+		u64 offset;
+		u8 bar;
+
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (!map) {
+			ret = -ENOMEM;
+			goto free_maps;
+		}
+
+		list_add(&map->list, &register_maps);
+
+		pci_read_config_dword(pdev, regloc, &reg_lo);
+		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
+
+		cxl_decode_register_block(reg_lo, reg_hi, &bar, &offset,
+					  &reg_type);
+
+		dev_dbg(dev, "Found register block in bar %u @ 0x%llx of type %u\n",
+			bar, offset, reg_type);
+
+		base = cxl_mem_map_regblock(cxlm, bar, offset);
+		if (!base) {
+			ret = -ENOMEM;
+			goto free_maps;
+		}
+
+		map->barno = bar;
+		map->block_offset = offset;
+		map->reg_type = reg_type;
+
+		ret = cxl_probe_regs(cxlm, base + offset, map);
+
+		/* Always unmap the regblock regardless of probe success */
+		cxl_mem_unmap_regblock(cxlm, base);
+
+		if (ret)
+			goto free_maps;
+	}
+
+	pci_release_mem_regions(pdev);
+
+	list_for_each_entry(map, &register_maps, list) {
+		ret = cxl_map_regs(cxlm, map);
+		if (ret)
+			goto free_maps;
+	}
+
+free_maps:
+	list_for_each_entry_safe(map, n, &register_maps, list) {
+		list_del(&map->list);
+		kfree(map);
+	}
+
+	return ret;
 }
 
 static struct cxl_memdev *to_cxl_memdev(struct device *dev)
@@ -1094,6 +1200,16 @@ static ssize_t payload_max_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(payload_max);
 
+static ssize_t label_storage_size_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_mem *cxlm = cxlmd->cxlm;
+
+	return sysfs_emit(buf, "%zu\n", cxlm->lsa_size);
+}
+static DEVICE_ATTR_RO(label_storage_size);
+
 static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -1123,6 +1239,7 @@ static struct device_attribute dev_attr_pmem_size =
 static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
+	&dev_attr_label_storage_size.attr,
 	NULL,
 };
 
@@ -1215,7 +1332,8 @@ err:
 	return ERR_PTR(rc);
 }
 
-static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+static struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
+					      struct cxl_mem *cxlm)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
@@ -1224,7 +1342,7 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 
 	cxlmd = cxl_memdev_alloc(cxlm);
 	if (IS_ERR(cxlmd))
-		return PTR_ERR(cxlmd);
+		return cxlmd;
 
 	dev = &cxlmd->dev;
 	rc = dev_set_name(dev, "mem%d", cxlmd->id);
@@ -1242,8 +1360,10 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	if (rc)
 		goto err;
 
-	return devm_add_action_or_reset(dev->parent, cxl_memdev_unregister,
-					cxlmd);
+	rc = devm_add_action_or_reset(host, cxl_memdev_unregister, cxlmd);
+	if (rc)
+		return ERR_PTR(rc);
+	return cxlmd;
 
 err:
 	/*
@@ -1252,7 +1372,7 @@ err:
 	 */
 	cxl_memdev_shutdown(cxlmd);
 	put_device(dev);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 static int cxl_xfer_log(struct cxl_mem *cxlm, uuid_t *uuid, u32 size, u8 *out)
@@ -1455,6 +1575,7 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 	cxlm->pmem_range.end =
 		le64_to_cpu(id.persistent_capacity) * SZ_256M - 1;
 
+	cxlm->lsa_size = le32_to_cpu(id.lsa_size);
 	memcpy(cxlm->firmware_version, id.fw_revision, sizeof(id.fw_revision));
 
 	return 0;
@@ -1462,46 +1583,17 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 
 static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct device *dev = &pdev->dev;
-	struct cxl_mem *cxlm = NULL;
-	u32 regloc_size, regblocks;
-	int rc, regloc, i;
+	struct cxl_memdev *cxlmd;
+	struct cxl_mem *cxlm;
+	int rc;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
-	if (!regloc) {
-		dev_err(dev, "register location dvsec not found\n");
-		return -ENXIO;
-	}
-
-	/* Get the size of the Register Locator DVSEC */
-	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
-	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
-
-	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
-	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
-
-	for (i = 0; i < regblocks; i++, regloc += 8) {
-		u32 reg_lo, reg_hi;
-		u8 reg_type;
-
-		/* "register low and high" contain other bits */
-		pci_read_config_dword(pdev, regloc, &reg_lo);
-		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
-
-		reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
-
-		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
-			cxlm = cxl_mem_create(pdev, reg_lo, reg_hi);
-			break;
-		}
-	}
-
-	if (!cxlm)
-		return -ENODEV;
+	cxlm = cxl_mem_create(pdev);
+	if (IS_ERR(cxlm))
+		return PTR_ERR(cxlm);
 
 	rc = cxl_mem_setup_regs(cxlm);
 	if (rc)
@@ -1519,7 +1611,14 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	return cxl_mem_add_memdev(cxlm);
+	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlm);
+	if (IS_ERR(cxlmd))
+		return PTR_ERR(cxlmd);
+
+	if (range_len(&cxlm->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+		rc = devm_cxl_add_nvdimm(&pdev->dev, cxlmd);
+
+	return rc;
 }
 
 static const struct pci_device_id cxl_mem_pci_tbl[] = {
@@ -1543,6 +1642,10 @@ static __init int cxl_mem_init(void)
 	struct dentry *mbox_debugfs;
 	dev_t devt;
 	int rc;
+
+	/* Double check the anonymous union trickery in struct cxl_regs */
+	BUILD_BUG_ON(offsetof(struct cxl_regs, memdev) !=
+		     offsetof(struct cxl_regs, device_regs.memdev));
 
 	rc = alloc_chrdev_region(&devt, 0, CXL_MEM_MAX_DEVS, "cxl");
 	if (rc)

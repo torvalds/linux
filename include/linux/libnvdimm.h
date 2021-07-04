@@ -278,6 +278,7 @@ static inline struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	return __nvdimm_create(nvdimm_bus, provider_data, groups, flags,
 			cmd_mask, num_flush, flush_wpq, NULL, NULL, NULL);
 }
+void nvdimm_delete(struct nvdimm *nvdimm);
 
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd);
