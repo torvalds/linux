@@ -247,6 +247,8 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		struct mlx5_ttc_rule *rule = &rules[tt];
 
+		if (test_bit(tt, params->ignore_dests))
+			continue;
 		rule->rule = mlx5_generate_ttc_rule(dev, ft, &params->dests[tt],
 						    ttc_rules[tt].etype,
 						    ttc_rules[tt].proto);
@@ -265,6 +267,8 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 	for (tt = 0; tt < MLX5_NUM_TUNNEL_TT; tt++) {
 		if (!mlx5_tunnel_proto_supported_rx(dev,
 						    ttc_tunnel_rules[tt].proto))
+			continue;
+		if (test_bit(tt, params->ignore_tunnel_dests))
 			continue;
 		trules[tt] = mlx5_generate_ttc_rule(dev, ft,
 						    &params->tunnel_dests[tt],
