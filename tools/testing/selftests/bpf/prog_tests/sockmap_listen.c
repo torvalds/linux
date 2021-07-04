@@ -1605,33 +1605,27 @@ static void test_reuseport(struct test_sockmap_listen *skel,
 	}
 }
 
-static void udp_redir_to_connected(int family, int sotype, int sock_mapfd,
-				   int verd_mapfd, enum redir_mode mode)
+static int udp_socketpair(int family, int *s, int *c)
 {
-	const char *log_prefix = redir_mode_str(mode);
 	struct sockaddr_storage addr;
-	int c0, c1, p0, p1;
-	unsigned int pass;
-	int retries = 100;
 	socklen_t len;
-	int err, n;
-	u64 value;
-	u32 key;
-	char b;
+	int p0, c0;
+	int err;
 
-	zero_verdict_count(verd_mapfd);
-
-	p0 = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	p0 = socket_loopback(family, SOCK_DGRAM | SOCK_NONBLOCK);
 	if (p0 < 0)
-		return;
+		return p0;
+
 	len = sizeof(addr);
 	err = xgetsockname(p0, sockaddr(&addr), &len);
 	if (err)
 		goto close_peer0;
 
-	c0 = xsocket(family, sotype | SOCK_NONBLOCK, 0);
-	if (c0 < 0)
+	c0 = xsocket(family, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (c0 < 0) {
+		err = c0;
 		goto close_peer0;
+	}
 	err = xconnect(c0, sockaddr(&addr), len);
 	if (err)
 		goto close_cli0;
@@ -1642,25 +1636,37 @@ static void udp_redir_to_connected(int family, int sotype, int sock_mapfd,
 	if (err)
 		goto close_cli0;
 
-	p1 = socket_loopback(family, sotype | SOCK_NONBLOCK);
-	if (p1 < 0)
-		goto close_cli0;
-	err = xgetsockname(p1, sockaddr(&addr), &len);
-	if (err)
-		goto close_cli0;
+	*s = p0;
+	*c = c0;
+	return 0;
 
-	c1 = xsocket(family, sotype | SOCK_NONBLOCK, 0);
-	if (c1 < 0)
-		goto close_peer1;
-	err = xconnect(c1, sockaddr(&addr), len);
+close_cli0:
+	xclose(c0);
+close_peer0:
+	xclose(p0);
+	return err;
+}
+
+static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
+				   enum redir_mode mode)
+{
+	const char *log_prefix = redir_mode_str(mode);
+	int c0, c1, p0, p1;
+	unsigned int pass;
+	int retries = 100;
+	int err, n;
+	u64 value;
+	u32 key;
+	char b;
+
+	zero_verdict_count(verd_mapfd);
+
+	err = udp_socketpair(family, &p0, &c0);
 	if (err)
-		goto close_cli1;
-	err = xgetsockname(c1, sockaddr(&addr), &len);
+		return;
+	err = udp_socketpair(family, &p1, &c1);
 	if (err)
-		goto close_cli1;
-	err = xconnect(p1, sockaddr(&addr), len);
-	if (err)
-		goto close_cli1;
+		goto close_cli0;
 
 	key = 0;
 	value = p0;
@@ -1701,11 +1707,9 @@ again:
 
 close_cli1:
 	xclose(c1);
-close_peer1:
 	xclose(p1);
 close_cli0:
 	xclose(c0);
-close_peer0:
 	xclose(p0);
 }
 
@@ -1722,11 +1726,9 @@ static void udp_skb_redir_to_connected(struct test_sockmap_listen *skel,
 		return;
 
 	skel->bss->test_ingress = false;
-	udp_redir_to_connected(family, SOCK_DGRAM, sock_map, verdict_map,
-			       REDIR_EGRESS);
+	udp_redir_to_connected(family, sock_map, verdict_map, REDIR_EGRESS);
 	skel->bss->test_ingress = true;
-	udp_redir_to_connected(family, SOCK_DGRAM, sock_map, verdict_map,
-			       REDIR_INGRESS);
+	udp_redir_to_connected(family, sock_map, verdict_map, REDIR_INGRESS);
 
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);
 }
