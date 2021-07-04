@@ -396,6 +396,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_match_param mask = {};
+	bool allow_empty_match = false;
 	struct mlx5dr_ste_build *sb;
 	bool inner, rx;
 	int idx = 0;
@@ -427,6 +428,16 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 					 &matcher->mask, NULL);
 	if (ret)
 		return ret;
+
+	/* Optimize RX pipe by reducing source port match, since
+	 * the FDB RX part is connected only to the wire.
+	 */
+	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB &&
+	    rx && mask.misc.source_port) {
+		mask.misc.source_port = 0;
+		mask.misc.source_eswitch_owner_vhca_id = 0;
+		allow_empty_match = true;
+	}
 
 	/* Outer */
 	if (matcher->match_criteria & (DR_MATCHER_CRITERIA_OUTER |
@@ -619,7 +630,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	}
 
 	/* Empty matcher, takes all */
-	if (matcher->match_criteria == DR_MATCHER_CRITERIA_EMPTY)
+	if ((!idx && allow_empty_match) ||
+	    matcher->match_criteria == DR_MATCHER_CRITERIA_EMPTY)
 		mlx5dr_ste_build_empty_always_hit(&sb[idx++], rx);
 
 	if (idx == 0) {
