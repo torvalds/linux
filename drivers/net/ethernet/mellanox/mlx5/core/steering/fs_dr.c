@@ -490,9 +490,13 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 
 		actions[num_actions++] = term_actions->dest;
 	} else if (num_term_actions > 1) {
+		bool ignore_flow_level =
+			!!(fte->action.flags & FLOW_ACT_IGNORE_FLOW_LEVEL);
+
 		tmp_action = mlx5dr_action_create_mult_dest_tbl(domain,
 								term_actions,
-								num_term_actions);
+								num_term_actions,
+								ignore_flow_level);
 		if (!tmp_action) {
 			err = -EOPNOTSUPP;
 			goto free_actions;

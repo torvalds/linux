@@ -1337,6 +1337,7 @@ struct mlx5dr_cmd_fte_info {
 	u32 *val;
 	struct mlx5_flow_act action;
 	struct mlx5dr_cmd_flow_destination_hw_info *dest_arr;
+	bool ignore_flow_level;
 };
 
 int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
@@ -1366,7 +1367,8 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    int num_dest,
 			    bool reformat_req,
 			    u32 *tbl_id,
-			    u32 *group_id);
+			    u32 *group_id,
+			    bool ignore_flow_level);
 void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 			      u32 group_id);
 #endif  /* _DR_TYPES_H_ */

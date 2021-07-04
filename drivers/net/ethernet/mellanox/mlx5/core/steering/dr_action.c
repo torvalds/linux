@@ -845,7 +845,8 @@ dec_ref:
 struct mlx5dr_action *
 mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   struct mlx5dr_action_dest *dests,
-				   u32 num_of_dests)
+				   u32 num_of_dests,
+				   bool ignore_flow_level)
 {
 	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
 	struct mlx5dr_action **ref_actions;
@@ -912,7 +913,8 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				      num_of_dests,
 				      reformat_req,
 				      &action->dest_tbl->fw_tbl.id,
-				      &action->dest_tbl->fw_tbl.group_id);
+				      &action->dest_tbl->fw_tbl.group_id,
+				      ignore_flow_level);
 	if (ret)
 		goto free_action;
 
