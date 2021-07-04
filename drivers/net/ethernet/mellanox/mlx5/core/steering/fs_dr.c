@@ -133,6 +133,9 @@ static int mlx5_cmd_dr_modify_flow_table(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_table *ft,
 					 struct mlx5_flow_table *next_ft)
 {
+	if (mlx5_dr_is_fw_table(ft->flags))
+		return mlx5_fs_cmd_get_fw_cmds()->modify_flow_table(ns, ft, next_ft);
+
 	return set_miss_action(ns, ft, next_ft);
 }
 
