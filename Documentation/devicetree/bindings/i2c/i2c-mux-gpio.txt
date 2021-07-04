@@ -62,7 +62,6 @@ Example:
 				reg = <0x3c>;
 				pwms = <&pwm 4 3000>;
 				reset-gpios = <&gpio2 7 1>;
-				reset-active-low;
 			};
 		};
 

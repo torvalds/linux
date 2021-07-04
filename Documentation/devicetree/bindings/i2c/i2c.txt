@@ -89,8 +89,11 @@ wants to support one of the below features, it should adapt these bindings.
 
 - smbus
 	states that additional SMBus restrictions and features apply to this bus.
-	Examples of features are SMBusHostNotify and SMBusAlert. Examples of
-	restrictions are more reserved addresses and timeout definitions.
+	An example of feature is SMBusHostNotify. Examples of restrictions are
+	more reserved addresses and timeout definitions.
+
+- smbus-alert
+	states that the optional SMBus-Alert feature apply to this bus.
 
 Required properties (per child device)
 --------------------------------------
