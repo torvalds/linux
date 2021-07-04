@@ -465,7 +465,6 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 			size_t count)
 {
 	WARN_ON(direction & ~(READ | WRITE));
-	WARN_ON_ONCE(uaccess_kernel());
 	*i = (struct iov_iter) {
 		.iter_type = ITER_IOVEC,
 		.data_source = direction,
