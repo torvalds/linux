@@ -88,10 +88,4 @@ int sclp_write(struct sclp_buffer *buffer, const unsigned char *, int);
 int sclp_emit_buffer(struct sclp_buffer *,void (*)(struct sclp_buffer *,int));
 int sclp_chars_in_buffer(struct sclp_buffer *);
 
-#ifdef CONFIG_SCLP_CONSOLE
-void sclp_console_pm_event(enum sclp_pm_event sclp_pm_event);
-#else
-static inline void sclp_console_pm_event(enum sclp_pm_event sclp_pm_event) { }
-#endif
-
 #endif	/* __SCLP_RW_H__ */

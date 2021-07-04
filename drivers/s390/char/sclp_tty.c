@@ -284,7 +284,6 @@ static int
 sclp_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
-	struct list_head *l;
 	struct sclp_buffer *t;
 	int count;
 
@@ -292,8 +291,7 @@ sclp_tty_chars_in_buffer(struct tty_struct *tty)
 	count = 0;
 	if (sclp_ttybuf != NULL)
 		count = sclp_chars_in_buffer(sclp_ttybuf);
-	list_for_each(l, &sclp_tty_outqueue) {
-		t = list_entry(l, struct sclp_buffer, list);
+	list_for_each_entry(t, &sclp_tty_outqueue, list) {
 		count += sclp_chars_in_buffer(t);
 	}
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);

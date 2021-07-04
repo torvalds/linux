@@ -36,7 +36,7 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 	unsigned long address;
 
 	if (regs->int_code & 0x200)
-		address = *(unsigned long *)(current->thread.trap_tdb + 24);
+		address = current->thread.trap_tdb.data[3];
 	else
 		address = regs->psw.addr;
 	return (void __user *) (address - (regs->int_code >> 16));
@@ -318,7 +318,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 
 	if (S390_lowcore.pgm_code & 0x0200) {
 		/* transaction abort */
-		memcpy(&current->thread.trap_tdb, &S390_lowcore.pgm_tdb, 256);
+		current->thread.trap_tdb = S390_lowcore.pgm_tdb;
 	}
 
 	if (S390_lowcore.pgm_code & PGM_INT_CODE_PER) {

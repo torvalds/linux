@@ -44,3 +44,28 @@ void uv_query_info(void)
 		prot_virt_guest = 1;
 #endif
 }
+
+#if IS_ENABLED(CONFIG_KVM)
+static bool has_uv_sec_stor_limit(void)
+{
+	/*
+	 * keep these conditions in line with setup_uv()
+	 */
+	if (!is_prot_virt_host())
+		return false;
+
+	if (is_prot_virt_guest())
+		return false;
+
+	if (!test_facility(158))
+		return false;
+
+	return !!uv_info.max_sec_stor_addr;
+}
+
+void adjust_to_uv_max(unsigned long *vmax)
+{
+	if (has_uv_sec_stor_limit())
+		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+}
+#endif

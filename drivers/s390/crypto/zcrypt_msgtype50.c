@@ -375,6 +375,7 @@ static int convert_type80(struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       t80h->code);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
@@ -412,6 +413,7 @@ static int convert_response_cex2a(struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) rtype);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }

@@ -133,7 +133,8 @@ struct zpci_dev {
 	u8		has_resources	: 1;
 	u8		is_physfn	: 1;
 	u8		util_str_avail	: 1;
-	u8		reserved	: 3;
+	u8		irqs_registered	: 1;
+	u8		reserved	: 2;
 	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	struct mutex lock;
@@ -271,8 +272,12 @@ struct zpci_dev *get_zdev_by_fid(u32);
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
 
+/* IRQ */
 int __init zpci_irq_init(void);
 void __init zpci_irq_exit(void);
+
+int zpci_set_irq(struct zpci_dev *zdev);
+int zpci_clear_irq(struct zpci_dev *zdev);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);
