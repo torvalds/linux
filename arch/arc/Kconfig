@@ -409,7 +409,7 @@ choice
 	help
 	  Depending on the configuration, CPU can contain DSP registers
 	  (ACC0_GLO, ACC0_GHI, DSP_BFLY0, DSP_CTRL, DSP_FFT_CTRL).
-	  Bellow is options describing how to handle these registers in
+	  Below are options describing how to handle these registers in
 	  interrupt entry / exit and in context switch.
 
 config ARC_DSP_NONE
