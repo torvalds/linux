@@ -48,12 +48,6 @@ enum transfer_direction {
 #define NWL_DSI_ENDPOINT_LCDIF 0
 #define NWL_DSI_ENDPOINT_DCSS 1
 
-struct nwl_dsi_plat_clk_config {
-	const char *id;
-	struct clk *clk;
-	bool present;
-};
-
 struct nwl_dsi_transfer {
 	const struct mipi_dsi_msg *msg;
 	struct mipi_dsi_packet packet;
