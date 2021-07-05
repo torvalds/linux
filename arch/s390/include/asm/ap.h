@@ -379,28 +379,34 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 					     size_t *reslength,
 					     unsigned long *resgr0)
 {
-	register unsigned long reg0 asm("0") =
-		resgr0 && *resgr0 ? *resgr0 : qid | 0x80000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm("2") = 0UL;
-	register unsigned long reg4 asm("4") = (unsigned long) msg;
-	register unsigned long reg5 asm("5") = (unsigned long) length;
-	register unsigned long reg6 asm("6") = 0UL;
-	register unsigned long reg7 asm("7") = 0UL;
+	unsigned long reg0 = resgr0 && *resgr0 ? *resgr0 : qid | 0x80000000UL;
+	struct ap_queue_status reg1;
+	unsigned long reg2;
+	union register_pair rp1, rp2;
+
+	rp1.even = 0UL;
+	rp1.odd  = 0UL;
+	rp2.even = (unsigned long)msg;
+	rp2.odd  = (unsigned long)length;
 
 	asm volatile(
-		"0: ltgr  %[bl],%[bl]\n" /* if avail. buf len is 0 then */
-		"   jz    2f\n"		 /* go out of this asm block */
-		"1: .long 0xb2ae0064\n"  /* DQAP */
-		"   brc   6,0b\n"	 /* if partially do again */
-		"2:\n"
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
-		  "+d" (reg4), [bl] "+d" (reg5), "+d" (reg6), "+d" (reg7)
-		: : "cc", "memory");
+		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
+		"	lghi	2,0\n"	       /* 0 into gr2 (res length) */
+		"0:	ltgr	%N[rp2],%N[rp2]\n" /* check buf len */
+		"	jz	2f\n"	       /* go out if buf len is 0 */
+		"1:	.insn	rre,0xb2ae0000,%[rp1],%[rp2]\n"
+		"	brc	6,0b\n"        /* handle partial complete */
+		"2:	lgr	%[reg0],0\n"   /* gr0 (qid + info) into reg0 */
+		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
+		"	lgr	%[reg2],2\n"   /* gr2 (res length) into reg2 */
+		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1), [reg2] "=&d" (reg2),
+		  [rp1] "+&d" (rp1.pair), [rp2] "+&d" (rp2.pair)
+		:
+		: "cc", "memory", "0", "1", "2");
 
 	if (reslength)
 		*reslength = reg2;
-	if (reg2 != 0 && reg5 == 0) {
+	if (reg2 != 0 && rp2.odd == 0) {
 		/*
 		 * Partially complete, status in gr1 is not set.
 		 * Signal the caller that this dqap is only partially received
@@ -410,7 +416,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		if (resgr0)
 			*resgr0 = reg0;
 	} else {
-		*psmid = (((unsigned long long) reg6) << 32) + reg7;
+		*psmid = (((unsigned long long)rp1.even) << 32) + rp1.odd;
 		if (resgr0)
 			*resgr0 = 0;
 	}
