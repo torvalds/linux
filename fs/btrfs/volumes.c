@@ -1759,48 +1759,6 @@ out:
 	return ret;
 }
 
-static int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
-				  struct btrfs_device *device,
-				  u64 chunk_offset, u64 start, u64 num_bytes)
-{
-	int ret;
-	struct btrfs_path *path;
-	struct btrfs_fs_info *fs_info = device->fs_info;
-	struct btrfs_root *root = fs_info->dev_root;
-	struct btrfs_dev_extent *extent;
-	struct extent_buffer *leaf;
-	struct btrfs_key key;
-
-	WARN_ON(!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state));
-	WARN_ON(test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state));
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	key.objectid = device->devid;
-	key.offset = start;
-	key.type = BTRFS_DEV_EXTENT_KEY;
-	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      sizeof(*extent));
-	if (ret)
-		goto out;
-
-	leaf = path->nodes[0];
-	extent = btrfs_item_ptr(leaf, path->slots[0],
-				struct btrfs_dev_extent);
-	btrfs_set_dev_extent_chunk_tree(leaf, extent,
-					BTRFS_CHUNK_TREE_OBJECTID);
-	btrfs_set_dev_extent_chunk_objectid(leaf, extent,
-					    BTRFS_FIRST_CHUNK_TREE_OBJECTID);
-	btrfs_set_dev_extent_chunk_offset(leaf, extent, chunk_offset);
-
-	btrfs_set_dev_extent_length(leaf, extent, num_bytes);
-	btrfs_mark_buffer_dirty(leaf);
-out:
-	btrfs_free_path(path);
-	return ret;
-}
-
 static u64 find_next_chunk(struct btrfs_fs_info *fs_info)
 {
 	struct extent_map_tree *em_tree;
@@ -5461,56 +5419,6 @@ struct btrfs_block_group *btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 out:
 	kfree(devices_info);
 	return block_group;
-}
-
-/*
- * This function, btrfs_finish_chunk_alloc(), belongs to phase 2.
- *
- * See the comment at btrfs_chunk_alloc() for details about the chunk allocation
- * phases.
- */
-int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
-			     u64 chunk_offset, u64 chunk_size)
-{
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_device *device;
-	struct extent_map *em;
-	struct map_lookup *map;
-	u64 dev_offset;
-	u64 stripe_size;
-	int i;
-	int ret = 0;
-
-	em = btrfs_get_chunk_map(fs_info, chunk_offset, chunk_size);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
-
-	map = em->map_lookup;
-	stripe_size = em->orig_block_len;
-
-	/*
-	 * Take the device list mutex to prevent races with the final phase of
-	 * a device replace operation that replaces the device object associated
-	 * with the map's stripes, because the device object's id can change
-	 * at any time during that final phase of the device replace operation
-	 * (dev-replace.c:btrfs_dev_replace_finishing()), so we could grab the
-	 * replaced device and then see it with an ID of BTRFS_DEV_REPLACE_DEVID,
-	 * resulting in persisting a device extent item with such ID.
-	 */
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	for (i = 0; i < map->num_stripes; i++) {
-		device = map->stripes[i].dev;
-		dev_offset = map->stripes[i].physical;
-
-		ret = btrfs_alloc_dev_extent(trans, device, chunk_offset,
-					     dev_offset, stripe_size);
-		if (ret)
-			break;
-	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-
-	free_extent_map(em);
-	return ret;
 }
 
 /*
