@@ -1572,6 +1572,7 @@
   sscanf
   __stack_chk_fail
   __stack_chk_guard
+  stack_trace_save_tsk
   static_key_disable
   stop_machine
   stop_one_cpu_nowait
