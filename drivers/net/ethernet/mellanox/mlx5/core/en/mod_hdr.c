@@ -155,3 +155,50 @@ struct mlx5_modify_hdr *mlx5e_mod_hdr_get(struct mlx5e_mod_hdr_handle *mh)
 	return mh->modify_hdr;
 }
 
+char *
+mlx5e_mod_hdr_alloc(struct mlx5_core_dev *mdev, int namespace,
+		    struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
+{
+	int new_num_actions, max_hw_actions;
+	size_t new_sz, old_sz;
+	void *ret;
+
+	if (mod_hdr_acts->num_actions < mod_hdr_acts->max_actions)
+		goto out;
+
+	max_hw_actions = mlx5e_mod_hdr_max_actions(mdev, namespace);
+	new_num_actions = min(max_hw_actions,
+			      mod_hdr_acts->actions ?
+			      mod_hdr_acts->max_actions * 2 : 1);
+	if (mod_hdr_acts->max_actions == new_num_actions)
+		return ERR_PTR(-ENOSPC);
+
+	new_sz = MLX5_MH_ACT_SZ * new_num_actions;
+	old_sz = mod_hdr_acts->max_actions * MLX5_MH_ACT_SZ;
+
+	ret = krealloc(mod_hdr_acts->actions, new_sz, GFP_KERNEL);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+
+	memset(ret + old_sz, 0, new_sz - old_sz);
+	mod_hdr_acts->actions = ret;
+	mod_hdr_acts->max_actions = new_num_actions;
+
+out:
+	return mod_hdr_acts->actions + (mod_hdr_acts->num_actions * MLX5_MH_ACT_SZ);
+}
+
+void
+mlx5e_mod_hdr_dealloc(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
+{
+	kfree(mod_hdr_acts->actions);
+	mod_hdr_acts->actions = NULL;
+	mod_hdr_acts->num_actions = 0;
+	mod_hdr_acts->max_actions = 0;
+}
+
+char *
+mlx5e_mod_hdr_get_item(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts, int pos)
+{
+	return mod_hdr_acts->actions + (pos * MLX5_MH_ACT_SZ);
+}
