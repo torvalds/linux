@@ -37,7 +37,7 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		if (err < 0)
 			return err;
 
-		priv->last_jiffies = jiffies + (unsigned long)last_jiffies;
+		priv->last_jiffies = jiffies - (unsigned long)last_jiffies;
 	}
 
 	return 0;
