@@ -22,7 +22,13 @@
 
 struct ab8500_pwm_chip {
 	struct pwm_chip chip;
+	unsigned int hwid;
 };
+
+static struct ab8500_pwm_chip *ab8500_pwm_from_chip(struct pwm_chip *chip)
+{
+	return container_of(chip, struct ab8500_pwm_chip, chip);
+}
 
 static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
@@ -30,6 +36,7 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 	u8 reg;
 	unsigned int higher_val, lower_val;
+	struct ab8500_pwm_chip *ab8500 = ab8500_pwm_from_chip(chip);
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
@@ -37,7 +44,7 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!state->enabled) {
 		ret = abx500_mask_and_set_register_interruptible(chip->dev,
 					AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-					1 << (chip->base - 1), 0);
+					1 << ab8500->hwid, 0);
 
 		if (ret < 0)
 			dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
@@ -56,7 +63,7 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	higher_val = ((state->duty_cycle & 0x0300) >> 8);
 
-	reg = AB8500_PWM_OUT_CTRL1_REG + ((chip->base - 1) * 2);
+	reg = AB8500_PWM_OUT_CTRL1_REG + (ab8500->hwid * 2);
 
 	ret = abx500_set_register_interruptible(chip->dev, AB8500_MISC,
 			reg, (u8)lower_val);
@@ -70,7 +77,7 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = abx500_mask_and_set_register_interruptible(chip->dev,
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-				1 << (chip->base - 1), 1 << (chip->base - 1));
+				1 << ab8500->hwid, 1 << ab8500->hwid);
 	if (ret < 0)
 		dev_err(chip->dev, "%s: Failed to enable PWM, Error %d\n",
 							pwm->label, ret);
@@ -88,6 +95,9 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	struct ab8500_pwm_chip *ab8500;
 	int err;
 
+	if (pdev->id < 1 || pdev->id > 31)
+		return dev_err_probe(&pdev->dev, EINVAL, "Invalid device id %d\n", pdev->id);
+
 	/*
 	 * Nothing to be done in probe, this is required to get the
 	 * device which is required for ab8500 read and write
@@ -99,6 +109,7 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	ab8500->chip.dev = &pdev->dev;
 	ab8500->chip.ops = &ab8500_pwm_ops;
 	ab8500->chip.npwm = 1;
+	ab8500->hwid = pdev->id - 1;
 
 	err = pwmchip_add(&ab8500->chip);
 	if (err < 0)
