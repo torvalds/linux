@@ -29,7 +29,11 @@
 
 #include "rk_crypto_bignum.h"
 
-#define RK_CRYPTO_PRIORITY		300
+/*
+ * Change to the lowest priority, and hardware encryption is
+ * invoked explicitly only at the User layer.
+ */
+#define RK_CRYPTO_PRIORITY		0
 
 /*  Increase the addr_vir buffer size from 1 to 8 pages */
 #define RK_BUFFER_ORDER			3
