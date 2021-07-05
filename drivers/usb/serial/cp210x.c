@@ -1164,10 +1164,8 @@ static int cp210x_set_chars(struct usb_serial_port *port,
 
 	kfree(dmabuf);
 
-	if (result < 0) {
-		dev_err(&port->dev, "failed to set special chars: %d\n", result);
+	if (result < 0)
 		return result;
-	}
 
 	return 0;
 }
@@ -1219,8 +1217,10 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		chars.bXoffChar = STOP_CHAR(tty);
 
 		ret = cp210x_set_chars(port, &chars);
-		if (ret)
-			return;
+		if (ret) {
+			dev_err(&port->dev, "failed to set special chars: %d\n",
+					ret);
+		}
 	}
 
 	mutex_lock(&port_priv->mutex);
