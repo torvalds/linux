@@ -601,6 +601,95 @@ static const struct rockchip_pvtm_data rk3568_npupvtm = {
 	},
 };
 
+static const struct rockchip_pvtm_info rk3588_bigcore0_pvtm_infos[] = {
+	PVTM(0, "bigcore0", 7, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_bigcore0_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_bigcore0_pvtm_infos),
+	.infos = rk3588_bigcore0_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_bigcore1_pvtm_infos[] = {
+	PVTM(1, "bigcore1", 7, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_bigcore1_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_bigcore1_pvtm_infos),
+	.infos = rk3588_bigcore1_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_litcore_pvtm_infos[] = {
+	PVTM(2, "litcore", 7, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_litcore_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_litcore_pvtm_infos),
+	.infos = rk3588_litcore_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_gpu_pvtm_infos[] = {
+	PVTM(3, "gpu", 2, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_gpu_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_gpu_pvtm_infos),
+	.infos = rk3588_gpu_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_npu_pvtm_infos[] = {
+	PVTM(4, "npu", 2, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_npu_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_npu_pvtm_infos),
+	.infos = rk3588_npu_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_pmu_pvtm_infos[] = {
+	PVTM(5, "pmu", 1, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_pmu_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_pmu_pvtm_infos),
+	.infos = rk3588_pmu_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+	},
+};
+
 static const struct rockchip_pvtm_info rv1126_cpupvtm_infos[] = {
 	PVTM(0, "cpu", 7, 0, 1, 0x4, 0, 0x4),
 };
@@ -697,6 +786,30 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 	{
 		.compatible = "rockchip,rk3568-npu-pvtm",
 		.data = (void *)&rk3568_npupvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-bigcore0-pvtm",
+		.data = (void *)&rk3588_bigcore0_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-bigcore1-pvtm",
+		.data = (void *)&rk3588_bigcore1_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-litcore-pvtm",
+		.data = (void *)&rk3588_litcore_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-gpu-pvtm",
+		.data = (void *)&rk3588_gpu_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-npu-pvtm",
+		.data = (void *)&rk3588_npu_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk3588-pmu-pvtm",
+		.data = (void *)&rk3588_pmu_pvtm,
 	},
 	{
 		.compatible = "rockchip,rv1126-cpu-pvtm",
