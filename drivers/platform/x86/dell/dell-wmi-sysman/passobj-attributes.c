@@ -183,5 +183,8 @@ void exit_po_attributes(void)
 			sysfs_remove_group(wmi_priv.po_data[instance_id].attr_name_kobj,
 								&po_attr_group);
 	}
+	wmi_priv.po_instances_count = 0;
+
 	kfree(wmi_priv.po_data);
+	wmi_priv.po_data = NULL;
 }

@@ -284,16 +284,28 @@ endfunction
 // Set up test pattern in the FFR
 // x0: pid
 // x2: generation
+//
+// We need to generate a canonical FFR value, which consists of a number of
+// low "1" bits, followed by a number of zeros. This gives us 17 unique values
+// per 16 bits of FFR, so we create a 4 bit signature out of the PID and
+// generation, and use that as the initial number of ones in the pattern.
+// We fill the upper lanes of FFR with zeros.
 // Beware: corrupts P0.
 function setup_ffr
 	mov	x4, x30
 
-	bl	pattern
+	and	w0, w0, #0x3
+	bfi	w0, w2, #2, #2
+	mov	w1, #1
+	lsl	w1, w1, w0
+	sub	w1, w1, #1
+
 	ldr	x0, =ffrref
-	ldr	x1, =scratch
-	rdvl	x2, #1
-	lsr	x2, x2, #3
-	bl	memcpy
+	strh	w1, [x0], 2
+	rdvl	x1, #1
+	lsr	x1, x1, #3
+	sub	x1, x1, #2
+	bl	memclr
 
 	mov	x0, #0
 	ldr	x1, =ffrref

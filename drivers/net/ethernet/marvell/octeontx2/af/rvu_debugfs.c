@@ -234,12 +234,14 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 					  char __user *buffer,
 					  size_t count, loff_t *ppos)
 {
-	int index, off = 0, flag = 0, go_back = 0, off_prev;
+	int index, off = 0, flag = 0, go_back = 0, len = 0;
 	struct rvu *rvu = filp->private_data;
 	int lf, pf, vf, pcifunc;
 	struct rvu_block block;
 	int bytes_not_copied;
+	int lf_str_size = 12;
 	int buf_size = 2048;
+	char *lfs;
 	char *buf;
 
 	/* don't allow partial reads */
@@ -249,12 +251,20 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOSPC;
-	off +=	scnprintf(&buf[off], buf_size - 1 - off, "\npcifunc\t\t");
+
+	lfs = kzalloc(lf_str_size, GFP_KERNEL);
+	if (!lfs) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+	off +=	scnprintf(&buf[off], buf_size - 1 - off, "%-*s", lf_str_size,
+			  "pcifunc");
 	for (index = 0; index < BLK_COUNT; index++)
-		if (strlen(rvu->hw->block[index].name))
-			off +=	scnprintf(&buf[off], buf_size - 1 - off,
-					  "%*s\t", (index - 1) * 2,
-					  rvu->hw->block[index].name);
+		if (strlen(rvu->hw->block[index].name)) {
+			off += scnprintf(&buf[off], buf_size - 1 - off,
+					 "%-*s", lf_str_size,
+					 rvu->hw->block[index].name);
+		}
 	off += scnprintf(&buf[off], buf_size - 1 - off, "\n");
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
@@ -263,14 +273,15 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 				continue;
 
 			if (vf) {
+				sprintf(lfs, "PF%d:VF%d", pf, vf - 1);
 				go_back = scnprintf(&buf[off],
 						    buf_size - 1 - off,
-						    "PF%d:VF%d\t\t", pf,
-						    vf - 1);
+						    "%-*s", lf_str_size, lfs);
 			} else {
+				sprintf(lfs, "PF%d", pf);
 				go_back = scnprintf(&buf[off],
 						    buf_size - 1 - off,
-						    "PF%d\t\t", pf);
+						    "%-*s", lf_str_size, lfs);
 			}
 
 			off += go_back;
@@ -278,20 +289,22 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 				block = rvu->hw->block[index];
 				if (!strlen(block.name))
 					continue;
-				off_prev = off;
+				len = 0;
+				lfs[len] = '\0';
 				for (lf = 0; lf < block.lf.max; lf++) {
 					if (block.fn_map[lf] != pcifunc)
 						continue;
 					flag = 1;
-					off += scnprintf(&buf[off], buf_size - 1
-							- off, "%3d,", lf);
+					len += sprintf(&lfs[len], "%d,", lf);
 				}
-				if (flag && off_prev != off)
-					off--;
-				else
-					go_back++;
+
+				if (flag)
+					len--;
+				lfs[len] = '\0';
 				off += scnprintf(&buf[off], buf_size - 1 - off,
-						"\t");
+						 "%-*s", lf_str_size, lfs);
+				if (!strlen(lfs))
+					go_back += lf_str_size;
 			}
 			if (!flag)
 				off -= go_back;
@@ -303,6 +316,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 	}
 
 	bytes_not_copied = copy_to_user(buffer, buf, off);
+	kfree(lfs);
 	kfree(buf);
 
 	if (bytes_not_copied)
@@ -319,7 +333,6 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 	struct rvu *rvu = filp->private;
 	struct pci_dev *pdev = NULL;
 	struct mac_ops *mac_ops;
-	int rvu_def_cgx_id = 0;
 	char cgx[10], lmac[10];
 	struct rvu_pfvf *pfvf;
 	int pf, domain, blkid;
@@ -327,7 +340,10 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 	u16 pcifunc;
 
 	domain = 2;
-	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
+	/* There can be no CGX devices at all */
+	if (!mac_ops)
+		return 0;
 	seq_printf(filp, "PCI dev\t\tRVU PF Func\tNIX block\t%s\tLMAC\n",
 		   mac_ops->name);
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
@@ -1818,7 +1834,6 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 {
 	struct mac_ops *mac_ops;
 	unsigned long lmac_bmap;
-	int rvu_def_cgx_id = 0;
 	int i, lmac_id;
 	char dname[20];
 	void *cgx;
@@ -1826,7 +1841,7 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 	if (!cgx_get_cgxcnt_max())
 		return;
 
-	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
 	if (!mac_ops)
 		return;
 

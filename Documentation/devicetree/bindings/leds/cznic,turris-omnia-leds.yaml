@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: CZ.NIC's Turris Omnia LEDs driver
 
 maintainers:
-  - Marek Behún <marek.behun@nic.cz>
+  - Marek Behún <kabel@kernel.org>
 
 description:
   This module adds support for the RGB LEDs found on the front panel of the

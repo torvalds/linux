@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/kernel.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
@@ -1408,7 +1409,8 @@ static void attach_node_and_children(struct device_node *np)
 static int __init unittest_data_add(void)
 {
 	void *unittest_data;
-	struct device_node *unittest_data_node, *np;
+	void *unittest_data_align;
+	struct device_node *unittest_data_node = NULL, *np;
 	/*
 	 * __dtb_testcases_begin[] and __dtb_testcases_end[] are magically
 	 * created by cmd_dt_S_dtb in scripts/Makefile.lib
@@ -1417,21 +1419,29 @@ static int __init unittest_data_add(void)
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
 	int rc;
+	void *ret;
 
 	if (!size) {
-		pr_warn("%s: No testcase data to attach; not running tests\n",
-			__func__);
+		pr_warn("%s: testcases is empty\n", __func__);
 		return -ENODATA;
 	}
 
 	/* creating copy */
-	unittest_data = kmemdup(__dtb_testcases_begin, size, GFP_KERNEL);
+	unittest_data = kmalloc(size + FDT_ALIGN_SIZE, GFP_KERNEL);
 	if (!unittest_data)
 		return -ENOMEM;
 
-	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
+	unittest_data_align = PTR_ALIGN(unittest_data, FDT_ALIGN_SIZE);
+	memcpy(unittest_data_align, __dtb_testcases_begin, size);
+
+	ret = of_fdt_unflatten_tree(unittest_data_align, NULL, &unittest_data_node);
+	if (!ret) {
+		pr_warn("%s: unflatten testcases tree failed\n", __func__);
+		kfree(unittest_data);
+		return -ENODATA;
+	}
 	if (!unittest_data_node) {
-		pr_warn("%s: No tree to attach; not running tests\n", __func__);
+		pr_warn("%s: testcases tree is empty\n", __func__);
 		kfree(unittest_data);
 		return -ENODATA;
 	}

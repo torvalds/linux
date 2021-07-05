@@ -36,9 +36,9 @@ static inline int ethnl_strz_size(const char *s)
 
 /**
  * ethnl_put_strz() - put string attribute with fixed size string
- * @skb:     skb with the message
- * @attrype: attribute type
- * @s:       ETH_GSTRING_LEN sized string (may not be null terminated)
+ * @skb:      skb with the message
+ * @attrtype: attribute type
+ * @s:        ETH_GSTRING_LEN sized string (may not be null terminated)
  *
  * Puts an attribute with null terminated string from @s into the message.
  *

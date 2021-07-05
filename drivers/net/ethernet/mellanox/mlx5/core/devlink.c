@@ -246,6 +246,11 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 	struct mlx5_devlink_trap *dl_trap;
 	int err = 0;
 
+	if (is_mdev_switchdev_mode(dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Devlink traps can't be set in switchdev mode");
+		return -EOPNOTSUPP;
+	}
+
 	dl_trap = mlx5_find_trap_by_id(dev, trap->id);
 	if (!dl_trap) {
 		mlx5_core_err(dev, "Devlink trap: Set action on invalid trap id 0x%x", trap->id);

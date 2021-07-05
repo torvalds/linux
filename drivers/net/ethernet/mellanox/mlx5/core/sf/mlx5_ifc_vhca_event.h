@@ -20,7 +20,7 @@ struct mlx5_ifc_vhca_state_context_bits {
 
 	u8         sw_function_id[0x20];
 
-	u8         reserved_at_40[0x80];
+	u8         reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_query_vhca_state_out_bits {

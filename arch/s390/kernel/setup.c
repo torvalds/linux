@@ -354,7 +354,7 @@ static int __init stack_realloc(void)
 	if (!new)
 		panic("Couldn't allocate machine check stack");
 	WRITE_ONCE(S390_lowcore.mcck_stack, new + STACK_INIT_OFFSET);
-	memblock_free(old, THREAD_SIZE);
+	memblock_free_late(old, THREAD_SIZE);
 	return 0;
 }
 early_initcall(stack_realloc);

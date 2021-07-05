@@ -65,6 +65,71 @@ KSZ9031:
   step is 60ps. The default value is the neutral setting, so setting
   rxc-skew-ps=<0> actually results in -900 picoseconds adjustment.
 
+  The KSZ9031 hardware supports a range of skew values from negative to
+  positive, where the specific range is property dependent. All values
+  specified in the devicetree are offset by the minimum value so they
+  can be represented as positive integers in the devicetree since it's
+  difficult to represent a negative number in the devictree.
+
+  The following 5-bit values table apply to rxc-skew-ps and txc-skew-ps.
+
+  Pad Skew Value	Delay (ps)	Devicetree Value
+  ------------------------------------------------------
+  0_0000		-900ps		0
+  0_0001		-840ps		60
+  0_0010		-780ps		120
+  0_0011		-720ps		180
+  0_0100		-660ps		240
+  0_0101		-600ps		300
+  0_0110		-540ps		360
+  0_0111		-480ps		420
+  0_1000		-420ps		480
+  0_1001		-360ps		540
+  0_1010		-300ps		600
+  0_1011		-240ps		660
+  0_1100		-180ps		720
+  0_1101		-120ps		780
+  0_1110		-60ps		840
+  0_1111		0ps		900
+  1_0000		60ps		960
+  1_0001		120ps		1020
+  1_0010		180ps		1080
+  1_0011		240ps		1140
+  1_0100		300ps		1200
+  1_0101		360ps		1260
+  1_0110		420ps		1320
+  1_0111		480ps		1380
+  1_1000		540ps		1440
+  1_1001		600ps		1500
+  1_1010		660ps		1560
+  1_1011		720ps		1620
+  1_1100		780ps		1680
+  1_1101		840ps		1740
+  1_1110		900ps		1800
+  1_1111		960ps		1860
+
+  The following 4-bit values table apply to the txdX-skew-ps, rxdX-skew-ps
+  data pads, and the rxdv-skew-ps, txen-skew-ps control pads.
+
+  Pad Skew Value	Delay (ps)	Devicetree Value
+  ------------------------------------------------------
+  0000			-420ps		0
+  0001			-360ps		60
+  0010			-300ps		120
+  0011			-240ps		180
+  0100			-180ps		240
+  0101			-120ps		300
+  0110			-60ps		360
+  0111			0ps		420
+  1000			60ps		480
+  1001			120ps		540
+  1010			180ps		600
+  1011			240ps		660
+  1100			300ps		720
+  1101			360ps		780
+  1110			420ps		840
+  1111			480ps		900
+
   Optional properties:
 
     Maximum value of 1860, default value 900:
@@ -120,11 +185,21 @@ KSZ9131:
 
 Examples:
 
+	/* Attach to an Ethernet device with autodetected PHY */
+	&enet {
+		rxc-skew-ps = <1800>;
+		rxdv-skew-ps = <0>;
+		txc-skew-ps = <1800>;
+		txen-skew-ps = <0>;
+		status = "okay";
+	};
+
+	/* Attach to an explicitly-specified PHY */
 	mdio {
 		phy0: ethernet-phy@0 {
-			rxc-skew-ps = <3000>;
+			rxc-skew-ps = <1800>;
 			rxdv-skew-ps = <0>;
-			txc-skew-ps = <3000>;
+			txc-skew-ps = <1800>;
 			txen-skew-ps = <0>;
 			reg = <0>;
 		};
@@ -133,3 +208,20 @@ Examples:
 		phy = <&phy0>;
 		phy-mode = "rgmii-id";
 	};
+
+References
+
+  Micrel ksz9021rl/rn Data Sheet, Revision 1.2. Dated 2/13/2014.
+  http://www.micrel.com/_PDF/Ethernet/datasheets/ksz9021rl-rn_ds.pdf
+
+  Micrel ksz9031rnx Data Sheet, Revision 2.1. Dated 11/20/2014.
+  http://www.micrel.com/_PDF/Ethernet/datasheets/KSZ9031RNX.pdf
+
+Notes:
+
+  Note that a previous version of the Micrel ksz9021rl/rn Data Sheet
+  was missing extended register 106 (transmit data pad skews), and
+  incorrectly specified the ps per step as 200ps/step instead of
+  120ps/step. The latest update to this document reflects the latest
+  revision of the Micrel specification even though usage in the kernel
+  still reflects that incorrect document.

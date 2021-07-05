@@ -190,6 +190,7 @@ struct nfp_fl_internal_ports {
  * @qos_rate_limiters:	Current active qos rate limiters
  * @qos_stats_lock:	Lock on qos stats updates
  * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
+ * @merge_table:	Hash table to store merged flows
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -223,6 +224,7 @@ struct nfp_flower_priv {
 	unsigned int qos_rate_limiters;
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
 	int pre_tun_rule_cnt;
+	struct rhashtable merge_table;
 };
 
 /**
@@ -350,6 +352,12 @@ struct nfp_fl_payload_link {
 };
 
 extern const struct rhashtable_params nfp_flower_table_params;
+extern const struct rhashtable_params merge_table_params;
+
+struct nfp_merge_info {
+	u64 parent_ctx;
+	struct rhash_head ht_node;
+};
 
 struct nfp_fl_stats_frame {
 	__be32 stats_con_id;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020 - 2021 Intel Corporation
  */
 
 #include "mvm.h"
@@ -66,6 +66,8 @@ int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm, struct iwl_rfi_lut_entry *rfi_t
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_RFIM_SUPPORT))
 		return -EOPNOTSUPP;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	/* in case no table is passed, use the default one */
 	if (!rfi_table) {
 		memcpy(cmd.table, iwl_rfi_table, sizeof(cmd.table));
@@ -75,9 +77,7 @@ int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm, struct iwl_rfi_lut_entry *rfi_t
 		cmd.oem = 1;
 	}
 
-	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
-	mutex_unlock(&mvm->mutex);
 
 	if (ret)
 		IWL_ERR(mvm, "Failed to send RFI config cmd %d\n", ret);

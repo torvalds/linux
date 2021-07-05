@@ -1,7 +1,7 @@
 What:		/sys/kernel/debug/moxtet/input
 Date:		March 2019
 KernelVersion:	5.3
-Contact:	Marek Behún <marek.behun@nic.cz>
+Contact:	Marek Behún <kabel@kernel.org>
 Description:	(Read) Read input from the shift registers, in hexadecimal.
 		Returns N+1 bytes, where N is the number of Moxtet connected
 		modules. The first byte is from the CPU board itself.
@@ -19,7 +19,7 @@ Description:	(Read) Read input from the shift registers, in hexadecimal.
 What:		/sys/kernel/debug/moxtet/output
 Date:		March 2019
 KernelVersion:	5.3
-Contact:	Marek Behún <marek.behun@nic.cz>
+Contact:	Marek Behún <kabel@kernel.org>
 Description:	(RW) Read last written value to the shift registers, in
 		hexadecimal, or write values to the shift registers, also
 		in hexadecimal.

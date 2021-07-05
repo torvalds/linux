@@ -81,6 +81,9 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 	struct btrfs_dev_replace_item *ptr;
 	u64 src_devid;
 
+	if (!dev_root)
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;

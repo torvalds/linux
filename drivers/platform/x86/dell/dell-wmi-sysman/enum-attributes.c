@@ -185,5 +185,8 @@ void exit_enum_attributes(void)
 			sysfs_remove_group(wmi_priv.enumeration_data[instance_id].attr_name_kobj,
 								&enumeration_attr_group);
 	}
+	wmi_priv.enumeration_instances_count = 0;
+
 	kfree(wmi_priv.enumeration_data);
+	wmi_priv.enumeration_data = NULL;
 }

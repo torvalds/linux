@@ -155,7 +155,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	/* Wait till CP writes sync code: */
 	status = amdkfd_fence_wait_timeout(
-			(unsigned int *) rm_state,
+			rm_state,
 			QUEUESTATE__ACTIVE, 1500);
 
 	kfd_gtt_sa_free(dbgdev->dev, mem_obj);

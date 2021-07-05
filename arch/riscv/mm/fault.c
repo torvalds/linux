@@ -328,3 +328,4 @@ good_area:
 	}
 	return;
 }
+NOKPROBE_SYMBOL(do_page_fault);

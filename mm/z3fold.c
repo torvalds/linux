@@ -1346,8 +1346,22 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 			page = list_entry(pos, struct page, lru);
 
 			zhdr = page_address(page);
-			if (test_bit(PAGE_HEADLESS, &page->private))
+			if (test_bit(PAGE_HEADLESS, &page->private)) {
+				/*
+				 * For non-headless pages, we wait to do this
+				 * until we have the page lock to avoid racing
+				 * with __z3fold_alloc(). Headless pages don't
+				 * have a lock (and __z3fold_alloc() will never
+				 * see them), but we still need to test and set
+				 * PAGE_CLAIMED to avoid racing with
+				 * z3fold_free(), so just do it now before
+				 * leaving the loop.
+				 */
+				if (test_and_set_bit(PAGE_CLAIMED, &page->private))
+					continue;
+
 				break;
+			}
 
 			if (kref_get_unless_zero(&zhdr->refcount) == 0) {
 				zhdr = NULL;

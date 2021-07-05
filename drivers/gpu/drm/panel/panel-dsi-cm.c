@@ -37,6 +37,7 @@ struct dsic_panel_data {
 	u32 height_mm;
 	u32 max_hs_rate;
 	u32 max_lp_rate;
+	bool te_support;
 };
 
 struct panel_drv_data {
@@ -334,9 +335,11 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	r = mipi_dsi_dcs_set_tear_on(ddata->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	if (r)
-		goto err;
+	if (ddata->panel_data->te_support) {
+		r = mipi_dsi_dcs_set_tear_on(ddata->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+		if (r)
+			goto err;
+	}
 
 	/* possible panel bug */
 	msleep(100);
@@ -619,6 +622,7 @@ static const struct dsic_panel_data taal_data = {
 	.height_mm = 0,
 	.max_hs_rate = 300000000,
 	.max_lp_rate = 10000000,
+	.te_support = true,
 };
 
 static const struct dsic_panel_data himalaya_data = {
@@ -629,6 +633,7 @@ static const struct dsic_panel_data himalaya_data = {
 	.height_mm = 88,
 	.max_hs_rate = 300000000,
 	.max_lp_rate = 10000000,
+	.te_support = false,
 };
 
 static const struct dsic_panel_data droid4_data = {
@@ -639,6 +644,7 @@ static const struct dsic_panel_data droid4_data = {
 	.height_mm = 89,
 	.max_hs_rate = 300000000,
 	.max_lp_rate = 10000000,
+	.te_support = false,
 };
 
 static const struct of_device_id dsicm_of_match[] = {

@@ -105,6 +105,54 @@ int xdp_minus_delta(struct xdp_md *ctx)
 	return retval;
 }
 
+SEC("xdp")
+int xdp_input_len(struct xdp_md *ctx)
+{
+	int retval = XDP_PASS; /* Expected retval on successful test */
+	void *data_end = (void *)(long)ctx->data_end;
+	void *data = (void *)(long)ctx->data;
+	__u32 ifindex = GLOBAL_USER_IFINDEX;
+	__u32 data_len = data_end - data;
+
+	/* API allow user give length to check as input via mtu_len param,
+	 * resulting MTU value is still output in mtu_len param after call.
+	 *
+	 * Input len is L3, like MTU and iph->tot_len.
+	 * Remember XDP data_len is L2.
+	 */
+	__u32 mtu_len = data_len - ETH_HLEN;
+
+	if (bpf_check_mtu(ctx, ifindex, &mtu_len, 0, 0))
+		retval = XDP_ABORTED;
+
+	global_bpf_mtu_xdp = mtu_len;
+	return retval;
+}
+
+SEC("xdp")
+int xdp_input_len_exceed(struct xdp_md *ctx)
+{
+	int retval = XDP_ABORTED; /* Fail */
+	__u32 ifindex = GLOBAL_USER_IFINDEX;
+	int err;
+
+	/* API allow user give length to check as input via mtu_len param,
+	 * resulting MTU value is still output in mtu_len param after call.
+	 *
+	 * Input length value is L3 size like MTU.
+	 */
+	__u32 mtu_len = GLOBAL_USER_MTU;
+
+	mtu_len += 1; /* Exceed with 1 */
+
+	err = bpf_check_mtu(ctx, ifindex, &mtu_len, 0, 0);
+	if (err == BPF_MTU_CHK_RET_FRAG_NEEDED)
+		retval = XDP_PASS ; /* Success in exceeding MTU check */
+
+	global_bpf_mtu_xdp = mtu_len;
+	return retval;
+}
+
 SEC("classifier")
 int tc_use_helper(struct __sk_buff *ctx)
 {
@@ -192,6 +240,50 @@ int tc_minus_delta(struct __sk_buff *ctx)
 	 */
 	if (bpf_check_mtu(ctx, ifindex, &mtu_len, delta, 0))
 		retval = BPF_DROP;
+
+	global_bpf_mtu_xdp = mtu_len;
+	return retval;
+}
+
+SEC("classifier")
+int tc_input_len(struct __sk_buff *ctx)
+{
+	int retval = BPF_OK; /* Expected retval on successful test */
+	__u32 ifindex = GLOBAL_USER_IFINDEX;
+
+	/* API allow user give length to check as input via mtu_len param,
+	 * resulting MTU value is still output in mtu_len param after call.
+	 *
+	 * Input length value is L3 size.
+	 */
+	__u32 mtu_len = GLOBAL_USER_MTU;
+
+	if (bpf_check_mtu(ctx, ifindex, &mtu_len, 0, 0))
+		retval = BPF_DROP;
+
+	global_bpf_mtu_xdp = mtu_len;
+	return retval;
+}
+
+SEC("classifier")
+int tc_input_len_exceed(struct __sk_buff *ctx)
+{
+	int retval = BPF_DROP; /* Fail */
+	__u32 ifindex = GLOBAL_USER_IFINDEX;
+	int err;
+
+	/* API allow user give length to check as input via mtu_len param,
+	 * resulting MTU value is still output in mtu_len param after call.
+	 *
+	 * Input length value is L3 size like MTU.
+	 */
+	__u32 mtu_len = GLOBAL_USER_MTU;
+
+	mtu_len += 1; /* Exceed with 1 */
+
+	err = bpf_check_mtu(ctx, ifindex, &mtu_len, 0, 0);
+	if (err == BPF_MTU_CHK_RET_FRAG_NEEDED)
+		retval = BPF_OK; /* Success in exceeding MTU check */
 
 	global_bpf_mtu_xdp = mtu_len;
 	return retval;

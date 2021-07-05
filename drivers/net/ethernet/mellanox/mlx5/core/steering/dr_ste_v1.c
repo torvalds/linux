@@ -264,8 +264,8 @@ static void dr_ste_v1_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
 static u64 dr_ste_v1_get_miss_addr(u8 *hw_ste_p)
 {
 	u64 index =
-		(MLX5_GET(ste_match_bwc_v1, hw_ste_p, miss_address_31_6) |
-		 MLX5_GET(ste_match_bwc_v1, hw_ste_p, miss_address_39_32) << 26);
+		((u64)MLX5_GET(ste_match_bwc_v1, hw_ste_p, miss_address_31_6) |
+		 ((u64)MLX5_GET(ste_match_bwc_v1, hw_ste_p, miss_address_39_32)) << 26);
 
 	return index << 6;
 }
