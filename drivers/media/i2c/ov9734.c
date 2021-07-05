@@ -60,6 +60,12 @@
 #define OV9734_TEST_PATTERN_ENABLE	BIT(7)
 #define OV9734_TEST_PATTERN_BAR_SHIFT	2
 
+/* Group Access */
+#define OV9734_REG_GROUP_ACCESS		0x3208
+#define OV9734_GROUP_HOLD_START		0x0
+#define OV9734_GROUP_HOLD_END		0x10
+#define OV9734_GROUP_HOLD_LAUNCH	0xa0
+
 enum {
 	OV9734_LINK_FREQ_180MHZ_INDEX,
 };
@@ -433,6 +439,11 @@ static int ov9734_update_digital_gain(struct ov9734 *ov9734, u32 d_gain)
 {
 	int ret;
 
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_START);
+	if (ret)
+		return ret;
+
 	ret = ov9734_write_reg(ov9734, OV9734_REG_MWB_R_GAIN, 2, d_gain);
 	if (ret)
 		return ret;
@@ -441,7 +452,18 @@ static int ov9734_update_digital_gain(struct ov9734 *ov9734, u32 d_gain)
 	if (ret)
 		return ret;
 
-	return ov9734_write_reg(ov9734, OV9734_REG_MWB_B_GAIN, 2, d_gain);
+	ret = ov9734_write_reg(ov9734, OV9734_REG_MWB_B_GAIN, 2, d_gain);
+	if (ret)
+		return ret;
+
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_END);
+	if (ret)
+		return ret;
+
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_LAUNCH);
+	return ret;
 }
 
 static int ov9734_test_pattern(struct ov9734 *ov9734, u32 pattern)
