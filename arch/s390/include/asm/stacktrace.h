@@ -74,23 +74,6 @@ struct stack_frame {
 	((unsigned long)__builtin_frame_address(0) -			\
 	 offsetof(struct stack_frame, back_chain))
 
-#define CALL_ARGS_0()							\
-	register unsigned long r2 asm("2")
-#define CALL_ARGS_1(arg1)						\
-	register unsigned long r2 asm("2") = (unsigned long)(arg1)
-#define CALL_ARGS_2(arg1, arg2)						\
-	CALL_ARGS_1(arg1);						\
-	register unsigned long r3 asm("3") = (unsigned long)(arg2)
-#define CALL_ARGS_3(arg1, arg2, arg3)					\
-	CALL_ARGS_2(arg1, arg2);					\
-	register unsigned long r4 asm("4") = (unsigned long)(arg3)
-#define CALL_ARGS_4(arg1, arg2, arg3, arg4)				\
-	CALL_ARGS_3(arg1, arg2, arg3);					\
-	register unsigned long r4 asm("5") = (unsigned long)(arg4)
-#define CALL_ARGS_5(arg1, arg2, arg3, arg4, arg5)			\
-	CALL_ARGS_4(arg1, arg2, arg3, arg4);				\
-	register unsigned long r4 asm("6") = (unsigned long)(arg5)
-
 /*
  * To keep this simple mark register 2-6 as being changed (volatile)
  * by the called function, even though register 6 is saved/nonvolatile.
@@ -108,26 +91,6 @@ struct stack_frame {
 #define CALL_CLOBBER_2 CALL_CLOBBER_3, "4"
 #define CALL_CLOBBER_1 CALL_CLOBBER_2, "3"
 #define CALL_CLOBBER_0 CALL_CLOBBER_1
-
-#define CALL_ON_STACK(fn, stack, nr, args...)				\
-({									\
-	unsigned long frame = current_frame_address();			\
-	CALL_ARGS_##nr(args);						\
-	unsigned long prev;						\
-									\
-	asm volatile(							\
-		"	la	%[_prev],0(15)\n"			\
-		"	lg	15,%[_stack]\n"				\
-		"	stg	%[_frame],%[_bc](15)\n"			\
-		"	brasl	14,%[_fn]\n"				\
-		"	la	15,0(%[_prev])\n"			\
-		: [_prev] "=&a" (prev), CALL_FMT_##nr			\
-		: [_stack] "R" (stack),					\
-		  [_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
-		  [_frame] "d" (frame),					\
-		  [_fn] "X" (fn) : CALL_CLOBBER_##nr);			\
-	r2;								\
-})
 
 #define CALL_LARGS_0(...)						\
 	long dummy = 0
