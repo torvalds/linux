@@ -1498,7 +1498,15 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE))
 		return;
 
-	mutex_lock(&fs_info->reclaim_bgs_lock);
+	/*
+	 * Long running balances can keep us blocked here for eternity, so
+	 * simply skip reclaim if we're unable to get the mutex.
+	 */
+	if (!mutex_trylock(&fs_info->reclaim_bgs_lock)) {
+		btrfs_exclop_finish(fs_info);
+		return;
+	}
+
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
 		u64 zone_unusable;
