@@ -1735,7 +1735,9 @@ static inline void mi_set_cr_offset(struct rkisp_stream *stream, int val)
 
 static inline void mi_frame_end_int_enable(struct rkisp_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
+	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
+	void __iomem *base = !hw->is_unite ?
+		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
 
 	writel(CIF_MI_FRAME(stream) | readl(addr), addr);
@@ -1743,7 +1745,9 @@ static inline void mi_frame_end_int_enable(struct rkisp_stream *stream)
 
 static inline void mi_frame_end_int_disable(struct rkisp_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
+	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
+	void __iomem *base = !hw->is_unite ?
+		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
 
 	writel(~CIF_MI_FRAME(stream) & readl(addr), addr);
@@ -1751,42 +1755,27 @@ static inline void mi_frame_end_int_disable(struct rkisp_stream *stream)
 
 static inline void mi_frame_end_int_clear(struct rkisp_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
+	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
+	void __iomem *base = !hw->is_unite ?
+		hw->base_addr : hw->base_next_addr;
 	void __iomem *addr = base + CIF_MI_ICR;
 
 	writel(CIF_MI_FRAME(stream), addr);
 }
 
-static inline void mp_set_chain_mode(void __iomem *base)
+static inline void stream_data_path(struct rkisp_stream *stream)
 {
-	u32 dpcl = readl(base + CIF_VI_DPCL);
+	struct rkisp_device *dev = stream->ispdev;
+	bool is_unite = dev->hw_dev->is_unite;
+	u32 dpcl = 0;
 
-	dpcl |= CIF_VI_DPCL_CHAN_MODE_MP;
-	writel(dpcl, base + CIF_VI_DPCL);
-}
+	if (stream->id == RKISP_STREAM_MP)
+		dpcl |= CIF_VI_DPCL_CHAN_MODE_MP | CIF_VI_DPCL_MP_MUX_MRSZ_MI;
+	else if (stream->id == RKISP_STREAM_SP)
+		dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
 
-static inline void sp_set_chain_mode(void __iomem *base)
-{
-	u32 dpcl = readl(base + CIF_VI_DPCL);
-
-	dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
-	writel(dpcl, base + CIF_VI_DPCL);
-}
-
-static inline void mp_set_data_path(void __iomem *base)
-{
-	u32 dpcl = readl(base + CIF_VI_DPCL);
-
-	dpcl = dpcl | CIF_VI_DPCL_CHAN_MODE_MP | CIF_VI_DPCL_MP_MUX_MRSZ_MI;
-	writel(dpcl, base + CIF_VI_DPCL);
-}
-
-static inline void sp_set_data_path(void __iomem *base)
-{
-	u32 dpcl = readl(base + CIF_VI_DPCL);
-
-	dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
-	writel(dpcl, base + CIF_VI_DPCL);
+	if (dpcl)
+		rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true, is_unite);
 }
 
 static inline void mp_set_uv_swap(void __iomem *base)
@@ -1907,13 +1896,13 @@ static inline void sp_mi_ctrl_autoupdate_en(void __iomem *base)
 
 static inline void force_cfg_update(struct rkisp_device *dev)
 {
-	void __iomem *base = dev->base_addr;
-	u32 val = readl(base + CIF_MI_CTRL);
+	u32 val = CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN;
+	bool is_unite = dev->hw_dev->is_unite;
 
 	dev->hw_dev->is_mi_update = true;
-	val |= CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN;
-	writel(val, base + CIF_MI_CTRL);
-	writel(CIF_MI_INIT_SOFT_UPD, base + CIF_MI_INIT);
+	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, true, is_unite);
+	val = CIF_MI_INIT_SOFT_UPD;
+	rkisp_unite_write(dev, CIF_MI_INIT, val, true, is_unite);
 }
 
 static inline void dmatx0_ctrl(void __iomem *base, u32 val)

@@ -164,6 +164,39 @@ u32 rkisp_read(struct rkisp_device *dev, u32 reg, bool is_direct);
 u32 rkisp_read_reg_cache(struct rkisp_device *dev, u32 reg);
 void rkisp_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct);
 void rkisp_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct);
+/* for dual isp, config for next isp reg */
+void rkisp_next_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct);
+u32 rkisp_next_read(struct rkisp_device *dev, u32 reg, bool is_direct);
+u32 rkisp_next_read_reg_cache(struct rkisp_device *dev, u32 reg);
+void rkisp_next_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct);
+void rkisp_next_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct);
+
+static inline void
+rkisp_unite_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct, bool is_unite)
+{
+	rkisp_write(dev, reg, val, is_direct);
+	if (is_unite)
+		rkisp_next_write(dev, reg, val, is_direct);
+}
+
+static inline void
+rkisp_unite_set_bits(struct rkisp_device *dev, u32 reg, u32 mask,
+		     u32 val, bool is_direct, bool is_unite)
+{
+	rkisp_set_bits(dev, reg, mask, val, is_direct);
+	if (is_unite)
+		rkisp_next_set_bits(dev, reg, mask, val, is_direct);
+}
+
+static inline void
+rkisp_unite_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask,
+		       bool is_direct, bool is_unite)
+{
+	rkisp_clear_bits(dev, reg, mask, is_direct);
+	if (is_unite)
+		rkisp_next_clear_bits(dev, reg, mask, is_direct);
+}
+
 void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 
 int rkisp_alloc_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);

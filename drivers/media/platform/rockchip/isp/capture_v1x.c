@@ -380,7 +380,7 @@ static struct streams_ops rkisp_mp_streams_ops = {
 	.enable_mi = mp_enable_mi,
 	.disable_mi = mp_disable_mi,
 	.stop_mi = mp_stop_mi,
-	.set_data_path = mp_set_data_path,
+	.set_data_path = stream_data_path,
 	.is_stream_stopped = mp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
@@ -391,7 +391,7 @@ static struct streams_ops rkisp_sp_streams_ops = {
 	.enable_mi = sp_enable_mi,
 	.disable_mi = sp_disable_mi,
 	.stop_mi = sp_stop_mi,
-	.set_data_path = sp_set_data_path,
+	.set_data_path = stream_data_path,
 	.is_stream_stopped = sp_is_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
@@ -517,11 +517,10 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
  */
 static int rkisp_start(struct rkisp_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
 	int ret;
 
 	if (stream->ops->set_data_path)
-		stream->ops->set_data_path(base);
+		stream->ops->set_data_path(stream);
 	ret = stream->ops->config_mi(stream);
 	if (ret)
 		return ret;

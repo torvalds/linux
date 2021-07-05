@@ -224,6 +224,8 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 end:
 	/* set isp clock rate */
 	rkisp_set_clk_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
+	if (hw_dev->is_unite)
+		rkisp_set_clk_rate(hw_dev->clks[5], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
 	dev_dbg(hw_dev->dev, "set isp clk = %luHz\n", clk_get_rate(hw_dev->clks[0]));
 
 	return 0;
@@ -722,7 +724,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkisp_device *isp_dev;
-	int i, ret;
+	int i, ret, mult = 1;
 
 	sprintf(rkisp_version, "v%02x.%02x.%02x",
 		RKISP_DRIVER_VERSION >> 16,
@@ -734,24 +736,29 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
 	if (!isp_dev)
 		return -ENOMEM;
-	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE, GFP_KERNEL);
-	if (!isp_dev->sw_base_addr)
-		return -ENOMEM;
 
 	dev_set_drvdata(dev, isp_dev);
 	isp_dev->dev = dev;
+	ret = rkisp_attach_hw(isp_dev);
+	if (ret)
+		return ret;
+
+	if (isp_dev->hw_dev->is_unite)
+		mult = 2;
+	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE * mult, GFP_KERNEL);
+	if (!isp_dev->sw_base_addr)
+		return -ENOMEM;
 
 	ret = rkisp_vs_irq_parse(dev);
 	if (ret)
 		return ret;
 
-	ret = rkisp_attach_hw(isp_dev);
-	if (ret)
-		return ret;
-
 	sprintf(isp_dev->media_dev.model, "%s%d",
 		DRIVER_NAME, isp_dev->dev_id);
-	strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
+	if (!isp_dev->hw_dev->is_unite)
+		strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
+	else
+		strscpy(isp_dev->name, "rkisp-unite", sizeof(isp_dev->name));
 	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
 		sizeof(isp_dev->media_dev.driver_name));
 

@@ -22,6 +22,20 @@ void rkisp_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
 	}
 }
 
+void rkisp_next_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
+{
+	u32 offset = RKISP_ISP_SW_MAX_SIZE + reg;
+	u32 *mem = dev->sw_base_addr + offset;
+	u32 *flag = dev->sw_base_addr + offset + RKISP_ISP_SW_REG_SIZE;
+
+	*mem = val;
+	*flag = SW_REG_CACHE;
+	if (dev->hw_dev->is_single || is_direct) {
+		*flag = SW_REG_CACHE_SYNC;
+		writel(val, dev->hw_dev->base_next_addr + reg);
+	}
+}
+
 u32 rkisp_read(struct rkisp_device *dev, u32 reg, bool is_direct)
 {
 	u32 val;
@@ -33,9 +47,25 @@ u32 rkisp_read(struct rkisp_device *dev, u32 reg, bool is_direct)
 	return val;
 }
 
+u32 rkisp_next_read(struct rkisp_device *dev, u32 reg, bool is_direct)
+{
+	u32 val;
+
+	if (dev->hw_dev->is_single || is_direct)
+		val = readl(dev->hw_dev->base_next_addr + reg);
+	else
+		val = *(u32 *)(dev->sw_base_addr + RKISP_ISP_SW_MAX_SIZE + reg);
+	return val;
+}
+
 u32 rkisp_read_reg_cache(struct rkisp_device *dev, u32 reg)
 {
 	return *(u32 *)(dev->sw_base_addr + reg);
+}
+
+u32 rkisp_next_read_reg_cache(struct rkisp_device *dev, u32 reg)
+{
+	return *(u32 *)(dev->sw_base_addr + RKISP_ISP_SW_MAX_SIZE + reg);
 }
 
 void rkisp_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct)
@@ -45,11 +75,25 @@ void rkisp_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool i
 	rkisp_write(dev, reg, val | tmp, is_direct);
 }
 
+void rkisp_next_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct)
+{
+	u32 tmp = rkisp_next_read(dev, reg, is_direct) & ~mask;
+
+	rkisp_next_write(dev, reg, val | tmp, is_direct);
+}
+
 void rkisp_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct)
 {
 	u32 tmp = rkisp_read(dev, reg, is_direct);
 
 	rkisp_write(dev, reg, tmp & ~mask, is_direct);
+}
+
+void rkisp_next_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct)
+{
+	u32 tmp = rkisp_next_read(dev, reg, is_direct);
+
+	rkisp_next_write(dev, reg, tmp & ~mask, is_direct);
 }
 
 void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)

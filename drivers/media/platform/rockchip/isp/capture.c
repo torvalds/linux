@@ -890,8 +890,8 @@ static void restrict_rsz_resolution(struct rkisp_device *dev,
 	struct v4l2_rect *input_win;
 
 	input_win = rkisp_get_isp_sd_win(&dev->isp_sdev);
-	max_rsz->width = min_t(int, input_win->width, config->max_rsz_width);
-	max_rsz->height = min_t(int, input_win->height, config->max_rsz_height);
+	max_rsz->width = max_t(int, input_win->width, config->max_rsz_width);
+	max_rsz->height = max_t(int, input_win->height, config->max_rsz_height);
 }
 
 static int rkisp_set_fmt(struct rkisp_stream *stream,

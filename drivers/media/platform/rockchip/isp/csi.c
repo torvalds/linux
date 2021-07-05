@@ -497,8 +497,9 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		}
 
 		if (!dev->hw_dev->is_mi_update)
-			rkisp_write(dev, CSI2RX_CTRL0,
-				    SW_IBUF_OP_MODE(dev->hdr.op_mode), true);
+			rkisp_unite_write(dev, CSI2RX_CTRL0,
+					  SW_IBUF_OP_MODE(dev->hdr.op_mode),
+					  true, dev->hw_dev->is_unite);
 
 		/* hdr merge */
 		switch (dev->hdr.op_mode) {
@@ -522,16 +523,19 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				return -EINVAL;
 			}
 		}
-		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
+		rkisp_unite_write(dev, ISP_HDRMGE_BASE, val, false, dev->hw_dev->is_unite);
 
-		rkisp_set_bits(dev, CSI2RX_MASK_STAT, 0, RAW_RD_SIZE_ERR, true);
+		rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT, 0, RAW_RD_SIZE_ERR,
+				     true, dev->hw_dev->is_unite);
 	}
 
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
-		rkisp_set_bits(dev, CTRL_SWS_CFG, 0, SW_MPIP_DROP_FRM_DIS, true);
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, SW_MPIP_DROP_FRM_DIS,
+				     true, dev->hw_dev->is_unite);
 
 	if (dev->isp_ver == ISP_V30)
-		rkisp_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS, true);
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS,
+				     true, dev->hw_dev->is_unite);
 
 	memset(dev->filt_state, 0, sizeof(dev->filt_state));
 	dev->rdbk_cnt = -1;

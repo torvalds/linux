@@ -200,7 +200,7 @@ struct streams_ops {
 	void (*stop_mi)(struct rkisp_stream *stream);
 	void (*enable_mi)(struct rkisp_stream *stream);
 	void (*disable_mi)(struct rkisp_stream *stream);
-	void (*set_data_path)(void __iomem *base);
+	void (*set_data_path)(struct rkisp_stream *stream);
 	bool (*is_stream_stopped)(void __iomem *base);
 	void (*update_mi)(struct rkisp_stream *stream);
 	int (*frame_end)(struct rkisp_stream *stream);

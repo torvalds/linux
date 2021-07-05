@@ -22,6 +22,7 @@ struct isp_match_data {
 	int num_clk_rate_tbl;
 	struct isp_irqs_data *irqs;
 	int num_irqs;
+	bool unite;
 };
 
 struct rkisp_monitor {
@@ -40,6 +41,7 @@ struct rkisp_hw_dev {
 	struct device *dev;
 	struct regmap *grf;
 	void __iomem *base_addr;
+	void __iomem *base_next_addr;
 	struct clk *clks[RKISP_MAX_BUS_CLK];
 	int num_clks;
 	const struct isp_clk_info *clk_rate_tbl;
@@ -79,6 +81,7 @@ struct rkisp_hw_dev {
 	bool is_thunderboot;
 	bool is_buf_init;
 	bool is_shutdown;
+	bool is_unite;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

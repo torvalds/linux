@@ -318,6 +318,7 @@ static struct streams_ops rkisp_dmarx_streams_ops = {
 static int rawrd_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
+	bool is_unite = dev->hw_dev->is_unite;
 	u32 val;
 
 	val = rkisp_read(dev, CSI2RX_DATA_IDS_1, true);
@@ -346,9 +347,9 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	default:
 		val |= CIF_CSI2_DT_RAW12;
 	}
-	rkisp_write(dev, CSI2RX_RAW_RD_CTRL,
-		    stream->memory << 2, false);
-	rkisp_write(dev, CSI2RX_DATA_IDS_1, val, false);
+	rkisp_unite_write(dev, CSI2RX_RAW_RD_CTRL,
+			  stream->memory << 2, false, is_unite);
+	rkisp_unite_write(dev, CSI2RX_DATA_IDS_1, val, false, is_unite);
 	rkisp_rawrd_set_pic_size(dev, stream->out_fmt.width,
 				 stream->out_fmt.height);
 	mi_raw_length(stream);
@@ -364,11 +365,17 @@ static void update_rawrd(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
+	u32 val;
 
 	if (stream->curr_buf) {
-		rkisp_write(dev, stream->config->mi.y_base_ad_init,
-			    stream->curr_buf->buff_addr[RKISP_PLANE_Y],
-			    false);
+		val = stream->curr_buf->buff_addr[RKISP_PLANE_Y];
+		rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
+		if (dev->hw_dev->is_unite) {
+			val += (stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) *
+				fmt->bpp[0] / 8;
+			rkisp_next_write(dev, stream->config->mi.y_base_ad_init, val, false);
+		}
 		stream->frame_end = false;
 		if (stream->id == RKISP_STREAM_RAWRD2 &&
 		    stream->out_isp_fmt.fmt_type == FMT_YUV) {
@@ -1059,6 +1066,8 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 {
 	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
 	u8 mult = sdev->in_fmt.fmt_type == FMT_YUV ? 2 : 1;
+	bool is_unite = dev->hw_dev->is_unite;
+	u32 w = !is_unite ? width : width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 
 	/* rx height should equal to isp height + offset for read back mode */
 	height = sdev->in_crop.top + sdev->in_crop.height;
@@ -1070,7 +1079,8 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 	    dev->rd_mode == HDR_RDBK_FRAME1)
 		height += RKMODULE_EXTEND_LINE;
 
-	rkisp_write(dev, CSI2RX_RAW_RD_PIC_SIZE, height << 16 | width * mult, false);
+	w *= mult;
+	rkisp_unite_write(dev, CSI2RX_RAW_RD_PIC_SIZE, height << 16 | w, false, is_unite);
 }
 
 void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
