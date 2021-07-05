@@ -115,10 +115,12 @@ static int on_async_stack(void)
 
 static void do_irq_async(struct pt_regs *regs, int irq)
 {
-	if (on_async_stack())
+	if (on_async_stack()) {
 		do_IRQ(regs, irq);
-	else
-		CALL_ON_STACK(do_IRQ, S390_lowcore.async_stack, 2, regs, irq);
+	} else {
+		call_on_stack(2, S390_lowcore.async_stack, void, do_IRQ,
+			      struct pt_regs *, regs, int, irq);
+	}
 }
 
 static int irq_pending(struct pt_regs *regs)
