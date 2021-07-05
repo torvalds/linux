@@ -266,14 +266,6 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
 }
 
 /*
- * Switch to the asynchronous interrupt stack for softirq execution.
- */
-void do_softirq_own_stack(void)
-{
-	CALL_ON_STACK(__do_softirq, S390_lowcore.async_stack, 0);
-}
-
-/*
  * ext_int_hash[index] is the list head for all external interrupts that hash
  * to this index.
  */
