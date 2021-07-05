@@ -20,24 +20,8 @@
 #define WLAN_HDR_A3_LEN		24
 #define WLAN_HDR_A3_QOS_LEN	26
 
-#define P80211CAPTURE_VERSION	0x80211001
-
 enum WIFI_FRAME_TYPE {
 	WIFI_QOS_DATA_TYPE	= (BIT(7) | BIT(3)),	/*!< QoS Data */
-};
-
-enum WIFI_REG_DOMAIN {
-	DOMAIN_FCC	= 1,
-	DOMAIN_IC	= 2,
-	DOMAIN_ETSI	= 3,
-	DOMAIN_SPAIN	= 4,
-	DOMAIN_FRANCE	= 5,
-	DOMAIN_MKK	= 6,
-	DOMAIN_ISRAEL	= 7,
-	DOMAIN_MKK1	= 8,
-	DOMAIN_MKK2	= 9,
-	DOMAIN_MKK3	= 10,
-	DOMAIN_MAX
 };
 
 #define SetToDs(pbuf) ({ \
@@ -194,46 +178,14 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 	return sa;
 }
 
-/*-----------------------------------------------------------------------------
- *		Below is for the security related definition
- *-----------------------------------------------------------------------------
- */
-#define _ASOCREQ_IE_OFFSET_	4	/* excluding wlan_hdr */
-#define	_ASOCRSP_IE_OFFSET_	6
-#define _REASOCREQ_IE_OFFSET_	10
-#define _REASOCRSP_IE_OFFSET_	6
-#define _PROBEREQ_IE_OFFSET_	0
-#define	_PROBERSP_IE_OFFSET_	12
-#define _AUTH_IE_OFFSET_	6
-#define _DEAUTH_IE_OFFSET_	0
-#define _BEACON_IE_OFFSET_	12
-
-#define _FIXED_IE_LENGTH_	_BEACON_IE_OFFSET_
-
 /* ---------------------------------------------------------------------------
  *			Below is the fixed elements...
  * ---------------------------------------------------------------------------
  */
-#define _AUTH_ALGM_NUM_			2
-#define _AUTH_SEQ_NUM_			2
 #define _BEACON_ITERVAL_		2
 #define _CAPABILITY_			2
-#define _CURRENT_APADDR_		6
-#define _LISTEN_INTERVAL_		2
-#define _RSON_CODE_				2
-#define _ASOC_ID_				2
-#define _STATUS_CODE_			2
 #define _TIMESTAMP_				8
 
-#define AUTH_ODD_TO				0
-#define AUTH_EVEN_TO			1
-
-/*-----------------------------------------------------------------------------
- *			Below is the definition for 802.11i / 802.1x
- *------------------------------------------------------------------------------
- */
-#define _IEEE8021X_MGT_			1	/*WPA */
-#define _IEEE8021X_PSK_			2	/* WPA with pre-shared key */
 
 /*-----------------------------------------------------------------------------
  *			Below is the definition for WMM
