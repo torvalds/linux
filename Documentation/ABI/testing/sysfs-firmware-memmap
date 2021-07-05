@@ -56,6 +56,10 @@ Description:
 		  - System RAM
 		  - ACPI Tables
 		  - ACPI Non-volatile Storage
+		  - Unusable memory
+		  - Persistent Memory (legacy)
+		  - Persistent Memory
+		  - Soft Reserved
 		  - reserved
 
 		Following shell snippet can be used to display that memory

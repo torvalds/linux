@@ -436,7 +436,7 @@ done:
 static int fimc_is_request_firmware(struct fimc_is *is, const char *fw_name)
 {
 	return request_firmware_nowait(THIS_MODULE,
-				FW_ACTION_HOTPLUG, fw_name, &is->pdev->dev,
+				FW_ACTION_UEVENT, fw_name, &is->pdev->dev,
 				GFP_KERNEL, is, fimc_is_load_firmware);
 }
 

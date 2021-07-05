@@ -120,8 +120,8 @@ and hexadecimal::
 
 Boolean values can be placed in debugfs with::
 
-    struct dentry *debugfs_create_bool(const char *name, umode_t mode,
-				       struct dentry *parent, bool *value);
+    void debugfs_create_bool(const char *name, umode_t mode,
+                             struct dentry *parent, bool *value);
 
 A read on the resulting file will yield either Y (for non-zero values) or
 N, followed by a newline.  If written to, it will accept either upper- or
