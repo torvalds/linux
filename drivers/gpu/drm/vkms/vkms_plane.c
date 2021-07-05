@@ -40,17 +40,16 @@ vkms_plane_duplicate_state(struct drm_plane *plane)
 
 	vkms_state->composer = composer;
 
-	__drm_atomic_helper_plane_duplicate_state(plane,
-						  &vkms_state->base);
+	__drm_gem_duplicate_shadow_plane_state(plane, &vkms_state->base);
 
-	return &vkms_state->base;
+	return &vkms_state->base.base;
 }
 
 static void vkms_plane_destroy_state(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct vkms_plane_state *vkms_state = to_vkms_plane_state(old_state);
-	struct drm_crtc *crtc = vkms_state->base.crtc;
+	struct drm_crtc *crtc = vkms_state->base.base.crtc;
 
 	if (crtc) {
 		/* dropping the reference we acquired in
@@ -63,7 +62,7 @@ static void vkms_plane_destroy_state(struct drm_plane *plane,
 	kfree(vkms_state->composer);
 	vkms_state->composer = NULL;
 
-	__drm_atomic_helper_plane_destroy_state(old_state);
+	__drm_gem_destroy_shadow_plane_state(&vkms_state->base);
 	kfree(vkms_state);
 }
 
@@ -71,8 +70,10 @@ static void vkms_plane_reset(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
 
-	if (plane->state)
+	if (plane->state) {
 		vkms_plane_destroy_state(plane, plane->state);
+		plane->state = NULL; /* must be set to NULL here */
+	}
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state) {
@@ -80,8 +81,7 @@ static void vkms_plane_reset(struct drm_plane *plane)
 		return;
 	}
 
-	plane->state = &vkms_state->base;
-	plane->state->plane = plane;
+	__drm_gem_reset_shadow_plane(plane, &vkms_state->base);
 }
 
 static const struct drm_plane_funcs vkms_plane_funcs = {
