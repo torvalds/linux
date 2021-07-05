@@ -222,9 +222,9 @@ static int __init loop_init(void)
 	rc->allowed_protocols	= RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->allowed_wakeup_protocols = RC_PROTO_BIT_ALL_IR_ENCODER;
 	rc->encode_wakeup	= true;
-	rc->timeout		= MS_TO_US(100); /* 100 ms */
+	rc->timeout		= IR_DEFAULT_TIMEOUT;
 	rc->min_timeout		= 1;
-	rc->max_timeout		= UINT_MAX;
+	rc->max_timeout		= IR_MAX_TIMEOUT;
 	rc->rx_resolution	= 1;
 	rc->tx_resolution	= 1;
 	rc->s_tx_mask		= loop_set_tx_mask;
