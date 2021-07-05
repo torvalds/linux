@@ -110,7 +110,7 @@ static int on_async_stack(void)
 {
 	unsigned long frame = current_frame_address();
 
-	return !!!((S390_lowcore.async_stack - frame) >> (PAGE_SHIFT + THREAD_SIZE_ORDER));
+	return ((S390_lowcore.async_stack ^ frame) & ~(THREAD_SIZE - 1)) == 0;
 }
 
 static void do_irq_async(struct pt_regs *regs, int irq)
