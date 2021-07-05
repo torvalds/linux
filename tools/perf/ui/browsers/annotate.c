@@ -350,14 +350,14 @@ static struct annotation_line *annotate_browser__find_next_asm_line(
 	struct annotation_line *it = al;
 
 	/* find next asm line */
-	list_for_each_entry_continue(it, browser->b.top, node) {
+	list_for_each_entry_continue(it, browser->b.entries, node) {
 		if (it->idx_asm >= 0)
 			return it;
 	}
 
 	/* no asm line found forwards, try backwards */
 	it = al;
-	list_for_each_entry_continue_reverse(it, browser->b.top, node) {
+	list_for_each_entry_continue_reverse(it, browser->b.entries, node) {
 		if (it->idx_asm >= 0)
 			return it;
 	}
