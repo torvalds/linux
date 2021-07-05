@@ -36,6 +36,7 @@
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/power/rk3568-power.h>
+#include <dt-bindings/power/rk3588-power.h>
 
 struct rockchip_domain_info {
 	int pwr_mask;
@@ -203,6 +204,23 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 
 #define DOMAIN_RK3568_PROTECT(pwr, req, wakeup)		\
 	DOMAIN_M(pwr, pwr, req, req, req, wakeup, true)
+
+#define DOMAIN_RK3588(pwr, req, wakeup)			\
+	DOMAIN_M(pwr, pwr, req, req, req, wakeup, false)
+
+#define DOMAIN_RK3588_P_O(pwr, req, wakeup)		\
+	DOMAIN_M_O(pwr, (pwr) << 16, 0x4, req, req, req, 0, wakeup, false)
+
+#define DOMAIN_RK3588_P_O_PROTECT(pwr, req, wakeup)	\
+	DOMAIN_M_O(pwr, (pwr) << 16, 0x4, req, req, req, 0, wakeup, true)
+
+#define DOMAIN_RK3588_O(pwr, req, wakeup)		\
+	DOMAIN_M_O(pwr, (pwr) << 16, 0x4,		\
+	req, (req) << 16, (req) << 16, 0x4, wakeup, false)
+
+#define DOMAIN_RK3588_O_PROTECT(pwr, req, wakeup)	\
+	DOMAIN_M_O(pwr, (pwr) << 16, 0x4,		\
+	req, (req) << 16, (req) << 16, 0x4, wakeup, false)
 
 static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 {
@@ -1351,6 +1369,38 @@ static const struct rockchip_domain_info rk3568_pm_domains[] = {
 	[RK3568_PD_PIPE]	= DOMAIN_RK3568(BIT(8), BIT(11), false),
 };
 
+static const struct rockchip_domain_info rk3588_pm_domains[] = {
+	[RK3588_PD_GPU]		= DOMAIN_RK3588(BIT(0), BIT(0), false),
+	[RK3588_PD_NPU]		= DOMAIN_RK3588(BIT(1), 0, false),
+	[RK3588_PD_VCODEC]	= DOMAIN_RK3588(BIT(2), 0, false),
+	[RK3588_PD_NPUTOP]	= DOMAIN_RK3588(BIT(3), BIT(1), false),
+	[RK3588_PD_NPU1]	= DOMAIN_RK3588(BIT(4), BIT(2), false),
+	[RK3588_PD_NPU2]	= DOMAIN_RK3588(BIT(5), BIT(3), false),
+	[RK3588_PD_VENC0]	= DOMAIN_RK3588(BIT(6), BIT(4), false),
+	[RK3588_PD_VENC1]	= DOMAIN_RK3588(BIT(7), BIT(5), false),
+	[RK3588_PD_RKVDEC0]	= DOMAIN_RK3588(BIT(8), BIT(6), false),
+	[RK3588_PD_RKVDEC1]	= DOMAIN_RK3588(BIT(9), BIT(7), false),
+	[RK3588_PD_VDPU]	= DOMAIN_RK3588(BIT(10), BIT(8), false),
+	[RK3588_PD_RGA30]	= DOMAIN_RK3588(BIT(11), 0, false),
+	[RK3588_PD_AV1]		= DOMAIN_RK3588(BIT(12), BIT(9), false),
+	[RK3588_PD_VI]		= DOMAIN_RK3588(BIT(13), BIT(10), false),
+	[RK3588_PD_FEC]		= DOMAIN_RK3588(BIT(14), 0, false),
+	[RK3588_PD_ISP1]	= DOMAIN_RK3588(BIT(15), BIT(11), false),
+	[RK3588_PD_RGA31]	= DOMAIN_RK3588_P_O(BIT(0), BIT(12), false),
+	[RK3588_PD_VOP]		= DOMAIN_RK3588_P_O_PROTECT(BIT(1), BIT(13) | BIT(14), false),
+	[RK3588_PD_VO0]		= DOMAIN_RK3588_P_O_PROTECT(BIT(2), BIT(15), false),
+	[RK3588_PD_VO1]		= DOMAIN_RK3588_O_PROTECT(BIT(3), BIT(0), false),
+	[RK3588_PD_AUDIO]	= DOMAIN_RK3588_O(BIT(4), BIT(1), false),
+	[RK3588_PD_PHP]		= DOMAIN_RK3588_O(BIT(5), BIT(5), false),
+	[RK3588_PD_GMAC]	= DOMAIN_RK3588_O(BIT(6), 0, false),
+	[RK3588_PD_PCIE]	= DOMAIN_RK3588_O(BIT(7), 0, true),
+	[RK3588_PD_NVM]		= DOMAIN_RK3588_O(BIT(8), BIT(2), false),
+	[RK3588_PD_NVM0]	= DOMAIN_RK3588_O(BIT(9), 0, false),
+	[RK3588_PD_SDIO]	= DOMAIN_RK3588_O(BIT(10), BIT(3), false),
+	[RK3588_PD_USB]		= DOMAIN_RK3588_O(BIT(11), BIT(4), true),
+	[RK3588_PD_SDMMC]	= DOMAIN_RK3588_O(BIT(13), 0, false),
+};
+
 static const struct rockchip_pmu_info px30_pmu = {
 	.pwr_offset = 0x18,
 	.status_offset = 0x20,
@@ -1519,6 +1569,17 @@ static const struct rockchip_pmu_info rk3568_pmu = {
 	.domain_info = rk3568_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3588_pmu = {
+	.pwr_offset = 0x14c,
+	.status_offset = 0x180,
+	.req_offset = 0x10c,
+	.idle_offset = 0x120,
+	.ack_offset = 0x118,
+
+	.num_domains = ARRAY_SIZE(rk3588_pm_domains),
+	.domain_info = rk3588_pm_domains,
+};
+
 static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,px30-power-controller",
@@ -1575,6 +1636,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3568-power-controller",
 		.data = (void *)&rk3568_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3588-power-controller",
+		.data = (void *)&rk3588_pmu,
 	},
 	{ /* sentinel */ },
 };
