@@ -115,7 +115,9 @@ struct stmmac_axi {
 
 #define EST_GCL		1024
 struct stmmac_est {
+	struct mutex lock;
 	int enable;
+	u32 btr_reserve[2];
 	u32 btr_offset[2];
 	u32 btr[2];
 	u32 ctr[2];
