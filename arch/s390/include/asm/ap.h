@@ -53,18 +53,20 @@ struct ap_queue_status {
  */
 static inline bool ap_instructions_available(void)
 {
-	register unsigned long reg0 asm ("0") = AP_MKQID(0, 0);
-	register unsigned long reg1 asm ("1") = 0;
-	register unsigned long reg2 asm ("2") = 0;
+	unsigned long reg0 = AP_MKQID(0, 0);
+	unsigned long reg1 = 0;
 
 	asm volatile(
-		"   .long 0xb2af0000\n"		/* PQAP(TAPQ) */
-		"0: la    %0,1\n"
+		"	lgr	0,%[reg0]\n"   /* qid into gr0 */
+		"	lghi	1,0\n"	       /* 0 into gr1 */
+		"	lghi	2,0\n"	       /* 0 into gr2 */
+		"	.long	0xb2af0000\n"  /* PQAP(TAPQ) */
+		"0:	la	%[reg1],1\n"   /* 1 into reg1 */
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (reg1), "+d" (reg2)
-		: "d" (reg0)
-		: "cc");
+		: [reg1] "+&d" (reg1)
+		: [reg0] "d" (reg0)
+		: "cc", "0", "1", "2");
 	return reg1 != 0;
 }
 
@@ -77,14 +79,18 @@ static inline bool ap_instructions_available(void)
  */
 static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
 {
-	register unsigned long reg0 asm ("0") = qid;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2");
+	struct ap_queue_status reg1;
+	unsigned long reg2;
 
-	asm volatile(".long 0xb2af0000"		/* PQAP(TAPQ) */
-		     : "=d" (reg1), "=d" (reg2)
-		     : "d" (reg0)
-		     : "cc");
+	asm volatile(
+		"	lgr	0,%[qid]\n"    /* qid into gr0 */
+		"	lghi	2,0\n"	       /* 0 into gr2 */
+		"	.long	0xb2af0000\n"  /* PQAP(TAPQ) */
+		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
+		"	lgr	%[reg2],2\n"   /* gr2 into reg2 */
+		: [reg1] "=&d" (reg1), [reg2] "=&d" (reg2)
+		: [qid] "d" (qid)
+		: "cc", "0", "1", "2");
 	if (info)
 		*info = reg2;
 	return reg1;
@@ -115,14 +121,16 @@ static inline struct ap_queue_status ap_test_queue(ap_qid_t qid,
  */
 static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 {
-	register unsigned long reg0 asm ("0") = qid | (1UL << 24);
-	register struct ap_queue_status reg1 asm ("1");
+	unsigned long reg0 = qid | (1UL << 24);  /* fc 1UL is RAPQ */
+	struct ap_queue_status reg1;
 
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(RAPQ) */
-		: "=d" (reg1)
-		: "d" (reg0)
-		: "cc");
+		"	lgr	0,%[reg0]\n"  /* qid arg into gr0 */
+		"	.long	0xb2af0000\n" /* PQAP(RAPQ) */
+		"	lgr	%[reg1],1\n"  /* gr1 (status) into reg1 */
+		: [reg1] "=&d" (reg1)
+		: [reg0] "d" (reg0)
+		: "cc", "0", "1");
 	return reg1;
 }
 
@@ -134,14 +142,16 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
  */
 static inline struct ap_queue_status ap_zapq(ap_qid_t qid)
 {
-	register unsigned long reg0 asm ("0") = qid | (2UL << 24);
-	register struct ap_queue_status reg1 asm ("1");
+	unsigned long reg0 = qid | (2UL << 24);  /* fc 2UL is ZAPQ */
+	struct ap_queue_status reg1;
 
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(ZAPQ) */
-		: "=d" (reg1)
-		: "d" (reg0)
-		: "cc");
+		"	lgr	0,%[reg0]\n"   /* qid arg into gr0 */
+		"	.long	0xb2af0000\n"  /* PQAP(ZAPQ) */
+		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
+		: [reg1] "=&d" (reg1)
+		: [reg0] "d" (reg0)
+		: "cc", "0", "1");
 	return reg1;
 }
 
@@ -172,18 +182,20 @@ struct ap_config_info {
  */
 static inline int ap_qci(struct ap_config_info *config)
 {
-	register unsigned long reg0 asm ("0") = 4UL << 24;
-	register unsigned long reg1 asm ("1") = -EOPNOTSUPP;
-	register struct ap_config_info *reg2 asm ("2") = config;
+	unsigned long reg0 = 4UL << 24;  /* fc 4UL is QCI */
+	unsigned long reg1 = -EOPNOTSUPP;
+	struct ap_config_info *reg2 = config;
 
 	asm volatile(
-		".long 0xb2af0000\n"		/* PQAP(QCI) */
-		"0: la    %0,0\n"
+		"	lgr	0,%[reg0]\n"   /* QCI fc into gr0 */
+		"	lgr	2,%[reg2]\n"   /* ptr to config into gr2 */
+		"	.long	0xb2af0000\n"  /* PQAP(QCI) */
+		"0:	la	%[reg1],0\n"   /* good case, QCI fc available */
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (reg1)
-		: "d" (reg0), "d" (reg2)
-		: "cc", "memory");
+		: [reg1] "+&d" (reg1)
+		: [reg0] "d" (reg0), [reg2] "d" (reg2)
+		: "cc", "memory", "0", "2");
 
 	return reg1;
 }
@@ -220,21 +232,25 @@ static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
 					     struct ap_qirq_ctrl qirqctrl,
 					     void *ind)
 {
-	register unsigned long reg0 asm ("0") = qid | (3UL << 24);
-	register union {
+	unsigned long reg0 = qid | (3UL << 24);  /* fc 3UL is AQIC */
+	union {
 		unsigned long value;
 		struct ap_qirq_ctrl qirqctrl;
 		struct ap_queue_status status;
-	} reg1 asm ("1");
-	register void *reg2 asm ("2") = ind;
+	} reg1;
+	void *reg2 = ind;
 
 	reg1.qirqctrl = qirqctrl;
 
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(AQIC) */
-		: "+d" (reg1)
-		: "d" (reg0), "d" (reg2)
-		: "cc");
+		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
+		"	lgr	1,%[reg1]\n"   /* irq ctrl into gr1 */
+		"	lgr	2,%[reg2]\n"   /* ni addr into gr2 */
+		"	.long	0xb2af0000\n"  /* PQAP(AQIC) */
+		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
+		: [reg1] "+&d" (reg1)
+		: [reg0] "d" (reg0), [reg2] "d" (reg2)
+		: "cc", "0", "1", "2");
 
 	return reg1.status;
 }
@@ -268,21 +284,24 @@ union ap_qact_ap_info {
 static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 					     union ap_qact_ap_info *apinfo)
 {
-	register unsigned long reg0 asm ("0") = qid | (5UL << 24)
-		| ((ifbit & 0x01) << 22);
-	register union {
+	unsigned long reg0 = qid | (5UL << 24) | ((ifbit & 0x01) << 22);
+	union {
 		unsigned long value;
 		struct ap_queue_status status;
-	} reg1 asm ("1");
-	register unsigned long reg2 asm ("2");
+	} reg1;
+	unsigned long reg2;
 
 	reg1.value = apinfo->val;
 
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(QACT) */
-		: "+d" (reg1), "=d" (reg2)
-		: "d" (reg0)
-		: "cc");
+		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
+		"	lgr	1,%[reg1]\n"   /* qact in info into gr1 */
+		"	.long	0xb2af0000\n"  /* PQAP(QACT) */
+		"	lgr	%[reg1],1\n"   /* gr1 (status) into reg1 */
+		"	lgr	%[reg2],2\n"   /* qact out info into reg2 */
+		: [reg1] "+&d" (reg1), [reg2] "=&d" (reg2)
+		: [reg0] "d" (reg0)
+		: "cc", "0", "1", "2");
 	apinfo->val = reg2;
 	return reg1.status;
 }
@@ -303,19 +322,24 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
 					     unsigned long long psmid,
 					     void *msg, size_t length)
 {
-	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = (unsigned long) msg;
-	register unsigned long reg3 asm ("3") = (unsigned long) length;
-	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
-	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
+	unsigned long reg0 = qid | 0x40000000UL;  /* 0x4... is last msg part */
+	union register_pair nqap_r1, nqap_r2;
+	struct ap_queue_status reg1;
+
+	nqap_r1.even = (unsigned int)(psmid >> 32);
+	nqap_r1.odd  = psmid & 0xffffffff;
+	nqap_r2.even = (unsigned long)msg;
+	nqap_r2.odd  = (unsigned long)length;
 
 	asm volatile (
-		"0: .long 0xb2ad0042\n"		/* NQAP */
-		"   brc   2,0b"
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
-		: "d" (reg4), "d" (reg5)
-		: "cc", "memory");
+		"	lgr	0,%[reg0]\n"  /* qid param in gr0 */
+		"0:	.insn	rre,0xb2ad0000,%[nqap_r1],%[nqap_r2]\n"
+		"	brc	2,0b\n"       /* handle partial completion */
+		"	lgr	%[reg1],1\n"  /* gr1 (status) into reg1 */
+		: [reg0] "+&d" (reg0), [reg1] "=&d" (reg1),
+		  [nqap_r2] "+&d" (nqap_r2.pair)
+		: [nqap_r1] "d" (nqap_r1.pair)
+		: "cc", "memory", "0", "1");
 	return reg1;
 }
 
