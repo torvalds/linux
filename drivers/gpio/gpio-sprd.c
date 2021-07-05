@@ -222,7 +222,6 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_irq_chip *irq;
 	struct sprd_gpio *sprd_gpio;
-	int ret;
 
 	sprd_gpio = devm_kzalloc(&pdev->dev, sizeof(*sprd_gpio), GFP_KERNEL);
 	if (!sprd_gpio)
@@ -259,14 +258,7 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 	irq->num_parents = 1;
 	irq->parents = &sprd_gpio->irq;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &sprd_gpio->chip, sprd_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, sprd_gpio);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &sprd_gpio->chip, sprd_gpio);
 }
 
 static const struct of_device_id sprd_gpio_of_match[] = {
