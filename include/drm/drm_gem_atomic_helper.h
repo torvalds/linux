@@ -53,6 +53,12 @@ to_drm_shadow_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct drm_shadow_plane_state, base);
 }
 
+void __drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane,
+					    struct drm_shadow_plane_state *new_shadow_plane_state);
+void __drm_gem_destroy_shadow_plane_state(struct drm_shadow_plane_state *shadow_plane_state);
+void __drm_gem_reset_shadow_plane(struct drm_plane *plane,
+				  struct drm_shadow_plane_state *shadow_plane_state);
+
 void drm_gem_reset_shadow_plane(struct drm_plane *plane);
 struct drm_plane_state *drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane);
 void drm_gem_destroy_shadow_plane_state(struct drm_plane *plane,
