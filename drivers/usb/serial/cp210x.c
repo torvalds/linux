@@ -1145,31 +1145,6 @@ static void cp210x_disable_event_mode(struct usb_serial_port *port)
 	port_priv->event_mode = false;
 }
 
-static int cp210x_set_chars(struct usb_serial_port *port,
-		struct cp210x_special_chars *chars)
-{
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
-	void *dmabuf;
-	int result;
-
-	dmabuf = kmemdup(chars, sizeof(*chars), GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				CP210X_SET_CHARS, REQTYPE_HOST_TO_INTERFACE, 0,
-				port_priv->bInterfaceNumber,
-				dmabuf, sizeof(*chars), USB_CTRL_SET_TIMEOUT);
-
-	kfree(dmabuf);
-
-	if (result < 0)
-		return result;
-
-	return 0;
-}
-
 static bool cp210x_termios_change(const struct ktermios *a, const struct ktermios *b)
 {
 	bool iflag_change, cc_change;
@@ -1217,7 +1192,8 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		chars.bXonChar = START_CHAR(tty);
 		chars.bXoffChar = STOP_CHAR(tty);
 
-		ret = cp210x_set_chars(port, &chars);
+		ret = cp210x_write_reg_block(port, CP210X_SET_CHARS, &chars,
+				sizeof(chars));
 		if (ret) {
 			dev_err(&port->dev, "failed to set special chars: %d\n",
 					ret);
