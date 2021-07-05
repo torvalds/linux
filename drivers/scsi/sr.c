@@ -120,6 +120,8 @@ static void get_capabilities(struct scsi_cd *);
 static unsigned int sr_check_events(struct cdrom_device_info *cdi,
 				    unsigned int clearing, int slot);
 static int sr_packet(struct cdrom_device_info *, struct packet_command *);
+static int sr_read_cdda_bpc(struct cdrom_device_info *cdi, void __user *ubuf,
+		u32 lba, u32 nr, u8 *last_sense);
 
 static const struct cdrom_device_ops sr_dops = {
 	.open			= sr_open,
@@ -133,8 +135,9 @@ static const struct cdrom_device_ops sr_dops = {
 	.get_mcn		= sr_get_mcn,
 	.reset			= sr_reset,
 	.audio_ioctl		= sr_audio_ioctl,
-	.capability		= SR_CAPABILITIES,
 	.generic_packet		= sr_packet,
+	.read_cdda_bpc		= sr_read_cdda_bpc,
+	.capability		= SR_CAPABILITIES,
 };
 
 static void sr_kref_release(struct kref *kref);
@@ -950,6 +953,57 @@ static int sr_packet(struct cdrom_device_info *cdi,
 
 	return cgc->stat;
 }
+
+static int sr_read_cdda_bpc(struct cdrom_device_info *cdi, void __user *ubuf,
+		u32 lba, u32 nr, u8 *last_sense)
+{
+	struct gendisk *disk = cdi->disk;
+	u32 len = nr * CD_FRAMESIZE_RAW;
+	struct scsi_request *req;
+	struct request *rq;
+	struct bio *bio;
+	int ret;
+
+	rq = blk_get_request(disk->queue, REQ_OP_DRV_IN, 0);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	req = scsi_req(rq);
+
+	ret = blk_rq_map_user(disk->queue, rq, NULL, ubuf, len, GFP_KERNEL);
+	if (ret)
+		goto out_put_request;
+
+	req->cmd[0] = GPCMD_READ_CD;
+	req->cmd[1] = 1 << 2;
+	req->cmd[2] = (lba >> 24) & 0xff;
+	req->cmd[3] = (lba >> 16) & 0xff;
+	req->cmd[4] = (lba >>  8) & 0xff;
+	req->cmd[5] = lba & 0xff;
+	req->cmd[6] = (nr >> 16) & 0xff;
+	req->cmd[7] = (nr >>  8) & 0xff;
+	req->cmd[8] = nr & 0xff;
+	req->cmd[9] = 0xf8;
+	req->cmd_len = 12;
+	rq->timeout = 60 * HZ;
+	bio = rq->bio;
+
+	blk_execute_rq(disk, rq, 0);
+	if (scsi_req(rq)->result) {
+		struct scsi_sense_hdr sshdr;
+
+		scsi_normalize_sense(req->sense, req->sense_len,
+				     &sshdr);
+		*last_sense = sshdr.sense_key;
+		ret = -EIO;
+	}
+
+	if (blk_rq_unmap_user(bio))
+		ret = -EFAULT;
+out_put_request:
+	blk_put_request(rq);
+	return ret;
+}
+
 
 /**
  *	sr_kref_release - Called to free the scsi_cd structure
