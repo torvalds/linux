@@ -3,13 +3,16 @@
   add_wait_queue
   alloc_chrdev_region
   __alloc_pages_nodemask
+  __alloc_percpu
   alloc_workqueue
   __arch_copy_from_user
   __arch_copy_to_user
   arm64_const_caps_ready
   arm64_use_ng_mappings
   __arm_smccc_smc
+  atomic_notifier_call_chain
   atomic_notifier_chain_register
+  atomic_notifier_chain_unregister
   __bitmap_and
   blocking_notifier_call_chain
   blocking_notifier_chain_register
@@ -49,6 +52,8 @@
   cpumask_next
   cpu_number
   __cpu_online_mask
+  cpu_pm_register_notifier
+  __cpu_possible_mask
   crc32_le
   __crypto_memneq
   debugfs_create_dir
@@ -60,7 +65,9 @@
   del_timer
   del_timer_sync
   destroy_workqueue
+  _dev_crit
   dev_driver_string
+  _dev_emerg
   _dev_err
   device_create
   device_create_file
@@ -172,6 +179,7 @@
   free_irq
   __free_pages
   free_pages
+  free_percpu
   freezing_slow_path
   generic_file_llseek
   generic_handle_irq
@@ -197,6 +205,10 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
+  hrtimer_cancel
+  hrtimer_forward
+  hrtimer_init
+  hrtimer_start_range_ns
   i2c_add_numbered_adapter
   i2c_del_driver
   i2c_register_driver
@@ -224,6 +236,7 @@
   irq_set_chip_and_handler_name
   irq_set_chip_data
   irq_set_irq_wake
+  irq_to_desc
   is_vmalloc_addr
   jiffies
   kasan_flag_enabled
@@ -337,6 +350,7 @@
   param_ops_int
   param_ops_uint
   PDE_DATA
+  __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   phy_power_off
@@ -439,6 +453,7 @@
   simple_write_to_buffer
   single_open
   single_release
+  smp_call_function
   snd_pcm_format_width
   snd_soc_component_update_bits
   snd_soc_component_write
@@ -468,12 +483,14 @@
   strncpy
   strnlen
   strstr
+  __sw_hweight64
   sync_file_create
   sync_file_get_fence
   synchronize_irq
   syscon_regmap_lookup_by_phandle
   sysfs_create_file_ns
   sysfs_create_group
+  sysfs_create_groups
   sysfs_remove_file_ns
   sysfs_remove_group
   system_freezing_cnt
@@ -581,12 +598,8 @@
   kernel_kobj
 
 # required by dss.ko
-  __alloc_percpu
   android_debug_symbol
   arch_timer_read_counter
-  atomic_notifier_call_chain
-  __cpu_possible_mask
-  _dev_emerg
   dump_backtrace
   init_task
   input_close_device
@@ -594,18 +607,14 @@
   input_register_handle
   input_register_handler
   input_unregister_handle
-  irq_to_desc
   kmsg_dump_get_line
   kmsg_dump_rewind
   kstat
   nr_irqs
-  __per_cpu_offset
   proc_create
   register_die_notifier
   return_address
   rtc_time64_to_tm
-  smp_call_function
-  sysfs_create_groups
   sys_tz
   time64_to_tm
   __traceiter_android_vh_ipi_stop
@@ -663,6 +672,21 @@
 # required by exynos-chipid_v2.ko
   soc_device_register
   subsys_system_register
+
+# required by exynos-coresight.ko
+  __cpuhp_setup_state_cpuslocked
+  cpu_pm_unregister_notifier
+  of_prop_next_u32
+
+# required by exynos-debug-test.ko
+  _ctype
+  kstrtoll
+  remove_cpu
+  smp_call_function_single
+  strsep
+
+# required by exynos-ehld.ko
+  sprint_symbol
 
 # required by exynos-pd.ko
   of_genpd_add_provider_simple
@@ -867,6 +891,12 @@
   mod_delayed_work_on
   put_vaddr_frames
 
+# required by hardlockup-watchdog.ko
+  __cpuhp_setup_state
+  cpus_read_lock
+  cpus_read_unlock
+  smp_call_on_cpu
+
 # required by i2c-exynosauto.ko
   i2c_del_adapter
 
@@ -900,10 +930,6 @@
   get_user_pages_fast
   get_user_pages_remote
   hrtimer_active
-  hrtimer_cancel
-  hrtimer_forward
-  hrtimer_init
-  hrtimer_start_range_ns
   kstrtobool_from_user
   ktime_get_raw
   kvfree_call_rcu
@@ -928,7 +954,6 @@
   static_key_slow_inc
   strncasecmp
   __sw_hweight32
-  __sw_hweight64
   synchronize_rcu
   sysfs_streq
   system_highpri_wq
@@ -1074,7 +1099,6 @@
   watchdog_unregister_device
 
 # required by sam-is.ko
-  atomic_notifier_chain_unregister
   get_task_pid
   i2c_get_adapter
   i2c_new_client_device
@@ -1274,7 +1298,6 @@
   snd_soc_unregister_component
 
 # required by snd-soc-tas6424.ko
-  _dev_crit
   regcache_cache_only
   snd_soc_get_volsw
   snd_soc_put_volsw
