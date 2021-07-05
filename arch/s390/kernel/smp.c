@@ -300,24 +300,28 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 	pcpu_sigp_retry(pcpu, SIGP_RESTART, 0);
 }
 
+typedef void (pcpu_delegate_fn)(void *);
+
 /*
  * Call function via PSW restart on pcpu and stop the current cpu.
  */
-static void __pcpu_delegate(void (*func)(void*), void *data)
+static void __pcpu_delegate(pcpu_delegate_fn *func, void *data)
 {
 	func(data);	/* should not return */
 }
 
 static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
-						void (*func)(void *),
+						pcpu_delegate_fn *func,
 						void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
-	if (pcpu->address == source_cpu)
-		CALL_ON_STACK(__pcpu_delegate, stack, 2, func, data);
+	if (pcpu->address == source_cpu) {
+		call_on_stack(2, stack, void, __pcpu_delegate,
+			      pcpu_delegate_fn *, func, void *, data);
+	}
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
