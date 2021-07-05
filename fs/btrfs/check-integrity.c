@@ -243,47 +243,6 @@ struct btrfsic_state {
 	u32 datablock_size;
 };
 
-static void btrfsic_block_init(struct btrfsic_block *b);
-static struct btrfsic_block *btrfsic_block_alloc(void);
-static void btrfsic_block_free(struct btrfsic_block *b);
-static void btrfsic_block_link_init(struct btrfsic_block_link *n);
-static struct btrfsic_block_link *btrfsic_block_link_alloc(void);
-static void btrfsic_block_link_free(struct btrfsic_block_link *n);
-static void btrfsic_dev_state_init(struct btrfsic_dev_state *ds);
-static struct btrfsic_dev_state *btrfsic_dev_state_alloc(void);
-static void btrfsic_dev_state_free(struct btrfsic_dev_state *ds);
-static void btrfsic_block_hashtable_init(struct btrfsic_block_hashtable *h);
-static void btrfsic_block_hashtable_add(struct btrfsic_block *b,
-					struct btrfsic_block_hashtable *h);
-static void btrfsic_block_hashtable_remove(struct btrfsic_block *b);
-static struct btrfsic_block *btrfsic_block_hashtable_lookup(
-		struct block_device *bdev,
-		u64 dev_bytenr,
-		struct btrfsic_block_hashtable *h);
-static void btrfsic_block_link_hashtable_init(
-		struct btrfsic_block_link_hashtable *h);
-static void btrfsic_block_link_hashtable_add(
-		struct btrfsic_block_link *l,
-		struct btrfsic_block_link_hashtable *h);
-static void btrfsic_block_link_hashtable_remove(struct btrfsic_block_link *l);
-static struct btrfsic_block_link *btrfsic_block_link_hashtable_lookup(
-		struct block_device *bdev_ref_to,
-		u64 dev_bytenr_ref_to,
-		struct block_device *bdev_ref_from,
-		u64 dev_bytenr_ref_from,
-		struct btrfsic_block_link_hashtable *h);
-static void btrfsic_dev_state_hashtable_init(
-		struct btrfsic_dev_state_hashtable *h);
-static void btrfsic_dev_state_hashtable_add(
-		struct btrfsic_dev_state *ds,
-		struct btrfsic_dev_state_hashtable *h);
-static void btrfsic_dev_state_hashtable_remove(struct btrfsic_dev_state *ds);
-static struct btrfsic_dev_state *btrfsic_dev_state_hashtable_lookup(dev_t dev,
-		struct btrfsic_dev_state_hashtable *h);
-static struct btrfsic_stack_frame *btrfsic_stack_frame_alloc(void);
-static void btrfsic_stack_frame_free(struct btrfsic_stack_frame *sf);
-static int btrfsic_process_superblock(struct btrfsic_state *state,
-				      struct btrfs_fs_devices *fs_devices);
 static int btrfsic_process_metablock(struct btrfsic_state *state,
 				     struct btrfsic_block *block,
 				     struct btrfsic_block_data_ctx *block_ctx,
@@ -313,14 +272,6 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 static void btrfsic_release_block_ctx(struct btrfsic_block_data_ctx *block_ctx);
 static int btrfsic_read_block(struct btrfsic_state *state,
 			      struct btrfsic_block_data_ctx *block_ctx);
-static void btrfsic_dump_database(struct btrfsic_state *state);
-static int btrfsic_test_for_metadata(struct btrfsic_state *state,
-				     char **datav, unsigned int num_pages);
-static void btrfsic_process_written_block(struct btrfsic_dev_state *dev_state,
-					  u64 dev_bytenr, char **mapped_datav,
-					  unsigned int num_pages,
-					  struct bio *bio, int *bio_is_patched,
-					  int submit_bio_bh_rw);
 static int btrfsic_process_written_superblock(
 		struct btrfsic_state *state,
 		struct btrfsic_block *const block,
