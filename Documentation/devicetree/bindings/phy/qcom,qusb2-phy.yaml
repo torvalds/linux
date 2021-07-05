@@ -23,6 +23,8 @@ properties:
               - qcom,msm8998-qusb2-phy
               - qcom,sdm660-qusb2-phy
               - qcom,ipq6018-qusb2-phy
+              - qcom,sm4250-qusb2-phy
+              - qcom,sm6115-qusb2-phy
       - items:
           - enum:
               - qcom,sc7180-qusb2-phy

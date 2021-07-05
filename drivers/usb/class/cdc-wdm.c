@@ -1035,9 +1035,10 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 	INIT_WORK(&desc->rxwork, wdm_rxwork);
 	INIT_WORK(&desc->service_outs_intr, service_interrupt_work);
 
-	rv = -EINVAL;
-	if (!usb_endpoint_is_int_in(ep))
+	if (!usb_endpoint_is_int_in(ep)) {
+		rv = -EINVAL;
 		goto err;
+	}
 
 	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
 
