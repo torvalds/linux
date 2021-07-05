@@ -12,6 +12,7 @@ Required properties:
    "rockchip,rk3368-tsadc": found on RK3368 SoCs
    "rockchip,rk3399-tsadc": found on RK3399 SoCs
    "rockchip,rk3568-tsadc": found on RK3568 SoCs
+   "rockchip,rk3588-tsadc": found on RK3588 SoCs
 - reg : physical base address of the controller and length of memory mapped
 	region.
 - interrupts : The interrupt number to the cpu. The interrupt specifier format
