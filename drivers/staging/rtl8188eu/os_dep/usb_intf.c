@@ -379,9 +379,8 @@ static int rtw_usb_if1_init(struct usb_interface *pusb_intf)
 
 	/* step 6. Tell the network stack we exist */
 	err = register_netdev(pnetdev);
-	if (err) {
+	if (err)
 		goto free_hal_data;
-	}
 
 	pr_debug("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n"
 		, padapter->bDriverStopped
