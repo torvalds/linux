@@ -270,17 +270,7 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
  */
 void do_softirq_own_stack(void)
 {
-	unsigned long old, new;
-
-	old = current_stack_pointer();
-	/* Check against async. stack address range. */
-	new = S390_lowcore.async_stack;
-	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
-		CALL_ON_STACK(__do_softirq, new, 0);
-	} else {
-		/* We are already on the async stack. */
-		__do_softirq();
-	}
+	CALL_ON_STACK(__do_softirq, S390_lowcore.async_stack, 0);
 }
 
 /*
