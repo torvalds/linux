@@ -19,22 +19,11 @@ static int mdp4_hw_init(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct drm_device *dev = mdp4_kms->dev;
-	u32 major, minor, dmap_cfg, vg_cfg;
+	u32 dmap_cfg, vg_cfg;
 	unsigned long clk;
 	int ret = 0;
 
 	pm_runtime_get_sync(dev->dev);
-
-	read_mdp_hw_revision(mdp4_kms, &major, &minor);
-
-	if (major != 4) {
-		DRM_DEV_ERROR(dev->dev, "unexpected MDP version: v%d.%d\n",
-				major, minor);
-		ret = -ENXIO;
-		goto out;
-	}
-
-	mdp4_kms->rev = minor;
 
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
@@ -81,7 +70,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	if (mdp4_kms->rev > 1)
 		mdp4_write(mdp4_kms, REG_MDP4_RESET_STATUS, 1);
 
-out:
 	pm_runtime_put_sync(dev->dev);
 
 	return ret;
@@ -426,6 +414,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct msm_kms *kms = NULL;
 	struct msm_gem_address_space *aspace;
 	int irq, ret;
+	u32 major, minor;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -482,15 +471,6 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	if (IS_ERR(mdp4_kms->pclk))
 		mdp4_kms->pclk = NULL;
 
-	if (mdp4_kms->rev >= 2) {
-		mdp4_kms->lut_clk = devm_clk_get(&pdev->dev, "lut_clk");
-		if (IS_ERR(mdp4_kms->lut_clk)) {
-			DRM_DEV_ERROR(dev->dev, "failed to get lut_clk\n");
-			ret = PTR_ERR(mdp4_kms->lut_clk);
-			goto fail;
-		}
-	}
-
 	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
 		DRM_DEV_ERROR(dev->dev, "failed to get axi_clk\n");
@@ -499,8 +479,27 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	}
 
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
-	if (mdp4_kms->lut_clk)
+
+	read_mdp_hw_revision(mdp4_kms, &major, &minor);
+
+	if (major != 4) {
+		DRM_DEV_ERROR(dev->dev, "unexpected MDP version: v%d.%d\n",
+			      major, minor);
+		ret = -ENXIO;
+		goto fail;
+	}
+
+	mdp4_kms->rev = minor;
+
+	if (mdp4_kms->rev >= 2) {
+		mdp4_kms->lut_clk = devm_clk_get(&pdev->dev, "lut_clk");
+		if (IS_ERR(mdp4_kms->lut_clk)) {
+			DRM_DEV_ERROR(dev->dev, "failed to get lut_clk\n");
+			ret = PTR_ERR(mdp4_kms->lut_clk);
+			goto fail;
+		}
 		clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+	}
 
 	pm_runtime_enable(dev->dev);
 	mdp4_kms->rpm_enabled = true;
