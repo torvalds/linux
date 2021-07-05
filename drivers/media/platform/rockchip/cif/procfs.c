@@ -249,9 +249,10 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 	struct v4l2_rect *rect = &sensor->raw_rect;
 	struct v4l2_subdev_frame_interval *interval = &sensor->fi;
 	struct v4l2_subdev_selection *sel = &sensor->selection;
-	u32 i, flags;
+	u32 i, mbus_flags;
 	u64 fps, timestamp0, timestamp1;
-	unsigned long lock_flags = 0;
+	unsigned long flags;
+	u32 time_val = 0;
 
 	if (atomic_read(&pipe->stream_cnt) < 1)
 		return;
@@ -260,24 +261,24 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		seq_puts(f, "Input Info:\n");
 
 		seq_printf(f, "\tsrc subdev:%s\n", sensor->sd->name);
-		flags = sensor->mbus.flags;
+		mbus_flags = sensor->mbus.flags;
 		if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
 		    sensor->mbus.type == V4L2_MBUS_BT656) {
 			seq_printf(f, "\tinterface:%s\n",
 				   sensor->mbus.type == V4L2_MBUS_PARALLEL ? "BT601" : "BT656/BT1120");
 			seq_printf(f, "\thref_pol:%s\n",
-				   flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH ? "high active" : "low active");
+				   mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH ? "high active" : "low active");
 			seq_printf(f, "\tvsync_pol:%s\n",
-				   flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH ? "high active" : "low active");
+				   mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH ? "high active" : "low active");
 		} else {
 			seq_printf(f, "\tinterface:%s\n",
 				   sensor->mbus.type == V4L2_MBUS_CSI2 ? "mipi csi2" :
 				   sensor->mbus.type == V4L2_MBUS_CCP2 ? "lvds" : "unknown");
 			seq_printf(f, "\tlanes:%d\n", sensor->lanes);
 			seq_puts(f, "\tvc channel:");
-			if (flags & V4L2_MBUS_CSI2_CHANNELS) {
+			if (mbus_flags & V4L2_MBUS_CSI2_CHANNELS) {
 				for (i = 0; i < 4; i++) {
-					if ((flags >> (4 + i)) & 0x1)
+					if ((mbus_flags >> (4 + i)) & 0x1)
 						seq_printf(f, " %d", i);
 				}
 				seq_puts(f, "\n");
@@ -299,14 +300,13 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   sel->r.left, sel->r.top,
 			   sel->r.width, sel->r.height);
 
-		spin_lock_irqsave(&stream->fps_lock, lock_flags);
+		spin_lock_irqsave(&stream->fps_lock, flags);
 		timestamp0 = stream->fps_stats.frm0_timestamp;
 		timestamp1 = stream->fps_stats.frm1_timestamp;
-		spin_unlock_irqrestore(&stream->fps_lock, lock_flags);
+		spin_unlock_irqrestore(&stream->fps_lock, flags);
 		fps = timestamp0 > timestamp1 ?
 		      timestamp0 - timestamp1 : timestamp1 - timestamp0;
 		fps = div_u64(fps, 1000000);
-		fps = div_u64(1000, fps);
 
 		seq_puts(f, "Output Info:\n");
 		seq_printf(f, "\tformat:%s/%ux%u(%u,%u)\n",
@@ -315,6 +315,20 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->channels[0].crop_st_x, dev->channels[0].crop_st_y);
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
 		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx);
+		time_val = div_u64(stream->readout.early_time, 1000000);
+		seq_printf(f, "\tearly:%u ms\n", time_val);
+		if (dev->hdr.mode == NO_HDR) {
+			time_val = div_u64(stream->readout.readout_time, 1000000);
+			seq_printf(f, "\treadout:%u ms\n", time_val);
+		} else {
+			time_val = div_u64(stream->readout.readout_time, 1000000);
+			seq_printf(f, "\tsingle readout:%u ms\n", time_val);
+			time_val = div_u64(stream->readout.total_time, 1000000);
+			seq_printf(f, "\ttotal readout:%u ms\n", time_val);
+
+		}
+		seq_printf(f, "\trate:%llu ms\n", fps);
+		fps = div_u64(1000, fps);
 		seq_printf(f, "\tfps:%llu\n", fps);
 		seq_puts(f, "\tirq statistics:\n");
 		seq_printf(f, "\t\t\ttotal:%llu\n",
