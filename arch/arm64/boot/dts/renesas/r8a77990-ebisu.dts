@@ -510,6 +510,12 @@
 		rohm,ddr-backup-power = <0x1>;
 		rohm,rstbmode-level;
 	};
+
+	eeprom@50 {
+		compatible = "rohm,br24t01", "atmel,24c01";
+		reg = <0x50>;
+		pagesize = <8>;
+	};
 };
 
 &lvds0 {
