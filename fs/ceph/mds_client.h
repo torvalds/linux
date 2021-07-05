@@ -518,6 +518,7 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 	kref_put(&req->r_kref, ceph_mdsc_release_request);
 }
 
+extern void send_flush_mdlog(struct ceph_mds_session *s);
 extern void ceph_mdsc_iterate_sessions(struct ceph_mds_client *mdsc,
 				       void (*cb)(struct ceph_mds_session *),
 				       bool check_state);
