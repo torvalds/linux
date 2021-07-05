@@ -7,9 +7,6 @@
  *  Input driver event debug module - dumps all events into syslog
  */
 
-/*
- */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>

@@ -272,6 +272,8 @@ properties:
             # Socionext SynQuacer TPM MMIO module
           - socionext,synquacer-tpm-mmio
             # i2c serial eeprom  (24cxx)
+          - sparkfun,qwiic-joystick
+            # SparkFun Qwiic Joystick (COM-15168) with i2c interface
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
