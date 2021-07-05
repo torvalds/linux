@@ -459,6 +459,7 @@
   snd_soc_component_write
   snd_soc_dai_set_fmt
   snd_soc_dai_set_tdm_slot
+  snd_soc_dai_set_tristate
   snd_soc_info_volsw
   snd_soc_of_get_dai_link_codecs
   snd_soc_of_get_dai_name
@@ -995,6 +996,15 @@
   drm_panel_remove
 
 # required by pcie-exynos-dw-ep.ko
+  dw_pcie_ep_init
+  dw_pcie_read_dbi
+  dw_pcie_write_dbi
+  pci_epc_clear_bar
+  pci_epc_map_addr
+  pci_epc_mem_alloc_addr
+  pci_epc_mem_free_addr
+  pci_epc_set_bar
+  pci_epc_unmap_addr
 
 # required by pcie-exynos-dw-rc.ko
   bitmap_find_free_region
@@ -1012,6 +1022,7 @@
   irq_domain_set_info
   irq_domain_update_bus_token
   pcie_get_mps
+  pcie_set_mps
   pci_find_bus
   pci_generic_config_read
   pci_generic_config_write
@@ -1020,12 +1031,15 @@
   pci_msi_create_irq_domain
   pci_msi_mask_irq
   pci_msi_unmask_irq
+  pci_num_vf
   pci_rescan_bus
   pci_restore_state
   pci_save_state
   pci_store_saved_state
 
 # required by pcs-xpcs.ko
+  mdiobus_read
+  mdiobus_write
 
 # required by pinctrl-samsung-core.ko
   devm_gpiochip_add_data_with_key
@@ -1081,6 +1095,9 @@
   kthread_destroy_worker
   kthread_mod_delayed_work
   kthread_queue_delayed_work
+  ktime_get_snapshot
+  posix_clock_register
+  posix_clock_unregister
 
 # required by reboot-mode.ko
   devres_free
@@ -1137,10 +1154,13 @@
   __bitmap_andnot
   consume_skb
   dev_close
+  device_get_phy_mode
   device_set_wakeup_capable
   device_set_wakeup_enable
   __dev_kfree_skb_any
   dev_open
+  dql_completed
+  dql_reset
   eth_mac_addr
   ethtool_op_get_link
   ethtool_op_get_ts_info
@@ -1151,13 +1171,16 @@
   jiffies_to_usecs
   mdiobus_alloc_size
   mdiobus_free
+  mdiobus_get_phy
   __mdiobus_register
   mdiobus_unregister
   napi_complete_done
   napi_disable
   napi_gro_receive
   __napi_schedule
+  __napi_schedule_irqoff
   napi_schedule_prep
+  netdev_alert
   __netdev_alloc_skb
   netdev_err
   netdev_info
@@ -1173,9 +1196,32 @@
   netif_set_real_num_tx_queues
   netif_tx_wake_queue
   net_ratelimit
+  of_get_mac_address
+  of_mdiobus_register
+  of_phy_deregister_fixed_link
+  of_phy_is_fixed_link
+  of_phy_register_fixed_link
+  phy_attached_info
   phy_disconnect
+  phy_ethtool_get_eee
+  phy_ethtool_ksettings_get
+  phy_ethtool_ksettings_set
   phy_ethtool_nway_reset
+  phy_ethtool_set_eee
+  phy_get_eee_err
+  phy_init_eee
+  phylink_connect_phy
+  phylink_create
+  phylink_destroy
+  phylink_of_phy_connect
+  phylink_set_port_modes
+  phylink_start
+  phy_mac_interrupt
+  phy_mii_ioctl
+  phy_resume
+  phy_start_aneg
   phy_stop
+  phy_suspend
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
   platform_get_irq_byname
@@ -1286,6 +1332,7 @@
   snd_pcm_lib_preallocate_free_for_all
   snd_pcm_lib_preallocate_pages
   snd_pcm_period_elapsed
+  snd_pcm_release_substream
   snd_soc_component_init_regmap
   snd_soc_component_read
   snd_soc_dapm_add_routes
@@ -1331,6 +1378,7 @@
   ufshcd_config_pwr_mode
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
+  ufshcd_init
   ufshcd_link_recovery
   ufshcd_pltfrm_init
   ufshcd_remove
