@@ -271,3 +271,44 @@ WRITE_ONCE.  Thus:
 			SC *y, t;
 
 is allowed.
+
+
+CMPXCHG vs TRY_CMPXCHG
+----------------------
+
+  int atomic_cmpxchg(atomic_t *ptr, int old, int new);
+  bool atomic_try_cmpxchg(atomic_t *ptr, int *oldp, int new);
+
+Both provide the same functionality, but try_cmpxchg() can lead to more
+compact code. The functions relate like:
+
+  bool atomic_try_cmpxchg(atomic_t *ptr, int *oldp, int new)
+  {
+    int ret, old = *oldp;
+    ret = atomic_cmpxchg(ptr, old, new);
+    if (ret != old)
+      *oldp = ret;
+    return ret == old;
+  }
+
+and:
+
+  int atomic_cmpxchg(atomic_t *ptr, int old, int new)
+  {
+    (void)atomic_try_cmpxchg(ptr, &old, new);
+    return old;
+  }
+
+Usage:
+
+  old = atomic_read(&v);			old = atomic_read(&v);
+  for (;;) {					do {
+    new = func(old);				  new = func(old);
+    tmp = atomic_cmpxchg(&v, old, new);		} while (!atomic_try_cmpxchg(&v, &old, new));
+    if (tmp == old)
+      break;
+    old = tmp;
+  }
+
+NB. try_cmpxchg() also generates better code on some platforms (notably x86)
+where the function more closely matches the hardware instruction.
