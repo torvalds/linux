@@ -236,7 +236,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	}
 
 	/* PTP virtual clock is being registered under physical clock */
-	if (parent->class && parent->class->name &&
+	if (parent && parent->class && parent->class->name &&
 	    strcmp(parent->class->name, "ptp") == 0)
 		ptp->is_virtual_clock = true;
 
