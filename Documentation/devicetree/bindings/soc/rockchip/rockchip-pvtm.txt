@@ -20,6 +20,12 @@ Required properties:
  - "rockchip,rk3568-core-pvtm" - for RK3568 SoCs.
  - "rockchip,rk3568-gpu-pvtm" - for RK3568 SoCs.
  - "rockchip,rk3568-npu-pvtm" - for RK3568 SoCs.
+ - "rockchip,rk3588-bigcore0-pvtm" - for RK3588 SoCs.
+ - "rockchip,rk3588-bigcore1-pvtm" - for RK3588 SoCs.
+ - "rockchip,rk3588-litcore-pvtm" - for RK3588 SoCs.
+ - "rockchip,rk3588-gpu-pvtm" - for RK3588 SoCs.
+ - "rockchip,rk3588-npu-pvtm" - for RK3588 SoCs.
+ - "rockchip,rk3588-pmu-pvtm" - for RK3588 SoCs.
  - "rockchip,rv1126-cpu-pvtm" - for RV1126 SoCs.
  - "rockchip,rv1126-npu-pvtm" - for RV1126 SoCs.
  - "rockchip,rv1126-pmu-pvtm" - for RV1126 SoCs.
