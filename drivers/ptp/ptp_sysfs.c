@@ -179,7 +179,7 @@ static ssize_t n_vclocks_show(struct device *dev,
 	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
 		return -ERESTARTSYS;
 
-	size = snprintf(page, PAGE_SIZE - 1, "%d\n", ptp->n_vclocks);
+	size = snprintf(page, PAGE_SIZE - 1, "%u\n", ptp->n_vclocks);
 
 	mutex_unlock(&ptp->n_vclocks_mux);
 
@@ -252,7 +252,7 @@ static ssize_t max_vclocks_show(struct device *dev,
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
 	ssize_t size;
 
-	size = snprintf(page, PAGE_SIZE - 1, "%d\n", ptp->max_vclocks);
+	size = snprintf(page, PAGE_SIZE - 1, "%u\n", ptp->max_vclocks);
 
 	return size;
 }
