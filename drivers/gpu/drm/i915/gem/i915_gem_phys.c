@@ -8,7 +8,6 @@
 #include <linux/shmem_fs.h>
 #include <linux/swap.h>
 
-#include <drm/drm.h> /* for drm_legacy.h! */
 #include <drm/drm_cache.h>
 
 #include "gt/intel_gt.h"
@@ -208,7 +207,7 @@ static int i915_gem_object_shmem_to_phys(struct drm_i915_gem_object *obj)
 
 err_xfer:
 	if (!IS_ERR_OR_NULL(pages)) {
-		unsigned int sg_page_sizes = i915_sg_page_sizes(pages->sgl);
+		unsigned int sg_page_sizes = i915_sg_dma_sizes(pages->sgl);
 
 		__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
 	}

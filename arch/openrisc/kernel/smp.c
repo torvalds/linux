@@ -145,8 +145,6 @@ asmlinkage __init void secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 
 	local_irq_enable();
-
-	preempt_disable();
 	/*
 	 * OK, it's off to the idle thread for us
 	 */

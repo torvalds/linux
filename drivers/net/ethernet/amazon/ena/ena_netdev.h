@@ -55,12 +55,6 @@
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
-/* limit the buffer size to 600 bytes to handle MTU changes from very
- * small to very large, in which case the number of buffers per packet
- * could exceed ENA_PKT_MAX_BUFS
- */
-#define ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
-
 #define ENA_MIN_MTU		128
 
 #define ENA_NAME_MAX_LEN	20
@@ -135,12 +129,12 @@ struct ena_irq {
 };
 
 struct ena_napi {
-	struct napi_struct napi ____cacheline_aligned;
+	u8 first_interrupt ____cacheline_aligned;
+	u8 interrupts_masked;
+	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
 	struct ena_ring *xdp_ring;
-	bool first_interrupt;
-	bool interrupts_masked;
 	u32 qid;
 	struct dim dim;
 };
@@ -212,6 +206,7 @@ struct ena_stats_tx {
 	u64 llq_buffer_copy;
 	u64 missed_tx;
 	u64 unmask_interrupt;
+	u64 last_napi_jiffies;
 };
 
 struct ena_stats_rx {
@@ -259,6 +254,10 @@ struct ena_ring {
 	struct bpf_prog *xdp_bpf_prog;
 	struct xdp_rxq_info xdp_rxq;
 	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
+	/* Used for rx queues only to point to the xdp tx ring, to
+	 * which traffic should be redirected from this rx ring.
+	 */
+	struct ena_ring *xdp_ring;
 
 	u16 next_to_use;
 	u16 next_to_clean;
@@ -271,7 +270,6 @@ struct ena_ring {
 	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
 
-	bool first_interrupt;
 	bool disable_meta_caching;
 	u16 no_interrupt_event_cnt;
 
@@ -413,11 +411,6 @@ enum ena_xdp_errors_t {
 	ENA_XDP_CURRENT_MTU_TOO_LARGE,
 	ENA_XDP_NO_ENOUGH_QUEUES,
 };
-
-static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
-{
-	return adapter->xdp_first_ring != 0;
-}
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {

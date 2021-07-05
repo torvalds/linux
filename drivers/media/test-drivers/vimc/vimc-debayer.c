@@ -150,17 +150,17 @@ static bool vimc_deb_src_code_is_valid(u32 code)
 }
 
 static int vimc_deb_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg)
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf;
 	unsigned int i;
 
-	mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 	*mf = sink_fmt_default;
 
 	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
 		*mf = sink_fmt_default;
 		mf->code = vdeb->src_code;
 	}
@@ -169,7 +169,7 @@ static int vimc_deb_init_cfg(struct v4l2_subdev *sd,
 }
 
 static int vimc_deb_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (VIMC_IS_SRC(code->pad)) {
@@ -188,7 +188,7 @@ static int vimc_deb_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index)
@@ -213,14 +213,14 @@ static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int vimc_deb_get_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
 
 	/* Get the current sink format */
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, cfg, 0) :
+		      *v4l2_subdev_get_try_format(sd, sd_state, 0) :
 		      vdeb->sink_fmt;
 
 	/* Set the right code for the source pad */
@@ -251,7 +251,7 @@ static void vimc_deb_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 }
 
 static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
@@ -266,8 +266,8 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 		sink_fmt = &vdeb->sink_fmt;
 		src_code = &vdeb->src_code;
 	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
-		src_code = &v4l2_subdev_get_try_format(sd, cfg, 1)->code;
+		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		src_code = &v4l2_subdev_get_try_format(sd, sd_state, 1)->code;
 	}
 
 	/*

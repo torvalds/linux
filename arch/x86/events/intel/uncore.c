@@ -801,8 +801,6 @@ static void uncore_pmu_enable(struct pmu *pmu)
 	struct intel_uncore_box *box;
 
 	uncore_pmu = container_of(pmu, struct intel_uncore_pmu, pmu);
-	if (!uncore_pmu)
-		return;
 
 	box = uncore_pmu_to_box(uncore_pmu, smp_processor_id());
 	if (!box)
@@ -818,8 +816,6 @@ static void uncore_pmu_disable(struct pmu *pmu)
 	struct intel_uncore_box *box;
 
 	uncore_pmu = container_of(pmu, struct intel_uncore_pmu, pmu);
-	if (!uncore_pmu)
-		return;
 
 	box = uncore_pmu_to_box(uncore_pmu, smp_processor_id());
 	if (!box)

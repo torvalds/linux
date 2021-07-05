@@ -73,7 +73,7 @@ smp_86xx_kick_cpu(int nr)
 
 	/* Setup fake reset vector to call __secondary_start_mpc86xx. */
 	target = (unsigned long) __secondary_start_mpc86xx;
-	patch_branch((struct ppc_inst *)vector, target, BRANCH_SET_LINK);
+	patch_branch(vector, target, BRANCH_SET_LINK);
 
 	/* Kick that CPU */
 	smp_86xx_release_core(nr);
@@ -83,7 +83,7 @@ smp_86xx_kick_cpu(int nr)
 		mdelay(1);
 
 	/* Restore the exception vector */
-	patch_instruction((struct ppc_inst *)vector, ppc_inst(save_vector));
+	patch_instruction(vector, ppc_inst(save_vector));
 
 	local_irq_restore(flags);
 

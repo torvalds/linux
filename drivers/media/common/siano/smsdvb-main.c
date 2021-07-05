@@ -26,8 +26,8 @@ Copyright (C) 2006-2008, Uri Shkolnik
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static struct list_head g_smsdvb_clients;
-static struct mutex g_smsdvb_clientslock;
+static LIST_HEAD(g_smsdvb_clients);
+static DEFINE_MUTEX(g_smsdvb_clientslock);
 
 static u32 sms_to_guard_interval_table[] = {
 	[0] = GUARD_INTERVAL_1_32,
@@ -1212,6 +1212,10 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	return 0;
 
 media_graph_error:
+	mutex_lock(&g_smsdvb_clientslock);
+	list_del(&client->entry);
+	mutex_unlock(&g_smsdvb_clientslock);
+
 	smsdvb_debugfs_release(client);
 
 client_error:
@@ -1235,9 +1239,6 @@ adapter_error:
 static int __init smsdvb_module_init(void)
 {
 	int rc;
-
-	INIT_LIST_HEAD(&g_smsdvb_clients);
-	mutex_init(&g_smsdvb_clientslock);
 
 	smsdvb_debugfs_register();
 

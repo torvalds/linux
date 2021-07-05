@@ -12,6 +12,19 @@ BPF instruction-set.
 The Cilium project also maintains a `BPF and XDP Reference Guide`_
 that goes into great technical depth about the BPF Architecture.
 
+libbpf
+======
+
+Libbpf is a userspace library for loading and interacting with bpf programs.
+
+.. toctree::
+   :maxdepth: 1
+
+   libbpf/libbpf
+   libbpf/libbpf_api
+   libbpf/libbpf_build
+   libbpf/libbpf_naming_convention
+
 BPF Type Format (BTF)
 =====================
 
@@ -84,6 +97,7 @@ Other
    :maxdepth: 1
 
    ringbuf
+   llvm_reloc
 
 .. Links:
 .. _networking-filter: ../networking/filter.rst

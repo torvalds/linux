@@ -247,12 +247,10 @@ static struct qede_rdma_event_work *
 qede_rdma_get_free_event_node(struct qede_dev *edev)
 {
 	struct qede_rdma_event_work *event_node = NULL;
-	struct list_head *list_node = NULL;
 	bool found = false;
 
-	list_for_each(list_node, &edev->rdma_info.rdma_event_list) {
-		event_node = list_entry(list_node, struct qede_rdma_event_work,
-					list);
+	list_for_each_entry(event_node, &edev->rdma_info.rdma_event_list,
+			    list) {
 		if (!work_pending(&event_node->work)) {
 			found = true;
 			break;

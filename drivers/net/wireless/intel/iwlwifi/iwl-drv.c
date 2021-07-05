@@ -1117,6 +1117,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				IWL_ERROR_EVENT_TABLE_LMAC1;
 			break;
 			}
+		case IWL_UCODE_TLV_TCM_DEBUG_ADDRS: {
+			struct iwl_fw_tcm_error_addr *ptr = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*ptr))
+				goto invalid_tlv_len;
+			drv->trans->dbg.tcm_error_event_table =
+				le32_to_cpu(ptr->addr) & ~FW_ADDR_CACHE_CONTROL;
+			drv->trans->dbg.error_event_table_tlv_status |=
+				IWL_ERROR_EVENT_TABLE_TCM;
+			break;
+			}
 		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 		case IWL_UCODE_TLV_TYPE_HCMD:

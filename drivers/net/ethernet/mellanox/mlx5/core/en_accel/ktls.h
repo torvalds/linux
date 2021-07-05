@@ -15,6 +15,25 @@ int mlx5e_ktls_set_feature_rx(struct net_device *netdev, bool enable);
 struct mlx5e_ktls_resync_resp *
 mlx5e_ktls_rx_resync_create_resp_list(void);
 void mlx5e_ktls_rx_resync_destroy_resp_list(struct mlx5e_ktls_resync_resp *resp_list);
+
+static inline bool mlx5e_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
+{
+	return !is_kdump_kernel() &&
+		mlx5_accel_is_ktls_tx(mdev);
+}
+
+static inline bool mlx5e_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
+{
+	return !is_kdump_kernel() &&
+		mlx5_accel_is_ktls_rx(mdev);
+}
+
+static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev)
+{
+	return !is_kdump_kernel() &&
+		mlx5_accel_is_ktls_device(mdev);
+}
+
 #else
 
 static inline void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
@@ -44,6 +63,11 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 
 static inline void
 mlx5e_ktls_rx_resync_destroy_resp_list(struct mlx5e_ktls_resync_resp *resp_list) {}
+
+static inline bool mlx5e_accel_is_ktls_tx(struct mlx5_core_dev *mdev) { return false; }
+static inline bool mlx5e_accel_is_ktls_rx(struct mlx5_core_dev *mdev) { return false; }
+static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev) { return false; }
+
 #endif
 
 #endif /* __MLX5E_TLS_H__ */

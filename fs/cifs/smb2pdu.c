@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/smb2pdu.c
  *
@@ -8,19 +9,6 @@
  *
  *   Contains the routines for constructing the SMB2 PDUs themselves
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
  /* SMB2 PDU handling routines here - except for leftovers (eg session setup) */
@@ -1791,10 +1779,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	rsp = (struct smb2_tree_connect_rsp *)rsp_iov.iov_base;
 	trace_smb3_tcon(xid, tcon->tid, ses->Suid, tree, rc);
 	if (rc != 0) {
-		if (tcon) {
-			cifs_stats_fail_inc(tcon, SMB2_TREE_CONNECT_HE);
-			tcon->need_reconnect = true;
-		}
+		cifs_stats_fail_inc(tcon, SMB2_TREE_CONNECT_HE);
+		tcon->need_reconnect = true;
 		goto tcon_error_exit;
 	}
 
@@ -2906,7 +2892,10 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 #endif /* CIFS_DEBUG2 */
 
 	if (buf) {
-		memcpy(buf, &rsp->CreationTime, 32);
+		buf->CreationTime = rsp->CreationTime;
+		buf->LastAccessTime = rsp->LastAccessTime;
+		buf->LastWriteTime = rsp->LastWriteTime;
+		buf->ChangeTime = rsp->ChangeTime;
 		buf->AllocationSize = rsp->AllocationSize;
 		buf->EndOfFile = rsp->EndofFile;
 		buf->Attributes = rsp->FileAttributes;
@@ -3484,6 +3473,8 @@ int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			  NULL);
 }
 
+#if 0
+/* currently unused, as now we are doing compounding instead (see smb311_posix_query_path_info) */
 int
 SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen)
@@ -3495,7 +3486,9 @@ SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
 			  SMB_FIND_FILE_POSIX_INFO, SMB2_O_INFO_FILE, 0,
 			  output_len, sizeof(struct smb311_posix_qinfo), (void **)&data, plen);
+	/* Note caller must free "data" (passed in above). It may be allocated in query_info call */
 }
+#endif
 
 int
 SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
@@ -4498,7 +4491,7 @@ int posix_info_parse(const void *beg, const void *end,
 
 {
 	int total_len = 0;
-	int sid_len;
+	int owner_len, group_len;
 	int name_len;
 	const void *owner_sid;
 	const void *group_sid;
@@ -4521,17 +4514,17 @@ int posix_info_parse(const void *beg, const void *end,
 
 	/* check owner sid */
 	owner_sid = beg + total_len;
-	sid_len = posix_info_sid_size(owner_sid, end);
-	if (sid_len < 0)
+	owner_len = posix_info_sid_size(owner_sid, end);
+	if (owner_len < 0)
 		return -1;
-	total_len += sid_len;
+	total_len += owner_len;
 
 	/* check group sid */
 	group_sid = beg + total_len;
-	sid_len = posix_info_sid_size(group_sid, end);
-	if (sid_len < 0)
+	group_len = posix_info_sid_size(group_sid, end);
+	if (group_len < 0)
 		return -1;
-	total_len += sid_len;
+	total_len += group_len;
 
 	/* check name len */
 	if (beg + total_len + 4 > end)
@@ -4552,10 +4545,8 @@ int posix_info_parse(const void *beg, const void *end,
 		out->size = total_len;
 		out->name_len = name_len;
 		out->name = name;
-		memcpy(&out->owner, owner_sid,
-		       posix_info_sid_size(owner_sid, end));
-		memcpy(&out->group, group_sid,
-		       posix_info_sid_size(group_sid, end));
+		memcpy(&out->owner, owner_sid, owner_len);
+		memcpy(&out->group, group_sid, group_len);
 	}
 	return total_len;
 }

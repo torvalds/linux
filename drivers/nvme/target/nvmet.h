@@ -28,6 +28,7 @@
 #define NVMET_NO_ERROR_LOC		((u16)-1)
 #define NVMET_DEFAULT_CTRL_MODEL	"Linux"
 #define NVMET_MN_MAX_SIZE		40
+#define NVMET_SN_MAX_SIZE		20
 
 /*
  * Supported optional AENs:
@@ -82,6 +83,7 @@ struct nvmet_ns {
 	struct pci_dev		*p2p_dev;
 	int			pi_type;
 	int			metadata_size;
+	u8			csi;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
@@ -217,7 +219,7 @@ struct nvmet_subsys {
 
 	struct xarray		namespaces;
 	unsigned int		nr_namespaces;
-	unsigned int		max_nsid;
+	u32			max_nsid;
 	u16			cntlid_min;
 	u16			cntlid_max;
 
@@ -229,7 +231,8 @@ struct nvmet_subsys {
 	u16			max_qid;
 
 	u64			ver;
-	u64			serial;
+	char			serial[NVMET_SN_MAX_SIZE];
+	bool			subsys_discovered;
 	char			*subsysnqn;
 	bool			pi_support;
 
@@ -247,6 +250,10 @@ struct nvmet_subsys {
 	unsigned int		admin_timeout;
 	unsigned int		io_timeout;
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
+
+#ifdef CONFIG_BLK_DEV_ZONED
+	u8			zasl;
+#endif /* CONFIG_BLK_DEV_ZONED */
 };
 
 static inline struct nvmet_subsys *to_subsys(struct config_item *item)
@@ -332,6 +339,12 @@ struct nvmet_req {
 			struct work_struct      work;
 			bool			use_workqueue;
 		} p;
+#ifdef CONFIG_BLK_DEV_ZONED
+		struct {
+			struct bio		inline_bio;
+			struct work_struct	zmgmt_work;
+		} z;
+#endif /* CONFIG_BLK_DEV_ZONED */
 	};
 	int			sg_cnt;
 	int			metadata_sg_cnt;
@@ -351,6 +364,7 @@ struct nvmet_req {
 };
 
 extern struct workqueue_struct *buffered_io_wq;
+extern struct workqueue_struct *zbd_wq;
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
@@ -400,6 +414,7 @@ u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
 void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_bdev_zns_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
@@ -527,6 +542,14 @@ void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
 void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns);
 int nvmet_file_ns_revalidate(struct nvmet_ns *ns);
 void nvmet_ns_revalidate(struct nvmet_ns *ns);
+u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts);
+
+bool nvmet_bdev_zns_enable(struct nvmet_ns *ns);
+void nvmet_execute_identify_cns_cs_ctrl(struct nvmet_req *req);
+void nvmet_execute_identify_cns_cs_ns(struct nvmet_req *req);
+void nvmet_bdev_execute_zone_mgmt_recv(struct nvmet_req *req);
+void nvmet_bdev_execute_zone_mgmt_send(struct nvmet_req *req);
+void nvmet_bdev_execute_zone_append(struct nvmet_req *req);
 
 static inline u32 nvmet_rw_data_len(struct nvmet_req *req)
 {
@@ -620,6 +643,20 @@ static inline bool nvmet_use_inline_bvec(struct nvmet_req *req)
 {
 	return req->transfer_len <= NVMET_MAX_INLINE_DATA_LEN &&
 	       req->sg_cnt <= NVMET_MAX_INLINE_BIOVEC;
+}
+
+static inline void nvmet_req_cns_error_complete(struct nvmet_req *req)
+{
+	pr_debug("unhandled identify cns %d on qid %d\n",
+	       req->cmd->identify.cns, req->sq->qid);
+	req->error_loc = offsetof(struct nvme_identify, cns);
+	nvmet_req_complete(req, NVME_SC_INVALID_FIELD | NVME_SC_DNR);
+}
+
+static inline void nvmet_req_bio_put(struct nvmet_req *req, struct bio *bio)
+{
+	if (bio != &req->b.inline_bio)
+		bio_put(bio);
 }
 
 #endif /* _NVMET_H */

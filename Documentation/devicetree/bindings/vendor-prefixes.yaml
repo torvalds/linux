@@ -830,6 +830,8 @@ patternProperties:
     description: Opal Kelly Incorporated
   "^opencores,.*":
     description: OpenCores.org
+  "^openembed,.*":
+    description: OpenEmbed
   "^openrisc,.*":
     description: OpenRISC.io
   "^option,.*":

@@ -2,6 +2,7 @@
 #ifndef __CGROUP_H__
 #define __CGROUP_H__
 
+#include <linux/compiler.h>
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include "util/env.h"
@@ -37,5 +38,16 @@ struct cgroup *cgroup__findnew(struct perf_env *env, uint64_t id,
 struct cgroup *cgroup__find(struct perf_env *env, uint64_t id);
 
 void perf_env__purge_cgroups(struct perf_env *env);
+
+#ifdef HAVE_FILE_HANDLE
+int read_cgroup_id(struct cgroup *cgrp);
+#else
+static inline int read_cgroup_id(struct cgroup *cgrp __maybe_unused)
+{
+	return -1;
+}
+#endif  /* HAVE_FILE_HANDLE */
+
+int cgroup_is_v2(const char *subsys);
 
 #endif /* __CGROUP_H__ */

@@ -526,7 +526,7 @@ static int usx2y_urbs_start(struct snd_usx2y_substream *subs)
  cleanup:
 	if (err) {
 		usx2y_subs_startup_finish(usx2y);
-		usx2y_clients_stop(usx2y);		// something is completely wroong > stop evrything
+		usx2y_clients_stop(usx2y);	// something is completely wrong > stop everything
 	}
 	return err;
 }

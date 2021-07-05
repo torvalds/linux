@@ -222,12 +222,6 @@
  */
 #define	USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 
-/*
- * No special requirements for lowest virtual address we permit any user space
- * mapping to be mapped at.
- */
-#define FIRST_USER_ADDRESS      0UL
-
 
 /****************************************************************
  * Bucket load of VM Helpers
@@ -355,6 +349,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
 #define kern_addr_valid(addr)	(1)
+
+#define pmd_pgtable(pmd)       ((pgtable_t) pmd_page_vaddr(pmd))
 
 /*
  * remap a physical page `pfn' of size `size' with page protection `prot'

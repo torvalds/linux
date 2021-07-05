@@ -325,7 +325,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
+int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int number_instance,
 				    int *major, int *minor, int *revision)
 {
 	struct binary_header *bhdr;
@@ -357,7 +357,7 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
 		for (j = 0; j < num_ips; j++) {
 			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
 
-			if (le16_to_cpu(ip->hw_id) == hw_id) {
+			if ((le16_to_cpu(ip->hw_id) == hw_id) && (ip->number_instance == number_instance)) {
 				if (major)
 					*major = ip->major;
 				if (minor)
@@ -371,6 +371,14 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
 	}
 
 	return -EINVAL;
+}
+
+
+int amdgpu_discovery_get_vcn_version(struct amdgpu_device *adev, int vcn_instance,
+				     int *major, int *minor, int *revision)
+{
+	return amdgpu_discovery_get_ip_version(adev, VCN_HWID,
+					       vcn_instance, major, minor, revision);
 }
 
 void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)

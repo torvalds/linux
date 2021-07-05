@@ -82,10 +82,8 @@ void test_skeleton(void)
 	CHECK(data->out2 != 2, "res2", "got %lld != exp %d\n", data->out2, 2);
 	CHECK(bss->out3 != 3, "res3", "got %d != exp %d\n", (int)bss->out3, 3);
 	CHECK(bss->out4 != 4, "res4", "got %lld != exp %d\n", bss->out4, 4);
-	CHECK(bss->handler_out5.a != 5, "res5", "got %d != exp %d\n",
-	      bss->handler_out5.a, 5);
-	CHECK(bss->handler_out5.b != 6, "res6", "got %lld != exp %d\n",
-	      bss->handler_out5.b, 6);
+	CHECK(bss->out5.a != 5, "res5", "got %d != exp %d\n", bss->out5.a, 5);
+	CHECK(bss->out5.b != 6, "res6", "got %lld != exp %d\n", bss->out5.b, 6);
 	CHECK(bss->out6 != 14, "res7", "got %d != exp %d\n", bss->out6, 14);
 
 	CHECK(bss->bpf_syscall != kcfg->CONFIG_BPF_SYSCALL, "ext1",

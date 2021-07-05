@@ -173,7 +173,7 @@ What:           /sys/bus/dsa/devices/wq<m>.<n>/priority
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
-Description:    The priority value of this work queue, it is a vlue relative to
+Description:    The priority value of this work queue, it is a value relative to
 		other work queue in the same group to control quality of service
 		for dispatching work from multiple workqueues in the same group.
 

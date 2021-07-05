@@ -1665,8 +1665,7 @@ static int devm_clk_get_enable(struct device *dev, char *id)
 	clk = devm_clk_get(dev, id);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get %s", id);
+		dev_err_probe(dev, ret, "failed to get %s", id);
 		return ret;
 	}
 
@@ -1811,7 +1810,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 
 	ret = device_reset(dev);
 	if (ret) {
-		dev_err(dev, "failed to reset device\n");
+		dev_err_probe(dev, ret, "failed to reset device\n");
 		return ret;
 	}
 

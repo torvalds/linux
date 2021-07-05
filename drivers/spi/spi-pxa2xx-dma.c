@@ -2,18 +2,18 @@
 /*
  * PXA2xx SPI DMA engine support.
  *
- * Copyright (C) 2013, Intel Corporation
+ * Copyright (C) 2013, 2021 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/pxa2xx_ssp.h>
 #include <linux/scatterlist.h>
 #include <linux/sizes.h>
-#include <linux/spi/spi.h>
+
 #include <linux/spi/pxa2xx_spi.h>
+#include <linux/spi/spi.h>
 
 #include "spi-pxa2xx.h"
 
@@ -26,7 +26,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 	 * It is possible that one CPU is handling ROR interrupt and other
 	 * just gets DMA completion. Calling pump_transfers() twice for the
 	 * same transfer leads to problems thus we prevent concurrent calls
-	 * by using ->dma_running.
+	 * by using dma_running.
 	 */
 	if (atomic_dec_and_test(&drv_data->dma_running)) {
 		/*
@@ -34,25 +34,18 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 		 * might not know about the error yet. So we re-check the
 		 * ROR bit here before we clear the status register.
 		 */
-		if (!error) {
-			u32 status = pxa2xx_spi_read(drv_data, SSSR)
-				     & drv_data->mask_sr;
-			error = status & SSSR_ROR;
-		}
+		if (!error)
+			error = read_SSSR_bits(drv_data, drv_data->mask_sr) & SSSR_ROR;
 
 		/* Clear status & disable interrupts */
-		pxa2xx_spi_write(drv_data, SSCR1,
-				 pxa2xx_spi_read(drv_data, SSCR1)
-				 & ~drv_data->dma_cr1);
+		clear_SSCR1_bits(drv_data, drv_data->dma_cr1);
 		write_SSSR_CS(drv_data, drv_data->clear_sr);
 		if (!pxa25x_ssp_comp(drv_data))
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		if (error) {
 			/* In case we got an error we disable the SSP now */
-			pxa2xx_spi_write(drv_data, SSCR0,
-					 pxa2xx_spi_read(drv_data, SSCR0)
-					 & ~SSCR0_SSE);
+			pxa_ssp_disable(drv_data->ssp);
 			msg->status = -EIO;
 		}
 
@@ -94,14 +87,14 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 	cfg.direction = dir;
 
 	if (dir == DMA_MEM_TO_DEV) {
-		cfg.dst_addr = drv_data->ssdr_physical;
+		cfg.dst_addr = drv_data->ssp->phys_base + SSDR;
 		cfg.dst_addr_width = width;
 		cfg.dst_maxburst = chip->dma_burst_size;
 
 		sgt = &xfer->tx_sg;
 		chan = drv_data->controller->dma_tx;
 	} else {
-		cfg.src_addr = drv_data->ssdr_physical;
+		cfg.src_addr = drv_data->ssp->phys_base + SSDR;
 		cfg.src_addr_width = width;
 		cfg.src_maxburst = chip->dma_burst_size;
 
@@ -111,7 +104,7 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
-		dev_warn(&drv_data->pdev->dev, "DMA slave config failed\n");
+		dev_warn(drv_data->ssp->dev, "DMA slave config failed\n");
 		return NULL;
 	}
 
@@ -123,9 +116,9 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 {
 	u32 status;
 
-	status = pxa2xx_spi_read(drv_data, SSSR) & drv_data->mask_sr;
+	status = read_SSSR_bits(drv_data, drv_data->mask_sr);
 	if (status & SSSR_ROR) {
-		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
+		dev_err(drv_data->ssp->dev, "FIFO overrun\n");
 
 		dmaengine_terminate_async(drv_data->controller->dma_rx);
 		dmaengine_terminate_async(drv_data->controller->dma_tx);
@@ -145,16 +138,14 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
 
 	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV, xfer);
 	if (!tx_desc) {
-		dev_err(&drv_data->pdev->dev,
-			"failed to get DMA TX descriptor\n");
+		dev_err(drv_data->ssp->dev, "failed to get DMA TX descriptor\n");
 		err = -EBUSY;
 		goto err_tx;
 	}
 
 	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM, xfer);
 	if (!rx_desc) {
-		dev_err(&drv_data->pdev->dev,
-			"failed to get DMA RX descriptor\n");
+		dev_err(drv_data->ssp->dev, "failed to get DMA RX descriptor\n");
 		err = -EBUSY;
 		goto err_rx;
 	}
@@ -191,8 +182,8 @@ void pxa2xx_spi_dma_stop(struct driver_data *drv_data)
 int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
 	struct pxa2xx_spi_controller *pdata = drv_data->controller_info;
-	struct device *dev = &drv_data->pdev->dev;
 	struct spi_controller *controller = drv_data->controller;
+	struct device *dev = drv_data->ssp->dev;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);

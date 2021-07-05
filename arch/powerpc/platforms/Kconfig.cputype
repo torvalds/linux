@@ -61,6 +61,7 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
+	select PPC_HAVE_KUEP
 
 endchoice
 
@@ -111,6 +112,7 @@ config PPC_BOOK3E_64
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
+	select ZONE_DMA
 
 endchoice
 
@@ -389,7 +391,7 @@ config PPC_HAVE_KUEP
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention"
 	depends on PPC_HAVE_KUEP
-	default y if !PPC_BOOK3S_32
+	default y
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
@@ -401,7 +403,7 @@ config PPC_HAVE_KUAP
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
 	depends on PPC_HAVE_KUAP
-	default y if !PPC_BOOK3S_32
+	default y
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
 
@@ -423,10 +425,6 @@ config PPC_PKEY
 config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_BOOK3S
-
-config PPC_MMU_NOHASH_32
-	def_bool y
-	depends on PPC_MMU_NOHASH && PPC32
 
 config PPC_BOOK3E_MMU
 	def_bool y
@@ -476,9 +474,9 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-8192)"
-	range 2 8192
-	depends on SMP
+	int "Maximum number of CPUs (2-8192)" if SMP
+	range 2 8192 if SMP
+	default "1" if !SMP
 	default "32" if PPC64
 	default "4"
 

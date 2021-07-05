@@ -11,6 +11,7 @@
 #include <linux/rcupdate.h>
 #include <linux/smp.h>
 #include <linux/trace_events.h>
+#include <linux/local_lock.h>
 
 EXPORT_TRACEPOINT_SYMBOL(mmap_lock_start_locking);
 EXPORT_TRACEPOINT_SYMBOL(mmap_lock_acquire_returned);
@@ -39,21 +40,30 @@ static int reg_refcount; /* Protected by reg_lock. */
  */
 #define CONTEXT_COUNT 4
 
-static DEFINE_PER_CPU(char __rcu *, memcg_path_buf);
+struct memcg_path {
+	local_lock_t lock;
+	char __rcu *buf;
+	local_t buf_idx;
+};
+static DEFINE_PER_CPU(struct memcg_path, memcg_paths) = {
+	.lock = INIT_LOCAL_LOCK(lock),
+	.buf_idx = LOCAL_INIT(0),
+};
+
 static char **tmp_bufs;
-static DEFINE_PER_CPU(int, memcg_path_buf_idx);
 
 /* Called with reg_lock held. */
 static void free_memcg_path_bufs(void)
 {
+	struct memcg_path *memcg_path;
 	int cpu;
 	char **old = tmp_bufs;
 
 	for_each_possible_cpu(cpu) {
-		*(old++) = rcu_dereference_protected(
-			per_cpu(memcg_path_buf, cpu),
+		memcg_path = per_cpu_ptr(&memcg_paths, cpu);
+		*(old++) = rcu_dereference_protected(memcg_path->buf,
 			lockdep_is_held(&reg_lock));
-		rcu_assign_pointer(per_cpu(memcg_path_buf, cpu), NULL);
+		rcu_assign_pointer(memcg_path->buf, NULL);
 	}
 
 	/* Wait for inflight memcg_path_buf users to finish. */
@@ -88,7 +98,7 @@ int trace_mmap_lock_reg(void)
 		new = kmalloc(MEMCG_PATH_BUF_SIZE * CONTEXT_COUNT, GFP_KERNEL);
 		if (new == NULL)
 			goto out_fail_free;
-		rcu_assign_pointer(per_cpu(memcg_path_buf, cpu), new);
+		rcu_assign_pointer(per_cpu_ptr(&memcg_paths, cpu)->buf, new);
 		/* Don't need to wait for inflights, they'd have gotten NULL. */
 	}
 
@@ -122,26 +132,58 @@ out:
 
 static inline char *get_memcg_path_buf(void)
 {
+	struct memcg_path *memcg_path = this_cpu_ptr(&memcg_paths);
 	char *buf;
 	int idx;
 
 	rcu_read_lock();
-	buf = rcu_dereference(*this_cpu_ptr(&memcg_path_buf));
+	buf = rcu_dereference(memcg_path->buf);
 	if (buf == NULL) {
 		rcu_read_unlock();
 		return NULL;
 	}
-	idx = this_cpu_add_return(memcg_path_buf_idx, MEMCG_PATH_BUF_SIZE) -
+	idx = local_add_return(MEMCG_PATH_BUF_SIZE, &memcg_path->buf_idx) -
 	      MEMCG_PATH_BUF_SIZE;
 	return &buf[idx];
 }
 
 static inline void put_memcg_path_buf(void)
 {
-	this_cpu_sub(memcg_path_buf_idx, MEMCG_PATH_BUF_SIZE);
+	local_sub(MEMCG_PATH_BUF_SIZE, &this_cpu_ptr(&memcg_paths)->buf_idx);
 	rcu_read_unlock();
 }
 
+#define TRACE_MMAP_LOCK_EVENT(type, mm, ...)                                   \
+	do {                                                                   \
+		const char *memcg_path;                                        \
+		preempt_disable();                                             \
+		memcg_path = get_mm_memcg_path(mm);                            \
+		trace_mmap_lock_##type(mm,                                     \
+				       memcg_path != NULL ? memcg_path : "",   \
+				       ##__VA_ARGS__);                         \
+		if (likely(memcg_path != NULL))                                \
+			put_memcg_path_buf();                                  \
+		preempt_enable();                                              \
+	} while (0)
+
+#else /* !CONFIG_MEMCG */
+
+int trace_mmap_lock_reg(void)
+{
+	return 0;
+}
+
+void trace_mmap_lock_unreg(void)
+{
+}
+
+#define TRACE_MMAP_LOCK_EVENT(type, mm, ...)                                   \
+	trace_mmap_lock_##type(mm, "", ##__VA_ARGS__)
+
+#endif /* CONFIG_MEMCG */
+
+#ifdef CONFIG_TRACING
+#ifdef CONFIG_MEMCG
 /*
  * Write the given mm_struct's memcg path to a percpu buffer, and return a
  * pointer to it. If the path cannot be determined, or no buffer was available
@@ -176,33 +218,6 @@ out:
 	return buf;
 }
 
-#define TRACE_MMAP_LOCK_EVENT(type, mm, ...)                                   \
-	do {                                                                   \
-		const char *memcg_path;                                        \
-		preempt_disable();                                             \
-		memcg_path = get_mm_memcg_path(mm);                            \
-		trace_mmap_lock_##type(mm,                                     \
-				       memcg_path != NULL ? memcg_path : "",   \
-				       ##__VA_ARGS__);                         \
-		if (likely(memcg_path != NULL))                                \
-			put_memcg_path_buf();                                  \
-		preempt_enable();                                              \
-	} while (0)
-
-#else /* !CONFIG_MEMCG */
-
-int trace_mmap_lock_reg(void)
-{
-	return 0;
-}
-
-void trace_mmap_lock_unreg(void)
-{
-}
-
-#define TRACE_MMAP_LOCK_EVENT(type, mm, ...)                                   \
-	trace_mmap_lock_##type(mm, "", ##__VA_ARGS__)
-
 #endif /* CONFIG_MEMCG */
 
 /*
@@ -228,3 +243,4 @@ void __mmap_lock_do_trace_released(struct mm_struct *mm, bool write)
 	TRACE_MMAP_LOCK_EVENT(released, mm, write);
 }
 EXPORT_SYMBOL(__mmap_lock_do_trace_released);
+#endif /* CONFIG_TRACING */

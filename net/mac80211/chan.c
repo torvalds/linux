@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 - channel management
+ * Copyright 2020 - 2021 Intel Corporation
  */
 
 #include <linux/nl80211.h>
@@ -308,8 +309,8 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
  * the max of min required widths of all the interfaces bound to this
  * channel context.
  */
-void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
-				      struct ieee80211_chanctx *ctx)
+static u32 _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
+					     struct ieee80211_chanctx *ctx)
 {
 	enum nl80211_chan_width max_bw;
 	struct cfg80211_chan_def min_def;
@@ -326,7 +327,7 @@ void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 	    ctx->conf.def.width == NL80211_CHAN_WIDTH_16 ||
 	    ctx->conf.radar_enabled) {
 		ctx->conf.min_def = ctx->conf.def;
-		return;
+		return 0;
 	}
 
 	max_bw = ieee80211_get_chanctx_max_required_bw(local, &ctx->conf);
@@ -337,17 +338,21 @@ void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 		ieee80211_chandef_downgrade(&min_def);
 
 	if (cfg80211_chandef_identical(&ctx->conf.min_def, &min_def))
-		return;
+		return 0;
 
 	ctx->conf.min_def = min_def;
 	if (!ctx->driver_present)
-		return;
+		return 0;
 
-	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_MIN_WIDTH);
+	return IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
 }
 
+/* calling this function is assuming that station vif is updated to
+ * lates changes by calling ieee80211_vif_update_chandef
+ */
 static void ieee80211_chan_bw_change(struct ieee80211_local *local,
-				     struct ieee80211_chanctx *ctx)
+				     struct ieee80211_chanctx *ctx,
+				     bool narrowed)
 {
 	struct sta_info *sta;
 	struct ieee80211_supported_band *sband =
@@ -366,7 +371,14 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 			continue;
 
 		new_sta_bw = ieee80211_sta_cur_vht_bw(sta);
+
+		/* nothing change */
 		if (new_sta_bw == sta->sta.bandwidth)
+			continue;
+
+		/* vif changed to narrow BW and narrow BW for station wasn't
+		 * requested or vise versa */
+		if ((new_sta_bw < sta->sta.bandwidth) == !narrowed)
 			continue;
 
 		sta->sta.bandwidth = new_sta_bw;
@@ -376,21 +388,34 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 	rcu_read_unlock();
 }
 
+/*
+ * recalc the min required chan width of the channel context, which is
+ * the max of min required widths of all the interfaces bound to this
+ * channel context.
+ */
+void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx)
+{
+	u32 changed = _ieee80211_recalc_chanctx_min_def(local, ctx);
+
+	if (!changed)
+		return;
+
+	/* check is BW narrowed */
+	ieee80211_chan_bw_change(local, ctx, true);
+
+	drv_change_chanctx(local, ctx, changed);
+
+	/* check is BW wider */
+	ieee80211_chan_bw_change(local, ctx, false);
+}
+
 static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
+				     struct ieee80211_chanctx *old_ctx,
 				     const struct cfg80211_chan_def *chandef)
 {
-	enum nl80211_chan_width width;
-
-	if (cfg80211_chandef_identical(&ctx->conf.def, chandef)) {
-		ieee80211_recalc_chanctx_min_def(local, ctx);
-		return;
-	}
-
-	WARN_ON(!cfg80211_chandef_compatible(&ctx->conf.def, chandef));
-
-	width = ctx->conf.def.width;
-	ctx->conf.def = *chandef;
+	u32 changed;
 
 	/* expected to handle only 20/40/80/160 channel widths */
 	switch (chandef->width) {
@@ -405,19 +430,33 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 		WARN_ON(1);
 	}
 
-	if (chandef->width < width)
-		ieee80211_chan_bw_change(local, ctx);
+	/* Check maybe BW narrowed - we do this _before_ calling recalc_chanctx_min_def
+	 * due to maybe not returning from it, e.g in case new context was added
+	 * first time with all parameters up to date.
+	 */
+	ieee80211_chan_bw_change(local, old_ctx, true);
 
-	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_WIDTH);
-	ieee80211_recalc_chanctx_min_def(local, ctx);
+	if (cfg80211_chandef_identical(&ctx->conf.def, chandef)) {
+		ieee80211_recalc_chanctx_min_def(local, ctx);
+		return;
+	}
+
+	WARN_ON(!cfg80211_chandef_compatible(&ctx->conf.def, chandef));
+
+	ctx->conf.def = *chandef;
+
+	/* check if min chanctx also changed */
+	changed = IEEE80211_CHANCTX_CHANGE_WIDTH |
+		  _ieee80211_recalc_chanctx_min_def(local, ctx);
+	drv_change_chanctx(local, ctx, changed);
 
 	if (!local->use_chanctx) {
 		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	}
 
-	if (chandef->width > width)
-		ieee80211_chan_bw_change(local, ctx);
+	/* check is BW wider */
+	ieee80211_chan_bw_change(local, old_ctx, false);
 }
 
 static struct ieee80211_chanctx *
@@ -450,7 +489,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 		if (!compat)
 			continue;
 
-		ieee80211_change_chanctx(local, ctx, compat);
+		ieee80211_change_chanctx(local, ctx, ctx, compat);
 
 		return ctx;
 	}
@@ -679,7 +718,7 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	if (!compat)
 		return;
 
-	ieee80211_change_chanctx(local, ctx, compat);
+	ieee80211_change_chanctx(local, ctx, ctx, compat);
 }
 
 static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
@@ -1107,13 +1146,12 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(!chandef))
 		return -EINVAL;
 
-	if (old_ctx->conf.def.width > new_ctx->conf.def.width)
-		ieee80211_chan_bw_change(local, new_ctx);
+	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
+		changed = BSS_CHANGED_BANDWIDTH;
 
-	ieee80211_change_chanctx(local, new_ctx, chandef);
+	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 
-	if (old_ctx->conf.def.width < new_ctx->conf.def.width)
-		ieee80211_chan_bw_change(local, new_ctx);
+	ieee80211_change_chanctx(local, new_ctx, old_ctx, chandef);
 
 	vif_chsw[0].vif = &sdata->vif;
 	vif_chsw[0].old_ctx = &old_ctx->conf;
@@ -1142,14 +1180,9 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_chanctx_refcount(local, old_ctx) == 0)
 		ieee80211_free_chanctx(local, old_ctx);
 
-	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
-		changed = BSS_CHANGED_BANDWIDTH;
-
-	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
-
+	ieee80211_recalc_chanctx_min_def(local, new_ctx);
 	ieee80211_recalc_smps_chanctx(local, new_ctx);
 	ieee80211_recalc_radar_chanctx(local, new_ctx);
-	ieee80211_recalc_chanctx_min_def(local, new_ctx);
 
 	if (changed)
 		ieee80211_bss_info_change_notify(sdata, changed);
@@ -1188,7 +1221,7 @@ ieee80211_vif_use_reserved_assign(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(!chandef))
 		return -EINVAL;
 
-	ieee80211_change_chanctx(local, new_ctx, chandef);
+	ieee80211_change_chanctx(local, new_ctx, new_ctx, chandef);
 
 	list_del(&sdata->reserved_chanctx_list);
 	sdata->reserved_chanctx = NULL;
@@ -1505,7 +1538,6 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		ieee80211_recalc_smps_chanctx(local, ctx);
 		ieee80211_recalc_radar_chanctx(local, ctx);
 		ieee80211_recalc_chanctx_min_def(local, ctx);
-		ieee80211_chan_bw_change(local, ctx);
 
 		list_for_each_entry_safe(sdata, sdata_tmp, &ctx->reserved_vifs,
 					 reserved_chanctx_list) {

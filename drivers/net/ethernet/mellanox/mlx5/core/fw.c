@@ -148,6 +148,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	if (err)
 		return err;
 
+	if (MLX5_CAP_GEN(dev, hca_cap_2)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL_2);
+		if (err)
+			return err;
+	}
+
 	if (MLX5_CAP_GEN(dev, eth_net_offloads)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS);
 		if (err)

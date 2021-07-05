@@ -83,8 +83,8 @@
 #define AT803X_MODE_CFG_MASK			0x0F
 #define AT803X_MODE_CFG_SGMII			0x01
 
-#define AT803X_PSSR			0x11	/*PHY-Specific Status Register*/
-#define AT803X_PSSR_MR_AN_COMPLETE	0x0200
+#define AT803X_PSSR				0x11	/*PHY-Specific Status Register*/
+#define AT803X_PSSR_MR_AN_COMPLETE		0x0200
 
 #define AT803X_DEBUG_REG_0			0x00
 #define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
@@ -92,9 +92,15 @@
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
+#define AT803X_DEBUG_REG_3C			0x3C
+
+#define AT803X_DEBUG_REG_3D			0x3D
+
 #define AT803X_DEBUG_REG_1F			0x1F
 #define AT803X_DEBUG_PLL_ON			BIT(2)
 #define AT803X_DEBUG_RGMII_1V8			BIT(3)
+
+#define MDIO_AZ_DEBUG				0x800D
 
 /* AT803x supports either the XTAL input pad, an internal PLL or the
  * DSP as clock reference for the clock output pad. The XTAL reference
@@ -128,33 +134,59 @@
 #define AT803X_CLK_OUT_STRENGTH_HALF		1
 #define AT803X_CLK_OUT_STRENGTH_QUARTER		2
 
-#define AT803X_DEFAULT_DOWNSHIFT 5
-#define AT803X_MIN_DOWNSHIFT 2
-#define AT803X_MAX_DOWNSHIFT 9
+#define AT803X_DEFAULT_DOWNSHIFT		5
+#define AT803X_MIN_DOWNSHIFT			2
+#define AT803X_MAX_DOWNSHIFT			9
 
 #define AT803X_MMD3_SMARTEEE_CTL1		0x805b
 #define AT803X_MMD3_SMARTEEE_CTL2		0x805c
 #define AT803X_MMD3_SMARTEEE_CTL3		0x805d
 #define AT803X_MMD3_SMARTEEE_CTL3_LPI_EN	BIT(8)
 
-#define ATH9331_PHY_ID 0x004dd041
-#define ATH8030_PHY_ID 0x004dd076
-#define ATH8031_PHY_ID 0x004dd074
-#define ATH8032_PHY_ID 0x004dd023
-#define ATH8035_PHY_ID 0x004dd072
+#define ATH9331_PHY_ID				0x004dd041
+#define ATH8030_PHY_ID				0x004dd076
+#define ATH8031_PHY_ID				0x004dd074
+#define ATH8032_PHY_ID				0x004dd023
+#define ATH8035_PHY_ID				0x004dd072
 #define AT8030_PHY_ID_MASK			0xffffffef
 
-#define AT803X_PAGE_FIBER		0
-#define AT803X_PAGE_COPPER		1
+#define QCA8327_PHY_ID				0x004dd034
+#define QCA8337_PHY_ID				0x004dd036
+#define QCA8K_PHY_ID_MASK			0xffffffff
+
+#define QCA8K_DEVFLAGS_REVISION_MASK		GENMASK(2, 0)
+
+#define AT803X_PAGE_FIBER			0
+#define AT803X_PAGE_COPPER			1
+
+/* don't turn off internal PLL */
+#define AT803X_KEEP_PLL_ENABLED			BIT(0)
+#define AT803X_DISABLE_SMARTEEE			BIT(1)
 
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
 
+enum stat_access_type {
+	PHY,
+	MMD
+};
+
+struct at803x_hw_stat {
+	const char *string;
+	u8 reg;
+	u32 mask;
+	enum stat_access_type access_type;
+};
+
+static struct at803x_hw_stat at803x_hw_stats[] = {
+	{ "phy_idle_errors", 0xa, GENMASK(7, 0), PHY},
+	{ "phy_receive_errors", 0x15, GENMASK(15, 0), PHY},
+	{ "eee_wake_errors", 0x16, GENMASK(15, 0), MMD},
+};
+
 struct at803x_priv {
 	int flags;
-#define AT803X_KEEP_PLL_ENABLED	BIT(0)	/* don't turn off internal PLL */
-#define AT803X_DISABLE_SMARTEEE	BIT(1)
 	u16 clk_25m_reg;
 	u16 clk_25m_mask;
 	u8 smarteee_lpi_tw_1g;
@@ -162,6 +194,7 @@ struct at803x_priv {
 	struct regulator_dev *vddio_rdev;
 	struct regulator_dev *vddh_rdev;
 	struct regulator *vddio;
+	u64 stats[ARRAY_SIZE(at803x_hw_stats)];
 };
 
 struct at803x_context {
@@ -172,6 +205,17 @@ struct at803x_context {
 	u16 smart_speed;
 	u16 led_control;
 };
+
+static int at803x_debug_reg_write(struct phy_device *phydev, u16 reg, u16 data)
+{
+	int ret;
+
+	ret = phy_write(phydev, AT803X_DEBUG_ADDR, reg);
+	if (ret < 0)
+		return ret;
+
+	return phy_write(phydev, AT803X_DEBUG_DATA, data);
+}
 
 static int at803x_debug_reg_read(struct phy_device *phydev, u16 reg)
 {
@@ -333,6 +377,53 @@ static void at803x_get_wol(struct phy_device *phydev,
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
 	if (value & AT803X_INTR_ENABLE_WOL)
 		wol->wolopts |= WAKE_MAGIC;
+}
+
+static int at803x_get_sset_count(struct phy_device *phydev)
+{
+	return ARRAY_SIZE(at803x_hw_stats);
+}
+
+static void at803x_get_strings(struct phy_device *phydev, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(at803x_hw_stats); i++) {
+		strscpy(data + i * ETH_GSTRING_LEN,
+			at803x_hw_stats[i].string, ETH_GSTRING_LEN);
+	}
+}
+
+static u64 at803x_get_stat(struct phy_device *phydev, int i)
+{
+	struct at803x_hw_stat stat = at803x_hw_stats[i];
+	struct at803x_priv *priv = phydev->priv;
+	int val;
+	u64 ret;
+
+	if (stat.access_type == MMD)
+		val = phy_read_mmd(phydev, MDIO_MMD_PCS, stat.reg);
+	else
+		val = phy_read(phydev, stat.reg);
+
+	if (val < 0) {
+		ret = U64_MAX;
+	} else {
+		val = val & stat.mask;
+		priv->stats[i] += val;
+		ret = priv->stats[i];
+	}
+
+	return ret;
+}
+
+static void at803x_get_stats(struct phy_device *phydev,
+			     struct ethtool_stats *stats, u64 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(at803x_hw_stats); i++)
+		data[i] = at803x_get_stat(phydev, i);
 }
 
 static int at803x_suspend(struct phy_device *phydev)
@@ -608,6 +699,34 @@ static void at803x_remove(struct phy_device *phydev)
 
 	if (priv->vddio)
 		regulator_disable(priv->vddio);
+}
+
+static int at803x_get_features(struct phy_device *phydev)
+{
+	int err;
+
+	err = genphy_read_abilities(phydev);
+	if (err)
+		return err;
+
+	if (!at803x_match_phy_id(phydev, ATH8031_PHY_ID))
+		return 0;
+
+	/* AR8031/AR8033 have different status registers
+	 * for copper and fiber operation. However, the
+	 * extended status register is the same for both
+	 * operation modes.
+	 *
+	 * As a result of that, ESTATUS_1000_XFULL is set
+	 * to 1 even when operating in copper TP mode.
+	 *
+	 * Remove this mode from the supported link modes,
+	 * as this driver currently only supports copper
+	 * operation.
+	 */
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+			   phydev->supported);
+	return 0;
 }
 
 static int at803x_smarteee_config(struct phy_device *phydev)
@@ -1170,6 +1289,34 @@ static int at803x_cable_test_start(struct phy_device *phydev)
 	return 0;
 }
 
+static int qca83xx_config_init(struct phy_device *phydev)
+{
+	u8 switch_revision;
+
+	switch_revision = phydev->dev_flags & QCA8K_DEVFLAGS_REVISION_MASK;
+
+	switch (switch_revision) {
+	case 1:
+		/* For 100M waveform */
+		at803x_debug_reg_write(phydev, AT803X_DEBUG_REG_0, 0x02ea);
+		/* Turn on Gigabit clock */
+		at803x_debug_reg_write(phydev, AT803X_DEBUG_REG_3D, 0x68a0);
+		break;
+
+	case 2:
+		phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, 0x0);
+		fallthrough;
+	case 4:
+		phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_AZ_DEBUG, 0x803f);
+		at803x_debug_reg_write(phydev, AT803X_DEBUG_REG_3D, 0x6860);
+		at803x_debug_reg_write(phydev, AT803X_DEBUG_REG_5, 0x2c46);
+		at803x_debug_reg_write(phydev, AT803X_DEBUG_REG_3C, 0x6000);
+		break;
+	}
+
+	return 0;
+}
+
 static struct phy_driver at803x_driver[] = {
 {
 	/* Qualcomm Atheros AR8035 */
@@ -1225,7 +1372,7 @@ static struct phy_driver at803x_driver[] = {
 	.resume			= at803x_resume,
 	.read_page		= at803x_read_page,
 	.write_page		= at803x_write_page,
-	/* PHY_GBIT_FEATURES */
+	.get_features		= at803x_get_features,
 	.read_status		= at803x_read_status,
 	.config_intr		= &at803x_config_intr,
 	.handle_interrupt	= at803x_handle_interrupt,
@@ -1266,7 +1413,20 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= at803x_read_status,
 	.soft_reset		= genphy_soft_reset,
 	.config_aneg		= at803x_config_aneg,
-} };
+}, {
+	/* QCA8337 */
+	.phy_id = QCA8337_PHY_ID,
+	.phy_id_mask = QCA8K_PHY_ID_MASK,
+	.name = "QCA PHY 8337",
+	/* PHY_GBIT_FEATURES */
+	.probe = at803x_probe,
+	.flags = PHY_IS_INTERNAL,
+	.config_init = qca83xx_config_init,
+	.soft_reset = genphy_soft_reset,
+	.get_sset_count = at803x_get_sset_count,
+	.get_strings = at803x_get_strings,
+	.get_stats = at803x_get_stats,
+}, };
 
 module_phy_driver(at803x_driver);
 

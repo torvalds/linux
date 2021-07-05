@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/ite,it66121.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ITE it66121 HDMI bridge Device Tree Bindings
+
+maintainers:
+  - Phong LE <ple@baylibre.com>
+  - Neil Armstrong <narmstrong@baylibre.com>
+
+description: |
+  The IT66121 is a high-performance and low-power single channel HDMI
+  transmitter, fully compliant with HDMI 1.3a, HDCP 1.2 and backward compatible
+  to DVI 1.0 specifications.
+
+properties:
+  compatible:
+    const: ite,it66121
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO connected to active low reset
+
+  vrf12-supply:
+    description: Regulator for 1.2V analog core power.
+
+  vcn33-supply:
+    description: Regulator for 3.3V digital core power.
+
+  vcn18-supply:
+    description: Regulator for 1.8V IO core power.
+
+  interrupts:
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: DPI input port.
+
+        properties:
+          endpoint:
+            $ref: /schemas/graph.yaml#/$defs/endpoint-base
+            unevaluatedProperties: false
+
+            properties:
+              bus-width:
+                description:
+                  Endpoint bus width.
+                enum:
+                  - 12  # 12 data lines connected and dual-edge mode
+                  - 24  # 24 data lines connected and single-edge mode
+                default: 24
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: HDMI Connector port.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - reset-gpios
+  - vrf12-supply
+  - vcn33-supply
+  - vcn18-supply
+  - interrupts
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        it66121hdmitx: hdmitx@4c {
+            compatible = "ite,it66121";
+            pinctrl-names = "default";
+            pinctrl-0 = <&ite_pins_default>;
+            vcn33-supply = <&mt6358_vcn33_wifi_reg>;
+            vcn18-supply = <&mt6358_vcn18_reg>;
+            vrf12-supply = <&mt6358_vrf12_reg>;
+            reset-gpios = <&pio 160 GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&pio>;
+            interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+            reg = <0x4c>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    it66121_in: endpoint {
+                        bus-width = <12>;
+                        remote-endpoint = <&display_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    hdmi_conn_out: endpoint {
+                        remote-endpoint = <&hdmi_conn_in>;
+                    };
+                };
+            };
+        };
+    };

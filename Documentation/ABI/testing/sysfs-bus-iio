@@ -786,7 +786,7 @@ What:		/sys/.../events/in_capacitanceY_adaptive_thresh_rising_en
 What:		/sys/.../events/in_capacitanceY_adaptive_thresh_falling_en
 KernelVersion:	5.13
 Contact:	linux-iio@vger.kernel.org
-Descrption:
+Description:
 		Adaptive thresholds are similar to normal fixed thresholds
 		but the value is expressed as an offset from a value which
 		provides a low frequency approximation of the channel itself.
@@ -798,10 +798,10 @@ What:		/sys/.../in_capacitanceY_adaptive_thresh_rising_timeout
 What:		/sys/.../in_capacitanceY_adaptive_thresh_falling_timeout
 KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
-Descrption:
+Description:
 		When adaptive thresholds are used, the tracking signal
 		may adjust too slowly to step changes in the raw signal.
-		*_timeout (in seconds) specifies a time for which the
+		Thus these specify the time in seconds for which the
 		difference between the slow tracking signal and the raw
 		signal is allowed to remain out-of-range before a reset
 		event occurs in which the tracking signal is made equal

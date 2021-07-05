@@ -155,6 +155,16 @@ static int test__pfm_group(void)
 			.nr_events = 3,
 			.nr_groups = 1,
 		},
+		{
+			.events = "instructions}",
+			.nr_events = 1,
+			.nr_groups = 0,
+		},
+		{
+			.events = "{{instructions}}",
+			.nr_events = 0,
+			.nr_groups = 0,
+		},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(table); i++) {

@@ -45,19 +45,11 @@ poly1305-arm-y := poly1305-core.o poly1305-glue.o
 nhpoly1305-neon-y := nh-neon-core.o nhpoly1305-neon-glue.o
 curve25519-neon-y := curve25519-core.o curve25519-glue.o
 
-ifdef REGENERATE_ARM_CRYPTO
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $(<) > $(@)
 
-$(src)/poly1305-core.S_shipped: $(src)/poly1305-armv4.pl
+$(obj)/%-core.S: $(src)/%-armv4.pl
 	$(call cmd,perl)
-
-$(src)/sha256-core.S_shipped: $(src)/sha256-armv4.pl
-	$(call cmd,perl)
-
-$(src)/sha512-core.S_shipped: $(src)/sha512-armv4.pl
-	$(call cmd,perl)
-endif
 
 clean-files += poly1305-core.S sha256-core.S sha512-core.S
 

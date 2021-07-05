@@ -40,27 +40,28 @@ static const unsigned int lif_codes[] = {
 };
 
 static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
-	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, lif_codes,
+	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, lif_codes,
 					  ARRAY_SIZE(lif_codes));
 }
 
 static int lif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, LIF_MIN_SIZE,
+	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
+					   LIF_MIN_SIZE,
 					   LIF_MIN_SIZE, LIF_MAX_SIZE,
 					   LIF_MAX_SIZE);
 }
 
 static int lif_set_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, cfg, fmt, lif_codes,
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, lif_codes,
 					  ARRAY_SIZE(lif_codes),
 					  LIF_MIN_SIZE, LIF_MIN_SIZE,
 					  LIF_MAX_SIZE, LIF_MAX_SIZE);

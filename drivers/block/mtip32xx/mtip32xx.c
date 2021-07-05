@@ -2238,7 +2238,6 @@ static ssize_t show_device_status(struct device_driver *drv, char *buf)
 static ssize_t mtip_hw_read_device_status(struct file *f, char __user *ubuf,
 						size_t len, loff_t *offset)
 {
-	struct driver_data *dd =  (struct driver_data *)f->private_data;
 	int size = *offset;
 	char *buf;
 	int rv = 0;
@@ -2247,11 +2246,8 @@ static ssize_t mtip_hw_read_device_status(struct file *f, char __user *ubuf,
 		return 0;
 
 	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&dd->pdev->dev,
-			"Memory allocation: status buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	size += show_device_status(NULL, buf);
 
@@ -2277,11 +2273,8 @@ static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 		return 0;
 
 	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&dd->pdev->dev,
-			"Memory allocation: register buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	size += sprintf(&buf[size], "H/ S ACTive      : [ 0x");
 
@@ -2343,11 +2336,8 @@ static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 		return 0;
 
 	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&dd->pdev->dev,
-			"Memory allocation: flag buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	size += sprintf(&buf[size], "Flag-port : [ %08lX ]\n",
 							dd->port->flags);
@@ -2884,11 +2874,8 @@ static int mtip_hw_init(struct driver_data *dd)
 
 	dd->port = kzalloc_node(sizeof(struct mtip_port), GFP_KERNEL,
 				dd->numa_node);
-	if (!dd->port) {
-		dev_err(&dd->pdev->dev,
-			"Memory allocation: port structure\n");
+	if (!dd->port)
 		return -ENOMEM;
-	}
 
 	/* Continue workqueue setup */
 	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
@@ -4002,11 +3989,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 		cpu_to_node(raw_smp_processor_id()), raw_smp_processor_id());
 
 	dd = kzalloc_node(sizeof(struct driver_data), GFP_KERNEL, my_node);
-	if (dd == NULL) {
-		dev_err(&pdev->dev,
-			"Unable to allocate memory for driver data\n");
+	if (!dd)
 		return -ENOMEM;
-	}
 
 	/* Attach the private data to this PCI device.  */
 	pci_set_drvdata(pdev, dd);

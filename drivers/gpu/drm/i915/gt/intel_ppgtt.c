@@ -87,11 +87,10 @@ write_dma_entry(struct drm_i915_gem_object * const pdma,
 		const unsigned short idx,
 		const u64 encoded_entry)
 {
-	u64 * const vaddr = kmap_atomic(__px_page(pdma));
+	u64 * const vaddr = __px_vaddr(pdma);
 
 	vaddr[idx] = encoded_entry;
 	clflush_cache_range(&vaddr[idx], sizeof(u64));
-	kunmap_atomic(vaddr);
 }
 
 void
@@ -147,9 +146,9 @@ int i915_ppgtt_init_hw(struct intel_gt *gt)
 
 	gtt_write_workarounds(gt);
 
-	if (IS_GEN(i915, 6))
+	if (GRAPHICS_VER(i915) == 6)
 		gen6_ppgtt_enable(gt);
-	else if (IS_GEN(i915, 7))
+	else if (GRAPHICS_VER(i915) == 7)
 		gen7_ppgtt_enable(gt);
 
 	return 0;
@@ -158,7 +157,7 @@ int i915_ppgtt_init_hw(struct intel_gt *gt)
 static struct i915_ppgtt *
 __ppgtt_create(struct intel_gt *gt)
 {
-	if (INTEL_GEN(gt->i915) < 8)
+	if (GRAPHICS_VER(gt->i915) < 8)
 		return gen6_ppgtt_create(gt);
 	else
 		return gen8_ppgtt_create(gt);
@@ -258,7 +257,7 @@ int i915_vm_alloc_pt_stash(struct i915_address_space *vm,
 	return 0;
 }
 
-int i915_vm_pin_pt_stash(struct i915_address_space *vm,
+int i915_vm_map_pt_stash(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash)
 {
 	struct i915_page_table *pt;
@@ -266,7 +265,7 @@ int i915_vm_pin_pt_stash(struct i915_address_space *vm,
 
 	for (n = 0; n < ARRAY_SIZE(stash->pt); n++) {
 		for (pt = stash->pt[n]; pt; pt = pt->stash) {
-			err = pin_pt_dma_locked(vm, pt->base);
+			err = map_pt_dma_locked(vm, pt->base);
 			if (err)
 				return err;
 		}
@@ -308,7 +307,7 @@ void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 	ppgtt->vm.dma = i915->drm.dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
 
-	dma_resv_init(&ppgtt->vm.resv);
+	dma_resv_init(&ppgtt->vm._resv);
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;

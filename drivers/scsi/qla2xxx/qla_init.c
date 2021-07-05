@@ -4356,8 +4356,6 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 	if (IS_QLAFX00(vha->hw))
 		return qlafx00_fw_ready(vha);
 
-	rval = QLA_SUCCESS;
-
 	/* Time to wait for loop down */
 	if (IS_P3P_TYPE(ha))
 		min_wait = 30;

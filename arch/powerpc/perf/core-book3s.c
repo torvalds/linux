@@ -460,7 +460,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 				sizeof(instr)))
 			return 0;
 
-		return branch_target((struct ppc_inst *)&instr);
+		return branch_target(&instr);
 	}
 
 	/* Userspace: need copy instruction here then translate it */
@@ -468,7 +468,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 			sizeof(instr)))
 		return 0;
 
-	target = branch_target((struct ppc_inst *)&instr);
+	target = branch_target(&instr);
 	if ((!target) || (instr & BRANCH_ABSOLUTE))
 		return target;
 

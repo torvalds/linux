@@ -943,8 +943,8 @@ bool __skb_flow_dissect(const struct net *net,
 			int offset = 0;
 
 			ops = skb->dev->dsa_ptr->tag_ops;
-			/* Tail taggers don't break flow dissection */
-			if (!ops->tail_tag) {
+			/* Only DSA header taggers break flow dissection */
+			if (ops->needed_headroom) {
 				if (ops->flow_dissect)
 					ops->flow_dissect(skb, &proto, &offset);
 				else

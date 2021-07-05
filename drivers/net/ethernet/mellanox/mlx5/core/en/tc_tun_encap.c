@@ -120,6 +120,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			      struct list_head *flow_list)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_attr *attr;
@@ -130,9 +131,12 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	if (e->flags & MLX5_ENCAP_ENTRY_NO_ROUTE)
 		return;
 
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = e->encap_size;
+	reformat_params.data = e->encap_header;
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     e->encap_size, e->encap_header,
+						     &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		mlx5_core_warn(priv->mdev, "Failed to offload cached encapsulation header, %lu\n",
@@ -839,6 +843,7 @@ int mlx5e_attach_decap(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->attr->esw_attr;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_decap_entry *d;
 	struct mlx5e_decap_key key;
@@ -880,10 +885,12 @@ int mlx5e_attach_decap(struct mlx5e_priv *priv,
 	hash_add_rcu(esw->offloads.decap_tbl, &d->hlist, hash_key);
 	mutex_unlock(&esw->offloads.decap_tbl_lock);
 
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
+	reformat_params.size = sizeof(parse_attr->eth);
+	reformat_params.data = &parse_attr->eth;
 	d->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2,
-						     sizeof(parse_attr->eth),
-						     &parse_attr->eth,
+						     &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(d->pkt_reformat)) {
 		err = PTR_ERR(d->pkt_reformat);

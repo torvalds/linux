@@ -138,7 +138,7 @@ static inline void ethnl_update_bool32(u32 *dst, const struct nlattr *attr,
 }
 
 /**
- * ethnl_update_binary() - update binary data from NLA_BINARY atribute
+ * ethnl_update_binary() - update binary data from NLA_BINARY attribute
  * @dst:  value to update
  * @len:  destination buffer length
  * @attr: netlink attribute with new value or null
@@ -380,7 +380,7 @@ extern const struct nla_policy ethnl_cable_test_tdr_act_policy[ETHTOOL_A_CABLE_T
 extern const struct nla_policy ethnl_tunnel_info_get_policy[ETHTOOL_A_TUNNEL_INFO_HEADER + 1];
 extern const struct nla_policy ethnl_fec_get_policy[ETHTOOL_A_FEC_HEADER + 1];
 extern const struct nla_policy ethnl_fec_set_policy[ETHTOOL_A_FEC_AUTO + 1];
-extern const struct nla_policy ethnl_module_eeprom_get_policy[ETHTOOL_A_MODULE_EEPROM_DATA + 1];
+extern const struct nla_policy ethnl_module_eeprom_get_policy[ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS + 1];
 extern const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1];
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);

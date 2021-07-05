@@ -80,7 +80,7 @@ static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
 	if (!id)
 		return 0;
 
-	clink = pnp_alloc(sizeof(*clink));
+	clink = kzalloc(sizeof(*clink), GFP_KERNEL);
 	if (!clink)
 		return 0;
 	clink->card = card;
@@ -181,8 +181,8 @@ struct pnp_card *pnp_alloc_card(struct pnp_protocol *protocol, int id, char *pnp
 	return card;
 }
 
-static ssize_t pnp_show_card_name(struct device *dmdev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dmdev,
+			 struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -191,10 +191,10 @@ static ssize_t pnp_show_card_name(struct device *dmdev,
 	return (str - buf);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, pnp_show_card_name, NULL);
+static DEVICE_ATTR_RO(name);
 
-static ssize_t pnp_show_card_ids(struct device *dmdev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t card_id_show(struct device *dmdev,
+			    struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -207,7 +207,7 @@ static ssize_t pnp_show_card_ids(struct device *dmdev,
 	return (str - buf);
 }
 
-static DEVICE_ATTR(card_id, S_IRUGO, pnp_show_card_ids, NULL);
+static DEVICE_ATTR_RO(card_id);
 
 static int pnp_interface_attach_card(struct pnp_card *card)
 {

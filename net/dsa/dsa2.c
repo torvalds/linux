@@ -219,21 +219,6 @@ static void dsa_tree_put(struct dsa_switch_tree *dst)
 		kref_put(&dst->refcount, dsa_tree_release);
 }
 
-static bool dsa_port_is_dsa(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_DSA;
-}
-
-static bool dsa_port_is_cpu(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_CPU;
-}
-
-static bool dsa_port_is_user(struct dsa_port *dp)
-{
-	return dp->type == DSA_PORT_TYPE_USER;
-}
-
 static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 						   struct device_node *dn)
 {
@@ -363,6 +348,9 @@ static int dsa_port_setup(struct dsa_port *dp)
 	if (dp->setup)
 		return 0;
 
+	INIT_LIST_HEAD(&dp->fdbs);
+	INIT_LIST_HEAD(&dp->mdbs);
+
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
 		dsa_port_disable(dp);
@@ -458,6 +446,7 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 static void dsa_port_teardown(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
+	struct dsa_mac_addr *a, *tmp;
 
 	if (!dp->setup)
 		return;
@@ -481,6 +470,16 @@ static void dsa_port_teardown(struct dsa_port *dp)
 			dp->slave = NULL;
 		}
 		break;
+	}
+
+	list_for_each_entry_safe(a, tmp, &dp->fdbs, list) {
+		list_del(&a->list);
+		kfree(a);
+	}
+
+	list_for_each_entry_safe(a, tmp, &dp->mdbs, list) {
+		list_del(&a->list);
+		kfree(a);
 	}
 
 	dp->setup = false;
@@ -1258,6 +1257,13 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 	ds->dst = dsa_tree_touch(m[0]);
 	if (!ds->dst)
 		return -ENOMEM;
+
+	if (dsa_switch_find(ds->dst->index, ds->index)) {
+		dev_err(ds->dev,
+			"A DSA switch with index %d already exists in tree %d\n",
+			ds->index, ds->dst->index);
+		return -EEXIST;
+	}
 
 	return 0;
 }

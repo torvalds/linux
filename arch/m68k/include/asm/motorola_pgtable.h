@@ -105,6 +105,8 @@ extern unsigned long mm_cachebits;
 #define __S110	PAGE_SHARED_C
 #define __S111	PAGE_SHARED_C
 
+#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.

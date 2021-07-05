@@ -50,7 +50,7 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 #define EXT4_FMR_OWN_INODES	FMR_OWNER('X', 5) /* inodes */
 #define EXT4_FMR_OWN_GDT	FMR_OWNER('f', 1) /* group descriptors */
 #define EXT4_FMR_OWN_RESV_GDT	FMR_OWNER('f', 2) /* reserved gdt blocks */
-#define EXT4_FMR_OWN_BLKBM	FMR_OWNER('f', 3) /* inode bitmap */
-#define EXT4_FMR_OWN_INOBM	FMR_OWNER('f', 4) /* block bitmap */
+#define EXT4_FMR_OWN_BLKBM	FMR_OWNER('f', 3) /* block bitmap */
+#define EXT4_FMR_OWN_INOBM	FMR_OWNER('f', 4) /* inode bitmap */
 
 #endif /* __EXT4_FSMAP_H__ */

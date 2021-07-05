@@ -379,17 +379,17 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 	 * if the payload is greater than zero.
 	 * For the SBAPayload and the SBAOverhead we have the following
 	 * unite quations
- 	 *		      _		  _
+	 *		      _		  _
 	 *		     |	     bytes |
 	 *	SBAPayload = | 8000 ------ |
 	 *		     |		s  |
 	 *		      -		  -
- 	 *		       _       _
+	 *		       _       _
 	 *		      |	 bytes	|
 	 *	SBAOverhead = | ------	|
 	 *		      |	 T-NEG	|
 	 *		       -       -
- 	 *
+	 *
 	 * T-NEG is described by the equation:
 	 *
 	 *		     (-) fddiMACT-NEG

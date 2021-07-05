@@ -8,10 +8,9 @@
 #include "i40e.h"
 #include "i40e_prototype.h"
 
-static const char i40e_client_interface_version_str[] = I40E_CLIENT_VERSION_STR;
-static struct i40e_client *registered_client;
 static LIST_HEAD(i40e_devices);
 static DEFINE_MUTEX(i40e_device_mutex);
+DEFINE_IDA(i40e_client_ida);
 
 static int i40e_client_virtchnl_send(struct i40e_info *ldev,
 				     struct i40e_client *client,
@@ -275,6 +274,57 @@ void i40e_client_update_msix_info(struct i40e_pf *pf)
 	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
 }
 
+static void i40e_auxiliary_dev_release(struct device *dev)
+{
+	struct i40e_auxiliary_device *i40e_aux_dev =
+			container_of(dev, struct i40e_auxiliary_device, aux_dev.dev);
+
+	ida_free(&i40e_client_ida, i40e_aux_dev->aux_dev.id);
+	kfree(i40e_aux_dev);
+}
+
+static int i40e_register_auxiliary_dev(struct i40e_info *ldev, const char *name)
+{
+	struct i40e_auxiliary_device *i40e_aux_dev;
+	struct pci_dev *pdev = ldev->pcidev;
+	struct auxiliary_device *aux_dev;
+	int ret;
+
+	i40e_aux_dev = kzalloc(sizeof(*i40e_aux_dev), GFP_KERNEL);
+	if (!i40e_aux_dev)
+		return -ENOMEM;
+
+	i40e_aux_dev->ldev = ldev;
+
+	aux_dev = &i40e_aux_dev->aux_dev;
+	aux_dev->name = name;
+	aux_dev->dev.parent = &pdev->dev;
+	aux_dev->dev.release = i40e_auxiliary_dev_release;
+	ldev->aux_dev = aux_dev;
+
+	ret = ida_alloc(&i40e_client_ida, GFP_KERNEL);
+	if (ret < 0) {
+		kfree(i40e_aux_dev);
+		return ret;
+	}
+	aux_dev->id = ret;
+
+	ret = auxiliary_device_init(aux_dev);
+	if (ret < 0) {
+		ida_free(&i40e_client_ida, aux_dev->id);
+		kfree(i40e_aux_dev);
+		return ret;
+	}
+
+	ret = auxiliary_device_add(aux_dev);
+	if (ret) {
+		auxiliary_device_uninit(aux_dev);
+		return ret;
+	}
+
+	return ret;
+}
+
 /**
  * i40e_client_add_instance - add a client instance struct to the instance list
  * @pf: pointer to the board struct
@@ -285,9 +335,6 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	struct i40e_client_instance *cdev = NULL;
 	struct netdev_hw_addr *mac = NULL;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
-
-	if (!registered_client || pf->cinst)
-		return;
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
@@ -308,11 +355,8 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	cdev->lan_info.fw_build = pf->hw.aq.fw_build;
 	set_bit(__I40E_CLIENT_INSTANCE_NONE, &cdev->state);
 
-	if (i40e_client_get_params(vsi, &cdev->lan_info.params)) {
-		kfree(cdev);
-		cdev = NULL;
-		return;
-	}
+	if (i40e_client_get_params(vsi, &cdev->lan_info.params))
+		goto free_cdev;
 
 	mac = list_first_entry(&cdev->lan_info.netdev->dev_addrs.list,
 			       struct netdev_hw_addr, list);
@@ -321,10 +365,19 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	else
 		dev_err(&pf->pdev->dev, "MAC address list is empty!\n");
 
-	cdev->client = registered_client;
 	pf->cinst = cdev;
 
-	i40e_client_update_msix_info(pf);
+	cdev->lan_info.msix_count = pf->num_iwarp_msix;
+	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
+
+	if (i40e_register_auxiliary_dev(&cdev->lan_info, "iwarp"))
+		goto free_cdev;
+
+	return;
+
+free_cdev:
+	kfree(cdev);
+	pf->cinst = NULL;
 }
 
 /**
@@ -345,7 +398,7 @@ void i40e_client_del_instance(struct i40e_pf *pf)
  **/
 void i40e_client_subtask(struct i40e_pf *pf)
 {
-	struct i40e_client *client = registered_client;
+	struct i40e_client *client;
 	struct i40e_client_instance *cdev;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	int ret = 0;
@@ -359,8 +412,10 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	    test_bit(__I40E_CONFIG_BUSY, pf->state))
 		return;
 
-	if (!client || !cdev)
+	if (!cdev || !cdev->client)
 		return;
+
+	client = cdev->client;
 
 	/* Here we handle client opens. If the client is down, and
 	 * the netdev is registered, then open the client.
@@ -423,16 +478,8 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 		 pf->hw.pf_id, pf->hw.bus.bus_id,
 		 pf->hw.bus.device, pf->hw.bus.func);
 
-	/* If a client has already been registered, we need to add an instance
-	 * of it to our new LAN device.
-	 */
-	if (registered_client)
-		i40e_client_add_instance(pf);
+	i40e_client_add_instance(pf);
 
-	/* Since in some cases register may have happened before a device gets
-	 * added, we can schedule a subtask to go initiate the clients if
-	 * they can be launched at probe time.
-	 */
 	set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 	i40e_service_event_schedule(pf);
 
@@ -449,8 +496,12 @@ out:
  **/
 int i40e_lan_del_device(struct i40e_pf *pf)
 {
+	struct auxiliary_device *aux_dev = pf->cinst->lan_info.aux_dev;
 	struct i40e_device *ldev, *tmp;
 	int ret = -ENODEV;
+
+	auxiliary_device_delete(aux_dev);
+	auxiliary_device_uninit(aux_dev);
 
 	/* First, remove any client instance. */
 	i40e_client_del_instance(pf);
@@ -469,69 +520,6 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 	}
 	mutex_unlock(&i40e_device_mutex);
 	return ret;
-}
-
-/**
- * i40e_client_release - release client specific resources
- * @client: pointer to the registered client
- *
- **/
-static void i40e_client_release(struct i40e_client *client)
-{
-	struct i40e_client_instance *cdev;
-	struct i40e_device *ldev;
-	struct i40e_pf *pf;
-
-	mutex_lock(&i40e_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
-		pf = ldev->pf;
-		cdev = pf->cinst;
-		if (!cdev)
-			continue;
-
-		while (test_and_set_bit(__I40E_SERVICE_SCHED,
-					pf->state))
-			usleep_range(500, 1000);
-
-		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-			if (client->ops && client->ops->close)
-				client->ops->close(&cdev->lan_info, client,
-						   false);
-			i40e_client_release_qvlist(&cdev->lan_info);
-			clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
-
-			dev_warn(&pf->pdev->dev,
-				 "Client %s instance for PF id %d closed\n",
-				 client->name, pf->hw.pf_id);
-		}
-		/* delete the client instance */
-		i40e_client_del_instance(pf);
-		dev_info(&pf->pdev->dev, "Deleted client instance of Client %s\n",
-			 client->name);
-		clear_bit(__I40E_SERVICE_SCHED, pf->state);
-	}
-	mutex_unlock(&i40e_device_mutex);
-}
-
-/**
- * i40e_client_prepare - prepare client specific resources
- * @client: pointer to the registered client
- *
- **/
-static void i40e_client_prepare(struct i40e_client *client)
-{
-	struct i40e_device *ldev;
-	struct i40e_pf *pf;
-
-	mutex_lock(&i40e_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
-		pf = ldev->pf;
-		i40e_client_add_instance(pf);
-		/* Start the client subtask */
-		set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
-		i40e_service_event_schedule(pf);
-	}
-	mutex_unlock(&i40e_device_mutex);
 }
 
 /**
@@ -579,7 +567,7 @@ static int i40e_client_setup_qvlist(struct i40e_info *ldev,
 	u32 v_idx, i, reg_idx, reg;
 
 	ldev->qvlist_info = kzalloc(struct_size(ldev->qvlist_info, qv_info,
-				    qvlist_info->num_vectors - 1), GFP_KERNEL);
+				    qvlist_info->num_vectors), GFP_KERNEL);
 	if (!ldev->qvlist_info)
 		return -ENOMEM;
 	ldev->qvlist_info->num_vectors = qvlist_info->num_vectors;
@@ -732,81 +720,34 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 	return err;
 }
 
-/**
- * i40e_register_client - Register a i40e client driver with the L2 driver
- * @client: pointer to the i40e_client struct
- *
- * Returns 0 on success or non-0 on error
- **/
-int i40e_register_client(struct i40e_client *client)
+void i40e_client_device_register(struct i40e_info *ldev, struct i40e_client *client)
 {
-	int ret = 0;
+	struct i40e_pf *pf = ldev->pf;
 
-	if (!client) {
-		ret = -EIO;
-		goto out;
-	}
-
-	if (strlen(client->name) == 0) {
-		pr_info("i40e: Failed to register client with no name\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	if (registered_client) {
-		pr_info("i40e: Client %s has already been registered!\n",
-			client->name);
-		ret = -EEXIST;
-		goto out;
-	}
-
-	if ((client->version.major != I40E_CLIENT_VERSION_MAJOR) ||
-	    (client->version.minor != I40E_CLIENT_VERSION_MINOR)) {
-		pr_info("i40e: Failed to register client %s due to mismatched client interface version\n",
-			client->name);
-		pr_info("Client is using version: %02d.%02d.%02d while LAN driver supports %s\n",
-			client->version.major, client->version.minor,
-			client->version.build,
-			i40e_client_interface_version_str);
-		ret = -EIO;
-		goto out;
-	}
-
-	registered_client = client;
-
-	i40e_client_prepare(client);
-
-	pr_info("i40e: Registered client %s\n", client->name);
-out:
-	return ret;
+	pf->cinst->client = client;
+	set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
+	i40e_service_event_schedule(pf);
 }
-EXPORT_SYMBOL(i40e_register_client);
+EXPORT_SYMBOL_GPL(i40e_client_device_register);
 
-/**
- * i40e_unregister_client - Unregister a i40e client driver with the L2 driver
- * @client: pointer to the i40e_client struct
- *
- * Returns 0 on success or non-0 on error
- **/
-int i40e_unregister_client(struct i40e_client *client)
+void i40e_client_device_unregister(struct i40e_info *ldev)
 {
-	int ret = 0;
+	struct i40e_pf *pf = ldev->pf;
+	struct i40e_client_instance *cdev = pf->cinst;
 
-	if (registered_client != client) {
-		pr_info("i40e: Client %s has not been registered\n",
-			client->name);
-		ret = -ENODEV;
-		goto out;
+	if (!cdev)
+		return;
+
+	while (test_and_set_bit(__I40E_SERVICE_SCHED, pf->state))
+		usleep_range(500, 1000);
+
+	if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
+		cdev->client->ops->close(&cdev->lan_info, cdev->client, false);
+		clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
+		i40e_client_release_qvlist(&cdev->lan_info);
 	}
-	registered_client = NULL;
-	/* When a unregister request comes through we would have to send
-	 * a close for each of the client instances that were opened.
-	 * client_release function is called to handle this.
-	 */
-	i40e_client_release(client);
 
-	pr_info("i40e: Unregistered client %s\n", client->name);
-out:
-	return ret;
+	pf->cinst->client = NULL;
+	clear_bit(__I40E_SERVICE_SCHED, pf->state);
 }
-EXPORT_SYMBOL(i40e_unregister_client);
+EXPORT_SYMBOL_GPL(i40e_client_device_unregister);

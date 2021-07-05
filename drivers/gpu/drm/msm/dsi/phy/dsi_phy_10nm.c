@@ -9,6 +9,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_10nm.xml.h"
 
 /*
  * DSI PLL 10nm - clock diagram (eg: DSI0):

@@ -720,6 +720,14 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 		netdev_warn(priv->dev,
 			    "Setting EEE tx-lpi is not supported\n");
 
+	if (priv->hw->xpcs) {
+		ret = xpcs_config_eee(priv->hw->xpcs,
+				      priv->plat->mult_fact_100ns,
+				      edata->eee_enabled);
+		if (ret)
+			return ret;
+	}
+
 	if (!edata->eee_enabled)
 		stmmac_disable_eee_mode(priv);
 

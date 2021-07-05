@@ -200,7 +200,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
-	iowrite16(MDIO_READ + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_READ | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the read bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
@@ -224,7 +224,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 
 	iowrite16(val, ioaddr + MMWD);
 	/* Write the command to the MDIO bus */
-	iowrite16(MDIO_WRITE + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_WRITE | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the write bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
@@ -544,7 +544,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		skb_ptr->dev = priv->dev;
 
 		/* Do not count the CRC */
-		skb_put(skb_ptr, descptr->len - 4);
+		skb_put(skb_ptr, descptr->len - ETH_FCS_LEN);
 		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
 				 MAX_BUF_SIZE, DMA_FROM_DEVICE);
 		skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
@@ -552,7 +552,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
 		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += descptr->len - 4;
+		dev->stats.rx_bytes += descptr->len - ETH_FCS_LEN;
 
 		/* put new skb into descriptor */
 		descptr->skb_ptr = new_skb;
@@ -943,6 +943,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
+	.nway_reset		= phy_ethtool_nway_reset,
 };
 
 static const struct net_device_ops r6040_netdev_ops = {

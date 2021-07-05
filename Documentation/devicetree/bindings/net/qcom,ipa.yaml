@@ -44,6 +44,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,msm8998-ipa
       - qcom,sc7180-ipa
       - qcom,sc7280-ipa
       - qcom,sdm845-ipa

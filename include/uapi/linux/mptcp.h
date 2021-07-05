@@ -105,6 +105,7 @@ struct mptcp_info {
 	__u64	mptcpi_rcv_nxt;
 	__u8	mptcpi_local_addr_used;
 	__u8	mptcpi_local_addr_max;
+	__u8	mptcpi_csum_enabled;
 };
 
 /*

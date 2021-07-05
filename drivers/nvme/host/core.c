@@ -57,6 +57,26 @@ static bool force_apst;
 module_param(force_apst, bool, 0644);
 MODULE_PARM_DESC(force_apst, "allow APST for newly enumerated devices even if quirked off");
 
+static unsigned long apst_primary_timeout_ms = 100;
+module_param(apst_primary_timeout_ms, ulong, 0644);
+MODULE_PARM_DESC(apst_primary_timeout_ms,
+	"primary APST timeout in ms");
+
+static unsigned long apst_secondary_timeout_ms = 2000;
+module_param(apst_secondary_timeout_ms, ulong, 0644);
+MODULE_PARM_DESC(apst_secondary_timeout_ms,
+	"secondary APST timeout in ms");
+
+static unsigned long apst_primary_latency_tol_us = 15000;
+module_param(apst_primary_latency_tol_us, ulong, 0644);
+MODULE_PARM_DESC(apst_primary_latency_tol_us,
+	"primary APST latency tolerance in us");
+
+static unsigned long apst_secondary_latency_tol_us = 100000;
+module_param(apst_secondary_latency_tol_us, ulong, 0644);
+MODULE_PARM_DESC(apst_secondary_latency_tol_us,
+	"secondary APST latency tolerance in us");
+
 static bool streams;
 module_param(streams, bool, 0644);
 MODULE_PARM_DESC(streams, "turn on support for Streams write directives");
@@ -701,9 +721,7 @@ EXPORT_SYMBOL_GPL(__nvme_check_ready);
 
 static int nvme_toggle_streams(struct nvme_ctrl *ctrl, bool enable)
 {
-	struct nvme_command c;
-
-	memset(&c, 0, sizeof(c));
+	struct nvme_command c = { };
 
 	c.directive.opcode = nvme_admin_directive_send;
 	c.directive.nsid = cpu_to_le32(NVME_NSID_ALL);
@@ -728,9 +746,8 @@ static int nvme_enable_streams(struct nvme_ctrl *ctrl)
 static int nvme_get_stream_params(struct nvme_ctrl *ctrl,
 				  struct streams_directive_params *s, u32 nsid)
 {
-	struct nvme_command c;
+	struct nvme_command c = { };
 
-	memset(&c, 0, sizeof(c));
 	memset(s, 0, sizeof(*s));
 
 	c.directive.opcode = nvme_admin_directive_recv;
@@ -1440,10 +1457,9 @@ static int nvme_features(struct nvme_ctrl *dev, u8 op, unsigned int fid,
 		unsigned int dword11, void *buffer, size_t buflen, u32 *result)
 {
 	union nvme_result res = { 0 };
-	struct nvme_command c;
+	struct nvme_command c = { };
 	int ret;
 
-	memset(&c, 0, sizeof(c));
 	c.features.opcode = op;
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
@@ -1522,36 +1538,6 @@ static void nvme_enable_aen(struct nvme_ctrl *ctrl)
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 
-/*
- * Issue ioctl requests on the first available path.  Note that unlike normal
- * block layer requests we will not retry failed request on another controller.
- */
-struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
-		struct nvme_ns_head **head, int *srcu_idx)
-{
-#ifdef CONFIG_NVME_MULTIPATH
-	if (disk->fops == &nvme_ns_head_ops) {
-		struct nvme_ns *ns;
-
-		*head = disk->private_data;
-		*srcu_idx = srcu_read_lock(&(*head)->srcu);
-		ns = nvme_find_path(*head);
-		if (!ns)
-			srcu_read_unlock(&(*head)->srcu, *srcu_idx);
-		return ns;
-	}
-#endif
-	*head = NULL;
-	*srcu_idx = -1;
-	return disk->private_data;
-}
-
-void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx)
-{
-	if (head)
-		srcu_read_unlock(&head->srcu, idx);
-}
-
 static int nvme_ns_open(struct nvme_ns *ns)
 {
 
@@ -1601,9 +1587,8 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 static void nvme_init_integrity(struct gendisk *disk, u16 ms, u8 pi_type,
 				u32 max_integrity_segments)
 {
-	struct blk_integrity integrity;
+	struct blk_integrity integrity = { };
 
-	memset(&integrity, 0, sizeof(integrity));
 	switch (pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
 		integrity.profile = &t10_pi_type3_crc;
@@ -1948,30 +1933,45 @@ static char nvme_pr_type(enum pr_type type)
 	}
 };
 
+static int nvme_send_ns_head_pr_command(struct block_device *bdev,
+		struct nvme_command *c, u8 data[16])
+{
+	struct nvme_ns_head *head = bdev->bd_disk->private_data;
+	int srcu_idx = srcu_read_lock(&head->srcu);
+	struct nvme_ns *ns = nvme_find_path(head);
+	int ret = -EWOULDBLOCK;
+
+	if (ns) {
+		c->common.nsid = cpu_to_le32(ns->head->ns_id);
+		ret = nvme_submit_sync_cmd(ns->queue, c, data, 16);
+	}
+	srcu_read_unlock(&head->srcu, srcu_idx);
+	return ret;
+}
+	
+static int nvme_send_ns_pr_command(struct nvme_ns *ns, struct nvme_command *c,
+		u8 data[16])
+{
+	c->common.nsid = cpu_to_le32(ns->head->ns_id);
+	return nvme_submit_sync_cmd(ns->queue, c, data, 16);
+}
+
 static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 				u64 key, u64 sa_key, u8 op)
 {
-	struct nvme_ns_head *head = NULL;
-	struct nvme_ns *ns;
-	struct nvme_command c;
-	int srcu_idx, ret;
+	struct nvme_command c = { };
 	u8 data[16] = { 0, };
-
-	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		return -EWOULDBLOCK;
 
 	put_unaligned_le64(key, &data[0]);
 	put_unaligned_le64(sa_key, &data[8]);
 
-	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw10 = cpu_to_le32(cdw10);
 
-	ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
-	nvme_put_ns_from_disk(head, srcu_idx);
-	return ret;
+	if (IS_ENABLED(CONFIG_NVME_MULTIPATH) &&
+	    bdev->bd_disk->fops == &nvme_ns_head_ops)
+		return nvme_send_ns_head_pr_command(bdev, &c, data);
+	return nvme_send_ns_pr_command(bdev->bd_disk->private_data, &c, data);
 }
 
 static int nvme_pr_register(struct block_device *bdev, u64 old,
@@ -2036,9 +2036,8 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 		bool send)
 {
 	struct nvme_ctrl *ctrl = data;
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 
-	memset(&cmd, 0, sizeof(cmd));
 	if (send)
 		cmd.common.opcode = nvme_admin_security_send;
 	else
@@ -2052,6 +2051,17 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 }
 EXPORT_SYMBOL_GPL(nvme_sec_submit);
 #endif /* CONFIG_BLK_SED_OPAL */
+
+#ifdef CONFIG_BLK_DEV_ZONED
+static int nvme_report_zones(struct gendisk *disk, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
+{
+	return nvme_ns_report_zones(disk->private_data, sector, nr_zones, cb,
+			data);
+}
+#else
+#define nvme_report_zones	NULL
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 static const struct block_device_operations nvme_bdev_ops = {
 	.owner		= THIS_MODULE,
@@ -2218,13 +2228,53 @@ static int nvme_configure_acre(struct nvme_ctrl *ctrl)
 }
 
 /*
+ * The function checks whether the given total (exlat + enlat) latency of
+ * a power state allows the latter to be used as an APST transition target.
+ * It does so by comparing the latency to the primary and secondary latency
+ * tolerances defined by module params. If there's a match, the corresponding
+ * timeout value is returned and the matching tolerance index (1 or 2) is
+ * reported.
+ */
+static bool nvme_apst_get_transition_time(u64 total_latency,
+		u64 *transition_time, unsigned *last_index)
+{
+	if (total_latency <= apst_primary_latency_tol_us) {
+		if (*last_index == 1)
+			return false;
+		*last_index = 1;
+		*transition_time = apst_primary_timeout_ms;
+		return true;
+	}
+	if (apst_secondary_timeout_ms &&
+		total_latency <= apst_secondary_latency_tol_us) {
+		if (*last_index <= 2)
+			return false;
+		*last_index = 2;
+		*transition_time = apst_secondary_timeout_ms;
+		return true;
+	}
+	return false;
+}
+
+/*
  * APST (Autonomous Power State Transition) lets us program a table of power
  * state transitions that the controller will perform automatically.
- * We configure it with a simple heuristic: we are willing to spend at most 2%
- * of the time transitioning between power states.  Therefore, when running in
- * any given state, we will enter the next lower-power non-operational state
- * after waiting 50 * (enlat + exlat) microseconds, as long as that state's exit
- * latency is under the requested maximum latency.
+ *
+ * Depending on module params, one of the two supported techniques will be used:
+ *
+ * - If the parameters provide explicit timeouts and tolerances, they will be
+ *   used to build a table with up to 2 non-operational states to transition to.
+ *   The default parameter values were selected based on the values used by
+ *   Microsoft's and Intel's NVMe drivers. Yet, since we don't implement dynamic
+ *   regeneration of the APST table in the event of switching between external
+ *   and battery power, the timeouts and tolerances reflect a compromise
+ *   between values used by Microsoft for AC and battery scenarios.
+ * - If not, we'll configure the table with a simple heuristic: we are willing
+ *   to spend at most 2% of the time transitioning between power states.
+ *   Therefore, when running in any given state, we will enter the next
+ *   lower-power non-operational state after waiting 50 * (enlat + exlat)
+ *   microseconds, as long as that state's exit latency is under the requested
+ *   maximum latency.
  *
  * We will not autonomously enter any non-operational state for which the total
  * latency exceeds ps_max_latency_us.
@@ -2240,6 +2290,7 @@ static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 	int max_ps = -1;
 	int state;
 	int ret;
+	unsigned last_lt_index = UINT_MAX;
 
 	/*
 	 * If APST isn't supported or if we haven't been initialized yet,
@@ -2298,13 +2349,19 @@ static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 			le32_to_cpu(ctrl->psd[state].entry_lat);
 
 		/*
-		 * This state is good.  Use it as the APST idle target for
-		 * higher power states.
+		 * This state is good. It can be used as the APST idle target
+		 * for higher power states.
 		 */
-		transition_ms = total_latency_us + 19;
-		do_div(transition_ms, 20);
-		if (transition_ms > (1 << 24) - 1)
-			transition_ms = (1 << 24) - 1;
+		if (apst_primary_timeout_ms && apst_primary_latency_tol_us) {
+			if (!nvme_apst_get_transition_time(total_latency_us,
+					&transition_ms, &last_lt_index))
+				continue;
+		} else {
+			transition_ms = total_latency_us + 19;
+			do_div(transition_ms, 20);
+			if (transition_ms > (1 << 24) - 1)
+				transition_ms = (1 << 24) - 1;
+		}
 
 		target = cpu_to_le64((state << 3) | (transition_ms << 8));
 		if (max_ps == -1)
@@ -3701,7 +3758,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	disk->fops = &nvme_bdev_ops;
 	disk->private_data = ns;
 	disk->queue = ns->queue;
-	disk->flags = GENHD_FL_EXT_DEVT;
 	/*
 	 * Without the multipath code enabled, multiple controller per
 	 * subsystems are visible as devices and thus we cannot use the
@@ -4069,6 +4125,11 @@ static int nvme_class_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 		ret = add_uevent_var(env, "NVME_HOST_TRADDR=%s",
 				opts->host_traddr ?: "none");
+		if (ret)
+			return ret;
+
+		ret = add_uevent_var(env, "NVME_HOST_IFACE=%s",
+				opts->host_iface ?: "none");
 	}
 	return ret;
 }

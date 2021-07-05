@@ -1176,16 +1176,11 @@ enum drm_mode_status
 drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
 			   struct drm_connector *connector)
 {
-	u8 vic = drm_match_cea_mode(mode);
-	enum drm_mode_status status = MODE_OK;
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+	if (!connector->ycbcr_420_allowed &&
+	    drm_mode_is_420_only(&connector->display_info, mode))
+		return MODE_NO_420;
 
-	if (test_bit(vic, hdmi->y420_vdb_modes)) {
-		if (!connector->ycbcr_420_allowed)
-			status = MODE_NO_420;
-	}
-
-	return status;
+	return MODE_OK;
 }
 EXPORT_SYMBOL(drm_mode_validate_ycbcr420);
 

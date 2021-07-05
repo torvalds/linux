@@ -1050,3 +1050,44 @@ void kfd_signal_reset_event(struct kfd_dev *dev)
 	}
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 }
+
+void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
+{
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_hsa_memory_exception_data memory_exception_data;
+	struct kfd_hsa_hw_exception_data hw_exception_data;
+	struct kfd_event *ev;
+	uint32_t id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+
+	if (!p)
+		return; /* Presumably process exited. */
+
+	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
+	hw_exception_data.gpu_id = dev->id;
+	hw_exception_data.memory_lost = 1;
+	hw_exception_data.reset_cause = KFD_HW_EXCEPTION_ECC;
+
+	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+	memory_exception_data.ErrorType = KFD_MEM_ERR_POISON_CONSUMED;
+	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.failure.imprecise = true;
+
+	mutex_lock(&p->event_mutex);
+	idr_for_each_entry_continue(&p->event_idr, ev, id) {
+		if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+			ev->hw_exception_data = hw_exception_data;
+			set_event(ev);
+		}
+
+		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
+			ev->memory_exception_data = memory_exception_data;
+			set_event(ev);
+		}
+	}
+	mutex_unlock(&p->event_mutex);
+
+	/* user application will handle SIGBUS signal */
+	send_sig(SIGBUS, p->lead_thread, 0);
+
+	kfd_unref_process(p);
+}

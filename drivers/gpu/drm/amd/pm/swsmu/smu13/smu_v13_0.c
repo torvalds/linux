@@ -1626,6 +1626,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    sclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->gfxclk_pstate.curr.min = sclk_min;
+		pstate_table->gfxclk_pstate.curr.max = sclk_max;
 	}
 
 	if (mclk_min && mclk_max) {
@@ -1635,6 +1638,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    mclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->uclk_pstate.curr.min = mclk_min;
+		pstate_table->uclk_pstate.curr.max = mclk_max;
 	}
 
 	if (socclk_min && socclk_max) {
@@ -1644,6 +1650,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    socclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->socclk_pstate.curr.min = socclk_min;
+		pstate_table->socclk_pstate.curr.max = socclk_max;
 	}
 
 	return ret;

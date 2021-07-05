@@ -94,14 +94,14 @@ struct src_ent {
 
 static bool src_proto(enum protocol_type type)
 {
-	return type == PROTOCOLID_ISCSI ||
+	return type == PROTOCOLID_TCP_ULP ||
 	       type == PROTOCOLID_FCOE ||
 	       type == PROTOCOLID_IWARP;
 }
 
 static bool tm_cid_proto(enum protocol_type type)
 {
-	return type == PROTOCOLID_ISCSI ||
+	return type == PROTOCOLID_TCP_ULP ||
 	       type == PROTOCOLID_FCOE ||
 	       type == PROTOCOLID_ROCE ||
 	       type == PROTOCOLID_IWARP;
@@ -2072,7 +2072,6 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 						    PROTOCOLID_FCOE,
 						    p_params->num_cons,
 						    0);
-
 			qed_cxt_set_proto_tid_count(p_hwfn, PROTOCOLID_FCOE,
 						    QED_CXT_FCOE_TID_SEG, 0,
 						    p_params->num_tasks, true);
@@ -2090,19 +2089,41 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 
 		if (p_params->num_cons && p_params->num_tasks) {
 			qed_cxt_set_proto_cid_count(p_hwfn,
-						    PROTOCOLID_ISCSI,
+						    PROTOCOLID_TCP_ULP,
 						    p_params->num_cons,
 						    0);
-
 			qed_cxt_set_proto_tid_count(p_hwfn,
-						    PROTOCOLID_ISCSI,
-						    QED_CXT_ISCSI_TID_SEG,
+						    PROTOCOLID_TCP_ULP,
+						    QED_CXT_TCP_ULP_TID_SEG,
 						    0,
 						    p_params->num_tasks,
 						    true);
 		} else {
 			DP_INFO(p_hwfn->cdev,
 				"Iscsi personality used without setting params!\n");
+		}
+		break;
+	}
+	case QED_PCI_NVMETCP:
+	{
+		struct qed_nvmetcp_pf_params *p_params;
+
+		p_params = &p_hwfn->pf_params.nvmetcp_pf_params;
+
+		if (p_params->num_cons && p_params->num_tasks) {
+			qed_cxt_set_proto_cid_count(p_hwfn,
+						    PROTOCOLID_TCP_ULP,
+						    p_params->num_cons,
+						    0);
+			qed_cxt_set_proto_tid_count(p_hwfn,
+						    PROTOCOLID_TCP_ULP,
+						    QED_CXT_TCP_ULP_TID_SEG,
+						    0,
+						    p_params->num_tasks,
+						    true);
+		} else {
+			DP_INFO(p_hwfn->cdev,
+				"NvmeTCP personality used without setting params!\n");
 		}
 		break;
 	}
@@ -2129,8 +2150,9 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 		seg = QED_CXT_FCOE_TID_SEG;
 		break;
 	case QED_PCI_ISCSI:
-		proto = PROTOCOLID_ISCSI;
-		seg = QED_CXT_ISCSI_TID_SEG;
+	case QED_PCI_NVMETCP:
+		proto = PROTOCOLID_TCP_ULP;
+		seg = QED_CXT_TCP_ULP_TID_SEG;
 		break;
 	default:
 		return -EINVAL;
@@ -2455,8 +2477,9 @@ int qed_cxt_get_task_ctx(struct qed_hwfn *p_hwfn,
 		seg = QED_CXT_FCOE_TID_SEG;
 		break;
 	case QED_PCI_ISCSI:
-		proto = PROTOCOLID_ISCSI;
-		seg = QED_CXT_ISCSI_TID_SEG;
+	case QED_PCI_NVMETCP:
+		proto = PROTOCOLID_TCP_ULP;
+		seg = QED_CXT_TCP_ULP_TID_SEG;
 		break;
 	default:
 		return -EINVAL;

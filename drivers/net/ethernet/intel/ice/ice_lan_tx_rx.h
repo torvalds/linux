@@ -161,7 +161,6 @@ struct ice_fltr_desc {
 #define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_YES	0x1ULL
 
 struct ice_rx_ptype_decoded {
-	u32 ptype:10;
 	u32 known:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:2;
@@ -606,9 +605,32 @@ struct ice_tlan_ctx {
 	u8 int_q_state;	/* width not needed - internal - DO NOT WRITE!!! */
 };
 
-/* macro to make the table lines short */
+/* The ice_ptype_lkup table is used to convert from the 10-bit ptype in the
+ * hardware to a bit-field that can be used by SW to more easily determine the
+ * packet type.
+ *
+ * Macros are used to shorten the table lines and make this table human
+ * readable.
+ *
+ * We store the PTYPE in the top byte of the bit field - this is just so that
+ * we can check that the table doesn't have a row missing, as the index into
+ * the table should be the PTYPE.
+ *
+ * Typical work flow:
+ *
+ * IF NOT ice_ptype_lkup[ptype].known
+ * THEN
+ *      Packet is unknown
+ * ELSE IF ice_ptype_lkup[ptype].outer_ip == ICE_RX_PTYPE_OUTER_IP
+ *      Use the rest of the fields to look at the tunnels, inner protocols, etc
+ * ELSE
+ *      Use the enum ice_rx_l2_ptype to decode the packet type
+ * ENDIF
+ */
+
+/* macro to make the table lines short, use explicit indexing with [PTYPE] */
 #define ICE_PTT(PTYPE, OUTER_IP, OUTER_IP_VER, OUTER_FRAG, T, TE, TEF, I, PL)\
-	{	PTYPE, \
+	[PTYPE] = { \
 		1, \
 		ICE_RX_PTYPE_OUTER_##OUTER_IP, \
 		ICE_RX_PTYPE_OUTER_##OUTER_IP_VER, \
@@ -619,18 +641,18 @@ struct ice_tlan_ctx {
 		ICE_RX_PTYPE_INNER_PROT_##I, \
 		ICE_RX_PTYPE_PAYLOAD_LAYER_##PL }
 
-#define ICE_PTT_UNUSED_ENTRY(PTYPE) { PTYPE, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+#define ICE_PTT_UNUSED_ENTRY(PTYPE) [PTYPE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 /* shorter macros makes the table fit but are terse */
 #define ICE_RX_PTYPE_NOF		ICE_RX_PTYPE_NOT_FRAG
 #define ICE_RX_PTYPE_FRG		ICE_RX_PTYPE_FRAG
 
-/* Lookup table mapping the HW PTYPE to the bit field for decoding */
-static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
+/* Lookup table mapping in the 10-bit HW PTYPE to the bit field for decoding */
+static const struct ice_rx_ptype_decoded ice_ptype_lkup[BIT(10)] = {
 	/* L2 Packet types */
 	ICE_PTT_UNUSED_ENTRY(0),
 	ICE_PTT(1, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	ICE_PTT(2, L2, NONE, NOF, NONE, NONE, NOF, NONE, NONE),
+	ICE_PTT_UNUSED_ENTRY(2),
 	ICE_PTT_UNUSED_ENTRY(3),
 	ICE_PTT_UNUSED_ENTRY(4),
 	ICE_PTT_UNUSED_ENTRY(5),
@@ -744,7 +766,7 @@ static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
 	/* Non Tunneled IPv6 */
 	ICE_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
 	ICE_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	ICE_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY3),
+	ICE_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
 	ICE_PTT_UNUSED_ENTRY(91),
 	ICE_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
 	ICE_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),
@@ -832,118 +854,7 @@ static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
 	ICE_PTT(153, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, ICMP, PAY4),
 
 	/* unused entries */
-	ICE_PTT_UNUSED_ENTRY(154),
-	ICE_PTT_UNUSED_ENTRY(155),
-	ICE_PTT_UNUSED_ENTRY(156),
-	ICE_PTT_UNUSED_ENTRY(157),
-	ICE_PTT_UNUSED_ENTRY(158),
-	ICE_PTT_UNUSED_ENTRY(159),
-
-	ICE_PTT_UNUSED_ENTRY(160),
-	ICE_PTT_UNUSED_ENTRY(161),
-	ICE_PTT_UNUSED_ENTRY(162),
-	ICE_PTT_UNUSED_ENTRY(163),
-	ICE_PTT_UNUSED_ENTRY(164),
-	ICE_PTT_UNUSED_ENTRY(165),
-	ICE_PTT_UNUSED_ENTRY(166),
-	ICE_PTT_UNUSED_ENTRY(167),
-	ICE_PTT_UNUSED_ENTRY(168),
-	ICE_PTT_UNUSED_ENTRY(169),
-
-	ICE_PTT_UNUSED_ENTRY(170),
-	ICE_PTT_UNUSED_ENTRY(171),
-	ICE_PTT_UNUSED_ENTRY(172),
-	ICE_PTT_UNUSED_ENTRY(173),
-	ICE_PTT_UNUSED_ENTRY(174),
-	ICE_PTT_UNUSED_ENTRY(175),
-	ICE_PTT_UNUSED_ENTRY(176),
-	ICE_PTT_UNUSED_ENTRY(177),
-	ICE_PTT_UNUSED_ENTRY(178),
-	ICE_PTT_UNUSED_ENTRY(179),
-
-	ICE_PTT_UNUSED_ENTRY(180),
-	ICE_PTT_UNUSED_ENTRY(181),
-	ICE_PTT_UNUSED_ENTRY(182),
-	ICE_PTT_UNUSED_ENTRY(183),
-	ICE_PTT_UNUSED_ENTRY(184),
-	ICE_PTT_UNUSED_ENTRY(185),
-	ICE_PTT_UNUSED_ENTRY(186),
-	ICE_PTT_UNUSED_ENTRY(187),
-	ICE_PTT_UNUSED_ENTRY(188),
-	ICE_PTT_UNUSED_ENTRY(189),
-
-	ICE_PTT_UNUSED_ENTRY(190),
-	ICE_PTT_UNUSED_ENTRY(191),
-	ICE_PTT_UNUSED_ENTRY(192),
-	ICE_PTT_UNUSED_ENTRY(193),
-	ICE_PTT_UNUSED_ENTRY(194),
-	ICE_PTT_UNUSED_ENTRY(195),
-	ICE_PTT_UNUSED_ENTRY(196),
-	ICE_PTT_UNUSED_ENTRY(197),
-	ICE_PTT_UNUSED_ENTRY(198),
-	ICE_PTT_UNUSED_ENTRY(199),
-
-	ICE_PTT_UNUSED_ENTRY(200),
-	ICE_PTT_UNUSED_ENTRY(201),
-	ICE_PTT_UNUSED_ENTRY(202),
-	ICE_PTT_UNUSED_ENTRY(203),
-	ICE_PTT_UNUSED_ENTRY(204),
-	ICE_PTT_UNUSED_ENTRY(205),
-	ICE_PTT_UNUSED_ENTRY(206),
-	ICE_PTT_UNUSED_ENTRY(207),
-	ICE_PTT_UNUSED_ENTRY(208),
-	ICE_PTT_UNUSED_ENTRY(209),
-
-	ICE_PTT_UNUSED_ENTRY(210),
-	ICE_PTT_UNUSED_ENTRY(211),
-	ICE_PTT_UNUSED_ENTRY(212),
-	ICE_PTT_UNUSED_ENTRY(213),
-	ICE_PTT_UNUSED_ENTRY(214),
-	ICE_PTT_UNUSED_ENTRY(215),
-	ICE_PTT_UNUSED_ENTRY(216),
-	ICE_PTT_UNUSED_ENTRY(217),
-	ICE_PTT_UNUSED_ENTRY(218),
-	ICE_PTT_UNUSED_ENTRY(219),
-
-	ICE_PTT_UNUSED_ENTRY(220),
-	ICE_PTT_UNUSED_ENTRY(221),
-	ICE_PTT_UNUSED_ENTRY(222),
-	ICE_PTT_UNUSED_ENTRY(223),
-	ICE_PTT_UNUSED_ENTRY(224),
-	ICE_PTT_UNUSED_ENTRY(225),
-	ICE_PTT_UNUSED_ENTRY(226),
-	ICE_PTT_UNUSED_ENTRY(227),
-	ICE_PTT_UNUSED_ENTRY(228),
-	ICE_PTT_UNUSED_ENTRY(229),
-
-	ICE_PTT_UNUSED_ENTRY(230),
-	ICE_PTT_UNUSED_ENTRY(231),
-	ICE_PTT_UNUSED_ENTRY(232),
-	ICE_PTT_UNUSED_ENTRY(233),
-	ICE_PTT_UNUSED_ENTRY(234),
-	ICE_PTT_UNUSED_ENTRY(235),
-	ICE_PTT_UNUSED_ENTRY(236),
-	ICE_PTT_UNUSED_ENTRY(237),
-	ICE_PTT_UNUSED_ENTRY(238),
-	ICE_PTT_UNUSED_ENTRY(239),
-
-	ICE_PTT_UNUSED_ENTRY(240),
-	ICE_PTT_UNUSED_ENTRY(241),
-	ICE_PTT_UNUSED_ENTRY(242),
-	ICE_PTT_UNUSED_ENTRY(243),
-	ICE_PTT_UNUSED_ENTRY(244),
-	ICE_PTT_UNUSED_ENTRY(245),
-	ICE_PTT_UNUSED_ENTRY(246),
-	ICE_PTT_UNUSED_ENTRY(247),
-	ICE_PTT_UNUSED_ENTRY(248),
-	ICE_PTT_UNUSED_ENTRY(249),
-
-	ICE_PTT_UNUSED_ENTRY(250),
-	ICE_PTT_UNUSED_ENTRY(251),
-	ICE_PTT_UNUSED_ENTRY(252),
-	ICE_PTT_UNUSED_ENTRY(253),
-	ICE_PTT_UNUSED_ENTRY(254),
-	ICE_PTT_UNUSED_ENTRY(255),
+	[154 ... 1023] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
 static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)

@@ -429,7 +429,6 @@ struct vivid_dev {
 	u32				vbi_cap_seq_start;
 	u32				vbi_cap_seq_count;
 	bool				vbi_cap_streaming;
-	bool				stream_sliced_vbi_cap;
 	u32				meta_cap_seq_start;
 	u32				meta_cap_seq_count;
 	bool				meta_cap_streaming;

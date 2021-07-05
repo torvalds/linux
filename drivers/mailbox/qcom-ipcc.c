@@ -155,6 +155,11 @@ static int qcom_ipcc_mbox_send_data(struct mbox_chan *chan, void *data)
 	return 0;
 }
 
+static void qcom_ipcc_mbox_shutdown(struct mbox_chan *chan)
+{
+	chan->con_priv = NULL;
+}
+
 static struct mbox_chan *qcom_ipcc_mbox_xlate(struct mbox_controller *mbox,
 					const struct of_phandle_args *ph)
 {
@@ -184,6 +189,7 @@ static struct mbox_chan *qcom_ipcc_mbox_xlate(struct mbox_controller *mbox,
 
 static const struct mbox_chan_ops ipcc_mbox_chan_ops = {
 	.send_data = qcom_ipcc_mbox_send_data,
+	.shutdown = qcom_ipcc_mbox_shutdown,
 };
 
 static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc)

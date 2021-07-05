@@ -12,3 +12,16 @@ config HSA_AMD
 	select DRM_AMDGPU_USERPTR
 	help
 	  Enable this if you want to use HSA features on AMD GPU devices.
+
+config HSA_AMD_SVM
+	bool "Enable HMM-based shared virtual memory manager"
+	depends on HSA_AMD && DEVICE_PRIVATE
+	default y
+	select HMM_MIRROR
+	select MMU_NOTIFIER
+	help
+	  Enable this to use unified memory and managed memory in HIP. This
+	  memory manager supports two modes of operation. One based on
+	  preemptions and one based on page faults. To enable page fault
+	  based memory management on most GFXv9 GPUs, set the module
+	  parameter amdgpu.noretry=0.

@@ -23,6 +23,8 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_error.h"
+#include "xfs_ag.h"
+#include "xfs_ialloc.h"
 
 /*
  * The global quota manager. There is only one of these for the entire
@@ -787,8 +789,12 @@ xfs_qm_qino_alloc(
 		return error;
 
 	if (need_alloc) {
-		error = xfs_dir_ialloc(&init_user_ns, &tp, NULL, S_IFREG, 1, 0,
-				       0, false, ipp);
+		xfs_ino_t	ino;
+
+		error = xfs_dialloc(&tp, 0, S_IFREG, &ino);
+		if (!error)
+			error = xfs_init_new_inode(&init_user_ns, tp, NULL, ino,
+					S_IFREG, 1, 0, 0, false, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;

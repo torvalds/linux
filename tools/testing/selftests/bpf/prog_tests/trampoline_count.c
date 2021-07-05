@@ -55,7 +55,7 @@ void test_trampoline_count(void)
 	/* attach 'allowed' trampoline programs */
 	for (i = 0; i < MAX_TRAMP_PROGS; i++) {
 		obj = bpf_object__open_file(object, NULL);
-		if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj))) {
+		if (!ASSERT_OK_PTR(obj, "obj_open_file")) {
 			obj = NULL;
 			goto cleanup;
 		}
@@ -68,14 +68,14 @@ void test_trampoline_count(void)
 
 		if (rand() % 2) {
 			link = load(inst[i].obj, fentry_name);
-			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link))) {
+			if (!ASSERT_OK_PTR(link, "attach_prog")) {
 				link = NULL;
 				goto cleanup;
 			}
 			inst[i].link_fentry = link;
 		} else {
 			link = load(inst[i].obj, fexit_name);
-			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link))) {
+			if (!ASSERT_OK_PTR(link, "attach_prog")) {
 				link = NULL;
 				goto cleanup;
 			}
@@ -85,7 +85,7 @@ void test_trampoline_count(void)
 
 	/* and try 1 extra.. */
 	obj = bpf_object__open_file(object, NULL);
-	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj))) {
+	if (!ASSERT_OK_PTR(obj, "obj_open_file")) {
 		obj = NULL;
 		goto cleanup;
 	}
@@ -96,13 +96,15 @@ void test_trampoline_count(void)
 
 	/* ..that needs to fail */
 	link = load(obj, fentry_name);
-	if (CHECK(!IS_ERR(link), "cannot attach over the limit", "err %ld\n", PTR_ERR(link))) {
+	err = libbpf_get_error(link);
+	if (!ASSERT_ERR_PTR(link, "cannot attach over the limit")) {
 		bpf_link__destroy(link);
 		goto cleanup_extra;
 	}
 
 	/* with E2BIG error */
-	CHECK(PTR_ERR(link) != -E2BIG, "proper error check", "err %ld\n", PTR_ERR(link));
+	ASSERT_EQ(err, -E2BIG, "proper error check");
+	ASSERT_EQ(link, NULL, "ptr_is_null");
 
 	/* and finaly execute the probe */
 	if (CHECK_FAIL(prctl(PR_GET_NAME, comm, 0L, 0L, 0L)))

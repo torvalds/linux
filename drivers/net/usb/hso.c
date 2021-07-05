@@ -457,9 +457,8 @@ static const struct usb_device_id hso_ids[] = {
 MODULE_DEVICE_TABLE(usb, hso_ids);
 
 /* Sysfs attribute */
-static ssize_t hso_sysfs_show_porttype(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
+static ssize_t hsotype_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct hso_device *hso_dev = dev_get_drvdata(dev);
 	char *port_name;
@@ -505,7 +504,7 @@ static ssize_t hso_sysfs_show_porttype(struct device *dev,
 
 	return sprintf(buf, "%s\n", port_name);
 }
-static DEVICE_ATTR(hsotype, 0444, hso_sysfs_show_porttype, NULL);
+static DEVICE_ATTR_RO(hsotype);
 
 static struct attribute *hso_serial_dev_attrs[] = {
 	&dev_attr_hsotype.attr,

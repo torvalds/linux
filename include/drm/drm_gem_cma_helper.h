@@ -16,6 +16,7 @@ struct drm_mode_create_dumb;
  *       more than one entry but they are guaranteed to have contiguous
  *       DMA addresses.
  * @vaddr: kernel virtual address of the backing memory
+ * @map_noncoherent: if true, the GEM object is backed by non-coherent memory
  */
 struct drm_gem_cma_object {
 	struct drm_gem_object base;
@@ -24,6 +25,8 @@ struct drm_gem_cma_object {
 
 	/* For objects with DMA memory allocated by GEM CMA */
 	void *vaddr;
+
+	bool map_noncoherent;
 };
 
 #define to_drm_gem_cma_obj(gem_obj) \

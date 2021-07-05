@@ -68,6 +68,16 @@ include::itrace.txt[]
 --force::
 	Don't complain, do it.
 
+--vm-time-correlation[=OPTIONS]::
+	Some architectures may capture AUX area data which contains timestamps
+	affected by virtualization. This option will update those timestamps
+	in place, to correlate with host timestamps. The in-place update means
+	that an output file is not specified, and instead the input file is
+	modified.  The options are architecture specific, except that they may
+	start with "dry-run" which will cause the file to be processed but
+	without updating it. Currently this option is supported only by
+	Intel PT, refer linkperf:perf-intel-pt[1]
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1],

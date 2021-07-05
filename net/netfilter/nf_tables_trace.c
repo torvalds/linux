@@ -113,17 +113,17 @@ static int nf_trace_fill_pkt_info(struct sk_buff *nlskb,
 	int off = skb_network_offset(skb);
 	unsigned int len, nh_end;
 
-	nh_end = pkt->tprot_set ? pkt->xt.thoff : skb->len;
+	nh_end = pkt->tprot_set ? nft_thoff(pkt) : skb->len;
 	len = min_t(unsigned int, nh_end - skb_network_offset(skb),
 		    NFT_TRACETYPE_NETWORK_HSIZE);
 	if (trace_fill_header(nlskb, NFTA_TRACE_NETWORK_HEADER, skb, off, len))
 		return -1;
 
 	if (pkt->tprot_set) {
-		len = min_t(unsigned int, skb->len - pkt->xt.thoff,
+		len = min_t(unsigned int, skb->len - nft_thoff(pkt),
 			    NFT_TRACETYPE_TRANSPORT_HSIZE);
 		if (trace_fill_header(nlskb, NFTA_TRACE_TRANSPORT_HEADER, skb,
-				      pkt->xt.thoff, len))
+				      nft_thoff(pkt), len))
 			return -1;
 	}
 

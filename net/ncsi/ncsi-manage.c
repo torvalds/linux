@@ -627,7 +627,7 @@ static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	return 0;
 }
 
-/* Find an outstanding VLAN tag and constuct a "Set VLAN Filter - Enable"
+/* Find an outstanding VLAN tag and construct a "Set VLAN Filter - Enable"
  * packet.
  */
 static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,

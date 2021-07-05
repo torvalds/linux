@@ -7,12 +7,8 @@
 #include <unistd.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 #include <linux/err.h>
 #include <linux/zalloc.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
 #include <api/fs/fs.h>
 #include <perf/bpf_perf.h>
 
@@ -35,13 +31,6 @@
 static inline void *u64_to_ptr(__u64 ptr)
 {
 	return (void *)(unsigned long)ptr;
-}
-
-static void set_max_rlimit(void)
-{
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static struct bpf_counter *bpf_counter_alloc(void)
@@ -297,33 +286,6 @@ struct bpf_counter_ops bpf_program_profiler_ops = {
 	.install_pe = bpf_program_profiler__install_pe,
 };
 
-static __u32 bpf_link_get_id(int fd)
-{
-	struct bpf_link_info link_info = {0};
-	__u32 link_info_len = sizeof(link_info);
-
-	bpf_obj_get_info_by_fd(fd, &link_info, &link_info_len);
-	return link_info.id;
-}
-
-static __u32 bpf_link_get_prog_id(int fd)
-{
-	struct bpf_link_info link_info = {0};
-	__u32 link_info_len = sizeof(link_info);
-
-	bpf_obj_get_info_by_fd(fd, &link_info, &link_info_len);
-	return link_info.prog_id;
-}
-
-static __u32 bpf_map_get_id(int fd)
-{
-	struct bpf_map_info map_info = {0};
-	__u32 map_info_len = sizeof(map_info);
-
-	bpf_obj_get_info_by_fd(fd, &map_info, &map_info_len);
-	return map_info.id;
-}
-
 static bool bperf_attr_map_compatible(int attr_map_fd)
 {
 	struct bpf_map_info map_info = {0};
@@ -383,20 +345,6 @@ static int bperf_lock_attr_map(struct target *target)
 		return -1;
 	}
 	return map_fd;
-}
-
-/* trigger the leader program on a cpu */
-static int bperf_trigger_reading(int prog_fd, int cpu)
-{
-	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
-			    .ctx_in = NULL,
-			    .ctx_size_in = 0,
-			    .flags = BPF_F_TEST_RUN_ON_CPU,
-			    .cpu = cpu,
-			    .retval = 0,
-		);
-
-	return bpf_prog_test_run_opts(prog_fd, &opts);
 }
 
 static int bperf_check_target(struct evsel *evsel,

@@ -668,7 +668,7 @@ static void yam_tx_byte(struct net_device *dev, struct yam_port *yp)
 			}
 			yp->tx_len = skb->len - 1;	/* strip KISS byte */
 			if (yp->tx_len >= YAM_MAX_FRAME || yp->tx_len < 2) {
-        			dev_kfree_skb_any(skb);
+				dev_kfree_skb_any(skb);
 				break;
 			}
 			skb_copy_from_linear_data_offset(skb, 1,

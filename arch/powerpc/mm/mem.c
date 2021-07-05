@@ -28,6 +28,9 @@
 unsigned long long memory_limit;
 bool init_mem_is_free;
 
+unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
+EXPORT_SYMBOL(empty_zero_page);
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -127,7 +130,7 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
 }
 #endif
 
-#ifndef CONFIG_NEED_MULTIPLE_NODES
+#ifndef CONFIG_NUMA
 void __init mem_topology_setup(void)
 {
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
@@ -162,7 +165,7 @@ static int __init mark_nonram_nosave(void)
 
 	return 0;
 }
-#else /* CONFIG_NEED_MULTIPLE_NODES */
+#else /* CONFIG_NUMA */
 static int __init mark_nonram_nosave(void)
 {
 	return 0;
@@ -299,6 +302,10 @@ void __init mem_init(void)
 			ioremap_bot, IOREMAP_TOP);
 	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
 		VMALLOC_START, VMALLOC_END);
+#ifdef MODULES_VADDR
+	pr_info("  * 0x%08lx..0x%08lx  : modules\n",
+		MODULES_VADDR, MODULES_END);
+#endif
 #endif /* CONFIG_PPC32 */
 }
 

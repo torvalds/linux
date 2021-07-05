@@ -10,6 +10,7 @@
 #include "hw.h"
 #include "core.h"
 #include "ce.h"
+#include "hif.h"
 
 /* Map from pdev index to hw mac index */
 static u8 ath11k_hw_ipq8074_mac_from_pdev_id(int pdev_idx)
@@ -39,6 +40,13 @@ static void ath11k_hw_ipq8074_tx_mesh_enable(struct ath11k_base *ab,
 }
 
 static void ath11k_hw_qcn9074_tx_mesh_enable(struct ath11k_base *ab,
+					     struct hal_tcl_data_cmd *tcl_cmd)
+{
+	tcl_cmd->info3 |= FIELD_PREP(HAL_QCN9074_TCL_DATA_CMD_INFO3_MESH_ENABLE,
+				     true);
+}
+
+static void ath11k_hw_wcn6855_tx_mesh_enable(struct ath11k_base *ab,
 					     struct hal_tcl_data_cmd *tcl_cmd)
 {
 	tcl_cmd->info3 |= FIELD_PREP(HAL_QCN9074_TCL_DATA_CMD_INFO3_MESH_ENABLE,
@@ -89,6 +97,52 @@ static void ath11k_init_wmi_config_qca6390(struct ath11k_base *ab,
 	config->num_multicast_filter_entries = 0x20;
 	config->num_wow_filters = 0x16;
 	config->num_keep_alive_pattern = 0;
+}
+
+static void ath11k_hw_ipq8074_reo_setup(struct ath11k_base *ab)
+{
+	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
+	u32 val;
+	/* Each hash entry uses three bits to map to a particular ring. */
+	u32 ring_hash_map = HAL_HASH_ROUTING_RING_SW1 << 0 |
+		HAL_HASH_ROUTING_RING_SW2 << 3 |
+		HAL_HASH_ROUTING_RING_SW3 << 6 |
+		HAL_HASH_ROUTING_RING_SW4 << 9 |
+		HAL_HASH_ROUTING_RING_SW1 << 12 |
+		HAL_HASH_ROUTING_RING_SW2 << 15 |
+		HAL_HASH_ROUTING_RING_SW3 << 18 |
+		HAL_HASH_ROUTING_RING_SW4 << 21;
+
+	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_GEN_ENABLE);
+
+	val &= ~HAL_REO1_GEN_ENABLE_FRAG_DST_RING;
+	val |= FIELD_PREP(HAL_REO1_GEN_ENABLE_FRAG_DST_RING,
+			HAL_SRNG_RING_ID_REO2SW1) |
+		FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_LIST_ENABLE, 1) |
+		FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE, 1);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_GEN_ENABLE, val);
+
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_1(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_2(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_0,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_1,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_2,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_3,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
 }
 
 static void ath11k_init_wmi_config_ipq8074(struct ath11k_base *ab,
@@ -489,6 +543,228 @@ static u8 *ath11k_hw_qcn9074_rx_desc_get_msdu_payload(struct hal_rx_desc *desc)
 	return &desc->u.qcn9074.msdu_payload[0];
 }
 
+static bool ath11k_hw_wcn6855_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO2_FIRST_MSDU_WCN6855,
+			   __le32_to_cpu(desc->u.wcn6855.msdu_end.info2));
+}
+
+static bool ath11k_hw_wcn6855_rx_desc_get_last_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO2_LAST_MSDU_WCN6855,
+			   __le32_to_cpu(desc->u.wcn6855.msdu_end.info2));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_l3_pad_bytes(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_END_INFO2_L3_HDR_PADDING,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_end.info2));
+}
+
+static u8 *ath11k_hw_wcn6855_rx_desc_get_hdr_status(struct hal_rx_desc *desc)
+{
+	return desc->u.wcn6855.hdr_status;
+}
+
+static bool ath11k_hw_wcn6855_rx_desc_encrypt_valid(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1) &
+	       RX_MPDU_START_INFO1_ENCRYPT_INFO_VALID;
+}
+
+static u32 ath11k_hw_wcn6855_rx_desc_get_encrypt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO2_ENC_TYPE,
+			 __le32_to_cpu(desc->u.wcn6855.mpdu_start.info2));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_decap_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_DECAP_FORMAT,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info2));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_mesh_ctl(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_MESH_CTRL_PRESENT,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info2));
+}
+
+static bool ath11k_hw_wcn6855_rx_desc_get_mpdu_seq_ctl_vld(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_CTRL_VALID,
+			   __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1));
+}
+
+static bool ath11k_hw_wcn6855_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO1_MPDU_FCTRL_VALID,
+			   __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1));
+}
+
+static u16 ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_NUM,
+			 __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1));
+}
+
+static u16 ath11k_hw_wcn6855_rx_desc_get_msdu_len(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO1_MSDU_LENGTH,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info1));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_msdu_sgi(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_SGI,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info3));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_msdu_rate_mcs(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RATE_MCS,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info3));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_msdu_rx_bw(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RECV_BW,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info3));
+}
+
+static u32 ath11k_hw_wcn6855_rx_desc_get_msdu_freq(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.wcn6855.msdu_start.phy_meta_data);
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_msdu_pkt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_PKT_TYPE,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info3));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_MIMO_SS_BITMAP,
+			 __le32_to_cpu(desc->u.wcn6855.msdu_start.info3));
+}
+
+static u8 ath11k_hw_wcn6855_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO2_TID_WCN6855,
+			 __le32_to_cpu(desc->u.wcn6855.mpdu_start.info2));
+}
+
+static u16 ath11k_hw_wcn6855_rx_desc_get_mpdu_peer_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.wcn6855.mpdu_start.sw_peer_id);
+}
+
+static void ath11k_hw_wcn6855_rx_desc_copy_attn_end(struct hal_rx_desc *fdesc,
+						    struct hal_rx_desc *ldesc)
+{
+	memcpy((u8 *)&fdesc->u.wcn6855.msdu_end, (u8 *)&ldesc->u.wcn6855.msdu_end,
+	       sizeof(struct rx_msdu_end_wcn6855));
+	memcpy((u8 *)&fdesc->u.wcn6855.attention, (u8 *)&ldesc->u.wcn6855.attention,
+	       sizeof(struct rx_attention));
+	memcpy((u8 *)&fdesc->u.wcn6855.mpdu_end, (u8 *)&ldesc->u.wcn6855.mpdu_end,
+	       sizeof(struct rx_mpdu_end));
+}
+
+static u32 ath11k_hw_wcn6855_rx_desc_get_mpdu_start_tag(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(HAL_TLV_HDR_TAG,
+			 __le32_to_cpu(desc->u.wcn6855.mpdu_start_tag));
+}
+
+static u32 ath11k_hw_wcn6855_rx_desc_get_mpdu_ppdu_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.wcn6855.mpdu_start.phy_ppdu_id);
+}
+
+static void ath11k_hw_wcn6855_rx_desc_set_msdu_len(struct hal_rx_desc *desc, u16 len)
+{
+	u32 info = __le32_to_cpu(desc->u.wcn6855.msdu_start.info1);
+
+	info &= ~RX_MSDU_START_INFO1_MSDU_LENGTH;
+	info |= FIELD_PREP(RX_MSDU_START_INFO1_MSDU_LENGTH, len);
+
+	desc->u.wcn6855.msdu_start.info1 = __cpu_to_le32(info);
+}
+
+static
+struct rx_attention *ath11k_hw_wcn6855_rx_desc_get_attention(struct hal_rx_desc *desc)
+{
+	return &desc->u.wcn6855.attention;
+}
+
+static u8 *ath11k_hw_wcn6855_rx_desc_get_msdu_payload(struct hal_rx_desc *desc)
+{
+	return &desc->u.wcn6855.msdu_payload[0];
+}
+
+static void ath11k_hw_wcn6855_reo_setup(struct ath11k_base *ab)
+{
+	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
+	u32 val;
+	/* Each hash entry uses four bits to map to a particular ring. */
+	u32 ring_hash_map = HAL_HASH_ROUTING_RING_SW1 << 0 |
+		HAL_HASH_ROUTING_RING_SW2 << 4 |
+		HAL_HASH_ROUTING_RING_SW3 << 8 |
+		HAL_HASH_ROUTING_RING_SW4 << 12 |
+		HAL_HASH_ROUTING_RING_SW1 << 16 |
+		HAL_HASH_ROUTING_RING_SW2 << 20 |
+		HAL_HASH_ROUTING_RING_SW3 << 24 |
+		HAL_HASH_ROUTING_RING_SW4 << 28;
+
+	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_GEN_ENABLE);
+	val |= FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_LIST_ENABLE, 1) |
+		FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE, 1);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_GEN_ENABLE, val);
+
+	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_MISC_CTL);
+	val &= ~HAL_REO1_MISC_CTL_FRAGMENT_DST_RING;
+	val |= FIELD_PREP(HAL_REO1_MISC_CTL_FRAGMENT_DST_RING, HAL_SRNG_RING_ID_REO2SW1);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_MISC_CTL, val);
+
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_1(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_2(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3(ab),
+			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_2,
+			   ring_hash_map);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_3,
+			   ring_hash_map);
+}
+
+static u16 ath11k_hw_ipq8074_mpdu_info_get_peerid(u8 *tlv_data)
+{
+	u16 peer_id = 0;
+	struct hal_rx_mpdu_info *mpdu_info =
+		(struct hal_rx_mpdu_info *)tlv_data;
+
+	peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID,
+			    __le32_to_cpu(mpdu_info->info0));
+
+	return peer_id;
+}
+
+static u16 ath11k_hw_wcn6855_mpdu_info_get_peerid(u8 *tlv_data)
+{
+	u16 peer_id = 0;
+	struct hal_rx_mpdu_info_wcn6855 *mpdu_info =
+		(struct hal_rx_mpdu_info_wcn6855 *)tlv_data;
+
+	peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID_WCN6855,
+			    __le32_to_cpu(mpdu_info->info0));
+	return peer_id;
+}
+
 const struct ath11k_hw_ops ipq8074_ops = {
 	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
 	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
@@ -521,6 +797,8 @@ const struct ath11k_hw_ops ipq8074_ops = {
 	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
 	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
 	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
+	.reo_setup = ath11k_hw_ipq8074_reo_setup,
+	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
 };
 
 const struct ath11k_hw_ops ipq6018_ops = {
@@ -555,6 +833,8 @@ const struct ath11k_hw_ops ipq6018_ops = {
 	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
 	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
 	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
+	.reo_setup = ath11k_hw_ipq8074_reo_setup,
+	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
 };
 
 const struct ath11k_hw_ops qca6390_ops = {
@@ -589,6 +869,8 @@ const struct ath11k_hw_ops qca6390_ops = {
 	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
 	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
 	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
+	.reo_setup = ath11k_hw_ipq8074_reo_setup,
+	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
 };
 
 const struct ath11k_hw_ops qcn9074_ops = {
@@ -623,6 +905,44 @@ const struct ath11k_hw_ops qcn9074_ops = {
 	.rx_desc_set_msdu_len = ath11k_hw_qcn9074_rx_desc_set_msdu_len,
 	.rx_desc_get_attention = ath11k_hw_qcn9074_rx_desc_get_attention,
 	.rx_desc_get_msdu_payload = ath11k_hw_qcn9074_rx_desc_get_msdu_payload,
+	.reo_setup = ath11k_hw_ipq8074_reo_setup,
+	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
+};
+
+const struct ath11k_hw_ops wcn6855_ops = {
+	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
+	.wmi_init_config = ath11k_init_wmi_config_qca6390,
+	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_qca6390,
+	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_qca6390,
+	.tx_mesh_enable = ath11k_hw_wcn6855_tx_mesh_enable,
+	.rx_desc_get_first_msdu = ath11k_hw_wcn6855_rx_desc_get_first_msdu,
+	.rx_desc_get_last_msdu = ath11k_hw_wcn6855_rx_desc_get_last_msdu,
+	.rx_desc_get_l3_pad_bytes = ath11k_hw_wcn6855_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_hdr_status = ath11k_hw_wcn6855_rx_desc_get_hdr_status,
+	.rx_desc_encrypt_valid = ath11k_hw_wcn6855_rx_desc_encrypt_valid,
+	.rx_desc_get_encrypt_type = ath11k_hw_wcn6855_rx_desc_get_encrypt_type,
+	.rx_desc_get_decap_type = ath11k_hw_wcn6855_rx_desc_get_decap_type,
+	.rx_desc_get_mesh_ctl = ath11k_hw_wcn6855_rx_desc_get_mesh_ctl,
+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_wcn6855_rx_desc_get_mpdu_seq_ctl_vld,
+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_wcn6855_rx_desc_get_mpdu_fc_valid,
+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_msdu_len = ath11k_hw_wcn6855_rx_desc_get_msdu_len,
+	.rx_desc_get_msdu_sgi = ath11k_hw_wcn6855_rx_desc_get_msdu_sgi,
+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_wcn6855_rx_desc_get_msdu_rate_mcs,
+	.rx_desc_get_msdu_rx_bw = ath11k_hw_wcn6855_rx_desc_get_msdu_rx_bw,
+	.rx_desc_get_msdu_freq = ath11k_hw_wcn6855_rx_desc_get_msdu_freq,
+	.rx_desc_get_msdu_pkt_type = ath11k_hw_wcn6855_rx_desc_get_msdu_pkt_type,
+	.rx_desc_get_msdu_nss = ath11k_hw_wcn6855_rx_desc_get_msdu_nss,
+	.rx_desc_get_mpdu_tid = ath11k_hw_wcn6855_rx_desc_get_mpdu_tid,
+	.rx_desc_get_mpdu_peer_id = ath11k_hw_wcn6855_rx_desc_get_mpdu_peer_id,
+	.rx_desc_copy_attn_end_tlv = ath11k_hw_wcn6855_rx_desc_copy_attn_end,
+	.rx_desc_get_mpdu_start_tag = ath11k_hw_wcn6855_rx_desc_get_mpdu_start_tag,
+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_wcn6855_rx_desc_get_mpdu_ppdu_id,
+	.rx_desc_set_msdu_len = ath11k_hw_wcn6855_rx_desc_set_msdu_len,
+	.rx_desc_get_attention = ath11k_hw_wcn6855_rx_desc_get_attention,
+	.rx_desc_get_msdu_payload = ath11k_hw_wcn6855_rx_desc_get_msdu_payload,
+	.reo_setup = ath11k_hw_wcn6855_reo_setup,
+	.mpdu_info_get_peerid = ath11k_hw_wcn6855_mpdu_info_get_peerid,
 };
 
 #define ATH11K_TX_RING_MASK_0 0x1
@@ -1687,4 +2007,75 @@ const struct ath11k_hw_regs qcn9074_regs = {
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0e0a8,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0f45c,
+};
+
+const struct ath11k_hw_regs wcn6855_regs = {
+	/* SW2TCL(x) R0 ring configuration address */
+	.hal_tcl1_ring_base_lsb = 0x00000690,
+	.hal_tcl1_ring_base_msb = 0x00000694,
+	.hal_tcl1_ring_id = 0x00000698,
+	.hal_tcl1_ring_misc = 0x000006a0,
+	.hal_tcl1_ring_tp_addr_lsb = 0x000006ac,
+	.hal_tcl1_ring_tp_addr_msb = 0x000006b0,
+	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x000006c0,
+	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x000006c4,
+	.hal_tcl1_ring_msi1_base_lsb = 0x000006d8,
+	.hal_tcl1_ring_msi1_base_msb = 0x000006dc,
+	.hal_tcl1_ring_msi1_data = 0x000006e0,
+	.hal_tcl2_ring_base_lsb = 0x000006e8,
+	.hal_tcl_ring_base_lsb = 0x00000798,
+
+	/* TCL STATUS ring address */
+	.hal_tcl_status_ring_base_lsb = 0x000008a0,
+
+	/* REO2SW(x) R0 ring configuration address */
+	.hal_reo1_ring_base_lsb = 0x00000244,
+	.hal_reo1_ring_base_msb = 0x00000248,
+	.hal_reo1_ring_id = 0x0000024c,
+	.hal_reo1_ring_misc = 0x00000254,
+	.hal_reo1_ring_hp_addr_lsb = 0x00000258,
+	.hal_reo1_ring_hp_addr_msb = 0x0000025c,
+	.hal_reo1_ring_producer_int_setup = 0x00000268,
+	.hal_reo1_ring_msi1_base_lsb = 0x0000028c,
+	.hal_reo1_ring_msi1_base_msb = 0x00000290,
+	.hal_reo1_ring_msi1_data = 0x00000294,
+	.hal_reo2_ring_base_lsb = 0x0000029c,
+	.hal_reo1_aging_thresh_ix_0 = 0x000005bc,
+	.hal_reo1_aging_thresh_ix_1 = 0x000005c0,
+	.hal_reo1_aging_thresh_ix_2 = 0x000005c4,
+	.hal_reo1_aging_thresh_ix_3 = 0x000005c8,
+
+	/* REO2SW(x) R2 ring pointers (head/tail) address */
+	.hal_reo1_ring_hp = 0x00003030,
+	.hal_reo1_ring_tp = 0x00003034,
+	.hal_reo2_ring_hp = 0x00003038,
+
+	/* REO2TCL R0 ring configuration address */
+	.hal_reo_tcl_ring_base_lsb = 0x00000454,
+	.hal_reo_tcl_ring_hp = 0x00003060,
+
+	/* REO status address */
+	.hal_reo_status_ring_base_lsb = 0x0000055c,
+	.hal_reo_status_hp = 0x00003078,
+
+	/* WCSS relative address */
+	.hal_seq_wcss_umac_ce0_src_reg = 0x1b80000,
+	.hal_seq_wcss_umac_ce0_dst_reg = 0x1b81000,
+	.hal_seq_wcss_umac_ce1_src_reg = 0x1b82000,
+	.hal_seq_wcss_umac_ce1_dst_reg = 0x1b83000,
+
+	/* WBM Idle address */
+	.hal_wbm_idle_link_ring_base_lsb = 0x00000870,
+	.hal_wbm_idle_link_ring_misc = 0x00000880,
+
+	/* SW2WBM release address */
+	.hal_wbm_release_ring_base_lsb = 0x000001e8,
+
+	/* WBM2SW release address */
+	.hal_wbm0_release_ring_base_lsb = 0x00000920,
+	.hal_wbm1_release_ring_base_lsb = 0x00000978,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x01e0c0ac,
+	.pcie_pcs_osc_dtct_config_base = 0x01e0c628,
 };
