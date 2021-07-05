@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rk3588-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/power/rk3588-power.h>
 
 / {
 	compatible = "rockchip,rk3588";
@@ -164,6 +165,135 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
+	};
+
+	pmu: power-management@fd8d8000 {
+		compatible = "rockchip,rk3588-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xfd8d8000 0x0 0x400>;
+
+		power: power-controller {
+			compatible = "rockchip,rk3588-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			/* These power domains are grouped by VD_NPU */
+			power-domain@RK3588_PD_NPU {
+				reg = <RK3588_PD_NPU>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_NPUTOP {
+					reg = <RK3588_PD_NPUTOP>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					power-domain@RK3588_PD_NPU1 {
+						reg = <RK3588_PD_NPU1>;
+					};
+					power-domain@RK3588_PD_NPU2 {
+						reg = <RK3588_PD_NPU2>;
+					};
+				};
+			};
+			/* These power domains are grouped by VD_GPU */
+			power-domain@RK3588_PD_GPU {
+				reg = <RK3588_PD_GPU>;
+			};
+			/* These power domains are grouped by VD_VCODEC */
+			power-domain@RK3588_PD_VCODEC {
+				reg = <RK3588_PD_VCODEC>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_RKVDEC0 {
+					reg = <RK3588_PD_RKVDEC0>;
+				};
+				power-domain@RK3588_PD_RKVDEC1 {
+					reg = <RK3588_PD_RKVDEC1>;
+				};
+				power-domain@RK3588_PD_VENC0 {
+					reg = <RK3588_PD_VENC0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					power-domain@RK3588_PD_VENC1 {
+						reg = <RK3588_PD_VENC1>;
+					};
+				};
+			};
+			/* These power domains are grouped by VD_LOGIC */
+			power-domain@RK3588_PD_VDPU {
+				reg = <RK3588_PD_VDPU>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_RGA30 {
+					reg = <RK3588_PD_RGA30>;
+				};
+				power-domain@RK3588_PD_av1 {
+					reg = <RK3588_PD_AV1>;
+				};
+			};
+			power-domain@RK3588_PD_VOP {
+				reg = <RK3588_PD_VOP>;
+			};
+			power-domain@RK3588_PD_VO0 {
+				reg = <RK3588_PD_VO0>;
+			};
+			power-domain@RK3588_PD_VO1 {
+				reg = <RK3588_PD_VO1>;
+			};
+			power-domain@RK3588_PD_VI {
+				reg = <RK3588_PD_VI>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_ISP1 {
+					reg = <RK3588_PD_ISP1>;
+				};
+				power-domain@RK3588_PD_FEC {
+					reg = <RK3588_PD_FEC>;
+				};
+			};
+			power-domain@RK3588_PD_RGA31 {
+				reg = <RK3588_PD_RGA31>;
+			};
+			power-domain@RK3588_PD_USB {
+				reg = <RK3588_PD_USB>;
+			};
+			power-domain@RK3588_PD_PHP {
+				reg = <RK3588_PD_PHP>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_GMAC {
+					reg = <RK3588_PD_GMAC>;
+				};
+				power-domain@RK3588_PD_PCIE {
+					reg = <RK3588_PD_PCIE>;
+				};
+			};
+			power-domain@RK3588_PD_NVM {
+				reg = <RK3588_PD_NVM>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_NVM0 {
+					reg = <RK3588_PD_NVM0>;
+				};
+			};
+			power-domain@RK3588_PD_SDIO {
+				reg = <RK3588_PD_SDIO>;
+			};
+			power-domain@RK3588_PD_AUDIO {
+				reg = <RK3588_PD_AUDIO>;
+			};
+			power-domain@RK3588_PD_SDMMC {
+				reg = <RK3588_PD_SDMMC>;
+			};
+		};
 	};
 
 	sdmmc0: mmc@fe2c0000 {
