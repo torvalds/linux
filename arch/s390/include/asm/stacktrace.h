@@ -189,7 +189,7 @@ struct stack_frame {
 	(rettype)r2;							\
 })
 
-#define CALL_ON_STACK_NORETURN(fn, stack)				\
+#define call_on_stack_noreturn(fn, stack)				\
 ({									\
 	void (*__fn)(void) = fn;					\
 									\
