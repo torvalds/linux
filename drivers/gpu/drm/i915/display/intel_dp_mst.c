@@ -835,13 +835,10 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 
-	if (DISPLAY_VER(dev_priv) <= 12) {
-		ret = intel_dp_hdcp_init(dig_port, intel_connector);
-		if (ret)
-			drm_dbg_kms(&dev_priv->drm, "[%s:%d] HDCP MST init failed, skipping.\n",
-				    connector->name, connector->base.id);
-	}
-
+	ret = intel_dp_hdcp_init(dig_port, intel_connector);
+	if (ret)
+		drm_dbg_kms(&dev_priv->drm, "[%s:%d] HDCP MST init failed, skipping.\n",
+			    connector->name, connector->base.id);
 	/*
 	 * Reuse the prop from the SST connector because we're
 	 * not allowed to create new props after device registration.
