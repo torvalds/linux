@@ -245,7 +245,6 @@ static int adjd_s311_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
 	indio_dev->info = &adjd_s311_info;
@@ -254,32 +253,12 @@ static int adjd_s311_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(adjd_s311_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	err = iio_triggered_buffer_setup(indio_dev, NULL,
-		adjd_s311_trigger_handler, NULL);
+	err = devm_iio_triggered_buffer_setup(&client->dev, indio_dev, NULL,
+					      adjd_s311_trigger_handler, NULL);
 	if (err < 0)
 		return err;
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		goto exit_unreg_buffer;
-
-	dev_info(&client->dev, "ADJD-S311 color sensor registered\n");
-
-	return 0;
-
-exit_unreg_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return err;
-}
-
-static int adjd_s311_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id adjd_s311_id[] = {
@@ -293,7 +272,6 @@ static struct i2c_driver adjd_s311_driver = {
 		.name	= ADJD_S311_DRV_NAME,
 	},
 	.probe		= adjd_s311_probe,
-	.remove		= adjd_s311_remove,
 	.id_table	= adjd_s311_id,
 };
 module_i2c_driver(adjd_s311_driver);
