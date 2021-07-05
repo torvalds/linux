@@ -81,7 +81,7 @@ required:
 unevaluatedProperties: false
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
 
   - if:
       properties:

@@ -318,10 +318,10 @@ sclp_buffer_space(struct sclp_buffer *buffer)
 /*
  * Return number of characters in buffer
  */
-int
+unsigned int
 sclp_chars_in_buffer(struct sclp_buffer *buffer)
 {
-	int count;
+	unsigned int count;
 
 	count = buffer->char_sum;
 	if (buffer->current_line != NULL)

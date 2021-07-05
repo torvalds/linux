@@ -872,7 +872,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-	char *fp, int count)
+	const char *fp, int count)
 {
 	struct mkiss *ax = mkiss_get(tty);
 
@@ -934,6 +934,7 @@ out:
 
 static struct tty_ldisc_ops ax_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_AX25,
 	.name		= "mkiss",
 	.open		= mkiss_open,
 	.close		= mkiss_close,
@@ -953,22 +954,16 @@ static int __init mkiss_init_driver(void)
 
 	printk(banner);
 
-	status = tty_register_ldisc(N_AX25, &ax_ldisc);
+	status = tty_register_ldisc(&ax_ldisc);
 	if (status != 0)
 		printk(msg_regfail, status);
 
 	return status;
 }
 
-static const char msg_unregfail[] = KERN_ERR \
-	"mkiss: can't unregister line discipline (err = %d)\n";
-
 static void __exit mkiss_exit_driver(void)
 {
-	int ret;
-
-	if ((ret = tty_unregister_ldisc(N_AX25)))
-		printk(msg_unregfail, ret);
+	tty_unregister_ldisc(&ax_ldisc);
 }
 
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");

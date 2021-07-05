@@ -86,6 +86,6 @@ void *sclp_unmake_buffer(struct sclp_buffer *);
 int sclp_buffer_space(struct sclp_buffer *);
 int sclp_write(struct sclp_buffer *buffer, const unsigned char *, int);
 int sclp_emit_buffer(struct sclp_buffer *,void (*)(struct sclp_buffer *,int));
-int sclp_chars_in_buffer(struct sclp_buffer *);
+unsigned int sclp_chars_in_buffer(struct sclp_buffer *);
 
 #endif	/* __SCLP_RW_H__ */

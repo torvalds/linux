@@ -103,14 +103,9 @@ static int pdc_console_tty_write(struct tty_struct *tty, const unsigned char *bu
 	return count;
 }
 
-static int pdc_console_tty_write_room(struct tty_struct *tty)
+static unsigned int pdc_console_tty_write_room(struct tty_struct *tty)
 {
 	return 32768; /* no limit, no buffer used */
-}
-
-static int pdc_console_tty_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0; /* no buffer */
 }
 
 static const struct tty_operations pdc_console_tty_ops = {
@@ -118,7 +113,6 @@ static const struct tty_operations pdc_console_tty_ops = {
 	.close = pdc_console_tty_close,
 	.write = pdc_console_tty_write,
 	.write_room = pdc_console_tty_write_room,
-	.chars_in_buffer = pdc_console_tty_chars_in_buffer,
 };
 
 static void pdc_console_poll(struct timer_list *unused)

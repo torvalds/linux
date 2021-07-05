@@ -218,19 +218,6 @@ config XILINX_HWICAP
 
 	  If unsure, say N.
 
-config R3964
-	tristate "Siemens R3964 line discipline"
-	depends on TTY && BROKEN
-	help
-	  This driver allows synchronous communication with devices using the
-	  Siemens R3964 packet protocol. Unless you are dealing with special
-	  hardware like PLCs, you are unlikely to need this.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called n_r3964.
-
-	  If unsure, say N.
-
 config APPLICOM
 	tristate "Applicom intelligent fieldbus card support"
 	depends on PCI

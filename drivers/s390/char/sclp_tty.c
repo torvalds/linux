@@ -86,12 +86,12 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
  * a string of newlines. Every newline creates a new message which
  * needs 82 bytes.
  */
-static int
+static unsigned int
 sclp_tty_write_room (struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	count = 0;
@@ -280,15 +280,14 @@ sclp_tty_flush_chars(struct tty_struct *tty)
  * characters in the write buffer (will not be written as long as there is a
  * final line feed missing).
  */
-static int
+static unsigned int
 sclp_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct sclp_buffer *t;
-	int count;
+	unsigned int count = 0;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
-	count = 0;
 	if (sclp_ttybuf != NULL)
 		count = sclp_chars_in_buffer(sclp_ttybuf);
 	list_for_each_entry(t, &sclp_tty_outqueue, list) {

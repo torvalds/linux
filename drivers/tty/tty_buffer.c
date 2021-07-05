@@ -32,8 +32,8 @@
  * We default to dicing tty buffer allocations to this many characters
  * in order to avoid multiple page allocations. We know the size of
  * tty_buffer itself but it must also be taken into account that the
- * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
- * logic this must match
+ * buffer is 256 byte aligned. See tty_buffer_find for the allocation
+ * logic this must match.
  */
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
@@ -88,9 +88,10 @@ EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
  *	pre-allocate if memory guarantee is required).
  */
 
-int tty_buffer_space_avail(struct tty_port *port)
+unsigned int tty_buffer_space_avail(struct tty_port *port)
 {
 	int space = port->buf.mem_limit - atomic_read(&port->buf.mem_used);
+
 	return max(space, 0);
 }
 EXPORT_SYMBOL_GPL(tty_buffer_space_avail);
@@ -169,7 +170,8 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 	}
 
 	/* Should possibly check if this fails for the largest buffer we
-	   have queued and recycle that ? */
+	 * have queued and recycle that ?
+	 */
 	if (atomic_read(&port->buf.mem_used) > port->buf.mem_limit)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
@@ -242,7 +244,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 }
 
 /**
- *	tty_buffer_request_room		-	grow tty buffer if needed
+ *	__tty_buffer_request_room		-	grow tty buffer if needed
  *	@port: tty port
  *	@size: size desired
  *	@flags: buffer flags if new buffer allocated (default = 0)
@@ -312,11 +314,13 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		const unsigned char *chars, char flag, size_t size)
 {
 	int copied = 0;
+
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int flags = (flag == TTY_NORMAL) ? TTYB_NORMAL : 0;
 		int space = __tty_buffer_request_room(port, goal, flags);
 		struct tty_buffer *tb = port->buf.tail;
+
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
@@ -326,7 +330,8 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		copied += space;
 		chars += space;
 		/* There is a small chance that we need to split the data over
-		   several buffers. If this is the case we must loop */
+		 * several buffers. If this is the case we must loop.
+		 */
 	} while (unlikely(size > copied));
 	return copied;
 }
@@ -348,10 +353,12 @@ int tty_insert_flip_string_flags(struct tty_port *port,
 		const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
+
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int space = tty_buffer_request_room(port, goal);
 		struct tty_buffer *tb = port->buf.tail;
+
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
@@ -361,7 +368,8 @@ int tty_insert_flip_string_flags(struct tty_port *port,
 		chars += space;
 		flags += space;
 		/* There is a small chance that we need to split the data over
-		   several buffers. If this is the case we must loop */
+		 * several buffers. If this is the case we must loop.
+		 */
 	} while (unlikely(size > copied));
 	return copied;
 }
@@ -431,8 +439,10 @@ int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 		size_t size)
 {
 	int space = __tty_buffer_request_room(port, size, TTYB_NORMAL);
+
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
+
 		*chars = char_buf_ptr(tb, tb->used);
 		if (~tb->flags & TTYB_NORMAL)
 			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
@@ -455,7 +465,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	Returns the number of bytes processed
  */
 int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-			  char *f, int count)
+			  const char *f, int count)
 {
 	if (ld->ops->receive_buf2)
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
@@ -472,7 +482,7 @@ static int
 receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 {
 	unsigned char *p = char_buf_ptr(head, head->read);
-	char	      *f = NULL;
+	const char *f = NULL;
 	int n;
 
 	if (~head->flags & TTYB_NORMAL)

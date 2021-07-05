@@ -438,8 +438,6 @@ static void hvc_iucv_sndbuf_work(struct work_struct *work)
 	struct hvc_iucv_private *priv;
 
 	priv = container_of(work, struct hvc_iucv_private, sndbuf_work.work);
-	if (!priv)
-		return;
 
 	spin_lock_bh(&priv->lock);
 	hvc_iucv_send(priv);

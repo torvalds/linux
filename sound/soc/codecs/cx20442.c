@@ -259,8 +259,8 @@ static int v253_hangup(struct tty_struct *tty)
 }
 
 /* Line discipline .receive_buf() */
-static void v253_receive(struct tty_struct *tty,
-				const unsigned char *cp, char *fp, int count)
+static void v253_receive(struct tty_struct *tty, const unsigned char *cp,
+		const char *fp, int count)
 {
 	struct snd_soc_component *component = tty->disc_data;
 	struct cx20442_priv *cx20442;

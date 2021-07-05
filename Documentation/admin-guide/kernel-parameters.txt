@@ -1122,6 +1122,11 @@
 			the driver will use only 32-bit accessors to read/write
 			the device registers.
 
+		liteuart,<addr>
+			Start an early console on a litex serial port at the
+			specified address. The serial port must already be
+			setup and configured. Options are not yet supported.
+
 		meson,<addr>
 			Start an early, polled-mode console on a meson serial
 			port at the specified address. The serial port must

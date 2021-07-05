@@ -685,7 +685,7 @@ static void sl_setup(struct net_device *dev)
  */
 
 static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-							char *fp, int count)
+		const char *fp, int count)
 {
 	struct slip *sl = tty->disc_data;
 
@@ -1263,6 +1263,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static struct tty_ldisc_ops sl_ldisc = {
 	.owner 		= THIS_MODULE,
+	.num		= N_SLIP,
 	.name 		= "slip",
 	.open 		= slip_open,
 	.close	 	= slip_close,
@@ -1298,7 +1299,7 @@ static int __init slip_init(void)
 		return -ENOMEM;
 
 	/* Fill in our line protocol discipline, and register it */
-	status = tty_register_ldisc(N_SLIP, &sl_ldisc);
+	status = tty_register_ldisc(&sl_ldisc);
 	if (status != 0) {
 		printk(KERN_ERR "SLIP: can't register line discipline (err = %d)\n", status);
 		kfree(slip_devs);
@@ -1359,9 +1360,7 @@ static void __exit slip_exit(void)
 	kfree(slip_devs);
 	slip_devs = NULL;
 
-	i = tty_unregister_ldisc(N_SLIP);
-	if (i != 0)
-		printk(KERN_ERR "SLIP: can't unregister line discipline (err = %d)\n", i);
+	tty_unregister_ldisc(&sl_ldisc);
 }
 
 module_init(slip_init);
