@@ -494,15 +494,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 static void dw_mipi_dsi_phy_power_on(void *priv_data)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
-	int ret;
 
-	ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
-	if (ret) {
-		DRM_DEV_ERROR(dsi->dev, "failed to set phy mode: %d\n", ret);
-		return;
-	}
-
-	phy_configure(dsi->phy, &dsi->phy_opts);
 	phy_power_on(dsi->phy);
 }
 
@@ -529,6 +521,8 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	unsigned int _prediv, best_prediv;
 	unsigned long _fbdiv, best_fbdiv;
 	unsigned long min_delta = ULONG_MAX;
+	unsigned long hs_clk_rate;
+	int ret;
 
 	dsi->format = format;
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
@@ -552,10 +546,19 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 
 	/* for external phy only a the mipi_dphy_config is necessary */
 	if (dsi->phy) {
-		phy_mipi_dphy_get_default_config(mode->clock * 1000 * 10 / 8,
+		phy_mipi_dphy_get_default_config((unsigned long)mode->clock * 1000 * 10 / 8,
 						 bpp, lanes,
 						 &dsi->phy_opts.mipi_dphy);
-		dsi->lane_mbps = target_mbps;
+		ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
+		if (ret) {
+			DRM_DEV_ERROR(dsi->dev,
+				      "failed to set phy mode: %d\n", ret);
+			return ret;
+		}
+
+		phy_configure(dsi->phy, &dsi->phy_opts);
+		hs_clk_rate = dsi->phy_opts.mipi_dphy.hs_clk_rate;
+		dsi->lane_mbps = DIV_ROUND_UP(hs_clk_rate, USEC_PER_SEC);
 		*lane_mbps = dsi->lane_mbps;
 
 		return 0;
