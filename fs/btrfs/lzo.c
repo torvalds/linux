@@ -293,8 +293,6 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	unsigned long tot_len;
 	char *buf;
 	struct page **pages_in = cb->compressed_pages;
-	u64 disk_start = cb->start;
-	struct bio *orig_bio = cb->orig_bio;
 
 	data_in = page_address(pages_in[0]);
 	tot_len = read_compress_length(data_in);
@@ -391,14 +389,14 @@ cont:
 		buf_start = tot_out;
 		tot_out += out_len;
 
-		ret2 = btrfs_decompress_buf2page(workspace->buf, buf_start,
-						 tot_out, disk_start, orig_bio);
+		ret2 = btrfs_decompress_buf2page(workspace->buf, out_len,
+						 cb, buf_start);
 		if (ret2 == 0)
 			break;
 	}
 done:
 	if (!ret)
-		zero_fill_bio(orig_bio);
+		zero_fill_bio(cb->orig_bio);
 	return ret;
 }
 
