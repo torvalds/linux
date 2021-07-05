@@ -1058,7 +1058,7 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 	mpu3050->trig = devm_iio_trigger_alloc(&indio_dev->dev,
 					       "%s-dev%d",
 					       indio_dev->name,
-					       indio_dev->id);
+					       iio_device_id(indio_dev));
 	if (!mpu3050->trig)
 		return -ENOMEM;
 
@@ -1164,7 +1164,7 @@ int mpu3050_common_probe(struct device *dev,
 	mpu3050->divisor = 99;
 
 	/* Read the mounting matrix, if present */
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &mpu3050->orientation);
+	ret = iio_read_mount_matrix(dev, &mpu3050->orientation);
 	if (ret)
 		return ret;
 

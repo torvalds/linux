@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/accel/bosch,bma180.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bosch BMA023 / BMA150/ BMA180 / BMA25x / SMB380 triaxial accelerometers
+title: Bosch BMA023 / BMA150/ BMA180 / BMA250 / SMB380 triaxial accelerometers
 
 maintainers:
   - Jonathan Cameron <jic23@kernel.org>
@@ -21,7 +21,6 @@ properties:
       - bosch,bma150
       - bosch,bma180
       - bosch,bma250
-      - bosch,bma254
       - bosch,smb380
 
   reg:

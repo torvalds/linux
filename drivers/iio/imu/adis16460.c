@@ -5,7 +5,6 @@
  * Copyright 2019 Analog Devices Inc.
  */
 
-#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
@@ -387,8 +386,6 @@ static int adis16460_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
-
-	spi_set_drvdata(spi, indio_dev);
 
 	st = iio_priv(indio_dev);
 
