@@ -13,3 +13,4 @@ ARM
    pkvm
    pvtime
    ptp_kvm
+   mmio-guard
