@@ -12,6 +12,7 @@
 #include <asm/uv.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
+#include "uv.h"
 
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned long __bootdata_preserved(VMALLOC_START);

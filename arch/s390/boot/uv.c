@@ -3,6 +3,8 @@
 #include <asm/facility.h>
 #include <asm/sections.h>
 
+#include "uv.h"
+
 /* will be used in arch/s390/kernel/uv.c */
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
