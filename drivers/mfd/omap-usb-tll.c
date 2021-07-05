@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * omap-usb-tll.c - The USB TLL driver for OMAP EHCI & OHCI
  *
  * Copyright (C) 2012-2013 Texas Instruments Incorporated - https://www.ti.com
