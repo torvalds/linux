@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
- * ipoctal.c
- *
+/*
  * driver for the GE IP-OCTAL boards
  *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)

@@ -84,6 +84,20 @@ struct hl_eq_sm_sei_data {
 	__u8 pad[3];
 };
 
+enum hl_fw_alive_severity {
+	FW_ALIVE_SEVERITY_MINOR,
+	FW_ALIVE_SEVERITY_CRITICAL
+};
+
+struct hl_eq_fw_alive {
+	__le64 uptime_seconds;
+	__le32 process_id;
+	__le32 thread_id;
+	/* enum hl_fw_alive_severity */
+	__u8 severity;
+	__u8 pad[7];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
@@ -91,6 +105,7 @@ struct hl_eq_entry {
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
+		struct hl_eq_fw_alive fw_alive;
 		__le64 data[7];
 	};
 };
@@ -103,11 +118,16 @@ struct hl_eq_entry {
 #define EQ_CTL_EVENT_TYPE_SHIFT		16
 #define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
 
+#define EQ_CTL_INDEX_SHIFT		0
+#define EQ_CTL_INDEX_MASK		0x0000FFFF
+
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,
 	PQ_INIT_STATUS_READY_FOR_HOST,
-	PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI
+	PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI,
+	PQ_INIT_STATUS_LEN_NOT_POWER_OF_TWO_ERR,
+	PQ_INIT_STATUS_ILLEGAL_Q_ADDR_ERR
 };
 
 /*
@@ -384,6 +404,20 @@ enum cpucp_packet_id {
 #define CPUCP_PKT_RES_PLL_OUT3_SHIFT	48
 #define CPUCP_PKT_RES_PLL_OUT3_MASK	0xFFFF000000000000ull
 
+#define CPUCP_PKT_VAL_PFC_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_PFC_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_PFC_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_PFC_IN2_MASK	0x000000000000001Eull
+
+#define CPUCP_PKT_VAL_LPBK_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_LPBK_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_LPBK_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_LPBK_IN2_MASK	0x000000000000001Eull
+
+/* heartbeat status bits */
+#define CPUCP_PKT_HB_STATUS_EQ_FAULT_SHIFT		0
+#define CPUCP_PKT_HB_STATUS_EQ_FAULT_MASK		0x00000001
+
 struct cpucp_packet {
 	union {
 		__le64 value;	/* For SET packets */
@@ -425,6 +459,12 @@ struct cpucp_packet {
 
 		/* For get CpuCP info/EEPROM data/NIC info */
 		__le32 data_max_size;
+
+		/*
+		 * For any general status bitmask. Shall be used whenever the
+		 * result cannot be used to hold general purpose data.
+		 */
+		__le32 status_mask;
 	};
 
 	__le32 reserved;
@@ -629,6 +669,8 @@ struct cpucp_security_info {
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
  * @pll_map: Bit map of supported PLLs for current ASIC version.
+ * @mme_binning_mask: MME binning mask,
+ *                   (0 = functional, 1 = binned)
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -651,6 +693,7 @@ struct cpucp_info {
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];
+	__le64 mme_binning_mask;
 };
 
 struct cpucp_mac_addr {
