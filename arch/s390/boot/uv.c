@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <asm/uv.h>
+#include <asm/boot_data.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
 
+#include "boot.h"
 #include "uv.h"
 
 /* will be used in arch/s390/kernel/uv.c */
@@ -70,5 +72,11 @@ void adjust_to_uv_max(unsigned long *vmax)
 {
 	if (has_uv_sec_stor_limit())
 		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+}
+
+void sanitize_prot_virt_host(void)
+{
+	if (OLDMEM_BASE || (ipl_block_valid && is_ipl_block_dump()))
+		prot_virt_host = 0;
 }
 #endif
