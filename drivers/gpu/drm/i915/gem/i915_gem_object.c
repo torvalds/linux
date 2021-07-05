@@ -625,6 +625,40 @@ int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
 	return obj->ops->migrate(obj, mr);
 }
 
+/**
+ * i915_gem_object_placement_possible - Check whether the object can be
+ * placed at certain memory type
+ * @obj: Pointer to the object
+ * @type: The memory type to check
+ *
+ * Return: True if the object can be placed in @type. False otherwise.
+ */
+bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
+					enum intel_memory_type type)
+{
+	unsigned int i;
+
+	if (!obj->mm.n_placements) {
+		switch (type) {
+		case INTEL_MEMORY_LOCAL:
+			return i915_gem_object_has_iomem(obj);
+		case INTEL_MEMORY_SYSTEM:
+			return i915_gem_object_has_pages(obj);
+		default:
+			/* Ignore stolen for now */
+			GEM_BUG_ON(1);
+			return false;
+		}
+	}
+
+	for (i = 0; i < obj->mm.n_placements; i++) {
+		if (obj->mm.placements[i]->type == type)
+			return true;
+	}
+
+	return false;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
