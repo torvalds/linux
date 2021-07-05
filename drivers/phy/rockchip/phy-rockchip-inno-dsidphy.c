@@ -94,6 +94,13 @@
 #define SAMPLE_CLOCK_DIRECTION_MASK		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_REVERSE		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_FORWARD		0
+#define LOWFRE_EN_MASK                          BIT(5)
+#define PLL_OUTPUT_FREQUENCY_DIV_BY_1           0
+#define PLL_OUTPUT_FREQUENCY_DIV_BY_2           1
+/* Analog Register Part: reg1e */
+#define PLL_MODE_SEL_MASK			GENMASK(6, 5)
+#define PLL_MODE_SEL_LVDS_MODE			0
+#define PLL_MODE_SEL_MIPI_MODE			BIT(5)
 /* Analog Register Part: reg0b */
 #define CLOCK_LANE_VOD_RANGE_SET_MASK	GENMASK(3, 0)
 #define CLOCK_LANE_VOD_RANGE_SET(x)	UPDATE(x, 3, 0)
@@ -211,7 +218,6 @@ struct inno_dsidphy {
 	void __iomem *phy_base;
 	void __iomem *host_base;
 	struct reset_control *rst;
-	enum phy_mode mode;
 	struct phy_configure_opts_mipi_dphy dphy_cfg;
 	unsigned int lanes;
 	const struct inno_dsidphy_plat_data *pdata;
@@ -295,6 +301,17 @@ static void phy_update_bits(struct inno_dsidphy *inno,
 	tmp = orig & ~mask;
 	tmp |= val & mask;
 	writel(tmp, inno->phy_base + reg);
+}
+
+static void host_update_bits(struct inno_dsidphy *inno,
+			     u32 reg, u32 mask, u32 val)
+{
+	unsigned int tmp, orig;
+
+	orig = readl(inno->host_base + reg);
+	tmp = orig & ~mask;
+	tmp |= val & mask;
+	writel(tmp, inno->host_base + reg);
 }
 
 static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
@@ -602,8 +619,9 @@ static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
 
 	/* Sample clock reverse direction */
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-			SAMPLE_CLOCK_DIRECTION_MASK,
-			SAMPLE_CLOCK_DIRECTION_REVERSE);
+			SAMPLE_CLOCK_DIRECTION_MASK | LOWFRE_EN_MASK,
+			SAMPLE_CLOCK_DIRECTION_REVERSE |
+			PLL_OUTPUT_FREQUENCY_DIV_BY_1);
 
 	/* Select LVDS mode */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
@@ -622,6 +640,10 @@ static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
 			LVDS_PLL_POWER_ON | LVDS_BANDGAP_POWER_ON);
 
 	msleep(20);
+
+	/* Select PLL mode */
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1e,
+			PLL_MODE_SEL_MASK, PLL_MODE_SEL_LVDS_MODE);
 
 	/* Reset LVDS digital logic */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
@@ -642,9 +664,36 @@ static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
 			LVDS_DATA_LANE2_EN | LVDS_DATA_LANE3_EN);
 }
 
+static void inno_dsidphy_phy_ttl_mode_enable(struct inno_dsidphy *inno)
+{
+	/* Select TTL mode */
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+			MODE_ENABLE_MASK, TTL_MODE_ENABLE);
+	/* Reset digital logic */
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+			LVDS_DIGITAL_INTERNAL_RESET_MASK,
+			LVDS_DIGITAL_INTERNAL_RESET_ENABLE);
+	udelay(1);
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+			LVDS_DIGITAL_INTERNAL_RESET_MASK,
+			LVDS_DIGITAL_INTERNAL_RESET_DISABLE);
+	/* Enable digital logic */
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x01,
+			LVDS_DIGITAL_INTERNAL_ENABLE_MASK,
+			LVDS_DIGITAL_INTERNAL_ENABLE);
+	/* Enable analog driver */
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+			LVDS_LANE_EN_MASK, LVDS_CLK_LANE_EN |
+			LVDS_DATA_LANE0_EN | LVDS_DATA_LANE1_EN |
+			LVDS_DATA_LANE2_EN | LVDS_DATA_LANE3_EN);
+	/* Enable for clk lane in TTL mode */
+	host_update_bits(inno, DSI_PHY_RSTZ, PHY_ENABLECLK, PHY_ENABLECLK);
+}
+
 static int inno_dsidphy_power_on(struct phy *phy)
 {
 	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	enum phy_mode mode = phy_get_mode(phy);
 
 	clk_prepare_enable(inno->pclk_phy);
 	clk_prepare_enable(inno->ref_clk);
@@ -657,7 +706,7 @@ static int inno_dsidphy_power_on(struct phy *phy)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
 
-	switch (inno->mode) {
+	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
 		inno_dsidphy_mipi_mode_enable(inno);
 		break;
@@ -665,7 +714,7 @@ static int inno_dsidphy_power_on(struct phy *phy)
 		inno_dsidphy_lvds_mode_enable(inno);
 		break;
 	default:
-		return -EINVAL;
+		inno_dsidphy_phy_ttl_mode_enable(inno);
 	}
 
 	return 0;
@@ -702,17 +751,6 @@ static int inno_dsidphy_power_off(struct phy *phy)
 static int inno_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
 				   int submode)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
-
-	switch (mode) {
-	case PHY_MODE_MIPI_DPHY:
-	case PHY_MODE_LVDS:
-		inno->mode = mode;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -721,9 +759,10 @@ static int inno_dsidphy_configure(struct phy *phy,
 {
 	struct inno_dsidphy *inno = phy_get_drvdata(phy);
 	struct phy_configure_opts_mipi_dphy *cfg = &inno->dphy_cfg;
+	enum phy_mode mode = phy_get_mode(phy);
 	int ret;
 
-	if (inno->mode != PHY_MODE_MIPI_DPHY)
+	if (mode != PHY_MODE_MIPI_DPHY)
 		return -EINVAL;
 
 	ret = phy_mipi_dphy_config_validate(&opts->mipi_dphy);
@@ -753,6 +792,7 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	struct inno_dsidphy *inno;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
+	struct resource *res;
 	int ret;
 
 	inno = devm_kzalloc(dev, sizeof(*inno), GFP_KERNEL);
@@ -763,9 +803,19 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	inno->pdata = of_device_get_match_data(inno->dev);
 	platform_set_drvdata(pdev, inno);
 
-	inno->phy_base = devm_platform_ioremap_resource(pdev, 0);
+	inno->phy_base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(inno->phy_base))
 		return PTR_ERR(inno->phy_base);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "host");
+	if (!res) {
+		dev_err(dev, "invalid host resource\n");
+		return -EINVAL;
+	}
+
+	inno->host_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(inno->host_base))
+		return PTR_ERR(inno->host_base);
 
 	inno->ref_clk = devm_clk_get(dev, "ref");
 	if (IS_ERR(inno->ref_clk)) {
@@ -778,6 +828,13 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	if (IS_ERR(inno->pclk_phy)) {
 		ret = PTR_ERR(inno->pclk_phy);
 		dev_err(dev, "failed to get phy pclk: %d\n", ret);
+		return ret;
+	}
+
+	inno->pclk_host = devm_clk_get(dev, "pclk_host");
+	if (IS_ERR(inno->pclk_host)) {
+		ret = PTR_ERR(inno->pclk_host);
+		dev_err(dev, "failed to get host pclk: %d\n", ret);
 		return ret;
 	}
 
