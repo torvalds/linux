@@ -5,7 +5,7 @@
 #define __MLX5_LAG_H__
 
 #include "mlx5_core.h"
-#include "lag_mp.h"
+#include "mp.h"
 
 enum {
 	MLX5_LAG_P1,

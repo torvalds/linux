@@ -38,7 +38,7 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 #include "lag.h"
-#include "lag_mp.h"
+#include "mp.h"
 
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
