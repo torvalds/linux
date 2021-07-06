@@ -489,6 +489,26 @@ err0_out:
 	return -ENOMEM;
 }
 
+static uint32_t sienna_cichlid_get_throttler_status_locked(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetricsExternal_t *metrics_ext =
+		(SmuMetricsExternal_t *)(smu_table->metrics_table);
+	uint32_t throttler_status = 0;
+	int i;
+
+	if ((smu->adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	     (smu->smc_fw_version >= 0x3A4300)) {
+		for (i = 0; i < THROTTLER_COUNT; i++)
+			throttler_status |=
+				(metrics_ext->SmuMetrics_V2.ThrottlingPercentage[i] ? 1U << i : 0);
+	} else {
+		throttler_status = metrics_ext->SmuMetrics.ThrottlerStatus;
+	}
+
+	return throttler_status;
+}
+
 static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 					       MetricsMember_t member,
 					       uint32_t *value)
@@ -496,6 +516,11 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 	struct smu_table_context *smu_table= &smu->smu_table;
 	SmuMetrics_t *metrics =
 		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics);
+	SmuMetrics_V2_t *metrics_v2 =
+		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics_V2);
+	bool use_metrics_v2 = ((smu->adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		(smu->smc_fw_version >= 0x3A4300)) ? true : false;
+	uint16_t average_gfx_activity;
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
@@ -510,78 +535,96 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
-		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_GFXCLK] :
+			metrics->CurrClock[PPCLK_GFXCLK];
 		break;
 	case METRICS_CURR_SOCCLK:
-		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_SOCCLK] :
+			metrics->CurrClock[PPCLK_SOCCLK];
 		break;
 	case METRICS_CURR_UCLK:
-		*value = metrics->CurrClock[PPCLK_UCLK];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_UCLK] :
+			metrics->CurrClock[PPCLK_UCLK];
 		break;
 	case METRICS_CURR_VCLK:
-		*value = metrics->CurrClock[PPCLK_VCLK_0];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_VCLK_0] :
+			metrics->CurrClock[PPCLK_VCLK_0];
 		break;
 	case METRICS_CURR_VCLK1:
-		*value = metrics->CurrClock[PPCLK_VCLK_1];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_VCLK_1] :
+			metrics->CurrClock[PPCLK_VCLK_1];
 		break;
 	case METRICS_CURR_DCLK:
-		*value = metrics->CurrClock[PPCLK_DCLK_0];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_DCLK_0] :
+			metrics->CurrClock[PPCLK_DCLK_0];
 		break;
 	case METRICS_CURR_DCLK1:
-		*value = metrics->CurrClock[PPCLK_DCLK_1];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_DCLK_1] :
+			metrics->CurrClock[PPCLK_DCLK_1];
 		break;
 	case METRICS_CURR_DCEFCLK:
-		*value = metrics->CurrClock[PPCLK_DCEFCLK];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_DCEFCLK] :
+			metrics->CurrClock[PPCLK_DCEFCLK];
 		break;
 	case METRICS_CURR_FCLK:
-		*value = metrics->CurrClock[PPCLK_FCLK];
+		*value = use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_FCLK] :
+			metrics->CurrClock[PPCLK_FCLK];
 		break;
 	case METRICS_AVERAGE_GFXCLK:
-		if (metrics->AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
-			*value = metrics->AverageGfxclkFrequencyPostDs;
+		average_gfx_activity = use_metrics_v2 ? metrics_v2->AverageGfxActivity :
+			metrics->AverageGfxActivity;
+		if (average_gfx_activity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
+			*value = use_metrics_v2 ? metrics_v2->AverageGfxclkFrequencyPostDs :
+				metrics->AverageGfxclkFrequencyPostDs;
 		else
-			*value = metrics->AverageGfxclkFrequencyPreDs;
+			*value = use_metrics_v2 ? metrics_v2->AverageGfxclkFrequencyPreDs :
+				metrics->AverageGfxclkFrequencyPreDs;
 		break;
 	case METRICS_AVERAGE_FCLK:
-		*value = metrics->AverageFclkFrequencyPostDs;
+		*value = use_metrics_v2 ? metrics_v2->AverageFclkFrequencyPostDs :
+			metrics->AverageFclkFrequencyPostDs;
 		break;
 	case METRICS_AVERAGE_UCLK:
-		*value = metrics->AverageUclkFrequencyPostDs;
+		*value = use_metrics_v2 ? metrics_v2->AverageUclkFrequencyPostDs :
+			metrics->AverageUclkFrequencyPostDs;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = metrics->AverageGfxActivity;
+		*value = use_metrics_v2 ? metrics_v2->AverageGfxActivity :
+			metrics->AverageGfxActivity;
 		break;
 	case METRICS_AVERAGE_MEMACTIVITY:
-		*value = metrics->AverageUclkActivity;
+		*value = use_metrics_v2 ? metrics_v2->AverageUclkActivity :
+			metrics->AverageUclkActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->AverageSocketPower << 8;
+		*value = use_metrics_v2 ? metrics_v2->AverageSocketPower << 8 :
+			metrics->AverageSocketPower << 8;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
-		*value = metrics->TemperatureEdge *
+		*value = (use_metrics_v2 ? metrics_v2->TemperatureEdge : metrics->TemperatureEdge) *
 			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = metrics->TemperatureHotspot *
+		*value = (use_metrics_v2 ? metrics_v2->TemperatureHotspot : metrics->TemperatureHotspot) *
 			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = metrics->TemperatureMem *
+		*value = (use_metrics_v2 ? metrics_v2->TemperatureMem : metrics->TemperatureMem) *
 			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_VRGFX:
-		*value = metrics->TemperatureVrGfx *
+		*value = (use_metrics_v2 ? metrics_v2->TemperatureVrGfx : metrics->TemperatureVrGfx) *
 			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = metrics->TemperatureVrSoc *
+		*value = (use_metrics_v2 ? metrics_v2->TemperatureVrSoc : metrics->TemperatureVrSoc) *
 			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_THROTTLER_STATUS:
-		*value = metrics->ThrottlerStatus;
+		*value = sienna_cichlid_get_throttler_status_locked(smu);
 		break;
 	case METRICS_CURR_FANSPEED:
-		*value = metrics->CurrFanSpeed;
+		*value = use_metrics_v2 ? metrics_v2->CurrFanSpeed : metrics->CurrFanSpeed;
 		break;
 	default:
 		*value = UINT_MAX;
@@ -3567,71 +3610,102 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	SmuMetricsExternal_t metrics_external;
 	SmuMetrics_t *metrics =
 		&(metrics_external.SmuMetrics);
+	SmuMetrics_V2_t *metrics_v2 =
+		&(metrics_external.SmuMetrics_V2);
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
+	bool use_metrics_v2 = ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		(smu->smc_fw_version >= 0x3A4300)) ? true : false;
+	uint16_t average_gfx_activity;
 	int ret = 0;
 
-	ret = smu_cmn_get_metrics_table(smu,
-					&metrics_external,
-					true);
-	if (ret)
+	mutex_lock(&smu->metrics_lock);
+	ret = smu_cmn_get_metrics_table_locked(smu,
+					       &metrics_external,
+					       true);
+	if (ret) {
+		mutex_unlock(&smu->metrics_lock);
 		return ret;
+	}
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
 
-	gpu_metrics->temperature_edge = metrics->TemperatureEdge;
-	gpu_metrics->temperature_hotspot = metrics->TemperatureHotspot;
-	gpu_metrics->temperature_mem = metrics->TemperatureMem;
-	gpu_metrics->temperature_vrgfx = metrics->TemperatureVrGfx;
-	gpu_metrics->temperature_vrsoc = metrics->TemperatureVrSoc;
-	gpu_metrics->temperature_vrmem = metrics->TemperatureVrMem0;
+	gpu_metrics->temperature_edge =
+		use_metrics_v2 ? metrics_v2->TemperatureEdge : metrics->TemperatureEdge;
+	gpu_metrics->temperature_hotspot =
+		use_metrics_v2 ? metrics_v2->TemperatureHotspot : metrics->TemperatureHotspot;
+	gpu_metrics->temperature_mem =
+		use_metrics_v2 ? metrics_v2->TemperatureMem : metrics->TemperatureMem;
+	gpu_metrics->temperature_vrgfx =
+		use_metrics_v2 ? metrics_v2->TemperatureVrGfx : metrics->TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc =
+		use_metrics_v2 ? metrics_v2->TemperatureVrSoc : metrics->TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem =
+		use_metrics_v2 ? metrics_v2->TemperatureVrMem0 : metrics->TemperatureVrMem0;
 
-	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
-	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
-	gpu_metrics->average_mm_activity = metrics->VcnActivityPercentage;
+	gpu_metrics->average_gfx_activity =
+		use_metrics_v2 ? metrics_v2->AverageGfxActivity : metrics->AverageGfxActivity;
+	gpu_metrics->average_umc_activity =
+		use_metrics_v2 ? metrics_v2->AverageUclkActivity : metrics->AverageUclkActivity;
+	gpu_metrics->average_mm_activity =
+		use_metrics_v2 ? metrics_v2->VcnActivityPercentage : metrics->VcnActivityPercentage;
 
-	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
-	gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
+	gpu_metrics->average_socket_power =
+		use_metrics_v2 ? metrics_v2->AverageSocketPower : metrics->AverageSocketPower;
+	gpu_metrics->energy_accumulator =
+		use_metrics_v2 ? metrics_v2->EnergyAccumulator : metrics->EnergyAccumulator;
 
-	if (metrics->AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
-		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPostDs;
+	average_gfx_activity = use_metrics_v2 ? metrics_v2->AverageGfxActivity : metrics->AverageGfxActivity;
+	if (average_gfx_activity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency =
+			use_metrics_v2 ? metrics_v2->AverageGfxclkFrequencyPostDs : metrics->AverageGfxclkFrequencyPostDs;
 	else
-		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPreDs;
-	gpu_metrics->average_uclk_frequency = metrics->AverageUclkFrequencyPostDs;
-	gpu_metrics->average_vclk0_frequency = metrics->AverageVclk0Frequency;
-	gpu_metrics->average_dclk0_frequency = metrics->AverageDclk0Frequency;
-	gpu_metrics->average_vclk1_frequency = metrics->AverageVclk1Frequency;
-	gpu_metrics->average_dclk1_frequency = metrics->AverageDclk1Frequency;
+		gpu_metrics->average_gfxclk_frequency =
+			use_metrics_v2 ? metrics_v2->AverageGfxclkFrequencyPreDs : metrics->AverageGfxclkFrequencyPreDs;
+	gpu_metrics->average_uclk_frequency =
+		use_metrics_v2 ? metrics_v2->AverageUclkFrequencyPostDs : metrics->AverageUclkFrequencyPostDs;
+	gpu_metrics->average_vclk0_frequency =
+		use_metrics_v2 ? metrics_v2->AverageVclk0Frequency : metrics->AverageVclk0Frequency;
+	gpu_metrics->average_dclk0_frequency =
+		use_metrics_v2 ? metrics_v2->AverageDclk0Frequency : metrics->AverageDclk0Frequency;
+	gpu_metrics->average_vclk1_frequency =
+		use_metrics_v2 ? metrics_v2->AverageVclk1Frequency : metrics->AverageVclk1Frequency;
+	gpu_metrics->average_dclk1_frequency =
+		use_metrics_v2 ? metrics_v2->AverageDclk1Frequency : metrics->AverageDclk1Frequency;
 
-	gpu_metrics->current_gfxclk = metrics->CurrClock[PPCLK_GFXCLK];
-	gpu_metrics->current_socclk = metrics->CurrClock[PPCLK_SOCCLK];
-	gpu_metrics->current_uclk = metrics->CurrClock[PPCLK_UCLK];
-	gpu_metrics->current_vclk0 = metrics->CurrClock[PPCLK_VCLK_0];
-	gpu_metrics->current_dclk0 = metrics->CurrClock[PPCLK_DCLK_0];
-	gpu_metrics->current_vclk1 = metrics->CurrClock[PPCLK_VCLK_1];
-	gpu_metrics->current_dclk1 = metrics->CurrClock[PPCLK_DCLK_1];
+	gpu_metrics->current_gfxclk =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_GFXCLK] : metrics->CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_SOCCLK] : metrics->CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_UCLK] : metrics->CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_VCLK_0] : metrics->CurrClock[PPCLK_VCLK_0];
+	gpu_metrics->current_dclk0 =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_DCLK_0] : metrics->CurrClock[PPCLK_DCLK_0];
+	gpu_metrics->current_vclk1 =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_VCLK_1] : metrics->CurrClock[PPCLK_VCLK_1];
+	gpu_metrics->current_dclk1 =
+		use_metrics_v2 ? metrics_v2->CurrClock[PPCLK_DCLK_1] : metrics->CurrClock[PPCLK_DCLK_1];
 
-	gpu_metrics->throttle_status = metrics->ThrottlerStatus;
+	gpu_metrics->throttle_status = sienna_cichlid_get_throttler_status_locked(smu);
 	gpu_metrics->indep_throttle_status =
-			smu_cmn_get_indep_throttler_status(metrics->ThrottlerStatus,
+			smu_cmn_get_indep_throttler_status(gpu_metrics->throttle_status,
 							   sienna_cichlid_throttler_map);
 
-	gpu_metrics->current_fan_speed = metrics->CurrFanSpeed;
+	gpu_metrics->current_fan_speed = use_metrics_v2 ? metrics_v2->CurrFanSpeed : metrics->CurrFanSpeed;
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret)
-		return ret;
-
-	if (((adev->asic_type == CHIP_SIENNA_CICHLID) && smu_version > 0x003A1E00) ||
-	      ((adev->asic_type == CHIP_NAVY_FLOUNDER) && smu_version > 0x00410400)) {
-		gpu_metrics->pcie_link_width = metrics->PcieWidth;
-		gpu_metrics->pcie_link_speed = link_speed[metrics->PcieRate];
+	if (((adev->asic_type == CHIP_SIENNA_CICHLID) && smu->smc_fw_version > 0x003A1E00) ||
+	      ((adev->asic_type == CHIP_NAVY_FLOUNDER) && smu->smc_fw_version > 0x00410400)) {
+		gpu_metrics->pcie_link_width = use_metrics_v2 ? metrics_v2->PcieWidth : metrics->PcieWidth;
+		gpu_metrics->pcie_link_speed = link_speed[use_metrics_v2 ? metrics_v2->PcieRate : metrics->PcieRate];
 	} else {
 		gpu_metrics->pcie_link_width =
 				smu_v11_0_get_current_pcie_link_width(smu);
 		gpu_metrics->pcie_link_speed =
 				smu_v11_0_get_current_pcie_link_speed(smu);
 	}
+
+	mutex_unlock(&smu->metrics_lock);
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
