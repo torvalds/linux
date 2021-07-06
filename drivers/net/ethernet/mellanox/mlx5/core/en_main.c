@@ -2847,39 +2847,45 @@ static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 	return 0;
 }
 
-static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
-				 struct tc_mqprio_qopt *mqprio)
+static int mlx5e_setup_tc_mqprio_dcb(struct mlx5e_priv *priv,
+				     struct tc_mqprio_qopt *mqprio)
 {
 	struct mlx5e_params new_params;
 	u8 tc = mqprio->num_tc;
-	int err = 0;
+	int err;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
 	if (tc && tc != MLX5E_MAX_NUM_TC)
 		return -EINVAL;
 
-	mutex_lock(&priv->state_lock);
-
-	/* MQPRIO is another toplevel qdisc that can't be attached
-	 * simultaneously with the offloaded HTB.
-	 */
-	if (WARN_ON(priv->htb.maj_id)) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	new_params = priv->channels.params;
+	new_params.mqprio.mode = TC_MQPRIO_MODE_DCB;
 	new_params.mqprio.num_tc = tc ? tc : 1;
 
 	err = mlx5e_safe_switch_params(priv, &new_params,
 				       mlx5e_num_channels_changed_ctx, NULL, true);
 
-out:
 	priv->max_opened_tc = max_t(u8, priv->max_opened_tc,
 				    mlx5e_get_dcb_num_tc(&priv->channels.params));
-	mutex_unlock(&priv->state_lock);
 	return err;
+}
+
+static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
+				 struct tc_mqprio_qopt_offload *mqprio)
+{
+	/* MQPRIO is another toplevel qdisc that can't be attached
+	 * simultaneously with the offloaded HTB.
+	 */
+	if (WARN_ON(priv->htb.maj_id))
+		return -EINVAL;
+
+	switch (mqprio->mode) {
+	case TC_MQPRIO_MODE_DCB:
+		return mlx5e_setup_tc_mqprio_dcb(priv, &mqprio->qopt);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int mlx5e_setup_tc_htb(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb)
@@ -2951,7 +2957,10 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 						  priv, priv, true);
 	}
 	case TC_SETUP_QDISC_MQPRIO:
-		return mlx5e_setup_tc_mqprio(priv, type_data);
+		mutex_lock(&priv->state_lock);
+		err = mlx5e_setup_tc_mqprio(priv, type_data);
+		mutex_unlock(&priv->state_lock);
+		return err;
 	case TC_SETUP_QDISC_HTB:
 		mutex_lock(&priv->state_lock);
 		err = mlx5e_setup_tc_htb(priv, type_data);

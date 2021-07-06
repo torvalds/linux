@@ -249,6 +249,7 @@ struct mlx5e_params {
 	u8  log_rq_mtu_frames;
 	u16 num_channels;
 	struct {
+		u16 mode;
 		u8 num_tc;
 	} mqprio;
 	bool rx_cqe_compress_def;
@@ -272,7 +273,8 @@ struct mlx5e_params {
 
 static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
 {
-	return params->mqprio.num_tc;
+	return params->mqprio.mode == TC_MQPRIO_MODE_DCB ?
+		params->mqprio.num_tc : 1;
 }
 
 enum {
