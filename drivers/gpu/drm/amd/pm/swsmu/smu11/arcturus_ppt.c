@@ -2178,7 +2178,9 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 
 	dev_warn(adev->dev, "WARN: GPU thermal throttling temperature reached, expect performance decrease. %s.\n",
 			log_buf);
-	kgd2kfd_smi_event_throttle(smu->adev->kfd.dev, throttler_status);
+	kgd2kfd_smi_event_throttle(smu->adev->kfd.dev,
+		smu_cmn_get_indep_throttler_status(throttler_status,
+						   arcturus_throttler_map));
 }
 
 static uint16_t arcturus_get_current_pcie_link_speed(struct smu_context *smu)
