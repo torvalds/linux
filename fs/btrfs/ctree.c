@@ -726,21 +726,21 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 /*
  * search for key in the extent_buffer.  The items start at offset p,
- * and they are item_size apart.  There are 'max' items in p.
+ * and they are item_size apart.
  *
  * the slot in the array is returned via slot, and it points to
  * the place where you would insert key if it is not found in
  * the array.
  *
- * slot may point to max if the key is bigger than all of the keys
+ * Slot may point to total number of items if the key is bigger than
+ * all of the keys
  */
 static noinline int generic_bin_search(struct extent_buffer *eb,
 				       unsigned long p, int item_size,
-				       const struct btrfs_key *key,
-				       int max, int *slot)
+				       const struct btrfs_key *key, int *slot)
 {
 	int low = 0;
-	int high = max;
+	int high = btrfs_header_nritems(eb);
 	int ret;
 	const int key_size = sizeof(struct btrfs_disk_key);
 
@@ -799,15 +799,11 @@ int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,
 	if (btrfs_header_level(eb) == 0)
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_leaf, items),
-					  sizeof(struct btrfs_item),
-					  key, btrfs_header_nritems(eb),
-					  slot);
+					  sizeof(struct btrfs_item), key, slot);
 	else
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_node, ptrs),
-					  sizeof(struct btrfs_key_ptr),
-					  key, btrfs_header_nritems(eb),
-					  slot);
+					  sizeof(struct btrfs_key_ptr), key, slot);
 }
 
 static void root_add_used(struct btrfs_root *root, u32 size)
