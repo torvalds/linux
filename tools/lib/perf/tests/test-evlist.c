@@ -18,6 +18,7 @@
 #include <perf/event.h>
 #include <internal/tests.h>
 #include <api/fs/fs.h>
+#include "tests.h"
 
 static int libperf_print(enum libperf_print_level level,
 			 const char *fmt, va_list ap)
@@ -397,7 +398,7 @@ static int test_mmap_cpus(void)
 	return 0;
 }
 
-int main(int argc, char **argv)
+int test_evlist(int argc, char **argv)
 {
 	__T_START;
 
