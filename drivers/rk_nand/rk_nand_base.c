@@ -8,7 +8,6 @@
  */
 
 #include <asm/cacheflush.h>
-#include <linux/bootmem.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
@@ -59,61 +58,23 @@ void ftl_free(void *buf)
 	kfree(buf);
 }
 
-char rknand_get_sn(char *pbuf)
-{
-	memcpy(pbuf, &nand_idb_data[0x600], 0x200);
-	return 0;
-}
-
-char rknand_get_vendor0(char *pbuf)
-{
-	memcpy(pbuf, &nand_idb_data[0x400 + 8], 504);
-	return 0;
-}
-
-char *rknand_get_idb_data(void)
-{
-	return nand_idb_data;
-}
-EXPORT_SYMBOL(rknand_get_idb_data);
-
 int rknand_get_clk_rate(int nandc_id)
 {
 	return g_nandc_info[nandc_id].clk_rate;
 }
 EXPORT_SYMBOL(rknand_get_clk_rate);
 
-unsigned long rknand_dma_flush_dcache(unsigned long ptr, int size, int dir)
-{
-#ifdef CONFIG_ARM64
-	__flush_dcache_area((void *)ptr, size + 63);
-#else
-	__cpuc_flush_dcache_area((void *)ptr, size + 63);
-#endif
-	return ((unsigned long)virt_to_phys((void *)ptr));
-}
-EXPORT_SYMBOL(rknand_dma_flush_dcache);
-
 unsigned long rknand_dma_map_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_map_area((void *)ptr, size, dir);
-	return ((unsigned long)virt_to_phys((void *)ptr));
-#else
-	return dma_map_single(NULL, (void *)ptr, size
+	return dma_map_single(g_nand_device, (void *)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 EXPORT_SYMBOL(rknand_dma_map_single);
 
 void rknand_dma_unmap_single(unsigned long ptr, int size, int dir)
 {
-#ifdef CONFIG_ARM64
-	__dma_unmap_area(phys_to_virt(ptr), size, dir);
-#else
-	dma_unmap_single(NULL, (dma_addr_t)ptr, size
+	dma_unmap_single(g_nand_device, (dma_addr_t)ptr, size
 		, dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-#endif
 }
 EXPORT_SYMBOL(rknand_dma_unmap_single);
 
@@ -392,7 +353,7 @@ static int rknand_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	return 0;
+	return dma_set_mask(g_nand_device, DMA_BIT_MASK(32));
 }
 
 static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
@@ -491,4 +452,5 @@ static int __init rknand_driver_init(void)
 
 module_init(rknand_driver_init);
 module_exit(rknand_driver_exit);
-MODULE_ALIAS(DRIVER_NAME);
+MODULE_ALIAS("rknand");
+MODULE_LICENSE("GPL v2");

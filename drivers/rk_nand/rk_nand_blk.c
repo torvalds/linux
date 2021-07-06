@@ -7,12 +7,15 @@
  * (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "rk_nand: " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/blkpg.h>
 #include <linux/spinlock.h>
 #include <linux/hdreg.h>
@@ -36,9 +39,6 @@
 #include "rk_nand_blk.h"
 #include "rk_ftl_api.h"
 
-static struct nand_part disk_array[MAX_PART_COUNT];
-static int g_max_part_num = 4;
-
 #define PART_READONLY 0x85
 #define PART_WRITEONLY 0x86
 #define PART_NO_ACCESS 0x87
@@ -48,10 +48,17 @@ static unsigned long totle_write_data;
 static unsigned long totle_read_count;
 static unsigned long totle_write_count;
 static int rk_nand_dev_initialised;
+static unsigned long rk_ftl_gc_do;
+static DECLARE_WAIT_QUEUE_HEAD(rknand_thread_wait);
+static unsigned long rk_ftl_gc_jiffies;
 
 static char *mtd_read_temp_buffer;
 #define MTD_RW_SECTORS (512)
 
+#define DISABLE_WRITE _IO('V', 0)
+#define ENABLE_WRITE _IO('V', 1)
+#define DISABLE_READ _IO('V', 2)
+#define ENABLE_READ _IO('V', 3)
 static int rknand_proc_show(struct seq_file *m, void *v)
 {
 	m->count = rknand_proc_ftlread(m->buf);
@@ -62,43 +69,16 @@ static int rknand_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int rknand_mtd_proc_show(struct seq_file *m, void *v)
-{
-	int i;
-
-	seq_printf(m, "%s", "dev:    size   erasesize  name\n");
-	for (i = 0; i < g_max_part_num; i++) {
-		seq_printf(m, "rknand%d: %8.8llx %8.8x \"%s\"\n", i,
-			   (unsigned long long)disk_array[i].size * 512,
-			   32 * 0x200, disk_array[i].name);
-	}
-	return 0;
-}
-
 static int rknand_proc_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, rknand_proc_show, PDE_DATA(inode));
 }
 
-static int rknand_mtd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rknand_mtd_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations rknand_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rknand_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations rknand_mtd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rknand_mtd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops rknand_proc_fops = {
+	.proc_open	= rknand_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int rknand_create_procfs(void)
@@ -110,10 +90,6 @@ static int rknand_create_procfs(void)
 	if (!ent)
 		return -1;
 
-	ent = proc_create_data("mtd", 0444, NULL, &rknand_mtd_proc_fops,
-			       (void *)0);
-	if (!ent)
-		return -1;
 	return 0;
 }
 
@@ -143,8 +119,7 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 			     unsigned long start,
 			     unsigned long nsector,
 			     char *buf,
-			     int cmd,
-			     int totle_nsec)
+			     int cmd)
 {
 	int ret;
 
@@ -155,7 +130,6 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 	}
 
 	start += dev->off_size;
-	rknand_device_lock();
 
 	switch (cmd) {
 	case READ:
@@ -179,22 +153,7 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 		break;
 	}
 
-	rknand_device_unlock();
 	return ret;
-}
-
-static DECLARE_WAIT_QUEUE_HEAD(rknand_thread_wait);
-static void rk_ftl_gc_timeout_hack(struct timer_list *unused);
-static DEFINE_TIMER(rk_ftl_gc_timeout, rk_ftl_gc_timeout_hack);
-static unsigned long rk_ftl_gc_jiffies;
-static unsigned long rk_ftl_gc_do;
-
-static void rk_ftl_gc_timeout_hack(struct timer_list *unused)
-{
-	del_timer(&rk_ftl_gc_timeout);
-	rk_ftl_gc_do++;
-	rk_ftl_gc_timeout.expires = jiffies + rk_ftl_gc_jiffies * rk_ftl_gc_do;
-	add_timer(&rk_ftl_gc_timeout);
 }
 
 static int req_check_buffer_align(struct request *req, char **pbuf)
@@ -225,284 +184,220 @@ static int req_check_buffer_align(struct request *req, char **pbuf)
 	return 1;
 }
 
-static int nand_blktrans_thread(void *arg)
+static blk_status_t do_blktrans_all_request(struct nand_blk_dev *dev,
+					    struct request *req)
 {
-	struct nand_blk_ops *nandr = arg;
-	struct request_queue *rq = nandr->rq;
-	struct request *req = NULL;
-	int ftl_gc_status = 0;
-	char *buf, *page_buf;
+	unsigned long block, nsect;
+	char *buf = NULL;
 	struct req_iterator rq_iter;
 	struct bio_vec bvec;
-	unsigned long long sector_index = ULLONG_MAX;
+	int ret = BLK_STS_IOERR;
 	unsigned long totle_nsect;
-	int rw_flag = 0;
-	int req_empty_times = 0;
-	int op;
+	unsigned long rq_len = 0;
 
-	spin_lock_irq(rq->queue_lock);
-	rk_ftl_gc_jiffies = HZ / 10; /* do garbage collect after 100ms */
+	block = blk_rq_pos(req);
+	nsect = blk_rq_cur_bytes(req) >> 9;
+	totle_nsect = (req->__data_len) >> 9;
+
+	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
+	    get_capacity(req->rq_disk))
+		return BLK_STS_IOERR;
+
+	switch (req_op(req)) {
+	case REQ_OP_DISCARD:
+		if (FtlDiscard(block, nsect))
+			return BLK_STS_IOERR;
+		return BLK_STS_OK;
+	case REQ_OP_READ:
+		buf = mtd_read_temp_buffer;
+		req_check_buffer_align(req, &buf);
+		ret = nand_dev_transfer(dev,
+				       block,
+				       totle_nsect,
+				       buf,
+				       REQ_OP_READ);
+		if (buf == mtd_read_temp_buffer) {
+			char *p = buf;
+
+			rq_for_each_segment(bvec, req, rq_iter) {
+				memcpy(page_address(bvec.bv_page) +
+					bvec.bv_offset,
+					p,
+					bvec.bv_len);
+				p += bvec.bv_len;
+			}
+		}
+
+		if (ret)
+			return BLK_STS_IOERR;
+		else
+			return BLK_STS_OK;
+	case REQ_OP_WRITE:
+		rq_for_each_segment(bvec, req, rq_iter) {
+			if ((page_address(bvec.bv_page) + bvec.bv_offset) == (buf + rq_len)) {
+				rq_len += bvec.bv_len;
+			} else {
+				if (rq_len) {
+					ret = nand_dev_transfer(dev,
+							       block,
+							       rq_len >> 9,
+							       buf,
+							       REQ_OP_WRITE);
+					if (ret)
+						return BLK_STS_IOERR;
+					else
+						return BLK_STS_OK;
+				}
+				block += rq_len >> 9;
+				buf = (page_address(bvec.bv_page) + bvec.bv_offset);
+				rq_len = bvec.bv_len;
+			}
+		}
+
+		if (rq_len) {
+			ret = nand_dev_transfer(dev,
+					       block,
+					       rq_len >> 9,
+					       buf,
+					       REQ_OP_WRITE);
+		}
+
+		if (ret)
+			return BLK_STS_IOERR;
+		else
+			return BLK_STS_OK;
+
+	default:
+		return BLK_STS_IOERR;
+	}
+}
+
+static struct request *rk_nand_next_request(struct nand_blk_dev *dev)
+{
+	struct nand_blk_ops *nand_ops = dev->nand_ops;
+	struct request *rq;
+
+	rq = list_first_entry_or_null(&nand_ops->rq_list, struct request, queuelist);
+	if (rq) {
+		list_del_init(&rq->queuelist);
+		blk_mq_start_request(rq);
+		return rq;
+	}
+
+	return NULL;
+}
+
+static void rk_nand_blktrans_work(struct nand_blk_dev *dev)
+	__releases(&dev->nand_ops->queue_lock)
+	__acquires(&dev->nand_ops->queue_lock)
+{
+	struct request *req = NULL;
+
+	while (1) {
+		blk_status_t res;
+
+		req = rk_nand_next_request(dev);
+		if (!req)
+			break;
+
+		spin_unlock_irq(&dev->nand_ops->queue_lock);
+
+		rknand_device_lock();
+		res = do_blktrans_all_request(dev, req);
+		rknand_device_unlock();
+
+		if (!blk_update_request(req, res, req->__data_len)) {
+			__blk_mq_end_request(req, res);
+			req = NULL;
+		}
+
+		spin_lock_irq(&dev->nand_ops->queue_lock);
+	}
+}
+
+static blk_status_t rk_nand_queue_rq(struct blk_mq_hw_ctx *hctx,
+				     const struct blk_mq_queue_data *bd)
+{
+	struct nand_blk_dev *dev;
+
+	dev = hctx->queue->queuedata;
+	if (!dev) {
+		blk_mq_start_request(bd->rq);
+		return BLK_STS_IOERR;
+	}
+
 	rk_ftl_gc_do = 0;
-	rk_ftl_gc_timeout.expires = jiffies + rk_ftl_gc_jiffies;
-	add_timer(&rk_ftl_gc_timeout);
+	spin_lock_irq(&dev->nand_ops->queue_lock);
+	list_add_tail(&bd->rq->queuelist, &dev->nand_ops->rq_list);
+	rk_nand_blktrans_work(dev);
+	spin_unlock_irq(&dev->nand_ops->queue_lock);
 
-	while (!nandr->quit) {
-		int res;
-		struct nand_blk_dev *dev;
+	/* wake up gc thread */
+	rk_ftl_gc_do = 1;
+	wake_up(&dev->nand_ops->thread_wq);
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops rk_nand_mq_ops = {
+	.queue_rq	= rk_nand_queue_rq,
+};
+
+static int nand_gc_thread(void *arg)
+{
+	struct nand_blk_ops *nand_ops = arg;
+	int ftl_gc_status = 0;
+	int req_empty_times = 0;
+	int gc_done_times = 0;
+
+	rk_ftl_gc_jiffies = HZ / 10;
+	rk_ftl_gc_do = 1;
+
+	while (!nand_ops->quit) {
 		DECLARE_WAITQUEUE(wait, current);
 
-		if (!req)
-			req = blk_fetch_request(rq);
-		if (!req) {
-			add_wait_queue(&nandr->thread_wq, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(rq->queue_lock);
+		add_wait_queue(&nand_ops->thread_wq, &wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (rk_ftl_gc_do) {
+			 /* do garbage collect at idle state */
 			if (rknand_device_trylock()) {
 				ftl_gc_status = rk_ftl_garbage_collect(1, 0);
 				rknand_device_unlock();
 				rk_ftl_gc_jiffies = HZ / 50;
-				if (ftl_gc_status == 0)
-					rk_ftl_gc_jiffies = 1 * HZ;
-
+				if (ftl_gc_status == 0) {
+					gc_done_times++;
+					if (gc_done_times > 10)
+						rk_ftl_gc_jiffies = 10 * HZ;
+					else
+						rk_ftl_gc_jiffies = 1 * HZ;
+				} else {
+					gc_done_times = 0;
+				}
 			} else {
-				rk_ftl_gc_jiffies = HZ / 50;
+				rk_ftl_gc_jiffies = 1 * HZ;
 			}
 			req_empty_times++;
 			if (req_empty_times < 10)
 				rk_ftl_gc_jiffies = HZ / 50;
-			/* 100ms cache write back */
+			/* cache write back after 100ms */
 			if (req_empty_times >= 5 && req_empty_times < 7) {
 				rknand_device_lock();
 				rk_ftl_cache_write_back();
 				rknand_device_unlock();
 			}
-			wait_event_timeout(nandr->thread_wq,
-					   rk_ftl_gc_do || nandr->quit,
-					   rk_ftl_gc_jiffies);
-			rk_ftl_gc_do = 0;
-			spin_lock_irq(rq->queue_lock);
-			remove_wait_queue(&nandr->thread_wq, &wait);
-			continue;
 		} else {
-			rk_ftl_gc_jiffies = 1 * HZ;
 			req_empty_times = 0;
+			rk_ftl_gc_jiffies = 1 * HZ;
 		}
-
-		dev = req->rq_disk->private_data;
-		totle_nsect = (req->__data_len) >> 9;
-		sector_index = blk_rq_pos(req);
-		buf = 0;
-		res = 0;
-
-		op = req_op(req);
-		if (op == REQ_OP_DISCARD) {
-			spin_unlock_irq(rq->queue_lock);
-			rknand_device_lock();
-			if (FtlDiscard(blk_rq_pos(req) +
-				       dev->off_size, totle_nsect))
-				res = BLK_STS_IOERR;
-			rknand_device_unlock();
-			spin_lock_irq(rq->queue_lock);
-			if (!__blk_end_request_cur(req, res))
-				req = NULL;
-			continue;
-		} else if (op == REQ_OP_FLUSH) {
-			spin_unlock_irq(rq->queue_lock);
-			rknand_device_lock();
-			rk_ftl_cache_write_back();
-			rknand_device_unlock();
-			spin_lock_irq(rq->queue_lock);
-			if (!__blk_end_request_cur(req, res))
-				req = NULL;
-			continue;
-		} else if (op == REQ_OP_READ) {
-			rw_flag = READ;
-		} else if (op == REQ_OP_WRITE) {
-			rw_flag = WRITE;
-		} else {
-			__blk_end_request_all(req, BLK_STS_IOERR);
-			req = NULL;
-			continue;
-		}
-
-		if (mtd_read_temp_buffer) {
-			buf = mtd_read_temp_buffer;
-			req_check_buffer_align(req, &buf);
-
-			if (rw_flag == WRITE && buf == mtd_read_temp_buffer) {
-				char *p = buf;
-
-				rq_for_each_segment(bvec, req, rq_iter) {
-					page_buf = kmap_atomic(bvec.bv_page);
-					memcpy(p,
-					       page_buf + bvec.bv_offset,
-					       bvec.bv_len);
-					p += bvec.bv_len;
-					kunmap_atomic(page_buf);
-				}
-			}
-
-			spin_unlock_irq(rq->queue_lock);
-			res = nand_dev_transfer(dev,
-						sector_index,
-						totle_nsect,
-						buf,
-						rw_flag,
-						totle_nsect);
-			spin_lock_irq(rq->queue_lock);
-
-			if (rw_flag == READ && buf == mtd_read_temp_buffer) {
-				char *p = buf;
-
-				rq_for_each_segment(bvec, req, rq_iter) {
-					page_buf = kmap_atomic(bvec.bv_page);
-
-					memcpy(page_buf + bvec.bv_offset,
-					       p,
-					       bvec.bv_len);
-					p += bvec.bv_len;
-					kunmap_atomic(page_buf);
-				}
-			}
-			__blk_end_request_all(req, res);
-			req = NULL;
-		} else {
-			while (req) {
-				sector_index = blk_rq_pos(req);
-				totle_nsect = blk_rq_cur_bytes(req);
-				buf = kmap_atomic(bio_page(req->bio)) +
-					   bio_offset(req->bio);
-				spin_unlock_irq(rq->queue_lock);
-				res = nand_dev_transfer(dev,
-							sector_index,
-							totle_nsect,
-							buf,
-							rw_flag,
-							totle_nsect);
-				spin_lock_irq(rq->queue_lock);
-				kunmap_atomic(buf);
-				if (!__blk_end_request_cur(req, res))
-					req = NULL;
-			}
-		}
+		wait_event_timeout(nand_ops->thread_wq, nand_ops->quit,
+				   rk_ftl_gc_jiffies);
+		remove_wait_queue(&nand_ops->thread_wq, &wait);
+		continue;
 	}
-	pr_info("nand th quited\n");
-	nandr->nand_th_quited = 1;
-	if (req)
-		__blk_end_request_all(req, BLK_STS_IOERR);
-	rk_nand_schedule_enable_config(0);
-	while ((req = blk_fetch_request(rq)) != NULL)
-		__blk_end_request_all(req, BLK_STS_IOERR);
-	spin_unlock_irq(rq->queue_lock);
-	complete_and_exit(&nandr->thread_exit, 0);
-	return 0;
-}
-
-static void nand_blk_request(struct request_queue *rq)
-{
-	struct nand_blk_ops *nandr = rq->queuedata;
-	struct request *req = NULL;
-
-	if (nandr->nand_th_quited) {
-		while ((req = blk_fetch_request(rq)) != NULL)
-			__blk_end_request_all(req, BLK_STS_IOERR);
-		return;
-	}
-	rk_ftl_gc_do = 1;
-	wake_up(&nandr->thread_wq);
-}
-
-static int rknand_get_part(char *parts,
-			   struct nand_part *this_part,
-			   int *part_index)
-{
-	char delim;
-	unsigned int mask_flags;
-	unsigned long long size, offset = ULLONG_MAX;
-	char name[40] = "\0";
-
-	if (*parts == '-') {
-		size = ULLONG_MAX;
-		parts++;
-	} else {
-		size = memparse(parts, &parts);
-	}
-
-	if (*parts == '@') {
-		parts++;
-		offset = memparse(parts, &parts);
-	}
-
-	mask_flags = 0;
-	delim = 0;
-
-	if (*parts == '(')
-		delim = ')';
-
-	if (delim) {
-		char *p;
-
-		p = strchr(parts + 1, delim);
-		if (!p)
-			return 0;
-		strncpy(name, parts + 1, p - (parts + 1));
-		parts = p + 1;
-	}
-
-	if (strncmp(parts, "ro", 2) == 0) {
-		mask_flags = PART_READONLY;
-		parts += 2;
-	}
-
-	if (strncmp(parts, "wo", 2) == 0) {
-		mask_flags = PART_WRITEONLY;
-		parts += 2;
-	}
-
-	this_part->size = (unsigned long)size;
-	this_part->offset = (unsigned long)offset;
-	this_part->type = mask_flags;
-	sprintf(this_part->name, "%s", name);
-
-	if ((++(*part_index) < MAX_PART_COUNT) && (*parts == ','))
-		rknand_get_part(++parts, this_part + 1, part_index);
-
-	return 1;
-}
-
-static int nand_prase_cmdline_part(struct nand_part *pdisk_part)
-{
-	char *pbuf;
-	int part_num = 0, i;
-	unsigned int cap_size = rk_ftl_get_capacity();
-	char *cmdline;
-
-	cmdline = strstr(saved_command_line, "mtdparts=");
-	if (!cmdline)
-		return 0;
-	cmdline += 9;
-	if (!memcmp(cmdline, "rk29xxnand:", strlen("rk29xxnand:"))) {
-		pbuf = cmdline + strlen("rk29xxnand:");
-		rknand_get_part(pbuf, pdisk_part, &part_num);
-		if (part_num)
-			pdisk_part[part_num - 1].size = cap_size -
-				pdisk_part[part_num - 1].offset;
-
-		for (i = 0; i < part_num; i++) {
-			if (pdisk_part[i].size + pdisk_part[i].offset
-				> cap_size) {
-				pdisk_part[i].size = cap_size -
-					pdisk_part[i].offset;
-				pr_err("partition error....max cap:%x\n",
-					cap_size);
-				if (!pdisk_part[i].size)
-					return i;
-				else
-					return (i + 1);
-			}
-		}
-		return part_num;
-	}
+	pr_info("nand gc quited\n");
+	nand_ops->nand_th_quited = 1;
+	complete_and_exit(&nand_ops->thread_exit, 0);
 	return 0;
 }
 
@@ -515,10 +410,6 @@ static void rknand_release(struct gendisk *disk, fmode_t mode)
 {
 };
 
-#define DISABLE_WRITE _IO('V', 0)
-#define ENABLE_WRITE _IO('V', 1)
-#define DISABLE_READ _IO('V', 2)
-#define ENABLE_READ _IO('V', 3)
 static int rknand_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd,
 			unsigned long arg)
@@ -564,7 +455,7 @@ static struct nand_blk_ops mytr = {
 	.owner = THIS_MODULE,
 };
 
-static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
+static int nand_add_dev(struct nand_blk_ops *nand_ops, struct nand_part *part)
 {
 	struct nand_blk_dev *dev;
 	struct gendisk *gd;
@@ -576,45 +467,37 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 	if (!dev)
 		return -ENOMEM;
 
-	gd = alloc_disk(1 << nandr->minorbits);
+	gd = alloc_disk(1 << nand_ops->minorbits);
 	if (!gd) {
 		kfree(dev);
 		return -ENOMEM;
 	}
-
-	dev->nandr = nandr;
+	nand_ops->rq->queuedata = dev;
+	dev->nand_ops = nand_ops;
 	dev->size = part->size;
 	dev->off_size = part->offset;
-	dev->devnum = nandr->last_dev_index;
-	list_add_tail(&dev->list, &nandr->devs);
-	nandr->last_dev_index++;
+	dev->devnum = nand_ops->last_dev_index;
+	list_add_tail(&dev->list, &nand_ops->devs);
+	nand_ops->last_dev_index++;
 
-	gd->major = nandr->major;
-	gd->first_minor = (dev->devnum) << nandr->minorbits;
+	gd->major = nand_ops->major;
+	gd->first_minor = (dev->devnum) << nand_ops->minorbits;
 
 	gd->fops = &nand_blktrans_ops;
 
-	if (part->name[0]) {
-		snprintf(gd->disk_name,
-			 sizeof(gd->disk_name),
-			 "%s_%s",
-			 nandr->name,
-			 part->name);
-	} else {
-		gd->flags = GENHD_FL_EXT_DEVT;
-		gd->minors = 255;
-		snprintf(gd->disk_name,
-			 sizeof(gd->disk_name),
-			 "%s%d",
-			 nandr->name,
-			 dev->devnum);
-	}
+	gd->flags = GENHD_FL_EXT_DEVT;
+	gd->minors = 255;
+	snprintf(gd->disk_name,
+		 sizeof(gd->disk_name),
+		 "%s%d",
+		 nand_ops->name,
+		 dev->devnum);
+
 	set_capacity(gd, dev->size);
 
 	gd->private_data = dev;
 	dev->blkcore_priv = gd;
-	gd->queue = nandr->rq;
-	gd->queue->bypass_depth = 1;
+	gd->queue = nand_ops->rq;
 
 	if (part->type == PART_NO_ACCESS)
 		dev->disable_access = 1;
@@ -628,10 +511,7 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 	if (dev->readonly)
 		set_disk_ro(gd, 1);
 
-	if (gd->flags != GENHD_FL_EXT_DEVT)
-		add_disk(gd);
-	else
-		device_add_disk(g_nand_device, gd);
+	device_add_disk(g_nand_device, gd, NULL);
 
 	return 0;
 }
@@ -646,81 +526,63 @@ static int nand_remove_dev(struct nand_blk_dev *dev)
 	del_gendisk(gd);
 	put_disk(gd);
 	kfree(dev);
+
 	return 0;
 }
 
-int nand_blk_add_whole_disk(void)
+static int nand_blk_register(struct nand_blk_ops *nand_ops)
 {
 	struct nand_part part;
-
-	part.offset = 0;
-	part.size = rk_ftl_get_capacity();
-	part.type = 0;
-	strncpy(part.name, "rknand", sizeof(part.name));
-	nand_add_dev(&mytr, &part);
-	return 0;
-}
-
-static int nand_blk_register(struct nand_blk_ops *nandr)
-{
-	int i, ret;
-	u32 part_size;
-	struct nand_part part;
+	int ret;
 
 	rk_nand_schedule_enable_config(1);
-	nandr->quit = 0;
-	nandr->nand_th_quited = 0;
+	nand_ops->quit = 0;
+	nand_ops->nand_th_quited = 0;
 
 	mtd_read_temp_buffer = kmalloc(MTD_RW_SECTORS * 512,
 				       GFP_KERNEL | GFP_DMA);
 
-	ret = register_blkdev(nandr->major, nandr->name);
+	ret = register_blkdev(nand_ops->major, nand_ops->name);
 	if (ret)
 		return -1;
 
-	spin_lock_init(&nandr->queue_lock);
-	init_completion(&nandr->thread_exit);
-	init_waitqueue_head(&nandr->thread_wq);
+	init_completion(&nand_ops->thread_exit);
+	init_waitqueue_head(&nand_ops->thread_wq);
 	rknand_device_lock_init();
 
-	nandr->rq = blk_init_queue(nand_blk_request, &nandr->queue_lock);
-	if (!nandr->rq) {
-		unregister_blkdev(nandr->major, nandr->name);
-		return  -1;
+	/* Create the request queue */
+	spin_lock_init(&nand_ops->queue_lock);
+	INIT_LIST_HEAD(&nand_ops->rq_list);
+
+	nand_ops->tag_set = kzalloc(sizeof(*nand_ops->tag_set), GFP_KERNEL);
+	if (!nand_ops->tag_set)
+		goto tag_set_error;
+
+	nand_ops->rq = blk_mq_init_sq_queue(nand_ops->tag_set, &rk_nand_mq_ops, 1,
+					   BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+	if (IS_ERR(nand_ops->rq)) {
+		ret = PTR_ERR(nand_ops->rq);
+		nand_ops->rq = NULL;
+		goto rq_init_error;
 	}
 
-	blk_queue_max_hw_sectors(nandr->rq, MTD_RW_SECTORS);
-	blk_queue_max_segments(nandr->rq, MTD_RW_SECTORS);
+	blk_queue_max_hw_sectors(nand_ops->rq, MTD_RW_SECTORS);
+	blk_queue_max_segments(nand_ops->rq, MTD_RW_SECTORS);
 
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nandr->rq);
-	blk_queue_max_discard_sectors(nandr->rq, UINT_MAX >> 9);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nand_ops->rq);
+	blk_queue_max_discard_sectors(nand_ops->rq, UINT_MAX >> 9);
 	/* discard_granularity config to one nand page size 32KB*/
-	nandr->rq->limits.discard_granularity = 64 << 9;
+	nand_ops->rq->limits.discard_granularity = 64 << 9;
 
-	nandr->rq->queuedata = nandr;
-	INIT_LIST_HEAD(&nandr->devs);
-	kthread_run(nand_blktrans_thread, (void *)nandr, "rknand");
+	INIT_LIST_HEAD(&nand_ops->devs);
+	kthread_run(nand_gc_thread, (void *)nand_ops, "rknand_gc");
 
-	g_max_part_num = nand_prase_cmdline_part(disk_array);
-
-	nandr->last_dev_index = 0;
+	nand_ops->last_dev_index = 0;
 	part.offset = 0;
 	part.size = rk_ftl_get_capacity();
 	part.type = 0;
 	part.name[0] = 0;
-	nand_add_dev(&mytr, &part);
-
-	if (g_max_part_num) {
-		for (i = 0; i < g_max_part_num; i++) {
-			part_size = (disk_array[i].offset + disk_array[i].size);
-			pr_info("%10s: 0x%09llx -- 0x%09llx (%llu MB)\n",
-				disk_array[i].name,
-				(u64)disk_array[i].offset * 512,
-				(u64)part_size * 512,
-				(u64)disk_array[i].size / 2048);
-			nand_add_dev(nandr, &disk_array[i]);
-		}
-	}
+	nand_add_dev(nand_ops, &part);
 
 	rknand_create_procfs();
 	rk_ftl_storage_sys_init();
@@ -735,25 +597,32 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 	}
 
 	return 0;
+
+rq_init_error:
+	kfree(nand_ops->tag_set);
+tag_set_error:
+	unregister_blkdev(nand_ops->major, nand_ops->name);
+
+	return ret;
 }
 
-static void nand_blk_unregister(struct nand_blk_ops *nandr)
+static void nand_blk_unregister(struct nand_blk_ops *nand_ops)
 {
 	struct list_head *this, *next;
 
 	if (!rk_nand_dev_initialised)
 		return;
-	nandr->quit = 1;
-	wake_up(&nandr->thread_wq);
-	wait_for_completion(&nandr->thread_exit);
-	list_for_each_safe(this, next, &nandr->devs) {
+	nand_ops->quit = 1;
+	wake_up(&nand_ops->thread_wq);
+	wait_for_completion(&nand_ops->thread_exit);
+	list_for_each_safe(this, next, &nand_ops->devs) {
 		struct nand_blk_dev *dev
 			= list_entry(this, struct nand_blk_dev, list);
 
 		nand_remove_dev(dev);
 	}
-	blk_cleanup_queue(nandr->rq);
-	unregister_blkdev(nandr->major, nandr->name);
+	blk_cleanup_queue(nand_ops->rq);
+	unregister_blkdev(nand_ops->major, nand_ops->name);
 }
 
 void rknand_dev_flush(void)

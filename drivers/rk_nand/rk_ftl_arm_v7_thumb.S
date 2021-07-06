@@ -5,7 +5,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * date: 2020-09-23
+ * date: 2021-07-16
  */
 	.syntax unified
 	.arch armv7-a
@@ -18,13 +18,79 @@
 	.eabi_attribute 26, 2
 	.eabi_attribute 30, 4
 	.eabi_attribute 34, 1
-	.eabi_attribute 18, 2
+	.eabi_attribute 18, 4
 	.thumb
 	.file	"rk_ftl_arm_v7.S"
 #APP
 	.syntax unified
 	.thumb
 	.text
+	.align	1
+	.thumb
+	.thumb_func
+	.type	ndelay, %function
+ndelay:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	@ link register save eliminated.
+	ldr	r3, .L2
+	addw	r0, r0, #999
+	umull	r0, r1, r0, r3
+	ldr	r3, .L2+4
+	ldr	r3, [r3, #8]
+	lsrs	r0, r1, #6
+	bx	r3	@ indirect register sibling call
+.L3:
+	.align	2
+.L2:
+	.word	274877907
+	.word	arm_delay_ops
+	.fnend
+	.size	ndelay, .-ndelay
+	.align	1
+	.thumb
+	.thumb_func
+	.type	flash_read_ecc, %function
+flash_read_ecc:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	ldr	r2, .L5
+	push	{r4, lr}
+	.save {r4, lr}
+	ldr	r3, [r2, r0, lsl #3]
+	add	r2, r2, r0, lsl #3
+	movs	r0, #80
+	ldrb	r4, [r2, #4]	@ zero_extendqisi2
+	add	r4, r3, r4, lsl #8
+	movs	r3, #122
+	str	r3, [r4, #2056]
+	bl	ndelay
+	ldr	r3, [r4, #2048]
+	ldr	r0, [r4, #2048]
+	and	r3, r3, #15
+	and	r0, r0, #15
+	cmp	r0, r3
+	it	cc
+	movcc	r0, r3
+	ldr	r3, [r4, #2048]
+	and	r3, r3, #15
+	cmp	r0, r3
+	it	cc
+	movcc	r0, r3
+	ldr	r3, [r4, #2048]
+	and	r3, r3, #15
+	cmp	r0, r3
+	it	cc
+	movcc	r0, r3
+	pop	{r4, pc}
+.L6:
+	.align	2
+.L5:
+	.word	.LANCHOR0
+	.fnend
+	.size	flash_read_ecc, .-flash_read_ecc
 	.align	1
 	.global	FlashMemCmp8
 	.thumb
@@ -34,32 +100,32 @@ FlashMemCmp8:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L10
+	ldr	r3, .L16
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
-	ldrb	r3, [r3]	@ zero_extendqisi2
-	cbz	r3, .L4
+	ldrb	r3, [r3, #32]	@ zero_extendqisi2
+	cbz	r3, .L10
 	ldrb	r4, [r0, #1]	@ zero_extendqisi2
 	ldrb	r3, [r1, #1]	@ zero_extendqisi2
 	cmp	r4, r3
-	beq	.L8
+	beq	.L14
 	movs	r3, #0
-.L4:
+.L10:
 	cmp	r3, r2
-	beq	.L8
+	beq	.L14
 	ldrb	r5, [r0, r3]	@ zero_extendqisi2
 	ldrb	r4, [r1, r3]	@ zero_extendqisi2
 	adds	r3, r3, #1
 	cmp	r5, r4
-	beq	.L4
+	beq	.L10
 	mov	r0, r3
 	pop	{r4, r5, pc}
-.L8:
+.L14:
 	movs	r0, #0
 	pop	{r4, r5, pc}
-.L11:
+.L17:
 	.align	2
-.L10:
+.L16:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashMemCmp8, .-FlashMemCmp8
@@ -73,22 +139,22 @@ FlashRsvdBlkChk:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L15
-	ldrb	r2, [r3, #1]	@ zero_extendqisi2
-	ldr	r3, [r3, #4]
+	ldr	r3, .L21
+	ldrb	r2, [r3, #33]	@ zero_extendqisi2
+	ldr	r3, [r3, #36]
 	muls	r3, r2, r3
 	cmp	r1, r3
-	bcs	.L14
+	bcs	.L20
 	adds	r0, r0, #0
 	it	ne
 	movne	r0, #1
 	bx	lr
-.L14:
+.L20:
 	movs	r0, #1
 	bx	lr
-.L16:
+.L22:
 	.align	2
-.L15:
+.L21:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashRsvdBlkChk, .-FlashRsvdBlkChk
@@ -101,23 +167,23 @@ FlashGetRandomizer:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L25
+	ldr	r3, .L31
 	and	r2, r1, #127
 	push	{r4, lr}
 	.save {r4, lr}
 	ldrh	r4, [r3, r2, lsl #1]
-	ldr	r3, .L25+4
-	ldrb	r3, [r3, #8]	@ zero_extendqisi2
-	cbz	r3, .L18
+	ldr	r3, .L31+4
+	ldrb	r3, [r3, #40]	@ zero_extendqisi2
+	cbz	r3, .L24
 	bl	FlashRsvdBlkChk
-	cbz	r0, .L18
+	cbz	r0, .L24
 	orr	r4, r4, #-1073741824
-.L18:
+.L24:
 	mov	r0, r4
 	pop	{r4, pc}
-.L26:
+.L32:
 	.align	2
-.L25:
+.L31:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.fnend
@@ -131,27 +197,26 @@ FlashSetRandomizer:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L35
+	ldr	r3, .L41
 	and	r2, r1, #127
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r6, r0
 	ldrh	r5, [r3, r2, lsl #1]
-	ldr	r3, .L35+4
-	ldrb	r2, [r3, #8]	@ zero_extendqisi2
+	ldr	r3, .L41+4
+	ldrb	r2, [r3, #40]	@ zero_extendqisi2
 	mov	r4, r3
-	cbz	r2, .L28
+	cbz	r2, .L34
 	bl	FlashRsvdBlkChk
-	cbz	r0, .L28
+	cbz	r0, .L34
 	orr	r5, r5, #-1073741824
-.L28:
-	add	r4, r4, r6, lsl #3
-	ldr	r3, [r4, #12]
+.L34:
+	ldr	r3, [r4, r6, lsl #3]
 	str	r5, [r3, #336]
 	pop	{r4, r5, r6, pc}
-.L36:
+.L42:
 	.align	2
-.L35:
+.L41:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.fnend
@@ -167,28 +232,28 @@ FlashBlockAlignInit:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
 	cmp	r0, #512
-	ldr	r3, .L43
-	bls	.L38
+	ldr	r3, .L49
+	bls	.L44
 	mov	r2, #1024
-	b	.L42
-.L38:
-	cmp	r0, #256
-	bls	.L40
-	mov	r2, #512
-	b	.L42
-.L40:
-	cmp	r0, #128
-	bhi	.L41
-	str	r0, [r3, #4]
-	bx	lr
-.L41:
-	mov	r2, #256
-.L42:
-	str	r2, [r3, #4]
-	bx	lr
+	b	.L48
 .L44:
+	cmp	r0, #256
+	bls	.L46
+	mov	r2, #512
+	b	.L48
+.L46:
+	cmp	r0, #128
+	bhi	.L47
+	str	r0, [r3, #36]
+	bx	lr
+.L47:
+	mov	r2, #256
+.L48:
+	str	r2, [r3, #36]
+	bx	lr
+.L50:
 	.align	2
-.L43:
+.L49:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashBlockAlignInit, .-FlashBlockAlignInit
@@ -201,13 +266,13 @@ FlashReadCmd:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L47
+	ldr	r2, .L53
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
 	add	r3, r2, r0, lsl #3
+	ldr	r4, [r2, r0, lsl #3]
 	ldr	r2, [r2, #44]
-	ldr	r4, [r3, #12]
-	ldrb	r3, [r3, #16]	@ zero_extendqisi2
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
 	ldrb	r2, [r2, #7]	@ zero_extendqisi2
 	lsls	r3, r3, #8
 	cmp	r2, #1
@@ -231,9 +296,9 @@ FlashReadCmd:
 	str	r2, [r3, #2056]
 	pop	{r4, r5, lr}
 	b	FlashSetRandomizer
-.L48:
+.L54:
 	.align	2
-.L47:
+.L53:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashReadCmd, .-FlashReadCmd
@@ -246,20 +311,20 @@ FlashReadDpDataOutCmd:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, lr}
-	.save {r4, r5, r6, lr}
+	ldr	r2, .L59
+	push	{r4, r5, r6, r7, lr}
+	.save {r4, r5, r6, r7, lr}
+	add	r3, r2, r0, lsl #3
+	ldr	r7, [r2, r0, lsl #3]
 	uxtb	r6, r1
-	ldr	r4, .L53
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
 	lsrs	r5, r1, #8
-	add	r3, r4, r0, lsl #3
-	ldrb	r4, [r4, #64]	@ zero_extendqisi2
-	ldr	r2, [r3, #12]
-	ldrb	r3, [r3, #16]	@ zero_extendqisi2
-	cmp	r4, #1
-	lsr	r4, r1, #16
+	ldrb	r2, [r2, #64]	@ zero_extendqisi2
+	lsrs	r4, r1, #16
+	cmp	r2, #1
 	lsl	r3, r3, #8
-	add	r3, r3, r2
-	bne	.L50
+	add	r3, r3, r7
+	bne	.L56
 	movs	r2, #6
 	str	r2, [r3, #2056]
 	movs	r2, #0
@@ -268,8 +333,8 @@ FlashReadDpDataOutCmd:
 	str	r6, [r3, #2052]
 	str	r5, [r3, #2052]
 	str	r4, [r3, #2052]
-	b	.L52
-.L50:
+	b	.L58
+.L56:
 	movs	r2, #0
 	str	r2, [r3, #2056]
 	str	r2, [r3, #2052]
@@ -281,14 +346,14 @@ FlashReadDpDataOutCmd:
 	str	r4, [r3, #2056]
 	str	r2, [r3, #2052]
 	str	r2, [r3, #2052]
-.L52:
+.L58:
 	movs	r2, #224
 	str	r2, [r3, #2056]
-	pop	{r4, r5, r6, lr}
+	pop	{r4, r5, r6, r7, lr}
 	b	FlashSetRandomizer
-.L54:
+.L60:
 	.align	2
-.L53:
+.L59:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashReadDpDataOutCmd, .-FlashReadDpDataOutCmd
@@ -301,13 +366,13 @@ FlashProgFirstCmd:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, lr}
-	.save {r4, lr}
+	push	{r4, r5, lr}
+	.save {r4, r5, lr}
 	lsrs	r2, r1, #16
-	ldr	r4, .L56
+	ldr	r4, .L62
+	ldr	r3, [r4, r0, lsl #3]
 	add	r4, r4, r0, lsl #3
-	ldr	r3, [r4, #12]
-	ldrb	r4, [r4, #16]	@ zero_extendqisi2
+	ldrb	r4, [r4, #4]	@ zero_extendqisi2
 	add	r3, r3, r4, lsl #8
 	movs	r4, #128
 	str	r4, [r3, #2056]
@@ -319,11 +384,11 @@ FlashProgFirstCmd:
 	lsrs	r4, r1, #8
 	str	r4, [r3, #2052]
 	str	r2, [r3, #2052]
-	pop	{r4, lr}
+	pop	{r4, r5, lr}
 	b	FlashSetRandomizer
-.L57:
+.L63:
 	.align	2
-.L56:
+.L62:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashProgFirstCmd, .-FlashProgFirstCmd
@@ -338,13 +403,13 @@ FlashEraseCmd:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
-	ldr	r5, .L63
-	add	r0, r5, r0, lsl #3
-	ldrb	r3, [r0, #16]	@ zero_extendqisi2
-	ldr	r4, [r0, #12]
+	ldr	r4, .L69
+	ldr	r5, [r4, r0, lsl #3]
+	add	r0, r4, r0, lsl #3
+	ldrb	r3, [r0, #4]	@ zero_extendqisi2
 	lsls	r3, r3, #8
-	cbz	r2, .L59
-	adds	r2, r4, r3
+	cbz	r2, .L65
+	adds	r2, r5, r3
 	movs	r0, #96
 	str	r0, [r2, #2056]
 	uxtb	r0, r1
@@ -353,10 +418,10 @@ FlashEraseCmd:
 	str	r0, [r2, #2052]
 	lsrs	r0, r1, #16
 	str	r0, [r2, #2052]
-	ldr	r2, [r5, #4]
+	ldr	r2, [r4, #36]
 	add	r1, r1, r2
-.L59:
-	add	r3, r3, r4
+.L65:
+	add	r3, r3, r5
 	movs	r2, #96
 	str	r2, [r3, #2056]
 	uxtb	r2, r1
@@ -368,9 +433,9 @@ FlashEraseCmd:
 	movs	r2, #208
 	str	r2, [r3, #2056]
 	pop	{r4, r5, pc}
-.L64:
+.L70:
 	.align	2
-.L63:
+.L69:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashEraseCmd, .-FlashEraseCmd
@@ -383,15 +448,15 @@ FlashProgDpSecondCmd:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, lr}
-	.save {r4, r5, lr}
+	push	{r4, r5, r6, lr}
+	.save {r4, r5, r6, lr}
 	lsrs	r2, r1, #16
-	ldr	r4, .L66
-	add	r5, r4, r0, lsl #3
-	ldrb	r4, [r4, #59]	@ zero_extendqisi2
-	ldr	r3, [r5, #12]
-	ldrb	r5, [r5, #16]	@ zero_extendqisi2
-	add	r3, r3, r5, lsl #8
+	ldr	r5, .L72
+	add	r4, r5, r0, lsl #3
+	ldr	r3, [r5, r0, lsl #3]
+	ldrb	r6, [r4, #4]	@ zero_extendqisi2
+	ldrb	r4, [r5, #59]	@ zero_extendqisi2
+	add	r3, r3, r6, lsl #8
 	str	r4, [r3, #2056]
 	movs	r4, #0
 	str	r4, [r3, #2052]
@@ -401,11 +466,11 @@ FlashProgDpSecondCmd:
 	lsrs	r4, r1, #8
 	str	r4, [r3, #2052]
 	str	r2, [r3, #2052]
-	pop	{r4, r5, lr}
+	pop	{r4, r5, r6, lr}
 	b	FlashSetRandomizer
-.L67:
+.L73:
 	.align	2
-.L66:
+.L72:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashProgDpSecondCmd, .-FlashProgDpSecondCmd
@@ -420,24 +485,24 @@ FlashProgSecondCmd:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
-	ldr	r3, .L69
-	add	r0, r3, r0, lsl #3
-	ldr	r3, .L69+4
-	ldr	r4, [r0, #12]
-	ldrb	r5, [r0, #16]	@ zero_extendqisi2
-	ldr	r3, [r3, #4]
-	ldr	r0, .L69+8
-	blx	r3
+	ldr	r3, .L75
+	ldr	r4, [r3, r0, lsl #3]
+	add	r3, r3, r0, lsl #3
+	ldr	r0, .L75+4
+	ldrb	r5, [r3, #4]	@ zero_extendqisi2
+	ldr	r3, .L75+8
 	add	r4, r4, r5, lsl #8
+	ldr	r3, [r3, #4]
+	blx	r3
 	movs	r3, #16
 	str	r3, [r4, #2056]
 	pop	{r3, r4, r5, pc}
-.L70:
+.L76:
 	.align	2
-.L69:
+.L75:
 	.word	.LANCHOR0
+	.word	64424500
 	.word	arm_delay_ops
-	.word	214748300
 	.fnend
 	.size	FlashProgSecondCmd, .-FlashProgSecondCmd
 	.align	1
@@ -450,20 +515,50 @@ FlashProgDpFirstCmd:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L72
+	ldr	r2, .L78
+	ldr	r3, [r2, r0, lsl #3]
 	add	r0, r2, r0, lsl #3
 	ldrb	r2, [r2, #58]	@ zero_extendqisi2
-	ldrb	r1, [r0, #16]	@ zero_extendqisi2
-	ldr	r3, [r0, #12]
+	ldrb	r1, [r0, #4]	@ zero_extendqisi2
 	add	r3, r3, r1, lsl #8
 	str	r2, [r3, #2056]
 	bx	lr
-.L73:
+.L79:
 	.align	2
-.L72:
+.L78:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashProgDpFirstCmd, .-FlashProgDpFirstCmd
+	.align	1
+	.global	FlashReadStatus
+	.thumb
+	.thumb_func
+	.type	FlashReadStatus, %function
+FlashReadStatus:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	push	{r3, r4, r5, lr}
+	.save {r3, r4, r5, lr}
+	movs	r2, #112
+	ldr	r3, .L81
+	ldr	r5, [r3, r0, lsl #3]
+	add	r3, r3, r0, lsl #3
+	movs	r0, #80
+	ldrb	r4, [r3, #4]	@ zero_extendqisi2
+	add	r3, r5, r4, lsl #8
+	adds	r4, r4, #8
+	str	r2, [r3, #2056]
+	lsls	r4, r4, #8
+	bl	ndelay
+	ldr	r0, [r5, r4]
+	pop	{r3, r4, r5, pc}
+.L82:
+	.align	2
+.L81:
+	.word	.LANCHOR0
+	.fnend
+	.size	FlashReadStatus, .-FlashReadStatus
 	.align	1
 	.global	js_hash
 	.thumb
@@ -473,25 +568,25 @@ js_hash:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L78
+	ldr	r3, .L87
 	add	r1, r1, r0
 	push	{r4, lr}
 	.save {r4, lr}
-.L75:
+.L84:
 	cmp	r0, r1
-	beq	.L77
+	beq	.L86
 	lsls	r2, r3, #5
 	ldrb	r4, [r0], #1	@ zero_extendqisi2
 	add	r2, r2, r3, lsr #2
 	add	r2, r2, r4
 	eors	r3, r3, r2
-	b	.L75
-.L77:
+	b	.L84
+.L86:
 	mov	r0, r3
 	pop	{r4, pc}
-.L79:
+.L88:
 	.align	2
-.L78:
+.L87:
 	.word	1204201446
 	.fnend
 	.size	js_hash, .-js_hash
@@ -523,6 +618,109 @@ FlashPrintInfo:
 	.fnend
 	.size	FlashPrintInfo, .-FlashPrintInfo
 	.align	1
+	.global	ToshibaSetRRPara
+	.thumb
+	.thumb_func
+	.type	ToshibaSetRRPara, %function
+ToshibaSetRRPara:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	push	{r4, r5, r6, r7, r8, r9, r10, lr}
+	.save {r4, r5, r6, r7, r8, r9, r10, lr}
+	add	r8, r1, r1, lsl #2
+	ldr	r9, .L100+8
+	movs	r4, #0
+	ldr	r7, .L100
+	mov	r5, r0
+	add	r10, r9, #256
+	mov	r6, r1
+.L92:
+	ldrb	r3, [r7, #81]	@ zero_extendqisi2
+	cmp	r4, r3
+	bcs	.L99
+	movs	r3, #85
+	str	r3, [r5, #8]
+	ldrsb	r3, [r4, r10]
+	movs	r0, #200
+	str	r3, [r5, #4]
+	bl	ndelay
+	ldrb	r3, [r7, #80]	@ zero_extendqisi2
+	cmp	r3, #34
+	bne	.L93
+	add	r3, r4, r8
+	add	r3, r3, r10
+	b	.L98
+.L93:
+	cmp	r3, #35
+	bne	.L95
+	ldr	r2, .L100+4
+	add	r3, r4, r8
+	add	r3, r3, r2
+.L98:
+	ldrsb	r3, [r3, #5]
+	b	.L97
+.L95:
+	add	r3, r9, r6
+	ldrsb	r3, [r3, #400]
+.L97:
+	str	r3, [r5]
+	adds	r4, r4, #1
+	b	.L92
+.L99:
+	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+.L101:
+	.align	2
+.L100:
+	.word	.LANCHOR0
+	.word	.LANCHOR1+304
+	.word	.LANCHOR1
+	.fnend
+	.size	ToshibaSetRRPara, .-ToshibaSetRRPara
+	.align	1
+	.global	SamsungSetRRPara
+	.thumb
+	.thumb_func
+	.type	SamsungSetRRPara, %function
+SamsungSetRRPara:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	ldr	r3, .L106
+	push	{r4, r5, r6, r7, r8, r9, r10, lr}
+	.save {r4, r5, r6, r7, r8, r9, r10, lr}
+	add	r1, r3, r1, lsl #2
+	movs	r4, #0
+	ldr	r8, .L106+4
+	adds	r5, r1, #3
+	mov	r9, #161
+	mov	r6, r0
+	mov	r7, r3
+	mov	r10, r4
+.L103:
+	ldrb	r3, [r8, #81]	@ zero_extendqisi2
+	cmp	r4, r3
+	bcs	.L105
+	str	r9, [r6, #8]
+	mov	r0, #300
+	str	r10, [r6]
+	ldrsb	r3, [r7, r4]
+	adds	r4, r4, #1
+	str	r3, [r6]
+	ldrsb	r3, [r5, #1]!
+	str	r3, [r6]
+	bl	ndelay
+	b	.L103
+.L105:
+	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+.L107:
+	.align	2
+.L106:
+	.word	.LANCHOR1+408
+	.word	.LANCHOR0
+	.fnend
+	.size	SamsungSetRRPara, .-SamsungSetRRPara
+	.align	1
 	.global	ftl_flash_suspend
 	.thumb
 	.thumb_func
@@ -532,28 +730,28 @@ ftl_flash_suspend:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L83
-	ldr	r2, [r3, #80]
+	ldr	r3, .L109
+	ldr	r2, [r3, #84]
 	ldr	r1, [r2]
-	str	r1, [r3, #84]
-	ldr	r1, [r2, #4]
 	str	r1, [r3, #88]
-	ldr	r1, [r2, #8]
+	ldr	r1, [r2, #4]
 	str	r1, [r3, #92]
-	ldr	r1, [r2, #12]
+	ldr	r1, [r2, #8]
 	str	r1, [r3, #96]
-	ldr	r1, [r2, #304]
+	ldr	r1, [r2, #12]
 	str	r1, [r3, #100]
-	ldr	r1, [r2, #308]
+	ldr	r1, [r2, #304]
 	str	r1, [r3, #104]
+	ldr	r1, [r2, #308]
+	str	r1, [r3, #108]
 	ldr	r1, [r2, #336]
 	ldr	r2, [r2, #344]
-	str	r1, [r3, #108]
-	str	r2, [r3, #112]
+	str	r1, [r3, #112]
+	str	r2, [r3, #116]
 	bx	lr
-.L84:
+.L110:
 	.align	2
-.L83:
+.L109:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_flash_suspend, .-ftl_flash_suspend
@@ -571,18 +769,18 @@ LogAddr2PhyAddr:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
 	mov	r7, r0
-	ldr	r0, .L90
+	ldr	r0, .L116
 	mov	r8, r3
 	ldr	r4, [r7, #4]
 	mov	r10, r1
 	mov	r9, r2
-	ldrh	r3, [r0, #130]
+	ldrh	r3, [r0, #134]
 	bic	r4, r4, #-2147483648
-	ldrh	r5, [r0, #128]
+	ldrh	r5, [r0, #132]
 	mov	r6, r0
-	ldrh	fp, [r0, #4]
+	ldrh	fp, [r0, #36]
 	smulbb	r5, r5, r3
-	ldrb	r3, [r0]	@ zero_extendqisi2
+	ldrb	r3, [r0, #32]	@ zero_extendqisi2
 	cmp	r3, #1
 	ubfx	r3, r4, #10, #16
 	it	eq
@@ -601,41 +799,132 @@ LogAddr2PhyAddr:
 	smulbb	r5, r0, r5
 	sub	r3, r3, r5
 	uxth	r3, r3
-	bne	.L87
-	ldrb	r2, [r6, #144]	@ zero_extendqisi2
-	cbnz	r2, .L87
-	ldr	r2, .L90
+	bne	.L113
+	ldrb	r2, [r6, #148]	@ zero_extendqisi2
+	cbnz	r2, .L113
+	ldr	r2, .L116
 	add	r1, r2, r1, lsl #1
-	ldrh	r1, [r1, #148]
-.L87:
+	ldrh	r1, [r1, #152]
+.L113:
 	add	r6, r6, r0, lsl #2
-	ldr	r2, [r6, #1172]
+	ldr	r2, [r6, #1176]
 	mla	fp, fp, r3, r2
 	ldrb	r3, [sp, #48]	@ zero_extendqisi2
 	cmp	r3, #1
 	add	r1, r1, fp
 	str	r1, [r9]
 	str	r0, [r8]
-	bls	.L89
+	bls	.L115
 	ldr	r0, [r7, #4]
 	ldr	r3, [r7, #40]
 	add	r0, r0, #1024
 	subs	r3, r0, r3
 	rsbs	r0, r3, #0
 	adcs	r0, r0, r3
-	b	.L88
-.L89:
+	b	.L114
+.L115:
 	movs	r0, #0
-.L88:
+.L114:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L91:
+.L117:
 	.align	2
-.L90:
+.L116:
 	.word	.LANCHOR0
 	.fnend
 	.size	LogAddr2PhyAddr, .-LogAddr2PhyAddr
+	.align	1
+	.global	FlashReadStatusEN
+	.thumb
+	.thumb_func
+	.type	FlashReadStatusEN, %function
+FlashReadStatusEN:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	push	{r4, r5, r6, lr}
+	.save {r4, r5, r6, lr}
+	ldr	r4, .L128
+	ldr	r3, [r4, #44]
+	ldr	r6, [r4, r0, lsl #3]
+	add	r0, r4, r0, lsl #3
+	ldrb	r3, [r3, #8]	@ zero_extendqisi2
+	ldrb	r5, [r0, #4]	@ zero_extendqisi2
+	cmp	r3, #2
+	lsl	r3, r5, #8
+	add	r5, r5, #8
+	bne	.L119
+	cbnz	r2, .L120
+	ldrb	r2, [r4, #61]	@ zero_extendqisi2
+	b	.L127
+.L120:
+	ldrb	r2, [r4, #62]	@ zero_extendqisi2
+.L127:
+	add	r3, r3, r6
+	str	r2, [r3, #2056]
+	ldrb	r0, [r4, #63]	@ zero_extendqisi2
+	cbz	r0, .L123
+	movs	r3, #0
+	add	r4, r6, r5, lsl #8
+.L122:
+	cmp	r3, r0
+	bcs	.L123
+	lsls	r2, r3, #3
+	adds	r3, r3, #1
+	lsr	r2, r1, r2
+	uxtb	r2, r2
+	str	r2, [r4, #4]
+	b	.L122
+.L119:
+	add	r3, r3, r6
+	movs	r2, #112
+	str	r2, [r3, #2056]
+.L123:
+	movs	r0, #80
+	lsls	r5, r5, #8
+	bl	ndelay
+	ldr	r0, [r6, r5]
+	uxtb	r0, r0
+	pop	{r4, r5, r6, pc}
+.L129:
+	.align	2
+.L128:
+	.word	.LANCHOR0
+	.fnend
+	.size	FlashReadStatusEN, .-FlashReadStatusEN
+	.align	1
+	.global	FlashWaitReadyEN
+	.thumb
+	.thumb_func
+	.type	FlashWaitReadyEN, %function
+FlashWaitReadyEN:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	push	{r4, r5, r6, lr}
+	.save {r4, r5, r6, lr}
+	mov	r4, r0
+	mov	r5, r1
+	mov	r6, r2
+.L131:
+	mov	r0, r4
+	mov	r1, r5
+	mov	r2, r6
+	bl	FlashReadStatusEN
+	cmp	r0, #255
+	mov	r3, r0
+	beq	.L131
+	lsls	r3, r3, #25
+	bmi	.L132
+	movs	r0, #1
+	movs	r1, #3
+	bl	usleep_range
+	b	.L131
+.L132:
+	pop	{r4, r5, r6, pc}
+	.fnend
+	.size	FlashWaitReadyEN, .-FlashWaitReadyEN
 	.align	1
 	.global	FlashScheduleEnSet
 	.thumb
@@ -646,14 +935,14 @@ FlashScheduleEnSet:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L93
-	ldr	r2, [r3, #1204]
-	str	r0, [r3, #1204]
+	ldr	r3, .L137
+	ldr	r2, [r3, #1208]
+	str	r0, [r3, #1208]
 	mov	r0, r2
 	bx	lr
-.L94:
+.L138:
 	.align	2
-.L93:
+.L137:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashScheduleEnSet, .-FlashScheduleEnSet
@@ -667,13 +956,13 @@ FlashGetPageSize:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L96
+	ldr	r3, .L140
 	ldr	r3, [r3, #44]
 	ldrb	r0, [r3, #9]	@ zero_extendqisi2
 	bx	lr
-.L97:
+.L141:
 	.align	2
-.L96:
+.L140:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashGetPageSize, .-FlashGetPageSize
@@ -700,16 +989,16 @@ NandcGetChipIf:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L100
-	add	r0, r3, r0, lsl #3
-	ldrb	r2, [r0, #16]	@ zero_extendqisi2
-	ldr	r0, [r0, #12]
-	adds	r2, r2, #8
-	add	r0, r0, r2, lsl #8
+	ldr	r2, .L144
+	add	r3, r2, r0, lsl #3
+	ldr	r0, [r2, r0, lsl #3]
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
+	adds	r3, r3, #8
+	add	r0, r0, r3, lsl #8
 	bx	lr
-.L101:
+.L145:
 	.align	2
-.L100:
+.L144:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcGetChipIf, .-NandcGetChipIf
@@ -723,16 +1012,16 @@ NandcSetDdrPara:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L103
-	ldr	r2, [r3, #80]
+	ldr	r3, .L147
+	ldr	r2, [r3, #84]
 	lsls	r3, r0, #8
 	orr	r0, r3, r0, lsl #16
 	orr	r3, r0, #1
 	str	r3, [r2, #304]
 	bx	lr
-.L104:
+.L148:
 	.align	2
-.L103:
+.L147:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcSetDdrPara, .-NandcSetDdrPara
@@ -746,14 +1035,14 @@ NandcSetDdrDiv:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L106
+	ldr	r3, .L150
 	orr	r0, r0, #16640
-	ldr	r3, [r3, #80]
+	ldr	r3, [r3, #84]
 	str	r0, [r3, #344]
 	bx	lr
-.L107:
+.L151:
 	.align	2
-.L106:
+.L150:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcSetDdrDiv, .-NandcSetDdrDiv
@@ -767,20 +1056,20 @@ NandcSetDdrMode:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L111
-	ldr	r2, [r3, #80]
+	ldr	r3, .L155
+	ldr	r2, [r3, #84]
 	ldr	r3, [r2]
-	cbnz	r0, .L109
+	cbnz	r0, .L153
 	bfi	r3, r0, #13, #1
-	b	.L110
-.L109:
+	b	.L154
+.L153:
 	orr	r3, r3, #253952
-.L110:
+.L154:
 	str	r3, [r2]
 	bx	lr
-.L112:
+.L156:
 	.align	2
-.L111:
+.L155:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcSetDdrMode, .-NandcSetDdrMode
@@ -794,11 +1083,11 @@ NandcSetMode:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L120
+	ldr	r3, .L164
 	ands	r1, r0, #6
-	ldr	r2, [r3, #80]
+	ldr	r2, [r3, #84]
 	ldr	r3, [r2]
-	beq	.L114
+	beq	.L158
 	orr	r3, r3, #24576
 	lsls	r1, r0, #29
 	bfc	r3, #15, #1
@@ -814,16 +1103,16 @@ NandcSetMode:
 	str	r1, [r2, #308]
 	movs	r1, #39
 	str	r1, [r2, #308]
-	b	.L116
-.L114:
+	b	.L160
+.L158:
 	bfi	r3, r1, #13, #1
-.L116:
+.L160:
 	str	r3, [r2]
 	movs	r0, #0
 	bx	lr
-.L121:
+.L165:
 	.align	2
-.L120:
+.L164:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcSetMode, .-NandcSetMode
@@ -837,19 +1126,19 @@ NandcFlashCs:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L123
-	add	r0, r2, r0, lsl #3
+	ldr	r3, .L167
 	movs	r2, #1
-	ldr	r1, [r0, #12]
-	ldrb	r0, [r0, #16]	@ zero_extendqisi2
+	ldr	r1, [r3, r0, lsl #3]
+	add	r0, r3, r0, lsl #3
+	ldrb	r0, [r0, #4]	@ zero_extendqisi2
 	ldr	r3, [r1]
 	lsls	r2, r2, r0
 	bfi	r3, r2, #0, #8
 	str	r3, [r1]
 	bx	lr
-.L124:
+.L168:
 	.align	2
-.L123:
+.L167:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcFlashCs, .-NandcFlashCs
@@ -863,180 +1152,19 @@ NandcFlashDeCs:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L126
-	add	r0, r3, r0, lsl #3
-	ldr	r2, [r0, #12]
+	ldr	r3, .L170
+	ldr	r2, [r3, r0, lsl #3]
 	ldr	r3, [r2]
 	bfc	r3, #0, #8
 	bfc	r3, #17, #1
 	str	r3, [r2]
 	bx	lr
-.L127:
+.L171:
 	.align	2
-.L126:
+.L170:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcFlashDeCs, .-NandcFlashDeCs
-	.align	1
-	.global	NandcDelayns
-	.thumb
-	.thumb_func
-	.type	NandcDelayns, %function
-NandcDelayns:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r3, lr}
-	.save {r3, lr}
-	addw	r0, r0, #999
-	ldr	r3, .L129
-	umull	r0, r1, r0, r3
-	ldr	r3, .L129+4
-	ldr	r3, [r3, #8]
-	lsrs	r0, r1, #6
-	blx	r3
-	movs	r0, #0
-	pop	{r3, pc}
-.L130:
-	.align	2
-.L129:
-	.word	274877907
-	.word	arm_delay_ops
-	.fnend
-	.size	NandcDelayns, .-NandcDelayns
-	.align	1
-	.global	FlashReadStatus
-	.thumb
-	.thumb_func
-	.type	FlashReadStatus, %function
-FlashReadStatus:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r3, r4, r5, lr}
-	.save {r3, r4, r5, lr}
-	movs	r2, #112
-	ldr	r3, .L132
-	add	r0, r3, r0, lsl #3
-	ldrb	r4, [r0, #16]	@ zero_extendqisi2
-	ldr	r5, [r0, #12]
-	movs	r0, #80
-	add	r3, r5, r4, lsl #8
-	adds	r4, r4, #8
-	str	r2, [r3, #2056]
-	lsls	r4, r4, #8
-	bl	NandcDelayns
-	ldr	r0, [r5, r4]
-	pop	{r3, r4, r5, pc}
-.L133:
-	.align	2
-.L132:
-	.word	.LANCHOR0
-	.fnend
-	.size	FlashReadStatus, .-FlashReadStatus
-	.align	1
-	.global	ToshibaSetRRPara
-	.thumb
-	.thumb_func
-	.type	ToshibaSetRRPara, %function
-ToshibaSetRRPara:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, r7, r8, r9, r10, lr}
-	.save {r4, r5, r6, r7, r8, r9, r10, lr}
-	add	r8, r1, r1, lsl #2
-	ldr	r9, .L143+8
-	movs	r4, #0
-	ldr	r7, .L143
-	mov	r5, r0
-	add	r10, r9, #256
-	mov	r6, r1
-.L135:
-	ldrb	r3, [r7, #1209]	@ zero_extendqisi2
-	cmp	r4, r3
-	bcs	.L142
-	movs	r3, #85
-	str	r3, [r5, #8]
-	ldrsb	r3, [r4, r10]
-	movs	r0, #200
-	str	r3, [r5, #4]
-	bl	NandcDelayns
-	ldrb	r3, [r7, #1208]	@ zero_extendqisi2
-	cmp	r3, #34
-	bne	.L136
-	add	r3, r4, r8
-	add	r3, r3, r10
-	b	.L141
-.L136:
-	cmp	r3, #35
-	bne	.L138
-	ldr	r2, .L143+4
-	add	r3, r4, r8
-	add	r3, r3, r2
-.L141:
-	ldrsb	r3, [r3, #5]
-	b	.L140
-.L138:
-	add	r3, r9, r6
-	ldrsb	r3, [r3, #400]
-.L140:
-	str	r3, [r5]
-	adds	r4, r4, #1
-	b	.L135
-.L142:
-	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L144:
-	.align	2
-.L143:
-	.word	.LANCHOR0
-	.word	.LANCHOR1+304
-	.word	.LANCHOR1
-	.fnend
-	.size	ToshibaSetRRPara, .-ToshibaSetRRPara
-	.align	1
-	.global	SamsungSetRRPara
-	.thumb
-	.thumb_func
-	.type	SamsungSetRRPara, %function
-SamsungSetRRPara:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L149
-	push	{r4, r5, r6, r7, r8, r9, r10, lr}
-	.save {r4, r5, r6, r7, r8, r9, r10, lr}
-	add	r1, r3, r1, lsl #2
-	movs	r4, #0
-	ldr	r8, .L149+4
-	adds	r5, r1, #3
-	mov	r9, #161
-	mov	r6, r0
-	mov	r7, r3
-	mov	r10, r4
-.L146:
-	ldrb	r3, [r8, #1209]	@ zero_extendqisi2
-	cmp	r4, r3
-	bcs	.L148
-	str	r9, [r6, #8]
-	mov	r0, #300
-	str	r10, [r6]
-	ldrsb	r3, [r7, r4]
-	adds	r4, r4, #1
-	str	r3, [r6]
-	ldrsb	r3, [r5, #1]!
-	str	r3, [r6]
-	bl	NandcDelayns
-	b	.L146
-.L148:
-	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L150:
-	.align	2
-.L149:
-	.word	.LANCHOR1+408
-	.word	.LANCHOR0
-	.fnend
-	.size	SamsungSetRRPara, .-SamsungSetRRPara
 	.align	1
 	.global	HynixSetRRPara
 	.thumb
@@ -1050,66 +1178,68 @@ HynixSetRRPara:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
 	mov	r7, r3
-	ldr	r5, .L159
-	mov	r6, r0
+	ldr	r5, .L180
 	mov	r9, r1
-	mov	fp, r2
+	mov	r6, r0
+	lsls	r1, r0, #3
 	ldr	r3, [r5, #44]
 	ldrb	r4, [r3, #19]	@ zero_extendqisi2
-	lsls	r3, r0, #3
 	cmp	r4, #6
-	bne	.L152
+	bne	.L173
 	add	r4, r5, r0, lsl #6
-	addw	r4, r4, #1230
+	add	r4, r4, #1232
 	add	r4, r4, r7, lsl #2
-	b	.L153
-.L152:
+	b	.L174
+.L173:
 	cmp	r4, #7
-	bne	.L154
-	mov	r10, #160
+	bne	.L175
+	movs	r3, #160
 	add	r4, r7, r7, lsl #2
-	mla	r10, r10, r0, r5
-	addw	r10, r10, #1238
-	add	r4, r10, r4, lsl #1
-	b	.L153
-.L154:
+	mla	r3, r3, r0, r5
+	add	r3, r3, #1240
+	add	r4, r3, r4, lsl #1
+	b	.L174
+.L175:
 	cmp	r4, #8
 	iteet	ne
-	addne	r4, r7, r3
-	addweq	r4, r5, #1238
-	addeq	r2, r7, r7, lsl #2
+	addne	r4, r7, r1
+	addeq	r4, r5, #1240
+	addeq	r3, r7, r7, lsl #2
 	addne	r4, r5, r4, lsl #3
 	ite	eq
-	addeq	r4, r4, r2
-	addwne	r4, r4, #1230
-.L153:
-	add	r3, r3, r5
+	addeq	r4, r4, r3
+	addne	r4, r4, #1232
+.L174:
+	add	r1, r1, r5
 	mov	r0, r6
+	str	r2, [sp]
 	add	r9, r9, #-1
-	subs	r4, r4, #1
-	ldrb	r8, [r3, #16]	@ zero_extendqisi2
-	add	r9, r9, fp
-	ldr	r10, [r3, #12]
+	ldr	r10, [r5, r6, lsl #3]
+	ldrb	r8, [r1, #4]	@ zero_extendqisi2
 	bl	NandcFlashCs
-	add	r1, fp, #-1
-	movs	r2, #54
+	movs	r3, #54
 	lsl	r8, r8, #8
-	add	r3, r10, r8
-	mov	fp, r3
-	str	r2, [r3, #2056]
-.L156:
-	cmp	r1, r9
-	beq	.L158
-	ldrb	r3, [r1, #1]!	@ zero_extendqisi2
+	add	fp, r10, r8
+	str	r3, [fp, #2056]
+	subs	r3, r4, #1
+	add	r4, r4, r9
+	ldr	r2, [sp]
+	subs	r2, r2, #1
+.L177:
+	cmp	r3, r4
+	beq	.L179
+	ldrb	r1, [r2, #1]!	@ zero_extendqisi2
 	movs	r0, #200
-	str	r3, [fp, #2052]
-	str	r1, [sp, #4]
-	bl	NandcDelayns
-	ldrsb	r3, [r4, #1]!
-	str	r3, [fp, #2048]
-	ldr	r1, [sp, #4]
-	b	.L156
-.L158:
+	str	r3, [sp, #4]
+	str	r1, [fp, #2052]
+	str	r2, [sp]
+	bl	ndelay
+	ldr	r3, [sp, #4]
+	ldr	r2, [sp]
+	ldrsb	r1, [r3, #1]!
+	str	r1, [fp, #2048]
+	b	.L177
+.L179:
 	add	r8, r8, r10
 	movs	r3, #22
 	mov	r0, r6
@@ -1120,9 +1250,9 @@ HynixSetRRPara:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L160:
+.L181:
 	.align	2
-.L159:
+.L180:
 	.word	.LANCHOR0
 	.fnend
 	.size	HynixSetRRPara, .-HynixSetRRPara
@@ -1137,128 +1267,37 @@ FlashSetReadRetryDefault:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
-	ldr	r3, .L167
+	ldr	r3, .L188
 	ldr	r2, [r3, #44]
 	ldrb	r2, [r2, #19]	@ zero_extendqisi2
 	subs	r2, r2, #1
 	cmp	r2, #7
-	bhi	.L161
+	bhi	.L182
 	movs	r4, #0
 	mov	r5, r3
-.L162:
-	ldr	r2, .L167+4
+.L183:
+	ldr	r2, .L188+4
 	uxtb	r0, r4
 	ldrb	r3, [r2, r4, lsl #3]	@ zero_extendqisi2
 	cmp	r3, #173
-	bne	.L163
-	ldrb	r1, [r5, #1211]	@ zero_extendqisi2
-	subw	r2, r2, #854
+	bne	.L184
+	ldrb	r1, [r5, #1213]	@ zero_extendqisi2
+	sub	r2, r2, #852
 	movs	r3, #0
 	bl	HynixSetRRPara
-.L163:
+.L184:
 	adds	r4, r4, #1
 	cmp	r4, #4
-	bne	.L162
-.L161:
+	bne	.L183
+.L182:
 	pop	{r3, r4, r5, pc}
-.L168:
+.L189:
 	.align	2
-.L167:
+.L188:
 	.word	.LANCHOR0
 	.word	.LANCHOR0+2068
 	.fnend
 	.size	FlashSetReadRetryDefault, .-FlashSetReadRetryDefault
-	.align	1
-	.global	FlashReadStatusEN
-	.thumb
-	.thumb_func
-	.type	FlashReadStatusEN, %function
-FlashReadStatusEN:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, lr}
-	.save {r4, r5, r6, lr}
-	ldr	r5, .L179
-	add	r0, r5, r0, lsl #3
-	ldr	r3, [r5, #44]
-	ldrb	r4, [r0, #16]	@ zero_extendqisi2
-	ldr	r6, [r0, #12]
-	ldrb	r3, [r3, #8]	@ zero_extendqisi2
-	cmp	r3, #2
-	lsl	r3, r4, #8
-	add	r4, r4, #8
-	bne	.L170
-	cbnz	r2, .L171
-	ldrb	r2, [r5, #61]	@ zero_extendqisi2
-	b	.L178
-.L171:
-	ldrb	r2, [r5, #62]	@ zero_extendqisi2
-.L178:
-	add	r3, r3, r6
-	str	r2, [r3, #2056]
-	ldrb	r0, [r5, #63]	@ zero_extendqisi2
-	cbz	r0, .L174
-	movs	r3, #0
-	add	r5, r6, r4, lsl #8
-.L173:
-	cmp	r3, r0
-	bcs	.L174
-	lsls	r2, r3, #3
-	adds	r3, r3, #1
-	lsr	r2, r1, r2
-	uxtb	r2, r2
-	str	r2, [r5, #4]
-	b	.L173
-.L170:
-	add	r3, r3, r6
-	movs	r2, #112
-	str	r2, [r3, #2056]
-.L174:
-	movs	r0, #80
-	lsls	r4, r4, #8
-	bl	NandcDelayns
-	ldr	r0, [r6, r4]
-	uxtb	r0, r0
-	pop	{r4, r5, r6, pc}
-.L180:
-	.align	2
-.L179:
-	.word	.LANCHOR0
-	.fnend
-	.size	FlashReadStatusEN, .-FlashReadStatusEN
-	.align	1
-	.global	FlashWaitReadyEN
-	.thumb
-	.thumb_func
-	.type	FlashWaitReadyEN, %function
-FlashWaitReadyEN:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, lr}
-	.save {r4, r5, r6, lr}
-	mov	r4, r0
-	mov	r5, r1
-	mov	r6, r2
-.L182:
-	mov	r0, r4
-	mov	r1, r5
-	mov	r2, r6
-	bl	FlashReadStatusEN
-	cmp	r0, #255
-	mov	r3, r0
-	beq	.L182
-	lsls	r3, r3, #25
-	bmi	.L183
-	movs	r0, #1
-	movs	r1, #3
-	bl	usleep_range
-	b	.L182
-.L183:
-	pop	{r4, r5, r6, pc}
-	.fnend
-	.size	FlashWaitReadyEN, .-FlashWaitReadyEN
 	.align	1
 	.global	FlashWaitCmdDone
 	.thumb
@@ -1271,16 +1310,16 @@ FlashWaitCmdDone:
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
 	mov	r8, r0
-	ldr	r5, .L194
+	ldr	r5, .L197
 	add	r4, r5, r0, lsl #4
 	ldr	r3, [r4, #2108]
 	ldrb	r6, [r4, #2100]	@ zero_extendqisi2
-	cbz	r3, .L189
+	cbz	r3, .L192
 	add	r5, r5, r8, lsl #2
 	mov	r0, r6
 	bl	NandcFlashCs
 	ldr	r1, [r4, #2104]
-	ldr	r2, [r5, #1172]
+	ldr	r2, [r5, #1176]
 	mov	r0, r6
 	adds	r2, r2, #0
 	it	ne
@@ -1295,61 +1334,34 @@ FlashWaitCmdDone:
 	movs	r2, #0
 	ldr	r1, [r4, #2112]
 	str	r2, [r4, #2108]
-	cbz	r1, .L189
+	cbz	r1, .L192
 	str	r3, [r1]
 	str	r2, [r4, #2112]
-.L189:
+.L192:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L195:
-	.align	2
-.L194:
-	.word	.LANCHOR0
-	.fnend
-	.size	FlashWaitCmdDone, .-FlashWaitCmdDone
-	.align	1
-	.thumb
-	.thumb_func
-	.type	flash_read_ecc, %function
-flash_read_ecc:
-	.fnstart
-	@ args = 0, pretend = 0, frame = 0
-	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L197
-	push	{r4, lr}
-	.save {r4, lr}
-	add	r0, r2, r0, lsl #3
-	ldrb	r4, [r0, #16]	@ zero_extendqisi2
-	ldr	r3, [r0, #12]
-	movs	r0, #80
-	add	r4, r3, r4, lsl #8
-	movs	r3, #122
-	str	r3, [r4, #2056]
-	bl	NandcDelayns
-	ldr	r3, [r4, #2048]
-	ldr	r0, [r4, #2048]
-	and	r3, r3, #15
-	and	r0, r0, #15
-	cmp	r0, r3
-	it	cc
-	movcc	r0, r3
-	ldr	r3, [r4, #2048]
-	and	r3, r3, #15
-	cmp	r0, r3
-	it	cc
-	movcc	r0, r3
-	ldr	r3, [r4, #2048]
-	and	r3, r3, #15
-	cmp	r0, r3
-	it	cc
-	movcc	r0, r3
-	pop	{r4, pc}
 .L198:
 	.align	2
 .L197:
 	.word	.LANCHOR0
 	.fnend
-	.size	flash_read_ecc, .-flash_read_ecc
+	.size	FlashWaitCmdDone, .-FlashWaitCmdDone
+	.align	1
+	.global	NandcDelayns
+	.thumb
+	.thumb_func
+	.type	NandcDelayns, %function
+NandcDelayns:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	push	{r3, lr}
+	.save {r3, lr}
+	bl	ndelay
+	movs	r0, #0
+	pop	{r3, pc}
+	.fnend
+	.size	NandcDelayns, .-NandcDelayns
 	.align	1
 	.global	NandcWaitFlashReadyNoDelay
 	.thumb
@@ -1359,34 +1371,33 @@ NandcWaitFlashReadyNoDelay:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 8
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L204
+	ldr	r3, .L205
 	push	{r0, r1, r2, r4, r5, lr}
 	.save {r4, r5, lr}
 	.pad #12
-	add	r0, r3, r0, lsl #3
-	ldr	r4, .L204+4
-	ldr	r5, [r0, #12]
-.L201:
+	ldr	r4, .L205+4
+	ldr	r5, [r3, r0, lsl #3]
+.L202:
 	ldr	r3, [r5]
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #4]
 	lsls	r3, r3, #22
-	bmi	.L202
+	bmi	.L203
 	movs	r0, #10
-	bl	NandcDelayns
+	bl	ndelay
 	subs	r4, r4, #1
-	bne	.L201
+	bne	.L202
 	mov	r0, #-1
-	b	.L200
-.L202:
+	b	.L201
+.L203:
 	movs	r0, #0
-.L200:
+.L201:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, pc}
-.L205:
+.L206:
 	.align	2
-.L204:
+.L205:
 	.word	.LANCHOR0
 	.word	100000
 	.fnend
@@ -1400,37 +1411,36 @@ NandcWaitFlashReady:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 8
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L211
+	ldr	r3, .L212
 	push	{r0, r1, r2, r4, r5, lr}
 	.save {r4, r5, lr}
 	.pad #12
-	add	r0, r3, r0, lsl #3
-	ldr	r4, .L211+4
-	ldr	r5, [r0, #12]
+	ldr	r5, [r3, r0, lsl #3]
 	movs	r0, #130
-	bl	NandcDelayns
-.L208:
+	bl	ndelay
+	ldr	r4, .L212+4
+.L209:
 	ldr	r3, [r5]
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #4]
 	lsls	r3, r3, #22
-	bmi	.L209
+	bmi	.L210
 	movs	r0, #1
 	movs	r1, #2
 	bl	usleep_range
 	subs	r4, r4, #1
-	bne	.L208
+	bne	.L209
 	mov	r0, #-1
-	b	.L207
-.L209:
+	b	.L208
+.L210:
 	movs	r0, #0
-.L207:
+.L208:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, pc}
-.L212:
+.L213:
 	.align	2
-.L211:
+.L212:
 	.word	.LANCHOR0
 	.word	100000
 	.fnend
@@ -1444,13 +1454,13 @@ FlashReset:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L214
+	ldr	r3, .L215
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
-	add	r3, r3, r0, lsl #3
 	mov	r4, r0
-	ldrb	r6, [r3, #16]	@ zero_extendqisi2
-	ldr	r5, [r3, #12]
+	ldr	r5, [r3, r0, lsl #3]
+	add	r3, r3, r0, lsl #3
+	ldrb	r6, [r3, #4]	@ zero_extendqisi2
 	bl	NandcFlashCs
 	movs	r3, #255
 	mov	r0, r4
@@ -1460,9 +1470,9 @@ FlashReset:
 	mov	r0, r4
 	pop	{r4, r5, r6, lr}
 	b	NandcFlashDeCs
-.L215:
+.L216:
 	.align	2
-.L214:
+.L215:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashReset, .-FlashReset
@@ -1478,24 +1488,24 @@ flash_enter_slc_mode:
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
 	mov	r7, r0
-	ldr	r6, .L222
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L216
-	add	r4, r6, r7, lsl #3
+	ldr	r5, .L223
+	ldrb	r3, [r5, #148]	@ zero_extendqisi2
+	cbz	r3, .L217
+	add	r4, r5, r7, lsl #3
 	bl	NandcFlashCs
+	ldr	r8, [r5, r7, lsl #3]
 	ldrb	r3, [r4, #2068]	@ zero_extendqisi2
-	ldrb	r5, [r4, #16]	@ zero_extendqisi2
+	ldrb	r6, [r4, #4]	@ zero_extendqisi2
 	cmp	r3, #44
-	ldr	r8, [r4, #12]
-	lsl	r5, r5, #8
-	bne	.L218
-	add	r4, r8, r5
+	lsl	r6, r6, #8
+	bne	.L219
+	add	r4, r8, r6
 	movs	r3, #239
 	movs	r0, #50
 	str	r3, [r4, #2056]
 	movs	r3, #145
 	str	r3, [r4, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	movs	r3, #0
 	movs	r2, #1
 	str	r3, [r4, #2048]
@@ -1503,22 +1513,22 @@ flash_enter_slc_mode:
 	str	r2, [r4, #2048]
 	str	r3, [r4, #2048]
 	str	r3, [r4, #2048]
-	bl	NandcDelayns
-.L218:
-	add	r5, r5, r8
+	bl	ndelay
+.L219:
+	add	r6, r6, r8
 	mov	r0, r7
 	bl	NandcWaitFlashReadyNoDelay
 	movs	r3, #218
 	mov	r0, r7
-	str	r3, [r5, #2056]
+	str	r3, [r6, #2056]
 	bl	NandcWaitFlashReady
 	movs	r3, #2
-	strb	r3, [r6, #2228]
-.L216:
+	strb	r3, [r5, #2228]
+.L217:
 	pop	{r4, r5, r6, r7, r8, pc}
-.L223:
+.L224:
 	.align	2
-.L222:
+.L223:
 	.word	.LANCHOR0
 	.fnend
 	.size	flash_enter_slc_mode, .-flash_enter_slc_mode
@@ -1534,24 +1544,24 @@ flash_exit_slc_mode:
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
 	mov	r7, r0
-	ldr	r6, .L230
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L224
-	add	r4, r6, r7, lsl #3
+	ldr	r5, .L231
+	ldrb	r3, [r5, #148]	@ zero_extendqisi2
+	cbz	r3, .L225
+	add	r4, r5, r7, lsl #3
 	bl	NandcFlashCs
+	ldr	r8, [r5, r7, lsl #3]
 	ldrb	r3, [r4, #2068]	@ zero_extendqisi2
-	ldrb	r5, [r4, #16]	@ zero_extendqisi2
+	ldrb	r6, [r4, #4]	@ zero_extendqisi2
 	cmp	r3, #44
-	ldr	r8, [r4, #12]
-	lsl	r5, r5, #8
-	bne	.L226
-	add	r4, r8, r5
+	lsl	r6, r6, #8
+	bne	.L227
+	add	r4, r8, r6
 	movs	r3, #239
 	movs	r0, #50
 	str	r3, [r4, #2056]
 	movs	r3, #145
 	str	r3, [r4, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	movs	r3, #2
 	movs	r0, #100
 	str	r3, [r4, #2048]
@@ -1560,22 +1570,22 @@ flash_exit_slc_mode:
 	movs	r3, #0
 	str	r3, [r4, #2048]
 	str	r3, [r4, #2048]
-	bl	NandcDelayns
-.L226:
-	add	r5, r5, r8
+	bl	ndelay
+.L227:
+	add	r6, r6, r8
 	mov	r0, r7
 	bl	NandcWaitFlashReadyNoDelay
 	movs	r3, #223
 	mov	r0, r7
-	str	r3, [r5, #2056]
+	str	r3, [r6, #2056]
 	bl	NandcWaitFlashReady
 	movs	r3, #0
-	strb	r3, [r6, #2228]
-.L224:
+	strb	r3, [r5, #2228]
+.L225:
 	pop	{r4, r5, r6, r7, r8, pc}
-.L231:
+.L232:
 	.align	2
-.L230:
+.L231:
 	.word	.LANCHOR0
 	.fnend
 	.size	flash_exit_slc_mode, .-flash_exit_slc_mode
@@ -1619,106 +1629,102 @@ FlashEraseBlock:
 	.type	FlashSetInterfaceMode, %function
 FlashSetInterfaceMode:
 	.fnstart
-	@ args = 0, pretend = 0, frame = 16
+	@ args = 0, pretend = 0, frame = 8
 	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
+	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
-	.pad #20
-	sub	sp, sp, #20
-	ldr	r5, .L261
+	.pad #12
 	movs	r4, #0
-	movs	r7, #239
+	ldr	r5, .L262
 	mov	lr, #128
 	mov	ip, #1
-	mov	r8, #35
-	ldrb	r3, [r5, #2229]	@ zero_extendqisi2
 	mov	r9, #32
+	addw	r8, r5, #2068
 	mov	r10, #5
+	ldrb	r3, [r5, #2229]	@ zero_extendqisi2
 	and	r2, r3, #1
-	str	r2, [sp, #12]
+	str	r2, [sp, #4]
 	and	r2, r3, #4
 	uxtb	r3, r2
 	mov	r2, r4
-	str	r3, [sp, #8]
-	add	r3, r5, #12
-	str	r3, [sp, #4]
-.L243:
-	ldr	r1, .L261+4
-	ldr	r3, [sp, #4]
-	ldrb	r1, [r4, r1]	@ zero_extendqisi2
-	ldr	r6, [r4, r3]
-	add	r3, r3, r4
+	str	r3, [sp]
+.L244:
+	ldrb	r1, [r4, r8]	@ zero_extendqisi2
+	adds	r3, r5, r4
+	ldr	r6, [r5, r4]
 	cmp	r1, #152
 	ldr	r3, [r3, #4]
-	beq	.L234
+	beq	.L235
 	cmp	r1, #69
-	beq	.L234
+	beq	.L235
 	cmp	r1, #173
-	beq	.L234
+	beq	.L235
 	cmp	r1, #44
-	bne	.L235
-.L234:
+	bne	.L236
+.L235:
 	cmp	r0, #1
 	uxtb	r3, r3
-	bne	.L236
-	ldr	r5, [sp, #12]
-	cbz	r5, .L235
+	bne	.L237
+	ldr	r7, [sp, #4]
+	cbz	r7, .L236
 	lsls	r3, r3, #8
 	cmp	r1, #173
 	add	fp, r6, r3
+	mov	r7, #239
 	str	r7, [fp, #2056]
-	bne	.L237
+	bne	.L238
 	str	r0, [fp, #2052]
-	b	.L260
-.L237:
+	b	.L261
+.L238:
 	cmp	r1, #44
 	itete	eq
 	streq	r0, [fp, #2052]
 	strne	lr, [fp, #2052]
 	streq	r10, [fp, #2048]
 	strne	r0, [fp, #2048]
-	b	.L241
-.L236:
-	ldr	r5, [sp, #8]
-	cbz	r5, .L235
+	b	.L242
+.L237:
+	ldr	r7, [sp]
+	cbz	r7, .L236
 	lsls	r3, r3, #8
 	cmp	r1, #173
 	add	fp, r6, r3
+	mov	r7, #239
 	str	r7, [fp, #2056]
-	bne	.L240
+	bne	.L241
 	str	ip, [fp, #2052]
 	str	r9, [fp, #2048]
-	b	.L241
-.L240:
-	cmp	r1, #44
-	bne	.L242
-	str	ip, [fp, #2052]
-	str	r8, [fp, #2048]
-	b	.L241
-.L242:
-	str	lr, [fp, #2052]
-.L260:
-	str	r2, [fp, #2048]
+	b	.L242
 .L241:
+	cmp	r1, #44
+	bne	.L243
+	str	ip, [fp, #2052]
+	movs	r1, #35
+	str	r1, [fp, #2048]
+	b	.L242
+.L243:
+	str	lr, [fp, #2052]
+.L261:
+	str	r2, [fp, #2048]
+.L242:
 	add	r3, r3, r6
 	str	r2, [r3, #2048]
 	str	r2, [r3, #2048]
 	str	r2, [r3, #2048]
-.L235:
+.L236:
 	adds	r4, r4, #8
 	cmp	r4, #32
-	bne	.L243
+	bne	.L244
 	movs	r0, #0
 	bl	NandcWaitFlashReady
 	movs	r0, #0
-	add	sp, sp, #20
+	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L262:
+.L263:
 	.align	2
-.L261:
+.L262:
 	.word	.LANCHOR0
-	.word	.LANCHOR0+2068
 	.fnend
 	.size	FlashSetInterfaceMode, .-FlashSetInterfaceMode
 	.align	1
@@ -1730,15 +1736,15 @@ FlashReadSpare:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	push	{r4, r5, r6, lr}
-	.save {r4, r5, r6, lr}
-	mov	r6, r2
-	ldr	r5, .L264
-	ldr	r3, .L264+4
+	push	{r3, r4, r5, r6, r7, lr}
+	.save {r3, r4, r5, r6, r7, lr}
+	mov	r7, r2
+	ldr	r5, .L265
+	ldr	r3, .L265+4
+	ldr	r4, [r5, r0, lsl #3]
 	add	r5, r5, r0, lsl #3
 	ldrb	r3, [r3, #481]	@ zero_extendqisi2
-	ldrb	r2, [r5, #16]	@ zero_extendqisi2
-	ldr	r4, [r5, #12]
+	ldrb	r2, [r5, #4]	@ zero_extendqisi2
 	lsls	r3, r3, #9
 	add	r4, r4, r2, lsl #8
 	movs	r2, #0
@@ -1756,11 +1762,11 @@ FlashReadSpare:
 	str	r3, [r4, #2056]
 	bl	NandcWaitFlashReady
 	ldr	r3, [r4, #2048]
-	strb	r3, [r6]
-	pop	{r4, r5, r6, pc}
-.L265:
+	strb	r3, [r7]
+	pop	{r3, r4, r5, r6, r7, pc}
+.L266:
 	.align	2
-.L264:
+.L265:
 	.word	.LANCHOR0
 	.word	.LANCHOR1
 	.fnend
@@ -1774,12 +1780,12 @@ SandiskProgTestBadBlock:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L267
+	ldr	r2, .L268
 	push	{r4, lr}
 	.save {r4, lr}
+	ldr	r3, [r2, r0, lsl #3]
 	add	r2, r2, r0, lsl #3
-	ldrb	r4, [r2, #16]	@ zero_extendqisi2
-	ldr	r3, [r2, #12]
+	ldrb	r4, [r2, #4]	@ zero_extendqisi2
 	add	r4, r3, r4, lsl #8
 	movs	r3, #162
 	str	r3, [r4, #2056]
@@ -1800,13 +1806,13 @@ SandiskProgTestBadBlock:
 	movs	r3, #112
 	movs	r0, #80
 	str	r3, [r4, #2056]
-	bl	NandcDelayns
+	bl	ndelay
 	ldr	r0, [r4, #2048]
 	and	r0, r0, #1
 	pop	{r4, pc}
-.L268:
+.L269:
 	.align	2
-.L267:
+.L268:
 	.word	.LANCHOR0
 	.fnend
 	.size	SandiskProgTestBadBlock, .-SandiskProgTestBadBlock
@@ -1828,17 +1834,17 @@ SandiskSetRRPara:
 	str	r3, [r0, #4]
 	movs	r0, #200
 	mov	r4, r1
-	bl	NandcDelayns
-	ldr	r0, .L276
-	ldr	r1, .L276+4
+	bl	ndelay
+	ldr	r0, .L277
+	ldr	r1, .L277+4
 	add	r4, r4, r4, lsl #2
 	movs	r2, #0
 	sub	r6, r0, #48
-.L270:
-	ldrb	r3, [r1, #1209]	@ zero_extendqisi2
+.L271:
+	ldrb	r3, [r1, #81]	@ zero_extendqisi2
 	cmp	r2, r3
-	bcs	.L275
-	ldrb	r3, [r1, #1208]	@ zero_extendqisi2
+	bcs	.L276
+	ldrb	r3, [r1, #80]	@ zero_extendqisi2
 	cmp	r3, #67
 	add	r3, r2, r4
 	ite	eq
@@ -1847,14 +1853,14 @@ SandiskSetRRPara:
 	adds	r2, r2, #1
 	ldrsb	r3, [r3, #5]
 	str	r3, [r5]
-	b	.L270
-.L275:
+	b	.L271
+.L276:
 	movs	r0, #0
 	pop	{r4, r5, r6, lr}
 	b	NandcWaitFlashReady
-.L277:
+.L278:
 	.align	2
-.L276:
+.L277:
 	.word	.LANCHOR1+304
 	.word	.LANCHOR0
 	.fnend
@@ -1873,26 +1879,26 @@ micron_auto_read_calibration_config:
 	mov	r4, r0
 	mov	r5, r1
 	bl	NandcWaitFlashReady
-	ldr	r3, .L279
+	ldr	r2, .L280
 	movs	r0, #200
-	add	r2, r3, r4, lsl #3
-	ldrb	r4, [r2, #16]	@ zero_extendqisi2
-	ldr	r3, [r2, #12]
+	ldr	r3, [r2, r4, lsl #3]
+	add	r2, r2, r4, lsl #3
+	ldrb	r4, [r2, #4]	@ zero_extendqisi2
 	add	r4, r3, r4, lsl #8
 	movs	r3, #239
 	str	r3, [r4, #2056]
 	movs	r3, #150
 	str	r3, [r4, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	str	r5, [r4, #2048]
 	movs	r3, #0
 	str	r3, [r4, #2048]
 	str	r3, [r4, #2048]
 	str	r3, [r4, #2048]
 	pop	{r3, r4, r5, pc}
-.L280:
+.L281:
 	.align	2
-.L279:
+.L280:
 	.word	.LANCHOR0
 	.fnend
 	.size	micron_auto_read_calibration_config, .-micron_auto_read_calibration_config
@@ -1908,15 +1914,15 @@ FlashEraseSLc2KBlocks:
 	push	{r4, r5, r6, r7, r8, r9, lr}
 	.save {r4, r5, r6, r7, r8, r9, lr}
 	movs	r5, #0
-	ldr	r8, .L292+4
+	ldr	r8, .L293+4
 	.pad #20
 	sub	sp, sp, #20
 	mov	r6, r0
 	mov	r9, r1
 	mov	r7, r5
-.L282:
+.L283:
 	cmp	r7, r9
-	beq	.L291
+	beq	.L292
 	rsb	r3, r7, r9
 	add	r2, sp, #8
 	adds	r0, r6, r5
@@ -1928,11 +1934,11 @@ FlashEraseSLc2KBlocks:
 	ldrb	r2, [r8, #2230]	@ zero_extendqisi2
 	ldr	r3, [sp, #12]
 	cmp	r3, r2
-	bcc	.L283
+	bcc	.L284
 	mov	r3, #-1
 	str	r3, [r6, r5]
-	b	.L284
-.L283:
+	b	.L285
+.L284:
 	add	r2, r8, r3
 	add	r3, r8, r3, lsl #4
 	ldrb	r4, [r2, #2232]	@ zero_extendqisi2
@@ -1955,7 +1961,7 @@ FlashEraseSLc2KBlocks:
 	sbfx	r0, r0, #0, #1
 	str	r0, [r6, r5]
 	mov	r0, r4
-	ldr	r1, [r8, #4]
+	ldr	r1, [r8, #36]
 	add	r1, r1, r3
 	bl	FlashEraseCmd
 	mov	r0, r4
@@ -1969,25 +1975,25 @@ FlashEraseSLc2KBlocks:
 	strmi	r3, [r6, r5]
 	ldr	r3, [r6, r5]
 	adds	r3, r3, #1
-	bne	.L286
-	ldr	r0, .L292
+	bne	.L287
+	ldr	r0, .L293
 	ldr	r1, [sp, #8]
 	bl	printk
-.L286:
+.L287:
 	mov	r0, r4
 	bl	NandcFlashDeCs
-.L284:
+.L285:
 	adds	r7, r7, #1
 	adds	r5, r5, #36
-	b	.L282
-.L291:
+	b	.L283
+.L292:
 	movs	r0, #0
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L293:
+.L294:
 	.align	2
-.L292:
+.L293:
 	.word	.LC1
 	.word	.LANCHOR0
 	.fnend
@@ -2004,21 +2010,21 @@ FlashEraseBlocks:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r9, r0
-	ldr	r4, .L328
+	ldr	r4, .L329
 	.pad #28
 	sub	sp, sp, #28
 	mov	r10, r1
 	mov	r8, r2
-	ldrb	r5, [r4]	@ zero_extendqisi2
-	cbz	r5, .L312
+	ldrb	r5, [r4, #32]	@ zero_extendqisi2
+	cbz	r5, .L313
 	mov	r1, r2
 	bl	FlashEraseSLc2KBlocks
-	b	.L296
-.L312:
+	b	.L297
+.L313:
 	mov	fp, r4
-.L295:
+.L296:
 	cmp	r5, r8
-	bcs	.L326
+	bcs	.L327
 	movs	r3, #36
 	movs	r1, #0
 	add	r2, sp, #16
@@ -2035,21 +2041,21 @@ FlashEraseBlocks:
 	mov	r7, r0
 	ldr	r0, [sp, #20]
 	cmp	r0, r3
-	bcc	.L297
+	bcc	.L298
 	mov	r3, #-1
 	str	r3, [r9, r6]
-	b	.L298
-.L297:
+	b	.L299
+.L298:
 	ldrb	r3, [fp, #2240]	@ zero_extendqisi2
 	cmp	r3, #0
 	add	r3, r4, r0, lsl #4
 	it	eq
 	moveq	r7, #0
 	ldr	r3, [r3, #2108]
-	cbz	r3, .L300
+	cbz	r3, .L301
 	uxtb	r0, r0
 	bl	FlashWaitCmdDone
-.L300:
+.L301:
 	ldr	r1, [sp, #20]
 	ldr	r3, [sp, #12]
 	lsls	r2, r1, #4
@@ -2059,11 +2065,11 @@ FlashEraseBlocks:
 	str	r3, [lr, #2112]
 	ldr	r3, [sp, #16]
 	str	r3, [lr, #2104]
-	cbz	r7, .L301
+	cbz	r7, .L302
 	add	r3, r6, #36
 	add	r3, r3, r9
 	str	r3, [lr, #2112]
-.L301:
+.L302:
 	add	r1, r1, r4
 	add	r2, r2, r4
 	ldrb	r6, [r1, #2232]	@ zero_extendqisi2
@@ -2072,20 +2078,20 @@ FlashEraseBlocks:
 	bl	NandcFlashCs
 	cmp	r10, #1
 	mov	r0, r6
-	bne	.L302
-	ldrb	r3, [fp, #144]	@ zero_extendqisi2
-	cbz	r3, .L302
+	bne	.L303
+	ldrb	r3, [fp, #148]	@ zero_extendqisi2
+	cbz	r3, .L303
 	bl	flash_enter_slc_mode
-	b	.L303
-.L302:
-	bl	flash_exit_slc_mode
+	b	.L304
 .L303:
+	bl	flash_exit_slc_mode
+.L304:
 	ldr	r3, [sp, #20]
 	mov	r0, r6
 	ldr	r1, [sp, #16]
 	add	r5, r5, r7
 	add	r3, r4, r3, lsl #2
-	ldr	r2, [r3, #1172]
+	ldr	r2, [r3, #1176]
 	adds	r2, r2, #0
 	it	ne
 	movne	r2, #1
@@ -2096,57 +2102,57 @@ FlashEraseBlocks:
 	bl	FlashEraseCmd
 	mov	r0, r6
 	bl	NandcFlashDeCs
-.L298:
+.L299:
 	adds	r5, r5, #1
-	b	.L295
-.L326:
-	ldr	r6, .L328
+	b	.L296
+.L327:
+	ldr	r6, .L329
 	movs	r5, #0
 	addw	r7, r6, #2100
-.L305:
+.L306:
 	ldrb	r2, [r4, #2230]	@ zero_extendqisi2
-	ldr	r3, .L328
+	ldr	r3, .L329
 	cmp	r5, r2
-	bcs	.L327
+	bcs	.L328
 	uxtb	r0, r5
 	bl	FlashWaitCmdDone
 	cmp	r10, #1
-	bne	.L306
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L306
+	bne	.L307
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbz	r3, .L307
 	lsls	r3, r5, #4
 	ldrb	r0, [r7, r3]	@ zero_extendqisi2
 	bl	flash_exit_slc_mode
-.L306:
+.L307:
 	adds	r5, r5, #1
-	b	.L305
-.L327:
+	b	.L306
+.L328:
 	ldr	r2, [r3, #2244]
-	cbnz	r2, .L308
-.L310:
+	cbnz	r2, .L309
+.L311:
 	movs	r0, #0
-	b	.L296
-.L308:
+	b	.L297
+.L309:
 	ldrb	r3, [r3, #2068]	@ zero_extendqisi2
 	cmp	r3, #69
-	bne	.L310
+	bne	.L311
 	movs	r3, #0
 	movs	r2, #36
 	mov	r1, r3
-.L309:
+.L310:
 	cmp	r3, r8
-	beq	.L310
+	beq	.L311
 	mul	r0, r2, r3
 	adds	r3, r3, #1
 	str	r1, [r9, r0]
-	b	.L309
-.L296:
+	b	.L310
+.L297:
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L329:
+.L330:
 	.align	2
-.L328:
+.L329:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashEraseBlocks, .-FlashEraseBlocks
@@ -2162,7 +2168,7 @@ FlashReadDpCmd:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	mov	r7, r0
-	ldr	r0, .L335
+	ldr	r0, .L336
 	mov	r6, r1
 	uxtb	r9, r2
 	lsr	r8, r2, #8
@@ -2170,15 +2176,15 @@ FlashReadDpCmd:
 	lsrs	r5, r2, #16
 	ldrb	r1, [r0, #64]	@ zero_extendqisi2
 	uxtb	ip, r6
-	ldr	r4, [r3, #12]
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
 	lsr	lr, r6, #8
-	ldrb	r3, [r3, #16]	@ zero_extendqisi2
-	cmp	r1, #1
 	ldr	r2, [r0, #44]
+	cmp	r1, #1
+	ldr	r4, [r0, r7, lsl #3]
 	lsr	r1, r6, #16
 	lsl	r3, r3, #8
 	ldrb	r2, [r2, #7]	@ zero_extendqisi2
-	bne	.L331
+	bne	.L332
 	cmp	r2, #1
 	itt	eq
 	addeq	r2, r4, r3
@@ -2206,8 +2212,8 @@ FlashReadDpCmd:
 	str	r8, [r4, #2052]
 	str	r5, [r4, #2052]
 	str	r3, [r4, #2056]
-	b	.L333
-.L331:
+	b	.L334
+.L332:
 	cmp	r2, #1
 	itt	eq
 	addeq	r2, r4, r3
@@ -2227,14 +2233,14 @@ FlashReadDpCmd:
 	str	r8, [r3, #2052]
 	str	r5, [r3, #2052]
 	str	r2, [r3, #2056]
-.L333:
+.L334:
 	mov	r0, r7
 	mov	r1, r6
 	pop	{r4, r5, r6, r7, r8, r9, r10, lr}
 	b	FlashSetRandomizer
-.L336:
+.L337:
 	.align	2
-.L335:
+.L336:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashReadDpCmd, .-FlashReadDpCmd
@@ -2250,37 +2256,37 @@ ftl_flash_de_init:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movs	r0, #0
-	ldr	r4, .L347
+	ldr	r4, .L348
 	bl	NandcWaitFlashReady
 	bl	FlashSetReadRetryDefault
 	ldr	r0, [r4, #2248]
-	cbz	r0, .L338
+	cbz	r0, .L339
 	movs	r0, #0
 	bl	flash_enter_slc_mode
-	b	.L339
-.L338:
-	bl	flash_exit_slc_mode
+	b	.L340
 .L339:
+	bl	flash_exit_slc_mode
+.L340:
 	ldrb	r3, [r4, #2252]	@ zero_extendqisi2
-	ldr	r5, .L347
-	cbz	r3, .L340
+	ldr	r5, .L348
+	cbz	r3, .L341
 	ldrb	r3, [r5, #2229]	@ zero_extendqisi2
 	lsls	r3, r3, #31
-	bpl	.L340
+	bpl	.L341
 	movs	r0, #1
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
 	bl	NandcSetMode
 	movs	r3, #0
 	strb	r3, [r5, #2252]
-.L340:
-	ldr	r3, [r4, #12]
+.L341:
+	ldr	r3, [r4]
 	movs	r0, #0
 	str	r0, [r3, #336]
 	pop	{r3, r4, r5, pc}
-.L348:
+.L349:
 	.align	2
-.L347:
+.L348:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_flash_de_init, .-ftl_flash_de_init
@@ -2294,14 +2300,13 @@ NandcRandmzSel:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L350
-	add	r0, r3, r0, lsl #3
-	ldr	r3, [r0, #12]
+	ldr	r3, .L351
+	ldr	r3, [r3, r0, lsl #3]
 	str	r1, [r3, #336]
 	bx	lr
-.L351:
+.L352:
 	.align	2
-.L350:
+.L351:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcRandmzSel, .-NandcRandmzSel
@@ -2320,45 +2325,45 @@ NandcTimeCfg:
 	mov	r4, r0
 	movs	r0, #0
 	bl	rknand_get_clk_rate
-	ldr	r1, .L362
+	ldr	r1, .L363
 	bl	__aeabi_idiv
-	ldr	r3, .L362+4
-	ldr	r3, [r3, #80]
+	ldr	r3, .L363+4
+	ldr	r3, [r3, #84]
 	cmp	r0, #250
-	ble	.L353
+	ble	.L354
 	movw	r2, #8354
-	b	.L360
-.L353:
+	b	.L361
+.L354:
 	cmp	r0, #220
-	bgt	.L361
+	bgt	.L362
 	cmp	r0, #185
-	ble	.L356
-	movw	r2, #4226
-	b	.L360
-.L356:
-	cmp	r0, #160
 	ble	.L357
-	movw	r2, #4194
-	b	.L360
+	movw	r2, #4226
+	b	.L361
 .L357:
-	cmp	r4, #35
-	bhi	.L358
-	movw	r2, #4193
-	b	.L360
+	cmp	r0, #160
+	ble	.L358
+	movw	r2, #4194
+	b	.L361
 .L358:
-	cmp	r4, #99
-	bls	.L359
-.L361:
-	movw	r2, #8322
-	b	.L360
+	cmp	r4, #35
+	bhi	.L359
+	movw	r2, #4193
+	b	.L361
 .L359:
-	movw	r2, #4225
+	cmp	r4, #99
+	bls	.L360
+.L362:
+	movw	r2, #8322
+	b	.L361
 .L360:
+	movw	r2, #4225
+.L361:
 	str	r2, [r3, #4]
 	pop	{r4, pc}
-.L363:
+.L364:
 	.align	2
-.L362:
+.L363:
 	.word	1000000
 	.word	.LANCHOR0
 	.fnend
@@ -2376,25 +2381,25 @@ FlashTimingCfg:
 	sub	r3, r0, #4192
 	subs	r3, r3, #1
 	cmp	r3, #1
-	bls	.L365
+	bls	.L366
 	sub	r3, r0, #4224
 	subs	r3, r3, #1
 	cmp	r3, #1
-	bls	.L365
+	bls	.L366
 	movw	r3, #8322
 	cmp	r0, r3
-	bne	.L366
-.L365:
-	ldr	r3, .L367
-	ldr	r3, [r3, #80]
-	str	r0, [r3, #4]
+	bne	.L367
 .L366:
-	ldr	r3, .L367+4
+	ldr	r3, .L368
+	ldr	r3, [r3, #84]
+	str	r0, [r3, #4]
+.L367:
+	ldr	r3, .L368+4
 	ldrb	r0, [r3, #493]	@ zero_extendqisi2
 	b	NandcTimeCfg
-.L368:
+.L369:
 	.align	2
-.L367:
+.L368:
 	.word	.LANCHOR0
 	.word	.LANCHOR1
 	.fnend
@@ -2411,20 +2416,19 @@ NandcInit:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movs	r1, #0
-	ldr	r3, .L371
+	ldr	r3, .L372
 	movs	r2, #1
 	movs	r5, #0
-	str	r1, [r3, #16]
-	str	r0, [r3, #12]
-	str	r2, [r3, #24]
+	stmia	r3, {r0, r1}
+	str	r2, [r3, #12]
 	movs	r2, #2
-	str	r0, [r3, #20]
-	str	r2, [r3, #32]
+	str	r0, [r3, #8]
+	str	r2, [r3, #20]
 	movs	r2, #3
-	str	r0, [r3, #28]
-	str	r0, [r3, #36]
-	str	r0, [r3, #80]
-	str	r2, [r3, #40]
+	str	r0, [r3, #16]
+	str	r0, [r3, #24]
+	str	r0, [r3, #84]
+	str	r2, [r3, #28]
 	ldr	r2, [r0]
 	and	r2, r2, #253952
 	ubfx	r4, r2, #13, #1
@@ -2444,14 +2448,14 @@ NandcInit:
 	streq	r3, [r4, #2260]
 	str	r2, [r0]
 	movs	r0, #40
-	ldr	r3, [r4, #80]
+	ldr	r3, [r4, #84]
 	str	r5, [r3, #336]
 	bl	NandcTimeCfg
-	ldr	r3, [r4, #80]
+	ldr	r3, [r4, #84]
 	movw	r2, #8322
 	mov	r0, #36864
 	str	r2, [r3, #344]
-	ldr	r2, .L371+4
+	ldr	r2, .L372+4
 	str	r2, [r3, #304]
 	bl	ftl_malloc
 	str	r5, [r4, #2296]
@@ -2461,9 +2465,9 @@ NandcInit:
 	add	r0, r0, #32768
 	str	r0, [r4, #2276]
 	pop	{r3, r4, r5, pc}
-.L372:
+.L373:
 	.align	2
-.L371:
+.L372:
 	.word	.LANCHOR0
 	.word	1579009
 	.fnend
@@ -2479,26 +2483,26 @@ NandcGetTimeCfg:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
-	ldr	r4, .L374
-	ldr	r5, [r4, #80]
+	ldr	r4, .L375
+	ldr	r5, [r4, #84]
 	ldr	r5, [r5, #4]
 	str	r5, [r0]
-	ldr	r0, [r4, #80]
+	ldr	r0, [r4, #84]
 	ldr	r0, [r0]
 	str	r0, [r1]
-	ldr	r1, [r4, #80]
+	ldr	r1, [r4, #84]
 	ldr	r1, [r1, #304]
 	str	r1, [r2]
-	ldr	r1, [r4, #80]
+	ldr	r1, [r4, #84]
 	ldr	r2, [r1, #308]
 	ldr	r1, [r1, #344]
 	uxtb	r2, r2
 	orr	r2, r2, r1, lsl #16
 	str	r2, [r3]
 	pop	{r4, r5, pc}
-.L375:
+.L376:
 	.align	2
-.L374:
+.L375:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcGetTimeCfg, .-NandcGetTimeCfg
@@ -2512,9 +2516,9 @@ NandcBchSel:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L384
+	ldr	r3, .L385
 	movs	r1, #1
-	ldr	r2, [r3, #80]
+	ldr	r2, [r3, #84]
 	str	r0, [r3, #2308]
 	movs	r3, #0
 	str	r1, [r2, #8]
@@ -2522,27 +2526,27 @@ NandcBchSel:
 	cmp	r0, r1
 	bfi	r3, r1, #8, #8
 	bfc	r3, #18, #1
-	bne	.L377
-.L380:
+	bne	.L378
+.L381:
 	bfc	r3, #4, #1
-	b	.L378
-.L377:
+	b	.L379
+.L378:
 	cmp	r0, #24
-	bne	.L379
+	bne	.L380
 	orr	r3, r3, #16
-	b	.L378
-.L379:
+	b	.L379
+.L380:
 	cmp	r0, #40
 	orr	r3, r3, #262144
 	orr	r3, r3, #16
-	beq	.L380
-.L378:
+	beq	.L381
+.L379:
 	orr	r3, r3, #1
 	str	r3, [r2, #12]
 	bx	lr
-.L385:
+.L386:
 	.align	2
-.L384:
+.L385:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcBchSel, .-NandcBchSel
@@ -2556,12 +2560,12 @@ FlashBchSel:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L387
+	ldr	r3, .L388
 	strb	r0, [r3, #2312]
 	b	NandcBchSel
-.L388:
+.L389:
 	.align	2
-.L387:
+.L388:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashBchSel, .-FlashBchSel
@@ -2574,61 +2578,61 @@ ftl_flash_resume:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L397
+	ldr	r3, .L398
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	movs	r5, #0
-	ldr	r2, [r3, #80]
+	ldr	r2, [r3, #84]
 	addw	r6, r3, #2068
-	ldr	r1, [r3, #84]
+	ldr	r1, [r3, #88]
 	mov	r4, r3
 	str	r1, [r2]
-	ldr	r1, [r3, #88]
-	ldr	r2, [r3, #80]
-	str	r1, [r2, #4]
 	ldr	r1, [r3, #92]
-	str	r1, [r2, #8]
+	ldr	r2, [r3, #84]
+	str	r1, [r2, #4]
 	ldr	r1, [r3, #96]
-	str	r1, [r2, #12]
+	str	r1, [r2, #8]
 	ldr	r1, [r3, #100]
-	str	r1, [r2, #304]
+	str	r1, [r2, #12]
 	ldr	r1, [r3, #104]
-	str	r1, [r2, #308]
+	str	r1, [r2, #304]
 	ldr	r1, [r3, #108]
-	str	r1, [r2, #336]
+	str	r1, [r2, #308]
 	ldr	r1, [r3, #112]
+	str	r1, [r2, #336]
+	ldr	r1, [r3, #116]
 	str	r1, [r2, #344]
-.L391:
+.L392:
 	ldrb	r3, [r6, r5, lsl #3]	@ zero_extendqisi2
 	subs	r3, r3, #1
 	uxtb	r3, r3
 	cmp	r3, #253
-	bhi	.L390
+	bhi	.L391
 	uxtb	r0, r5
 	bl	FlashReset
-.L390:
+.L391:
 	adds	r5, r5, #1
 	cmp	r5, #4
-	bne	.L391
+	bne	.L392
 	ldrb	r3, [r4, #2252]	@ zero_extendqisi2
-	ldr	r5, .L397
-	cbz	r3, .L392
+	ldr	r5, .L398
+	cbz	r3, .L393
 	movs	r0, #1
 	bl	NandcSetMode
 	ldrb	r0, [r5, #2229]	@ zero_extendqisi2
 	bl	FlashSetInterfaceMode
 	ldrb	r0, [r5, #2229]	@ zero_extendqisi2
 	bl	NandcSetMode
-	ldrb	r0, [r5, #101]	@ zero_extendqisi2
+	ldrb	r0, [r5, #105]	@ zero_extendqisi2
 	bl	NandcSetDdrPara
-.L392:
+.L393:
 	ldr	r3, [r4, #44]
 	pop	{r4, r5, r6, lr}
 	ldrb	r0, [r3, #20]	@ zero_extendqisi2
 	b	FlashBchSel
-.L398:
+.L399:
 	.align	2
-.L397:
+.L398:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_flash_resume, .-ftl_flash_resume
@@ -2710,7 +2714,7 @@ NandcSendDumpDataStart:
 	ldr	r2, [r0, #16]
 	.pad #8
 	sub	sp, sp, #8
-	ldr	r3, .L404
+	ldr	r3, .L405
 	str	r2, [sp, #4]
 	ldr	r2, [sp, #4]
 	bic	r2, r2, #4
@@ -2723,9 +2727,9 @@ NandcSendDumpDataStart:
 	add	sp, sp, #8
 	@ sp needed
 	bx	lr
-.L405:
+.L406:
 	.align	2
-.L404:
+.L405:
 	.word	538969130
 	.fnend
 	.size	NandcSendDumpDataStart, .-NandcSendDumpDataStart
@@ -2741,12 +2745,12 @@ NandcSendDumpDataDone:
 	@ link register save eliminated.
 	.pad #8
 	sub	sp, sp, #8
-.L407:
+.L408:
 	ldr	r3, [r0, #8]
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #4]
 	lsls	r3, r3, #11
-	bpl	.L407
+	bpl	.L408
 	add	sp, sp, #8
 	@ sp needed
 	bx	lr
@@ -2768,54 +2772,54 @@ NandcXferStart:
 	mov	r6, r1
 	ldr	r1, [sp, #60]
 	ldr	fp, [sp, #56]
-	cbnz	r1, .L424
+	cbnz	r1, .L425
 	adds	r1, fp, #0
 	it	ne
 	movne	r1, #1
-	b	.L411
-.L424:
+	b	.L412
+.L425:
 	movs	r1, #1
-.L411:
-	ldr	r5, .L429
+.L412:
+	ldr	r4, .L430
 	mov	lr, #16
-	movs	r4, #0
-	add	r0, r5, r0, lsl #3
-	ldr	r7, [r0, #12]
-	ldrb	r0, [r0, #16]	@ zero_extendqisi2
+	movs	r5, #0
+	ldr	r7, [r4, r0, lsl #3]
+	add	r0, r4, r0, lsl #3
+	ldrb	r0, [r0, #4]	@ zero_extendqisi2
 	ldr	r8, [r7, #12]
 	bfi	r8, lr, #8, #8
-	bfi	r8, r4, #3, #1
-	bfi	r4, r6, #1, #1
+	bfi	r8, r5, #3, #1
+	bfi	r5, r6, #1, #1
 	bfi	r8, r0, #5, #3
-	orr	r4, r4, #8
+	orr	r5, r5, #8
 	movs	r0, #1
-	bfi	r4, r0, #5, #2
+	bfi	r5, r0, #5, #2
 	lsrs	r3, r3, r0
-	orr	r4, r4, #536870912
-	orr	r4, r4, #1024
-	bfi	r4, r3, #4, #1
-	ldr	r3, [r5, #2260]
+	orr	r5, r5, #536870912
+	orr	r5, r5, #1024
+	bfi	r5, r3, #4, #1
+	ldr	r3, [r4, #2260]
 	cmp	r3, #3
-	bls	.L412
+	bls	.L413
 	ldr	r3, [r7, #16]
 	str	r3, [sp, #12]
 	ldr	r3, [sp, #12]
 	bic	r3, r3, #4
 	str	r3, [sp, #12]
 	cmp	r1, #0
-	beq	.L413
-	cbnz	r6, .L414
-.L422:
+	beq	.L414
+	cbnz	r6, .L415
+.L423:
 	adds	r2, r2, #1
 	asrs	r2, r2, #1
-	bfi	r4, r2, #22, #6
+	bfi	r5, r2, #22, #6
 	cmp	fp, #0
-	beq	.L415
+	beq	.L416
 	mov	r0, fp
-	b	.L416
-.L414:
-	ldr	r3, [r5, #2308]
-	mov	r9, r5
+	b	.L417
+.L415:
+	ldr	r3, [r4, #2308]
+	mov	r9, r4
 	ldr	lr, [sp, #60]
 	cmp	r3, #25
 	ite	cc
@@ -2826,53 +2830,53 @@ NandcXferStart:
 	str	r3, [sp, #4]
 	movs	r3, #0
 	mov	r0, r3
-.L418:
+.L419:
 	ldr	r1, [sp, #4]
 	cmp	r0, r1
-	bcs	.L422
+	bcs	.L423
 	ldr	r1, [sp, #60]
 	lsr	r10, r3, #2
-	cbz	r1, .L419
+	cbz	r1, .L420
 	ldrh	r1, [lr, #2]
 	ldrh	ip, [lr], #4
 	orr	ip, ip, r1, lsl #16
 	ldr	r1, [r9, #2276]
 	str	ip, [r1, r10, lsl #2]
-	b	.L420
-.L419:
+	b	.L421
+.L420:
 	ldr	r1, [r9, #2276]
 	mov	ip, r1
 	mov	r1, #-1
 	str	r1, [ip, r10, lsl #2]
-.L420:
+.L421:
 	ldr	r1, [sp]
 	adds	r0, r0, #1
 	add	r3, r3, r1
-	b	.L418
-.L415:
-	ldr	r0, [r5, #2272]
+	b	.L419
 .L416:
-	ldr	r3, [r5, #2276]
-	ubfx	r9, r4, #22, #5
+	ldr	r0, [r4, #2272]
+.L417:
+	ldr	r3, [r4, #2276]
+	ubfx	r9, r5, #22, #5
 	mov	r2, r6
-	str	r0, [r5, #2280]
+	str	r0, [r4, #2280]
 	lsl	r1, r9, #10
-	str	r3, [r5, #2284]
+	str	r3, [r4, #2284]
 	bl	rknand_dma_map_single
 	mov	r2, r6
 	lsl	r1, r9, #7
 	clz	r6, r6
 	lsrs	r6, r6, #5
-	str	r0, [r5, #2288]
-	ldr	r0, [r5, #2284]
+	str	r0, [r4, #2288]
+	ldr	r0, [r4, #2284]
 	bl	rknand_dma_map_single
 	movs	r3, #1
-	str	r3, [r5, #2296]
+	str	r3, [r4, #2296]
 	tst	fp, #3
-	ldr	r3, [r5, #2288]
-	str	r0, [r5, #2292]
+	ldr	r3, [r4, #2288]
+	str	r0, [r4, #2292]
 	str	r3, [r7, #20]
-	ldr	r3, [r5, #2292]
+	ldr	r3, [r4, #2292]
 	str	r3, [r7, #24]
 	mov	r3, #0
 	str	r3, [sp, #12]
@@ -2898,20 +2902,20 @@ NandcXferStart:
 	ldr	r3, [sp, #12]
 	orr	r3, r3, #1
 	str	r3, [sp, #12]
-.L413:
+.L414:
 	ldr	r3, [sp, #12]
 	str	r3, [r7, #16]
-.L412:
+.L413:
 	str	r8, [r7, #12]
-	str	r4, [r7, #8]
-	orr	r4, r4, #4
-	str	r4, [r7, #8]
+	str	r5, [r7, #8]
+	orr	r5, r5, #4
+	str	r5, [r7, #8]
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L430:
+.L431:
 	.align	2
-.L429:
+.L430:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcXferStart, .-NandcXferStart
@@ -2927,14 +2931,14 @@ Ftl_log2:
 	@ link register save eliminated.
 	movs	r1, #0
 	movs	r2, #1
-.L432:
+.L433:
 	cmp	r2, r0
 	uxth	r3, r1
 	add	r1, r1, #1
-	bhi	.L434
+	bhi	.L435
 	lsls	r2, r2, #1
-	b	.L432
-.L434:
+	b	.L433
+.L435:
 	subs	r0, r3, #1
 	uxth	r0, r0
 	bx	lr
@@ -2963,7 +2967,7 @@ FtlSysBlkNumInit:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L438
+	ldr	r3, .L439
 	cmp	r0, #23
 	it	ls
 	movls	r0, #24
@@ -2979,9 +2983,9 @@ FtlSysBlkNumInit:
 	subs	r2, r1, r2
 	str	r2, [r3, #2332]
 	bx	lr
-.L439:
+.L440:
 	.align	2
-.L438:
+.L439:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlSysBlkNumInit, .-FtlSysBlkNumInit
@@ -3000,7 +3004,7 @@ FtlConstantsInit:
 	sub	sp, sp, #20
 	ldrh	r1, [r0, #14]
 	mov	r5, r0
-	ldr	r4, .L468
+	ldr	r4, .L469
 	ldrh	lr, [r0, #8]
 	str	r1, [sp]
 	ldrh	r1, [sp]
@@ -3012,17 +3016,17 @@ FtlConstantsInit:
 	strh	lr, [r4, #2340]	@ movhi
 	strh	r2, [r4, #2342]	@ movhi
 	strh	r3, [r4, #2344]	@ movhi
-.L441:
+.L442:
 	strb	r1, [r1, r0]
 	adds	r1, r1, #1
 	cmp	r1, #32
-	bne	.L441
+	bne	.L442
 	ldrh	r0, [r5, #14]
 	ldrh	r1, [r5, #20]
 	cmp	r1, r0, lsr #8
-	bcs	.L442
+	bcs	.L443
 	uxtb	r10, r3
-	ldr	r9, .L468+4
+	ldr	r9, .L469+4
 	lsl	r1, r10, #1
 	uxtb	r1, r1
 	str	r1, [sp, #8]
@@ -3030,9 +3034,9 @@ FtlConstantsInit:
 	muls	r1, r3, r1
 	str	r1, [sp, #4]
 	movs	r1, #0
-.L443:
+.L444:
 	cmp	r1, r3
-	bcs	.L445
+	bcs	.L446
 	ldr	r6, [sp, #4]
 	rsb	ip, r3, r1
 	uxtb	r0, r1
@@ -3042,10 +3046,10 @@ FtlConstantsInit:
 	str	r6, [sp, #12]
 	movs	r6, #0
 	mov	r8, r6
-.L446:
+.L447:
 	cmp	r8, r2
 	add	r6, r6, r3
-	bcs	.L467
+	bcs	.L468
 	ldr	r7, [sp, #12]
 	add	fp, r0, r10
 	strb	r0, [ip, r6]
@@ -3054,35 +3058,35 @@ FtlConstantsInit:
 	ldr	r7, [sp, #8]
 	add	r0, r0, r7
 	uxtb	r0, r0
-	b	.L446
-.L467:
+	b	.L447
+.L468:
 	adds	r1, r1, #1
-	b	.L443
-.L445:
+	b	.L444
+.L446:
 	lsls	r2, r2, #1
 	strh	r2, [r4, #2342]	@ movhi
 	ldr	r2, [sp]
 	lsrs	r7, r2, #1
 	strh	r7, [r4, #2330]	@ movhi
-.L442:
+.L443:
 	cmp	lr, #1
 	mov	r2, #5
 	strh	r2, [r4, #2380]	@ movhi
 	mov	r2, #0
 	strh	r2, [r4, #2382]	@ movhi
 	it	eq
-	ldreq	r2, .L468
-	ldrb	r9, [r4]	@ zero_extendqisi2
+	ldreq	r2, .L469
+	ldrb	r9, [r4, #32]	@ zero_extendqisi2
 	it	eq
 	strheq	lr, [r2, #2380]	@ movhi
 	mov	r2, #4352
 	strh	r2, [r4, #2384]	@ movhi
 	cmp	r9, #0
-	beq	.L448
-	ldr	r2, .L468
+	beq	.L449
+	ldr	r2, .L469
 	mov	r1, #384
 	strh	r1, [r2, #2384]	@ movhi
-.L448:
+.L449:
 	ldrh	r7, [r4, #2342]
 	ldrh	r6, [r4, #2330]
 	ldrh	r8, [r5, #16]
@@ -3106,7 +3110,7 @@ FtlConstantsInit:
 	uxth	r3, r3
 	strh	r3, [r4, #2398]	@ movhi
 	it	hi
-	ldrhi	r2, .L468
+	ldrhi	r2, .L469
 	lsr	r3, r3, #8
 	strh	r3, [r4, #2400]	@ movhi
 	ldrh	r3, [r5, #26]
@@ -3123,7 +3127,7 @@ FtlConstantsInit:
 	strh	r0, [r4, #2396]	@ movhi
 	ldrh	r0, [r4, #2384]
 	muls	r5, r7, r5
-	ldr	r3, .L468
+	ldr	r3, .L469
 	lsls	r0, r0, #3
 	mul	r1, r1, fp
 	str	r3, [sp]
@@ -3140,14 +3144,14 @@ FtlConstantsInit:
 	strhhi	r0, [r3, #2408]	@ movhi
 	strhls	r2, [r3, #2408]	@ movhi
 	cmp	r9, #0
-	beq	.L452
+	beq	.L453
 	mov	r3, #640
 	strh	r3, [r4, #2384]	@ movhi
-.L452:
+.L453:
 	ldrh	r3, [r4, #2384]
 	lsls	r6, r6, #6
 	mov	r1, r7
-	ldr	r5, .L468
+	ldr	r5, .L469
 	asr	r3, r3, r10
 	add	r10, r10, #9
 	asr	r6, r6, r10
@@ -3162,7 +3166,7 @@ FtlConstantsInit:
 	bl	__aeabi_uidiv
 	cmp	r7, #1
 	uxtah	r0, r6, r0
-	ldr	r6, .L468
+	ldr	r6, .L469
 	it	eq
 	addeq	r0, r0, #4
 	str	r0, [r5, #2316]
@@ -3193,19 +3197,19 @@ FtlConstantsInit:
 	adds	r1, r3, #3
 	str	r1, [r4, #2416]
 	strh	r0, [r4, #2426]	@ movhi
-	ldrb	r0, [r4, #144]	@ zero_extendqisi2
-	cbz	r0, .L455
+	ldrb	r0, [r4, #148]	@ zero_extendqisi2
+	cbz	r0, .L456
 	adds	r2, r2, #4
 	adds	r3, r3, #5
 	strh	r2, [r6, #2408]	@ movhi
-	b	.L466
-.L455:
-	cmp	r1, #7
-	bhi	.L456
-	movs	r3, #8
-.L466:
-	str	r3, [r6, #2416]
+	b	.L467
 .L456:
+	cmp	r1, #7
+	bhi	.L457
+	movs	r3, #8
+.L467:
+	str	r3, [r6, #2416]
+.L457:
 	ldrh	r2, [r4, #2328]
 	movs	r3, #0
 	strh	r3, [r4, #2432]	@ movhi
@@ -3217,14 +3221,14 @@ FtlConstantsInit:
 	cmp	r5, r7, lsl #9
 	ittt	cc
 	movcc	r2, #1
-	ldrcc	r3, .L468
+	ldrcc	r3, .L469
 	strhcc	r2, [r3, #2432]	@ movhi
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L469:
+.L470:
 	.align	2
-.L468:
+.L469:
 	.word	.LANCHOR0
 	.word	.LANCHOR0+2348
 	.fnend
@@ -3239,26 +3243,26 @@ IsBlkInVendorPart:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L477
+	ldr	r2, .L478
 	ldrh	r3, [r2, #2434]
-	cbz	r3, .L476
+	cbz	r3, .L477
 	ldr	r3, [r2, #2436]
 	ldrh	r2, [r2, #2408]
 	add	r2, r3, r2, lsl #1
-.L472:
+.L473:
 	cmp	r3, r2
-	beq	.L476
+	beq	.L477
 	ldrh	r1, [r3], #2
 	cmp	r1, r0
-	bne	.L472
+	bne	.L473
 	movs	r0, #1
 	bx	lr
-.L476:
+.L477:
 	movs	r0, #0
 	bx	lr
-.L478:
+.L479:
 	.align	2
-.L477:
+.L478:
 	.word	.LANCHOR0
 	.fnend
 	.size	IsBlkInVendorPart, .-IsBlkInVendorPart
@@ -3271,34 +3275,34 @@ FtlCacheMetchLpa:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L487
+	ldr	r2, .L488
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	ldr	r3, [r2, #2440]
-	cbz	r3, .L486
+	cbz	r3, .L487
 	ldr	r5, [r2, #2444]
 	movs	r6, #36
 	movs	r2, #0
-.L482:
+.L483:
 	mla	r4, r6, r2, r5
 	ldr	r4, [r4, #16]
 	cmp	r4, r0
-	bcc	.L481
+	bcc	.L482
 	cmp	r4, r1
-	bls	.L484
-.L481:
+	bls	.L485
+.L482:
 	adds	r2, r2, #1
 	cmp	r2, r3
-	bne	.L482
-.L486:
+	bne	.L483
+.L487:
 	movs	r0, #0
 	pop	{r4, r5, r6, pc}
-.L484:
+.L485:
 	movs	r0, #1
 	pop	{r4, r5, r6, pc}
-.L488:
+.L489:
 	.align	2
-.L487:
+.L488:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlCacheMetchLpa, .-FtlCacheMetchLpa
@@ -3312,12 +3316,12 @@ FtlGetCap:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L490
+	ldr	r3, .L491
 	ldr	r0, [r3, #2428]
 	bx	lr
-.L491:
+.L492:
 	.align	2
-.L490:
+.L491:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlGetCap, .-FtlGetCap
@@ -3331,12 +3335,12 @@ FtlGetCapacity:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L493
+	ldr	r3, .L494
 	ldr	r0, [r3, #2428]
 	bx	lr
-.L494:
+.L495:
 	.align	2
-.L493:
+.L494:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlGetCapacity, .-FtlGetCapacity
@@ -3350,12 +3354,12 @@ ftl_get_density:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L496
+	ldr	r3, .L497
 	ldr	r0, [r3, #2428]
 	bx	lr
-.L497:
+.L498:
 	.align	2
-.L496:
+.L497:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_get_density, .-ftl_get_density
@@ -3369,12 +3373,12 @@ FtlGetLpn:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L499
+	ldr	r3, .L500
 	ldr	r0, [r3, #2448]
 	bx	lr
-.L500:
+.L501:
 	.align	2
-.L499:
+.L500:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlGetLpn, .-FtlGetLpn
@@ -3391,7 +3395,7 @@ FtlBbmMapBadBlock:
 	.save {r4, r5, r6, r7, lr}
 	.pad #12
 	mov	r6, r0
-	ldr	r5, .L502
+	ldr	r5, .L503
 	ldrh	r4, [r5, #2386]
 	mov	r1, r4
 	bl	__aeabi_uidiv
@@ -3407,7 +3411,7 @@ FtlBbmMapBadBlock:
 	lsls	r1, r1, r0
 	ldr	r0, [r4, r7, lsl #2]
 	orrs	r1, r1, r0
-	ldr	r0, .L502+4
+	ldr	r0, .L503+4
 	str	r1, [r4, r7, lsl #2]
 	str	r1, [sp]
 	mov	r1, r6
@@ -3419,9 +3423,9 @@ FtlBbmMapBadBlock:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, pc}
-.L503:
+.L504:
 	.align	2
-.L502:
+.L503:
 	.word	.LANCHOR0
 	.word	.LC2
 	.fnend
@@ -3439,7 +3443,7 @@ FtlBbmIsBadBlock:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	mov	r7, r0
-	ldr	r5, .L505
+	ldr	r5, .L506
 	ldrh	r6, [r5, #2386]
 	mov	r1, r6
 	bl	__aeabi_uidivmod
@@ -3456,9 +3460,9 @@ FtlBbmIsBadBlock:
 	lsrs	r0, r0, r4
 	and	r0, r0, #1
 	pop	{r3, r4, r5, r6, r7, pc}
-.L506:
+.L507:
 	.align	2
-.L505:
+.L506:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlBbmIsBadBlock, .-FtlBbmIsBadBlock
@@ -3487,28 +3491,28 @@ FtlBbtCalcTotleCnt:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	movs	r5, #0
-	ldr	r4, .L516
+	ldr	r4, .L517
 	ldrh	r6, [r4, #2386]
 	ldrh	r3, [r4, #2342]
 	mov	r4, r5
 	muls	r6, r3, r6
-.L509:
+.L510:
 	uxth	r0, r5
 	cmp	r0, r6
-	bge	.L515
+	bge	.L516
 	bl	FtlBbmIsBadBlock
-	cbz	r0, .L510
+	cbz	r0, .L511
 	adds	r4, r4, #1
 	uxth	r4, r4
-.L510:
+.L511:
 	adds	r5, r5, #1
-	b	.L509
-.L515:
+	b	.L510
+.L516:
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L517:
+.L518:
 	.align	2
-.L516:
+.L517:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlBbtCalcTotleCnt, .-FtlBbtCalcTotleCnt
@@ -3524,7 +3528,7 @@ V2P_block:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	mov	r4, r1
-	ldr	r6, .L519
+	ldr	r6, .L520
 	mov	r7, r0
 	ldrh	r5, [r6, #2344]
 	mov	r1, r5
@@ -3537,9 +3541,9 @@ V2P_block:
 	smlabb	r0, r3, r0, r4
 	uxth	r0, r0
 	pop	{r3, r4, r5, r6, r7, pc}
-.L520:
+.L521:
 	.align	2
-.L519:
+.L520:
 	.word	.LANCHOR0
 	.fnend
 	.size	V2P_block, .-V2P_block
@@ -3552,7 +3556,7 @@ P2V_plane:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L522
+	ldr	r3, .L523
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r6, r0
@@ -3566,9 +3570,9 @@ P2V_plane:
 	add	r1, r1, r4
 	uxth	r0, r1
 	pop	{r4, r5, r6, pc}
-.L523:
+.L524:
 	.align	2
-.L522:
+.L523:
 	.word	.LANCHOR0
 	.fnend
 	.size	P2V_plane, .-P2V_plane
@@ -3583,7 +3587,7 @@ P2V_block_in_plane:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, lr}
 	.save {r4, lr}
-	ldr	r4, .L525
+	ldr	r4, .L526
 	ldrh	r1, [r4, #2386]
 	bl	__aeabi_uidivmod
 	uxth	r0, r1
@@ -3591,9 +3595,9 @@ P2V_block_in_plane:
 	bl	__aeabi_uidiv
 	uxth	r0, r0
 	pop	{r4, pc}
-.L526:
+.L527:
 	.align	2
-.L525:
+.L526:
 	.word	.LANCHOR0
 	.fnend
 	.size	P2V_block_in_plane, .-P2V_block_in_plane
@@ -3608,14 +3612,14 @@ ftl_cmp_data_ver:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
 	cmp	r0, r1
-	bls	.L528
+	bls	.L529
 	subs	r0, r0, r1
 	cmp	r0, #-2147483648
 	ite	hi
 	movhi	r0, #0
 	movls	r0, #1
 	bx	lr
-.L528:
+.L529:
 	subs	r0, r1, r0
 	cmp	r0, #-2147483648
 	ite	ls
@@ -3634,14 +3638,14 @@ FtlFreeSysBlkQueueEmpty:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L531
+	ldr	r3, .L532
 	ldrh	r0, [r3, #2518]
 	clz	r0, r0
 	lsrs	r0, r0, #5
 	bx	lr
-.L532:
+.L533:
 	.align	2
-.L531:
+.L532:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlFreeSysBlkQueueEmpty, .-FtlFreeSysBlkQueueEmpty
@@ -3655,15 +3659,15 @@ FtlFreeSysBlkQueueFull:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L534
+	ldr	r3, .L535
 	ldrh	r0, [r3, #2518]
 	sub	r3, r0, #1024
 	rsbs	r0, r3, #0
 	adcs	r0, r0, r3
 	bx	lr
-.L535:
+.L536:
 	.align	2
-.L534:
+.L535:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlFreeSysBlkQueueFull, .-FtlFreeSysBlkQueueFull
@@ -3683,15 +3687,15 @@ FtlFreeSysBlkQueueIn:
 	mov	r6, r0
 	uxth	r3, r3
 	cmp	r3, r2
-	bhi	.L536
-	ldr	r4, .L545
+	bhi	.L537
+	ldr	r4, .L546
 	ldrh	r3, [r4, #2518]
 	cmp	r3, #1024
-	beq	.L536
-	cbz	r1, .L538
-	ldr	r5, .L545+4
+	beq	.L537
+	cbz	r1, .L539
+	ldr	r5, .L546+4
 	ldr	r3, [r5, #224]
-	cbnz	r3, .L538
+	cbnz	r3, .L539
 	bl	P2V_block_in_plane
 	movs	r1, #1
 	lsls	r3, r6, #10
@@ -3707,7 +3711,7 @@ FtlFreeSysBlkQueueIn:
 	ldr	r3, [r5, #236]
 	adds	r3, r3, #1
 	str	r3, [r5, #236]
-.L538:
+.L539:
 	ldrh	r3, [r4, #2518]
 	adds	r3, r3, #1
 	strh	r3, [r4, #2518]	@ movhi
@@ -3717,11 +3721,11 @@ FtlFreeSysBlkQueueIn:
 	ubfx	r3, r3, #0, #10
 	strh	r3, [r4, #2516]	@ movhi
 	strh	r6, [r2, #2520]	@ movhi
-.L536:
+.L537:
 	pop	{r3, r4, r5, r6, r7, pc}
-.L546:
+.L547:
 	.align	2
-.L545:
+.L546:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -3735,23 +3739,23 @@ FtlFreeSysBLkSort:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L558
+	ldr	r3, .L559
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	ldrh	r4, [r3, #268]
-	ldr	r3, .L558+4
+	ldr	r3, .L559+4
 	ldrh	r2, [r3, #2518]
-	cbz	r2, .L547
+	cbz	r2, .L548
 	movs	r0, #0
 	ldrh	r1, [r3, #2514]
 	ldrh	r2, [r3, #2516]
 	and	r4, r4, #31
 	mov	r6, r0
-.L549:
+.L550:
 	uxth	r5, r0
 	adds	r0, r0, #1
 	cmp	r5, r4
-	bge	.L557
+	bge	.L558
 	add	r5, r3, r1, lsl #1
 	adds	r1, r1, #1
 	ubfx	r1, r1, #0, #10
@@ -3761,16 +3765,16 @@ FtlFreeSysBLkSort:
 	movs	r6, #1
 	add	r2, r2, r6
 	ubfx	r2, r2, #0, #10
-	b	.L549
-.L557:
-	cbz	r6, .L547
+	b	.L550
+.L558:
+	cbz	r6, .L548
 	strh	r1, [r3, #2514]	@ movhi
 	strh	r2, [r3, #2516]	@ movhi
-.L547:
+.L548:
 	pop	{r4, r5, r6, pc}
-.L559:
+.L560:
 	.align	2
-.L558:
+.L559:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -3786,12 +3790,12 @@ FtlFreeSysBlkQueueOut:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
-	ldr	r4, .L570
-	ldr	r6, .L570+4
+	ldr	r4, .L571
+	ldr	r6, .L571+4
 	mov	r7, r4
-.L561:
+.L562:
 	ldrh	r1, [r4, #2518]
-	cbz	r1, .L562
+	cbz	r1, .L563
 	ldrh	r3, [r4, #2514]
 	subs	r1, r1, #1
 	ldr	r10, [r6, #224]
@@ -3799,23 +3803,23 @@ FtlFreeSysBlkQueueOut:
 	add	r2, r4, r3, lsl #1
 	adds	r3, r3, #1
 	ubfx	r3, r3, #0, #10
-	ldr	r8, .L570+4
+	ldr	r8, .L571+4
 	ldrh	r5, [r2, #2520]
 	strh	r3, [r4, #2514]	@ movhi
 	cmp	r10, #0
-	bne	.L563
+	bne	.L564
 	mov	r0, r5
 	bl	P2V_block_in_plane
 	lsls	r3, r5, #10
 	mov	r9, r0
 	ldr	r0, [r6, #228]
 	str	r3, [r0, #4]
-	ldrb	r3, [r4, #144]	@ zero_extendqisi2
-	cbz	r3, .L564
+	ldrb	r3, [r4, #148]	@ zero_extendqisi2
+	cbz	r3, .L565
 	mov	r1, r10
 	movs	r2, #1
 	bl	FlashEraseBlocks
-.L564:
+.L565:
 	movs	r1, #1
 	ldr	r0, [r8, #228]
 	mov	r2, r1
@@ -3827,29 +3831,29 @@ FtlFreeSysBlkQueueOut:
 	ldr	r3, [r8, #236]
 	adds	r3, r3, #1
 	str	r3, [r8, #236]
-	b	.L563
-.L562:
-	ldr	r0, .L570+8
-	bl	printk
-.L565:
-	b	.L565
+	b	.L564
 .L563:
+	ldr	r0, .L571+8
+	bl	printk
+.L566:
+	b	.L566
+.L564:
 	subs	r3, r5, #1
 	movw	r2, #65533
 	uxth	r3, r3
 	cmp	r3, r2
-	bls	.L566
+	bls	.L567
 	mov	r1, r5
 	ldrh	r2, [r7, #2518]
-	ldr	r0, .L570+12
+	ldr	r0, .L571+12
 	bl	printk
-	b	.L561
-.L566:
+	b	.L562
+.L567:
 	mov	r0, r5
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L571:
+.L572:
 	.align	2
-.L570:
+.L571:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LC3
@@ -3865,35 +3869,35 @@ test_node_in_list:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L577
+	ldr	r3, .L578
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
 	movw	r5, #65535
 	ldr	r4, [r3, #288]
 	ldr	r2, [r0]
-	ldr	r3, .L577+4
+	ldr	r3, .L578+4
 	subs	r0, r2, r4
 	asrs	r0, r0, #1
 	muls	r3, r0, r3
 	movs	r0, #6
 	uxth	r3, r3
-.L574:
+.L575:
 	cmp	r1, r3
-	beq	.L575
+	beq	.L576
 	ldrh	r3, [r2]
 	cmp	r3, r5
-	beq	.L576
+	beq	.L577
 	mla	r2, r0, r3, r4
-	b	.L574
-.L575:
+	b	.L575
+.L576:
 	movs	r0, #1
 	pop	{r4, r5, pc}
-.L576:
+.L577:
 	movs	r0, #0
 	pop	{r4, r5, pc}
-.L578:
+.L579:
 	.align	2
-.L577:
+.L578:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -3910,12 +3914,12 @@ insert_data_list:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r5, .L595
+	ldr	r5, .L596
 	ldrh	r3, [r5, #2328]
 	cmp	r3, r0
-	bls	.L581
+	bls	.L582
 	movs	r4, #6
-	ldr	r2, .L595+4
+	ldr	r2, .L596+4
 	movw	r3, #65535
 	muls	r4, r0, r4
 	ldr	lr, [r2, #288]
@@ -3925,19 +3929,19 @@ insert_data_list:
 	strh	r3, [lr, r4]	@ movhi
 	ldr	r3, [r2, #292]
 	cmp	r3, #0
-	beq	.L594
+	beq	.L595
 	ldr	r8, [r2, #296]
 	lsl	fp, r0, #1
 	ldrh	r2, [r1, #4]
 	ldrh	r6, [r8, r0, lsl #1]
-	cbz	r2, .L592
+	cbz	r2, .L593
 	muls	r6, r2, r6
-	b	.L583
-.L592:
+	b	.L584
+.L593:
 	mov	r6, #-1
-.L583:
+.L584:
 	ldr	ip, [r7, #288]
-	ldr	r2, .L595+8
+	ldr	r2, .L596+8
 	rsb	r9, ip, r3
 	ldrh	r5, [r5, #2328]
 	asr	r9, r9, #1
@@ -3948,75 +3952,75 @@ insert_data_list:
 	str	r5, [sp, #4]
 	movs	r5, #0
 	uxth	r2, r2
-.L590:
+.L591:
 	adds	r5, r5, #1
 	ldr	r7, [sp]
 	uxth	r5, r5
 	cmp	r5, r7
-	bhi	.L581
+	bhi	.L582
 	cmp	r0, r2
-	beq	.L581
+	beq	.L582
 	ldrh	r7, [r3, #4]
 	lsl	r10, r2, #1
 	ldrh	fp, [r8, r2, lsl #1]
-	cbz	r7, .L593
+	cbz	r7, .L594
 	mul	r7, r7, fp
-	b	.L585
-.L593:
+	b	.L586
+.L594:
 	mov	r7, #-1
-.L585:
+.L586:
 	cmp	r7, r6
-	bne	.L586
+	bne	.L587
 	ldr	r7, [sp, #4]
 	ldrh	r10, [r9, r10]
 	ldrh	r7, [r7]
 	cmp	r10, r7
-	bcc	.L588
-	b	.L587
-.L586:
-	bhi	.L587
-.L588:
+	bcc	.L589
+	b	.L588
+.L587:
+	bhi	.L588
+.L589:
 	ldrh	r7, [r3]
 	movw	r10, #65535
 	cmp	r7, r10
-	bne	.L589
+	bne	.L590
 	strh	r2, [r1, #2]	@ movhi
 	strh	r0, [r3]	@ movhi
-	ldr	r3, .L595+4
+	ldr	r3, .L596+4
 	str	r1, [r3, #300]
-	b	.L581
-.L589:
+	b	.L582
+.L590:
 	movs	r3, #6
 	mov	r2, r7
 	mla	r3, r3, r7, ip
-	b	.L590
-.L587:
+	b	.L591
+.L588:
 	strh	r2, [lr, r4]	@ movhi
 	ldrh	r2, [r3, #2]
 	strh	r2, [r1, #2]	@ movhi
-	ldr	r2, .L595+4
+	ldr	r2, .L596+4
 	ldr	r4, [r2, #292]
 	cmp	r3, r4
-	bne	.L591
+	bne	.L592
 	strh	r0, [r3, #2]	@ movhi
-.L594:
+.L595:
 	str	r1, [r2, #292]
-	b	.L581
-.L591:
+	b	.L582
+.L592:
 	ldrh	r4, [r3, #2]
 	ldr	r1, [r2, #288]
 	movs	r2, #6
 	muls	r2, r4, r2
 	strh	r0, [r1, r2]	@ movhi
 	strh	r0, [r3, #2]	@ movhi
-.L581:
+.L582:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L596:
+.L597:
 	.align	2
-.L595:
+.L596:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	-1431655765
@@ -4034,14 +4038,14 @@ INSERT_DATA_LIST:
 	push	{r3, lr}
 	.save {r3, lr}
 	bl	insert_data_list
-	ldr	r2, .L598
+	ldr	r2, .L599
 	ldrh	r3, [r2, #304]
 	adds	r3, r3, #1
 	strh	r3, [r2, #304]	@ movhi
 	pop	{r3, pc}
-.L599:
+.L600:
 	.align	2
-.L598:
+.L599:
 	.word	.LANCHOR2
 	.fnend
 	.size	INSERT_DATA_LIST, .-INSERT_DATA_LIST
@@ -4058,9 +4062,9 @@ insert_free_list:
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	movw	r5, #65535
 	cmp	r0, r5
-	beq	.L601
+	beq	.L602
 	movs	r1, #6
-	ldr	r2, .L608
+	ldr	r2, .L609
 	mul	lr, r1, r0
 	ldr	ip, [r2, #288]
 	mov	r7, r2
@@ -4068,54 +4072,54 @@ insert_free_list:
 	strh	r5, [r6, #2]	@ movhi
 	strh	r5, [ip, lr]	@ movhi
 	ldr	r3, [r2, #308]
-	cbz	r3, .L607
+	cbz	r3, .L608
 	ldr	r8, [r2, #288]
 	ldr	r9, [r2, #232]
 	rsb	r4, r8, r3
-	ldr	r2, .L608+4
+	ldr	r2, .L609+4
 	asrs	r4, r4, #1
 	ldrh	r10, [r9, r0, lsl #1]
 	muls	r4, r2, r4
 	uxth	r2, r4
-.L605:
+.L606:
 	ldrh	r4, [r9, r2, lsl #1]
 	cmp	r4, r10
-	bcs	.L603
+	bcs	.L604
 	ldrh	r4, [r3]
 	cmp	r4, r5
-	bne	.L604
+	bne	.L605
 	strh	r2, [r6, #2]	@ movhi
 	strh	r0, [r3]	@ movhi
-	b	.L601
-.L604:
+	b	.L602
+.L605:
 	mla	r3, r1, r4, r8
 	mov	r2, r4
-	b	.L605
-.L603:
+	b	.L606
+.L604:
 	ldrh	r1, [r3, #2]
 	strh	r1, [r6, #2]	@ movhi
 	strh	r2, [ip, lr]	@ movhi
 	ldr	r1, [r7, #308]
-	ldr	r2, .L608
+	ldr	r2, .L609
 	cmp	r3, r1
-	bne	.L606
+	bne	.L607
 	strh	r0, [r3, #2]	@ movhi
-.L607:
+.L608:
 	str	r6, [r2, #308]
-	b	.L601
-.L606:
+	b	.L602
+.L607:
 	ldrh	r4, [r3, #2]
 	ldr	r1, [r2, #288]
 	movs	r2, #6
 	muls	r2, r4, r2
 	strh	r0, [r1, r2]	@ movhi
 	strh	r0, [r3, #2]	@ movhi
-.L601:
+.L602:
 	movs	r0, #0
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L609:
+.L610:
 	.align	2
-.L608:
+.L609:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -4132,14 +4136,14 @@ INSERT_FREE_LIST:
 	push	{r3, lr}
 	.save {r3, lr}
 	bl	insert_free_list
-	ldr	r2, .L611
+	ldr	r2, .L612
 	ldrh	r3, [r2, #312]
 	adds	r3, r3, #1
 	strh	r3, [r2, #312]	@ movhi
 	pop	{r3, pc}
-.L612:
+.L613:
 	.align	2
-.L611:
+.L612:
 	.word	.LANCHOR2
 	.fnend
 	.size	INSERT_FREE_LIST, .-INSERT_FREE_LIST
@@ -4155,7 +4159,7 @@ List_remove_node:
 	push	{r4, r5, r6, r7, lr}
 	.save {r4, r5, r6, r7, lr}
 	movs	r4, #6
-	ldr	r7, .L618
+	ldr	r7, .L619
 	movw	r6, #65535
 	muls	r1, r4, r1
 	ldr	r3, [r0]
@@ -4163,7 +4167,7 @@ List_remove_node:
 	adds	r5, r2, r1
 	cmp	r5, r3
 	ldrh	r3, [r2, r1]
-	bne	.L614
+	bne	.L615
 	cmp	r3, r6
 	ittee	eq
 	moveq	r3, #0
@@ -4172,17 +4176,17 @@ List_remove_node:
 	strne	r3, [r0]
 	it	ne
 	strhne	r6, [r3, #2]	@ movhi
-	b	.L616
-.L614:
+	b	.L617
+.L615:
 	cmp	r3, r6
 	ldrh	r0, [r5, #2]
-	bne	.L617
+	bne	.L618
 	cmp	r0, r3
-	beq	.L616
+	beq	.L617
 	muls	r0, r4, r0
 	strh	r3, [r2, r0]	@ movhi
-	b	.L616
-.L617:
+	b	.L617
+.L618:
 	mla	r3, r4, r3, r2
 	strh	r0, [r3, #2]	@ movhi
 	ldrh	r6, [r5, #2]
@@ -4190,15 +4194,15 @@ List_remove_node:
 	ldr	r3, [r7, #288]
 	muls	r4, r6, r4
 	strh	r0, [r3, r4]	@ movhi
-.L616:
+.L617:
 	movw	r3, #65535
 	movs	r0, #0
 	strh	r3, [r2, r1]	@ movhi
 	strh	r3, [r5, #2]	@ movhi
 	pop	{r4, r5, r6, r7, pc}
-.L619:
+.L620:
 	.align	2
-.L618:
+.L619:
 	.word	.LANCHOR2
 	.fnend
 	.size	List_remove_node, .-List_remove_node
@@ -4214,16 +4218,16 @@ List_pop_index_node:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	ldr	r3, [r0]
-	cbz	r3, .L626
-	ldr	r2, .L627
+	cbz	r3, .L627
+	ldr	r2, .L628
 	movs	r6, #6
 	movw	r5, #65535
 	ldr	r4, [r2, #288]
-.L622:
-	cbnz	r1, .L623
-.L625:
+.L623:
+	cbnz	r1, .L624
+.L626:
 	subs	r4, r3, r4
-	ldr	r3, .L627+4
+	ldr	r3, .L628+4
 	asrs	r4, r4, #1
 	muls	r4, r3, r4
 	uxth	r4, r4
@@ -4231,20 +4235,20 @@ List_pop_index_node:
 	bl	List_remove_node
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L623:
+.L624:
 	ldrh	r2, [r3]
 	cmp	r2, r5
-	beq	.L625
+	beq	.L626
 	subs	r1, r1, #1
 	mla	r3, r6, r2, r4
 	uxth	r1, r1
-	b	.L622
-.L626:
+	b	.L623
+.L627:
 	movw	r0, #65535
 	pop	{r4, r5, r6, pc}
-.L628:
+.L629:
 	.align	2
-.L627:
+.L628:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -4258,36 +4262,36 @@ List_get_gc_head_node:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L636
+	ldr	r2, .L637
 	push	{r4, lr}
 	.save {r4, lr}
 	ldr	r3, [r2, #292]
-	cbz	r3, .L634
+	cbz	r3, .L635
 	movs	r4, #6
 	ldr	r1, [r2, #288]
 	movw	r2, #65535
-.L631:
-	cbz	r0, .L632
+.L632:
+	cbz	r0, .L633
 	ldrh	r3, [r3]
 	cmp	r3, r2
-	beq	.L634
+	beq	.L635
 	subs	r0, r0, #1
 	mla	r3, r4, r3, r1
 	uxth	r0, r0
-	b	.L631
-.L634:
+	b	.L632
+.L635:
 	movw	r0, #65535
 	pop	{r4, pc}
-.L632:
+.L633:
 	subs	r3, r3, r1
-	ldr	r0, .L636+4
+	ldr	r0, .L637+4
 	asrs	r3, r3, #1
 	muls	r0, r3, r0
 	uxth	r0, r0
 	pop	{r4, pc}
-.L637:
+.L638:
 	.align	2
-.L636:
+.L637:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -4304,57 +4308,57 @@ List_update_data_list:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	mov	r5, r0
-	ldr	r4, .L645
+	ldr	r4, .L646
 	ldrh	r3, [r4, #316]
 	cmp	r3, r0
-	beq	.L639
+	beq	.L640
 	ldrh	r3, [r4, #364]
 	cmp	r3, r0
-	beq	.L639
+	beq	.L640
 	ldrh	r3, [r4, #412]
 	cmp	r3, r0
-	beq	.L639
+	beq	.L640
 	movs	r3, #6
 	ldr	r1, [r4, #288]
 	ldr	r2, [r4, #292]
 	muls	r3, r0, r3
 	adds	r0, r1, r3
 	cmp	r0, r2
-	beq	.L639
+	beq	.L640
 	ldr	r6, [r4, #296]
 	ldrh	r2, [r0, #4]
 	ldrh	r7, [r6, r5, lsl #1]
-	cbz	r2, .L643
+	cbz	r2, .L644
 	muls	r2, r7, r2
-	b	.L640
-.L643:
+	b	.L641
+.L644:
 	mov	r2, #-1
-.L640:
+.L641:
 	ldrh	r0, [r0, #2]
 	movw	r7, #65535
 	cmp	r0, r7
-	bne	.L641
+	bne	.L642
 	ldrh	r3, [r1, r3]
 	cmp	r3, r0
-	beq	.L639
-.L641:
+	beq	.L640
+.L642:
 	movs	r3, #6
 	muls	r3, r0, r3
-	ldr	r0, .L645+4
+	ldr	r0, .L646+4
 	asrs	r7, r3, #1
 	add	r3, r3, r1
 	muls	r0, r7, r0
 	ldrh	r3, [r3, #4]
 	ldrh	r0, [r6, r0, lsl #1]
-	cbz	r3, .L644
+	cbz	r3, .L645
 	muls	r3, r0, r3
-	b	.L642
-.L644:
+	b	.L643
+.L645:
 	mov	r3, #-1
-.L642:
+.L643:
 	cmp	r2, r3
-	bcs	.L639
-	ldr	r0, .L645+8
+	bcs	.L640
+	ldr	r0, .L646+8
 	mov	r1, r5
 	bl	List_remove_node
 	ldrh	r3, [r4, #304]
@@ -4362,12 +4366,12 @@ List_update_data_list:
 	subs	r3, r3, #1
 	strh	r3, [r4, #304]	@ movhi
 	bl	INSERT_DATA_LIST
-.L639:
+.L640:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, pc}
-.L646:
+.L647:
 	.align	2
-.L645:
+.L646:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.word	.LANCHOR2+292
@@ -4388,16 +4392,16 @@ ftl_map_blk_alloc_new_blk:
 	ldrh	r1, [r0, #10]
 	mov	r4, r0
 	ldr	r2, [r0, #12]
-.L648:
+.L649:
 	uxth	r5, r3
 	cmp	r5, r1
-	bcs	.L651
+	bcs	.L652
 	mov	r7, r2
 	adds	r3, r3, #1
 	ldrh	r6, [r7]
 	adds	r2, r2, #2
 	cmp	r6, #0
-	bne	.L648
+	bne	.L649
 	bl	FtlFreeSysBlkQueueOut
 	movw	r2, #65533
 	subs	r3, r0, #1
@@ -4405,14 +4409,14 @@ ftl_map_blk_alloc_new_blk:
 	strh	r0, [r7]	@ movhi
 	uxth	r3, r3
 	cmp	r3, r2
-	bls	.L649
-	ldr	r3, .L654
-	ldr	r0, .L654+4
+	bls	.L650
+	ldr	r3, .L655
+	ldr	r0, .L655+4
 	ldrh	r2, [r3, #2518]
 	bl	printk
+.L651:
+	b	.L651
 .L650:
-	b	.L650
-.L649:
 	ldr	r3, [r4, #28]
 	strh	r6, [r4, #2]	@ movhi
 	adds	r3, r3, #1
@@ -4421,12 +4425,12 @@ ftl_map_blk_alloc_new_blk:
 	strh	r5, [r4]	@ movhi
 	adds	r3, r3, #1
 	strh	r3, [r4, #8]	@ movhi
-.L651:
+.L652:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, pc}
-.L655:
+.L656:
 	.align	2
-.L654:
+.L655:
 	.word	.LANCHOR0
 	.word	.LC5
 	.fnend
@@ -4443,70 +4447,70 @@ select_l2p_ram_region:
 	push	{r4, r5, r6, r7, lr}
 	.save {r4, r5, r6, r7, lr}
 	movs	r1, #0
-	ldr	r3, .L670
+	ldr	r3, .L671
 	movs	r4, #12
-	ldr	r7, .L670+4
+	ldr	r7, .L671+4
 	movw	r5, #65535
 	ldrh	r2, [r3, #2426]
 	ldr	r3, [r7, #460]
-.L657:
+.L658:
 	uxth	r0, r1
 	cmp	r0, r2
-	bcs	.L668
+	bcs	.L669
 	adds	r1, r1, #1
 	mla	r6, r4, r1, r3
 	ldrh	r6, [r6, #-12]
 	cmp	r6, r5
-	bne	.L657
-	b	.L658
-.L668:
+	bne	.L658
+	b	.L659
+.L669:
 	movs	r1, #0
 	mov	r6, #-2147483648
 	mov	lr, #12
 	mov	r0, r2
-.L660:
+.L661:
 	uxth	r5, r1
 	cmp	r5, r2
-	bcs	.L669
+	bcs	.L670
 	mla	r4, lr, r1, r3
 	ldr	r4, [r4, #4]
 	cmp	r4, #0
-	blt	.L661
+	blt	.L662
 	cmp	r4, r6
 	itt	cc
 	movcc	r6, r4
 	movcc	r0, r5
-.L661:
+.L662:
 	adds	r1, r1, #1
-	b	.L660
-.L669:
+	b	.L661
+.L670:
 	cmp	r0, r2
-	bcc	.L658
+	bcc	.L659
 	ldrh	r7, [r7, #464]
 	movs	r1, #0
 	mov	r4, #-1
 	mov	r0, r2
-.L663:
+.L664:
 	uxth	r5, r1
 	cmp	r5, r2
-	bcs	.L658
+	bcs	.L659
 	ldr	r6, [r3, #4]
 	cmp	r6, r4
-	bcs	.L664
+	bcs	.L665
 	ldrh	lr, [r3]
 	cmp	lr, r7
 	itt	ne
 	movne	r4, r6
 	movne	r0, r5
-.L664:
+.L665:
 	adds	r1, r1, #1
 	adds	r3, r3, #12
-	b	.L663
-.L658:
+	b	.L664
+.L659:
 	pop	{r4, r5, r6, r7, pc}
-.L671:
+.L672:
 	.align	2
-.L670:
+.L671:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -4520,19 +4524,19 @@ FtlUpdateVaildLpn:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r1, .L679
+	ldr	r1, .L680
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
 	ldrh	r2, [r1, #466]
 	mov	r3, r1
 	cmp	r2, #4
-	bhi	.L673
-	cbnz	r0, .L673
+	bhi	.L674
+	cbnz	r0, .L674
 	adds	r2, r2, #1
 	strh	r2, [r1, #466]	@ movhi
 	pop	{r4, r5, pc}
-.L673:
-	ldr	r1, .L679+4
+.L674:
+	ldr	r1, .L680+4
 	movs	r2, #0
 	strh	r2, [r3, #466]	@ movhi
 	movw	r5, #65535
@@ -4540,21 +4544,21 @@ FtlUpdateVaildLpn:
 	ldrh	r1, [r1, #2328]
 	ldr	r2, [r3, #296]
 	add	r1, r2, r1, lsl #1
-.L674:
+.L675:
 	cmp	r2, r1
-	beq	.L678
+	beq	.L679
 	ldrh	r4, [r2], #2
 	cmp	r4, r5
 	ittt	ne
 	ldrne	r0, [r3, #468]
 	addne	r0, r0, r4
 	strne	r0, [r3, #468]
-	b	.L674
-.L678:
-	pop	{r4, r5, pc}
-.L680:
-	.align	2
+	b	.L675
 .L679:
+	pop	{r4, r5, pc}
+.L681:
+	.align	2
+.L680:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -4570,10 +4574,10 @@ ftl_set_blk_mode:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
 	lsrs	r3, r0, #5
-	ldr	r2, .L684
+	ldr	r2, .L685
 	and	r0, r0, #31
 	uxth	r3, r3
-	cbz	r1, .L682
+	cbz	r1, .L683
 	ldr	r1, [r2, #472]
 	movs	r2, #1
 	lsls	r2, r2, r0
@@ -4581,7 +4585,7 @@ ftl_set_blk_mode:
 	orrs	r2, r2, r0
 	str	r2, [r1, r3, lsl #2]
 	bx	lr
-.L682:
+.L683:
 	ldr	r1, [r2, #472]
 	movs	r2, #1
 	lsls	r2, r2, r0
@@ -4589,9 +4593,9 @@ ftl_set_blk_mode:
 	bic	r0, r0, r2
 	str	r0, [r1, r3, lsl #2]
 	bx	lr
-.L685:
+.L686:
 	.align	2
-.L684:
+.L685:
 	.word	.LANCHOR2
 	.fnend
 	.size	ftl_set_blk_mode, .-ftl_set_blk_mode
@@ -4605,7 +4609,7 @@ ftl_get_blk_mode:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L687
+	ldr	r3, .L688
 	lsrs	r1, r0, #5
 	ldr	r2, [r3, #472]
 	and	r3, r0, #31
@@ -4613,9 +4617,9 @@ ftl_get_blk_mode:
 	lsrs	r0, r0, r3
 	and	r0, r0, #1
 	bx	lr
-.L688:
+.L689:
 	.align	2
-.L687:
+.L688:
 	.word	.LANCHOR2
 	.fnend
 	.size	ftl_get_blk_mode, .-ftl_get_blk_mode
@@ -4630,16 +4634,16 @@ ftl_sb_update_avl_pages:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	movs	r3, #0
 	strh	r3, [r0, #4]	@ movhi
-	ldr	r3, .L698
+	ldr	r3, .L699
 	push	{r4, r5, r6, r7, lr}
 	.save {r4, r5, r6, r7, lr}
 	adds	r4, r2, #7
 	ldrh	r5, [r3, #2320]
 	movw	r7, #65535
 	add	r4, r0, r4, lsl #1
-.L690:
+.L691:
 	cmp	r2, r5
-	bcs	.L696
+	bcs	.L697
 	ldrh	r6, [r4, #2]!
 	adds	r2, r2, #1
 	cmp	r6, r7
@@ -4648,16 +4652,16 @@ ftl_sb_update_avl_pages:
 	ldrhne	r6, [r0, #4]
 	addne	r6, r6, #1
 	strhne	r6, [r0, #4]	@ movhi
-	b	.L690
-.L696:
+	b	.L691
+.L697:
 	ldrh	r6, [r3, #2388]
 	add	r4, r0, #14
 	movs	r2, #0
 	movw	r7, #65535
-.L693:
+.L694:
 	uxth	r3, r2
 	cmp	r3, r5
-	bcs	.L697
+	bcs	.L698
 	ldrh	r3, [r4, #2]!
 	adds	r2, r2, #1
 	cmp	r3, r7
@@ -4668,12 +4672,12 @@ ftl_sb_update_avl_pages:
 	subne	r3, r3, r1
 	it	ne
 	strhne	r3, [r0, #4]	@ movhi
-	b	.L693
-.L697:
-	pop	{r4, r5, r6, r7, pc}
-.L699:
-	.align	2
+	b	.L694
 .L698:
+	pop	{r4, r5, r6, r7, pc}
+.L700:
+	.align	2
+.L699:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_sb_update_avl_pages, .-ftl_sb_update_avl_pages
@@ -4689,7 +4693,7 @@ make_superblock:
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r3, #0
-	ldr	r6, .L713
+	ldr	r6, .L714
 	add	r7, r0, #16
 	mov	r4, r0
 	mov	r5, r3
@@ -4698,26 +4702,26 @@ make_superblock:
 	ldrh	r8, [r6, #2320]
 	strh	r3, [r0, #4]	@ movhi
 	strb	r3, [r0, #7]
-.L701:
+.L702:
 	uxth	r3, r5
 	cmp	r3, r8
-	bcs	.L712
+	bcs	.L713
 	ldrb	r0, [r10, r5]	@ zero_extendqisi2
 	ldrh	r1, [r4]
 	bl	V2P_block
 	strh	r9, [r7]	@ movhi
 	mov	fp, r0
 	bl	FtlBbmIsBadBlock
-	cbnz	r0, .L702
+	cbnz	r0, .L703
 	strh	fp, [r7]	@ movhi
 	ldrb	r3, [r4, #7]	@ zero_extendqisi2
 	adds	r3, r3, #1
 	strb	r3, [r4, #7]
-.L702:
+.L703:
 	adds	r5, r5, #1
 	adds	r7, r7, #2
-	b	.L701
-.L712:
+	b	.L702
+.L713:
 	ldrb	r2, [r4, #7]	@ zero_extendqisi2
 	ldrh	r3, [r6, #2388]
 	smulbb	r3, r2, r3
@@ -4725,8 +4729,8 @@ make_superblock:
 	movs	r3, #0
 	strb	r3, [r4, #9]
 	ldr	r3, [r6, #2244]
-	cbz	r3, .L704
-	ldr	r3, .L713+4
+	cbz	r3, .L705
+	ldr	r3, .L714+4
 	ldrh	r2, [r4]
 	ldr	r3, [r3, #232]
 	ldrh	r3, [r3, r2, lsl #1]
@@ -4734,17 +4738,17 @@ make_superblock:
 	itt	ls
 	movls	r3, #1
 	strbls	r3, [r4, #9]
-.L704:
-	ldrb	r3, [r6]	@ zero_extendqisi2
-	cbz	r3, .L705
+.L705:
+	ldrb	r3, [r6, #32]	@ zero_extendqisi2
+	cbz	r3, .L706
 	movs	r3, #1
 	strb	r3, [r4, #9]
-.L705:
+.L706:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L714:
+.L715:
 	.align	2
-.L713:
+.L714:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -4761,43 +4765,43 @@ update_multiplier_value:
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
 	movs	r5, #0
-	ldr	r3, .L724
+	ldr	r3, .L725
 	mov	r7, r0
 	mov	r4, r5
 	addw	r6, r3, #2348
 	ldrh	r8, [r3, #2320]
 	ldrh	r9, [r3, #2388]
-.L716:
+.L717:
 	uxth	r3, r5
 	cmp	r3, r8
-	bcs	.L723
+	bcs	.L724
 	mov	r1, r7
 	ldrb	r0, [r6, r5]	@ zero_extendqisi2
 	bl	V2P_block
 	bl	FtlBbmIsBadBlock
-	cbnz	r0, .L717
+	cbnz	r0, .L718
 	add	r4, r4, r9
 	uxth	r4, r4
-.L717:
+.L718:
 	adds	r5, r5, #1
-	b	.L716
-.L723:
-	cbz	r4, .L719
+	b	.L717
+.L724:
+	cbz	r4, .L720
 	mov	r1, r4
 	mov	r0, #32768
 	bl	__aeabi_idiv
 	uxth	r4, r0
-.L719:
-	ldr	r3, .L724+4
+.L720:
+	ldr	r3, .L725+4
 	movs	r2, #6
 	movs	r0, #0
 	ldr	r3, [r3, #288]
 	mla	r7, r2, r7, r3
 	strh	r4, [r7, #4]	@ movhi
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L725:
+.L726:
 	.align	2
-.L724:
+.L725:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -4812,22 +4816,22 @@ GetFreeBlockMinEraseCount:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L729
+	ldr	r2, .L730
 	ldr	r0, [r2, #308]
-	cbz	r0, .L727
+	cbz	r0, .L728
 	ldr	r3, [r2, #288]
 	subs	r0, r0, r3
-	ldr	r3, .L729+4
+	ldr	r3, .L730+4
 	asrs	r0, r0, #1
 	muls	r0, r3, r0
 	ldr	r3, [r2, #232]
 	uxth	r0, r0
 	ldrh	r0, [r3, r0, lsl #1]
-.L727:
+.L728:
 	bx	lr
-.L730:
+.L731:
 	.align	2
-.L729:
+.L730:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -4841,11 +4845,11 @@ GetFreeBlockMaxEraseCount:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r1, .L739
+	ldr	r1, .L740
 	push	{r4, r5, r6, r7, lr}
 	.save {r4, r5, r6, r7, lr}
 	ldr	r3, [r1, #308]
-	cbz	r3, .L737
+	cbz	r3, .L738
 	ldrh	r2, [r1, #312]
 	movs	r6, #6
 	ldr	r4, [r1, #288]
@@ -4857,32 +4861,32 @@ GetFreeBlockMaxEraseCount:
 	cmp	r0, r2
 	it	gt
 	uxthgt	r0, r2
-	ldr	r2, .L739+4
+	ldr	r2, .L740+4
 	muls	r3, r2, r3
 	movs	r2, #0
 	uxth	r3, r3
-.L734:
+.L735:
 	uxth	r5, r2
 	cmp	r5, r0
-	bcs	.L736
+	bcs	.L737
 	mul	r5, r6, r3
 	adds	r2, r2, #1
 	ldrh	r5, [r4, r5]
 	cmp	r5, r7
-	bne	.L738
-.L736:
+	bne	.L739
+.L737:
 	ldr	r2, [r1, #232]
 	ldrh	r0, [r2, r3, lsl #1]
 	pop	{r4, r5, r6, r7, pc}
-.L738:
+.L739:
 	mov	r3, r5
-	b	.L734
-.L737:
+	b	.L735
+.L738:
 	mov	r0, r3
 	pop	{r4, r5, r6, r7, pc}
-.L740:
+.L741:
 	.align	2
-.L739:
+.L740:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.fnend
@@ -4899,34 +4903,34 @@ FtlPrintInfo2buf:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	mov	r6, r0
-	ldr	r8, .L751+240
+	ldr	r8, .L752+240
 	add	r4, r6, #12
-	ldr	r1, .L751
+	ldr	r1, .L752
 	.pad #32
 	sub	sp, sp, #32
 	bl	strcpy
 	mov	r0, r4
-	ldr	r1, .L751+4
-	ldr	r2, [r8, #116]
+	ldr	r1, .L752+4
+	ldr	r2, [r8, #120]
 	bl	sprintf
-	ldr	r1, .L751+8
+	ldr	r1, .L752+8
 	ldr	r2, [r8, #2404]
 	add	r4, r4, r0
 	mov	r0, r4
 	bl	sprintf
-	ldr	r3, .L751+12
+	ldr	r3, .L752+12
 	ldr	r3, [r3, #504]
 	cmp	r3, #1
 	add	r4, r4, r0
-	bne	.L747
+	bne	.L748
 	add	r0, sp, #16
 	add	r1, sp, #20
 	add	r2, sp, #24
 	add	r3, sp, #28
 	bl	NandcGetTimeCfg
 	mov	r0, r4
-	ldr	r1, .L751+16
-	ldr	r7, .L751+20
+	ldr	r1, .L752+16
+	ldr	r7, .L752+20
 	ldr	r3, [sp, #24]
 	ldr	r2, [sp, #16]
 	str	r3, [sp]
@@ -4934,279 +4938,279 @@ FtlPrintInfo2buf:
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #20]
 	bl	sprintf
-	ldr	r1, .L751+24
+	ldr	r1, .L752+24
 	add	r4, r4, r0
 	add	r5, r4, #10
 	mov	r0, r4
 	bl	strcpy
 	mov	r0, r5
-	ldr	r1, .L751+28
+	ldr	r1, .L752+28
 	ldr	r2, [r8, #2448]
 	bl	sprintf
-	ldr	r1, .L751+32
+	ldr	r1, .L752+32
 	ldr	r2, [r7, #468]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+36
+	ldr	r1, .L752+36
 	ldr	r2, [r7, #476]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+40
+	ldr	r1, .L752+40
 	ldr	r2, [r7, #480]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+44
+	ldr	r1, .L752+44
 	ldr	r2, [r7, #484]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+48
+	ldr	r1, .L752+48
 	ldr	r2, [r7, #488]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+52
+	ldr	r1, .L752+52
 	ldr	r2, [r7, #492]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+56
+	ldr	r1, .L752+56
 	ldr	r2, [r7, #496]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
 	ldr	r2, [r7, #500]
-	ldr	r1, .L751+60
+	ldr	r1, .L752+60
 	lsrs	r2, r2, #11
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
 	ldr	r2, [r7, #504]
-	ldr	r1, .L751+64
+	ldr	r1, .L752+64
 	lsrs	r2, r2, #11
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+68
+	ldr	r1, .L752+68
 	ldr	r2, [r7, #508]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+72
+	ldr	r1, .L752+72
 	ldr	r2, [r7, #512]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
 	add	r5, r5, r0
 	bl	FtlBbtCalcTotleCnt
-	ldr	r1, .L751+76
+	ldr	r1, .L752+76
 	ldrh	r2, [r8, #2458]
 	mov	r3, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+80
+	ldr	r1, .L752+80
 	ldrh	r2, [r7, #312]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+84
+	ldr	r1, .L752+84
 	ldr	r2, [r7, #516]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+88
+	ldr	r1, .L752+88
 	ldr	r2, [r7, #520]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+92
+	ldr	r1, .L752+92
 	ldr	r2, [r7, #524]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+96
+	ldr	r1, .L752+96
 	ldr	r2, [r7, #236]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+100
+	ldr	r1, .L752+100
 	ldr	r2, [r7, #528]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+104
+	ldr	r1, .L752+104
 	ldr	r2, [r7, #532]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+108
+	ldr	r1, .L752+108
 	ldrh	r2, [r7, #270]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+112
+	ldr	r1, .L752+112
 	ldrh	r2, [r7, #268]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+116
+	ldr	r1, .L752+116
 	ldr	r2, [r8, #2428]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+120
+	ldr	r1, .L752+120
 	ldr	r2, [r8, #2420]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+124
+	ldr	r1, .L752+124
 	ldr	r2, [r8, #2316]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+128
+	ldr	r1, .L752+128
 	ldrh	r2, [r8, #2518]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+132
+	ldr	r1, .L752+132
 	ldrh	r2, [r8, #2328]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+136
+	ldr	r1, .L752+136
 	ldrh	r2, [r7, #536]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+140
+	ldr	r1, .L752+140
 	ldr	r2, [r8, #2332]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+144
+	ldr	r1, .L752+144
 	ldrh	r2, [r7, #540]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+148
+	ldr	r1, .L752+148
 	ldrh	r2, [r8, #2452]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+152
+	ldr	r1, .L752+152
 	ldrh	r2, [r7, #318]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+156
+	ldr	r1, .L752+156
 	ldrb	r2, [r7, #322]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+160
+	ldr	r1, .L752+160
 	ldrh	r2, [r7, #316]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+164
+	ldr	r1, .L752+164
 	ldrb	r2, [r7, #324]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+168
+	ldr	r1, .L752+168
 	ldrh	r2, [r7, #320]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
 	ldr	r3, [r7, #296]
 	ldrh	r2, [r7, #316]
-	ldr	r1, .L751+172
+	ldr	r1, .L752+172
 	ldrh	r2, [r3, r2, lsl #1]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+176
+	ldr	r1, .L752+176
 	ldrh	r2, [r7, #366]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+180
+	ldr	r1, .L752+180
 	ldrb	r2, [r7, #370]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+184
+	ldr	r1, .L752+184
 	ldrh	r2, [r7, #364]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+188
+	ldr	r1, .L752+188
 	ldrb	r2, [r7, #372]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+192
+	ldr	r1, .L752+192
 	ldrh	r2, [r7, #368]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
 	ldr	r3, [r7, #296]
 	ldrh	r2, [r7, #364]
-	ldr	r1, .L751+196
+	ldr	r1, .L752+196
 	ldrh	r2, [r3, r2, lsl #1]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+200
+	ldr	r1, .L752+200
 	ldrh	r2, [r7, #414]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+204
+	ldr	r1, .L752+204
 	ldrb	r2, [r7, #418]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+208
+	ldr	r1, .L752+208
 	ldrh	r2, [r7, #412]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+212
+	ldr	r1, .L752+212
 	ldrb	r2, [r7, #420]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+216
+	ldr	r1, .L752+216
 	ldrh	r2, [r7, #416]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+220
+	ldr	r1, .L752+220
 	ldrh	r2, [r7, #558]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+224
+	ldr	r1, .L752+224
 	ldrb	r2, [r7, #562]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+228
+	ldr	r1, .L752+228
 	ldrh	r2, [r7, #556]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+232
+	ldr	r1, .L752+232
 	ldrb	r2, [r7, #564]	@ zero_extendqisi2
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L751+236
+	ldr	r1, .L752+236
 	ldrh	r2, [r7, #560]
 	add	r5, r5, r0
 	mov	r0, r5
@@ -5214,10 +5218,10 @@ FtlPrintInfo2buf:
 	ldr	r1, [r7, #692]
 	ldr	r3, [r8, #2244]
 	ldr	r2, [r7, #604]
-	b	.L752
-.L753:
+	b	.L753
+.L754:
 	.align	2
-.L751:
+.L752:
 	.word	.LC6
 	.word	.LC7
 	.word	.LC8
@@ -5279,7 +5283,7 @@ FtlPrintInfo2buf:
 	.word	.LC62
 	.word	.LC63
 	.word	.LANCHOR0
-.L752:
+.L753:
 	orr	r2, r3, r2, lsl #8
 	str	r1, [sp]
 	add	r5, r5, r0
@@ -5287,48 +5291,48 @@ FtlPrintInfo2buf:
 	mov	r0, r5
 	str	r1, [sp, #4]
 	ldr	r3, [r7, #688]
-	ldr	r1, .L754
+	ldr	r1, .L755
 	bl	sprintf
-	ldr	r1, .L754+4
+	ldr	r1, .L755+4
 	ldr	r2, [r7, #680]
 	add	r5, r5, r0
 	mov	r0, r5
 	bl	sprintf
-	ldr	r1, .L754+8
+	ldr	r1, .L755+8
 	ldr	r2, [r7, #704]
 	adds	r4, r5, r0
 	mov	r0, r4
 	bl	sprintf
-	ldr	r1, .L754+12
+	ldr	r1, .L755+12
 	ldrh	r2, [r7, #1120]
 	add	r4, r4, r0
 	mov	r0, r4
 	bl	sprintf
-	ldr	r1, .L754+16
+	ldr	r1, .L755+16
 	ldrh	r2, [r7, #1122]
 	add	r4, r4, r0
 	mov	r0, r4
 	bl	sprintf
-	ldr	r1, .L754+20
+	ldr	r1, .L755+20
 	ldr	r2, [r7, #1124]
 	add	r4, r4, r0
 	mov	r0, r4
 	bl	sprintf
-	ldr	r1, .L754+24
+	ldr	r1, .L755+24
 	ldrh	r2, [r7, #1128]
 	add	r4, r4, r0
 	mov	r0, r4
 	bl	sprintf
 	add	r4, r4, r0
 	bl	GetFreeBlockMinEraseCount
-	ldr	r1, .L754+28
+	ldr	r1, .L755+28
 	mov	r2, r0
 	mov	r0, r4
 	bl	sprintf
 	add	r4, r4, r0
 	ldrh	r0, [r7, #312]
 	bl	GetFreeBlockMaxEraseCount
-	ldr	r1, .L754+32
+	ldr	r1, .L755+32
 	mov	r2, r0
 	mov	r0, r4
 	bl	sprintf
@@ -5336,27 +5340,27 @@ FtlPrintInfo2buf:
 	movw	r2, #65535
 	cmp	r3, r2
 	add	r4, r4, r0
-	beq	.L744
+	beq	.L745
 	ldr	r2, [r7, #296]
 	mov	r0, r4
-	ldr	r1, .L754+36
+	ldr	r1, .L755+36
 	ldrh	r2, [r2, r3, lsl #1]
 	bl	sprintf
 	add	r4, r4, r0
-.L744:
+.L745:
 	movs	r0, #0
 	movs	r5, #0
 	bl	List_get_gc_head_node
 	mov	r9, #6
 	movw	r10, #65535
 	uxth	r3, r0
-.L746:
+.L747:
 	cmp	r3, r10
-	beq	.L745
+	beq	.L746
 	ldr	r2, [r7, #296]
 	mov	r0, r4
 	mul	r8, r9, r3
-	ldr	r1, .L754+40
+	ldr	r1, .L755+40
 	ldrh	r2, [r2, r3, lsl #1]
 	str	r2, [sp]
 	ldr	r2, [r7, #288]
@@ -5373,25 +5377,25 @@ FtlPrintInfo2buf:
 	cmp	r5, #16
 	ldrh	r3, [r3, r8]
 	add	r4, r4, r0
-	bne	.L746
-.L745:
+	bne	.L747
+.L746:
 	ldr	r2, [r7, #288]
 	movs	r5, #0
 	ldr	r3, [r7, #308]
 	mov	r9, #6
 	movw	r10, #65535
 	subs	r3, r3, r2
-	ldr	r2, .L754+44
+	ldr	r2, .L755+44
 	asrs	r3, r3, #1
 	muls	r3, r2, r3
 	uxth	r3, r3
-.L748:
+.L749:
 	cmp	r3, r10
-	beq	.L747
+	beq	.L748
 	mul	r8, r9, r3
 	ldr	r2, [r7, #288]
 	mov	r0, r4
-	ldr	r1, .L754+48
+	ldr	r1, .L755+48
 	add	r2, r2, r8
 	ldrh	r2, [r2, #4]
 	str	r2, [sp]
@@ -5405,15 +5409,15 @@ FtlPrintInfo2buf:
 	cmp	r5, #4
 	ldrh	r3, [r3, r8]
 	add	r4, r4, r0
-	bne	.L748
-.L747:
+	bne	.L749
+.L748:
 	subs	r0, r4, r6
 	add	sp, sp, #32
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L755:
+.L756:
 	.align	2
-.L754:
+.L755:
 	.word	.LC64
 	.word	.LC65
 	.word	.LC66
@@ -5441,8 +5445,8 @@ ftl_proc_ftl_read:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	mov	r5, r0
-	ldr	r1, .L757
-	ldr	r2, .L757+4
+	ldr	r1, .L758
+	ldr	r2, .L758+4
 	bl	sprintf
 	adds	r4, r5, r0
 	mov	r0, r4
@@ -5450,9 +5454,9 @@ ftl_proc_ftl_read:
 	add	r0, r0, r4
 	subs	r0, r0, r5
 	pop	{r3, r4, r5, pc}
-.L758:
+.L759:
 	.align	2
-.L757:
+.L758:
 	.word	.LC76
 	.word	.LC77
 	.fnend
@@ -5470,27 +5474,27 @@ GetSwlReplaceBlock:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #28
 	sub	sp, sp, #28
-	ldr	r4, .L787
+	ldr	r4, .L788
 	ldr	r2, [r4, #524]
 	ldr	r3, [r4, #532]
 	cmp	r2, r3
-	bcs	.L760
-	ldr	r2, .L787+4
+	bcs	.L761
+	ldr	r2, .L788+4
 	movs	r3, #0
 	ldr	r0, [r4, #232]
 	str	r3, [r4, #516]
 	ldrh	r1, [r2, #2328]
 	mov	r5, r2
-.L761:
+.L762:
 	cmp	r3, r1
-	bcs	.L786
+	bcs	.L787
 	ldrh	r6, [r0, r3, lsl #1]
 	adds	r3, r3, #1
 	ldr	r2, [r4, #516]
 	add	r2, r2, r6
 	str	r2, [r4, #516]
-	b	.L761
-.L786:
+	b	.L762
+.L787:
 	ldr	r6, [r4, #516]
 	mov	r0, r6
 	bl	__aeabi_uidiv
@@ -5500,46 +5504,46 @@ GetSwlReplaceBlock:
 	subs	r0, r6, r0
 	bl	__aeabi_uidiv
 	str	r0, [r4, #516]
-	b	.L763
-.L760:
+	b	.L764
+.L761:
 	ldr	r3, [r4, #528]
 	cmp	r2, r3
-	bls	.L763
-	ldr	r0, .L787+4
+	bls	.L764
+	ldr	r0, .L788+4
 	adds	r3, r3, #1
 	str	r3, [r4, #528]
 	movs	r3, #0
-.L765:
+.L766:
 	ldrh	r2, [r0, #2328]
 	cmp	r3, r2
-	bcs	.L763
+	bcs	.L764
 	ldr	r1, [r4, #232]
 	ldrh	r2, [r1, r3, lsl #1]
 	adds	r2, r2, #1
 	strh	r2, [r1, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
-	b	.L765
-.L763:
+	b	.L766
+.L764:
 	ldr	r6, [r4, #532]
 	ldr	r8, [r4, #524]
 	add	r3, r6, #256
 	cmp	r3, r8
-	bls	.L768
-	ldr	r2, .L787
+	bls	.L769
+	ldr	r2, .L788
 	add	r3, r6, #768
 	ldr	r2, [r2, #528]
 	cmp	r3, r2
-	bls	.L768
-	ldr	r3, .L787+4
+	bls	.L769
+	ldr	r3, .L788+4
 	ldr	r3, [r3, #2244]
-	cbnz	r3, .L769
-.L771:
+	cbnz	r3, .L770
+.L772:
 	movw	r0, #65535
-	b	.L770
-.L769:
+	b	.L771
+.L770:
 	cmp	r6, #40
-	bhi	.L771
-.L768:
+	bhi	.L772
+.L769:
 	ldrh	r0, [r4, #312]
 	add	r0, r0, r0, lsl #1
 	ubfx	r0, r0, #2, #16
@@ -5547,15 +5551,15 @@ GetSwlReplaceBlock:
 	add	r3, r6, #64
 	cmp	r0, r3
 	mov	r9, r0
-	bcs	.L772
+	bcs	.L773
 	cmp	r6, #40
-	bhi	.L771
-.L772:
+	bhi	.L772
+.L773:
 	ldr	r3, [r4, #292]
-	ldr	r2, .L787
+	ldr	r2, .L788
 	cmp	r3, #0
-	beq	.L771
-	ldr	r1, .L787+4
+	beq	.L772
+	ldr	r1, .L788+4
 	movw	r7, #65535
 	ldr	r0, [r2, #288]
 	mov	ip, #6
@@ -5565,68 +5569,68 @@ GetSwlReplaceBlock:
 	mov	lr, r7
 	str	r1, [sp, #20]
 	movs	r1, #0
-.L773:
+.L774:
 	ldrh	r2, [r3]
 	cmp	r2, lr
 	str	r2, [sp, #16]
-	beq	.L775
+	beq	.L776
 	adds	r1, r1, #1
 	ldr	r2, [sp, #20]
 	uxth	r1, r1
 	cmp	r1, r2
-	bhi	.L771
+	bhi	.L772
 	ldrh	fp, [r3, #4]
 	cmp	fp, #0
-	beq	.L774
+	beq	.L775
 	subs	r3, r3, r0
-	ldr	r2, .L787+8
+	ldr	r2, .L788+8
 	asrs	r3, r3, #1
 	muls	r3, r2, r3
 	uxth	r3, r3
 	ldrh	fp, [r10, r3, lsl #1]
 	cmp	fp, r6
-	bls	.L779
+	bls	.L780
 	cmp	fp, r7
 	itt	cc
 	movcc	r7, fp
 	movcc	r5, r3
-.L774:
+.L775:
 	ldr	r3, [sp, #16]
 	mla	r3, ip, r3, r0
-	b	.L773
-.L779:
+	b	.L774
+.L780:
 	mov	r5, r3
-.L775:
+.L776:
 	movw	r3, #65535
 	cmp	r5, r3
-	beq	.L771
+	beq	.L772
 	ldrh	fp, [r10, r5, lsl #1]
 	lsls	r3, r5, #1
 	cmp	fp, r6
-	bls	.L777
+	bls	.L778
 	str	r3, [sp, #16]
 	bl	GetFreeBlockMinEraseCount
 	ldr	r3, [sp, #16]
 	cmp	r0, r6
 	it	hi
 	strhi	r7, [r4, #532]
-.L777:
+.L778:
 	cmp	fp, r8
-	bcs	.L771
+	bcs	.L772
 	add	r2, fp, #128
 	cmp	r9, r2
-	ble	.L771
+	ble	.L772
 	add	r2, fp, #256
 	cmp	r2, r8
-	bcc	.L778
+	bcc	.L779
 	ldr	r2, [r4, #528]
 	add	fp, fp, #768
 	cmp	fp, r2
-	bcs	.L771
-.L778:
+	bcs	.L772
+.L779:
 	ldr	r2, [r4, #296]
 	mov	r1, r5
-	ldr	r0, .L787+12
+	ldr	r0, .L788+12
 	ldrh	r2, [r2, r3]
 	str	r2, [sp]
 	mov	r2, r8
@@ -5638,13 +5642,13 @@ GetSwlReplaceBlock:
 	mov	r0, r5
 	movs	r3, #1
 	str	r3, [r4, #1132]
-.L770:
+.L771:
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L788:
+.L789:
 	.align	2
-.L787:
+.L788:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	-1431655765
@@ -5664,18 +5668,18 @@ free_data_superblock:
 	cmp	r0, r2
 	push	{r3, lr}
 	.save {r3, lr}
-	beq	.L790
-	ldr	r2, .L791
+	beq	.L791
+	ldr	r2, .L792
 	movs	r1, #0
 	ldr	r2, [r2, #296]
 	strh	r1, [r2, r0, lsl #1]	@ movhi
 	bl	INSERT_FREE_LIST
-.L790:
+.L791:
 	movs	r0, #0
 	pop	{r3, pc}
-.L792:
+.L793:
 	.align	2
-.L791:
+.L792:
 	.word	.LANCHOR2
 	.fnend
 	.size	free_data_superblock, .-free_data_superblock
@@ -5688,9 +5692,9 @@ FtlGcBufInit:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L804
+	ldr	r2, .L805
 	mov	ip, #36
-	ldr	r0, .L804+4
+	ldr	r0, .L805+4
 	movs	r3, #0
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
@@ -5699,13 +5703,13 @@ FtlGcBufInit:
 	mov	r6, r0
 	mov	r4, r2
 	str	r3, [r2, #1136]
-.L794:
+.L795:
 	ldrh	r1, [r0, #2320]
 	adds	r5, r3, #1
 	uxth	r3, r3
-	ldr	r8, .L804+4
+	ldr	r8, .L805+4
 	cmp	r3, r1
-	bcs	.L802
+	bcs	.L803
 	mul	r8, r7, r3
 	ldr	r9, [r2, #1140]
 	add	r1, r9, r8
@@ -5735,15 +5739,15 @@ FtlGcBufInit:
 	ldr	r1, [r9, #4]
 	str	r1, [r3, #12]
 	mov	r3, r5
-	b	.L794
-.L802:
-	ldr	r0, .L804
+	b	.L795
+.L803:
+	ldr	r0, .L805
 	mov	lr, #12
 	movs	r5, #0
-.L798:
+.L799:
 	ldr	r3, [r2, #1156]
 	cmp	r1, r3
-	bcs	.L803
+	bcs	.L804
 	mul	r7, lr, r1
 	ldr	r6, [r0, #1140]
 	ldr	r4, [r0, #1144]
@@ -5768,12 +5772,12 @@ FtlGcBufInit:
 	uxth	r1, r1
 	add	r3, r3, r6
 	str	r3, [r7, #4]
-	b	.L798
-.L803:
-	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L805:
-	.align	2
+	b	.L799
 .L804:
+	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
+.L806:
+	.align	2
+.L805:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -5787,7 +5791,7 @@ FtlGcBufFree:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L813
+	ldr	r3, .L814
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	movs	r5, #0
@@ -5796,32 +5800,32 @@ FtlGcBufFree:
 	ldr	r6, [r3, #1140]
 	mov	r8, #12
 	mov	ip, r5
-.L807:
+.L808:
 	uxth	r4, r5
 	cmp	r4, r1
-	bcs	.L806
+	bcs	.L807
 	mla	r4, r10, r4, r0
 	movs	r2, #0
-.L808:
+.L809:
 	uxth	r3, r2
 	cmp	r3, lr
-	bcs	.L809
+	bcs	.L810
 	mul	r3, r8, r3
 	ldr	r7, [r4, #8]
 	adds	r2, r2, #1
 	add	r9, r6, r3
 	ldr	r3, [r6, r3]
 	cmp	r3, r7
-	bne	.L808
+	bne	.L809
 	str	ip, [r9, #8]
-.L809:
+.L810:
 	adds	r5, r5, #1
-	b	.L807
-.L806:
+	b	.L808
+.L807:
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L814:
+.L815:
 	.align	2
-.L813:
+.L814:
 	.word	.LANCHOR2
 	.fnend
 	.size	FtlGcBufFree, .-FtlGcBufFree
@@ -5834,7 +5838,7 @@ FtlGcBufAlloc:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L823
+	ldr	r3, .L824
 	mov	ip, #1
 	push	{r4, r5, r6, r7, r8, r9, lr}
 	.save {r4, r5, r6, r7, r8, r9, lr}
@@ -5843,34 +5847,34 @@ FtlGcBufAlloc:
 	mov	lr, #12
 	ldr	r6, [r3, #1140]
 	mov	r8, #36
-.L816:
+.L817:
 	uxth	r2, r4
 	cmp	r2, r1
-	bcs	.L822
+	bcs	.L823
 	mov	r9, #0
-.L817:
+.L818:
 	uxth	r3, r9
 	cmp	r3, r5
-	bcs	.L818
+	bcs	.L819
 	mla	r3, lr, r3, r6
 	add	r9, r9, #1
 	ldr	r7, [r3, #8]
 	cmp	r7, #0
-	bne	.L817
+	bne	.L818
 	mla	r2, r8, r2, r0
 	ldr	r7, [r3]
 	str	ip, [r3, #8]
 	str	r7, [r2, #8]
 	ldr	r3, [r3, #4]
 	str	r3, [r2, #12]
-.L818:
+.L819:
 	adds	r4, r4, #1
-	b	.L816
-.L822:
-	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L824:
-	.align	2
+	b	.L817
 .L823:
+	pop	{r4, r5, r6, r7, r8, r9, pc}
+.L825:
+	.align	2
+.L824:
 	.word	.LANCHOR2
 	.fnend
 	.size	FtlGcBufAlloc, .-FtlGcBufAlloc
@@ -5884,24 +5888,24 @@ IsBlkInGcList:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L831
+	ldr	r2, .L832
 	ldr	r3, [r2, #1160]
 	ldrh	r2, [r2, #1164]
 	add	r2, r3, r2, lsl #1
-.L826:
+.L827:
 	cmp	r3, r2
-	beq	.L830
+	beq	.L831
 	ldrh	r1, [r3], #2
 	cmp	r1, r0
-	bne	.L826
+	bne	.L827
 	movs	r0, #1
 	bx	lr
-.L830:
+.L831:
 	movs	r0, #0
 	bx	lr
-.L832:
+.L833:
 	.align	2
-.L831:
+.L832:
 	.word	.LANCHOR2
 	.fnend
 	.size	IsBlkInGcList, .-IsBlkInGcList
@@ -5921,27 +5925,27 @@ FtlGcUpdatePage:
 	mov	r7, r1
 	mov	r8, r2
 	bl	P2V_block_in_plane
-	ldr	r3, .L840
+	ldr	r3, .L841
 	movs	r4, #0
 	ldrh	r1, [r3, #1164]
 	ldr	r2, [r3, #1160]
-.L834:
+.L835:
 	uxth	r5, r4
 	cmp	r5, r1
-	bcs	.L838
+	bcs	.L839
 	adds	r4, r4, #1
 	add	lr, r2, r4, lsl #1
 	ldrh	lr, [lr, #-2]
 	cmp	lr, r0
-	bne	.L834
-.L838:
+	bne	.L835
+.L839:
 	cmp	r5, r1
-	bne	.L836
+	bne	.L837
 	strh	r0, [r2, r5, lsl #1]	@ movhi
 	ldrh	r0, [r3, #1164]
 	adds	r0, r0, #1
 	strh	r0, [r3, #1164]	@ movhi
-.L836:
+.L837:
 	ldrh	r2, [r3, #1172]
 	movs	r0, #12
 	muls	r0, r2, r0
@@ -5954,9 +5958,9 @@ FtlGcUpdatePage:
 	adds	r2, r2, #1
 	strh	r2, [r3, #1172]	@ movhi
 	pop	{r4, r5, r6, r7, r8, pc}
-.L841:
+.L842:
 	.align	2
-.L840:
+.L841:
 	.word	.LANCHOR2
 	.fnend
 	.size	FtlGcUpdatePage, .-FtlGcUpdatePage
@@ -5972,51 +5976,51 @@ FtlGcRefreshOpenBlock:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	mov	r5, r0
-	ldr	r4, .L849
+	ldr	r4, .L850
 	ldrh	r3, [r4, #1174]
 	cmp	r3, r0
-	beq	.L844
+	beq	.L845
 	ldrh	r3, [r4, #1176]
 	cmp	r3, r0
-	beq	.L844
+	beq	.L845
 	ldrh	r3, [r4, #1178]
 	cmp	r3, r0
-	beq	.L844
+	beq	.L845
 	ldrh	r3, [r4, #1180]
 	cmp	r3, r0
-	beq	.L844
-	ldr	r0, .L849+4
+	beq	.L845
+	ldr	r0, .L850+4
 	mov	r1, r5
 	bl	printk
 	ldrh	r2, [r4, #1174]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L846
+	bne	.L847
 	strh	r5, [r4, #1174]	@ movhi
-	b	.L844
-.L846:
+	b	.L845
+.L847:
 	ldrh	r2, [r4, #1176]
 	cmp	r2, r3
-	bne	.L847
+	bne	.L848
 	strh	r5, [r4, #1176]	@ movhi
-	b	.L844
-.L847:
+	b	.L845
+.L848:
 	ldrh	r2, [r4, #1178]
 	cmp	r2, r3
-	bne	.L848
+	bne	.L849
 	strh	r5, [r4, #1178]	@ movhi
-	b	.L844
-.L848:
+	b	.L845
+.L849:
 	ldrh	r2, [r4, #1180]
 	cmp	r2, r3
 	it	eq
 	strheq	r5, [r4, #1180]	@ movhi
-.L844:
+.L845:
 	movs	r0, #0
 	pop	{r3, r4, r5, pc}
-.L850:
+.L851:
 	.align	2
-.L849:
+.L850:
 	.word	.LANCHOR2
 	.word	.LC79
 	.fnend
@@ -6033,54 +6037,54 @@ FtlGcRefreshBlock:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	mov	r5, r0
-	ldr	r4, .L861
+	ldr	r4, .L862
 	ldrh	r3, [r4, #1174]
 	cmp	r3, r0
-	beq	.L859
+	beq	.L860
 	ldrh	r3, [r4, #1176]
 	cmp	r3, r0
-	beq	.L859
+	beq	.L860
 	ldrh	r3, [r4, #1178]
 	cmp	r3, r0
-	beq	.L859
+	beq	.L860
 	ldrh	r3, [r4, #1180]
 	cmp	r3, r0
-	beq	.L859
-	ldr	r0, .L861+4
+	beq	.L860
+	ldr	r0, .L862+4
 	mov	r1, r5
 	bl	printk
 	ldrh	r2, [r4, #1174]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L853
+	bne	.L854
 	strh	r5, [r4, #1174]	@ movhi
-	b	.L859
-.L853:
+	b	.L860
+.L854:
 	ldrh	r2, [r4, #1176]
 	cmp	r2, r3
-	bne	.L854
+	bne	.L855
 	strh	r5, [r4, #1176]	@ movhi
-	b	.L859
-.L854:
+	b	.L860
+.L855:
 	ldrh	r2, [r4, #1178]
 	cmp	r2, r3
-	bne	.L855
+	bne	.L856
 	strh	r5, [r4, #1178]	@ movhi
-	b	.L859
-.L855:
+	b	.L860
+.L856:
 	ldrh	r2, [r4, #1180]
 	cmp	r2, r3
-	bne	.L860
+	bne	.L861
 	strh	r5, [r4, #1180]	@ movhi
-.L859:
+.L860:
 	movs	r0, #0
 	pop	{r3, r4, r5, pc}
-.L860:
+.L861:
 	mov	r0, #-1
 	pop	{r3, r4, r5, pc}
-.L862:
+.L863:
 	.align	2
-.L861:
+.L862:
 	.word	.LANCHOR2
 	.word	.LC79
 	.fnend
@@ -6098,51 +6102,51 @@ FtlGcMarkBadPhyBlk:
 	.save {r4, r5, r6, lr}
 	mov	r5, r0
 	bl	P2V_block_in_plane
-	ldr	r4, .L872
+	ldr	r4, .L873
 	mov	r2, r5
 	ldrh	r1, [r4, #1182]
 	mov	r6, r0
-	ldr	r0, .L872+4
+	ldr	r0, .L873+4
 	bl	printk
 	mov	r0, r6
 	bl	FtlGcRefreshBlock
-	ldr	r3, .L872+8
+	ldr	r3, .L873+8
 	ldr	r2, [r3, #2244]
 	mov	r3, r4
-	cbz	r2, .L864
+	cbz	r2, .L865
 	ldr	r1, [r4, #232]
 	ldrh	r2, [r1, r6, lsl #1]
 	cmp	r2, #39
 	itt	hi
 	subhi	r2, r2, #40
 	strhhi	r2, [r1, r6, lsl #1]	@ movhi
-.L864:
+.L865:
 	ldrh	r2, [r3, #1182]
 	movs	r1, #0
-	ldr	r4, .L872+12
-.L865:
+	ldr	r4, .L873+12
+.L866:
 	uxth	r0, r1
 	cmp	r0, r2
-	bcs	.L871
+	bcs	.L872
 	adds	r1, r1, #1
 	add	r0, r4, r1, lsl #1
 	ldrh	r0, [r0, #-2]
 	cmp	r0, r5
-	bne	.L865
-	b	.L866
-.L871:
+	bne	.L866
+	b	.L867
+.L872:
 	cmp	r2, #15
 	itttt	ls
 	addls	r1, r2, #1
 	strhls	r1, [r3, #1182]	@ movhi
 	addls	r3, r3, r2, lsl #1
 	strhls	r5, [r3, #1184]	@ movhi
-.L866:
+.L867:
 	movs	r0, #0
 	pop	{r4, r5, r6, pc}
-.L873:
+.L874:
 	.align	2
-.L872:
+.L873:
 	.word	.LANCHOR2
 	.word	.LC80
 	.word	.LANCHOR0
@@ -6160,13 +6164,13 @@ FtlGcReFreshBadBlk:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, lr}
 	.save {r4, lr}
-	ldr	r4, .L880
+	ldr	r4, .L881
 	ldrh	r3, [r4, #1182]
-	cbz	r3, .L875
+	cbz	r3, .L876
 	ldrh	r1, [r4, #1174]
 	movw	r2, #65535
 	cmp	r1, r2
-	bne	.L875
+	bne	.L876
 	ldrh	r2, [r4, #1218]
 	cmp	r2, r3
 	itt	cs
@@ -6180,12 +6184,12 @@ FtlGcReFreshBadBlk:
 	ldrh	r3, [r4, #1218]
 	adds	r3, r3, #1
 	strh	r3, [r4, #1218]	@ movhi
-.L875:
+.L876:
 	movs	r0, #0
 	pop	{r4, pc}
-.L881:
+.L882:
 	.align	2
-.L880:
+.L881:
 	.word	.LANCHOR2
 	.fnend
 	.size	FtlGcReFreshBadBlk, .-FtlGcReFreshBadBlk
@@ -6214,29 +6218,29 @@ BuildFlashLsbPageTable:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r4, r1
-	cbnz	r0, .L884
-	ldr	r3, .L926
-.L885:
+	cbnz	r0, .L885
+	ldr	r3, .L927
+.L886:
 	strh	r0, [r3, r0, lsl #1]	@ movhi
 	adds	r0, r0, #1
 	cmp	r0, #512
-	bne	.L885
-.L889:
+	bne	.L886
+.L890:
 	movs	r1, #255
-	ldr	r0, .L926+4
+	ldr	r0, .L927+4
 	mov	r2, #2048
 	uxth	r4, r4
 	bl	ftl_memset
 	movs	r3, #0
-	ldr	r1, .L926
-	ldr	r0, .L926+8
-	b	.L886
-.L884:
+	ldr	r1, .L927
+	ldr	r0, .L927+8
+	b	.L887
+.L885:
 	cmp	r0, #1
-	bne	.L887
-	ldr	r5, .L926
+	bne	.L888
+	ldr	r5, .L927
 	movs	r3, #0
-.L888:
+.L889:
 	uxth	r2, r3
 	cmp	r2, #3
 	ite	ls
@@ -6253,14 +6257,14 @@ BuildFlashLsbPageTable:
 	strh	r2, [r5, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #512
-	bne	.L888
-	b	.L889
-.L887:
+	bne	.L889
+	b	.L890
+.L888:
 	cmp	r0, #2
-	bne	.L890
-	ldr	r0, .L926
+	bne	.L891
+	ldr	r0, .L927
 	movs	r3, #0
-.L891:
+.L892:
 	uxth	r2, r3
 	lsls	r1, r2, #1
 	subs	r1, r1, #1
@@ -6270,14 +6274,14 @@ BuildFlashLsbPageTable:
 	strh	r2, [r0, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #512
-	bne	.L891
-	b	.L889
-.L890:
-	cmp	r0, #3
 	bne	.L892
-	ldr	r5, .L926
+	b	.L890
+.L891:
+	cmp	r0, #3
+	bne	.L893
+	ldr	r5, .L927
 	movs	r3, #0
-.L893:
+.L894:
 	uxth	r2, r3
 	cmp	r2, #5
 	ite	ls
@@ -6294,28 +6298,28 @@ BuildFlashLsbPageTable:
 	strh	r2, [r5, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #512
-	bne	.L893
-	b	.L889
-.L892:
+	bne	.L894
+	b	.L890
+.L893:
 	cmp	r0, #4
 	mov	r3, #0
-	bne	.L894
-	ldr	r2, .L926+12
-	strh	r3, [r2, #148]	@ movhi
-	movs	r3, #1
-	strh	r0, [r2, #156]	@ movhi
-	strh	r3, [r2, #150]	@ movhi
-	movs	r3, #2
+	bne	.L895
+	ldr	r2, .L927+12
 	strh	r3, [r2, #152]	@ movhi
-	movs	r3, #3
+	movs	r3, #1
+	strh	r0, [r2, #160]	@ movhi
 	strh	r3, [r2, #154]	@ movhi
-	movs	r3, #5
+	movs	r3, #2
+	strh	r3, [r2, #156]	@ movhi
+	movs	r3, #3
 	strh	r3, [r2, #158]	@ movhi
+	movs	r3, #5
+	strh	r3, [r2, #162]	@ movhi
 	movs	r3, #7
-	strh	r3, [r2, #160]	@ movhi
+	strh	r3, [r2, #164]	@ movhi
 	movs	r3, #8
-	strh	r3, [r2, #162]!	@ movhi
-.L895:
+	strh	r3, [r2, #166]!	@ movhi
+.L896:
 	tst	r3, #1
 	ite	ne
 	movne	r1, #7
@@ -6325,30 +6329,30 @@ BuildFlashLsbPageTable:
 	strh	r1, [r2, #2]!	@ movhi
 	uxth	r3, r3
 	cmp	r3, #512
-	bne	.L895
-	b	.L889
-.L894:
-	cmp	r0, #5
 	bne	.L896
-	ldr	r2, .L926
-.L897:
+	b	.L890
+.L895:
+	cmp	r0, #5
+	bne	.L897
+	ldr	r2, .L927
+.L898:
 	strh	r3, [r2, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #16
-	bne	.L897
-	ldr	r2, .L926+16
-.L898:
+	bne	.L898
+	ldr	r2, .L927+16
+.L899:
 	strh	r3, [r2, #2]!	@ movhi
 	adds	r3, r3, #2
 	uxth	r3, r3
 	cmp	r3, #1008
-	bne	.L898
-	b	.L889
-.L896:
-	cmp	r0, #6
 	bne	.L899
-	ldr	r5, .L926
-.L900:
+	b	.L890
+.L897:
+	cmp	r0, #6
+	bne	.L900
+	ldr	r5, .L927
+.L901:
 	uxth	r2, r3
 	cmp	r2, #5
 	ite	ls
@@ -6366,56 +6370,56 @@ BuildFlashLsbPageTable:
 	strh	r2, [r5, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #512
-	bne	.L900
-	b	.L889
-.L899:
-	cmp	r0, #9
 	bne	.L901
-	ldr	r2, .L926+12
+	b	.L890
+.L900:
+	cmp	r0, #9
+	bne	.L902
+	ldr	r2, .L927+12
 	movw	r1, #1021
-	strh	r3, [r2, #148]	@ movhi
+	strh	r3, [r2, #152]	@ movhi
 	movs	r3, #1
-	strh	r3, [r2, #150]	@ movhi
+	strh	r3, [r2, #154]	@ movhi
 	movs	r3, #2
-	strh	r3, [r2, #152]!	@ movhi
+	strh	r3, [r2, #156]!	@ movhi
 	movs	r3, #3
-.L902:
+.L903:
 	strh	r3, [r2, #2]!	@ movhi
 	adds	r3, r3, #2
 	uxth	r3, r3
 	cmp	r3, r1
-	bne	.L902
-	b	.L889
-.L901:
-	cmp	r0, #10
 	bne	.L903
-	ldr	r2, .L926
-.L904:
+	b	.L890
+.L902:
+	cmp	r0, #10
+	bne	.L904
+	ldr	r2, .L927
+.L905:
 	strh	r3, [r2, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #63
-	bne	.L904
-	ldr	r2, .L926+20
+	bne	.L905
+	ldr	r2, .L927+20
 	movw	r1, #961
-.L905:
+.L906:
 	strh	r3, [r2, #2]!	@ movhi
 	adds	r3, r3, #2
 	uxth	r3, r3
 	cmp	r3, r1
-	bne	.L905
-	b	.L889
-.L903:
-	cmp	r0, #11
 	bne	.L906
-	ldr	r2, .L926
+	b	.L890
+.L904:
+	cmp	r0, #11
+	bne	.L907
+	ldr	r2, .L927
 	movs	r3, #0
-.L907:
+.L908:
 	strh	r3, [r2, r3, lsl #1]	@ movhi
 	adds	r3, r3, #1
 	cmp	r3, #8
-	bne	.L907
-	ldr	r1, .L926+24
-.L908:
+	bne	.L908
+	ldr	r1, .L927+24
+.L909:
 	tst	r3, #1
 	ite	ne
 	movne	r2, #7
@@ -6425,51 +6429,51 @@ BuildFlashLsbPageTable:
 	strh	r2, [r1, #2]!	@ movhi
 	uxth	r3, r3
 	cmp	r3, #512
-	bne	.L908
-	b	.L889
-.L906:
+	bne	.L909
+	b	.L890
+.L907:
 	cmp	r0, #12
-	bne	.L889
-	ldr	r3, .L926+12
+	bne	.L890
+	ldr	r3, .L927+12
 	movs	r2, #0
-	strh	r2, [r3, #148]	@ movhi
-	movs	r2, #1
-	strh	r2, [r3, #150]	@ movhi
-	movs	r2, #2
 	strh	r2, [r3, #152]	@ movhi
+	movs	r2, #1
+	strh	r2, [r3, #154]	@ movhi
+	movs	r2, #2
+	strh	r2, [r3, #156]	@ movhi
 	movs	r2, #3
-	strh	r2, [r3, #154]!	@ movhi
+	strh	r2, [r3, #158]!	@ movhi
 	movs	r2, #4
-.L909:
+.L910:
 	subs	r1, r2, #1
 	add	r1, r1, r2, lsr #1
 	adds	r2, r2, #1
 	strh	r1, [r3, #2]!	@ movhi
 	uxth	r2, r2
 	cmp	r2, #512
-	bne	.L909
-	b	.L889
-.L886:
+	bne	.L910
+	b	.L890
+.L887:
 	uxth	r2, r3
 	cmp	r2, r4
-	bcs	.L925
+	bcs	.L926
 	ldrh	r2, [r1, r3, lsl #1]
 	adds	r3, r3, #1
 	add	r5, r0, r2, lsl #1
 	strh	r2, [r5, #1220]	@ movhi
-	b	.L886
-.L925:
-	pop	{r4, r5, r6, pc}
-.L927:
-	.align	2
+	b	.L887
 .L926:
-	.word	.LANCHOR0+148
+	pop	{r4, r5, r6, pc}
+.L928:
+	.align	2
+.L927:
+	.word	.LANCHOR0+152
 	.word	.LANCHOR2+1220
 	.word	.LANCHOR2
 	.word	.LANCHOR0
-	.word	.LANCHOR0+178
-	.word	.LANCHOR0+272
-	.word	.LANCHOR0+162
+	.word	.LANCHOR0+182
+	.word	.LANCHOR0+276
+	.word	.LANCHOR0+166
 	.fnend
 	.size	BuildFlashLsbPageTable, .-BuildFlashLsbPageTable
 	.align	1
@@ -6484,9 +6488,9 @@ FlashDieInfoInit:
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r7, #0
-	ldr	r3, .L942
-	ldr	r4, .L942+4
-	ldr	r6, .L942+8
+	ldr	r3, .L943
+	ldr	r4, .L943+4
+	ldr	r6, .L943+8
 	ldrh	r0, [r3, #482]
 	addw	fp, r4, #2068
 	strb	r7, [r4, #2230]
@@ -6499,7 +6503,7 @@ FlashDieInfoInit:
 	bl	ftl_memset
 	mov	r1, r7
 	movs	r2, #32
-	addw	r0, r4, #1172
+	add	r0, r4, #1176
 	bl	ftl_memset
 	addw	r0, r4, #2100
 	mov	r1, r7
@@ -6507,31 +6511,31 @@ FlashDieInfoInit:
 	bl	ftl_memset
 	ldr	r5, [r4, #44]
 	add	r8, r5, #1
-.L930:
+.L931:
 	mov	r0, r8
 	add	r1, fp, r7, lsl #3
 	ldrb	r2, [r5]	@ zero_extendqisi2
 	bl	FlashMemCmp8
-	ldr	r10, .L942+12
-	cbnz	r0, .L929
+	ldr	r10, .L943+12
+	cbnz	r0, .L930
 	ldrb	r3, [r9, #2230]	@ zero_extendqisi2
 	add	r2, r9, r3, lsl #2
-	str	r0, [r2, #1172]
+	str	r0, [r2, #1176]
 	adds	r2, r3, #1
 	add	r3, r3, r9
 	strb	r2, [r9, #2230]
 	strb	r7, [r3, #2232]
-.L929:
+.L930:
 	adds	r7, r7, #1
 	cmp	r7, #4
-	bne	.L930
+	bne	.L931
 	ldrb	r3, [r4, #2230]	@ zero_extendqisi2
-	ldr	r2, .L942+4
+	ldr	r2, .L943+4
 	strb	r3, [r6, #3268]
 	ldrb	r3, [r5, #8]	@ zero_extendqisi2
 	cmp	r3, #2
-	beq	.L931
-.L935:
+	beq	.L932
+.L936:
 	ldrb	r3, [r5, #13]	@ zero_extendqisi2
 	ldrb	r2, [r4, #2230]	@ zero_extendqisi2
 	smulbb	r2, r2, r3
@@ -6539,16 +6543,16 @@ FlashDieInfoInit:
 	smulbb	r3, r2, r3
 	strh	r3, [r6, #3270]	@ movhi
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L931:
-	ldr	r9, [r2, #4]
+.L932:
+	ldr	r9, [r2, #36]
 	movs	r7, #0
 	mov	fp, r2
-.L934:
+.L935:
 	mov	r0, r8
 	add	r1, r10, r7, lsl #3
 	ldrb	r2, [r5]	@ zero_extendqisi2
 	bl	FlashMemCmp8
-	cbnz	r0, .L932
+	cbnz	r0, .L933
 	ldrb	r0, [r5, #13]	@ zero_extendqisi2
 	ldrh	r3, [r5, #14]
 	ldrb	r2, [fp, #2230]	@ zero_extendqisi2
@@ -6556,24 +6560,24 @@ FlashDieInfoInit:
 	and	r3, r3, #65280
 	add	r1, fp, r2, lsl #2
 	muls	r3, r0, r3
-	str	r3, [r1, #1172]
+	str	r3, [r1, #1176]
 	ldrb	r0, [r5, #23]	@ zero_extendqisi2
-	cbz	r0, .L933
+	cbz	r0, .L934
 	lsls	r3, r3, #1
-	str	r3, [r1, #1172]
-.L933:
+	str	r3, [r1, #1176]
+.L934:
 	adds	r3, r2, #1
 	add	r2, r2, r4
 	strb	r3, [r4, #2230]
 	strb	r7, [r2, #2232]
-.L932:
+.L933:
 	adds	r7, r7, #1
 	cmp	r7, #4
-	bne	.L934
-	b	.L935
-.L943:
+	bne	.L935
+	b	.L936
+.L944:
 	.align	2
-.L942:
+.L943:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR2
@@ -6595,11 +6599,11 @@ ftl_read_flash_info:
 	movs	r2, #11
 	mov	r4, r0
 	bl	ftl_memset
-	ldr	r3, .L948
+	ldr	r3, .L949
 	movs	r5, #1
 	ldr	r2, [r3, #44]
 	ldrb	r1, [r2, #9]	@ zero_extendqisi2
-	ldr	r2, [r3, #4]
+	ldr	r2, [r3, #36]
 	smulbb	r2, r1, r2
 	strh	r2, [r4, #4]	@ unaligned
 	ldrb	r2, [r3, #2312]	@ zero_extendqisi2
@@ -6617,22 +6621,22 @@ ftl_read_flash_info:
 	strb	r2, [r4, #9]
 	movs	r2, #0
 	strb	r2, [r4, #10]
-.L945:
+.L946:
 	uxtb	r1, r2
 	cmp	r1, r0
-	bcs	.L947
+	bcs	.L948
 	ldrb	r1, [r2, r3]	@ zero_extendqisi2
 	adds	r2, r2, #1
 	lsl	r6, r5, r1
 	ldrb	r1, [r4, #10]	@ zero_extendqisi2
 	orrs	r1, r1, r6
 	strb	r1, [r4, #10]
-	b	.L945
-.L947:
-	pop	{r4, r5, r6, pc}
-.L949:
-	.align	2
+	b	.L946
 .L948:
+	pop	{r4, r5, r6, pc}
+.L950:
+	.align	2
+.L949:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_read_flash_info, .-ftl_read_flash_info
@@ -6648,9 +6652,9 @@ FtlMemInit:
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
 	mov	r0, #1024
-	ldr	r4, .L1054
+	ldr	r4, .L1055
 	movs	r6, #0
-	ldr	r5, .L1054+4
+	ldr	r5, .L1055+4
 	movw	r3, #65535
 	movs	r7, #12
 	mov	r8, #36
@@ -6841,7 +6845,7 @@ FtlMemInit:
 	str	r0, [r4, #3388]
 	mov	r0, r6
 	bl	ftl_malloc
-	ldr	r6, .L1054+8
+	ldr	r6, .L1055+8
 	str	r0, [r4, #3392]
 	ldr	r0, [r5, #2416]
 	lsls	r0, r0, #2
@@ -6875,147 +6879,147 @@ FtlMemInit:
 	lsls	r2, r2, #2
 	mov	r1, r2
 	str	r0, [r5, #2480]
-.L952:
+.L953:
 	cmp	r3, r7
-	bcs	.L1052
+	bcs	.L1053
 	ldr	r0, [r5, #2480]
 	adds	r3, r3, #1
 	add	r0, r0, r1
 	add	r1, r1, r2
 	str	r0, [r6, #4]!
-	b	.L952
-.L1052:
-	ldr	r2, .L1054+12
+	b	.L953
+.L1053:
+	ldr	r2, .L1055+12
 	movs	r1, #0
-.L954:
+.L955:
 	cmp	r3, #8
-	beq	.L1053
+	beq	.L1054
 	add	r0, r2, r3, lsl #2
 	adds	r3, r3, #1
 	str	r1, [r0, #28]
-	b	.L954
-.L1053:
+	b	.L955
+.L1054:
 	ldr	r2, [r4, #3368]
-	ldr	r3, .L1054
-	cbnz	r2, .L956
-.L958:
-	ldr	r1, .L1054+16
-	ldr	r0, .L1054+20
+	ldr	r3, .L1055
+	cbnz	r2, .L957
+.L959:
+	ldr	r1, .L1055+16
+	ldr	r0, .L1055+20
 	bl	printk
 	mov	r0, #-1
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L1055:
+.L1056:
 	.align	2
-.L1054:
+.L1055:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR0+2480
 	.word	.LANCHOR0+2452
 	.word	.LANCHOR3
 	.word	.LC81
-.L956:
+.L957:
 	ldr	r2, [r3, #3372]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3388]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3396]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #460]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3400]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #288]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r5, #2480]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r3, [r3, #296]
 	cmp	r3, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r4, #1160]
-	ldr	r3, .L1056
+	ldr	r3, .L1057
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #1168]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3304]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3312]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #228]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #1152]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3308]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3316]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3320]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r3, [r3, #3324]
 	cmp	r3, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r4, #1144]
-	ldr	r3, .L1056
+	ldr	r3, .L1057
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3332]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3336]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #1140]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3340]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3344]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #1148]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #232]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r3, [r3, #3356]
 	cmp	r3, #0
-	beq	.L958
-	ldr	r3, .L1056+4
+	beq	.L959
+	ldr	r3, .L1057+4
 	ldr	r3, [r3, #2436]
 	cmp	r3, #0
-	beq	.L958
-	ldr	r3, .L1056
+	beq	.L959
+	ldr	r3, .L1057
 	ldr	r2, [r3, #3376]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r2, [r3, #3380]
 	cmp	r2, #0
-	beq	.L958
+	beq	.L959
 	ldr	r3, [r3, #3384]
 	cmp	r3, #0
-	beq	.L958
+	beq	.L959
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L1057:
+.L1058:
 	.align	2
-.L1056:
+.L1057:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -7032,7 +7036,7 @@ FtlBbt2Bitmap:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	mov	r4, r0
-	ldr	r3, .L1063
+	ldr	r3, .L1064
 	mov	r0, r1
 	mov	r5, r1
 	movs	r1, #0
@@ -7040,14 +7044,14 @@ FtlBbt2Bitmap:
 	ldrh	r2, [r3, #3404]
 	lsls	r2, r2, #2
 	bl	ftl_memset
-	ldr	r1, .L1063+4
+	ldr	r1, .L1064+4
 	subs	r2, r4, #2
 	addw	r4, r4, #1022
 	movw	lr, #65535
-.L1060:
+.L1061:
 	ldrh	r3, [r2, #2]!
 	cmp	r3, lr
-	beq	.L1058
+	beq	.L1059
 	lsrs	r0, r3, #5
 	and	r3, r3, #31
 	lsl	r3, r7, r3
@@ -7058,12 +7062,12 @@ FtlBbt2Bitmap:
 	ldrh	r3, [r1, #2458]
 	add	r3, r3, #1
 	strh	r3, [r1, #2458]	@ movhi
-	bne	.L1060
-.L1058:
+	bne	.L1061
+.L1059:
 	pop	{r3, r4, r5, r6, r7, pc}
-.L1064:
+.L1065:
 	.align	2
-.L1063:
+.L1064:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -7078,7 +7082,7 @@ FtlBbtMemInit:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r0, .L1066
+	ldr	r0, .L1067
 	movw	r3, #65535
 	movs	r1, #255
 	movs	r2, #16
@@ -7087,9 +7091,9 @@ FtlBbtMemInit:
 	movs	r3, #0
 	strh	r3, [r0, #-6]	@ movhi
 	b	ftl_memset
-.L1067:
+.L1068:
 	.align	2
-.L1066:
+.L1067:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlBbtMemInit, .-FtlBbtMemInit
@@ -7102,7 +7106,7 @@ FtlFreeSysBlkQueueInit:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L1069
+	ldr	r3, .L1070
 	mov	r2, #2048
 	push	{r4, lr}
 	.save {r4, lr}
@@ -7116,9 +7120,9 @@ FtlFreeSysBlkQueueInit:
 	bl	ftl_memset
 	mov	r0, r4
 	pop	{r4, pc}
-.L1070:
+.L1071:
 	.align	2
-.L1069:
+.L1070:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlFreeSysBlkQueueInit, .-FtlFreeSysBlkQueueInit
@@ -7143,34 +7147,34 @@ ftl_free_no_use_map_blk:
 	mov	r0, r6
 	bl	ftl_memset
 	movs	r1, #0
-.L1072:
+.L1073:
 	ldrh	r2, [r4, #6]
 	uxth	r3, r1
 	cmp	r2, r3
-	bls	.L1091
+	bls	.L1092
 	ldr	r2, [r5, r3, lsl #2]
 	movs	r0, #0
 	ubfx	r2, r2, #10, #16
-.L1073:
+.L1074:
 	ldrh	lr, [r4, #10]
 	uxth	r3, r0
 	cmp	lr, r3
-	bls	.L1092
+	bls	.L1093
 	ldrh	lr, [r7, r3, lsl #1]
 	cmp	lr, r2
-	bne	.L1074
-	cbz	r2, .L1074
+	bne	.L1075
+	cbz	r2, .L1075
 	ldrh	lr, [r6, r3, lsl #1]
 	add	lr, lr, #1
 	strh	lr, [r6, r3, lsl #1]	@ movhi
-.L1074:
+.L1075:
 	adds	r0, r0, #1
+	b	.L1074
+.L1093:
+	adds	r1, r1, #1
 	b	.L1073
 .L1092:
-	adds	r1, r1, #1
-	b	.L1072
-.L1091:
-	ldr	r3, .L1095
+	ldr	r3, .L1096
 	mov	r8, #0
 	mov	r10, r8
 	ldrh	r2, [r3, #2390]
@@ -7178,30 +7182,30 @@ ftl_free_no_use_map_blk:
 	strh	r2, [r6, r3, lsl #1]	@ movhi
 	mov	r2, r8
 	ldrh	r9, [r6]
-.L1077:
+.L1078:
 	ldrh	r3, [r4, #10]
 	uxth	r5, r8
 	cmp	r3, r5
-	bls	.L1093
+	bls	.L1094
 	ldrh	r3, [r6, r5, lsl #1]
 	lsls	r1, r5, #1
 	cmp	r9, r3
-	bls	.L1078
+	bls	.L1079
 	ldrh	r0, [r7, r5, lsl #1]
 	add	fp, r7, r1
-	cbnz	r0, .L1079
-	b	.L1080
-.L1078:
-	cbnz	r3, .L1080
+	cbnz	r0, .L1080
+	b	.L1081
+.L1079:
+	cbnz	r3, .L1081
 	ldrh	r0, [r7, r1]
 	add	fp, r7, r1
-	cbz	r0, .L1080
+	cbz	r0, .L1081
 	mov	r5, r2
-	b	.L1082
-.L1079:
-	cbnz	r3, .L1094
+	b	.L1083
+.L1080:
+	cbnz	r3, .L1095
 	mov	r9, r3
-.L1082:
+.L1083:
 	movs	r1, #1
 	bl	FtlFreeSysBlkQueueIn
 	strh	r10, [fp]	@ movhi
@@ -7209,19 +7213,19 @@ ftl_free_no_use_map_blk:
 	mov	r2, r5
 	subs	r3, r3, #1
 	strh	r3, [r4, #8]	@ movhi
-.L1080:
+.L1081:
 	add	r8, r8, #1
-	b	.L1077
-.L1094:
+	b	.L1078
+.L1095:
 	mov	r2, r5
 	mov	r9, r3
-	b	.L1080
-.L1093:
+	b	.L1081
+.L1094:
 	mov	r0, r2
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1096:
+.L1097:
 	.align	2
-.L1095:
+.L1096:
 	.word	.LANCHOR0
 	.fnend
 	.size	ftl_free_no_use_map_blk, .-ftl_free_no_use_map_blk
@@ -7237,9 +7241,9 @@ FtlL2PDataInit:
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
 	movs	r1, #0
-	ldr	r4, .L1101
+	ldr	r4, .L1102
 	movs	r7, #0
-	ldr	r5, .L1101+4
+	ldr	r5, .L1102+4
 	mov	r6, r7
 	ldr	r2, [r4, #2416]
 	mov	r9, r4
@@ -7256,13 +7260,13 @@ FtlL2PDataInit:
 	movs	r5, #12
 	mov	r2, r4
 	movw	lr, #65535
-.L1098:
+.L1099:
 	ldrh	ip, [r2, #2426]
 	adds	r0, r7, #1
 	uxth	r7, r7
-	ldr	r1, .L1101
+	ldr	r1, .L1102
 	cmp	ip, r7
-	bls	.L1100
+	bls	.L1101
 	mul	r1, r5, r7
 	ldr	ip, [r3, #460]
 	add	r8, ip, r1
@@ -7277,8 +7281,8 @@ FtlL2PDataInit:
 	add	r1, r1, r7
 	mov	r7, r0
 	str	r1, [ip, #8]
-	b	.L1098
-.L1100:
+	b	.L1099
+.L1101:
 	movw	r2, #65535
 	strh	r2, [r3, #3410]	@ movhi
 	strh	r2, [r3, #3408]	@ movhi
@@ -7299,9 +7303,9 @@ FtlL2PDataInit:
 	ldr	r2, [r3, #3388]
 	str	r2, [r3, #3432]
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L1102:
+.L1103:
 	.align	2
-.L1101:
+.L1102:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -7318,9 +7322,9 @@ FtlVariablesInit:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	movs	r4, #0
-	ldr	r6, .L1104
+	ldr	r6, .L1105
 	movw	r3, #65535
-	ldr	r5, .L1104+4
+	ldr	r5, .L1105+4
 	mov	r1, r4
 	ldrh	r2, [r6, #2408]
 	ldr	r0, [r6, #2436]
@@ -7356,9 +7360,9 @@ FtlVariablesInit:
 	bl	FtlL2PDataInit
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L1105:
+.L1106:
 	.align	2
-.L1104:
+.L1105:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -7375,9 +7379,9 @@ SupperBlkListInit:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r2, #6
-	ldr	r6, .L1117
+	ldr	r6, .L1118
 	movs	r5, #0
-	ldr	r4, .L1117+4
+	ldr	r4, .L1118+4
 	.pad #20
 	sub	sp, sp, #20
 	movs	r1, #0
@@ -7394,22 +7398,22 @@ SupperBlkListInit:
 	strh	r5, [r4, #304]	@ movhi
 	strh	r5, [r4, #312]	@ movhi
 	strh	r5, [r4, #3272]	@ movhi
-.L1107:
+.L1108:
 	uxth	fp, r5
 	ldrh	r2, [r8, #2328]
 	sxth	r7, fp
 	cmp	r7, r2
-	bge	.L1114
-	ldr	r3, .L1117
+	bge	.L1115
+	ldr	r3, .L1118
 	movs	r2, #0
 	mov	r6, r2
 	ldrh	ip, [r3, #2320]
 	ldrh	r3, [r3, #2388]
 	str	r3, [sp, #4]
-.L1115:
+.L1116:
 	sxth	r1, r2
 	cmp	r1, ip
-	bge	.L1116
+	bge	.L1117
 	add	r1, r1, r8
 	str	r2, [sp, #12]
 	str	ip, [sp, #8]
@@ -7419,66 +7423,66 @@ SupperBlkListInit:
 	bl	FtlBbmIsBadBlock
 	ldr	ip, [sp, #8]
 	ldr	r2, [sp, #12]
-	cbnz	r0, .L1108
+	cbnz	r0, .L1109
 	ldr	r3, [sp, #4]
 	add	r6, r6, r3
 	uxth	r6, r6
-.L1108:
+.L1109:
 	adds	r2, r2, #1
-	b	.L1115
-.L1116:
-	cbz	r6, .L1110
+	b	.L1116
+.L1117:
+	cbz	r6, .L1111
 	sxth	r1, r6
 	mov	r0, #32768
 	bl	__aeabi_idiv
 	uxth	r6, r0
-	b	.L1111
-.L1110:
+	b	.L1112
+.L1111:
 	ldr	r1, [r4, #296]
 	sxth	r2, fp
 	movw	r0, #65535
 	strh	r0, [r1, r2, lsl #1]	@ movhi
-.L1111:
+.L1112:
 	add	r0, r7, r7, lsl #1
 	ldr	r1, [r4, #288]
-	ldr	r2, .L1117+4
+	ldr	r2, .L1118+4
 	add	r1, r1, r0, lsl #1
 	strh	r6, [r1, #4]	@ movhi
 	ldrh	r1, [r4, #316]
 	cmp	r7, r1
-	beq	.L1112
+	beq	.L1113
 	ldrh	r1, [r2, #364]
 	cmp	r7, r1
-	beq	.L1112
+	beq	.L1113
 	ldrh	r1, [r2, #412]
 	cmp	r7, r1
-	beq	.L1112
+	beq	.L1113
 	ldr	r2, [r2, #296]
 	ldrh	r2, [r2, r7, lsl #1]
-	cbnz	r2, .L1113
+	cbnz	r2, .L1114
 	add	r9, r9, #1
 	mov	r0, fp
 	uxth	r9, r9
 	bl	INSERT_FREE_LIST
-	b	.L1112
-.L1113:
+	b	.L1113
+.L1114:
 	add	r10, r10, #1
 	mov	r0, fp
 	uxth	r10, r10
 	bl	INSERT_DATA_LIST
-.L1112:
+.L1113:
 	adds	r5, r5, #1
-	b	.L1107
-.L1114:
+	b	.L1108
+.L1115:
 	movs	r0, #0
 	strh	r10, [r4, #304]	@ movhi
 	strh	r9, [r4, #312]	@ movhi
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1118:
+.L1119:
 	.align	2
-.L1117:
+.L1118:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -7495,9 +7499,9 @@ FtlGcPageVarInit:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movs	r1, #255
-	ldr	r5, .L1120
+	ldr	r5, .L1121
 	movs	r3, #0
-	ldr	r4, .L1120+4
+	ldr	r4, .L1121+4
 	ldrh	r2, [r5, #2392]
 	ldr	r0, [r4, #1160]
 	strh	r3, [r4, #1164]	@ movhi
@@ -7512,9 +7516,9 @@ FtlGcPageVarInit:
 	bl	ftl_memset
 	pop	{r3, r4, r5, lr}
 	b	FtlGcBufInit
-.L1121:
+.L1122:
 	.align	2
-.L1120:
+.L1121:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -7544,13 +7548,13 @@ FlashReadIdbData:
 	push	{r3, lr}
 	.save {r3, lr}
 	mov	r2, #2048
-	ldr	r1, .L1124
+	ldr	r1, .L1125
 	bl	ftl_memcpy
 	movs	r0, #0
 	pop	{r3, pc}
-.L1125:
+.L1126:
 	.align	2
-.L1124:
+.L1125:
 	.word	.LANCHOR2+3476
 	.fnend
 	.size	FlashReadIdbData, .-FlashReadIdbData
@@ -7566,60 +7570,60 @@ FlashLoadPhyInfoInRam:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	movs	r4, #0
-	ldr	r5, .L1138
-.L1130:
+	ldr	r5, .L1139
+.L1131:
 	mov	r0, r5
-	ldr	r1, .L1138+4
+	ldr	r1, .L1139+4
 	ldrb	r2, [r5, #-1]	@ zero_extendqisi2
 	bl	FlashMemCmp8
 	mov	r6, r0
-	cbnz	r0, .L1127
-	ldr	r5, .L1138+8
+	cbnz	r0, .L1128
+	ldr	r5, .L1139+8
 	lsls	r4, r4, #5
 	add	r2, r5, #508
 	adds	r7, r2, r4
-	beq	.L1133
+	beq	.L1134
 	add	r4, r4, r5
 	mov	r3, r0
 	addw	r1, r5, #3260
 	ldrb	r2, [r4, #530]	@ zero_extendqisi2
-	b	.L1132
-.L1127:
+	b	.L1133
+.L1128:
 	adds	r4, r4, #1
 	adds	r5, r5, #32
 	cmp	r4, #86
-	bne	.L1130
-	b	.L1133
-.L1137:
+	bne	.L1131
+	b	.L1134
+.L1138:
 	adds	r3, r3, #1
 	cmp	r3, #4
-	beq	.L1131
-.L1132:
+	beq	.L1132
+.L1133:
 	lsls	r0, r3, #5
 	ldrb	r0, [r0, r1]	@ zero_extendqisi2
 	cmp	r0, r2
-	bne	.L1137
-.L1131:
-	ldr	r1, .L1138+12
+	bne	.L1138
+.L1132:
+	ldr	r1, .L1139+12
 	movs	r2, #32
-	ldr	r0, .L1138+16
+	ldr	r0, .L1139+16
 	add	r1, r1, r3, lsl #5
 	bl	ftl_memcpy
 	mov	r1, r7
 	movs	r2, #32
-	ldr	r0, .L1138+20
+	ldr	r0, .L1139+20
 	bl	ftl_memcpy
 	ldrh	r0, [r5, #482]
 	bl	FlashBlockAlignInit
-	b	.L1128
-.L1133:
+	b	.L1129
+.L1134:
 	mov	r6, #-1
-.L1128:
+.L1129:
 	mov	r0, r6
 	pop	{r3, r4, r5, r6, r7, pc}
-.L1139:
+.L1140:
 	.align	2
-.L1138:
+.L1139:
 	.word	.LANCHOR1+509
 	.word	.LANCHOR0+2068
 	.word	.LANCHOR1
@@ -7645,14 +7649,14 @@ NandcCopy1KB:
 	ldr	r6, [sp, #16]
 	add	r5, r0, #512
 	add	r2, r2, r4, lsl #9
-	bne	.L1141
-	cbz	r3, .L1142
+	bne	.L1142
+	cbz	r3, .L1143
 	mov	r0, r2
 	mov	r1, r3
 	mov	r2, #1024
 	bl	ftl_memcpy
-.L1142:
-	cbz	r6, .L1140
+.L1143:
+	cbz	r6, .L1141
 	ldrb	r3, [r6, #2]	@ zero_extendqisi2
 	lsrs	r4, r4, #1
 	ldrb	r2, [r6, #1]	@ zero_extendqisi2
@@ -7666,14 +7670,14 @@ NandcCopy1KB:
 	orr	r3, r3, r2, lsl #24
 	str	r3, [r5, r4, lsl #2]
 	pop	{r4, r5, r6, pc}
-.L1141:
-	cbz	r3, .L1145
+.L1142:
+	cbz	r3, .L1146
 	mov	r1, r2
 	mov	r0, r3
 	mov	r2, #1024
 	bl	ftl_memcpy
-.L1145:
-	cbz	r6, .L1140
+.L1146:
+	cbz	r6, .L1141
 	lsrs	r4, r4, #1
 	add	r4, r4, r4, lsl #1
 	lsls	r4, r4, #2
@@ -7685,7 +7689,7 @@ NandcCopy1KB:
 	lsrs	r3, r3, #24
 	strb	r2, [r6, #2]
 	strb	r3, [r6, #3]
-.L1140:
+.L1141:
 	pop	{r4, r5, r6, pc}
 	.fnend
 	.size	NandcCopy1KB, .-NandcCopy1KB
@@ -7701,14 +7705,14 @@ ftl_memcpy32:
 	movs	r3, #0
 	push	{r4, lr}
 	.save {r4, lr}
-.L1157:
+.L1158:
 	cmp	r3, r2
-	beq	.L1159
+	beq	.L1160
 	ldr	r4, [r1, r3, lsl #2]
 	str	r4, [r0, r3, lsl #2]
 	adds	r3, r3, #1
-	b	.L1157
-.L1159:
+	b	.L1158
+.L1160:
 	pop	{r4, pc}
 	.fnend
 	.size	ftl_memcpy32, .-ftl_memcpy32
@@ -7735,12 +7739,12 @@ timer_get_time:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L1162
+	ldr	r3, .L1163
 	ldr	r0, [r3]
 	b	jiffies_to_msecs
-.L1163:
+.L1164:
 	.align	2
-.L1162:
+.L1163:
 	.word	jiffies
 	.fnend
 	.size	timer_get_time, .-timer_get_time
@@ -7756,20 +7760,20 @@ FlashSramLoadStore:
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
 	mov	r5, r0
-	ldr	r4, .L1167
+	ldr	r4, .L1168
 	ldr	r4, [r4, #1180]
 	add	r4, r4, #4096
 	add	r1, r1, r4
-	cbz	r2, .L1166
+	cbz	r2, .L1167
 	mov	r0, r1
 	mov	r1, r5
-.L1166:
+.L1167:
 	mov	r2, r3
 	pop	{r4, r5, lr}
 	b	ftl_memcpy
-.L1168:
+.L1169:
 	.align	2
-.L1167:
+.L1168:
 	.word	.LANCHOR4
 	.fnend
 	.size	FlashSramLoadStore, .-FlashSramLoadStore
@@ -7786,6 +7790,48 @@ FlashCs123Init:
 	bx	lr
 	.fnend
 	.size	FlashCs123Init, .-FlashCs123Init
+	.align	1
+	.global	ftl_dma32_malloc
+	.thumb
+	.thumb_func
+	.type	ftl_dma32_malloc, %function
+ftl_dma32_malloc:
+	.fnstart
+	@ args = 0, pretend = 0, frame = 0
+	@ frame_needed = 0, uses_anonymous_args = 0
+	cmp	r0, #8192
+	push	{r3, r4, r5, lr}
+	.save {r3, r4, r5, lr}
+	mov	r4, r0
+	ble	.L1172
+	pop	{r3, r4, r5, lr}
+	b	ftl_malloc
+.L1172:
+	ldr	r5, .L1174
+	adds	r4, r4, #63
+	bic	r4, r4, #63
+	ldr	r3, [r5, #1184]
+	cmp	r3, r4
+	bge	.L1173
+	mov	r0, #16384
+	bl	ftl_malloc
+	mov	r3, #16384
+	str	r3, [r5, #1184]
+	str	r0, [r5, #1188]
+.L1173:
+	ldr	r3, [r5, #1184]
+	ldr	r0, [r5, #1188]
+	subs	r3, r3, r4
+	str	r3, [r5, #1184]
+	add	r4, r4, r0
+	str	r4, [r5, #1188]
+	pop	{r3, r4, r5, pc}
+.L1175:
+	.align	2
+.L1174:
+	.word	.LANCHOR4
+	.fnend
+	.size	ftl_dma32_malloc, .-ftl_dma32_malloc
 	.align	1
 	.global	rk_nand_suspend
 	.thumb
@@ -7822,12 +7868,12 @@ rk_ftl_get_capacity:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L1173
+	ldr	r3, .L1179
 	ldr	r0, [r3, #2428]
 	bx	lr
-.L1174:
+.L1180:
 	.align	2
-.L1173:
+.L1179:
 	.word	.LANCHOR0
 	.fnend
 	.size	rk_ftl_get_capacity, .-rk_ftl_get_capacity
@@ -7888,46 +7934,46 @@ rknand_print_hex:
 	mov	r7, r2
 	mov	r8, r3
 	mov	r4, r5
-.L1179:
+.L1185:
 	cmp	r4, r8
-	beq	.L1187
-	cbnz	r5, .L1180
-	ldr	r0, .L1188
+	beq	.L1193
+	cbnz	r5, .L1186
+	ldr	r0, .L1194
 	mov	r1, r9
 	mov	r2, r6
 	mov	r3, r4
 	bl	printk
-.L1180:
+.L1186:
 	cmp	r7, #4
-	ldr	r0, .L1188+4
-	bne	.L1181
+	ldr	r0, .L1194+4
+	bne	.L1187
 	ldr	r1, [r6, r4, lsl #2]
-	b	.L1186
-.L1181:
+	b	.L1192
+.L1187:
 	cmp	r7, #2
 	ite	eq
 	ldrsheq	r1, [r6, r4, lsl #1]
 	ldrbne	r1, [r6, r4]	@ zero_extendqisi2
-.L1186:
+.L1192:
 	adds	r5, r5, #1
 	bl	printk
 	cmp	r5, #15
-	bls	.L1184
-	ldr	r0, .L1188+8
+	bls	.L1190
+	ldr	r0, .L1194+8
 	movs	r5, #0
-	ldr	r1, .L1188+12
+	ldr	r1, .L1194+12
 	bl	printk
-.L1184:
+.L1190:
 	adds	r4, r4, #1
-	b	.L1179
-.L1187:
-	ldr	r0, .L1188+8
-	ldr	r1, .L1188+12
+	b	.L1185
+.L1193:
+	ldr	r0, .L1194+8
+	ldr	r1, .L1194+12
 	pop	{r3, r4, r5, r6, r7, r8, r9, lr}
 	b	printk
-.L1189:
+.L1195:
 	.align	2
-.L1188:
+.L1194:
 	.word	.LC82
 	.word	.LC83
 	.word	.LC76
@@ -7946,198 +7992,196 @@ HynixGetReadRetryDefault:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	cmp	r0, #2
-	ldr	r7, .L1299
+	ldr	r7, .L1305
 	mov	r3, #172
 	mov	r1, #173
 	mov	r2, #174
 	.pad #44
 	sub	sp, sp, #44
 	mov	r4, r0
-	strb	r3, [r7, #1214]
+	strb	r3, [r7, #1216]
 	mov	r3, #175
-	strb	r0, [r7, #1210]
-	strb	r1, [r7, #1215]
-	strb	r2, [r7, #1216]
-	strb	r3, [r7, #1217]
-	bne	.L1191
+	strb	r0, [r7, #1212]
+	strb	r1, [r7, #1217]
+	strb	r2, [r7, #1218]
+	strb	r3, [r7, #1219]
+	bne	.L1197
 	movs	r3, #167
-	strb	r3, [r7, #1214]
-	ldr	r3, .L1299+4
+	strb	r3, [r7, #1216]
+	ldr	r3, .L1305+4
 	movs	r2, #247
 	movs	r5, #7
 	strb	r2, [r3, #3405]
-	b	.L1252
-.L1191:
+	b	.L1258
+.L1197:
 	cmp	r0, #3
-	bne	.L1193
+	bne	.L1199
 	movs	r3, #176
-	strb	r3, [r7, #1214]
-	movs	r3, #177
-	strb	r3, [r7, #1215]
-	movs	r3, #178
 	strb	r3, [r7, #1216]
-	movs	r3, #179
+	movs	r3, #177
 	strb	r3, [r7, #1217]
-	movs	r3, #180
+	movs	r3, #178
 	strb	r3, [r7, #1218]
-	movs	r3, #181
+	movs	r3, #179
 	strb	r3, [r7, #1219]
-	movs	r3, #182
+	movs	r3, #180
 	strb	r3, [r7, #1220]
-	movs	r3, #183
-	b	.L1293
-.L1193:
-	cmp	r0, #4
-	bne	.L1194
-	movs	r0, #204
-	strb	r1, [r7, #1219]
-	strb	r0, [r7, #1214]
-	movs	r0, #191
-	strb	r2, [r7, #1220]
-	strb	r0, [r7, #1215]
-	movs	r0, #170
-	strb	r0, [r7, #1216]
-	movs	r0, #171
-	strb	r0, [r7, #1217]
-	movs	r0, #205
-	strb	r0, [r7, #1218]
-.L1293:
-	movs	r5, #8
+	movs	r3, #181
 	strb	r3, [r7, #1221]
+	movs	r3, #182
+	strb	r3, [r7, #1222]
+	movs	r3, #183
+	b	.L1299
+.L1199:
+	cmp	r0, #4
+	bne	.L1200
+	movs	r0, #204
+	strb	r1, [r7, #1221]
+	strb	r0, [r7, #1216]
+	movs	r0, #191
+	strb	r2, [r7, #1222]
+	strb	r0, [r7, #1217]
+	movs	r0, #170
+	strb	r0, [r7, #1218]
+	movs	r0, #171
+	strb	r0, [r7, #1219]
+	movs	r0, #205
+	strb	r0, [r7, #1220]
+.L1299:
+	movs	r5, #8
+	strb	r3, [r7, #1223]
 	mov	r6, r5
-	b	.L1192
-.L1194:
+	b	.L1198
+.L1200:
 	cmp	r0, #5
-	bne	.L1195
+	bne	.L1201
 	movs	r3, #56
 	movs	r5, #8
-	strb	r3, [r7, #1214]
-	movs	r3, #57
-	strb	r3, [r7, #1215]
-	movs	r3, #58
 	strb	r3, [r7, #1216]
-	movs	r3, #59
+	movs	r3, #57
 	strb	r3, [r7, #1217]
-	b	.L1252
-.L1195:
+	movs	r3, #58
+	strb	r3, [r7, #1218]
+	movs	r3, #59
+	strb	r3, [r7, #1219]
+	b	.L1258
+.L1201:
 	cmp	r0, #6
-	bne	.L1196
+	bne	.L1202
 	movs	r3, #14
 	movs	r5, #12
-	strb	r3, [r7, #1214]
-	movs	r3, #15
-	strb	r3, [r7, #1215]
-	movs	r3, #16
 	strb	r3, [r7, #1216]
-	movs	r3, #17
+	movs	r3, #15
 	strb	r3, [r7, #1217]
-	b	.L1252
-.L1196:
+	movs	r3, #16
+	strb	r3, [r7, #1218]
+	movs	r3, #17
+	strb	r3, [r7, #1219]
+	b	.L1258
+.L1202:
 	cmp	r0, #7
-	bne	.L1197
+	bne	.L1203
 	movs	r3, #176
 	movs	r5, #12
-	strb	r3, [r7, #1214]
+	strb	r3, [r7, #1216]
 	movs	r6, #10
 	movs	r3, #177
-	strb	r3, [r7, #1215]
-	movs	r3, #178
-	strb	r3, [r7, #1216]
-	movs	r3, #179
 	strb	r3, [r7, #1217]
-	movs	r3, #180
+	movs	r3, #178
 	strb	r3, [r7, #1218]
-	movs	r3, #181
+	movs	r3, #179
 	strb	r3, [r7, #1219]
-	movs	r3, #182
+	movs	r3, #180
 	strb	r3, [r7, #1220]
-	movs	r3, #183
+	movs	r3, #181
 	strb	r3, [r7, #1221]
-	movs	r3, #212
+	movs	r3, #182
 	strb	r3, [r7, #1222]
-	movs	r3, #213
+	movs	r3, #183
 	strb	r3, [r7, #1223]
-	b	.L1192
-.L1197:
+	movs	r3, #212
+	strb	r3, [r7, #1224]
+	movs	r3, #213
+	strb	r3, [r7, #1225]
+	b	.L1198
+.L1203:
 	cmp	r0, #8
 	mov	r5, #7
-	bne	.L1252
+	bne	.L1258
 	movs	r3, #6
-	strb	r5, [r7, #1215]
-	strb	r3, [r7, #1214]
+	strb	r5, [r7, #1217]
+	strb	r3, [r7, #1216]
 	movs	r5, #50
 	movs	r3, #9
-	strb	r0, [r7, #1216]
-	strb	r3, [r7, #1217]
+	strb	r0, [r7, #1218]
+	strb	r3, [r7, #1219]
 	movs	r6, #5
 	movs	r3, #10
-	strb	r3, [r7, #1218]
-	b	.L1192
-.L1252:
+	strb	r3, [r7, #1220]
+	b	.L1198
+.L1258:
 	movs	r6, #4
-.L1192:
+.L1198:
 	subs	r3, r4, #1
 	cmp	r3, #1
-	bhi	.L1290
-	ldr	r1, .L1299+8
-	mov	r10, #0
-.L1198:
-	ldrb	r3, [r7, #2230]	@ zero_extendqisi2
-	uxtb	r8, r10
-	ldr	r2, .L1299
-	cmp	r3, r8
-	bls	.L1205
-	add	r8, r8, r2
-	addw	fp, r2, #1213
-	ldrb	r3, [r8, #2232]	@ zero_extendqisi2
-	add	r4, r2, r3, lsl #6
-	add	r3, r2, r3, lsl #3
-	addw	r4, r4, #1230
+	bhi	.L1296
+	mov	fp, #0
+.L1204:
+	ldrb	r1, [r7, #2230]	@ zero_extendqisi2
+	uxtb	r2, fp
+	ldr	r3, .L1305
+	cmp	r1, r2
+	bls	.L1211
+	add	r2, r2, r3
+	addw	r8, r3, #1215
+	ldrb	r2, [r2, #2232]	@ zero_extendqisi2
+	add	r4, r3, r2, lsl #6
+	ldr	r0, [r3, r2, lsl #3]
+	add	r2, r3, r2, lsl #3
+	add	r4, r4, #1232
+	ldrb	r9, [r2, #4]	@ zero_extendqisi2
 	movs	r2, #55
-	ldrb	r8, [r3, #16]	@ zero_extendqisi2
-	ldr	r0, [r3, #12]
-	mov	r9, r4
+	mov	r10, r4
 	mov	r3, r4
-	add	r8, r0, r8, lsl #8
-	addw	ip, r8, #2056
-.L1200:
+	add	r9, r0, r9, lsl #8
+	addw	ip, r9, #2056
+.L1206:
 	str	r2, [ip]
-	ldrb	r0, [fp, #1]!	@ zero_extendqisi2
-	str	r1, [sp, #16]
+	ldrb	r0, [r8, #1]!	@ zero_extendqisi2
 	str	r3, [sp, #12]
-	str	r0, [r8, #2052]
-	movs	r0, #80
 	str	r2, [sp, #8]
+	str	r0, [r9, #2052]
+	movs	r0, #80
 	str	ip, [sp, #4]
-	bl	NandcDelayns
-	ldr	r0, [r8, #2048]
+	bl	ndelay
+	ldr	r0, [r9, #2048]
 	ldr	r3, [sp, #12]
 	ldr	ip, [sp, #4]
 	ldr	r2, [sp, #8]
 	strb	r0, [r3], #1
 	subs	r0, r3, r4
-	ldr	r1, [sp, #16]
 	uxtb	r0, r0
 	cmp	r0, r6
-	bcc	.L1200
+	bcc	.L1206
 	movs	r2, #0
-.L1201:
+.L1207:
+	ldr	r1, .L1305+8
 	movs	r3, #1
 	add	lr, r1, r2
-.L1202:
+.L1208:
 	ldrb	ip, [lr, r3, lsl #2]	@ zero_extendqisi2
-	ldrb	r0, [r9]	@ zero_extendqisi2
+	ldrb	r0, [r10]	@ zero_extendqisi2
 	add	r0, r0, ip
-	strb	r0, [r9, r3, lsl #3]
+	strb	r0, [r10, r3, lsl #3]
 	adds	r3, r3, #1
 	cmp	r3, #7
-	bne	.L1202
+	bne	.L1208
 	adds	r2, r2, #1
-	add	r9, r9, #1
-	cmp	r2, #4
-	bne	.L1201
-	movs	r3, #0
 	add	r10, r10, #1
+	cmp	r2, #4
+	bne	.L1207
+	movs	r3, #0
+	add	fp, fp, #1
 	strb	r3, [r4, #16]
 	strb	r3, [r4, #24]
 	strb	r3, [r4, #32]
@@ -8145,11 +8189,11 @@ HynixGetReadRetryDefault:
 	strb	r3, [r4, #48]
 	strb	r3, [r4, #41]
 	strb	r3, [r4, #49]
-	b	.L1198
-.L1290:
+	b	.L1204
+.L1296:
 	subs	r3, r4, #3
 	cmp	r3, #5
-	bhi	.L1205
+	bhi	.L1211
 	smulbb	r2, r6, r5
 	lsls	r3, r2, #4
 	asrs	r2, r2, #1
@@ -8157,32 +8201,32 @@ HynixGetReadRetryDefault:
 	lsls	r3, r2, #1
 	str	r3, [sp, #8]
 	movs	r3, #0
-.L1297:
+.L1303:
 	str	r3, [sp, #20]
 	ldrb	r3, [sp, #20]	@ zero_extendqisi2
 	str	r3, [sp, #16]
-	ldr	r3, .L1299
+	ldr	r3, .L1305
 	ldr	r2, [sp, #16]
 	ldrb	r3, [r3, #2230]	@ zero_extendqisi2
 	cmp	r3, r2
-	bhi	.L1250
-.L1205:
-	ldr	r3, .L1299
-	strb	r6, [r3, #1211]
-	strb	r5, [r3, #1212]
+	bhi	.L1256
+.L1211:
+	ldr	r3, .L1305
+	strb	r6, [r3, #1213]
+	strb	r5, [r3, #1214]
 	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1250:
+.L1256:
 	ldr	r2, [sp, #16]
-	ldr	r3, .L1299
+	ldr	r3, .L1305
 	add	r3, r3, r2
 	ldrb	fp, [r3, #2232]	@ zero_extendqisi2
-	ldr	r3, .L1299
-	add	r3, r3, fp, lsl #3
+	ldr	r3, .L1305
 	mov	r0, fp
-	ldr	r10, [r3, #12]
-	ldrb	r3, [r3, #16]	@ zero_extendqisi2
+	ldr	r10, [r3, fp, lsl #3]
+	add	r3, r3, fp, lsl #3
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
 	lsls	r7, r3, #8
 	str	r3, [sp, #4]
 	add	r8, r10, r7
@@ -8190,56 +8234,56 @@ HynixGetReadRetryDefault:
 	str	r3, [r8, #2056]
 	bl	NandcWaitFlashReady
 	cmp	r4, #7
-	bne	.L1207
-	ldr	r2, .L1299+12
+	bne	.L1213
+	ldr	r2, .L1305+12
 	movs	r3, #160
 	mla	ip, r3, fp, r2
 	add	r3, ip, #28
-	b	.L1294
-.L1207:
+	b	.L1300
+.L1213:
 	cmp	r4, #8
-	beq	.L1209
-	ldr	r2, .L1299+12
+	beq	.L1215
+	ldr	r2, .L1305+12
 	add	ip, r2, fp, lsl #6
 	add	r3, ip, #20
-.L1294:
+.L1300:
 	add	r7, r7, r10
 	cmp	r4, #4
 	str	r3, [sp, #24]
 	mov	r3, #54
 	str	r3, [r7, #2056]
-	bne	.L1210
+	bne	.L1216
 	movs	r3, #255
 	str	r3, [r7, #2052]
 	movs	r3, #64
 	str	r3, [r7, #2048]
 	movs	r3, #204
-	b	.L1295
-.L1210:
+	b	.L1301
+.L1216:
 	subs	r3, r4, #5
 	cmp	r3, #1
-	bhi	.L1212
-	ldr	r3, .L1299
-	ldrb	r2, [r3, #1214]	@ zero_extendqisi2
+	bhi	.L1218
+	ldr	r3, .L1305
+	ldrb	r2, [r3, #1216]	@ zero_extendqisi2
 	ldr	r3, [sp, #4]
 	add	r3, r10, r3, lsl #8
 	str	r2, [r3, #2052]
 	movs	r2, #82
 	str	r2, [r3, #2048]
-	b	.L1211
-.L1212:
+	b	.L1217
+.L1218:
 	cmp	r4, #7
-	bne	.L1211
+	bne	.L1217
 	movs	r3, #174
 	str	r3, [r7, #2052]
 	movs	r3, #0
 	str	r3, [r7, #2048]
 	movs	r3, #176
-.L1295:
+.L1301:
 	str	r3, [r7, #2052]
 	movs	r3, #77
 	str	r3, [r7, #2048]
-.L1211:
+.L1217:
 	ldr	r3, [sp, #4]
 	cmp	r4, #6
 	mov	r2, #22
@@ -8262,7 +8306,7 @@ HynixGetReadRetryDefault:
 	str	r2, [r3, #2052]
 	movs	r2, #0
 	str	r2, [r3, #2052]
-.L1251:
+.L1257:
 	ldr	r3, [sp, #4]
 	movs	r2, #48
 	mov	r0, fp
@@ -8272,73 +8316,47 @@ HynixGetReadRetryDefault:
 	subs	r3, r4, #5
 	cmp	r3, #1
 	str	r3, [sp, #28]
-	bls	.L1255
+	bls	.L1261
 	cmp	r4, #8
-	beq	.L1255
+	beq	.L1261
 	cmp	r4, #7
 	ite	ne
 	movne	r2, #2
 	moveq	r2, #32
-	b	.L1215
-.L1300:
+	b	.L1221
+.L1306:
 	.align	2
-.L1299:
+.L1305:
 	.word	.LANCHOR0
 	.word	.LANCHOR1
 	.word	.LANCHOR1+3388
-	.word	.LANCHOR0+1210
-.L1255:
+	.word	.LANCHOR0+1212
+.L1261:
 	movs	r2, #16
-.L1215:
-	ldr	r3, .L1301
+.L1221:
+	ldr	r3, .L1307
 	ldr	r1, [sp, #4]
-	ldr	r3, [r3, #1184]
+	ldr	r3, [r3, #1192]
 	add	r0, r10, r1, lsl #8
 	mov	r7, r3
-.L1216:
+.L1222:
 	ldr	r1, [r0, #2048]
 	strb	r1, [r7], #1
 	subs	r1, r7, r3
 	uxtb	r1, r1
 	cmp	r1, r2
-	bcc	.L1216
+	bcc	.L1222
 	cmp	r4, #8
-	bne	.L1217
-	movs	r2, #0
-.L1219:
-	ldrb	r7, [r3, r2, lsl #2]	@ zero_extendqisi2
-	uxtb	r1, r2
-	cmp	r7, #50
-	beq	.L1218
-	add	r7, r3, r2, lsl #2
-	ldrb	r7, [r7, #1]	@ zero_extendqisi2
-	cmp	r7, #5
-	beq	.L1218
-	adds	r2, r2, #1
-	cmp	r2, #8
-	bne	.L1219
-	b	.L1220
-.L1218:
-	cmp	r1, #7
-	bne	.L1221
-.L1220:
-	ldr	r0, .L1301+4
-	movs	r1, #0
-	bl	printk
-.L1222:
-	b	.L1222
-.L1217:
-	cmp	r4, #7
 	bne	.L1223
 	movs	r2, #0
 .L1225:
 	ldrb	r7, [r3, r2, lsl #2]	@ zero_extendqisi2
 	uxtb	r1, r2
-	cmp	r7, #12
+	cmp	r7, #50
 	beq	.L1224
 	add	r7, r3, r2, lsl #2
 	ldrb	r7, [r7, #1]	@ zero_extendqisi2
-	cmp	r7, #10
+	cmp	r7, #5
 	beq	.L1224
 	adds	r2, r2, #1
 	cmp	r2, #8
@@ -8346,74 +8364,100 @@ HynixGetReadRetryDefault:
 	b	.L1226
 .L1224:
 	cmp	r1, #7
-	bne	.L1221
+	bne	.L1227
 .L1226:
-	ldr	r0, .L1301+4
+	ldr	r0, .L1307+4
 	movs	r1, #0
 	bl	printk
-.L1227:
-	b	.L1227
+.L1228:
+	b	.L1228
 .L1223:
+	cmp	r4, #7
+	bne	.L1229
+	movs	r2, #0
+.L1231:
+	ldrb	r7, [r3, r2, lsl #2]	@ zero_extendqisi2
+	uxtb	r1, r2
+	cmp	r7, #12
+	beq	.L1230
+	add	r7, r3, r2, lsl #2
+	ldrb	r7, [r7, #1]	@ zero_extendqisi2
+	cmp	r7, #10
+	beq	.L1230
+	adds	r2, r2, #1
+	cmp	r2, #8
+	bne	.L1231
+	b	.L1232
+.L1230:
+	cmp	r1, #7
+	bne	.L1227
+.L1232:
+	ldr	r0, .L1307+4
+	movs	r1, #0
+	bl	printk
+.L1233:
+	b	.L1233
+.L1229:
 	cmp	r4, #6
-	bne	.L1221
+	bne	.L1227
 	subs	r2, r3, #1
 	adds	r3, r3, #7
-.L1228:
+.L1234:
 	ldrb	r1, [r2, #1]!	@ zero_extendqisi2
 	cmp	r1, #12
-	beq	.L1221
+	beq	.L1227
 	ldrb	r1, [r2, #8]	@ zero_extendqisi2
 	cmp	r1, #4
-	beq	.L1221
+	beq	.L1227
 	cmp	r2, r3
-	bne	.L1228
-	ldr	r0, .L1301+4
+	bne	.L1234
+	ldr	r0, .L1307+4
 	movs	r1, #0
 	bl	printk
-.L1230:
-	b	.L1230
-.L1221:
-	ldr	r1, .L1301
+.L1236:
+	b	.L1236
+.L1227:
+	ldr	r1, .L1307
 	ldr	r7, [sp, #36]
-	ldr	r2, [r1, #1184]
+	ldr	r2, [r1, #1192]
 	adds	r7, r2, r7
 	mov	r3, r2
-.L1231:
+.L1237:
 	cmp	r3, r7
-	beq	.L1298
+	beq	.L1304
 	ldr	lr, [r0, #2048]
 	strb	lr, [r3], #1
-	b	.L1231
-.L1298:
-	ldr	r3, [r1, #1184]
+	b	.L1237
+.L1304:
+	ldr	r3, [r1, #1192]
 	movs	r0, #8
 	ldr	r1, [sp, #8]
 	adds	r1, r3, r1
 	str	r1, [sp, #32]
-.L1234:
+.L1240:
 	ldr	r7, [sp, #8]
 	add	lr, r1, r7
-.L1233:
+.L1239:
 	ldrh	r7, [r1]
 	mvns	r7, r7
 	strh	r7, [r1], #2	@ movhi
 	cmp	r1, lr
-	bne	.L1233
+	bne	.L1239
 	ldr	r7, [sp, #8]
 	subs	r0, r0, #1
 	add	r1, r1, r7
-	bne	.L1234
+	bne	.L1240
 	str	r3, [sp, #12]
-.L1235:
+.L1241:
 	movs	r7, #0
 	mov	r0, r7
-.L1238:
+.L1244:
 	movs	r3, #1
 	mov	lr, #0
 	mov	r8, #16
 	lsl	r1, r3, r0
 	mov	ip, lr
-.L1236:
+.L1242:
 	ldr	r3, [sp, #12]
 	ldrh	r9, [r3, lr]
 	ldr	r3, [sp, #8]
@@ -8423,80 +8467,80 @@ HynixGetReadRetryDefault:
 	addeq	ip, ip, #1
 	subs	r8, r8, #1
 	add	lr, lr, r3
-	bne	.L1236
+	bne	.L1242
 	cmp	ip, #8
 	add	r0, r0, #1
 	itt	hi
 	orrhi	r7, r7, r1
 	uxthhi	r7, r7
 	cmp	r0, #16
-	bne	.L1238
+	bne	.L1244
 	ldr	r3, [sp, #12]
 	strh	r7, [r3], #2	@ movhi
 	str	r3, [sp, #12]
 	ldr	r1, [sp, #12]
 	ldr	r3, [sp, #32]
 	cmp	r1, r3
-	bne	.L1235
-	ldr	r3, .L1301
-	ldr	r1, [r3, #1184]
+	bne	.L1241
+	ldr	r3, .L1307
+	ldr	r1, [r3, #1192]
 	movs	r3, #0
 	subs	r0, r1, #4
 	add	r7, r1, #28
-.L1240:
+.L1246:
 	ldr	lr, [r0, #4]!
 	cmp	lr, #0
 	it	eq
 	addeq	r3, r3, #1
 	cmp	r0, r7
-	bne	.L1240
+	bne	.L1246
 	cmp	r3, #7
-	ble	.L1241
-	ldr	r0, .L1301+8
+	ble	.L1247
+	ldr	r0, .L1307+8
 	movs	r2, #1
 	mov	r3, #1024
 	bl	rknand_print_hex
-	ldr	r0, .L1301+4
+	ldr	r0, .L1307+4
 	movs	r1, #0
 	bl	printk
-.L1242:
-	b	.L1242
-.L1241:
+.L1248:
+	b	.L1248
+.L1247:
 	cmp	r4, #6
-	beq	.L1257
+	beq	.L1263
 	cmp	r4, #7
-	beq	.L1258
+	beq	.L1264
 	cmp	r4, #8
 	ite	ne
 	movne	r0, #8
 	moveq	r0, #5
-	b	.L1243
-.L1257:
+	b	.L1249
+.L1263:
 	movs	r0, #4
-	b	.L1243
-.L1258:
+	b	.L1249
+.L1264:
 	movs	r0, #10
-.L1243:
+.L1249:
 	add	r9, r6, #-1
 	ldr	r1, [sp, #24]
 	movs	r7, #0
 	uxtb	r9, r9
 	add	r9, r9, #1
-.L1244:
+.L1250:
 	mov	ip, r1
 	mov	r3, r2
-.L1245:
+.L1251:
 	ldrb	lr, [r3], #1	@ zero_extendqisi2
 	strb	lr, [ip], #1
 	rsb	lr, r2, r3
 	uxtb	lr, lr
 	cmp	lr, r6
-	bcc	.L1245
+	bcc	.L1251
 	adds	r7, r7, #1
 	add	r2, r2, r9
 	cmp	r7, r5
 	add	r1, r1, r0
-	blt	.L1244
+	blt	.L1250
 	ldr	r3, [sp, #4]
 	mov	r0, fp
 	add	r7, r10, r3, lsl #8
@@ -8505,33 +8549,33 @@ HynixGetReadRetryDefault:
 	bl	NandcWaitFlashReady
 	ldr	r3, [sp, #28]
 	cmp	r3, #1
-	bhi	.L1247
+	bhi	.L1253
 	movs	r3, #54
 	str	r3, [r7, #2056]
-	ldr	r3, .L1301+12
+	ldr	r3, .L1307+12
 	mov	r1, #-1
 	ldr	r0, [sp, #16]
-	ldrb	r3, [r3, #1214]	@ zero_extendqisi2
+	ldrb	r3, [r3, #1216]	@ zero_extendqisi2
 	str	r3, [r7, #2052]
 	movs	r3, #0
 	str	r3, [r7, #2048]
 	movs	r3, #22
 	str	r3, [r7, #2056]
 	bl	FlashReadCmd
-	b	.L1248
-.L1247:
+	b	.L1254
+.L1253:
 	cmp	r4, #8
 	ite	eq
 	moveq	r3, #190
 	movne	r3, #56
 	str	r3, [r7, #2056]
-.L1248:
+.L1254:
 	mov	r0, fp
 	bl	NandcWaitFlashReady
 	ldr	r3, [sp, #20]
 	adds	r3, r3, #1
-	b	.L1297
-.L1209:
+	b	.L1303
+.L1215:
 	movs	r3, #120
 	movs	r2, #23
 	str	r3, [r8, #2056]
@@ -8553,17 +8597,17 @@ HynixGetReadRetryDefault:
 	str	r1, [r8, #2052]
 	str	r2, [r8, #2052]
 	str	r3, [r8, #2052]
-	ldr	r3, .L1301+16
+	ldr	r3, .L1307+16
 	str	r3, [sp, #24]
-	b	.L1251
-.L1302:
+	b	.L1257
+.L1308:
 	.align	2
-.L1301:
+.L1307:
 	.word	.LANCHOR4
 	.word	.LC85
 	.word	.LC86
 	.word	.LANCHOR0
-	.word	.LANCHOR0+1238
+	.word	.LANCHOR0+1240
 	.fnend
 	.size	HynixGetReadRetryDefault, .-HynixGetReadRetryDefault
 	.align	1
@@ -8578,74 +8622,74 @@ FlashGetReadRetryDefault:
 	@ link register save eliminated.
 	mov	r3, r0
 	cmp	r0, #0
-	beq	.L1303
+	beq	.L1309
 	subs	r2, r0, #1
 	cmp	r2, #7
-	bhi	.L1305
+	bhi	.L1311
 	b	HynixGetReadRetryDefault
-.L1305:
+.L1311:
 	cmp	r0, #49
-	bne	.L1306
-	ldr	r0, .L1326
+	bne	.L1312
+	ldr	r0, .L1332
 	movs	r2, #64
-	ldr	r1, .L1326+4
-	addw	r0, r0, #1214
+	ldr	r1, .L1332+4
+	add	r0, r0, #1216
 	strb	r3, [r0, #-4]
 	movs	r3, #4
 	strb	r3, [r0, #-3]
 	movs	r3, #15
 	strb	r3, [r0, #-2]
-	b	.L1324
-.L1306:
+	b	.L1330
+.L1312:
 	cmp	r0, #33
-	beq	.L1307
+	beq	.L1313
 	sub	r2, r0, #65
 	cmp	r2, #1
-	bhi	.L1308
-.L1307:
-	ldr	r0, .L1326
-	strb	r3, [r0, #1210]
+	bhi	.L1314
+.L1313:
+	ldr	r0, .L1332
+	strb	r3, [r0, #1212]
 	movs	r3, #4
-	b	.L1325
-.L1308:
+	b	.L1331
+.L1314:
 	cmp	r0, #34
-	beq	.L1309
+	beq	.L1315
 	cmp	r0, #67
-	bne	.L1310
-.L1309:
-	ldr	r0, .L1326
-	strb	r3, [r0, #1210]
+	bne	.L1316
+.L1315:
+	ldr	r0, .L1332
+	strb	r3, [r0, #1212]
 	movs	r3, #5
-.L1325:
-	strb	r3, [r0, #1211]
+.L1331:
+	strb	r3, [r0, #1213]
 	movs	r2, #45
 	movs	r3, #7
-	addw	r0, r0, #1214
+	add	r0, r0, #1216
 	strb	r3, [r0, #-2]
-	ldr	r1, .L1326+8
-	b	.L1324
-.L1310:
+	ldr	r1, .L1332+8
+	b	.L1330
+.L1316:
 	cmp	r0, #35
-	beq	.L1311
+	beq	.L1317
 	cmp	r0, #68
-	bne	.L1303
-.L1311:
-	ldr	r0, .L1326
+	bne	.L1309
+.L1317:
+	ldr	r0, .L1332
 	movs	r2, #95
-	ldr	r1, .L1326+12
-	addw	r0, r0, #1214
+	ldr	r1, .L1332+12
+	add	r0, r0, #1216
 	strb	r3, [r0, #-4]
 	movs	r3, #5
 	strb	r3, [r0, #-3]
 	movs	r3, #17
 	strb	r3, [r0, #-2]
-.L1324:
+.L1330:
 	b	ftl_memcpy
-.L1303:
+.L1309:
 	bx	lr
-.L1327:
+.L1333:
 	.align	2
-.L1326:
+.L1332:
 	.word	.LANCHOR0
 	.word	.LANCHOR1+408
 	.word	.LANCHOR1+256
@@ -8664,64 +8708,63 @@ NandcXferComp:
 	push	{r0, r1, r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	.pad #8
-	ldr	r5, .L1367
-	add	r0, r5, r0, lsl #3
+	ldr	r5, .L1373
 	ldr	r3, [r5, #2260]
-	ldr	r4, [r0, #12]
+	ldr	r4, [r5, r0, lsl #3]
 	cmp	r3, #3
-	bls	.L1359
+	bls	.L1365
 	ldr	r3, [r4, #16]
 	lsls	r6, r3, #29
-	bpl	.L1359
+	bpl	.L1365
 	ldr	r6, [r4, #16]
 	ldr	r3, [r4, #8]
 	ubfx	r6, r6, #1, #1
 	str	r3, [sp]
 	cmp	r6, #0
-	beq	.L1341
+	beq	.L1347
 	movs	r6, #0
-.L1331:
+.L1337:
 	ldr	r2, [r4, #28]
 	ldr	r3, [sp]
 	ubfx	r2, r2, #16, #5
 	ubfx	r3, r3, #22, #6
 	cmp	r2, r3
-	bge	.L1339
+	bge	.L1345
 	ldr	r3, [r5, #2260]
 	cmp	r3, #5
-	bhi	.L1332
-.L1335:
+	bhi	.L1338
+.L1341:
 	adds	r6, r6, #1
 	bic	r3, r6, #-16777216
 	cmp	r3, #0
-	bne	.L1334
+	bne	.L1340
 	ldr	r2, [r4, #28]
 	mov	r1, r6
 	ldr	r3, [sp]
 	ubfx	r2, r2, #16, #5
-	ldr	r0, .L1367+4
+	ldr	r0, .L1373+4
 	ubfx	r3, r3, #22, #6
 	bl	printk
-	ldr	r0, .L1367+8
+	ldr	r0, .L1373+8
 	mov	r1, r4
 	movs	r2, #4
 	mov	r3, #512
 	bl	rknand_print_hex
-	b	.L1334
-.L1332:
+	b	.L1340
+.L1338:
 	ldr	r3, [r4]
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #4]
 	lsls	r0, r3, #18
-	bpl	.L1335
+	bpl	.L1341
 	ldr	r3, [sp, #4]
 	lsls	r1, r3, #14
-	bpl	.L1335
-.L1339:
+	bpl	.L1341
+.L1345:
 	ldr	r3, [r5, #2296]
-	ldr	r4, .L1367
+	ldr	r4, .L1373
 	cmp	r3, #0
-	beq	.L1340
+	beq	.L1346
 	ldr	r1, [sp]
 	movs	r2, #0
 	ldr	r0, [r4, #2288]
@@ -8734,45 +8777,45 @@ NandcXferComp:
 	ubfx	r1, r1, #22, #5
 	lsls	r1, r1, #7
 	bl	rknand_dma_unmap_single
-	b	.L1340
-.L1334:
+	b	.L1346
+.L1340:
 	movs	r0, #1
 	movs	r1, #5
 	bl	usleep_range
-	b	.L1331
-.L1343:
+	b	.L1337
+.L1349:
 	ldr	r3, [r4, #8]
 	adds	r6, r6, #1
 	str	r3, [sp]
 	bic	r3, r6, #-16777216
-	cbnz	r3, .L1342
+	cbnz	r3, .L1348
 	ldr	r2, [sp]
 	mov	r1, r6
 	ldr	r3, [r4, #28]
-	ldr	r0, .L1367+12
+	ldr	r0, .L1373+12
 	ubfx	r3, r3, #16, #5
 	bl	printk
-	ldr	r0, .L1367+8
+	ldr	r0, .L1373+8
 	mov	r1, r4
 	movs	r2, #4
 	mov	r3, #512
 	bl	rknand_print_hex
-.L1342:
+.L1348:
 	movs	r0, #1
 	movs	r1, #5
 	bl	usleep_range
-.L1341:
+.L1347:
 	ldr	r3, [sp]
 	lsls	r2, r3, #11
-	bpl	.L1343
+	bpl	.L1349
 	ldr	r3, [r5, #2304]
-	cbz	r3, .L1344
+	cbz	r3, .L1350
 	mov	r0, r4
 	bl	NandcSendDumpDataStart
-.L1344:
+.L1350:
 	ldr	r3, [r5, #2296]
-	ldr	r6, .L1367
-	cbz	r3, .L1345
+	ldr	r6, .L1373
+	cbz	r3, .L1351
 	ldr	r1, [sp]
 	movs	r2, #1
 	ldr	r0, [r6, #2288]
@@ -8785,28 +8828,28 @@ NandcXferComp:
 	ubfx	r1, r1, #22, #5
 	lsls	r1, r1, #7
 	bl	rknand_dma_unmap_single
-.L1345:
+.L1351:
 	ldr	r3, [r5, #2304]
-	cbz	r3, .L1340
+	cbz	r3, .L1346
 	mov	r0, r4
 	bl	NandcSendDumpDataDone
-.L1340:
+.L1346:
 	movs	r3, #0
 	str	r3, [r5, #2296]
-	b	.L1328
-.L1359:
+	b	.L1334
+.L1365:
 	ldr	r3, [r4, #8]
 	str	r3, [sp]
 	ldr	r3, [sp]
 	lsls	r3, r3, #11
-	bpl	.L1359
-.L1328:
+	bpl	.L1365
+.L1334:
 	add	sp, sp, #8
 	@ sp needed
 	pop	{r4, r5, r6, pc}
-.L1368:
+.L1374:
 	.align	2
-.L1367:
+.L1373:
 	.word	.LANCHOR0
 	.word	.LC87
 	.word	.LC88
@@ -8824,26 +8867,25 @@ NandcXferData:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
-	mov	r10, r3
-	ldr	r6, .L1413
-	tst	r10, #63
+	tst	r3, #63
+	ldr	r6, .L1419
 	.pad #92
 	sub	sp, sp, #92
 	mov	r9, r0
-	add	r3, r6, r0, lsl #3
 	mov	r5, r1
 	mov	r7, r2
-	ldr	r8, [r3, #12]
-	bne	.L1370
+	mov	r10, r3
+	ldr	r8, [r6, r0, lsl #3]
+	bne	.L1376
 	ldr	r3, [sp, #128]
-	cbnz	r3, .L1371
+	cbnz	r3, .L1377
 	add	r0, sp, #24
 	movs	r1, #255
 	movs	r2, #64
 	bl	ftl_memset
 	add	r3, sp, #24
 	str	r3, [sp, #128]
-.L1371:
+.L1377:
 	ldr	r3, [sp, #128]
 	mov	r0, r9
 	mov	r1, r5
@@ -8856,7 +8898,7 @@ NandcXferData:
 	mov	r1, r5
 	bl	NandcXferComp
 	cmp	r5, #0
-	bne	.L1397
+	bne	.L1403
 	ldr	r3, [r6, #2308]
 	lsrs	r4, r7, #1
 	mov	r2, r5
@@ -8866,11 +8908,11 @@ NandcXferData:
 	ite	cc
 	movcc	lr, #64
 	movcs	lr, #128
-.L1374:
+.L1380:
 	cmp	r1, r4
 	add	r3, r3, #4
 	add	ip, r2, lr
-	bcs	.L1411
+	bcs	.L1417
 	ldr	r0, [r6, #2276]
 	lsrs	r2, r2, #2
 	adds	r1, r1, #1
@@ -8883,30 +8925,30 @@ NandcXferData:
 	strb	r0, [r3, #-2]
 	strb	r2, [r3, #-1]
 	mov	r2, ip
-	b	.L1374
-.L1411:
+	b	.L1380
+.L1417:
 	movs	r2, #0
 	ldr	r0, [r6, #2308]
 	ldr	r1, [r6, #2260]
 	lsrs	r7, r7, #2
 	mov	fp, r2
-.L1376:
+.L1382:
 	cmp	r2, r7
-	bcs	.L1372
+	bcs	.L1378
 	cmp	r0, #0
-	beq	.L1372
+	beq	.L1378
 	add	r3, r2, #8
 	ldr	r3, [r8, r3, lsl #2]
 	str	r3, [sp, #20]
 	ldr	r3, [sp, #20]
 	lsls	r4, r3, #29
-	bmi	.L1400
+	bmi	.L1406
 	ldr	r4, [sp, #20]
 	ubfx	r4, r4, #15, #1
 	cmp	r4, #0
-	bne	.L1400
+	bne	.L1406
 	cmp	r1, #5
-	bls	.L1378
+	bls	.L1384
 	ldr	r4, [sp, #20]
 	ldr	r3, [sp, #20]
 	ubfx	r4, r4, #3, #5
@@ -8927,10 +8969,10 @@ NandcXferData:
 	ite	hi
 	ubfxhi	r4, r4, #27, #1
 	ubfxls	r4, r4, #29, #1
-	b	.L1410
-.L1378:
+	b	.L1416
+.L1384:
 	cmp	r1, #3
-	bls	.L1380
+	bls	.L1386
 	ldr	r4, [sp, #20]
 	ldr	r3, [sp, #20]
 	ubfx	r4, r4, #3, #5
@@ -8951,40 +8993,40 @@ NandcXferData:
 	ite	hi
 	ubfxhi	r4, r4, #28, #1
 	ubfxls	r4, r4, #30, #1
-.L1410:
+.L1416:
 	orr	r4, r3, r4, lsl #5
-.L1380:
+.L1386:
 	cmp	fp, r4
 	it	cc
 	movcc	fp, r4
-	b	.L1377
-.L1400:
+	b	.L1383
+.L1406:
 	mov	fp, #-1
-.L1377:
+.L1383:
 	adds	r2, r2, #1
-	b	.L1376
-.L1397:
+	b	.L1382
+.L1403:
 	mov	fp, #0
-.L1372:
+.L1378:
 	movs	r3, #0
 	str	r3, [r8, #16]
-	b	.L1383
-.L1370:
+	b	.L1389
+.L1376:
 	cmp	r1, #1
 	mov	r4, #0
-	bne	.L1409
+	bne	.L1415
 	mov	fp, r4
-.L1384:
+.L1390:
 	cmp	r4, r7
-	bcs	.L1412
+	bcs	.L1418
 	and	ip, r4, #3
 	cmp	r10, #0
-	beq	.L1403
+	beq	.L1409
 	add	r3, r10, r4, lsl #9
-	b	.L1386
-.L1403:
+	b	.L1392
+.L1409:
 	mov	r3, r10
-.L1386:
+.L1392:
 	ldr	r2, [sp, #128]
 	mov	r0, r8
 	ldr	r1, [sp, #128]
@@ -9010,11 +9052,11 @@ NandcXferData:
 	mov	r0, r9
 	movs	r1, #1
 	bl	NandcXferComp
-	b	.L1384
-.L1412:
+	b	.L1390
+.L1418:
 	mov	fp, #0
-	b	.L1383
-.L1409:
+	b	.L1389
+.L1415:
 	str	r4, [sp]
 	mov	r1, r4
 	str	r4, [sp, #4]
@@ -9023,9 +9065,9 @@ NandcXferData:
 	mov	fp, r4
 	bl	NandcXferStart
 	str	r10, [sp, #8]
-.L1389:
+.L1395:
 	cmp	r4, r7
-	bcs	.L1383
+	bcs	.L1389
 	mov	r0, r9
 	mov	r1, r5
 	bl	NandcXferComp
@@ -9033,7 +9075,7 @@ NandcXferData:
 	add	ip, r4, #2
 	cmp	ip, r7
 	str	r3, [sp, #20]
-	bcs	.L1390
+	bcs	.L1396
 	movs	r3, #0
 	mov	r0, r9
 	str	r3, [sp]
@@ -9044,10 +9086,10 @@ NandcXferData:
 	str	ip, [sp, #12]
 	bl	NandcXferStart
 	ldr	ip, [sp, #12]
-.L1390:
+.L1396:
 	ldr	r3, [sp, #20]
 	lsls	r3, r3, #29
-	bmi	.L1405
+	bmi	.L1411
 	ldr	r2, [sp, #20]
 	ldr	r3, [sp, #20]
 	ubfx	r2, r2, #3, #5
@@ -9056,10 +9098,10 @@ NandcXferData:
 	cmp	fp, r3
 	it	cc
 	movcc	fp, r3
-	b	.L1391
-.L1405:
+	b	.L1397
+.L1411:
 	mov	fp, #-1
-.L1391:
+.L1397:
 	ldr	r1, [sp, #128]
 	cmp	r10, #0
 	ldr	r3, [sp, #8]
@@ -9083,12 +9125,12 @@ NandcXferData:
 	mov	r4, ip
 	add	r3, r3, #1024
 	str	r3, [sp, #8]
-	b	.L1389
-.L1383:
+	b	.L1395
+.L1389:
 	ldr	r3, [r6, #2260]
 	cmp	r3, #5
-	bls	.L1395
-	cbnz	r5, .L1395
+	bls	.L1401
+	cbnz	r5, .L1401
 	ldr	r3, [r8]
 	and	r2, r3, #139264
 	cmp	r2, #139264
@@ -9096,14 +9138,14 @@ NandcXferData:
 	moveq	fp, #-1
 	orreq	r3, r3, #131072
 	streq	r3, [r8]
-.L1395:
+.L1401:
 	mov	r0, fp
 	add	sp, sp, #92
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1414:
+.L1420:
 	.align	2
-.L1413:
+.L1419:
 	.word	.LANCHOR0
 	.fnend
 	.size	NandcXferData, .-NandcXferData
@@ -9120,20 +9162,20 @@ FlashReadRawPage:
 	.save {r4, r5, r6, r7, r8, lr}
 	.pad #8
 	mov	r8, r3
-	ldr	r3, .L1417
+	ldr	r3, .L1423
 	mov	r6, r1
 	mov	r7, r2
 	mov	r4, r0
 	ldrb	r5, [r3, #481]	@ zero_extendqisi2
-	cbnz	r0, .L1416
-	ldr	r2, .L1417+4
-	ldrb	r3, [r2, #1]	@ zero_extendqisi2
-	ldr	r2, [r2, #4]
+	cbnz	r0, .L1422
+	ldr	r2, .L1423+4
+	ldrb	r3, [r2, #33]	@ zero_extendqisi2
+	ldr	r2, [r2, #36]
 	muls	r2, r3, r2
 	cmp	r1, r2
 	it	cc
 	movcc	r5, #4
-.L1416:
+.L1422:
 	mov	r0, r4
 	bl	NandcWaitFlashReady
 	mov	r0, r4
@@ -9156,9 +9198,9 @@ FlashReadRawPage:
 	add	sp, sp, #8
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, pc}
-.L1418:
+.L1424:
 	.align	2
-.L1417:
+.L1423:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.fnend
@@ -9175,13 +9217,13 @@ FlashDdrTunningRead:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r7, r3
-	ldr	r4, .L1445
+	ldr	r4, .L1451
 	.pad #20
 	sub	sp, sp, #20
 	mov	r10, r0
 	mov	fp, r2
 	str	r1, [sp]
-	ldr	r3, [r4, #80]
+	ldr	r3, [r4, #84]
 	ldr	r3, [r3, #304]
 	str	r3, [sp, #8]
 	ldr	r3, [r4, #2260]
@@ -9191,7 +9233,7 @@ FlashDdrTunningRead:
 	movcc	r9, #6
 	movcs	r9, #12
 	cmp	r3, #0
-	beq	.L1433
+	beq	.L1439
 	movs	r0, #1
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
@@ -9209,43 +9251,42 @@ FlashDdrTunningRead:
 	ldrb	r0, [r4, #2229]	@ zero_extendqisi2
 	bl	NandcSetMode
 	adds	r3, r6, #1
-	bne	.L1422
-.L1431:
+	bne	.L1428
+.L1437:
 	mov	r6, #-1
-	b	.L1423
-.L1422:
+	b	.L1429
+.L1428:
 	mov	r2, r6
-	ldr	r0, .L1445+4
+	ldr	r0, .L1451+4
 	ldr	r1, [sp]
 	bl	printk
 	cmp	r6, #9
-	itt	ls
-	addls	r4, r4, r10, lsl #3
-	ldrls	r3, [r4, #12]
-	ldr	r4, .L1445+8
+	it	ls
+	ldrls	r3, [r4, r10, lsl #3]
+	ldr	r4, .L1451+8
 	itttt	ls
 	ldrls	r2, [r3, #3840]
 	ldrls	r2, [r3]
 	orrls	r2, r2, #131072
 	strls	r2, [r3]
-	ldr	r3, [r4, #1188]
+	ldr	r3, [r4, #1196]
 	adds	r3, r3, #1
-	str	r3, [r4, #1188]
+	str	r3, [r4, #1196]
 	cmp	r3, #2048
-	bcc	.L1423
+	bcc	.L1429
 	movs	r7, #0
-	str	r7, [r4, #1188]
+	str	r7, [r4, #1196]
 	mov	fp, r7
-	b	.L1421
-.L1433:
+	b	.L1427
+.L1439:
 	mov	r6, #1024
-.L1421:
+.L1427:
 	movs	r4, #0
 	mov	r8, #-1
 	str	r4, [sp, #4]
 	mov	ip, r4
 	mov	r5, r4
-.L1429:
+.L1435:
 	uxtb	r0, r9
 	str	ip, [sp, #12]
 	bl	NandcSetDdrPara
@@ -9257,74 +9298,74 @@ FlashDdrTunningRead:
 	adds	r3, r6, #1
 	cmp	r0, r3
 	ldr	ip, [sp, #12]
-	bhi	.L1425
+	bhi	.L1431
 	cmp	r0, #2
-	bhi	.L1435
+	bhi	.L1441
 	adds	r5, r5, #1
 	cmp	r5, #9
-	bls	.L1435
+	bls	.L1441
 	rsb	r4, r5, r9
 	mov	r6, r0
 	mov	r8, #0
-	b	.L1427
-.L1425:
+	b	.L1433
+.L1431:
 	ldr	r3, [sp, #4]
 	cmp	r3, r5
-	bcs	.L1436
+	bcs	.L1442
 	cmp	r5, #7
 	rsb	ip, r5, r4
-	bhi	.L1437
+	bhi	.L1443
 	str	r5, [sp, #4]
-	b	.L1436
-.L1435:
+	b	.L1442
+.L1441:
 	mov	r8, #0
 	mov	r4, r9
 	mov	r6, r0
 	mov	r7, r8
 	mov	fp, r8
-	b	.L1426
-.L1436:
+	b	.L1432
+.L1442:
 	movs	r5, #0
-.L1426:
+.L1432:
 	add	r9, r9, #2
 	cmp	r9, #69
-	bls	.L1429
-.L1427:
+	bls	.L1435
+.L1433:
 	ldr	r3, [sp, #4]
 	cmp	r3, r5
 	it	cs
 	movcs	r4, ip
-	b	.L1428
-.L1437:
+	b	.L1434
+.L1443:
 	mov	r4, ip
-.L1428:
-	cbz	r4, .L1430
-	ldr	r0, .L1445+12
+.L1434:
+	cbz	r4, .L1436
+	ldr	r0, .L1451+12
 	mov	r1, r4
 	bl	printk
 	uxtb	r0, r4
 	bl	NandcSetDdrPara
-.L1430:
+.L1436:
 	cmp	r8, #0
-	beq	.L1423
-	ldr	r0, .L1445+16
+	beq	.L1429
+	ldr	r0, .L1451+16
 	mov	r1, r10
 	ldr	r2, [sp]
 	bl	printk
 	ldr	r3, [sp, #56]
 	cmp	r3, #0
-	beq	.L1431
+	beq	.L1437
 	ldr	r3, [sp, #8]
 	ubfx	r0, r3, #8, #8
 	bl	NandcSetDdrPara
-.L1423:
+.L1429:
 	mov	r0, r6
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1446:
+.L1452:
 	.align	2
-.L1445:
+.L1451:
 	.word	.LANCHOR0
 	.word	.LC90
 	.word	.LANCHOR4
@@ -9351,32 +9392,32 @@ FlashReadPage:
 	bl	FlashReadRawPage
 	adds	r2, r0, #1
 	mov	r4, r0
-	bne	.L1448
-	ldr	r9, .L1467+4
-	ldrb	fp, [r9, #8]	@ zero_extendqisi2
+	bne	.L1454
+	ldr	r9, .L1473+4
+	ldrb	fp, [r9, #40]	@ zero_extendqisi2
 	mov	r10, r9
 	cmp	fp, #0
-	bne	.L1449
-.L1451:
+	bne	.L1455
+.L1457:
 	ldrb	r3, [r10, #2252]	@ zero_extendqisi2
-	ldr	r9, .L1467+4
-	cbz	r3, .L1448
-	b	.L1466
-.L1449:
+	ldr	r9, .L1473+4
+	cbz	r3, .L1454
+	b	.L1472
+.L1455:
 	movs	r3, #0
 	mov	r0, r5
-	strb	r3, [r9, #8]
+	strb	r3, [r9, #40]
 	mov	r1, r6
 	mov	r3, r7
 	mov	r2, r8
 	bl	FlashReadRawPage
-	strb	fp, [r9, #8]
+	strb	fp, [r9, #40]
 	adds	r3, r0, #1
-	beq	.L1451
+	beq	.L1457
 	mov	r4, r0
-	b	.L1448
-.L1466:
-	ldr	r3, [r9, #80]
+	b	.L1454
+.L1472:
+	ldr	r3, [r9, #84]
 	mov	r1, r6
 	mov	r0, r5
 	mov	r2, r8
@@ -9387,20 +9428,20 @@ FlashReadPage:
 	bl	FlashDdrTunningRead
 	adds	r1, r0, #1
 	mov	r4, r0
-	beq	.L1452
+	beq	.L1458
 	ldrb	r3, [r9, #2312]	@ zero_extendqisi2
 	cmp	r0, r3, lsr #1
-	bls	.L1448
-.L1452:
+	bls	.L1454
+.L1458:
 	ubfx	r0, r10, #8, #8
 	bl	NandcSetDdrPara
-.L1448:
-	ldr	r9, .L1467+8
-	ldr	ip, [r9, #1192]
+.L1454:
+	ldr	r9, .L1473+8
+	ldr	ip, [r9, #1200]
 	cmp	ip, #0
-	beq	.L1453
+	beq	.L1459
 	adds	r2, r4, #1
-	bne	.L1453
+	bne	.L1459
 	mov	r1, r6
 	mov	r2, r8
 	mov	r3, r7
@@ -9409,17 +9450,17 @@ FlashReadPage:
 	mov	r3, r6
 	mov	r2, r5
 	mov	r4, r0
-	ldr	r0, .L1467
+	ldr	r0, .L1473
 	mov	r1, r4
 	bl	printk
 	adds	r3, r4, #1
-	bne	.L1453
-	ldr	r3, .L1467+4
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbz	r3, .L1453
+	bne	.L1459
+	ldr	r3, .L1473+4
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbz	r3, .L1459
 	mov	r0, r5
 	bl	flash_enter_slc_mode
-	ldr	r4, [r9, #1192]
+	ldr	r4, [r9, #1200]
 	mov	r0, r5
 	mov	r1, r6
 	mov	r2, r8
@@ -9428,14 +9469,14 @@ FlashReadPage:
 	mov	r4, r0
 	mov	r0, r5
 	bl	flash_exit_slc_mode
-.L1453:
+.L1459:
 	mov	r0, r4
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1468:
+.L1474:
 	.align	2
-.L1467:
+.L1473:
 	.word	.LC93
 	.word	.LANCHOR0
 	.word	.LANCHOR4
@@ -9454,7 +9495,7 @@ FlashDdrParaScan:
 	.save {r4, r5, r6, r7, r8, lr}
 	.pad #8
 	mov	r7, r0
-	ldr	r4, .L1479
+	ldr	r4, .L1485
 	mov	r6, r1
 	movs	r5, #0
 	ldrb	r0, [r4, #2229]	@ zero_extendqisi2
@@ -9474,32 +9515,32 @@ FlashDdrParaScan:
 	mov	r0, r7
 	bl	FlashReadRawPage
 	adds	r0, r0, #1
-	beq	.L1470
+	beq	.L1476
 	cmp	r8, #-1
-	bne	.L1471
-.L1470:
+	bne	.L1477
+.L1476:
 	ldrb	r3, [r4, #2229]	@ zero_extendqisi2
 	lsls	r3, r3, #31
-	bpl	.L1471
+	bpl	.L1477
 	movs	r0, #1
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
 	bl	NandcSetMode
-	ldr	r3, .L1479
+	ldr	r3, .L1485
 	movs	r2, #0
 	strb	r2, [r3, #2252]
-	b	.L1472
-.L1471:
+	b	.L1478
+.L1477:
 	movs	r3, #1
 	strb	r3, [r4, #2252]
-.L1472:
+.L1478:
 	movs	r0, #0
 	add	sp, sp, #8
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, pc}
-.L1480:
+.L1486:
 	.align	2
-.L1479:
+.L1485:
 	.word	.LANCHOR0
 	.fnend
 	.size	FlashDdrParaScan, .-FlashDdrParaScan
@@ -9516,126 +9557,126 @@ FlashLoadPhyInfo:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #20
 	sub	sp, sp, #20
-	ldr	r3, .L1496
+	ldr	r3, .L1502
 	movs	r4, #0
-	ldr	r7, .L1496+4
+	ldr	r7, .L1502+4
 	mov	r9, #4
-	ldr	r5, .L1496+8
+	ldr	r5, .L1502+8
 	mov	r8, #-1
 	ldr	r0, [r3]	@ unaligned
-	ldr	r3, [r7, #4]
-	str	r4, [r5, #1200]
+	ldr	r3, [r7, #36]
+	str	r4, [r5, #1208]
 	mov	r6, r5
 	str	r0, [sp, #12]	@ unaligned
 	mov	r0, r4
 	str	r3, [sp, #4]
-	ldr	r3, [r5, #1184]
-	str	r3, [r5, #1196]
+	ldr	r3, [r5, #1192]
+	str	r3, [r5, #1204]
 	bl	flash_enter_slc_mode
-.L1482:
+.L1488:
 	add	fp, r4, #1
 	mov	r10, #0
-.L1484:
+.L1490:
 	add	r3, sp, #12
 	ldrb	r0, [r3, r10]	@ zero_extendqisi2
 	bl	FlashBchSel
 	movs	r0, #0
 	mov	r1, r4
-	ldr	r2, [r5, #1184]
+	ldr	r2, [r5, #1192]
 	mov	r3, r0
 	bl	FlashReadRawPage
 	adds	r0, r0, #1
-	bne	.L1483
+	bne	.L1489
 	movs	r0, #0
 	mov	r1, fp
-	ldr	r2, [r6, #1184]
+	ldr	r2, [r6, #1192]
 	mov	r3, r0
 	bl	FlashReadRawPage
 	adds	r0, r0, #1
-	bne	.L1483
+	bne	.L1489
 	add	r10, r10, #1
 	cmp	r10, #4
-	beq	.L1485
-	b	.L1484
-.L1486:
+	beq	.L1491
+	b	.L1490
+.L1492:
 	add	r0, fp, #12
 	movw	r1, #2036
 	bl	js_hash
 	ldr	r3, [fp, #8]
 	cmp	r3, r0
-	bne	.L1492
-	ldr	r8, .L1496+24
+	bne	.L1498
+	ldr	r8, .L1502+24
 	add	r1, fp, #160
 	movs	r2, #32
 	add	r0, r8, #472
 	bl	ftl_memcpy
-	ldr	r1, [r6, #1196]
+	ldr	r1, [r6, #1204]
 	movs	r2, #32
-	ldr	r0, .L1496+12
+	ldr	r0, .L1502+12
 	adds	r1, r1, #192
 	bl	ftl_memcpy
-	ldr	r1, [r6, #1196]
+	ldr	r1, [r6, #1204]
 	mov	r2, #852
-	ldr	r0, .L1496+16
+	ldr	r0, .L1502+16
 	adds	r1, r1, #224
 	bl	ftl_memcpy
 	ldrh	r0, [r8, #482]
 	bl	FlashBlockAlignInit
-	ldr	r8, [r6, #1196]
-	str	r4, [r6, #1200]
+	ldr	r8, [r6, #1204]
+	str	r4, [r6, #1208]
 	mov	r0, r4
-	ldr	r1, [r7, #4]
+	ldr	r1, [r7, #36]
 	ldr	r3, [r8, #1076]
 	strb	r3, [r7, #2252]
 	bl	__aeabi_uidiv
 	adds	r0, r0, #1
 	cmp	r0, #1
 	itee	hi
-	strhi	r0, [r6, #1204]
+	strhi	r0, [r6, #1212]
 	movls	r3, #2
-	strls	r3, [r6, #1204]
+	strls	r3, [r6, #1212]
 	ldrh	r3, [r8, #14]
 	mov	r8, #0
-	strb	r3, [r5, #1208]
-.L1485:
+	strb	r3, [r5, #1216]
+.L1491:
 	ldr	r3, [sp, #4]
 	subs	r9, r9, #1
 	add	r4, r4, r3
-	bne	.L1482
+	bne	.L1488
 	mov	r0, r9
-.L1495:
+.L1501:
 	bl	flash_exit_slc_mode
 	mov	r0, r8
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1483:
-	ldr	fp, [r5, #1196]
-	ldr	r2, .L1496+20
+.L1489:
+	ldr	fp, [r5, #1204]
+	ldr	r2, .L1502+20
 	ldr	r3, [fp]
 	cmp	r3, r2
-	bne	.L1485
+	bne	.L1491
 	cmp	r8, #0
-	bne	.L1486
+	bne	.L1492
 	mov	r0, r4
-	ldr	r1, [r7, #4]
+	ldr	r1, [r7, #36]
 	bl	__aeabi_uidiv
-	ldr	r3, .L1496+8
+	ldr	r3, .L1502+8
 	adds	r0, r0, #1
-	str	r0, [r3, #1204]
+	str	r0, [r3, #1212]
 	mov	r0, r8
-	b	.L1495
-.L1492:
+	b	.L1501
+.L1498:
 	mov	r8, #-1
-	b	.L1485
-.L1497:
+	b	.L1491
+.L1503:
 	.align	2
-.L1496:
+.L1502:
 	.word	.LANCHOR3+11
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LANCHOR0+48
-	.word	.LANCHOR0+1210
+	.word	.LANCHOR0+1212
 	.word	1312902724
 	.word	.LANCHOR1
 	.fnend
@@ -9653,91 +9694,91 @@ ToshibaReadRetrial:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #28
 	sub	sp, sp, #28
-	mov	r9, r0
+	mov	r7, r0
 	mov	fp, r3
 	str	r2, [sp, #8]
 	str	r1, [sp, #16]
 	bl	NandcWaitFlashReady
-	ldr	r4, .L1526
-	add	r3, r4, r9, lsl #3
-	ldrb	r2, [r3, #16]	@ zero_extendqisi2
-	ldr	r7, [r3, #12]
-	ldrb	r3, [r4, #1208]	@ zero_extendqisi2
+	ldr	r4, .L1532
+	add	r3, r4, r7, lsl #3
+	ldr	r8, [r4, r7, lsl #3]
+	ldrb	r2, [r3, #4]	@ zero_extendqisi2
+	ldrb	r3, [r4, #80]	@ zero_extendqisi2
 	add	r6, r2, #8
 	subs	r3, r3, #67
-	add	r6, r7, r6, lsl #8
 	cmp	r3, #1
+	add	r6, r8, r6, lsl #8
 	lsl	r3, r2, #8
 	str	r3, [sp, #12]
-	bls	.L1515
+	bls	.L1521
 	ldrb	r5, [r4, #2252]	@ zero_extendqisi2
-	cbz	r5, .L1516
+	cbz	r5, .L1522
 	movs	r0, #0
 	str	r2, [sp, #20]
 	bl	NandcSetDdrMode
 	movs	r3, #1
 	ldr	r2, [sp, #20]
 	str	r3, [sp, #4]
-	b	.L1500
-.L1516:
+	b	.L1506
+.L1522:
 	str	r5, [sp, #4]
-.L1500:
+.L1506:
 	ldr	r3, [sp, #12]
 	movs	r1, #92
-	adds	r3, r7, r3
+	add	r3, r8, r3
 	str	r1, [r3, #2056]
 	movs	r1, #197
 	str	r1, [r3, #2056]
-	b	.L1499
-.L1515:
+	b	.L1505
+.L1521:
 	movs	r3, #0
 	str	r3, [sp, #4]
-.L1499:
-	mov	r8, #1
+.L1505:
+	mov	r9, #1
 	mov	r10, #-1
 	lsls	r3, r2, #8
 	str	r3, [sp, #20]
-.L1501:
-	ldr	r3, .L1526+4
-	ldrb	r3, [r3, #1209]	@ zero_extendqisi2
+.L1507:
+	ldr	r3, .L1532+4
+	ldrb	r3, [r3, #1217]	@ zero_extendqisi2
 	adds	r3, r3, #1
-	cmp	r8, r3
-	bcs	.L1525
-	ldrb	r3, [r4, #1208]	@ zero_extendqisi2
+	cmp	r9, r3
+	bcs	.L1531
+	ldrb	r3, [r4, #80]	@ zero_extendqisi2
 	mov	r0, r6
-	uxtb	r1, r8
+	uxtb	r1, r9
 	subs	r3, r3, #67
 	cmp	r3, #1
-	bhi	.L1502
+	bhi	.L1508
 	bl	SandiskSetRRPara
-	b	.L1503
-.L1502:
+	b	.L1509
+.L1508:
 	bl	ToshibaSetRRPara
-.L1503:
-	ldrb	r3, [r4, #1208]	@ zero_extendqisi2
+.L1509:
+	ldrb	r3, [r4, #80]	@ zero_extendqisi2
 	cmp	r3, #34
-	bne	.L1504
-	ldr	r3, .L1526+4
-	ldrb	r3, [r3, #1209]	@ zero_extendqisi2
+	bne	.L1510
+	ldr	r3, .L1532+4
+	ldrb	r3, [r3, #1217]	@ zero_extendqisi2
 	subs	r3, r3, #3
-	cmp	r8, r3
+	cmp	r9, r3
 	itttt	eq
 	moveq	r2, #179
 	ldreq	r3, [sp, #20]
-	addeq	r3, r7, r3
+	addeq	r3, r8, r3
 	streq	r2, [r3, #2056]
-.L1504:
+.L1510:
 	ldr	r3, [sp, #12]
 	movs	r2, #38
-	adds	r3, r7, r3
+	add	r3, r8, r3
 	str	r2, [r3, #2056]
 	movs	r2, #93
 	str	r2, [r3, #2056]
 	ldr	r3, [sp, #4]
-	cbz	r3, .L1505
+	cbz	r3, .L1511
 	movs	r0, #4
 	bl	NandcSetDdrMode
-	mov	r0, r9
+	mov	r0, r7
 	mov	r3, fp
 	ldr	r1, [sp, #16]
 	ldr	r2, [sp, #8]
@@ -9745,69 +9786,69 @@ ToshibaReadRetrial:
 	mov	r5, r0
 	movs	r0, #0
 	bl	NandcSetDdrMode
-	b	.L1506
-.L1505:
-	mov	r0, r9
+	b	.L1512
+.L1511:
+	mov	r0, r7
 	ldr	r1, [sp, #16]
 	ldr	r2, [sp, #8]
 	mov	r3, fp
 	bl	FlashReadRawPage
 	mov	r5, r0
-.L1506:
+.L1512:
 	adds	r2, r5, #1
-	beq	.L1507
+	beq	.L1513
 	ldrb	r2, [r4, #2312]	@ zero_extendqisi2
 	cmp	r10, #-1
 	it	eq
 	moveq	r10, r5
 	add	r2, r2, r2, lsl #1
 	cmp	r5, r2, asr #2
-	bcc	.L1509
+	bcc	.L1515
 	mov	fp, #0
 	str	fp, [sp, #8]
-.L1507:
-	add	r8, r8, #1
-	b	.L1501
-.L1525:
+.L1513:
+	add	r9, r9, #1
+	b	.L1507
+.L1531:
 	mov	r5, r10
-.L1509:
-	ldrb	r2, [r4, #1208]	@ zero_extendqisi2
+.L1515:
+	ldrb	r2, [r4, #80]	@ zero_extendqisi2
 	mov	r0, r6
 	movs	r1, #0
 	subs	r2, r2, #67
 	cmp	r2, #1
-	bhi	.L1511
+	bhi	.L1517
 	bl	SandiskSetRRPara
-	b	.L1512
-.L1511:
+	b	.L1518
+.L1517:
 	bl	ToshibaSetRRPara
-.L1512:
+.L1518:
 	ldr	r3, [sp, #12]
 	movs	r2, #255
-	add	r7, r7, r3
-	str	r2, [r7, #2056]
+	add	r8, r8, r3
+	str	r2, [r8, #2056]
 	ldrb	r2, [r4, #2312]	@ zero_extendqisi2
 	add	r2, r2, r2, lsl #1
 	cmp	r5, r2, asr #2
-	bcc	.L1513
+	bcc	.L1519
 	adds	r3, r5, #1
 	it	ne
 	movne	r5, #256
-.L1513:
-	mov	r0, r9
+.L1519:
+	mov	r0, r7
 	bl	NandcWaitFlashReady
 	ldr	r3, [sp, #4]
-	cbz	r3, .L1514
+	cbz	r3, .L1520
 	movs	r0, #4
 	bl	NandcSetDdrMode
-.L1514:
+.L1520:
 	mov	r0, r5
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1527:
+.L1533:
 	.align	2
-.L1526:
+.L1532:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.fnend
@@ -9823,66 +9864,66 @@ SamsungReadRetrial:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
-	mov	r8, r0
-	ldr	r5, .L1541
-	mov	r9, r2
-	mov	r7, r3
+	mov	r7, r0
+	ldr	r5, .L1547
+	mov	r8, r3
 	mov	fp, r1
+	mov	r9, r2
 	bl	NandcWaitFlashReady
-	add	r2, r5, r8, lsl #3
+	add	r3, r5, r7, lsl #3
+	ldr	r6, [r5, r7, lsl #3]
 	mov	r10, #1
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
 	mov	r4, #-1
-	ldrb	r3, [r2, #16]	@ zero_extendqisi2
-	ldr	r6, [r2, #12]
 	adds	r3, r3, #8
 	add	r6, r6, r3, lsl #8
-.L1529:
-	ldr	r3, .L1541+4
-	ldrb	r3, [r3, #1209]	@ zero_extendqisi2
+.L1535:
+	ldr	r3, .L1547+4
+	ldrb	r3, [r3, #1217]	@ zero_extendqisi2
 	adds	r3, r3, #1
 	cmp	r10, r3
-	bcs	.L1532
+	bcs	.L1538
 	mov	r0, r6
 	uxtb	r1, r10
 	bl	SamsungSetRRPara
 	mov	r2, r9
-	mov	r0, r8
+	mov	r0, r7
 	mov	r1, fp
-	mov	r3, r7
+	mov	r3, r8
 	bl	FlashReadRawPage
 	adds	r2, r0, #1
-	beq	.L1530
+	beq	.L1536
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	cmp	r4, #-1
 	it	eq
 	moveq	r4, r0
 	add	r3, r3, r3, lsl #1
 	cmp	r0, r3, asr #2
-	bcc	.L1535
-	movs	r7, #0
-	mov	r9, r7
-.L1530:
+	bcc	.L1541
+	mov	r8, #0
+	mov	r9, r8
+.L1536:
 	add	r10, r10, #1
-	b	.L1529
-.L1535:
+	b	.L1535
+.L1541:
 	mov	r4, r0
-.L1532:
+.L1538:
 	mov	r0, r6
 	movs	r1, #0
 	bl	SamsungSetRRPara
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	r4, r3, asr #2
-	bcc	.L1534
+	bcc	.L1540
 	adds	r3, r4, #1
 	it	ne
 	movne	r4, #256
-.L1534:
+.L1540:
 	mov	r0, r4
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1542:
+.L1548:
 	.align	2
-.L1541:
+.L1547:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.fnend
@@ -9894,150 +9935,150 @@ SamsungReadRetrial:
 	.type	MicronReadRetrial, %function
 MicronReadRetrial:
 	.fnstart
-	@ args = 0, pretend = 0, frame = 24
+	@ args = 0, pretend = 0, frame = 32
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r8, r3
-	ldr	r3, .L1567
-	.pad #36
-	sub	sp, sp, #36
+	ldr	r3, .L1573
+	.pad #44
+	sub	sp, sp, #44
 	mov	r6, r0
-	mov	fp, r2
-	str	r1, [sp, #20]
+	mov	r10, r2
+	str	r1, [sp, #28]
 	ldrb	r5, [r3, #2312]	@ zero_extendqisi2
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbnz	r3, .L1544
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbnz	r3, .L1550
 	add	r5, r5, r5, lsl #1
 	ubfx	r5, r5, #2, #8
-	b	.L1545
-.L1544:
-	ldr	r2, .L1567+4
+	b	.L1551
+.L1550:
+	ldr	r2, .L1573+4
 	smull	r2, r3, r5, r2
 	uxtb	r5, r3
-.L1545:
-	ldr	r3, .L1567
-	mov	r10, #0
-	add	r3, r3, r6, lsl #3
-	str	r3, [sp, #24]
-.L1555:
+.L1551:
+	ldr	fp, .L1573
+	movs	r3, #0
+	str	r3, [sp, #12]
+	add	r3, fp, r6, lsl #3
+	str	r3, [sp, #32]
+.L1561:
 	mov	r0, r6
 	mov	r9, #0
 	bl	NandcWaitFlashReady
+	ldr	r3, [fp, r6, lsl #3]
 	mov	r4, #-1
-	ldr	r3, [sp, #24]
-	ldr	r3, [r3, #12]
-	str	r3, [sp, #12]
-	ldr	r3, [sp, #24]
-	ldrb	r3, [r3, #16]	@ zero_extendqisi2
-	str	r3, [sp, #16]
-	ldr	r2, [sp, #16]
-	ldr	r3, [sp, #12]
+	str	r3, [sp, #20]
+	ldr	r3, [sp, #32]
+	ldrb	r3, [r3, #4]	@ zero_extendqisi2
+	str	r3, [sp, #24]
+	ldr	r2, [sp, #24]
+	ldr	r3, [sp, #20]
 	add	r7, r3, r2, lsl #8
-.L1546:
-	ldr	r3, .L1567+8
-	ldrb	r3, [r3, #1209]	@ zero_extendqisi2
+.L1552:
+	ldr	r3, .L1573+8
+	ldrb	r3, [r3, #1217]	@ zero_extendqisi2
 	cmp	r9, r3
-	bcs	.L1549
+	bcs	.L1555
 	movs	r3, #239
 	movs	r0, #200
 	str	r3, [r7, #2056]
 	movs	r3, #137
 	str	r3, [r7, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	mov	ip, #0
 	add	r3, r9, #1
 	mov	r0, r6
 	str	r3, [r7, #2048]
-	mov	r2, fp
+	mov	r2, r10
 	str	ip, [r7, #2048]
 	str	ip, [r7, #2048]
 	str	ip, [r7, #2048]
-	str	r3, [sp, #8]
+	str	r3, [sp, #16]
 	mov	r3, r8
-	ldr	r1, [sp, #20]
-	str	ip, [sp, #28]
+	ldr	r1, [sp, #28]
+	str	ip, [sp, #36]
 	bl	FlashReadRawPage
 	adds	r3, r0, #1
-	beq	.L1547
+	beq	.L1553
 	cmp	r4, #-1
 	it	eq
 	moveq	r4, r0
 	cmp	r0, r5
-	ldr	ip, [sp, #28]
-	bcc	.L1557
+	ldr	ip, [sp, #36]
+	bcc	.L1563
 	mov	r8, ip
-	mov	fp, ip
-.L1547:
-	ldr	r9, [sp, #8]
-	b	.L1546
-.L1557:
+	mov	r10, ip
+.L1553:
+	ldr	r9, [sp, #16]
+	b	.L1552
+.L1563:
 	mov	r4, r0
 	mov	r8, ip
-	mov	fp, ip
-.L1549:
-	ldr	r2, [sp, #16]
+	mov	r10, ip
+.L1555:
+	ldr	r2, [sp, #24]
 	movs	r0, #200
-	ldr	r3, [sp, #12]
+	ldr	r3, [sp, #20]
 	movs	r7, #0
 	add	r3, r3, r2, lsl #8
 	movs	r2, #239
-	str	r3, [sp, #8]
+	str	r3, [sp, #16]
 	str	r2, [r3, #2056]
 	movs	r2, #137
 	str	r2, [r3, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	cmp	r4, r5
-	ldr	r3, [sp, #8]
+	ldr	r3, [sp, #16]
 	str	r7, [r3, #2048]
 	str	r7, [r3, #2048]
 	str	r7, [r3, #2048]
 	str	r7, [r3, #2048]
-	bcc	.L1551
+	bcc	.L1557
 	adds	r1, r4, #1
-	ldr	r0, .L1567+12
+	mov	r3, r9
 	it	ne
 	movne	r4, #256
-	mov	r1, r9
+	ldr	r0, .L1573+12
 	str	r4, [sp]
-	mov	r3, r9
-	ldr	r2, [sp, #20]
+	mov	r1, r9
+	ldr	r2, [sp, #28]
 	bl	printk
-	cmp	r10, #0
-	bne	.L1553
-	ldr	r3, .L1567
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbz	r3, .L1562
+	ldr	r3, [sp, #12]
+	cbnz	r3, .L1559
+	ldrb	r3, [fp, #148]	@ zero_extendqisi2
+	cbz	r3, .L1568
 	adds	r2, r4, #1
-	bne	.L1562
+	bne	.L1568
 	mov	r0, r6
 	movs	r1, #3
 	bl	micron_auto_read_calibration_config
-	mov	r10, #1
-	b	.L1555
-.L1553:
+	movs	r3, #1
+	str	r3, [sp, #12]
+	b	.L1561
+.L1559:
 	mov	r0, r6
 	mov	r1, r7
 	bl	micron_auto_read_calibration_config
 	adds	r3, r4, #1
 	it	ne
 	movne	r4, #256
-	b	.L1562
-.L1551:
-	cmp	r10, #0
-	beq	.L1562
+	b	.L1568
+.L1557:
+	ldr	r3, [sp, #12]
+	cbz	r3, .L1568
 	mov	r0, r6
 	mov	r1, r7
 	bl	micron_auto_read_calibration_config
 	mov	r4, #256
-.L1562:
+.L1568:
 	mov	r0, r4
-	add	sp, sp, #36
+	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1568:
+.L1574:
 	.align	2
-.L1567:
+.L1573:
 	.word	.LANCHOR0
 	.word	1431655766
 	.word	.LANCHOR4
@@ -10057,30 +10098,30 @@ HynixReadRetrial:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
 	mov	r8, r3
-	ldr	r5, .L1586
+	ldr	r5, .L1592
 	mov	r10, r2
 	mov	r7, r0
 	mov	fp, r1
 	adds	r2, r5, r0
 	mov	r6, #-1
 	ldr	r3, [r5, #44]
-	ldrb	r4, [r2, #1222]	@ zero_extendqisi2
-	ldrb	r9, [r5, #1212]	@ zero_extendqisi2
+	ldrb	r4, [r2, #1224]	@ zero_extendqisi2
+	ldrb	r9, [r5, #1214]	@ zero_extendqisi2
 	ldrb	r3, [r3, #19]	@ zero_extendqisi2
 	subs	r3, r3, #7
 	cmp	r3, #1
 	it	ls
-	ldrbls	r4, [r2, #1230]	@ zero_extendqisi2
+	ldrbls	r4, [r2, #1232]	@ zero_extendqisi2
 	bl	NandcWaitFlashReady
 	mov	ip, #0
-.L1571:
+.L1577:
 	cmp	ip, r9
-	bcs	.L1575
+	bcs	.L1581
 	adds	r4, r4, #1
 	mov	r0, r7
-	ldrb	r1, [r5, #1211]	@ zero_extendqisi2
+	ldrb	r1, [r5, #1213]	@ zero_extendqisi2
 	uxtb	r4, r4
-	ldr	r2, .L1586+4
+	ldr	r2, .L1592+4
 	cmp	r4, r9
 	it	cs
 	movcs	r4, #0
@@ -10094,22 +10135,22 @@ HynixReadRetrial:
 	bl	FlashReadRawPage
 	adds	r2, r0, #1
 	ldr	ip, [sp, #4]
-	beq	.L1573
+	beq	.L1579
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	cmp	r6, #-1
 	it	eq
 	moveq	r6, r0
 	add	r3, r3, r3, lsl #1
 	cmp	r0, r3, asr #2
-	bcc	.L1580
+	bcc	.L1586
 	mov	r8, #0
 	mov	r10, r8
-.L1573:
+.L1579:
 	add	ip, ip, #1
-	b	.L1571
-.L1580:
+	b	.L1577
+.L1586:
 	mov	r6, r0
-.L1575:
+.L1581:
 	ldr	r3, [r5, #44]
 	add	r7, r7, r5
 	ldrb	r3, [r3, #19]	@ zero_extendqisi2
@@ -10117,24 +10158,24 @@ HynixReadRetrial:
 	cmp	r3, #1
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	ite	ls
-	strbls	r4, [r7, #1230]
-	strbhi	r4, [r7, #1222]
+	strbls	r4, [r7, #1232]
+	strbhi	r4, [r7, #1224]
 	add	r3, r3, r3, lsl #1
 	cmp	r6, r3, asr #2
-	bcc	.L1579
+	bcc	.L1585
 	adds	r3, r6, #1
 	it	ne
 	movne	r6, #256
-.L1579:
+.L1585:
 	mov	r0, r6
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1587:
+.L1593:
 	.align	2
-.L1586:
+.L1592:
 	.word	.LANCHOR0
-	.word	.LANCHOR0+1214
+	.word	.LANCHOR0+1216
 	.fnend
 	.size	HynixReadRetrial, .-HynixReadRetrial
 	.align	1
@@ -10154,15 +10195,15 @@ samsung_read_retrial:
 	mov	r7, r3
 	str	r1, [sp, #16]
 	bl	NandcWaitFlashReady
-	ldr	r3, .L1614
+	ldr	r3, .L1620
 	add	r2, r3, r9, lsl #3
-	ldr	r4, [r2, #12]
-	ldrb	r2, [r2, #16]	@ zero_extendqisi2
+	ldr	r4, [r3, r9, lsl #3]
+	ldrb	r2, [r2, #4]	@ zero_extendqisi2
 	str	r2, [sp, #12]
 	ldrb	r2, [r3, #2228]	@ zero_extendqisi2
 	str	r3, [sp, #20]
 	cmp	r2, #0
-	bne	.L1589
+	bne	.L1595
 	ldr	r3, [sp, #12]
 	mov	r5, #-1
 	movs	r6, #1
@@ -10170,7 +10211,7 @@ samsung_read_retrial:
 	add	r8, r4, fp
 	addw	r3, r8, #2056
 	str	r3, [sp, #24]
-.L1593:
+.L1599:
 	ldr	r3, [sp, #24]
 	mov	ip, #0
 	ldr	r1, [sp, #16]
@@ -10182,7 +10223,7 @@ samsung_read_retrial:
 	movs	r3, #141
 	str	r3, [r8, #2052]
 	mov	r2, r10
-	ldr	r3, .L1614+4
+	ldr	r3, .L1620+4
 	ldrsb	r3, [r6, r3]
 	str	r3, [r8, #2048]
 	mov	r3, r7
@@ -10191,7 +10232,7 @@ samsung_read_retrial:
 	str	ip, [r8, #2048]
 	bl	FlashReadRawPage
 	adds	r1, r0, #1
-	beq	.L1590
+	beq	.L1596
 	ldr	r3, [sp, #20]
 	cmp	r5, #-1
 	it	eq
@@ -10199,35 +10240,35 @@ samsung_read_retrial:
 	ldrb	r3, [r3, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	r0, r3, asr #2
-	bcc	.L1601
+	bcc	.L1607
 	ldr	ip, [sp, #28]
 	mov	r7, ip
 	mov	r10, ip
-.L1590:
+.L1596:
 	adds	r6, r6, #1
 	cmp	r6, #26
-	bne	.L1593
-	b	.L1592
-.L1601:
+	bne	.L1599
+	b	.L1598
+.L1607:
 	mov	r5, r0
-.L1592:
+.L1598:
 	add	fp, fp, r4
 	movs	r3, #239
 	str	r3, [fp, #2056]
 	ldr	r3, [sp, #12]
 	add	r4, r4, r3, lsl #8
 	movs	r3, #141
-	b	.L1613
-.L1589:
+	b	.L1619
+.L1595:
 	ldr	r3, [sp, #12]
 	mov	r5, #-1
-	ldr	r8, .L1614+12
+	ldr	r8, .L1620+12
 	movs	r6, #1
 	lsl	ip, r3, #8
 	add	fp, r4, ip
 	addw	r3, fp, #2056
 	str	r3, [sp, #24]
-.L1598:
+.L1604:
 	ldr	r3, [sp, #24]
 	mov	r0, r9
 	ldr	r1, [sp, #16]
@@ -10250,7 +10291,7 @@ samsung_read_retrial:
 	bl	FlashReadRawPage
 	adds	r2, r0, #1
 	ldr	ip, [sp, #28]
-	beq	.L1595
+	beq	.L1601
 	ldr	r3, [sp, #20]
 	cmp	r5, #-1
 	it	eq
@@ -10258,25 +10299,25 @@ samsung_read_retrial:
 	ldrb	r3, [r3, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	r0, r3, asr #2
-	bcc	.L1602
+	bcc	.L1608
 	movs	r7, #0
 	mov	r10, r7
-.L1595:
+.L1601:
 	adds	r6, r6, #1
 	add	r8, r8, #4
 	cmp	r6, #26
-	bne	.L1598
-	b	.L1597
-.L1602:
+	bne	.L1604
+	b	.L1603
+.L1608:
 	mov	r5, r0
-.L1597:
+.L1603:
 	add	ip, ip, r4
 	movs	r3, #239
 	str	r3, [ip, #2056]
 	ldr	r3, [sp, #12]
 	add	r4, r4, r3, lsl #8
 	movs	r3, #137
-.L1613:
+.L1619:
 	str	r3, [r4, #2052]
 	movs	r3, #0
 	str	r3, [r4, #2048]
@@ -10287,9 +10328,9 @@ samsung_read_retrial:
 	ldrb	r3, [r3, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	r5, r3, asr #2
-	bcc	.L1599
+	bcc	.L1605
 	adds	r3, r5, #1
-	ldr	r0, .L1614+8
+	ldr	r0, .L1620+8
 	it	ne
 	movne	r5, #256
 	mov	r1, r6
@@ -10297,16 +10338,16 @@ samsung_read_retrial:
 	mov	r3, r6
 	ldr	r2, [sp, #16]
 	bl	printk
-.L1599:
+.L1605:
 	mov	r0, r9
 	bl	NandcWaitFlashReady
 	mov	r0, r5
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1615:
+.L1621:
 	.align	2
-.L1614:
+.L1620:
 	.word	.LANCHOR0
 	.word	.LANCHOR3+16
 	.word	.LC95
@@ -10326,23 +10367,23 @@ FlashProgPage:
 	.save {r4, r5, r6, r7, r8, lr}
 	.pad #8
 	mov	r8, r3
-	ldr	r3, .L1619
+	ldr	r3, .L1625
 	mov	r5, r1
 	mov	r7, r2
 	mov	r4, r0
 	ldrb	r6, [r3, #481]	@ zero_extendqisi2
-	cbnz	r0, .L1617
-	ldr	r2, .L1619+4
-	ldrb	r3, [r2, #1]	@ zero_extendqisi2
-	ldr	r1, [r2, #4]
+	cbnz	r0, .L1623
+	ldr	r2, .L1625+4
+	ldrb	r3, [r2, #33]	@ zero_extendqisi2
+	ldr	r1, [r2, #36]
 	muls	r1, r3, r1
 	cmp	r5, r1
-	bcs	.L1617
-	ldrb	r3, [r2]	@ zero_extendqisi2
+	bcs	.L1623
+	ldrb	r3, [r2, #32]	@ zero_extendqisi2
 	cmp	r3, #0
 	it	ne
 	movne	r6, #4
-.L1617:
+.L1623:
 	mov	r0, r4
 	bl	NandcWaitFlashReady
 	mov	r0, r4
@@ -10371,9 +10412,9 @@ FlashProgPage:
 	add	sp, sp, #8
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, pc}
-.L1620:
+.L1626:
 	.align	2
-.L1619:
+.L1625:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.fnend
@@ -10390,119 +10431,119 @@ FlashSavePhyInfo:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r4, .L1634
-	ldr	r5, .L1634+4
-	ldr	r8, .L1634+12
-	ldr	r3, [r4, #1184]
+	ldr	r4, .L1640
+	ldr	r5, .L1640+4
+	ldr	r8, .L1640+12
+	ldr	r3, [r4, #1192]
 	mov	fp, r4
-	ldrb	r0, [r4, #1210]	@ zero_extendqisi2
+	ldrb	r0, [r4, #1218]	@ zero_extendqisi2
 	mov	r10, r5
-	str	r3, [r4, #1196]
+	str	r3, [r4, #1204]
 	bl	FlashBchSel
 	movs	r1, #0
 	mov	r2, #2048
-	ldr	r0, [r4, #1184]
+	ldr	r0, [r4, #1192]
 	bl	ftl_memset
-	ldr	r3, [r4, #1196]
+	ldr	r3, [r4, #1204]
 	addw	r1, r5, #2068
 	movs	r2, #32
 	str	r8, [r3]
-	ldr	r0, [r4, #1196]
+	ldr	r0, [r4, #1204]
 	ldrb	r3, [r5, #2230]	@ zero_extendqisi2
 	adds	r0, r0, #16
 	strh	r3, [r0, #-4]	@ movhi
-	ldrb	r3, [r5, #1]	@ zero_extendqisi2
+	ldrb	r3, [r5, #33]	@ zero_extendqisi2
 	strh	r3, [r0, #-2]	@ movhi
 	ldrb	r3, [r5, #2252]	@ zero_extendqisi2
 	str	r3, [r0, #1060]
 	bl	ftl_memcpy
-	ldr	r0, [r4, #1196]
+	ldr	r0, [r4, #1204]
 	addw	r1, r5, #2232
 	movs	r2, #8
 	adds	r0, r0, #80
 	bl	ftl_memcpy
-	ldr	r0, [r4, #1196]
-	addw	r1, r5, #1172
+	ldr	r0, [r4, #1204]
+	add	r1, r5, #1176
 	movs	r2, #32
 	adds	r0, r0, #96
 	bl	ftl_memcpy
-	ldr	r0, [r4, #1196]
-	ldr	r1, .L1634+8
+	ldr	r0, [r4, #1204]
+	ldr	r1, .L1640+8
 	movs	r2, #32
 	adds	r0, r0, #160
 	bl	ftl_memcpy
-	ldr	r0, [r4, #1196]
+	ldr	r0, [r4, #1204]
 	add	r1, r5, #48
 	movs	r2, #32
 	adds	r0, r0, #192
 	bl	ftl_memcpy
-	ldr	r0, [r4, #1196]
+	ldr	r0, [r4, #1204]
 	mov	r2, #852
-	addw	r1, r5, #1210
+	addw	r1, r5, #1212
 	adds	r0, r0, #224
 	bl	ftl_memcpy
-	ldr	r6, [r4, #1196]
+	ldr	r6, [r4, #1204]
 	movw	r1, #2036
 	add	r0, r6, #12
 	bl	js_hash
 	mov	r3, #1592
 	str	r3, [r6, #4]
-	ldr	r3, [r4, #1212]
-	str	r3, [r4, #1196]
+	ldr	r3, [r4, #1220]
+	str	r3, [r4, #1204]
 	str	r0, [r6, #8]
 	movs	r0, #0
 	bl	flash_enter_slc_mode
 	movs	r6, #0
 	mov	r7, r6
-.L1627:
-	ldr	r1, [r5, #4]
+.L1633:
+	ldr	r1, [r5, #36]
 	movs	r0, #0
 	mov	r2, r0
 	muls	r1, r7, r1
 	bl	FlashEraseBlock
-	ldrb	r9, [r5, #144]	@ zero_extendqisi2
+	ldrb	r9, [r5, #148]	@ zero_extendqisi2
 	cmp	r9, #0
-	beq	.L1622
+	beq	.L1628
 	mov	r9, #0
-.L1623:
-	ldr	r1, [r5, #4]
+.L1629:
+	ldr	r1, [r5, #36]
 	movs	r0, #0
-	ldr	r2, [r4, #1184]
+	ldr	r2, [r4, #1192]
 	mov	r3, r0
 	mla	r1, r1, r7, r9
 	add	r9, r9, #1
 	bl	FlashProgPage
 	cmp	r9, #10
-	bne	.L1623
-	b	.L1624
-.L1622:
-	ldr	r1, [r10, #4]
+	bne	.L1629
+	b	.L1630
+.L1628:
+	ldr	r1, [r10, #36]
 	mov	r3, r9
-	ldr	r2, [r4, #1184]
+	ldr	r2, [r4, #1192]
 	mov	r0, r9
 	muls	r1, r7, r1
 	bl	FlashProgPage
-	ldr	r1, [r10, #4]
+	ldr	r1, [r10, #36]
 	mov	r0, r9
-	ldr	r2, [r4, #1184]
+	ldr	r2, [r4, #1192]
 	mov	r3, r9
 	muls	r1, r7, r1
 	adds	r1, r1, #1
 	bl	FlashProgPage
-.L1624:
-	ldr	r1, [r5, #4]
+.L1630:
+	ldr	r1, [r5, #36]
 	movs	r0, #0
-	ldr	r2, [r4, #1212]
+	ldr	r2, [r4, #1220]
 	mov	r3, r0
 	muls	r1, r7, r1
 	bl	FlashReadRawPage
 	adds	r2, r7, #1
 	adds	r0, r0, #1
-	beq	.L1625
-	ldr	r9, [fp, #1196]
+	beq	.L1631
+	ldr	r9, [fp, #1204]
 	ldr	r3, [r9]
 	cmp	r3, r8
-	bne	.L1625
+	bne	.L1631
 	add	r0, r9, #12
 	movw	r1, #2036
 	str	r2, [sp, #4]
@@ -10510,22 +10551,22 @@ FlashSavePhyInfo:
 	ldr	r3, [r9, #8]
 	cmp	r3, r0
 	ldr	r2, [sp, #4]
-	bne	.L1625
-	ldr	r3, [r10, #4]
+	bne	.L1631
+	ldr	r3, [r10, #36]
 	cmp	r6, #1
-	str	r2, [fp, #1204]
+	str	r2, [fp, #1212]
 	mul	r3, r3, r7
-	str	r3, [fp, #1200]
-	beq	.L1628
+	str	r3, [fp, #1208]
+	beq	.L1634
 	movs	r6, #1
-.L1625:
+.L1631:
 	cmp	r2, #4
 	mov	r7, r2
-	bne	.L1627
-	b	.L1626
-.L1628:
+	bne	.L1633
+	b	.L1632
+.L1634:
 	movs	r6, #2
-.L1626:
+.L1632:
 	movs	r0, #0
 	bl	flash_exit_slc_mode
 	clz	r0, r6
@@ -10534,9 +10575,9 @@ FlashSavePhyInfo:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1635:
+.L1641:
 	.align	2
-.L1634:
+.L1640:
 	.word	.LANCHOR4
 	.word	.LANCHOR0
 	.word	.LANCHOR1+472
@@ -10556,88 +10597,88 @@ FlashReadIdbDataRaw:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
 	mov	r9, r0
-	ldr	r3, .L1655
-	ldr	r4, .L1655+4
+	ldr	r3, .L1661
+	ldr	r4, .L1661+4
 	ldr	r0, [r3]	@ unaligned
 	ldr	r3, [r4, #2248]
 	ldrb	r10, [r4, #2312]	@ zero_extendqisi2
 	str	r0, [sp, #4]	@ unaligned
-	cbz	r3, .L1637
+	cbz	r3, .L1643
 	movs	r0, #0
 	bl	flash_enter_slc_mode
-.L1637:
+.L1643:
 	mov	r0, r9
 	movs	r1, #0
 	mov	r2, #2048
 	mov	r8, #-1
 	bl	ftl_memset
 	movs	r5, #2
-.L1638:
-	ldrb	r3, [r4, #1]	@ zero_extendqisi2
+.L1644:
+	ldrb	r3, [r4, #33]	@ zero_extendqisi2
 	cmp	r5, r3
-	bcs	.L1642
+	bcs	.L1648
 	movs	r7, #0
-.L1640:
+.L1646:
 	add	r3, sp, #4
-	ldr	r6, .L1655+8
+	ldr	r6, .L1661+8
 	ldrb	fp, [r7, r3]	@ zero_extendqisi2
 	mov	r0, fp
 	bl	FlashBchSel
-	ldr	r1, [r4, #4]
+	ldr	r1, [r4, #36]
 	movs	r0, #0
-	ldr	r2, [r6, #1184]
+	ldr	r2, [r6, #1192]
 	muls	r1, r5, r1
 	mov	r3, r0
 	bl	FlashReadRawPage
 	adds	r0, r0, #1
-	bne	.L1639
+	bne	.L1645
 	adds	r7, r7, #1
 	cmp	r7, #4
-	bne	.L1640
-	b	.L1641
-.L1639:
-	ldr	r3, [r6, #1184]
-	ldr	r2, .L1655+12
+	bne	.L1646
+	b	.L1647
+.L1645:
+	ldr	r3, [r6, #1192]
+	ldr	r2, .L1661+12
 	ldr	r3, [r3]
 	cmp	r3, r2
-	bne	.L1641
+	bne	.L1647
 	mov	r1, fp
-	ldr	r0, .L1655+16
+	ldr	r0, .L1661+16
 	bl	printk
 	mov	r2, #2048
 	mov	r0, r9
-	ldr	r1, [r6, #1184]
+	ldr	r1, [r6, #1192]
 	bl	ftl_memcpy
-	ldr	r3, [r6, #1184]
-	ldr	r2, .L1655+4
+	ldr	r3, [r6, #1192]
+	ldr	r2, .L1661+4
 	ldr	r3, [r3, #512]
-	strb	r3, [r2, #1]
-	ldr	r3, [r6, #1204]
+	strb	r3, [r2, #33]
+	ldr	r3, [r6, #1212]
 	cmp	r3, r5
-	bls	.L1645
-	str	r5, [r6, #1204]
+	bls	.L1651
+	str	r5, [r6, #1212]
 	bl	FlashSavePhyInfo
 	mov	r8, #0
-.L1641:
+.L1647:
 	adds	r5, r5, #1
-	b	.L1638
-.L1645:
+	b	.L1644
+.L1651:
 	mov	r8, #0
-.L1642:
+.L1648:
 	mov	r0, r10
 	bl	FlashBchSel
 	ldr	r3, [r4, #2248]
-	cbz	r3, .L1649
+	cbz	r3, .L1655
 	movs	r0, #0
 	bl	flash_exit_slc_mode
-.L1649:
+.L1655:
 	mov	r0, r8
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1656:
+.L1662:
 	.align	2
-.L1655:
+.L1661:
 	.word	.LANCHOR3+11
 	.word	.LANCHOR0
 	.word	.LANCHOR4
@@ -10661,56 +10702,56 @@ FlashInit:
 	sub	sp, sp, #20
 	mov	r0, #32768
 	bl	ftl_malloc
-	ldr	r4, .L1780
-	ldr	r6, .L1780+4
+	ldr	r4, .L1786
+	ldr	r6, .L1786+4
 	movs	r7, #0
-	add	r9, r6, #12
 	mov	r8, r4
-	str	r0, [r4, #1184]
-	mov	r0, #32768
-	bl	ftl_malloc
-	str	r0, [r4, #1212]
-	mov	r0, #4096
-	bl	ftl_malloc
-	str	r0, [r4, #1216]
+	mov	r10, r6
+	str	r0, [r4, #1192]
 	mov	r0, #32768
 	bl	ftl_malloc
 	str	r0, [r4, #1220]
 	mov	r0, #4096
-	bl	ftl_malloc
-	movs	r3, #50
-	str	r7, [r4, #1204]
-	strb	r3, [r4, #1208]
-	strb	r3, [r6, #1]
-	movs	r3, #128
-	str	r7, [r4, #1188]
-	str	r3, [r6, #4]
-	movs	r3, #60
-	strb	r7, [r4, #1228]
-	strb	r3, [r4, #1210]
-	strb	r7, [r6, #2252]
-	strb	r7, [r6]
+	bl	ftl_dma32_malloc
 	str	r0, [r4, #1224]
+	mov	r0, #32768
+	bl	ftl_malloc
+	str	r0, [r4, #1228]
+	mov	r0, #4096
+	bl	ftl_dma32_malloc
+	movs	r3, #50
+	str	r7, [r4, #1212]
+	strb	r3, [r4, #1216]
+	strb	r3, [r6, #33]
+	movs	r3, #128
+	str	r7, [r4, #1196]
+	str	r3, [r6, #36]
+	movs	r3, #60
+	strb	r7, [r4, #1236]
+	strb	r3, [r4, #1218]
+	strb	r7, [r6, #2252]
+	strb	r7, [r6, #32]
+	str	r0, [r4, #1232]
 	mov	r0, r5
 	bl	NandcInit
 	addw	r5, r6, #2068
 	mov	r4, r6
-.L1663:
-	add	r3, r9, r7, lsl #3
+.L1669:
+	add	r3, r4, r7, lsl #3
 	uxtb	fp, r7
-	ldr	r6, [r9, r7, lsl #3]
-	ldrb	r10, [r3, #4]	@ zero_extendqisi2
+	ldr	r6, [r4, r7, lsl #3]
+	ldrb	r9, [r3, #4]	@ zero_extendqisi2
 	mov	r0, fp
 	bl	FlashReset
 	mov	r0, fp
 	bl	NandcFlashCs
 	movs	r3, #144
-	add	r6, r6, r10, lsl #8
+	add	r6, r6, r9, lsl #8
 	movs	r0, #200
-	mov	r10, #0
+	mov	r9, #0
 	str	r3, [r6, #2056]
-	str	r10, [r6, #2052]
-	bl	NandcDelayns
+	str	r9, [r6, #2052]
+	bl	ndelay
 	ldr	r2, [r6, #2048]
 	uxtb	r2, r2
 	strb	r2, [r5]
@@ -10725,29 +10766,29 @@ FlashInit:
 	strb	r1, [r5, #4]
 	ldr	r1, [r6, #2048]
 	strb	r1, [r5, #5]
-	bne	.L1658
+	bne	.L1664
 	movs	r2, #239
 	movs	r0, #200
 	str	r2, [r6, #2056]
 	movs	r2, #1
 	str	r2, [r6, #2052]
-	bl	NandcDelayns
+	bl	ndelay
 	movs	r2, #4
 	str	r2, [r6, #2048]
-	str	r10, [r6, #2048]
-	str	r10, [r6, #2048]
-	str	r10, [r6, #2048]
-.L1658:
+	str	r9, [r6, #2048]
+	str	r9, [r6, #2048]
+	str	r9, [r6, #2048]
+.L1664:
 	mov	r0, fp
 	bl	NandcFlashDeCs
 	ldrb	r2, [r5]	@ zero_extendqisi2
 	subs	r3, r2, #1
 	uxtb	r3, r3
 	cmp	r3, #253
-	bhi	.L1659
+	bhi	.L1665
 	ldrb	r1, [r5, #2]	@ zero_extendqisi2
 	ldrb	r3, [r5, #1]	@ zero_extendqisi2
-	ldr	r0, .L1780+8
+	ldr	r0, .L1786+8
 	str	r1, [sp]
 	ldrb	r1, [r5, #3]	@ zero_extendqisi2
 	str	r1, [sp, #4]
@@ -10757,18 +10798,17 @@ FlashInit:
 	str	r1, [sp, #12]
 	adds	r1, r7, #1
 	bl	printk
-.L1659:
-	cbnz	r7, .L1660
+.L1665:
+	cbnz	r7, .L1666
 	ldrb	r3, [r4, #2068]	@ zero_extendqisi2
 	subs	r3, r3, #1
 	uxtb	r3, r3
 	cmp	r3, #253
-	bhi	.L1716
-	ldr	r3, .L1780+4
-	ldrb	r3, [r3, #2069]	@ zero_extendqisi2
+	bhi	.L1722
+	ldrb	r3, [r10, #2069]	@ zero_extendqisi2
 	cmp	r3, #255
-	beq	.L1716
-.L1660:
+	beq	.L1722
+.L1666:
 	ldrb	r3, [r5]	@ zero_extendqisi2
 	adds	r7, r7, #1
 	adds	r5, r5, #8
@@ -10777,142 +10817,142 @@ FlashInit:
 	moveq	r3, #44
 	strbeq	r3, [r5, #-8]
 	cmp	r7, #4
-	bne	.L1663
+	bne	.L1669
 	ldrb	r3, [r4, #2068]	@ zero_extendqisi2
 	cmp	r3, #173
-	beq	.L1664
-	ldr	r3, .L1780+4
+	beq	.L1670
+	ldr	r3, .L1786+4
 	ldr	r0, [r3, #2256]
 	bl	NandcSetDdrMode
-.L1664:
-	ldr	r6, .L1780+4
+.L1670:
+	ldr	r6, .L1786+4
 	movs	r1, #0
 	mov	r2, #852
-	ldr	r5, .L1780+12
-	addw	r0, r6, #1210
+	ldr	r5, .L1786+12
+	addw	r0, r6, #1212
 	bl	ftl_memset
-	ldr	r0, .L1780+16
+	ldr	r0, .L1786+16
 	add	r3, r0, #472
 	str	r3, [r4, #44]
 	movs	r3, #0
-	strb	r3, [r4, #8]
+	strb	r3, [r4, #40]
 	ldr	r3, [r4, #2264]
 	cmp	r3, r5
-	bne	.L1665
+	bne	.L1671
 	ldrb	r2, [r0, #491]	@ zero_extendqisi2
 	cmp	r2, #50
 	itt	ne
 	movne	r2, #1
 	strne	r2, [r6, #2248]
-.L1665:
+.L1671:
 	ldrb	r6, [r4, #2069]	@ zero_extendqisi2
 	cmp	r6, #161
-	beq	.L1666
+	beq	.L1672
 	cmp	r6, #241
-	beq	.L1666
+	beq	.L1672
 	cmp	r6, #218
-	beq	.L1666
+	beq	.L1672
 	and	r2, r6, #253
 	cmp	r2, #209
-	beq	.L1666
+	beq	.L1672
 	cmp	r6, #220
-	bne	.L1667
-	ldr	r2, .L1780+4
+	bne	.L1673
+	ldr	r2, .L1786+4
 	ldrb	r2, [r2, #2071]	@ zero_extendqisi2
 	cmp	r2, #149
-	bne	.L1667
-.L1666:
-	movs	r7, #16
-	strb	r7, [r4, #1]
-	strb	r7, [r8, #1210]
-	movs	r1, #1
-	ldrb	r7, [r4, #2068]	@ zero_extendqisi2
-	strb	r1, [r4]
-	cmp	r7, #152
-	ldr	r2, .L1780
-	strb	r7, [r0, #3417]
-	strb	r6, [r0, #3418]
-	bne	.L1669
-	ldr	r7, .L1780+4
-	ldrsb	r7, [r7, #2072]
-	cmp	r7, #0
-	blt	.L1670
-	movs	r1, #24
-	strb	r1, [r2, #1210]
-.L1669:
-	cmp	r3, r5
-	beq	.L1672
-	movw	r2, #2049
-	cmp	r3, r2
 	bne	.L1673
 .L1672:
+	movs	r7, #16
+	strb	r7, [r4, #33]
+	strb	r7, [r8, #1218]
+	movs	r1, #1
+	ldrb	r7, [r4, #2068]	@ zero_extendqisi2
+	strb	r1, [r4, #32]
+	cmp	r7, #152
+	ldr	r2, .L1786
+	strb	r7, [r0, #3417]
+	strb	r6, [r0, #3418]
+	bne	.L1675
+	ldr	r7, .L1786+4
+	ldrsb	r7, [r7, #2072]
+	cmp	r7, #0
+	blt	.L1676
+	movs	r1, #24
+	strb	r1, [r2, #1218]
+.L1675:
+	cmp	r3, r5
+	beq	.L1678
+	movw	r2, #2049
+	cmp	r3, r2
+	bne	.L1679
+.L1678:
 	movs	r3, #16
-	strb	r3, [r8, #1210]
-.L1673:
+	strb	r3, [r8, #1218]
+.L1679:
 	cmp	r6, #218
-	bne	.L1674
+	bne	.L1680
 	mov	r3, #2048
-	b	.L1775
-.L1674:
+	b	.L1781
+.L1680:
 	cmp	r6, #220
-	bne	.L1676
+	bne	.L1682
 	mov	r3, #4096
-.L1775:
+.L1781:
 	strh	r3, [r0, #3430]	@ movhi
 	strb	r6, [r0, #3418]
-	b	.L1675
-.L1676:
+	b	.L1681
+.L1682:
 	cmp	r6, #211
 	itttt	eq
 	moveq	r3, #4096
 	strheq	r3, [r0, #3430]	@ movhi
 	moveq	r3, #2
 	strbeq	r3, [r0, #3429]
-.L1675:
-	ldr	r1, .L1780+20
+.L1681:
+	ldr	r1, .L1786+20
 	movs	r2, #32
-	ldr	r0, .L1780+24
+	ldr	r0, .L1786+24
 	bl	ftl_memcpy
-	ldr	r0, .L1780+28
+	ldr	r0, .L1786+28
 	movs	r2, #32
 	add	r1, r0, #2944
 	bl	ftl_memcpy
-.L1667:
-	ldrb	r3, [r4]	@ zero_extendqisi2
-	ldr	r6, .L1780+4
+.L1673:
+	ldrb	r3, [r4, #32]	@ zero_extendqisi2
+	ldr	r6, .L1786+4
 	cmp	r3, #0
-	bne	.L1677
+	bne	.L1683
 	bl	FlashLoadPhyInfoInRam
-	cbnz	r0, .L1679
+	cbnz	r0, .L1685
 	ldr	r3, [r6, #44]
 	ldrh	r3, [r3, #16]
 	lsrs	r3, r3, #8
 	lsls	r7, r3, #31
 	and	r0, r3, #7
 	strb	r0, [r6, #2229]
-	bmi	.L1679
+	bmi	.L1685
 	movs	r3, #1
 	strb	r3, [r6, #2252]
 	bl	FlashSetInterfaceMode
 	ldrb	r0, [r6, #2229]	@ zero_extendqisi2
 	bl	NandcSetMode
-.L1679:
+.L1685:
 	ldr	r3, [r4, #44]
-	ldr	r6, .L1780+4
+	ldr	r6, .L1786+4
 	ldrb	r3, [r3, #26]	@ zero_extendqisi2
-	strb	r3, [r4, #144]
+	strb	r3, [r4, #148]
 	bl	FlashLoadPhyInfo
 	cmp	r0, #0
-	beq	.L1677
+	beq	.L1683
 	ldr	r3, [r6, #2256]
-	cbz	r3, .L1682
+	cbz	r3, .L1688
 	movs	r0, #1
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
-	b	.L1776
-.L1781:
+	b	.L1782
+.L1787:
 	.align	2
-.L1780:
+.L1786:
 	.word	.LANCHOR4
 	.word	.LANCHOR0
 	.word	.LC97
@@ -10921,75 +10961,75 @@ FlashInit:
 	.word	.LANCHOR1+3292
 	.word	.LANCHOR0+48
 	.word	.LANCHOR1+472
-.L1682:
+.L1688:
 	ldrb	r0, [r6, #2229]	@ zero_extendqisi2
 	bl	FlashSetInterfaceMode
 	ldrb	r0, [r6, #2229]	@ zero_extendqisi2
-.L1776:
+.L1782:
 	bl	NandcSetMode
 	bl	FlashLoadPhyInfo
 	cmp	r0, #0
-	beq	.L1677
+	beq	.L1683
 	movs	r0, #1
-	ldr	r6, .L1782
+	ldr	r6, .L1788
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
 	bl	NandcSetMode
 	ldr	r3, [r4, #44]
-	ldr	r0, .L1782+4
+	ldr	r0, .L1788+4
 	ldrh	r1, [r3, #14]
 	bl	printk
 	bl	FlashLoadPhyInfoInRam
 	adds	r1, r0, #1
-	beq	.L1736
+	beq	.L1742
 	bl	FlashDieInfoInit
 	ldr	r3, [r6, #44]
 	ldrb	r0, [r3, #19]	@ zero_extendqisi2
 	bl	FlashGetReadRetryDefault
-	ldr	r2, .L1782+8
+	ldr	r2, .L1788+8
 	ldr	r3, [r6, #44]
 	ldrh	r2, [r2, #3270]
 	ldrb	r1, [r3, #9]	@ zero_extendqisi2
 	addw	r2, r2, #4095
 	cmp	r1, r2, asr #12
-	blt	.L1684
+	blt	.L1690
 	ldrh	r2, [r3, #14]
 	adds	r2, r2, #255
 	cmp	r1, r2, asr #8
-	bge	.L1685
-.L1684:
+	bge	.L1691
+.L1690:
 	ldrh	r2, [r3, #14]
 	bic	r2, r2, #255
 	strh	r2, [r3, #14]	@ movhi
-.L1685:
+.L1691:
 	ldrb	r3, [r4, #2229]	@ zero_extendqisi2
 	tst	r3, #6
-	beq	.L1686
+	beq	.L1692
 	bl	FlashSavePhyInfo
 	movs	r0, #0
 	bl	flash_enter_slc_mode
 	movs	r0, #0
-	ldr	r1, [r8, #1200]
+	ldr	r1, [r8, #1208]
 	bl	FlashDdrParaScan
 	movs	r0, #0
 	bl	flash_exit_slc_mode
-.L1686:
+.L1692:
 	bl	FlashSavePhyInfo
-.L1677:
+.L1683:
 	ldr	r2, [r4, #44]
 	mov	r9, #0
-	str	r9, [r8, #1192]
-	ldr	r7, .L1782
+	str	r9, [r8, #1200]
+	ldr	r7, .L1788
 	ldrb	r3, [r2, #26]	@ zero_extendqisi2
 	ldrh	r0, [r2, #10]
 	ldrb	r10, [r2, #18]	@ zero_extendqisi2
-	strb	r3, [r4, #144]
+	strb	r3, [r4, #148]
 	ldrh	r3, [r2, #16]
-	ldr	r6, .L1782+12
+	ldr	r6, .L1788+12
 	ubfx	r1, r3, #7, #1
-	strb	r1, [r4, #8]
+	strb	r1, [r4, #40]
 	ubfx	r1, r3, #3, #1
-	strb	r1, [r8, #1229]
+	strb	r1, [r8, #1237]
 	ubfx	r1, r3, #4, #1
 	ubfx	r3, r3, #8, #3
 	strb	r1, [r4, #2240]
@@ -11003,257 +11043,257 @@ FlashInit:
 	ldr	r3, [r4, #44]
 	ldrh	r2, [r3, #16]
 	lsls	r2, r2, #25
-	bpl	.L1688
+	bpl	.L1694
 	ldrb	r0, [r3, #19]	@ zero_extendqisi2
-	ldrb	r3, [r7, #1211]	@ zero_extendqisi2
-	strb	r0, [r7, #1208]
-	strb	r3, [r7, #1209]
-	ldrb	r3, [r7, #1212]	@ zero_extendqisi2
-	strb	r3, [r6, #1209]
+	ldrb	r3, [r7, #1213]	@ zero_extendqisi2
+	strb	r0, [r7, #80]
+	strb	r3, [r7, #81]
+	ldrb	r3, [r7, #1214]	@ zero_extendqisi2
+	strb	r3, [r6, #1217]
 	subs	r3, r0, #1
 	cmp	r3, #7
-	bhi	.L1689
-	ldr	r3, .L1782+16
-	str	r3, [r6, #1192]
+	bhi	.L1695
+	ldr	r3, .L1788+16
+	str	r3, [r6, #1200]
 	subs	r3, r0, #5
 	cmp	r3, #1
-	bls	.L1690
+	bls	.L1696
 	cmp	r0, #8
-	bne	.L1691
-.L1690:
+	bne	.L1697
+.L1696:
 	cmp	r0, #7
 	mov	r3, #1
 	str	r3, [r4, #2304]
-	beq	.L1717
+	beq	.L1723
 	cmp	r0, #8
-	b	.L1779
-.L1717:
-	ldr	r3, .L1782+20
-.L1693:
+	b	.L1785
+.L1723:
+	ldr	r3, .L1788+20
+.L1699:
 	subs	r1, r3, #1
 	movs	r2, #0
 	adds	r3, r3, #31
-.L1694:
+.L1700:
 	ldrsb	r6, [r1, #1]!
 	cmp	r6, #0
 	it	eq
 	addeq	r2, r2, #1
 	cmp	r1, r3
-	bne	.L1694
+	bne	.L1700
 	cmp	r2, #27
-	bls	.L1688
+	bls	.L1694
 	bl	FlashGetReadRetryDefault
 	bl	FlashSavePhyInfo
-	b	.L1688
-.L1689:
+	b	.L1694
+.L1695:
 	sub	r3, r0, #17
 	cmp	r3, #2
-	bhi	.L1696
-	ldr	r3, .L1782+24
+	bhi	.L1702
+	ldr	r3, .L1788+24
 	cmp	r0, #19
-	str	r3, [r6, #1192]
+	str	r3, [r6, #1200]
 	ite	ne
 	movne	r3, #7
 	moveq	r3, #15
-	strb	r3, [r6, #1209]
-	b	.L1688
-.L1696:
+	strb	r3, [r6, #1217]
+	b	.L1694
+.L1702:
 	cmp	r0, #33
-	beq	.L1698
+	beq	.L1704
 	sub	r3, r0, #65
 	cmp	r3, #1
-	bhi	.L1699
-.L1698:
-	ldr	r3, .L1782+28
-	str	r3, [r8, #1192]
+	bhi	.L1705
+.L1704:
+	ldr	r3, .L1788+28
+	str	r3, [r8, #1200]
 	movs	r3, #4
-	strb	r3, [r4, #1209]
+	strb	r3, [r4, #81]
 	movs	r3, #7
-	strb	r3, [r8, #1209]
-	b	.L1688
-.L1699:
+	strb	r3, [r8, #1217]
+	b	.L1694
+.L1705:
 	sub	r3, r0, #67
 	uxtb	r3, r3
 	cmp	r3, #1
-	bls	.L1700
+	bls	.L1706
 	sub	r2, r0, #34
 	cmp	r2, #1
-	bhi	.L1701
-.L1700:
-	ldr	r2, .L1782+28
+	bhi	.L1707
+.L1706:
+	ldr	r2, .L1788+28
 	cmp	r0, #35
-	str	r2, [r8, #1192]
-	beq	.L1702
+	str	r2, [r8, #1200]
+	beq	.L1708
 	cmp	r0, #68
-	beq	.L1702
-	ldr	r2, .L1782+12
+	beq	.L1708
+	ldr	r2, .L1788+12
 	movs	r1, #7
-	strb	r1, [r2, #1209]
-	b	.L1703
-.L1702:
+	strb	r1, [r2, #1217]
+	b	.L1709
+.L1708:
 	movs	r2, #17
-	strb	r2, [r8, #1209]
-.L1703:
+	strb	r2, [r8, #1217]
+.L1709:
 	cmp	r3, #1
 	ite	ls
 	movls	r3, #4
 	movhi	r3, #5
-	strb	r3, [r4, #1209]
-	b	.L1688
-.L1701:
+	strb	r3, [r4, #81]
+	b	.L1694
+.L1707:
 	cmp	r0, #49
-	bne	.L1705
-	ldr	r3, .L1782+32
-	str	r3, [r6, #1192]
-	b	.L1688
-.L1705:
+	bne	.L1711
+	ldr	r3, .L1788+32
+	str	r3, [r6, #1200]
+	b	.L1694
+.L1711:
 	cmp	r0, #50
 	ittt	eq
 	streq	r9, [r7, #2248]
-	ldreq	r3, .L1782+36
-	streq	r3, [r6, #1192]
-.L1688:
+	ldreq	r3, .L1788+36
+	streq	r3, [r6, #1200]
+.L1694:
 	ldr	r2, [r4, #2264]
-	ldr	r3, .L1782
+	ldr	r3, .L1788
 	cmp	r2, r5
-	bne	.L1706
-	ldrb	r1, [r3, #144]	@ zero_extendqisi2
-	cbz	r1, .L1706
+	bne	.L1712
+	ldrb	r1, [r3, #148]	@ zero_extendqisi2
+	cbz	r1, .L1712
 	ldr	r3, [r3, #44]
 	movs	r1, #0
 	strb	r1, [r3, #18]
-.L1706:
+.L1712:
 	ldrb	r1, [r4, #2068]	@ zero_extendqisi2
-	ldr	r3, .L1782
+	ldr	r3, .L1788
 	cmp	r1, #44
-	bne	.L1707
+	bne	.L1713
 	ldrb	r1, [r3, #2252]	@ zero_extendqisi2
-	cbz	r1, .L1707
+	cbz	r1, .L1713
 	cmp	r2, r5
-	bne	.L1708
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbnz	r3, .L1707
-.L1708:
+	bne	.L1714
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbnz	r3, .L1713
+.L1714:
 	movs	r0, #1
 	movs	r3, #0
 	strb	r3, [r4, #2252]
 	bl	FlashSetInterfaceMode
 	movs	r0, #1
 	bl	NandcSetMode
-.L1707:
+.L1713:
 	ldrb	r3, [r4, #2229]	@ zero_extendqisi2
 	tst	r3, #6
-	beq	.L1709
-	ldr	r2, .L1782
+	beq	.L1715
+	ldr	r2, .L1788
 	ldrb	r2, [r2, #2252]	@ zero_extendqisi2
-	cbnz	r2, .L1710
+	cbnz	r2, .L1716
 	lsls	r3, r3, #31
-	bmi	.L1709
-.L1710:
+	bmi	.L1715
+.L1716:
 	movs	r0, #0
 	bl	flash_enter_slc_mode
 	movs	r0, #0
-	ldr	r1, [r8, #1200]
+	ldr	r1, [r8, #1208]
 	bl	FlashDdrParaScan
 	movs	r0, #0
 	bl	flash_exit_slc_mode
-.L1709:
+.L1715:
 	ldr	r3, [r4, #44]
 	movs	r7, #16
-	ldr	r6, .L1782
+	ldr	r6, .L1788
 	ldrb	r0, [r3, #20]	@ zero_extendqisi2
 	bl	FlashBchSel
-	ldr	r0, .L1782+40
+	ldr	r0, .L1788+40
 	bl	FlashReadIdbDataRaw
-	ldr	r0, .L1782+44
-	strb	r7, [r4, #1]
+	ldr	r0, .L1788+44
+	strb	r7, [r4, #33]
 	bl	FlashTimingCfg
 	ldr	r5, [r4, #44]
 	ldrb	r2, [r4, #2069]	@ zero_extendqisi2
 	ldrb	r3, [r5, #12]	@ zero_extendqisi2
 	ldrh	r8, [r5, #14]
-	strh	r3, [r4, #124]	@ movhi
+	strh	r3, [r4, #128]	@ movhi
 	ldrb	r3, [r5, #7]	@ zero_extendqisi2
-	str	r3, [r4, #120]
+	str	r3, [r4, #124]
 	lsl	r3, r2, r7
 	orr	r2, r3, r2, lsl #8
 	ldrb	r3, [r4, #2068]	@ zero_extendqisi2
 	orrs	r3, r3, r2
 	ldrb	r2, [r4, #2071]	@ zero_extendqisi2
 	orr	r3, r3, r2, lsl #24
-	str	r3, [r4, #116]
+	str	r3, [r4, #120]
 	ldrb	r3, [r4, #2230]	@ zero_extendqisi2
-	strh	r3, [r4, #126]	@ movhi
+	strh	r3, [r4, #130]	@ movhi
 	ldrb	r3, [r5, #13]	@ zero_extendqisi2
-	strh	r8, [r4, #130]	@ movhi
-	strh	r3, [r4, #128]	@ movhi
-	ldrh	r3, [r5, #10]
+	strh	r8, [r4, #134]	@ movhi
 	strh	r3, [r4, #132]	@ movhi
+	ldrh	r3, [r5, #10]
+	strh	r3, [r4, #136]	@ movhi
 	ldrb	r1, [r5, #12]	@ zero_extendqisi2
 	ldrh	r0, [r5, #10]
 	bl	__aeabi_idiv
-	strh	r0, [r4, #134]	@ movhi
+	strh	r0, [r4, #138]	@ movhi
 	ldrb	r2, [r5, #9]	@ zero_extendqisi2
-	strh	r2, [r4, #136]	@ movhi
+	strh	r2, [r4, #140]	@ movhi
 	ldrb	r1, [r5, #9]	@ zero_extendqisi2
 	ldrh	r3, [r5, #10]
 	smulbb	r3, r1, r3
 	mov	r1, #512
-	strh	r1, [r4, #140]	@ movhi
-	ldrb	r1, [r4, #1]	@ zero_extendqisi2
-	strh	r1, [r4, #142]	@ movhi
+	strh	r1, [r4, #144]	@ movhi
+	ldrb	r1, [r4, #33]	@ zero_extendqisi2
+	strh	r1, [r4, #146]	@ movhi
 	uxth	r3, r3
-	ldrb	r1, [r4]	@ zero_extendqisi2
-	strh	r3, [r4, #138]	@ movhi
+	ldrb	r1, [r4, #32]	@ zero_extendqisi2
+	strh	r3, [r4, #142]	@ movhi
 	cmp	r1, #1
-	bne	.L1712
+	bne	.L1718
 	lsls	r3, r3, #1
 	lsr	r1, r8, #1
 	lsls	r2, r2, #1
-	strh	r3, [r6, #138]	@ movhi
-	strb	r7, [r6, #1]
-	movs	r3, #8
-	strh	r1, [r6, #130]	@ movhi
-	strh	r2, [r6, #136]	@ movhi
 	strh	r3, [r6, #142]	@ movhi
-.L1712:
+	strb	r7, [r6, #33]
+	movs	r3, #8
+	strh	r1, [r6, #134]	@ movhi
+	strh	r2, [r6, #140]	@ movhi
+	strh	r3, [r6, #146]	@ movhi
+.L1718:
 	ldrb	r0, [r5, #20]	@ zero_extendqisi2
 	bl	FlashBchSel
 	bl	ftl_flash_suspend
 	movs	r0, #0
-	b	.L1736
-.L1716:
+	b	.L1742
+.L1722:
 	mvn	r0, #1
-	b	.L1736
-.L1691:
+	b	.L1742
+.L1697:
 	cmp	r0, #7
-.L1779:
-	beq	.L1717
-	ldr	r3, .L1782+48
-	b	.L1693
-.L1670:
-	strb	r1, [r2, #1228]
-	b	.L1669
-.L1736:
-	add	sp, sp, #20
-	@ sp needed
-	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1783:
+.L1785:
+	beq	.L1723
+	ldr	r3, .L1788+48
+	b	.L1699
+.L1676:
+	strb	r1, [r2, #1236]
+	b	.L1675
+.L1789:
 	.align	2
-.L1782:
+.L1788:
 	.word	.LANCHOR0
 	.word	.LC98
 	.word	.LANCHOR2
 	.word	.LANCHOR4
 	.word	HynixReadRetrial
-	.word	.LANCHOR0+1238
+	.word	.LANCHOR0+1240
 	.word	MicronReadRetrial
 	.word	ToshibaReadRetrial
 	.word	SamsungReadRetrial
 	.word	samsung_read_retrial
 	.word	.LANCHOR2+3476
 	.word	150000
-	.word	.LANCHOR0+1230
+	.word	.LANCHOR0+1232
+.L1742:
+	add	sp, sp, #20
+	@ sp needed
+	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
 	.fnend
 	.size	FlashInit, .-FlashInit
 	.align	1
@@ -11268,58 +11308,58 @@ FlashPageProgMsbFFData:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	mov	r4, r2
-	ldr	r2, .L1805
+	ldr	r2, .L1811
 	mov	r8, r1
 	mov	r7, r0
 	ldr	r3, [r2, #44]
 	mov	r5, r2
-	ldrb	r1, [r2, #144]	@ zero_extendqisi2
+	ldrb	r1, [r2, #148]	@ zero_extendqisi2
 	ldrb	r3, [r3, #19]	@ zero_extendqisi2
-	cbz	r1, .L1785
+	cbz	r1, .L1791
 	ldr	r2, [r2, #2248]
-	cbnz	r2, .L1784
-.L1785:
+	cbnz	r2, .L1790
+.L1791:
 	subs	r2, r3, #5
 	cmp	r2, #2
-	bls	.L1786
+	bls	.L1792
 	cmp	r3, #50
-	beq	.L1786
+	beq	.L1792
 	cmp	r3, #68
-	beq	.L1786
+	beq	.L1792
 	cmp	r3, #35
-	beq	.L1786
+	beq	.L1792
 	cmp	r3, #19
-	bne	.L1784
-.L1786:
-	ldr	r9, .L1805+8
+	bne	.L1790
+.L1792:
+	ldr	r9, .L1811+8
 	movw	r10, #65535
-	ldr	r6, .L1805+4
-.L1788:
+	ldr	r6, .L1811+4
+.L1794:
 	ldr	r3, [r5, #44]
 	ldrh	r3, [r3, #10]
 	cmp	r3, r4
-	bls	.L1784
+	bls	.L1790
 	add	r3, r9, r4, lsl #1
 	ldrh	r3, [r3, #1220]
 	cmp	r3, r10
-	bne	.L1784
+	bne	.L1790
 	movs	r1, #255
 	mov	r2, #32768
-	ldr	r0, [r6, #1212]
+	ldr	r0, [r6, #1220]
 	bl	ftl_memset
-	ldr	r2, [r6, #1212]
+	ldr	r2, [r6, #1220]
 	add	r1, r4, r8
 	adds	r4, r4, #1
 	mov	r0, r7
 	mov	r3, r2
 	uxth	r4, r4
 	bl	FlashProgPage
-	b	.L1788
-.L1784:
+	b	.L1794
+.L1790:
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L1806:
+.L1812:
 	.align	2
-.L1805:
+.L1811:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LANCHOR2
@@ -11334,7 +11374,7 @@ FlashReadSlc2KPages:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 24
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L1857
+	ldr	r3, .L1863
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r7, #0
@@ -11345,16 +11385,16 @@ FlashReadSlc2KPages:
 	str	r1, [sp, #16]
 	str	r2, [sp, #20]
 	str	r3, [sp, #12]
-.L1808:
+.L1814:
 	ldr	r3, [sp, #16]
 	cmp	r7, r3
-	beq	.L1856
+	beq	.L1862
 	ldr	r3, [sp, #16]
 	add	r2, sp, #28
 	mov	r0, r4
 	ldr	r1, [sp, #20]
 	subs	r3, r3, r7
-	ldr	r8, .L1857+20
+	ldr	r8, .L1863+20
 	uxtb	r3, r3
 	str	r3, [sp]
 	add	r3, sp, #24
@@ -11363,11 +11403,11 @@ FlashReadSlc2KPages:
 	ldrb	r2, [r8, #2230]	@ zero_extendqisi2
 	ldr	r3, [sp, #24]
 	cmp	r3, r2
-	bcc	.L1809
+	bcc	.L1815
 	mov	r3, #-1
 	str	r3, [r4]
-	b	.L1810
-.L1809:
+	b	.L1816
+.L1815:
 	add	r3, r3, r8
 	mov	r9, #0
 	ldrb	r6, [r3, #2232]	@ zero_extendqisi2
@@ -11375,7 +11415,7 @@ FlashReadSlc2KPages:
 	bl	NandcWaitFlashReady
 	mov	r0, r6
 	bl	NandcFlashCs
-.L1811:
+.L1817:
 	ldr	r1, [sp, #28]
 	mov	r0, r6
 	bl	FlashReadCmd
@@ -11388,84 +11428,84 @@ FlashReadSlc2KPages:
 	ldr	r2, [sp, #12]
 	ldr	r3, [r4, #8]
 	bl	NandcXferData
-	ldr	r3, .L1857+4
-	ldrb	r3, [r3, #1228]	@ zero_extendqisi2
+	ldr	r3, .L1863+4
+	ldrb	r3, [r3, #1236]	@ zero_extendqisi2
 	mov	r5, r0
-	cbnz	r3, .L1812
-.L1815:
+	cbnz	r3, .L1818
+.L1821:
 	adds	r3, r5, #1
-	beq	.L1813
-	b	.L1814
-.L1812:
+	beq	.L1819
+	b	.L1820
+.L1818:
 	mov	r0, r6
 	bl	flash_read_ecc
 	cmp	r0, #5
-	bls	.L1815
+	bls	.L1821
 	mov	r5, #256
-	b	.L1814
-.L1813:
+	b	.L1820
+.L1819:
 	cmp	r9, #10
-	beq	.L1834
+	beq	.L1840
 	add	r9, r9, #1
-	b	.L1811
-.L1814:
+	b	.L1817
+.L1820:
 	cmp	r9, #0
 	it	ne
 	movne	r5, #256
-	b	.L1816
-.L1834:
+	b	.L1822
+.L1840:
 	mov	r5, #256
-.L1816:
+.L1822:
 	mov	r9, #0
-.L1817:
+.L1823:
 	ldr	r3, [sp, #28]
 	mov	r0, r6
-	ldr	r1, [fp, #4]
+	ldr	r1, [fp, #36]
 	add	r1, r1, r3
 	bl	FlashReadCmd
 	mov	r0, r6
 	bl	NandcWaitFlashReady
 	ldr	r3, [r4, #8]
-	cbz	r3, .L1818
+	cbz	r3, .L1824
 	add	r3, r3, #2048
-.L1818:
+.L1824:
 	ldr	r2, [r4, #12]
-	cbz	r2, .L1819
+	cbz	r2, .L1825
 	adds	r2, r2, #8
-.L1819:
+.L1825:
 	str	r2, [sp]
 	mov	r0, r6
 	ldr	r2, [sp, #12]
 	movs	r1, #0
 	bl	NandcXferData
-	ldr	r3, .L1857+4
-	ldrb	r2, [r3, #1228]	@ zero_extendqisi2
+	ldr	r3, .L1863+4
+	ldrb	r2, [r3, #1236]	@ zero_extendqisi2
 	mov	r10, r0
-	cbnz	r2, .L1820
-.L1823:
+	cbnz	r2, .L1826
+.L1829:
 	cmp	r10, #-1
-	beq	.L1821
-	b	.L1822
-.L1820:
+	beq	.L1827
+	b	.L1828
+.L1826:
 	mov	r0, r6
 	bl	flash_read_ecc
 	cmp	r0, #5
-	bls	.L1823
+	bls	.L1829
 	mov	r10, #256
-	b	.L1822
-.L1821:
+	b	.L1828
+.L1827:
 	cmp	r9, #10
-	beq	.L1838
+	beq	.L1844
 	add	r9, r9, #1
-	b	.L1817
-.L1822:
+	b	.L1823
+.L1828:
 	cmp	r9, #0
 	it	ne
 	movne	r10, #256
-	b	.L1824
-.L1838:
+	b	.L1830
+.L1844:
 	mov	r10, #256
-.L1824:
+.L1830:
 	mov	r0, r6
 	bl	NandcFlashDeCs
 	ldrb	r3, [r8, #2312]	@ zero_extendqisi2
@@ -11474,61 +11514,61 @@ FlashReadSlc2KPages:
 	it	cc
 	movcc	r5, r10
 	cmp	r5, r3, asr #2
-	bls	.L1825
+	bls	.L1831
 	adds	r0, r5, #1
 	it	ne
 	movne	r5, #256
 	str	r5, [r4]
-	b	.L1827
-.L1825:
+	b	.L1833
+.L1831:
 	movs	r3, #0
 	str	r3, [r4]
-.L1827:
+.L1833:
 	ldr	r3, [r4, #12]
-	cbz	r3, .L1828
+	cbz	r3, .L1834
 	ldr	r2, [r3, #12]
 	adds	r2, r2, #1
-	bne	.L1828
+	bne	.L1834
 	ldr	r2, [r3, #8]
 	adds	r1, r2, #1
-	bne	.L1828
+	bne	.L1834
 	ldr	r3, [r3]
 	adds	r3, r3, #1
 	it	ne
 	strne	r2, [r4]
-.L1828:
+.L1834:
 	ldr	r3, [r4]
 	adds	r2, r3, #1
-	bne	.L1810
+	bne	.L1816
 	ldr	r1, [r4, #4]
-	ldr	r0, .L1857+8
+	ldr	r0, .L1863+8
 	ldrb	r2, [r8, #2312]	@ zero_extendqisi2
 	bl	printk
 	ldr	r1, [r4, #8]
-	cbz	r1, .L1830
-	ldr	r0, .L1857+12
+	cbz	r1, .L1836
+	ldr	r0, .L1863+12
 	movs	r2, #4
 	movs	r3, #8
 	bl	rknand_print_hex
-.L1830:
+.L1836:
 	ldr	r1, [r4, #12]
-	cbz	r1, .L1810
+	cbz	r1, .L1816
 	movs	r2, #4
-	ldr	r0, .L1857+16
+	ldr	r0, .L1863+16
 	mov	r3, r2
 	bl	rknand_print_hex
-.L1810:
+.L1816:
 	adds	r7, r7, #1
 	adds	r4, r4, #36
-	b	.L1808
-.L1856:
+	b	.L1814
+.L1862:
 	movs	r0, #0
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1858:
+.L1864:
 	.align	2
-.L1857:
+.L1863:
 	.word	.LANCHOR1
 	.word	.LANCHOR4
 	.word	.LC99
@@ -11546,31 +11586,31 @@ FlashReadPages:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 40
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L1958
+	ldr	r3, .L1964
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #52
 	sub	sp, sp, #52
 	ldrb	r3, [r3, #481]	@ zero_extendqisi2
 	mov	r10, r0
-	ldr	r5, .L1958+4
+	ldr	r5, .L1964+4
 	str	r1, [sp, #28]
 	str	r3, [sp, #24]
-	ldrb	r3, [r5, #8]	@ zero_extendqisi2
+	ldrb	r3, [r5, #40]	@ zero_extendqisi2
 	str	r2, [sp, #16]
 	str	r3, [sp, #32]
-	ldrb	r3, [r5]	@ zero_extendqisi2
-	cbz	r3, .L1902
+	ldrb	r3, [r5, #32]	@ zero_extendqisi2
+	cbz	r3, .L1908
 	bl	FlashReadSlc2KPages
-	b	.L1953
-.L1902:
+	b	.L1959
+.L1908:
 	mov	r8, r3
 	str	r3, [sp, #12]
-.L1860:
+.L1866:
 	ldr	r3, [sp, #12]
 	ldr	r2, [sp, #28]
 	cmp	r3, r2
-	bcs	.L1955
+	bcs	.L1961
 	ldr	r3, [sp, #12]
 	mov	r9, #36
 	ldr	r2, [sp, #12]
@@ -11590,81 +11630,81 @@ FlashReadPages:
 	ldr	r3, [sp, #40]
 	mov	r6, r0
 	cmp	r3, r2
-	bcc	.L1862
+	bcc	.L1868
 	mov	r3, #-1
 	str	r3, [r10, r9]
-	b	.L1863
-.L1862:
+	b	.L1869
+.L1868:
 	add	r3, r3, r5
 	ldrb	r4, [r3, #2232]	@ zero_extendqisi2
-	ldr	r3, .L1958+8
+	ldr	r3, .L1964+8
 	mov	r0, r4
-	ldrb	r3, [r3, #1229]	@ zero_extendqisi2
+	ldrb	r3, [r3, #1237]	@ zero_extendqisi2
 	cmp	r3, #0
 	it	eq
 	moveq	r6, #0
 	bl	NandcWaitFlashReady
-	ldr	r3, .L1958+4
+	ldr	r3, .L1964+4
 	ldr	r3, [r3, #44]
 	ldrb	r2, [r3, #19]	@ zero_extendqisi2
 	subs	r3, r2, #1
 	cmp	r3, #7
-	bhi	.L1865
+	bhi	.L1871
 	subs	r2, r2, #7
 	adds	r1, r5, r4
 	cmp	r2, #1
-	ldr	r2, .L1958+4
-	ldrb	r3, [r1, #1222]	@ zero_extendqisi2
+	ldr	r2, .L1964+4
+	ldrb	r3, [r1, #1224]	@ zero_extendqisi2
 	add	r2, r2, r4
 	it	ls
-	ldrbls	r3, [r1, #1230]	@ zero_extendqisi2
+	ldrbls	r3, [r1, #1232]	@ zero_extendqisi2
 	ldrb	r2, [r2, #2064]	@ zero_extendqisi2
 	cmp	r2, r3
-	beq	.L1865
+	beq	.L1871
 	mov	r0, r4
-	ldrb	r1, [r5, #1211]	@ zero_extendqisi2
-	ldr	r2, .L1958+12
+	ldrb	r1, [r5, #1213]	@ zero_extendqisi2
+	ldr	r2, .L1964+12
 	bl	HynixSetRRPara
-.L1865:
+.L1871:
 	mov	r0, r4
 	and	r3, fp, #-2147483648
 	str	r3, [sp, #20]
 	bl	NandcFlashCs
 	ldr	r3, [sp, #16]
 	cmp	r3, #1
-	beq	.L1867
+	beq	.L1873
 	ldr	r3, [sp, #20]
-	cbz	r3, .L1868
-.L1867:
-	ldr	r3, .L1958+4
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbz	r3, .L1868
+	cbz	r3, .L1874
+.L1873:
+	ldr	r3, .L1964+4
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbz	r3, .L1874
 	mov	r0, r4
 	bl	flash_enter_slc_mode
-.L1870:
+.L1876:
 	mov	fp, #0
-	b	.L1869
-.L1868:
+	b	.L1875
+.L1874:
 	mov	r0, r4
 	bl	flash_exit_slc_mode
-	b	.L1870
-.L1956:
+	b	.L1876
+.L1962:
 	cmp	r4, #255
-	beq	.L1903
-.L1871:
-	cbz	r6, .L1873
-	ldr	r2, [r5, #4]
+	beq	.L1909
+.L1877:
+	cbz	r6, .L1879
+	ldr	r2, [r5, #36]
 	mov	r0, r4
 	add	r2, r2, r1
 	bl	FlashReadDpCmd
-.L1874:
+.L1880:
 	mov	r0, r4
 	bl	NandcWaitFlashReady
-	cbz	r6, .L1872
+	cbz	r6, .L1878
 	mov	r0, r4
 	ldr	r1, [sp, #44]
 	bl	FlashReadDpDataOutCmd
-.L1872:
+.L1878:
 	ldr	r3, [r7, #12]
 	mov	r0, r4
 	movs	r1, #0
@@ -11672,32 +11712,32 @@ FlashReadPages:
 	str	r3, [sp]
 	ldr	r3, [r7, #8]
 	bl	NandcXferData
-	ldrb	r3, [r5, #8]	@ zero_extendqisi2
+	ldrb	r3, [r5, #40]	@ zero_extendqisi2
 	mov	ip, r0
-	cbz	r3, .L1905
+	cbz	r3, .L1911
 	cmp	r0, #-1
-	bne	.L1905
+	bne	.L1911
 	movs	r6, #0
-	strb	fp, [r5, #8]
-.L1869:
+	strb	fp, [r5, #40]
+.L1875:
 	ldr	r1, [sp, #44]
 	adds	r0, r1, #1
-	bne	.L1871
-	b	.L1956
-.L1873:
+	bne	.L1877
+	b	.L1962
+.L1879:
 	mov	r0, r4
 	bl	FlashReadCmd
-	b	.L1874
-.L1903:
+	b	.L1880
+.L1909:
 	movs	r6, #0
-	b	.L1872
-.L1905:
+	b	.L1878
+.L1911:
 	mov	fp, ip
-	cbz	r6, .L1876
-	ldr	r3, .L1958+4
+	cbz	r6, .L1882
+	ldr	r3, .L1964+4
 	mov	r0, r4
 	str	ip, [sp, #36]
-	ldr	r1, [r3, #4]
+	ldr	r1, [r3, #36]
 	ldr	r3, [sp, #44]
 	add	r1, r1, r3
 	bl	FlashReadDpDataOutCmd
@@ -11715,24 +11755,24 @@ FlashReadPages:
 	it	eq
 	moveq	r6, #0
 	mov	r8, r0
-.L1876:
+.L1882:
 	mov	r0, r4
 	str	ip, [sp, #36]
 	bl	NandcFlashDeCs
 	ldr	ip, [sp, #36]
 	ldrb	r3, [sp, #32]	@ zero_extendqisi2
 	cmp	ip, #-1
-	strb	r3, [r5, #8]
-	bne	.L1883
+	strb	r3, [r5, #40]
+	bne	.L1889
 	ldrb	r3, [r5, #2252]	@ zero_extendqisi2
-	cbnz	r3, .L1878
-.L1882:
-	ldr	r3, .L1958+8
-	ldr	r6, [r3, #1192]
-	cbnz	r6, .L1879
-	b	.L1957
-.L1878:
-	ldr	r3, [r5, #80]
+	cbnz	r3, .L1884
+.L1888:
+	ldr	r3, .L1964+8
+	ldr	r6, [r3, #1200]
+	cbnz	r6, .L1885
+	b	.L1963
+.L1884:
+	ldr	r3, [r5, #84]
 	mov	r0, r4
 	ldr	r1, [sp, #44]
 	ldr	r6, [r3, #304]
@@ -11743,17 +11783,17 @@ FlashReadPages:
 	bl	FlashDdrTunningRead
 	cmp	r0, #-1
 	mov	fp, r0
-	beq	.L1881
+	beq	.L1887
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	cmp	r0, r3, lsr #1
-	bls	.L1907
-.L1881:
+	bls	.L1913
+.L1887:
 	ubfx	r0, r6, #8, #8
 	bl	NandcSetDdrPara
 	cmp	fp, #-1
-	beq	.L1882
-	b	.L1907
-.L1879:
+	beq	.L1888
+	b	.L1913
+.L1885:
 	mov	r0, r4
 	ldr	r1, [sp, #44]
 	ldr	r2, [r7, #8]
@@ -11761,18 +11801,18 @@ FlashReadPages:
 	blx	r6
 	cmp	r0, #-1
 	mov	fp, r0
-	bne	.L1884
+	bne	.L1890
 	ldr	r3, [r5, #44]
 	ldrb	r3, [r3, #19]	@ zero_extendqisi2
 	subs	r3, r3, #1
 	cmp	r3, #7
-	bhi	.L1885
+	bhi	.L1891
 	mov	r0, r4
-	ldrb	r1, [r5, #1211]	@ zero_extendqisi2
-	ldr	r2, .L1958+12
+	ldrb	r1, [r5, #1213]	@ zero_extendqisi2
+	ldr	r2, .L1964+12
 	movs	r3, #0
 	bl	HynixSetRRPara
-.L1885:
+.L1891:
 	ldr	r1, [sp, #44]
 	mov	r0, r4
 	ldr	r2, [r7, #8]
@@ -11781,139 +11821,139 @@ FlashReadPages:
 	ldr	r1, [r7, #4]
 	ldrb	r2, [r5, #2312]	@ zero_extendqisi2
 	mov	fp, r0
-	ldr	r0, .L1958+16
+	ldr	r0, .L1964+16
 	mov	r3, fp
 	bl	printk
 	cmp	fp, #-1
-	bne	.L1884
-	ldrb	r6, [r5, #144]	@ zero_extendqisi2
-	cbz	r6, .L1886
+	bne	.L1890
+	ldrb	r6, [r5, #148]	@ zero_extendqisi2
+	cbz	r6, .L1892
 	ldr	r3, [sp, #16]
 	mov	r0, r4
 	cmp	r3, #1
-	beq	.L1887
+	beq	.L1893
 	ldr	r3, [sp, #20]
-	cbz	r3, .L1888
-.L1887:
+	cbz	r3, .L1894
+.L1893:
 	bl	flash_enter_slc_mode
-	b	.L1889
-.L1888:
+	b	.L1895
+.L1894:
 	bl	flash_exit_slc_mode
-.L1889:
-	ldr	r3, .L1958+8
+.L1895:
+	ldr	r3, .L1964+8
 	mov	r0, r4
 	ldr	r1, [sp, #44]
 	ldr	r2, [r7, #8]
-	ldr	r6, [r3, #1192]
+	ldr	r6, [r3, #1200]
 	ldr	r3, [r7, #12]
 	blx	r6
 	movs	r6, #0
 	mov	fp, r0
-	b	.L1890
-.L1957:
+	b	.L1896
+.L1963:
 	mov	r0, r4
 	ldr	r1, [sp, #44]
 	ldr	r2, [r7, #8]
 	ldr	r3, [r7, #12]
 	bl	FlashReadRawPage
 	mov	fp, r0
-	b	.L1890
-.L1907:
+	b	.L1896
+.L1913:
 	movs	r6, #0
-.L1883:
+.L1889:
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	fp, r3, asr #2
-	bls	.L1892
-	ldr	r3, .L1958+8
-	ldr	r3, [r3, #1192]
-	cbz	r3, .L1909
-.L1890:
+	bls	.L1898
+	ldr	r3, .L1964+8
+	ldr	r3, [r3, #1200]
+	cbz	r3, .L1915
+.L1896:
 	cmp	fp, #-1
-	beq	.L1886
-	b	.L1892
-.L1909:
+	beq	.L1892
+	b	.L1898
+.L1915:
 	mov	fp, #256
-.L1886:
+.L1892:
 	str	fp, [r10, r9]
-	b	.L1893
-.L1959:
+	b	.L1899
+.L1965:
 	.align	2
-.L1958:
+.L1964:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR4
-	.word	.LANCHOR0+1214
+	.word	.LANCHOR0+1216
 	.word	.LC102
-.L1884:
+.L1890:
 	movs	r6, #0
-.L1892:
+.L1898:
 	cmp	fp, #256
-	beq	.L1886
+	beq	.L1892
 	movs	r3, #0
 	str	r3, [r10, r9]
-.L1893:
+.L1899:
 	ldr	r3, [r10, r9]
 	adds	r2, r3, #1
-	bne	.L1895
+	bne	.L1901
 	ldr	r1, [r7, #4]
-	ldr	r0, .L1960
+	ldr	r0, .L1966
 	ldrb	r2, [r5, #2312]	@ zero_extendqisi2
 	bl	printk
 	ldr	r1, [r7, #12]
-	cbz	r1, .L1895
+	cbz	r1, .L1901
 	movs	r2, #4
-	ldr	r0, .L1960+4
+	ldr	r0, .L1966+4
 	mov	r3, r2
 	bl	rknand_print_hex
-.L1895:
-	cbz	r6, .L1897
+.L1901:
+	cbz	r6, .L1903
 	ldrb	r3, [r5, #2312]	@ zero_extendqisi2
 	add	r3, r3, r3, lsl #1
 	cmp	r8, r3, asr #2
-	bls	.L1898
-	ldr	r3, .L1960+8
-	ldr	r3, [r3, #1192]
+	bls	.L1904
+	ldr	r3, .L1966+8
+	ldr	r3, [r3, #1200]
 	cmp	r3, #0
 	it	eq
 	moveq	r8, #256
-.L1898:
+.L1904:
 	add	r9, r9, #36
 	cmp	r8, #-1
 	str	r8, [r10, r9]
-	beq	.L1897
+	beq	.L1903
 	cmp	r8, #256
 	itt	ne
 	movne	r3, #0
 	strne	r3, [r10, r9]
-.L1897:
+.L1903:
 	ldr	r3, [sp, #12]
 	add	r3, r3, r6
 	str	r3, [sp, #12]
 	ldr	r3, [sp, #16]
 	cmp	r3, #1
-	beq	.L1899
+	beq	.L1905
 	ldr	r3, [sp, #20]
-	cbz	r3, .L1863
-.L1899:
-	ldrb	r3, [r5, #144]	@ zero_extendqisi2
-	cbz	r3, .L1863
+	cbz	r3, .L1869
+.L1905:
+	ldrb	r3, [r5, #148]	@ zero_extendqisi2
+	cbz	r3, .L1869
 	mov	r0, r4
 	bl	flash_exit_slc_mode
-.L1863:
+.L1869:
 	ldr	r3, [sp, #12]
 	adds	r3, r3, #1
 	str	r3, [sp, #12]
-	b	.L1860
-.L1955:
+	b	.L1866
+.L1961:
 	movs	r0, #0
-.L1953:
+.L1959:
 	add	sp, sp, #52
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1961:
+.L1967:
 	.align	2
-.L1960:
+.L1966:
 	.word	.LC99
 	.word	.LC101
 	.word	.LANCHOR4
@@ -11931,37 +11971,37 @@ FlashLoadFactorBbt:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r1, #0
-	ldr	r7, .L1974
+	ldr	r7, .L1980
 	.pad #52
 	sub	sp, sp, #52
-	ldr	r4, .L1974+4
+	ldr	r4, .L1980+4
 	movs	r2, #16
 	movs	r5, #0
 	mov	fp, #-1
-	ldrh	r3, [r7, #130]
-	add	r0, r4, #1232
-	ldrh	r6, [r7, #128]
+	ldrh	r3, [r7, #134]
+	add	r0, r4, #1240
+	ldrh	r6, [r7, #132]
 	mov	r10, r5
 	mov	r8, r7
 	mov	r9, r4
 	smulbb	r6, r6, r3
 	bl	ftl_memset
-	ldr	r3, [r4, #1216]
+	ldr	r3, [r4, #1224]
 	uxth	r6, r6
 	str	r5, [sp, #20]
 	str	r3, [sp, #24]
-.L1963:
+.L1969:
 	ldrb	r3, [r8, #2230]	@ zero_extendqisi2
 	uxtb	r7, r5
 	cmp	r3, r7
-	bls	.L1973
+	bls	.L1979
 	mul	ip, r6, r7
 	subs	r4, r6, #1
 	sub	r3, r6, #12
 	uxth	r4, r4
-.L1964:
+.L1970:
 	cmp	r4, r3
-	ble	.L1966
+	ble	.L1972
 	add	r2, ip, r4
 	movs	r1, #1
 	add	r0, sp, #12
@@ -11975,41 +12015,41 @@ FlashLoadFactorBbt:
 	ldr	ip, [sp]
 	adds	r2, r2, #1
 	ldr	r3, [sp, #4]
-	beq	.L1965
-	ldr	r2, [r9, #1216]
+	beq	.L1971
+	ldr	r2, [r9, #1224]
 	ldrh	r1, [r2]
 	movw	r2, #61664
 	cmp	r1, r2
-	bne	.L1965
+	bne	.L1971
 	mov	r1, r7
-	ldr	r0, .L1974+8
+	ldr	r0, .L1980+8
 	mov	r2, r4
 	add	r10, r10, #1
 	bl	printk
-	ldr	r3, .L1974+4
+	ldr	r3, .L1980+4
 	uxth	r10, r10
 	add	r7, r3, r7, lsl #1
-	strh	r4, [r7, #1232]	@ movhi
-	b	.L1966
-.L1965:
+	strh	r4, [r7, #1240]	@ movhi
+	b	.L1972
+.L1971:
 	subs	r4, r4, #1
 	uxth	r4, r4
-	b	.L1964
-.L1966:
+	b	.L1970
+.L1972:
 	ldrb	r3, [r8, #2230]	@ zero_extendqisi2
 	adds	r5, r5, #1
 	cmp	r3, r10
 	it	eq
 	moveq	fp, #0
-	b	.L1963
-.L1973:
+	b	.L1969
+.L1979:
 	mov	r0, fp
 	add	sp, sp, #52
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L1975:
+.L1981:
 	.align	2
-.L1974:
+.L1980:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LC103
@@ -12024,11 +12064,11 @@ FlashProgSlc2KPages:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 56
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2005
+	ldr	r3, .L2011
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r6, #0
-	ldr	r8, .L2005+24
+	ldr	r8, .L2011+24
 	.pad #68
 	sub	sp, sp, #68
 	ldrb	r3, [r3, #481]	@ zero_extendqisi2
@@ -12038,9 +12078,9 @@ FlashProgSlc2KPages:
 	mov	r10, r0
 	mov	fp, r8
 	str	r3, [sp, #12]
-.L1977:
+.L1983:
 	cmp	r6, r7
-	beq	.L2003
+	beq	.L2009
 	subs	r3, r7, r6
 	add	r2, sp, #20
 	mov	r0, r10
@@ -12052,11 +12092,11 @@ FlashProgSlc2KPages:
 	ldrb	r2, [r8, #2230]	@ zero_extendqisi2
 	ldr	r3, [sp, #24]
 	cmp	r3, r2
-	bcc	.L1978
+	bcc	.L1984
 	mov	r3, #-1
 	str	r3, [r10]
-	b	.L1979
-.L1978:
+	b	.L1985
+.L1984:
 	add	r3, r3, r8
 	ldrb	r5, [r3, #2232]	@ zero_extendqisi2
 	mov	r0, r5
@@ -12085,23 +12125,23 @@ FlashProgSlc2KPages:
 	sbfx	r0, r0, #0, #1
 	str	r0, [r10]
 	mov	r0, r5
-	ldr	r1, [r8, #4]
+	ldr	r1, [r8, #36]
 	add	r1, r1, r3
 	bl	FlashProgFirstCmd
 	ldr	r3, [r10, #8]
-	cbz	r3, .L1980
+	cbz	r3, .L1986
 	add	r3, r3, #2048
-.L1980:
+.L1986:
 	ldr	r2, [r10, #12]
-	cbz	r2, .L1981
+	cbz	r2, .L1987
 	adds	r2, r2, #8
-.L1981:
+.L1987:
 	str	r2, [sp]
 	movs	r1, #1
 	ldr	r2, [sp, #12]
 	mov	r0, r5
 	bl	NandcXferData
-	ldr	r1, [fp, #4]
+	ldr	r1, [fp, #36]
 	mov	r0, r5
 	ldr	r3, [sp, #20]
 	add	r1, r1, r3
@@ -12117,25 +12157,25 @@ FlashProgSlc2KPages:
 	movmi	r3, #-1
 	strmi	r3, [r10]
 	bl	NandcFlashDeCs
-.L1979:
+.L1985:
 	adds	r6, r6, #1
 	add	r10, r10, #36
-	b	.L1977
-.L2003:
-	ldr	r8, .L2005+28
+	b	.L1983
+.L2009:
+	ldr	r8, .L2011+28
 	mov	r10, #0
 	mov	fp, r8
-.L1984:
+.L1990:
 	cmp	r10, r7
-	beq	.L2004
+	beq	.L2010
 	ldr	r3, [r4]
 	adds	r3, r3, #1
-	bne	.L1985
+	bne	.L1991
 	ldr	r1, [r4, #4]
-	ldr	r0, .L2005+4
+	ldr	r0, .L2011+4
 	bl	printk
-	b	.L1986
-.L1985:
+	b	.L1992
+.L1991:
 	rsb	r3, r10, r7
 	mov	r1, r9
 	add	r2, sp, #20
@@ -12145,10 +12185,10 @@ FlashProgSlc2KPages:
 	add	r3, sp, #24
 	mov	r6, r4
 	bl	LogAddr2PhyAddr
-	ldr	r2, [r8, #1220]
+	ldr	r2, [r8, #1228]
 	movs	r3, #0
 	str	r3, [r2]
-	ldr	r2, [r8, #1224]
+	ldr	r2, [r8, #1232]
 	str	r3, [r2]
 	ldmia	r6!, {r0, r1, r2, r3}
 	add	r5, sp, #28
@@ -12160,64 +12200,64 @@ FlashProgSlc2KPages:
 	movs	r1, #1
 	mov	r2, r9
 	str	r3, [r5]
-	ldr	r3, [r8, #1220]
+	ldr	r3, [r8, #1228]
 	str	r3, [sp, #36]
-	ldr	r3, [r8, #1224]
+	ldr	r3, [r8, #1232]
 	str	r3, [sp, #40]
 	bl	FlashReadPages
 	ldr	r5, [sp, #28]
 	adds	r3, r5, #1
-	bne	.L1987
-	ldr	r0, .L2005+8
+	bne	.L1993
+	ldr	r0, .L2011+8
 	ldr	r1, [r4, #4]
 	bl	printk
 	str	r5, [r4]
-.L1987:
+.L1993:
 	ldr	r5, [sp, #28]
 	cmp	r5, #256
-	bne	.L1988
-	ldr	r0, .L2005+12
+	bne	.L1994
+	ldr	r0, .L2011+12
 	ldr	r1, [r4, #4]
 	bl	printk
 	str	r5, [r4]
-.L1988:
+.L1994:
 	ldr	r3, [r4, #12]
-	cbz	r3, .L1989
+	cbz	r3, .L1995
 	ldr	r2, [r3]
-	ldr	r3, [fp, #1224]
+	ldr	r3, [fp, #1232]
 	ldr	r3, [r3]
 	cmp	r2, r3
-	beq	.L1989
-	ldr	r0, .L2005+16
+	beq	.L1995
+	ldr	r0, .L2011+16
 	ldr	r1, [r4, #4]
 	bl	printk
 	mov	r3, #-1
 	str	r3, [r4]
-.L1989:
+.L1995:
 	ldr	r3, [r4, #8]
-	cbz	r3, .L1986
+	cbz	r3, .L1992
 	ldr	r2, [r3]
-	ldr	r3, [fp, #1220]
+	ldr	r3, [fp, #1228]
 	ldr	r3, [r3]
 	cmp	r2, r3
-	beq	.L1986
-	ldr	r0, .L2005+20
+	beq	.L1992
+	ldr	r0, .L2011+20
 	ldr	r1, [r4, #4]
 	bl	printk
 	mov	r3, #-1
 	str	r3, [r4]
-.L1986:
+.L1992:
 	add	r10, r10, #1
 	adds	r4, r4, #36
-	b	.L1984
-.L2004:
+	b	.L1990
+.L2010:
 	movs	r0, #0
 	add	sp, sp, #68
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2006:
+.L2012:
 	.align	2
-.L2005:
+.L2011:
 	.word	.LANCHOR1
 	.word	.LC104
 	.word	.LC105
@@ -12240,62 +12280,62 @@ FtlLoadFactoryBbt:
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r6, #0
-	ldr	r3, .L2018
-	ldr	r7, .L2018+4
-	ldr	r5, .L2018+8
+	ldr	r3, .L2024
+	ldr	r7, .L2024+4
+	ldr	r5, .L2024+8
 	ldr	r2, [r3, #3316]
 	subw	r8, r7, #2462
 	ldr	r9, [r3, #3340]
 	mov	r10, r8
-	str	r2, [r5, #1256]
-	str	r9, [r5, #1260]
-.L2008:
+	str	r2, [r5, #1264]
+	str	r9, [r5, #1268]
+.L2014:
 	ldrh	r3, [r8, #2342]
 	cmp	r6, r3
-	bcs	.L2017
+	bcs	.L2023
 	ldrh	r4, [r8, #2386]
 	movw	fp, #61664
 	movw	r3, #65535
 	strh	r3, [r7, #2]!	@ movhi
 	subs	r4, r4, #1
 	uxth	r4, r4
-.L2009:
+.L2015:
 	ldrh	r3, [r10, #2386]
 	sub	r2, r3, #16
 	cmp	r4, r2
-	ble	.L2011
+	ble	.L2017
 	mla	r3, r3, r6, r4
 	movs	r1, #1
-	ldr	r0, .L2018+12
+	ldr	r0, .L2024+12
 	mov	r2, r1
 	lsls	r3, r3, #10
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	bl	FlashReadPages
-	ldr	r3, [r5, #1248]
+	ldr	r3, [r5, #1256]
 	adds	r3, r3, #1
-	beq	.L2010
+	beq	.L2016
 	ldrh	r3, [r9]
 	cmp	r3, fp
-	bne	.L2010
+	bne	.L2016
 	strh	r4, [r7]	@ movhi
-	b	.L2011
-.L2010:
+	b	.L2017
+.L2016:
 	subs	r4, r4, #1
 	uxth	r4, r4
-	b	.L2009
-.L2011:
-	adds	r6, r6, #1
-	b	.L2008
+	b	.L2015
 .L2017:
+	adds	r6, r6, #1
+	b	.L2014
+.L2023:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2019:
+.L2025:
 	.align	2
-.L2018:
+.L2024:
 	.word	.LANCHOR2
 	.word	.LANCHOR0+2462
 	.word	.LANCHOR4
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.fnend
 	.size	FtlLoadFactoryBbt, .-FtlLoadFactoryBbt
 	.align	1
@@ -12307,7 +12347,7 @@ FtlGetLastWrittenPage:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 104
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2031
+	ldr	r3, .L2037
 	cmp	r1, #1
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
@@ -12334,12 +12374,12 @@ FtlGetLastWrittenPage:
 	bl	FlashReadPages
 	ldr	r3, [sp, #40]
 	adds	r3, r3, #1
-	bne	.L2023
-.L2024:
+	bne	.L2029
+.L2030:
 	sxth	r3, r7
 	sxth	r4, r5
 	cmp	r3, r4
-	bgt	.L2023
+	bgt	.L2029
 	add	r4, r4, r3
 	add	r0, sp, #4
 	movs	r1, #1
@@ -12352,28 +12392,28 @@ FtlGetLastWrittenPage:
 	bl	FlashReadPages
 	ldr	r3, [sp, #40]
 	adds	r3, r3, #1
-	bne	.L2025
+	bne	.L2031
 	ldr	r3, [sp, #44]
 	adds	r3, r3, #1
-	bne	.L2025
+	bne	.L2031
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
-	beq	.L2025
+	beq	.L2031
 	subs	r4, r4, #1
 	uxth	r5, r4
-	b	.L2024
-.L2025:
+	b	.L2030
+.L2031:
 	adds	r3, r4, #1
 	uxth	r7, r3
-	b	.L2024
-.L2023:
+	b	.L2030
+.L2029:
 	sxth	r0, r5
 	add	sp, sp, #104
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, pc}
-.L2032:
+.L2038:
 	.align	2
-.L2031:
+.L2037:
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlGetLastWrittenPage, .-FtlGetLastWrittenPage
@@ -12388,79 +12428,79 @@ FtlLoadBbt:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
-	ldr	r8, .L2062+16
-	ldr	r4, .L2062
-	ldr	r5, .L2062+4
+	ldr	r8, .L2068+16
+	ldr	r4, .L2068
+	ldr	r5, .L2068+4
 	ldr	r3, [r8, #3316]
 	ldr	r7, [r8, #3340]
 	mov	r9, r4
-	str	r3, [r4, #1256]
-	str	r7, [r4, #1260]
+	str	r3, [r4, #1264]
+	str	r7, [r4, #1268]
 	bl	FtlBbtMemInit
 	ldrh	r6, [r5, #2386]
 	subs	r6, r6, #1
 	uxth	r6, r6
-.L2034:
+.L2040:
 	ldrh	r3, [r5, #2386]
 	subs	r3, r3, #48
 	cmp	r6, r3
-	ble	.L2037
+	ble	.L2043
 	movs	r1, #1
-	ldr	r0, .L2062+8
+	ldr	r0, .L2068+8
 	lsls	r3, r6, #10
-	str	r3, [r4, #1252]
+	str	r3, [r4, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r3, [r4, #1248]
+	ldr	r3, [r4, #1256]
 	adds	r3, r3, #1
-	bne	.L2035
+	bne	.L2041
 	movs	r1, #1
-	ldr	r3, [r9, #1252]
-	ldr	r0, .L2062+8
+	ldr	r3, [r9, #1260]
+	ldr	r0, .L2068+8
 	mov	r2, r1
 	adds	r3, r3, #1
-	str	r3, [r9, #1252]
+	str	r3, [r9, #1260]
 	bl	FlashReadPages
-.L2035:
-	ldr	r3, [r4, #1248]
+.L2041:
+	ldr	r3, [r4, #1256]
 	adds	r3, r3, #1
-	beq	.L2036
+	beq	.L2042
 	ldrh	r2, [r7]
 	movw	r3, #61649
 	cmp	r2, r3
-	bne	.L2036
+	bne	.L2042
 	ldr	r3, [r7, #4]
 	strh	r6, [r5, #2452]	@ movhi
 	str	r3, [r5, #2460]
 	ldrh	r3, [r7, #8]
 	strh	r3, [r5, #2456]	@ movhi
-	b	.L2037
-.L2036:
+	b	.L2043
+.L2042:
 	subs	r6, r6, #1
 	uxth	r6, r6
-	b	.L2034
-.L2037:
+	b	.L2040
+.L2043:
 	ldrh	r3, [r5, #2452]
 	movw	r2, #65535
-	ldr	r6, .L2062+4
+	ldr	r6, .L2068+4
 	cmp	r3, r2
-	beq	.L2051
+	beq	.L2057
 	ldrh	r3, [r6, #2456]
 	cmp	r3, r2
-	beq	.L2041
+	beq	.L2047
 	movs	r1, #1
-	ldr	r0, .L2062+8
+	ldr	r0, .L2068+8
 	lsls	r3, r3, #10
-	str	r3, [r4, #1252]
+	str	r3, [r4, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r3, [r4, #1248]
+	ldr	r3, [r4, #1256]
 	adds	r3, r3, #1
-	beq	.L2041
+	beq	.L2047
 	ldrh	r2, [r7]
 	movw	r3, #61649
 	cmp	r2, r3
-	bne	.L2041
+	bne	.L2047
 	ldr	r3, [r7, #4]
 	ldr	r2, [r6, #2460]
 	cmp	r3, r2
@@ -12471,7 +12511,7 @@ FtlLoadBbt:
 	strhhi	r2, [r6, #2452]	@ movhi
 	it	hi
 	strhhi	r3, [r6, #2456]	@ movhi
-.L2041:
+.L2047:
 	ldrh	r0, [r5, #2452]
 	movs	r1, #1
 	bl	FtlGetLastWrittenPage
@@ -12479,76 +12519,76 @@ FtlLoadBbt:
 	uxth	r6, r0
 	adds	r0, r0, #1
 	strh	r0, [r5, #2454]	@ movhi
-.L2043:
+.L2049:
 	sxth	r3, r6
 	cmp	r3, #0
-	blt	.L2048
+	blt	.L2054
 	ldrh	r2, [r5, #2452]
 	movs	r1, #1
-	ldr	r0, .L2062+8
+	ldr	r0, .L2068+8
 	orr	r3, r3, r2, lsl #10
-	str	r3, [r4, #1252]
+	str	r3, [r4, #1260]
 	ldr	r3, [r8, #3316]
 	mov	r2, r1
-	str	r3, [r4, #1256]
+	str	r3, [r4, #1264]
 	bl	FlashReadPages
-	ldr	r3, [r4, #1248]
+	ldr	r3, [r4, #1256]
 	adds	r3, r3, #1
-	beq	.L2044
+	beq	.L2050
 	ldrh	r3, [r7]
 	cmp	r3, r9
-	bne	.L2044
-.L2048:
+	bne	.L2050
+.L2054:
 	ldrh	r2, [r7, #10]
 	ldrh	r0, [r7, #12]
-	ldr	r3, .L2062+4
+	ldr	r3, .L2068+4
 	strh	r2, [r5, #2458]	@ movhi
 	movw	r2, #65535
 	cmp	r0, r2
-	bne	.L2045
-	b	.L2046
-.L2044:
+	bne	.L2051
+	b	.L2052
+.L2050:
 	subs	r6, r6, #1
 	uxth	r6, r6
-	b	.L2043
-.L2045:
+	b	.L2049
+.L2051:
 	ldr	r2, [r3, #2316]
 	cmp	r0, r2
-	beq	.L2046
+	beq	.L2052
 	ldrh	r3, [r3, #2330]
 	lsrs	r3, r3, #2
 	cmp	r2, r3
-	bcs	.L2046
+	bcs	.L2052
 	cmp	r0, r3
-	bcs	.L2046
+	bcs	.L2052
 	bl	FtlSysBlkNumInit
-.L2046:
-	ldr	r7, .L2062+12
+.L2052:
+	ldr	r7, .L2068+12
 	movs	r6, #0
-.L2049:
+.L2055:
 	ldrh	r3, [r5, #2342]
 	cmp	r6, r3
-	bcs	.L2061
+	bcs	.L2067
 	ldrh	r2, [r8, #3404]
-	ldr	r1, [r4, #1256]
+	ldr	r1, [r4, #1264]
 	ldr	r0, [r7, #4]!
 	lsls	r2, r2, #2
 	mla	r1, r6, r2, r1
 	bl	ftl_memcpy
 	adds	r6, r6, #1
-	b	.L2049
-.L2061:
+	b	.L2055
+.L2067:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L2051:
+.L2057:
 	mov	r0, #-1
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.L2063:
+.L2069:
 	.align	2
-.L2062:
+.L2068:
 	.word	.LANCHOR4
 	.word	.LANCHOR0
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LANCHOR0+2476
 	.word	.LANCHOR2
 	.fnend
@@ -12565,10 +12605,10 @@ FtlScanSysBlk:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r6, #0
-	ldr	r5, .L2149
+	ldr	r5, .L2155
 	.pad #36
 	sub	sp, sp, #36
-	ldr	r4, .L2149+4
+	ldr	r4, .L2155+4
 	mov	r1, r6
 	ldr	r2, [r5, #2416]
 	ldr	r0, [r4, #3396]
@@ -12600,13 +12640,13 @@ FtlScanSysBlk:
 	str	r5, [sp, #12]
 	mov	r5, r4
 	str	r3, [sp, #4]
-.L2065:
-	ldr	r6, .L2149
+.L2071:
+	ldr	r6, .L2155
 	ldr	r2, [sp, #4]
 	ldrh	r3, [r6, #2330]
 	mov	r0, r6
 	cmp	r3, r2
-	bls	.L2107
+	bls	.L2113
 	ldr	r1, [r4, #1148]
 	mov	r10, #36
 	ldrh	r8, [r6, #2320]
@@ -12619,10 +12659,10 @@ FtlScanSysBlk:
 	str	r1, [sp, #16]
 	addw	r1, r6, #2348
 	str	r1, [sp, #20]
-.L2108:
+.L2114:
 	uxth	r1, r7
 	cmp	r1, r8
-	bcs	.L2144
+	bcs	.L2150
 	str	r3, [sp, #28]
 	ldr	r3, [sp, #20]
 	ldr	r1, [sp, #4]
@@ -12633,7 +12673,7 @@ FtlScanSysBlk:
 	bl	FtlBbmIsBadBlock
 	ldr	r2, [sp, #24]
 	ldr	r3, [sp, #28]
-	cbnz	r0, .L2066
+	cbnz	r0, .L2072
 	ldr	r1, [sp]
 	ldr	r6, [sp]
 	mla	r0, r10, r1, r2
@@ -12652,25 +12692,25 @@ FtlScanSysBlk:
 	adds	r1, r1, #1
 	uxth	r1, r1
 	str	r1, [sp]
-.L2066:
+.L2072:
 	adds	r7, r7, #1
-	b	.L2108
-.L2144:
+	b	.L2114
+.L2150:
 	ldr	r3, [sp]
 	cmp	r3, #0
-	beq	.L2070
+	beq	.L2076
 	mov	r1, r3
 	ldr	r0, [r4, #3304]
 	movs	r2, #1
-	ldr	r8, .L2149
+	ldr	r8, .L2155
 	bl	FlashReadPages
 	movs	r3, #0
 	str	r3, [sp, #8]
-.L2071:
+.L2077:
 	ldrh	r3, [sp, #8]
 	ldr	r2, [sp]
 	cmp	r3, r2
-	bcs	.L2070
+	bcs	.L2076
 	ldr	r3, [sp, #8]
 	mov	r10, #36
 	mul	r10, r10, r3
@@ -12681,10 +12721,10 @@ FtlScanSysBlk:
 	adds	r3, r3, #1
 	ldr	r7, [r2, #12]
 	ubfx	r6, r6, #10, #16
-	bne	.L2073
+	bne	.L2079
 	mov	fp, #16
 	movw	r3, #65535
-.L2072:
+.L2078:
 	ldr	r0, [r4, #3304]
 	movs	r1, #1
 	str	r3, [sp, #16]
@@ -12697,45 +12737,45 @@ FtlScanSysBlk:
 	ldrh	r2, [r7]
 	ldr	r3, [sp, #16]
 	cmp	r2, r3
-	bne	.L2074
+	bne	.L2080
 	ldr	r3, [r9, #3304]
 	mov	r2, #-1
 	str	r2, [r3, r10]
-	b	.L2073
-.L2074:
+	b	.L2079
+.L2080:
 	ldr	r2, [r5, #3304]
 	ldr	r2, [r2, r10]
 	adds	r2, r2, #1
-	bne	.L2073
+	bne	.L2079
 	add	fp, fp, #-1
 	uxth	fp, fp
 	cmp	fp, #0
-	bne	.L2072
-.L2073:
+	bne	.L2078
+.L2079:
 	ldr	r3, [r5, #3304]
 	ldr	r3, [r3, r10]
 	adds	r3, r3, #1
-	beq	.L2076
+	beq	.L2082
 	ldr	r2, [r5, #508]
 	ldr	r3, [r7, #4]
 	adds	r1, r2, #1
-	beq	.L2077
+	beq	.L2083
 	cmp	r2, r3
-	bhi	.L2078
-.L2077:
+	bhi	.L2084
+.L2083:
 	adds	r2, r3, #1
 	itt	ne
 	addne	r2, r3, #1
 	strne	r2, [r9, #508]
-.L2078:
+.L2084:
 	ldrh	r2, [r7]
 	movw	r1, #61604
 	cmp	r2, r1
-	beq	.L2080
-	bhi	.L2081
+	beq	.L2086
+	bhi	.L2087
 	movw	r3, #61574
 	cmp	r2, r3
-	bne	.L2079
+	bne	.L2085
 	ldr	r3, [sp, #12]
 	ldr	r2, [sp, #12]
 	ldrh	r10, [r3, #2408]
@@ -12745,17 +12785,17 @@ FtlScanSysBlk:
 	uxth	r3, lr
 	rsb	lr, r0, lr
 	str	r2, [sp, #16]
-	b	.L2094
-.L2081:
+	b	.L2100
+.L2087:
 	movw	r3, #61634
 	cmp	r2, r3
-	beq	.L2083
+	beq	.L2089
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L2079
+	bne	.L2085
 	mov	r0, r6
-	b	.L2143
-.L2083:
+	b	.L2149
+.L2089:
 	ldr	r3, [sp, #12]
 	ldrh	r0, [r4, #3452]
 	ldr	r2, [r4, #3396]
@@ -12767,31 +12807,31 @@ FtlScanSysBlk:
 	add	lr, lr, #-1
 	uxth	r3, r3
 	sxth	lr, lr
-.L2085:
+.L2091:
 	sxth	ip, r3
 	cmp	ip, lr
-	ble	.L2145
+	ble	.L2151
 	ldr	r2, [r7, #4]
 	lsl	fp, ip, #2
 	mov	r10, r2
 	ldr	r2, [sp, #16]
 	ldr	r2, [r2, ip, lsl #2]
 	cmp	r10, r2
-	bls	.L2086
+	bls	.L2092
 	ldr	r2, [sp, #16]
 	ldr	r2, [r2]
-	cbnz	r2, .L2087
+	cbnz	r2, .L2093
 	cmp	r0, r1
 	itt	ne
 	addne	r0, r0, #1
 	strhne	r0, [r9, #3452]	@ movhi
-.L2087:
+.L2093:
 	movs	r1, #0
 	uxth	lr, r3
-.L2088:
+.L2094:
 	uxth	r2, r1
 	cmp	r2, lr
-	bcs	.L2146
+	bcs	.L2152
 	ldr	r0, [r5, #3396]
 	sxth	r2, r2
 	adds	r1, r1, #1
@@ -12802,8 +12842,8 @@ FtlScanSysBlk:
 	add	r10, r0, r2, lsl #1
 	ldrh	r10, [r10, #2]
 	strh	r10, [r0, r2, lsl #1]	@ movhi
-	b	.L2088
-.L2146:
+	b	.L2094
+.L2152:
 	ldr	r1, [r7, #4]
 	ldr	r2, [r4, #3396]
 	str	r1, [r2, fp]
@@ -12811,25 +12851,25 @@ FtlScanSysBlk:
 	ldr	r2, [r4, #3368]
 	cmp	r1, #0
 	strh	r6, [r2, ip, lsl #1]	@ movhi
-	bge	.L2090
-	b	.L2079
-.L2086:
+	bge	.L2096
+	b	.L2085
+.L2092:
 	subs	r3, r3, #1
 	uxth	r3, r3
-	b	.L2085
-.L2145:
+	b	.L2091
+.L2151:
 	cmp	ip, #0
-	bge	.L2121
-	b	.L2079
-.L2090:
+	bge	.L2127
+	b	.L2085
+.L2096:
 	ldrh	r0, [r5, #3452]
 	ldr	r2, [r8, #2416]
 	subs	r2, r2, r0
 	subs	r2, r2, #1
 	sxth	r2, r2
 	cmp	r1, r2
-	bgt	.L2079
-.L2121:
+	bgt	.L2085
+.L2127:
 	ldr	r2, [r4, #3396]
 	sxth	r3, r3
 	ldr	r1, [r7, #4]
@@ -12837,41 +12877,41 @@ FtlScanSysBlk:
 	strh	r0, [r4, #3452]	@ movhi
 	str	r1, [r2, r3, lsl #2]
 	ldr	r2, [r4, #3368]
-	b	.L2141
-.L2100:
+	b	.L2147
+.L2106:
 	ldr	r1, [sp, #16]
 	lsl	fp, ip, #2
 	ldr	r2, [r7, #4]
 	ldr	r1, [r1, ip, lsl #2]
 	cmp	r2, r1
-	bhi	.L2147
+	bhi	.L2153
 	subs	r3, r3, #1
 	uxth	r3, r3
-.L2094:
+.L2100:
 	sxth	ip, r3
 	cmp	ip, lr
-	bgt	.L2100
-	b	.L2099
-.L2150:
+	bgt	.L2106
+	b	.L2105
+.L2156:
 	.align	2
-.L2149:
+.L2155:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
-.L2147:
+.L2153:
 	ldr	r2, [sp, #16]
 	ldr	r2, [r2]
-	cbnz	r2, .L2096
+	cbnz	r2, .L2102
 	cmp	r0, r10
 	itt	ne
 	addne	r0, r0, #1
 	strhne	r0, [r8, #2434]	@ movhi
-.L2096:
+.L2102:
 	movs	r1, #0
 	uxth	lr, r3
-.L2097:
+.L2103:
 	uxth	r2, r1
 	cmp	r2, lr
-	bcs	.L2148
+	bcs	.L2154
 	ldr	r0, [r4, #3380]
 	sxth	r2, r2
 	adds	r1, r1, #1
@@ -12882,112 +12922,112 @@ FtlScanSysBlk:
 	add	r10, r0, r2, lsl #1
 	ldrh	r10, [r10, #2]
 	strh	r10, [r0, r2, lsl #1]	@ movhi
-	b	.L2097
-.L2148:
+	b	.L2103
+.L2154:
 	ldr	r2, [r5, #3380]
 	ldr	r1, [r7, #4]
 	str	r1, [r2, fp]
-	ldr	r2, .L2151
+	ldr	r2, .L2157
 	ldr	r2, [r2, #2436]
 	strh	r6, [r2, ip, lsl #1]	@ movhi
-.L2099:
+.L2105:
 	sxth	r3, r3
 	cmp	r3, #0
-	blt	.L2079
+	blt	.L2085
 	ldrh	r2, [r8, #2408]
 	ldrh	r1, [r8, #2434]
 	subs	r2, r2, #1
 	subs	r2, r2, r1
 	sxth	r2, r2
 	cmp	r3, r2
-	bgt	.L2079
+	bgt	.L2085
 	adds	r1, r1, #1
 	ldr	r2, [r9, #3380]
 	strh	r1, [r8, #2434]	@ movhi
 	ldr	r1, [r7, #4]
 	str	r1, [r2, r3, lsl #2]
 	ldr	r2, [r8, #2436]
-.L2141:
+.L2147:
 	strh	r6, [r2, r3, lsl #1]	@ movhi
-	b	.L2079
-.L2080:
+	b	.L2085
+.L2086:
 	ldrh	r1, [r9, #540]
 	movw	r2, #65535
 	cmp	r1, r2
-	bne	.L2101
+	bne	.L2107
 	strh	r6, [r5, #540]	@ movhi
-	b	.L2142
-.L2101:
+	b	.L2148
+.L2107:
 	ldrh	r0, [r5, #544]
 	cmp	r0, r2
-	beq	.L2102
+	beq	.L2108
 	movs	r1, #1
 	bl	FtlFreeSysBlkQueueIn
-.L2102:
+.L2108:
 	ldr	r2, [r9, #548]
 	ldr	r3, [r7, #4]
 	cmp	r2, r3
-	bcs	.L2103
+	bcs	.L2109
 	ldrh	r3, [r5, #540]
 	strh	r6, [r5, #540]	@ movhi
 	strh	r3, [r5, #544]	@ movhi
 	ldr	r3, [r7, #4]
-.L2142:
+.L2148:
 	str	r3, [r5, #548]
-	b	.L2079
-.L2103:
+	b	.L2085
+.L2109:
 	strh	r6, [r5, #544]	@ movhi
-	b	.L2079
-.L2076:
-	ldrb	r1, [r8, #144]	@ zero_extendqisi2
+	b	.L2085
+.L2082:
+	ldrb	r1, [r8, #148]	@ zero_extendqisi2
 	mov	r0, r6
-	cbz	r1, .L2104
-.L2143:
+	cbz	r1, .L2110
+.L2149:
 	movs	r1, #0
-.L2104:
+.L2110:
 	bl	FtlFreeSysBlkQueueIn
-.L2079:
+.L2085:
 	ldr	r3, [sp, #8]
 	adds	r3, r3, #1
 	str	r3, [sp, #8]
-	b	.L2071
-.L2070:
+	b	.L2077
+.L2076:
 	ldr	r6, [sp, #4]
 	adds	r6, r6, #1
 	uxth	r3, r6
 	str	r3, [sp, #4]
-	b	.L2065
-.L2107:
-	ldr	r3, .L2151+4
+	b	.L2071
+.L2113:
+	ldr	r3, .L2157+4
 	ldr	r5, [r3, #3368]
 	ldrh	r2, [r5]
-	cbz	r2, .L2109
-.L2112:
+	cbz	r2, .L2115
+.L2118:
 	ldr	r5, [r0, #2436]
-	ldr	r3, .L2151
+	ldr	r3, .L2157
 	ldrh	r2, [r5]
-	cbz	r2, .L2110
-	b	.L2133
-.L2109:
+	cbz	r2, .L2116
+	b	.L2139
+.L2115:
 	ldrh	r3, [r3, #3452]
 	cmp	r3, #0
-	beq	.L2112
+	beq	.L2118
 	ldr	r6, [r6, #2416]
-.L2113:
+.L2119:
 	uxth	r3, r2
 	sxth	r1, r3
 	cmp	r1, r6
-	bcs	.L2112
+	bcs	.L2118
 	ldrh	r7, [r5, r1, lsl #1]
 	adds	r2, r2, #1
 	cmp	r7, #0
-	beq	.L2113
+	beq	.L2119
 	mov	lr, #0
-.L2114:
+.L2120:
 	ldr	r5, [r0, #2416]
 	sxth	r2, r3
 	cmp	r2, r5
-	bcs	.L2112
+	bcs	.L2118
 	ldr	r5, [r4, #3368]
 	subs	r6, r2, r1
 	adds	r3, r3, #1
@@ -12999,27 +13039,27 @@ FtlScanSysBlk:
 	str	r7, [r5, r6, lsl #2]
 	ldr	r5, [r4, #3368]
 	strh	lr, [r5, r2, lsl #1]	@ movhi
-	b	.L2114
-.L2110:
+	b	.L2120
+.L2116:
 	ldrh	r1, [r3, #2434]
-	cbz	r1, .L2133
+	cbz	r1, .L2139
 	ldrh	r6, [r3, #2408]
-.L2117:
+.L2123:
 	uxth	r3, r2
 	sxth	r1, r3
 	cmp	r1, r6
-	bge	.L2133
+	bge	.L2139
 	ldrh	r7, [r5, r1, lsl #1]
 	adds	r2, r2, #1
 	cmp	r7, #0
-	beq	.L2117
-	ldr	r5, .L2151
+	beq	.L2123
+	ldr	r5, .L2157
 	mov	ip, #0
-.L2118:
+.L2124:
 	ldrh	r6, [r0, #2408]
 	sxth	r2, r3
 	cmp	r2, r6
-	bge	.L2133
+	bge	.L2139
 	ldr	r6, [r5, #2436]
 	rsb	lr, r1, r2
 	adds	r3, r3, #1
@@ -13031,15 +13071,15 @@ FtlScanSysBlk:
 	str	r7, [r6, lr, lsl #2]
 	ldr	r6, [r5, #2436]
 	strh	ip, [r6, r2, lsl #1]	@ movhi
-	b	.L2118
-.L2133:
+	b	.L2124
+.L2139:
 	movs	r0, #0
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2152:
+.L2158:
 	.align	2
-.L2151:
+.L2157:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -13056,27 +13096,27 @@ FtlLoadSysInfo:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	movs	r1, #0
-	ldr	r4, .L2181
+	ldr	r4, .L2187
 	.pad #44
 	sub	sp, sp, #44
-	ldr	r7, .L2181+4
-	ldr	r5, .L2181+8
+	ldr	r7, .L2187+4
+	ldr	r5, .L2187+8
 	ldr	r3, [r4, #3316]
 	ldrh	r2, [r7, #2328]
 	ldr	r0, [r4, #296]
-	str	r3, [r5, #1256]
+	str	r3, [r5, #1264]
 	ldr	r3, [r4, #3340]
 	lsls	r2, r2, #1
-	str	r3, [r5, #1260]
+	str	r3, [r5, #1268]
 	bl	ftl_memset
 	ldrh	r0, [r4, #540]
 	movw	r3, #65535
 	cmp	r0, r3
-	bne	.L2154
-.L2165:
+	bne	.L2160
+.L2171:
 	mov	r0, #-1
-	b	.L2155
-.L2154:
+	b	.L2161
+.L2160:
 	movs	r1, #1
 	mov	r8, r5
 	bl	FtlGetLastWrittenPage
@@ -13084,30 +13124,30 @@ FtlLoadSysInfo:
 	uxth	r6, r0
 	adds	r0, r0, #1
 	strh	r0, [r4, #542]	@ movhi
-.L2156:
+.L2162:
 	sxth	r3, r6
 	cmp	r3, #0
-	blt	.L2164
+	blt	.L2170
 	sxth	fp, r10
 	movs	r1, #1
-	ldr	r0, .L2181+12
+	ldr	r0, .L2187+12
 	orr	r3, r3, fp, lsl #10
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	ldr	r3, [r4, #3316]
 	mov	r2, r1
-	ldr	r9, .L2181
-	str	r3, [r5, #1256]
+	ldr	r9, .L2187
+	str	r3, [r5, #1264]
 	bl	FlashReadPages
-	ldrb	r3, [r7]	@ zero_extendqisi2
+	ldrb	r3, [r7, #32]	@ zero_extendqisi2
 	cmp	r3, #0
-	beq	.L2157
-	ldr	r3, [r8, #1260]
+	beq	.L2163
+	ldr	r3, [r8, #1268]
 	ldr	r2, [r3, #12]
 	cmp	r2, #0
-	beq	.L2157
-	ldr	ip, [r8, #1256]
+	beq	.L2163
+	ldr	ip, [r8, #1264]
 	str	r3, [sp, #32]
-	ldr	r3, .L2181+4
+	ldr	r3, .L2187+4
 	mov	r0, ip
 	str	r2, [sp, #36]
 	str	ip, [sp, #28]
@@ -13115,13 +13155,13 @@ FtlLoadSysInfo:
 	bl	js_hash
 	ldr	r2, [sp, #36]
 	cmp	r2, r0
-	beq	.L2157
+	beq	.L2163
 	ldr	ip, [sp, #28]
 	ldr	r3, [sp, #32]
-	cbnz	r6, .L2158
+	cbnz	r6, .L2164
 	ldrh	r1, [r9, #544]
 	cmp	fp, r1
-	beq	.L2158
+	beq	.L2164
 	ldr	r0, [r3]
 	ldrh	r1, [r9, #540]
 	str	r0, [sp]
@@ -13129,50 +13169,50 @@ FtlLoadSysInfo:
 	str	r0, [sp, #4]
 	ldr	r3, [r3, #8]
 	str	r2, [sp, #12]
-	ldr	r0, .L2181+16
+	ldr	r0, .L2187+16
 	str	r3, [sp, #8]
 	ldr	r3, [ip]
 	str	r3, [sp, #16]
-	ldr	r3, [r8, #1252]
-	ldr	r2, [r8, #1248]
+	ldr	r3, [r8, #1260]
+	ldr	r2, [r8, #1256]
 	bl	printk
-	ldr	r3, .L2181+4
+	ldr	r3, .L2187+4
 	ldrh	r10, [r9, #544]
 	ldrh	r6, [r3, #2390]
-	b	.L2160
-.L2158:
+	b	.L2166
+.L2164:
 	mov	r3, #-1
-	str	r3, [r5, #1248]
-.L2157:
-	ldr	r3, [r5, #1248]
+	str	r3, [r5, #1256]
+.L2163:
+	ldr	r3, [r5, #1256]
 	adds	r3, r3, #1
-	beq	.L2160
+	beq	.L2166
 	ldr	r3, [r4, #3316]
-	ldr	r2, .L2181+20
+	ldr	r2, .L2187+20
 	ldr	r3, [r3]
 	cmp	r3, r2
-	bne	.L2160
-	ldr	r3, .L2181
+	bne	.L2166
+	ldr	r3, .L2187
 	ldr	r3, [r3, #3340]
 	ldrh	r2, [r3]
 	movw	r3, #61604
 	cmp	r2, r3
-	bne	.L2160
-.L2164:
-	ldr	r6, .L2181
+	bne	.L2166
+.L2170:
+	ldr	r6, .L2187
 	movs	r2, #48
-	ldr	r1, [r5, #1256]
+	ldr	r1, [r5, #1264]
 	add	r0, r6, #240
-	ldr	r8, .L2181+4
+	ldr	r8, .L2187+4
 	bl	ftl_memcpy
 	ldrh	r2, [r7, #2328]
-	ldr	r1, [r5, #1256]
+	ldr	r1, [r5, #1264]
 	ldr	r0, [r4, #296]
 	adds	r1, r1, #48
 	lsls	r2, r2, #1
 	bl	ftl_memcpy
 	ldrh	r2, [r7, #2328]
-	ldr	r1, [r5, #1256]
+	ldr	r1, [r5, #1264]
 	ldr	r0, [r4, #472]
 	lsls	r3, r2, #1
 	lsrs	r2, r2, #3
@@ -13182,40 +13222,40 @@ FtlLoadSysInfo:
 	add	r1, r1, r3
 	bl	ftl_memcpy
 	ldrh	r3, [r7, #2432]
-	cbz	r3, .L2162
+	cbz	r3, .L2168
 	ldrh	r2, [r8, #2328]
 	ldr	r0, [r6, #3392]
 	lsrs	r3, r2, #3
 	add	r3, r3, r2, lsl #1
-	ldr	r2, .L2181+8
+	ldr	r2, .L2187+8
 	adds	r3, r3, #52
 	ubfx	r3, r3, #2, #14
-	ldr	r1, [r2, #1256]
+	ldr	r1, [r2, #1264]
 	ldrh	r2, [r8, #2424]
 	add	r1, r1, r3, lsl #2
 	lsls	r2, r2, #2
 	bl	ftl_memcpy
-	b	.L2162
-.L2160:
+	b	.L2168
+.L2166:
 	subs	r6, r6, #1
 	uxth	r6, r6
-	b	.L2156
-.L2162:
+	b	.L2162
+.L2168:
 	ldr	r2, [r4, #240]
-	ldr	r3, .L2181+20
-	ldr	r6, .L2181
+	ldr	r3, .L2187+20
+	ldr	r6, .L2187
 	cmp	r2, r3
-	bne	.L2165
+	bne	.L2171
 	ldrb	r0, [r6, #250]	@ zero_extendqisi2
 	ldrh	r1, [r7, #2342]
 	ldrh	r2, [r6, #248]
 	cmp	r0, r1
-	ldr	r3, .L2181+4
+	ldr	r3, .L2187+4
 	strh	r2, [r6, #546]	@ movhi
-	bne	.L2165
+	bne	.L2171
 	ldrh	r1, [r3, #2388]
 	ldrh	r0, [r3, #2394]
-	str	r2, [r5, #1284]
+	str	r2, [r5, #1292]
 	muls	r1, r2, r1
 	str	r1, [r3, #2448]
 	muls	r1, r0, r1
@@ -13278,47 +13318,47 @@ FtlLoadSysInfo:
 	ldr	r3, [r4, #276]
 	cmp	r3, r2
 	itt	hi
-	ldrhi	r2, .L2181
+	ldrhi	r2, .L2187
 	strhi	r3, [r2, #512]
 	movw	r3, #65535
 	cmp	r1, r3
-	beq	.L2168
-	ldr	r0, .L2181+24
+	beq	.L2174
+	ldr	r0, .L2187+24
 	bl	make_superblock
-.L2168:
+.L2174:
 	ldrh	r2, [r4, #364]
 	movw	r3, #65535
 	cmp	r2, r3
-	beq	.L2169
-	ldr	r0, .L2181+28
+	beq	.L2175
+	ldr	r0, .L2187+28
 	bl	make_superblock
-.L2169:
+.L2175:
 	ldrh	r2, [r4, #412]
 	movw	r3, #65535
 	cmp	r2, r3
-	beq	.L2170
-	ldr	r0, .L2181+32
+	beq	.L2176
+	ldr	r0, .L2187+32
 	bl	make_superblock
-.L2170:
+.L2176:
 	ldrh	r2, [r4, #556]
 	movw	r3, #65535
 	cmp	r2, r3
-	beq	.L2171
-	ldr	r0, .L2181+36
+	beq	.L2177
+	ldr	r0, .L2187+36
 	bl	make_superblock
-.L2171:
+.L2177:
 	movs	r0, #0
-.L2155:
+.L2161:
 	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2182:
+.L2188:
 	.align	2
-.L2181:
+.L2187:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR4
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC109
 	.word	1179929683
 	.word	.LANCHOR2+316
@@ -13343,45 +13383,45 @@ FtlDumpBlockInfo:
 	sub	sp, sp, #100
 	mov	r8, r1
 	bl	P2V_block_in_plane
-	ldr	r4, .L2199
-	ldr	r7, .L2199+4
-	ldr	r1, .L2199+8
+	ldr	r4, .L2205
+	ldr	r7, .L2205+4
+	ldr	r1, .L2205+8
 	ldrh	r9, [r4, #2388]
 	mov	r6, r0
-	ldr	r0, .L2199+12
+	ldr	r0, .L2205+12
 	bl	printk
 	ldr	r3, [r7, #296]
 	mov	r1, r6
-	ldr	r0, .L2199+16
+	ldr	r0, .L2205+16
 	ldrh	r2, [r3, r6, lsl #1]
 	bl	printk
 	add	r0, sp, #96
 	strh	r6, [r0, #-48]!	@ movhi
 	bl	make_superblock
-	ldrb	r5, [r4, #144]	@ zero_extendqisi2
+	ldrb	r5, [r4, #148]	@ zero_extendqisi2
 	str	r7, [sp, #44]
-	cbz	r5, .L2184
+	cbz	r5, .L2190
 	cmp	r8, #0
-	bne	.L2195
+	bne	.L2201
 	mov	r0, r6
 	bl	ftl_get_blk_mode
 	cmp	r0, #1
 	mov	r5, r0
-	bne	.L2184
+	bne	.L2190
 	ldrh	r9, [r4, #2390]
-	b	.L2184
-.L2195:
+	b	.L2190
+.L2201:
 	movs	r5, #0
-.L2184:
-	ldr	r0, .L2199+20
+.L2190:
+	ldr	r0, .L2205+20
 	mov	r1, r5
 	mov	r2, r9
 	ldrh	r3, [r4, #2388]
 	bl	printk
-	ldr	r10, .L2199
+	ldr	r10, .L2205
 	movs	r6, #0
-.L2185:
-	ldr	r3, .L2199+4
+.L2191:
+	ldr	r3, .L2205+4
 	movs	r2, #0
 	ldrh	fp, [r10, #2320]
 	add	lr, sp, #62
@@ -13391,21 +13431,21 @@ FtlDumpBlockInfo:
 	mov	r4, r2
 	movw	ip, #65535
 	str	r3, [sp, #28]
-	ldr	r3, .L2199+4
+	ldr	r3, .L2205+4
 	ldr	r3, [r3, #1144]
 	str	r3, [sp, #32]
 	ldrh	r3, [r10, #2398]
 	str	r3, [sp, #36]
-	ldr	r3, .L2199+4
+	ldr	r3, .L2205+4
 	ldr	r3, [r3, #1148]
 	str	r3, [sp, #40]
-.L2186:
+.L2192:
 	uxth	r3, r2
 	cmp	r3, fp
-	bcs	.L2197
+	bcs	.L2203
 	ldrh	r3, [lr, #2]!
 	cmp	r3, ip
-	beq	.L2187
+	beq	.L2193
 	ldr	r1, [sp, #28]
 	orr	r3, r6, r3, lsl #10
 	ldr	r7, [sp, #32]
@@ -13428,21 +13468,21 @@ FtlDumpBlockInfo:
 	uxth	r4, r4
 	add	r3, r3, r7
 	str	r3, [r1, #12]
-.L2187:
+.L2193:
 	adds	r2, r2, #1
-	b	.L2186
-.L2197:
-	ldr	r3, .L2199+4
+	b	.L2192
+.L2203:
+	ldr	r3, .L2205+4
 	mov	r1, r4
 	mov	r2, r5
 	mov	r8, #0
 	mov	fp, #36
 	ldr	r0, [r3, #3304]
 	bl	FlashReadPages
-.L2191:
+.L2197:
 	uxth	r3, r8
 	cmp	r3, r4
-	bcs	.L2198
+	bcs	.L2204
 	ldr	r3, [sp, #44]
 	mul	r2, fp, r8
 	ldrh	r1, [sp, #48]
@@ -13462,25 +13502,25 @@ FtlDumpBlockInfo:
 	ldr	r3, [r0]
 	str	r3, [sp, #16]
 	ldr	r3, [r0, #4]
-	ldr	r0, .L2199+24
+	ldr	r0, .L2205+24
 	str	r3, [sp, #20]
 	ldr	r2, [ip, r2]
 	ldr	r3, [lr, #4]
 	bl	printk
-	b	.L2191
-.L2198:
+	b	.L2197
+.L2204:
 	adds	r6, r6, #1
 	uxth	r6, r6
 	cmp	r6, r9
-	bne	.L2185
-.L2193:
+	bne	.L2191
+.L2199:
 	movs	r0, #0
 	add	sp, sp, #100
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2200:
+.L2206:
 	.align	2
-.L2199:
+.L2205:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR3+148
@@ -13503,18 +13543,18 @@ FtlScanAllBlock:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #92
 	sub	sp, sp, #92
-	ldr	r0, .L2217
+	ldr	r0, .L2223
 	mov	r8, #0
-	ldr	r1, .L2217+4
+	ldr	r1, .L2223+4
 	bl	printk
-	ldr	r5, .L2217+8
+	ldr	r5, .L2223+8
 	mov	r7, r5
-.L2202:
-	ldr	r3, .L2217+12
+.L2208:
+	ldr	r3, .L2223+12
 	uxth	r4, r8
 	ldrh	r3, [r3, #2330]
 	cmp	r3, r4
-	bls	.L2213
+	bls	.L2219
 	add	r9, sp, #88
 	mov	r0, r4
 	mov	fp, #36
@@ -13525,11 +13565,11 @@ FtlScanAllBlock:
 	mov	r1, r4
 	ldrh	r2, [r2, r4, lsl #1]
 	mov	r3, r0
-	ldr	r0, .L2217+16
+	ldr	r0, .L2223+16
 	bl	printk
 	mov	r0, r9
 	bl	make_superblock
-	ldr	r3, .L2217+12
+	ldr	r3, .L2223+12
 	movs	r2, #0
 	ldr	r9, [r5, #1148]
 	ldrh	lr, [r3, #2320]
@@ -13539,17 +13579,17 @@ FtlScanAllBlock:
 	add	ip, sp, #54
 	ldr	r3, [r5, #1144]
 	str	r3, [sp, #32]
-	ldr	r3, .L2217+12
+	ldr	r3, .L2223+12
 	ldrh	r0, [r3, #2398]
 	ldrh	r3, [r3, #2400]
 	str	r3, [sp, #36]
-.L2203:
+.L2209:
 	uxth	r3, r2
 	cmp	r3, lr
-	bcs	.L2214
+	bcs	.L2220
 	ldrh	r3, [ip, #2]!
 	cmp	r3, r10
-	beq	.L2204
+	beq	.L2210
 	ldr	r1, [sp, #28]
 	lsls	r3, r3, #10
 	ldr	r6, [sp, #32]
@@ -13571,20 +13611,20 @@ FtlScanAllBlock:
 	uxth	r4, r4
 	add	r3, r3, r9
 	str	r3, [r1, #12]
-.L2204:
+.L2210:
 	adds	r2, r2, #1
-	b	.L2203
-.L2214:
+	b	.L2209
+.L2220:
 	ldr	r0, [r7, #3304]
 	mov	r1, r4
 	movs	r2, #0
 	mov	r9, #0
 	bl	FlashReadPages
 	mov	r10, #36
-.L2208:
+.L2214:
 	uxth	r3, r9
 	cmp	r3, r4
-	bcs	.L2215
+	bcs	.L2221
 	mul	r2, r10, r9
 	ldr	ip, [r7, #3304]
 	ldrh	r1, [sp, #40]
@@ -13603,23 +13643,23 @@ FtlScanAllBlock:
 	ldr	r3, [r0]
 	str	r3, [sp, #16]
 	ldr	r3, [r0, #4]
-	ldr	r0, .L2217+20
+	ldr	r0, .L2223+20
 	str	r3, [sp, #20]
 	ldr	r2, [ip, r2]
 	ldr	r3, [lr, #4]
 	bl	printk
-	b	.L2208
-.L2215:
+	b	.L2214
+.L2221:
 	ldr	r0, [r7, #3304]
 	mov	r1, r4
 	movs	r2, #1
 	mov	r9, #0
 	bl	FlashReadPages
 	mov	r10, #36
-.L2210:
+.L2216:
 	uxth	r3, r9
 	cmp	r3, r4
-	bcs	.L2216
+	bcs	.L2222
 	mul	r2, r10, r9
 	ldr	ip, [r7, #3304]
 	ldrh	r1, [sp, #40]
@@ -13638,23 +13678,23 @@ FtlScanAllBlock:
 	ldr	r3, [r0]
 	str	r3, [sp, #16]
 	ldr	r3, [r0, #4]
-	ldr	r0, .L2217+24
+	ldr	r0, .L2223+24
 	str	r3, [sp, #20]
 	ldr	r2, [ip, r2]
 	ldr	r3, [lr, #4]
 	bl	printk
-	b	.L2210
-.L2216:
+	b	.L2216
+.L2222:
 	add	r8, r8, #1
-	b	.L2202
-.L2213:
+	b	.L2208
+.L2219:
 	movs	r0, #0
 	add	sp, sp, #92
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2218:
+.L2224:
 	.align	2
-.L2217:
+.L2223:
 	.word	.LC110
 	.word	.LANCHOR3+168
 	.word	.LANCHOR2
@@ -13677,74 +13717,74 @@ ftl_scan_all_ppa:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #36
 	sub	sp, sp, #36
-	ldr	r6, .L2237
-	ldr	r5, .L2237+4
+	ldr	r6, .L2243
+	ldr	r5, .L2243+4
 	ldrh	r4, [r6, #2386]
 	mov	r10, r6
 	subs	r4, r4, #16
-.L2220:
+.L2226:
 	ldrh	r3, [r6, #2386]
 	cmp	r4, r3
-	bge	.L2235
+	bge	.L2241
 	uxth	r8, r4
 	mov	r0, r8
 	bl	ftl_get_blk_mode
-	ldrb	r3, [r10, #144]	@ zero_extendqisi2
-	cbz	r3, .L2221
+	ldrb	r3, [r10, #148]	@ zero_extendqisi2
+	cbz	r3, .L2227
 	ldrh	r3, [r10, #2328]
 	cmp	r4, r3
-	bge	.L2222
+	bge	.L2228
 	ldrh	r3, [r10, #2402]
 	cmp	r4, r3
-	blt	.L2222
-.L2221:
+	blt	.L2228
+.L2227:
 	cmp	r0, #1
-	bne	.L2223
-.L2222:
+	bne	.L2229
+.L2228:
 	ldrh	r7, [r6, #2390]
 	mov	r9, #-2147483648
-	b	.L2224
-.L2223:
+	b	.L2230
+.L2229:
 	ldrh	r7, [r6, #2388]
 	mov	r9, #0
-.L2224:
-	ldr	r0, .L2237+8
+.L2230:
+	ldr	r0, .L2243+8
 	mov	r1, r4
 	mov	r2, r7
 	mov	r3, r9
 	bl	printk
 	mov	r0, r8
 	bl	FtlBbmIsBadBlock
-	cbz	r0, .L2225
-	ldr	r0, .L2237+12
+	cbz	r0, .L2231
+	ldr	r0, .L2243+12
 	mov	r1, r4
 	mov	r2, r7
 	mov	r3, r9
 	bl	printk
-.L2225:
-	ldr	fp, .L2237+32
+.L2231:
+	ldr	fp, .L2243+32
 	lsl	ip, r4, #10
 	mov	r8, #0
-.L2226:
+.L2232:
 	cmp	r8, r7
-	beq	.L2236
+	beq	.L2242
 	add	r3, r9, ip
 	movs	r2, #0
 	add	r3, r3, r8
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	ldr	r3, [fp, #3316]
 	movs	r1, #1
-	ldr	r0, .L2237+16
+	ldr	r0, .L2243+16
 	add	r8, r8, #1
 	str	ip, [sp, #28]
-	str	r3, [r5, #1256]
+	str	r3, [r5, #1264]
 	ldr	r3, [fp, #3340]
-	str	r2, [r5, #1248]
-	str	r3, [r5, #1260]
+	str	r2, [r5, #1256]
+	str	r3, [r5, #1268]
 	bl	FlashReadPages
-	ldr	r3, [r5, #1260]
-	ldr	r2, [r5, #1256]
-	ldr	r0, .L2237+20
+	ldr	r3, [r5, #1268]
+	ldr	r2, [r5, #1264]
+	ldr	r0, .L2243+20
 	ldr	r1, [r3, #4]
 	str	r1, [sp]
 	ldr	r1, [r3, #8]
@@ -13754,31 +13794,31 @@ ftl_scan_all_ppa:
 	ldr	r1, [r2]
 	str	r1, [sp, #12]
 	ldr	r2, [r2, #4]
-	ldr	r1, [r5, #1252]
+	ldr	r1, [r5, #1260]
 	str	r2, [sp, #16]
-	ldr	r2, [r5, #1248]
+	ldr	r2, [r5, #1256]
 	ldr	r3, [r3]
 	bl	printk
 	ldr	ip, [sp, #28]
-	b	.L2226
-.L2236:
+	b	.L2232
+.L2242:
 	adds	r4, r4, #1
-	b	.L2220
-.L2235:
-	ldr	r0, .L2237+24
-	ldr	r1, .L2237+28
+	b	.L2226
+.L2241:
+	ldr	r0, .L2243+24
+	ldr	r1, .L2243+28
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	b	printk
-.L2238:
+.L2244:
 	.align	2
-.L2237:
+.L2243:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LC117
 	.word	.LC118
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC119
 	.word	.LC120
 	.word	.LANCHOR3+184
@@ -13798,22 +13838,22 @@ FlashProgPages:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #76
 	sub	sp, sp, #76
-	ldr	r6, .L2293
+	ldr	r6, .L2299
 	mov	r4, r0
 	str	r1, [sp, #8]
 	mov	r9, r2
 	str	r3, [sp, #20]
 	ldr	r5, [r6, #44]
-	ldrb	r7, [r6]	@ zero_extendqisi2
+	ldrb	r7, [r6, #32]	@ zero_extendqisi2
 	ldrb	r5, [r5, #19]	@ zero_extendqisi2
 	str	r5, [sp, #16]
-	ldr	r5, .L2293+4
+	ldr	r5, .L2299+4
 	ldrb	r5, [r5, #481]	@ zero_extendqisi2
 	str	r5, [sp, #12]
-	cbz	r7, .L2240
+	cbz	r7, .L2246
 	bl	FlashProgSlc2KPages
-	b	.L2241
-.L2253:
+	b	.L2247
+.L2259:
 	movs	r3, #36
 	mov	r1, r9
 	add	r2, sp, #28
@@ -13830,28 +13870,28 @@ FlashProgPages:
 	mov	r10, r0
 	ldr	r0, [sp, #32]
 	cmp	r0, r3
-	bcc	.L2242
+	bcc	.L2248
 	mov	r3, #-1
 	str	r3, [r4, r8]
-.L2243:
+.L2249:
 	adds	r7, r7, #1
-.L2240:
+.L2246:
 	ldr	r3, [sp, #8]
-	ldr	r8, .L2293
+	ldr	r8, .L2299
 	cmp	r7, r3
-	bcc	.L2253
-	b	.L2291
-.L2242:
+	bcc	.L2259
+	b	.L2297
+.L2248:
 	ldrb	r3, [r6, #2240]	@ zero_extendqisi2
 	cmp	r3, #0
 	add	r3, r6, r0, lsl #4
 	it	eq
 	moveq	r10, #0
 	ldr	r3, [r3, #2108]
-	cbz	r3, .L2245
+	cbz	r3, .L2251
 	uxtb	r0, r0
 	bl	FlashWaitCmdDone
-.L2245:
+.L2251:
 	ldr	r3, [sp, #32]
 	movs	r0, #0
 	add	r2, r6, r3, lsl #4
@@ -13861,11 +13901,11 @@ FlashProgPages:
 	str	fp, [r2, #2108]
 	str	r0, [r2, #2104]
 	cmp	r10, #0
-	beq	.L2246
+	beq	.L2252
 	add	r2, r8, #36
 	add	r2, r2, r4
 	str	r2, [r1, #4]
-.L2246:
+.L2252:
 	adds	r2, r6, r3
 	add	r3, r6, r3, lsl #4
 	ldrb	r5, [r2, #2232]	@ zero_extendqisi2
@@ -13873,48 +13913,48 @@ FlashProgPages:
 	mov	r0, r5
 	ldrb	r3, [r6, #2230]	@ zero_extendqisi2
 	cmp	r3, #1
-	bne	.L2247
+	bne	.L2253
 	bl	NandcWaitFlashReady
-	b	.L2248
-.L2247:
+	b	.L2254
+.L2253:
 	bl	NandcFlashCs
 	mov	r0, r5
 	ldr	r3, [sp, #32]
 	ldr	r1, [sp, #28]
 	add	r3, r6, r3, lsl #2
-	ldr	r2, [r3, #1172]
+	ldr	r2, [r3, #1176]
 	adds	r2, r2, #0
 	it	ne
 	movne	r2, #1
 	bl	FlashWaitReadyEN
 	mov	r0, r5
 	bl	NandcFlashDeCs
-.L2248:
+.L2254:
 	ldr	r3, [sp, #16]
 	subs	r3, r3, #1
 	cmp	r3, #7
-	bhi	.L2249
+	bhi	.L2255
 	adds	r3, r6, r5
 	ldrb	r3, [r3, #2064]	@ zero_extendqisi2
-	cbz	r3, .L2249
+	cbz	r3, .L2255
 	mov	r0, r5
-	ldrb	r1, [r6, #1211]	@ zero_extendqisi2
-	ldr	r2, .L2293+8
+	ldrb	r1, [r6, #1213]	@ zero_extendqisi2
+	ldr	r2, .L2299+8
 	movs	r3, #0
 	bl	HynixSetRRPara
-.L2249:
+.L2255:
 	mov	r0, r5
 	bl	NandcFlashCs
 	cmp	r9, #1
 	mov	r0, r5
-	bne	.L2250
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L2250
+	bne	.L2256
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbz	r3, .L2256
 	bl	flash_enter_slc_mode
-	b	.L2251
-.L2250:
+	b	.L2257
+.L2256:
 	bl	flash_exit_slc_mode
-.L2251:
+.L2257:
 	mov	r0, r5
 	ldr	r1, [sp, #28]
 	bl	FlashProgFirstCmd
@@ -13926,7 +13966,7 @@ FlashProgPages:
 	ldr	r3, [fp, #8]
 	bl	NandcXferData
 	cmp	r10, #0
-	beq	.L2252
+	beq	.L2258
 	mov	r0, r5
 	ldr	r1, [sp, #28]
 	bl	FlashProgDpFirstCmd
@@ -13936,12 +13976,12 @@ FlashProgPages:
 	ldr	r3, [sp, #32]
 	ldr	r1, [sp, #28]
 	add	r3, r6, r3, lsl #2
-	ldr	r2, [r3, #1172]
+	ldr	r2, [r3, #1176]
 	adds	r2, r2, #0
 	it	ne
 	movne	r2, #1
 	bl	FlashWaitReadyEN
-	ldr	r1, [r6, #4]
+	ldr	r1, [r6, #36]
 	mov	r0, r5
 	ldr	r3, [sp, #28]
 	add	r1, r1, r3
@@ -13953,56 +13993,56 @@ FlashProgPages:
 	ldr	r2, [sp, #12]
 	ldr	r3, [r8, #8]
 	bl	NandcXferData
-.L2252:
+.L2258:
 	mov	r0, r5
 	ldr	r1, [sp, #28]
 	bl	FlashProgSecondCmd
 	mov	r0, r5
 	bl	NandcFlashDeCs
 	add	r7, r7, r10
-	b	.L2243
-.L2291:
+	b	.L2249
+.L2297:
 	movs	r5, #0
 	addw	r7, r8, #2100
 	mov	r6, r8
-.L2254:
+.L2260:
 	ldrb	r3, [r8, #2230]	@ zero_extendqisi2
 	cmp	r5, r3
-	bcs	.L2292
+	bcs	.L2298
 	uxtb	r0, r5
 	bl	FlashWaitCmdDone
 	cmp	r9, #1
-	bne	.L2255
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L2255
+	bne	.L2261
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbz	r3, .L2261
 	lsls	r3, r5, #4
 	ldrb	r0, [r7, r3]	@ zero_extendqisi2
 	bl	flash_exit_slc_mode
-.L2255:
+.L2261:
 	adds	r5, r5, #1
-	b	.L2254
-.L2292:
+	b	.L2260
+.L2298:
 	ldr	r3, [sp, #20]
-	cbnz	r3, .L2257
-.L2265:
+	cbnz	r3, .L2263
+.L2271:
 	movs	r0, #0
-	b	.L2241
-.L2257:
-	ldr	r7, .L2293+12
+	b	.L2247
+.L2263:
+	ldr	r7, .L2299+12
 	mov	r8, #0
 	mov	r10, r7
-.L2258:
+.L2264:
 	ldr	r3, [sp, #8]
 	cmp	r8, r3
-	beq	.L2265
+	beq	.L2271
 	ldr	r3, [r4]
 	adds	r3, r3, #1
-	bne	.L2259
+	bne	.L2265
 	ldr	r1, [r4, #4]
-	ldr	r0, .L2293+16
+	ldr	r0, .L2299+16
 	bl	printk
-	b	.L2260
-.L2259:
+	b	.L2266
+.L2265:
 	ldr	r3, [sp, #8]
 	mov	r1, r9
 	add	r2, sp, #28
@@ -14013,10 +14053,10 @@ FlashProgPages:
 	str	r3, [sp]
 	add	r3, sp, #32
 	bl	LogAddr2PhyAddr
-	ldr	r2, [r7, #1220]
+	ldr	r2, [r7, #1228]
 	movs	r3, #0
 	str	r3, [r2]
-	ldr	r2, [r7, #1224]
+	ldr	r2, [r7, #1232]
 	str	r3, [r2]
 	ldmia	r6!, {r0, r1, r2, r3}
 	add	r5, sp, #36
@@ -14028,58 +14068,58 @@ FlashProgPages:
 	movs	r1, #1
 	mov	r2, r9
 	str	r3, [r5]
-	ldr	r3, [r7, #1220]
+	ldr	r3, [r7, #1228]
 	str	r3, [sp, #44]
-	ldr	r3, [r7, #1224]
+	ldr	r3, [r7, #1232]
 	str	r3, [sp, #48]
 	bl	FlashReadPages
 	ldr	r5, [sp, #36]
 	adds	r3, r5, #1
-	bne	.L2261
-	ldr	r0, .L2293+20
+	bne	.L2267
+	ldr	r0, .L2299+20
 	ldr	r1, [r4, #4]
 	bl	printk
 	str	r5, [r4]
-.L2261:
+.L2267:
 	ldr	r3, [r4, #12]
-	cbz	r3, .L2262
+	cbz	r3, .L2268
 	ldr	r2, [r3]
-	ldr	r3, [r10, #1224]
+	ldr	r3, [r10, #1232]
 	ldr	r3, [r3]
 	cmp	r2, r3
-	beq	.L2262
-	ldr	r0, .L2293+24
+	beq	.L2268
+	ldr	r0, .L2299+24
 	ldr	r1, [r4, #4]
 	bl	printk
 	mov	r3, #-1
 	str	r3, [r4]
-.L2262:
+.L2268:
 	ldr	r3, [r4, #8]
-	cbz	r3, .L2260
+	cbz	r3, .L2266
 	ldr	r2, [r3]
-	ldr	r3, [r10, #1220]
+	ldr	r3, [r10, #1228]
 	ldr	r3, [r3]
 	cmp	r2, r3
-	beq	.L2260
-	ldr	r0, .L2293+28
+	beq	.L2266
+	ldr	r0, .L2299+28
 	ldr	r1, [r4, #4]
 	bl	printk
 	mov	r3, #-1
 	str	r3, [r4]
-.L2260:
+.L2266:
 	add	r8, r8, #1
 	adds	r4, r4, #36
-	b	.L2258
-.L2241:
+	b	.L2264
+.L2247:
 	add	sp, sp, #76
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2294:
+.L2300:
 	.align	2
-.L2293:
+.L2299:
 	.word	.LANCHOR0
 	.word	.LANCHOR1
-	.word	.LANCHOR0+1214
+	.word	.LANCHOR0+1216
 	.word	.LANCHOR4
 	.word	.LC104
 	.word	.LC105
@@ -14099,13 +14139,13 @@ FlashTestBlk:
 	push	{r4, r5, lr}
 	.save {r4, r5, lr}
 	mov	r4, r0
-	ldr	r5, .L2298
+	ldr	r5, .L2304
 	.pad #108
 	sub	sp, sp, #108
-	ldr	r3, [r5, #1204]
-	cmp	r0, r3
-	bcc	.L2297
 	ldr	r3, [r5, #1212]
+	cmp	r0, r3
+	bcc	.L2303
+	ldr	r3, [r5, #1220]
 	add	r0, sp, #40
 	movs	r1, #165
 	movs	r2, #32
@@ -14113,7 +14153,7 @@ FlashTestBlk:
 	lsls	r4, r4, #10
 	str	r3, [sp, #12]
 	bl	ftl_memset
-	ldr	r0, [r5, #1212]
+	ldr	r0, [r5, #1220]
 	movs	r1, #90
 	movs	r2, #8
 	bl	ftl_memset
@@ -14136,17 +14176,17 @@ FlashTestBlk:
 	movne	r4, #1
 	negs	r4, r4
 	bl	FlashEraseBlocks
-	b	.L2296
-.L2297:
+	b	.L2302
+.L2303:
 	movs	r4, #0
-.L2296:
+.L2302:
 	mov	r0, r4
 	add	sp, sp, #108
 	@ sp needed
 	pop	{r4, r5, pc}
-.L2299:
+.L2305:
 	.align	2
-.L2298:
+.L2304:
 	.word	.LANCHOR4
 	.fnend
 	.size	FlashTestBlk, .-FlashTestBlk
@@ -14163,23 +14203,23 @@ FlashMakeFactorBbt:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #84
 	sub	sp, sp, #84
-	ldr	r5, .L2361
+	ldr	r5, .L2367
 	movs	r1, #1
-	ldr	r4, .L2361+4
-	ldr	r0, .L2361+8
-	ldr	r3, [r5, #1216]
-	ldrh	r8, [r4, #128]
+	ldr	r4, .L2367+4
+	ldr	r0, .L2367+8
+	ldr	r3, [r5, #1224]
+	ldrh	r8, [r4, #132]
 	str	r3, [sp, #20]
-	ldrh	r3, [r4, #130]
+	ldrh	r3, [r4, #134]
 	smulbb	r8, r8, r3
 	ldr	r3, [r4, #44]
 	ldrb	r3, [r3, #24]	@ zero_extendqisi2
 	uxth	r8, r8
 	str	r3, [sp, #24]
-	ldrh	r3, [r4, #4]
+	ldrh	r3, [r4, #36]
 	str	r3, [sp, #16]
-	ldrb	r3, [r4]	@ zero_extendqisi2
-	ldr	r4, .L2361+4
+	ldrb	r3, [r4, #32]	@ zero_extendqisi2
+	ldr	r4, .L2367+4
 	cmp	r3, #1
 	itttt	eq
 	ldreq	r3, [sp, #16]
@@ -14187,27 +14227,27 @@ FlashMakeFactorBbt:
 	uxtheq	r3, r3
 	streq	r3, [sp, #16]
 	bl	printk
-	ldr	r0, [r5, #1216]
+	ldr	r0, [r5, #1224]
 	movs	r1, #0
 	mov	r2, #4096
 	bl	ftl_memset
-	ldr	r5, .L2361
+	ldr	r5, .L2367
 	lsr	r3, r8, #4
 	str	r3, [sp, #28]
 	movs	r3, #0
 	str	r3, [sp, #8]
-.L2302:
+.L2308:
 	ldrb	r7, [sp, #8]	@ zero_extendqisi2
 	ldrb	r3, [r4, #2230]	@ zero_extendqisi2
 	cmp	r3, r7
-	bls	.L2357
+	bls	.L2363
 	add	r3, r5, r7, lsl #1
-	ldrh	r6, [r3, #1232]
+	ldrh	r6, [r3, #1240]
 	cmp	r6, #0
-	bne	.L2332
-	ldrh	r2, [r4, #136]
+	bne	.L2338
+	ldrh	r2, [r4, #140]
 	mov	r1, r6
-	ldr	r0, [r5, #1184]
+	ldr	r0, [r5, #1192]
 	mov	r9, r6
 	lsls	r2, r2, #9
 	bl	ftl_memset
@@ -14217,29 +14257,29 @@ FlashMakeFactorBbt:
 	add	fp, r4, r3
 	str	r6, [sp, #4]
 	str	r3, [sp, #32]
-.L2304:
+.L2310:
 	ldrh	r3, [sp, #4]
 	cmp	r3, r8
 	str	r3, [sp, #12]
-	bcs	.L2314
+	bcs	.L2320
 	movs	r3, #255
 	strb	r3, [sp, #42]
 	strb	r3, [sp, #43]
 	ldr	r3, [sp, #24]
 	lsls	r1, r3, #31
-	bpl	.L2306
-	ldr	r3, [fp, #1172]
+	bpl	.L2312
+	ldr	r3, [fp, #1176]
 	add	r2, sp, #42
 	mov	r0, r10
 	add	r3, r3, r6
 	str	r3, [sp, #36]
 	mov	r1, r3
 	bl	FlashReadSpare
-	ldrb	r2, [r4]	@ zero_extendqisi2
+	ldrb	r2, [r4, #32]	@ zero_extendqisi2
 	cmp	r2, #1
 	ldr	r3, [sp, #36]
-	bne	.L2306
-	ldr	r1, [r4, #4]
+	bne	.L2312
+	ldr	r1, [r4, #36]
 	add	r2, sp, #43
 	mov	r0, r10
 	add	r1, r1, r3
@@ -14248,66 +14288,66 @@ FlashMakeFactorBbt:
 	ldrb	r2, [sp, #43]	@ zero_extendqisi2
 	ands	r3, r3, r2
 	strb	r3, [sp, #42]
-.L2306:
+.L2312:
 	ldr	r3, [sp, #24]
 	lsls	r2, r3, #30
-	bpl	.L2308
+	bpl	.L2314
 	ldr	r3, [r4, #44]
 	mov	r0, r10
 	add	r2, sp, #43
 	ldrh	r1, [r3, #10]
-	ldr	r3, [fp, #1172]
+	ldr	r3, [fp, #1176]
 	subs	r1, r1, #1
 	add	r1, r1, r3
 	add	r1, r1, r6
 	bl	FlashReadSpare
-.L2308:
+.L2314:
 	ldr	r3, [r4, #44]
 	ldrb	r2, [r3, #7]	@ zero_extendqisi2
 	cmp	r2, #1
-	beq	.L2309
+	beq	.L2315
 	cmp	r2, #8
-	beq	.L2309
+	beq	.L2315
 	ldrb	r3, [r3, #18]	@ zero_extendqisi2
 	cmp	r3, #12
-	bne	.L2310
-.L2309:
+	bne	.L2316
+.L2315:
 	ldrb	r3, [sp, #42]	@ zero_extendqisi2
-	cbz	r3, .L2331
+	cbz	r3, .L2337
 	ldrb	r0, [sp, #43]	@ zero_extendqisi2
 	clz	r0, r0
 	lsrs	r0, r0, #5
-	b	.L2311
-.L2310:
+	b	.L2317
+.L2316:
 	ldrb	r3, [sp, #42]	@ zero_extendqisi2
 	cmp	r3, #255
-	bne	.L2331
+	bne	.L2337
 	ldrb	r0, [sp, #43]	@ zero_extendqisi2
 	subs	r0, r0, #255
 	it	ne
 	movne	r0, #1
-	b	.L2311
-.L2331:
+	b	.L2317
+.L2337:
 	movs	r0, #1
-.L2311:
+.L2317:
 	ldr	r3, [sp, #24]
 	lsls	r3, r3, #29
-	bpl	.L2312
-	ldr	r3, .L2361+4
+	bpl	.L2318
+	ldr	r3, .L2367+4
 	mov	r0, r10
 	ldr	r2, [sp, #32]
 	add	r3, r3, r2
-	ldr	r1, [r3, #1172]
+	ldr	r1, [r3, #1176]
 	add	r1, r1, r6
 	bl	SandiskProgTestBadBlock
-.L2312:
-	cbz	r0, .L2313
+.L2318:
+	cbz	r0, .L2319
 	mov	r1, r7
 	ldr	r2, [sp, #4]
-	ldr	r0, .L2361+12
+	ldr	r0, .L2367+12
 	add	r9, r9, #1
 	bl	printk
-	ldr	r2, [r5, #1184]
+	ldr	r2, [r5, #1192]
 	uxth	r9, r9
 	ldr	r3, [sp, #12]
 	and	r0, r3, #31
@@ -14321,47 +14361,47 @@ FlashMakeFactorBbt:
 	ldrb	r3, [r4, #2230]	@ zero_extendqisi2
 	muls	r3, r2, r3
 	cmp	r9, r3
-	bgt	.L2314
-.L2313:
+	bgt	.L2320
+.L2319:
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
 	str	r3, [sp, #4]
 	ldr	r3, [sp, #16]
 	add	r6, r6, r3
-	b	.L2304
-.L2314:
+	b	.L2310
+.L2320:
 	mov	r2, r9
-	ldr	r0, .L2361+16
+	ldr	r0, .L2367+16
 	mov	r1, r7
 	bl	printk
 	ldrb	r3, [r4, #2230]	@ zero_extendqisi2
 	ldr	r2, [sp, #28]
 	muls	r3, r2, r3
 	cmp	r9, r3
-	blt	.L2316
-	ldrh	r2, [r4, #136]
+	blt	.L2322
+	ldrh	r2, [r4, #140]
 	movs	r1, #0
-	ldr	r0, [r5, #1184]
+	ldr	r0, [r5, #1192]
 	lsls	r2, r2, #9
 	bl	ftl_memset
-.L2316:
+.L2322:
 	cmp	r7, #0
-	bne	.L2318
-	ldrh	r10, [r5, #1204]
+	bne	.L2324
+	ldrh	r10, [r5, #1212]
 	mov	r9, #1
 	mov	r6, r7
-.L2319:
-	ldr	r3, .L2361+4
-	ldrb	r3, [r3, #1]	@ zero_extendqisi2
+.L2325:
+	ldr	r3, .L2367+4
+	ldrb	r3, [r3, #33]	@ zero_extendqisi2
 	cmp	r3, r10
-	bls	.L2358
+	bls	.L2364
 	mov	r0, r10
 	bl	FlashTestBlk
-	cbz	r0, .L2320
+	cbz	r0, .L2326
 	mov	r1, r10
-	ldr	r0, .L2361+20
+	ldr	r0, .L2367+20
 	bl	printk
-	ldr	r2, [r5, #1184]
+	ldr	r2, [r5, #1192]
 	lsr	r0, r10, #5
 	adds	r6, r6, #1
 	and	r3, r10, #31
@@ -14370,82 +14410,82 @@ FlashMakeFactorBbt:
 	lsl	r3, r9, r3
 	orrs	r3, r3, r1
 	str	r3, [r2, r0, lsl #2]
-.L2320:
+.L2326:
 	add	r10, r10, #1
 	uxth	r10, r10
-	b	.L2319
-.L2358:
+	b	.L2325
+.L2364:
 	add	fp, r8, #-1
 	sub	r9, r8, #50
 	mov	r10, #1
 	uxth	fp, fp
-.L2322:
+.L2328:
 	cmp	fp, r9
-	ble	.L2359
+	ble	.L2365
 	mov	r0, fp
 	bl	FlashTestBlk
-	cbz	r0, .L2323
+	cbz	r0, .L2329
 	mov	r1, fp
-	ldr	r0, .L2361+20
+	ldr	r0, .L2367+20
 	bl	printk
-	ldr	r2, [r5, #1184]
+	ldr	r2, [r5, #1192]
 	lsr	r0, fp, #5
 	and	r3, fp, #31
 	lsl	r3, r10, r3
 	ldr	r1, [r2, r0, lsl #2]
 	orrs	r3, r3, r1
 	str	r3, [r2, r0, lsl #2]
-.L2323:
+.L2329:
 	add	fp, fp, #-1
 	uxth	fp, fp
-	b	.L2322
-.L2359:
-	ldr	r3, .L2361+4
-	ldr	r2, [r5, #1204]
-	ldrb	r3, [r3, #1]	@ zero_extendqisi2
+	b	.L2328
+.L2365:
+	ldr	r3, .L2367+4
+	ldr	r2, [r5, #1212]
+	ldrb	r3, [r3, #33]	@ zero_extendqisi2
 	subs	r3, r3, r2
 	cmp	r6, r3
-	bcc	.L2318
-	ldrh	r2, [r4, #136]
+	bcc	.L2324
+	ldrh	r2, [r4, #140]
 	movs	r1, #0
-	ldr	r0, [r5, #1184]
+	ldr	r0, [r5, #1192]
 	lsls	r2, r2, #9
 	bl	ftl_memset
-.L2318:
+.L2324:
 	ldrb	r6, [sp, #8]	@ zero_extendqisi2
 	add	r10, r8, #-1
 	add	r9, r5, r7, lsl #1
 	uxth	r10, r10
 	mul	r6, r8, r6
-.L2326:
+.L2332:
 	mov	r1, r7
-	ldr	r0, .L2361+24
+	ldr	r0, .L2367+24
 	mov	r2, r10
 	bl	printk
-	ldr	r1, [r5, #1184]
-.L2327:
+	ldr	r1, [r5, #1192]
+.L2333:
 	lsr	r3, r10, #5
 	and	r2, r10, #31
 	ldr	r3, [r1, r3, lsl #2]
 	lsrs	r3, r3, r2
 	ands	r3, r3, #1
-	beq	.L2360
+	beq	.L2366
 	add	r10, r10, #-1
 	uxth	r10, r10
-	b	.L2327
-.L2360:
+	b	.L2333
+.L2366:
 	ldr	r1, [sp, #20]
 	movw	r2, #61664
-	strh	r10, [r9, #1232]	@ movhi
+	strh	r10, [r9, #1240]	@ movhi
 	add	r0, sp, #44
 	strh	r2, [r1]	@ movhi
 	strh	r10, [r1, #2]	@ movhi
 	strh	r3, [r1, #8]	@ movhi
 	movs	r1, #1
-	ldr	r3, [r5, #1184]
+	ldr	r3, [r5, #1192]
 	mov	r2, r1
 	str	r3, [sp, #52]
-	ldr	r3, [r5, #1216]
+	ldr	r3, [r5, #1224]
 	str	r3, [sp, #56]
 	add	r3, r10, r6
 	lsls	r3, r3, #10
@@ -14457,22 +14497,22 @@ FlashMakeFactorBbt:
 	add	r0, sp, #44
 	bl	FlashProgPages
 	ldr	r3, [sp, #44]
-	cbz	r3, .L2332
+	cbz	r3, .L2338
 	add	r10, r10, #-1
 	uxth	r10, r10
-	b	.L2326
-.L2332:
+	b	.L2332
+.L2338:
 	ldr	r3, [sp, #8]
 	adds	r3, r3, #1
 	str	r3, [sp, #8]
-	b	.L2302
-.L2357:
+	b	.L2308
+.L2363:
 	add	sp, sp, #84
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2362:
+.L2368:
 	.align	2
-.L2361:
+.L2367:
 	.word	.LANCHOR4
 	.word	.LANCHOR0
 	.word	.LC121
@@ -14495,17 +14535,17 @@ FtlLowFormatEraseBlock:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #28
 	sub	sp, sp, #28
-	ldr	r7, .L2415
+	ldr	r7, .L2421
 	str	r0, [sp, #4]
 	str	r1, [sp]
 	ldrb	r3, [r7, #2240]	@ zero_extendqisi2
 	str	r3, [sp, #16]
-	ldr	r3, .L2415+4
+	ldr	r3, .L2421+4
 	ldr	r2, [r3, #224]
 	mov	fp, r3
 	cmp	r2, #0
-	bne	.L2392
-	ldrb	r3, [r7, #144]	@ zero_extendqisi2
+	bne	.L2398
+	ldrb	r3, [r7, #148]	@ zero_extendqisi2
 	mov	r8, #36
 	mov	r9, r2
 	mov	r5, r2
@@ -14513,30 +14553,30 @@ FtlLowFormatEraseBlock:
 	mov	r10, fp
 	str	r3, [sp, #8]
 	str	r0, [fp, #3292]
-.L2365:
+.L2371:
 	ldrh	r0, [r7, #2320]
 	uxth	r1, r9
-	ldr	r3, .L2415
+	ldr	r3, .L2421
 	cmp	r0, r1
-	bls	.L2410
+	bls	.L2416
 	mul	r6, r8, r1
 	ldr	r0, [fp, #228]
 	movs	r3, #0
 	str	r3, [r0, r6]
-	ldr	r3, .L2415
+	ldr	r3, .L2421
 	add	r1, r1, r3
 	ldrb	r0, [r1, #2348]	@ zero_extendqisi2
 	ldr	r1, [sp, #4]
 	bl	V2P_block
 	ldr	r3, [sp]
 	mov	r6, r0
-	cbz	r3, .L2366
+	cbz	r3, .L2372
 	bl	IsBlkInVendorPart
-	cbnz	r0, .L2367
-.L2366:
+	cbnz	r0, .L2373
+.L2372:
 	mov	r0, r6
 	bl	FtlBbmIsBadBlock
-	cbnz	r0, .L2368
+	cbnz	r0, .L2374
 	ldr	r3, [fp, #228]
 	lsls	r6, r6, #10
 	ldrh	r1, [r7, #2400]
@@ -14552,16 +14592,16 @@ FtlLowFormatEraseBlock:
 	str	r6, [lr, #4]
 	add	r1, r1, r0
 	str	r1, [lr, #12]
-	b	.L2367
-.L2368:
+	b	.L2373
+.L2374:
 	adds	r4, r4, #1
 	uxth	r4, r4
-.L2367:
+.L2373:
 	add	r9, r9, #1
-	b	.L2365
-.L2410:
+	b	.L2371
+.L2416:
 	cmp	r5, #0
-	beq	.L2391
+	beq	.L2397
 	ldr	r2, [sp, #8]
 	mov	r8, #0
 	ldr	r0, [fp, #228]
@@ -14577,78 +14617,78 @@ FtlLowFormatEraseBlock:
 	ldrb	r2, [sp, #16]	@ zero_extendqisi2
 	ldr	r3, [sp, #8]
 	strb	r2, [r3, #2240]
-.L2372:
+.L2378:
 	uxth	r2, r8
 	cmp	r2, r5
-	bcs	.L2411
+	bcs	.L2417
 	mul	r2, r9, r8
 	ldr	r1, [fp, #228]
 	adds	r0, r1, r2
 	ldr	r2, [r1, r2]
 	adds	r2, r2, #1
-	bne	.L2373
+	bne	.L2379
 	ldr	r0, [r0, #4]
 	adds	r4, r4, #1
 	ubfx	r0, r0, #10, #16
 	uxth	r4, r4
 	bl	FtlBbmMapBadBlock
-.L2373:
+.L2379:
 	add	r8, r8, #1
-	b	.L2372
-.L2411:
+	b	.L2378
+.L2417:
 	ldr	r3, [sp]
-	cbnz	r3, .L2375
+	cbnz	r3, .L2381
 	movs	r3, #6
 	uxth	r6, r6
 	str	r3, [sp, #12]
 	movs	r3, #1
 	str	r3, [sp, #8]
-	b	.L2376
-.L2375:
+	b	.L2382
+.L2381:
 	ldrh	r3, [r7, #2390]
 	str	r3, [sp, #8]
-	ldrb	r3, [r7, #144]	@ zero_extendqisi2
-	cbnz	r3, .L2393
+	ldrb	r3, [r7, #148]	@ zero_extendqisi2
+	cbnz	r3, .L2399
 	ldr	r3, [sp, #8]
 	movs	r6, #1
 	lsrs	r3, r3, #2
 	str	r3, [sp, #12]
-	b	.L2376
-.L2393:
+	b	.L2382
+.L2399:
 	movs	r6, #1
 	str	r6, [sp, #12]
-.L2376:
-	ldr	r8, .L2415+4
+.L2382:
+	ldr	r8, .L2421+4
 	movs	r7, #0
 	mov	r10, r8
-.L2386:
+.L2392:
 	mov	fp, #0
 	mov	r5, fp
-.L2377:
-	ldr	r9, .L2415
+.L2383:
+	ldr	r9, .L2421
 	uxth	r3, fp
 	ldrh	r1, [r9, #2320]
 	cmp	r1, r3
-	bls	.L2412
+	bls	.L2418
 	movs	r2, #36
 	ldr	r0, [r8, #228]
 	mul	r1, r2, r3
 	movs	r2, #0
 	str	r2, [r0, r1]
-	ldr	r2, .L2415
+	ldr	r2, .L2421
 	ldr	r1, [sp, #4]
 	add	r3, r3, r2
 	ldrb	r0, [r3, #2348]	@ zero_extendqisi2
 	bl	V2P_block
 	ldr	r3, [sp]
 	mov	r9, r0
-	cbz	r3, .L2378
+	cbz	r3, .L2384
 	bl	IsBlkInVendorPart
-	cbnz	r0, .L2379
-.L2378:
+	cbnz	r0, .L2385
+.L2384:
 	mov	r0, r9
 	bl	FtlBbmIsBadBlock
-	cbnz	r0, .L2379
+	cbnz	r0, .L2385
 	ldr	r1, [r10, #228]
 	movs	r3, #36
 	ldr	r0, [r8, #3336]
@@ -14657,7 +14697,7 @@ FtlLowFormatEraseBlock:
 	str	r3, [r1, #4]
 	ldr	r3, [r10, #3332]
 	str	r3, [r1, #8]
-	ldr	r3, .L2415
+	ldr	r3, .L2421
 	ldrh	r3, [r3, #2400]
 	muls	r3, r5, r3
 	add	r5, r5, #1
@@ -14667,12 +14707,12 @@ FtlLowFormatEraseBlock:
 	uxth	r5, r5
 	add	r3, r3, r0
 	str	r3, [r1, #12]
-.L2379:
+.L2385:
 	add	fp, fp, #1
-	b	.L2377
-.L2412:
+	b	.L2383
+.L2418:
 	cmp	r5, #0
-	beq	.L2391
+	beq	.L2397
 	mov	r2, r6
 	movs	r3, #1
 	ldr	r0, [r8, #228]
@@ -14683,16 +14723,16 @@ FtlLowFormatEraseBlock:
 	movs	r2, #36
 	ldrb	r3, [sp, #16]	@ zero_extendqisi2
 	strb	r3, [r9, #2240]
-	ldr	r9, .L2415+4
-.L2383:
+	ldr	r9, .L2421+4
+.L2389:
 	uxth	r3, fp
 	cmp	r3, r5
-	bcs	.L2413
+	bcs	.L2419
 	mul	r3, r2, fp
 	ldr	r1, [r10, #228]
 	adds	r0, r1, r3
 	ldr	r3, [r1, r3]
-	cbz	r3, .L2384
+	cbz	r3, .L2390
 	ldr	r0, [r0, #4]
 	adds	r4, r4, #1
 	str	r2, [sp, #20]
@@ -14700,59 +14740,59 @@ FtlLowFormatEraseBlock:
 	uxth	r4, r4
 	bl	FtlBbmMapBadBlock
 	ldr	r2, [sp, #20]
-.L2384:
+.L2390:
 	add	fp, fp, #1
-	b	.L2383
-.L2413:
+	b	.L2389
+.L2419:
 	ldr	r3, [sp, #12]
 	add	r7, r7, r3
 	ldr	r3, [sp, #8]
 	uxth	r7, r7
 	cmp	r7, r3
-	bcc	.L2386
+	bcc	.L2392
 	movs	r7, #0
 	mov	r8, #36
-.L2387:
+.L2393:
 	uxth	r3, r7
 	cmp	r3, r5
-	bcs	.L2414
+	bcs	.L2420
 	ldr	r3, [sp]
-	cbz	r3, .L2388
+	cbz	r3, .L2394
 	mul	r3, r8, r7
 	ldr	r2, [r9, #228]
 	adds	r1, r2, r3
 	ldr	r3, [r2, r3]
-	cbnz	r3, .L2388
+	cbnz	r3, .L2394
 	ldr	r0, [r1, #4]
 	movs	r1, #1
 	ubfx	r0, r0, #10, #16
 	bl	FtlFreeSysBlkQueueIn
-.L2388:
+.L2394:
 	adds	r7, r7, #1
-	b	.L2387
-.L2414:
+	b	.L2393
+.L2420:
 	ldr	r3, [sp, #4]
 	cmp	r3, #63
-	bls	.L2390
+	bls	.L2396
 	ldr	r3, [sp]
-	cbz	r3, .L2391
-.L2390:
+	cbz	r3, .L2397
+.L2396:
 	ldr	r0, [r9, #228]
 	mov	r1, r6
 	mov	r2, r5
 	bl	FlashEraseBlocks
-.L2391:
+.L2397:
 	mov	r0, r4
-	b	.L2364
-.L2392:
+	b	.L2370
+.L2398:
 	movs	r0, #0
-.L2364:
+.L2370:
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2416:
+.L2422:
 	.align	2
-.L2415:
+.L2421:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -14770,39 +14810,39 @@ FtlBbmTblFlush:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #20
 	sub	sp, sp, #20
-	ldr	r7, .L2434
+	ldr	r7, .L2440
 	ldr	r6, [r7, #224]
 	cmp	r6, #0
-	bne	.L2419
-	ldr	r4, .L2434+4
+	bne	.L2425
+	ldr	r4, .L2440+4
 	mov	r1, r6
 	ldr	r0, [r7, #3316]
-	ldr	r5, .L2434+8
+	ldr	r5, .L2440+8
 	addw	r9, r4, #2476
 	ldr	r3, [r7, #3340]
 	ldrh	r2, [r4, #2398]
-	str	r0, [r5, #1256]
-	str	r3, [r5, #1260]
+	str	r0, [r5, #1264]
+	str	r3, [r5, #1268]
 	bl	ftl_memset
-.L2420:
+.L2426:
 	ldrh	r3, [r4, #2342]
-	ldr	r8, .L2434+4
+	ldr	r8, .L2440+4
 	cmp	r6, r3
-	bge	.L2433
+	bge	.L2439
 	ldrh	r2, [r7, #3404]
-	ldr	r3, [r5, #1256]
+	ldr	r3, [r5, #1264]
 	ldr	r1, [r9, #4]!
 	mul	r0, r2, r6
 	lsls	r2, r2, #2
 	adds	r6, r6, #1
 	add	r0, r3, r0, lsl #2
 	bl	ftl_memcpy
-	b	.L2420
-.L2433:
-	ldr	r6, [r5, #1260]
+	b	.L2426
+.L2439:
+	ldr	r6, [r5, #1268]
 	movs	r1, #255
 	movs	r2, #16
-	ldr	fp, .L2434
+	ldr	fp, .L2440
 	mov	r0, r6
 	bl	ftl_memset
 	movw	r3, #61649
@@ -14819,30 +14859,30 @@ FtlBbmTblFlush:
 	mov	r8, #0
 	mov	r10, r8
 	strh	r3, [r6, #12]	@ movhi
-.L2422:
+.L2428:
 	ldr	r3, [r7, #3316]
 	mov	ip, #0
 	ldrh	r1, [r4, #2452]
 	ldrh	r2, [r4, #2454]
-	str	r3, [r5, #1256]
+	str	r3, [r5, #1264]
 	ldr	r3, [r7, #3340]
-	str	ip, [r5, #1248]
+	str	ip, [r5, #1256]
 	str	ip, [sp, #12]
-	str	r3, [r5, #1260]
+	str	r3, [r5, #1268]
 	orr	r3, r2, r1, lsl #10
 	ldrh	r0, [r6, #10]
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	ldrh	r3, [r4, #2456]
 	str	r0, [sp]
-	ldr	r0, .L2434+12
+	ldr	r0, .L2440+12
 	bl	printk
 	ldrh	r3, [r4, #2390]
 	ldrh	r2, [r4, #2454]
 	subs	r3, r3, #1
-	ldr	r9, .L2434+4
+	ldr	r9, .L2440+4
 	cmp	r2, r3
 	ldr	ip, [sp, #12]
-	blt	.L2423
+	blt	.L2429
 	ldrh	r2, [r9, #2452]
 	movs	r1, #1
 	ldr	r3, [r9, #2460]
@@ -14853,55 +14893,55 @@ FtlBbmTblFlush:
 	strh	r2, [r6, #8]	@ movhi
 	ldrh	r3, [r9, #2456]
 	strh	r2, [r9, #2456]	@ movhi
-	ldr	r2, .L2434+8
+	ldr	r2, .L2440+8
 	strh	r3, [r9, #2452]	@ movhi
 	lsls	r3, r3, #10
 	strh	ip, [r9, #2454]	@ movhi
-	str	r3, [r2, #1252]
+	str	r3, [r2, #1260]
 	mov	r2, r1
 	str	r3, [r0, #4]
 	bl	FlashEraseBlocks
-.L2423:
+.L2429:
 	movs	r1, #1
-	ldr	r9, .L2434+8
+	ldr	r9, .L2440+8
 	mov	r2, r1
 	mov	r3, r1
-	add	r0, r9, #1248
+	add	r0, r9, #1256
 	bl	FlashProgPages
 	ldrh	r3, [r4, #2454]
 	adds	r3, r3, #1
 	strh	r3, [r4, #2454]	@ movhi
-	ldr	r3, [r5, #1248]
+	ldr	r3, [r5, #1256]
 	adds	r2, r3, #1
-	bne	.L2424
+	bne	.L2430
 	add	r8, r8, #1
-	ldr	r0, .L2434+16
-	ldr	r1, [r9, #1252]
+	ldr	r0, .L2440+16
+	ldr	r1, [r9, #1260]
 	uxth	r8, r8
 	bl	printk
 	cmp	r8, #3
-	bls	.L2422
-	ldr	r0, .L2434+20
+	bls	.L2428
+	ldr	r0, .L2440+20
 	mov	r2, r8
-	ldr	r1, [r9, #1252]
+	ldr	r1, [r9, #1260]
 	bl	printk
 	movs	r3, #1
 	str	r3, [r7, #224]
-	b	.L2419
-.L2424:
+	b	.L2425
+.L2430:
 	add	r10, r10, #1
 	cmp	r10, #1
-	beq	.L2422
+	beq	.L2428
 	cmp	r3, #256
-	beq	.L2422
-.L2419:
+	beq	.L2428
+.L2425:
 	movs	r0, #0
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2435:
+.L2441:
 	.align	2
-.L2434:
+.L2440:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR4
@@ -14922,19 +14962,19 @@ allocate_data_superblock:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r5, r0
-	ldr	r4, .L2492
+	ldr	r4, .L2498
 	.pad #20
 	sub	sp, sp, #20
 	ldr	r3, [r4, #224]
 	cmp	r3, #0
-	bne	.L2437
-	ldr	r9, .L2492+16
+	bne	.L2443
+	ldr	r9, .L2498+16
 	mov	r8, r4
-.L2438:
-	ldr	r3, .L2492+4
+.L2444:
+	ldr	r3, .L2498+4
 	ldrb	r2, [r5, #8]	@ zero_extendqisi2
 	cmp	r5, r3
-	bne	.L2439
+	bne	.L2445
 	ldrh	r7, [r8, #312]
 	ldr	r6, [r8, #1132]
 	lsrs	r1, r7, #1
@@ -14943,48 +14983,48 @@ allocate_data_superblock:
 	add	r3, r3, r0, lsr #2
 	ldr	r0, [r9, #2244]
 	uxth	r3, r3
-	cbz	r0, .L2462
+	cbz	r0, .L2468
 	ldr	r0, [r8, #532]
 	cmp	r0, #39
-	bhi	.L2462
+	bhi	.L2468
 	cmp	r0, #2
-	bls	.L2467
+	bls	.L2473
 	lsls	r0, r7, #31
-	bpl	.L2440
-	cbz	r6, .L2464
-	b	.L2440
-.L2439:
+	bpl	.L2446
+	cbz	r6, .L2470
+	b	.L2446
+.L2445:
 	cmp	r2, #1
-	bne	.L2467
+	bne	.L2473
 	ldrh	r3, [r9, #2340]
 	cmp	r3, #1
-	beq	.L2467
-	ldrb	r3, [r9, #144]	@ zero_extendqisi2
-	cbnz	r3, .L2467
+	beq	.L2473
+	ldrb	r3, [r9, #148]	@ zero_extendqisi2
+	cbnz	r3, .L2473
 	ldrh	r0, [r8, #312]
 	ldr	r3, [r9, #2244]
 	lsrs	r1, r0, #3
-	cbz	r3, .L2440
+	cbz	r3, .L2446
 	ldr	r3, [r8, #532]
 	cmp	r3, #1
-	bhi	.L2440
+	bhi	.L2446
 	rsb	r0, r0, r0, lsl #3
 	ubfx	r1, r0, #3, #16
-	b	.L2440
-.L2462:
+	b	.L2446
+.L2468:
 	mov	r1, r3
-.L2440:
-	cbz	r1, .L2441
+.L2446:
+	cbz	r1, .L2447
 	subs	r1, r1, #1
 	uxth	r1, r1
-	b	.L2441
-.L2464:
+	b	.L2447
+.L2470:
 	mov	r1, r6
-	b	.L2441
-.L2467:
+	b	.L2447
+.L2473:
 	movs	r1, #0
-.L2441:
-	ldr	r0, .L2492+8
+.L2447:
+	ldr	r0, .L2498+8
 	bl	List_pop_index_node
 	ldrh	r3, [r4, #312]
 	subs	r3, r3, #1
@@ -14992,16 +15032,16 @@ allocate_data_superblock:
 	ldrh	r3, [r9, #2328]
 	uxth	r6, r0
 	cmp	r3, r6
-	bls	.L2438
+	bls	.L2444
 	ldr	r3, [r8, #296]
 	ldrh	r7, [r3, r6, lsl #1]
 	cmp	r7, #0
-	bne	.L2438
+	bne	.L2444
 	strh	r6, [r5]	@ movhi
 	mov	r0, r5
 	bl	make_superblock
 	ldrb	r3, [r5, #7]	@ zero_extendqisi2
-	cbz	r3, .L2443
+	cbz	r3, .L2449
 	ldr	r0, [r8, #228]
 	movs	r2, #36
 	ldrh	ip, [r9, #2320]
@@ -15011,14 +15051,14 @@ allocate_data_superblock:
 	mla	r1, r2, ip, r0
 	mov	ip, r7
 	str	r1, [sp, #4]
-	b	.L2444
-.L2443:
+	b	.L2450
+.L2449:
 	ldr	r3, [r8, #296]
-	b	.L2487
-.L2444:
+	b	.L2493
+.L2450:
 	ldr	r1, [sp, #4]
 	cmp	r3, r1
-	beq	.L2489
+	beq	.L2495
 	str	ip, [r3, #8]
 	adds	r3, r3, #36
 	str	ip, [r3, #-24]
@@ -15031,32 +15071,32 @@ allocate_data_superblock:
 	uxthne	r7, r7
 	it	ne
 	strne	r1, [fp, #4]
-	b	.L2444
-.L2489:
+	b	.L2450
+.L2495:
 	ldr	r3, [r9, #2244]
-	cbz	r3, .L2447
-	ldr	r3, .L2492+12
+	cbz	r3, .L2453
+	ldr	r3, .L2498+12
 	cmp	r5, r3
-	bne	.L2447
+	bne	.L2453
 	ldr	r3, [r8, #232]
 	ldrh	r3, [r3, r6, lsl #1]
 	cmp	r3, #40
 	itt	hi
 	movhi	r3, #0
 	strbhi	r3, [r8, #324]
-.L2447:
+.L2453:
 	ldrb	r3, [r5, #8]	@ zero_extendqisi2
 	ldr	r2, [r4, #232]
-	cbnz	r3, .L2448
+	cbnz	r3, .L2454
 	ldrh	r1, [r2, r6, lsl #1]
-	cbz	r1, .L2468
+	cbz	r1, .L2474
 	ldrh	r3, [r9, #2380]
 	add	r3, r3, r1
 	uxth	r3, r3
-	b	.L2449
-.L2468:
+	b	.L2455
+.L2474:
 	movs	r3, #2
-.L2449:
+.L2455:
 	strh	r3, [r2, r6, lsl #1]	@ movhi
 	mov	r0, r6
 	ldr	r3, [r4, #516]
@@ -15064,8 +15104,8 @@ allocate_data_superblock:
 	adds	r3, r3, #1
 	str	r3, [r4, #516]
 	bl	ftl_set_blk_mode
-	b	.L2450
-.L2448:
+	b	.L2456
+.L2454:
 	ldrh	r3, [r2, r6, lsl #1]
 	lsrs	r0, r6, #5
 	and	r1, r6, #31
@@ -15080,7 +15120,7 @@ allocate_data_superblock:
 	ldr	r1, [r2, r0, lsl #2]
 	orrs	r3, r3, r1
 	str	r3, [r2, r0, lsl #2]
-.L2450:
+.L2456:
 	ldr	r3, [r4, #232]
 	ldr	r2, [r4, #528]
 	ldr	r0, [r4, #516]
@@ -15103,18 +15143,18 @@ allocate_data_superblock:
 	mla	r3, r3, r7, r1
 	adds	r3, r3, #40
 	str	r0, [r4, #524]
-.L2452:
+.L2458:
 	adds	r2, r2, #36
 	cmp	r2, r3
-	beq	.L2490
+	beq	.L2496
 	ldr	r1, [r2, #-36]
 	bic	r1, r1, #1020
 	bic	r1, r1, #3
 	str	r1, [r2, #-36]
-	b	.L2452
-.L2490:
-	ldrb	r3, [r9, #144]	@ zero_extendqisi2
-	cbz	r3, .L2454
+	b	.L2458
+.L2496:
+	ldrb	r3, [r9, #148]	@ zero_extendqisi2
+	cbz	r3, .L2460
 	ldrb	r3, [r5, #8]	@ zero_extendqisi2
 	mov	r2, r7
 	ldr	r0, [r4, #228]
@@ -15123,7 +15163,7 @@ allocate_data_superblock:
 	moveq	r1, #0
 	movne	r1, #1
 	bl	FlashEraseBlocks
-.L2454:
+.L2460:
 	mov	r2, r7
 	ldr	r0, [r4, #228]
 	ldrb	r1, [r5, #8]	@ zero_extendqisi2
@@ -15132,16 +15172,16 @@ allocate_data_superblock:
 	add	r2, r5, #16
 	mov	ip, #36
 	mov	fp, r10
-.L2456:
+.L2462:
 	uxth	r3, r10
 	cmp	r3, r7
-	bcs	.L2491
+	bcs	.L2497
 	mul	r3, ip, r10
 	ldr	r1, [r4, #228]
 	adds	r0, r1, r3
 	ldr	r3, [r1, r3]
 	adds	r1, r3, #1
-	bne	.L2457
+	bne	.L2463
 	ldr	r0, [r0, #4]
 	add	fp, fp, #1
 	str	ip, [sp, #12]
@@ -15156,26 +15196,26 @@ allocate_data_superblock:
 	ldrb	r3, [r5, #7]	@ zero_extendqisi2
 	subs	r3, r3, #1
 	strb	r3, [r5, #7]
-.L2457:
+.L2463:
 	add	r10, r10, #1
 	adds	r2, r2, #2
-	b	.L2456
-.L2491:
+	b	.L2462
+.L2497:
 	cmp	fp, #0
-	beq	.L2459
+	beq	.L2465
 	mov	r0, r6
 	bl	update_multiplier_value
 	bl	FtlBbmTblFlush
-.L2459:
+.L2465:
 	ldrb	r3, [r5, #7]	@ zero_extendqisi2
-	cbnz	r3, .L2460
+	cbnz	r3, .L2466
 	ldr	r3, [r4, #296]
-.L2487:
+.L2493:
 	movw	r2, #65535
 	strh	r2, [r3, r6, lsl #1]	@ movhi
-	b	.L2438
-.L2460:
-	ldr	r2, .L2492+16
+	b	.L2444
+.L2466:
+	ldr	r2, .L2498+16
 	ldrh	r2, [r2, #2388]
 	strh	r6, [r5]	@ movhi
 	smulbb	r3, r2, r3
@@ -15191,14 +15231,14 @@ allocate_data_superblock:
 	ldr	r2, [r4, #296]
 	ldrh	r1, [r5]
 	strh	r3, [r2, r1, lsl #1]	@ movhi
-.L2437:
+.L2443:
 	movs	r0, #0
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2493:
+.L2499:
 	.align	2
-.L2492:
+.L2498:
 	.word	.LANCHOR2
 	.word	.LANCHOR2+412
 	.word	.LANCHOR2+308
@@ -15218,38 +15258,38 @@ FtlGcFreeBadSuperBlk:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r5, .L2507
+	ldr	r5, .L2513
 	str	r0, [sp]
 	ldrh	r3, [r5, #1182]
 	cmp	r3, #0
-	beq	.L2496
-	ldr	r7, .L2507+4
+	beq	.L2502
+	ldr	r7, .L2513+4
 	mov	r10, #0
 	mov	r8, r5
-.L2495:
+.L2501:
 	ldrh	r2, [r7, #2320]
 	uxth	r3, r10
 	cmp	r2, r3
-	bls	.L2504
+	bls	.L2510
 	add	r3, r3, r7
 	ldr	r1, [sp]
 	mov	fp, #0
 	ldrb	r0, [r3, #2348]	@ zero_extendqisi2
 	bl	V2P_block
-	ldr	r2, .L2507+8
+	ldr	r2, .L2513+8
 	mov	r9, r0
-.L2497:
+.L2503:
 	ldrh	r3, [r5, #1182]
 	uxth	r4, fp
 	cmp	r3, r4
-	bls	.L2505
+	bls	.L2511
 	lsls	r6, r4, #1
 	add	r3, r8, r6
 	ldrh	r3, [r3, #1184]
 	cmp	r3, r9
-	bne	.L2498
+	bne	.L2504
 	mov	r1, r9
-	ldr	r0, .L2507+12
+	ldr	r0, .L2513+12
 	str	r2, [sp, #4]
 	bl	printk
 	mov	r0, r9
@@ -15258,33 +15298,33 @@ FtlGcFreeBadSuperBlk:
 	ldrh	r1, [r8, #1182]
 	ldr	r2, [sp, #4]
 	adds	r3, r2, r6
-.L2499:
+.L2505:
 	cmp	r4, r1
-	bcs	.L2506
+	bcs	.L2512
 	ldrh	r0, [r3, #2]
 	adds	r4, r4, #1
 	uxth	r4, r4
 	strh	r0, [r3], #2	@ movhi
-	b	.L2499
-.L2506:
+	b	.L2505
+.L2512:
 	subs	r1, r1, #1
 	strh	r1, [r5, #1182]	@ movhi
-.L2498:
-	add	fp, fp, #1
-	b	.L2497
-.L2505:
-	add	r10, r10, #1
-	b	.L2495
 .L2504:
+	add	fp, fp, #1
+	b	.L2503
+.L2511:
+	add	r10, r10, #1
+	b	.L2501
+.L2510:
 	bl	FtlGcReFreshBadBlk
-.L2496:
+.L2502:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2508:
+.L2514:
 	.align	2
-.L2507:
+.L2513:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR2+1184
@@ -15300,33 +15340,33 @@ update_vpc_list:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r2, .L2518
+	ldr	r2, .L2524
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	mov	r4, r0
 	ldr	r3, [r2, #296]
 	mov	r5, r2
 	ldrh	r3, [r3, r0, lsl #1]
-	cbnz	r3, .L2510
+	cbnz	r3, .L2516
 	ldrh	r1, [r2, #556]
 	cmp	r1, r0
-	bne	.L2511
+	bne	.L2517
 	movw	r3, #65535
 	strh	r3, [r2, #556]	@ movhi
-	b	.L2512
-.L2511:
+	b	.L2518
+.L2517:
 	ldrh	r1, [r2, #316]
 	cmp	r1, r0
-	beq	.L2517
+	beq	.L2523
 	ldrh	r1, [r2, #364]
 	cmp	r1, r0
-	beq	.L2517
+	beq	.L2523
 	ldrh	r2, [r2, #412]
 	cmp	r2, r0
-	beq	.L2517
-.L2512:
+	beq	.L2523
+.L2518:
 	mov	r1, r4
-	ldr	r0, .L2518+4
+	ldr	r0, .L2524+4
 	bl	List_remove_node
 	ldrh	r3, [r5, #304]
 	mov	r0, r4
@@ -15337,14 +15377,14 @@ update_vpc_list:
 	bl	FtlGcFreeBadSuperBlk
 	movs	r0, #1
 	pop	{r3, r4, r5, pc}
-.L2510:
+.L2516:
 	bl	List_update_data_list
-.L2517:
+.L2523:
 	movs	r0, #0
 	pop	{r3, r4, r5, pc}
-.L2519:
+.L2525:
 	.align	2
-.L2518:
+.L2524:
 	.word	.LANCHOR2
 	.word	.LANCHOR2+292
 	.fnend
@@ -15363,13 +15403,13 @@ decrement_vpc_count:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r4, r0
-	ldr	r5, .L2530
-	beq	.L2521
+	ldr	r5, .L2536
+	beq	.L2527
 	ldr	r3, [r5, #296]
 	ldrh	r2, [r3, r0, lsl #1]
-	cbnz	r2, .L2522
+	cbnz	r2, .L2528
 	mov	r1, r4
-	ldr	r0, .L2530+4
+	ldr	r0, .L2536+4
 	bl	printk
 	ldr	r3, [r5, #296]
 	movs	r2, #32
@@ -15377,7 +15417,7 @@ decrement_vpc_count:
 	mov	r1, r4
 	strh	r2, [r3, r4, lsl #1]	@ movhi
 	bl	test_node_in_list
-	cbz	r0, .L2523
+	cbz	r0, .L2529
 	mov	r1, r4
 	add	r0, r5, #308
 	bl	List_remove_node
@@ -15387,40 +15427,40 @@ decrement_vpc_count:
 	strh	r3, [r5, #312]	@ movhi
 	bl	INSERT_DATA_LIST
 	ldr	r3, [r5, #296]
-	ldr	r0, .L2530+8
+	ldr	r0, .L2536+8
 	mov	r1, r4
 	ldrh	r2, [r3, r4, lsl #1]
 	bl	printk
-.L2523:
+.L2529:
 	mov	r0, r4
 	bl	FtlGcRefreshBlock
-	b	.L2526
-.L2522:
+	b	.L2532
+.L2528:
 	subs	r2, r2, #1
 	strh	r2, [r3, r0, lsl #1]	@ movhi
-.L2521:
+.L2527:
 	ldrh	r0, [r5, #3460]
 	movw	r3, #65535
-	ldr	r6, .L2530
+	ldr	r6, .L2536
 	cmp	r0, r3
-	bne	.L2525
+	bne	.L2531
 	strh	r4, [r6, #3460]	@ movhi
-	b	.L2526
-.L2525:
+	b	.L2532
+.L2531:
 	cmp	r0, r4
-	beq	.L2526
+	beq	.L2532
 	bl	update_vpc_list
 	strh	r4, [r6, #3460]	@ movhi
 	adds	r0, r0, #0
 	it	ne
 	movne	r0, #1
 	pop	{r4, r5, r6, pc}
-.L2526:
+.L2532:
 	movs	r0, #0
 	pop	{r4, r5, r6, pc}
-.L2531:
+.L2537:
 	.align	2
-.L2530:
+.L2536:
 	.word	.LANCHOR2
 	.word	.LC130
 	.word	.LC131
@@ -15440,20 +15480,20 @@ FtlSlcSuperblockCheck:
 	mov	r4, r0
 	ldrh	r3, [r0, #4]
 	cmp	r3, #0
-	beq	.L2532
+	beq	.L2538
 	ldrh	r3, [r0]
 	movw	r5, #65535
 	cmp	r3, r5
-	beq	.L2532
+	beq	.L2538
 	ldrb	r3, [r0, #6]	@ zero_extendqisi2
-	ldr	r7, .L2544
+	ldr	r7, .L2550
 	adds	r3, r3, #8
-	ldr	r6, .L2544+4
+	ldr	r6, .L2550+4
 	ldrh	r3, [r0, r3, lsl #1]
-.L2536:
+.L2542:
 	cmp	r3, r5
-	bne	.L2543
-.L2538:
+	bne	.L2549
+.L2544:
 	ldrb	r3, [r4, #6]	@ zero_extendqisi2
 	ldrh	r2, [r7, #2320]
 	adds	r3, r3, #1
@@ -15470,18 +15510,18 @@ FtlSlcSuperblockCheck:
 	ldrb	r3, [r4, #6]	@ zero_extendqisi2
 	adds	r3, r3, #8
 	ldrh	r3, [r4, r3, lsl #1]
-	b	.L2536
-.L2543:
+	b	.L2542
+.L2549:
 	ldrb	r1, [r4, #8]	@ zero_extendqisi2
 	cmp	r1, #1
-	bne	.L2539
-	ldrb	r3, [r7, #144]	@ zero_extendqisi2
-	cbnz	r3, .L2539
+	bne	.L2545
+	ldrb	r3, [r7, #148]	@ zero_extendqisi2
+	cbnz	r3, .L2545
 	ldrh	r3, [r4, #2]
 	add	r3, r6, r3, lsl #1
 	ldrh	r3, [r3, #1220]
 	cmp	r3, r5
-	bne	.L2539
+	bne	.L2545
 	ldrh	r3, [r4, #4]
 	ldrh	r0, [r4]
 	subs	r3, r3, #1
@@ -15489,23 +15529,23 @@ FtlSlcSuperblockCheck:
 	bl	decrement_vpc_count
 	ldrh	r2, [r4, #4]
 	cmp	r2, #0
-	bne	.L2538
+	bne	.L2544
 	ldrh	r3, [r4, #2]
 	strb	r2, [r4, #6]
 	adds	r3, r3, #1
 	strh	r3, [r4, #2]	@ movhi
 	pop	{r3, r4, r5, r6, r7, pc}
-.L2539:
-	ldr	r2, .L2544
-	ldrb	r3, [r2, #144]	@ zero_extendqisi2
-	cbz	r3, .L2532
+.L2545:
+	ldr	r2, .L2550
+	ldrb	r3, [r2, #148]	@ zero_extendqisi2
+	cbz	r3, .L2538
 	cmp	r1, #1
-	bne	.L2532
+	bne	.L2538
 	ldrh	r1, [r4, #2]
 	ldrh	r3, [r2, #2390]
 	cmp	r1, r3
-	bcc	.L2532
-	ldr	r3, .L2544+4
+	bcc	.L2538
+	ldr	r3, .L2550+4
 	ldrh	r0, [r4]
 	ldrh	r5, [r4, #4]
 	ldr	r1, [r3, #296]
@@ -15517,11 +15557,11 @@ FtlSlcSuperblockCheck:
 	strh	r3, [r4, #4]	@ movhi
 	strb	r3, [r4, #6]
 	strh	r2, [r4, #2]	@ movhi
-.L2532:
+.L2538:
 	pop	{r3, r4, r5, r6, r7, pc}
-.L2545:
+.L2551:
 	.align	2
-.L2544:
+.L2550:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -15542,15 +15582,15 @@ get_new_active_ppa:
 	mov	r4, r0
 	ldrb	r3, [r0, #6]	@ zero_extendqisi2
 	movw	r7, #65535
-	ldr	r8, .L2563+4
+	ldr	r8, .L2569+4
 	adds	r3, r3, #8
-	ldr	r5, .L2563
+	ldr	r5, .L2569
 	ldrh	r2, [r0, r3, lsl #1]
-.L2547:
+.L2553:
 	cmp	r2, r7
-	ldr	r6, .L2563+4
-	bne	.L2562
-.L2548:
+	ldr	r6, .L2569+4
+	bne	.L2568
+.L2554:
 	ldrb	r3, [r4, #6]	@ zero_extendqisi2
 	ldrh	r2, [r8, #2320]
 	adds	r3, r3, #1
@@ -15567,34 +15607,34 @@ get_new_active_ppa:
 	ldrb	r3, [r4, #6]	@ zero_extendqisi2
 	adds	r3, r3, #8
 	ldrh	r2, [r4, r3, lsl #1]
-	b	.L2547
-.L2562:
+	b	.L2553
+.L2568:
 	ldrb	r3, [r4, #8]	@ zero_extendqisi2
 	ldrh	r1, [r4, #2]
 	cmp	r3, #1
 	ldrh	r3, [r4, #4]
-	bne	.L2550
-	ldrb	r0, [r8, #144]	@ zero_extendqisi2
-	cbnz	r0, .L2550
+	bne	.L2556
+	ldrb	r0, [r8, #148]	@ zero_extendqisi2
+	cbnz	r0, .L2556
 	add	r0, r5, r1, lsl #1
 	ldrh	r0, [r0, #1220]
 	cmp	r0, r7
-	bne	.L2550
+	bne	.L2556
 	subs	r3, r3, #1
 	ldrh	r0, [r4]
 	strh	r3, [r4, #4]	@ movhi
 	bl	decrement_vpc_count
-	b	.L2548
-.L2550:
+	b	.L2554
+.L2556:
 	movw	r7, #65535
 	orr	r5, r1, r2, lsl #10
 	mov	r8, r7
 	subs	r3, r3, #1
 	strh	r3, [r4, #4]	@ movhi
-.L2551:
+.L2557:
 	ldrb	r3, [r4, #6]	@ zero_extendqisi2
 	ldrh	r1, [r6, #2320]
-.L2553:
+.L2559:
 	adds	r3, r3, #1
 	uxtb	r3, r3
 	cmp	r3, r1
@@ -15606,35 +15646,35 @@ get_new_active_ppa:
 	add	r2, r3, #8
 	ldrh	r2, [r4, r2, lsl #1]
 	cmp	r2, r7
-	beq	.L2553
+	beq	.L2559
 	strb	r3, [r4, #6]
 	ldrb	r3, [r4, #8]	@ zero_extendqisi2
 	cmp	r3, #1
-	bne	.L2558
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbnz	r3, .L2555
+	bne	.L2564
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbnz	r3, .L2561
 	ldrh	r2, [r4, #2]
-	ldr	r3, .L2563
+	ldr	r3, .L2569
 	add	r3, r3, r2, lsl #1
 	ldrh	r3, [r3, #1220]
 	cmp	r3, r8
-	bne	.L2555
+	bne	.L2561
 	ldrh	r3, [r4, #4]
-	cbz	r3, .L2555
+	cbz	r3, .L2561
 	subs	r3, r3, #1
 	ldrh	r0, [r4]
 	strh	r3, [r4, #4]	@ movhi
 	bl	decrement_vpc_count
-	b	.L2551
-.L2555:
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	ldr	r2, .L2563+4
-	cbz	r3, .L2558
+	b	.L2557
+.L2561:
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	ldr	r2, .L2569+4
+	cbz	r3, .L2564
 	ldrh	r1, [r4, #2]
 	ldrh	r3, [r2, #2390]
 	cmp	r1, r3
-	bcc	.L2558
-	ldr	r3, .L2563
+	bcc	.L2564
+	ldr	r3, .L2569
 	ldrh	r0, [r4]
 	ldrh	r6, [r4, #4]
 	ldr	r1, [r3, #296]
@@ -15646,12 +15686,12 @@ get_new_active_ppa:
 	strh	r3, [r4, #4]	@ movhi
 	strb	r3, [r4, #6]
 	strh	r2, [r4, #2]	@ movhi
-.L2558:
+.L2564:
 	mov	r0, r5
 	pop	{r4, r5, r6, r7, r8, pc}
-.L2564:
+.L2570:
 	.align	2
-.L2563:
+.L2569:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -15667,29 +15707,29 @@ FtlVpcTblFlush:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
-	ldr	r4, .L2588
+	ldr	r4, .L2594
 	ldr	r3, [r4, #224]
 	cmp	r3, #0
-	bne	.L2567
-	ldr	r5, .L2588+4
+	bne	.L2573
+	ldr	r5, .L2594+4
 	movs	r1, #255
 	ldr	r2, [r4, #3316]
 	ldr	r7, [r4, #3340]
-	ldr	r6, .L2588+8
-	str	r2, [r5, #1256]
+	ldr	r6, .L2594+8
+	str	r2, [r5, #1264]
 	ldrh	r2, [r4, #540]
-	str	r7, [r5, #1260]
+	str	r7, [r5, #1268]
 	str	r3, [r7, #12]
 	strh	r2, [r7, #2]	@ movhi
 	movw	r2, #61604
 	strh	r2, [r7]	@ movhi
 	ldr	r2, [r4, #548]
 	str	r3, [r7, #8]
-	ldr	r3, .L2588+12
+	ldr	r3, .L2594+12
 	str	r2, [r7, #4]
 	ldrh	r2, [r4, #318]
 	str	r3, [r4, #240]
-	ldr	r3, .L2588+16
+	ldr	r3, .L2594+16
 	str	r3, [r4, #244]
 	ldrh	r3, [r4, #546]
 	strh	r3, [r4, #248]	@ movhi
@@ -15714,7 +15754,7 @@ FtlVpcTblFlush:
 	strh	r3, [r4, #262]	@ movhi
 	ldrh	r2, [r4, #414]
 	ldrb	r3, [r4, #418]	@ zero_extendqisi2
-	ldr	r0, [r5, #1256]
+	ldr	r0, [r5, #1264]
 	orr	r3, r3, r2, lsl #6
 	strh	r3, [r4, #264]	@ movhi
 	ldrb	r3, [r4, #420]	@ zero_extendqisi2
@@ -15733,16 +15773,16 @@ FtlVpcTblFlush:
 	bl	ftl_memset
 	add	r1, r4, #240
 	movs	r2, #48
-	ldr	r0, [r5, #1256]
+	ldr	r0, [r5, #1264]
 	bl	ftl_memcpy
 	ldrh	r2, [r6, #2328]
-	ldr	r0, [r5, #1256]
+	ldr	r0, [r5, #1264]
 	ldr	r1, [r4, #296]
 	lsls	r2, r2, #1
 	adds	r0, r0, #48
 	bl	ftl_memcpy
 	ldrh	r2, [r6, #2328]
-	ldr	r0, [r5, #1256]
+	ldr	r0, [r5, #1264]
 	ldr	r1, [r4, #472]
 	lsls	r3, r2, #1
 	lsrs	r2, r2, #3
@@ -15752,9 +15792,9 @@ FtlVpcTblFlush:
 	add	r0, r0, r3
 	bl	ftl_memcpy
 	ldrh	r3, [r6, #2432]
-	cbz	r3, .L2568
+	cbz	r3, .L2574
 	ldrh	r2, [r6, #2328]
-	ldr	r0, [r5, #1256]
+	ldr	r0, [r5, #1264]
 	ldr	r1, [r4, #3388]
 	lsrs	r3, r2, #3
 	add	r3, r3, r2, lsl #1
@@ -15764,61 +15804,61 @@ FtlVpcTblFlush:
 	lsls	r2, r2, #2
 	add	r0, r0, r3, lsl #2
 	bl	ftl_memcpy
-.L2568:
+.L2574:
 	movs	r0, #0
-	ldr	r10, .L2588
+	ldr	r10, .L2594
 	bl	FtlUpdateVaildLpn
-	ldr	fp, .L2588+8
+	ldr	fp, .L2594+8
 	mov	r8, #0
 	movw	r9, #65535
-.L2569:
+.L2575:
 	ldr	r3, [r4, #3316]
 	ldrh	r2, [r4, #540]
 	ldrh	r1, [r4, #542]
-	str	r3, [r5, #1256]
+	str	r3, [r5, #1264]
 	ldr	r3, [r4, #3340]
-	str	r3, [r5, #1260]
+	str	r3, [r5, #1268]
 	orr	r3, r1, r2, lsl #10
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	ldrh	r3, [r6, #2390]
 	subs	r3, r3, #1
 	cmp	r1, r3
-	blt	.L2570
+	blt	.L2576
 	movs	r3, #0
 	ldrh	r9, [r10, #544]
 	strh	r3, [r10, #542]	@ movhi
 	strh	r2, [r10, #544]	@ movhi
 	bl	FtlFreeSysBlkQueueOut
 	ldr	r3, [r10, #508]
-	ldr	r1, .L2588+4
+	ldr	r1, .L2594+4
 	adds	r2, r3, #1
 	str	r2, [r10, #508]
 	str	r3, [r10, #548]
 	lsls	r2, r0, #10
 	strh	r0, [r10, #540]	@ movhi
-	str	r2, [r1, #1252]
+	str	r2, [r1, #1260]
 	str	r3, [r7, #4]
 	strh	r0, [r7, #2]	@ movhi
-.L2570:
-	ldrb	r3, [r6]	@ zero_extendqisi2
-	cbz	r3, .L2571
+.L2576:
+	ldrb	r3, [r6, #32]	@ zero_extendqisi2
+	cbz	r3, .L2577
 	ldr	r0, [r4, #3316]
 	ldrh	r1, [fp, #2398]
 	bl	js_hash
 	str	r0, [r7, #12]
-.L2571:
+.L2577:
 	movs	r1, #1
-	ldr	r0, .L2588+20
+	ldr	r0, .L2594+20
 	mov	r2, r1
 	mov	r3, r1
 	bl	FlashProgPages
 	ldrh	r3, [r4, #542]
-	ldr	r2, [r5, #1248]
+	ldr	r2, [r5, #1256]
 	adds	r3, r3, #1
 	adds	r1, r2, #1
 	uxth	r3, r3
 	strh	r3, [r4, #542]	@ movhi
-	bne	.L2572
+	bne	.L2578
 	cmp	r3, #1
 	add	r8, r8, #1
 	it	eq
@@ -15828,37 +15868,37 @@ FtlVpcTblFlush:
 	addeq	r3, r3, #-1
 	strheq	r3, [r10, #542]	@ movhi
 	cmp	r8, #3
-	bls	.L2569
-	ldr	r0, .L2588+24
+	bls	.L2575
+	ldr	r0, .L2594+24
 	mov	r2, r8
-	ldr	r1, [r5, #1252]
+	ldr	r1, [r5, #1260]
 	bl	printk
 	movs	r3, #1
 	str	r3, [r4, #224]
-	b	.L2567
-.L2572:
+	b	.L2573
+.L2578:
 	cmp	r3, #1
-	beq	.L2569
+	beq	.L2575
 	cmp	r2, #256
-	beq	.L2569
+	beq	.L2575
 	movw	r3, #65535
 	cmp	r9, r3
-	beq	.L2567
+	beq	.L2573
 	mov	r0, r9
 	movs	r1, #1
 	bl	FtlFreeSysBlkQueueIn
-.L2567:
+.L2573:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2589:
+.L2595:
 	.align	2
-.L2588:
+.L2594:
 	.word	.LANCHOR2
 	.word	.LANCHOR4
 	.word	.LANCHOR0
 	.word	1179929683
 	.word	1342177379
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC132
 	.fnend
 	.size	FtlVpcTblFlush, .-FtlVpcTblFlush
@@ -15874,26 +15914,26 @@ FtlSuperblockPowerLostFix:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r4, r0
-	ldr	r5, .L2606
+	ldr	r5, .L2612
 	.pad #44
 	sub	sp, sp, #44
 	ldr	r3, [r5, #224]
 	cmp	r3, #0
-	bne	.L2590
-	ldr	r2, .L2606+4
-	ldrb	r6, [r2, #144]	@ zero_extendqisi2
+	bne	.L2596
+	ldr	r2, .L2612+4
+	ldrb	r6, [r2, #148]	@ zero_extendqisi2
 	mov	r8, r2
-	cbz	r6, .L2605
+	cbz	r6, .L2611
 	ldrb	r6, [r0, #8]	@ zero_extendqisi2
 	cmp	r6, #1
-	bne	.L2601
+	bne	.L2607
 	ldrh	fp, [r0, #4]
-	b	.L2592
-.L2601:
+	b	.L2598
+.L2607:
 	mov	r6, r3
-.L2605:
+.L2611:
 	mov	fp, #12
-.L2592:
+.L2598:
 	ldr	r7, [r5, #3340]
 	mov	r3, #-1
 	str	r3, [sp, #20]
@@ -15901,7 +15941,7 @@ FtlSuperblockPowerLostFix:
 	ldr	r3, [r5, #3316]
 	movw	r2, #61589
 	str	r7, [sp, #16]
-	ldr	r10, .L2606
+	ldr	r10, .L2612
 	str	r3, [sp, #12]
 	mvn	r3, #2
 	str	r3, [r7, #8]
@@ -15917,12 +15957,12 @@ FtlSuperblockPowerLostFix:
 	add	r2, r2, #1269760
 	addw	r2, r2, #1507
 	str	r2, [r3, #4]
-.L2593:
+.L2599:
 	adds	fp, fp, #-1
-	bcc	.L2596
+	bcc	.L2602
 	ldrh	r3, [r4, #4]
-	cbnz	r3, .L2594
-.L2596:
+	cbnz	r3, .L2600
+.L2602:
 	ldr	r2, [r5, #296]
 	ldrh	r1, [r4]
 	ldrh	r0, [r4, #4]
@@ -15934,13 +15974,13 @@ FtlSuperblockPowerLostFix:
 	movs	r3, #0
 	strb	r3, [r4, #6]
 	strh	r3, [r4, #4]	@ movhi
-	b	.L2590
-.L2594:
+	b	.L2596
+.L2600:
 	mov	r0, r4
 	bl	get_new_active_ppa
 	str	r0, [sp, #8]
 	adds	r0, r0, #1
-	beq	.L2596
+	beq	.L2602
 	ldr	r3, [r5, #512]
 	movs	r1, #1
 	add	r0, sp, #4
@@ -15955,14 +15995,14 @@ FtlSuperblockPowerLostFix:
 	bl	FlashProgPages
 	ldrh	r0, [r4]
 	bl	decrement_vpc_count
-	b	.L2593
-.L2590:
+	b	.L2599
+.L2596:
 	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2607:
+.L2613:
 	.align	2
-.L2606:
+.L2612:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -15987,14 +16027,14 @@ ftl_map_blk_gc:
 	ldrh	r2, [r4, #8]
 	subs	r3, r3, #4
 	cmp	r2, r3
-	blt	.L2609
+	blt	.L2615
 	uxth	r0, r0
 	ldrh	r10, [r5, r0, lsl #1]
 	cmp	r10, #0
-	beq	.L2609
+	beq	.L2615
 	ldr	r3, [r4, #32]
 	cmp	r3, #0
-	bne	.L2609
+	bne	.L2615
 	movs	r2, #1
 	str	r2, [r4, #32]
 	strh	r3, [r5, r0, lsl #1]	@ movhi
@@ -16002,91 +16042,91 @@ ftl_map_blk_gc:
 	ldrh	r2, [r4, #2]
 	subs	r3, r3, #1
 	strh	r3, [r4, #8]	@ movhi
-	ldr	r3, .L2621
+	ldr	r3, .L2627
 	ldrh	r3, [r3, #2390]
 	cmp	r2, r3
-	bcc	.L2610
+	bcc	.L2616
 	mov	r0, r4
 	bl	ftl_map_blk_alloc_new_blk
-.L2610:
-	ldr	r6, .L2621+4
+.L2616:
+	ldr	r6, .L2627+4
 	mov	fp, #0
-	ldr	r9, .L2621+16
-.L2611:
+	ldr	r9, .L2627+16
+.L2617:
 	ldrh	r2, [r4, #6]
 	uxth	r5, fp
 	cmp	r2, r5
-	bls	.L2620
+	bls	.L2626
 	ldr	r2, [r8, r5, lsl #2]
 	add	ip, r8, r5, lsl #2
 	cmp	r10, r2, lsr #10
-	bne	.L2612
+	bne	.L2618
 	ldr	r2, [r9, #3320]
 	movs	r1, #1
 	ldr	r7, [r9, #3340]
-	ldr	r0, .L2621+8
-	str	r2, [r6, #1256]
-	str	r7, [r6, #1260]
+	ldr	r0, .L2627+8
+	str	r2, [r6, #1264]
+	str	r7, [r6, #1268]
 	ldr	r2, [r8, r5, lsl #2]
 	str	ip, [sp, #4]
-	str	r2, [r6, #1252]
+	str	r2, [r6, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r2, [r6, #1248]
+	ldr	r2, [r6, #1256]
 	adds	r2, r2, #1
 	ldr	ip, [sp, #4]
-	bne	.L2613
-.L2615:
+	bne	.L2619
+.L2621:
 	movs	r3, #0
 	str	r3, [ip]
-	ldr	r3, .L2621+4
+	ldr	r3, .L2627+4
 	ldrh	r2, [r7, #8]
-	ldr	r0, .L2621+12
-	ldr	r1, [r3, #1252]
+	ldr	r0, .L2627+12
+	ldr	r1, [r3, #1260]
 	bl	printk
-	ldr	r3, .L2621+16
+	ldr	r3, .L2627+16
 	movs	r2, #1
 	str	r2, [r3, #224]
-	b	.L2614
-.L2613:
+	b	.L2620
+.L2619:
 	ldrh	r1, [r7, #8]
 	cmp	r1, r5
-	bne	.L2615
+	bne	.L2621
 	ldrh	r0, [r7]
 	ldrh	r2, [r4, #4]
 	cmp	r0, r2
-	bne	.L2615
+	bne	.L2621
 	mov	r0, r4
-	ldr	r2, [r6, #1256]
+	ldr	r2, [r6, #1264]
 	bl	FtlMapWritePage
-.L2612:
+.L2618:
 	add	fp, fp, #1
-	b	.L2611
-.L2620:
+	b	.L2617
+.L2626:
 	mov	r0, r10
 	movs	r1, #1
 	bl	FtlFreeSysBlkQueueIn
 	movs	r3, #0
 	str	r3, [r4, #32]
-.L2609:
-	ldr	r3, .L2621
+.L2615:
+	ldr	r3, .L2627
 	ldrh	r2, [r4, #2]
 	ldrh	r3, [r3, #2390]
 	cmp	r2, r3
-	bcc	.L2614
+	bcc	.L2620
 	mov	r0, r4
 	bl	ftl_map_blk_alloc_new_blk
-.L2614:
+.L2620:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2622:
+.L2628:
 	.align	2
-.L2621:
+.L2627:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC133
 	.word	.LANCHOR2
 	.fnend
@@ -16103,16 +16143,16 @@ Ftl_write_map_blk_to_last_page:
 	push	{r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r4, r0
-	ldr	r6, .L2634
+	ldr	r6, .L2640
 	ldr	r7, [r0, #12]
 	ldr	r10, [r0, #24]
 	ldr	r5, [r6, #224]
 	cmp	r5, #0
-	bne	.L2624
+	bne	.L2630
 	ldrh	r3, [r0]
 	movw	r2, #65535
 	cmp	r3, r2
-	bne	.L2625
+	bne	.L2631
 	ldrh	r3, [r0, #8]
 	adds	r3, r3, #1
 	strh	r3, [r0, #8]	@ movhi
@@ -16123,19 +16163,19 @@ Ftl_write_map_blk_to_last_page:
 	adds	r3, r3, #1
 	strh	r5, [r4]	@ movhi
 	str	r3, [r4, #28]
-	b	.L2624
-.L2625:
+	b	.L2630
+.L2631:
 	ldrh	r9, [r7, r3, lsl #1]
 	movs	r1, #255
-	ldr	fp, .L2634+12
+	ldr	fp, .L2640+12
 	ldrh	r3, [r0, #2]
 	ldr	r7, [r6, #3340]
 	orr	r3, r3, r9, lsl #10
-	str	r3, [fp, #1252]
+	str	r3, [fp, #1260]
 	ldr	r3, [r6, #3316]
-	str	r7, [fp, #1260]
-	ldr	r8, .L2634+4
-	str	r3, [fp, #1256]
+	str	r7, [fp, #1268]
+	ldr	r8, .L2640+4
+	str	r3, [fp, #1264]
 	ldr	r3, [r0, #28]
 	str	r3, [r7, #4]
 	movw	r3, #64245
@@ -16148,14 +16188,14 @@ Ftl_write_map_blk_to_last_page:
 	lsls	r2, r2, #3
 	bl	ftl_memset
 	mov	r1, r5
-.L2626:
+.L2632:
 	ldrh	r2, [r4, #6]
 	uxth	r3, r1
 	cmp	r2, r3
-	bls	.L2633
+	bls	.L2639
 	ldr	r2, [r10, r3, lsl #2]
 	cmp	r9, r2, lsr #10
-	bne	.L2627
+	bne	.L2633
 	adds	r5, r5, #1
 	ldr	r2, [r6, #3316]
 	uxth	r5, r5
@@ -16164,21 +16204,21 @@ Ftl_write_map_blk_to_last_page:
 	ldr	r3, [r6, #3316]
 	add	r3, r3, r5, lsl #3
 	str	r2, [r3, #4]
-.L2627:
-	adds	r1, r1, #1
-	b	.L2626
 .L2633:
-	ldrb	r3, [r8]	@ zero_extendqisi2
-	cbz	r3, .L2629
-	ldr	r3, .L2634+4
-	ldr	r0, [fp, #1256]
+	adds	r1, r1, #1
+	b	.L2632
+.L2639:
+	ldrb	r3, [r8, #32]	@ zero_extendqisi2
+	cbz	r3, .L2635
+	ldr	r3, .L2640+4
+	ldr	r0, [fp, #1264]
 	ldrh	r1, [r3, #2398]
 	bl	js_hash
 	str	r0, [r7, #12]
-.L2629:
+.L2635:
 	movs	r1, #1
 	movs	r3, #0
-	ldr	r0, .L2634+8
+	ldr	r0, .L2640+8
 	mov	r2, r1
 	bl	FlashProgPages
 	ldrh	r3, [r4, #2]
@@ -16186,15 +16226,15 @@ Ftl_write_map_blk_to_last_page:
 	adds	r3, r3, #1
 	strh	r3, [r4, #2]	@ movhi
 	bl	ftl_map_blk_gc
-.L2624:
+.L2630:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2635:
+.L2641:
 	.align	2
-.L2634:
+.L2640:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LANCHOR4
 	.fnend
 	.size	Ftl_write_map_blk_to_last_page, .-Ftl_write_map_blk_to_last_page
@@ -16211,67 +16251,67 @@ FtlMapWritePage:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
 	movs	r6, #0
-	ldr	r7, .L2660
+	ldr	r7, .L2666
 	mov	r4, r0
 	mov	r9, r1
 	str	r2, [sp]
-.L2637:
+.L2643:
 	ldr	r3, [r7, #492]
-	ldr	fp, .L2660+4
+	ldr	fp, .L2666+4
 	adds	r3, r3, #1
 	str	r3, [r7, #492]
-	ldr	r3, .L2660+4
+	ldr	r3, .L2666+4
 	ldrh	r2, [r4, #2]
 	ldrh	r3, [r3, #2390]
 	subs	r3, r3, #1
 	cmp	r2, r3
-	bge	.L2638
+	bge	.L2644
 	ldrh	r2, [r4]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L2639
-.L2638:
+	bne	.L2645
+.L2644:
 	mov	r0, r4
 	bl	Ftl_write_map_blk_to_last_page
-.L2639:
-	ldr	r3, .L2660
+.L2645:
+	ldr	r3, .L2666
 	ldr	r1, [r3, #224]
 	cmp	r1, #0
-	bne	.L2655
+	bne	.L2661
 	ldrh	r2, [r4]
 	ldr	r3, [r4, #12]
-	ldr	r5, .L2660+8
+	ldr	r5, .L2666+8
 	ldr	r0, [r7, #3340]
 	ldrh	r8, [r3, r2, lsl #1]
 	movs	r2, #16
 	ldrh	r3, [r4, #2]
 	mov	r10, r5
-	str	r0, [r5, #1260]
+	str	r0, [r5, #1268]
 	orr	r3, r3, r8, lsl #10
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	ldr	r3, [sp]
-	str	r3, [r5, #1256]
+	str	r3, [r5, #1264]
 	bl	ftl_memset
 	ldr	r2, [r4, #28]
-	ldr	r3, [r5, #1260]
+	ldr	r3, [r5, #1268]
 	str	r2, [r3, #4]
 	strh	r9, [r3, #8]	@ movhi
 	ldrh	r2, [r4, #4]
 	strh	r8, [r3, #2]	@ movhi
 	strh	r2, [r3]	@ movhi
-	ldrb	r2, [fp]	@ zero_extendqisi2
-	cbz	r2, .L2641
+	ldrb	r2, [fp, #32]	@ zero_extendqisi2
+	cbz	r2, .L2647
 	str	r3, [sp, #4]
-	ldr	r3, .L2660+4
-	ldr	r0, [r5, #1256]
+	ldr	r3, .L2666+4
+	ldr	r0, [r5, #1264]
 	ldrh	r1, [r3, #2398]
 	bl	js_hash
 	ldr	r3, [sp, #4]
 	str	r0, [r3, #12]
-.L2641:
-	ldr	ip, .L2660+8
+.L2647:
+	ldr	ip, .L2666+8
 	movs	r1, #1
-	add	r0, ip, #1248
+	add	r0, ip, #1256
 	mov	r2, r1
 	mov	r3, r1
 	str	ip, [sp, #4]
@@ -16280,13 +16320,13 @@ FtlMapWritePage:
 	adds	r3, r3, #1
 	uxth	r3, r3
 	strh	r3, [r4, #2]	@ movhi
-	ldr	r2, [r5, #1248]
+	ldr	r2, [r5, #1256]
 	adds	r1, r2, #1
 	ldr	ip, [sp, #4]
-	bne	.L2642
-	ldr	r0, .L2660+12
+	bne	.L2648
+	ldr	r0, .L2666+12
 	adds	r6, r6, #1
-	ldr	r1, [ip, #1252]
+	ldr	r1, [ip, #1260]
 	bl	printk
 	ldrh	r3, [r4, #2]
 	uxth	r6, r6
@@ -16296,45 +16336,45 @@ FtlMapWritePage:
 	addls	r3, r3, #-1
 	strhls	r3, [r4, #2]	@ movhi
 	cmp	r6, #3
-	bls	.L2637
+	bls	.L2643
 	mov	r2, r6
-	ldr	r0, .L2660+16
-	ldr	r1, [r10, #1252]
+	ldr	r0, .L2666+16
+	ldr	r1, [r10, #1260]
 	bl	printk
-	ldr	r3, .L2660
+	ldr	r3, .L2666
 	movs	r2, #1
 	str	r2, [r3, #224]
-	b	.L2655
-.L2642:
-	cbz	r2, .L2645
+	b	.L2661
+.L2648:
+	cbz	r2, .L2651
 	cmp	r3, #1
 	strh	r8, [r4, #40]	@ movhi
-	bne	.L2646
-.L2647:
+	bne	.L2652
+.L2653:
 	movs	r3, #0
 	str	r3, [r4, #36]
-	b	.L2637
-.L2646:
+	b	.L2643
+.L2652:
 	cmp	r2, #256
-	b	.L2659
-.L2645:
+	b	.L2665
+.L2651:
 	cmp	r3, #1
-.L2659:
-	beq	.L2647
+.L2665:
+	beq	.L2653
 	ldr	r3, [r4, #36]
 	cmp	r3, #0
-	bne	.L2647
-	ldr	r2, [r10, #1252]
+	bne	.L2653
+	ldr	r2, [r10, #1260]
 	ldr	r3, [r4, #24]
 	str	r2, [r3, r9, lsl #2]
-.L2655:
+.L2661:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2661:
+.L2667:
 	.align	2
-.L2660:
+.L2666:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR4
@@ -16354,7 +16394,7 @@ flush_l2p_region:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movs	r4, #12
-	ldr	r5, .L2663
+	ldr	r5, .L2669
 	muls	r4, r0, r4
 	add	r0, r5, #3408
 	ldr	r3, [r5, #460]
@@ -16369,9 +16409,9 @@ flush_l2p_region:
 	bic	r3, r3, #-2147483648
 	str	r3, [r4, #4]
 	pop	{r3, r4, r5, pc}
-.L2664:
+.L2670:
 	.align	2
-.L2663:
+.L2669:
 	.word	.LANCHOR2
 	.fnend
 	.size	flush_l2p_region, .-flush_l2p_region
@@ -16398,19 +16438,19 @@ FtlMapTblRecovery:
 	lsl	r2, r9, #2
 	ldr	r8, [r0, #12]
 	mov	r0, r7
-	ldr	r10, .L2707+12
+	ldr	r10, .L2713+12
 	str	r3, [sp, #8]
 	bl	ftl_memset
-	ldr	r3, .L2707
+	ldr	r3, .L2713
 	movs	r0, #1
-	ldr	r2, .L2707+4
+	ldr	r2, .L2713+4
 	str	r0, [r4, #36]
 	ldr	r1, [r3, #3316]
 	ldr	r6, [r3, #3340]
 	mov	r5, r2
-	str	r1, [r2, #1256]
+	str	r1, [r2, #1264]
 	movw	r1, #65535
-	str	r6, [r2, #1260]
+	str	r6, [r2, #1268]
 	strh	r1, [r4]	@ movhi
 	strh	r1, [r4, #2]	@ movhi
 	movs	r1, #0
@@ -16418,18 +16458,18 @@ FtlMapTblRecovery:
 	str	r1, [r4, #28]
 	str	r1, [sp, #4]
 	str	r3, [sp, #20]
-.L2666:
+.L2672:
 	ldrh	r2, [sp, #4]
 	ldr	r1, [sp, #8]
-	ldr	fp, .L2707+12
+	ldr	fp, .L2713+12
 	sxth	r3, r2
 	cmp	r3, r1
-	bge	.L2684
+	bge	.L2690
 	ldr	r1, [sp, #8]
 	subs	r1, r1, #1
 	cmp	r3, r1
 	lsl	r1, r3, #1
-	bne	.L2667
+	bne	.L2673
 	ldrh	r0, [r8, r3, lsl #1]
 	str	r2, [sp, #16]
 	add	r2, r8, r1
@@ -16437,7 +16477,7 @@ FtlMapTblRecovery:
 	str	r2, [sp, #4]
 	str	r3, [sp, #8]
 	bl	FtlGetLastWrittenPage
-	ldr	r10, .L2707+4
+	ldr	r10, .L2713+4
 	mov	r8, #0
 	ldr	r2, [sp, #16]
 	adds	r1, r0, #1
@@ -16451,26 +16491,26 @@ FtlMapTblRecovery:
 	str	r3, [r4, #28]
 	adds	r3, r0, #1
 	str	r3, [sp, #8]
-.L2668:
+.L2674:
 	ldr	r3, [sp, #8]
 	sxth	r2, r8
 	cmp	r2, r3
-	bge	.L2684
+	bge	.L2690
 	ldr	r3, [sp, #4]
-	ldr	r0, .L2707+8
+	ldr	r0, .L2713+8
 	ldrh	r1, [r3]
 	orr	r2, r2, r1, lsl #10
 	movs	r1, #1
-	str	r2, [r5, #1252]
+	str	r2, [r5, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldrb	r2, [fp]	@ zero_extendqisi2
-	cbz	r2, .L2669
-	ldr	r2, [r10, #1260]
+	ldrb	r2, [fp, #32]	@ zero_extendqisi2
+	cbz	r2, .L2675
+	ldr	r2, [r10, #1268]
 	ldr	r2, [r2, #12]
-	cbz	r2, .L2669
-	ldr	r1, .L2707+12
-	ldr	r0, [r10, #1256]
+	cbz	r2, .L2675
+	ldr	r1, .L2713+12
+	ldr	r0, [r10, #1264]
 	str	r2, [sp, #12]
 	ldrh	r1, [r1, #2398]
 	bl	js_hash
@@ -16478,38 +16518,38 @@ FtlMapTblRecovery:
 	cmp	r2, r0
 	itt	ne
 	movne	r2, #-1
-	strne	r2, [r10, #1248]
-.L2669:
-	ldr	r2, [r10, #1248]
+	strne	r2, [r10, #1256]
+.L2675:
+	ldr	r2, [r10, #1256]
 	adds	r2, r2, #1
-	beq	.L2670
+	beq	.L2676
 	ldrh	r2, [r6, #8]
 	cmp	r2, r9
-	bcs	.L2670
+	bcs	.L2676
 	ldrh	r1, [r4, #4]
 	ldrh	r0, [r6]
 	cmp	r0, r1
 	itt	eq
-	ldreq	r1, [r10, #1252]
+	ldreq	r1, [r10, #1260]
 	streq	r1, [r7, r2, lsl #2]
-.L2670:
+.L2676:
 	add	r8, r8, #1
-	b	.L2668
-.L2684:
+	b	.L2674
+.L2690:
 	mov	r0, r4
 	bl	ftl_free_no_use_map_blk
 	ldrh	r2, [r4, #2]
 	ldrh	r3, [fp, #2390]
 	cmp	r2, r3
-	bne	.L2673
+	bne	.L2679
 	mov	r0, r4
 	bl	ftl_map_blk_alloc_new_blk
-	b	.L2673
-.L2667:
+	b	.L2679
+.L2673:
 	ldr	r2, [sp, #20]
-	ldr	r0, .L2707+8
+	ldr	r0, .L2713+8
 	ldr	r2, [r2, #3316]
-	str	r2, [r5, #1256]
+	str	r2, [r5, #1264]
 	add	r2, r8, r1
 	str	r2, [sp, #16]
 	movs	r1, #1
@@ -16518,30 +16558,30 @@ FtlMapTblRecovery:
 	subs	r3, r3, #1
 	orr	r3, r3, r2, lsl #10
 	mov	r2, r1
-	str	r3, [r5, #1252]
+	str	r3, [r5, #1260]
 	bl	FlashReadPages
-	ldr	r3, [r5, #1248]
+	ldr	r3, [r5, #1256]
 	adds	r3, r3, #1
-	beq	.L2686
+	beq	.L2692
 	ldrh	r2, [r6]
 	ldrh	r3, [r4, #4]
 	cmp	r2, r3
-	bne	.L2686
+	bne	.L2692
 	ldrh	r2, [r6, #8]
 	movw	r3, #64245
 	cmp	r2, r3
-	bne	.L2686
+	bne	.L2692
 	movs	r1, #0
 	mov	lr, #8
 	mov	ip, #4
-.L2675:
+.L2681:
 	uxth	r3, r1
 	ldrh	r2, [r10, #2390]
 	sxth	r0, r3
 	subs	r2, r2, #1
 	cmp	r0, r2
-	bge	.L2678
-	ldr	r2, .L2707
+	bge	.L2684
+	ldr	r2, .L2713
 	adds	r1, r1, #1
 	ldr	r2, [r2, #3316]
 	ldrh	r0, [r2, r0, lsl #3]
@@ -16550,31 +16590,31 @@ FtlMapTblRecovery:
 	smlabbcc	r3, r3, lr, ip
 	ldrcc	r3, [r2, r3]
 	strcc	r3, [r7, r0, lsl #2]
-	b	.L2675
-.L2686:
-	ldr	r3, .L2707+4
+	b	.L2681
+.L2692:
+	ldr	r3, .L2713+4
 	mov	fp, #0
-.L2706:
+.L2712:
 	ldrh	r1, [r10, #2390]
 	sxth	r2, fp
 	cmp	r2, r1
-	bge	.L2678
+	bge	.L2684
 	ldr	r1, [sp, #16]
-	ldr	r0, .L2707+8
+	ldr	r0, .L2713+8
 	str	r3, [sp, #24]
 	ldrh	r1, [r1]
 	orr	r2, r2, r1, lsl #10
 	movs	r1, #1
-	str	r2, [r3, #1252]
+	str	r2, [r3, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldrb	r2, [r10]	@ zero_extendqisi2
+	ldrb	r2, [r10, #32]	@ zero_extendqisi2
 	ldr	r3, [sp, #24]
-	cbz	r2, .L2679
-	ldr	r2, [r3, #1260]
+	cbz	r2, .L2685
+	ldr	r2, [r3, #1268]
 	ldr	r2, [r2, #12]
-	cbz	r2, .L2679
-	ldr	r0, [r3, #1256]
+	cbz	r2, .L2685
+	ldr	r0, [r3, #1264]
 	ldrh	r1, [r10, #2398]
 	str	r2, [sp, #28]
 	bl	js_hash
@@ -16583,30 +16623,30 @@ FtlMapTblRecovery:
 	cmp	r2, r0
 	itt	ne
 	movne	r2, #-1
-	strne	r2, [r3, #1248]
-.L2679:
-	ldr	r2, .L2707+4
-	ldr	r2, [r2, #1248]
+	strne	r2, [r3, #1256]
+.L2685:
+	ldr	r2, .L2713+4
+	ldr	r2, [r2, #1256]
 	adds	r2, r2, #1
-	beq	.L2680
+	beq	.L2686
 	ldrh	r2, [r6, #8]
 	cmp	r2, r9
-	bcs	.L2680
+	bcs	.L2686
 	ldrh	r1, [r4, #4]
 	ldrh	r0, [r6]
 	cmp	r0, r1
 	itt	eq
-	ldreq	r1, [r3, #1252]
+	ldreq	r1, [r3, #1260]
 	streq	r1, [r7, r2, lsl #2]
-.L2680:
+.L2686:
 	add	fp, fp, #1
-	b	.L2706
-.L2678:
+	b	.L2712
+.L2684:
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
 	str	r3, [sp, #4]
-	b	.L2666
-.L2673:
+	b	.L2672
+.L2679:
 	mov	r0, r4
 	bl	ftl_map_blk_gc
 	mov	r0, r4
@@ -16615,12 +16655,12 @@ FtlMapTblRecovery:
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2708:
+.L2714:
 	.align	2
-.L2707:
+.L2713:
 	.word	.LANCHOR2
 	.word	.LANCHOR4
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LANCHOR0
 	.fnend
 	.size	FtlMapTblRecovery, .-FtlMapTblRecovery
@@ -16635,10 +16675,10 @@ FtlLoadVonderInfo:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, lr}
 	.save {r3, lr}
-	ldr	r3, .L2710
-	ldr	r0, .L2710+4
+	ldr	r3, .L2716
+	ldr	r0, .L2716+4
 	ldrh	r2, [r3, #2408]
-	add	r0, r0, #1288
+	add	r0, r0, #1296
 	strh	r2, [r0, #10]	@ movhi
 	movw	r2, #61574
 	strh	r2, [r0, #4]	@ movhi
@@ -16648,7 +16688,7 @@ FtlLoadVonderInfo:
 	ldr	r3, [r3, #2436]
 	strh	r2, [r0, #6]	@ movhi
 	str	r3, [r0, #12]
-	ldr	r3, .L2710+8
+	ldr	r3, .L2716+8
 	ldr	r2, [r3, #3380]
 	str	r2, [r0, #16]
 	ldr	r2, [r3, #3376]
@@ -16658,9 +16698,9 @@ FtlLoadVonderInfo:
 	bl	FtlMapTblRecovery
 	movs	r0, #0
 	pop	{r3, pc}
-.L2711:
+.L2717:
 	.align	2
-.L2710:
+.L2716:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LANCHOR2
@@ -16678,13 +16718,13 @@ FtlLoadMapInfo:
 	push	{r3, lr}
 	.save {r3, lr}
 	bl	FtlL2PDataInit
-	ldr	r0, .L2713
+	ldr	r0, .L2719
 	bl	FtlMapTblRecovery
 	movs	r0, #0
 	pop	{r3, pc}
-.L2714:
+.L2720:
 	.align	2
-.L2713:
+.L2719:
 	.word	.LANCHOR2+3408
 	.fnend
 	.size	FtlLoadMapInfo, .-FtlLoadMapInfo
@@ -16697,7 +16737,7 @@ FtlVendorPartWrite:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 56
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2728
+	ldr	r3, .L2734
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r5, r0
@@ -16710,16 +16750,16 @@ FtlVendorPartWrite:
 	ldrh	r2, [r3, #2396]
 	cmp	r0, r1
 	str	r3, [sp, #4]
-	bhi	.L2723
-	ldr	r7, .L2728+4
+	bhi	.L2729
+	ldr	r7, .L2734+4
 	lsr	r6, r5, r2
 	mov	fp, #0
 	lsls	r3, r6, #2
 	str	r3, [sp]
-.L2717:
+.L2723:
 	cmp	r4, #0
-	beq	.L2727
-	ldr	r3, .L2728+4
+	beq	.L2733
+	ldr	r3, .L2734+4
 	mov	r0, r5
 	ldr	r2, [sp]
 	ldr	r3, [r3, #3384]
@@ -16739,9 +16779,9 @@ FtlVendorPartWrite:
 	it	hi
 	uxthhi	r9, r4
 	cmp	ip, #0
-	beq	.L2719
+	beq	.L2725
 	cmp	r9, r2
-	beq	.L2719
+	beq	.L2725
 	ldr	r2, [r7, #3324]
 	movs	r1, #1
 	add	r0, sp, #20
@@ -16751,14 +16791,14 @@ FtlVendorPartWrite:
 	str	r2, [sp, #32]
 	mov	r2, r1
 	bl	FlashReadPages
-	b	.L2720
-.L2719:
+	b	.L2726
+.L2725:
 	ldr	r3, [sp, #4]
 	movs	r1, #0
 	ldr	r0, [r7, #3324]
 	ldrh	r2, [r3, #2398]
 	bl	ftl_memset
-.L2720:
+.L2726:
 	lsl	ip, r9, #9
 	ldr	r0, [r7, #3324]
 	uxth	r8, r8
@@ -16769,7 +16809,7 @@ FtlVendorPartWrite:
 	rsb	r4, r9, r4
 	bl	ftl_memcpy
 	mov	r1, r6
-	ldr	r0, .L2728+8
+	ldr	r0, .L2734+8
 	adds	r6, r6, #1
 	ldr	r2, [r7, #3324]
 	add	r5, r5, r9
@@ -16782,22 +16822,22 @@ FtlVendorPartWrite:
 	adds	r3, r3, #4
 	str	r3, [sp]
 	add	r10, r10, ip
-	b	.L2717
-.L2727:
+	b	.L2723
+.L2733:
 	mov	r0, fp
-	b	.L2716
-.L2723:
+	b	.L2722
+.L2729:
 	mov	r0, #-1
-.L2716:
+.L2722:
 	add	sp, sp, #60
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2729:
+.L2735:
 	.align	2
-.L2728:
+.L2734:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
-	.word	.LANCHOR4+1288
+	.word	.LANCHOR4+1296
 	.fnend
 	.size	FtlVendorPartWrite, .-FtlVendorPartWrite
 	.align	1
@@ -16810,12 +16850,12 @@ Ftl_save_ext_data:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r2, .L2732
-	ldr	r3, .L2732+4
+	ldr	r2, .L2738
+	ldr	r3, .L2738+4
 	ldr	r1, [r2, #608]
 	cmp	r1, r3
-	bne	.L2730
-	ldr	r3, .L2732+8
+	bne	.L2736
+	ldr	r3, .L2738+8
 	movs	r0, #0
 	movs	r1, #1
 	str	r3, [r2, #612]
@@ -16849,11 +16889,11 @@ Ftl_save_ext_data:
 	ldr	r3, [r2, #2668]
 	str	r3, [r2, #64]
 	b	FtlVendorPartWrite
-.L2730:
+.L2736:
 	bx	lr
-.L2733:
+.L2739:
 	.align	2
-.L2732:
+.L2738:
 	.word	.LANCHOR2
 	.word	1179929683
 	.word	1342177379
@@ -16868,41 +16908,41 @@ FtlEctTblFlush:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2741
+	ldr	r3, .L2747
 	push	{r4, lr}
 	.save {r4, lr}
 	ldr	r2, [r3, #2244]
-	ldr	r3, .L2741+4
-	cbz	r2, .L2739
+	ldr	r3, .L2747+4
+	cbz	r2, .L2745
 	ldr	r2, [r3, #532]
 	cmp	r2, #39
 	ite	hi
 	movhi	r1, #32
 	movls	r1, #4
-	b	.L2735
-.L2739:
+	b	.L2741
+.L2745:
 	movs	r1, #32
-.L2735:
-	ldr	r4, .L2741+8
-	ldrh	r2, [r4, #1332]
+.L2741:
+	ldr	r4, .L2747+8
+	ldrh	r2, [r4, #1340]
 	cmp	r2, #31
 	ittt	ls
 	addls	r2, r2, #1
 	movls	r1, #1
-	strhls	r2, [r4, #1332]	@ movhi
-	cbnz	r0, .L2737
+	strhls	r2, [r4, #1340]	@ movhi
+	cbnz	r0, .L2743
 	ldr	r0, [r3, #3360]
 	ldr	r2, [r0, #20]
 	add	r2, r2, r1
 	ldr	r1, [r0, #16]
 	cmp	r1, r2
-	bcc	.L2738
-.L2737:
+	bcc	.L2744
+.L2743:
 	ldr	r2, [r3, #3360]
 	movs	r0, #64
 	ldr	r1, [r2, #16]
 	str	r1, [r2, #20]
-	ldr	r1, .L2741+12
+	ldr	r1, .L2747+12
 	str	r1, [r2]
 	ldr	r2, [r3, #3360]
 	ldrh	r1, [r3, #3352]
@@ -16915,12 +16955,12 @@ FtlEctTblFlush:
 	str	r3, [r2, #4]
 	bl	FtlVendorPartWrite
 	bl	Ftl_save_ext_data
-.L2738:
+.L2744:
 	movs	r0, #0
 	pop	{r4, pc}
-.L2742:
+.L2748:
 	.align	2
-.L2741:
+.L2747:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR4
@@ -16936,7 +16976,7 @@ FtlVendorPartRead:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 56
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2754
+	ldr	r3, .L2760
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r6, r0
@@ -16949,16 +16989,16 @@ FtlVendorPartRead:
 	ldrh	r2, [r3, #2396]
 	cmp	r0, r1
 	str	r3, [sp, #12]
-	bhi	.L2752
-	ldr	r10, .L2754+4
+	bhi	.L2758
+	ldr	r10, .L2760+4
 	lsr	r5, r6, r2
 	mov	fp, #0
 	lsls	r3, r5, #2
 	str	r3, [sp, #4]
-.L2745:
+.L2751:
 	cmp	r4, #0
-	beq	.L2753
-	ldr	r3, .L2754+4
+	beq	.L2759
+	ldr	r3, .L2760+4
 	mov	r0, r6
 	ldr	r2, [sp, #4]
 	ldr	r3, [r3, #3384]
@@ -16974,7 +17014,7 @@ FtlVendorPartRead:
 	it	hi
 	uxthhi	r9, r4
 	cmp	r8, #0
-	beq	.L2747
+	beq	.L2753
 	ldr	r2, [r10, #3324]
 	movs	r1, #1
 	add	r0, sp, #20
@@ -16984,36 +17024,36 @@ FtlVendorPartRead:
 	str	r2, [sp, #32]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r3, .L2754+8
+	ldr	r3, .L2760+8
 	ldr	r2, [sp, #20]
 	adds	r2, r2, #1
-	ldr	r2, [r3, #1248]
+	ldr	r2, [r3, #1256]
 	it	eq
 	moveq	fp, #-1
 	cmp	r2, #256
-	bne	.L2749
+	bne	.L2755
 	mov	r1, r5
 	mov	r2, r8
-	ldr	r0, .L2754+12
+	ldr	r0, .L2760+12
 	bl	printk
-	ldr	r0, .L2754+16
+	ldr	r0, .L2760+16
 	mov	r1, r5
 	ldr	r2, [r10, #3324]
 	bl	FtlMapWritePage
-.L2749:
+.L2755:
 	ldrh	r8, [sp, #8]
 	mov	r0, r7
 	ldr	r1, [r10, #3324]
 	lsl	r2, r9, #9
 	add	r1, r1, r8, lsl #9
 	bl	ftl_memcpy
-	b	.L2750
-.L2747:
+	b	.L2756
+.L2753:
 	mov	r0, r7
 	mov	r1, r8
 	lsl	r2, r9, #9
 	bl	ftl_memset
-.L2750:
+.L2756:
 	ldr	r3, [sp, #4]
 	adds	r5, r5, #1
 	rsb	r4, r9, r4
@@ -17021,24 +17061,24 @@ FtlVendorPartRead:
 	adds	r3, r3, #4
 	add	r7, r7, r9, lsl #9
 	str	r3, [sp, #4]
-	b	.L2745
-.L2753:
+	b	.L2751
+.L2759:
 	mov	r0, fp
-	b	.L2744
-.L2752:
+	b	.L2750
+.L2758:
 	mov	r0, #-1
-.L2744:
+.L2750:
 	add	sp, sp, #60
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2755:
+.L2761:
 	.align	2
-.L2754:
+.L2760:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR4
 	.word	.LC136
-	.word	.LANCHOR4+1288
+	.word	.LANCHOR4+1296
 	.fnend
 	.size	FtlVendorPartRead, .-FtlVendorPartRead
 	.align	1
@@ -17053,29 +17093,29 @@ FtlLoadEctTbl:
 	push	{r4, lr}
 	.save {r4, lr}
 	movs	r0, #64
-	ldr	r4, .L2758
+	ldr	r4, .L2764
 	ldr	r2, [r4, #3360]
 	ldrh	r1, [r4, #3352]
 	bl	FtlVendorPartRead
 	ldr	r3, [r4, #3360]
 	ldr	r2, [r3]
-	ldr	r3, .L2758+4
+	ldr	r3, .L2764+4
 	cmp	r2, r3
-	beq	.L2757
-	ldr	r1, .L2758+8
-	ldr	r0, .L2758+12
+	beq	.L2763
+	ldr	r1, .L2764+8
+	ldr	r0, .L2764+12
 	bl	printk
 	ldrh	r2, [r4, #3352]
 	ldr	r0, [r4, #3360]
 	movs	r1, #0
 	lsls	r2, r2, #9
 	bl	ftl_memset
-.L2757:
+.L2763:
 	movs	r0, #0
 	pop	{r4, pc}
-.L2759:
+.L2765:
 	.align	2
-.L2758:
+.L2764:
 	.word	.LANCHOR2
 	.word	1112818501
 	.word	.LC137
@@ -17094,24 +17134,24 @@ Ftl_load_ext_data:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movs	r0, #0
-	ldr	r4, .L2765
+	ldr	r4, .L2771
 	movs	r1, #1
-	ldr	r5, .L2765+4
+	ldr	r5, .L2771+4
 	add	r2, r4, #608
 	bl	FtlVendorPartRead
 	ldr	r3, [r4, #608]
 	cmp	r3, r5
-	beq	.L2761
+	beq	.L2767
 	add	r0, r4, #608
 	movs	r1, #0
 	mov	r2, #512
 	bl	ftl_memset
 	str	r5, [r4, #608]
-.L2761:
+.L2767:
 	ldr	r2, [r4, #608]
-	ldr	r3, .L2765
+	ldr	r3, .L2771
 	cmp	r2, r5
-	bne	.L2762
+	bne	.L2768
 	ldr	r2, [r3, #696]
 	str	r2, [r3, #500]
 	ldr	r2, [r3, #700]
@@ -17138,27 +17178,27 @@ Ftl_load_ext_data:
 	str	r2, [r3, #532]
 	ldr	r2, [r3, #668]
 	str	r2, [r3, #604]
-.L2762:
+.L2768:
 	ldr	r1, [r4, #676]
 	movs	r3, #0
-	ldr	r2, .L2765+8
+	ldr	r2, .L2771+8
 	str	r3, [r4, #3276]
 	cmp	r1, r2
-	ldr	r5, .L2765+12
-	bne	.L2763
-	ldrb	r2, [r5, #144]	@ zero_extendqisi2
-	cbz	r2, .L2764
-	ldr	r2, .L2765
+	ldr	r5, .L2771+12
+	bne	.L2769
+	ldrb	r2, [r5, #148]	@ zero_extendqisi2
+	cbz	r2, .L2770
+	ldr	r2, .L2771
 	str	r3, [r2, #676]
 	bl	Ftl_save_ext_data
-	b	.L2763
-.L2764:
-	ldr	r0, .L2765+16
+	b	.L2769
+.L2770:
+	ldr	r0, .L2771+16
 	movs	r3, #1
-	ldr	r1, .L2765+20
+	ldr	r1, .L2771+20
 	str	r3, [r5, #2244]
 	bl	printk
-.L2763:
+.L2769:
 	ldrh	r2, [r5, #2380]
 	ldr	r3, [r4, #520]
 	ldr	r0, [r4, #516]
@@ -17167,9 +17207,9 @@ Ftl_load_ext_data:
 	bl	__aeabi_uidiv
 	str	r0, [r4, #524]
 	pop	{r3, r4, r5, pc}
-.L2766:
+.L2772:
 	.align	2
-.L2765:
+.L2771:
 	.word	.LANCHOR2
 	.word	1179929683
 	.word	305432421
@@ -17193,44 +17233,44 @@ FtlMapBlkWriteDumpData:
 	ldr	r3, [r0, #36]
 	ldrh	r5, [r0, #6]
 	ldr	r1, [r0, #24]
-	cbz	r3, .L2767
-	ldr	r2, .L2773
+	cbz	r3, .L2773
+	ldr	r2, .L2779
 	movs	r3, #0
 	str	r3, [r0, #36]
 	ldr	r3, [r2, #224]
-	cbnz	r3, .L2767
+	cbnz	r3, .L2773
 	subs	r5, r5, #1
-	ldr	r3, .L2773+4
+	ldr	r3, .L2779+4
 	ldr	r0, [r2, #3320]
 	ldr	r2, [r2, #3340]
 	uxth	r5, r5
 	mov	r4, r3
-	str	r0, [r3, #1256]
-	str	r2, [r3, #1260]
+	str	r0, [r3, #1264]
+	str	r2, [r3, #1268]
 	ldr	r2, [r1, r5, lsl #2]
-	str	r2, [r3, #1252]
-	cbz	r2, .L2771
+	str	r2, [r3, #1260]
+	cbz	r2, .L2777
 	movs	r1, #1
-	add	r0, r3, #1248
+	add	r0, r3, #1256
 	mov	r2, r1
 	bl	FlashReadPages
-	b	.L2772
-.L2771:
-	ldr	r3, .L2773+8
+	b	.L2778
+.L2777:
+	ldr	r3, .L2779+8
 	movs	r1, #255
 	ldrh	r2, [r3, #2398]
 	bl	ftl_memset
-.L2772:
+.L2778:
 	mov	r0, r6
 	mov	r1, r5
-	ldr	r2, [r4, #1256]
+	ldr	r2, [r4, #1264]
 	pop	{r4, r5, r6, lr}
 	b	FtlMapWritePage
-.L2767:
-	pop	{r4, r5, r6, pc}
-.L2774:
-	.align	2
 .L2773:
+	pop	{r4, r5, r6, pc}
+.L2780:
+	.align	2
+.L2779:
 	.word	.LANCHOR2
 	.word	.LANCHOR4
 	.word	.LANCHOR0
@@ -17245,31 +17285,31 @@ FlashReadFacBbtData:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 40
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2789
+	ldr	r3, .L2795
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	mov	r8, r2
-	ldrh	r2, [r3, #128]
+	ldrh	r2, [r3, #132]
 	mov	r7, r1
-	ldrh	r3, [r3, #130]
+	ldrh	r3, [r3, #134]
 	.pad #40
 	sub	sp, sp, #40
 	mov	r5, r0
 	smulbb	r3, r2, r3
-	ldr	r2, .L2789+4
-	ldr	r1, [r2, #1184]
+	ldr	r2, .L2795+4
+	ldr	r1, [r2, #1192]
 	mov	r9, r2
 	uxth	r3, r3
 	subs	r6, r3, #1
 	str	r1, [sp, #12]
 	mul	r10, r3, r7
-	ldr	r1, [r2, #1216]
+	ldr	r1, [r2, #1224]
 	uxth	r6, r6
 	sub	r4, r3, #16
 	str	r1, [sp, #16]
-.L2776:
+.L2782:
 	cmp	r6, r4
-	ble	.L2788
+	ble	.L2794
 	movs	r1, #1
 	add	r3, r6, r10
 	add	r0, sp, #4
@@ -17279,59 +17319,59 @@ FlashReadFacBbtData:
 	bl	FlashReadPages
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
-	beq	.L2777
-	ldr	r3, [r9, #1216]
+	beq	.L2783
+	ldr	r3, [r9, #1224]
 	ldrh	r2, [r3]
 	movw	r3, #61664
 	cmp	r2, r3
-	bne	.L2777
-	cbz	r5, .L2783
-	cbz	r7, .L2784
-.L2781:
-	ldr	r1, [r9, #1184]
+	bne	.L2783
+	cbz	r5, .L2789
+	cbz	r7, .L2790
+.L2787:
+	ldr	r1, [r9, #1192]
 	mov	r2, r8
 	mov	r0, r5
 	bl	ftl_memcpy
 	movs	r2, #4
-	ldr	r0, .L2789+8
+	ldr	r0, .L2795+8
 	mov	r1, r5
 	mov	r3, r2
 	bl	rknand_print_hex
 	movs	r0, #0
-	b	.L2778
-.L2784:
-	ldr	r6, .L2789+4
+	b	.L2784
+.L2790:
+	ldr	r6, .L2795+4
 	mov	lr, #1
-.L2779:
-	ldr	r2, [r9, #1204]
+.L2785:
+	ldr	r2, [r9, #1212]
 	uxth	r3, r7
 	adds	r7, r7, #1
 	cmp	r3, r2
-	bcs	.L2781
-	ldr	r2, [r6, #1184]
+	bcs	.L2787
+	ldr	r2, [r6, #1192]
 	lsrs	r1, r3, #5
 	and	r4, r3, #31
 	lsl	r3, lr, r4
 	ldr	r0, [r2, r1, lsl #2]
 	orrs	r3, r3, r0
 	str	r3, [r2, r1, lsl #2]
-	b	.L2779
-.L2777:
+	b	.L2785
+.L2783:
 	subs	r6, r6, #1
 	uxth	r6, r6
-	b	.L2776
-.L2788:
+	b	.L2782
+.L2794:
 	mov	r0, #-1
-	b	.L2778
-.L2783:
+	b	.L2784
+.L2789:
 	mov	r0, r5
-.L2778:
+.L2784:
 	add	sp, sp, #40
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L2790:
+.L2796:
 	.align	2
-.L2789:
+.L2795:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LC139
@@ -17346,36 +17386,36 @@ FlashGetBadBlockList:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L2801
+	ldr	r3, .L2807
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
 	mov	r5, r0
 	ldr	r3, [r3, #44]
-	ldr	r6, .L2801+4
+	ldr	r6, .L2807+4
 	ldrb	r4, [r3, #13]	@ zero_extendqisi2
 	ldrh	r3, [r3, #14]
-	ldr	r0, [r6, #1212]
+	ldr	r0, [r6, #1220]
 	smulbb	r4, r4, r3
 	uxth	r4, r4
 	adds	r2, r4, #7
 	asrs	r2, r2, #3
 	bl	FlashReadFacBbtData
 	adds	r0, r0, #1
-	bne	.L2792
-.L2796:
+	bne	.L2798
+.L2802:
 	movs	r3, #0
-	b	.L2793
-.L2792:
+	b	.L2799
+.L2798:
 	movs	r1, #0
 	lsr	lr, r4, #4
 	mov	ip, #1
 	subs	r4, r4, #1
 	mov	r3, r1
-.L2794:
+.L2800:
 	uxth	r2, r1
 	cmp	r2, r4
-	bge	.L2793
-	ldr	r7, [r6, #1212]
+	bge	.L2799
+	ldr	r7, [r6, #1220]
 	lsrs	r0, r2, #5
 	and	r8, r2, #31
 	adds	r1, r1, #1
@@ -17387,16 +17427,16 @@ FlashGetBadBlockList:
 	addne	r0, r3, #1
 	uxthne	r3, r0
 	cmp	r3, lr
-	bcc	.L2794
-	b	.L2796
-.L2793:
+	bcc	.L2800
+	b	.L2802
+.L2799:
 	movw	r2, #65535
 	movs	r0, #0
 	strh	r2, [r5, r3, lsl #1]	@ movhi
 	pop	{r4, r5, r6, r7, r8, pc}
-.L2802:
+.L2808:
 	.align	2
-.L2801:
+.L2807:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.fnend
@@ -17413,69 +17453,69 @@ FtlMakeBbt:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r5, .L2827
+	ldr	r5, .L2833
 	ldr	r4, [r5, #224]
 	cmp	r4, #0
-	bne	.L2804
+	bne	.L2810
 	bl	FtlBbtMemInit
-	ldr	r6, .L2827+4
+	ldr	r6, .L2833+4
 	bl	FtlLoadFactoryBbt
-	ldr	r9, .L2827+16
+	ldr	r9, .L2833+16
 	sub	r8, r6, #18
 	sub	r7, r6, #2480
-.L2805:
+.L2811:
 	ldrh	r3, [r7, #2342]
-	ldr	r10, .L2827+8
+	ldr	r10, .L2833+8
 	cmp	r4, r3
-	bcs	.L2824
+	bcs	.L2830
 	ldr	r3, [r5, #3340]
 	movw	r2, #65535
 	ldr	r0, [r5, #3316]
-	ldr	fp, .L2827+16
+	ldr	fp, .L2833+16
 	str	r3, [sp]
-	str	r3, [r9, #1260]
+	str	r3, [r9, #1268]
 	ldrh	r3, [r8, #2]!
-	str	r0, [r9, #1256]
+	str	r0, [r9, #1264]
 	cmp	r3, r2
-	beq	.L2806
+	beq	.L2812
 	ldrh	ip, [r7, #2386]
 	movs	r1, #1
-	add	r0, fp, #1248
+	add	r0, fp, #1256
 	mov	r2, r1
 	mla	ip, ip, r4, r3
 	lsl	r3, ip, #10
 	str	ip, [sp]
-	str	r3, [r9, #1252]
+	str	r3, [r9, #1260]
 	bl	FlashReadPages
 	ldrh	r2, [r7, #2386]
 	ldr	r0, [r6]
 	adds	r2, r2, #7
-	ldr	r1, [r9, #1256]
+	ldr	r1, [r9, #1264]
 	asrs	r2, r2, #3
 	bl	ftl_memcpy
 	ldr	ip, [sp]
-	b	.L2807
-.L2806:
+	b	.L2813
+.L2812:
 	mov	r1, r4
 	bl	FlashGetBadBlockList
-	ldr	r0, [r9, #1256]
+	ldr	r0, [r9, #1264]
 	ldr	r1, [r6]
 	bl	FtlBbt2Bitmap
 	ldrh	r3, [r7, #2386]
 	subs	r3, r3, #1
-.L2823:
+.L2829:
 	uxth	r10, r3
-.L2808:
-	ldr	r3, .L2827+8
+.L2814:
+	ldr	r3, .L2833+8
 	ldrh	r0, [r3, #2386]
 	smlabb	r0, r0, r4, r10
 	uxth	r0, r0
 	bl	FtlBbmIsBadBlock
 	cmp	r0, #1
-	bne	.L2825
+	bne	.L2831
 	add	r3, r10, #-1
-	b	.L2823
-.L2825:
+	b	.L2829
+.L2831:
 	movs	r1, #0
 	movs	r2, #16
 	strh	r10, [r8]	@ movhi
@@ -17494,79 +17534,79 @@ FtlMakeBbt:
 	ldr	r1, [r6]
 	mla	ip, ip, r4, r3
 	lsls	r2, r2, #2
-	ldr	r0, [fp, #1256]
+	ldr	r0, [fp, #1264]
 	lsl	r3, ip, #10
 	str	ip, [sp, #4]
-	str	r3, [fp, #1252]
+	str	r3, [fp, #1260]
 	bl	ftl_memcpy
 	movs	r1, #1
-	ldr	r0, .L2827+12
+	ldr	r0, .L2833+12
 	mov	r2, r1
 	bl	FlashEraseBlocks
 	movs	r1, #1
-	ldr	r0, .L2827+12
+	ldr	r0, .L2833+12
 	mov	r3, r1
 	mov	r2, r1
 	bl	FlashProgPages
-	ldr	r3, [fp, #1248]
+	ldr	r3, [fp, #1256]
 	adds	r3, r3, #1
 	ldr	ip, [sp, #4]
-	bne	.L2807
+	bne	.L2813
 	uxth	r0, ip
 	bl	FtlBbmMapBadBlock
-	b	.L2808
-.L2807:
+	b	.L2814
+.L2813:
 	uxth	r0, ip
 	adds	r4, r4, #1
 	bl	FtlBbmMapBadBlock
 	adds	r6, r6, #4
-	b	.L2805
-.L2824:
+	b	.L2811
+.L2830:
 	movs	r4, #0
-.L2812:
+.L2818:
 	ldrh	r3, [r10, #2402]
 	uxth	r0, r4
-	ldr	r6, .L2827+8
+	ldr	r6, .L2833+8
 	adds	r4, r4, #1
 	cmp	r3, r0
-	bls	.L2826
+	bls	.L2832
 	bl	FtlBbmMapBadBlock
-	b	.L2812
-.L2826:
+	b	.L2818
+.L2832:
 	ldrh	r4, [r6, #2464]
 	movw	r7, #65535
 	subs	r4, r4, #1
 	uxth	r4, r4
-.L2814:
+.L2820:
 	ldrh	r3, [r10, #2464]
 	subs	r3, r3, #48
 	cmp	r4, r3
-	ble	.L2818
+	ble	.L2824
 	mov	r0, r4
 	bl	FtlBbmIsBadBlock
 	cmp	r0, #1
-	beq	.L2815
+	beq	.L2821
 	mov	r0, r4
 	bl	FlashTestBlk
-	cbz	r0, .L2816
+	cbz	r0, .L2822
 	mov	r0, r4
 	bl	FtlBbmMapBadBlock
-	b	.L2815
-.L2816:
+	b	.L2821
+.L2822:
 	ldrh	r3, [r6, #2452]
 	cmp	r3, r7
-	bne	.L2817
+	bne	.L2823
 	strh	r4, [r6, #2452]	@ movhi
-	b	.L2815
-.L2817:
-	ldr	r3, .L2827+8
+	b	.L2821
+.L2823:
+	ldr	r3, .L2833+8
 	strh	r4, [r3, #2456]	@ movhi
-	b	.L2818
-.L2815:
+	b	.L2824
+.L2821:
 	subs	r4, r4, #1
 	uxth	r4, r4
-	b	.L2814
-.L2818:
+	b	.L2820
+.L2824:
 	ldr	r0, [r5, #228]
 	movs	r4, #0
 	ldrh	r3, [r10, #2452]
@@ -17594,18 +17634,18 @@ FtlMakeBbt:
 	strh	r2, [r10, #2452]	@ movhi
 	strh	r3, [r10, #2456]	@ movhi
 	bl	FtlBbmTblFlush
-.L2804:
+.L2810:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2828:
+.L2834:
 	.align	2
-.L2827:
+.L2833:
 	.word	.LANCHOR2
 	.word	.LANCHOR0+2480
 	.word	.LANCHOR0
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LANCHOR4
 	.fnend
 	.size	FtlMakeBbt, .-FtlMakeBbt
@@ -17622,16 +17662,16 @@ log2phys:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #20
 	sub	sp, sp, #20
-	ldr	r6, .L2845
+	ldr	r6, .L2851
 	mov	r9, r0
 	str	r2, [sp, #8]
 	mov	r10, r1
 	ldr	r3, [r6, #2448]
 	ldrh	r2, [r6, #2396]
 	cmp	r0, r3
-	bcs	.L2830
+	bcs	.L2836
 	adds	r3, r2, #7
-	ldr	r2, .L2845+4
+	ldr	r2, .L2851+4
 	lsr	r5, r0, r3
 	str	r3, [sp, #4]
 	ldrh	r1, [r6, #2426]
@@ -17640,24 +17680,24 @@ log2phys:
 	mov	r8, r2
 	uxth	r5, r5
 	movs	r2, #12
-	b	.L2831
-.L2830:
+	b	.L2837
+.L2836:
 	ldr	r3, [sp, #8]
 	mov	r0, #-1
 	cmp	r3, #0
-	bne	.L2832
+	bne	.L2838
 	str	r0, [r1]
-	b	.L2832
-.L2836:
+	b	.L2838
+.L2842:
 	adds	r4, r4, #1
 	mla	r0, r2, r4, fp
 	ldrh	r0, [r0, #-12]
 	cmp	r0, r5
-	beq	.L2833
-.L2831:
+	beq	.L2839
+.L2837:
 	uxth	r7, r4
 	cmp	r7, r1
-	bcc	.L2836
+	bcc	.L2842
 	bl	select_l2p_ram_region
 	movs	r4, #12
 	movw	r3, #65535
@@ -17666,13 +17706,13 @@ log2phys:
 	add	r2, fp, r4
 	ldrh	r1, [fp, r4]
 	cmp	r1, r3
-	bne	.L2844
-.L2837:
+	bne	.L2850
+.L2843:
 	ldr	r3, [r8, #3388]
-	ldr	fp, .L2845+4
+	ldr	fp, .L2851+4
 	ldr	r3, [r3, r5, lsl #2]
 	cmp	r3, #0
-	bne	.L2838
+	bne	.L2844
 	ldr	r2, [fp, #460]
 	movs	r1, #255
 	str	r3, [sp, #12]
@@ -17686,7 +17726,7 @@ log2phys:
 	add	r4, r4, r2
 	ldr	r3, [sp, #12]
 	str	r3, [r4, #4]
-.L2833:
+.L2839:
 	ldr	r3, [sp, #4]
 	movs	r2, #1
 	ldr	r1, [sp, #8]
@@ -17694,16 +17734,16 @@ log2phys:
 	movs	r3, #12
 	subs	r2, r2, #1
 	and	r9, r9, r2
-	ldr	r2, .L2845+4
+	ldr	r2, .L2851+4
 	uxth	r9, r9
-	cbnz	r1, .L2834
+	cbnz	r1, .L2840
 	ldr	r1, [r2, #460]
 	mla	r3, r3, r7, r1
 	ldr	r3, [r3, #8]
 	ldr	r3, [r3, r9, lsl #2]
 	str	r3, [r10]
-	b	.L2835
-.L2834:
+	b	.L2841
+.L2840:
 	muls	r3, r7, r3
 	ldr	r1, [r2, #460]
 	ldr	r0, [r10]
@@ -17716,65 +17756,65 @@ log2phys:
 	ldr	r1, [r3, #4]
 	orr	r1, r1, #-2147483648
 	str	r1, [r3, #4]
-.L2835:
+.L2841:
 	ldr	r2, [r2, #460]
 	movs	r3, #12
 	mla	r7, r3, r7, r2
 	ldr	r3, [r7, #4]
 	adds	r2, r3, #1
-	beq	.L2842
+	beq	.L2848
 	adds	r3, r3, #1
 	str	r3, [r7, #4]
-	b	.L2842
-.L2844:
+	b	.L2848
+.L2850:
 	ldr	r3, [r2, #4]
 	cmp	r3, #0
-	bge	.L2837
+	bge	.L2843
 	bl	flush_l2p_region
-	b	.L2837
-.L2838:
+	b	.L2843
+.L2844:
 	ldr	r2, [fp, #460]
 	movs	r1, #1
-	ldr	r8, .L2845+24
+	ldr	r8, .L2851+24
 	add	r2, r2, r4
 	str	r3, [sp, #12]
-	add	r0, r8, #1248
+	add	r0, r8, #1256
 	ldr	r2, [r2, #8]
-	str	r3, [r8, #1252]
-	str	r2, [r8, #1256]
+	str	r3, [r8, #1260]
+	str	r2, [r8, #1264]
 	ldr	r2, [fp, #3340]
-	str	r2, [r8, #1260]
+	str	r2, [r8, #1268]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r2, [r8, #1260]
+	ldr	r2, [r8, #1268]
 	ldrh	r2, [r2, #8]
 	cmp	r2, r5
 	ldr	r3, [sp, #12]
-	beq	.L2839
+	beq	.L2845
 	mov	r2, r3
 	mov	r1, r5
-	ldr	r0, .L2845+8
+	ldr	r0, .L2851+8
 	bl	printk
 	movs	r2, #4
-	ldr	r0, .L2845+12
+	ldr	r0, .L2851+12
 	mov	r3, r2
-	ldr	r1, [r8, #1260]
+	ldr	r1, [r8, #1268]
 	bl	rknand_print_hex
 	ldrh	r3, [r6, #2424]
-	ldr	r0, .L2845+16
+	ldr	r0, .L2851+16
 	movs	r2, #4
 	ldr	r1, [fp, #3388]
 	bl	rknand_print_hex
 	movs	r3, #1
 	str	r3, [fp, #224]
-	b	.L2840
-.L2839:
-	ldr	r2, [r8, #1248]
+	b	.L2846
+.L2845:
+	ldr	r2, [r8, #1256]
 	cmp	r2, #256
-	bne	.L2840
+	bne	.L2846
 	mov	r2, r3
 	mov	r1, r5
-	ldr	r0, .L2845+20
+	ldr	r0, .L2851+20
 	bl	printk
 	ldr	r3, [fp, #460]
 	add	r0, fp, #3408
@@ -17782,23 +17822,23 @@ log2phys:
 	add	r3, r3, r4
 	ldr	r2, [r3, #8]
 	bl	FtlMapWritePage
-.L2840:
-	ldr	r3, .L2845+4
+.L2846:
+	ldr	r3, .L2851+4
 	movs	r1, #0
 	ldr	r3, [r3, #460]
 	adds	r2, r3, r4
 	str	r1, [r2, #4]
 	strh	r5, [r3, r4]	@ movhi
-	b	.L2833
-.L2842:
+	b	.L2839
+.L2848:
 	movs	r0, #0
-.L2832:
+.L2838:
 	add	sp, sp, #20
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L2846:
+.L2852:
 	.align	2
-.L2845:
+.L2851:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LC140
@@ -17821,27 +17861,27 @@ FtlWriteDumpData:
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	.pad #40
 	sub	sp, sp, #40
-	ldr	r4, .L2865
+	ldr	r4, .L2871
 	ldr	r3, [r4, #224]
 	cmp	r3, #0
-	bne	.L2847
+	bne	.L2853
 	ldrh	r2, [r4, #320]
 	cmp	r2, #0
-	beq	.L2849
+	beq	.L2855
 	ldrb	r3, [r4, #324]	@ zero_extendqisi2
 	cmp	r3, #0
-	bne	.L2849
-	ldr	r7, .L2865+4
+	bne	.L2855
+	ldr	r7, .L2871+4
 	ldrb	r1, [r4, #323]	@ zero_extendqisi2
 	ldrh	r3, [r7, #2388]
 	muls	r3, r1, r3
 	cmp	r2, r3
-	beq	.L2849
+	beq	.L2855
 	ldrb	r9, [r4, #326]	@ zero_extendqisi2
 	ldr	r6, [r7, #2448]
 	ldrh	r8, [r7, #2320]
 	cmp	r9, #0
-	bne	.L2847
+	bne	.L2853
 	subs	r6, r6, #1
 	mov	r1, sp
 	mov	r2, r9
@@ -17856,32 +17896,32 @@ FtlWriteDumpData:
 	adds	r3, r3, #1
 	str	r5, [sp, #16]
 	str	r9, [r5, #4]
-	beq	.L2851
+	beq	.L2857
 	movs	r1, #1
 	mov	r2, r9
 	add	r0, sp, #4
 	bl	FlashReadPages
-	b	.L2852
-.L2851:
+	b	.L2858
+.L2857:
 	movs	r1, #255
 	ldrh	r2, [r7, #2398]
 	bl	ftl_memset
-.L2852:
+.L2858:
 	movs	r7, #0
-	ldr	r10, .L2865
+	ldr	r10, .L2871
 	lsl	r8, r8, #2
 	movw	r3, #61589
 	mov	r9, r7
 	strh	r3, [r5]	@ movhi
-.L2853:
+.L2859:
 	cmp	r7, r8
-	beq	.L2854
+	beq	.L2860
 	ldrh	r3, [r4, #320]
-	cbz	r3, .L2854
+	cbz	r3, .L2860
 	ldr	r3, [sp, #8]
 	adds	r7, r7, #1
 	str	r6, [r5, #8]
-	ldr	r0, .L2865+8
+	ldr	r0, .L2871+8
 	str	r3, [r5, #12]
 	ldrh	r3, [r10, #316]
 	strh	r3, [r5, #2]	@ movhi
@@ -17901,21 +17941,21 @@ FtlWriteDumpData:
 	bl	FlashProgPages
 	ldrh	r0, [r4, #316]
 	bl	decrement_vpc_count
-	b	.L2853
-.L2854:
+	b	.L2859
+.L2860:
 	movs	r3, #1
-	b	.L2864
-.L2849:
+	b	.L2870
+.L2855:
 	movs	r3, #0
-.L2864:
+.L2870:
 	strb	r3, [r4, #326]
-.L2847:
+.L2853:
 	add	sp, sp, #40
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L2866:
+.L2872:
 	.align	2
-.L2865:
+.L2871:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR2+316
@@ -17934,29 +17974,29 @@ l2p_flush:
 	.save {r3, r4, r5, r6, r7, lr}
 	bl	FtlWriteDumpData
 	movs	r4, #0
-	ldr	r5, .L2872
+	ldr	r5, .L2878
 	movs	r7, #12
-	ldr	r6, .L2872+4
-.L2868:
+	ldr	r6, .L2878+4
+.L2874:
 	ldrh	r3, [r5, #2426]
 	uxth	r0, r4
 	cmp	r3, r0
-	bls	.L2871
+	bls	.L2877
 	ldr	r3, [r6, #460]
 	mla	r3, r7, r0, r3
 	ldr	r3, [r3, #4]
 	cmp	r3, #0
-	bge	.L2869
+	bge	.L2875
 	bl	flush_l2p_region
-.L2869:
+.L2875:
 	adds	r4, r4, #1
-	b	.L2868
-.L2871:
+	b	.L2874
+.L2877:
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, pc}
-.L2873:
+.L2879:
 	.align	2
-.L2872:
+.L2878:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -17973,89 +18013,89 @@ allocate_new_data_superblock:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r6, r0
-	ldr	r4, .L2900
+	ldr	r4, .L2906
 	ldrh	r5, [r0]
 	ldr	r3, [r4, #224]
 	cmp	r3, #0
-	bne	.L2875
+	bne	.L2881
 	movw	r3, #65535
 	cmp	r5, r3
-	beq	.L2876
+	beq	.L2882
 	ldr	r3, [r4, #296]
 	mov	r0, r5
 	ldrh	r3, [r3, r5, lsl #1]
-	cbz	r3, .L2877
+	cbz	r3, .L2883
 	bl	INSERT_DATA_LIST
-	b	.L2876
-.L2877:
+	b	.L2882
+.L2883:
 	bl	INSERT_FREE_LIST
-.L2876:
-	ldr	r2, .L2900
+.L2882:
+	ldr	r2, .L2906
 	movs	r3, #0
 	strb	r3, [r6, #8]
 	add	r3, r2, #364
 	cmp	r6, r3
-	beq	.L2878
-	ldr	r3, .L2900+4
+	beq	.L2884
+	ldr	r3, .L2906+4
 	ldrh	r1, [r3, #2340]
 	cmp	r1, #1
-	beq	.L2878
-	ldrb	r0, [r3, #144]	@ zero_extendqisi2
-	cbz	r0, .L2879
-.L2878:
+	beq	.L2884
+	ldrb	r0, [r3, #148]	@ zero_extendqisi2
+	cbz	r0, .L2885
+.L2884:
 	movs	r3, #1
 	strb	r3, [r6, #8]
-	b	.L2880
-.L2879:
+	b	.L2886
+.L2885:
 	add	r0, r2, #316
 	cmp	r6, r0
-	bne	.L2880
+	bne	.L2886
 	cmp	r1, #3
-	beq	.L2882
+	beq	.L2888
 	ldr	r2, [r2, #604]
 	cmp	r2, #1
-	bne	.L2883
-.L2882:
+	bne	.L2889
+.L2888:
 	movs	r2, #1
 	strb	r2, [r4, #324]
-.L2883:
+.L2889:
 	ldr	r3, [r3, #2244]
-	cbz	r3, .L2880
+	cbz	r3, .L2886
 	ldr	r3, [r4, #532]
 	cmp	r3, #39
 	ittt	ls
 	movls	r2, #1
-	ldrls	r3, .L2900
+	ldrls	r3, .L2906
 	strbls	r2, [r3, #324]
-.L2880:
+.L2886:
 	ldrh	r0, [r4, #3460]
 	movw	r3, #65535
 	cmp	r0, r3
-	beq	.L2885
+	beq	.L2891
 	cmp	r5, r0
-	bne	.L2886
-	ldr	r3, .L2900
+	bne	.L2892
+	ldr	r3, .L2906
 	ldr	r3, [r3, #296]
 	ldrh	r3, [r3, r0, lsl #1]
-	cbz	r3, .L2887
-.L2886:
+	cbz	r3, .L2893
+.L2892:
 	bl	update_vpc_list
-.L2887:
+.L2893:
 	movw	r3, #65535
 	strh	r3, [r4, #3460]	@ movhi
-.L2885:
+.L2891:
 	mov	r0, r6
 	bl	allocate_data_superblock
 	bl	l2p_flush
 	movs	r0, #0
 	bl	FtlEctTblFlush
 	bl	FtlVpcTblFlush
-.L2875:
+.L2881:
 	movs	r0, #0
 	pop	{r4, r5, r6, pc}
-.L2901:
+.L2907:
 	.align	2
-.L2900:
+.L2906:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -18073,94 +18113,94 @@ FtlCheckVpc:
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	.pad #8
 	movs	r4, #0
-	ldr	r1, .L2924
-	ldr	r0, .L2924+4
+	ldr	r1, .L2930
+	ldr	r0, .L2930+4
 	bl	printk
-	ldr	r0, .L2924+8
+	ldr	r0, .L2930+8
 	movs	r1, #0
 	mov	r2, #8192
 	bl	memset
-	ldr	r5, .L2924+12
-	ldr	r6, .L2924+16
-.L2903:
+	ldr	r5, .L2930+12
+	ldr	r6, .L2930+16
+.L2909:
 	ldr	r3, [r5, #2448]
-	ldr	r9, .L2924+12
+	ldr	r9, .L2930+12
 	cmp	r4, r3
-	bcs	.L2922
+	bcs	.L2928
 	mov	r0, r4
 	add	r1, sp, #4
 	movs	r2, #0
 	bl	log2phys
 	ldr	r0, [sp, #4]
 	adds	r3, r0, #1
-	beq	.L2904
+	beq	.L2910
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	add	r0, r6, r0, lsl #1
-	ldrh	r3, [r0, #1336]
+	ldrh	r3, [r0, #1344]
 	adds	r3, r3, #1
-	strh	r3, [r0, #1336]	@ movhi
-.L2904:
+	strh	r3, [r0, #1344]	@ movhi
+.L2910:
 	adds	r4, r4, #1
-	b	.L2903
-.L2922:
+	b	.L2909
+.L2928:
 	movs	r7, #0
-	ldr	r8, .L2924+20
-	ldr	r10, .L2924+16
+	ldr	r8, .L2930+20
+	ldr	r10, .L2930+16
 	mov	r6, r7
-.L2906:
+.L2912:
 	ldrh	r3, [r9, #2328]
 	uxth	r4, r7
-	ldr	r5, .L2924+20
+	ldr	r5, .L2930+20
 	cmp	r3, r4
-	bls	.L2923
+	bls	.L2929
 	ldr	r3, [r8, #296]
 	add	r5, r10, r4, lsl #1
 	ldrh	r2, [r3, r4, lsl #1]
-	ldrh	r3, [r5, #1336]
+	ldrh	r3, [r5, #1344]
 	cmp	r2, r3
-	beq	.L2907
-	ldr	r0, .L2924+24
+	beq	.L2913
+	ldr	r0, .L2930+24
 	mov	r1, r4
 	bl	printk
 	ldr	r3, [r8, #296]
 	movw	r2, #65535
 	ldrh	r3, [r3, r4, lsl #1]
 	cmp	r3, r2
-	beq	.L2907
-	ldrh	r2, [r5, #1336]
+	beq	.L2913
+	ldrh	r2, [r5, #1344]
 	cmp	r2, r3
 	it	hi
 	movhi	r6, #1
-.L2907:
+.L2913:
 	adds	r7, r7, #1
-	b	.L2906
-.L2923:
+	b	.L2912
+.L2929:
 	ldr	r3, [r5, #308]
-	cbz	r3, .L2909
+	cbz	r3, .L2915
 	ldr	r2, [r5, #288]
 	movs	r7, #0
 	ldrh	r8, [r5, #312]
 	subs	r3, r3, r2
-	ldr	r2, .L2924+28
-	ldr	r9, .L2924+16
+	ldr	r2, .L2930+28
+	ldr	r9, .L2930+16
 	asrs	r3, r3, #1
 	muls	r3, r2, r3
 	uxth	r4, r3
-.L2910:
+.L2916:
 	uxth	r3, r7
 	cmp	r3, r8
-	bcs	.L2909
+	bcs	.L2915
 	ldr	r3, [r5, #296]
 	ldrh	r2, [r3, r4, lsl #1]
-	cbz	r2, .L2911
+	cbz	r2, .L2917
 	add	r3, r9, r4, lsl #1
-	ldr	r0, .L2924+32
+	ldr	r0, .L2930+32
 	mov	r1, r4
 	movs	r6, #1
-	ldrh	r3, [r3, #1336]
+	ldrh	r3, [r3, #1344]
 	bl	printk
-.L2911:
+.L2917:
 	movs	r3, #6
 	ldr	r2, [r5, #288]
 	adds	r7, r7, #1
@@ -18168,20 +18208,20 @@ FtlCheckVpc:
 	movw	r3, #65535
 	ldrh	r4, [r2, r4]
 	cmp	r4, r3
-	bne	.L2910
-.L2909:
+	bne	.L2916
+.L2915:
 	mov	r1, r6
-	ldr	r0, .L2924+36
+	ldr	r0, .L2930+36
 	bl	printk
 	add	sp, sp, #8
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L2925:
+.L2931:
 	.align	2
-.L2924:
+.L2930:
 	.word	.LANCHOR3+204
 	.word	.LC110
-	.word	.LANCHOR4+1336
+	.word	.LANCHOR4+1344
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LANCHOR2
@@ -18205,53 +18245,53 @@ Ftlscanalldata:
 	movs	r1, #0
 	.pad #36
 	sub	sp, sp, #36
-	ldr	r0, .L2941
+	ldr	r0, .L2947
 	bl	printk
-	ldr	r7, .L2941+4
-	ldr	r5, .L2941+8
+	ldr	r7, .L2947+4
+	ldr	r5, .L2947+8
 	movs	r4, #0
-.L2927:
+.L2933:
 	ldr	r3, [r7, #2448]
 	cmp	r4, r3
-	bcs	.L2940
+	bcs	.L2946
 	mov	r0, r4
 	add	r1, sp, #28
 	movs	r2, #0
 	bl	log2phys
 	ubfx	r3, r4, #0, #11
-	cbnz	r3, .L2928
-	ldr	r0, .L2941+12
+	cbnz	r3, .L2934
+	ldr	r0, .L2947+12
 	mov	r1, r4
 	ldr	r2, [sp, #28]
 	bl	printk
-.L2928:
+.L2934:
 	ldr	r3, [sp, #28]
 	adds	r2, r3, #1
-	beq	.L2930
-	str	r3, [r5, #1252]
+	beq	.L2936
+	str	r3, [r5, #1260]
 	movs	r1, #1
-	ldr	r3, .L2941+16
-	ldr	r0, .L2941+20
-	str	r4, [r5, #1264]
+	ldr	r3, .L2947+16
+	ldr	r0, .L2947+20
+	str	r4, [r5, #1272]
 	ldr	r2, [r3, #3316]
 	ldr	r6, [r3, #3340]
-	str	r2, [r5, #1256]
+	str	r2, [r5, #1264]
 	movs	r2, #0
-	str	r6, [r5, #1260]
-	str	r2, [r5, #1248]
+	str	r6, [r5, #1268]
+	str	r2, [r5, #1256]
 	bl	FlashReadPages
-	ldr	r3, [r5, #1248]
-	ldr	r2, .L2941+8
+	ldr	r3, [r5, #1256]
+	ldr	r2, .L2947+8
 	cmp	r3, #256
-	beq	.L2931
+	beq	.L2937
 	adds	r3, r3, #1
-	beq	.L2931
+	beq	.L2937
 	ldr	r3, [r6, #8]
 	cmp	r3, r4
-	beq	.L2930
-.L2931:
-	ldr	r3, [r2, #1260]
-	ldr	r1, [r2, #1256]
+	beq	.L2936
+.L2937:
+	ldr	r3, [r2, #1268]
+	ldr	r1, [r2, #1264]
 	ldr	r0, [r3, #4]
 	str	r0, [sp]
 	ldr	r0, [r3, #8]
@@ -18261,28 +18301,28 @@ Ftlscanalldata:
 	ldr	r0, [r1]
 	str	r0, [sp, #12]
 	ldr	r1, [r1, #4]
-	ldr	r0, .L2941+24
+	ldr	r0, .L2947+24
 	str	r1, [sp, #16]
 	mov	r1, r4
-	ldr	r2, [r2, #1252]
+	ldr	r2, [r2, #1260]
 	ldr	r3, [r3]
 	bl	printk
-.L2930:
+.L2936:
 	adds	r4, r4, #1
-	b	.L2927
-.L2940:
+	b	.L2933
+.L2946:
 	add	sp, sp, #36
 	@ sp needed
 	pop	{r4, r5, r6, r7, pc}
-.L2942:
+.L2948:
 	.align	2
-.L2941:
+.L2947:
 	.word	.LC146
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LC147
 	.word	.LANCHOR2
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC148
 	.fnend
 	.size	Ftlscanalldata, .-Ftlscanalldata
@@ -18302,29 +18342,29 @@ FtlReUsePrevPpa:
 	ubfx	r0, r1, #10, #16
 	str	r1, [sp, #4]
 	bl	P2V_block_in_plane
-	ldr	r5, .L2952
+	ldr	r5, .L2958
 	ldr	r4, [r5, #296]
 	ldrh	r3, [r4, r0, lsl #1]
-	cbnz	r3, .L2944
+	cbnz	r3, .L2950
 	ldr	r4, [r5, #308]
-	cbz	r4, .L2945
+	cbz	r4, .L2951
 	ldr	r1, [r5, #288]
 	mov	lr, #6
-	ldr	r2, .L2952+4
+	ldr	r2, .L2958+4
 	movw	ip, #65535
 	subs	r4, r4, r1
 	ldrh	r7, [r5, #312]
 	asrs	r4, r4, #1
 	muls	r4, r2, r4
 	uxth	r4, r4
-.L2946:
+.L2952:
 	uxth	r2, r3
 	cmp	r2, r7
-	bcs	.L2945
+	bcs	.L2951
 	cmp	r4, r0
-	bne	.L2947
+	bne	.L2953
 	mov	r1, r4
-	ldr	r0, .L2952+8
+	ldr	r0, .L2958+8
 	bl	List_remove_node
 	ldrh	r3, [r5, #312]
 	mov	r0, r4
@@ -18335,18 +18375,18 @@ FtlReUsePrevPpa:
 	ldrh	r3, [r2, r4, lsl #1]
 	adds	r3, r3, #1
 	strh	r3, [r2, r4, lsl #1]	@ movhi
-	b	.L2945
-.L2947:
+	b	.L2951
+.L2953:
 	mul	r4, lr, r4
 	adds	r3, r3, #1
 	ldrh	r4, [r1, r4]
 	cmp	r4, ip
-	bne	.L2946
-	b	.L2945
-.L2944:
+	bne	.L2952
+	b	.L2951
+.L2950:
 	adds	r3, r3, #1
 	strh	r3, [r4, r0, lsl #1]	@ movhi
-.L2945:
+.L2951:
 	mov	r0, r6
 	add	r1, sp, #4
 	movs	r2, #1
@@ -18354,9 +18394,9 @@ FtlReUsePrevPpa:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, pc}
-.L2953:
+.L2959:
 	.align	2
-.L2952:
+.L2958:
 	.word	.LANCHOR2
 	.word	-1431655765
 	.word	.LANCHOR2+308
@@ -18379,54 +18419,54 @@ FtlRecoverySuperblock:
 	sub	sp, sp, #68
 	mov	r4, r0
 	cmp	r3, r7
-	beq	.L3101
+	beq	.L3107
 	ldrh	r3, [r0, #2]
 	movs	r5, #0
-	ldr	r6, .L3117
+	ldr	r6, .L3123
 	str	r3, [sp, #12]
 	ldrb	r3, [r0, #6]	@ zero_extendqisi2
 	ldr	r2, [sp, #12]
 	str	r3, [sp, #28]
 	ldrh	r3, [r6, #2388]
 	cmp	r3, r2
-	bne	.L2957
+	bne	.L2963
 	strh	r5, [r0, #4]	@ movhi
 	strb	r5, [r0, #6]
-	b	.L3101
-.L2957:
+	b	.L3107
+.L2963:
 	ldrh	r0, [r0, #16]
-.L2958:
+.L2964:
 	cmp	r0, r7
 	add	r5, r5, #1
-	bne	.L3112
+	bne	.L3118
 	uxth	r3, r5
 	adds	r3, r3, #8
 	ldrh	r0, [r4, r3, lsl #1]
-	b	.L2958
-.L3112:
+	b	.L2964
+.L3118:
 	ldrb	r1, [r4, #8]	@ zero_extendqisi2
 	cmp	r1, #1
-	bne	.L2960
+	bne	.L2966
 	bl	FtlGetLastWrittenPage
 	adds	r2, r0, #1
 	mov	r5, r0
-	beq	.L2961
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbnz	r3, .L3103
-	ldr	r3, .L3117
+	beq	.L2967
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbnz	r3, .L3109
+	ldr	r3, .L3123
 	add	r3, r3, r0, lsl #1
-	ldrh	r7, [r3, #148]
-	b	.L3035
-.L2960:
+	ldrh	r7, [r3, #152]
+	b	.L3041
+.L2966:
 	movs	r1, #0
 	bl	FtlGetLastWrittenPage
 	adds	r3, r0, #1
 	mov	r5, r0
-	beq	.L2961
-.L3103:
+	beq	.L2967
+.L3109:
 	mov	r7, r5
-.L3035:
-	ldr	r3, .L3117+4
+.L3041:
+	ldr	r3, .L3123+4
 	movw	r9, #65535
 	ldrh	ip, [r6, #2320]
 	mov	r10, #36
@@ -18440,16 +18480,16 @@ FtlRecoverySuperblock:
 	mov	lr, r3
 	mov	r6, r2
 	mov	fp, r2
-	b	.L2963
-.L2961:
+	b	.L2969
+.L2967:
 	movs	r3, #0
 	strh	r3, [r4, #2]	@ movhi
 	strb	r3, [r4, #6]
-	b	.L3101
-.L2966:
+	b	.L3107
+.L2972:
 	ldrh	r3, [lr, #2]!
 	cmp	r3, r9
-	beq	.L2964
+	beq	.L2970
 	ldr	r1, [sp, #4]
 	orr	r3, r7, r3, lsl #10
 	mla	r1, r10, r6, r1
@@ -18464,25 +18504,25 @@ FtlRecoverySuperblock:
 	bic	r3, r3, #3
 	add	r3, r3, r8
 	str	r3, [r1, #12]
-.L2964:
+.L2970:
 	adds	r2, r2, #1
-.L2963:
+.L2969:
 	uxth	r3, r2
 	cmp	r3, ip
-	bcc	.L2966
+	bcc	.L2972
 	ldrb	r3, [r4, #8]	@ zero_extendqisi2
 	cmp	r3, #1
-	bne	.L3037
-	ldr	r3, .L3117
-	ldrb	r1, [r3, #144]	@ zero_extendqisi2
+	bne	.L3043
+	ldr	r3, .L3123
+	ldrb	r1, [r3, #148]	@ zero_extendqisi2
 	adds	r3, r1, #0
 	it	ne
 	movne	r3, #1
-	b	.L3104
-.L3037:
+	b	.L3110
+.L3043:
 	movs	r3, #0
-.L3104:
-	ldr	r8, .L3117+4
+.L3110:
+	ldr	r8, .L3123+4
 	mov	r1, r6
 	str	r3, [sp, #24]
 	mov	fp, #0
@@ -18495,73 +18535,73 @@ FtlRecoverySuperblock:
 	str	r3, [sp, #4]
 	movw	r3, #65535
 	str	r3, [sp, #16]
-.L2968:
+.L2974:
 	uxth	r9, fp
 	cmp	r9, r6
-	bcs	.L2975
+	bcs	.L2981
 	movs	r1, #36
 	ldr	r0, [r8, #3304]
 	mul	r1, r1, fp
 	add	lr, r0, r1
 	ldr	r1, [r0, r1]
-	cbnz	r1, .L2969
+	cbnz	r1, .L2975
 	ldr	r3, [lr, #12]
 	ldr	r10, [r3, #4]
 	cmp	r10, #-1
-	beq	.L2970
+	beq	.L2976
 	mov	r0, r10
 	ldr	r1, [r8, #512]
 	str	r3, [sp, #32]
 	bl	ftl_cmp_data_ver
 	ldr	r3, [sp, #32]
-	cbz	r0, .L2970
+	cbz	r0, .L2976
 	add	r1, r10, #1
 	str	r1, [r8, #512]
-.L2970:
+.L2976:
 	ldr	r1, [r3]
 	adds	r1, r1, #1
-	bne	.L2971
-.L2975:
+	bne	.L2977
+.L2981:
 	cmp	r9, r6
-	ldr	r6, .L3117+4
-	bne	.L3102
+	ldr	r6, .L3123+4
+	bne	.L3108
 	ldr	r3, [r6, #3304]
 	adds	r5, r5, #1
 	uxth	r10, r5
 	ldr	r0, [r3, #4]
-	b	.L3105
-.L2969:
+	b	.L3111
+.L2975:
 	ldr	r1, [lr, #4]
-	ldr	r0, .L3117+8
+	ldr	r0, .L3123+8
 	bl	printk
 	uxth	r3, r7
 	ldrh	r1, [r4]
 	str	r3, [sp, #16]
-	ldr	r3, .L3117+12
-	strh	r1, [r3, #840]	@ movhi
-.L2971:
+	ldr	r3, .L3123+12
+	strh	r1, [r3, #848]	@ movhi
+.L2977:
 	add	fp, fp, #1
-	b	.L2968
-.L3102:
+	b	.L2974
+.L3108:
 	ldr	r3, [sp, #8]
 	movs	r2, #36
 	uxth	r10, r5
 	ldr	r3, [r3, #3304]
 	mla	r9, r2, r9, r3
 	ldr	r0, [r9, #4]
-.L3105:
+.L3111:
 	ubfx	r0, r0, #10, #16
 	bl	P2V_plane
 	ldrb	r5, [r4, #8]	@ zero_extendqisi2
-	ldr	r2, .L3117
+	ldr	r2, .L3123
 	cmp	r5, #1
 	str	r0, [sp, #8]
-	bne	.L2977
-	ldrb	r3, [r2, #144]	@ zero_extendqisi2
-	cbnz	r3, .L2977
+	bne	.L2983
+	ldrb	r3, [r2, #148]	@ zero_extendqisi2
+	cbnz	r3, .L2983
 	add	r3, r2, r10, lsl #1
-	ldrh	r10, [r3, #148]
-.L2977:
+	ldrh	r10, [r3, #152]
+.L2983:
 	ldrh	r3, [r2, #2388]
 	cmp	r3, r10
 	itttt	eq
@@ -18573,31 +18613,31 @@ FtlRecoverySuperblock:
 	str	r3, [sp, #32]
 	ldr	r3, [sp, #12]
 	cmp	r10, r3
-	bne	.L2979
+	bne	.L2985
 	ldr	r3, [sp, #8]
 	ldr	r2, [sp, #32]
 	cmp	r3, r2
-	bne	.L2979
+	bne	.L2985
 	mov	r0, r4
 	mov	r1, r10
 	mov	r2, r3
-	b	.L3110
-.L2979:
+	b	.L3116
+.L2985:
 	ldr	r2, [sp, #16]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L2980
+	bne	.L2986
 	cmp	r5, #0
-	bne	.L2981
-.L2980:
+	bne	.L2987
+.L2986:
 	ldr	r3, [r6, #3472]
 	uxth	fp, r7
 	mov	r9, #-1
-	ldr	r7, .L3117+4
+	ldr	r7, .L3123+4
 	adds	r3, r3, #1
 	mov	r8, r9
 	ittt	eq
-	ldreq	r3, .L3117+4
+	ldreq	r3, .L3123+4
 	ldreq	r2, [sp, #4]
 	streq	r2, [r3, #3472]
 	ldr	r3, [r6, #3472]
@@ -18609,24 +18649,24 @@ FtlRecoverySuperblock:
 	subgt	r5, fp, #7
 	ldrle	r5, [sp, #12]
 	uxthgt	r5, r5
-.L2984:
+.L2990:
 	cmp	r5, fp
-	bhi	.L2997
-	ldr	r3, .L3117
+	bhi	.L3003
+	ldr	r3, .L3123
 	ldr	r1, [sp, #20]
 	ldrh	ip, [r3, #2320]
 	ldr	r3, [r7, #3304]
 	str	r3, [sp, #28]
 	movs	r3, #0
 	mov	r6, r3
-.L2998:
+.L3004:
 	uxth	r2, r3
 	cmp	r2, ip
-	bcs	.L3113
+	bcs	.L3119
 	ldrh	r2, [r1, #2]!
 	movw	r0, #65535
 	cmp	r2, r0
-	beq	.L2985
+	beq	.L2991
 	ldr	r0, [sp, #28]
 	mov	lr, #36
 	orr	r2, r5, r2, lsl #10
@@ -18634,129 +18674,129 @@ FtlRecoverySuperblock:
 	adds	r6, r6, #1
 	uxth	r6, r6
 	str	r2, [r0, #4]
-.L2985:
+.L2991:
 	adds	r3, r3, #1
-	b	.L2998
-.L3113:
+	b	.L3004
+.L3119:
 	mov	r1, r6
 	ldr	r2, [sp, #24]
 	ldr	r0, [r7, #3304]
 	bl	FlashReadPages
-	ldr	r3, .L3117
+	ldr	r3, .L3123
 	movs	r2, #36
 	add	lr, r7, r5, lsl #1
 	movw	r1, #65535
-	ldrb	r0, [r3, #144]	@ zero_extendqisi2
+	ldrb	r0, [r3, #148]	@ zero_extendqisi2
 	ldr	r3, [r7, #3304]
 	mla	r6, r2, r6, r3
-.L2987:
+.L2993:
 	cmp	r3, r6
-	beq	.L3114
+	beq	.L3120
 	ldr	r2, [r3]
-	cbnz	r2, .L2988
+	cbnz	r2, .L2994
 	ldr	r2, [r3, #12]
 	ldrh	ip, [r2]
 	cmp	ip, r1
-	beq	.L2989
+	beq	.L2995
 	ldr	r2, [r2, #4]
 	cmp	r2, #-1
-	beq	.L2989
+	beq	.L2995
 	cmp	r9, #-1
 	ldr	r8, [r7, #3472]
 	str	r2, [r7, #3472]
-	bne	.L2989
+	bne	.L2995
 	ldrh	r2, [lr, #1220]
 	cmp	r2, r1
-	bne	.L2990
+	bne	.L2996
 	cmp	r0, #0
-	beq	.L2989
-.L2990:
+	beq	.L2995
+.L2996:
 	ldr	r2, [sp, #4]
 	cmp	r8, r2
 	ite	ne
 	movne	r9, r8
 	moveq	r9, #-1
-	b	.L2989
-.L3118:
+	b	.L2995
+.L3124:
 	.align	2
-.L3117:
+.L3123:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LC149
 	.word	.LANCHOR5
-.L2988:
-	ldr	r3, .L3119
+.L2994:
+	ldr	r3, .L3125
 	ldrh	r2, [r4]
-	strh	r2, [r3, #840]	@ movhi
+	strh	r2, [r3, #848]	@ movhi
 	ldrb	r3, [r4, #8]	@ zero_extendqisi2
-	cbnz	r3, .L2981
-	ldr	r3, .L3119+4
+	cbnz	r3, .L2987
+	ldr	r3, .L3125+4
 	movw	r2, #65535
 	add	r5, r3, r5, lsl #1
 	ldrh	r1, [r5, #1220]
 	cmp	r1, r2
-	bne	.L2992
+	bne	.L2998
 	cmp	r9, #-1
-	beq	.L2993
+	beq	.L2999
 	str	r9, [r3, #3472]
-	b	.L2981
-.L2993:
+	b	.L2987
+.L2999:
 	ldr	r2, [sp, #16]
 	ldr	r1, [sp, #4]
 	cmp	r2, r1
-	bne	.L3106
+	bne	.L3112
 	ldr	r2, [r3, #3472]
-	b	.L3111
-.L2992:
+	b	.L3117
+.L2998:
 	ldr	r2, [sp, #4]
 	cmp	r8, r2
-	beq	.L2995
+	beq	.L3001
 	cmp	r8, #-1
-	beq	.L2981
+	beq	.L2987
 	str	r8, [r3, #3472]
-	b	.L2981
-.L2995:
+	b	.L2987
+.L3001:
 	ldr	r2, [r3, #3472]
 	ldr	r1, [sp, #4]
 	cmp	r2, r1
-	beq	.L2981
-.L3111:
+	beq	.L2987
+.L3117:
 	subs	r2, r2, #1
-	b	.L3106
-.L2989:
+	b	.L3112
+.L2995:
 	adds	r3, r3, #36
-	b	.L2987
-.L3114:
+	b	.L2993
+.L3120:
 	adds	r5, r5, #1
 	uxth	r5, r5
-	b	.L2984
-.L2997:
-	ldr	r3, .L3119+4
+	b	.L2990
+.L3003:
+	ldr	r3, .L3125+4
 	mov	r2, #-1
-.L3106:
+.L3112:
 	str	r2, [r3, #3472]
-.L2981:
-	ldr	r3, .L3119
+.L2987:
+	ldr	r3, .L3125
 	movs	r2, #1
 	ldr	fp, [sp, #12]
-	ldr	r5, .L3119+4
-	strh	r2, [r3, #842]	@ movhi
-.L2999:
-	ldr	r3, .L3119+8
+	ldr	r5, .L3125+4
+	strh	r2, [r3, #850]	@ movhi
+.L3005:
+	ldr	r3, .L3125+8
 	movw	r9, #65535
 	ldr	r1, [r5, #3304]
 	movs	r6, #0
 	ldr	r7, [sp, #20]
 	ldrh	r8, [r3, #2320]
-	ldrb	r0, [r3, #144]	@ zero_extendqisi2
+	ldrb	r0, [r3, #148]	@ zero_extendqisi2
 	str	r6, [sp, #16]
-.L3000:
+.L3006:
 	uxth	r3, r6
 	cmp	r3, r8
-	bcs	.L3115
+	bcs	.L3121
 	ldrh	r3, [r7, #2]!
 	cmp	r3, r9
-	beq	.L3001
+	beq	.L3007
 	ldr	r2, [sp, #16]
 	mov	lr, #36
 	orr	r3, fp, r3, lsl #10
@@ -18764,30 +18804,30 @@ FtlRecoverySuperblock:
 	str	r3, [r2, #4]
 	ldrb	lr, [r4, #8]	@ zero_extendqisi2
 	cmp	lr, #1
-	bne	.L3002
-	cbz	r0, .L3002
+	bne	.L3008
+	cbz	r0, .L3008
 	orr	r3, r3, #-2147483648
 	str	r3, [r2, #4]
-.L3002:
+.L3008:
 	ldr	r3, [sp, #16]
 	add	ip, r3, #1
 	uxth	r3, ip
 	str	r3, [sp, #16]
-.L3001:
+.L3007:
 	adds	r6, r6, #1
-	b	.L3000
-.L3115:
+	b	.L3006
+.L3121:
 	ldr	r0, [r5, #3304]
 	ldr	r1, [sp, #16]
 	ldr	r2, [sp, #24]
 	bl	FlashReadPages
 	movs	r3, #0
-.L3109:
+.L3115:
 	str	r3, [sp, #28]
 	ldr	r2, [sp, #16]
 	ldrh	r3, [sp, #28]
 	cmp	r3, r2
-	bcs	.L3116
+	bcs	.L3122
 	ldr	r3, [sp, #28]
 	movs	r6, #36
 	ldr	r9, [r5, #3304]
@@ -18799,41 +18839,41 @@ FtlRecoverySuperblock:
 	bl	P2V_plane
 	ldr	r3, [sp, #12]
 	cmp	fp, r3
-	bcc	.L3005
-	bne	.L3006
+	bcc	.L3011
+	bne	.L3012
 	ldr	r3, [sp, #32]
 	cmp	r0, r3
-	bcc	.L3005
-.L3006:
+	bcc	.L3011
+.L3012:
 	cmp	fp, r10
-	bne	.L3007
+	bne	.L3013
 	ldr	r3, [sp, #8]
 	cmp	r0, r3
-	beq	.L3008
-.L3007:
+	beq	.L3014
+.L3013:
 	ldr	r3, [r9, r6]
 	adds	r3, r3, #1
-	beq	.L3009
+	beq	.L3015
 	ldr	r8, [r8, #12]
 	movw	r3, #61589
 	ldrh	r2, [r8]
 	cmp	r2, r3
-	beq	.L3010
+	beq	.L3016
 	ldrh	r0, [r4]
-	b	.L3107
-.L3010:
+	b	.L3113
+.L3016:
 	ldr	r3, [r8, #4]
 	adds	r7, r3, #1
 	str	r3, [sp, #4]
-	beq	.L3011
+	beq	.L3017
 	mov	r0, r3
 	ldr	r1, [r5, #512]
 	bl	ftl_cmp_data_ver
-	cbz	r0, .L3011
+	cbz	r0, .L3017
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
 	str	r3, [r5, #512]
-.L3011:
+.L3017:
 	ldr	r7, [r8, #8]
 	add	r1, sp, #56
 	ldr	r3, [r8, #12]
@@ -18843,14 +18883,14 @@ FtlRecoverySuperblock:
 	bl	log2phys
 	ldr	r1, [r5, #3472]
 	adds	r0, r1, #1
-	beq	.L3012
+	beq	.L3018
 	ldr	r0, [sp, #4]
 	bl	ftl_cmp_data_ver
 	cmp	r0, #0
-	beq	.L3012
+	beq	.L3018
 	ldr	r3, [sp, #52]
 	adds	r2, r3, #1
-	beq	.L3013
+	beq	.L3019
 	ldr	r0, [r5, #3304]
 	movs	r2, #0
 	movs	r1, #1
@@ -18864,22 +18904,22 @@ FtlRecoverySuperblock:
 	str	r3, [sp, #36]
 	ldr	r3, [r2, r6]
 	adds	r3, r3, #1
-	bne	.L3014
-	b	.L3015
-.L3013:
+	bne	.L3020
+	b	.L3021
+.L3019:
 	ldr	r3, [sp, #60]
 	ldr	r2, [sp, #56]
 	cmp	r2, r3
-	bne	.L3005
+	bne	.L3011
 	mov	r0, r7
 	add	r1, sp, #52
 	movs	r2, #1
 	bl	log2phys
-	b	.L3005
-.L3014:
+	b	.L3011
+.L3020:
 	ldr	r8, [r9, #8]
 	cmp	r8, r7
-	bne	.L3015
+	bne	.L3021
 	ldr	r0, [r5, #3472]
 	ldr	r1, [sp, #36]
 	str	r2, [sp, #44]
@@ -18887,217 +18927,217 @@ FtlRecoverySuperblock:
 	bl	ftl_cmp_data_ver
 	ldr	ip, [sp, #40]
 	ldr	r2, [sp, #44]
-	cbz	r0, .L3015
+	cbz	r0, .L3021
 	ldr	r3, [sp, #56]
 	ldr	r1, [sp, #60]
 	cmp	r3, r1
-	beq	.L3020
+	beq	.L3026
 	ldr	r1, [sp, #52]
 	cmp	r3, r1
-	beq	.L3015
+	beq	.L3021
 	adds	r7, r3, #1
-	beq	.L3018
+	beq	.L3024
 	str	r3, [ip, #4]
 	mov	r0, ip
 	movs	r1, #1
 	movs	r2, #0
 	ldr	r9, [ip, #12]
 	bl	FlashReadPages
-	b	.L3019
-.L3018:
+	b	.L3025
+.L3024:
 	str	r3, [r2, r6]
-.L3019:
+.L3025:
 	ldr	r3, [r5, #3304]
 	ldr	r3, [r3, r6]
 	adds	r3, r3, #1
-	beq	.L3020
+	beq	.L3026
 	ldr	r6, [r9, #4]
 	ldr	r0, [r5, #3472]
 	mov	r1, r6
 	bl	ftl_cmp_data_ver
-	cbz	r0, .L3020
+	cbz	r0, .L3026
 	ldr	r0, [sp, #36]
 	mov	r1, r6
 	bl	ftl_cmp_data_ver
-	cbz	r0, .L3015
-.L3020:
+	cbz	r0, .L3021
+.L3026:
 	mov	r0, r8
 	ldr	r1, [sp, #52]
 	bl	FtlReUsePrevPpa
-.L3015:
+.L3021:
 	mov	r3, #-1
 	str	r3, [sp, #52]
-	b	.L3022
-.L3120:
+	b	.L3028
+.L3126:
 	.align	2
-.L3119:
+.L3125:
 	.word	.LANCHOR5
 	.word	.LANCHOR2
 	.word	.LANCHOR0
-.L3012:
+.L3018:
 	ldr	r3, [sp, #60]
 	ldr	r2, [sp, #56]
 	cmp	r2, r3
-	beq	.L3022
+	beq	.L3028
 	ldr	r3, [sp, #52]
 	adds	r0, r3, #1
-	beq	.L3024
-	ldr	r2, .L3121
+	beq	.L3030
+	ldr	r2, .L3127
 	ubfx	r3, r3, #10, #21
 	ldr	r2, [r2, #2336]
 	cmp	r3, r2
-	bcs	.L3005
-.L3024:
+	bcs	.L3011
+.L3030:
 	mov	r0, r7
 	add	r1, sp, #60
 	movs	r2, #1
 	bl	log2phys
 	ldr	r8, [sp, #56]
 	cmp	r8, #-1
-	beq	.L3022
+	beq	.L3028
 	ldr	r3, [sp, #52]
 	cmp	r8, r3
-	beq	.L3022
+	beq	.L3028
 	ubfx	r0, r8, #10, #16
 	bl	P2V_block_in_plane
 	ldrh	r3, [r5, #316]
 	cmp	r3, r0
-	beq	.L3026
+	beq	.L3032
 	ldrh	r3, [r5, #364]
 	cmp	r3, r0
-	beq	.L3026
+	beq	.L3032
 	ldrh	r3, [r5, #412]
 	cmp	r3, r0
-	bne	.L3022
-.L3026:
-	ldr	r3, .L3121+4
+	bne	.L3028
+.L3032:
+	ldr	r3, .L3127+4
 	movs	r1, #1
 	movs	r2, #0
 	ldr	r0, [r3, #3304]
 	str	r8, [r0, #4]
 	ldr	r6, [r0, #12]
 	bl	FlashReadPages
-	ldr	r3, .L3121+4
+	ldr	r3, .L3127+4
 	ldr	r1, [r6, #4]
 	ldr	r3, [r3, #3304]
 	ldr	r3, [r3]
 	adds	r3, r3, #1
-	beq	.L3022
+	beq	.L3028
 	ldr	r0, [sp, #4]
 	bl	ftl_cmp_data_ver
-	cbnz	r0, .L3022
+	cbnz	r0, .L3028
 	mov	r0, r7
 	add	r1, sp, #56
 	movs	r2, #1
 	bl	log2phys
-.L3022:
+.L3028:
 	ldr	r0, [sp, #52]
 	adds	r1, r0, #1
-	beq	.L3005
+	beq	.L3011
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldr	r3, [r5, #296]
 	ldrh	r3, [r3, r0, lsl #1]
 	mov	r1, r0
-	cbz	r3, .L3027
-.L3107:
+	cbz	r3, .L3033
+.L3113:
 	bl	decrement_vpc_count
-	b	.L3005
-.L3027:
-	ldr	r0, .L3121+8
+	b	.L3011
+.L3033:
+	ldr	r0, .L3127+8
 	bl	printk
-	b	.L3005
-.L3009:
+	b	.L3011
+.L3015:
 	ldrh	r3, [r4]
 	mov	r1, r7
-	ldr	r2, .L3121+12
-	ldr	r0, .L3121+16
-	strh	r3, [r2, #840]	@ movhi
+	ldr	r2, .L3127+12
+	ldr	r0, .L3127+16
+	strh	r3, [r2, #848]	@ movhi
 	ldr	r2, [sp, #4]
 	bl	printk
-	ldr	r3, .L3121+12
-	ldr	r3, [r3, #844]
+	ldr	r3, .L3127+12
+	ldr	r3, [r3, #852]
 	cmp	r3, #31
-	bhi	.L3028
-	ldr	r2, .L3121+12
+	bhi	.L3034
+	ldr	r2, .L3127+12
 	ldr	r1, [sp, #60]
 	add	r2, r2, r3, lsl #2
 	adds	r3, r3, #1
-	str	r1, [r2, #848]
-	ldr	r2, .L3121+12
-	str	r3, [r2, #844]
-.L3028:
+	str	r1, [r2, #856]
+	ldr	r2, .L3127+12
+	str	r3, [r2, #852]
+.L3034:
 	ldrh	r0, [r4]
 	bl	decrement_vpc_count
 	ldr	r3, [r5, #3472]
 	adds	r2, r3, #1
-	bne	.L3029
+	bne	.L3035
 	ldr	r3, [sp, #4]
-	b	.L3108
-.L3029:
+	b	.L3114
+.L3035:
 	ldr	r2, [sp, #4]
 	cmp	r3, r2
-	bls	.L3005
+	bls	.L3011
 	mov	r3, r2
-.L3108:
+.L3114:
 	str	r3, [r5, #3472]
-.L3005:
+.L3011:
 	ldr	r3, [sp, #28]
 	adds	r3, r3, #1
-	b	.L3109
-.L3116:
+	b	.L3115
+.L3122:
 	ldrb	r3, [r4, #8]	@ zero_extendqisi2
 	add	fp, fp, #1
 	cmp	r3, #1
 	uxth	fp, fp
-	ldr	r3, .L3121
-	bne	.L3031
-	ldrb	r2, [r3, #144]	@ zero_extendqisi2
-	cbz	r2, .L3031
+	ldr	r3, .L3127
+	bne	.L3037
+	ldrb	r2, [r3, #148]	@ zero_extendqisi2
+	cbz	r2, .L3037
 	ldrh	r2, [r3, #2390]
 	cmp	r2, fp
-	bne	.L3031
+	bne	.L3037
 	cmp	r10, fp
-	beq	.L3008
-.L3031:
+	beq	.L3014
+.L3037:
 	ldrh	r3, [r3, #2388]
 	cmp	fp, r3
-	bne	.L2999
-	ldr	r2, .L3121
+	bne	.L3005
+	ldr	r2, .L3127
 	movw	r0, #65535
 	movs	r3, #0
 	strh	fp, [r4, #2]	@ movhi
 	strh	r3, [r4, #4]	@ movhi
 	ldrh	r1, [r2, #2320]
-.L3032:
+.L3038:
 	uxth	r2, r3
 	cmp	r2, r1
-	bcs	.L3101
+	bcs	.L3107
 	ldr	r6, [sp, #20]
 	adds	r3, r3, #1
 	ldrh	r5, [r6, #2]!
 	cmp	r5, r0
 	str	r6, [sp, #20]
-	beq	.L3032
+	beq	.L3038
 	strb	r2, [r4, #6]
-	b	.L3101
-.L3008:
+	b	.L3107
+.L3014:
 	ldrb	r3, [sp, #8]	@ zero_extendqisi2
 	mov	r0, r4
 	ldr	r2, [sp, #8]
 	mov	r1, r10
 	strh	r10, [r4, #2]	@ movhi
 	strb	r3, [r4, #6]
-.L3110:
+.L3116:
 	bl	ftl_sb_update_avl_pages
-.L3101:
+.L3107:
 	movs	r0, #0
 	add	sp, sp, #68
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3122:
+.L3128:
 	.align	2
-.L3121:
+.L3127:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LC150
@@ -19118,90 +19158,90 @@ FtlVpcCheckAndModify:
 	.save {r4, r5, r6, r7, r8, r9, lr}
 	.pad #12
 	movs	r4, #0
-	ldr	r7, .L3136
-	ldr	r1, .L3136+4
-	ldr	r0, .L3136+8
+	ldr	r7, .L3142
+	ldr	r1, .L3142+4
+	ldr	r0, .L3142+8
 	bl	printk
-	ldr	r5, .L3136+12
+	ldr	r5, .L3142+12
 	ldrh	r2, [r7, #2330]
 	movs	r1, #0
 	ldr	r0, [r5, #3364]
 	lsls	r2, r2, #1
 	bl	ftl_memset
-.L3124:
+.L3130:
 	ldr	r3, [r7, #2448]
 	cmp	r4, r3
-	bcs	.L3134
+	bcs	.L3140
 	mov	r0, r4
 	add	r1, sp, #4
 	movs	r2, #0
 	bl	log2phys
 	ldr	r0, [sp, #4]
 	adds	r3, r0, #1
-	beq	.L3125
+	beq	.L3131
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldr	r2, [r5, #3364]
 	ldrh	r3, [r2, r0, lsl #1]
 	adds	r3, r3, #1
 	strh	r3, [r2, r0, lsl #1]	@ movhi
-.L3125:
+.L3131:
 	adds	r4, r4, #1
-	b	.L3124
-.L3134:
-	ldr	r6, .L3136+12
+	b	.L3130
+.L3140:
+	ldr	r6, .L3142+12
 	mov	r8, #0
 	movw	r9, #65535
-.L3127:
+.L3133:
 	ldrh	r3, [r7, #2328]
 	uxth	r4, r8
 	cmp	r3, r4
-	bls	.L3135
+	bls	.L3141
 	ldr	r3, [r5, #296]
 	ldrh	r2, [r3, r4, lsl #1]
 	ldr	r3, [r5, #3364]
 	ldrh	r3, [r3, r4, lsl #1]
 	cmp	r2, r3
-	beq	.L3128
+	beq	.L3134
 	cmp	r2, r9
-	beq	.L3128
+	beq	.L3134
 	ldrh	r1, [r6, #316]
 	cmp	r1, r4
-	beq	.L3128
+	beq	.L3134
 	ldrh	r1, [r6, #412]
 	cmp	r1, r4
-	beq	.L3128
+	beq	.L3134
 	ldrh	r1, [r6, #364]
 	cmp	r1, r4
-	beq	.L3128
-	ldr	r0, .L3136+16
+	beq	.L3134
+	ldr	r0, .L3142+16
 	mov	r1, r4
 	bl	printk
 	ldr	r3, [r6, #296]
 	ldrh	r2, [r3, r4, lsl #1]
-	cbnz	r2, .L3129
+	cbnz	r2, .L3135
 	ldr	r2, [r6, #3364]
 	ldrh	r2, [r2, r4, lsl #1]
 	strh	r2, [r3, r4, lsl #1]	@ movhi
-	b	.L3128
-.L3129:
+	b	.L3134
+.L3135:
 	ldr	r2, [r6, #3364]
 	mov	r0, r4
 	ldrh	r2, [r2, r4, lsl #1]
 	strh	r2, [r3, r4, lsl #1]	@ movhi
 	bl	update_vpc_list
-.L3128:
+.L3134:
 	add	r8, r8, #1
-	b	.L3127
-.L3135:
+	b	.L3133
+.L3141:
 	bl	l2p_flush
 	bl	FtlVpcTblFlush
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L3137:
+.L3143:
 	.align	2
-.L3136:
+.L3142:
 	.word	.LANCHOR0
 	.word	.LANCHOR3+216
 	.word	.LC110
@@ -19218,7 +19258,7 @@ FtlGcScanTempBlk:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 72
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L3192
+	ldr	r3, .L3198
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #76
@@ -19228,35 +19268,35 @@ FtlGcScanTempBlk:
 	mov	r4, r0
 	str	r1, [sp, #20]
 	cmp	r5, r3
-	beq	.L3174
-	cbnz	r5, .L3139
-	b	.L3140
-.L3174:
+	beq	.L3180
+	cbnz	r5, .L3145
+	b	.L3146
+.L3180:
 	movs	r5, #0
-.L3139:
-	ldr	r3, .L3192+4
+.L3145:
+	ldr	r3, .L3198+4
 	ldr	r2, [sp, #20]
 	ldrh	r3, [r3, #2388]
 	cmp	r2, r3
-	bne	.L3141
-.L3140:
+	bne	.L3147
+.L3146:
 	bl	FtlGcPageVarInit
-.L3141:
-	ldr	r6, .L3192+8
+.L3147:
+	ldr	r6, .L3198+8
 	mov	r3, #-1
 	str	r3, [sp, #16]
 	movs	r3, #0
 	str	r3, [sp, #4]
-.L3142:
+.L3148:
 	ldrh	r1, [r4]
 	movw	r3, #65535
 	movs	r2, #0
 	strb	r2, [r4, #8]
 	cmp	r1, r3
-	beq	.L3143
-.L3144:
-	ldr	r10, .L3192+4
-.L3171:
+	beq	.L3149
+.L3150:
+	ldr	r10, .L3198+4
+.L3177:
 	ldr	r3, [r6, #3304]
 	movs	r2, #0
 	ldrh	lr, [r10, #2320]
@@ -19272,13 +19312,13 @@ FtlGcScanTempBlk:
 	str	r3, [sp, #24]
 	ldrh	r3, [r10, #2400]
 	str	r3, [sp, #28]
-.L3145:
+.L3151:
 	uxth	r3, r2
 	cmp	r3, lr
-	bcs	.L3190
+	bcs	.L3196
 	ldrh	r3, [ip, #2]!
 	cmp	r3, r9
-	beq	.L3146
+	beq	.L3152
 	ldr	r1, [sp, #8]
 	orr	r3, r5, r3, lsl #10
 	mla	r1, fp, r7, r1
@@ -19301,24 +19341,24 @@ FtlGcScanTempBlk:
 	bic	r3, r3, #3
 	add	r3, r3, r8
 	str	r3, [r1, #12]
-.L3146:
+.L3152:
 	adds	r2, r2, #1
-	b	.L3145
-.L3190:
+	b	.L3151
+.L3196:
 	ldr	r0, [r6, #3304]
 	mov	r1, r7
 	movs	r2, #0
 	bl	FlashReadPages
 	movs	r3, #0
-.L3189:
+.L3195:
 	str	r3, [sp, #8]
 	ldrh	r3, [sp, #8]
 	cmp	r3, r7
-	bcs	.L3191
+	bcs	.L3197
 	ldr	r3, [sp, #8]
 	mov	r9, #36
 	mul	r9, r9, r3
-	ldr	r3, .L3192+8
+	ldr	r3, .L3198+8
 	ldr	r8, [r3, #3304]
 	add	fp, r8, r9
 	ldr	r3, [fp, #4]
@@ -19327,28 +19367,28 @@ FtlGcScanTempBlk:
 	bl	P2V_plane
 	ldr	r8, [r8, r9]
 	ldr	r3, [fp, #12]
-	ldr	ip, .L3192+4
-	ldr	fp, .L3192+8
+	ldr	ip, .L3198+4
+	ldr	fp, .L3198+8
 	mov	r2, r0
 	cmp	r8, #0
-	bne	.L3151
+	bne	.L3157
 	ldrh	r0, [r3]
 	movw	r1, #65535
 	cmp	r0, r1
-	bne	.L3152
-.L3155:
-	ldrb	r3, [ip, #144]	@ zero_extendqisi2
-	cbz	r3, .L3186
+	bne	.L3158
+.L3161:
+	ldrb	r3, [ip, #148]	@ zero_extendqisi2
+	cbz	r3, .L3192
 	movs	r3, #1
 	str	r3, [fp, #3468]
-	b	.L3143
-.L3152:
+	b	.L3149
+.L3158:
 	ldr	r0, [r3, #8]
 	ldr	r1, [r10, #2448]
 	cmp	r0, r1
-	bls	.L3187
-	b	.L3155
-.L3186:
+	bls	.L3193
+	b	.L3161
+.L3192:
 	ldrh	r1, [r4]
 	ldr	r2, [fp, #296]
 	strh	r3, [r2, r1, lsl #1]	@ movhi
@@ -19357,11 +19397,11 @@ FtlGcScanTempBlk:
 	movw	r3, #65535
 	strh	r3, [r4]	@ movhi
 	strh	r3, [fp, #556]	@ movhi
-	b	.L3188
-.L3187:
-	ldrb	r2, [r10]	@ zero_extendqisi2
+	b	.L3194
+.L3193:
+	ldrb	r2, [r10, #32]	@ zero_extendqisi2
 	cmp	r2, #0
-	beq	.L3159
+	beq	.L3165
 	add	r1, sp, #32
 	mov	r2, r8
 	str	r3, [sp, #24]
@@ -19370,9 +19410,9 @@ FtlGcScanTempBlk:
 	ldr	r2, [sp, #32]
 	ldr	r1, [r3, #12]
 	cmp	r2, r1
-	bne	.L3159
+	bne	.L3165
 	adds	r1, r2, #1
-	beq	.L3159
+	beq	.L3165
 	str	r2, [sp, #40]
 	movs	r1, #1
 	ldr	r2, [r6, #3336]
@@ -19388,17 +19428,17 @@ FtlGcScanTempBlk:
 	add	r9, r9, r1
 	ldr	r0, [sp, #44]
 	ldr	r3, [sp, #24]
-.L3161:
+.L3167:
 	cmp	r8, lr
-	beq	.L3159
+	beq	.L3165
 	ldr	r1, [r9, #8]
 	ldr	r2, [r0, r8, lsl #2]
 	ldr	r1, [r1, r8, lsl #2]
 	cmp	r1, r2
-	beq	.L3162
+	beq	.L3168
 	ldrh	r1, [r4]
 	ldr	r2, [sp, #40]
-	ldr	r0, .L3192+12
+	ldr	r0, .L3198+12
 	bl	printk
 	ldr	r3, [r6, #296]
 	ldrh	r2, [r4]
@@ -19409,47 +19449,47 @@ FtlGcScanTempBlk:
 	movw	r3, #65535
 	strh	r3, [r4]	@ movhi
 	strh	r3, [r6, #556]	@ movhi
-	b	.L3188
-.L3162:
+	b	.L3194
+.L3168:
 	add	r8, r8, #1
-	b	.L3161
-.L3159:
+	b	.L3167
+.L3165:
 	ldr	r0, [r3, #12]
 	ldr	r2, [r3, #8]
 	ldr	r1, [sp, #12]
 	bl	FtlGcUpdatePage
 	ldr	r3, [sp, #8]
 	adds	r3, r3, #1
-	b	.L3189
-.L3151:
+	b	.L3195
+.L3157:
 	ldr	r2, [sp, #12]
-	ldr	r0, .L3192+16
+	ldr	r0, .L3198+16
 	ldrh	r1, [r4]
 	str	ip, [sp, #8]
 	bl	printk
 	ldrh	r3, [r4]
 	ldr	ip, [sp, #8]
 	ldr	r2, [ip, #2244]
-	cbnz	r2, .L3165
-	ldrb	r2, [ip, #144]	@ zero_extendqisi2
-	cbz	r2, .L3166
-.L3165:
+	cbnz	r2, .L3171
+	ldrb	r2, [ip, #148]	@ zero_extendqisi2
+	cbz	r2, .L3172
+.L3171:
 	ldr	r2, [fp, #232]
 	ldrh	r2, [r2, r3, lsl #1]
 	cmp	r2, #159
-	bls	.L3167
-.L3166:
+	bls	.L3173
+.L3172:
 	ldr	r2, [fp, #3304]
 	ldr	r2, [r2, r9]
 	adds	r2, r2, #1
-	bne	.L3168
-.L3167:
+	bne	.L3174
+.L3173:
 	ldr	r2, [fp, #3304]
 	add	r9, r9, r2
 	ldr	r2, [r9, #4]
 	str	r2, [sp, #16]
-.L3168:
-	ldr	r2, .L3192+8
+.L3174:
+	ldr	r2, .L3198+8
 	movs	r1, #0
 	ldr	r2, [r2, #296]
 	strh	r1, [r2, r3, lsl #1]	@ movhi
@@ -19457,11 +19497,11 @@ FtlGcScanTempBlk:
 	bl	INSERT_FREE_LIST
 	movw	r3, #65535
 	strh	r3, [r4]	@ movhi
-.L3188:
+.L3194:
 	bl	FtlGcPageVarInit
 	movs	r5, #0
-	b	.L3142
-.L3191:
+	b	.L3148
+.L3197:
 	ldr	r3, [sp, #4]
 	adds	r5, r5, #1
 	ldr	r2, [sp, #20]
@@ -19469,28 +19509,28 @@ FtlGcScanTempBlk:
 	uxth	r5, r5
 	cmp	r3, r2
 	str	r3, [sp, #4]
-	bcs	.L3170
-.L3172:
+	bcs	.L3176
+.L3178:
 	ldrh	r3, [r10, #2388]
 	cmp	r3, r5
-	bhi	.L3171
+	bhi	.L3177
 	movs	r2, #0
-	b	.L3143
-.L3170:
-	ldr	r2, .L3192
+	b	.L3149
+.L3176:
+	ldr	r2, .L3198
 	movw	r1, #65535
 	ldrh	r3, [r2, #3448]
 	cmp	r3, r1
-	beq	.L3172
+	beq	.L3178
 	ldr	r1, [sp, #4]
 	add	r3, r3, r1
 	strh	r3, [r2, #3448]	@ movhi
 	ldrh	r3, [r10, #2388]
 	cmp	r3, r5
-	bls	.L3172
-	b	.L3173
-.L3143:
-	ldr	r3, .L3192
+	bls	.L3178
+	b	.L3179
+.L3149:
+	ldr	r3, .L3198
 	movw	r1, #65535
 	strh	r5, [r4, #2]	@ movhi
 	mov	r0, r4
@@ -19498,14 +19538,14 @@ FtlGcScanTempBlk:
 	strh	r1, [r3, #3448]	@ movhi
 	mov	r1, r5
 	bl	ftl_sb_update_avl_pages
-.L3173:
+.L3179:
 	ldr	r0, [sp, #16]
 	add	sp, sp, #76
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3193:
+.L3199:
 	.align	2
-.L3192:
+.L3198:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR2
@@ -19526,23 +19566,23 @@ FtlReadRefresh:
 	.save {r4, r5, r6, r7, r8, r9, lr}
 	.pad #44
 	sub	sp, sp, #44
-	ldr	r5, .L3210
-	ldr	r4, .L3210+4
+	ldr	r5, .L3216
+	ldr	r4, .L3216+4
 	ldr	r9, [r5, #688]
 	mov	r6, r5
 	cmp	r9, #0
-	beq	.L3195
+	beq	.L3201
 	ldr	r2, [r5, #692]
 	ldr	r3, [r4, #2448]
 	cmp	r2, r3
-	bcs	.L3196
+	bcs	.L3202
 	mov	r5, #2048
 	mov	r7, r6
-.L3201:
+.L3207:
 	ldr	r0, [r6, #692]
 	ldr	r3, [r4, #2448]
 	cmp	r0, r3
-	bcs	.L3200
+	bcs	.L3206
 	mov	r1, sp
 	movs	r2, #0
 	bl	log2phys
@@ -19551,7 +19591,7 @@ FtlReadRefresh:
 	str	r3, [r7, #692]
 	ldr	r2, [sp]
 	adds	r1, r2, #1
-	beq	.L3199
+	beq	.L3205
 	add	r0, sp, #40
 	str	r2, [sp, #8]
 	movs	r1, #1
@@ -19563,26 +19603,26 @@ FtlReadRefresh:
 	bl	FlashReadPages
 	ldr	r3, [sp, #4]
 	cmp	r3, #256
-	bne	.L3200
+	bne	.L3206
 	ldr	r0, [sp]
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	bl	FtlGcRefreshBlock
-.L3200:
+.L3206:
 	mov	r0, #-1
-	b	.L3203
-.L3199:
+	b	.L3209
+.L3205:
 	subs	r5, r5, #1
-	bne	.L3201
-	b	.L3200
-.L3196:
+	bne	.L3207
+	b	.L3206
+.L3202:
 	ldr	r3, [r5, #476]
 	movs	r0, #0
 	str	r0, [r5, #688]
 	str	r0, [r5, #692]
 	str	r3, [r5, #684]
-	b	.L3203
-.L3195:
+	b	.L3209
+.L3201:
 	ldr	r8, [r5, #476]
 	ldr	r1, [r5, #528]
 	ldr	r7, [r5, #684]
@@ -19594,7 +19634,7 @@ FtlReadRefresh:
 	movhi	r4, #31
 	movls	r4, #63
 	cmp	r7, r2
-	bhi	.L3205
+	bhi	.L3211
 	mov	r0, #1000
 	lsrs	r1, r1, #10
 	adds	r1, r1, #1
@@ -19602,14 +19642,14 @@ FtlReadRefresh:
 	bl	__aeabi_uidiv
 	add	r0, r0, r7
 	cmp	r0, r8
-	bcc	.L3205
+	bcc	.L3211
 	ldrh	r3, [r5, #268]
 	ands	r0, r4, r3
-	bne	.L3207
+	bne	.L3213
 	ldr	r2, [r5, #708]
 	cmp	r2, r3
-	beq	.L3203
-.L3205:
+	beq	.L3209
+.L3211:
 	ldrh	r3, [r6, #268]
 	movs	r0, #0
 	str	r8, [r6, #684]
@@ -19617,16 +19657,16 @@ FtlReadRefresh:
 	str	r3, [r6, #708]
 	movs	r3, #1
 	str	r3, [r6, #688]
-	b	.L3203
-.L3207:
+	b	.L3209
+.L3213:
 	mov	r0, r9
-.L3203:
+.L3209:
 	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L3211:
+.L3217:
 	.align	2
-.L3210:
+.L3216:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -19643,25 +19683,25 @@ FtlGcFreeTempBlock:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r5, .L3250
-	ldr	r6, .L3250+4
+	ldr	r5, .L3256
+	ldr	r6, .L3256+4
 	ldr	r2, [r5, #224]
 	mov	r4, r5
 	ldrh	r1, [r6, #2388]
 	cmp	r2, #0
-	bne	.L3248
+	bne	.L3254
 	ldrh	r5, [r5, #412]
 	movw	r7, #65535
 	cmp	r5, r7
-	bne	.L3215
-.L3224:
+	bne	.L3221
+.L3230:
 	ldrh	r2, [r4, #412]
 	movw	r3, #65535
 	movs	r7, #0
-	ldr	r5, .L3250
+	ldr	r5, .L3256
 	cmp	r2, r3
 	str	r7, [r4, #3468]
-	beq	.L3248
+	beq	.L3254
 	bl	FtlCacheWriteBack
 	ldrb	r0, [r5, #419]	@ zero_extendqisi2
 	ldrh	r3, [r6, #2388]
@@ -19674,40 +19714,40 @@ FtlGcFreeTempBlock:
 	ldrh	r2, [r5, #1172]
 	add	r3, r3, r2
 	str	r3, [r5, #496]
-	b	.L3225
-.L3215:
-	cbz	r0, .L3218
-	ldr	r3, .L3250+8
+	b	.L3231
+.L3221:
+	cbz	r0, .L3224
+	ldr	r3, .L3256+8
 	ldrh	r0, [r3, #3448]
 	cmp	r0, r7
-	beq	.L3219
-.L3220:
+	beq	.L3225
+.L3226:
 	movs	r1, #2
-	b	.L3218
-.L3219:
+	b	.L3224
+.L3225:
 	strh	r2, [r3, #3448]	@ movhi
 	ldrh	r3, [r4, #312]
 	cmp	r3, #17
-	bhi	.L3220
-.L3218:
-	ldr	r7, .L3250
+	bhi	.L3226
+.L3224:
+	ldr	r7, .L3256
 	add	r0, r7, #412
 	bl	FtlGcScanTempBlk
 	str	r0, [sp, #4]
 	adds	r0, r0, #1
-	beq	.L3221
+	beq	.L3227
 	ldr	r2, [r7, #232]
 	ldrh	r3, [r2, r5, lsl #1]
 	cmp	r3, #4
-	bls	.L3222
+	bls	.L3228
 	subs	r3, r3, #5
 	movs	r0, #1
 	strh	r3, [r2, r5, lsl #1]	@ movhi
 	bl	FtlEctTblFlush
-.L3222:
+.L3228:
 	ldr	r3, [r4, #3468]
-	ldr	r2, .L3250
-	cbnz	r3, .L3223
+	ldr	r2, .L3256
+	cbnz	r3, .L3229
 	ldr	r0, [sp, #4]
 	ldr	r3, [r2, #704]
 	ubfx	r0, r0, #10, #16
@@ -19715,42 +19755,42 @@ FtlGcFreeTempBlock:
 	str	r3, [r2, #704]
 	bl	FtlBbmMapBadBlock
 	bl	FtlBbmTblFlush
-.L3223:
+.L3229:
 	movs	r3, #0
 	str	r3, [r4, #3468]
-	b	.L3235
-.L3221:
-	ldr	r3, .L3250+8
+	b	.L3241
+.L3227:
+	ldr	r3, .L3256+8
 	ldrh	r2, [r3, #3448]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L3235
-	b	.L3224
-.L3228:
+	bne	.L3241
+	b	.L3230
+.L3234:
 	ldr	r3, [r9, #4]
 	cmp	r0, r3
-	bne	.L3246
-.L3227:
+	bne	.L3252
+.L3233:
 	adds	r7, r7, #1
-.L3225:
+.L3231:
 	ldrh	r3, [r4, #1172]
 	uxth	r8, r7
 	cmp	r3, r8
-	bls	.L3249
+	bls	.L3255
 	mul	r8, r10, r8
 	ldr	fp, [r5, #1168]
 	ldr	r3, [r6, #2448]
 	add	r9, fp, r8
 	ldr	r0, [r9, #8]
 	cmp	r0, r3
-	bcs	.L3246
+	bcs	.L3252
 	add	r1, sp, #4
 	movs	r2, #0
 	bl	log2phys
 	ldr	r3, [fp, r8]
 	ldr	r0, [sp, #4]
 	cmp	r0, r3
-	bne	.L3228
+	bne	.L3234
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	add	r1, r9, #4
@@ -19759,31 +19799,31 @@ FtlGcFreeTempBlock:
 	ldr	r0, [r9, #8]
 	bl	log2phys
 	mov	r0, r8
-	b	.L3247
-.L3246:
+	b	.L3253
+.L3252:
 	ldrh	r0, [r5, #412]
-.L3247:
+.L3253:
 	bl	decrement_vpc_count
-	b	.L3227
-.L3249:
+	b	.L3233
+.L3255:
 	movw	r0, #65535
 	bl	decrement_vpc_count
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L3230
-	ldr	r3, .L3250
-	ldr	r0, .L3250+12
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbz	r3, .L3236
+	ldr	r3, .L3256
+	ldr	r0, .L3256+12
 	ldrh	r1, [r3, #412]
 	bl	printk
-.L3230:
+.L3236:
 	ldrh	r0, [r4, #412]
 	ldr	r3, [r4, #296]
 	ldrh	r3, [r3, r0, lsl #1]
-	cbz	r3, .L3231
+	cbz	r3, .L3237
 	bl	INSERT_DATA_LIST
-	b	.L3232
-.L3231:
+	b	.L3238
+.L3237:
 	bl	INSERT_FREE_LIST
-.L3232:
+.L3238:
 	movw	r8, #65535
 	movs	r5, #0
 	strh	r8, [r4, #412]	@ movhi
@@ -19792,46 +19832,46 @@ FtlGcFreeTempBlock:
 	bl	l2p_flush
 	bl	FtlVpcTblFlush
 	ldr	r3, [r6, #2244]
-	ldr	r7, .L3250
+	ldr	r7, .L3256
 	strh	r8, [r4, #556]	@ movhi
-	cbz	r3, .L3233
+	cbz	r3, .L3239
 	ldr	r3, [r7, #532]
 	cmp	r3, #39
-	bhi	.L3233
+	bhi	.L3239
 	ldrh	r3, [r7, #536]
 	ldrh	r2, [r7, #312]
 	cmp	r2, r3
-	bcs	.L3248
+	bcs	.L3254
 	lsls	r3, r3, #1
 	strh	r3, [r7, #1120]	@ movhi
-	b	.L3248
-.L3233:
+	b	.L3254
+.L3239:
 	ldrh	r3, [r4, #536]
 	ldrh	r1, [r4, #312]
-	ldr	r2, .L3250
+	ldr	r2, .L3256
 	add	r0, r3, r3, lsl #1
 	cmp	r1, r0, asr #2
-	ble	.L3248
-	ldrb	r0, [r6, #144]	@ zero_extendqisi2
-	cbz	r0, .L3234
+	ble	.L3254
+	ldrb	r0, [r6, #148]	@ zero_extendqisi2
+	cbz	r0, .L3240
 	subs	r3, r3, #2
 	strh	r3, [r2, #1120]	@ movhi
-.L3248:
+.L3254:
 	movs	r0, #0
-	b	.L3214
-.L3234:
+	b	.L3220
+.L3240:
 	movs	r3, #20
 	strh	r3, [r2, #1120]	@ movhi
-	b	.L3214
-.L3235:
+	b	.L3220
+.L3241:
 	movs	r0, #1
-.L3214:
+.L3220:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3251:
+.L3257:
 	.align	2
-.L3250:
+.L3256:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	.LANCHOR1
@@ -19849,26 +19889,26 @@ FtlGcPageRecovery:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
-	ldr	r5, .L3254
-	ldr	r4, .L3254+4
+	ldr	r5, .L3260
+	ldr	r4, .L3260+4
 	ldrh	r1, [r5, #2388]
 	add	r0, r4, #412
 	bl	FtlGcScanTempBlk
 	ldrh	r2, [r4, #414]
 	ldrh	r3, [r5, #2388]
 	cmp	r2, r3
-	bcc	.L3252
+	bcc	.L3258
 	add	r0, r4, #3408
 	bl	FtlMapBlkWriteDumpData
 	movs	r0, #0
 	bl	FtlGcFreeTempBlock
 	movs	r3, #0
 	str	r3, [r4, #3468]
-.L3252:
+.L3258:
 	pop	{r3, r4, r5, pc}
-.L3255:
+.L3261:
 	.align	2
-.L3254:
+.L3260:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.fnend
@@ -19885,12 +19925,12 @@ FtlPowerLostRecovery:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	movs	r5, #0
-	ldr	r4, .L3257
-	ldr	r3, .L3257+4
+	ldr	r4, .L3263
+	ldr	r3, .L3263+4
 	add	r6, r4, #316
 	add	r4, r4, #364
 	mov	r0, r6
-	str	r5, [r3, #844]
+	str	r5, [r3, #852]
 	bl	FtlRecoverySuperblock
 	mov	r0, r6
 	bl	FtlSlcSuperblockCheck
@@ -19903,9 +19943,9 @@ FtlPowerLostRecovery:
 	bl	decrement_vpc_count
 	mov	r0, r5
 	pop	{r4, r5, r6, pc}
-.L3258:
+.L3264:
 	.align	2
-.L3257:
+.L3263:
 	.word	.LANCHOR2
 	.word	.LANCHOR5
 	.fnend
@@ -19922,26 +19962,26 @@ FtlSysBlkInit:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	movs	r3, #0
-	ldr	r5, .L3276
+	ldr	r5, .L3282
 	movw	r7, #65535
-	ldr	r6, .L3276+4
-	ldr	r4, .L3276+8
+	ldr	r6, .L3282+4
+	ldr	r4, .L3282+8
 	ldrh	r0, [r5, #2324]
-	strh	r3, [r6, #842]	@ movhi
-	strh	r7, [r6, #840]	@ movhi
+	strh	r3, [r6, #850]	@ movhi
+	strh	r7, [r6, #848]	@ movhi
 	bl	FtlFreeSysBlkQueueInit
 	bl	FtlScanSysBlk
 	ldrh	r3, [r4, #540]
 	cmp	r3, r7
-	bne	.L3260
-.L3262:
+	bne	.L3266
+.L3268:
 	mov	r7, #-1
-	b	.L3261
-.L3260:
+	b	.L3267
+.L3266:
 	bl	FtlLoadSysInfo
 	mov	r7, r0
 	cmp	r0, #0
-	bne	.L3262
+	bne	.L3268
 	bl	FtlLoadMapInfo
 	bl	FtlLoadVonderInfo
 	bl	Ftl_load_ext_data
@@ -19955,27 +19995,27 @@ FtlSysBlkInit:
 	ldr	r2, [r4, #460]
 	movs	r0, #12
 	mov	r3, r7
-.L3263:
+.L3269:
 	cmp	r3, r1
-	bge	.L3268
+	bge	.L3274
 	mla	lr, r0, r3, r2
 	ldr	lr, [lr, #4]
 	cmp	lr, #0
-	bge	.L3264
-.L3268:
+	bge	.L3270
+.L3274:
 	ldrh	r2, [r4, #268]
 	cmp	r3, r1
 	add	r2, r2, #1
 	strh	r2, [r4, #268]	@ movhi
-	bge	.L3275
-	b	.L3265
-.L3264:
+	bge	.L3281
+	b	.L3271
+.L3270:
 	adds	r3, r3, #1
-	b	.L3263
-.L3275:
-	ldrh	r3, [r6, #842]
-	cbz	r3, .L3269
-.L3265:
+	b	.L3269
+.L3281:
+	ldrh	r3, [r6, #850]
+	cbz	r3, .L3275
+.L3271:
 	ldrh	r1, [r4, #316]
 	ldr	r2, [r4, #296]
 	ldrh	r0, [r4, #320]
@@ -20003,16 +20043,16 @@ FtlSysBlkInit:
 	bl	l2p_flush
 	bl	FtlVpcTblFlush
 	bl	FtlVpcTblFlush
-.L3269:
+.L3275:
 	ldrh	r0, [r4, #316]
 	movw	r3, #65535
-	ldr	r6, .L3276+8
+	ldr	r6, .L3282+8
 	cmp	r0, r3
-	beq	.L3270
+	beq	.L3276
 	ldrh	r3, [r6, #320]
-	cbnz	r3, .L3270
+	cbnz	r3, .L3276
 	ldrh	r3, [r6, #368]
-	cbnz	r3, .L3270
+	cbnz	r3, .L3276
 	bl	FtlGcRefreshOpenBlock
 	ldrh	r0, [r6, #364]
 	bl	FtlGcRefreshOpenBlock
@@ -20021,20 +20061,20 @@ FtlSysBlkInit:
 	bl	allocate_new_data_superblock
 	add	r0, r6, #364
 	bl	allocate_new_data_superblock
-.L3270:
-	ldrb	r3, [r5]	@ zero_extendqisi2
-	cbnz	r3, .L3271
+.L3276:
+	ldrb	r3, [r5, #32]	@ zero_extendqisi2
+	cbnz	r3, .L3277
 	ldrh	r3, [r4, #268]
 	lsls	r3, r3, #27
-	bne	.L3261
-.L3271:
+	bne	.L3267
+.L3277:
 	bl	FtlVpcCheckAndModify
-.L3261:
+.L3267:
 	mov	r0, r7
 	pop	{r3, r4, r5, r6, r7, pc}
-.L3277:
+.L3283:
 	.align	2
-.L3276:
+.L3282:
 	.word	.LANCHOR0
 	.word	.LANCHOR5
 	.word	.LANCHOR2
@@ -20052,11 +20092,11 @@ FtlLowFormat:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r4, .L3312
+	ldr	r4, .L3318
 	ldr	r6, [r4, #224]
 	cmp	r6, #0
-	bne	.L3280
-	ldr	r5, .L3312+4
+	bne	.L3286
+	ldr	r5, .L3318+4
 	mov	r1, r6
 	ldr	r0, [r4, #3392]
 	ldrh	r2, [r5, #2424]
@@ -20072,33 +20112,33 @@ FtlLowFormat:
 	str	r6, [r4, #512]
 	bl	FtlFreeSysBlkQueueInit
 	bl	FtlLoadBbt
-	cbz	r0, .L3281
+	cbz	r0, .L3287
 	bl	FtlMakeBbt
-.L3281:
-	ldr	r0, .L3312+8
+.L3287:
+	ldr	r0, .L3318+8
 	movs	r2, #0
-.L3282:
+.L3288:
 	ldrh	r1, [r5, #2394]
 	uxth	r3, r2
 	adds	r2, r2, #1
 	cmp	r3, r1, lsl #7
-	bge	.L3309
+	bge	.L3315
 	ldr	r6, [r4, #3332]
 	mvns	r1, r3
 	orr	r1, r3, r1, lsl #16
 	str	r1, [r6, r3, lsl #2]
 	ldr	r1, [r4, #3336]
 	str	r0, [r1, r3, lsl #2]
-	b	.L3282
-.L3309:
-	ldr	r3, .L3312+4
+	b	.L3288
+.L3315:
+	ldr	r3, .L3318+4
 	movs	r6, #0
 	ldrh	r7, [r3, #2328]
-.L3284:
+.L3290:
 	ldrh	r3, [r5, #2330]
-	ldr	r8, .L3312+4
+	ldr	r8, .L3318+4
 	cmp	r3, r7
-	bls	.L3310
+	bls	.L3316
 	mov	r0, r7
 	movs	r1, #1
 	bl	FtlLowFormatEraseBlock
@@ -20106,12 +20146,12 @@ FtlLowFormat:
 	uxth	r7, r7
 	add	r0, r0, r6
 	uxth	r6, r0
-	b	.L3284
-.L3310:
+	b	.L3290
+.L3316:
 	ldrh	r1, [r8, #2320]
 	subs	r3, r6, #3
 	cmp	r3, r1, lsl #1
-	blt	.L3286
+	blt	.L3292
 	mov	r0, r6
 	movs	r6, #0
 	bl	__aeabi_uidiv
@@ -20122,10 +20162,10 @@ FtlLowFormat:
 	ldrh	r0, [r8, #2324]
 	bl	FtlFreeSysBlkQueueInit
 	ldrh	r7, [r8, #2328]
-.L3287:
+.L3293:
 	ldrh	r3, [r5, #2330]
 	cmp	r3, r7
-	bls	.L3286
+	bls	.L3292
 	mov	r0, r7
 	movs	r1, #1
 	bl	FtlLowFormatEraseBlock
@@ -20133,23 +20173,23 @@ FtlLowFormat:
 	uxth	r7, r7
 	add	r0, r0, r6
 	uxth	r6, r0
-	b	.L3287
-.L3286:
+	b	.L3293
+.L3292:
 	mov	r8, #0
 	mov	r7, r8
-.L3289:
+.L3295:
 	ldrh	r3, [r5, #2328]
 	uxth	r0, r8
-	ldr	fp, .L3312+4
+	ldr	fp, .L3318+4
 	add	r8, r8, #1
 	cmp	r3, r0
-	bls	.L3311
+	bls	.L3317
 	movs	r1, #0
 	bl	FtlLowFormatEraseBlock
 	add	r0, r0, r7
 	uxth	r7, r0
-	b	.L3289
-.L3311:
+	b	.L3295
+.L3317:
 	ldr	r2, [fp, #2332]
 	ldrh	r3, [fp, #2330]
 	ldrh	r8, [fp, #2320]
@@ -20167,19 +20207,19 @@ FtlLowFormat:
 	ldr	r2, [sp, #4]
 	mul	r3, r3, r8
 	cmp	r7, r3
-	ble	.L3291
+	ble	.L3297
 	subs	r0, r2, r7
 	mov	r1, r8
 	bl	__aeabi_uidiv
-	ldr	r3, .L3312
+	ldr	r3, .L3318
 	str	r0, [fp, #2448]
 	lsrs	r0, r0, #5
 	adds	r0, r0, #24
 	strh	r0, [r3, #536]	@ movhi
-.L3291:
+.L3297:
 	ldr	r3, [r5, #2244]
 	cmp	r3, #1
-	bne	.L3292
+	bne	.L3298
 	mov	r0, r7
 	mov	r1, r8
 	bl	__aeabi_uidiv
@@ -20187,9 +20227,9 @@ FtlLowFormat:
 	uxtah	r0, fp, r0
 	add	fp, fp, r0, asr #2
 	strh	fp, [r4, #536]	@ movhi
-.L3292:
-	ldrb	r3, [r5, #144]	@ zero_extendqisi2
-	cbz	r3, .L3293
+.L3298:
+	ldrb	r3, [r5, #148]	@ zero_extendqisi2
+	cbz	r3, .L3299
 	mov	r0, r7
 	mov	r1, r8
 	bl	__aeabi_uidiv
@@ -20197,9 +20237,9 @@ FtlLowFormat:
 	uxtah	r0, fp, r0
 	add	fp, fp, r0, asr #2
 	strh	fp, [r4, #536]	@ movhi
-.L3293:
+.L3299:
 	ldrh	r3, [r5, #2382]
-	cbz	r3, .L3295
+	cbz	r3, .L3301
 	ldrh	r2, [r4, #536]
 	add	r2, r2, r3, lsr #1
 	strh	r2, [r4, #536]	@ movhi
@@ -20207,20 +20247,20 @@ FtlLowFormat:
 	cmp	r2, r7
 	itttt	gt
 	addgt	r3, r3, #32
-	ldrgt	r2, .L3312+4
+	ldrgt	r2, .L3318+4
 	addgt	r3, r3, r9
 	strgt	r10, [r2, #2448]
 	itt	gt
-	ldrgt	r2, .L3312
+	ldrgt	r2, .L3318
 	strhgt	r3, [r2, #536]	@ movhi
-.L3295:
+.L3301:
 	ldrh	r2, [r4, #536]
 	ldr	r3, [r5, #2448]
 	subs	r3, r3, r2
 	ldrh	r2, [r5, #2388]
 	mul	r3, r8, r3
-	ldr	r8, .L3312+20
-	str	r3, [r8, #1284]
+	ldr	r8, .L3318+20
+	str	r3, [r8, #1292]
 	muls	r3, r2, r3
 	ldrh	r2, [r5, #2394]
 	str	r3, [r5, #2448]
@@ -20232,11 +20272,11 @@ FtlLowFormat:
 	ldrh	r3, [r5, #2402]
 	add	r3, r3, r2, lsr #3
 	cmp	r1, r3
-	bls	.L3297
-	ldr	r0, .L3312+12
+	bls	.L3303
+	ldr	r0, .L3318+12
 	lsrs	r2, r2, #5
 	bl	printk
-.L3297:
+.L3303:
 	ldrh	r2, [r5, #2330]
 	movs	r1, #0
 	ldr	r0, [r4, #296]
@@ -20259,21 +20299,21 @@ FtlLowFormat:
 	strh	r6, [r4, #556]	@ movhi
 	strb	r3, [r4, #324]
 	bl	ftl_memset
-	ldr	r7, .L3312
-.L3298:
-	ldr	r5, .L3312
+	ldr	r7, .L3318
+.L3304:
+	ldr	r5, .L3318
 	add	r0, r5, #316
 	bl	make_superblock
 	ldrb	r3, [r4, #323]	@ zero_extendqisi2
 	ldrh	r2, [r4, #316]
-	cbnz	r3, .L3299
+	cbnz	r3, .L3305
 	ldr	r3, [r7, #296]
 	strh	r6, [r3, r2, lsl #1]	@ movhi
 	ldrh	r3, [r7, #316]
 	adds	r3, r3, #1
 	strh	r3, [r7, #316]	@ movhi
-	b	.L3298
-.L3299:
+	b	.L3304
+.L3305:
 	ldr	r3, [r5, #508]
 	movw	r7, #65535
 	ldrh	r1, [r5, #320]
@@ -20290,20 +20330,20 @@ FtlLowFormat:
 	strh	r3, [r5, #364]	@ movhi
 	movs	r3, #1
 	strb	r3, [r5, #372]
-.L3300:
-	ldr	r6, .L3312
+.L3306:
+	ldr	r6, .L3318
 	add	r0, r6, #364
 	bl	make_superblock
 	ldrb	r3, [r4, #371]	@ zero_extendqisi2
 	ldrh	r2, [r4, #364]
-	cbnz	r3, .L3301
+	cbnz	r3, .L3307
 	ldr	r3, [r5, #296]
 	strh	r7, [r3, r2, lsl #1]	@ movhi
 	ldrh	r3, [r5, #364]
 	adds	r3, r3, #1
 	strh	r3, [r5, #364]	@ movhi
-	b	.L3300
-.L3301:
+	b	.L3306
+.L3307:
 	ldr	r3, [r6, #508]
 	movw	r4, #65535
 	ldrh	r1, [r6, #368]
@@ -20316,7 +20356,7 @@ FtlLowFormat:
 	bl	FtlFreeSysBlkQueueOut
 	movs	r3, #0
 	strh	r3, [r6, #542]	@ movhi
-	ldr	r3, [r8, #1284]
+	ldr	r3, [r8, #1292]
 	strh	r4, [r6, #544]	@ movhi
 	strh	r3, [r6, #546]	@ movhi
 	ldr	r3, [r6, #508]
@@ -20326,18 +20366,18 @@ FtlLowFormat:
 	strh	r0, [r6, #540]	@ movhi
 	bl	FtlVpcTblFlush
 	bl	FtlSysBlkInit
-	cbnz	r0, .L3280
-	ldr	r3, .L3312+16
+	cbnz	r0, .L3286
+	ldr	r3, .L3318+16
 	movs	r2, #1
 	str	r2, [r3, #504]
-.L3280:
+.L3286:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3313:
+.L3319:
 	.align	2
-.L3312:
+.L3318:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.word	168778952
@@ -20358,25 +20398,25 @@ FtlReInitForSDUpdata:
 	push	{r0, r1, r2, r3, r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	.pad #16
-	ldr	r4, .L3342
-	ldrb	r3, [r4, #144]	@ zero_extendqisi2
-	cbz	r3, .L3315
-.L3317:
+	ldr	r4, .L3348
+	ldrb	r3, [r4, #148]	@ zero_extendqisi2
+	cbz	r3, .L3321
+.L3323:
 	movs	r0, #0
-	b	.L3316
-.L3315:
-	ldr	r5, .L3342+4
+	b	.L3322
+.L3321:
+	ldr	r5, .L3348+4
 	ldr	r0, [r5, #1180]
 	bl	FlashInit
 	cmp	r0, #0
-	bne	.L3317
+	bne	.L3323
 	bl	FlashLoadFactorBbt
-	cbz	r0, .L3318
+	cbz	r0, .L3324
 	bl	FlashMakeFactorBbt
-.L3318:
-	ldr	r0, [r5, #1212]
+.L3324:
+	ldr	r0, [r5, #1220]
 	bl	FlashReadIdbDataRaw
-	cbz	r0, .L3319
+	cbz	r0, .L3325
 	movs	r1, #0
 	movs	r2, #16
 	mov	r0, sp
@@ -20385,7 +20425,7 @@ FtlReInitForSDUpdata:
 	movs	r3, #0
 	mov	r2, r3
 	ldr	r1, [sp]
-.L3320:
+.L3326:
 	lsl	r5, r6, r2
 	adds	r0, r3, #1
 	tst	r5, r1
@@ -20393,12 +20433,12 @@ FtlReInitForSDUpdata:
 	it	ne
 	movne	r3, r0
 	cmp	r2, #16
-	bne	.L3320
+	bne	.L3326
 	cmp	r3, #6
-	bls	.L3338
+	bls	.L3344
 	movs	r2, #0
 	movs	r6, #1
-.L3323:
+.L3329:
 	lsl	r5, r6, r2
 	adds	r0, r3, #1
 	tst	r5, r1
@@ -20406,59 +20446,59 @@ FtlReInitForSDUpdata:
 	it	ne
 	movne	r3, r0
 	cmp	r2, #24
-	bne	.L3323
+	bne	.L3329
 	cmp	r3, #17
-	bhi	.L3324
-.L3338:
-	strb	r2, [r4, #1]
-	b	.L3322
-.L3324:
+	bhi	.L3330
+.L3344:
+	strb	r2, [r4, #33]
+	b	.L3328
+.L3330:
 	movs	r3, #36
-	strb	r3, [r4, #1]
-.L3322:
-	ldrb	r3, [r4, #1]	@ zero_extendqisi2
-	strh	r3, [r4, #142]	@ movhi
-.L3319:
-	ldr	r1, .L3342+8
-	ldr	r0, .L3342+12
+	strb	r3, [r4, #33]
+.L3328:
+	ldrb	r3, [r4, #33]	@ zero_extendqisi2
+	strh	r3, [r4, #146]	@ movhi
+.L3325:
+	ldr	r1, .L3348+8
+	ldr	r0, .L3348+12
 	bl	printk
-	ldr	r0, .L3342+16
+	ldr	r0, .L3348+16
 	bl	FtlConstantsInit
 	bl	FtlVariablesInit
 	ldrh	r0, [r4, #2324]
 	bl	FtlFreeSysBlkQueueInit
 	movs	r4, #1
-.L3325:
+.L3331:
 	bl	FtlLoadBbt
-	cbz	r0, .L3326
-.L3340:
+	cbz	r0, .L3332
+.L3346:
 	bl	FtlLowFormat
 	cmp	r4, #3
-	bhi	.L3341
+	bhi	.L3347
 	adds	r4, r4, #1
-	b	.L3325
-.L3341:
+	b	.L3331
+.L3347:
 	mov	r0, #-1
-	b	.L3316
-.L3326:
+	b	.L3322
+.L3332:
 	bl	FtlSysBlkInit
 	cmp	r0, #0
-	bne	.L3340
-	ldr	r3, .L3342+20
+	bne	.L3346
+	ldr	r3, .L3348+20
 	movs	r2, #1
 	str	r2, [r3, #504]
-.L3316:
+.L3322:
 	add	sp, sp, #16
 	@ sp needed
 	pop	{r4, r5, r6, pc}
-.L3343:
+.L3349:
 	.align	2
-.L3342:
+.L3348:
 	.word	.LANCHOR0
 	.word	.LANCHOR4
 	.word	.LC77
 	.word	.LC76
-	.word	.LANCHOR0+116
+	.word	.LANCHOR0+120
 	.word	.LANCHOR1
 	.fnend
 	.size	FtlReInitForSDUpdata, .-FtlReInitForSDUpdata
@@ -20473,37 +20513,37 @@ Ftl_gc_temp_data_write_back:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
-	ldr	r5, .L3360
+	ldr	r5, .L3366
 	ldr	r3, [r5, #224]
-	cbz	r3, .L3345
-.L3348:
+	cbz	r3, .L3351
+.L3354:
 	movs	r0, #0
 	pop	{r4, r5, r6, r7, r8, pc}
-.L3345:
-	ldr	r3, .L3360+4
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbz	r3, .L3347
+.L3351:
+	ldr	r3, .L3366+4
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbz	r3, .L3353
 	ldr	r3, [r5, #1136]
 	lsls	r3, r3, #31
-	bpl	.L3347
+	bpl	.L3353
 	ldrh	r3, [r5, #416]
 	cmp	r3, #0
-	bne	.L3348
-.L3347:
+	bne	.L3354
+.L3353:
 	movs	r2, #0
 	ldr	r0, [r5, #3308]
 	ldr	r1, [r5, #1136]
 	movs	r6, #0
 	mov	r3, r2
-	ldr	r7, .L3360
+	ldr	r7, .L3366
 	bl	FlashProgPages
 	mov	r8, #36
-.L3349:
+.L3355:
 	ldr	r1, [r5, #1136]
 	uxth	r3, r6
-	ldr	r4, .L3360
+	ldr	r4, .L3366
 	cmp	r3, r1
-	bcs	.L3359
+	bcs	.L3365
 	mul	r3, r8, r3
 	ldr	r0, [r7, #3308]
 	adds	r6, r6, #1
@@ -20511,7 +20551,7 @@ Ftl_gc_temp_data_write_back:
 	ldr	r0, [r0, r3]
 	ldr	r2, [r1, #12]
 	cmp	r0, #-1
-	bne	.L3350
+	bne	.L3356
 	ldrh	r1, [r4, #412]
 	movs	r5, #0
 	ldr	r2, [r4, #296]
@@ -20527,29 +20567,29 @@ Ftl_gc_temp_data_write_back:
 	bl	FtlBbmMapBadBlock
 	bl	FtlBbmTblFlush
 	bl	FtlGcPageVarInit
-	b	.L3358
-.L3350:
+	b	.L3364
+.L3356:
 	ldr	r0, [r2, #12]
 	ldr	r1, [r1, #4]
 	ldr	r2, [r2, #8]
 	bl	FtlGcUpdatePage
-	b	.L3349
-.L3359:
+	b	.L3355
+.L3365:
 	ldr	r0, [r4, #3308]
 	bl	FtlGcBufFree
 	movs	r3, #0
 	str	r3, [r4, #1136]
 	ldrh	r3, [r4, #416]
 	cmp	r3, #0
-	bne	.L3348
+	bne	.L3354
 	movs	r0, #1
 	bl	FtlGcFreeTempBlock
-.L3358:
+.L3364:
 	movs	r0, #1
 	pop	{r4, r5, r6, r7, r8, pc}
-.L3361:
+.L3367:
 	.align	2
-.L3360:
+.L3366:
 	.word	.LANCHOR2
 	.word	.LANCHOR0
 	.fnend
@@ -20566,18 +20606,18 @@ Ftl_get_new_temp_ppa:
 	push	{r3, r4, r5, lr}
 	.save {r3, r4, r5, lr}
 	movw	r3, #65535
-	ldr	r4, .L3365
+	ldr	r4, .L3371
 	ldrh	r2, [r4, #412]
 	cmp	r2, r3
-	beq	.L3363
+	beq	.L3369
 	ldrh	r3, [r4, #416]
-	cbnz	r3, .L3364
-.L3363:
+	cbnz	r3, .L3370
+.L3369:
 	bl	FtlCacheWriteBack
 	movs	r0, #0
 	movs	r5, #0
 	bl	FtlGcFreeTempBlock
-	ldr	r0, .L3365+4
+	ldr	r0, .L3371+4
 	strb	r5, [r4, #420]
 	bl	allocate_data_superblock
 	strh	r5, [r4, #1164]	@ movhi
@@ -20586,13 +20626,13 @@ Ftl_get_new_temp_ppa:
 	mov	r0, r5
 	bl	FtlEctTblFlush
 	bl	FtlVpcTblFlush
-.L3364:
-	ldr	r0, .L3365+4
+.L3370:
+	ldr	r0, .L3371+4
 	pop	{r3, r4, r5, lr}
 	b	get_new_active_ppa
-.L3366:
+.L3372:
 	.align	2
-.L3365:
+.L3371:
 	.word	.LANCHOR2
 	.word	.LANCHOR2+412
 	.fnend
@@ -20606,7 +20646,7 @@ ftl_do_gc:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 32
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L3540
+	ldr	r3, .L3546
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r8, r0
@@ -20616,45 +20656,45 @@ ftl_do_gc:
 	mov	r6, r1
 	mov	r7, r3
 	cmp	r0, #0
-	bne	.L3467
-	ldr	r1, .L3540+4
+	bne	.L3473
+	ldr	r1, .L3546+4
 	ldr	r4, [r1, #504]
 	cmp	r4, #1
-	bne	.L3527
+	bne	.L3533
 	ldr	r2, [r3, #3280]
 	cmp	r2, #0
-	bne	.L3527
+	bne	.L3533
 	ldrh	r0, [r3, #304]
 	cmp	r0, #47
-	bls	.L3470
+	bls	.L3476
 	ldrh	r1, [r1, #3448]
 	movw	r2, #65535
 	cmp	r1, r2
-	bne	.L3369
-.L3372:
+	bne	.L3375
+.L3378:
 	ldrh	r4, [r7, #1176]
 	movw	r1, #65535
-	ldr	r3, .L3540
+	ldr	r3, .L3546
 	cmp	r4, r1
-	bne	.L3370
-	b	.L3371
-.L3369:
+	bne	.L3376
+	b	.L3377
+.L3375:
 	ldrh	r3, [r3, #412]
 	cmp	r3, r2
-	beq	.L3372
+	beq	.L3378
 	mov	r0, r4
 	bl	FtlGcFreeTempBlock
 	cmp	r0, #0
-	beq	.L3372
+	beq	.L3378
 	mov	r0, r4
-	b	.L3527
-.L3370:
+	b	.L3533
+.L3376:
 	ldrh	r2, [r3, #1174]
 	cmp	r2, r1
-	bne	.L3371
+	bne	.L3377
 	ldrh	r0, [r3, #1178]
 	cmp	r0, r2
-	beq	.L3371
+	beq	.L3377
 	ldrh	r1, [r3, #1180]
 	cmp	r1, r2
 	itttt	ne
@@ -20662,75 +20702,75 @@ ftl_do_gc:
 	strhne	r0, [r3, #1176]	@ movhi
 	strhne	r1, [r3, #1178]	@ movhi
 	strhne	r2, [r3, #1180]	@ movhi
-.L3371:
+.L3377:
 	ldr	r4, [r7, #1124]
 	cmp	r8, #1
 	add	r4, r4, #1
 	add	r4, r4, r8, lsl #7
 	str	r4, [r7, #1124]
-	bne	.L3383
-	ldr	r3, .L3540+8
+	bne	.L3389
+	ldr	r3, .L3546+8
 	ldr	r2, [r3, #2244]
 	mov	r10, r3
-	cbnz	r2, .L3374
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
+	cbnz	r2, .L3380
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
 	cmp	r3, #0
-	beq	.L3383
-.L3374:
+	beq	.L3389
+.L3380:
 	ldr	r3, [r7, #532]
-	ldr	r5, .L3540
+	ldr	r5, .L3546
 	cmp	r3, #39
-	bhi	.L3383
-	ldr	r9, .L3540+12
-	ldrh	r3, [r9, #976]
+	bhi	.L3389
+	ldr	r9, .L3546+12
+	ldrh	r3, [r9, #984]
 	add	r4, r4, r3
 	str	r4, [r5, #1124]
 	bl	FtlGcReFreshBadBlk
 	ldrh	r3, [r5, #556]
 	movw	r2, #65535
 	cmp	r3, r2
-	bne	.L3383
+	bne	.L3389
 	ldrh	r2, [r5, #1174]
 	cmp	r2, r3
-	bne	.L3383
+	bne	.L3389
 	ldr	r3, [r5, #1124]
 	cmp	r3, #1024
-	bhi	.L3375
+	bhi	.L3381
 	ldrh	r3, [r5, #312]
 	cmp	r3, #63
-	bhi	.L3383
-.L3375:
+	bhi	.L3389
+.L3381:
 	ldrh	r3, [r7, #1122]
 	movs	r0, #0
 	ldrh	r4, [r7, #312]
 	adds	r3, r3, #64
-	ldr	r2, .L3540+12
+	ldr	r2, .L3546+12
 	cmp	r4, r3
-	strh	r0, [r9, #976]	@ movhi
-	ldr	r1, .L3540
-	bgt	.L3383
+	strh	r0, [r9, #984]	@ movhi
+	ldr	r1, .L3546
+	bgt	.L3389
 	ldr	r3, [r1, #532]
 	str	r0, [r1, #1124]
-	cbnz	r3, .L3376
+	cbnz	r3, .L3382
 	movs	r3, #6
-	b	.L3528
-.L3376:
+	b	.L3534
+.L3382:
 	cmp	r3, #5
-	bhi	.L3377
+	bhi	.L3383
 	movs	r3, #18
-.L3528:
-	strh	r3, [r2, #976]	@ movhi
-.L3377:
+.L3534:
+	strh	r3, [r2, #984]	@ movhi
+.L3383:
 	movs	r0, #32
 	bl	List_get_gc_head_node
 	movw	ip, #65535
 	uxth	r2, r0
 	cmp	r2, ip
-	beq	.L3382
+	beq	.L3388
 	ldrh	r0, [r7, #1128]
-	ldr	r5, .L3540
+	ldr	r5, .L3546
 	cmp	r0, #0
-	beq	.L3379
+	beq	.L3385
 	ldrh	r4, [r10, #2390]
 	ldrh	r3, [r10, #2320]
 	ldr	fp, [r5, #296]
@@ -20738,7 +20778,7 @@ ftl_do_gc:
 	ldrh	r1, [fp, r2, lsl #1]
 	adds	r3, r3, #1
 	cmp	r1, r3
-	bgt	.L3382
+	bgt	.L3388
 	adds	r1, r0, #1
 	str	ip, [sp, #20]
 	str	r2, [sp, #16]
@@ -20753,48 +20793,48 @@ ftl_do_gc:
 	ldr	r1, [sp, #12]
 	cmp	r4, ip
 	ldr	r2, [sp, #16]
-	beq	.L3382
+	beq	.L3388
 	ldrh	r2, [fp, r2, lsl #1]
 	ldrh	r3, [fp, r4, lsl #1]
-	ldr	r0, .L3540+16
+	ldr	r0, .L3546+16
 	str	r2, [sp]
 	mov	r2, r4
 	bl	printk
 	ldrh	r3, [r5, #1128]
 	cmp	r3, #40
-	bls	.L3380
+	bls	.L3386
 	ldr	r3, [r5, #296]
 	ldrh	r3, [r3, r4, lsl #1]
 	cmp	r3, #32
 	it	hi
 	strhhi	r10, [r5, #1128]	@ movhi
-.L3380:
+.L3386:
 	movs	r3, #6
-	strh	r3, [r9, #976]	@ movhi
-	b	.L3399
-.L3379:
+	strh	r3, [r9, #984]	@ movhi
+	b	.L3405
+.L3385:
 	movs	r3, #1
 	strh	r3, [r5, #1128]	@ movhi
-.L3382:
+.L3388:
 	bl	GetSwlReplaceBlock
 	movw	r3, #65535
 	cmp	r0, r3
 	mov	r4, r0
-	bne	.L3399
+	bne	.L3405
 	movs	r3, #0
-	strh	r3, [r9, #976]	@ movhi
-.L3383:
+	strh	r3, [r9, #984]	@ movhi
+.L3389:
 	ldrh	r3, [r7, #556]
 	movw	r4, #65535
-	ldr	r5, .L3540
+	ldr	r5, .L3546
 	cmp	r3, r4
-	bne	.L3533
+	bne	.L3539
 	ldrh	r4, [r5, #412]
 	cmp	r4, r3
-	bne	.L3384
+	bne	.L3390
 	ldrh	r10, [r5, #1174]
 	cmp	r10, r4
-	bne	.L3385
+	bne	.L3391
 	ldrh	r3, [r5, #312]
 	ldr	r2, [r5, #1124]
 	cmp	r3, #24
@@ -20802,74 +20842,74 @@ ftl_do_gc:
 	movcc	r3, #5120
 	movcs	r3, #1024
 	cmp	r2, r3
-	bls	.L3387
-	ldr	r2, .L3540+12
+	bls	.L3393
+	ldr	r2, .L3546+12
 	movs	r3, #0
 	str	r3, [r7, #1124]
 	mov	r9, r5
-	strh	r3, [r2, #976]	@ movhi
+	strh	r3, [r2, #984]	@ movhi
 	bl	GetSwlReplaceBlock
 	cmp	r0, r10
 	mov	r4, r0
-	bne	.L3388
+	bne	.L3394
 	ldrh	r2, [r5, #312]
 	ldrh	r3, [r5, #1122]
 	cmp	r2, r3
-	bcs	.L3389
+	bcs	.L3395
 	movs	r0, #64
 	bl	List_get_gc_head_node
 	uxth	r3, r0
 	cmp	r3, r4
-	bne	.L3534
-.L3398:
+	bne	.L3540
+.L3404:
 	bl	FtlGcReFreshBadBlk
 	cmp	r8, #0
-	beq	.L3535
-.L3399:
+	beq	.L3541
+.L3405:
 	ldrh	r2, [r7, #412]
 	movw	r3, #65535
 	cmp	r2, r3
-	bne	.L3410
-.L3465:
+	bne	.L3416
+.L3471:
 	ldrh	r3, [r7, #1174]
 	movw	r2, #65535
 	cmp	r3, r2
-	bne	.L3410
+	bne	.L3416
 	cmp	r4, r3
-	bne	.L3410
-.L3466:
+	bne	.L3416
+.L3472:
 	ldrh	r1, [r7, #556]
 	movw	r3, #65535
-	ldr	r2, .L3540
+	ldr	r2, .L3546
 	cmp	r1, r3
-	beq	.L3411
-.L3415:
+	beq	.L3417
+.L3421:
 	movw	r4, #65535
-	b	.L3410
-.L3411:
+	b	.L3416
+.L3417:
 	movs	r3, #0
 	ldrh	r1, [r2, #312]
 	str	r3, [r2, #1132]
 	ldrh	r3, [r2, #1120]
-	ldr	r4, .L3540+12
+	ldr	r4, .L3546+12
 	cmp	r1, r3
-	bls	.L3412
-	ldrh	r3, [r4, #976]
-	cbnz	r3, .L3413
-	ldr	r3, .L3540+8
+	bls	.L3418
+	ldrh	r3, [r4, #984]
+	cbnz	r3, .L3419
+	ldr	r3, .L3546+8
 	ldr	r2, [r2, #468]
 	ldr	r3, [r3, #2448]
 	add	r3, r3, r3, lsl #1
 	cmp	r2, r3, lsr #2
-	bcs	.L3478
-.L3413:
+	bcs	.L3484
+.L3419:
 	ldrh	r3, [r7, #536]
 	add	r3, r3, r3, lsl #1
 	ubfx	r3, r3, #2, #16
-	b	.L3414
-.L3478:
+	b	.L3420
+.L3484:
 	movs	r3, #18
-.L3414:
+.L3420:
 	strh	r3, [r7, #1120]	@ movhi
 	bl	FtlReadRefresh
 	movs	r0, #0
@@ -20878,13 +20918,13 @@ ftl_do_gc:
 	uxth	r0, r0
 	ldrh	r3, [r3, r0, lsl #1]
 	cmp	r3, #4
-	bls	.L3412
-	ldrh	r0, [r4, #976]
-	b	.L3527
-.L3412:
-	ldrh	r0, [r4, #976]
+	bls	.L3418
+	ldrh	r0, [r4, #984]
+	b	.L3533
+.L3418:
+	ldrh	r0, [r4, #984]
 	cmp	r0, #0
-	bne	.L3415
+	bne	.L3421
 	ldrh	r4, [r7, #536]
 	add	r3, r4, r4, lsl #1
 	asrs	r3, r3, #2
@@ -20893,155 +20933,155 @@ ftl_do_gc:
 	ldr	r3, [r7, #296]
 	uxth	r0, r0
 	ldrh	r2, [r3, r0, lsl #1]
-	ldr	r3, .L3540+8
+	ldr	r3, .L3546+8
 	ldrh	r1, [r3, #2390]
 	ldrh	r3, [r3, #2320]
 	muls	r3, r1, r3
 	add	r3, r3, r3, lsr #31
 	cmp	r2, r3, asr #1
-	ble	.L3416
-	ldr	r3, .L3540
+	ble	.L3422
+	ldr	r3, .L3546
 	subs	r4, r4, #1
 	ldrh	r3, [r3, #312]
 	cmp	r3, r4
-	blt	.L3416
+	blt	.L3422
 	bl	FtlReadRefresh
-	b	.L3532
-.L3416:
+	b	.L3538
+.L3422:
 	cmp	r2, #0
-	bne	.L3415
+	bne	.L3421
 	movw	r0, #65535
 	bl	decrement_vpc_count
 	ldrh	r0, [r7, #312]
 	adds	r0, r0, #1
-	b	.L3527
-.L3541:
+	b	.L3533
+.L3547:
 	.align	2
-.L3540:
+.L3546:
 	.word	.LANCHOR2
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR5
 	.word	.LC157
-.L3410:
-	ldr	r3, .L3542
+.L3416:
+	ldr	r3, .L3548
 	ldr	r3, [r3, #2244]
 	cmp	r3, #0
 	ite	eq
 	moveq	r5, #1
 	movne	r5, #2
-	b	.L3409
-.L3535:
+	b	.L3415
+.L3541:
 	movw	r3, #65535
 	cmp	r4, r3
-	bne	.L3399
-.L3464:
+	bne	.L3405
+.L3470:
 	ldrh	r4, [r7, #312]
 	cmp	r4, #24
-	bhi	.L3474
-	ldr	r3, .L3542
+	bhi	.L3480
+	ldr	r3, .L3548
 	cmp	r4, #16
 	ldrh	r5, [r3, #2388]
-	bls	.L3401
+	bls	.L3407
 	lsrs	r5, r5, #5
-.L3400:
+.L3406:
 	ldrh	r3, [r7, #1120]
-	ldr	r2, .L3542+4
+	ldr	r2, .L3548+4
 	cmp	r3, r4
-	bcc	.L3536
-.L3404:
-	ldr	r3, .L3542
+	bcc	.L3542
+.L3410:
+	ldr	r3, .L3548
 	ldr	r3, [r3, #2244]
 	cmp	r3, #0
-	bne	.L3537
-.L3477:
+	bne	.L3543
+.L3483:
 	movw	r4, #65535
-.L3409:
+.L3415:
 	ldrh	r2, [r7, #556]
 	movw	r1, #65535
-	ldr	r3, .L3542+4
+	ldr	r3, .L3548+4
 	cmp	r2, r1
-	bne	.L3418
+	bne	.L3424
 	cmp	r4, r2
-	beq	.L3419
+	beq	.L3425
 	strh	r4, [r3, #556]	@ movhi
-	b	.L3420
-.L3419:
+	b	.L3426
+.L3425:
 	ldrh	r2, [r3, #1174]
 	cmp	r2, r4
-	beq	.L3420
+	beq	.L3426
 	ldr	r1, [r3, #296]
 	ldrh	r2, [r1, r2, lsl #1]
-	cbnz	r2, .L3421
+	cbnz	r2, .L3427
 	strh	r4, [r3, #1174]	@ movhi
-.L3421:
+.L3427:
 	ldrh	r3, [r7, #1174]
 	strh	r3, [r7, #556]	@ movhi
 	movw	r3, #65535
 	strh	r3, [r7, #1174]	@ movhi
-.L3420:
+.L3426:
 	ldrh	r0, [r7, #556]
 	movw	r6, #65535
 	movs	r3, #0
 	strb	r3, [r7, #564]
 	cmp	r0, r6
-	beq	.L3418
+	beq	.L3424
 	bl	IsBlkInGcList
-	cbz	r0, .L3423
-	ldr	r3, .L3542+4
+	cbz	r0, .L3429
+	ldr	r3, .L3548+4
 	strh	r6, [r3, #556]	@ movhi
-.L3423:
-	ldr	r3, .L3542
-	ldrb	r3, [r3, #144]	@ zero_extendqisi2
-	cbz	r3, .L3424
+.L3429:
+	ldr	r3, .L3548
+	ldrb	r3, [r3, #148]	@ zero_extendqisi2
+	cbz	r3, .L3430
 	ldrh	r0, [r7, #556]
 	bl	ftl_get_blk_mode
 	strb	r0, [r7, #564]
-.L3424:
+.L3430:
 	ldrh	r2, [r7, #556]
 	movw	r3, #65535
-	ldr	r6, .L3542+4
+	ldr	r6, .L3548+4
 	cmp	r2, r3
-	beq	.L3418
+	beq	.L3424
 	add	r0, r6, #556
 	bl	make_superblock
-	ldr	r2, .L3542+8
+	ldr	r2, .L3548+8
 	movs	r3, #0
 	ldrh	r1, [r6, #556]
 	strh	r3, [r6, #558]	@ movhi
 	strb	r3, [r6, #562]
-	strh	r3, [r2, #978]	@ movhi
+	strh	r3, [r2, #986]	@ movhi
 	ldr	r3, [r6, #296]
 	ldrh	r3, [r3, r1, lsl #1]
-	strh	r3, [r2, #980]	@ movhi
-.L3418:
+	strh	r3, [r2, #988]	@ movhi
+.L3424:
 	ldrh	r3, [r7, #556]
 	ldrh	r1, [r7, #316]
-	ldr	r2, .L3542+4
+	ldr	r2, .L3548+4
 	cmp	r1, r3
-	beq	.L3425
+	beq	.L3431
 	ldrh	r1, [r2, #364]
 	cmp	r1, r3
-	beq	.L3425
+	beq	.L3431
 	ldrh	r2, [r2, #412]
 	cmp	r2, r3
-	bne	.L3426
-.L3425:
+	bne	.L3432
+.L3431:
 	movw	r3, #65535
 	strh	r3, [r7, #556]	@ movhi
-.L3426:
-	ldr	r7, .L3542
-.L3459:
-	ldr	r6, .L3542+4
+.L3432:
+	ldr	r7, .L3548
+.L3465:
+	ldr	r6, .L3548+4
 	movw	r3, #65535
 	ldrh	r2, [r6, #556]
 	mov	fp, r6
 	cmp	r2, r3
-	bne	.L3427
+	bne	.L3433
 	mov	r10, r6
 	movs	r3, #0
 	str	r3, [r6, #1132]
-.L3428:
+.L3434:
 	ldrh	r9, [fp, #1128]
 	mov	r0, r9
 	bl	List_get_gc_head_node
@@ -21049,22 +21089,22 @@ ftl_do_gc:
 	uxth	r3, r0
 	strh	r3, [fp, #556]	@ movhi
 	cmp	r3, r2
-	bne	.L3429
-	ldr	r3, .L3542+4
+	bne	.L3435
+	ldr	r3, .L3548+4
 	movs	r2, #0
 	movs	r0, #8
 	strh	r2, [r3, #1128]	@ movhi
-	b	.L3527
-.L3429:
+	b	.L3533
+.L3435:
 	mov	r0, r3
 	str	r3, [sp, #12]
 	bl	IsBlkInGcList
 	add	r9, r9, #1
 	ldr	r3, [sp, #12]
-	cbz	r0, .L3430
+	cbz	r0, .L3436
 	strh	r9, [r10, #1128]	@ movhi
-	b	.L3428
-.L3430:
+	b	.L3434
+.L3436:
 	ldrh	lr, [r7, #2320]
 	uxth	r9, r9
 	ldrh	r2, [r7, #2388]
@@ -21074,83 +21114,83 @@ ftl_do_gc:
 	ldrh	r0, [r1, r3, lsl #1]
 	add	lr, r2, r2, lsr #31
 	cmp	r0, lr, asr #1
-	bgt	.L3432
+	bgt	.L3438
 	cmp	r9, #48
-	bls	.L3433
+	bls	.L3439
 	cmp	r0, #8
-	bls	.L3433
+	bls	.L3439
 	ldrh	r0, [r10, #1164]
 	cmp	r0, #35
-	bhi	.L3433
-.L3432:
+	bhi	.L3439
+.L3438:
 	movs	r0, #0
 	strh	r0, [fp, #1128]	@ movhi
-.L3433:
+.L3439:
 	ldrh	r1, [r1, r3, lsl #1]
 	cmp	r1, r2
-	blt	.L3434
+	blt	.L3440
 	movw	r2, #65535
 	cmp	r4, r2
-	bne	.L3434
+	bne	.L3440
 	ldrh	r0, [fp, #1128]
-	ldr	r2, .L3542+4
+	ldr	r2, .L3548+4
 	cmp	r0, #3
-	bhi	.L3434
+	bhi	.L3440
 	movs	r3, #0
 	strh	r4, [r2, #556]	@ movhi
 	strh	r3, [r2, #1128]	@ movhi
-.L3532:
-	ldr	r3, .L3542+8
-	ldrh	r0, [r3, #976]
-	b	.L3527
-.L3434:
-	cbnz	r1, .L3435
+.L3538:
+	ldr	r3, .L3548+8
+	ldrh	r0, [r3, #984]
+	b	.L3533
+.L3440:
+	cbnz	r1, .L3441
 	movw	r0, #65535
 	bl	decrement_vpc_count
 	ldrh	r3, [fp, #1128]
 	adds	r3, r3, #1
 	strh	r3, [fp, #1128]	@ movhi
-	b	.L3428
-.L3435:
+	b	.L3434
+.L3441:
 	movs	r2, #0
 	strb	r2, [r6, #564]
-	ldr	r2, .L3542
-	ldrb	r2, [r2, #144]	@ zero_extendqisi2
-	cbz	r2, .L3436
+	ldr	r2, .L3548
+	ldrb	r2, [r2, #148]	@ zero_extendqisi2
+	cbz	r2, .L3442
 	mov	r0, r3
 	bl	ftl_get_blk_mode
-	ldr	r3, .L3542+4
+	ldr	r3, .L3548+4
 	strb	r0, [r3, #564]
-.L3436:
-	ldr	r0, .L3542+12
+.L3442:
+	ldr	r0, .L3548+12
 	bl	make_superblock
-	ldr	r2, .L3542+8
+	ldr	r2, .L3548+8
 	ldrh	r0, [r6, #556]
 	movs	r3, #0
 	ldr	r1, [r6, #296]
-	strh	r3, [r2, #978]	@ movhi
+	strh	r3, [r2, #986]	@ movhi
 	ldrh	r1, [r1, r0, lsl #1]
 	strh	r3, [r6, #558]	@ movhi
 	strb	r3, [r6, #562]
-	strh	r1, [r2, #980]	@ movhi
-.L3427:
+	strh	r1, [r2, #988]	@ movhi
+.L3433:
 	cmp	r8, #1
-	bne	.L3437
+	bne	.L3443
 	bl	FtlReadRefresh
-.L3437:
+.L3443:
 	movs	r3, #1
 	str	r3, [r6, #3280]
 	ldrh	r3, [r7, #2388]
 	str	r3, [sp, #12]
-	ldrb	r3, [r7, #144]	@ zero_extendqisi2
-	cbz	r3, .L3438
-	ldr	r3, .L3542+4
+	ldrb	r3, [r7, #148]	@ zero_extendqisi2
+	cbz	r3, .L3444
+	ldr	r3, .L3548+4
 	ldrb	r3, [r3, #564]	@ zero_extendqisi2
 	cmp	r3, #1
 	itt	eq
 	ldrheq	r3, [r7, #2390]
 	streq	r3, [sp, #12]
-.L3438:
+.L3444:
 	ldrh	r3, [r6, #558]
 	ldr	r1, [sp, #12]
 	adds	r2, r3, r5
@@ -21160,12 +21200,12 @@ ftl_do_gc:
 	subgt	r3, r2, r3
 	uxthgt	r5, r3
 	movs	r3, #0
-.L3531:
+.L3537:
 	str	r3, [sp, #16]
 	ldrh	r3, [sp, #16]
-	ldr	r6, .L3542+4
+	ldr	r6, .L3548+4
 	cmp	r3, r5
-	bcs	.L3447
+	bcs	.L3453
 	ldr	r3, [r6, #1152]
 	addw	r1, r6, #570
 	ldr	r2, [sp, #16]
@@ -21176,13 +21216,13 @@ ftl_do_gc:
 	add	ip, r3, r2
 	movs	r3, #0
 	mov	r9, r3
-.L3448:
+.L3454:
 	uxth	r2, r3
 	cmp	r2, r10
-	bcs	.L3538
+	bcs	.L3544
 	ldrh	r2, [r1, #2]!
 	cmp	r2, lr
-	beq	.L3441
+	beq	.L3447
 	ldr	r0, [sp, #20]
 	mov	fp, #36
 	orr	r2, ip, r2, lsl #10
@@ -21190,27 +21230,27 @@ ftl_do_gc:
 	add	r9, r9, #1
 	uxth	r9, r9
 	str	r2, [fp, #4]
-.L3441:
+.L3447:
 	adds	r3, r3, #1
-	b	.L3448
-.L3543:
+	b	.L3454
+.L3549:
 	.align	2
-.L3542:
+.L3548:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR5
 	.word	.LANCHOR2+556
-.L3538:
+.L3544:
 	ldr	r0, [r6, #1152]
 	mov	r1, r9
 	ldrb	r2, [r6, #564]	@ zero_extendqisi2
 	mov	fp, #0
 	bl	FlashReadPages
-	ldr	r6, .L3544
-.L3443:
+	ldr	r6, .L3550
+.L3449:
 	uxth	r3, fp
 	cmp	r3, r9
-	bcs	.L3539
+	bcs	.L3545
 	mov	ip, #36
 	ldr	r2, [r6, #1152]
 	mul	r10, ip, fp
@@ -21218,11 +21258,11 @@ ftl_do_gc:
 	ldr	r2, [r2, r10]
 	ldr	r3, [r3, #12]
 	adds	r2, r2, #1
-	beq	.L3481
+	beq	.L3487
 	ldrh	r1, [r3]
 	movw	r2, #61589
 	cmp	r1, r2
-	bne	.L3481
+	bne	.L3487
 	ldr	r0, [r3, #8]
 	add	r1, sp, #32
 	movs	r2, #0
@@ -21237,14 +21277,14 @@ ftl_do_gc:
 	bic	r2, r2, #-2147483648
 	ldr	ip, [sp, #24]
 	cmp	r2, r0
-	bne	.L3481
+	bne	.L3487
 	str	r3, [sp, #28]
-	ldr	r3, .L3544+4
+	ldr	r3, .L3550+4
 	ldr	r0, [r6, #1136]
 	ldr	r1, [r1, #16]
-	ldrh	r2, [r3, #978]
+	ldrh	r2, [r3, #986]
 	adds	r2, r2, #1
-	strh	r2, [r3, #978]	@ movhi
+	strh	r2, [r3, #986]	@ movhi
 	ldr	r2, [r6, #3308]
 	mla	r2, ip, r0, r2
 	str	r1, [r2, #16]
@@ -21276,76 +21316,76 @@ ftl_do_gc:
 	adds	r3, r3, #1
 	str	r3, [r6, #1136]
 	bl	FtlGcBufAlloc
-	ldrb	r3, [r7, #144]	@ zero_extendqisi2
-	cbnz	r3, .L3445
+	ldrb	r3, [r7, #148]	@ zero_extendqisi2
+	cbnz	r3, .L3451
 	ldrb	r3, [r6, #419]	@ zero_extendqisi2
 	ldr	r2, [r6, #1136]
 	cmp	r2, r3
-	beq	.L3445
+	beq	.L3451
 	ldrh	r3, [r6, #416]
-	cbnz	r3, .L3481
-.L3445:
+	cbnz	r3, .L3487
+.L3451:
 	bl	Ftl_gc_temp_data_write_back
-	cbz	r0, .L3481
-	ldr	r3, .L3544
+	cbz	r0, .L3487
+	ldr	r3, .L3550
 	movs	r2, #0
 	movw	r1, #65535
 	str	r2, [r3, #3280]
 	strh	r1, [r3, #556]	@ movhi
 	strh	r2, [r3, #558]	@ movhi
-	b	.L3532
-.L3481:
+	b	.L3538
+.L3487:
 	add	fp, fp, #1
-	b	.L3443
-.L3539:
+	b	.L3449
+.L3545:
 	ldr	r3, [sp, #16]
 	adds	r3, r3, #1
-	b	.L3531
-.L3447:
+	b	.L3537
+.L3453:
 	ldrh	r3, [r6, #558]
 	add	r5, r5, r3
 	ldr	r3, [sp, #12]
 	uxth	r5, r5
 	strh	r5, [r6, #558]	@ movhi
 	cmp	r5, r3
-	bcc	.L3449
+	bcc	.L3455
 	ldr	r3, [r6, #1136]
-	ldr	r5, .L3544+4
-	cbz	r3, .L3450
+	ldr	r5, .L3550+4
+	cbz	r3, .L3456
 	bl	Ftl_gc_temp_data_write_back
-	cbz	r0, .L3450
+	cbz	r0, .L3456
 	movs	r3, #0
-	ldrh	r0, [r5, #976]
+	ldrh	r0, [r5, #984]
 	str	r3, [r6, #3280]
-	b	.L3527
-.L3450:
-	ldrh	r5, [r5, #978]
-	cbnz	r5, .L3451
+	b	.L3533
+.L3456:
+	ldrh	r5, [r5, #986]
+	cbnz	r5, .L3457
 	ldrh	r2, [r6, #556]
 	ldr	r3, [r6, #296]
 	ldrh	r3, [r3, r2, lsl #1]
-	cbz	r3, .L3451
-.L3452:
+	cbz	r3, .L3457
+.L3458:
 	ldr	r3, [r7, #2448]
 	cmp	r5, r3
-	bcs	.L3457
+	bcs	.L3463
 	mov	r0, r5
 	add	r1, sp, #36
 	movs	r2, #0
 	bl	log2phys
 	ldr	r0, [sp, #36]
 	adds	r3, r0, #1
-	beq	.L3453
+	beq	.L3459
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldrh	r3, [r6, #556]
 	cmp	r3, r0
-	bne	.L3453
-.L3457:
-	ldr	r3, .L3544+8
+	bne	.L3459
+.L3463:
+	ldr	r3, .L3550+8
 	ldr	r3, [r3, #2448]
 	cmp	r5, r3
-	bcc	.L3451
+	bcc	.L3457
 	ldrh	r2, [r6, #556]
 	movs	r1, #0
 	ldr	r3, [r6, #296]
@@ -21355,49 +21395,49 @@ ftl_do_gc:
 	bl	FtlCacheWriteBack
 	bl	l2p_flush
 	bl	FtlVpcTblFlush
-	b	.L3451
-.L3453:
+	b	.L3457
+.L3459:
 	adds	r5, r5, #1
-	b	.L3452
-.L3451:
+	b	.L3458
+.L3457:
 	movw	r3, #65535
 	strh	r3, [r6, #556]	@ movhi
-.L3449:
+.L3455:
 	ldrh	r3, [r6, #312]
 	cmp	r3, #2
-	bhi	.L3458
+	bhi	.L3464
 	ldrh	r5, [r7, #2388]
-	b	.L3459
-.L3458:
-	ldr	r2, .L3544
+	b	.L3465
+.L3464:
+	ldr	r2, .L3550
 	movs	r1, #0
 	str	r1, [r2, #3280]
-	ldr	r2, .L3544+4
-	ldrh	r0, [r2, #976]
+	ldr	r2, .L3550+4
+	ldrh	r0, [r2, #984]
 	cmp	r0, #0
-	bne	.L3527
+	bne	.L3533
 	adds	r0, r3, #1
-	b	.L3527
-.L3467:
+	b	.L3533
+.L3473:
 	movs	r0, #0
-	b	.L3527
-.L3470:
+	b	.L3533
+.L3476:
 	mov	r0, r2
-	b	.L3527
-.L3534:
+	b	.L3533
+.L3540:
 	ldr	r2, [r5, #3276]
-	ldr	r5, .L3544+8
-	cbnz	r2, .L3391
+	ldr	r5, .L3550+8
+	cbnz	r2, .L3397
 	ldrh	r2, [r5, #2340]
 	cmp	r2, #3
-	beq	.L3391
+	beq	.L3397
 	ldr	r2, [r9, #604]
-	cbnz	r2, .L3391
+	cbnz	r2, .L3397
 	ldr	r2, [r5, #2244]
-	cbnz	r2, .L3391
-	ldrb	r0, [r5, #144]	@ zero_extendqisi2
-	cbz	r0, .L3392
-.L3391:
+	cbnz	r2, .L3397
+	ldrb	r0, [r5, #148]	@ zero_extendqisi2
+	cbz	r0, .L3398
+.L3397:
 	ldr	r2, [r7, #296]
 	ldrh	r0, [r5, #2340]
 	ldrh	r1, [r2, r3, lsl #1]
@@ -21410,11 +21450,11 @@ ftl_do_gc:
 	movne	r3, #0
 	add	r3, r3, r2
 	cmp	r1, r3
-	bgt	.L3394
+	bgt	.L3400
 	movs	r0, #0
 	bl	List_get_gc_head_node
 	ldr	r3, [r5, #2448]
-	ldr	r2, .L3544
+	ldr	r2, .L3550
 	ldr	r1, [r7, #468]
 	add	r3, r3, r3, lsl #1
 	cmp	r1, r3, lsr #2
@@ -21423,124 +21463,124 @@ ftl_do_gc:
 	movls	r3, #160
 	strh	r3, [r2, #1122]	@ movhi
 	uxth	r4, r0
-	b	.L3396
-.L3394:
+	b	.L3402
+.L3400:
 	movs	r3, #128
-	b	.L3530
-.L3392:
+	b	.L3536
+.L3398:
 	ldr	r2, [r9, #296]
 	ldrh	r3, [r2, r3, lsl #1]
 	cmp	r3, #7
-	bhi	.L3397
+	bhi	.L3403
 	bl	List_get_gc_head_node
 	movs	r3, #128
 	strh	r3, [r7, #1122]	@ movhi
 	uxth	r4, r0
-	b	.L3396
-.L3397:
+	b	.L3402
+.L3403:
 	movs	r3, #64
-.L3530:
+.L3536:
 	strh	r3, [r7, #1122]	@ movhi
-	b	.L3398
-.L3389:
+	b	.L3404
+.L3395:
 	movs	r3, #80
 	strh	r3, [r5, #1122]	@ movhi
-	b	.L3398
-.L3396:
+	b	.L3404
+.L3402:
 	movw	r3, #65535
 	cmp	r4, r3
-	beq	.L3398
-.L3388:
+	beq	.L3404
+.L3394:
 	ldr	r1, [r7, #232]
 	ldr	r3, [r7, #296]
 	ldrh	r2, [r7, #312]
 	ldrh	r1, [r1, r4, lsl #1]
 	ldrh	r3, [r3, r4, lsl #1]
-	ldr	r0, .L3544+12
+	ldr	r0, .L3550+12
 	str	r1, [sp]
 	ldrh	r1, [r7, #1120]
 	str	r1, [sp, #4]
 	mov	r1, r4
 	bl	printk
-	b	.L3398
-.L3401:
+	b	.L3404
+.L3407:
 	cmp	r4, #12
-	bls	.L3402
+	bls	.L3408
 	lsrs	r5, r5, #4
-	b	.L3400
-.L3402:
+	b	.L3406
+.L3408:
 	cmp	r4, #8
-	bls	.L3400
+	bls	.L3406
 	lsrs	r5, r5, #2
-	b	.L3400
-.L3474:
+	b	.L3406
+.L3480:
 	movs	r5, #1
-	b	.L3400
-.L3536:
+	b	.L3406
+.L3542:
 	ldrh	r3, [r2, #412]
 	movw	r1, #65535
 	cmp	r3, r1
-	bne	.L3405
+	bne	.L3411
 	ldrh	r1, [r2, #1174]
 	cmp	r1, r3
-	bne	.L3405
-	ldr	r3, .L3544+4
-	ldrh	r0, [r3, #976]
-	cbnz	r0, .L3406
-	ldr	r3, .L3544+8
+	bne	.L3411
+	ldr	r3, .L3550+4
+	ldrh	r0, [r3, #984]
+	cbnz	r0, .L3412
+	ldr	r3, .L3550+8
 	ldr	r2, [r2, #468]
 	ldr	r3, [r3, #2448]
 	add	r3, r3, r3, lsl #1
 	cmp	r2, r3, lsr #2
-	bcs	.L3475
-.L3406:
+	bcs	.L3481
+.L3412:
 	ldrh	r3, [r7, #536]
 	add	r3, r3, r3, lsl #1
 	ubfx	r3, r3, #2, #16
-	b	.L3407
-.L3545:
+	b	.L3413
+.L3551:
 	.align	2
-.L3544:
+.L3550:
 	.word	.LANCHOR2
 	.word	.LANCHOR5
 	.word	.LANCHOR0
 	.word	.LC158
-.L3475:
+.L3481:
 	movs	r3, #18
-.L3407:
+.L3413:
 	strh	r3, [r7, #1120]	@ movhi
 	movs	r3, #0
 	str	r3, [r7, #1132]
-	b	.L3527
-.L3405:
+	b	.L3533
+.L3411:
 	ldrh	r3, [r7, #536]
 	add	r3, r3, r3, lsl #1
 	asrs	r3, r3, #2
 	strh	r3, [r7, #1120]	@ movhi
-	b	.L3404
-.L3537:
+	b	.L3410
+.L3543:
 	cmp	r6, #2
-	bhi	.L3477
+	bhi	.L3483
 	adds	r5, r5, #1
 	uxth	r5, r5
-	b	.L3477
+	b	.L3483
+.L3539:
+	cmp	r8, #0
+	beq	.L3470
+	b	.L3405
+.L3391:
+	cmp	r8, #0
+	beq	.L3470
+	b	.L3471
+.L3390:
+	cmp	r8, #0
+	beq	.L3470
+	b	.L3421
+.L3393:
+	cmp	r8, #0
+	beq	.L3470
+	b	.L3472
 .L3533:
-	cmp	r8, #0
-	beq	.L3464
-	b	.L3399
-.L3385:
-	cmp	r8, #0
-	beq	.L3464
-	b	.L3465
-.L3384:
-	cmp	r8, #0
-	beq	.L3464
-	b	.L3415
-.L3387:
-	cmp	r8, #0
-	beq	.L3464
-	b	.L3466
-.L3527:
 	add	sp, sp, #44
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
@@ -21558,48 +21598,48 @@ FtlCacheWriteBack:
 	push	{r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #12
-	ldr	r3, .L3589
-	ldr	r7, .L3589+4
-	ldr	r5, [r3, #984]
+	ldr	r3, .L3595
+	ldr	r7, .L3595+4
+	ldr	r5, [r3, #992]
 	ldr	r3, [r7, #224]
 	cmp	r3, #0
-	bne	.L3548
-	ldr	r4, .L3589+8
+	bne	.L3554
+	ldr	r4, .L3595+8
 	ldr	r1, [r4, #2440]
 	cmp	r1, #0
-	beq	.L3548
-	ldrb	r3, [r4, #144]	@ zero_extendqisi2
-	cbz	r3, .L3571
+	beq	.L3554
+	ldrb	r3, [r4, #148]	@ zero_extendqisi2
+	cbz	r3, .L3577
 	ldrb	r8, [r5, #8]	@ zero_extendqisi2
 	add	r0, r8, #-1
 	rsbs	r8, r0, #0
 	adc	r8, r8, r0
-	b	.L3550
-.L3571:
+	b	.L3556
+.L3577:
 	mov	r8, r3
-.L3550:
+.L3556:
 	ldr	r0, [r4, #2444]
 	mov	r2, r8
 	ldrb	r3, [r5, #9]	@ zero_extendqisi2
 	mov	r9, #0
 	bl	FlashProgPages
-	ldr	r10, .L3589+8
+	ldr	r10, .L3595+8
 	mov	fp, #36
-.L3551:
+.L3557:
 	ldr	r3, [r4, #2440]
 	cmp	r9, r3
-	bcs	.L3569
+	bcs	.L3575
 	mul	r6, fp, r9
 	ldr	r3, [r10, #2444]
 	adds	r2, r3, r6
 	ldr	r3, [r3, r6]
 	adds	r3, r3, #1
-	beq	.L3572
+	beq	.L3578
 	ldr	r3, [r2, #4]
 	cmp	r8, #0
-	beq	.L3585
+	beq	.L3591
 	orr	r3, r3, #-2147483648
-.L3585:
+.L3591:
 	ldr	r0, [r2, #16]
 	add	r1, sp, #4
 	movs	r2, #1
@@ -21610,61 +21650,61 @@ FtlCacheWriteBack:
 	ldr	r3, [r6, #12]
 	ldr	r0, [r3, #12]
 	adds	r2, r0, #1
-	beq	.L3555
+	beq	.L3561
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldr	r3, [r7, #296]
 	ldrh	r2, [r3, r0, lsl #1]
 	mov	r6, r0
-	cbnz	r2, .L3556
-	ldr	r0, .L3589+12
+	cbnz	r2, .L3562
+	ldr	r0, .L3595+12
 	mov	r1, r6
 	bl	printk
-.L3556:
+.L3562:
 	mov	r0, r6
 	bl	decrement_vpc_count
-.L3555:
+.L3561:
 	add	r9, r9, #1
-	b	.L3551
-.L3587:
+	b	.L3557
+.L3593:
 	movw	r5, #16386
-.L3568:
+.L3574:
 	ldrh	r3, [r7, #1182]
-	cbz	r3, .L3569
+	cbz	r3, .L3575
 	movs	r0, #1
 	mov	r1, r0
 	bl	ftl_do_gc
 	subs	r5, r5, #1
-	bne	.L3568
-.L3569:
+	bne	.L3574
+.L3575:
 	movs	r3, #0
 	str	r3, [r4, #2440]
-	b	.L3548
-.L3572:
-	ldr	r10, .L3589+8
+	b	.L3554
+.L3578:
+	ldr	r10, .L3595+8
 	mov	r9, #0
-.L3552:
+.L3558:
 	ldr	r3, [r4, #2440]
 	cmp	r9, r3
-	bcs	.L3587
+	bcs	.L3593
 	movs	r6, #36
 	ldr	r3, [r10, #2444]
 	mov	fp, #0
 	mov	r2, #-1
 	mul	r6, r6, r9
 	str	r2, [r3, r6]
-.L3558:
+.L3564:
 	ldr	r3, [r4, #2444]
 	adds	r2, r3, r6
 	ldr	r3, [r3, r6]
 	adds	r3, r3, #1
-	bne	.L3588
+	bne	.L3594
 	ldr	r0, [r2, #4]
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldrh	r3, [r5]
 	cmp	r3, r0
-	bne	.L3559
+	bne	.L3565
 	ldr	r1, [r7, #296]
 	ldrh	r0, [r5, #4]
 	ldrh	r2, [r1, r3, lsl #1]
@@ -21674,12 +21714,12 @@ FtlCacheWriteBack:
 	strb	fp, [r5, #6]
 	strh	fp, [r5, #4]	@ movhi
 	strh	r3, [r5, #2]	@ movhi
-.L3559:
+.L3565:
 	ldrh	r3, [r5, #4]
-	cbnz	r3, .L3560
+	cbnz	r3, .L3566
 	mov	r0, r5
 	bl	allocate_new_data_superblock
-.L3560:
+.L3566:
 	ldr	r3, [r7, #704]
 	adds	r3, r3, #1
 	str	r3, [r7, #704]
@@ -21704,18 +21744,18 @@ FtlCacheWriteBack:
 	adds	r3, r3, #1
 	ittt	eq
 	moveq	r3, #1
-	ldreq	r2, .L3589+4
+	ldreq	r2, .L3595+4
 	streq	r3, [r2, #224]
 	ldr	r3, [r7, #224]
 	cmp	r3, #0
-	beq	.L3558
-	b	.L3548
-.L3588:
+	beq	.L3564
+	b	.L3554
+.L3594:
 	ldr	r3, [r2, #4]
 	cmp	r8, #0
-	beq	.L3586
+	beq	.L3592
 	orr	r3, r3, #-2147483648
-.L3586:
+.L3592:
 	ldr	r0, [r2, #16]
 	add	r1, sp, #4
 	movs	r2, #1
@@ -21726,30 +21766,30 @@ FtlCacheWriteBack:
 	ldr	r3, [r6, #12]
 	ldr	r0, [r3, #12]
 	adds	r3, r0, #1
-	beq	.L3565
+	beq	.L3571
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	ldr	r3, [r7, #296]
 	ldrh	r2, [r3, r0, lsl #1]
 	mov	r6, r0
-	cbnz	r2, .L3566
-	ldr	r0, .L3589+12
+	cbnz	r2, .L3572
+	ldr	r0, .L3595+12
 	mov	r1, r6
 	bl	printk
-.L3566:
+.L3572:
 	mov	r0, r6
 	bl	decrement_vpc_count
-.L3565:
+.L3571:
 	add	r9, r9, #1
-	b	.L3552
-.L3548:
+	b	.L3558
+.L3554:
 	movs	r0, #0
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3590:
+.L3596:
 	.align	2
-.L3589:
+.L3595:
 	.word	.LANCHOR5
 	.word	.LANCHOR2
 	.word	.LANCHOR0
@@ -21765,26 +21805,26 @@ FtlSysFlush:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L3593
+	ldr	r3, .L3599
 	push	{r4, lr}
 	.save {r4, lr}
 	ldr	r3, [r3, #224]
-	cbnz	r3, .L3592
-	ldr	r3, .L3593+4
+	cbnz	r3, .L3598
+	ldr	r3, .L3599+4
 	ldr	r4, [r3, #504]
 	cmp	r4, #1
-	bne	.L3592
+	bne	.L3598
 	bl	FtlCacheWriteBack
 	bl	l2p_flush
 	mov	r0, r4
 	bl	FtlEctTblFlush
 	bl	FtlVpcTblFlush
-.L3592:
+.L3598:
 	movs	r0, #0
 	pop	{r4, pc}
-.L3594:
+.L3600:
 	.align	2
-.L3593:
+.L3599:
 	.word	.LANCHOR2
 	.word	.LANCHOR1
 	.fnend
@@ -21800,17 +21840,17 @@ FtlDeInit:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, lr}
 	.save {r3, lr}
-	ldr	r3, .L3597
+	ldr	r3, .L3603
 	ldr	r3, [r3, #504]
 	cmp	r3, #1
-	bne	.L3596
+	bne	.L3602
 	bl	FtlSysFlush
-.L3596:
+.L3602:
 	movs	r0, #0
 	pop	{r3, pc}
-.L3598:
+.L3604:
 	.align	2
-.L3597:
+.L3603:
 	.word	.LANCHOR1
 	.fnend
 	.size	FtlDeInit, .-FtlDeInit
@@ -21843,13 +21883,13 @@ rk_ftl_de_init:
 	push	{r3, lr}
 	.save {r3, lr}
 	movs	r1, #0
-	ldr	r0, .L3601
+	ldr	r0, .L3607
 	bl	printk
 	pop	{r3, lr}
 	b	ftl_deinit
-.L3602:
+.L3608:
 	.align	2
-.L3601:
+.L3607:
 	.word	.LC160
 	.fnend
 	.size	rk_ftl_de_init, .-rk_ftl_de_init
@@ -21892,23 +21932,23 @@ ftl_discard:
 	.save {r4, r5, r6, r7, r8, r9, lr}
 	.pad #12
 	mov	r6, r0
-	ldr	r7, .L3624
+	ldr	r7, .L3630
 	mov	r4, r1
 	ldr	r5, [r7, #2428]
 	cmp	r0, r5
-	bcs	.L3614
+	bcs	.L3620
 	cmp	r1, r5
-	bhi	.L3614
+	bhi	.L3620
 	adds	r3, r0, r1
 	cmp	r3, r5
-	bhi	.L3614
+	bhi	.L3620
 	cmp	r1, #31
-	bls	.L3616
-	ldr	r3, .L3624+4
+	bls	.L3622
+	ldr	r3, .L3630+4
 	ldr	r2, [r3, #224]
 	mov	r8, r3
 	cmp	r2, #0
-	bne	.L3616
+	bne	.L3622
 	bl	FtlCacheWriteBack
 	ldrh	r5, [r7, #2394]
 	mov	r0, r6
@@ -21918,7 +21958,7 @@ ftl_discard:
 	mov	r9, r0
 	subs	r6, r6, r3
 	uxth	r6, r6
-	cbz	r6, .L3607
+	cbz	r6, .L3613
 	subs	r5, r5, r6
 	add	r9, r0, #1
 	cmp	r5, r4
@@ -21926,27 +21966,27 @@ ftl_discard:
 	movcs	r5, r4
 	uxth	r5, r5
 	subs	r4, r4, r5
-.L3607:
-	ldr	r5, .L3624+8
+.L3613:
+	ldr	r5, .L3630+8
 	mov	r3, #-1
 	str	r3, [sp, #4]
-.L3608:
+.L3614:
 	ldrh	r3, [r7, #2394]
 	cmp	r4, r3
-	bcc	.L3623
+	bcc	.L3629
 	mov	r0, r9
 	mov	r1, sp
 	movs	r2, #0
 	bl	log2phys
 	ldr	r3, [sp]
 	adds	r3, r3, #1
-	beq	.L3609
-	ldr	r3, [r5, #988]
+	beq	.L3615
+	ldr	r3, [r5, #996]
 	add	r1, sp, #4
 	movs	r2, #1
 	mov	r0, r9
 	adds	r3, r3, #1
-	str	r3, [r5, #988]
+	str	r3, [r5, #996]
 	ldr	r3, [r8, #480]
 	adds	r3, r3, #1
 	str	r3, [r8, #480]
@@ -21955,33 +21995,33 @@ ftl_discard:
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	bl	decrement_vpc_count
-.L3609:
+.L3615:
 	ldrh	r3, [r7, #2394]
 	add	r9, r9, #1
 	subs	r4, r4, r3
-	b	.L3608
-.L3623:
-	ldr	r3, .L3624+8
-	ldr	r2, [r3, #988]
+	b	.L3614
+.L3629:
+	ldr	r3, .L3630+8
+	ldr	r2, [r3, #996]
 	cmp	r2, #32
-	bls	.L3616
+	bls	.L3622
 	movs	r2, #0
-	str	r2, [r3, #988]
+	str	r2, [r3, #996]
 	bl	l2p_flush
 	bl	FtlVpcTblFlush
-	b	.L3616
-.L3614:
+	b	.L3622
+.L3620:
 	mov	r0, #-1
-	b	.L3606
-.L3616:
+	b	.L3612
+.L3622:
 	movs	r0, #0
-.L3606:
+.L3612:
 	add	sp, sp, #12
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L3625:
+.L3631:
 	.align	2
-.L3624:
+.L3630:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR5
@@ -22012,33 +22052,33 @@ ftl_read:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r8, r3
-	ldr	r3, .L3672
+	ldr	r3, .L3678
 	.pad #84
 	sub	sp, sp, #84
 	mov	r5, r1
 	str	r2, [sp, #36]
 	ldr	r3, [r3, #504]
 	cmp	r3, #1
-	bne	.L3653
+	bne	.L3659
 	cmp	r0, #16
-	bne	.L3629
+	bne	.L3635
 	add	r0, r1, #256
 	mov	r1, r2
 	mov	r2, r8
 	bl	FtlVendorPartRead
-	b	.L3628
-.L3629:
-	ldr	r2, .L3672+4
+	b	.L3634
+.L3635:
+	ldr	r2, .L3678+4
 	ldr	r3, [r2, #2428]
 	cmp	r1, r3
-	bcs	.L3653
+	bcs	.L3659
 	ldr	r1, [sp, #36]
 	cmp	r1, r3
-	bhi	.L3653
+	bhi	.L3659
 	adds	r1, r5, r1
 	str	r1, [sp, #40]
 	cmp	r1, r3
-	bhi	.L3653
+	bhi	.L3659
 	ldrh	r4, [r2, #2394]
 	mov	r0, r5
 	mov	r1, r4
@@ -22054,7 +22094,7 @@ ftl_read:
 	str	r0, [sp, #32]
 	add	r3, r3, r0
 	str	r3, [sp, #24]
-	ldr	r3, .L3672+8
+	ldr	r3, .L3678+8
 	ldr	r0, [sp, #28]
 	ldr	r2, [r3, #504]
 	add	r2, r2, r1
@@ -22065,54 +22105,54 @@ ftl_read:
 	ldr	r1, [sp, #32]
 	str	r2, [r3, #476]
 	bl	FtlCacheMetchLpa
-	cbz	r0, .L3630
+	cbz	r0, .L3636
 	bl	FtlCacheWriteBack
-.L3630:
+.L3636:
 	mov	r10, #0
 	ldr	r6, [sp, #28]
-	ldr	r4, .L3672+8
-	ldr	r9, .L3672+4
+	ldr	r4, .L3678+8
+	ldr	r9, .L3678+4
 	mov	r7, r10
 	str	r10, [sp, #48]
 	str	r10, [sp, #52]
-.L3631:
+.L3637:
 	ldr	r3, [sp, #24]
 	cmp	r3, #0
-	beq	.L3671
+	beq	.L3677
 	add	r1, sp, #76
 	mov	r0, r6
 	movs	r2, #0
 	bl	log2phys
 	ldr	r3, [sp, #76]
 	adds	r1, r3, #1
-	bne	.L3668
+	bne	.L3674
 	mov	fp, #0
-.L3632:
+.L3638:
 	ldrh	r0, [r9, #2394]
 	cmp	fp, r0
-	bcs	.L3636
+	bcs	.L3642
 	mla	r0, r0, r6, fp
 	cmp	r0, r5
-	bcc	.L3634
+	bcc	.L3640
 	ldr	r3, [sp, #40]
 	cmp	r0, r3
-	bcs	.L3634
+	bcs	.L3640
 	subs	r0, r0, r5
 	movs	r1, #0
 	mov	r2, #512
 	add	r0, r8, r0, lsl #9
 	bl	ftl_memset
-.L3634:
+.L3640:
 	add	fp, fp, #1
-	b	.L3632
-.L3668:
+	b	.L3638
+.L3674:
 	ldr	r2, [r4, #3304]
 	mov	fp, #36
 	mla	fp, fp, r7, r2
 	str	r3, [fp, #4]
 	ldr	r3, [sp, #28]
 	cmp	r6, r3
-	bne	.L3637
+	bne	.L3643
 	ldrh	ip, [r9, #2394]
 	mov	r0, r5
 	ldr	r3, [r4, #3332]
@@ -22129,13 +22169,13 @@ ftl_read:
 	movcs	r3, r2
 	cmp	r3, ip
 	str	r3, [sp, #48]
-	bne	.L3638
+	bne	.L3644
 	str	r8, [fp, #8]
-	b	.L3638
-.L3637:
+	b	.L3644
+.L3643:
 	ldr	r3, [sp, #32]
 	cmp	r6, r3
-	bne	.L3639
+	bne	.L3645
 	ldr	r3, [r4, #3336]
 	ldrh	r2, [r9, #2394]
 	ldr	r1, [sp, #40]
@@ -22143,16 +22183,16 @@ ftl_read:
 	mul	r3, r2, r6
 	rsb	r10, r3, r1
 	cmp	r10, r2
-	bne	.L3638
-	b	.L3669
-.L3639:
+	bne	.L3644
+	b	.L3675
+.L3645:
 	ldrh	r3, [r9, #2394]
 	muls	r3, r6, r3
-.L3669:
+.L3675:
 	subs	r3, r3, r5
 	add	r3, r8, r3, lsl #9
 	str	r3, [fp, #8]
-.L3638:
+.L3644:
 	ldrh	r3, [r9, #2400]
 	ldr	r2, [r4, #3344]
 	str	r6, [fp, #16]
@@ -22161,18 +22201,18 @@ ftl_read:
 	bic	r3, r3, #3
 	add	r3, r3, r2
 	str	r3, [fp, #12]
-.L3636:
+.L3642:
 	ldr	r3, [sp, #24]
 	adds	r6, r6, #1
 	subs	r3, r3, #1
 	str	r3, [sp, #24]
-	beq	.L3640
+	beq	.L3646
 	ldrh	r3, [r9, #2320]
 	cmp	r7, r3, lsl #3
-	bne	.L3631
-.L3640:
+	bne	.L3637
+.L3646:
 	cmp	r7, #0
-	beq	.L3631
+	beq	.L3637
 	ldr	r0, [r4, #3304]
 	mov	r1, r7
 	movs	r2, #0
@@ -22187,7 +22227,7 @@ ftl_read:
 	str	r3, [sp, #68]
 	movs	r3, #0
 	str	r3, [sp, #44]
-.L3647:
+.L3653:
 	ldr	r3, [sp, #44]
 	mov	ip, #36
 	ldr	r1, [sp, #28]
@@ -22196,33 +22236,33 @@ ftl_read:
 	add	r3, r3, fp
 	ldr	r2, [r3, #16]
 	cmp	r2, r1
-	bne	.L3642
+	bne	.L3648
 	ldr	r1, [r3, #8]
 	ldr	r3, [r4, #3332]
 	cmp	r1, r3
-	bne	.L3643
+	bne	.L3649
 	ldr	r3, [sp, #60]
 	mov	r0, r8
 	ldr	r2, [sp, #64]
 	add	r1, r1, r3
-	b	.L3670
-.L3642:
+	b	.L3676
+.L3648:
 	ldr	r1, [sp, #32]
 	cmp	r2, r1
-	bne	.L3643
+	bne	.L3649
 	ldr	r1, [r3, #8]
 	ldr	r3, [r4, #3336]
 	cmp	r1, r3
-	bne	.L3643
+	bne	.L3649
 	ldrh	r0, [r9, #2394]
 	ldr	r3, [sp, #32]
 	ldr	r2, [sp, #68]
 	muls	r0, r3, r0
 	subs	r0, r0, r5
 	add	r0, r8, r0, lsl #9
-.L3670:
+.L3676:
 	bl	ftl_memcpy
-.L3643:
+.L3649:
 	ldr	r2, [r4, #3304]
 	add	r3, r2, fp
 	ldr	r1, [r2, fp]
@@ -22236,9 +22276,9 @@ ftl_read:
 	ldr	r1, [r3, #16]
 	ldr	r2, [r2, #8]
 	cmp	r1, r2
-	beq	.L3645
+	beq	.L3651
 	ldr	r2, [r4, #680]
-	ldr	r0, .L3672+12
+	ldr	r0, .L3678+12
 	adds	r2, r2, #1
 	str	r2, [r4, #680]
 	ldr	lr, [r3, #12]
@@ -22257,43 +22297,43 @@ ftl_read:
 	ldr	r2, [r3, #4]
 	ldr	r3, [lr]
 	bl	printk
-.L3645:
+.L3651:
 	ldr	r3, [r4, #3304]
 	add	r2, r3, fp
 	ldr	r3, [r3, fp]
 	cmp	r3, #256
-	bne	.L3646
+	bne	.L3652
 	ldr	r0, [r2, #4]
 	ubfx	r0, r0, #10, #16
 	bl	P2V_block_in_plane
 	bl	FtlGcRefreshBlock
-.L3646:
+.L3652:
 	ldr	r3, [sp, #44]
 	adds	r3, r3, #1
 	str	r3, [sp, #44]
 	cmp	r3, r7
-	bne	.L3647
+	bne	.L3653
 	movs	r7, #0
-	b	.L3631
-.L3671:
-	ldr	r3, .L3672+8
+	b	.L3637
+.L3677:
+	ldr	r3, .L3678+8
 	ldrh	r3, [r3, #1182]
-	cbz	r3, .L3649
+	cbz	r3, .L3655
 	ldr	r0, [sp, #24]
 	movs	r1, #1
 	bl	ftl_do_gc
-.L3649:
+.L3655:
 	ldr	r0, [sp, #52]
-	b	.L3628
-.L3653:
+	b	.L3634
+.L3659:
 	mov	r0, #-1
-.L3628:
+.L3634:
 	add	sp, sp, #84
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3673:
+.L3679:
 	.align	2
-.L3672:
+.L3678:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR2
@@ -22336,25 +22376,25 @@ FlashBootVendorRead:
 	mov	r5, r1
 	mov	r4, r2
 	bl	rknand_device_lock
-	ldr	r3, .L3678
+	ldr	r3, .L3684
 	ldr	r3, [r3, #504]
 	cmp	r3, #1
-	bne	.L3677
+	bne	.L3683
 	mov	r2, r4
 	mov	r0, r6
 	mov	r1, r5
 	bl	ftl_vendor_read
 	mov	r4, r0
-	b	.L3676
-.L3677:
+	b	.L3682
+.L3683:
 	mov	r4, #-1
-.L3676:
+.L3682:
 	bl	rknand_device_unlock
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L3679:
+.L3685:
 	.align	2
-.L3678:
+.L3684:
 	.word	.LANCHOR1
 	.fnend
 	.size	FlashBootVendorRead, .-FlashBootVendorRead
@@ -22431,57 +22471,57 @@ FtlInit:
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
 	mov	r3, #-1
-	ldr	r2, .L3699
-	ldr	r7, .L3699+4
-	ldr	r4, .L3699+8
-	ldr	r6, .L3699+12
-	ldr	r1, .L3699+16
-	ldr	r0, .L3699+20
+	ldr	r2, .L3705
+	ldr	r7, .L3705+4
+	ldr	r4, .L3705+8
+	ldr	r6, .L3705+12
+	ldr	r1, .L3705+16
+	ldr	r0, .L3705+20
 	str	r3, [r7, #504]
 	movs	r3, #0
-	str	r3, [r2, #992]
+	str	r3, [r2, #1000]
 	str	r3, [r4, #224]
 	bl	printk
-	add	r0, r6, #116
+	add	r0, r6, #120
 	bl	FtlConstantsInit
 	bl	FtlMemInit
 	bl	FtlVariablesInit
 	ldrh	r0, [r6, #2324]
 	bl	FtlFreeSysBlkQueueInit
 	bl	FtlLoadBbt
-	cbz	r0, .L3684
-	ldr	r0, .L3699+24
-	b	.L3698
-.L3684:
+	cbz	r0, .L3690
+	ldr	r0, .L3705+24
+	b	.L3704
+.L3690:
 	bl	FtlSysBlkInit
 	mov	r5, r0
-	cbz	r0, .L3686
-	ldr	r0, .L3699+28
-.L3698:
-	ldr	r1, .L3699+32
+	cbz	r0, .L3692
+	ldr	r0, .L3705+28
+.L3704:
+	ldr	r1, .L3705+32
 	bl	printk
-	b	.L3685
-.L3686:
+	b	.L3691
+.L3692:
 	movs	r1, #1
 	str	r1, [r7, #504]
 	bl	ftl_do_gc
 	ldrh	r7, [r4, #312]
 	cmp	r7, #15
-	bhi	.L3687
+	bhi	.L3693
 	mov	r8, r4
 	movw	r6, #65535
-.L3690:
+.L3696:
 	ldrh	r3, [r4, #556]
 	cmp	r3, r6
-	bne	.L3688
+	bne	.L3694
 	ldrh	r3, [r8, #1174]
 	cmp	r3, r6
-	bne	.L3688
+	bne	.L3694
 	and	r0, r5, #63
 	bl	List_get_gc_head_node
 	uxth	r0, r0
 	bl	FtlGcRefreshBlock
-.L3688:
+.L3694:
 	movs	r0, #1
 	mov	r1, r0
 	bl	ftl_do_gc
@@ -22491,27 +22531,27 @@ FtlInit:
 	ldrh	r2, [r4, #312]
 	adds	r3, r7, #2
 	cmp	r2, r3
-	bhi	.L3685
+	bhi	.L3691
 	adds	r5, r5, #1
 	cmp	r5, #4096
-	bne	.L3690
-	b	.L3685
-.L3687:
-	ldrb	r3, [r6, #144]	@ zero_extendqisi2
-	cbz	r3, .L3685
+	bne	.L3696
+	b	.L3691
+.L3693:
+	ldrb	r3, [r6, #148]	@ zero_extendqisi2
+	cbz	r3, .L3691
 	movs	r4, #128
-.L3692:
+.L3698:
 	movs	r0, #1
 	mov	r1, r0
 	bl	ftl_do_gc
 	subs	r4, r4, #1
-	bne	.L3692
-.L3685:
+	bne	.L3698
+.L3691:
 	movs	r0, #0
 	pop	{r4, r5, r6, r7, r8, pc}
-.L3700:
+.L3706:
 	.align	2
-.L3699:
+.L3705:
 	.word	.LANCHOR5
 	.word	.LANCHOR1
 	.word	.LANCHOR2
@@ -22535,42 +22575,43 @@ rk_ftl_init:
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 	mov	r0, #2048
-	bl	ftl_malloc
-	ldr	r5, .L3705
-	ldr	r4, .L3705+4
-	movs	r6, #0
-	add	r1, r5, #1000
-	str	r6, [r5, #1000]
-	str	r6, [r4, #1180]
-	str	r0, [r5, #996]
+	bl	ftl_dma32_malloc
+	ldr	r6, .L3711
+	ldr	r4, .L3711+4
+	movs	r5, #0
+	add	r1, r6, #1008
+	str	r5, [r6, #1008]
+	str	r5, [r4, #1184]
+	str	r5, [r4, #1180]
+	str	r0, [r6, #1004]
 	addw	r0, r4, #1180
 	bl	rknand_get_reg_addr
 	ldr	r3, [r4, #1180]
-	cbz	r3, .L3704
+	cbz	r3, .L3710
 	bl	rk_nandc_irq_init
-	mov	r1, r6
-	mov	r2, r6
+	mov	r1, r5
+	mov	r2, r5
 	mov	r3, #2048
-	ldr	r0, [r5, #996]
+	ldr	r0, [r6, #1004]
 	bl	FlashSramLoadStore
 	bl	rknand_flash_cs_init
 	ldr	r0, [r4, #1180]
 	bl	FlashInit
 	mov	r4, r0
-	cbnz	r0, .L3703
+	cbnz	r0, .L3709
 	bl	FtlInit
-.L3703:
+.L3709:
 	mov	r1, r4
-	ldr	r0, .L3705+8
+	ldr	r0, .L3711+8
 	bl	printk
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L3704:
+.L3710:
 	mov	r0, #-1
 	pop	{r4, r5, r6, pc}
-.L3706:
+.L3712:
 	.align	2
-.L3705:
+.L3711:
 	.word	.LANCHOR5
 	.word	.LANCHOR4
 	.word	.LC163
@@ -22585,21 +22626,21 @@ ftl_fix_nand_power_lost_error:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 48
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L3722
+	ldr	r3, .L3728
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	.pad #48
 	sub	sp, sp, #48
-	ldrb	r2, [r3, #144]	@ zero_extendqisi2
+	ldrb	r2, [r3, #148]	@ zero_extendqisi2
 	mov	r8, r3
 	cmp	r2, #0
-	beq	.L3707
-	ldr	r4, .L3722+4
+	beq	.L3713
+	ldr	r4, .L3728+4
 	movw	r7, #4097
-	ldr	r6, .L3722+8
-	ldr	r0, .L3722+12
+	ldr	r6, .L3728+8
+	ldr	r0, .L3728+12
 	ldr	r3, [r4, #296]
-	ldrh	r5, [r6, #840]
+	ldrh	r5, [r6, #848]
 	mov	r1, r5
 	ldrh	r2, [r3, r5, lsl #1]
 	bl	printk
@@ -22612,43 +22653,43 @@ ftl_fix_nand_power_lost_error:
 	add	r0, r4, #364
 	bl	allocate_new_data_superblock
 	lsl	r9, r5, #1
-.L3709:
+.L3715:
 	subs	r7, r7, #1
-	beq	.L3713
+	beq	.L3719
 	movs	r0, #1
 	mov	r1, r0
 	bl	ftl_do_gc
 	ldr	r3, [r4, #296]
 	ldrh	r3, [r3, r9]
 	cmp	r3, #0
-	bne	.L3709
-.L3713:
+	bne	.L3715
+.L3719:
 	ldr	r3, [r4, #296]
 	mov	r1, r5
-	ldr	r0, .L3722+12
+	ldr	r0, .L3728+12
 	ldrh	r2, [r3, r5, lsl #1]
 	bl	printk
 	ldr	r3, [r4, #296]
 	ldrh	r7, [r3, r5, lsl #1]
-	cbnz	r7, .L3711
+	cbnz	r7, .L3717
 	add	r0, sp, #48
 	mov	r10, #36
 	movw	r9, #65535
 	strh	r5, [r0, #-48]!	@ movhi
 	bl	make_superblock
-	ldr	r3, .L3722+4
+	ldr	r3, .L3728+4
 	ldrh	ip, [r8, #2320]
 	ldr	r8, [r3, #228]
 	mov	r3, r7
 	mov	lr, r3
 	add	r0, sp, #14
-.L3714:
+.L3720:
 	uxth	r2, r3
 	cmp	r2, ip
-	bcs	.L3721
+	bcs	.L3727
 	ldrh	r2, [r0, #2]!
 	cmp	r2, r9
-	beq	.L3715
+	beq	.L3721
 	mla	r1, r10, r7, r8
 	adds	r7, r7, #1
 	lsls	r2, r2, #10
@@ -22656,13 +22697,13 @@ ftl_fix_nand_power_lost_error:
 	str	r2, [r1, #4]
 	str	lr, [r1, #8]
 	str	lr, [r1, #12]
-.L3715:
-	adds	r3, r3, #1
-	b	.L3714
 .L3721:
+	adds	r3, r3, #1
+	b	.L3720
+.L3727:
 	ldr	r3, [r4, #296]
 	mov	r1, r5
-	ldr	r0, .L3722+16
+	ldr	r0, .L3728+16
 	ldrh	r2, [r3, r5, lsl #1]
 	bl	printk
 	movs	r1, #0
@@ -22673,16 +22714,16 @@ ftl_fix_nand_power_lost_error:
 	movs	r1, #1
 	mov	r2, r7
 	bl	FlashEraseBlocks
-.L3711:
+.L3717:
 	movw	r3, #65535
-	strh	r3, [r6, #840]	@ movhi
-.L3707:
+	strh	r3, [r6, #848]	@ movhi
+.L3713:
 	add	sp, sp, #48
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L3723:
+.L3729:
 	.align	2
-.L3722:
+.L3728:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LANCHOR5
@@ -22716,40 +22757,40 @@ ftl_write:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #92
 	sub	sp, sp, #92
-	ldr	r9, .L3800+16
+	ldr	r9, .L3806+16
 	mov	r8, r1
 	str	r3, [sp, #12]
 	mov	fp, r2
 	ldr	r3, [r9, #224]
 	cmp	r3, #0
-	bne	.L3767
-	ldr	r2, .L3800
+	bne	.L3773
+	ldr	r2, .L3806
 	ldr	r2, [r2, #504]
 	cmp	r2, #1
-	bne	.L3768
+	bne	.L3774
 	cmp	r0, #16
-	bne	.L3727
+	bne	.L3733
 	add	r0, r1, #256
 	ldr	r2, [sp, #12]
 	mov	r1, fp
 	bl	FtlVendorPartWrite
-	b	.L3726
-.L3727:
-	ldr	r7, .L3800+4
+	b	.L3732
+.L3733:
+	ldr	r7, .L3806+4
 	ldr	r3, [r7, #2428]
 	cmp	r1, r3
-	bcs	.L3771
+	bcs	.L3777
 	cmp	fp, r3
-	bhi	.L3771
+	bhi	.L3777
 	add	r6, r1, fp
 	cmp	r6, r3
-	bhi	.L3771
+	bhi	.L3777
 	ldrh	r4, [r7, #2394]
 	mov	r3, #2048
-	ldr	r5, .L3800+8
+	ldr	r5, .L3806+8
 	mov	r0, r1
 	mov	r1, r4
-	str	r3, [r5, #1004]
+	str	r3, [r5, #1012]
 	bl	__aeabi_uidiv
 	mov	r1, r4
 	str	r0, [sp, #4]
@@ -22774,7 +22815,7 @@ ftl_write:
 	movcc	r3, #0
 	str	r3, [sp, #28]
 	cmp	r2, #0
-	beq	.L3729
+	beq	.L3735
 	movs	r3, #36
 	ldr	r7, [r7, #2444]
 	muls	r3, r2, r3
@@ -22783,15 +22824,15 @@ ftl_write:
 	add	r7, r7, r3
 	ldr	r3, [r7, #16]
 	cmp	r2, r3
-	bne	.L3730
+	bne	.L3736
 	ldr	r3, [r9, #488]
 	mov	r1, r4
 	mov	r0, r8
 	adds	r3, r3, #1
 	str	r3, [r9, #488]
-	ldr	r3, [r5, #1008]
+	ldr	r3, [r5, #1016]
 	adds	r3, r3, #1
-	str	r3, [r5, #1008]
+	str	r3, [r5, #1016]
 	bl	__aeabi_uidivmod
 	ldr	r0, [r7, #8]
 	subs	r4, r4, r1
@@ -22803,11 +22844,11 @@ ftl_write:
 	lsl	r9, r4, #9
 	mov	r2, r9
 	bl	ftl_memcpy
-	cbnz	r6, .L3731
-	ldr	r3, [r5, #1008]
+	cbnz	r6, .L3737
+	ldr	r3, [r5, #1016]
 	cmp	r3, #2
-	ble	.L3767
-.L3731:
+	ble	.L3773
+.L3737:
 	ldr	r3, [sp, #12]
 	rsb	fp, r4, fp
 	add	r8, r8, r4
@@ -22817,71 +22858,71 @@ ftl_write:
 	ldr	r3, [sp, #4]
 	adds	r3, r3, #1
 	str	r3, [sp, #4]
-.L3730:
+.L3736:
 	movs	r3, #0
-	str	r3, [r5, #1008]
-.L3729:
+	str	r3, [r5, #1016]
+.L3735:
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #20]
 	bl	FtlCacheMetchLpa
-	cbz	r0, .L3732
+	cbz	r0, .L3738
 	bl	FtlCacheWriteBack
-.L3732:
-	ldr	r4, .L3800+4
-	ldr	r7, .L3800+12
+.L3738:
+	ldr	r4, .L3806+4
+	ldr	r7, .L3806+12
 	ldr	r6, [sp, #4]
 	mov	r10, r4
-	str	r7, [r5, #984]
-.L3733:
+	str	r7, [r5, #992]
+.L3739:
 	ldr	r3, [sp, #8]
-	ldr	r5, .L3800+16
+	ldr	r5, .L3806+16
 	cmp	r3, #0
-	beq	.L3799
+	beq	.L3805
 	ldrh	r3, [r7, #4]
-	cbnz	r3, .L3734
+	cbnz	r3, .L3740
 	add	r2, r5, #316
-	ldr	r9, .L3800
+	ldr	r9, .L3806
 	cmp	r7, r2
-	bne	.L3735
+	bne	.L3741
 	ldrh	r7, [r5, #368]
-	cbnz	r7, .L3736
+	cbnz	r7, .L3742
 	add	r0, r5, #364
 	bl	allocate_new_data_superblock
 	str	r7, [r9, #3452]
-.L3736:
-	ldr	r0, .L3800+12
+.L3742:
+	ldr	r0, .L3806+12
 	bl	allocate_new_data_superblock
 	ldr	r3, [r9, #3452]
-	cbnz	r3, .L3772
-.L3738:
-	ldr	r7, .L3800+12
-	b	.L3737
-.L3735:
+	cbnz	r3, .L3778
+.L3744:
+	ldr	r7, .L3806+12
+	b	.L3743
+.L3741:
 	str	r3, [r9, #3452]
 	ldrh	r3, [r5, #320]
 	cmp	r3, #0
-	bne	.L3738
+	bne	.L3744
 	mov	r0, r7
 	bl	allocate_new_data_superblock
-	b	.L3737
-.L3772:
-	ldr	r7, .L3800+20
-.L3737:
+	b	.L3743
+.L3778:
+	ldr	r7, .L3806+20
+.L3743:
 	ldrh	r3, [r7, #4]
-	cbnz	r3, .L3739
+	cbnz	r3, .L3745
 	mov	r0, r7
 	bl	allocate_new_data_superblock
-.L3739:
-	ldr	r3, .L3800+8
-	str	r7, [r3, #984]
-.L3734:
+.L3745:
+	ldr	r3, .L3806+8
+	str	r7, [r3, #992]
+.L3740:
 	ldr	r2, [r5, #3300]
 	ldr	r3, [r4, #2440]
 	ldrh	ip, [r7, #4]
 	subs	r3, r2, r3
 	ldr	r2, [sp, #8]
 	cmp	ip, r3
-	ldr	r9, .L3800+16
+	ldr	r9, .L3806+16
 	it	cs
 	movcs	ip, r3
 	cmp	ip, r2
@@ -22891,27 +22932,27 @@ ftl_write:
 	str	r3, [sp, #44]
 	movs	r3, #0
 	str	r3, [sp, #24]
-.L3740:
+.L3746:
 	ldr	r3, [sp, #24]
 	ldr	r2, [sp, #44]
 	cmp	r3, r2
-	beq	.L3741
+	beq	.L3747
 	ldrh	r3, [r7, #4]
 	cmp	r3, #0
-	beq	.L3741
+	beq	.L3747
 	ldr	r3, [sp, #28]
-	cbz	r3, .L3742
+	cbz	r3, .L3748
 	ldr	r3, [sp, #20]
 	cmp	r6, r3
-	bne	.L3742
+	bne	.L3748
 	ldr	r3, [sp, #24]
-	cbz	r3, .L3742
+	cbz	r3, .L3748
 	ldrh	r2, [r4, #2394]
 	add	r3, r8, fp
 	mls	r3, r2, r6, r3
 	cmp	r3, r2
-	bne	.L3741
-.L3742:
+	bne	.L3747
+.L3748:
 	add	r1, sp, #48
 	movs	r2, #0
 	mov	r0, r6
@@ -22946,10 +22987,10 @@ ftl_write:
 	bl	ftl_memset
 	ldr	r3, [sp, #4]
 	cmp	r6, r3
-	beq	.L3743
+	beq	.L3749
 	ldr	r3, [sp, #20]
 	cmp	r6, r3
-	bne	.L3796
+	bne	.L3802
 	ldrh	r3, [r4, #2394]
 	add	r5, r8, fp
 	smulbb	r3, r3, r6
@@ -22957,8 +22998,8 @@ ftl_write:
 	movs	r3, #0
 	str	r3, [sp, #32]
 	uxth	r5, r5
-	b	.L3746
-.L3743:
+	b	.L3752
+.L3749:
 	ldrh	r5, [r4, #2394]
 	mov	r0, r8
 	mov	r1, r5
@@ -22968,10 +23009,10 @@ ftl_write:
 	cmp	r5, fp
 	it	cs
 	movcs	r5, fp
-.L3746:
+.L3752:
 	ldrh	r3, [r4, #2394]
 	cmp	r5, r3
-	bne	.L3747
+	bne	.L3753
 	ldr	r3, [sp, #4]
 	mov	lr, #36
 	cmp	r6, r3
@@ -22983,24 +23024,24 @@ ftl_write:
 	it	ne
 	addne	r1, r3, r1, lsl #9
 	ldr	r3, [sp, #28]
-	cbz	r3, .L3749
+	cbz	r3, .L3755
 	ldr	r2, [r10, #2440]
 	ldr	r5, [r10, #2444]
 	mla	r2, lr, r2, r5
 	str	r1, [r2, #8]
-	b	.L3750
-.L3749:
+	b	.L3756
+.L3755:
 	ldr	r0, [r10, #2444]
 	ldr	r3, [r10, #2440]
 	ldrh	r2, [r10, #2398]
 	mla	r3, lr, r3, r0
 	ldr	r0, [r3, #8]
-	b	.L3797
-.L3747:
+	b	.L3803
+.L3753:
 	ldr	r2, [sp, #48]
 	movs	r3, #36
 	adds	r1, r2, #1
-	beq	.L3751
+	beq	.L3757
 	ldr	r1, [r4, #2444]
 	add	r0, sp, #52
 	str	r2, [sp, #56]
@@ -23016,35 +23057,35 @@ ftl_write:
 	bl	FlashReadPages
 	ldr	r3, [sp, #52]
 	adds	r3, r3, #1
-	bne	.L3752
+	bne	.L3758
 	ldr	r3, [r9, #680]
 	adds	r3, r3, #1
 	str	r3, [r9, #680]
-	b	.L3754
-.L3801:
+	b	.L3760
+.L3807:
 	.align	2
-.L3800:
+.L3806:
 	.word	.LANCHOR1
 	.word	.LANCHOR0
 	.word	.LANCHOR5
 	.word	.LANCHOR2+316
 	.word	.LANCHOR2
 	.word	.LANCHOR2+364
-.L3752:
+.L3758:
 	ldr	r3, [sp, #16]
 	ldr	r3, [r3, #8]
 	cmp	r3, r6
-	beq	.L3754
+	beq	.L3760
 	ldr	r3, [r9, #680]
 	mov	r2, r6
-	ldr	r0, .L3802
+	ldr	r0, .L3808
 	adds	r3, r3, #1
 	str	r3, [r9, #680]
 	ldr	r3, [sp, #16]
 	ldr	r1, [r3, #8]
 	bl	printk
-	b	.L3754
-.L3751:
+	b	.L3760
+.L3757:
 	ldr	r1, [r4, #2444]
 	ldr	r2, [r4, #2440]
 	mla	r2, r3, r2, r1
@@ -23052,12 +23093,12 @@ ftl_write:
 	ldr	r0, [r2, #8]
 	ldrh	r2, [r4, #2398]
 	bl	ftl_memset
-.L3754:
+.L3760:
 	ldr	r3, [sp, #4]
 	mov	lr, #36
 	lsls	r2, r5, #9
 	cmp	r6, r3
-	bne	.L3755
+	bne	.L3761
 	ldr	r1, [r4, #2440]
 	ldr	r5, [r4, #2444]
 	ldr	r3, [sp, #32]
@@ -23065,8 +23106,8 @@ ftl_write:
 	ldr	r0, [r1, #8]
 	ldr	r1, [sp, #12]
 	add	r0, r0, r3, lsl #9
-	b	.L3797
-.L3755:
+	b	.L3803
+.L3761:
 	ldr	r0, [r4, #2444]
 	ldr	r3, [r4, #2440]
 	ldrh	r1, [r4, #2394]
@@ -23076,10 +23117,10 @@ ftl_write:
 	rsb	r1, r8, r1
 	ldr	r3, [sp, #12]
 	add	r1, r3, r1, lsl #9
-	b	.L3797
-.L3796:
+	b	.L3803
+.L3802:
 	ldr	r3, [sp, #28]
-	cbz	r3, .L3756
+	cbz	r3, .L3762
 	ldr	r3, [r4, #2440]
 	ldr	r2, [r4, #2444]
 	mla	r5, r5, r3, r2
@@ -23089,8 +23130,8 @@ ftl_write:
 	rsb	r3, r8, r3
 	add	r3, r2, r3, lsl #9
 	str	r3, [r5, #8]
-	b	.L3750
-.L3756:
+	b	.L3756
+.L3762:
 	ldr	r2, [r4, #2444]
 	ldr	r3, [r4, #2440]
 	ldrh	r1, [r4, #2394]
@@ -23101,9 +23142,9 @@ ftl_write:
 	rsb	r1, r8, r1
 	ldr	r3, [sp, #12]
 	add	r1, r3, r1, lsl #9
-.L3797:
+.L3803:
 	bl	ftl_memcpy
-.L3750:
+.L3756:
 	ldr	r2, [sp, #40]
 	movw	r3, #61589
 	ldr	r1, [sp, #36]
@@ -23130,34 +23171,34 @@ ftl_write:
 	ldr	r3, [sp, #24]
 	adds	r3, r3, #1
 	str	r3, [sp, #24]
-	b	.L3740
-.L3741:
+	b	.L3746
+.L3747:
 	ldr	r3, [sp, #8]
 	ldr	r2, [sp, #24]
 	subs	r3, r3, r2
 	str	r3, [sp, #8]
-	ldr	r3, .L3802+4
+	ldr	r3, .L3808+4
 	ldr	r2, [r10, #2440]
 	ldr	r3, [r3, #3300]
 	cmp	r2, r3
-	bcs	.L3760
+	bcs	.L3766
 	ldr	r3, [sp, #28]
-	cbnz	r3, .L3760
+	cbnz	r3, .L3766
 	ldrh	r3, [r7, #4]
-	cbz	r3, .L3760
-.L3762:
+	cbz	r3, .L3766
+.L3768:
 	movs	r3, #0
 	str	r3, [sp, #28]
-	b	.L3733
-.L3760:
+	b	.L3739
+.L3766:
 	bl	FtlCacheWriteBack
 	movs	r3, #0
 	str	r3, [r10, #2440]
 	ldr	r3, [sp, #8]
 	cmp	r3, #1
-	bhi	.L3733
-	b	.L3762
-.L3799:
+	bhi	.L3739
+	b	.L3768
+.L3805:
 	mov	r0, r3
 	ldr	r2, [sp, #4]
 	ldr	r3, [sp, #20]
@@ -23165,32 +23206,32 @@ ftl_write:
 	bl	ftl_do_gc
 	ldrh	r3, [r5, #312]
 	cmp	r3, #5
-	bls	.L3775
+	bls	.L3781
 	cmp	r3, #31
-	bhi	.L3767
-	ldr	r3, .L3802+8
-	ldrb	r3, [r3]	@ zero_extendqisi2
-	cbnz	r3, .L3767
-.L3775:
+	bhi	.L3773
+	ldr	r3, .L3808+8
+	ldrb	r3, [r3, #32]	@ zero_extendqisi2
+	cbnz	r3, .L3773
+.L3781:
 	ldr	r4, [sp, #8]
 	mov	r8, #128
-	ldr	r6, .L3802+4
+	ldr	r6, .L3808+4
 	movw	r7, #65535
-.L3788:
+.L3794:
 	ldrh	r3, [r5, #556]
 	cmp	r3, r7
-	bne	.L3766
+	bne	.L3772
 	ldrh	r3, [r6, #1174]
 	cmp	r3, r7
-	bne	.L3766
+	bne	.L3772
 	ldrh	r3, [r6, #1176]
 	cmp	r3, r7
-	bne	.L3766
+	bne	.L3772
 	and	r0, r4, #7
 	bl	List_get_gc_head_node
 	uxth	r0, r0
 	bl	FtlGcRefreshBlock
-.L3766:
+.L3772:
 	movs	r0, #1
 	strh	r8, [r5, #1122]	@ movhi
 	strh	r8, [r5, #1120]	@ movhi
@@ -23200,29 +23241,29 @@ ftl_write:
 	movs	r1, #1
 	bl	ftl_do_gc
 	ldr	r3, [r5, #224]
-	cbnz	r3, .L3767
+	cbnz	r3, .L3773
 	ldrh	r3, [r6, #312]
 	cmp	r3, #2
-	bhi	.L3767
+	bhi	.L3773
 	adds	r4, r4, #1
 	cmp	r4, #256
-	bne	.L3788
-	b	.L3767
-.L3771:
+	bne	.L3794
+	b	.L3773
+.L3777:
 	mov	r0, #-1
-	b	.L3726
-.L3767:
+	b	.L3732
+.L3773:
 	movs	r0, #0
-	b	.L3726
-.L3768:
+	b	.L3732
+.L3774:
 	mov	r0, r3
-.L3726:
+.L3732:
 	add	sp, sp, #92
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3803:
+.L3809:
 	.align	2
-.L3802:
+.L3808:
 	.word	.LC166
 	.word	.LANCHOR2
 	.word	.LANCHOR0
@@ -23264,25 +23305,25 @@ FlashBootVendorWrite:
 	mov	r5, r1
 	mov	r4, r2
 	bl	rknand_device_lock
-	ldr	r3, .L3808
+	ldr	r3, .L3814
 	ldr	r3, [r3, #504]
 	cmp	r3, #1
-	bne	.L3807
+	bne	.L3813
 	mov	r2, r4
 	mov	r0, r6
 	mov	r1, r5
 	bl	ftl_vendor_write
 	mov	r4, r0
-	b	.L3806
-.L3807:
+	b	.L3812
+.L3813:
 	mov	r4, #-1
-.L3806:
+.L3812:
 	bl	rknand_device_unlock
 	mov	r0, r4
 	pop	{r4, r5, r6, pc}
-.L3809:
+.L3815:
 	.align	2
-.L3808:
+.L3814:
 	.word	.LANCHOR1
 	.fnend
 	.size	FlashBootVendorWrite, .-FlashBootVendorWrite
@@ -23342,30 +23383,30 @@ FtlDumpSysBlock:
 	push	{r4, r5, r6, r7, r8, r9, lr}
 	.save {r4, r5, r6, r7, r8, r9, lr}
 	lsl	r8, r0, #10
-	ldr	r5, .L3820
+	ldr	r5, .L3826
 	.pad #28
 	sub	sp, sp, #28
-	ldr	r4, .L3820+4
+	ldr	r4, .L3826+4
 	mov	r9, #0
-	ldr	r7, .L3820+8
+	ldr	r7, .L3826+8
 	mov	r6, r0
 	ldr	r3, [r5, #3316]
-	str	r3, [r4, #1256]
+	str	r3, [r4, #1264]
 	ldr	r3, [r5, #3340]
-	str	r3, [r4, #1260]
-.L3813:
+	str	r3, [r4, #1268]
+.L3819:
 	ldrh	r2, [r7, #2390]
 	sxth	r3, r9
 	cmp	r3, r2
-	bge	.L3819
+	bge	.L3825
 	movs	r1, #1
-	ldr	r0, .L3820+12
+	ldr	r0, .L3826+12
 	orr	r3, r3, r8
-	str	r3, [r4, #1252]
+	str	r3, [r4, #1260]
 	mov	r2, r1
 	bl	FlashReadPages
-	ldr	r3, [r4, #1260]
-	ldr	r0, .L3820+16
+	ldr	r3, [r4, #1268]
+	ldr	r0, .L3826+16
 	mov	r1, r6
 	ldr	r2, [r3]
 	str	r2, [sp]
@@ -23374,36 +23415,36 @@ FtlDumpSysBlock:
 	ldr	r2, [r3, #8]
 	str	r2, [sp, #8]
 	ldr	r3, [r3, #12]
-	ldr	r2, [r4, #1248]
+	ldr	r2, [r4, #1256]
 	str	r3, [sp, #12]
-	ldr	r3, [r4, #1256]
+	ldr	r3, [r4, #1264]
 	ldr	r3, [r3]
 	str	r3, [sp, #16]
-	ldr	r3, [r4, #1252]
-	bl	printk
 	ldr	r3, [r4, #1260]
+	bl	printk
+	ldr	r3, [r4, #1268]
 	ldr	r3, [r3]
 	adds	r3, r3, #1
-	beq	.L3814
-	ldr	r0, .L3820+20
+	beq	.L3820
+	ldr	r0, .L3826+20
 	movs	r2, #4
 	ldr	r1, [r5, #3316]
 	mov	r3, #768
 	bl	rknand_print_hex
-.L3814:
+.L3820:
 	add	r9, r9, #1
-	b	.L3813
-.L3819:
+	b	.L3819
+.L3825:
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L3821:
+.L3827:
 	.align	2
-.L3820:
+.L3826:
 	.word	.LANCHOR2
 	.word	.LANCHOR4
 	.word	.LANCHOR0
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC167
 	.word	.LC168
 	.fnend
@@ -23421,15 +23462,15 @@ dump_map_info:
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.pad #52
 	sub	sp, sp, #52
-	ldr	r4, .L3840
+	ldr	r4, .L3846
 	addw	fp, r4, #2348
 	ldrh	r7, [r4, #2328]
 	mov	r9, r4
-.L3823:
+.L3829:
 	ldrh	r3, [r4, #2330]
-	ldr	r6, .L3840+4
+	ldr	r6, .L3846+4
 	cmp	r3, r7
-	bls	.L3837
+	bls	.L3843
 	ldr	r1, [r6, #1148]
 	mov	r8, #0
 	ldrh	ip, [r9, #2320]
@@ -23440,10 +23481,10 @@ dump_map_info:
 	ldr	r3, [r6, #1144]
 	ldrh	r1, [r9, #2400]
 	str	r1, [sp, #28]
-.L3833:
+.L3839:
 	uxth	r1, r8
 	cmp	r1, ip
-	bcs	.L3838
+	bcs	.L3844
 	mov	r1, r7
 	ldrb	r0, [fp, r8]	@ zero_extendqisi2
 	str	r3, [sp, #44]
@@ -23456,7 +23497,7 @@ dump_map_info:
 	ldr	ip, [sp, #36]
 	ldr	r2, [sp, #40]
 	ldr	r3, [sp, #44]
-	cbnz	r0, .L3824
+	cbnz	r0, .L3830
 	mla	r0, r10, r5, r2
 	lsls	r1, r1, #10
 	str	r1, [r0, #4]
@@ -23471,23 +23512,23 @@ dump_map_info:
 	str	r3, [r0, #8]
 	add	r1, r1, lr
 	str	r1, [r0, #12]
-.L3824:
+.L3830:
 	add	r8, r8, #1
-	b	.L3833
-.L3838:
-	cbz	r5, .L3828
+	b	.L3839
+.L3844:
+	cbz	r5, .L3834
 	ldr	r0, [r6, #3304]
 	mov	r1, r5
 	movs	r2, #1
 	mov	r8, #0
 	bl	FlashReadPages
 	mov	r10, #36
-.L3829:
+.L3835:
 	uxth	r3, r8
 	cmp	r3, r5
-	bcs	.L3828
+	bcs	.L3834
 	ldr	r3, [r6, #3304]
-	ldr	r0, .L3840+8
+	ldr	r0, .L3846+8
 	mla	r3, r10, r8, r3
 	add	r8, r8, #1
 	adds	r2, r3, #4
@@ -23505,39 +23546,39 @@ dump_map_info:
 	str	r3, [sp, #16]
 	ldr	r3, [lr]
 	bl	printk
-	b	.L3829
-.L3828:
+	b	.L3835
+.L3834:
 	adds	r7, r7, #1
 	uxth	r7, r7
-	b	.L3823
-.L3837:
-	ldr	r7, .L3840+12
+	b	.L3829
+.L3843:
+	ldr	r7, .L3846+12
 	mov	r8, #0
-.L3832:
+.L3838:
 	ldrh	r2, [r6, #3452]
 	sxth	r3, r8
-	ldr	r5, .L3840+4
+	ldr	r5, .L3846+4
 	cmp	r3, r2
-	bge	.L3835
+	bge	.L3841
 	lsls	r5, r3, #1
 	mov	r9, #0
-.L3836:
+.L3842:
 	ldrh	r2, [r4, #2390]
 	sxth	r3, r9
 	add	r9, r9, #1
 	cmp	r3, r2
-	bge	.L3839
+	bge	.L3845
 	ldr	r2, [r6, #3368]
 	movs	r1, #1
-	ldr	r0, .L3840+16
+	ldr	r0, .L3846+16
 	ldrh	r2, [r2, r5]
 	orr	r3, r3, r2, lsl #10
 	mov	r2, r1
-	str	r3, [r7, #1252]
+	str	r3, [r7, #1260]
 	bl	FlashReadPages
-	ldr	r3, [r7, #1260]
+	ldr	r3, [r7, #1268]
 	ldr	r1, [r6, #3368]
-	ldr	r2, [r7, #1256]
+	ldr	r2, [r7, #1264]
 	ldr	r0, [r3]
 	ldrh	r1, [r1, r5]
 	str	r0, [sp]
@@ -23546,31 +23587,31 @@ dump_map_info:
 	ldr	r0, [r3, #8]
 	str	r0, [sp, #8]
 	ldr	r3, [r3, #12]
-	ldr	r0, .L3840+20
+	ldr	r0, .L3846+20
 	str	r3, [sp, #12]
 	ldr	r3, [r2]
 	str	r3, [sp, #16]
 	ldr	r3, [r2, #4]
 	str	r3, [sp, #20]
-	ldr	r2, [r7, #1248]
-	ldr	r3, [r7, #1252]
+	ldr	r2, [r7, #1256]
+	ldr	r3, [r7, #1260]
 	bl	printk
-	b	.L3836
-.L3839:
+	b	.L3842
+.L3845:
 	add	r8, r8, #1
-	b	.L3832
-.L3835:
+	b	.L3838
+.L3841:
 	ldr	r1, [r5, #3368]
 	movs	r2, #2
 	ldr	r3, [r4, #2416]
-	ldr	r0, .L3840+24
+	ldr	r0, .L3846+24
 	bl	rknand_print_hex
 	ldr	r1, [r5, #3388]
 	ldrh	r3, [r4, #2424]
 	movs	r2, #4
-	ldr	r0, .L3840+28
+	ldr	r0, .L3846+28
 	bl	rknand_print_hex
-	ldr	r0, .L3840+32
+	ldr	r0, .L3846+32
 	ldr	r1, [r5, #3392]
 	movs	r2, #4
 	ldrh	r3, [r4, #2424]
@@ -23578,14 +23619,14 @@ dump_map_info:
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	b	rknand_print_hex
-.L3841:
+.L3847:
 	.align	2
-.L3840:
+.L3846:
 	.word	.LANCHOR0
 	.word	.LANCHOR2
 	.word	.LC169
 	.word	.LANCHOR4
-	.word	.LANCHOR4+1248
+	.word	.LANCHOR4+1256
 	.word	.LC113
 	.word	.LC170
 	.word	.LC171
@@ -23602,17 +23643,17 @@ flash_boot_enter_slc_mode:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L3844
+	ldr	r3, .L3850
 	ldr	r2, [r3, #2264]
-	ldr	r3, .L3844+4
+	ldr	r3, .L3850+4
 	cmp	r2, r3
-	bne	.L3842
+	bne	.L3848
 	b	flash_enter_slc_mode
-.L3842:
+.L3848:
 	bx	lr
-.L3845:
+.L3851:
 	.align	2
-.L3844:
+.L3850:
 	.word	.LANCHOR0
 	.word	1446522928
 	.fnend
@@ -23627,17 +23668,17 @@ flash_boot_exit_slc_mode:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	ldr	r3, .L3848
+	ldr	r3, .L3854
 	ldr	r2, [r3, #2264]
-	ldr	r3, .L3848+4
+	ldr	r3, .L3854+4
 	cmp	r2, r3
-	bne	.L3846
+	bne	.L3852
 	b	flash_exit_slc_mode
-.L3846:
+.L3852:
 	bx	lr
-.L3849:
+.L3855:
 	.align	2
-.L3848:
+.L3854:
 	.word	.LANCHOR0
 	.word	1446522928
 	.fnend
@@ -23654,33 +23695,33 @@ write_idblock:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r8, r0
-	ldr	r7, .L3899
+	ldr	r7, .L3905
 	.pad #132
 	sub	sp, sp, #132
 	mov	r0, #256000
 	mov	fp, r1
 	mov	r6, r2
 	ldr	r3, [r7, #44]
-	ldr	r4, [r7, #4]
+	ldr	r4, [r7, #36]
 	ldrb	r5, [r3, #9]	@ zero_extendqisi2
 	bl	ftl_malloc
 	str	r0, [sp, #12]
 	cmp	r0, #0
-	beq	.L3877
+	beq	.L3883
 	addw	r2, r8, #511
 	lsr	r10, r2, #9
 	cmp	r10, #8
-	bls	.L3875
+	bls	.L3881
 	cmp	r10, #500
-	bhi	.L3877
-	b	.L3852
-.L3875:
+	bhi	.L3883
+	b	.L3858
+.L3881:
 	mov	r10, #8
-.L3852:
+.L3858:
 	ldr	r2, [fp]
-	ldr	r3, .L3899+4
+	ldr	r3, .L3905+4
 	cmp	r2, r3
-	bne	.L3877
+	bne	.L3883
 	smulbb	r3, r5, r4
 	uxth	r3, r3
 	str	r3, [sp, #16]
@@ -23693,9 +23734,9 @@ write_idblock:
 	str	r0, [sp, #40]
 	add	r0, fp, #254976
 	add	r0, r0, #512
-.L3856:
+.L3862:
 	ldr	r1, [r0, #-4]!
-	cbnz	r1, .L3853
+	cbnz	r1, .L3859
 	ldr	r1, [fp, r3, lsl #2]
 	adds	r3, r3, #1
 	cmp	r3, #4096
@@ -23704,32 +23745,32 @@ write_idblock:
 	movhi	r3, #0
 	cmp	r2, #4096
 	str	r1, [r0, #512]
-	bne	.L3856
-	b	.L3855
-.L3853:
-	ldr	r0, .L3899+8
+	bne	.L3862
+	b	.L3861
+.L3859:
+	ldr	r0, .L3905+8
 	bl	printk
-.L3855:
+.L3861:
 	movs	r3, #5
-	ldr	r0, .L3899+12
+	ldr	r0, .L3905+12
 	mov	r1, r6
 	movs	r2, #4
 	bl	rknand_print_hex
 	ldr	r1, [fp, #512]
-	ldrb	r2, [r7, #1]	@ zero_extendqisi2
+	ldrb	r2, [r7, #33]	@ zero_extendqisi2
 	subs	r4, r6, #4
-	ldr	r0, .L3899+16
+	ldr	r0, .L3905+16
 	bl	printk
-	ldr	r2, .L3899+20
-	ldrh	r3, [r7, #142]
+	ldr	r2, .L3905+20
+	ldrh	r3, [r7, #146]
 	mov	r1, r10
-	ldr	r0, .L3899+24
-	ldr	r2, [r2, #1204]
-	ldr	r5, .L3899
+	ldr	r0, .L3905+24
+	ldr	r2, [r2, #1212]
+	ldr	r5, .L3905
 	str	r2, [sp]
 	mov	r2, r10
 	bl	printk
-	ldrb	r3, [r7, #1]	@ zero_extendqisi2
+	ldrb	r3, [r7, #33]	@ zero_extendqisi2
 	ldr	r2, [fp, #512]
 	cmp	r2, r3
 	it	hi
@@ -23739,37 +23780,37 @@ write_idblock:
 	movs	r3, #0
 	str	r3, [sp, #24]
 	str	r3, [sp, #20]
-.L3873:
+.L3879:
 	ldr	r2, [r4, #4]
-	ldrb	r3, [r5, #1]	@ zero_extendqisi2
-	ldr	r7, .L3899
+	ldrb	r3, [r5, #33]	@ zero_extendqisi2
+	ldr	r7, .L3905
 	cmp	r2, r3
-	bcs	.L3858
-	ldr	r3, .L3899+20
-	ldr	r3, [r3, #1204]
+	bcs	.L3864
+	ldr	r3, .L3905+20
+	ldr	r3, [r3, #1212]
 	cmp	r2, r3
-	bcc	.L3858
+	bcc	.L3864
 	ldr	r3, [sp, #40]
 	cmp	r3, #1
-	bls	.L3859
+	bls	.L3865
 	ldr	r3, [sp, #20]
-	cbz	r3, .L3859
+	cbz	r3, .L3865
 	ldr	r3, [r4]
 	adds	r3, r3, #1
 	cmp	r2, r3
-	beq	.L3858
-.L3859:
+	beq	.L3864
+.L3865:
 	movs	r1, #0
 	mov	r2, #512
 	ldr	r0, [sp, #12]
 	bl	memset
 	ldr	r6, [r4, #4]
 	mov	r2, r10
-	ldr	r0, .L3899+28
+	ldr	r0, .L3905+28
 	ldr	r3, [sp, #16]
 	muls	r6, r3, r6
 	ldr	r3, [r7, #44]
-	ldr	r7, [r7, #4]
+	ldr	r7, [r7, #36]
 	ldrb	r9, [r3, #9]	@ zero_extendqisi2
 	mov	r1, r6
 	bl	printk
@@ -23785,16 +23826,16 @@ write_idblock:
 	mov	r2, r0
 	bl	FlashEraseBlock
 	cmp	r10, r7
-	bls	.L3878
+	bls	.L3884
 	movs	r0, #0
 	adds	r1, r6, r7
 	mov	r8, #2
 	mov	r2, r0
 	bl	FlashEraseBlock
-	b	.L3860
-.L3878:
+	b	.L3866
+.L3884:
 	mov	r8, #1
-.L3860:
+.L3866:
 	movs	r0, #0
 	bl	flash_boot_exit_slc_mode
 	ldr	r3, [r5, #44]
@@ -23812,57 +23853,57 @@ write_idblock:
 	subs	r3, r6, r1
 	str	fp, [sp, #28]
 	str	r3, [sp, #32]
-.L3861:
+.L3867:
 	ldr	r3, [sp, #48]
-	ldr	r7, .L3899
+	ldr	r7, .L3905
 	cmp	r8, r3
-	bcs	.L3897
+	bcs	.L3903
 	add	r3, r8, ip
 	ubfx	r3, r3, #2, #16
-	cbz	r3, .L3862
+	cbz	r3, .L3868
 	adds	r2, r3, #1
 	add	r1, r5, r2, lsl #1
-	ldrh	r7, [r1, #148]
-	ldrb	r1, [r5, #144]	@ zero_extendqisi2
-	cbz	r1, .L3863
+	ldrh	r7, [r1, #152]
+	ldrb	r1, [r5, #148]	@ zero_extendqisi2
+	cbz	r1, .L3869
 	ldr	r1, [r5, #2264]
-	ldr	r0, .L3899+32
+	ldr	r0, .L3905+32
 	cmp	r1, r0
 	it	eq
 	moveq	r7, r2
-.L3863:
+.L3869:
 	add	r7, r7, #1073741824
 	subs	r7, r7, #1
 	lsls	r7, r7, #2
 	str	r7, [sp, #64]
-.L3862:
+.L3868:
 	movw	r2, #61424
 	str	r2, [sp, #68]
 	add	r2, r5, r3, lsl #1
-	ldrh	r7, [r2, #148]
-	ldrb	r2, [r5, #144]	@ zero_extendqisi2
-	cbz	r2, .L3864
+	ldrh	r7, [r2, #152]
+	ldrb	r2, [r5, #148]	@ zero_extendqisi2
+	cbz	r2, .L3870
 	ldr	r2, [r5, #2264]
-	ldr	r1, .L3899+32
+	ldr	r1, .L3905+32
 	cmp	r2, r1
 	it	eq
 	moveq	r7, r3
-.L3864:
+.L3870:
 	ldr	r3, [sp, #32]
 	add	r8, r8, #4
 	str	ip, [sp, #56]
 	uxth	r8, r8
 	mla	r2, r9, r7, r3
-	ldr	r3, .L3899
+	ldr	r3, .L3905
 	ldrb	r3, [r3, #2312]	@ zero_extendqisi2
 	str	r2, [sp, #52]
 	str	r3, [sp, #36]
-	ldr	r3, .L3899+20
-	ldrb	r0, [r3, #1210]	@ zero_extendqisi2
+	ldr	r3, .L3905+20
+	ldrb	r0, [r3, #1218]	@ zero_extendqisi2
 	bl	FlashBchSel
 	movs	r0, #0
 	bl	flash_boot_enter_slc_mode
-	ldr	r3, .L3899
+	ldr	r3, .L3905
 	ldr	r3, [r3, #44]
 	ldrb	r1, [r3, #9]	@ zero_extendqisi2
 	ldr	r2, [sp, #52]
@@ -23889,10 +23930,10 @@ write_idblock:
 	ldr	ip, [sp, #56]
 	add	r3, r3, #2048
 	str	r3, [sp, #28]
-	b	.L3861
-.L3900:
+	b	.L3867
+.L3906:
 	.align	2
-.L3899:
+.L3905:
 	.word	.LANCHOR0
 	.word	-52655045
 	.word	.LC173
@@ -23902,14 +23943,14 @@ write_idblock:
 	.word	.LC176
 	.word	.LC177
 	.word	1446522928
-.L3897:
+.L3903:
 	mov	r1, r6
 	mov	r2, r10
 	movs	r3, #0
-	ldr	r0, .L3901
+	ldr	r0, .L3907
 	bl	printk
 	ldr	r6, [r4, #4]
-	ldr	r0, .L3901+4
+	ldr	r0, .L3907+4
 	mov	r9, #0
 	ldr	r3, [sp, #16]
 	muls	r6, r3, r6
@@ -23917,7 +23958,7 @@ write_idblock:
 	ldrb	r3, [r3, #9]	@ zero_extendqisi2
 	mov	r1, r6
 	str	r3, [sp, #28]
-	ldr	r3, [r7, #4]
+	ldr	r3, [r7, #36]
 	ldrh	r2, [sp, #28]
 	smulbb	r8, r3, r2
 	mov	r2, r10
@@ -23934,24 +23975,24 @@ write_idblock:
 	ldr	r3, [sp, #12]
 	ubfx	ip, ip, #2, #2
 	str	r3, [sp, #36]
-.L3866:
+.L3872:
 	cmp	r9, r10
-	bcs	.L3898
+	bcs	.L3904
 	ldr	r3, [sp, #32]
 	rsb	r8, ip, #4
-	ldrb	r1, [r5, #144]	@ zero_extendqisi2
+	ldrb	r1, [r5, #148]	@ zero_extendqisi2
 	add	r3, r9, r3
 	uxth	r8, r8
 	ubfx	r3, r3, #2, #16
 	add	r2, r5, r3, lsl #1
-	ldrh	r2, [r2, #148]
-	cbz	r1, .L3867
+	ldrh	r2, [r2, #152]
+	cbz	r1, .L3873
 	ldr	r1, [r5, #2264]
-	ldr	r0, .L3901+8
+	ldr	r0, .L3907+8
 	cmp	r1, r0
 	it	eq
 	moveq	r2, r3
-.L3867:
+.L3873:
 	ldr	r3, [sp, #48]
 	add	r9, r9, r8
 	ldr	r1, [sp, #28]
@@ -23962,10 +24003,10 @@ write_idblock:
 	ldr	r2, [r7, #44]
 	str	ip, [sp, #52]
 	ldrb	r1, [r2, #9]	@ zero_extendqisi2
-	ldr	r2, .L3901+12
+	ldr	r2, .L3907+12
 	str	r3, [sp, #60]
 	str	r1, [sp, #56]
-	ldrb	r0, [r2, #1210]	@ zero_extendqisi2
+	ldrb	r0, [r2, #1218]	@ zero_extendqisi2
 	bl	FlashBchSel
 	movs	r0, #0
 	bl	flash_boot_enter_slc_mode
@@ -23987,17 +24028,17 @@ write_idblock:
 	ldr	r3, [sp, #36]
 	add	r3, r3, r8, lsl #9
 	str	r3, [sp, #36]
-	b	.L3866
-.L3898:
+	b	.L3872
+.L3904:
 	mov	r1, r6
 	movs	r3, #0
-	ldr	r0, .L3901+16
+	ldr	r0, .L3907+16
 	mov	r2, r10
 	bl	printk
 	movs	r6, #0
 	mov	r3, fp
 	ldr	r0, [sp, #12]
-.L3872:
+.L3878:
 	mov	r8, r0
 	mov	r7, r3
 	ldr	r1, [r8]
@@ -24005,13 +24046,13 @@ write_idblock:
 	ldr	r2, [r7]
 	adds	r3, r3, #4
 	cmp	r1, r2
-	beq	.L3869
+	beq	.L3875
 	movs	r1, #0
 	mov	r2, #512
 	ldr	r0, [sp, #12]
 	bl	memset
 	ldr	r3, [r8]
-	ldr	r0, .L3901+20
+	ldr	r0, .L3907+20
 	str	r3, [sp]
 	ldr	r3, [r7]
 	bic	r7, r6, #255
@@ -24021,13 +24062,13 @@ write_idblock:
 	mov	r3, r6
 	ldr	r2, [r4, #4]
 	bl	printk
-	ldr	r0, .L3901+24
+	ldr	r0, .L3907+24
 	add	r1, fp, r7
 	movs	r2, #4
 	mov	r3, #256
 	bl	rknand_print_hex
 	movs	r2, #4
-	ldr	r0, .L3901+28
+	ldr	r0, .L3907+28
 	ldr	r3, [sp, #12]
 	adds	r1, r3, r7
 	mov	r3, #256
@@ -24042,55 +24083,55 @@ write_idblock:
 	bl	FlashEraseBlock
 	ldr	r3, [sp, #40]
 	cmp	r3, #1
-	bls	.L3870
+	bls	.L3876
 	ldr	r1, [r4, #4]
 	movs	r0, #0
 	ldr	r3, [sp, #16]
 	mov	r2, r0
 	mla	r1, r1, r3, r3
 	bl	FlashEraseBlock
-.L3870:
+.L3876:
 	movs	r0, #0
 	bl	flash_boot_exit_slc_mode
-	ldr	r0, .L3901+32
+	ldr	r0, .L3907+32
 	ldr	r1, [r4, #4]
 	bl	printk
 	ldr	r3, [sp, #44]
 	cmp	r6, r3
-	bcc	.L3858
-	b	.L3871
-.L3869:
+	bcc	.L3864
+	b	.L3877
+.L3875:
 	ldr	r2, [sp, #44]
 	adds	r6, r6, #1
 	cmp	r6, r2
-	bne	.L3872
-.L3871:
+	bne	.L3878
+.L3877:
 	ldr	r3, [sp, #24]
 	adds	r3, r3, #1
 	str	r3, [sp, #24]
-.L3858:
+.L3864:
 	ldr	r3, [sp, #20]
 	adds	r4, r4, #4
 	adds	r3, r3, #1
 	str	r3, [sp, #20]
 	cmp	r3, #5
-	bne	.L3873
+	bne	.L3879
 	ldr	r0, [sp, #12]
 	bl	ftl_free
 	ldr	r3, [sp, #24]
 	clz	r0, r3
 	lsrs	r0, r0, #5
 	negs	r0, r0
-	b	.L3851
-.L3877:
+	b	.L3857
+.L3883:
 	mov	r0, #-1
-.L3851:
+.L3857:
 	add	sp, sp, #132
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L3902:
+.L3908:
 	.align	2
-.L3901:
+.L3907:
 	.word	.LC178
 	.word	.LC179
 	.word	1446522928
@@ -24119,36 +24160,36 @@ write_loader_lba:
 	sub	sp, sp, #52
 	mov	r6, r1
 	mov	r8, r2
-	ldr	r4, .L3925
-	bne	.L3904
+	ldr	r4, .L3931
+	bne	.L3910
 	ldr	r2, [r2]
-	ldr	r3, .L3925+4
+	ldr	r3, .L3931+4
 	cmp	r2, r3
-	bne	.L3904
+	bne	.L3910
 	mov	r0, #256000
 	movs	r3, #1
-	strb	r3, [r4, #1012]
+	strb	r3, [r4, #1020]
 	bl	ftl_malloc
 	movs	r1, #0
 	mov	r2, #256000
-	str	r0, [r4, #1016]
+	str	r0, [r4, #1024]
 	bl	ftl_memset
-	str	r5, [r4, #1020]
-.L3904:
+	str	r5, [r4, #1028]
+.L3910:
 	str	r6, [sp]
 	mov	r3, r5
-	ldr	r0, .L3925+8
-	ldr	r1, [r4, #1016]
+	ldr	r0, .L3931+8
+	ldr	r1, [r4, #1024]
 	ldr	r2, [r8]
 	bl	printk
-	ldrb	r3, [r4, #1012]	@ zero_extendqisi2
-	ldr	r9, .L3925
+	ldrb	r3, [r4, #1020]	@ zero_extendqisi2
+	ldr	r9, .L3931
 	cmp	r3, #0
-	beq	.L3903
+	beq	.L3909
 	sub	r0, r5, #64
-	ldr	r7, [r9, #1016]
+	ldr	r7, [r9, #1024]
 	cmp	r0, #500
-	bcs	.L3906
+	bcs	.L3912
 	rsb	r2, r5, #564
 	add	r0, r7, r0, lsl #9
 	cmp	r2, r6
@@ -24157,30 +24198,30 @@ write_loader_lba:
 	movcs	r2, r6
 	lsls	r2, r2, #9
 	bl	ftl_memcpy
-	b	.L3907
-.L3906:
+	b	.L3913
+.L3912:
 	cmp	r5, #564
-	bcs	.L3915
-.L3907:
-	ldr	r3, [r4, #1020]
+	bcs	.L3921
+.L3913:
+	ldr	r3, [r4, #1028]
 	cmp	r3, r5
-	beq	.L3913
-	ldr	r2, .L3925
+	beq	.L3919
+	ldr	r2, .L3931
 	movs	r3, #0
 	mov	r8, r3
-	strb	r3, [r2, #1012]
-	cbz	r7, .L3914
+	strb	r3, [r2, #1020]
+	cbz	r7, .L3920
 	mov	r0, r7
 	bl	ftl_free
-.L3914:
-	str	r8, [r4, #1016]
-.L3913:
+.L3920:
+	str	r8, [r4, #1024]
+.L3919:
 	add	r5, r5, r6
-	str	r5, [r4, #1020]
-	b	.L3903
-.L3915:
-	ldr	r3, .L3925+12
-	ldr	r0, [r9, #1020]
+	str	r5, [r4, #1028]
+	b	.L3909
+.L3921:
+	ldr	r3, .L3931+12
+	ldr	r0, [r9, #1028]
 	ldr	r3, [r3, #44]
 	subs	r0, r0, #64
 	cmp	r0, #500
@@ -24188,7 +24229,7 @@ write_loader_lba:
 	movcs	r0, #500
 	ldrb	r3, [r3, #9]	@ zero_extendqisi2
 	cmp	r3, #4
-	beq	.L3916
+	beq	.L3922
 	movs	r3, #2
 	str	r3, [sp, #8]
 	movs	r3, #3
@@ -24199,10 +24240,10 @@ write_loader_lba:
 	str	r3, [sp, #20]
 	movs	r3, #6
 	str	r3, [sp, #24]
-	b	.L3909
-.L3916:
+	b	.L3915
+.L3922:
 	movs	r3, #0
-.L3908:
+.L3914:
 	add	r1, sp, #8
 	lsls	r2, r3, #1
 	cmp	r0, #256
@@ -24211,37 +24252,37 @@ write_loader_lba:
 	str	r2, [r1, r3, lsl #2]
 	adds	r3, r3, #1
 	cmp	r3, #5
-	bne	.L3908
-.L3909:
+	bne	.L3914
+.L3915:
 	movw	r3, #63872
-.L3912:
+.L3918:
 	ldr	r2, [r7, r3, lsl #2]
-	cbz	r2, .L3910
+	cbz	r2, .L3916
 	adds	r3, r3, #128
 	lsls	r0, r3, #2
-	b	.L3911
-.L3910:
+	b	.L3917
+.L3916:
 	subs	r3, r3, #1
 	cmp	r3, #4096
-	bne	.L3912
+	bne	.L3918
 	lsls	r0, r0, #9
-.L3911:
+.L3917:
 	mov	r1, r7
 	add	r2, sp, #8
 	bl	write_idblock
-	ldr	r0, [r4, #1016]
+	ldr	r0, [r4, #1024]
 	movs	r7, #0
-	strb	r7, [r4, #1012]
+	strb	r7, [r4, #1020]
 	bl	ftl_free
-	str	r7, [r4, #1016]
-	b	.L3913
-.L3903:
+	str	r7, [r4, #1024]
+	b	.L3919
+.L3909:
 	add	sp, sp, #52
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, pc}
-.L3926:
+.L3932:
 	.align	2
-.L3925:
+.L3931:
 	.word	.LANCHOR5
 	.word	-52655045
 	.word	.LC185
@@ -24265,13 +24306,13 @@ FtlWrite:
 	cmp	r3, #1984
 	mov	r4, r1
 	mov	r6, r2
-	bcs	.L3928
-	cbnz	r0, .L3928
+	bcs	.L3934
+	cbnz	r0, .L3934
 	mov	r0, r1
 	mov	r1, r2
 	mov	r2, r5
 	bl	write_loader_lba
-.L3928:
+.L3934:
 	mov	r0, r7
 	mov	r1, r4
 	mov	r2, r6
@@ -24289,7 +24330,7 @@ rknand_sys_storage_ioctl:
 	.fnstart
 	@ args = 0, pretend = 0, frame = 520
 	@ frame_needed = 0, uses_anonymous_args = 0
-	ldr	r3, .L3988
+	ldr	r3, .L3994
 	push	{r4, r5, r6, r7, lr}
 	.save {r4, r5, r6, r7, lr}
 	cmp	r1, r3
@@ -24297,131 +24338,131 @@ rknand_sys_storage_ioctl:
 	sub	sp, sp, #524
 	mov	r4, r1
 	mov	r5, r2
-	beq	.L3931
-	bhi	.L3932
+	beq	.L3937
+	bhi	.L3938
 	subw	r3, r3, #2086
 	cmp	r1, r3
-	beq	.L3933
-	bhi	.L3934
+	beq	.L3939
+	bhi	.L3940
 	subs	r3, r3, #238
 	cmp	r1, r3
-	beq	.L3935
+	beq	.L3941
 	adds	r3, r3, #237
 	cmp	r1, r3
-	beq	.L3936
-	b	.L3966
-.L3934:
-	ldr	r3, .L3988+4
+	beq	.L3942
+	b	.L3972
+.L3940:
+	ldr	r3, .L3994+4
 	cmp	r1, r3
-	beq	.L3937
+	beq	.L3943
 	adds	r3, r3, #1
 	cmp	r1, r3
-	beq	.L3938
+	beq	.L3944
 	subs	r3, r3, #124
 	cmp	r1, r3
-	bne	.L3966
-	b	.L3986
-.L3932:
-	ldr	r3, .L3988+8
+	bne	.L3972
+	b	.L3992
+.L3938:
+	ldr	r3, .L3994+8
 	cmp	r1, r3
 	mov	r6, r3
-	beq	.L3940
-	bhi	.L3941
+	beq	.L3946
+	bhi	.L3947
 	subw	r3, r3, #2526
 	cmp	r1, r3
-	beq	.L3931
+	beq	.L3937
 	adds	r3, r3, #10
 	cmp	r1, r3
-	beq	.L3931
-	b	.L3966
-.L3941:
-	ldr	r3, .L3988+12
+	beq	.L3937
+	b	.L3972
+.L3947:
+	ldr	r3, .L3994+12
 	cmp	r1, r3
-	beq	.L3940
-	bcc	.L3942
+	beq	.L3946
+	bcc	.L3948
 	adds	r3, r3, #1
 	cmp	r1, r3
-	beq	.L3942
-	b	.L3966
-.L3936:
-	ldr	r0, .L3988+16
+	beq	.L3948
+	b	.L3972
+.L3942:
+	ldr	r0, .L3994+16
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
-	cbz	r0, .L3943
-.L3949:
-	ldr	r0, .L3988+20
+	cbz	r0, .L3949
+.L3955:
+	ldr	r0, .L3994+20
 	bl	printk
-	b	.L3983
-.L3943:
+	b	.L3989
+.L3949:
 	ldr	r2, [sp]
-	ldr	r3, .L3988+24
+	ldr	r3, .L3994+24
 	cmp	r2, r3
-	beq	.L3944
-.L3946:
+	beq	.L3950
+.L3952:
 	mov	r4, #-1
-	b	.L3945
-.L3944:
+	b	.L3951
+.L3950:
 	ldr	r3, [sp, #4]
 	cmp	r3, #512
-	bhi	.L3946
-	ldr	r4, .L3988+28
+	bhi	.L3952
+	ldr	r4, .L3994+28
 	mov	r2, #512
 	mov	r0, sp
-	ldr	r1, [r4, #1024]
+	ldr	r1, [r4, #1032]
 	bl	memcpy
-	ldr	r2, [r4, #1028]
-	ldr	r3, .L3988+32
+	ldr	r2, [r4, #1036]
+	ldr	r3, .L3994+32
 	cmp	r2, r3
-	beq	.L3947
+	beq	.L3953
 	movs	r1, #0
 	add	r0, sp, #64
 	movs	r2, #128
 	str	r1, [sp, #8]
 	str	r1, [sp, #12]
 	bl	memset
-.L3947:
+.L3953:
 	movs	r1, #0
 	add	r0, sp, #256
 	mov	r2, #256
 	str	r1, [sp, #16]
 	bl	memset
-.L3978:
+.L3984:
 	mov	r0, r5
 	mov	r1, sp
 	mov	r2, #520
 	bl	rk_copy_to_user
 	cmp	r0, #0
-	bne	.L3983
-	b	.L3982
-.L3933:
-	ldr	r0, .L3988+36
+	bne	.L3989
+	b	.L3988
+.L3939:
+	ldr	r0, .L3994+36
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3988+24
+	ldr	r3, .L3994+24
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r3, [sp, #4]
 	cmp	r3, #512
-	bhi	.L3946
-	ldr	r2, .L3988+28
-	ldr	r3, .L3988+32
-	ldr	r1, [r2, #1028]
+	bhi	.L3952
+	ldr	r2, .L3994+28
+	ldr	r3, .L3994+32
+	ldr	r1, [r2, #1036]
 	cmp	r1, r3
-	bne	.L3967
+	bne	.L3973
 	ldr	r3, [sp, #12]
 	subs	r1, r3, #1
 	cmp	r1, #127
-	bhi	.L3968
-	ldr	r4, [r2, #1024]
+	bhi	.L3974
+	ldr	r4, [r2, #1032]
 	add	r1, sp, #64
 	add	r0, r4, #64
 	str	r3, [r4, #12]
@@ -24429,62 +24470,62 @@ rknand_sys_storage_ioctl:
 	bl	memcpy
 	movs	r0, #1
 	mov	r1, r4
-	b	.L3981
-.L3938:
-	ldr	r0, .L3988+40
+	b	.L3987
+.L3944:
+	ldr	r0, .L3994+40
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3988+44
+	ldr	r3, .L3994+44
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r3, [sp, #4]
 	cmp	r3, #512
-	bhi	.L3946
-	ldr	r5, .L3988+28
-	ldr	r3, [r5, #1032]
-	cbnz	r3, .L3950
-.L3953:
+	bhi	.L3952
+	ldr	r5, .L3994+28
+	ldr	r3, [r5, #1040]
+	cbnz	r3, .L3956
+.L3959:
 	movs	r0, #0
-	b	.L3930
-.L3950:
-	ldr	r3, [r5, #1036]
-	ldr	r2, .L3988+48
+	b	.L3936
+.L3956:
+	ldr	r3, [r5, #1044]
+	ldr	r2, .L3994+48
 	ldr	r1, [r3]
 	cmp	r1, r2
-	beq	.L3951
+	beq	.L3957
 	str	r2, [r3]
 	mov	r2, #504
-	ldr	r3, .L3988+28
-	ldr	r3, [r3, #1036]
+	ldr	r3, .L3994+28
+	ldr	r3, [r3, #1044]
 	str	r2, [r3, #4]
 	movs	r2, #0
 	str	r2, [r3, #8]
 	str	r2, [r3, #12]
-.L3951:
-	ldr	r1, [r5, #1036]
+.L3957:
+	ldr	r1, [r5, #1044]
 	movs	r4, #0
 	mov	r0, r4
 	str	r4, [r1, #16]
 	bl	StorageSysDataStore
-	ldr	r3, [r5, #1024]
-	ldr	r2, .L3988+24
+	ldr	r3, [r5, #1032]
+	ldr	r2, .L3994+24
 	ldr	r1, [r3]
 	cmp	r1, r2
 	it	ne
 	strne	r2, [r3]
-	ldr	r6, [r5, #1024]
+	ldr	r6, [r5, #1032]
 	itt	ne
 	movne	r2, #504
-	ldrne	r3, .L3988+28
+	ldrne	r3, .L3994+28
 	add	r0, r6, #64
 	itt	ne
-	ldrne	r3, [r3, #1024]
+	ldrne	r3, [r3, #1032]
 	strne	r4, [r3, #8]
 	mov	r4, #0
 	it	ne
@@ -24496,61 +24537,61 @@ rknand_sys_storage_ioctl:
 	movs	r0, #1
 	mov	r1, r6
 	bl	StorageSysDataStore
-	str	r4, [r5, #1032]
-	str	r4, [r5, #1028]
-	b	.L3945
-.L3937:
-	ldr	r0, .L3988+52
+	str	r4, [r5, #1040]
+	str	r4, [r5, #1036]
+	b	.L3951
+.L3943:
+	ldr	r0, .L3994+52
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3988+56
+	ldr	r3, .L3994+56
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r3, [sp, #4]
 	cmp	r3, #512
-	bhi	.L3946
-	ldr	r5, .L3988+28
-	ldr	r3, [r5, #1032]
+	bhi	.L3952
+	ldr	r5, .L3994+28
+	ldr	r3, [r5, #1040]
 	cmp	r3, #1
-	beq	.L3953
-	ldr	r2, [r5, #1036]
-	ldr	r3, .L3988+48
+	beq	.L3959
+	ldr	r2, [r5, #1044]
+	ldr	r3, .L3994+48
 	ldr	r1, [r2]
 	cmp	r1, r3
-	beq	.L3954
+	beq	.L3960
 	str	r3, [r2]
 	mov	r2, #504
-	ldr	r3, [r5, #1036]
+	ldr	r3, [r5, #1044]
 	str	r2, [r3, #4]
 	movs	r2, #0
 	str	r2, [r3, #8]
 	str	r2, [r3, #12]
-.L3954:
-	ldr	r1, [r5, #1036]
+.L3960:
+	ldr	r1, [r5, #1044]
 	movs	r3, #1
 	movs	r0, #0
 	str	r3, [r1, #16]
 	bl	StorageSysDataStore
-	ldr	r3, [r5, #1024]
-	ldr	r2, .L3988+24
+	ldr	r3, [r5, #1032]
+	ldr	r2, .L3994+24
 	ldr	r1, [r3]
 	cmp	r1, r2
-	beq	.L3955
+	beq	.L3961
 	str	r2, [r3]
 	mov	r2, #504
-	ldr	r3, .L3988+28
-	ldr	r3, [r3, #1024]
+	ldr	r3, .L3994+28
+	ldr	r3, [r3, #1032]
 	str	r2, [r3, #4]
 	movs	r2, #0
 	str	r2, [r3, #8]
-.L3955:
-	ldr	r6, [r5, #1024]
+.L3961:
+	ldr	r6, [r5, #1032]
 	movs	r4, #0
 	movs	r2, #128
 	mov	r1, r4
@@ -24561,37 +24602,37 @@ rknand_sys_storage_ioctl:
 	mov	r1, r6
 	bl	StorageSysDataStore
 	movs	r3, #1
-	str	r3, [r5, #1032]
-	b	.L3945
-.L3986:
-	ldr	r0, .L3988+60
+	str	r3, [r5, #1040]
+	b	.L3951
+.L3992:
+	ldr	r0, .L3994+60
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3988+64
+	ldr	r3, .L3994+64
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r2, [sp, #4]
 	cmp	r2, #512
-	bhi	.L3946
+	bhi	.L3952
 	add	r0, sp, #8
-	ldr	r1, .L3988+68
-	b	.L3984
-.L3931:
-	ldr	r0, .L3988+72
+	ldr	r1, .L3994+68
+	b	.L3990
+.L3937:
+	ldr	r0, .L3994+72
 	cmp	r4, r0
 	mov	r7, r0
-	bne	.L3957
-	ldr	r0, .L3988+76
-	b	.L3980
-.L3989:
+	bne	.L3963
+	ldr	r0, .L3994+76
+	b	.L3986
+.L3995:
 	.align	2
-.L3988:
+.L3994:
 	.word	1074031656
 	.word	1074029694
 	.word	1074034192
@@ -24609,32 +24650,32 @@ rknand_sys_storage_ioctl:
 	.word	1112755781
 	.word	.LC191
 	.word	1094995539
-	.word	.LANCHOR5+1040
+	.word	.LANCHOR5+1048
 	.word	1074031666
 	.word	.LC192
-.L3957:
-	ldr	r3, .L3990
+.L3963:
+	ldr	r3, .L3996
 	cmp	r4, r3
 	ite	eq
-	ldreq	r0, .L3990+4
-	ldrne	r0, .L3990+8
-.L3980:
+	ldreq	r0, .L3996+4
+	ldrne	r0, .L3996+8
+.L3986:
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3990+12
+	ldr	r3, .L3996+12
 	cmp	r2, r3
-	bne	.L3983
-	ldr	r3, .L3990
-	ldr	r6, .L3990+16
+	bne	.L3989
+	ldr	r3, .L3996
+	ldr	r6, .L3996+16
 	cmp	r4, r3
-	bne	.L3960
-	ldr	r3, [r6, #1024]
+	bne	.L3966
+	ldr	r3, [r6, #1032]
 	mov	r0, r5
 	mov	r1, sp
 	movs	r2, #16
@@ -24643,31 +24684,31 @@ rknand_sys_storage_ioctl:
 	strb	r3, [sp, #8]
 	bl	rk_copy_to_user
 	cmp	r0, #0
-	beq	.L3930
-	b	.L3983
-.L3960:
-	ldr	r3, [r6, #1552]
+	beq	.L3936
+	b	.L3989
+.L3966:
+	ldr	r3, [r6, #1560]
 	cmp	r3, #10
-	bhi	.L3983
-	ldr	r1, [r6, #1024]
+	bhi	.L3989
+	ldr	r1, [r6, #1032]
 	ldr	r3, [sp, #4]
 	ldr	r2, [r1, #24]
 	cmp	r2, r3
-	beq	.L3961
-	cbz	r2, .L3961
+	beq	.L3967
+	cbz	r2, .L3967
 	mov	r1, r3
-	ldr	r0, .L3990+20
+	ldr	r0, .L3996+20
 	bl	printk
-	ldr	r3, [r6, #1552]
+	ldr	r3, [r6, #1560]
 	adds	r3, r3, #1
-	str	r3, [r6, #1552]
-.L3983:
+	str	r3, [r6, #1560]
+.L3989:
 	mvn	r0, #13
-	b	.L3930
-.L3961:
+	b	.L3936
+.L3967:
 	movs	r2, #0
 	cmp	r4, r7
-	str	r2, [r6, #1552]
+	str	r2, [r6, #1560]
 	mov	r0, #1
 	itet	eq
 	moveq	r3, r2
@@ -24677,99 +24718,99 @@ rknand_sys_storage_ioctl:
 	str	r2, [r1, #20]
 	bl	StorageSysDataStore
 	adds	r0, r0, #1
-	bne	.L3982
-	b	.L3987
-.L3940:
-	ldr	r0, .L3990+24
+	bne	.L3988
+	b	.L3993
+.L3946:
+	ldr	r0, .L3996+24
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3990+28
+	ldr	r3, .L3996+28
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r2, [sp, #4]
 	cmp	r2, #504
-	bhi	.L3946
-	ldr	r3, .L3990+16
+	bhi	.L3952
+	ldr	r3, .L3996+16
 	cmp	r4, r6
 	add	r0, sp, #8
 	ite	eq
-	ldreq	r1, [r3, #1556]
-	ldrne	r1, [r3, #1560]
+	ldreq	r1, [r3, #1564]
+	ldrne	r1, [r3, #1568]
 	adds	r1, r1, #8
-.L3984:
+.L3990:
 	bl	memcpy
-	b	.L3978
-.L3942:
-	ldr	r0, .L3990+32
+	b	.L3984
+.L3948:
+	ldr	r0, .L3996+32
 	bl	printk
 	mov	r1, r5
 	mov	r2, #520
 	mov	r0, sp
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L3949
+	bne	.L3955
 	ldr	r2, [sp]
-	ldr	r3, .L3990+28
+	ldr	r3, .L3996+28
 	cmp	r2, r3
-	bne	.L3946
+	bne	.L3952
 	ldr	r2, [sp, #4]
 	cmp	r2, #504
-	bhi	.L3946
-	ldr	r3, .L3990+36
+	bhi	.L3952
+	ldr	r3, .L3996+36
 	adds	r2, r2, #8
 	cmp	r4, r3
-	ldr	r4, .L3990+16
-	bne	.L3965
+	ldr	r4, .L3996+16
+	bne	.L3971
 	mov	r1, sp
-	ldr	r0, [r4, #1556]
+	ldr	r0, [r4, #1564]
 	bl	memcpy
 	movs	r0, #2
-	ldr	r1, [r4, #1556]
-	b	.L3981
-.L3965:
+	ldr	r1, [r4, #1564]
+	b	.L3987
+.L3971:
 	mov	r1, sp
-	ldr	r0, [r4, #1560]
+	ldr	r0, [r4, #1568]
 	bl	memcpy
-	ldr	r1, [r4, #1560]
+	ldr	r1, [r4, #1568]
 	movs	r0, #3
-.L3981:
+.L3987:
 	bl	StorageSysDataStore
 	mov	r4, r0
-	b	.L3945
-.L3935:
+	b	.L3951
+.L3941:
 	bl	rknand_dev_flush
-.L3982:
+.L3988:
 	movs	r4, #0
-	b	.L3945
-.L3987:
+	b	.L3951
+.L3993:
 	mvn	r4, #1
-.L3945:
-	ldr	r0, .L3990+40
+.L3951:
+	ldr	r0, .L3996+40
 	mov	r1, r4
 	bl	printk
 	mov	r0, r4
-	b	.L3930
-.L3966:
+	b	.L3936
+.L3972:
 	mvn	r0, #21
-	b	.L3930
-.L3967:
+	b	.L3936
+.L3973:
 	mvn	r0, #1
-	b	.L3930
-.L3968:
+	b	.L3936
+.L3974:
 	mvn	r0, #2
-.L3930:
+.L3936:
 	add	sp, sp, #524
 	@ sp needed
 	pop	{r4, r5, r6, r7, pc}
-.L3991:
+.L3997:
 	.align	2
-.L3990:
+.L3996:
 	.word	1074031676
 	.word	.LC193
 	.word	.LC194
@@ -24795,57 +24836,57 @@ rk_ftl_storage_sys_init:
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
 	mov	r2, #512
-	ldr	r4, .L4001
+	ldr	r4, .L4007
 	mov	r3, #-1
 	movs	r5, #0
-	add	r0, r4, #1040
-	ldr	r1, [r4, #996]
-	str	r3, [r4, #1020]
+	add	r0, r4, #1048
+	ldr	r1, [r4, #1004]
+	str	r3, [r4, #1028]
 	add	r3, r1, #512
-	str	r3, [r4, #1024]
-	str	r1, [r4, #1036]
+	str	r3, [r4, #1032]
+	str	r1, [r4, #1044]
 	add	r3, r1, #1024
 	add	r1, r1, #1536
-	str	r3, [r4, #1556]
-	strb	r5, [r4, #1012]
-	str	r5, [r4, #1016]
-	str	r5, [r4, #1564]
-	str	r1, [r4, #1560]
+	str	r3, [r4, #1564]
+	strb	r5, [r4, #1020]
+	str	r5, [r4, #1024]
+	str	r5, [r4, #1572]
+	str	r1, [r4, #1568]
 	bl	ftl_memcpy
-	ldr	r6, [r4, #1036]
-	str	r5, [r4, #1028]
-	str	r5, [r4, #1552]
+	ldr	r6, [r4, #1044]
+	str	r5, [r4, #1036]
+	str	r5, [r4, #1560]
 	ldr	r3, [r6, #16]
 	ldr	r7, [r6, #508]
-	str	r3, [r4, #1032]
-	cbz	r7, .L3993
+	str	r3, [r4, #1040]
+	cbz	r7, .L3999
 	mov	r0, r6
 	mov	r1, #508
 	bl	js_hash
 	cmp	r7, r0
-	beq	.L3993
+	beq	.L3999
 	str	r5, [r6, #16]
-	ldr	r0, .L4001+4
-	str	r5, [r4, #1032]
+	ldr	r0, .L4007+4
+	str	r5, [r4, #1040]
 	bl	printk
-.L3993:
-	ldr	r3, [r4, #1032]
-	cbz	r3, .L3994
-	ldr	r2, .L4001+8
-	ldr	r3, .L4001
-	str	r2, [r3, #1028]
-.L3994:
-	ldr	r1, [r4, #1556]
+.L3999:
+	ldr	r3, [r4, #1040]
+	cbz	r3, .L4000
+	ldr	r2, .L4007+8
+	ldr	r3, .L4007
+	str	r2, [r3, #1036]
+.L4000:
+	ldr	r1, [r4, #1564]
 	movs	r0, #2
 	bl	StorageSysDataLoad
-	ldr	r1, [r4, #1560]
+	ldr	r1, [r4, #1568]
 	movs	r0, #3
 	bl	StorageSysDataLoad
 	pop	{r3, r4, r5, r6, r7, lr}
 	b	rknand_sys_storage_init
-.L4002:
+.L4008:
 	.align	2
-.L4001:
+.L4007:
 	.word	.LANCHOR5
 	.word	.LC199
 	.word	-1067903959
@@ -24878,62 +24919,62 @@ rk_ftl_vendor_storage_init:
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 	mov	r0, #65536
 	bl	ftl_malloc
-	ldr	r6, .L4013
-	str	r0, [r6, #1568]
+	ldr	r6, .L4019
+	str	r0, [r6, #1576]
 	cmp	r0, #0
-	beq	.L4010
+	beq	.L4016
 	mov	r8, #0
-	ldr	r9, .L4013+8
+	ldr	r9, .L4019+8
 	mov	r10, r6
 	mov	r4, r8
 	mov	r7, r8
-.L4008:
+.L4014:
 	lsls	r0, r7, #7
 	movs	r1, #128
-	ldr	r2, [r6, #1568]
+	ldr	r2, [r6, #1576]
 	bl	FlashBootVendorRead
 	cmp	r0, #0
-	bne	.L4006
-	ldr	r3, [r10, #1568]
-	ldr	r0, .L4013+4
+	bne	.L4012
+	ldr	r3, [r10, #1576]
+	ldr	r0, .L4019+4
 	add	r2, r3, #65280
 	adds	r2, r2, #252
 	ldr	r1, [r3]
 	ldr	r3, [r3, #4]
 	ldr	r2, [r2]
 	bl	printk
-	ldr	r5, [r10, #1568]
+	ldr	r5, [r10, #1576]
 	ldr	r3, [r5]
 	cmp	r3, r9
-	bne	.L4007
+	bne	.L4013
 	add	r3, r5, #65280
 	ldr	r2, [r5, #4]
 	adds	r3, r3, #252
 	ldr	r3, [r3]
 	cmp	r3, r2
-	bne	.L4007
+	bne	.L4013
 	cmp	r4, r3
 	itt	cc
 	movcc	r8, r7
 	movcc	r4, r3
-.L4007:
-	cbnz	r7, .L4012
+.L4013:
+	cbnz	r7, .L4018
 	movs	r7, #1
-	b	.L4008
-.L4012:
-	cbz	r4, .L4009
+	b	.L4014
+.L4018:
+	cbz	r4, .L4015
 	lsl	r0, r8, #7
 	movs	r1, #128
 	mov	r2, r5
 	bl	FlashBootVendorRead
-	cbnz	r0, .L4006
+	cbnz	r0, .L4012
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L4009:
+.L4015:
 	mov	r0, r5
 	mov	r1, r4
 	mov	r2, #65536
 	bl	memset
-	ldr	r3, .L4013+8
+	ldr	r3, .L4019+8
 	str	r7, [r5, #4]
 	mov	r0, r4
 	str	r3, [r5]
@@ -24943,19 +24984,19 @@ rk_ftl_vendor_storage_init:
 	strh	r4, [r5, #12]	@ movhi
 	strh	r3, [r5, #14]	@ movhi
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L4006:
-	ldr	r0, [r6, #1568]
+.L4012:
+	ldr	r0, [r6, #1576]
 	bl	kfree
 	movs	r3, #0
 	mov	r0, #-1
-	str	r3, [r6, #1568]
+	str	r3, [r6, #1576]
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L4010:
+.L4016:
 	mvn	r0, #11
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.L4014:
+.L4020:
 	.align	2
-.L4013:
+.L4019:
 	.word	.LANCHOR5
 	.word	.LC200
 	.word	1380668996
@@ -24972,18 +25013,18 @@ rk_ftl_vendor_read:
 	@ frame_needed = 0, uses_anonymous_args = 0
 	push	{r3, r4, r5, r6, r7, lr}
 	.save {r3, r4, r5, r6, r7, lr}
-	ldr	r3, .L4021
-	ldr	r5, [r3, #1568]
-	cbz	r5, .L4020
+	ldr	r3, .L4027
+	ldr	r5, [r3, #1576]
+	cbz	r5, .L4026
 	ldrh	r7, [r5, #10]
 	movs	r3, #0
-.L4017:
+.L4023:
 	cmp	r3, r7
-	bcs	.L4020
+	bcs	.L4026
 	add	r6, r5, r3, lsl #3
 	ldrh	r4, [r6, #16]
 	cmp	r4, r0
-	bne	.L4018
+	bne	.L4024
 	ldrh	r3, [r6, #20]
 	mov	r0, r1
 	cmp	r2, r3
@@ -24996,15 +25037,15 @@ rk_ftl_vendor_read:
 	bl	memcpy
 	mov	r0, r4
 	pop	{r3, r4, r5, r6, r7, pc}
-.L4018:
+.L4024:
 	adds	r3, r3, #1
-	b	.L4017
-.L4020:
+	b	.L4023
+.L4026:
 	mov	r0, #-1
 	pop	{r3, r4, r5, r6, r7, pc}
-.L4022:
+.L4028:
 	.align	2
-.L4021:
+.L4027:
 	.word	.LANCHOR5
 	.fnend
 	.size	rk_ftl_vendor_read, .-rk_ftl_vendor_read
@@ -25020,45 +25061,45 @@ rk_ftl_vendor_write:
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	mov	r9, r2
-	ldr	r2, .L4045
+	ldr	r2, .L4051
 	.pad #28
 	sub	sp, sp, #28
 	mov	ip, r0
 	mov	r3, r1
-	ldr	r4, [r2, #1568]
+	ldr	r4, [r2, #1576]
 	cmp	r4, #0
-	beq	.L4038
+	beq	.L4044
 	add	r7, r9, #63
 	ldrh	r1, [r4, #8]
 	ldrh	r2, [r4, #10]
 	bic	r7, r7, #63
 	movs	r6, #0
 	str	r1, [sp, #4]
-.L4025:
+.L4031:
 	cmp	r6, r2
-	bcs	.L4043
+	bcs	.L4049
 	add	r5, r4, r6, lsl #3
 	ldrh	r1, [r5, #16]
 	cmp	r1, ip
-	bne	.L4026
+	bne	.L4032
 	ldrh	r1, [r5, #20]
 	add	fp, r4, #1024
 	adds	r1, r1, #63
 	bic	r1, r1, #63
 	str	r1, [sp, #8]
 	cmp	r9, r1
-	bls	.L4027
+	bls	.L4033
 	ldrh	r1, [r4, #14]
 	cmp	r1, r7
-	bcc	.L4038
+	bcc	.L4044
 	ldrh	r8, [r5, #18]
 	subs	r2, r2, #1
 	str	r2, [sp, #12]
-.L4028:
+.L4034:
 	ldr	r2, [sp, #12]
 	adds	r5, r5, #8
 	cmp	r6, r2
-	bcs	.L4044
+	bcs	.L4050
 	ldrh	r2, [r5, #16]
 	add	r0, fp, r8
 	ldrh	r1, [r5, #18]
@@ -25077,8 +25118,8 @@ rk_ftl_vendor_write:
 	bl	memcpy
 	ldr	r3, [sp, #20]
 	ldr	ip, [sp, #16]
-	b	.L4028
-.L4044:
+	b	.L4034
+.L4050:
 	add	r6, r4, r6, lsl #3
 	uxth	r8, r8
 	add	r0, fp, r8
@@ -25096,22 +25137,22 @@ rk_ftl_vendor_write:
 	add	r3, r3, r5
 	subs	r7, r3, r7
 	strh	r7, [r4, #14]	@ movhi
-	b	.L4042
-.L4027:
+	b	.L4048
+.L4033:
 	ldrh	r0, [r5, #18]
 	mov	r1, r3
 	mov	r2, r9
 	add	r0, r0, fp
 	bl	memcpy
 	strh	r9, [r5, #20]	@ movhi
-	b	.L4042
-.L4026:
+	b	.L4048
+.L4032:
 	adds	r6, r6, #1
-	b	.L4025
-.L4043:
+	b	.L4031
+.L4049:
 	ldrh	r1, [r4, #14]
 	cmp	r1, r7
-	bcc	.L4038
+	bcc	.L4044
 	add	r2, r4, r2, lsl #3
 	uxth	r7, r7
 	subs	r1, r1, r7
@@ -25131,7 +25172,7 @@ rk_ftl_vendor_write:
 	ldrh	r3, [r4, #10]
 	adds	r3, r3, #1
 	strh	r3, [r4, #10]	@ movhi
-.L4042:
+.L4048:
 	ldr	r3, [r4, #4]
 	movw	r2, #65532
 	movs	r1, #128
@@ -25150,16 +25191,16 @@ rk_ftl_vendor_write:
 	lsls	r0, r3, #7
 	bl	FlashBootVendorWrite
 	movs	r0, #0
-	b	.L4024
-.L4038:
+	b	.L4030
+.L4044:
 	mov	r0, #-1
-.L4024:
+.L4030:
 	add	sp, sp, #28
 	@ sp needed
 	pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
-.L4046:
+.L4052:
 	.align	2
-.L4045:
+.L4051:
 	.word	.LANCHOR5
 	.fnend
 	.size	rk_ftl_vendor_write, .-rk_ftl_vendor_write
@@ -25180,34 +25221,34 @@ rk_ftl_vendor_storage_ioctl:
 	bl	ftl_malloc
 	mov	r4, r0
 	cmp	r0, #0
-	beq	.L4056
-	ldr	r3, .L4063
+	beq	.L4062
+	ldr	r3, .L4069
 	cmp	r6, r3
-	beq	.L4050
+	beq	.L4056
 	adds	r3, r3, #1
 	cmp	r6, r3
-	beq	.L4051
-	b	.L4062
-.L4050:
+	beq	.L4057
+	b	.L4068
+.L4056:
 	mov	r1, r5
 	movs	r2, #8
 	bl	rk_copy_from_user
 	cmp	r0, #0
-	bne	.L4062
+	bne	.L4068
 	ldr	r2, [r4]
-	ldr	r3, .L4063+4
+	ldr	r3, .L4069+4
 	cmp	r2, r3
-	beq	.L4053
-.L4054:
+	beq	.L4059
+.L4060:
 	mov	r5, #-1
-	b	.L4049
-.L4053:
+	b	.L4055
+.L4059:
 	ldrh	r0, [r4, #4]
 	add	r1, r4, #8
 	ldrh	r2, [r4, #6]
 	bl	rk_ftl_vendor_read
 	adds	r3, r0, #1
-	beq	.L4054
+	beq	.L4060
 	uxth	r2, r0
 	strh	r0, [r4, #6]	@ movhi
 	mov	r1, r4
@@ -25218,45 +25259,45 @@ rk_ftl_vendor_storage_ioctl:
 	ite	eq
 	moveq	r5, #0
 	mvnne	r5, #13
-	b	.L4049
-.L4051:
+	b	.L4055
+.L4057:
 	mov	r1, r5
 	movs	r2, #8
 	bl	rk_copy_from_user
-	cbnz	r0, .L4062
+	cbnz	r0, .L4068
 	ldr	r2, [r4]
-	ldr	r3, .L4063+4
+	ldr	r3, .L4069+4
 	cmp	r2, r3
-	bne	.L4054
+	bne	.L4060
 	ldrh	r2, [r4, #6]
 	movw	r3, #4087
 	cmp	r2, r3
-	bhi	.L4054
+	bhi	.L4060
 	mov	r0, r4
 	mov	r1, r5
 	adds	r2, r2, #8
 	bl	rk_copy_from_user
-	cbnz	r0, .L4062
+	cbnz	r0, .L4068
 	ldrh	r0, [r4, #4]
 	add	r1, r4, #8
 	ldrh	r2, [r4, #6]
 	bl	rk_ftl_vendor_write
 	mov	r5, r0
-	b	.L4049
-.L4062:
+	b	.L4055
+.L4068:
 	mvn	r5, #13
-.L4049:
+.L4055:
 	mov	r0, r4
 	bl	kfree
-	b	.L4048
-.L4056:
+	b	.L4054
+.L4062:
 	mov	r5, #-1
-.L4048:
+.L4054:
 	mov	r0, r5
 	pop	{r4, r5, r6, pc}
-.L4064:
+.L4070:
 	.align	2
-.L4063:
+.L4069:
 	.word	1074034177
 	.word	1448232273
 	.fnend
@@ -25270,6 +25311,8 @@ rk_ftl_vendor_storage_ioctl:
 	.global	gSnSectorData
 	.global	gpDrmKeyInfo
 	.global	gpBootConfig
+	.global	ftl_dma32_buffer_size
+	.global	ftl_dma32_buffer
 	.global	gLoaderBootInfo
 	.global	RK29_NANDC1_REG_BASE
 	.global	RK29_NANDC_REG_BASE
@@ -25507,9 +25550,9 @@ rk_ftl_vendor_storage_ioctl:
 	.section	.rodata
 	.align	2
 .LANCHOR3 = . + 0
-	.type	__func__.20390, %object
-	.size	__func__.20390, 11
-__func__.20390:
+	.type	__func__.23841, %object
+	.size	__func__.23841, 11
+__func__.23841:
 	.ascii	"FtlMemInit\000"
 .LC0:
 	.byte	60
@@ -25654,32 +25697,32 @@ samsung_14nm_mlc_rr:
 	.byte	18
 	.byte	9
 	.byte	8
-	.type	__func__.21169, %object
-	.size	__func__.21169, 17
-__func__.21169:
+	.type	__func__.24620, %object
+	.size	__func__.24620, 17
+__func__.24620:
 	.ascii	"FtlDumpBlockInfo\000"
 	.space	3
-	.type	__func__.21188, %object
-	.size	__func__.21188, 16
-__func__.21188:
+	.type	__func__.24639, %object
+	.size	__func__.24639, 16
+__func__.24639:
 	.ascii	"FtlScanAllBlock\000"
-	.type	__func__.21456, %object
-	.size	__func__.21456, 17
-__func__.21456:
+	.type	__func__.24907, %object
+	.size	__func__.24907, 17
+__func__.24907:
 	.ascii	"ftl_scan_all_ppa\000"
 	.space	3
-	.type	__func__.21137, %object
-	.size	__func__.21137, 12
-__func__.21137:
+	.type	__func__.24588, %object
+	.size	__func__.24588, 12
+__func__.24588:
 	.ascii	"FtlCheckVpc\000"
-	.type	__func__.21436, %object
-	.size	__func__.21436, 21
-__func__.21436:
+	.type	__func__.24887, %object
+	.size	__func__.24887, 21
+__func__.24887:
 	.ascii	"FtlVpcCheckAndModify\000"
 	.space	3
-	.type	__func__.20463, %object
-	.size	__func__.20463, 8
-__func__.20463:
+	.type	__func__.23914, %object
+	.size	__func__.23914, 8
+__func__.23914:
 	.ascii	"FtlInit\000"
 	.section	.rodata.str1.1,"aMS",%progbits,1
 .LC1:
@@ -25837,7 +25880,7 @@ __func__.20463:
 .LC76:
 	.ascii	"%s\012\000"
 .LC77:
-	.ascii	"FTL version: 5.0.63 20200923\000"
+	.ascii	"FTL version: 5.0.63 20210616\000"
 .LC78:
 	.ascii	"swblk %x ,avg = %x max= %x vpc= %x,ec=%x ,max ec=%x"
 	.ascii	"\012\000"
@@ -28879,6 +28922,10 @@ power_up_flag:
 .LANCHOR2 = . + 4344
 .LANCHOR4 = . + 8688
 .LANCHOR5 = . + 17376
+	.type	gNandChipMap, %object
+	.size	gNandChipMap, 32
+gNandChipMap:
+	.space	32
 	.type	g_slc2KBNand, %object
 	.size	g_slc2KBNand, 1
 g_slc2KBNand:
@@ -28897,10 +28944,6 @@ gBlockPageAlignSize:
 gNandRandomizer:
 	.space	1
 	.space	3
-	.type	gNandChipMap, %object
-	.size	gNandChipMap, 32
-gNandChipMap:
-	.space	32
 	.type	gpNandParaInfo, %object
 	.size	gpNandParaInfo, 4
 gpNandParaInfo:
@@ -28909,6 +28952,15 @@ gpNandParaInfo:
 	.size	gNandOptPara, 32
 gNandOptPara:
 	.space	32
+	.type	g_retryMode, %object
+	.size	g_retryMode, 1
+g_retryMode:
+	.space	1
+	.type	g_maxRegNum, %object
+	.size	g_maxRegNum, 1
+g_maxRegNum:
+	.space	1
+	.space	2
 	.type	gpNandc, %object
 	.size	gpNandc, 4
 gpNandc:
@@ -28966,19 +29018,10 @@ DieAddrs:
 	.size	FlashWaitBusyScheduleEn, 4
 FlashWaitBusyScheduleEn:
 	.space	4
-	.type	g_retryMode, %object
-	.size	g_retryMode, 1
-g_retryMode:
-	.space	1
-	.type	g_maxRegNum, %object
-	.size	g_maxRegNum, 1
-g_maxRegNum:
-	.space	1
 	.type	gReadRetryInfo, %object
 	.size	gReadRetryInfo, 852
 gReadRetryInfo:
 	.space	852
-	.space	2
 	.type	read_retry_cur_offset, %object
 	.size	read_retry_cur_offset, 4
 read_retry_cur_offset:
@@ -29665,6 +29708,14 @@ gNandIDataBuf:
 	.type	RK29_NANDC_REG_BASE, %object
 	.size	RK29_NANDC_REG_BASE, 4
 RK29_NANDC_REG_BASE:
+	.space	4
+	.type	ftl_dma32_buffer_size, %object
+	.size	ftl_dma32_buffer_size, 4
+ftl_dma32_buffer_size:
+	.space	4
+	.type	ftl_dma32_buffer, %object
+	.size	ftl_dma32_buffer, 4
+ftl_dma32_buffer:
 	.space	4
 	.type	gFlashPageBuffer0, %object
 	.size	gFlashPageBuffer0, 4
