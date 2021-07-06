@@ -63,6 +63,18 @@ const char * const bch2_member_states[] = {
 
 #undef x
 
+const char * const bch2_d_types[] = {
+	[DT_UNKNOWN]	= "unknown",
+	[DT_FIFO]	= "fifo",
+	[DT_CHR]	= "chr",
+	[DT_DIR]	= "dir",
+	[DT_BLK]	= "blk",
+	[DT_REG]	= "reg",
+	[DT_LNK]	= "lnk",
+	[DT_SOCK]	= "sock",
+	[DT_WHT]	= "whiteout",
+};
+
 void bch2_opts_apply(struct bch_opts *dst, struct bch_opts src)
 {
 #define x(_name, ...)						\
