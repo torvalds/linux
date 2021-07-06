@@ -85,7 +85,7 @@ static int nsim_ipsec_parse_proto_keys(struct xfrm_state *xs,
 				       u32 *mykey, u32 *mysalt)
 {
 	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
-	struct net_device *dev = xs->xso.dev;
+	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -134,7 +134,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs)
 	u16 sa_idx;
 	int ret;
 
-	dev = xs->xso.dev;
+	dev = xs->xso.real_dev;
 	ns = netdev_priv(dev);
 	ipsec = &ns->ipsec;
 
@@ -194,7 +194,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs)
 
 static void nsim_ipsec_del_sa(struct xfrm_state *xs)
 {
-	struct netdevsim *ns = netdev_priv(xs->xso.dev);
+	struct netdevsim *ns = netdev_priv(xs->xso.real_dev);
 	struct nsim_ipsec *ipsec = &ns->ipsec;
 	u16 sa_idx;
 
@@ -211,7 +211,7 @@ static void nsim_ipsec_del_sa(struct xfrm_state *xs)
 
 static bool nsim_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 {
-	struct netdevsim *ns = netdev_priv(xs->xso.dev);
+	struct netdevsim *ns = netdev_priv(xs->xso.real_dev);
 	struct nsim_ipsec *ipsec = &ns->ipsec;
 
 	ipsec->ok++;
