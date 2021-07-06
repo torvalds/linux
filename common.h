@@ -30,6 +30,10 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
  */  
 
 #ifndef __COMMON_H__
@@ -64,7 +68,7 @@
 #define DWXGMAC_CORE_3_01	0x30
 
 //#define DISABLE_EMAC_PORT1
-
+//#define DUMP_REGISTER
 /* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT.
  * Please also define/undefine same macro in tc956xmac_ioctl.h, if changing in this file
  */
@@ -747,6 +751,11 @@ enum packets_types {
 
 #ifdef TC956X
 #define TC956X_EXT_PHY_ETH_INT			BIT(20)
+
+#ifdef TC956X_SW_MSI
+#define TC956X_SW_MSI_INT			BIT(24)
+#endif
+
 #define TC956X_SSREG_BRREG_REG_BASE		(0x00024000U)
 
 #define TC956X_GLUE_LOGIC_BASE_OFST		(0x0002C000U)
@@ -901,6 +910,10 @@ enum packets_types {
 
 #define MSI_INT_TX_CH0		3
 #define MSI_INT_RX_CH0		11
+#define MSI_INT_EXT_PHY		20
+#ifdef TC956X_SW_MSI
+#define MSI_INT_SW_MSI		24
+#endif
 
 #define TC956X_MSI_BASE			(0xF000)
 #define TC956X_MSI_PF0				(0x000)
@@ -936,6 +949,10 @@ enum packets_types {
 						(pf_id * TC956X_MSI_PF1) + (0x0038))
 #define TC956X_MSI_VECT_SET7_OFFSET(pf_id)	(TC956X_MSI_BASE +\
 						(pf_id * TC956X_MSI_PF1) + (0x003C))
+#define TC956X_MSI_SW_MSI_SET(pf_id)		(TC956X_MSI_BASE +\
+						(pf_id * TC956X_MSI_PF1) + (0x0050))
+#define TC956X_MSI_SW_MSI_CLR(pf_id)		(TC956X_MSI_BASE +\
+						(pf_id * TC956X_MSI_PF1) + (0x0054))
 #define TC956X_MSI_EVENT_OFFSET(pf_id)		(TC956X_MSI_BASE +\
 						(pf_id * TC956X_MSI_PF1) + (0x0068))
 
@@ -1125,6 +1142,17 @@ struct tc956xmac_extra_stats {
 	u64 rxch_desc_buf_laddr[TC956XMAC_CH_MAX];
 	u64 rxch_sw_cur_rx[TC956XMAC_CH_MAX];
 	u64 rxch_sw_dirty_rx[TC956XMAC_CH_MAX];
+
+	/*debug interrupt counters */
+	u64 total_interrupts;
+	u64 lpi_intr_n;
+	u64 pmt_intr_n;
+	u64 event_intr_n;
+	u64 tx_intr_n;
+	u64 rx_intr_n;
+	u64 xpcs_intr_n;
+	u64 phy_intr_n;
+	u64 sw_msi_n;
 
 };
 

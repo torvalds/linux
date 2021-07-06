@@ -27,6 +27,10 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
  */
 
 #include <linux/dma-mapping.h>
@@ -1446,5 +1450,71 @@ int stop_channel(struct net_device *ndev, struct channel_info *channel)
 }
 EXPORT_SYMBOL_GPL(stop_channel);
 
+/*!
+ * \brief This API will print EMAC-IPA offload DMA channel stats
+ *
+ * \details This function will read and prints DMA Descriptor stats
+ * used by IPA.
+ *
+ * \param[in] ndev : TC956x netdev data structure.
+ *
+ * \return : Return 0 on success, -ve value on error
+ *           -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
+ */
+int read_ipa_desc_stats(struct net_device *ndev)
+{
+	int chno = 0;
+	struct tc956xmac_priv *priv;
 
+	if (!ndev) {
+		pr_err("%s: ERROR: Invalid netdevice pointer\n", __func__);
+		return -ENODEV;
+	}
 
+	priv = netdev_priv(ndev);
+	if (!priv) {
+		pr_err("%s: ERROR: Invalid private data pointer\n", __func__);
+		return -ENODEV;
+	}
+
+	/* TX DMA Descriptors Status for all channels */
+	for (chno = 0; chno < priv->plat->tx_queues_to_use; chno++) {
+
+		if (priv->plat->tx_dma_ch_owner[chno] != USE_IN_OFFLOADER)
+			continue;
+
+		netdev_info(priv->dev, "%s : txch_status[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(chno)));
+		netdev_info(priv->dev, "%s : txch_control[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_list_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_list_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_ring_len[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL2(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_curr_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_HADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_curr_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_LADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_tail[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_TAIL_LPTR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_buf_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_HADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_desc_buf_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_LADDR(chno)));
+		netdev_info(priv->dev, "%s : txch_dma_interrupt_en[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(chno)));
+	}
+
+	/* RX DMA Descriptors Status for all channels */
+	for (chno = 0; chno < TC956XMAC_CH_MAX; chno++) {
+
+		if (priv->plat->rx_dma_ch_owner[chno] != USE_IN_OFFLOADER)
+			continue;
+
+		netdev_info(priv->dev, "%s : rxch_status[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(chno)));
+		netdev_info(priv->dev, "%s : rxch_control[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_list_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_list_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_ring_len[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL2(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_curr_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_HADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_curr_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_LADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_tail[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_TAIL_LPTR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_buf_haddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_HADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_desc_buf_laddr[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_LADDR(chno)));
+		netdev_info(priv->dev, "%s : rxch_dma_interrupt_en[%d] : 0x%08x", __func__, chno, readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(chno)));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(read_ipa_desc_stats);

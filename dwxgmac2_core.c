@@ -30,7 +30,11 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
- */  
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
+ */
  
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
@@ -64,7 +68,8 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 			tx |= hw->link.xgmii.speed10000;
 			break;
 		case SPEED_2500:
-			tx |= hw->link.speed2500;
+			if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
+				tx |= hw->link.speed2500;
 			break;
 		case SPEED_1000:
 		default:
@@ -77,7 +82,8 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 		tx |= hw->link.speed1000;
 	else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
 		tx |= hw->link.speed2500;
-	else if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII)
+	else if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
+		(priv->plat->interface == PHY_INTERFACE_MODE_10GKR))
 		tx |= hw->link.xgmii.speed10000;
 #endif
 	writel(tx, ioaddr + XGMAC_TX_CONFIG);
@@ -2394,6 +2400,7 @@ static int dwxgmac3_est_configure(struct tc956xmac_priv *priv,
 	u64 read_btr = 0, read_ctr = 0;
 	static u32 switch_cnt = 0;
 	char *qptr = NULL, *pptr = NULL;
+	int char_buff_size = 100*100;
 
 	pptr = (char *)kzalloc(100*100, GFP_KERNEL);
 	if (!pptr) {
@@ -2442,9 +2449,9 @@ static int dwxgmac3_est_configure(struct tc956xmac_priv *priv,
 					switch_cnt, read_btr, read_ctr,
 						PACKET_IPG, PACKET_CDT_IPG);
 			for (i = 0; i < cfg->gcl_size; i++) {
-				sprintf((pptr+(i*11)), ", %010d", (cfg->gcl[i]&0xffffff));
+				scnprintf((pptr+(i*11)), char_buff_size - (i*11), ",%010d", (cfg->gcl[i]&0xffffff));
 				for (j = 0; j < 6; j++) {
-					sprintf((qptr+(i*6*2)+(j*2)), ",%d",
+					scnprintf((qptr+(i*6*2)+(j*2)), char_buff_size - (i*6*2) + (j*2), ",%d",
 						((cfg->gcl[i]>>(24+j))&0x1));
 				}
 			}

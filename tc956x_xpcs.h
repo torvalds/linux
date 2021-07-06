@@ -27,6 +27,10 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
  */
 
 #ifndef __TC956X_XPCS_H__
@@ -77,7 +81,9 @@
 #define XPCS_REG_BASE_ADDR				10
 #define XPCS_REG_OFFSET					0x0003FF
 #define XPCS_IND_ACCESS					0x3FC
-
+#define XPCS_SS_SGMII_1G				0x40
+#define XPCS_SS_SGMII_100M				0x2000
+#define XPCS_SS_SGMII_10M				0x0
 
 u32 tc956x_xpcs_read(void __iomem *xpcsaddr, u32 pcs_reg_num);
 u32 tc956x_xpcs_write(void __iomem *xpcsaddr, u32 pcs_reg_num, u32 value);

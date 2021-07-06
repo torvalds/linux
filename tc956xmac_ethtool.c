@@ -30,6 +30,10 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
  */
 
 #include <linux/etherdevice.h>
@@ -588,7 +592,15 @@ static const struct tc956xmac_stats tc956xmac_gstrings_stats[] = {
 	TC956XMAC_STAT(rxch_sw_dirty_rx[5]),
 	TC956XMAC_STAT(rxch_sw_dirty_rx[6]),
 	TC956XMAC_STAT(rxch_sw_dirty_rx[7]),
-
+	TC956XMAC_STAT(total_interrupts),
+	TC956XMAC_STAT(lpi_intr_n),
+	TC956XMAC_STAT(pmt_intr_n),
+	TC956XMAC_STAT(event_intr_n),
+	TC956XMAC_STAT(tx_intr_n),
+	TC956XMAC_STAT(rx_intr_n),
+	TC956XMAC_STAT(xpcs_intr_n),
+	TC956XMAC_STAT(phy_intr_n),
+	TC956XMAC_STAT(sw_msi_n),
 };
 #define TC956XMAC_STATS_LEN ARRAY_SIZE(tc956xmac_gstrings_stats)
 
@@ -706,7 +718,7 @@ static void tc956xmac_ethtool_getdrvinfo(struct net_device *dev,
 #endif
 
 	fw_version = (struct tc956x_version *)(&reg);
-	sprintf(fw_version_str, "Firmware Version %s_%d.%d-%d", (fw_version->rel_dbg == 'D')?"DBG":"REL",
+	scnprintf(fw_version_str, sizeof(fw_version_str), "Firmware Version %s_%d.%d-%d", (fw_version->rel_dbg == 'D')?"DBG":"REL",
 								fw_version->major, fw_version->minor,
 								fw_version->sub_minor);
 
@@ -849,7 +861,11 @@ tc956xmac_ethtool_set_link_ksettings(struct net_device *dev,
 
 		return 0;
 	}
-
+	/* Temporary fix (phy dependent code): In case of AQR phy, auto negotiation OFF is not supported, return error for it */
+	if (priv->port_num == RM_PF0_ID) {
+		if (cmd->base.autoneg != AUTONEG_ENABLE)
+			return -EINVAL;
+	}
 	if (!dev->phydev)
 		return -ENODEV;
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);

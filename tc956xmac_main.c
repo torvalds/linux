@@ -30,6 +30,10 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
+ *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
+ *  VERSION     : 01-00-01
  */
 
 #include <linux/clk.h>
@@ -178,6 +182,98 @@ static const struct config_parameter_list config_param_list[] = {
 static uint16_t mdio_bus_id;
 #define CONFIG_PARAM_NUM ARRAY_SIZE(config_param_list)
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
+
+#ifdef DUMP_REGISTER
+void dump_registers(struct tc956xmac_priv *priv)
+{
+	u32 i, j;
+
+	/* Register dump */
+	printk("CNFREG dump\n");
+
+	for (i = 0; i <= 0x1800; i = i+4)
+		printk("CNFREG 0x4000_%.4x = 0x%x\n", i, readl(priv->ioaddr + i));
+
+	printk("--------------------------------------------------------\n");
+	printk("PMATOP register dump\n");
+
+
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x441b8, readl(priv->ioaddr + 0x441b8));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45888, readl(priv->ioaddr + 0x45888));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45890, readl(priv->ioaddr + 0x45890));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45898, readl(priv->ioaddr + 0x45898));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x458a0, readl(priv->ioaddr + 0x458a0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x458a8, readl(priv->ioaddr + 0x458a8));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45080, readl(priv->ioaddr + 0x45080));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45090, readl(priv->ioaddr + 0x45090));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x45094, readl(priv->ioaddr + 0x45094));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450a4, readl(priv->ioaddr + 0x450a4));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450a8, readl(priv->ioaddr + 0x450a8));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450b8, readl(priv->ioaddr + 0x450b8));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450bc, readl(priv->ioaddr + 0x450bc));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450cc, readl(priv->ioaddr + 0x450cc));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450d0, readl(priv->ioaddr + 0x450d0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", 0x450e0, readl(priv->ioaddr + 0x450e0));
+
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_GL_PM_CFG0, readl(priv->pmaaddr + XGMAC_PMA_GL_PM_CFG0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_CFG_0_1_R0, readl(priv->pmaaddr + XGMAC_PMA_CFG_0_1_R0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_CFG_0_1_R1, readl(priv->pmaaddr + XGMAC_PMA_CFG_0_1_R1));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_CFG_0_1_R2, readl(priv->pmaaddr + XGMAC_PMA_CFG_0_1_R2));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_CFG_0_1_R3, readl(priv->pmaaddr + XGMAC_PMA_CFG_0_1_R3));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_CFG_0_1_R4, readl(priv->pmaaddr + XGMAC_PMA_CFG_0_1_R4));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_EN_R0, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_EN_R0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_TERM_EN_R0, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_TERM_EN_R0));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_R_EN_R1, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_R_EN_R1));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_TERM_EN_R1, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_TERM_EN_R1));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_R_EN_R2, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_R_EN_R2));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_TERM_EN_R2, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_TERM_EN_R2));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_R_EN_R3, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_R_EN_R3));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_TERM_EN_R3, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_TERM_EN_R3));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_R_EN_R4, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_R_EN_R4));
+	printk("PMATOP Reg 0x%x = 0x%x\n", XGMAC_PMA_HWT_REFCK_TERM_EN_R4, readl(priv->pmaaddr + XGMAC_PMA_HWT_REFCK_TERM_EN_R4));
+
+	printk("--------------------------------------------------------\n");
+	printk("XPCS register dump\n");
+
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_SR_MII_CTRL, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_MII_CTRL));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_VR_MII_AN_CTRL, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_CTRL));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_VR_MII_DIG_CTRL1, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_DIG_CTRL1));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_SR_XS_PCS_CTRL2, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_XS_PCS_CTRL2));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_VR_XS_PCS_DIG_CTRL1, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_VR_XS_PCS_KR_CTRL, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_XS_PCS_KR_CTRL));
+	printk("XPCS Reg 0x%x = 0x%x\n", XGMAC_VR_MII_AN_INTR_STS, tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS));
+
+	printk("--------------------------------------------------------\n");
+
+	printk("XGMAC-MAC register dump\n");
+
+	for (i = 0; i <= 0x810; i = i+4)
+		printk("XGMAC MAC Reg 0x400%.5x = 0x%x\n", MAC_OFFSET + i, readl(priv->ioaddr + MAC_OFFSET + i));
+
+	printk("--------------------------------------------------------\n");
+
+	printk("XGMAC-MTL register dump\n");
+	for (i = 0x1000; i <= 0x10B4; i = i+4)
+		printk("XGMAC MTL Reg 0x400%.5x = 0x%x\n", MAC_OFFSET + i, readl(priv->ioaddr + MAC_OFFSET + i));
+
+	for (i = 0x1100; i <= 0x1174; i = i+4) {
+		for (j = 0; j < 2; j++)
+		printk("XGMAC MTL Reg 0x400%.5x = 0x%x\n", MAC_OFFSET + i + (j*0x80), readl(priv->ioaddr + MAC_OFFSET + i + (j*0x80) ));
+	}
+
+	printk("--------------------------------------------------------\n");
+
+	printk("XGMAC-DMA register dump\n");
+	for (i = 0x3000; i <= 0x3084; i = i+4)
+		printk("XGMAC DMA Reg 0x400%.5x = 0x%x\n", MAC_OFFSET + i, readl(priv->ioaddr + MAC_OFFSET + i));
+
+	for (i = 0x3100; i <= 0x317c; i = i+4) {
+		for (j = 0; j < 2; j++)
+		printk("XGMAC DMA Reg 0x400%.5x = 0x%x\n", MAC_OFFSET + i + (j*0x80), readl(priv->ioaddr + MAC_OFFSET + i + (j*0x80) ));
+	}
+	printk("--------------------------------------------------------\n");
+}
+#endif
 
 /**
  * tc956xmac_verify_args - verify the driver parameters.
@@ -1156,7 +1252,8 @@ static void tc956xmac_mac_pcs_get_state(struct phylink_config *config,
 	reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS);
 	if (reg_value & XGMAC_C37_AN_COMPL) {/*check if AN 37 is complete CL37_ANCMPLT_INTR*/
 		KPRINT_INFO("AN clause 37 completed");
-		if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) {
+		if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
+		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)) {
 			if (reg_value & XGMAC_USXG_AN_STS_LINK_MASK) {/*check link status*/
 				state->link = 1;
 				KPRINT_INFO("XPCS USXGMII link up");
@@ -1187,13 +1284,12 @@ static void tc956xmac_mac_pcs_get_state(struct phylink_config *config,
 				else
 					state->duplex = DUPLEX_HALF;
 
-				if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x2)/*SGMII autonegotiated speed */
-#ifndef TC956X_SGMII_2P5_GBPS_TEST
-					state->speed = SPEED_1000;
-#else
-					state->speed = SPEED_2500; /*There is no seperate bit check for 2.5Gbps, so set here */
-#endif
-				else if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x1)
+				if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x2) {/*SGMII autonegotiated speed */
+					if (priv->is_sgmii_2p5g == true)
+						state->speed = SPEED_2500; /*There is no seperate bit check for 2.5Gbps, so set here */
+					else
+						state->speed = SPEED_1000;
+				} else if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x1)
 					state->speed = SPEED_100;
 			} else {
 				state->link = 0;
@@ -1216,7 +1312,8 @@ static int tc956xmac_mac_link_state(struct phylink_config *config,
 	reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS);
 	if (reg_value & XGMAC_C37_AN_COMPL) {/*check if AN 37 is complete CL37_ANCMPLT_INTR*/
 		KPRINT_INFO("AN clause 37 completed");
-		if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) {
+		if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
+		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)) {
 			if (reg_value & XGMAC_USXG_AN_STS_LINK_MASK) {/*check link status*/
 				state->link = 1;
 				KPRINT_INFO("XPCS USXGMII link up");
@@ -1251,15 +1348,12 @@ static int tc956xmac_mac_link_state(struct phylink_config *config,
 				else
 					state->duplex = DUPLEX_HALF;
 				/*SGMII autonegotiated speed */
-				if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x2)
-#ifndef TC956X_SGMII_2P5_GBPS_TEST
-					state->speed = SPEED_1000;
-#else
-
-					/*There is no seperate bit check for 2.5Gbps, so set here */
-					state->speed = SPEED_2500;
-#endif
-				else if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x1)
+				if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x2) {
+					if (priv->is_sgmii_2p5g == true)
+						state->speed = SPEED_2500; /*There is no seperate bit check for 2.5Gbps, so set here */
+					else
+						state->speed = SPEED_1000;
+				} else if (((reg_value & XGMAC_SGM_STS_SPEED_MASK) >> 2) == 0x1)
 					state->speed = SPEED_100;
 			} else {
 				state->link = 0;
@@ -1272,6 +1366,137 @@ static int tc956xmac_mac_link_state(struct phylink_config *config,
 #endif
 }
 #endif
+
+/**
+ *  tc956xmac_speed_change_init_mac - Initialize MAC during speed change.
+ *  @priv: driver private structure
+ *  @state : phy state structure
+ *  Description: It is used for initializing MAC during speed change of
+ *  USXGMII and SGMII.
+ */
+void tc956xmac_speed_change_init_mac(struct tc956xmac_priv *priv,
+					const struct phylink_link_state *state)
+{
+	/* use signal from EMSPHY */
+	uint8_t SgmSigPol = 0;
+	int ret = 0;
+	bool enable_an = true;
+
+	if (priv->port_num == RM_PF0_ID) {
+		/* Enable all clocks to eMAC Port0 */
+		ret = readl(priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET);
+		if ((state->interface == PHY_INTERFACE_MODE_SGMII) &&
+		   (state->speed == SPEED_2500)) {
+			ret &= ~NCLKCTRL0_MAC0125CLKEN;
+			ret &= ~NCLKCTRL0_MAC0312CLKEN;
+		}
+		writel(ret, priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET);
+
+		/* Interface configuration for port0*/
+		ret = readl(priv->tc956x_SFR_pci_base_addr + NEMAC0CTL_OFFSET);
+		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
+		if (state->interface == PHY_INTERFACE_MODE_SGMII) {
+			if (state->speed == SPEED_2500)
+				ret |= NEMACCTL_SP_SEL_SGMII_2500M;
+			else
+				ret |= NEMACCTL_SP_SEL_SGMII_1000M;
+		}
+		ret &= ~(0x00000040); /* Mask Polarity */
+		if (SgmSigPol == 1)
+			ret |= 0x00000040; /* Set Active low */
+		ret |= (NEMACCTL_PHY_INF_SEL | NEMACCTL_LPIHWCLKEN);
+		writel(ret, priv->tc956x_SFR_pci_base_addr + NEMAC0CTL_OFFSET);
+	}
+	if (priv->port_num == RM_PF1_ID) {
+		/* Enable all clocks to eMAC Port1 */
+		ret = readl(priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET);
+		if ((state->interface == PHY_INTERFACE_MODE_SGMII) &&
+		   (state->speed == SPEED_2500)) {
+			ret &= ~NCLKCTRL1_MAC1125CLKEN1;
+			ret &= ~NCLKCTRL1_MAC1312CLKEN1;
+		} else {
+			ret &= ~NCLKCTRL1_MAC1312CLKEN1;
+			ret |= NCLKCTRL1_MAC1125CLKEN1;
+		}
+		writel(ret, priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET);
+
+		/* Interface configuration for port1*/
+		ret = readl(priv->tc956x_SFR_pci_base_addr + NEMAC1CTL_OFFSET);
+		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
+		if (state->interface == PHY_INTERFACE_MODE_SGMII) {
+			if (state->speed == SPEED_2500)
+				ret |= NEMACCTL_SP_SEL_SGMII_2500M;
+			else
+				ret |= NEMACCTL_SP_SEL_SGMII_1000M;
+		}
+
+		ret &= ~(0x00000040); /* Mask Polarity */
+		if (SgmSigPol == 1)
+			ret |= 0x00000040; /* Set Active low */
+		ret |= (NEMACCTL_PHY_INF_SEL | NEMACCTL_LPIHWCLKEN);
+		writel(ret, priv->tc956x_SFR_pci_base_addr + NEMAC1CTL_OFFSET);
+	}
+
+	/*PMA module init*/
+	if (priv->hw->xpcs) {
+		if (priv->port_num == RM_PF0_ID) {
+			/* Assertion of PMA &  XPCS reset  software Reset*/
+			ret = readl(priv->ioaddr + NRSTCTRL0_OFFSET);
+			ret |= (NRSTCTRL0_MAC0PMARST | NRSTCTRL0_MAC0PONRST);
+			writel(ret, priv->ioaddr + NRSTCTRL0_OFFSET);
+		}
+		if (priv->port_num == RM_PF1_ID) {
+			/* Assertion of PMA &  XPCS reset  software Reset*/
+			ret = readl(priv->ioaddr + NRSTCTRL1_OFFSET);
+			ret |= (NRSTCTRL1_MAC1PMARST1 | NRSTCTRL1_MAC1PONRST1);
+			writel(ret, priv->ioaddr + NRSTCTRL1_OFFSET);
+		}
+
+		ret = tc956x_pma_setup(priv, priv->pmaaddr);
+		if (ret < 0)
+			KPRINT_ERR("PMA switching to internal clock Failed\n");
+
+		if (priv->port_num == RM_PF0_ID) {
+			/* De-assertion of PMA &  XPCS reset  software Reset*/
+			ret = readl(priv->ioaddr + NRSTCTRL0_OFFSET);
+			ret &= ~(NRSTCTRL0_MAC0PMARST | NRSTCTRL0_MAC0PONRST);
+			writel(ret, priv->ioaddr + NRSTCTRL0_OFFSET);
+		}
+		if (priv->port_num == RM_PF1_ID) {
+			/* De-assertion of PMA &  XPCS reset  software Reset*/
+			ret = readl(priv->ioaddr + NRSTCTRL1_OFFSET);
+			ret &= ~(NRSTCTRL1_MAC1PMARST1 | NRSTCTRL1_MAC1PONRST1);
+			writel(ret, priv->ioaddr + NRSTCTRL1_OFFSET);
+		}
+
+		if (priv->port_num == RM_PF0_ID) {
+			do {
+				ret = readl(priv->ioaddr + NEMAC0CTL_OFFSET);
+			} while ((NEMACCTL_INIT_DONE & ret) != NEMACCTL_INIT_DONE);
+		}
+		if (priv->port_num == RM_PF1_ID) {
+			do {
+				ret = readl(priv->ioaddr + NEMAC1CTL_OFFSET);
+			} while ((NEMACCTL_INIT_DONE & ret) != NEMACCTL_INIT_DONE);
+		}
+		if ((state->interface == PHY_INTERFACE_MODE_SGMII)
+		&& (state->speed == SPEED_2500)) {
+			/* XPCS doesn't support AN for 2.5G SGMII.
+			 * Disable AN only if SGMII 2.5G is Enabled.
+			 */
+			priv->is_sgmii_2p5g = true;
+			enable_an = false;
+		} else {
+			priv->is_sgmii_2p5g = false;
+			enable_an = true;
+		}
+
+		ret = tc956x_xpcs_init(priv, priv->xpcsaddr);
+		if (ret < 0)
+			KPRINT_INFO("XPCS initialization error\n");
+		tc956x_xpcs_ctrl_ane(priv, enable_an);
+	}
+}
 
 static void tc956xmac_mac_config(struct phylink_config *config, unsigned int mode,
 				const struct phylink_link_state *state)
@@ -1330,34 +1555,53 @@ static void tc956xmac_mac_config(struct phylink_config *config, unsigned int mod
 				val = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1);
 				val |= XGMAC_USRA_RST;
 				tc956x_xpcs_write(priv->xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1, val);
-
-			} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
-#if defined(TC956X) && defined(TC956X_SGMII_2P5_GBPS_TEST)
-				/* Program autonegotiated speed to SR_MII_CTRL */
-				val = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_MII_CTRL);
-				val &= ~XGMAC_SR_MII_CTRL_SPEED; /* Mask speed ss13, ss6, ss5 */
-#endif
-
-				switch (state->speed) {
-				case SPEED_2500:
-					ctrl |= priv->hw->link.speed2500;
-#if defined(TC956X) && defined(TC956X_SGMII_2P5_GBPS_TEST)
-					val |= 0x40; /*1000 Mbps setting only available, so set the same*/
-#endif
-					emac_ctrl |= NEMACCTL_SP_SEL_SGMII_2500M;
-
-					break;
-				case SPEED_1000:
-					ctrl |= priv->hw->link.speed1000;
-					emac_ctrl |= NEMACCTL_SP_SEL_SGMII_1000M;
-					break;
-				default:
-					return;
-				}
-#if defined(TC956X) && defined(TC956X_SGMII_2P5_GBPS_TEST)
-				tc956x_xpcs_write(priv->xpcsaddr, XGMAC_SR_MII_CTRL, val);
-#endif
+				config_done = true;
 			}
+		}
+		if (state->interface == PHY_INTERFACE_MODE_SGMII) { /* Autonegotiation not supported for SGMII */
+			reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS);
+			/* Clear autonegotiation only if completed. As for XPCS, 2.5G autonegotiation is not supported */
+			/* Switching from SGMII 2.5G to any speed doesn't cause AN completion */
+			if (reg_value & XGMAC_C37_AN_COMPL) {/*check if AN 37 is complete CL37_ANCMPLT_INTR*/
+				KPRINT_INFO("AN clause 37 completed");
+				reg_value &= ~(XGMAC_C37_AN_COMPL);
+				tc956x_xpcs_write(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS, reg_value);
+				KPRINT_INFO("AN clause 37 complete bit cleared");
+			}
+			/* Invoke this only during speed change */
+			if ((state->speed != SPEED_UNKNOWN) || (state->speed != 0)) {
+				if (state->speed != priv->speed) {
+					tc956xmac_speed_change_init_mac(priv, state);
+				}
+			}
+			val = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_MII_CTRL);
+			val &= ~XGMAC_SR_MII_CTRL_SPEED; /* Mask speed ss13, ss6, ss5 */
+			switch (state->speed) {
+			case SPEED_2500:
+				ctrl |= priv->hw->link.speed2500;
+				/* Program autonegotiated speed to SR_MII_CTRL */
+				val |= XPCS_SS_SGMII_1G; /*1000 Mbps setting only available, so set the same*/
+				emac_ctrl |= NEMACCTL_SP_SEL_SGMII_2500M;
+				break;
+			case SPEED_1000:
+				ctrl |= priv->hw->link.speed1000;
+				val |= XPCS_SS_SGMII_1G; /*1000 Mbps setting only available, so set the same*/
+				emac_ctrl |= NEMACCTL_SP_SEL_SGMII_1000M;
+				break;
+			case SPEED_100:
+				ctrl |= priv->hw->link.speed100;
+				val |= XPCS_SS_SGMII_100M; /*100 Mbps setting */
+				emac_ctrl |= NEMACCTL_SP_SEL_SGMII_100M;
+				break;
+			case SPEED_10:
+				ctrl |= priv->hw->link.speed10;
+				val |= XPCS_SS_SGMII_10M; /*10 Mbps setting */
+				emac_ctrl |= NEMACCTL_SP_SEL_SGMII_10M;
+				break;
+			default:
+				return;
+			}
+			tc956x_xpcs_write(priv->xpcsaddr, XGMAC_SR_MII_CTRL, val);
 			config_done = true;
 		}
 	} else if (state->interface == PHY_INTERFACE_MODE_RGMII) {
@@ -1423,10 +1667,26 @@ static void tc956xmac_mac_an_restart(struct phylink_config *config)
 {
 #ifdef TC956X
 	struct tc956xmac_priv *priv = netdev_priv(to_net_dev(config->dev));
+	bool enable_en = true;
 
 	if (priv->hw->xpcs) {
 		/*Enable XPCS Autoneg*/
-		tc956x_xpcs_ctrl_ane(priv, 1);
+		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR) {
+			enable_en = false;
+			KPRINT_INFO("%s :Port %d AN Enable:%d", __func__, priv->port_num, enable_en);
+		} else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
+			if (priv->is_sgmii_2p5g == true) {
+				enable_en = false;
+				KPRINT_INFO("%s : Port %d AN Enable:%d", __func__, priv->port_num, enable_en);
+			} else {
+				enable_en = true;
+				KPRINT_INFO("%s : Port %d AN Enable:%d", __func__, priv->port_num, enable_en);
+			}
+		} else {
+			enable_en = true;
+			KPRINT_INFO("%s : Port %d AN Enable:%d", __func__, priv->port_num, enable_en);
+		}
+		tc956x_xpcs_ctrl_ane(priv, enable_en);
 	}
 #else
 	/*Not supported*/
@@ -1498,8 +1758,9 @@ static void tc956xmac_check_pcs_mode(struct tc956xmac_priv *priv)
 #ifdef TC956X
 			priv->hw->pcs = TC956XMAC_PCS_SGMII;
 #endif
-		} else if (interface == PHY_INTERFACE_MODE_USXGMII) {
-			netdev_dbg(priv->dev, "PCS USXGMII support enabled\n");
+		} else if ((interface == PHY_INTERFACE_MODE_USXGMII) ||
+			  (interface == PHY_INTERFACE_MODE_10GKR)) {
+			netdev_dbg(priv->dev, "PCS USXGMII/XFI support enabled\n");
 #ifdef TC956X
 			priv->hw->pcs = TC956XMAC_PCS_USXGMII;
 #endif
@@ -1512,7 +1773,8 @@ static void tc956xmac_check_pcs_mode(struct tc956xmac_priv *priv)
 	} else if (interface == PHY_INTERFACE_MODE_SGMII) {
 		netdev_dbg(priv->dev, "PCS SGMII support enabled\n");
 		priv->hw->xpcs = TC956XMAC_PCS_SGMII;
-	} else if (interface == PHY_INTERFACE_MODE_USXGMII) {
+	} else if ((interface == PHY_INTERFACE_MODE_USXGMII) ||
+		  (interface == PHY_INTERFACE_MODE_10GKR)) {
 		netdev_dbg(priv->dev, "PCS USXGMII support enabled\n");
 		priv->hw->xpcs = TC956XMAC_PCS_USXGMII;
 	}
@@ -2661,10 +2923,11 @@ static int tc956xmac_tx_clean(struct tc956xmac_priv *priv, int budget, u32 queue
 		mod_timer(&priv->eee_ctrl_timer, TC956XMAC_LPI_T(eee_timer));
 	}
 
+#ifdef ENABLE_TX_TIMER
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
 		mod_timer(&tx_q->txtimer, TC956XMAC_COAL_TIMER(priv->tx_coal_timer));
-
+#endif
 	__netif_tx_unlock_bh(netdev_get_tx_queue(priv->dev, queue));
 
 	return count;
@@ -2808,6 +3071,11 @@ static int tc956xmac_napi_check(struct tc956xmac_priv *priv, u32 chan)
 
 	if ((status & handle_tx) && (chan < priv->plat->tx_queues_to_use) &&
 		(priv->plat->tx_dma_ch_owner[chan] == USE_IN_TC956X_SW)) {
+
+#ifdef TX_COMPLETION_WITHOUT_TIMERS
+		writel(0, priv->tc956x_SRAM_pci_base_addr
+				+ TX_TIMER_SRAM_OFFSET(priv->port_num));
+#endif
 		if (napi_schedule_prep(&ch->tx_napi)) {
 			spin_lock_irqsave(&ch->lock, flags);
 			tc956xmac_disable_dma_irq(priv, priv->ioaddr, chan, 0, 1);
@@ -2999,6 +3267,7 @@ static int tc956xmac_init_dma_engine(struct tc956xmac_priv *priv)
 	return ret;
 }
 
+#ifdef ENABLE_TX_TIMER
 static void tc956xmac_tx_timer_arm(struct tc956xmac_priv *priv, u32 queue)
 {
 	struct tc956xmac_tx_queue *tx_q = &priv->tx_queue[queue];
@@ -3037,6 +3306,8 @@ static void tc956xmac_tx_timer(struct timer_list *t)
 	}
 }
 
+#endif
+
 /**
  * tc956xmac_init_coalesce - init mitigation options.
  * @priv: driver private structure
@@ -3047,13 +3318,15 @@ static void tc956xmac_tx_timer(struct timer_list *t)
  */
 static void tc956xmac_init_coalesce(struct tc956xmac_priv *priv)
 {
+#ifdef ENABLE_TX_TIMER
 	u32 tx_channel_count = priv->plat->tx_queues_to_use;
 	u32 chan;
-
+#endif
 	priv->tx_coal_frames = TC956XMAC_TX_FRAMES;
 	priv->tx_coal_timer = TC956XMAC_COAL_TX_TIMER;
 	priv->rx_coal_frames = TC956XMAC_RX_FRAMES;
 
+#ifdef ENABLE_TX_TIMER
 	for (chan = 0; chan < tx_channel_count; chan++) {
 		struct tc956xmac_tx_queue *tx_q = &priv->tx_queue[chan];
 
@@ -3061,6 +3334,7 @@ static void tc956xmac_init_coalesce(struct tc956xmac_priv *priv)
 			continue;
 		timer_setup(&tx_q->txtimer, tc956xmac_tx_timer, 0);
 	}
+#endif
 }
 
 static void tc956xmac_set_rings_length(struct tc956xmac_priv *priv)
@@ -3336,6 +3610,7 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	struct tc956xmac_priv *priv = netdev_priv(dev);
 #ifdef TC956X
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	bool enable_en = true;
 #endif
 
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
@@ -3428,9 +3703,19 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 #ifdef TC956X
-	if (priv->hw->xpcs)
+	if (priv->hw->xpcs) {
 		/*C37 AN enable*/
-		tc956x_xpcs_ctrl_ane(priv, 1);
+		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+			enable_en = false;
+		else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
+			if (priv->is_sgmii_2p5g == true)
+				enable_en = false;
+			else
+				enable_en = true;
+		} else
+			enable_en = true;
+		tc956x_xpcs_ctrl_ane(priv, enable_en);
+	}
 #else
 	if (priv->hw->pcs)
 		tc956xmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, priv->hw->ps, 0);
@@ -3625,8 +3910,21 @@ static int tc956xmac_open(struct net_device *dev)
 			rd_val |= (1 << (MSI_INT_RX_CH0 + chan));
 	}
 
+	/* PHY MSI interrupt diabled */
+	rd_val |= (1 << MSI_INT_EXT_PHY);
+
 	/* Disable MAC Event and XPCS interrupt */
 	rd_val = ENABLE_MSI_INTR & (~rd_val);
+
+#ifdef TC956X_SW_MSI
+	/* Enable SW MSI interrupt */
+	KPRINT_INFO("%s Enable SW MSI", __func__);
+	rd_val |=  (1 << MSI_INT_SW_MSI);
+
+	/*Clear SW MSI*/
+	writel(1, priv->ioaddr + TC956X_MSI_SW_MSI_CLR(priv->port_num));
+
+#endif
 	writel(rd_val, priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num)); /* MSI_OUT_EN: Enable All mac int */
 
 #endif
@@ -3688,8 +3986,13 @@ static int tc956xmac_open(struct net_device *dev)
 
 	/* MSI_MASK_CLR: unmask vector 0 */
 	writel(0x00000001, priv->ioaddr + TC956X_MSI_MASK_CLR_OFFSET(priv->port_num));
+
+#ifdef TX_COMPLETION_WITHOUT_TIMERS
+		writel(0, priv->tc956x_SRAM_pci_base_addr
+				+ TX_TIMER_SRAM_OFFSET(priv->port_num));
 #endif
 
+#endif
 	return 0;
 #ifndef TC956X
 lpiirq_error:
@@ -3700,12 +4003,12 @@ wolirq_error:
 #endif
 irq_error:
 	phylink_stop(priv->phylink);
-
+#ifdef ENABLE_TX_TIMER
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++) {
 		if (priv->plat->tx_dma_ch_owner[chan] == USE_IN_TC956X_SW)
 			del_timer_sync(&priv->tx_queue[chan].txtimer);
 	}
-
+#endif
 	tc956xmac_hw_teardown(dev);
 init_error:
 	free_dma_desc_resources(priv);
@@ -3723,8 +4026,14 @@ dma_desc_error:
 static int tc956xmac_release(struct net_device *dev)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
+#ifdef ENABLE_TX_TIMER
 	u32 chan;
+#endif
 
+#ifdef TX_COMPLETION_WITHOUT_TIMERS
+		writel(0, priv->tc956x_SRAM_pci_base_addr
+				+ TX_TIMER_SRAM_OFFSET(priv->port_num));
+#endif
 	if (priv->eee_enabled)
 		del_timer_sync(&priv->eee_ctrl_timer);
 
@@ -3736,12 +4045,12 @@ static int tc956xmac_release(struct net_device *dev)
 	tc956xmac_stop_all_queues(priv);
 
 	tc956xmac_disable_all_queues(priv);
-
+#ifdef ENABLE_TX_TIMER
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++) {
 		if (priv->plat->tx_dma_ch_owner[chan] == USE_IN_TC956X_SW)
 			del_timer_sync(&priv->tx_queue[chan].txtimer);
 	}
-
+#endif
 	/* Free the IRQ lines */
 	free_irq(dev->irq, dev);
 
@@ -4109,8 +4418,14 @@ static netdev_tx_t tc956xmac_tso_xmit(struct sk_buff *skb, struct net_device *de
 
 	tx_q->tx_tail_addr = tx_q->dma_tx_phy + (tx_q->cur_tx * desc_size);
 	tc956xmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr, queue);
+#ifdef ENABLE_TX_TIMER
 	tc956xmac_tx_timer_arm(priv, queue);
+#endif
 
+#ifdef TX_COMPLETION_WITHOUT_TIMERS
+	writel(1, priv->tc956x_SRAM_pci_base_addr
+			+ TX_TIMER_SRAM_OFFSET(priv->port_num));
+#endif
 	return NETDEV_TX_OK;
 
 dma_map_err:
@@ -4446,7 +4761,15 @@ static netdev_tx_t tc956xmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_q->tx_tail_addr = tx_q->dma_tx_phy + (tx_q->cur_tx * desc_size);
 	tc956xmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr, queue);
+
+#ifdef ENABLE_TX_TIMER
 	tc956xmac_tx_timer_arm(priv, queue);
+#endif
+
+#ifdef TX_COMPLETION_WITHOUT_TIMERS
+	writel(1, priv->tc956x_SRAM_pci_base_addr
+			+ TX_TIMER_SRAM_OFFSET(priv->port_num));
+#endif
 
 	return NETDEV_TX_OK;
 
@@ -5052,6 +5375,34 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	if (tc956xmac_safety_feat_interrupt(priv))
 		return IRQ_HANDLED;
 
+	val = readl(priv->ioaddr + TC956X_MSI_INT_STS_OFFSET(priv->port_num));
+
+	priv->xstats.total_interrupts++;
+
+	if (val & (1 << 0))
+		priv->xstats.lpi_intr_n++;
+
+	if (val & (1 << 1))
+		priv->xstats.pmt_intr_n++;
+
+	if (val & (1 << 2))
+		priv->xstats.event_intr_n++;
+
+	if (val & (0xFF << 3))
+		priv->xstats.tx_intr_n++;
+
+	if (val & (0xFF << 11))
+		priv->xstats.rx_intr_n++;
+
+	if (val & (1 << 19))
+		priv->xstats.xpcs_intr_n++;
+
+	if (val & (1 << 20))
+		priv->xstats.phy_intr_n++;
+
+	if (val & (1 << 24))
+		priv->xstats.sw_msi_n++;
+
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || xmac) {
 		int status = tc956xmac_host_irq_status(priv, priv->hw, &priv->xstats);
@@ -5094,6 +5445,19 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	val = readl(priv->ioaddr + TC956X_MSI_INT_STS_OFFSET(priv->port_num));
 	if (val & TC956X_EXT_PHY_ETH_INT)
 		phy_mac_interrupt(priv->dev->phydev);
+#ifdef TC956X_SW_MSI
+	if (val & TC956X_SW_MSI_INT) {
+		//DBGPR_FUNC(priv->device, "%s SW MSI INT STS[%08x]\n", __func__, val);
+
+		/*Clear SW MSI*/
+		writel(1, priv->ioaddr + TC956X_MSI_SW_MSI_CLR(priv->port_num));
+
+		val = readl(priv->ioaddr + TC956X_MSI_SW_MSI_CLR(priv->port_num));
+
+		//DBGPR_FUNC(priv->device, "%s SW MSI INT CLR[%08x]\n", __func__, val);
+
+	}
+#endif
 
 #ifdef TC956X
 	/* MSI_MSK_CLR, unmask vector 0 */
@@ -9093,30 +9457,6 @@ static unsigned char tc956x_get_rx_channel_count(struct tc956xmac_resources *res
 #ifndef EEPROM_MAC_ADDR
 
 /*!
- * \brief API to kernel read from file
- *
- * \param[in] file   - pointer to file descriptor
- * \param[in] offset - Offset of file to start read
- * \param[in] size   - Size of the buffer to be read
- *
- * \param[out] data   - File data buffer
- *
- *
- * \return integer
- *
- * \retval 0 on success & -ve number on failure.
- */
-static int file_read(struct file *file, unsigned long long offset,
-			unsigned char *data, unsigned int size)
-{
-	int ret;
-
-	ret = kernel_read(file, (void *)data, size, &offset);
-
-	return ret;
-}
-
-/*!
  * \brief API to validate MAC ID
  *
  * \param[in] char *s - pointer to MAC ID string
@@ -9273,29 +9613,24 @@ static bool lookfor_macid(char *file_buf)
  */
 static void parse_config_file(void)
 {
-	struct file *filep = NULL;
-	char *data = kmalloc(1000, GFP_KERNEL);
-	int ret, flags = O_RDONLY, i = 0;
-	mm_segment_t oldfs;
+	void *data;
+	char *cdata;
+	int ret, i;
+	loff_t size;
 
-	KPRINT_INFO("-->%s", __func__);
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	filep = filp_open("config.ini", flags, 0600);
-	set_fs(oldfs);
-	if (IS_ERR(filep)) {
+	ret = kernel_read_file_from_path("config.ini", &data, &size, 1000, READING_POLICY);
+
+	if (ret < 0) {
 		KPRINT_ERR("Mac configuration file not found\n");
 		KPRINT_INFO("Using Default MAC Address\n");
 		return;
 	} else {
+		cdata = data;
 		/* Parse the file */
-		ret = file_read(filep, 0, data, 1000);
 		for (i = 0; i < CONFIG_PARAM_NUM; i++) {
-			if (strstr((const char *)data, config_param_list[i]
-				.mdio_key)) {
+			if (strstr((const char *)cdata, config_param_list[i].mdio_key)) {
 				KPRINT_DEBUG1("Pattern Match\n");
-				if (strncmp(config_param_list[i].mdio_key,
-					"MDIOBUSID", 9) == 0) {
+				if (strncmp(config_param_list[i].mdio_key, "MDIOBUSID", 9) == 0) {
 					/* MAC ID Configuration */
 					KPRINT_DEBUG1("MAC_ID Configuration\n");
 					lookfor_macid(data);
@@ -9304,10 +9639,11 @@ static void parse_config_file(void)
 		}
 	}
 
-	kfree(data);
-	filp_close(filep, NULL);
+	vfree(data);
 	KPRINT_INFO("<--%s", __func__);
 }
+
+
 #endif
 
 /**
@@ -9383,11 +9719,14 @@ int tc956xmac_dvr_probe(struct device *device,
 #endif
 	priv->port_num = res->port_num;
 	priv->dev->base_addr = (unsigned long)res->addr;
-
+	if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
+		priv->is_sgmii_2p5g = true;
+	else
+		priv->is_sgmii_2p5g = false;
 	priv->dev->irq = res->irq;
 	priv->wol_irq = res->wol_irq;
 	priv->lpi_irq = res->lpi_irq;
-
+	priv->port_interface = res->port_interface;
 #ifdef DMA_OFFLOAD_ENABLE
 	priv->client_priv = NULL;
 #endif
