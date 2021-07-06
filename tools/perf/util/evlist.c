@@ -223,26 +223,9 @@ out:
 	return err;
 }
 
-void __evlist__set_leader(struct list_head *list)
-{
-	struct evsel *evsel, *leader;
-
-	leader = list_entry(list->next, struct evsel, core.node);
-	evsel = list_entry(list->prev, struct evsel, core.node);
-
-	leader->core.nr_members = evsel->core.idx - leader->core.idx + 1;
-
-	__evlist__for_each_entry(list, evsel) {
-		evsel->core.leader = &leader->core;
-	}
-}
-
 void evlist__set_leader(struct evlist *evlist)
 {
-	if (evlist->core.nr_entries) {
-		evlist->core.nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
-		__evlist__set_leader(&evlist->core.entries);
-	}
+	perf_evlist__set_leader(&evlist->core);
 }
 
 int __evlist__add_default(struct evlist *evlist, bool precise)

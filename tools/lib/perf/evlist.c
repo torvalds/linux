@@ -642,3 +642,24 @@ perf_evlist__next_mmap(struct perf_evlist *evlist, struct perf_mmap *map,
 
 	return overwrite ? evlist->mmap_ovw_first : evlist->mmap_first;
 }
+
+void __perf_evlist__set_leader(struct list_head *list)
+{
+	struct perf_evsel *evsel, *leader;
+
+	leader = list_entry(list->next, struct perf_evsel, node);
+	evsel = list_entry(list->prev, struct perf_evsel, node);
+
+	leader->nr_members = evsel->idx - leader->idx + 1;
+
+	__perf_evlist__for_each_entry(list, evsel)
+		evsel->leader = leader;
+}
+
+void perf_evlist__set_leader(struct perf_evlist *evlist)
+{
+	if (evlist->nr_entries) {
+		evlist->nr_groups = evlist->nr_entries > 1 ? 1 : 0;
+		__perf_evlist__set_leader(&evlist->entries);
+	}
+}
