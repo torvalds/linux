@@ -2609,7 +2609,9 @@ void destroy_hdev(struct hl_device *hdev);
 int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
-				u32 cb_size, u64 cb_ptr);
+		u32 cb_size, u64 cb_ptr);
+void hl_hw_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
+		u32 ctl, u32 len, u64 ptr);
 int hl_hw_queue_schedule_cs(struct hl_cs *cs);
 u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);
 void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);

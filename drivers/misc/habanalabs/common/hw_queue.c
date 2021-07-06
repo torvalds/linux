@@ -65,7 +65,7 @@ void hl_hw_queue_update_ci(struct hl_cs *cs)
 }
 
 /*
- * ext_and_hw_queue_submit_bd() - Submit a buffer descriptor to an external or a
+ * hl_hw_queue_submit_bd() - Submit a buffer descriptor to an external or a
  *                                H/W queue.
  * @hdev: pointer to habanalabs device structure
  * @q: pointer to habanalabs queue structure
@@ -80,8 +80,8 @@ void hl_hw_queue_update_ci(struct hl_cs *cs)
  * This function must be called when the scheduler mutex is taken
  *
  */
-static void ext_and_hw_queue_submit_bd(struct hl_device *hdev,
-			struct hl_hw_queue *q, u32 ctl, u32 len, u64 ptr)
+void hl_hw_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
+		u32 ctl, u32 len, u64 ptr)
 {
 	struct hl_bd *bd;
 
@@ -222,8 +222,8 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
  * @cb_size: size of CB
  * @cb_ptr: pointer to CB location
  *
- * This function sends a single CB, that must NOT generate a completion entry
- *
+ * This function sends a single CB, that must NOT generate a completion entry.
+ * Sending CPU messages can be done instead via 'hl_hw_queue_submit_bd()'
  */
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 				u32 cb_size, u64 cb_ptr)
@@ -231,16 +231,7 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 	struct hl_hw_queue *q = &hdev->kernel_queues[hw_queue_id];
 	int rc = 0;
 
-	/*
-	 * The CPU queue is a synchronous queue with an effective depth of
-	 * a single entry (although it is allocated with room for multiple
-	 * entries). Therefore, there is a different lock, called
-	 * send_cpu_message_lock, that serializes accesses to the CPU queue.
-	 * As a result, we don't need to lock the access to the entire H/W
-	 * queues module when submitting a JOB to the CPU queue
-	 */
-	if (q->queue_type != QUEUE_TYPE_CPU)
-		hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_lock(hdev);
 
 	if (hdev->disabled) {
 		rc = -EPERM;
@@ -258,11 +249,10 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 			goto out;
 	}
 
-	ext_and_hw_queue_submit_bd(hdev, q, 0, cb_size, cb_ptr);
+	hl_hw_queue_submit_bd(hdev, q, 0, cb_size, cb_ptr);
 
 out:
-	if (q->queue_type != QUEUE_TYPE_CPU)
-		hdev->asic_funcs->hw_queues_unlock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
 
 	return rc;
 }
@@ -328,7 +318,7 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	cq->pi = hl_cq_inc_ptr(cq->pi);
 
 submit_bd:
-	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
+	hl_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
 
 /*
@@ -407,7 +397,7 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	else
 		ptr = (u64) (uintptr_t) job->user_cb;
 
-	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
+	hl_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
 
 static int init_signal_cs(struct hl_device *hdev,

@@ -240,11 +240,15 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	/* set fence to a non valid value */
 	pkt->fence = cpu_to_le32(UINT_MAX);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to send CB on CPU PQ (%d)\n", rc);
-		goto out;
-	}
+	/*
+	 * The CPU queue is a synchronous queue with an effective depth of
+	 * a single entry (although it is allocated with room for multiple
+	 * entries). We lock on it using 'send_cpu_message_lock' which
+	 * serializes accesses to the CPU queue.
+	 * Which means that we don't need to lock the access to the entire H/W
+	 * queues module when submitting a JOB to the CPU queue.
+	 */
+	hl_hw_queue_submit_bd(hdev, queue, 0, len, pkt_dma_addr);
 
 	if (prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
@@ -2235,6 +2239,10 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	dev_info(hdev->dev,
 		"Loading firmware to device, may take some time...\n");
 
+	/*
+	 * In this stage, "cpu_dyn_regs" contains only LKD's hard coded values!
+	 * It will be updated from FW after hl_fw_dynamic_request_descriptor().
+	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,

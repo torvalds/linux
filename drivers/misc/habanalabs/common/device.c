@@ -682,6 +682,44 @@ out:
 	return rc;
 }
 
+static void take_release_locks(struct hl_device *hdev)
+{
+	/* Flush anyone that is inside the critical section of enqueue
+	 * jobs to the H/W
+	 */
+	hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Flush processes that are sending message to CPU */
+	mutex_lock(&hdev->send_cpu_message_lock);
+	mutex_unlock(&hdev->send_cpu_message_lock);
+
+	/* Flush anyone that is inside device open */
+	mutex_lock(&hdev->fpriv_list_lock);
+	mutex_unlock(&hdev->fpriv_list_lock);
+}
+
+static void cleanup_resources(struct hl_device *hdev, bool hard_reset)
+{
+	if (hard_reset)
+		device_late_fini(hdev);
+
+	/*
+	 * Halt the engines and disable interrupts so we won't get any more
+	 * completions from H/W and we won't have any accesses from the
+	 * H/W to the host machine
+	 */
+	hdev->asic_funcs->halt_engines(hdev, hard_reset);
+
+	/* Go over all the queues, release all CS and their jobs */
+	hl_cs_rollback_all(hdev);
+
+	/* Release all pending user interrupts, each pending user interrupt
+	 * holds a reference to user context
+	 */
+	hl_release_pending_user_interrupts(hdev);
+}
+
 /*
  * hl_device_suspend - initiate device suspend
  *
@@ -707,16 +745,7 @@ int hl_device_suspend(struct hl_device *hdev)
 	/* This blocks all other stuff that is not blocked by in_reset */
 	hdev->disabled = true;
 
-	/*
-	 * Flush anyone that is inside the critical section of enqueue
-	 * jobs to the H/W
-	 */
-	hdev->asic_funcs->hw_queues_lock(hdev);
-	hdev->asic_funcs->hw_queues_unlock(hdev);
-
-	/* Flush processes that are sending message to CPU */
-	mutex_lock(&hdev->send_cpu_message_lock);
-	mutex_unlock(&hdev->send_cpu_message_lock);
+	take_release_locks(hdev);
 
 	rc = hdev->asic_funcs->suspend(hdev);
 	if (rc)
@@ -871,48 +900,6 @@ static void device_disable_open_processes(struct hl_device *hdev)
 	mutex_unlock(&hdev->fpriv_list_lock);
 }
 
-static void take_release_locks(struct hl_device *hdev)
-{
-	/* Flush anyone that is inside the critical section of enqueue
-	 * jobs to the H/W
-	 */
-	hdev->asic_funcs->hw_queues_lock(hdev);
-	hdev->asic_funcs->hw_queues_unlock(hdev);
-
-	/* Flush anyone that is inside device open */
-	mutex_lock(&hdev->fpriv_list_lock);
-	mutex_unlock(&hdev->fpriv_list_lock);
-}
-
-static void cleanup_resources(struct hl_device *hdev, bool hard_reset)
-{
-	if (hard_reset) {
-		device_late_fini(hdev);
-
-		/*
-		 * Now that the heartbeat thread is closed, flush processes
-		 * which are sending messages to CPU
-		 */
-		mutex_lock(&hdev->send_cpu_message_lock);
-		mutex_unlock(&hdev->send_cpu_message_lock);
-	}
-
-	/*
-	 * Halt the engines and disable interrupts so we won't get any more
-	 * completions from H/W and we won't have any accesses from the
-	 * H/W to the host machine
-	 */
-	hdev->asic_funcs->halt_engines(hdev, hard_reset);
-
-	/* Go over all the queues, release all CS and their jobs */
-	hl_cs_rollback_all(hdev);
-
-	/* Release all pending user interrupts, each pending user interrupt
-	 * holds a reference to user context
-	 */
-	hl_release_pending_user_interrupts(hdev);
-}
-
 /*
  * hl_device_reset - reset the device
  *
@@ -941,8 +928,8 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 		return 0;
 	}
 
-	hard_reset = (flags & HL_RESET_HARD) != 0;
-	from_hard_reset_thread = (flags & HL_RESET_FROM_RESET_THREAD) != 0;
+	hard_reset = !!(flags & HL_RESET_HARD);
+	from_hard_reset_thread = !!(flags & HL_RESET_FROM_RESET_THREAD);
 
 	if (!hard_reset && !hdev->supports_soft_reset) {
 		hard_instead_soft = true;
