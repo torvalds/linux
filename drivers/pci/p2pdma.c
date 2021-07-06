@@ -57,7 +57,7 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 		size = gen_pool_size(p2pdma->pool);
 	rcu_read_unlock();
 
-	return scnprintf(buf, PAGE_SIZE, "%zd\n", size);
+	return sysfs_emit(buf, "%zd\n", size);
 }
 static DEVICE_ATTR_RO(size);
 
@@ -74,7 +74,7 @@ static ssize_t available_show(struct device *dev, struct device_attribute *attr,
 		avail = gen_pool_avail(p2pdma->pool);
 	rcu_read_unlock();
 
-	return scnprintf(buf, PAGE_SIZE, "%zd\n", avail);
+	return sysfs_emit(buf, "%zd\n", avail);
 }
 static DEVICE_ATTR_RO(available);
 
@@ -91,7 +91,7 @@ static ssize_t published_show(struct device *dev, struct device_attribute *attr,
 		published = p2pdma->p2pmem_published;
 	rcu_read_unlock();
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", published);
+	return sysfs_emit(buf, "%d\n", published);
 }
 static DEVICE_ATTR_RO(published);
 
