@@ -1740,7 +1740,7 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 
 	leader = list_first_entry(list, struct evsel, core.node);
 	evsel = list_last_entry(list, struct evsel, core.node);
-	total_members = evsel->idx - leader->idx + 1;
+	total_members = evsel->core.idx - leader->core.idx + 1;
 
 	leaders = calloc(total_members, sizeof(uintptr_t));
 	if (WARN_ON(!leaders))

@@ -49,7 +49,6 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist		*evlist;
 	off_t			id_offset;
-	int			idx;
 	int			id_pos;
 	int			is_pos;
 	unsigned int		sample_size;
@@ -406,7 +405,7 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 
 static inline int evsel__group_idx(struct evsel *evsel)
 {
-	return evsel->idx - evsel->leader->idx;
+	return evsel->core.idx - evsel->leader->core.idx;
 }
 
 /* Iterates group WITHOUT the leader. */

@@ -239,8 +239,7 @@ bool evsel__is_function_event(struct evsel *evsel)
 void evsel__init(struct evsel *evsel,
 		 struct perf_event_attr *attr, int idx)
 {
-	perf_evsel__init(&evsel->core, attr);
-	evsel->idx	   = idx;
+	perf_evsel__init(&evsel->core, attr, idx);
 	evsel->tracking	   = !idx;
 	evsel->leader	   = evsel;
 	evsel->unit	   = "";

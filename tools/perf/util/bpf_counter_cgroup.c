@@ -124,7 +124,7 @@ static int bperf_load_program(struct evlist *evlist)
 			map_fd = bpf_map__fd(skel->maps.events);
 			for (cpu = 0; cpu < nr_cpus; cpu++) {
 				int fd = FD(evsel, cpu);
-				__u32 idx = evsel->idx * total_cpus +
+				__u32 idx = evsel->core.idx * total_cpus +
 					evlist->core.all_cpus->map[cpu];
 
 				err = bpf_map_update_elem(map_fd, &idx, &fd,
@@ -221,7 +221,7 @@ static int bperf_cgrp__sync_counters(struct evlist *evlist)
 
 static int bperf_cgrp__enable(struct evsel *evsel)
 {
-	if (evsel->idx)
+	if (evsel->core.idx)
 		return 0;
 
 	bperf_cgrp__sync_counters(evsel->evlist);
@@ -232,7 +232,7 @@ static int bperf_cgrp__enable(struct evsel *evsel)
 
 static int bperf_cgrp__disable(struct evsel *evsel)
 {
-	if (evsel->idx)
+	if (evsel->core.idx)
 		return 0;
 
 	bperf_cgrp__sync_counters(evsel->evlist);
@@ -251,7 +251,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 	int reading_map_fd, err = 0;
 	__u32 idx;
 
-	if (evsel->idx)
+	if (evsel->core.idx)
 		return 0;
 
 	bperf_cgrp__sync_counters(evsel->evlist);
@@ -263,7 +263,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 	reading_map_fd = bpf_map__fd(skel->maps.cgrp_readings);
 
 	evlist__for_each_entry(evlist, evsel) {
-		idx = evsel->idx;
+		idx = evsel->core.idx;
 		err = bpf_map_lookup_elem(reading_map_fd, &idx, values);
 		if (err) {
 			pr_err("bpf map lookup falied: idx=%u, event=%s, cgrp=%s\n",
@@ -288,7 +288,7 @@ out:
 
 static int bperf_cgrp__destroy(struct evsel *evsel)
 {
-	if (evsel->idx)
+	if (evsel->core.idx)
 		return 0;
 
 	bperf_cgroup_bpf__destroy(skel);

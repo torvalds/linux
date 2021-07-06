@@ -66,6 +66,7 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 void perf_evlist__add(struct perf_evlist *evlist,
 		      struct perf_evsel *evsel)
 {
+	evsel->idx = evlist->nr_entries;
 	list_add_tail(&evsel->node, &evlist->entries);
 	evlist->nr_entries += 1;
 	__perf_evlist__propagate_maps(evlist, evsel);
