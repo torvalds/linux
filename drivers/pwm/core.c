@@ -846,7 +846,7 @@ EXPORT_SYMBOL_GPL(of_pwm_get);
  */
 static struct pwm_device *acpi_pwm_get(const struct fwnode_handle *fwnode)
 {
-	struct pwm_device *pwm = ERR_PTR(-ENODEV);
+	struct pwm_device *pwm;
 	struct fwnode_reference_args args;
 	struct pwm_chip *chip;
 	int ret;
