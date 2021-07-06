@@ -42,6 +42,9 @@
 
 #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/shmem_fs.h>
+
 static struct vfsmount *shm_mnt;
 
 #ifdef CONFIG_SHMEM
@@ -1560,7 +1563,11 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
 {
 	struct vm_area_struct pvma;
-	struct page *page;
+	struct page *page = NULL;
+
+	trace_android_vh_shmem_alloc_page(&page);
+	if (page)
+		return page;
 
 	shmem_pseudo_vma_init(&pvma, info, index);
 	page = alloc_page_vma(gfp, &pvma, 0);
