@@ -1432,7 +1432,7 @@ repeat:
 
 	setup_forced_leader(&report, session->evlist);
 
-	if (symbol_conf.group_sort_idx && !session->evlist->nr_groups) {
+	if (symbol_conf.group_sort_idx && !session->evlist->core.nr_groups) {
 		parse_options_usage(NULL, options, "group-sort-idx", 0);
 		ret = -EINVAL;
 		goto error;

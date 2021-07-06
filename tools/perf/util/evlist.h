@@ -50,7 +50,6 @@ enum bkw_mmap_state {
 
 struct evlist {
 	struct perf_evlist core;
-	int		 nr_groups;
 	bool		 enabled;
 	int		 id_pos;
 	int		 is_pos;

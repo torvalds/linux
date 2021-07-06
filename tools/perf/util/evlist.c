@@ -240,7 +240,7 @@ void __evlist__set_leader(struct list_head *list)
 void evlist__set_leader(struct evlist *evlist)
 {
 	if (evlist->core.nr_entries) {
-		evlist->nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
+		evlist->core.nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
 		__evlist__set_leader(&evlist->core.entries);
 	}
 }
@@ -1748,7 +1748,7 @@ bool evlist__exclude_kernel(struct evlist *evlist)
  */
 void evlist__force_leader(struct evlist *evlist)
 {
-	if (!evlist->nr_groups) {
+	if (!evlist->core.nr_groups) {
 		struct evsel *leader = evlist__first(evlist);
 
 		evlist__set_leader(evlist);

@@ -49,7 +49,7 @@ static int test__checkevent_tracepoint(struct evlist *evlist)
 	struct evsel *evsel = evlist__first(evlist);
 
 	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->core.nr_groups);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong sample_type",
 		PERF_TP_SAMPLE_TYPE == evsel->core.attr.sample_type);
@@ -62,7 +62,7 @@ static int test__checkevent_tracepoint_multi(struct evlist *evlist)
 	struct evsel *evsel;
 
 	TEST_ASSERT_VAL("wrong number of entries", evlist->core.nr_entries > 1);
-	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->core.nr_groups);
 
 	evlist__for_each_entry(evlist, evsel) {
 		TEST_ASSERT_VAL("wrong type",
@@ -668,7 +668,7 @@ static int test__group1(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* instructions:k */
 	evsel = leader = evlist__first(evlist);
@@ -710,7 +710,7 @@ static int test__group2(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 3 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* faults + :ku modifier */
 	evsel = leader = evlist__first(evlist);
@@ -765,7 +765,7 @@ static int test__group3(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 5 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->core.nr_groups);
 
 	/* group1 syscalls:sys_enter_openat:H */
 	evsel = leader = evlist__first(evlist);
@@ -857,7 +857,7 @@ static int test__group4(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* cycles:u + p */
 	evsel = leader = evlist__first(evlist);
@@ -901,7 +901,7 @@ static int test__group5(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 5 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->core.nr_groups);
 
 	/* cycles + G */
 	evsel = leader = evlist__first(evlist);
@@ -987,7 +987,7 @@ static int test__group_gh1(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* cycles + :H group modifier */
 	evsel = leader = evlist__first(evlist);
@@ -1027,7 +1027,7 @@ static int test__group_gh2(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* cycles + :G group modifier */
 	evsel = leader = evlist__first(evlist);
@@ -1067,7 +1067,7 @@ static int test__group_gh3(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* cycles:G + :u group modifier */
 	evsel = leader = evlist__first(evlist);
@@ -1107,7 +1107,7 @@ static int test__group_gh4(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->nr_groups);
+	TEST_ASSERT_VAL("wrong number of groups", 1 == evlist->core.nr_groups);
 
 	/* cycles:G + :uG group modifier */
 	evsel = leader = evlist__first(evlist);
