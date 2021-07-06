@@ -1869,7 +1869,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 		if (!session->transmission)
 			j1939_tp_schedule_txtimer(session, 0);
 	} else {
-		j1939_tp_set_rxtimeout(session, 250);
+		j1939_tp_set_rxtimeout(session, 750);
 	}
 	session->last_cmd = 0xff;
 	consume_skb(se_skb);
