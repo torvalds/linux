@@ -27,6 +27,7 @@
 #include <sound/dmaengine_pcm.h>
 
 #include "rockchip_i2s_tdm.h"
+#include "rockchip_pcm.h"
 
 #define DRV_NAME "rockchip-i2s-tdm"
 
@@ -1794,7 +1795,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(node, "rockchip,no-dmaengine"))
 		return ret;
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = rockchip_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
 		return ret;
