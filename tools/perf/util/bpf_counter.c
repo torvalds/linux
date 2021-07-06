@@ -353,7 +353,7 @@ static int bperf_check_target(struct evsel *evsel,
 			      enum bperf_filter_type *filter_type,
 			      __u32 *filter_entry_cnt)
 {
-	if (evsel->leader->core.nr_members > 1) {
+	if (evsel->core.leader->nr_members > 1) {
 		pr_err("bpf managed perf events do not yet support groups.\n");
 		return -1;
 	}

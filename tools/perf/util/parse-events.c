@@ -1800,7 +1800,7 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 	__evlist__for_each_entry(list, evsel) {
 		if (i >= nr_pmu)
 			i = 0;
-		evsel->leader = (struct evsel *) leaders[i++];
+		evsel__set_leader(evsel, (struct evsel *) leaders[i++]);
 	}
 
 	/* The number of members and group name are same for each group */

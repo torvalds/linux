@@ -221,7 +221,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 		/* Ignore event if already used and merging is disabled. */
 		if (metric_no_merge && test_bit(ev->core.idx, evlist_used))
 			continue;
-		if (!has_constraint && ev->leader != current_leader) {
+		if (!has_constraint && !evsel__has_leader(ev, current_leader)) {
 			/*
 			 * Start of a new group, discard the whole match and
 			 * start again.
@@ -229,7 +229,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			matched_events = 0;
 			memset(metric_events, 0,
 				sizeof(struct evsel *) * idnum);
-			current_leader = ev->leader;
+			current_leader = evsel__leader(ev);
 		}
 		/*
 		 * Check for duplicate events with the same name. For example,
@@ -287,8 +287,8 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 * when then group is left.
 			 */
 			if (!has_constraint &&
-			    ev->leader != metric_events[i]->leader &&
-			    evsel_same_pmu_or_none(ev->leader, metric_events[i]->leader))
+			    ev->core.leader != metric_events[i]->core.leader &&
+			    evsel_same_pmu_or_none(evsel__leader(ev), evsel__leader(metric_events[i])))
 				break;
 			if (!strcmp(metric_events[i]->name, ev->name)) {
 				set_bit(ev->core.idx, evlist_used);

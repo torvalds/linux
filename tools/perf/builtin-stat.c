@@ -248,7 +248,7 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		evlist__warn_hybrid_group(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
-		leader = evsel->leader;
+		leader = evsel__leader(evsel);
 
 		/* Check that leader matches cpus with each member. */
 		if (leader == evsel)
@@ -269,10 +269,10 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		}
 
 		for_each_group_evsel(pos, leader) {
-			pos->leader = pos;
+			evsel__set_leader(pos, pos);
 			pos->core.nr_members = 0;
 		}
-		evsel->leader->core.nr_members = 0;
+		evsel->core.leader->nr_members = 0;
 	}
 }
 
@@ -745,8 +745,8 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		 */
 		counter->errored = true;
 
-		if ((counter->leader != counter) ||
-		    !(counter->leader->core.nr_members > 1))
+		if ((evsel__leader(counter) != counter) ||
+		    !(counter->core.leader->nr_members > 1))
 			return COUNTER_SKIP;
 	} else if (evsel__fallback(counter, errno, msg, sizeof(msg))) {
 		if (verbose > 0)
@@ -839,7 +839,7 @@ try_again:
 				 * Don't close here because we're in the wrong affinity.
 				 */
 				if ((errno == EINVAL || errno == EBADF) &&
-				    counter->leader != counter &&
+				    evsel__leader(counter) != counter &&
 				    counter->weak_group) {
 					evlist__reset_weak_group(evsel_list, counter, false);
 					assert(counter->reset_group);

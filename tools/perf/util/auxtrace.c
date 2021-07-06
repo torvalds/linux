@@ -73,8 +73,8 @@ static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct e
 	grp = false;
 	evlist__for_each_entry(evlist, evsel) {
 		if (grp) {
-			if (!(evsel->leader == leader ||
-			     (evsel->leader == evsel &&
+			if (!(evsel__leader(evsel) == leader ||
+			     (evsel__leader(evsel) == evsel &&
 			      evsel->core.nr_members <= 1)))
 				return -EINVAL;
 		} else if (evsel == leader) {
@@ -87,8 +87,8 @@ static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct e
 	grp = false;
 	evlist__for_each_entry(evlist, evsel) {
 		if (grp) {
-			if (evsel->leader != leader) {
-				evsel->leader = leader;
+			if (!evsel__has_leader(evsel, leader)) {
+				evsel__set_leader(evsel, leader);
 				if (leader->core.nr_members < 1)
 					leader->core.nr_members = 1;
 				leader->core.nr_members += 1;
@@ -1231,11 +1231,11 @@ static void unleader_evsel(struct evlist *evlist, struct evsel *leader)
 
 	/* Find new leader for the group */
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->leader != leader || evsel == leader)
+		if (!evsel__has_leader(evsel, leader) || evsel == leader)
 			continue;
 		if (!new_leader)
 			new_leader = evsel;
-		evsel->leader = new_leader;
+		evsel__set_leader(evsel, new_leader);
 	}
 
 	/* Update group information */
