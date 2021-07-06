@@ -1997,32 +1997,20 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 					   unsigned long data)
 {
 	int nid = (int) data;
-	struct page *newpage;
+	int order = compound_order(page);
+	gfp_t gfp = __GFP_THISNODE;
+	struct folio *new;
 
-	newpage = __alloc_pages_node(nid,
-					 (GFP_HIGHUSER_MOVABLE |
-					  __GFP_THISNODE | __GFP_NOMEMALLOC |
-					  __GFP_NORETRY | __GFP_NOWARN) &
-					 ~__GFP_RECLAIM, 0);
+	if (order > 0)
+		gfp |= GFP_TRANSHUGE_LIGHT;
+	else {
+		gfp |= GFP_HIGHUSER_MOVABLE | __GFP_NOMEMALLOC | __GFP_NORETRY |
+			__GFP_NOWARN;
+		gfp &= ~__GFP_RECLAIM;
+	}
+	new = __folio_alloc_node(gfp, order, nid);
 
-	return newpage;
-}
-
-static struct page *alloc_misplaced_dst_page_thp(struct page *page,
-						 unsigned long data)
-{
-	int nid = (int) data;
-	struct page *newpage;
-
-	newpage = alloc_pages_node(nid, (GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
-				   HPAGE_PMD_ORDER);
-	if (!newpage)
-		goto out;
-
-	prep_transhuge_page(newpage);
-
-out:
-	return newpage;
+	return &new->page;
 }
 
 static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
@@ -2080,21 +2068,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 	int nr_remaining;
 	unsigned int nr_succeeded;
 	LIST_HEAD(migratepages);
-	new_page_t *new;
-	bool compound;
 	int nr_pages = thp_nr_pages(page);
-
-	/*
-	 * PTE mapped THP or HugeTLB page can't reach here so the page could
-	 * be either base page or THP.  And it must be head page if it is
-	 * THP.
-	 */
-	compound = PageTransHuge(page);
-
-	if (compound)
-		new = alloc_misplaced_dst_page_thp;
-	else
-		new = alloc_misplaced_dst_page;
 
 	/*
 	 * Don't migrate file pages that are mapped in multiple processes
@@ -2116,9 +2090,9 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 		goto out;
 
 	list_add(&page->lru, &migratepages);
-	nr_remaining = migrate_pages(&migratepages, *new, NULL, node,
-				     MIGRATE_ASYNC, MR_NUMA_MISPLACED,
-				     &nr_succeeded);
+	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
+				     NULL, node, MIGRATE_ASYNC,
+				     MR_NUMA_MISPLACED, &nr_succeeded);
 	if (nr_remaining) {
 		if (!list_empty(&migratepages)) {
 			list_del(&page->lru);
