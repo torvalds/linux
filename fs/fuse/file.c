@@ -645,7 +645,7 @@ static ssize_t fuse_get_res_by_io(struct fuse_io_priv *io)
  * == bytes_transferred or rw == WRITE, the caller sets 'pos' to -1.
  *
  * An example:
- * User requested DIO read of 64K. It was splitted into two 32K fuse requests,
+ * User requested DIO read of 64K. It was split into two 32K fuse requests,
  * both submitted asynchronously. The first of them was ACKed by userspace as
  * fully completed (req->out.args[0].size == 32K) resulting in pos == -1. The
  * second request was ACKed as short, e.g. only 1K was read, resulting in
@@ -1403,7 +1403,7 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 		nbytes += ret;
 
 		ret += start;
-		npages = (ret + PAGE_SIZE - 1) / PAGE_SIZE;
+		npages = DIV_ROUND_UP(ret, PAGE_SIZE);
 
 		ap->descs[ap->num_pages].offset = start;
 		fuse_page_descs_length_init(ap->descs, ap->num_pages, npages);
@@ -2905,11 +2905,13 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	};
 	int err;
 	bool lock_inode = !(mode & FALLOC_FL_KEEP_SIZE) ||
-			   (mode & FALLOC_FL_PUNCH_HOLE);
+			   (mode & (FALLOC_FL_PUNCH_HOLE |
+				    FALLOC_FL_ZERO_RANGE));
 
 	bool block_faults = FUSE_IS_DAX(inode) && lock_inode;
 
-	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
+		     FALLOC_FL_ZERO_RANGE))
 		return -EOPNOTSUPP;
 
 	if (fm->fc->no_fallocate)
@@ -2924,7 +2926,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 				goto out;
 		}
 
-		if (mode & FALLOC_FL_PUNCH_HOLE) {
+		if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) {
 			loff_t endbyte = offset + length - 1;
 
 			err = fuse_writeback_range(inode, offset, endbyte);
@@ -2964,7 +2966,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 			file_update_time(file);
 	}
 
-	if (mode & FALLOC_FL_PUNCH_HOLE)
+	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE))
 		truncate_pagecache_range(inode, offset, offset + length - 1);
 
 	fuse_invalidate_attr(inode);
