@@ -169,8 +169,8 @@ static void gic_handle_shared_int(bool chained)
 			generic_handle_domain_irq(gic_irq_domain,
 						  GIC_SHARED_TO_HWIRQ(intr));
 		else
-			do_IRQ(irq_find_mapping(gic_irq_domain,
-						GIC_SHARED_TO_HWIRQ(intr)));
+			do_domain_IRQ(gic_irq_domain,
+				      GIC_SHARED_TO_HWIRQ(intr));
 	}
 }
 
@@ -320,8 +320,8 @@ static void gic_handle_local_int(bool chained)
 			generic_handle_domain_irq(gic_irq_domain,
 						  GIC_LOCAL_TO_HWIRQ(intr));
 		else
-			do_IRQ(irq_find_mapping(gic_irq_domain,
-						GIC_LOCAL_TO_HWIRQ(intr)));
+			do_domain_IRQ(gic_irq_domain,
+				      GIC_LOCAL_TO_HWIRQ(intr));
 	}
 }
 
