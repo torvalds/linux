@@ -49,6 +49,11 @@
 #define FDB_TC_MAX_PRIO 16
 #define FDB_TC_LEVELS_PER_PRIO 2
 
+struct mlx5_flow_definer {
+	enum mlx5_flow_namespace_type ns_type;
+	u32 id;
+};
+
 struct mlx5_modify_hdr {
 	enum mlx5_flow_namespace_type ns_type;
 	union {
