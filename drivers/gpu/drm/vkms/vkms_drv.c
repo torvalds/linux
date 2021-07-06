@@ -52,7 +52,7 @@ DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
 
 static void vkms_release(struct drm_device *dev)
 {
-	struct vkms_device *vkms = container_of(dev, struct vkms_device, drm);
+	struct vkms_device *vkms = drm_device_to_vkms_device(dev);
 
 	destroy_workqueue(vkms->output.composer_workq);
 }
