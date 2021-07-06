@@ -248,7 +248,9 @@ struct mlx5e_params {
 	u8  rq_wq_type;
 	u8  log_rq_mtu_frames;
 	u16 num_channels;
-	u8  num_tc;
+	struct {
+		u8 num_tc;
+	} mqprio;
 	bool rx_cqe_compress_def;
 	bool tunneled_offload_en;
 	struct dim_cq_moder rx_cq_moderation;
@@ -267,6 +269,11 @@ struct mlx5e_params {
 	int hard_mtu;
 	bool ptp_rx;
 };
+
+static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
+{
+	return params->mqprio.num_tc;
+}
 
 enum {
 	MLX5E_RQ_STATE_ENABLED,

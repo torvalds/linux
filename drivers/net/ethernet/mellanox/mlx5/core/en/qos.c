@@ -132,7 +132,7 @@ static u16 mlx5e_qid_from_qos(struct mlx5e_channels *chs, u16 qid)
 	 */
 	bool is_ptp = MLX5E_GET_PFLAG(&chs->params, MLX5E_PFLAG_TX_PORT_TS);
 
-	return (chs->params.num_channels + is_ptp) * chs->params.num_tc + qid;
+	return (chs->params.num_channels + is_ptp) * mlx5e_get_dcb_num_tc(&chs->params) + qid;
 }
 
 int mlx5e_get_txq_by_classid(struct mlx5e_priv *priv, u16 classid)
