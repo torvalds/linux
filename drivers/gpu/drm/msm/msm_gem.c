@@ -217,31 +217,6 @@ static pgprot_t msm_gem_pgprot(struct msm_gem_object *msm_obj, pgprot_t prot)
 	return prot;
 }
 
-int msm_gem_mmap_obj(struct drm_gem_object *obj,
-		struct vm_area_struct *vma)
-{
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_MIXEDMAP;
-	vma->vm_page_prot = msm_gem_pgprot(msm_obj, vm_get_page_prot(vma->vm_flags));
-
-	return 0;
-}
-
-int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret) {
-		DBG("mmap failed: %d", ret);
-		return ret;
-	}
-
-	return msm_gem_mmap_obj(vma->vm_private_data, vma);
-}
-
 static vm_fault_t msm_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -1077,6 +1052,17 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	kfree(msm_obj);
 }
 
+static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_flags |= VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_page_prot = msm_gem_pgprot(msm_obj, vm_get_page_prot(vma->vm_flags));
+
+	return 0;
+}
+
 /* convenience method to construct a GEM buffer object, and userspace handle */
 int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		uint32_t size, uint32_t flags, uint32_t *handle,
@@ -1114,6 +1100,7 @@ static const struct drm_gem_object_funcs msm_gem_object_funcs = {
 	.get_sg_table = msm_gem_prime_get_sg_table,
 	.vmap = msm_gem_prime_vmap,
 	.vunmap = msm_gem_prime_vunmap,
+	.mmap = msm_gem_object_mmap,
 	.vm_ops = &vm_ops,
 };
 
