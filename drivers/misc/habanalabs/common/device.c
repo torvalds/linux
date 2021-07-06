@@ -822,6 +822,7 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout)
 		} else {
 			dev_warn(hdev->dev,
 				"Can't get task struct for PID so giving up on killing process\n");
+			mutex_unlock(&hdev->fpriv_list_lock);
 			return -ETIME;
 		}
 	}
