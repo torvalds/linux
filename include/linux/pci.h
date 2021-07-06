@@ -497,7 +497,7 @@ struct pci_dev {
 	u16		pasid_features;
 #endif
 #ifdef CONFIG_PCI_P2PDMA
-	struct pci_p2pdma *p2pdma;
+	struct pci_p2pdma __rcu *p2pdma;
 #endif
 	u16		acs_cap;	/* ACS Capability offset */
 	phys_addr_t	rom;		/* Physical address if not from BAR */
