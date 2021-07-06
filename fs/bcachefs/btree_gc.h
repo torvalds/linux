@@ -87,7 +87,7 @@ static inline struct gc_pos gc_pos_btree_node(struct btree *b)
  */
 static inline struct gc_pos gc_pos_btree_root(enum btree_id id)
 {
-	return gc_pos_btree(id, POS_MAX, BTREE_MAX_DEPTH);
+	return gc_pos_btree(id, SPOS_MAX, BTREE_MAX_DEPTH);
 }
 
 static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)

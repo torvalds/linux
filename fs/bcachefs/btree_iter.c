@@ -1081,7 +1081,7 @@ static inline int btree_iter_lock_root(struct btree_iter *iter,
 		}
 
 		lock_type = __btree_lock_want(iter, iter->level);
-		if (unlikely(!btree_node_lock(b, POS_MAX, iter->level,
+		if (unlikely(!btree_node_lock(b, SPOS_MAX, iter->level,
 					      iter, lock_type,
 					      lock_root_check_fn, rootp,
 					      trace_ip)))
@@ -1602,7 +1602,7 @@ out:
 inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
-	bool ret = bpos_cmp(pos, POS_MAX) != 0;
+	bool ret = bpos_cmp(pos, SPOS_MAX) != 0;
 
 	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		pos = bkey_successor(iter, pos);
@@ -1624,7 +1624,7 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 static inline bool btree_iter_set_pos_to_next_leaf(struct btree_iter *iter)
 {
 	struct bpos next_pos = iter->l[0].b->key.k.p;
-	bool ret = bpos_cmp(next_pos, POS_MAX) != 0;
+	bool ret = bpos_cmp(next_pos, SPOS_MAX) != 0;
 
 	/*
 	 * Typically, we don't want to modify iter->pos here, since that
@@ -1634,7 +1634,7 @@ static inline bool btree_iter_set_pos_to_next_leaf(struct btree_iter *iter)
 	if (ret)
 		btree_iter_set_search_pos(iter, bpos_successor(next_pos));
 	else
-		bch2_btree_iter_set_pos(iter, POS_MAX);
+		bch2_btree_iter_set_pos(iter, SPOS_MAX);
 
 	return ret;
 }

@@ -152,7 +152,8 @@ static inline struct bpos SPOS(__u64 inode, __u64 offset, __u32 snapshot)
 }
 
 #define POS_MIN				SPOS(0, 0, 0)
-#define POS_MAX				SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, KEY_SNAPSHOT_MAX)
+#define POS_MAX				SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, 0)
+#define SPOS_MAX			SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, KEY_SNAPSHOT_MAX)
 #define POS(_inode, _offset)		SPOS(_inode, _offset, 0)
 
 /* Empty placeholder struct, for container_of() */

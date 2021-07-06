@@ -769,7 +769,7 @@ static int bch2_move_btree(struct bch_fs *c,
 				break;
 
 			if ((cmp_int(id, end_btree_id) ?:
-			     bkey_cmp(b->key.k.p, end_pos)) > 0)
+			     bpos_cmp(b->key.k.p, end_pos)) > 0)
 				break;
 
 			stats->pos = iter->pos;
@@ -921,7 +921,7 @@ int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
 
 	ret = bch2_move_btree(c,
 			      0,		POS_MIN,
-			      BTREE_ID_NR,	POS_MAX,
+			      BTREE_ID_NR,	SPOS_MAX,
 			      rewrite_old_nodes_pred, c, stats);
 	if (!ret) {
 		mutex_lock(&c->sb_lock);

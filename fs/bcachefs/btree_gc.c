@@ -962,7 +962,7 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 		goto fsck_err;
 	}
 
-	if (mustfix_fsck_err_on(bpos_cmp(b->data->max_key, POS_MAX), c,
+	if (mustfix_fsck_err_on(bpos_cmp(b->data->max_key, SPOS_MAX), c,
 			"btree root with incorrect max_key: %s",
 			(bch2_bpos_to_text(&PBUF(buf), b->data->max_key), buf))) {
 		bch_err(c, "repair unimplemented");

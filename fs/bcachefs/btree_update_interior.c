@@ -367,7 +367,7 @@ static struct btree *__btree_root_alloc(struct btree_update *as, unsigned level)
 	struct btree *b = bch2_btree_node_alloc(as, level);
 
 	btree_set_min(b, POS_MIN);
-	btree_set_max(b, POS_MAX);
+	btree_set_max(b, SPOS_MAX);
 	b->data->format = bch2_btree_calc_format(b);
 
 	btree_node_set_format(b, b->data->format);
@@ -1590,7 +1590,7 @@ retry:
 	b = iter->l[level].b;
 
 	if ((sib == btree_prev_sib && !bpos_cmp(b->data->min_key, POS_MIN)) ||
-	    (sib == btree_next_sib && !bpos_cmp(b->data->max_key, POS_MAX))) {
+	    (sib == btree_next_sib && !bpos_cmp(b->data->max_key, SPOS_MAX))) {
 		b->sib_u64s[sib] = U16_MAX;
 		goto out;
 	}
@@ -2014,7 +2014,7 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	b->c.btree_id	= id;
 
 	bkey_btree_ptr_init(&b->key);
-	b->key.k.p = POS_MAX;
+	b->key.k.p = SPOS_MAX;
 	*((u64 *) bkey_i_to_btree_ptr(&b->key)->v.start) = U64_MAX - id;
 
 	bch2_bset_init_first(b, &b->data->keys);
@@ -2022,7 +2022,7 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 
 	b->data->flags = 0;
 	btree_set_min(b, POS_MIN);
-	btree_set_max(b, POS_MAX);
+	btree_set_max(b, SPOS_MAX);
 	b->data->format = bch2_btree_calc_format(b);
 	btree_node_set_format(b, b->data->format);
 
