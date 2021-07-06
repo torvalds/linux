@@ -161,7 +161,7 @@ int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u8 bit_pos)
 
 	if (!req) {
 		mutex_unlock(&pf->mbox.lock);
-		rc = -ENOMEM;
+		return -ENOMEM;
 	}
 
 	ether_addr_copy(req->mac_addr, mac);
