@@ -49,7 +49,7 @@ enum iproc_msi_reg {
 struct iproc_msi;
 
 /**
- * iProc MSI group
+ * struct iproc_msi_grp - iProc MSI group
  *
  * One MSI group is allocated per GIC interrupt, serviced by one iProc MSI
  * event queue.
@@ -65,7 +65,7 @@ struct iproc_msi_grp {
 };
 
 /**
- * iProc event queue based MSI
+ * struct iproc_msi - iProc event queue based MSI
  *
  * Only meant to be used on platforms without MSI support integrated into the
  * GIC.
