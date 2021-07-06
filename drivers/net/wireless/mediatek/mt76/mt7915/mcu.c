@@ -1317,7 +1317,7 @@ mt7915_mcu_wtbl_ba_tlv(struct sk_buff *skb,
 		ba->rst_ba_sb = 1;
 	}
 
-	if (enable && tx)
+	if (enable)
 		ba->ba_winsize = cpu_to_le16(params->buf_size);
 }
 
