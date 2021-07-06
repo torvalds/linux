@@ -1859,7 +1859,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		switch (btree_iter_type(iter)) {
 		case BTREE_ITER_KEYS:
 			k = btree_iter_level_peek_all(iter, &iter->l[0]);
-			EBUG_ON(k.k && bkey_deleted(k.k) && bkey_cmp(k.k->p, iter->pos) == 0);
+			EBUG_ON(k.k && bkey_deleted(k.k) && bpos_cmp(k.k->p, iter->pos) == 0);
 			break;
 		case BTREE_ITER_CACHED:
 			ck = (void *) iter->l[0].b;
