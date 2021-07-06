@@ -188,10 +188,12 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 	return nbytes;
 }
 
+#ifdef HAVE_PCI_MMAP
 struct pci_filp_private {
 	enum pci_mmap_state mmap_state;
 	int write_combine;
 };
+#endif /* HAVE_PCI_MMAP */
 
 static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
