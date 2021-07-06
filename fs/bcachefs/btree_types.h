@@ -340,7 +340,7 @@ struct bkey_cached {
 };
 
 struct btree_insert_entry {
-	unsigned		trigger_flags;
+	unsigned		flags;
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
 	u8			level;
@@ -639,7 +639,9 @@ static inline bool btree_type_has_snapshots(enum btree_id id)
 	return (1 << id) & BTREE_ID_HAS_SNAPSHOTS;
 }
 
-enum btree_trigger_flags {
+enum btree_update_flags {
+	__BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,
+
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
 
 	__BTREE_TRIGGER_INSERT,
@@ -649,6 +651,8 @@ enum btree_trigger_flags {
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
 	__BTREE_TRIGGER_NOATOMIC,
 };
+
+#define BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE (1U << __BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE)
 
 #define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
 

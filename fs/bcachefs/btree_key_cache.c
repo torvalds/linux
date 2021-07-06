@@ -398,7 +398,9 @@ retry:
 	 * to be using alloc reserves:
 	 * */
 	ret   = bch2_btree_iter_traverse(b_iter) ?:
-		bch2_trans_update(trans, b_iter, ck->k, BTREE_TRIGGER_NORUN) ?:
+		bch2_trans_update(trans, b_iter, ck->k,
+				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+				  BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BTREE_INSERT_NOUNLOCK|
 				  BTREE_INSERT_NOCHECK_RW|
