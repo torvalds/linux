@@ -982,7 +982,7 @@ void wake_up_all_online_idle_cpus(void)
 		if (cpu == smp_processor_id())
 			continue;
 
-			wake_up_if_idle(cpu);
+		wake_up_if_idle(cpu);
 	}
 	preempt_enable();
 }
