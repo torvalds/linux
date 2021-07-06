@@ -147,7 +147,7 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 		high |= BIT(31);
 		rv_writel(high, rtd->acp3x_base + mmACP_SCRATCH_REG_0 + val
 				+ 4);
-		/* Move to next physically contiguos page */
+		/* Move to next physically contiguous page */
 		val += 8;
 		addr += PAGE_SIZE;
 	}
