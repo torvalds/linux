@@ -4299,7 +4299,7 @@ static int gaudi_resume(struct hl_device *hdev)
 	return gaudi_init_iatu(hdev);
 }
 
-static int gaudi_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
+static int gaudi_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 			void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	int rc;
@@ -9313,7 +9313,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.halt_engines = gaudi_halt_engines,
 	.suspend = gaudi_suspend,
 	.resume = gaudi_resume,
-	.cb_mmap = gaudi_cb_mmap,
+	.mmap = gaudi_mmap,
 	.ring_doorbell = gaudi_ring_doorbell,
 	.pqe_write = gaudi_pqe_write,
 	.asic_dma_alloc_coherent = gaudi_dma_alloc_coherent,

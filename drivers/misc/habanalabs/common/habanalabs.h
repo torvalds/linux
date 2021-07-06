@@ -1024,7 +1024,7 @@ struct fw_load_mgr {
  *                hw_fini and before CS rollback.
  * @suspend: handles IP specific H/W or SW changes for suspend.
  * @resume: handles IP specific H/W or SW changes for resume.
- * @cb_mmap: maps a CB.
+ * @mmap: maps a memory.
  * @ring_doorbell: increment PI on a given QMAN.
  * @pqe_write: Write the PQ entry to the PQ. This is ASIC-specific
  *             function because the PQs are located in different memory areas
@@ -1143,7 +1143,7 @@ struct hl_asic_funcs {
 	void (*halt_engines)(struct hl_device *hdev, bool hard_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
-	int (*cb_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
+	int (*mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			void *cpu_addr, dma_addr_t dma_addr, size_t size);
 	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
 	void (*pqe_write)(struct hl_device *hdev, __le64 *pqe,
