@@ -1698,35 +1698,20 @@ out:
 int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 				size_t *xattr_stream_name_size, int s_type)
 {
-	int stream_name_size;
-	char *xattr_stream_name_buf;
-	char *type;
-	int type_len;
+	char *type, *buf;
 
 	if (s_type == DIR_STREAM)
 		type = ":$INDEX_ALLOCATION";
 	else
 		type = ":$DATA";
 
-	type_len = strlen(type);
-	stream_name_size = strlen(stream_name);
-	*xattr_stream_name_size = stream_name_size + XATTR_NAME_STREAM_LEN + 1;
-	xattr_stream_name_buf = kmalloc(*xattr_stream_name_size + type_len,
-					GFP_KERNEL);
-	if (!xattr_stream_name_buf)
+	buf = kasprintf(GFP_KERNEL, "%s%s%s",
+			XATTR_NAME_STREAM, stream_name,	type);
+	if (!buf)
 		return -ENOMEM;
 
-	memcpy(xattr_stream_name_buf, XATTR_NAME_STREAM, XATTR_NAME_STREAM_LEN);
-
-	if (stream_name_size) {
-		memcpy(&xattr_stream_name_buf[XATTR_NAME_STREAM_LEN],
-		       stream_name, stream_name_size);
-	}
-	memcpy(&xattr_stream_name_buf[*xattr_stream_name_size - 1], type, type_len);
-		*xattr_stream_name_size += type_len;
-
-	xattr_stream_name_buf[*xattr_stream_name_size - 1] = '\0';
-	*xattr_stream_name = xattr_stream_name_buf;
+	*xattr_stream_name = buf;
+	*xattr_stream_name_size = strlen(buf) + 1;
 
 	return 0;
 }
