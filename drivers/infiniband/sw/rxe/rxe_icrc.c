@@ -9,6 +9,12 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
+/**
+ * rxe_icrc_init() - Initialize crypto function for computing crc32
+ * @rxe: rdma_rxe device object
+ *
+ * Return: 0 on success else an error
+ */
 int rxe_icrc_init(struct rxe_dev *rxe)
 {
 	struct crypto_shash *tfm;
@@ -25,6 +31,15 @@ int rxe_icrc_init(struct rxe_dev *rxe)
 	return 0;
 }
 
+/**
+ * rxe_crc32() - Compute cumulative crc32 for a contiguous segment
+ * @rxe: rdma_rxe device object
+ * @crc: starting crc32 value from previous segments
+ * @next: starting address of current segment
+ * @len: length of current segment
+ *
+ * Return: the cumulative crc32 checksum
+ */
 static u32 rxe_crc32(struct rxe_dev *rxe, u32 crc, void *next, size_t len)
 {
 	u32 icrc;
@@ -46,7 +61,14 @@ static u32 rxe_crc32(struct rxe_dev *rxe, u32 crc, void *next, size_t len)
 	return icrc;
 }
 
-/* Compute a partial ICRC for all the IB transport headers. */
+/**
+ * rxe_icrc_hdr() - Compute the partial ICRC for the network and transport
+ *		  headers of a packet.
+ * @skb: packet buffer
+ * @pkt: packet information
+ *
+ * Return: the partial ICRC
+ */
 static u32 rxe_icrc_hdr(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	unsigned int bth_offset = 0;
@@ -111,7 +133,7 @@ static u32 rxe_icrc_hdr(struct sk_buff *skb, struct rxe_pkt_info *pkt)
  * rxe_icrc_check() - Compute ICRC for a packet and compare to the ICRC
  *		      delivered in the packet.
  * @skb: packet buffer
- * @pkt: packet info
+ * @pkt: packet information
  *
  * Return: 0 if the values match else an error
  */
@@ -145,7 +167,11 @@ int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 	return 0;
 }
 
-/* rxe_icrc_generate- compute ICRC for a packet. */
+/**
+ * rxe_icrc_generate() - compute ICRC for a packet.
+ * @skb: packet buffer
+ * @pkt: packet information
+ */
 void rxe_icrc_generate(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	__be32 *icrcp;
