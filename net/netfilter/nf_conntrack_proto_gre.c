@@ -55,19 +55,6 @@ static inline struct nf_gre_net *gre_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.gre;
 }
 
-void nf_ct_gre_keymap_flush(struct net *net)
-{
-	struct nf_gre_net *net_gre = gre_pernet(net);
-	struct nf_ct_gre_keymap *km, *tmp;
-
-	spin_lock_bh(&keymap_lock);
-	list_for_each_entry_safe(km, tmp, &net_gre->keymap_list, list) {
-		list_del_rcu(&km->list);
-		kfree_rcu(km, rcu);
-	}
-	spin_unlock_bh(&keymap_lock);
-}
-
 static inline int gre_key_cmpfn(const struct nf_ct_gre_keymap *km,
 				const struct nf_conntrack_tuple *t)
 {
