@@ -1580,7 +1580,7 @@ static irqreturn_t vc4_hdmi_hpd_irq_thread(int irq, void *priv)
 	struct vc4_hdmi *vc4_hdmi = priv;
 	struct drm_device *dev = vc4_hdmi->connector.dev;
 
-	if (dev)
+	if (dev && dev->registered)
 		drm_kms_helper_hotplug_event(dev);
 
 	return IRQ_HANDLED;
