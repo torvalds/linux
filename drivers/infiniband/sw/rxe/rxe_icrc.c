@@ -29,7 +29,7 @@ static u32 rxe_crc32(struct rxe_dev *rxe, u32 crc, void *next, size_t len)
 }
 
 /* Compute a partial ICRC for all the IB transport headers. */
-u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb)
+static u32 rxe_icrc_hdr(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	unsigned int bth_offset = 0;
 	struct iphdr *ip4h = NULL;
@@ -106,7 +106,7 @@ int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 	icrcp = (__be32 *)(pkt->hdr + pkt->paylen - RXE_ICRC_SIZE);
 	pkt_icrc = be32_to_cpu(*icrcp);
 
-	icrc = rxe_icrc_hdr(pkt, skb);
+	icrc = rxe_icrc_hdr(skb, pkt);
 	icrc = rxe_crc32(pkt->rxe, icrc, (u8 *)payload_addr(pkt),
 				payload_size(pkt) + bth_pad(pkt));
 	icrc = (__force u32)cpu_to_be32(~icrc);
@@ -134,7 +134,7 @@ void rxe_icrc_generate(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 	u32 icrc;
 
 	icrcp = (__be32 *)(pkt->hdr + pkt->paylen - RXE_ICRC_SIZE);
-	icrc = rxe_icrc_hdr(pkt, skb);
+	icrc = rxe_icrc_hdr(skb, pkt);
 	icrc = rxe_crc32(pkt->rxe, icrc, (u8 *)payload_addr(pkt),
 				payload_size(pkt) + bth_pad(pkt));
 	*icrcp = (__force __be32)~icrc;
