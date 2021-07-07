@@ -1703,9 +1703,6 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
 
-	if (is_zone_device_page(page) && !is_device_private_page(page))
-		return true;
-
 	/*
 	 * When racing against e.g. zap_pte_range() on another cpu,
 	 * in between its ptep_get_and_clear_full() and page_remove_rmap(),
@@ -1942,6 +1939,9 @@ void try_to_migrate(struct page *page, enum ttu_flags flags)
 	 */
 	if (WARN_ON_ONCE(flags & ~(TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD |
 					TTU_SYNC)))
+		return;
+
+	if (is_zone_device_page(page) && !is_device_private_page(page))
 		return;
 
 	/*
