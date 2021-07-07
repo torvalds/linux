@@ -2610,6 +2610,14 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_RSCN_MODE) &&
 	    (phba->sli_rev < LPFC_SLI_REV4)) {
+
+		/*
+		 * If link is down, clear_la and reg_vpi will be done after
+		 * flogi following a link up event
+		 */
+		if (!lpfc_is_link_up(phba))
+			return;
+
 		/* The ADISCs are complete.  Doesn't matter if they
 		 * succeeded or failed because the ADISC completion
 		 * routine guarantees to call the state machine and
