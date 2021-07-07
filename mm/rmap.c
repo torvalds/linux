@@ -1442,8 +1442,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		 */
 		if (!(flags & TTU_IGNORE_MLOCK)) {
 			if (vma->vm_flags & VM_LOCKED) {
-				/* PTE-mapped THP are never mlocked */
-				if (!PageTransCompound(page)) {
+				/* PTE-mapped THP are never marked as mlocked */
+				if (!PageTransCompound(page) ||
+				    (PageHead(page) && !PageDoubleMap(page))) {
 					/*
 					 * Holding pte lock, we do *not* need
 					 * mmap_lock here
@@ -1984,9 +1985,11 @@ static bool page_mlock_one(struct page *page, struct vm_area_struct *vma,
 		 * munlock_vma_pages_range().
 		 */
 		if (vma->vm_flags & VM_LOCKED) {
-			/* PTE-mapped THP are never mlocked */
-			if (!PageTransCompound(page))
-				mlock_vma_page(page);
+			/*
+			 * PTE-mapped THP are never marked as mlocked, but
+			 * this function is never called when PageDoubleMap().
+			 */
+			mlock_vma_page(page);
 			page_vma_mapped_walk_done(&pvmw);
 		}
 
