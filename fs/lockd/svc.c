@@ -766,6 +766,46 @@ static void __exit exit_nlm(void)
 module_init(init_nlm);
 module_exit(exit_nlm);
 
+/**
+ * nlmsvc_dispatch - Process an NLM Request
+ * @rqstp: incoming request
+ * @statp: pointer to location of accept_stat field in RPC Reply buffer
+ *
+ * Return values:
+ *  %0: Processing complete; do not send a Reply
+ *  %1: Processing complete; send Reply in rqstp->rq_res
+ */
+static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+{
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+	struct kvec *argv = rqstp->rq_arg.head;
+	struct kvec *resv = rqstp->rq_res.head;
+
+	svcxdr_init_decode(rqstp);
+	if (!procp->pc_decode(rqstp, argv->iov_base))
+		goto out_decode_err;
+
+	*statp = procp->pc_func(rqstp);
+	if (*statp == rpc_drop_reply)
+		return 0;
+	if (*statp != rpc_success)
+		return 1;
+
+	svcxdr_init_encode(rqstp);
+	if (!procp->pc_encode(rqstp, resv->iov_base + resv->iov_len))
+		goto out_encode_err;
+
+	return 1;
+
+out_decode_err:
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_encode_err:
+	*statp = rpc_system_err;
+	return 1;
+}
+
 /*
  * Define NLM program and procedures
  */
@@ -775,6 +815,7 @@ static const struct svc_version	nlmsvc_version1 = {
 	.vs_nproc	= 17,
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version1_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 static unsigned int nlmsvc_version3_count[24];
@@ -783,6 +824,7 @@ static const struct svc_version	nlmsvc_version3 = {
 	.vs_nproc	= 24,
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version3_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #ifdef CONFIG_LOCKD_V4
@@ -792,6 +834,7 @@ static const struct svc_version	nlmsvc_version4 = {
 	.vs_nproc	= 24,
 	.vs_proc	= nlmsvc_procedures4,
 	.vs_count	= nlmsvc_version4_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
