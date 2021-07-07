@@ -67,3 +67,41 @@ u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 			rxe_opcode[pkt->opcode].length - RXE_BTH_BYTES);
 	return crc;
 }
+
+/**
+ * rxe_icrc_check() - Compute ICRC for a packet and compare to the ICRC
+ *		      delivered in the packet.
+ * @skb: packet buffer
+ * @pkt: packet info
+ *
+ * Return: 0 if the values match else an error
+ */
+int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt)
+{
+	__be32 *icrcp;
+	u32 pkt_icrc;
+	u32 icrc;
+
+	icrcp = (__be32 *)(pkt->hdr + pkt->paylen - RXE_ICRC_SIZE);
+	pkt_icrc = be32_to_cpu(*icrcp);
+
+	icrc = rxe_icrc_hdr(pkt, skb);
+	icrc = rxe_crc32(pkt->rxe, icrc, (u8 *)payload_addr(pkt),
+				payload_size(pkt) + bth_pad(pkt));
+	icrc = (__force u32)cpu_to_be32(~icrc);
+
+	if (unlikely(icrc != pkt_icrc)) {
+		if (skb->protocol == htons(ETH_P_IPV6))
+			pr_warn_ratelimited("bad ICRC from %pI6c\n",
+					    &ipv6_hdr(skb)->saddr);
+		else if (skb->protocol == htons(ETH_P_IP))
+			pr_warn_ratelimited("bad ICRC from %pI4\n",
+					    &ip_hdr(skb)->saddr);
+		else
+			pr_warn_ratelimited("bad ICRC from unknown\n");
+
+		return -EINVAL;
+	}
+
+	return 0;
+}

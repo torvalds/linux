@@ -193,7 +193,9 @@ int rxe_completer(void *arg);
 int rxe_requester(void *arg);
 int rxe_responder(void *arg);
 
+/* rxe_icrc.c */
 u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb);
+int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt);
 
 void rxe_resp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 
