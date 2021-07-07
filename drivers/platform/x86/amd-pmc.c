@@ -353,7 +353,7 @@ static int __maybe_unused amd_pmc_suspend(struct device *dev)
 	if (rc)
 		dev_err(pdev->dev, "suspend failed\n");
 
-	return 0;
+	return rc;
 }
 
 static int __maybe_unused amd_pmc_resume(struct device *dev)
