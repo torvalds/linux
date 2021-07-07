@@ -198,6 +198,11 @@ module_param(avic, bool, 0444);
 bool __read_mostly dump_invalid_vmcb;
 module_param(dump_invalid_vmcb, bool, 0644);
 
+
+bool intercept_smi = true;
+module_param(intercept_smi, bool, 0444);
+
+
 static bool svm_gp_erratum_intercept = true;
 
 static u8 rsm_ins_bytes[] = "\x0f\xaa";
@@ -1185,7 +1190,10 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 
 	svm_set_intercept(svm, INTERCEPT_INTR);
 	svm_set_intercept(svm, INTERCEPT_NMI);
-	svm_set_intercept(svm, INTERCEPT_SMI);
+
+	if (intercept_smi)
+		svm_set_intercept(svm, INTERCEPT_SMI);
+
 	svm_set_intercept(svm, INTERCEPT_SELECTIVE_CR0);
 	svm_set_intercept(svm, INTERCEPT_RDPMC);
 	svm_set_intercept(svm, INTERCEPT_CPUID);

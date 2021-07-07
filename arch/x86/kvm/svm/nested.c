@@ -154,6 +154,10 @@ void recalc_intercepts(struct vcpu_svm *svm)
 
 	for (i = 0; i < MAX_INTERCEPT; i++)
 		c->intercepts[i] |= g->intercepts[i];
+
+	/* If SMI is not intercepted, ignore guest SMI intercept as well  */
+	if (!intercept_smi)
+		vmcb_clr_intercept(c, INTERCEPT_SMI);
 }
 
 static void copy_vmcb_control_area(struct vmcb_control_area *dst,

@@ -31,6 +31,7 @@
 #define MSRPM_OFFSETS	16
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
+extern bool intercept_smi;
 
 /*
  * Clean bits in VMCB.
