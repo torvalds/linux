@@ -373,7 +373,7 @@ static void rxe_skb_tx_dtor(struct sk_buff *skb)
 	rxe_drop_ref(qp);
 }
 
-int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
+static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	int err;
 
@@ -406,19 +406,23 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 /* fix up a send packet to match the packets
  * received from UDP before looping them back
  */
-void rxe_loopback(struct sk_buff *skb)
+static int rxe_loopback(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
+	memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
 
 	if (skb->protocol == htons(ETH_P_IP))
 		skb_pull(skb, sizeof(struct iphdr));
 	else
 		skb_pull(skb, sizeof(struct ipv6hdr));
 
-	if (WARN_ON(!ib_device_try_get(&pkt->rxe->ib_dev)))
+	if (WARN_ON(!ib_device_try_get(&pkt->rxe->ib_dev))) {
 		kfree_skb(skb);
-	else
-		rxe_rcv(skb);
+		return -EIO;
+	}
+
+	rxe_rcv(skb);
+
+	return 0;
 }
 
 int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
@@ -434,14 +438,10 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 		goto drop;
 	}
 
-	if (pkt->mask & RXE_LOOPBACK_MASK) {
-		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
-		rxe_loopback(skb);
-		err = 0;
-	} else {
-		err = rxe_send(pkt, skb);
-	}
-
+	if (pkt->mask & RXE_LOOPBACK_MASK)
+		err = rxe_loopback(skb, pkt);
+	else
+		err = rxe_send(skb, pkt);
 	if (err) {
 		rxe->xmit_errors++;
 		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
