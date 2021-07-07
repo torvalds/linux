@@ -23,6 +23,9 @@ enum j1939_sk_errqueue_type {
 	J1939_ERRQUEUE_TX_ACK,
 	J1939_ERRQUEUE_TX_SCHED,
 	J1939_ERRQUEUE_TX_ABORT,
+	J1939_ERRQUEUE_RX_RTS,
+	J1939_ERRQUEUE_RX_DPO,
+	J1939_ERRQUEUE_RX_ABORT,
 };
 
 /* j1939 devices */
@@ -87,6 +90,7 @@ struct j1939_priv {
 	struct list_head j1939_socks;
 
 	struct kref rx_kref;
+	u32 rx_tskey;
 };
 
 void j1939_ecu_put(struct j1939_ecu *ecu);
