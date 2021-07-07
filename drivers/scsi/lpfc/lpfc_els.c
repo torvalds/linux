@@ -3375,6 +3375,7 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		rc = lpfc_reg_fab_ctrl_node(vport, ndlp);
 		if (rc) {
+			lpfc_els_free_iocb(phba, elsiocb);
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
 					 "0937 %s: Failed to reg fc node, rc %d\n",
 					 __func__, rc);
@@ -3667,6 +3668,7 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
 	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED)) {
+		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
 				 "0939 %s: FC_NODE x%x RPI x%x flag x%x "
 				 "ste x%x type x%x Not registered\n",
