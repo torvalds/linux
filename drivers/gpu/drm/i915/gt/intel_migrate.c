@@ -277,7 +277,7 @@ static int emit_pte(struct i915_request *rq,
 	u32 *hdr, *cs;
 	int pkt;
 
-	GEM_BUG_ON(INTEL_GEN(rq->engine->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(rq->engine->i915) < 8);
 
 	/* Compute the page directory offset for the target address range */
 	offset += (u64)rq->engine->instance << 32;
@@ -347,11 +347,11 @@ static int emit_pte(struct i915_request *rq,
 	return total;
 }
 
-static bool wa_1209644611_applies(int gen, u32 size)
+static bool wa_1209644611_applies(int ver, u32 size)
 {
 	u32 height = size >> PAGE_SHIFT;
 
-	if (gen != 11)
+	if (ver != 11)
 		return false;
 
 	return height % 4 == 3 && height <= 8;
@@ -359,15 +359,15 @@ static bool wa_1209644611_applies(int gen, u32 size)
 
 static int emit_copy(struct i915_request *rq, int size)
 {
-	const int gen = INTEL_GEN(rq->engine->i915);
+	const int ver = GRAPHICS_VER(rq->engine->i915);
 	u32 instance = rq->engine->instance;
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, gen >= 8 ? 10 : 6);
+	cs = intel_ring_begin(rq, ver >= 8 ? 10 : 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (gen >= 9 && !wa_1209644611_applies(gen, size)) {
+	if (ver >= 9 && !wa_1209644611_applies(ver, size)) {
 		*cs++ = GEN9_XY_FAST_COPY_BLT_CMD | (10 - 2);
 		*cs++ = BLT_DEPTH_32 | PAGE_SIZE;
 		*cs++ = 0;
@@ -378,7 +378,7 @@ static int emit_copy(struct i915_request *rq, int size)
 		*cs++ = PAGE_SIZE;
 		*cs++ = 0; /* src offset */
 		*cs++ = instance;
-	} else if (gen >= 8) {
+	} else if (ver >= 8) {
 		*cs++ = XY_SRC_COPY_BLT_CMD | BLT_WRITE_RGBA | (10 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_SRC_COPY | PAGE_SIZE;
 		*cs++ = 0;
@@ -491,17 +491,17 @@ out_ce:
 
 static int emit_clear(struct i915_request *rq, int size, u32 value)
 {
-	const int gen = INTEL_GEN(rq->engine->i915);
+	const int ver = GRAPHICS_VER(rq->engine->i915);
 	u32 instance = rq->engine->instance;
 	u32 *cs;
 
 	GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-	cs = intel_ring_begin(rq, gen >= 8 ? 8 : 6);
+	cs = intel_ring_begin(rq, ver >= 8 ? 8 : 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (gen >= 8) {
+	if (ver >= 8) {
 		*cs++ = XY_COLOR_BLT_CMD | BLT_WRITE_RGBA | (7 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | PAGE_SIZE;
 		*cs++ = 0;
