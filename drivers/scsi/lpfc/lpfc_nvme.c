@@ -216,8 +216,8 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	/* The register rebind might have occurred before the delete
 	 * downcall.  Guard against this race.
 	 */
-	if (ndlp->fc4_xpt_flags & NLP_WAIT_FOR_UNREG)
-		ndlp->fc4_xpt_flags &= ~(NLP_WAIT_FOR_UNREG | NVME_XPT_REGD);
+	if (ndlp->fc4_xpt_flags & NVME_XPT_UNREG_WAIT)
+		ndlp->fc4_xpt_flags &= ~(NVME_XPT_UNREG_WAIT | NVME_XPT_REGD);
 
 	spin_unlock_irq(&ndlp->lock);
 
@@ -2324,7 +2324,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * race that leaves the WAIT flag set.
 		 */
 		spin_lock_irq(&ndlp->lock);
-		ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
+		ndlp->fc4_xpt_flags &= ~NVME_XPT_UNREG_WAIT;
 		ndlp->fc4_xpt_flags |= NVME_XPT_REGD;
 		spin_unlock_irq(&ndlp->lock);
 		rport = remote_port->private;
@@ -2336,7 +2336,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 */
 			spin_lock_irq(&ndlp->lock);
 			ndlp->nrport = NULL;
-			ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
+			ndlp->fc4_xpt_flags &= ~NVME_XPT_UNREG_WAIT;
 			spin_unlock_irq(&ndlp->lock);
 			rport->ndlp = NULL;
 			rport->remoteport = NULL;
@@ -2488,7 +2488,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * The transport will update it.
 		 */
 		spin_lock_irq(&vport->phba->hbalock);
-		ndlp->fc4_xpt_flags |= NLP_WAIT_FOR_UNREG;
+		ndlp->fc4_xpt_flags |= NVME_XPT_UNREG_WAIT;
 		spin_unlock_irq(&vport->phba->hbalock);
 
 		/* Don't let the host nvme transport keep sending keep-alives

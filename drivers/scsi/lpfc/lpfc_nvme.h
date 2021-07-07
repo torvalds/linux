@@ -37,8 +37,8 @@
 #define LPFC_MAX_NVME_INFO_TMP_LEN	100
 #define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
 
-#define lpfc_ndlp_get_nrport(ndlp)					\
-	((!ndlp->nrport || (ndlp->fc4_xpt_flags & NLP_WAIT_FOR_UNREG))	\
+#define lpfc_ndlp_get_nrport(ndlp)				\
+	((!ndlp->nrport || (ndlp->fc4_xpt_flags & NVME_XPT_UNREG_WAIT))\
 	? NULL : ndlp->nrport)
 
 struct lpfc_nvme_qhandle {

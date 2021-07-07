@@ -1664,6 +1664,12 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	if (!new_ndlp || (new_ndlp == ndlp))
 		return ndlp;
 
+	/*
+	 * Unregister from backend if not done yet. Could have been skipped
+	 * due to ADISC
+	 */
+	lpfc_nlp_unreg_node(vport, new_ndlp);
+
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		active_rrqs_xri_bitmap = mempool_alloc(phba->active_rrq_pool,
 						       GFP_KERNEL);
@@ -4365,7 +4371,7 @@ out_retry:
 			    (cmd == ELS_CMD_NVMEPRLI))
 				lpfc_nlp_set_state(vport, ndlp,
 					NLP_STE_PRLI_ISSUE);
-			else
+			else if (cmd != ELS_CMD_ADISC)
 				lpfc_nlp_set_state(vport, ndlp,
 					NLP_STE_NPR_NODE);
 			ndlp->nlp_last_elscmd = cmd;
@@ -5653,25 +5659,40 @@ lpfc_els_disc_adisc(struct lpfc_vport *vport)
 
 	/* go thru NPR nodes and issue any remaining ELS ADISCs */
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_NPR_NODE &&
-		    (ndlp->nlp_flag & NLP_NPR_2B_DISC) != 0 &&
-		    (ndlp->nlp_flag & NLP_NPR_ADISC) != 0) {
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-			spin_unlock_irq(&ndlp->lock);
-			ndlp->nlp_prev_state = ndlp->nlp_state;
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_ADISC_ISSUE);
-			lpfc_issue_els_adisc(vport, ndlp, 0);
-			sentadisc++;
-			vport->num_disc_nodes++;
-			if (vport->num_disc_nodes >=
-			    vport->cfg_discovery_threads) {
-				spin_lock_irq(shost->host_lock);
-				vport->fc_flag |= FC_NLP_MORE;
-				spin_unlock_irq(shost->host_lock);
-				break;
-			}
+
+		if (ndlp->nlp_state != NLP_STE_NPR_NODE ||
+		    !(ndlp->nlp_flag & NLP_NPR_ADISC))
+			continue;
+
+		spin_lock_irq(&ndlp->lock);
+		ndlp->nlp_flag &= ~NLP_NPR_ADISC;
+		spin_unlock_irq(&ndlp->lock);
+
+		if (!(ndlp->nlp_flag & NLP_NPR_2B_DISC)) {
+			/* This node was marked for ADISC but was not picked
+			 * for discovery. This is possible if the node was
+			 * missing in gidft response.
+			 *
+			 * At time of marking node for ADISC, we skipped unreg
+			 * from backend
+			 */
+			lpfc_nlp_unreg_node(vport, ndlp);
+			continue;
 		}
+
+		ndlp->nlp_prev_state = ndlp->nlp_state;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_ADISC_ISSUE);
+		lpfc_issue_els_adisc(vport, ndlp, 0);
+		sentadisc++;
+		vport->num_disc_nodes++;
+		if (vport->num_disc_nodes >=
+				vport->cfg_discovery_threads) {
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag |= FC_NLP_MORE;
+			spin_unlock_irq(shost->host_lock);
+			break;
+		}
+
 	}
 	if (sentadisc == 0) {
 		spin_lock_irq(shost->host_lock);
@@ -6881,13 +6902,6 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 		case  NLP_STE_LOGO_ISSUE:
 			continue;
 		}
-
-		/* Check to see if we need to NVME rescan this target
-		 * remoteport.
-		 */
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME &&
-		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY))
-			lpfc_nvme_rescan_port(vport, ndlp);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);

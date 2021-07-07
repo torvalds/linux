@@ -87,6 +87,8 @@ void lpfc_unregister_vfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_enqueue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_dequeue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_nlp_set_state(struct lpfc_vport *, struct lpfc_nodelist *, int);
+void lpfc_nlp_reg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp);
+void lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp);
 void lpfc_drop_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_set_disctmo(struct lpfc_vport *);
 int  lpfc_can_disctmo(struct lpfc_vport *);

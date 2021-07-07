@@ -4501,10 +4501,152 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 	spin_unlock_irqrestore(shost->host_lock, iflags);
 }
 
+/* Register a node with backend if not already done */
+void
+lpfc_nlp_reg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+
+	unsigned long iflags;
+
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	if (ndlp->fc4_xpt_flags & NLP_XPT_REGD) {
+		/* Already registered with backend, trigger rescan */
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+		if (ndlp->fc4_xpt_flags & NVME_XPT_REGD &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY)) {
+			lpfc_nvme_rescan_port(vport, ndlp);
+		}
+		return;
+	}
+
+	ndlp->fc4_xpt_flags |= NLP_XPT_REGD;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+	if (lpfc_valid_xpt_node(ndlp)) {
+		vport->phba->nport_event_cnt++;
+		/*
+		 * Tell the fc transport about the port, if we haven't
+		 * already. If we have, and it's a scsi entity, be
+		 */
+		lpfc_register_remote_port(vport, ndlp);
+	}
+
+	/* We are done if we do not have any NVME remote node */
+	if (!(ndlp->nlp_fc4_type & NLP_FC4_NVME))
+		return;
+
+	/* Notify the NVME transport of this new rport. */
+	if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
+			ndlp->nlp_fc4_type & NLP_FC4_NVME) {
+		if (vport->phba->nvmet_support == 0) {
+			/* Register this rport with the transport.
+			 * Only NVME Target Rports are registered with
+			 * the transport.
+			 */
+			if (ndlp->nlp_type & NLP_NVME_TARGET) {
+				vport->phba->nport_event_cnt++;
+				lpfc_nvme_register_port(vport, ndlp);
+			}
+		} else {
+			/* Just take an NDLP ref count since the
+			 * target does not register rports.
+			 */
+			lpfc_nlp_get(ndlp);
+		}
+	}
+}
+
+/* Unregister a node with backend if not already done */
+void
+lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	unsigned long iflags;
+
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	if (!(ndlp->fc4_xpt_flags & NLP_XPT_REGD)) {
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+		return;
+	}
+
+	ndlp->fc4_xpt_flags &= ~NLP_XPT_REGD;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+	if (ndlp->rport &&
+	    ndlp->fc4_xpt_flags & SCSI_XPT_REGD) {
+		vport->phba->nport_event_cnt++;
+		lpfc_unregister_remote_port(ndlp);
+	}
+
+	if (ndlp->fc4_xpt_flags & NVME_XPT_REGD) {
+		vport->phba->nport_event_cnt++;
+		if (vport->phba->nvmet_support == 0) {
+			/* Start devloss if target. */
+			if (ndlp->nlp_type & NLP_NVME_TARGET)
+				lpfc_nvme_unregister_port(vport, ndlp);
+		} else {
+			/* NVMET has no upcall. */
+			lpfc_nlp_put(ndlp);
+		}
+	}
+
+}
+
+/*
+ * Adisc state change handling
+ */
+static void
+lpfc_handle_adisc_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+		int new_state)
+{
+	switch (new_state) {
+	/*
+	 * Any state to ADISC_ISSUE
+	 * Do nothing, adisc cmpl handling will trigger state changes
+	 */
+	case NLP_STE_ADISC_ISSUE:
+		break;
+
+	/*
+	 * ADISC_ISSUE to mapped states
+	 * Trigger a registration with backend, it will be nop if
+	 * already registered
+	 */
+	case NLP_STE_UNMAPPED_NODE:
+		ndlp->nlp_type |= NLP_FC_NODE;
+		fallthrough;
+	case NLP_STE_MAPPED_NODE:
+		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
+		lpfc_nlp_reg_node(vport, ndlp);
+		break;
+
+	/*
+	 * ADISC_ISSUE to non-mapped states
+	 * We are moving from ADISC_ISSUE to a non-mapped state because
+	 * ADISC failed, we would have skipped unregistering with
+	 * backend, attempt it now
+	 */
+	case NLP_STE_NPR_NODE:
+		ndlp->nlp_flag &= ~NLP_RCV_PLOGI;
+		fallthrough;
+	default:
+		lpfc_nlp_unreg_node(vport, ndlp);
+		break;
+	}
+
+}
+
 static void
 lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		       int old_state, int new_state)
 {
+	/* Trap ADISC changes here */
+	if (new_state == NLP_STE_ADISC_ISSUE ||
+	    old_state == NLP_STE_ADISC_ISSUE) {
+		lpfc_handle_adisc_state(vport, ndlp, new_state);
+		return;
+	}
+
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		ndlp->nlp_type |= NLP_FC_NODE;
@@ -4514,60 +4656,17 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (new_state == NLP_STE_NPR_NODE)
 		ndlp->nlp_flag &= ~NLP_RCV_PLOGI;
 
-	/* FCP and NVME Transport interface */
+	/* Reg/Unreg for FCP and NVME Transport interface */
 	if ((old_state == NLP_STE_MAPPED_NODE ||
 	     old_state == NLP_STE_UNMAPPED_NODE)) {
-		if (ndlp->rport &&
-		    lpfc_valid_xpt_node(ndlp)) {
-			vport->phba->nport_event_cnt++;
-			lpfc_unregister_remote_port(ndlp);
-		}
-
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
-			vport->phba->nport_event_cnt++;
-			if (vport->phba->nvmet_support == 0) {
-				/* Start devloss if target. */
-				if (ndlp->nlp_type & NLP_NVME_TARGET)
-					lpfc_nvme_unregister_port(vport, ndlp);
-			} else {
-				/* NVMET has no upcall. */
-				lpfc_nlp_put(ndlp);
-			}
-		}
+		/* For nodes marked for ADISC, Handle unreg in ADISC cmpl */
+		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
+			lpfc_nlp_unreg_node(vport, ndlp);
 	}
-
-	/* FCP and NVME Transport interfaces */
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
-	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (lpfc_valid_xpt_node(ndlp)) {
-			vport->phba->nport_event_cnt++;
-			/*
-			 * Tell the fc transport about the port, if we haven't
-			 * already. If we have, and it's a scsi entity, be
-			 */
-			lpfc_register_remote_port(vport, ndlp);
-		}
-		/* Notify the NVME transport of this new rport. */
-		if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
-		    ndlp->nlp_fc4_type & NLP_FC4_NVME) {
-			if (vport->phba->nvmet_support == 0) {
-				/* Register this rport with the transport.
-				 * Only NVME Target Rports are registered with
-				 * the transport.
-				 */
-				if (ndlp->nlp_type & NLP_NVME_TARGET) {
-					vport->phba->nport_event_cnt++;
-					lpfc_nvme_register_port(vport, ndlp);
-				}
-			} else {
-				/* Just take an NDLP ref count since the
-				 * target does not register rports.
-				 */
-				lpfc_nlp_get(ndlp);
-			}
-		}
-	}
+	    new_state == NLP_STE_UNMAPPED_NODE)
+		lpfc_nlp_reg_node(vport, ndlp);
 
 	if ((new_state ==  NLP_STE_MAPPED_NODE) &&
 		(vport->stat_data_enabled)) {
