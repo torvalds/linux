@@ -71,6 +71,7 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
 /* Number of high-resolution events for each low-resolution detent. */
 #define SCROLL_HR_STEPS 10
 #define SCROLL_HR_MULT (120 / SCROLL_HR_STEPS)
+#define SCROLL_HR_THRESHOLD 90 /* units */
 #define SCROLL_ACCEL_DEFAULT 7
 
 /* Touch surface information. Dimension is in hundredths of a mm, min and max
@@ -132,6 +133,8 @@ struct magicmouse_sc {
 		short scroll_x_hr;
 		short scroll_y_hr;
 		u8 size;
+		bool scroll_x_active;
+		bool scroll_y_active;
 	} touches[16];
 	int tracking_ids[16];
 
@@ -265,6 +268,8 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 			msc->touches[id].scroll_y = y;
 			msc->touches[id].scroll_x_hr = x;
 			msc->touches[id].scroll_y_hr = y;
+			msc->touches[id].scroll_x_active = false;
+			msc->touches[id].scroll_y_active = false;
 
 			/* Reset acceleration after half a second. */
 			if (scroll_acceleration && time_before(now,
@@ -292,8 +297,16 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 				input_report_rel(input, REL_WHEEL, step_y);
 			}
 
+			if (!msc->touches[id].scroll_x_active &&
+			    abs(step_x_hr) > SCROLL_HR_THRESHOLD) {
+				msc->touches[id].scroll_x_active = true;
+				msc->touches[id].scroll_x_hr = x;
+				step_x_hr = 0;
+			}
+
 			step_x_hr /= step_hr;
-			if (step_x_hr != 0) {
+			if (step_x_hr != 0 &&
+			    msc->touches[id].scroll_x_active) {
 				msc->touches[id].scroll_x_hr -= step_x_hr *
 					step_hr;
 				input_report_rel(input,
@@ -301,8 +314,16 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 						 -step_x_hr * SCROLL_HR_MULT);
 			}
 
+			if (!msc->touches[id].scroll_y_active &&
+			    abs(step_y_hr) > SCROLL_HR_THRESHOLD) {
+				msc->touches[id].scroll_y_active = true;
+				msc->touches[id].scroll_y_hr = y;
+				step_y_hr = 0;
+			}
+
 			step_y_hr /= step_hr;
-			if (step_y_hr != 0) {
+			if (step_y_hr != 0 &&
+			    msc->touches[id].scroll_y_active) {
 				msc->touches[id].scroll_y_hr -= step_y_hr *
 					step_hr;
 				input_report_rel(input,
