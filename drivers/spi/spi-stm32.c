@@ -911,7 +911,10 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	if (sr & STM32H7_SPI_SR_EOT) {
 		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
 			stm32h7_spi_read_rxfifo(spi);
-		end = true;
+		if (!spi->cur_usedma ||
+		    (spi->cur_usedma && (spi->cur_comm == SPI_SIMPLEX_TX ||
+		     spi->cur_comm == SPI_3WIRE_TX)))
+			end = true;
 	}
 
 	if (sr & STM32H7_SPI_SR_TXP)
@@ -1019,42 +1022,17 @@ static void stm32f4_spi_dma_tx_cb(void *data)
 }
 
 /**
- * stm32f4_spi_dma_rx_cb - dma callback
+ * stm32_spi_dma_rx_cb - dma callback
  * @data: pointer to the spi controller data structure
  *
  * DMA callback is called when the transfer is complete for DMA RX channel.
  */
-static void stm32f4_spi_dma_rx_cb(void *data)
+static void stm32_spi_dma_rx_cb(void *data)
 {
 	struct stm32_spi *spi = data;
 
 	spi_finalize_current_transfer(spi->master);
-	stm32f4_spi_disable(spi);
-}
-
-/**
- * stm32h7_spi_dma_cb - dma callback
- * @data: pointer to the spi controller data structure
- *
- * DMA callback is called when the transfer is complete or when an error
- * occurs. If the transfer is complete, EOT flag is raised.
- */
-static void stm32h7_spi_dma_cb(void *data)
-{
-	struct stm32_spi *spi = data;
-	unsigned long flags;
-	u32 sr;
-
-	spin_lock_irqsave(&spi->lock, flags);
-
-	sr = readl_relaxed(spi->base + STM32H7_SPI_SR);
-
-	spin_unlock_irqrestore(&spi->lock, flags);
-
-	if (!(sr & STM32H7_SPI_SR_EOT))
-		dev_warn(spi->dev, "DMA error (sr=0x%08x)\n", sr);
-
-	/* Now wait for EOT, or SUSP or OVR in case of error */
+	spi->cfg->disable(spi);
 }
 
 /**
@@ -1220,11 +1198,13 @@ static void stm32f4_spi_transfer_one_dma_start(struct stm32_spi *spi)
  */
 static void stm32h7_spi_transfer_one_dma_start(struct stm32_spi *spi)
 {
-	/* Enable the interrupts relative to the end of transfer */
-	stm32_spi_set_bits(spi, STM32H7_SPI_IER, STM32H7_SPI_IER_EOTIE |
-						 STM32H7_SPI_IER_TXTFIE |
-						 STM32H7_SPI_IER_OVRIE |
-						 STM32H7_SPI_IER_MODFIE);
+	uint32_t ier = STM32H7_SPI_IER_OVRIE | STM32H7_SPI_IER_MODFIE;
+
+	/* Enable the interrupts */
+	if (spi->cur_comm == SPI_SIMPLEX_TX || spi->cur_comm == SPI_3WIRE_TX)
+		ier |= STM32H7_SPI_IER_EOTIE | STM32H7_SPI_IER_TXTFIE;
+
+	stm32_spi_set_bits(spi, STM32H7_SPI_IER, ier);
 
 	stm32_spi_enable(spi);
 
@@ -1736,7 +1716,7 @@ static const struct stm32_spi_cfg stm32f4_spi_cfg = {
 	.set_mode = stm32f4_spi_set_mode,
 	.transfer_one_dma_start = stm32f4_spi_transfer_one_dma_start,
 	.dma_tx_cb = stm32f4_spi_dma_tx_cb,
-	.dma_rx_cb = stm32f4_spi_dma_rx_cb,
+	.dma_rx_cb = stm32_spi_dma_rx_cb,
 	.transfer_one_irq = stm32f4_spi_transfer_one_irq,
 	.irq_handler_event = stm32f4_spi_irq_event,
 	.irq_handler_thread = stm32f4_spi_irq_thread,
@@ -1756,8 +1736,11 @@ static const struct stm32_spi_cfg stm32h7_spi_cfg = {
 	.set_data_idleness = stm32h7_spi_data_idleness,
 	.set_number_of_data = stm32h7_spi_number_of_data,
 	.transfer_one_dma_start = stm32h7_spi_transfer_one_dma_start,
-	.dma_rx_cb = stm32h7_spi_dma_cb,
-	.dma_tx_cb = stm32h7_spi_dma_cb,
+	.dma_rx_cb = stm32_spi_dma_rx_cb,
+	/*
+	 * dma_tx_cb is not necessary since in case of TX, dma is followed by
+	 * SPI access hence handling is performed within the SPI interrupt
+	 */
 	.transfer_one_irq = stm32h7_spi_transfer_one_irq,
 	.irq_handler_thread = stm32h7_spi_irq_thread,
 	.baud_rate_div_min = STM32H7_SPI_MBR_DIV_MIN,
