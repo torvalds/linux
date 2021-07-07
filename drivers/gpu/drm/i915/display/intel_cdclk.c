@@ -1548,11 +1548,6 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	dev_priv->cdclk.hw.vco = vco;
 }
 
-static bool has_cdclk_crawl(struct drm_i915_private *i915)
-{
-	return INTEL_INFO(i915)->has_cdclk_crawl;
-}
-
 static void adlp_cdclk_pll_crawl(struct drm_i915_private *dev_priv, int vco)
 {
 	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk.hw.ref);
@@ -1649,7 +1644,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (has_cdclk_crawl(dev_priv) && dev_priv->cdclk.hw.vco > 0 && vco > 0) {
+	if (HAS_CDCLK_CRAWL(dev_priv) && dev_priv->cdclk.hw.vco > 0 && vco > 0) {
 		if (dev_priv->cdclk.hw.vco != vco)
 			adlp_cdclk_pll_crawl(dev_priv, vco);
 	} else if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
@@ -1857,7 +1852,7 @@ static bool intel_cdclk_can_crawl(struct drm_i915_private *dev_priv,
 {
 	int a_div, b_div;
 
-	if (!has_cdclk_crawl(dev_priv))
+	if (!HAS_CDCLK_CRAWL(dev_priv))
 		return false;
 
 	/*
