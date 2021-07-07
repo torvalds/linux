@@ -284,7 +284,8 @@ config PWM_JZ4740
 
 config PWM_KEEMBAY
 	tristate "Intel Keem Bay PWM driver"
-	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
 	help
 	  The platform driver for Intel Keem Bay PWM controller.
 
