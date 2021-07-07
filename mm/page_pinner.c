@@ -157,12 +157,9 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 
 		page_pinner = get_page_pinner(page_ext);
 		if (free) {
-			WARN_ON_ONCE(atomic_read(&page_pinner->count));
 			atomic_set(&page_pinner->count, 0);
 			__clear_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
 		} else {
-			WARN_ON_ONCE(atomic_dec_if_positive(
-				     &page_pinner->count) < 0);
 			check_longterm_pin(page_pinner, page);
 		}
 		clear_bit(PAGE_EXT_GET, &page_ext->flags);
