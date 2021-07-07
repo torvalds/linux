@@ -371,9 +371,9 @@ static void irq_work(struct work_struct *work)
 {
 	struct rkispp_device *dev = container_of(work, struct rkispp_device, irq_work);
 
-	dev->hw_dev->is_first = false;
 	rkispp_set_clk_rate(dev->hw_dev->clks[0], dev->hw_dev->core_clk_max);
 	check_to_force_update(dev, dev->mis_val);
+	dev->hw_dev->is_first = false;
 }
 
 static void update_mi(struct rkispp_stream *stream)
@@ -402,13 +402,16 @@ static void update_mi(struct rkispp_stream *stream)
 		 rkispp_read(dev, stream->config->reg.cur_uv_base));
 }
 
-static int rkispp_frame_end(struct rkispp_stream *stream)
+static int rkispp_frame_end(struct rkispp_stream *stream, u32 state)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct capture_fmt *fmt = &stream->out_cap_fmt;
 	struct rkisp_ispp_reg *reg_buf = NULL;
 	unsigned long lock_flags = 0;
 	int i = 0;
+
+	if (state == FRAME_IRQ && dev->stream_vdev.is_done_early)
+		return 0;
 
 	if (stream->curr_buf) {
 		struct rkispp_stream *vir = &dev->stream_vdev.stream[STREAM_VIR];
@@ -497,6 +500,85 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 
 	update_mi(stream);
 	return 0;
+}
+
+static bool is_en_done_early(struct rkispp_device *dev)
+{
+	u32 height = dev->ispp_sdev.out_fmt.height;
+	u32 line = dev->stream_vdev.wait_line;
+	bool en =  false;
+
+	if (line) {
+		if (line > height - 128)
+			dev->stream_vdev.wait_line = height - 128;
+		en = true;
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "wait %d line to wake up frame\n", line);
+	}
+
+	return en;
+}
+
+static enum hrtimer_restart rkispp_frame_done_early(struct hrtimer *timer)
+{
+	struct rkispp_stream_vdev *vdev =
+		container_of(timer, struct rkispp_stream_vdev, frame_qst);
+	struct rkispp_stream *stream = &vdev->stream[0];
+	struct rkispp_device *dev = stream->isppdev;
+	void __iomem *base = dev->hw_dev->base_addr;
+	bool is_fec_en = (vdev->module_ens & ISPP_MODULE_FEC);
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
+	u32 threshold = vdev->wait_line / 128;
+	u32 tile, tile_mask, working, work_mask;
+	u32 i, seq, ycnt, shift, time, max_time;
+	u64 t, ns = ktime_get_ns();
+
+	working = readl(base + RKISPP_CTRL_SYS_STATUS);
+	tile = readl(base + RKISPP_CTRL_SYS_CTL_STA0);
+	if (is_fec_en) {
+		shift = 16;
+		work_mask = FEC_WORKING;
+		tile_mask = FEC_TILE_LINE_CNT_MASK;
+		t = vdev->fec.dbg.timestamp;
+		seq = vdev->fec.dbg.id;
+		max_time = 6000000;
+	} else {
+		shift = 8;
+		work_mask = NR_WORKING;
+		tile_mask = NR_TILE_LINE_CNT_MASK;
+		t = vdev->nr.dbg.timestamp;
+		seq = vdev->nr.dbg.id;
+		max_time = 2000000;
+	}
+	working &= work_mask;
+	tile &= tile_mask;
+	ycnt = tile >> shift;
+	time = (u32)(ns - t);
+	if (dev->ispp_sdev.state == ISPP_STOP) {
+		vdev->is_done_early = false;
+		goto end;
+	} else if (working && ycnt < threshold) {
+		if (!ycnt)
+			ns = max_time;
+		else
+			ns = time * (threshold - ycnt) / ycnt + 100 * 1000;
+		if (ns > max_time)
+			ns = max_time;
+		hrtimer_forward(timer, timer->base->get_time(), ns_to_ktime(ns));
+		ret = HRTIMER_RESTART;
+	} else {
+		v4l2_dbg(3, rkispp_debug, &stream->isppdev->v4l2_dev,
+			 "%s seq:%d line:%d ycnt:%d time:%dus\n",
+			 __func__, seq, vdev->wait_line, ycnt * 128, time / 1000);
+		for (i = 0; i < STREAM_MAX; i++) {
+			stream = &vdev->stream[i];
+			if (!stream->streaming || !stream->is_cfg || stream->stopping)
+				continue;
+			rkispp_frame_end(stream, FRAME_WORK);
+		}
+	}
+end:
+	return ret;
 }
 
 static void *get_pool_buf(struct rkispp_device *dev,
@@ -817,7 +899,8 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	int i, ret, cnt = 0;
 
 	if (vdev->module_ens & ISPP_MODULE_FEC)
-		cnt = RKISPP_BUF_MAX;
+		cnt = vdev->is_done_early ? 1 : RKISPP_BUF_MAX;
+
 	for (i = 0; i < cnt; i++) {
 		buf = &vdev->nr.buf.wr[i];
 		buf->size = size;
@@ -855,6 +938,8 @@ static int config_nr_shp(struct rkispp_device *dev)
 	vdev->nr.is_end = true;
 	if (!(vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)))
 		return 0;
+
+	vdev->is_done_early = is_en_done_early(dev);
 
 	if (dev->inp == INP_DDR) {
 		stream = &vdev->stream[STREAM_II];
@@ -931,6 +1016,9 @@ static int config_nr_shp(struct rkispp_device *dev)
 		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val + addr_offs);
 		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 		rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
+
+		rkispp_write(dev, RKISPP_FEC_RD_Y_BASE, val);
+		rkispp_write(dev, RKISPP_FEC_RD_UV_BASE, val + addr_offs);
 	} else {
 		stream = &vdev->stream[STREAM_MB];
 		if (!stream->streaming) {
@@ -1212,7 +1300,7 @@ static void secure_config_mb(struct rkispp_stream *stream)
 	set_vir_stride(stream, ALIGN(stream->out_fmt.width * mult, 16) >> 2);
 
 	/* config first buf */
-	rkispp_frame_end(stream);
+	rkispp_frame_end(stream, FRAME_INIT);
 
 	stream->is_cfg = true;
 }
@@ -1331,7 +1419,7 @@ static int config_scl(struct rkispp_stream *stream)
 		SW_SCL_WR_UV_DIS | SW_SCL_BYPASS;
 
 	/* config first buf */
-	rkispp_frame_end(stream);
+	rkispp_frame_end(stream, FRAME_INIT);
 	if (hy_fac == 8193 && vy_fac == 8193)
 		val |= SW_SCL_BYPASS;
 	if (fmt->wr_fmt & FMT_YUYV)
@@ -2316,7 +2404,7 @@ static void monitor_init(struct rkispp_device *dev)
 
 static void fec_work_event(struct rkispp_device *dev,
 			   struct rkispp_dummy_buffer *buf_rd,
-			   bool is_isr)
+			   bool is_isr, bool is_quick)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_monitor *monitor = &vdev->monitor;
@@ -2325,15 +2413,12 @@ static void fec_work_event(struct rkispp_device *dev,
 	struct rkispp_dummy_buffer *dummy;
 	struct rkispp_stream *stream;
 	unsigned long lock_flags = 0, lock_flags1 = 0;
-	bool is_start = false, is_quick = false;
+	bool is_start = false;
 	struct rkisp_ispp_reg *reg_buf = NULL;
 	u32 val;
 
 	if (!(vdev->module_ens & ISPP_MODULE_FEC))
 		return;
-
-	if (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK)
-		is_quick = true;
 
 	spin_lock_irqsave(&vdev->fec.buf_lock, lock_flags);
 
@@ -2341,7 +2426,7 @@ static void fec_work_event(struct rkispp_device *dev,
 	if (!buf_rd && is_isr) {
 		vdev->fec.is_end = true;
 
-		if (vdev->fec.cur_rd)
+		if (vdev->fec.cur_rd || vdev->is_done_early)
 			rkispp_module_work_event(dev, NULL, vdev->fec.cur_rd,
 						 ISPP_MODULE_NR, false);
 		vdev->fec.cur_rd = NULL;
@@ -2380,13 +2465,18 @@ static void fec_work_event(struct rkispp_device *dev,
 		is_start = true;
 	}
 
-	if (is_start) {
+	if (is_start || is_quick) {
 		u32 seq = 0;
 
-		if (vdev->fec.cur_rd && !is_quick) {
+		if (vdev->fec.cur_rd) {
 			seq = vdev->fec.cur_rd->id;
 			dev->ispp_sdev.frame_timestamp =
 				vdev->fec.cur_rd->timestamp;
+			dev->ispp_sdev.frm_sync_seq = seq;
+		} else {
+			seq = vdev->nr.buf.wr[0].id;
+			dev->ispp_sdev.frame_timestamp =
+				vdev->nr.buf.wr[0].timestamp;
 			dev->ispp_sdev.frm_sync_seq = seq;
 		}
 
@@ -2414,8 +2504,13 @@ static void fec_work_event(struct rkispp_device *dev,
 			}
 		}
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
-			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
-			 seq, readl(base + RKISPP_FEC_RD_Y_BASE_SHD));
+			 "FEC start seq:%d | Y_SHD rd:0x%x\n"
+			 "\txint:0x%x xfra:0x%x yint:0x%x yfra:0x%x\n",
+			 seq, readl(base + RKISPP_FEC_RD_Y_BASE_SHD),
+			 readl(base + RKISPP_FEC_MESH_XINT_BASE_SHD),
+			 readl(base + RKISPP_FEC_MESH_XFRA_BASE_SHD),
+			 readl(base + RKISPP_FEC_MESH_YINT_BASE_SHD),
+			 readl(base + RKISPP_FEC_MESH_YFRA_BASE_SHD));
 
 		vdev->fec.dbg.id = seq;
 		vdev->fec.dbg.timestamp = ktime_get_ns();
@@ -2441,13 +2536,52 @@ static void fec_work_event(struct rkispp_device *dev,
 			reg_buf->reg_size = offset;
 		}
 
-		if (!dev->hw_dev->is_shutdown)
+		if (!dev->hw_dev->is_shutdown) {
 			writel(FEC_ST, base + RKISPP_CTRL_STRT);
+
+			if (vdev->is_done_early)
+				hrtimer_start(&vdev->frame_qst,
+					      ns_to_ktime(5000000),
+					      HRTIMER_MODE_REL);
+		}
 		vdev->fec.is_end = false;
 	}
 restart_unlock:
 	spin_unlock_irqrestore(&monitor->lock, lock_flags1);
 	spin_unlock_irqrestore(&vdev->fec.buf_lock, lock_flags);
+}
+
+static enum hrtimer_restart rkispp_fec_do_early(struct hrtimer *timer)
+{
+	struct rkispp_stream_vdev *vdev =
+		container_of(timer, struct rkispp_stream_vdev, fec_qst);
+	struct rkispp_stream *stream = &vdev->stream[0];
+	struct rkispp_device *dev = stream->isppdev;
+	void __iomem *base = dev->hw_dev->base_addr;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
+	u32 ycnt, tile = readl(base + RKISPP_CTRL_SYS_CTL_STA0);
+	u32 working = readl(base + RKISPP_CTRL_SYS_STATUS);
+	u64 ns = ktime_get_ns();
+	u32 time;
+
+	working &= NR_WORKING;
+	tile &= NR_TILE_LINE_CNT_MASK;
+	ycnt = tile >> 8;
+	time = (u32)(ns - vdev->nr.dbg.timestamp);
+	if (dev->ispp_sdev.state == ISPP_STOP) {
+		vdev->is_done_early = false;
+		goto end;
+	} else if (working && !ycnt) {
+		hrtimer_forward(timer, timer->base->get_time(), ns_to_ktime(500000));
+		ret = HRTIMER_RESTART;
+	} else {
+		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
+			 "%s seq:%d ycnt:%d time:%dus\n",
+			 __func__, vdev->nr.dbg.id, ycnt * 128, time / 1000);
+		fec_work_event(dev, NULL, false, true);
+	}
+end:
+	return ret;
 }
 
 static void nr_work_event(struct rkispp_device *dev,
@@ -2505,6 +2639,9 @@ static void nr_work_event(struct rkispp_device *dev,
 			/* nr write buf to fec */
 			buf_to_fec = vdev->nr.cur_wr;
 			vdev->nr.cur_wr = NULL;
+
+			if (vdev->is_done_early && !dev->hw_dev->is_first)
+				buf_to_fec = NULL;
 		}
 	}
 
@@ -2613,6 +2750,9 @@ static void nr_work_event(struct rkispp_device *dev,
 			if (vdev->nr.cur_wr) {
 				vdev->nr.cur_wr->id = seq;
 				vdev->nr.cur_wr->timestamp = timestamp;
+			} else {
+				vdev->nr.buf.wr[0].id = seq;
+				vdev->nr.buf.wr[0].timestamp = timestamp;
 			}
 			if (!is_fec_en && !is_quick) {
 				dev->ispp_sdev.frame_timestamp = timestamp;
@@ -2700,8 +2840,14 @@ static void nr_work_event(struct rkispp_device *dev,
 			reg_buf->reg_size = offset;
 		}
 
-		if (!is_quick && !dev->hw_dev->is_shutdown)
+		if (!is_quick && !dev->hw_dev->is_shutdown) {
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
+
+			if (!is_fec_en && vdev->is_done_early)
+				hrtimer_start(&vdev->frame_qst,
+					      ns_to_ktime(1000000),
+					      HRTIMER_MODE_REL);
+		}
 		vdev->nr.is_end = false;
 	}
 restart_unlock:
@@ -2715,6 +2861,12 @@ end:
 		rkispp_module_work_event(dev, buf_to_fec, NULL,
 					 ISPP_MODULE_FEC, is_isr);
 	spin_unlock_irqrestore(&vdev->nr.buf_lock, lock_flags);
+
+	if (is_fec_en && vdev->is_done_early &&
+	    is_start && !dev->hw_dev->is_first)
+		hrtimer_start(&vdev->fec_qst,
+			      ns_to_ktime(1000000),
+			      HRTIMER_MODE_REL);
 }
 
 static void tnr_work_event(struct rkispp_device *dev,
@@ -3093,6 +3245,9 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 			      u32 module, bool is_isr)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	bool is_fec_en = !!(vdev->module_ens & ISPP_MODULE_FEC);
+	bool is_single = dev->hw_dev->is_single;
+	//bool is_early = vdev->is_done_early;
 
 	if (dev->hw_dev->is_shutdown)
 		return;
@@ -3103,18 +3258,28 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 		else if (module & ISPP_MODULE_NR)
 			nr_work_event(dev, buf_rd, buf_wr, is_isr);
 		else
-			fec_work_event(dev, buf_rd, is_isr);
+			fec_work_event(dev, buf_rd, is_isr, false);
 	}
 
-	/* cur frame (tnr->nr->fec) done for next frame
-	 * fec start at nr end if fec enable, and fec can async with
-	 * tnr different frames for single device.
-	 * tnr->nr->fec frame0
-	 *       |->tnr->nr->fec frame1
+	/*
+	 * ispp frame done to do next conditions
+	 * mulit dev: cur frame (tnr->nr->fec) done for next frame
+	 * 1.single dev: fec async with tnr, and sync with nr:
+	 *   {    f0    }
+	 *   tnr->nr->fec->|
+	 *          |->tnr->nr->fec
+	 *             {    f1    }
+	 * 2.single dev and early mode:
+	 *   {  f0 }  {  f1 }  {  f2 }
+	 *   tnr->nr->tnr->nr->tnr->nr
+	 *        |->fec->||->fec->|
+	 *        {   f0  }{   f1  }
 	 */
 	if (is_isr && !buf_rd && !buf_wr &&
-	    ((module == ISPP_MODULE_FEC && !dev->hw_dev->is_single) ||
-	     (module == ISPP_MODULE_NR && (dev->hw_dev->is_single || vdev->fec.is_end)))) {
+	    ((!is_fec_en && module == ISPP_MODULE_NR) ||
+	     (is_fec_en &&
+	      ((module == ISPP_MODULE_NR && is_single) ||
+	       (module == ISPP_MODULE_FEC && !is_single))))) {
 		dev->stream_vdev.monitor.retry = 0;
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
 	}
@@ -3201,7 +3366,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 			stream->is_upd = false;
 			wake_up(&stream->done);
 		} else if (i != STREAM_II) {
-			rkispp_frame_end(stream);
+			rkispp_frame_end(stream, FRAME_IRQ);
 		}
 	}
 
@@ -3235,6 +3400,11 @@ int rkispp_register_stream_vdevs(struct rkispp_device *dev)
 	spin_lock_init(&stream_vdev->nr.buf_lock);
 	spin_lock_init(&stream_vdev->fec.buf_lock);
 	stream_vdev->tnr.is_but_init = false;
+
+	hrtimer_init(&stream_vdev->fec_qst, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	stream_vdev->fec_qst.function = rkispp_fec_do_early;
+	hrtimer_init(&stream_vdev->frame_qst, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	stream_vdev->frame_qst.function = rkispp_frame_done_early;
 
 	for (i = 0; i < STREAM_MAX; i++) {
 		stream = &stream_vdev->stream[i];

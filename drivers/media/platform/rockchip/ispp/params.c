@@ -729,6 +729,24 @@ rkispp_param_init_fecbuf(struct rkispp_params_vdev *params,
 		fec_data->meshyf_oft = fec_data->meshxf_oft + ALIGN(mesh_size, 16);
 		fec_data->meshxi_oft = fec_data->meshyf_oft + ALIGN(mesh_size, 16);
 		fec_data->meshyi_oft = fec_data->meshxi_oft + ALIGN(mesh_size * 2, 16);
+
+		if (!i) {
+			u32 val, dma_addr = params->buf_fec[i].dma_addr;
+
+			val = dma_addr + fec_data->meshxf_oft;
+			rkispp_write(pp_dev, RKISPP_FEC_MESH_XFRA_BASE, val);
+			val = dma_addr + fec_data->meshyf_oft;
+			rkispp_write(pp_dev, RKISPP_FEC_MESH_YFRA_BASE, val);
+			val = dma_addr + fec_data->meshxi_oft;
+			rkispp_write(pp_dev, RKISPP_FEC_MESH_XINT_BASE, val);
+			val = dma_addr + fec_data->meshyi_oft;
+			rkispp_write(pp_dev, RKISPP_FEC_MESH_YINT_BASE, val);
+		}
+		v4l2_dbg(1, rkispp_debug, &pp_dev->v4l2_dev,
+			 "%s idx:%d fd:%d dma:0x%x offset xf:0x%x yf:0x%x xi:0x%x yi:0x%x\n",
+			 __func__, i, params->buf_fec[i].dma_fd, params->buf_fec[i].dma_addr,
+			fec_data->meshxf_oft, fec_data->meshyf_oft,
+			fec_data->meshxi_oft, fec_data->meshyi_oft);
 	}
 
 	return 0;

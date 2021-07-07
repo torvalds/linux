@@ -405,6 +405,21 @@
 #define GLB_ISP2NR_DIF(a)		(((a) & 0xff) << 8)
 #define GLB_NR2FEC_DIF(a)		((a) & 0xff)
 
+/* SYS_STATUS */
+#define TNR_WORKING			BIT(0)
+#define NR_WORKING			BIT(1)
+#define SHP_WORKING			BIT(2)
+#define ORB_WORKING			BIT(3)
+#define SCL0_WORKING			BIT(4)
+#define SCL1_WORKING			BIT(5)
+#define SCL2_WORKING			BIT(6)
+#define FEC_WORKING			BIT(7)
+
+/* SYS_CTL_STA0 */
+#define TNR_TILE_LINE_CNT_MASK		GENMASK(6, 0)
+#define NR_TILE_LINE_CNT_MASK		GENMASK(14, 8)
+#define FEC_TILE_LINE_CNT_MASK		GENMASK(22, 16)
+
 /* TNR CTRL */
 #define SW_TNR_WR_FORMAT_MASK		GENMASK(7, 4)
 #define SW_TNR_RD_FORMAT_MASK		GENMASK(3, 0)

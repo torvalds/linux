@@ -217,9 +217,13 @@ struct rkispp_stream_vdev {
 	struct rkispp_monitor monitor;
 	struct rkispp_vir_cpy vir_cpy;
 	struct rkisp_ispp_buf input[VIDEO_MAX_FRAME];
+	struct hrtimer fec_qst;
+	struct hrtimer frame_qst;
 	atomic_t refcnt;
 	u32 module_ens;
 	u32 irq_ends;
+	u32 wait_line;
+	bool is_done_early;
 };
 
 int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd);

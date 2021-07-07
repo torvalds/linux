@@ -60,6 +60,10 @@ unsigned int rkispp_debug_reg = 0x1F;
 module_param_named(debug_reg, rkispp_debug_reg, uint, 0644);
 MODULE_PARM_DESC(debug_reg, "rkispp debug register");
 
+static unsigned int rkispp_wait_line;
+module_param_named(wait_line, rkispp_wait_line, uint, 0644);
+MODULE_PARM_DESC(wait_line, "rkispp wait line to buf done early");
+
 void rkispp_set_clk_rate(struct clk *clk, unsigned long rate)
 {
 	if (rkispp_clk_dbg)
@@ -297,6 +301,9 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unreg_media_dev;
 
+	rkispp_wait_line = 0;
+	of_property_read_u32(pdev->dev.of_node, "wait-line",
+			     &rkispp_wait_line);
 	rkispp_proc_init(ispp_dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -347,6 +354,7 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	ispp_dev->isp_mode = rkisp_ispp_mode;
 	ispp_dev->stream_sync = rkispp_stream_sync;
 	ispp_dev->stream_vdev.monitor.is_en = rkispp_monitor;
+	ispp_dev->stream_vdev.wait_line = rkispp_wait_line;
 
 	mutex_lock(&ispp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(ispp_dev->hw_dev->dev);
