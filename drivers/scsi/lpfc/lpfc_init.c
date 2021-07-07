@@ -4845,7 +4845,7 @@ lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
 
 /**
  * lpfc_vmid_poll - VMID timeout detection
- * @ptr: Map to lpfc_hba data structure pointer.
+ * @t: Timer context used to obtain the pointer to lpfc hba data structure.
  *
  * This routine is invoked when there is no I/O on by a VM for the specified
  * amount of time. When this situation is detected, the VMID has to be
