@@ -207,6 +207,7 @@ extern void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 				    struct svc_rdma_send_ctxt *sctxt,
 				    struct svc_rdma_recv_ctxt *rctxt,
 				    int status);
+extern void svc_rdma_wake_send_waiters(struct svcxprt_rdma *rdma, int avail);
 extern int svc_rdma_sendto(struct svc_rqst *);
 extern int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 				   unsigned int length);

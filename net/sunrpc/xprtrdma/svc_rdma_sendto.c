@@ -259,6 +259,20 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 }
 
 /**
+ * svc_rdma_wake_send_waiters - manage Send Queue accounting
+ * @rdma: controlling transport
+ * @avail: Number of additional SQEs that are now available
+ *
+ */
+void svc_rdma_wake_send_waiters(struct svcxprt_rdma *rdma, int avail)
+{
+	atomic_add(avail, &rdma->sc_sq_avail);
+	smp_mb__after_atomic();
+	if (unlikely(waitqueue_active(&rdma->sc_send_wait)))
+		wake_up(&rdma->sc_send_wait);
+}
+
+/**
  * svc_rdma_wc_send - Invoked by RDMA provider for each polled Send WC
  * @cq: Completion Queue context
  * @wc: Work Completion object
@@ -275,10 +289,8 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
 
+	svc_rdma_wake_send_waiters(rdma, 1);
 	complete(&ctxt->sc_done);
-
-	atomic_inc(&rdma->sc_sq_avail);
-	wake_up(&rdma->sc_send_wait);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		svc_xprt_deferred_close(&rdma->sc_xprt);

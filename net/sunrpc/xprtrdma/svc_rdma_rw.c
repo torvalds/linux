@@ -248,8 +248,7 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	trace_svcrdma_wc_write(wc, &cc->cc_cid);
 
-	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
-	wake_up(&rdma->sc_send_wait);
+	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		svc_xprt_deferred_close(&rdma->sc_xprt);
@@ -304,9 +303,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	trace_svcrdma_wc_read(wc, &cc->cc_cid);
 
-	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
-	wake_up(&rdma->sc_send_wait);
-
+	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
 	cc->cc_status = wc->status;
 	complete(&cc->cc_done);
 	return;
