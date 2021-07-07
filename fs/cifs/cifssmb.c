@@ -2537,8 +2537,9 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->TotalDataCount = pSMB->DataCount;
 	pSMB->TotalParameterCount = pSMB->ParameterCount;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
 	parm_data = (struct cifs_posix_lock *)
-			(((char *) &pSMB->hdr.Protocol) + offset);
+			(((char *)pSMB) + offset + 4);
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
 	if (waitFlag) {
