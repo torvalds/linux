@@ -150,22 +150,13 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to reset PWM\n");
 
-	ret = pwmchip_add(&mxs->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &mxs->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add pwm chip %d\n", ret);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, mxs);
-
 	return 0;
-}
-
-static int mxs_pwm_remove(struct platform_device *pdev)
-{
-	struct mxs_pwm_chip *mxs = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&mxs->chip);
 }
 
 static const struct of_device_id mxs_pwm_dt_ids[] = {
@@ -180,7 +171,6 @@ static struct platform_driver mxs_pwm_driver = {
 		.of_match_table = mxs_pwm_dt_ids,
 	},
 	.probe = mxs_pwm_probe,
-	.remove = mxs_pwm_remove,
 };
 module_platform_driver(mxs_pwm_driver);
 
