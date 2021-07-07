@@ -7,6 +7,27 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
+static u32 rxe_crc32(struct rxe_dev *rxe, u32 crc, void *next, size_t len)
+{
+	u32 icrc;
+	int err;
+
+	SHASH_DESC_ON_STACK(shash, rxe->tfm);
+
+	shash->tfm = rxe->tfm;
+	*(u32 *)shash_desc_ctx(shash) = crc;
+	err = crypto_shash_update(shash, next, len);
+	if (unlikely(err)) {
+		pr_warn_ratelimited("failed crc calculation, err: %d\n", err);
+		return crc32_le(crc, next, len);
+	}
+
+	icrc = *(u32 *)shash_desc_ctx(shash);
+	barrier_data(shash_desc_ctx(shash));
+
+	return icrc;
+}
+
 /* Compute a partial ICRC for all the IB transport headers. */
 u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
