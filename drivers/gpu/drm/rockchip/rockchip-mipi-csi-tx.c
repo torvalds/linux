@@ -1088,8 +1088,8 @@ static int rockchip_mipi_csi_register(struct drm_device *drm,
 	struct device *dev = csi->dev;
 	int ret;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm,
-							     dev->of_node);
+	encoder->possible_crtcs = rockchip_drm_of_find_possible_crtcs(drm,
+								      dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has

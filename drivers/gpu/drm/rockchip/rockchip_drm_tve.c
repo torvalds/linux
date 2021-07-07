@@ -508,8 +508,8 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	check_uboot_logo(tve);
 	tve->tv_format = TVOUT_CVBS_PAL;
 	encoder = &tve->encoder;
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dev->of_node);
+	encoder->possible_crtcs = rockchip_drm_of_find_possible_crtcs(drm_dev,
+								      dev->of_node);
 	dev_dbg(tve->dev, "possible_crtc:%d\n", encoder->possible_crtcs);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_tve_encoder_funcs,

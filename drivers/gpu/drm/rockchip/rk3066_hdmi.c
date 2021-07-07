@@ -542,7 +542,7 @@ rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
 	struct device *dev = hdmi->dev;
 
 	encoder->possible_crtcs =
-		drm_of_find_possible_crtcs(drm, dev->of_node);
+		rockchip_drm_of_find_possible_crtcs(drm, dev->of_node);
 
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
