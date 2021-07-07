@@ -384,10 +384,12 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 {
 	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&pc->chip);
+
 	clk_unprepare(pc->pclk);
 	clk_unprepare(pc->clk);
 
-	return pwmchip_remove(&pc->chip);
+	return 0;
 }
 
 static struct platform_driver rockchip_pwm_driver = {
