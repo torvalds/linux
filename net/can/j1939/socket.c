@@ -964,7 +964,7 @@ void j1939_sk_errqueue(struct j1939_session *session,
 	serr = SKB_EXT_ERR(skb);
 	memset(serr, 0, sizeof(*serr));
 	switch (type) {
-	case J1939_ERRQUEUE_ACK:
+	case J1939_ERRQUEUE_TX_ACK:
 		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)) {
 			kfree_skb(skb);
 			return;
@@ -975,7 +975,7 @@ void j1939_sk_errqueue(struct j1939_session *session,
 		serr->ee.ee_info = SCM_TSTAMP_ACK;
 		state = "ACK";
 		break;
-	case J1939_ERRQUEUE_SCHED:
+	case J1939_ERRQUEUE_TX_SCHED:
 		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED)) {
 			kfree_skb(skb);
 			return;
@@ -986,7 +986,7 @@ void j1939_sk_errqueue(struct j1939_session *session,
 		serr->ee.ee_info = SCM_TSTAMP_SCHED;
 		state = "SCH";
 		break;
-	case J1939_ERRQUEUE_ABORT:
+	case J1939_ERRQUEUE_TX_ABORT:
 		serr->ee.ee_errno = session->err;
 		serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
 		serr->ee.ee_info = J1939_EE_INFO_TX_ABORT;
