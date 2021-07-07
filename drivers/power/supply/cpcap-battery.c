@@ -667,10 +667,23 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		if (!empty->voltage)
 			return -ENODATA;
 		val->intval = empty->counter_uah - latest->counter_uah;
-		if (val->intval < 0)
+		if (val->intval < 0) {
+			/* Assume invalid config if CHARGE_NOW is -20% */
+			if (ddata->charge_full && abs(val->intval) > ddata->charge_full/5) {
+				empty->voltage = 0;
+				ddata->charge_full = 0;
+				return -ENODATA;
+			}
 			val->intval = 0;
-		else if (ddata->charge_full && ddata->charge_full < val->intval)
+		} else if (ddata->charge_full && ddata->charge_full < val->intval) {
+			/* Assume invalid config if CHARGE_NOW exceeds CHARGE_FULL by 20% */
+			if (val->intval > (6*ddata->charge_full)/5) {
+				empty->voltage = 0;
+				ddata->charge_full = 0;
+				return -ENODATA;
+			}
 			val->intval = ddata->charge_full;
+		}
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		if (!ddata->charge_full)
@@ -747,7 +760,7 @@ static int cpcap_battery_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		if (val->intval < 0)
 			return -EINVAL;
-		if (val->intval > ddata->config.info.charge_full_design)
+		if (val->intval > (6*ddata->config.info.charge_full_design)/5)
 			return -EINVAL;
 
 		ddata->charge_full = val->intval;
