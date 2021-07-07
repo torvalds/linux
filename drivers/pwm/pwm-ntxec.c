@@ -155,7 +155,6 @@ static int ntxec_pwm_probe(struct platform_device *pdev)
 	chip = &priv->chip;
 	chip->dev = &pdev->dev;
 	chip->ops = &ntxec_pwm_ops;
-	chip->base = -1;
 	chip->npwm = 1;
 
 	return pwmchip_add(chip);
