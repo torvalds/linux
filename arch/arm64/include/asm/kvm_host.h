@@ -381,7 +381,14 @@ extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 
 enum kvm_iommu_driver {
 	KVM_IOMMU_DRIVER_NONE,
+	KVM_IOMMU_DRIVER_S2MPU,
 };
+
+#ifdef CONFIG_KVM_S2MPU
+int kvm_s2mpu_init(void);
+#else
+static inline int kvm_s2mpu_init(void) { return -ENODEV; }
+#endif
 
 struct vcpu_reset_state {
 	unsigned long	pc;

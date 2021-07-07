@@ -306,6 +306,12 @@ int select_iommu_ops(enum kvm_iommu_driver driver)
 	switch (driver) {
 	case KVM_IOMMU_DRIVER_NONE:
 		return 0;
+	case KVM_IOMMU_DRIVER_S2MPU:
+		if (IS_ENABLED(CONFIG_KVM_S2MPU)) {
+			kvm_iommu_ops = kvm_s2mpu_ops;
+			return 0;
+		}
+		break;
 	}
 
 	return -EINVAL;
