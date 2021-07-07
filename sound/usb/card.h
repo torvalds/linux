@@ -158,6 +158,7 @@ struct snd_usb_substream {
 	unsigned int stream_offset_adj;	/* Bytes to drop from beginning of stream (for non-compliant devices) */
 
 	unsigned int running: 1;	/* running status */
+	unsigned int period_elapsed_pending;	/* delay period handling */
 
 	unsigned int buffer_bytes;	/* buffer size in bytes */
 	unsigned int inflight_bytes;	/* in-flight data bytes on buffer (for playback) */
