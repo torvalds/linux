@@ -1990,14 +1990,13 @@ static bool page_mlock_one(struct page *page, struct vm_area_struct *vma,
 			 * this function is never called when PageDoubleMap().
 			 */
 			mlock_vma_page(page);
+			/*
+			 * No need to scan further once the page is marked
+			 * as mlocked.
+			 */
 			page_vma_mapped_walk_done(&pvmw);
+			return false;
 		}
-
-		/*
-		 * no need to continue scanning other vma's if the page has
-		 * been locked.
-		 */
-		return false;
 	}
 
 	return true;
