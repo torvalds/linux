@@ -230,6 +230,7 @@ struct rockchip_dw_dsi_chip_data {
 	enum soc_type soc_type;
 	unsigned int flags;
 	unsigned int max_data_lanes;
+	unsigned long max_bit_rate_per_lane;
 };
 
 struct dw_mipi_dsi_rockchip {
@@ -519,19 +520,22 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 			  unsigned int *lane_mbps)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	struct device *dev = dsi->dev;
 	int bpp;
 	unsigned long mpclk, tmp;
 	unsigned int target_mbps = 1000;
-	unsigned int max_mbps = dppa_map[ARRAY_SIZE(dppa_map) - 1].max_mbps;
+	unsigned int max_mbps;
 	unsigned long best_freq = 0;
 	unsigned long fvco_min, fvco_max, fin, fout;
 	unsigned int min_prediv, max_prediv;
 	unsigned int _prediv, best_prediv;
 	unsigned long _fbdiv, best_fbdiv;
 	unsigned long min_delta = ULONG_MAX;
-	unsigned long hs_clk_rate;
+	unsigned long target_pclk, hs_clk_rate;
+	unsigned int value;
 	int ret;
 
+	max_mbps = dsi->cdata->max_bit_rate_per_lane / USEC_PER_SEC;
 	dsi->format = format;
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 	if (bpp < 0) {
@@ -541,20 +545,28 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 		return bpp;
 	}
 
-	mpclk = DIV_ROUND_UP(mode->clock, MSEC_PER_SEC);
-	if (mpclk) {
-		/* take 1 / 0.8, since mbps must big than bandwidth of RGB */
-		tmp = mpclk * (bpp / lanes) * 10 / 8;
-		if (tmp < max_mbps)
-			target_mbps = tmp;
-		else
-			DRM_DEV_ERROR(dsi->dev,
-				      "DPHY clock frequency is out of range\n");
+	/* optional override of the desired bandwidth */
+	if (!of_property_read_u32(dev->of_node, "rockchip,lane-rate", &value)) {
+		target_mbps = value;
+	} else {
+		mpclk = DIV_ROUND_UP(mode->clock, MSEC_PER_SEC);
+		if (mpclk) {
+			/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
+			tmp = mpclk * (bpp / lanes) * 10 / 9;
+			if (tmp < max_mbps)
+				target_mbps = tmp;
+			else {
+				DRM_DEV_ERROR(dsi->dev,
+					      "DPHY clock frequency is out of range\n");
+				target_mbps = max_mbps;
+			}
+		}
 	}
 
 	/* for external phy only a the mipi_dphy_config is necessary */
 	if (dsi->phy) {
-		phy_mipi_dphy_get_default_config((unsigned long)mode->clock * 1000 * 10 / 8,
+		target_pclk = DIV_ROUND_CLOSEST_ULL(target_mbps * lanes, bpp);
+		phy_mipi_dphy_get_default_config(target_pclk * USEC_PER_SEC,
 						 bpp, lanes,
 						 &dsi->phy_opts.mipi_dphy);
 		ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
@@ -1215,6 +1227,7 @@ static const struct rockchip_dw_dsi_chip_data px30_chip_data[] = {
 					     PX30_DSI_FORCETXSTOPMODE),
 
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1000000000UL,
 		.soc_type = PX30,
 	},
 	{ /* sentinel */ }
@@ -1228,6 +1241,7 @@ static const struct rockchip_dw_dsi_chip_data rk3288_chip_data[] = {
 		.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI0_LCDC_SEL, RK3288_DSI0_LCDC_SEL),
 
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3288,
 	},
 	{
@@ -1237,6 +1251,7 @@ static const struct rockchip_dw_dsi_chip_data rk3288_chip_data[] = {
 		.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI1_LCDC_SEL, RK3288_DSI1_LCDC_SEL),
 
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3288,
 	},
 	{ /* sentinel */ }
@@ -1258,6 +1273,7 @@ static const struct rockchip_dw_dsi_chip_data rk3399_chip_data[] = {
 
 		.flags = DW_MIPI_NEEDS_PHY_CFG_CLK | DW_MIPI_NEEDS_GRF_CLK,
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3399,
 	},
 	{
@@ -1285,6 +1301,7 @@ static const struct rockchip_dw_dsi_chip_data rk3399_chip_data[] = {
 
 		.flags = DW_MIPI_NEEDS_PHY_CFG_CLK | DW_MIPI_NEEDS_GRF_CLK,
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3399,
 	},
 	{ /* sentinel */ }
@@ -1301,6 +1318,7 @@ static const struct rockchip_dw_dsi_chip_data rk3568_chip_data[] = {
 
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1200000000UL,
 		.soc_type = RK3568,
 	},
 	{
@@ -1313,6 +1331,7 @@ static const struct rockchip_dw_dsi_chip_data rk3568_chip_data[] = {
 
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1200000000UL,
 		.soc_type = RK3568,
 	},
 	{ /* sentinel */ }
