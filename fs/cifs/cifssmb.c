@@ -5628,9 +5628,9 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->TotalDataCount = pSMB->DataCount;
 	pSMB->TotalParameterCount = pSMB->ParameterCount;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
 	parm_data =
-		(struct file_end_of_file_info *) (((char *) &pSMB->hdr.Protocol)
-				+ offset);
+		(struct file_end_of_file_info *)(((char *)pSMB) + offset + 4);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	parm_data->FileSize = cpu_to_le64(size);
 	pSMB->Fid = cfile->fid.netfid;
