@@ -12268,9 +12268,10 @@ fcponly:
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
 
-	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
-	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-	    LPFC_SLI_INTF_IF_TYPE_6) || (!bf_get(cfg_xib, mbx_sli4_parameters)))
+	/* Enable embedded Payload BDE if support is indicated */
+	if (bf_get(cfg_pbde, mbx_sli4_parameters))
+		phba->cfg_enable_pbde = 1;
+	else
 		phba->cfg_enable_pbde = 0;
 
 	/*

@@ -3334,17 +3334,20 @@ struct lpfc_sli4_parameters {
 #define cfg_nosr_SHIFT				9
 #define cfg_nosr_MASK				0x00000001
 #define cfg_nosr_WORD				word19
-
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
-#define cfg_pvl_SHIFT				13
-#define cfg_pvl_MASK				0x00000001
-#define cfg_pvl_WORD				word19
 
 #define cfg_nsler_SHIFT                         12
 #define cfg_nsler_MASK                          0x00000001
 #define cfg_nsler_WORD                          word19
+#define cfg_pvl_SHIFT				13
+#define cfg_pvl_MASK				0x00000001
+#define cfg_pvl_WORD				word19
+
+#define cfg_pbde_SHIFT				20
+#define cfg_pbde_MASK				0x00000001
+#define cfg_pbde_WORD				word19
 
 	uint32_t word20;
 #define cfg_max_tow_xri_SHIFT			0
