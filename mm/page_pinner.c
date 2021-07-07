@@ -25,7 +25,10 @@ struct page_pinner {
 
 struct captured_pinner {
 	depot_stack_handle_t handle;
-	s64 ts_usec;
+	union {
+		s64 ts_usec;
+		s64 elapsed;
+	};
 	int page_mt;
 	unsigned long page_flags;
 	unsigned long pfn;
@@ -137,7 +140,7 @@ static void check_longterm_pin(struct page_pinner *page_pinner,
 		return;
 
 	record.handle = page_pinner->handle;
-	record.ts_usec = delta;
+	record.elapsed = delta;
 	capture_page_state(page, &record);
 
 	spin_lock_irqsave(&lt_pinner.lock, flags);
@@ -206,7 +209,7 @@ noinline void __set_page_pinner(struct page *page, unsigned int order)
 }
 
 static ssize_t
-print_page_pinner(char __user *buf, size_t count, struct captured_pinner *record)
+print_page_pinner(bool longterm, char __user *buf, size_t count, struct captured_pinner *record)
 {
 	int ret;
 	unsigned long *entries;
@@ -218,9 +221,17 @@ print_page_pinner(char __user *buf, size_t count, struct captured_pinner *record
 	if (!kbuf)
 		return -ENOMEM;
 
-	ret = snprintf(kbuf, count,
-			"Page pinned ts %lld us\n",
-			record->ts_usec);
+	if (longterm) {
+		ret = snprintf(kbuf, count, "Page pinned for %lld us\n",
+			       record->elapsed);
+	} else {
+		s64 ts_usec = record->ts_usec;
+		unsigned long rem_usec = do_div(ts_usec, 1000000);
+
+		ret = snprintf(kbuf, count,
+			       "Page pinned ts [%5lu.%06lu]\n",
+			       (unsigned long)ts_usec, rem_usec);
+	}
 
 	if (ret >= count)
 		goto err;
@@ -267,6 +278,8 @@ void __dump_page_pinner(struct page *page)
 	int pageblock_mt;
 	unsigned long pfn;
 	int count;
+	unsigned long rem_usec;
+	s64 ts_usec;
 
 	if (unlikely(!page_ext)) {
 		pr_alert("There is not page extension available.\n");
@@ -282,9 +295,10 @@ void __dump_page_pinner(struct page *page)
 	}
 
 	pfn = page_to_pfn(page);
-	pr_alert("page last pinned ts %lld count %d\n",
-			page_pinner->ts_usec,
-			count);
+	ts_usec = page_pinner->ts_usec;
+	rem_usec = do_div(ts_usec, 1000000);
+	pr_alert("page last pinned %5lu.%06lu] count %d\n",
+		 (unsigned long)ts_usec, rem_usec, count);
 
 	pageblock_mt = get_pageblock_migratetype(page);
 	pr_alert("PFN %lu Block %lu type %s Flags %#lx(%pGp)\n",
@@ -374,7 +388,7 @@ read_longterm_page_pinner(struct file *file, char __user *buf, size_t count,
 	if (!record.handle)
 		return 0;
 
-	return print_page_pinner(buf, count, &record);
+	return print_page_pinner(true, buf, count, &record);
 }
 
 static const struct file_operations proc_longterm_pinner_operations = {
@@ -410,7 +424,7 @@ static ssize_t read_alloc_contig_failed(struct file *file, char __user *buf,
 	if (!record.handle)
 		return 0;
 
-	return print_page_pinner(buf, count, &record);
+	return print_page_pinner(false, buf, count, &record);
 }
 
 static const struct file_operations proc_alloc_contig_failed_operations = {
