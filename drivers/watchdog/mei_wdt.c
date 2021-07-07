@@ -105,7 +105,7 @@ struct mei_wdt {
 #endif /* CONFIG_DEBUG_FS */
 };
 
-/*
+/**
  * struct mei_mc_hdr - Management Control Command Header
  *
  * @command: Management Control (0x2)
@@ -474,7 +474,7 @@ out:
 		complete(&wdt->response);
 }
 
-/*
+/**
  * mei_wdt_notif - callback for event notification
  *
  * @cldev: bus device
