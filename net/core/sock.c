@@ -1123,8 +1123,10 @@ set_sndbuf:
 	case SO_TIMESTAMPING_OLD:
 		if (optlen == sizeof(timestamping)) {
 			if (copy_from_sockptr(&timestamping, optval,
-					      sizeof(timestamping)))
-				return -EFAULT;
+					      sizeof(timestamping))) {
+				ret = -EFAULT;
+				break;
+			}
 		} else {
 			memset(&timestamping, 0, sizeof(timestamping));
 			timestamping.flags = val;
