@@ -296,7 +296,7 @@ static int pwm_sifive_remove(struct platform_device *dev)
 	struct pwm_sifive_ddata *ddata = platform_get_drvdata(dev);
 	bool is_enabled = false;
 	struct pwm_device *pwm;
-	int ret, ch;
+	int ch;
 
 	for (ch = 0; ch < ddata->chip.npwm; ch++) {
 		pwm = &ddata->chip.pwms[ch];
@@ -309,10 +309,10 @@ static int pwm_sifive_remove(struct platform_device *dev)
 		clk_disable(ddata->clk);
 
 	clk_disable_unprepare(ddata->clk);
-	ret = pwmchip_remove(&ddata->chip);
+	pwmchip_remove(&ddata->chip);
 	clk_notifier_unregister(ddata->clk, &ddata->notifier);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id pwm_sifive_of_match[] = {
