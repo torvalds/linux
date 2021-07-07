@@ -1154,7 +1154,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 {
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
-	struct crypto_shash *tfm;
 
 	strscpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
@@ -1173,13 +1172,9 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	if (err)
 		return err;
 
-	tfm = crypto_alloc_shash("crc32", 0, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("failed to allocate crc algorithm err:%ld\n",
-		       PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
-	rxe->tfm = tfm;
+	err = rxe_icrc_init(rxe);
+	if (err)
+		return err;
 
 	err = ib_register_device(dev, ibdev_name, NULL);
 	if (err)
