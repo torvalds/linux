@@ -2106,6 +2106,11 @@ static int nmi_interception(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int smi_interception(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 static int intr_interception(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.irq_exits;
@@ -3080,7 +3085,7 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_EXCP_BASE + GP_VECTOR]	= gp_interception,
 	[SVM_EXIT_INTR]				= intr_interception,
 	[SVM_EXIT_NMI]				= nmi_interception,
-	[SVM_EXIT_SMI]				= kvm_emulate_as_nop,
+	[SVM_EXIT_SMI]				= smi_interception,
 	[SVM_EXIT_INIT]				= kvm_emulate_as_nop,
 	[SVM_EXIT_VINTR]			= interrupt_window_interception,
 	[SVM_EXIT_RDPMC]			= kvm_emulate_rdpmc,
