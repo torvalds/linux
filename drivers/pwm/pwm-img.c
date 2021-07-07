@@ -331,7 +331,9 @@ static int img_pwm_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		img_pwm_runtime_suspend(&pdev->dev);
 
-	return pwmchip_remove(&pwm_chip->chip);
+	pwmchip_remove(&pwm_chip->chip);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
