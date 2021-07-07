@@ -3413,7 +3413,6 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 		return 1;
 	}
 
-	/* Keep the ndlp just in case RDF is being sent */
 	return 0;
 }
 
@@ -3657,11 +3656,9 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 		lpfc_enqueue_node(vport, ndlp);
 	}
 
-	/* RDF ELS is not required on an NPIV VN_Port.  */
-	if (vport->port_type == LPFC_NPIV_PORT) {
-		lpfc_nlp_put(ndlp);
+	/* RDF ELS is not required on an NPIV VN_Port. */
+	if (vport->port_type == LPFC_NPIV_PORT)
 		return -EACCES;
-	}
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_RDF);
