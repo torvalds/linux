@@ -1207,10 +1207,8 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 	struct kvec vec;
 	struct smb_direct_send_ctx send_ctx;
 
-	if (st->status != SMB_DIRECT_CS_CONNECTED) {
-		ret = -ENOTCONN;
-		goto done;
-	}
+	if (st->status != SMB_DIRECT_CS_CONNECTED)
+		return -ENOTCONN;
 
 	//FIXME: skip RFC1002 header..
 	buflen -= 4;
