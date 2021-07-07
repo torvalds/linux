@@ -39,7 +39,7 @@ static inline void dump_page_pinner(struct page *page)
 		__dump_page_pinner(page);
 }
 
-static inline void page_pinner_migration_failed(struct page *page)
+static inline void page_pinner_put_page(struct page *page)
 {
 	if (!static_branch_unlikely(&failure_tracking))
 		return;
@@ -67,7 +67,7 @@ static inline void set_page_pinner(struct page *page, unsigned int order)
 static inline void dump_page_pinner(struct page *page)
 {
 }
-static inline void page_pinner_migration_failed(struct page *page)
+static inline void page_pinner_put_page(struct page *page)
 {
 }
 static inline void page_pinner_mark_migration_failed_pages(struct list_head *page_list)

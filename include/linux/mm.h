@@ -1233,7 +1233,7 @@ static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
 
-	page_pinner_migration_failed(page);
+	page_pinner_put_page(page);
 
 	/*
 	 * For devmap managed pages we need to catch refcount transition from
