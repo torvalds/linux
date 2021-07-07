@@ -698,11 +698,24 @@ struct hstt hstt_table[] = {
 	HSTT(1500, 181, 66, 153, 50)
 };
 
+struct dw_mipi_dsi_dphy_timing ext_dphy_timing = {
+	.clk_lp2hs = 0x40,
+	.clk_hs2lp = 0x40,
+	.data_lp2hs = 0x10,
+	.data_hs2lp = 0x14,
+};
+
 static int
 dw_mipi_dsi_phy_get_timing(void *priv_data, unsigned int lane_mbps,
 			   struct dw_mipi_dsi_dphy_timing *timing)
 {
+	struct dw_mipi_dsi_rockchip *dsi = priv_data;
 	int i;
+
+	if (dsi->phy) {
+		*timing = ext_dphy_timing;
+		return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(hstt_table); i++)
 		if (lane_mbps < hstt_table[i].maxfreq)
