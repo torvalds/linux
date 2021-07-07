@@ -4612,6 +4612,15 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto out;
 
 	if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
+
+		/* If PLOGI is being retried, PLOGI completion will cleanup the
+		 * node. The NLP_NPR_2B_DISC flag needs to be retained to make
+		 * progress on nodes discovered from last RSCN.
+		 */
+		if ((ndlp->nlp_flag & NLP_DELAY_TMO) &&
+		    (ndlp->nlp_last_elscmd == ELS_CMD_PLOGI))
+			goto out;
+
 		/* NPort Recovery mode or node is just allocated */
 		if (!lpfc_nlp_not_used(ndlp)) {
 			/* A LOGO is completing and the node is in NPR state.
@@ -8948,6 +8957,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
+		if (newnode)
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+					NLP_EVT_DEVICE_RM);
 		break;
 	case ELS_CMD_PRLO:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
