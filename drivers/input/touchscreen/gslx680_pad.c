@@ -540,12 +540,11 @@ static int gsl_server_list_open(struct inode *inode,struct file *file)
 {
     return single_open(file,gsl_config_read_proc,NULL);
 }
-static const struct file_operations gsl_seq_fops = {
-    .open = gsl_server_list_open,
-    .read = seq_read,
-    .release = single_release,
-    .write = gsl_config_write_proc,
-    .owner = THIS_MODULE,
+static const struct proc_ops gsl_seq_fops = {
+    .proc_open = gsl_server_list_open,
+    .proc_read = seq_read,
+    .proc_release = single_release,
+    .proc_write = gsl_config_write_proc,
 };
 #endif
 
