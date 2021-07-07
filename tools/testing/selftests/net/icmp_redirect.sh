@@ -311,7 +311,7 @@ check_exception()
 
 	if [ "$with_redirect" = "yes" ]; then
 		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
-		grep -q "${H2_N2_IP6} from :: via ${R2_LLADDR} dev br0.*${mtu}"
+		grep -q "${H2_N2_IP6} .*via ${R2_LLADDR} dev br0.*${mtu}"
 	elif [ -n "${mtu}" ]; then
 		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -q "${mtu}"
