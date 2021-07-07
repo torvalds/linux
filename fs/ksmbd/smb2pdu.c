@@ -7004,11 +7004,6 @@ static int fsctl_query_iface_info_ioctl(struct ksmbd_conn *conn,
 
 	rtnl_lock();
 	for_each_netdev(&init_net, netdev) {
-		if (unlikely(!netdev)) {
-			rtnl_unlock();
-			return -EINVAL;
-		}
-
 		if (netdev->type == ARPHRD_LOOPBACK)
 			continue;
 
