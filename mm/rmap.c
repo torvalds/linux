@@ -1439,8 +1439,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	while (page_vma_mapped_walk(&pvmw)) {
 		/*
 		 * If the page is mlock()d, we cannot swap it out.
-		 * If it's recently referenced (perhaps page_referenced
-		 * skipped over this mm) then we should reactivate it.
 		 */
 		if (!(flags & TTU_IGNORE_MLOCK)) {
 			if (vma->vm_flags & VM_LOCKED) {
@@ -1687,8 +1685,7 @@ void try_to_unmap(struct page *page, enum ttu_flags flags)
  * @arg: enum ttu_flags will be passed to this argument.
  *
  * If TTU_SPLIT_HUGE_PMD is specified any PMD mappings will be split into PTEs
- * containing migration entries. This and TTU_RMAP_LOCKED are the only supported
- * flags.
+ * containing migration entries.
  */
 static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
@@ -1928,8 +1925,6 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
  *
  * Tries to remove all the page table entries which are mapping this page and
  * replace them with special swap entries. Caller must hold the page lock.
- *
- * If is successful, return true. Otherwise, false.
  */
 void try_to_migrate(struct page *page, enum ttu_flags flags)
 {
