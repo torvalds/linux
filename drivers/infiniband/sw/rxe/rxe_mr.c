@@ -278,11 +278,10 @@ out:
 }
 
 /* copy data from a range (vaddr, vaddr+length-1) to or from
- * a mr object starting at iova. Compute incremental value of
- * crc32 if crcp is not zero. caller must hold a reference to mr
+ * a mr object starting at iova.
  */
 int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
-		enum rxe_mr_copy_dir dir, u32 *crcp)
+		enum rxe_mr_copy_dir dir)
 {
 	int			err;
 	int			bytes;
@@ -292,7 +291,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 	int			m;
 	int			i;
 	size_t			offset;
-	u32			crc = crcp ? (*crcp) : 0;
 
 	if (length == 0)
 		return 0;
@@ -305,10 +303,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		dest = (dir == RXE_TO_MR_OBJ) ? ((void *)(uintptr_t)iova) : addr;
 
 		memcpy(dest, src, length);
-
-		if (crcp)
-			*crcp = rxe_crc32(to_rdev(mr->ibmr.device), *crcp, dest,
-					  length);
 
 		return 0;
 	}
@@ -340,10 +334,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 
 		memcpy(dest, src, bytes);
 
-		if (crcp)
-			crc = rxe_crc32(to_rdev(mr->ibmr.device), crc, dest,
-					bytes);
-
 		length	-= bytes;
 		addr	+= bytes;
 
@@ -357,9 +347,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 			buf = map[0]->buf;
 		}
 	}
-
-	if (crcp)
-		*crcp = crc;
 
 	return 0;
 
@@ -376,8 +363,7 @@ int copy_data(
 	struct rxe_dma_info	*dma,
 	void			*addr,
 	int			length,
-	enum rxe_mr_copy_dir	dir,
-	u32			*crcp)
+	enum rxe_mr_copy_dir	dir)
 {
 	int			bytes;
 	struct rxe_sge		*sge	= &dma->sge[dma->cur_sge];
@@ -438,7 +424,7 @@ int copy_data(
 		if (bytes > 0) {
 			iova = sge->addr + offset;
 
-			err = rxe_mr_copy(mr, iova, addr, bytes, dir, crcp);
+			err = rxe_mr_copy(mr, iova, addr, bytes, dir);
 			if (err)
 				goto err2;
 

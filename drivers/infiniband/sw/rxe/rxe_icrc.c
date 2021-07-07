@@ -105,3 +105,16 @@ int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 
 	return 0;
 }
+
+/* rxe_icrc_generate- compute ICRC for a packet. */
+void rxe_icrc_generate(struct sk_buff *skb, struct rxe_pkt_info *pkt)
+{
+	__be32 *icrcp;
+	u32 icrc;
+
+	icrcp = (__be32 *)(pkt->hdr + pkt->paylen - RXE_ICRC_SIZE);
+	icrc = rxe_icrc_hdr(pkt, skb);
+	icrc = rxe_crc32(pkt->rxe, icrc, (u8 *)payload_addr(pkt),
+				payload_size(pkt) + bth_pad(pkt));
+	*icrcp = (__force __be32)~icrc;
+}

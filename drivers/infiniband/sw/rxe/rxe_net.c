@@ -343,7 +343,7 @@ static int prepare6(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	return 0;
 }
 
-int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc)
+int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
 	int err = 0;
 
@@ -351,8 +351,6 @@ int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc)
 		err = prepare4(pkt, skb);
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		err = prepare6(pkt, skb);
-
-	*crc = rxe_icrc_hdr(pkt, skb);
 
 	if (ether_addr_equal(skb->dev->dev_addr, rxe_get_av(pkt)->dmac))
 		pkt->mask |= RXE_LOOPBACK_MASK;
@@ -437,6 +435,8 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 		pr_info("Packet dropped. QP is not in ready state\n");
 		goto drop;
 	}
+
+	rxe_icrc_generate(skb, pkt);
 
 	if (pkt->mask & RXE_LOOPBACK_MASK)
 		err = rxe_loopback(skb, pkt);
