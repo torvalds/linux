@@ -163,7 +163,9 @@ enum intel_ppgtt_type {
 
 struct intel_device_info {
 	u8 graphics_ver;
+	u8 graphics_rel;
 	u8 media_ver;
+	u8 media_rel;
 
 	u8 gt; /* GT number, 0 if undefined */
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */

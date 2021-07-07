@@ -96,8 +96,16 @@ static const char *iommu_name(void)
 void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p)
 {
-	drm_printf(p, "graphics version: %u\n", info->graphics_ver);
-	drm_printf(p, "media version: %u\n", info->media_ver);
+	if (info->graphics_rel)
+		drm_printf(p, "graphics version: %u.%02u\n", info->graphics_ver, info->graphics_rel);
+	else
+		drm_printf(p, "graphics version: %u\n", info->graphics_ver);
+
+	if (info->media_rel)
+		drm_printf(p, "media version: %u.%02u\n", info->media_ver, info->media_rel);
+	else
+		drm_printf(p, "media version: %u\n", info->media_ver);
+
 	drm_printf(p, "display version: %u\n", info->display.ver);
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "iommu: %s\n", iommu_name());
