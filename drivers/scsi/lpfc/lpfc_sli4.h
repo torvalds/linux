@@ -978,6 +978,8 @@ struct lpfc_sli4_hba {
 #define lpfc_conf_trunk_port3_nd_WORD	conf_trunk
 #define lpfc_conf_trunk_port3_nd_SHIFT	7
 #define lpfc_conf_trunk_port3_nd_MASK	0x1
+	uint8_t flash_id;
+	uint8_t asic_rev;
 };
 
 enum lpfc_sge_type {
