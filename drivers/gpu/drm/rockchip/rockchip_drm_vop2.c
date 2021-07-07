@@ -4415,6 +4415,10 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 		pstate = plane->state;
 		vpstate = to_vop2_plane_state(pstate);
 
+		/* skip inactive plane */
+		if (!pstate || !pstate->fb)
+			continue;
+
 		if (vpstate->eotf != HDMI_EOTF_SMPTE_ST2084) {
 			have_sdr_layer = true;
 			break;
