@@ -149,8 +149,10 @@ static const int ffa_linux_errmap[] = {
 
 static inline int ffa_to_linux_errno(int errno)
 {
-	if (errno < FFA_RET_SUCCESS && errno >= -ARRAY_SIZE(ffa_linux_errmap))
-		return ffa_linux_errmap[-errno];
+	int err_idx = -errno;
+
+	if (err_idx >= 0 && err_idx < ARRAY_SIZE(ffa_linux_errmap))
+		return ffa_linux_errmap[err_idx];
 	return -EINVAL;
 }
 
