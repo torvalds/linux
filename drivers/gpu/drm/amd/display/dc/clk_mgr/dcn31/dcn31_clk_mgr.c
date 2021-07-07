@@ -48,6 +48,21 @@
 
 #include "dc_dmub_srv.h"
 
+#include "yellow_carp_offset.h"
+
+#define regCLK1_CLK_PLL_REQ			0x0237
+#define regCLK1_CLK_PLL_REQ_BASE_IDX		0
+
+#define CLK1_CLK_PLL_REQ__FbMult_int__SHIFT	0x0
+#define CLK1_CLK_PLL_REQ__PllSpineDiv__SHIFT	0xc
+#define CLK1_CLK_PLL_REQ__FbMult_frac__SHIFT	0x10
+#define CLK1_CLK_PLL_REQ__FbMult_int_MASK	0x000001FFL
+#define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK	0x0000F000L
+#define CLK1_CLK_PLL_REQ__FbMult_frac_MASK	0xFFFF0000L
+
+#define REG(reg_name) \
+	(CLK_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
+
 #define TO_CLK_MGR_DCN31(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn31, base)
 
@@ -229,7 +244,32 @@ static void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 
 static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 {
-	return 0;
+	/* get FbMult value */
+	struct fixed31_32 pll_req;
+	unsigned int fbmult_frac_val = 0;
+	unsigned int fbmult_int_val = 0;
+
+	/*
+	 * Register value of fbmult is in 8.16 format, we are converting to 31.32
+	 * to leverage the fix point operations available in driver
+	 */
+
+	REG_GET(CLK1_CLK_PLL_REQ, FbMult_frac, &fbmult_frac_val); /* 16 bit fractional part*/
+	REG_GET(CLK1_CLK_PLL_REQ, FbMult_int, &fbmult_int_val); /* 8 bit integer part */
+
+	pll_req = dc_fixpt_from_int(fbmult_int_val);
+
+	/*
+	 * since fractional part is only 16 bit in register definition but is 32 bit
+	 * in our fix point definiton, need to shift left by 16 to obtain correct value
+	 */
+	pll_req.value |= fbmult_frac_val << 16;
+
+	/* multiply by REFCLK period */
+	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
+
+	/* integer part is now VCO frequency in kHz */
+	return dc_fixpt_floor(pll_req);
 }
 
 static void dcn31_enable_pme_wa(struct clk_mgr *clk_mgr_base)
@@ -592,6 +632,7 @@ void dcn31_clk_mgr_construct(
 	clk_mgr->base.dprefclk_ss_percentage = 0;
 	clk_mgr->base.dprefclk_ss_divider = 1000;
 	clk_mgr->base.ss_on_dprefclk = false;
+	clk_mgr->base.dfs_ref_freq_khz = 48000;
 
 	clk_mgr->smu_wm_set.wm_set = (struct dcn31_watermarks *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
