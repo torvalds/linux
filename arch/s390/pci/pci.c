@@ -481,6 +481,34 @@ static void zpci_free_iomap(struct zpci_dev *zdev, int entry)
 	spin_unlock(&zpci_iomap_lock);
 }
 
+static void zpci_do_update_iomap_fh(struct zpci_dev *zdev, u32 fh)
+{
+	int bar, idx;
+
+	spin_lock(&zpci_iomap_lock);
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
+		if (!zdev->bars[bar].size)
+			continue;
+		idx = zdev->bars[bar].map_idx;
+		if (!zpci_iomap_start[idx].count)
+			continue;
+		WRITE_ONCE(zpci_iomap_start[idx].fh, zdev->fh);
+	}
+	spin_unlock(&zpci_iomap_lock);
+}
+
+void zpci_update_fh(struct zpci_dev *zdev, u32 fh)
+{
+	if (!fh || zdev->fh == fh)
+		return;
+
+	zdev->fh = fh;
+	if (zpci_use_mio(zdev))
+		return;
+	if (zdev->has_resources && zdev_enabled(zdev))
+		zpci_do_update_iomap_fh(zdev, fh);
+}
+
 static struct resource *__alloc_res(struct zpci_dev *zdev, unsigned long start,
 				    unsigned long size, unsigned long flags)
 {
@@ -668,7 +696,7 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	if (clp_enable_fh(zdev, &fh, ZPCI_NR_DMA_SPACES))
 		rc = -EIO;
 	else
-		zdev->fh = fh;
+		zpci_update_fh(zdev, fh);
 	return rc;
 }
 
@@ -679,14 +707,14 @@ int zpci_disable_device(struct zpci_dev *zdev)
 
 	cc = clp_disable_fh(zdev, &fh);
 	if (!cc) {
-		zdev->fh = fh;
+		zpci_update_fh(zdev, fh);
 	} else if (cc == CLP_RC_SETPCIFN_ALRDY) {
 		pr_info("Disabling PCI function %08x had no effect as it was already disabled\n",
 			zdev->fid);
 		/* Function is already disabled - update handle */
 		rc = clp_refresh_fh(zdev->fid, &fh);
 		if (!rc) {
-			zdev->fh = fh;
+			zpci_update_fh(zdev, fh);
 			rc = -EINVAL;
 		}
 	} else {
@@ -776,7 +804,7 @@ int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh)
 {
 	int rc;
 
-	zdev->fh = fh;
+	zpci_update_fh(zdev, fh);
 	/* the PCI function will be scanned once function 0 appears */
 	if (!zdev->zbus->bus)
 		return 0;

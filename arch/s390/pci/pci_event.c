@@ -78,7 +78,7 @@ void zpci_event_error(void *data)
 
 static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 {
-	zdev->fh = fh;
+	zpci_update_fh(zdev, fh);
 	/* Give the driver a hint that the function is
 	 * already unusable.
 	 */
@@ -121,7 +121,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		if (!zdev)
 			zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_STANDBY);
 		else
-			zdev->fh = ccdf->fh;
+			zpci_update_fh(zdev, ccdf->fh);
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (zdev) {
@@ -130,7 +130,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			 */
 			if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
 				break;
-			zdev->fh = ccdf->fh;
+			zpci_update_fh(zdev, ccdf->fh);
 			zpci_deconfigure_device(zdev);
 		}
 		break;
