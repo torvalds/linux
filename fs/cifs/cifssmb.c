@@ -5763,7 +5763,8 @@ CIFSSMBSetFileDisposition(const unsigned int xid, struct cifs_tcon *tcon,
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
 
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (char *)(pSMB) + offset + 4;
 
 	count = 1;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
