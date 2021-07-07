@@ -1590,30 +1590,42 @@ static int vc4_hdmi_hotplug_init(struct vc4_hdmi *vc4_hdmi)
 {
 	struct drm_connector *connector = &vc4_hdmi->connector;
 	struct platform_device *pdev = vc4_hdmi->pdev;
-	struct device *dev = &pdev->dev;
 	int ret;
 
 	if (vc4_hdmi->variant->external_irq_controller) {
-		ret = devm_request_threaded_irq(dev,
-						platform_get_irq_byname(pdev, "hpd-connected"),
-						NULL,
-						vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
-						"vc4 hdmi hpd connected", vc4_hdmi);
+		unsigned int hpd_con = platform_get_irq_byname(pdev, "hpd-connected");
+		unsigned int hpd_rm = platform_get_irq_byname(pdev, "hpd-removed");
+
+		ret = request_threaded_irq(hpd_con,
+					   NULL,
+					   vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
+					   "vc4 hdmi hpd connected", vc4_hdmi);
 		if (ret)
 			return ret;
 
-		ret = devm_request_threaded_irq(dev,
-						platform_get_irq_byname(pdev, "hpd-removed"),
-						NULL,
-						vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
-						"vc4 hdmi hpd disconnected", vc4_hdmi);
-		if (ret)
+		ret = request_threaded_irq(hpd_rm,
+					   NULL,
+					   vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
+					   "vc4 hdmi hpd disconnected", vc4_hdmi);
+		if (ret) {
+			free_irq(hpd_con, vc4_hdmi);
 			return ret;
+		}
 
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
 
 	return 0;
+}
+
+static void vc4_hdmi_hotplug_exit(struct vc4_hdmi *vc4_hdmi)
+{
+	struct platform_device *pdev = vc4_hdmi->pdev;
+
+	if (vc4_hdmi->variant->external_irq_controller) {
+		free_irq(platform_get_irq_byname(pdev, "hpd-connected"), vc4_hdmi);
+		free_irq(platform_get_irq_byname(pdev, "hpd-removed"), vc4_hdmi);
+	}
 }
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
@@ -2180,7 +2192,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vc4_hdmi_cec_init(vc4_hdmi);
 	if (ret)
-		goto err_destroy_conn;
+		goto err_free_hotplug;
 
 	ret = vc4_hdmi_audio_init(vc4_hdmi);
 	if (ret)
@@ -2194,6 +2206,8 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 err_free_cec:
 	vc4_hdmi_cec_exit(vc4_hdmi);
+err_free_hotplug:
+	vc4_hdmi_hotplug_exit(vc4_hdmi);
 err_destroy_conn:
 	vc4_hdmi_connector_destroy(&vc4_hdmi->connector);
 err_destroy_encoder:
@@ -2235,6 +2249,7 @@ static void vc4_hdmi_unbind(struct device *dev, struct device *master,
 	kfree(vc4_hdmi->hd_regset.regs);
 
 	vc4_hdmi_cec_exit(vc4_hdmi);
+	vc4_hdmi_hotplug_exit(vc4_hdmi);
 	vc4_hdmi_connector_destroy(&vc4_hdmi->connector);
 	drm_encoder_cleanup(&vc4_hdmi->encoder.base.base);
 
