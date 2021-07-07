@@ -2375,21 +2375,27 @@ static bool svm_range_skip_recover(struct svm_range *prange)
 
 static void
 svm_range_count_fault(struct amdgpu_device *adev, struct kfd_process *p,
-		      struct svm_range *prange, int32_t gpuidx)
+		      int32_t gpuidx)
 {
 	struct kfd_process_device *pdd;
 
-	if (gpuidx == MAX_GPU_INSTANCE)
-		/* fault is on different page of same range
-		 * or fault is skipped to recover later
-		 */
-		pdd = svm_range_get_pdd_by_adev(prange, adev);
-	else
-		/* fault recovered
-		 * or fault cannot recover because GPU no access on the range
-		 */
-		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+	/* fault is on different page of same range
+	 * or fault is skipped to recover later
+	 * or fault is on invalid virtual address
+	 */
+	if (gpuidx == MAX_GPU_INSTANCE) {
+		uint32_t gpuid;
+		int r;
 
+		r = kfd_process_gpuid_from_kgd(p, adev, &gpuid, &gpuidx);
+		if (r < 0)
+			return;
+	}
+
+	/* fault is recovered
+	 * or fault cannot recover because GPU no access on the range
+	 */
+	pdd = kfd_process_device_from_gpuidx(p, gpuidx);
 	if (pdd)
 		WRITE_ONCE(pdd->faults, pdd->faults + 1);
 }
@@ -2525,7 +2531,7 @@ out_unlock_svms:
 	mutex_unlock(&svms->lock);
 	mmap_read_unlock(mm);
 
-	svm_range_count_fault(adev, p, prange, gpuidx);
+	svm_range_count_fault(adev, p, gpuidx);
 
 	mmput(mm);
 out:
