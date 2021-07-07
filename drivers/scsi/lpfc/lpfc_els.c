@@ -3666,18 +3666,6 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	if (!elsiocb)
 		return -ENOMEM;
 
-	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED)) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				 "0939 %s: FC_NODE x%x RPI x%x flag x%x "
-				 "ste x%x type x%x Not registered\n",
-				 __func__, ndlp->nlp_DID, ndlp->nlp_rpi,
-				 ndlp->nlp_flag, ndlp->nlp_state,
-				 ndlp->nlp_type);
-		return -ENODEV;
-	}
-
 	/* Configure the payload for the supported FPIN events. */
 	prdf = (struct lpfc_els_rdf_req *)
 		(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
