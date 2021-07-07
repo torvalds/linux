@@ -3285,7 +3285,7 @@
 	};
 
 	video_phy0: phy@fe850000 {
-		compatible = "rockchip,rk3568-dsi-dphy";
+		compatible = "rockchip,rk3568-dsi-dphy", "rockchip,rk3568-video-phy";
 		reg = <0x0 0xfe850000  0x0 0x10000>,
 		      <0x0 0xfe060000 0x0 0x10000>;
 		reg-names = "phy", "host";
@@ -3301,7 +3301,7 @@
 	};
 
 	video_phy1: phy@fe860000 {
-		compatible = "rockchip,rk3568-dsi-dphy";
+		compatible = "rockchip,rk3568-dsi-dphy", "rockchip,rk3568-video-phy";
 		reg = <0x0 0xfe860000  0x0 0x10000>,
 		      <0x0 0xfe070000 0x0 0x10000>;
 		reg-names = "phy", "host";
