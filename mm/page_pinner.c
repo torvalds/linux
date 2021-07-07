@@ -200,7 +200,7 @@ noinline void __set_page_pinner(struct page *page, unsigned int order)
 static ssize_t
 print_page_pinner(char __user *buf, size_t count, unsigned long pfn,
 		int pageblock_mt, unsigned long page_flags, s64 ts_usec,
-		depot_stack_handle_t handle, int shared_count)
+		depot_stack_handle_t handle)
 {
 	int ret;
 	unsigned long *entries;
@@ -213,8 +213,8 @@ print_page_pinner(char __user *buf, size_t count, unsigned long pfn,
 		return -ENOMEM;
 
 	ret = snprintf(kbuf, count,
-			"Page pinned ts %lld us count %d\n",
-			ts_usec, shared_count);
+			"Page pinned ts %lld us\n",
+			ts_usec);
 
 	if (ret >= count)
 		goto err;
@@ -373,7 +373,7 @@ read_longterm_page_pinner(struct file *file, char __user *buf, size_t count,
 
 	return print_page_pinner(buf, count, record.pfn, record.page_mt,
 				 record.page_flags, record.ts_usec,
-				 record.handle, 0);
+				 record.handle);
 }
 
 static const struct file_operations proc_longterm_pinner_operations = {
@@ -411,7 +411,7 @@ static ssize_t read_alloc_contig_failed(struct file *file, char __user *buf,
 
 	return print_page_pinner(buf, count, record.pfn, record.page_mt,
 				 record.page_flags, record.ts_usec,
-				 record.handle, 0);
+				 record.handle);
 }
 
 static const struct file_operations proc_alloc_contig_failed_operations = {
