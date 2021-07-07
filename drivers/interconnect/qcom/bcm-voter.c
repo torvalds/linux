@@ -97,7 +97,7 @@ static void bcm_aggregate(struct qcom_icc_bcm *bcm, bool init)
 		}
 	}
 
-	if (bcm->keepalive) {
+	if (bcm->keepalive || bcm->keepalive_early) {
 		/*
 		 * Keepalive should normally only be enforced for AMC/WAKE so
 		 * that BCMs are only kept alive when HLOS is active. But early

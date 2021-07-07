@@ -480,8 +480,10 @@ void qcom_icc_rpmh_sync_state(struct device *dev)
 
 		for (i = 0; i < qp->num_bcms; i++) {
 			bcm = qp->bcms[i];
-			if (!bcm->keepalive)
+			if (!bcm->keepalive && !bcm->keepalive_early)
 				continue;
+
+			bcm->keepalive_early = false;
 
 			voter = qp->voters[bcm->voter_idx];
 			qcom_icc_bcm_voter_add(voter, bcm);
