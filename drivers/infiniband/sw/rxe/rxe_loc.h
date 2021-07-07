@@ -104,6 +104,8 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
 int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc);
+int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb);
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
 int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
 int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
@@ -204,49 +206,6 @@ void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 {
 	return rxe_wr_opcode_info[opcode].mask[qp->ibqp.qp_type];
-}
-
-static inline int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
-				  struct sk_buff *skb)
-{
-	int err;
-	int is_request = pkt->mask & RXE_REQ_MASK;
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-
-	if ((is_request && (qp->req.state != QP_STATE_READY)) ||
-	    (!is_request && (qp->resp.state != QP_STATE_READY))) {
-		pr_info("Packet dropped. QP is not in ready state\n");
-		goto drop;
-	}
-
-	if (pkt->mask & RXE_LOOPBACK_MASK) {
-		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
-		rxe_loopback(skb);
-		err = 0;
-	} else {
-		err = rxe_send(pkt, skb);
-	}
-
-	if (err) {
-		rxe->xmit_errors++;
-		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
-		return err;
-	}
-
-	if ((qp_type(qp) != IB_QPT_RC) &&
-	    (pkt->mask & RXE_END_MASK)) {
-		pkt->wqe->state = wqe_state_done;
-		rxe_run_task(&qp->comp.task, 1);
-	}
-
-	rxe_counter_inc(rxe, RXE_CNT_SENT_PKTS);
-	goto done;
-
-drop:
-	kfree_skb(skb);
-	err = 0;
-done:
-	return err;
 }
 
 #endif /* RXE_LOC_H */
