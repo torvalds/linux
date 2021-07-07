@@ -162,8 +162,12 @@ static void rk3308_init(void)
 #define RK3308_GRF_CHIP_ID	0x800
 	base = ioremap(RK3308_GRF_PHYS, SZ_4K);
 	if (base) {
-		if (readl_relaxed(base + RK3308_GRF_CHIP_ID) == 0x3308)
+		u32 v = readl_relaxed(base + RK3308_GRF_CHIP_ID);
+
+		if (v == 0x3308)
 			rockchip_soc_id = ROCKCHIP_SOC_RK3308B;
+		if (v == 0x3308c)
+			rockchip_soc_id = ROCKCHIP_SOC_RK3308BS;
 		iounmap(base);
 	}
 }
