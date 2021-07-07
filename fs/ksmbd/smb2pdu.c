@@ -3291,7 +3291,7 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 	char *conv_name;
 	int conv_len;
 	void *kstat;
-	int struct_sz;
+	int struct_sz, rc = 0;
 
 	conv_name = ksmbd_convert_dir_info_name(d_info,
 						conn->local_nls,
@@ -3301,8 +3301,8 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 	/* Somehow the name has only terminating NULL bytes */
 	if (conv_len < 0) {
-		kfree(conv_name);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto free_conv_name;
 	}
 
 	struct_sz = readdir_info_level_struct_sz(info_level);
@@ -3311,7 +3311,8 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 	if (next_entry_offset > d_info->out_buf_len) {
 		d_info->out_buf_len = 0;
-		return -ENOSPC;
+		rc = -ENOSPC;
+		goto free_conv_name;
 	}
 
 	kstat = d_info->wptr;
@@ -3453,14 +3454,15 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 	d_info->data_count += next_entry_offset;
 	d_info->out_buf_len -= next_entry_offset;
 	d_info->wptr += next_entry_offset;
-	kfree(conv_name);
 
 	ksmbd_debug(SMB,
 		    "info_level : %d, buf_len :%d, next_offset : %d, data_count : %d\n",
 		    info_level, d_info->out_buf_len,
 		    next_entry_offset, d_info->data_count);
 
-	return 0;
+free_conv_name:
+	kfree(conv_name);
+	return rc;
 }
 
 struct smb2_query_dir_private {
