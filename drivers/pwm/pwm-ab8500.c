@@ -111,26 +111,11 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	ab8500->chip.npwm = 1;
 	ab8500->hwid = pdev->id - 1;
 
-	err = pwmchip_add(&ab8500->chip);
+	err = devm_pwmchip_add(&pdev->dev, &ab8500->chip);
 	if (err < 0)
 		return dev_err_probe(&pdev->dev, err, "Failed to add pwm chip\n");
 
 	dev_dbg(&pdev->dev, "pwm probe successful\n");
-	platform_set_drvdata(pdev, ab8500);
-
-	return 0;
-}
-
-static int ab8500_pwm_remove(struct platform_device *pdev)
-{
-	struct ab8500_pwm_chip *ab8500 = platform_get_drvdata(pdev);
-	int err;
-
-	err = pwmchip_remove(&ab8500->chip);
-	if (err < 0)
-		return err;
-
-	dev_dbg(&pdev->dev, "pwm driver removed\n");
 
 	return 0;
 }
@@ -140,7 +125,6 @@ static struct platform_driver ab8500_pwm_driver = {
 		.name = "ab8500-pwm",
 	},
 	.probe = ab8500_pwm_probe,
-	.remove = ab8500_pwm_remove,
 };
 module_platform_driver(ab8500_pwm_driver);
 
