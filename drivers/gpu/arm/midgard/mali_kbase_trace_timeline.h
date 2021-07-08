@@ -49,8 +49,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
    process of being returned to user */
 #define KBASE_TIMELINE_ATOMS_IN_FLIGHT(kctx, count)                          \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_atoms_in_flight(ts.tv_sec, ts.tv_nsec,   \
 				(int)kctx->timeline.owner_tgid,              \
 				count);                                      \
@@ -59,8 +59,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace atom_id being Ready to Run */
 #define KBASE_TIMELINE_ATOM_READY(kctx, atom_id)                             \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_atom(ts.tv_sec, ts.tv_nsec,              \
 				CTX_FLOW_ATOM_READY,                         \
 				(int)kctx->timeline.owner_tgid,              \
@@ -76,8 +76,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
  * utilization easily and accurately */
 #define KBASE_TIMELINE_ATOMS_SUBMITTED(kctx, js, count)                      \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_slot_active(ts.tv_sec, ts.tv_nsec,   \
 				SW_SET_GPU_SLOT_ACTIVE,                      \
 				(int)kctx->timeline.owner_tgid,              \
@@ -88,8 +88,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace atoms present in JS_NEXT */
 #define KBASE_TIMELINE_JOB_START_NEXT(kctx, js, count)                       \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_slot_action(ts.tv_sec, ts.tv_nsec,   \
 				SW_SET_GPU_SLOT_NEXT,                        \
 				(int)kctx->timeline.owner_tgid,              \
@@ -99,8 +99,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace atoms present in JS_HEAD */
 #define KBASE_TIMELINE_JOB_START_HEAD(kctx, js, count)                       \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_slot_action(ts.tv_sec, ts.tv_nsec,   \
 				SW_SET_GPU_SLOT_HEAD,                        \
 				(int)kctx->timeline.owner_tgid,              \
@@ -110,8 +110,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace that a soft stop/evict from next is being attempted on a slot */
 #define KBASE_TIMELINE_TRY_SOFT_STOP(kctx, js, count) \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_slot_action(ts.tv_sec, ts.tv_nsec,   \
 				SW_SET_GPU_SLOT_STOPPING,                    \
 				(kctx) ? (int)kctx->timeline.owner_tgid : 0, \
@@ -123,8 +123,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace state of overall GPU power */
 #define KBASE_TIMELINE_GPU_POWER(kbdev, active)                              \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_power_active(ts.tv_sec, ts.tv_nsec,  \
 				SW_SET_GPU_POWER_ACTIVE, active);            \
 	} while (0)
@@ -132,8 +132,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace state of tiler power */
 #define KBASE_TIMELINE_POWER_TILER(kbdev, bitmap)                            \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_power_active(ts.tv_sec, ts.tv_nsec,  \
 				SW_SET_GPU_POWER_TILER_ACTIVE,               \
 				hweight64(bitmap));                          \
@@ -142,8 +142,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace number of shaders currently powered */
 #define KBASE_TIMELINE_POWER_SHADER(kbdev, bitmap)                           \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_power_active(ts.tv_sec, ts.tv_nsec,  \
 				SW_SET_GPU_POWER_SHADER_ACTIVE,              \
 				hweight64(bitmap));                          \
@@ -152,8 +152,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace state of L2 power */
 #define KBASE_TIMELINE_POWER_L2(kbdev, bitmap)                               \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_gpu_power_active(ts.tv_sec, ts.tv_nsec,  \
 				SW_SET_GPU_POWER_L2_ACTIVE,                  \
 				hweight64(bitmap));                          \
@@ -162,8 +162,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace state of L2 cache*/
 #define KBASE_TIMELINE_POWERING_L2(kbdev)                                    \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_l2_power_active(ts.tv_sec, ts.tv_nsec,   \
 				SW_FLOW_GPU_POWER_L2_POWERING,               \
 				1);                                          \
@@ -171,8 +171,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 
 #define KBASE_TIMELINE_POWERED_L2(kbdev)                                     \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_l2_power_active(ts.tv_sec, ts.tv_nsec,   \
 				SW_FLOW_GPU_POWER_L2_ACTIVE,                 \
 				1);                                          \
@@ -181,8 +181,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace kbase_pm_send_event message send */
 #define KBASE_TIMELINE_PM_SEND_EVENT(kbdev, event_type, pm_event_id)         \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_pm_event(ts.tv_sec, ts.tv_nsec,          \
 				SW_FLOW_PM_SEND_EVENT,                       \
 				event_type, pm_event_id);                    \
@@ -191,8 +191,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace kbase_pm_worker message receive */
 #define KBASE_TIMELINE_PM_HANDLE_EVENT(kbdev, event_type, pm_event_id)       \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_pm_event(ts.tv_sec, ts.tv_nsec,          \
 				SW_FLOW_PM_HANDLE_EVENT,                     \
 				event_type, pm_event_id);                    \
@@ -202,8 +202,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace atom_id starting in JS_HEAD */
 #define KBASE_TIMELINE_JOB_START(kctx, js, _consumerof_atom_number)          \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_slot_atom(ts.tv_sec, ts.tv_nsec,         \
 				HW_START_GPU_JOB_CHAIN_SW_APPROX,            \
 				(int)kctx->timeline.owner_tgid,              \
@@ -213,8 +213,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace atom_id stopping on JS_HEAD */
 #define KBASE_TIMELINE_JOB_STOP(kctx, js, _producerof_atom_number_completed) \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_slot_atom(ts.tv_sec, ts.tv_nsec,         \
 				HW_STOP_GPU_JOB_CHAIN_SW_APPROX,             \
 				(int)kctx->timeline.owner_tgid,              \
@@ -225,8 +225,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
  * certin caller */
 #define KBASE_TIMELINE_PM_CHECKTRANS(kbdev, trace_code)                      \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_pm_checktrans(ts.tv_sec, ts.tv_nsec,     \
 				trace_code, 1);                              \
 	} while (0)
@@ -234,8 +234,8 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /* Trace number of contexts active */
 #define KBASE_TIMELINE_CONTEXT_ACTIVE(kbdev, count)                          \
 	do {                                                                 \
-		struct timespec ts;                                          \
-		getrawmonotonic(&ts);                                        \
+		struct timespec64 ts;                                          \
+		ktime_get_raw_ts64(&ts);                                        \
 		trace_mali_timeline_context_active(ts.tv_sec, ts.tv_nsec,    \
 				count);                                      \
 	} while (0)

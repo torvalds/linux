@@ -21,7 +21,7 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
-				u64 *system_time, struct timespec *ts)
+				u64 *system_time, struct timespec64 *ts)
 {
 	u32 hi1, hi2;
 
@@ -52,7 +52,7 @@ void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
 	} while (hi1 != hi2);
 
 	/* Record the CPU's idea of current time */
-	getrawmonotonic(ts);
+	ktime_get_raw_ts64(ts);
 
 	kbase_pm_release_gpu_cycle_counter(kbdev);
 }

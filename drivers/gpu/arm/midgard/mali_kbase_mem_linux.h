@@ -98,7 +98,7 @@ int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
  * Take the provided region and make all the physical pages within it
  * reclaimable by the kernel, updating the per-process VM stats as well.
  * Remove any CPU mappings (as these can't be removed in the shrinker callback
- * as mmap_sem might already be taken) but leave the GPU mapping intact as
+ * as mmap_lock might already be taken) but leave the GPU mapping intact as
  * and until the shrinker reclaims the allocation.
  *
  * Note: Must be called with the region lock of the containing context.

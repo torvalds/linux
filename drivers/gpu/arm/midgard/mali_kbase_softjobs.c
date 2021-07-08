@@ -131,7 +131,7 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 {
 	struct kbase_vmap_struct map;
 	void *user_result;
-	struct timespec ts;
+	struct timespec64 ts;
 	struct base_dump_cpu_gpu_counters data;
 	u64 system_time;
 	u64 cycle_counter;
@@ -759,6 +759,36 @@ static void kbase_mem_copy_from_extres_page(struct kbase_context *kctx,
 	kunmap(pages[*target_page_nr]);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+static void *dma_buf_kmap_page(struct kbase_mem_phy_alloc *gpu_alloc,
+	unsigned long page_num, struct page **page)
+{
+	struct sg_table *sgt = gpu_alloc->imported.umm.sgt;
+	struct sg_page_iter sg_iter;
+	unsigned long page_index = 0;
+
+	if (WARN_ON(gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMM))
+		return NULL;
+
+	if (!sgt)
+		return NULL;
+
+	if (WARN_ON(page_num >= gpu_alloc->nents))
+		return NULL;
+
+	for_each_sg_page(sgt->sgl, &sg_iter, sgt->nents, 0) {
+		if (page_index == page_num) {
+			*page = sg_page_iter_page(&sg_iter);
+
+			return kmap(*page);
+		}
+		page_index++;
+	}
+
+	return NULL;
+}
+#endif
+
 static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 		struct kbase_debug_copy_buffer *buf_data)
 {
@@ -818,7 +848,12 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 
 		for (i = 0; i < buf_data->nr_extres_pages; i++) {
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+			struct page *pg;
+			void *extres_page = dma_buf_kmap_page(gpu_alloc, i, &pg);
+#else
 			void *extres_page = dma_buf_kmap(dma_buf, i);
+#endif
 
 			if (extres_page)
 				kbase_mem_copy_from_extres_page(kctx,
@@ -827,7 +862,11 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 						&target_page_nr,
 						offset, &to_copy);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+			kunmap(pg);
+#else
 			dma_buf_kunmap(dma_buf, i, extres_page);
+#endif
 			if (target_page_nr >= buf_data->nr_pages)
 				break;
 		}

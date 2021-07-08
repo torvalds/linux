@@ -301,8 +301,11 @@ static void kbase_sync_fence_info_get(struct dma_fence *fence,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0))
 	scnprintf(info->name, sizeof(info->name), "%u#%u",
 		  fence->context, fence->seqno);
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0))
 	scnprintf(info->name, sizeof(info->name), "%llu#%u",
+		  fence->context, fence->seqno);
+#else
+	scnprintf(info->name, sizeof(info->name), "%llu#%llu",
 		  fence->context, fence->seqno);
 #endif
 }

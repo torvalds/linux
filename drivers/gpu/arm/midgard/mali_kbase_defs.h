@@ -738,7 +738,7 @@ enum kbase_trace_code {
 #define KBASE_TRACE_FLAG_JOBSLOT  (((u8)1) << 1)
 
 struct kbase_trace {
-	struct timespec timestamp;
+	struct timespec64 timestamp;
 	u32 thread_id;
 	u32 cpu;
 	void *ctx;

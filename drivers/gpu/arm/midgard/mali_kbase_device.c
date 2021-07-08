@@ -444,7 +444,7 @@ void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, vo
 	trace_msg->thread_id = task_pid_nr(current);
 	trace_msg->cpu = task_cpu(current);
 
-	getnstimeofday(&trace_msg->timestamp);
+	ktime_get_real_ts64(&trace_msg->timestamp);
 
 	trace_msg->code = code;
 	trace_msg->ctx = ctx;

@@ -62,7 +62,11 @@ kbase_fence_fence_value_str(struct fence *fence, char *str, int size)
 kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
 #endif
 {
+#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
 	snprintf(str, size, "%u", fence->seqno);
+#else
+	snprintf(str, size, "%llu", fence->seqno);
+#endif
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))

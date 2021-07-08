@@ -238,7 +238,7 @@ static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, str
 	/* Populate the base_gpu_props structure */
 	kbase_gpuprops_update_core_props_gpu_id(gpu_props);
 	gpu_props->core_props.log2_program_counter_size = KBASE_GPU_PC_SIZE_LOG2;
-	gpu_props->core_props.gpu_available_memory_size = totalram_pages << PAGE_SHIFT;
+	gpu_props->core_props.gpu_available_memory_size = totalram_pages() << PAGE_SHIFT;
 
 	for (i = 0; i < BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS; i++)
 		gpu_props->core_props.texture_features[i] = gpu_props->raw_props.texture_features[i];
