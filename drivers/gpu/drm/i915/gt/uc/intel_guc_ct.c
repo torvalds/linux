@@ -3,6 +3,8 @@
  * Copyright © 2016-2019 Intel Corporation
  */
 
+#include <linux/circ_buf.h>
+
 #include "i915_drv.h"
 #include "intel_guc_ct.h"
 #include "gt/intel_gt.h"
@@ -373,7 +375,7 @@ static void write_barrier(struct intel_guc_ct *ct)
 static int ct_write(struct intel_guc_ct *ct,
 		    const u32 *action,
 		    u32 len /* in dwords */,
-		    u32 fence)
+		    u32 fence, u32 flags)
 {
 	struct intel_guc_ct_buffer *ctb = &ct->ctbs.send;
 	struct guc_ct_buffer_desc *desc = ctb->desc;
@@ -383,6 +385,7 @@ static int ct_write(struct intel_guc_ct *ct,
 	u32 used;
 	u32 header;
 	u32 hxg;
+	u32 type;
 	u32 *cmds = ctb->cmds;
 	unsigned int i;
 
@@ -408,8 +411,8 @@ static int ct_write(struct intel_guc_ct *ct,
 	else
 		used = tail - head;
 
-	/* make sure there is a space including extra dw for the fence */
-	if (unlikely(used + len + 1 >= size))
+	/* make sure there is a space including extra dw for the header */
+	if (unlikely(used + len + GUC_CTB_HDR_LEN >= size))
 		return -ENOSPC;
 
 	/*
@@ -421,9 +424,11 @@ static int ct_write(struct intel_guc_ct *ct,
 		 FIELD_PREP(GUC_CTB_MSG_0_NUM_DWORDS, len) |
 		 FIELD_PREP(GUC_CTB_MSG_0_FENCE, fence);
 
-	hxg = FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
-	      FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION |
-			 GUC_HXG_REQUEST_MSG_0_DATA0, action[0]);
+	type = (flags & INTEL_GUC_CT_SEND_NB) ? GUC_HXG_TYPE_EVENT :
+		GUC_HXG_TYPE_REQUEST;
+	hxg = FIELD_PREP(GUC_HXG_MSG_0_TYPE, type) |
+		FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
+			   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 
 	CT_DEBUG(ct, "writing (tail %u) %*ph %*ph %*ph\n",
 		 tail, 4, &header, 4, &hxg, 4 * (len - 1), &action[1]);
@@ -500,6 +505,48 @@ static int wait_for_ct_request_update(struct ct_request *req, u32 *status)
 	return err;
 }
 
+static inline bool h2g_has_room(struct intel_guc_ct_buffer *ctb, u32 len_dw)
+{
+	struct guc_ct_buffer_desc *desc = ctb->desc;
+	u32 head = READ_ONCE(desc->head);
+	u32 space;
+
+	space = CIRC_SPACE(desc->tail, head, ctb->size);
+
+	return space >= len_dw;
+}
+
+static int ct_send_nb(struct intel_guc_ct *ct,
+		      const u32 *action,
+		      u32 len,
+		      u32 flags)
+{
+	struct intel_guc_ct_buffer *ctb = &ct->ctbs.send;
+	unsigned long spin_flags;
+	u32 fence;
+	int ret;
+
+	spin_lock_irqsave(&ctb->lock, spin_flags);
+
+	ret = h2g_has_room(ctb, len + GUC_CTB_HDR_LEN);
+	if (unlikely(!ret)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	fence = ct_get_next_fence(ct);
+	ret = ct_write(ct, action, len, fence, flags);
+	if (unlikely(ret))
+		goto out;
+
+	intel_guc_notify(ct_to_guc(ct));
+
+out:
+	spin_unlock_irqrestore(&ctb->lock, spin_flags);
+
+	return ret;
+}
+
 static int ct_send(struct intel_guc_ct *ct,
 		   const u32 *action,
 		   u32 len,
@@ -507,8 +554,10 @@ static int ct_send(struct intel_guc_ct *ct,
 		   u32 response_buf_size,
 		   u32 *status)
 {
+	struct intel_guc_ct_buffer *ctb = &ct->ctbs.send;
 	struct ct_request request;
 	unsigned long flags;
+	unsigned int sleep_period_ms = 1;
 	u32 fence;
 	int err;
 
@@ -516,8 +565,24 @@ static int ct_send(struct intel_guc_ct *ct,
 	GEM_BUG_ON(!len);
 	GEM_BUG_ON(len & ~GUC_CT_MSG_LEN_MASK);
 	GEM_BUG_ON(!response_buf && response_buf_size);
+	might_sleep();
 
-	spin_lock_irqsave(&ct->ctbs.send.lock, flags);
+	/*
+	 * We use a lazy spin wait loop here as we believe that if the CT
+	 * buffers are sized correctly the flow control condition should be
+	 * rare.
+	 */
+retry:
+	spin_lock_irqsave(&ctb->lock, flags);
+	if (unlikely(!h2g_has_room(ctb, len + GUC_CTB_HDR_LEN))) {
+		spin_unlock_irqrestore(&ctb->lock, flags);
+
+		if (msleep_interruptible(sleep_period_ms))
+			return -EINTR;
+		sleep_period_ms = sleep_period_ms << 1;
+
+		goto retry;
+	}
 
 	fence = ct_get_next_fence(ct);
 	request.fence = fence;
@@ -529,9 +594,9 @@ static int ct_send(struct intel_guc_ct *ct,
 	list_add_tail(&request.link, &ct->requests.pending);
 	spin_unlock(&ct->requests.lock);
 
-	err = ct_write(ct, action, len, fence);
+	err = ct_write(ct, action, len, fence, 0);
 
-	spin_unlock_irqrestore(&ct->ctbs.send.lock, flags);
+	spin_unlock_irqrestore(&ctb->lock, flags);
 
 	if (unlikely(err))
 		goto unlink;
@@ -571,7 +636,7 @@ unlink:
  * Command Transport (CT) buffer based GuC send function.
  */
 int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
-		      u32 *response_buf, u32 response_buf_size)
+		      u32 *response_buf, u32 response_buf_size, u32 flags)
 {
 	u32 status = ~0; /* undefined */
 	int ret;
@@ -580,6 +645,9 @@ int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		WARN(1, "Unexpected send: action=%#x\n", *action);
 		return -ENODEV;
 	}
+
+	if (flags & INTEL_GUC_CT_SEND_NB)
+		return ct_send_nb(ct, action, len, flags);
 
 	ret = ct_send(ct, action, len, response_buf, response_buf_size, &status);
 	if (unlikely(ret < 0)) {

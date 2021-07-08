@@ -74,7 +74,14 @@ static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
-	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0);
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0, 0);
+}
+
+static
+inline int intel_guc_send_nb(struct intel_guc *guc, const u32 *action, u32 len)
+{
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0,
+				 INTEL_GUC_CT_SEND_NB);
 }
 
 static inline int
@@ -82,7 +89,7 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 			   u32 *response_buf, u32 response_buf_size)
 {
 	return intel_guc_ct_send(&guc->ct, action, len,
-				 response_buf, response_buf_size);
+				 response_buf, response_buf_size, 0);
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)

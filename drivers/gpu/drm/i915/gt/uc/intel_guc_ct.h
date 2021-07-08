@@ -42,7 +42,6 @@ struct intel_guc_ct_buffer {
 	bool broken;
 };
 
-
 /** Top-level structure for Command Transport related data
  *
  * Includes a pair of CT buffers for bi-directional communication and tracking
@@ -87,8 +86,9 @@ static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 	return ct->enabled;
 }
 
+#define INTEL_GUC_CT_SEND_NB		BIT(31)
 int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
-		      u32 *response_buf, u32 response_buf_size);
+		      u32 *response_buf, u32 response_buf_size, u32 flags);
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct);
 
 #endif /* _INTEL_GUC_CT_H_ */
