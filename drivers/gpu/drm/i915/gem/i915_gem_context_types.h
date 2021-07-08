@@ -67,6 +67,28 @@ struct i915_gem_engines_iter {
 };
 
 /**
+ * struct i915_gem_proto_context - prototype context
+ *
+ * The struct i915_gem_proto_context represents the creation parameters for
+ * a struct i915_gem_context.  This is used to gather parameters provided
+ * either through creation flags or via SET_CONTEXT_PARAM so that, when we
+ * create the final i915_gem_context, those parameters can be immutable.
+ */
+struct i915_gem_proto_context {
+	/** @vm: See &i915_gem_context.vm */
+	struct i915_address_space *vm;
+
+	/** @user_flags: See &i915_gem_context.user_flags */
+	unsigned long user_flags;
+
+	/** @sched: See &i915_gem_context.sched */
+	struct i915_sched_attr sched;
+
+	/** @single_timeline: See See &i915_gem_context.syncobj */
+	bool single_timeline;
+};
+
+/**
  * struct i915_gem_context - client state
  *
  * The struct i915_gem_context represents the combined view of the driver and
