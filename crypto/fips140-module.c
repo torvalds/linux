@@ -52,7 +52,7 @@ const u32 *__initcall_start = &__initcall_start_marker;
 const u8 *__text_start = &__fips140_text_start;
 const u8 *__rodata_start = &__fips140_rodata_start;
 
-static const char fips140_algorithms[][22] __initconst = {
+static const char * const fips140_algorithms[] __initconst = {
 	"aes",
 
 	"gcm(aes)",
@@ -73,28 +73,7 @@ static const char fips140_algorithms[][22] __initconst = {
 	"sha384",
 	"sha512",
 
-	"drbg_nopr_ctr_aes256",
-	"drbg_nopr_ctr_aes192",
-	"drbg_nopr_ctr_aes128",
-	"drbg_nopr_hmac_sha512",
-	"drbg_nopr_hmac_sha384",
-	"drbg_nopr_hmac_sha256",
-	"drbg_nopr_hmac_sha1",
-	"drbg_nopr_sha512",
-	"drbg_nopr_sha384",
-	"drbg_nopr_sha256",
-	"drbg_nopr_sha1",
-	"drbg_pr_ctr_aes256",
-	"drbg_pr_ctr_aes192",
-	"drbg_pr_ctr_aes128",
-	"drbg_pr_hmac_sha512",
-	"drbg_pr_hmac_sha384",
-	"drbg_pr_hmac_sha256",
-	"drbg_pr_hmac_sha1",
-	"drbg_pr_sha512",
-	"drbg_pr_sha384",
-	"drbg_pr_sha256",
-	"drbg_pr_sha1",
+	"stdrng",
 };
 
 static bool __init is_fips140_algo(struct crypto_alg *alg)
