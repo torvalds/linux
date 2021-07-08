@@ -463,6 +463,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	if (i == 1)
 		node->base.placement |= TTM_PL_FLAG_CONTIGUOUS;
 
+	if (adev->gmc.xgmi.connected_to_cpu)
+		node->base.bus.caching = ttm_cached;
+	else
+		node->base.bus.caching = ttm_write_combined;
+
 	atomic64_add(vis_usage, &mgr->vis_usage);
 	*res = &node->base;
 	return 0;

@@ -1791,10 +1791,23 @@ static struct intel_shared_dpll *dg1_ddi_get_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
+	enum intel_dpll_id id;
+	u32 val;
 
-	return _cnl_ddi_get_pll(i915, DG1_DPCLKA_CFGCR0(phy),
-				DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy),
-				DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy));
+	val = intel_de_read(i915, DG1_DPCLKA_CFGCR0(phy));
+	val &= DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+	val >>= DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy);
+	id = val;
+
+	/*
+	 * _DG1_DPCLKA0_CFGCR0 maps between DPLL 0 and 1 with one bit for phy A
+	 * and B while _DG1_DPCLKA1_CFGCR0 maps between DPLL 2 and 3 with one
+	 * bit for phy C and D.
+	 */
+	if (phy >= PHY_C)
+		id += DPLL_ID_DG1_DPLL2;
+
+	return intel_get_shared_dpll_by_id(i915, id);
 }
 
 static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
