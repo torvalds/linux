@@ -3442,13 +3442,17 @@ static void glk_pipe_scaler_clock_gating_wa(struct drm_i915_private *dev_priv,
 	intel_de_write(dev_priv, CLKGATE_DIS_PSL(pipe), val);
 }
 
-static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
+static void icl_pipe_mbus_enable(struct intel_crtc *crtc, bool joined_mbus)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 val;
 
-	val = MBUS_DBOX_A_CREDIT(2);
+	/* Wa_22010947358:adl-p */
+	if (IS_ALDERLAKE_P(dev_priv))
+		val = joined_mbus ? MBUS_DBOX_A_CREDIT(6) : MBUS_DBOX_A_CREDIT(4);
+	else
+		val = MBUS_DBOX_A_CREDIT(2);
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		val |= MBUS_DBOX_BW_CREDIT(2);
@@ -3604,8 +3608,12 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
 
-	if (DISPLAY_VER(dev_priv) >= 11)
-		icl_pipe_mbus_enable(crtc);
+	if (DISPLAY_VER(dev_priv) >= 11) {
+		const struct intel_dbuf_state *dbuf_state =
+				intel_atomic_get_new_dbuf_state(state);
+
+		icl_pipe_mbus_enable(crtc, dbuf_state->joined_mbus);
+	}
 
 	if (new_crtc_state->bigjoiner_slave)
 		intel_crtc_vblank_on(new_crtc_state);
