@@ -319,6 +319,13 @@ static inline void set_btree_iter_dontneed(struct btree_trans *trans, struct btr
 
 void bch2_trans_reset(struct btree_trans *, unsigned);
 
+/**
+ * bch2_trans_begin() - ensure lock consistency of transaction on retry
+ * @trans: transaction to prepare
+ *
+ * Ensure lock ordering is correct before potentially retrying a transaction
+ * after a failed trylock.
+ */
 static inline void bch2_trans_begin(struct btree_trans *trans)
 {
 	return bch2_trans_reset(trans, 0);

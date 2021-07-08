@@ -2310,6 +2310,22 @@ inline void bch2_trans_unlink_iters(struct btree_trans *trans)
 	}
 }
 
+/**
+ * bch2_trans_reset() - reset a transaction after a interrupted attempt
+ * @trans: transaction to reset
+ * @flags: transaction reset flags.
+ *
+ * While iterating over nodes or updating nodes a attempt to lock a btree
+ * node may return EINTR when the trylock fails. When this occurs
+ * bch2_trans_reset() or bch2_trans_begin() should be called and the
+ * transaction retried.
+ *
+ * Transaction reset flags include:
+ *
+ *  - TRANS_RESET_NOUNLOCK   - Do not attempt to unlock and reschedule the
+ *			       transaction.
+ *  - TRANS_RESET_NOTRAVERSE - Do not traverse all linked iters.
+ */
 void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 {
 	struct btree_iter *iter;
