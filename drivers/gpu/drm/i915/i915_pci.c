@@ -936,7 +936,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.dma_mask_size = 46,
+	.dma_mask_size = 39,
 };
 
 #define XE_LPD_FEATURES \
