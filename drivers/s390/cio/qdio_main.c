@@ -972,6 +972,7 @@ int qdio_establish(struct ccw_device *cdev,
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
+	struct ciw *ciw;
 	long timeout;
 	int rc;
 
@@ -996,6 +997,12 @@ int qdio_establish(struct ccw_device *cdev,
 	if (!init_data->irq_poll)
 		return -EINVAL;
 
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
+	if (!ciw) {
+		DBF_ERROR("%4x NO EQ", schid.sch_no);
+		return -EIO;
+	}
+
 	mutex_lock(&irq_ptr->setup_mutex);
 	qdio_trace_init_data(irq_ptr, init_data);
 	qdio_setup_irq(irq_ptr, init_data);
@@ -1005,9 +1012,9 @@ int qdio_establish(struct ccw_device *cdev,
 		goto err_thinint;
 
 	/* establish q */
-	irq_ptr->ccw.cmd_code = irq_ptr->equeue.cmd;
+	irq_ptr->ccw.cmd_code = ciw->cmd;
 	irq_ptr->ccw.flags = CCW_FLAG_SLI;
-	irq_ptr->ccw.count = irq_ptr->equeue.count;
+	irq_ptr->ccw.count = ciw->count;
 	irq_ptr->ccw.cda = (u32) virt_to_phys(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
@@ -1065,6 +1072,7 @@ int qdio_activate(struct ccw_device *cdev)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
+	struct ciw *ciw;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
@@ -1073,15 +1081,21 @@ int qdio_activate(struct ccw_device *cdev)
 	if (!irq_ptr)
 		return -ENODEV;
 
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
+	if (!ciw) {
+		DBF_ERROR("%4x NO AQ", schid.sch_no);
+		return -EIO;
+	}
+
 	mutex_lock(&irq_ptr->setup_mutex);
 	if (irq_ptr->state == QDIO_IRQ_STATE_INACTIVE) {
 		rc = -EBUSY;
 		goto out;
 	}
 
-	irq_ptr->ccw.cmd_code = irq_ptr->aqueue.cmd;
+	irq_ptr->ccw.cmd_code = ciw->cmd;
 	irq_ptr->ccw.flags = CCW_FLAG_SLI;
-	irq_ptr->ccw.count = irq_ptr->aqueue.count;
+	irq_ptr->ccw.count = ciw->count;
 	irq_ptr->ccw.cda = 0;
 
 	spin_lock_irq(get_ccwdev_lock(cdev));

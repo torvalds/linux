@@ -237,8 +237,6 @@ struct qdio_irq {
 	int nr_output_qs;
 
 	struct ccw1 ccw;
-	struct ciw equeue;
-	struct ciw aqueue;
 
 	struct qdio_ssqd_desc ssqd_desc;
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
@@ -338,7 +336,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr);
 int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 			struct subchannel_id *schid,
 			struct qdio_ssqd_desc *data);
-int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
+void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
 void qdio_shutdown_irq(struct qdio_irq *irq);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
 void qdio_free_queues(struct qdio_irq *irq_ptr);
