@@ -152,6 +152,8 @@ static void __init unregister_existing_fips140_algos(void)
 				 * transformations. We will swap these out
 				 * later with integrity checked versions.
 				 */
+				pr_info("found already-live algorithm '%s' ('%s')\n",
+					alg->cra_name, alg->cra_driver_name);
 				list_move(&alg->cra_list,
 					  &unchecked_fips140_algos);
 			}
