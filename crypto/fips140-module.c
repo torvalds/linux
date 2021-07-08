@@ -3,12 +3,15 @@
  * Copyright 2021 Google LLC
  * Author: Ard Biesheuvel <ardb@google.com>
  *
- * This file is the core of the fips140.ko, which carries a number of crypto
- * algorithms and chaining mode templates that are also built into vmlinux.
- * This modules performs a load time integrity check, as mandated by FIPS 140,
- * and replaces registered crypto algorithms that appear on the FIPS 140 list
- * with ones provided by this module. This meets the FIPS 140 requirements for
- * a cryptographic software module.
+ * This file is the core of fips140.ko, which contains various crypto algorithms
+ * that are also built into vmlinux.  At load time, this module overrides the
+ * built-in implementations of these algorithms with its implementations.  It
+ * also runs self-tests on these algorithms and verifies the integrity of its
+ * code and data.  If either of these steps fails, the kernel will panic.
+ *
+ * This module is intended to be loaded at early boot time in order to meet
+ * FIPS 140 and NIAP FPT_TST_EXT.1 requirements.  It shouldn't be used if you
+ * don't need to meet these requirements.
  */
 
 #include <linux/ctype.h>
