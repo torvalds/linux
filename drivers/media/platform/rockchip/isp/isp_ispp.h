@@ -29,6 +29,12 @@
 #define RKISP_ISPP_CMD_GET_REG_WITHSTREAM	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 3, bool)
 
+enum frame_end_state {
+	FRAME_INIT,
+	FRAME_IRQ,
+	FRAME_WORK,
+};
+
 enum rkisp_ispp_dev {
 	DEV_ID0 = 0,
 	DEV_ID1,

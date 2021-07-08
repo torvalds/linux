@@ -511,13 +511,17 @@ static void rkisp_bridge_work(struct work_struct *work)
 	kfree(br_wk);
 }
 
-static int frame_end(struct rkisp_bridge_device *dev, bool en)
+static int frame_end(struct rkisp_bridge_device *dev, bool en, u32 state)
 {
-	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
+	struct rkisp_device *ispdev = dev->ispdev;
+	struct rkisp_hw_dev *hw = ispdev->hw_dev;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
 	unsigned long lock_flags = 0;
 	u64 ns = ktime_get_ns();
 	struct rkisp_bridge_buf *buf;
+
+	if (state == FRAME_IRQ && ispdev->cap_dev.is_done_early)
+		return 0;
 
 	rkisp_dmarx_get_frame(dev->ispdev, &dev->dbg.id, NULL, NULL, true);
 	dev->dbg.interval = ns - dev->dbg.timestamp;
@@ -591,9 +595,8 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 			}
 		}
 		hw->cur_buf = NULL;
-	} else if (dev->ispdev->send_fbcgain) {
-		v4l2_dbg(1, rkisp_debug, &dev->sd,
-			 "use dummy buffer, lost fbcgain data, frm_id %d\n", dev->dbg.id);
+	} else {
+		v4l2_dbg(1, rkisp_debug, &dev->sd, "no buf, lost frame:%d\n", dev->dbg.id);
 	}
 
 	if (hw->nxt_buf) {
@@ -602,6 +605,41 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 	}
 
 	return 0;
+}
+
+static enum hrtimer_restart rkisp_bridge_frame_done_early(struct hrtimer *timer)
+{
+	struct rkisp_bridge_device *br =
+		container_of(timer, struct rkisp_bridge_device, frame_qst);
+	struct rkisp_device *dev = br->ispdev;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
+	u32 ycnt, line = dev->cap_dev.wait_line;
+	u32 seq, time, max_time = 1000000;
+	u64 ns = ktime_get_ns();
+
+	time = (u32)(ns - br->fs_ns);
+	ycnt = rkisp_read(dev, ISP_MPFBC_ENC_POS, true) & 0x3ff;
+	ycnt *= 8;
+	rkisp_dmarx_get_frame(dev, &seq, NULL, NULL, true);
+	if (!br->en || dev->isp_state == ISP_STOP) {
+		goto end;
+	} else if (ycnt < line) {
+		if (!ycnt)
+			ns = max_time;
+		else
+			ns = time * (line - ycnt) / ycnt;
+		if (ns > max_time)
+			ns = max_time;
+		hrtimer_forward(timer, timer->base->get_time(), ns_to_ktime(ns));
+		ret = HRTIMER_RESTART;
+	} else {
+		v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
+			 "%s seq:%d line:%d ycnt:%d time:%dus\n",
+			 __func__, seq, line, ycnt, time / 1000);
+		frame_end(br, br->en, FRAME_WORK);
+	}
+end:
+	return ret;
 }
 
 static int config_gain(struct rkisp_bridge_device *dev)
@@ -1002,6 +1040,7 @@ static void crop_off(struct rkisp_bridge_device *dev)
 
 static int bridge_start(struct rkisp_bridge_device *dev)
 {
+	struct rkisp_device *ispdev = dev->ispdev;
 	struct rkisp_stream *sp_stream;
 
 	sp_stream = &dev->ispdev->cap_dev.stream[RKISP_STREAM_SP];
@@ -1019,6 +1058,15 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 	dev->ispdev->skip_frame = 0;
 	rkisp_stats_first_ddr_config(&dev->ispdev->stats_vdev);
 	dev->en = true;
+
+	ispdev->cap_dev.is_done_early = false;
+	if (ispdev->send_fbcgain)
+		ispdev->cap_dev.wait_line = 0;
+	if (ispdev->cap_dev.wait_line) {
+		if (ispdev->cap_dev.wait_line < dev->crop.height / 4)
+			ispdev->cap_dev.wait_line = dev->crop.height / 4;
+		ispdev->cap_dev.is_done_early = true;
+	}
 	return 0;
 }
 
@@ -1455,6 +1503,7 @@ void rkisp_bridge_update_mi(struct rkisp_device *dev)
 	    br->work_mode & ISP_ISPP_QUICK)
 		return;
 
+	br->fs_ns = ktime_get_ns();
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (!hw->nxt_buf && !list_empty(&hw->list)) {
 		hw->nxt_buf = list_first_entry(&hw->list,
@@ -1472,6 +1521,9 @@ void rkisp_bridge_update_mi(struct rkisp_device *dev)
 		val = buf->dummy[GROUP_BUF_GAIN].dma_addr;
 		rkisp_write(dev, br->cfg->reg.g0_base, val, true);
 	}
+
+	if (dev->cap_dev.is_done_early)
+		hrtimer_start(&br->frame_qst, ns_to_ktime(1000000), HRTIMER_MODE_REL);
 
 	v4l2_dbg(2, rkisp_debug, &br->sd,
 		 "update pic(shd:0x%x base:0x%x) gain(shd:0x%x base:0x%x)\n",
@@ -1509,7 +1561,7 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 
 	irq = (irq == MI_MPFBC_FRAME) ? ISP_FRAME_MPFBC : ISP_FRAME_MP;
 	if (!(bridge->work_mode & ISP_ISPP_QUICK)) {
-		frame_end(bridge, bridge->en);
+		frame_end(bridge, bridge->en, FRAME_IRQ);
 		if (!bridge->en)
 			dev->irq_ends_mask &= ~irq;
 	}
@@ -1556,6 +1608,8 @@ int rkisp_register_bridge_subdev(struct rkisp_device *dev,
 	init_waitqueue_head(&bridge->done);
 	bridge->wq = alloc_workqueue("rkisp bridge workqueue",
 				     WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	hrtimer_init(&bridge->frame_qst, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	bridge->frame_qst.function = rkisp_bridge_frame_done_early;
 	return ret;
 
 free_media:

@@ -75,6 +75,10 @@ u64 rkisp_debug_reg = 0xFFFFFFFFFLL;
 module_param_named(debug_reg, rkisp_debug_reg, ullong, 0644);
 MODULE_PARM_DESC(debug_reg, "rkisp debug register");
 
+static unsigned int rkisp_wait_line;
+module_param_named(wait_line, rkisp_wait_line, uint, 0644);
+MODULE_PARM_DESC(wait_line, "rkisp wait line to buf done early");
+
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
@@ -776,6 +780,9 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unreg_media_dev;
 
+	rkisp_wait_line = 0;
+	of_property_read_u32(dev->of_node, "wait-line", &rkisp_wait_line);
+
 	rkisp_proc_init(isp_dev);
 
 	mutex_lock(&rkisp_dev_mutex);
@@ -828,6 +835,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
 	int ret;
 
+	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(isp_dev->hw_dev->dev);
 	mutex_unlock(&isp_dev->hw_dev->dev_lock);

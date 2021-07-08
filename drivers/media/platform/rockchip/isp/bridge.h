@@ -56,13 +56,15 @@ struct rkisp_bridge_device {
 	struct rkisp_bridge_ops *ops;
 	struct rkisp_bridge_config *cfg;
 	struct frame_debug_info dbg;
+	struct workqueue_struct *wq;
+	struct hrtimer frame_qst;
+	u64 fs_ns;
 	u8 work_mode;
 	u8 buf_num;
 	bool pingpong;
 	bool stopping;
 	bool linked;
 	bool en;
-	struct workqueue_struct *wq;
 };
 
 int rkisp_register_bridge_subdev(struct rkisp_device *dev,

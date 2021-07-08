@@ -238,6 +238,8 @@ struct rkisp_capture_device {
 	struct rkisp_stream stream[RKISP_MAX_STREAM];
 	struct rkisp_buffer *rdbk_buf[RDBK_MAX];
 	atomic_t refcnt;
+	u32 wait_line;
+	bool is_done_early;
 };
 
 extern struct stream_config rkisp_mp_stream_config;
