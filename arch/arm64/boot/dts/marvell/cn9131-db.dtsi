@@ -85,7 +85,7 @@
 /* CON50 */
 &cp1_eth0 {
 	status = "okay";
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 	/* Generic PHY, providing serdes lanes */
 	phys = <&cp1_comphy4 0>;
 	managed = "in-band-status";

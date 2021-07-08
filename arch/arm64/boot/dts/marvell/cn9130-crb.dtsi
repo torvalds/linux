@@ -202,7 +202,7 @@
 &cp0_eth0 {
 	/* This port is connected to 88E6393X switch */
 	status = "okay";
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 	managed = "in-band-status";
 	phys = <&cp0_comphy4 0>;
 };

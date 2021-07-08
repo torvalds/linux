@@ -103,7 +103,7 @@
 /* SLM-1521-V2, CON9 */
 &cp2_eth0 {
 	status = "disabled";
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 	/* Generic PHY, providing serdes lanes */
 	phys = <&cp2_comphy4 0>;
 	managed = "in-band-status";
