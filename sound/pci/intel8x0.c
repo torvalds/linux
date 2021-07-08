@@ -694,7 +694,7 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 	int status, civ, i, step;
 	int ack = 0;
 
-	if (!ichdev->prepared || ichdev->suspended)
+	if (!(ichdev->prepared || chip->in_measurement) || ichdev->suspended)
 		return;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
