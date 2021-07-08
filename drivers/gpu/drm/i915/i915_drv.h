@@ -202,6 +202,68 @@ struct drm_i915_file_private {
 		struct rcu_head rcu;
 	};
 
+	/** @proto_context_lock: Guards all struct i915_gem_proto_context
+	 * operations
+	 *
+	 * This not only guards @proto_context_xa, but is always held
+	 * whenever we manipulate any struct i915_gem_proto_context,
+	 * including finalizing it on first actual use of the GEM context.
+	 *
+	 * See i915_gem_proto_context.
+	 */
+	struct mutex proto_context_lock;
+
+	/** @proto_context_xa: xarray of struct i915_gem_proto_context
+	 *
+	 * Historically, the context uAPI allowed for two methods of
+	 * setting context parameters: SET_CONTEXT_PARAM and
+	 * CONTEXT_CREATE_EXT_SETPARAM.  The former is allowed to be called
+	 * at any time while the later happens as part of
+	 * GEM_CONTEXT_CREATE.  Everything settable via one was settable
+	 * via the other.  While some params are fairly simple and setting
+	 * them on a live context is harmless such as the context priority,
+	 * others are far trickier such as the VM or the set of engines.
+	 * In order to swap out the VM, for instance, we have to delay
+	 * until all current in-flight work is complete, swap in the new
+	 * VM, and then continue.  This leads to a plethora of potential
+	 * race conditions we'd really rather avoid.
+	 *
+	 * We have since disallowed setting these more complex parameters
+	 * on active contexts.  This works by delaying the creation of the
+	 * actual context until after the client is done configuring it
+	 * with SET_CONTEXT_PARAM.  From the perspective of the client, it
+	 * has the same u32 context ID the whole time.  From the
+	 * perspective of i915, however, it's a struct i915_gem_proto_context
+	 * right up until the point where we attempt to do something which
+	 * the proto-context can't handle.  Then the struct i915_gem_context
+	 * gets created.
+	 *
+	 * This is accomplished via a little xarray dance.  When
+	 * GEM_CONTEXT_CREATE is called, we create a struct
+	 * i915_gem_proto_context, reserve a slot in @context_xa but leave
+	 * it NULL, and place the proto-context in the corresponding slot
+	 * in @proto_context_xa.  Then, in i915_gem_context_lookup(), we
+	 * first check @context_xa.  If it's there, we return the struct
+	 * i915_gem_context and we're done.  If it's not, we look in
+	 * @proto_context_xa and, if we find it there, we create the actual
+	 * context and kill the proto-context.
+	 *
+	 * In order for this dance to work properly, everything which ever
+	 * touches a struct i915_gem_proto_context is guarded by
+	 * @proto_context_lock, including context creation.  Yes, this
+	 * means context creation now takes a giant global lock but it
+	 * can't really be helped and that should never be on any driver's
+	 * fast-path anyway.
+	 */
+	struct xarray proto_context_xa;
+
+	/** @context_xa: xarray of fully created i915_gem_context
+	 *
+	 * Write access to this xarray is guarded by @proto_context_lock.
+	 * Otherwise, writers may race with finalize_create_context_locked().
+	 *
+	 * See @proto_context_xa.
+	 */
 	struct xarray context_xa;
 	struct xarray vm_xa;
 
@@ -1846,20 +1908,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
 struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj, int flags);
-
-static inline struct i915_gem_context *
-i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
-{
-	struct i915_gem_context *ctx;
-
-	rcu_read_lock();
-	ctx = xa_load(&file_priv->context_xa, id);
-	if (ctx && !kref_get_unless_zero(&ctx->ref))
-		ctx = NULL;
-	rcu_read_unlock();
-
-	return ctx ? ctx : ERR_PTR(-ENOENT);
-}
 
 static inline struct i915_address_space *
 i915_gem_vm_lookup(struct drm_i915_file_private *file_priv, u32 id)
