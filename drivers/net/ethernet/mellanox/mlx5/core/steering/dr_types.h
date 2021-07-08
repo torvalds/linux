@@ -140,6 +140,7 @@ struct mlx5dr_icm_buddy_mem;
 struct mlx5dr_ste_htbl;
 struct mlx5dr_match_param;
 struct mlx5dr_cmd_caps;
+struct mlx5dr_rule_rx_tx;
 struct mlx5dr_matcher_rx_tx;
 struct mlx5dr_ste_ctx;
 
@@ -151,13 +152,13 @@ struct mlx5dr_ste {
 	/* attached to the miss_list head at each htbl entry */
 	struct list_head miss_list_node;
 
-	/* each rule member that uses this ste attached here */
-	struct list_head rule_list;
-
 	/* this ste is member of htbl */
 	struct mlx5dr_ste_htbl *htbl;
 
 	struct mlx5dr_ste_htbl *next_htbl;
+
+	/* The rule this STE belongs to */
+	struct mlx5dr_rule_rx_tx *rule_rx_tx;
 
 	/* this ste is part of a rule, located in ste's chain */
 	u8 ste_chain_location;
@@ -888,14 +889,6 @@ struct mlx5dr_matcher {
 	struct mlx5dv_flow_matcher *dv_matcher;
 };
 
-struct mlx5dr_rule_member {
-	struct mlx5dr_ste *ste;
-	/* attached to mlx5dr_rule via this */
-	struct list_head list;
-	/* attached to mlx5dr_ste via this */
-	struct list_head use_ste_list;
-};
-
 struct mlx5dr_ste_action_modify_field {
 	u16 hw_field;
 	u8 start;
@@ -996,8 +989,8 @@ struct mlx5dr_htbl_connect_info {
 };
 
 struct mlx5dr_rule_rx_tx {
-	struct list_head rule_members_list;
 	struct mlx5dr_matcher_rx_tx *nic_matcher;
+	struct mlx5dr_ste *last_rule_ste;
 };
 
 struct mlx5dr_rule {
@@ -1008,8 +1001,12 @@ struct mlx5dr_rule {
 	u32 flow_source;
 };
 
-void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *new_ste,
-				    struct mlx5dr_ste *ste);
+void mlx5dr_rule_set_last_member(struct mlx5dr_rule_rx_tx *nic_rule,
+				 struct mlx5dr_ste *ste,
+				 bool force);
+int mlx5dr_rule_get_reverse_rule_members(struct mlx5dr_ste **ste_arr,
+					 struct mlx5dr_ste *curr_ste,
+					 int *num_of_stes);
 
 struct mlx5dr_icm_chunk {
 	struct mlx5dr_icm_buddy_mem *buddy_mem;
