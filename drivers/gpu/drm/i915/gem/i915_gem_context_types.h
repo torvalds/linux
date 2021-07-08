@@ -67,6 +67,55 @@ struct i915_gem_engines_iter {
 };
 
 /**
+ * enum i915_gem_engine_type - Describes the type of an i915_gem_proto_engine
+ */
+enum i915_gem_engine_type {
+	/** @I915_GEM_ENGINE_TYPE_INVALID: An invalid engine */
+	I915_GEM_ENGINE_TYPE_INVALID = 0,
+
+	/** @I915_GEM_ENGINE_TYPE_PHYSICAL: A single physical engine */
+	I915_GEM_ENGINE_TYPE_PHYSICAL,
+
+	/** @I915_GEM_ENGINE_TYPE_BALANCED: A load-balanced engine set */
+	I915_GEM_ENGINE_TYPE_BALANCED,
+};
+
+/**
+ * struct i915_gem_proto_engine - prototype engine
+ *
+ * This struct describes an engine that a context may contain.  Engines
+ * have three types:
+ *
+ *  - I915_GEM_ENGINE_TYPE_INVALID: Invalid engines can be created but they
+ *    show up as a NULL in i915_gem_engines::engines[i] and any attempt to
+ *    use them by the user results in -EINVAL.  They are also useful during
+ *    proto-context construction because the client may create invalid
+ *    engines and then set them up later as virtual engines.
+ *
+ *  - I915_GEM_ENGINE_TYPE_PHYSICAL: A single physical engine, described by
+ *    i915_gem_proto_engine::engine.
+ *
+ *  - I915_GEM_ENGINE_TYPE_BALANCED: A load-balanced engine set, described
+ *    i915_gem_proto_engine::num_siblings and i915_gem_proto_engine::siblings.
+ */
+struct i915_gem_proto_engine {
+	/** @type: Type of this engine */
+	enum i915_gem_engine_type type;
+
+	/** @engine: Engine, for physical */
+	struct intel_engine_cs *engine;
+
+	/** @num_siblings: Number of balanced siblings */
+	unsigned int num_siblings;
+
+	/** @siblings: Balanced siblings */
+	struct intel_engine_cs **siblings;
+
+	/** @sseu: Client-set SSEU parameters */
+	struct intel_sseu sseu;
+};
+
+/**
  * struct i915_gem_proto_context - prototype context
  *
  * The struct i915_gem_proto_context represents the creation parameters for
@@ -83,6 +132,15 @@ struct i915_gem_proto_context {
 
 	/** @sched: See &i915_gem_context.sched */
 	struct i915_sched_attr sched;
+
+	/** @num_user_engines: Number of user-specified engines or -1 */
+	int num_user_engines;
+
+	/** @user_engines: User-specified engines */
+	struct i915_gem_proto_engine *user_engines;
+
+	/** @legacy_rcs_sseu: Client-set SSEU parameters for the legacy RCS */
+	struct intel_sseu legacy_rcs_sseu;
 
 	/** @single_timeline: See See &i915_gem_context.syncobj */
 	bool single_timeline;
