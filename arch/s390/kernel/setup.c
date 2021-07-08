@@ -964,6 +964,8 @@ static int __init setup_hwcaps(void)
 	 */
 	if (MACHINE_HAS_GS)
 		elf_hwcap |= HWCAP_S390_GS;
+	if (MACHINE_HAS_PCI_MIO)
+		elf_hwcap |= HWCAP_S390_PCI_MIO;
 
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));

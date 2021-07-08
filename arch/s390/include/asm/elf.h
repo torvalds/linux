@@ -113,6 +113,7 @@
 #define HWCAP_S390_DFLT		262144
 #define HWCAP_S390_VXRS_PDE2	524288
 #define HWCAP_S390_NNPA		1048576
+#define HWCAP_S390_PCI_MIO	2097152
 
 /* Internal bits, not exposed via elf */
 #define HWCAP_INT_SIE		1UL
