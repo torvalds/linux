@@ -8,15 +8,15 @@
 #include "cn9132-db.dtsi"
 
 / {
-	model = "Marvell Armada CN9132-DB setup A";
+	model = "Marvell Armada CN9132-DB setup B";
 };
 
-/* Setup A has SPI1 flash as a boot device, while setup B uses NAND flash.
+/* Setup B has NAND flash as a boot device, while regular setup uses SPI flash.
  * Since CP0 SPI1 and CP0 NAND are sharing some pins, they cannot be activated
- * simultaneously. When SPI controller is enabled, NAND should be disabled.
+ * simultaneously. When NAND controller is enabled, SPI1 should be disabled.
  */
 
-&cp0_spi1 {
+&cp0_nand_controller {
 	status = "okay";
 };
 
