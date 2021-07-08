@@ -154,6 +154,8 @@ static const char *topdown_metric_L2_attrs[] = {
 	NULL,
 };
 
+#define TOPDOWN_MAX_LEVEL			2
+
 static const char *smi_cost_attrs = {
 	"{"
 	"msr/aperf/,"
@@ -1931,6 +1933,7 @@ setup_metrics:
 		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
 			return -1;
 
+		stat_config.topdown_level = TOPDOWN_MAX_LEVEL;
 		if (arch_evlist__add_default_attrs(evsel_list) < 0)
 			return -1;
 	}
