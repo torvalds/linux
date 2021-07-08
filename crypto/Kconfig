@@ -40,6 +40,15 @@ config CRYPTO_FIPS140_MOD
 	bool "Enable FIPS140 integrity self-checked loadable module"
 	depends on LTO_CLANG && CRYPTO_FIPS140
 
+config CRYPTO_FIPS140_MOD_ERROR_INJECTION
+	bool "Support injecting failures into the FIPS 140 self-tests"
+	depends on CRYPTO_FIPS140_MOD
+	help
+	  This option adds a module parameter "broken_alg" to the fips140 module
+	  which can be used to fail the self-tests for a particular algorithm,
+	  causing a kernel panic.  This option is for FIPS lab testing only, and
+	  it shouldn't be enabled on production systems.
+
 config CRYPTO_ALGAPI
 	tristate
 	select CRYPTO_ALGAPI2
