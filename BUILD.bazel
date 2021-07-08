@@ -33,7 +33,7 @@ x86_64_outs = common_outs + ["bzImage"]
     name = name,
     outs = outs,
     build_config = config,
-    sources = glob(
+    srcs = glob(
         ["**"],
         exclude = [
             "android/*",
