@@ -275,7 +275,8 @@ static long bch2_ioctl_disk_set_state(struct bch_fs *c,
 			   BCH_FORCE_IF_METADATA_LOST|
 			   BCH_FORCE_IF_DEGRADED|
 			   BCH_BY_INDEX)) ||
-	    arg.pad[0] || arg.pad[1] || arg.pad[2])
+	    arg.pad[0] || arg.pad[1] || arg.pad[2] ||
+	    arg.new_state >= BCH_MEMBER_STATE_NR)
 		return -EINVAL;
 
 	ca = bch2_device_lookup(c, arg.dev, arg.flags);
