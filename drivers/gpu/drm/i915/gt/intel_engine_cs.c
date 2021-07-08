@@ -807,7 +807,8 @@ intel_engine_create_pinned_context(struct intel_engine_cs *engine,
 
 	__set_bit(CONTEXT_BARRIER_BIT, &ce->flags);
 	ce->timeline = page_pack_bits(NULL, hwsp);
-	ce->ring = __intel_context_ring_size(ring_size);
+	ce->ring = NULL;
+	ce->ring_size = ring_size;
 
 	i915_vm_put(ce->vm);
 	ce->vm = i915_vm_get(vm);

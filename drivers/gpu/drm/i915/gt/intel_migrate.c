@@ -232,7 +232,8 @@ struct intel_context *intel_migrate_create_context(struct intel_migrate *m)
 	if (IS_ERR(ce))
 		return ce;
 
-	ce->ring = __intel_context_ring_size(SZ_256K);
+	ce->ring = NULL;
+	ce->ring_size = SZ_256K;
 
 	i915_vm_put(ce->vm);
 	ce->vm = i915_vm_get(m->context->vm);
