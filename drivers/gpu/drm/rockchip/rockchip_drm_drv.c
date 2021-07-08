@@ -35,7 +35,7 @@
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
-#define DRIVER_MAJOR	1
+#define DRIVER_MAJOR	3
 #define DRIVER_MINOR	0
 
 static bool is_support_iommu = true;
