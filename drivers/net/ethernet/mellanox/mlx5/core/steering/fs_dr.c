@@ -625,15 +625,6 @@ static void mlx5_cmd_dr_modify_header_dealloc(struct mlx5_flow_root_namespace *n
 	mlx5dr_action_destroy(modify_hdr->action.dr_action);
 }
 
-static int mlx5_cmd_dr_update_fte(struct mlx5_flow_root_namespace *ns,
-				  struct mlx5_flow_table *ft,
-				  struct mlx5_flow_group *group,
-				  int modify_mask,
-				  struct fs_fte *fte)
-{
-	return -EOPNOTSUPP;
-}
-
 static int mlx5_cmd_dr_delete_fte(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft,
 				  struct fs_fte *fte)
@@ -656,6 +647,36 @@ static int mlx5_cmd_dr_delete_fte(struct mlx5_flow_root_namespace *ns,
 
 	kfree(rule->dr_actions);
 	return 0;
+}
+
+static int mlx5_cmd_dr_update_fte(struct mlx5_flow_root_namespace *ns,
+				  struct mlx5_flow_table *ft,
+				  struct mlx5_flow_group *group,
+				  int modify_mask,
+				  struct fs_fte *fte)
+{
+	struct fs_fte fte_tmp = {};
+	int ret;
+
+	if (mlx5_dr_is_fw_table(ft->flags))
+		return mlx5_fs_cmd_get_fw_cmds()->update_fte(ns, ft, group, modify_mask, fte);
+
+	/* Backup current dr rule details */
+	fte_tmp.fs_dr_rule = fte->fs_dr_rule;
+	memset(&fte->fs_dr_rule, 0, sizeof(struct mlx5_fs_dr_rule));
+
+	/* First add the new updated rule, then delete the old rule */
+	ret = mlx5_cmd_dr_create_fte(ns, ft, group, fte);
+	if (ret)
+		goto restore_fte;
+
+	ret = mlx5_cmd_dr_delete_fte(ns, ft, &fte_tmp);
+	WARN_ONCE(ret, "dr update fte duplicate rule deletion failed\n");
+	return ret;
+
+restore_fte:
+	fte->fs_dr_rule = fte_tmp.fs_dr_rule;
+	return ret;
 }
 
 static int mlx5_cmd_dr_set_peer(struct mlx5_flow_root_namespace *ns,
