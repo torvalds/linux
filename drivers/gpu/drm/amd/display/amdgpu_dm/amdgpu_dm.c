@@ -2412,6 +2412,7 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	static const u8 pre_computed_values[] = {
 		50, 51, 52, 53, 55, 56, 57, 58, 59, 61, 62, 63, 65, 66, 68, 69,
 		71, 72, 74, 75, 77, 79, 81, 82, 84, 86, 88, 90, 92, 94, 96, 98};
+	int i;
 
 	if (!aconnector || !aconnector->dc_link)
 		return;
@@ -2423,7 +2424,13 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	conn_base = &aconnector->base;
 	adev = drm_to_adev(conn_base->dev);
 	dm = &adev->dm;
-	caps = &dm->backlight_caps;
+	for (i = 0; i < dm->num_of_edps; i++) {
+		if (link == dm->backlight_link[i])
+			break;
+	}
+	if (i >= dm->num_of_edps)
+		return;
+	caps = &dm->backlight_caps[i];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
 	caps->aux_support = false;
 	max_cll = conn_base->hdr_sink_metadata.hdmi_type1.max_cll;
@@ -3423,35 +3430,36 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
-static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
+static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+					    int bl_idx)
 {
 #if defined(CONFIG_ACPI)
 	struct amdgpu_dm_backlight_caps caps;
 
 	memset(&caps, 0, sizeof(caps));
 
-	if (dm->backlight_caps.caps_valid)
+	if (dm->backlight_caps[bl_idx].caps_valid)
 		return;
 
 	amdgpu_acpi_get_backlight_caps(&caps);
 	if (caps.caps_valid) {
-		dm->backlight_caps.caps_valid = true;
+		dm->backlight_caps[bl_idx].caps_valid = true;
 		if (caps.aux_support)
 			return;
-		dm->backlight_caps.min_input_signal = caps.min_input_signal;
-		dm->backlight_caps.max_input_signal = caps.max_input_signal;
+		dm->backlight_caps[bl_idx].min_input_signal = caps.min_input_signal;
+		dm->backlight_caps[bl_idx].max_input_signal = caps.max_input_signal;
 	} else {
-		dm->backlight_caps.min_input_signal =
+		dm->backlight_caps[bl_idx].min_input_signal =
 				AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
-		dm->backlight_caps.max_input_signal =
+		dm->backlight_caps[bl_idx].max_input_signal =
 				AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
 	}
 #else
-	if (dm->backlight_caps.aux_support)
+	if (dm->backlight_caps[bl_idx].aux_support)
 		return;
 
-	dm->backlight_caps.min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
-	dm->backlight_caps.max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	dm->backlight_caps[bl_idx].min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+	dm->backlight_caps[bl_idx].max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
 #endif
 }
 
@@ -3502,41 +3510,31 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
 }
 
 static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
+					 int bl_idx,
 					 u32 user_brightness)
 {
 	struct amdgpu_dm_backlight_caps caps;
-	struct dc_link *link[AMDGPU_DM_MAX_NUM_EDP];
-	u32 brightness[AMDGPU_DM_MAX_NUM_EDP];
+	struct dc_link *link;
+	u32 brightness;
 	bool rc;
-	int i;
 
-	amdgpu_dm_update_backlight_caps(dm);
-	caps = dm->backlight_caps;
+	amdgpu_dm_update_backlight_caps(dm, bl_idx);
+	caps = dm->backlight_caps[bl_idx];
 
-	for (i = 0; i < dm->num_of_edps; i++) {
-		dm->brightness[i] = user_brightness;
-		brightness[i] = convert_brightness_from_user(&caps, dm->brightness[i]);
-		link[i] = (struct dc_link *)dm->backlight_link[i];
-	}
+	dm->brightness[bl_idx] = user_brightness;
+	brightness = convert_brightness_from_user(&caps, dm->brightness[bl_idx]);
+	link = (struct dc_link *)dm->backlight_link[bl_idx];
 
 	/* Change brightness based on AUX property */
 	if (caps.aux_support) {
-		for (i = 0; i < dm->num_of_edps; i++) {
-			rc = dc_link_set_backlight_level_nits(link[i], true, brightness[i],
-				AUX_BL_DEFAULT_TRANSITION_TIME_MS);
-			if (!rc) {
-				DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
-				break;
-			}
-		}
+		rc = dc_link_set_backlight_level_nits(link, true, brightness,
+						      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
+		if (!rc)
+			DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", bl_idx);
 	} else {
-		for (i = 0; i < dm->num_of_edps; i++) {
-			rc = dc_link_set_backlight_level(dm->backlight_link[i], brightness[i], 0);
-			if (!rc) {
-				DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", i);
-				break;
-			}
-		}
+		rc = dc_link_set_backlight_level(link, brightness, 0);
+		if (!rc)
+			DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", bl_idx);
 	}
 
 	return rc ? 0 : 1;
@@ -3545,33 +3543,41 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
+	int i;
 
-	amdgpu_dm_backlight_set_level(dm, bd->props.brightness);
+	for (i = 0; i < dm->num_of_edps; i++) {
+		if (bd == dm->backlight_dev[i])
+			break;
+	}
+	if (i >= AMDGPU_DM_MAX_NUM_EDP)
+		i = 0;
+	amdgpu_dm_backlight_set_level(dm, i, bd->props.brightness);
 
 	return 0;
 }
 
-static u32 amdgpu_dm_backlight_get_level(struct amdgpu_display_manager *dm)
+static u32 amdgpu_dm_backlight_get_level(struct amdgpu_display_manager *dm,
+					 int bl_idx)
 {
 	struct amdgpu_dm_backlight_caps caps;
+	struct dc_link *link = (struct dc_link *)dm->backlight_link[bl_idx];
 
-	amdgpu_dm_update_backlight_caps(dm);
-	caps = dm->backlight_caps;
+	amdgpu_dm_update_backlight_caps(dm, bl_idx);
+	caps = dm->backlight_caps[bl_idx];
 
 	if (caps.aux_support) {
-		struct dc_link *link = (struct dc_link *)dm->backlight_link[0];
 		u32 avg, peak;
 		bool rc;
 
 		rc = dc_link_get_backlight_level_nits(link, &avg, &peak);
 		if (!rc)
-			return dm->brightness[0];
+			return dm->brightness[bl_idx];
 		return convert_brightness_to_user(&caps, avg);
 	} else {
-		int ret = dc_link_get_backlight_level(dm->backlight_link[0]);
+		int ret = dc_link_get_backlight_level(link);
 
 		if (ret == DC_ERROR_UNEXPECTED)
-			return dm->brightness[0];
+			return dm->brightness[bl_idx];
 		return convert_brightness_to_user(&caps, ret);
 	}
 }
@@ -3579,8 +3585,15 @@ static u32 amdgpu_dm_backlight_get_level(struct amdgpu_display_manager *dm)
 static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
+	int i;
 
-	return amdgpu_dm_backlight_get_level(dm);
+	for (i = 0; i < dm->num_of_edps; i++) {
+		if (bd == dm->backlight_dev[i])
+			break;
+	}
+	if (i >= AMDGPU_DM_MAX_NUM_EDP)
+		i = 0;
+	return amdgpu_dm_backlight_get_level(dm, i);
 }
 
 static const struct backlight_ops amdgpu_dm_backlight_ops = {
@@ -3594,31 +3607,28 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 {
 	char bl_name[16];
 	struct backlight_properties props = { 0 };
-	int i;
 
-	amdgpu_dm_update_backlight_caps(dm);
-	for (i = 0; i < dm->num_of_edps; i++)
-		dm->brightness[i] = AMDGPU_MAX_BL_LEVEL;
+	amdgpu_dm_update_backlight_caps(dm, dm->num_of_edps);
+	dm->brightness[dm->num_of_edps] = AMDGPU_MAX_BL_LEVEL;
 
 	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
 	props.brightness = AMDGPU_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 
 	snprintf(bl_name, sizeof(bl_name), "amdgpu_bl%d",
-		 adev_to_drm(dm->adev)->primary->index);
+		 adev_to_drm(dm->adev)->primary->index + dm->num_of_edps);
 
-	dm->backlight_dev = backlight_device_register(bl_name,
-						      adev_to_drm(dm->adev)->dev,
-						      dm,
-						      &amdgpu_dm_backlight_ops,
-						      &props);
+	dm->backlight_dev[dm->num_of_edps] = backlight_device_register(bl_name,
+								       adev_to_drm(dm->adev)->dev,
+								       dm,
+								       &amdgpu_dm_backlight_ops,
+								       &props);
 
-	if (IS_ERR(dm->backlight_dev))
+	if (IS_ERR(dm->backlight_dev[dm->num_of_edps]))
 		DRM_ERROR("DM: Backlight registration failed!\n");
 	else
 		DRM_DEBUG_DRIVER("DM: Registered Backlight device: %s\n", bl_name);
 }
-
 #endif
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
@@ -3675,10 +3685,10 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 		 * DM initialization because not having a backlight control
 		 * is better then a black screen.
 		 */
-		if (!dm->backlight_dev)
+		if (!dm->backlight_dev[dm->num_of_edps])
 			amdgpu_dm_register_backlight_device(dm);
 
-		if (dm->backlight_dev) {
+		if (dm->backlight_dev[dm->num_of_edps]) {
 			dm->backlight_link[dm->num_of_edps] = link;
 			dm->num_of_edps++;
 		}
@@ -6198,6 +6208,7 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	const struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_display_manager *dm = &adev->dm;
+	int i;
 
 	/*
 	 * Call only if mst_mgr was iniitalized before since it's not done
@@ -6208,12 +6219,11 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
-	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
-	    link->type != dc_connection_none &&
-	    dm->backlight_dev) {
-		backlight_device_unregister(dm->backlight_dev);
-		dm->backlight_dev = NULL;
+	for (i = 0; i < dm->num_of_edps; i++) {
+		if ((link == dm->backlight_link[i]) && dm->backlight_dev[i]) {
+			backlight_device_unregister(dm->backlight_dev[i]);
+			dm->backlight_dev[i] = NULL;
+		}
 	}
 #endif
 
@@ -9193,8 +9203,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||		\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 	/* restore the backlight level */
-	if (dm->backlight_dev && (amdgpu_dm_backlight_get_level(dm) != dm->brightness[0]))
-		amdgpu_dm_backlight_set_level(dm, dm->brightness[0]);
+	for (i = 0; i < dm->num_of_edps; i++) {
+		if (dm->backlight_dev[i] &&
+		    (amdgpu_dm_backlight_get_level(dm, i) != dm->brightness[i]))
+			amdgpu_dm_backlight_set_level(dm, i, dm->brightness[i]);
+	}
 #endif
 	/*
 	 * send vblank event on all events not handled in flip and
