@@ -950,6 +950,13 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	LIST_HEAD(format);
 	LIST_HEAD(aliases);
 	__u32 type;
+	bool is_hybrid = perf_pmu__hybrid_mounted(name);
+
+	/*
+	 * Check pmu name for hybrid and the pmu may be invalid in sysfs
+	 */
+	if (!strncmp(name, "cpu_", 4) && !is_hybrid)
+		return NULL;
 
 	/*
 	 * The pmu data we store & need consists of the pmu
@@ -978,7 +985,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	pmu->is_uncore = pmu_is_uncore(name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
-	pmu->is_hybrid = perf_pmu__hybrid_mounted(name);
+	pmu->is_hybrid = is_hybrid;
 	pmu->max_precise = pmu_max_precise(name);
 	pmu_add_cpu_aliases(&aliases, pmu);
 	pmu_add_sys_aliases(&aliases, pmu);
