@@ -2352,6 +2352,8 @@ int nfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 		return error;
 	}
 
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+
 	/*
 	 * No big deal if we can't add this page to the page cache here.
 	 * READLINK will get the missing page from the server if needed.
@@ -2385,6 +2387,7 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 	d_drop(dentry);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
 	if (error == 0) {
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		ihold(inode);
 		d_add(dentry, inode);
 	}
