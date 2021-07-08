@@ -286,6 +286,10 @@
 						    "rx19", "tx19",
 						    "rx20", "tx20";
 					status = "disabled";
+					interconnects = <&mc TEGRA194_MEMORY_CLIENT_APEDMAR &emc>,
+							<&mc TEGRA194_MEMORY_CLIENT_APEDMAW &emc>;
+					interconnect-names = "dma-mem", "write";
+					iommus = <&smmu TEGRA194_SID_APE>;
 				};
 
 				tegra_i2s1: i2s@2901000 {
@@ -2919,11 +2923,6 @@
 		 * for 8x and 11.025x sample rate streams.
 		 */
 		assigned-clock-rates = <258000000>;
-
-		interconnects = <&mc TEGRA194_MEMORY_CLIENT_APEDMAR &emc>,
-				<&mc TEGRA194_MEMORY_CLIENT_APEDMAW &emc>;
-		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_APE>;
 	};
 
 	tcu: serial {
