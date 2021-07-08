@@ -150,7 +150,8 @@ live_context_for_engine(struct intel_engine_cs *engine, struct file *file)
 }
 
 struct i915_gem_context *
-kernel_context(struct drm_i915_private *i915)
+kernel_context(struct drm_i915_private *i915,
+	       struct i915_address_space *vm)
 {
 	struct i915_gem_context *ctx;
 	struct i915_gem_proto_context *pc;
@@ -158,6 +159,12 @@ kernel_context(struct drm_i915_private *i915)
 	pc = proto_context_create(i915, 0);
 	if (IS_ERR(pc))
 		return ERR_CAST(pc);
+
+	if (vm) {
+		if (pc->vm)
+			i915_vm_put(pc->vm);
+		pc->vm = i915_vm_get(vm);
+	}
 
 	ctx = i915_gem_create_context(i915, pc);
 	proto_context_close(pc);
