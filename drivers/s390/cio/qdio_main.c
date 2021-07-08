@@ -998,7 +998,7 @@ int qdio_establish(struct ccw_device *cdev,
 	irq_ptr->ccw.cmd_code = irq_ptr->equeue.cmd;
 	irq_ptr->ccw.flags = CCW_FLAG_SLI;
 	irq_ptr->ccw.count = irq_ptr->equeue.count;
-	irq_ptr->ccw.cda = (u32)((addr_t)irq_ptr->qdr);
+	irq_ptr->ccw.cda = (u32) virt_to_phys(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
