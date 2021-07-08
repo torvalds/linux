@@ -1282,36 +1282,41 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                 case 0: //dst = 0
                     break;
                 case 1: //dst = src
-                    req->alpha_mode_0 = 0x0A1A;
-                    req->alpha_mode_1 = 0x0A1A;
+                    req->alpha_mode_0 = 0x0212;
+                    req->alpha_mode_1 = 0x0212;
                     break;
                 case 2: //dst = dst
-                    req->alpha_mode_0 = 0x1A0A;
-                    req->alpha_mode_1 = 0x1A0A;
+                    req->alpha_mode_0 = 0x1202;
+                    req->alpha_mode_1 = 0x1202;
                     break;
                 case 3: //dst = (256*sc + (256 - sa)*dc) >> 8
                     if((req_rga->alpha_rop_mode & 3) == 0) {
-                        alpha_mode_0 = 0x3818;
-                        alpha_mode_1 = 0x3818;
+                        /* both use globalAlpha. */
+                        alpha_mode_0 = 0x3010;
+                        alpha_mode_1 = 0x3010;
                     }
                     else if ((req_rga->alpha_rop_mode & 3) == 1) {
-                        alpha_mode_0 = 0x381A;
-                        alpha_mode_1 = 0x381A;
+                        /* dst use globalAlpha, and dst does not have pixelAlpha. */
+                        alpha_mode_0 = 0x3012;
+                        alpha_mode_1 = 0x3012;
                     }
                     else if ((req_rga->alpha_rop_mode & 3) == 2) {
-                        alpha_mode_0 = 0x381C;
-                        alpha_mode_1 = 0x381C;
+                        /* dst use globalAlpha, and dst has pixelAlpha. */
+                        alpha_mode_0 = 0x3014;
+                        alpha_mode_1 = 0x3014;
                     }
                     else {
-                        alpha_mode_0 = 0x381A;
-                        alpha_mode_1 = 0x381A;
+                        /* Do not use globalAlpha. */
+                        alpha_mode_0 = 0x3212;
+                        alpha_mode_1 = 0x3212;
                     }
                     req->alpha_mode_0 = alpha_mode_0;
                     req->alpha_mode_1 = alpha_mode_1;
                     break;
                 case 4: //dst = (sc*(256-da) + 256*dc) >> 8
-                    req->alpha_mode_0 = 0x1A3A;
-                    req->alpha_mode_1 = 0x1A3A;
+                    /* Do not use globalAlpha. */
+                    req->alpha_mode_0 = 0x1232;
+                    req->alpha_mode_1 = 0x1232;
                     break;
                 case 5: //dst = (da*sc) >> 8
                     break;
@@ -1322,8 +1327,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                 case 8: //dst = ((256-sa)*dc) >> 8
                     break;
                 case 9: //dst = (da*sc + (256-sa)*dc) >> 8
-                    req->alpha_mode_0 = 0x3848;
-                    req->alpha_mode_1 = 0x3848;
+                    req->alpha_mode_0 = 0x3040;
+                    req->alpha_mode_1 = 0x3040;
                     break;
                 case 10://dst = ((256-da)*sc + (sa*dc)) >> 8
                     break;
@@ -1346,16 +1351,16 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
         }
         else {
             if((req_rga->alpha_rop_mode & 3) == 0) {
-                req->alpha_mode_0 = 0x3848;
-                req->alpha_mode_1 = 0x3848;
+                req->alpha_mode_0 = 0x3040;
+                req->alpha_mode_1 = 0x3040;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 1) {
-		req->alpha_mode_0 = 0x384A;
-		req->alpha_mode_1 = 0x3A4A;
+		req->alpha_mode_0 = 0x3042;
+		req->alpha_mode_1 = 0x3242;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 2) {
-                req->alpha_mode_0 = 0x384C;
-                req->alpha_mode_1 = 0x384C;
+                req->alpha_mode_0 = 0x3044;
+                req->alpha_mode_1 = 0x3044;
             }
         }
     }
@@ -1534,44 +1539,49 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 8) & 1) << 8); // nn_quantize
     req->dither_mode = req_rga->dither_mode;
 
-    if(((req_rga->alpha_rop_flag) & 1)) {
-        if((req_rga->alpha_rop_flag >> 3) & 1) {
+    if (((req_rga->alpha_rop_flag) & 1)) {
+        if ((req_rga->alpha_rop_flag >> 3) & 1) {
             /* porter duff alpha enable */
-            switch(req_rga->PD_mode)
+            switch (req_rga->PD_mode)
             {
                 case 0: //dst = 0
                     break;
                 case 1: //dst = src
-                    req->alpha_mode_0 = 0x0A1A;
-                    req->alpha_mode_1 = 0x0A1A;
+                    req->alpha_mode_0 = 0x0212;
+                    req->alpha_mode_1 = 0x0212;
                     break;
                 case 2: //dst = dst
-                    req->alpha_mode_0 = 0x1A0A;
-                    req->alpha_mode_1 = 0x1A0A;
+                    req->alpha_mode_0 = 0x1202;
+                    req->alpha_mode_1 = 0x1202;
                     break;
                 case 3: //dst = (256*sc + (256 - sa)*dc) >> 8
                     if((req_rga->alpha_rop_mode & 3) == 0) {
-                        alpha_mode_0 = 0x3818;
-                        alpha_mode_1 = 0x3818;
+                        /* both use globalAlpha. */
+                        alpha_mode_0 = 0x3010;
+                        alpha_mode_1 = 0x3010;
                     }
                     else if ((req_rga->alpha_rop_mode & 3) == 1) {
-                        alpha_mode_0 = 0x381A;
-                        alpha_mode_1 = 0x381A;
+                        /* dst use globalAlpha, and dst does not have pixelAlpha. */
+                        alpha_mode_0 = 0x3012;
+                        alpha_mode_1 = 0x3012;
                     }
                     else if ((req_rga->alpha_rop_mode & 3) == 2) {
-                        alpha_mode_0 = 0x381C;
-                        alpha_mode_1 = 0x381C;
+                        /* dst use globalAlpha, and dst has pixelAlpha. */
+                        alpha_mode_0 = 0x3014;
+                        alpha_mode_1 = 0x3014;
                     }
                     else {
-                        alpha_mode_0 = 0x381A;
-                        alpha_mode_1 = 0x381A;
+                        /* Do not use globalAlpha. */
+                        alpha_mode_0 = 0x3212;
+                        alpha_mode_1 = 0x3212;
                     }
                     req->alpha_mode_0 = alpha_mode_0;
                     req->alpha_mode_1 = alpha_mode_1;
                     break;
                 case 4: //dst = (sc*(256-da) + 256*dc) >> 8
-                    req->alpha_mode_0 = 0x1A3A;
-                    req->alpha_mode_1 = 0x1A3A;
+                    /* Do not use globalAlpha. */
+                    req->alpha_mode_0 = 0x1232;
+                    req->alpha_mode_1 = 0x1232;
                     break;
                 case 5: //dst = (da*sc) >> 8
                     break;
@@ -1582,8 +1592,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
                 case 8: //dst = ((256-sa)*dc) >> 8
                     break;
                 case 9: //dst = (da*sc + (256-sa)*dc) >> 8
-                    req->alpha_mode_0 = 0x3848;
-                    req->alpha_mode_1 = 0x3848;
+                    req->alpha_mode_0 = 0x3040;
+                    req->alpha_mode_1 = 0x3040;
                     break;
                 case 10://dst = ((256-da)*sc + (sa*dc)) >> 8
                     break;
@@ -1606,19 +1616,20 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
         }
         else {
             if((req_rga->alpha_rop_mode & 3) == 0) {
-                req->alpha_mode_0 = 0x3848;
-                req->alpha_mode_1 = 0x3848;
+                req->alpha_mode_0 = 0x3040;
+                req->alpha_mode_1 = 0x3040;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 1) {
-		req->alpha_mode_0 = 0x384A;
-		req->alpha_mode_1 = 0x3A4A;
+		req->alpha_mode_0 = 0x3042;
+		req->alpha_mode_1 = 0x3242;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 2) {
-                req->alpha_mode_0 = 0x384C;
-                req->alpha_mode_1 = 0x384C;
+                req->alpha_mode_0 = 0x3044;
+                req->alpha_mode_1 = 0x3044;
             }
         }
     }
+
     if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
         req->mmu_info.src0_mmu_flag = 1;
         req->mmu_info.dst_mmu_flag = 1;
