@@ -113,7 +113,7 @@ struct static_key {
 #endif	/* CONFIG_JUMP_LABEL */
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_JUMP_LABEL
+#if defined(CONFIG_JUMP_LABEL) && !defined(BUILD_FIPS140_KO)
 #include <asm/jump_label.h>
 
 #ifndef __ASSEMBLY__
@@ -188,7 +188,28 @@ enum jump_label_type {
 
 struct module;
 
-#ifdef CONFIG_JUMP_LABEL
+#ifdef BUILD_FIPS140_KO
+
+static inline int static_key_count(struct static_key *key)
+{
+	return atomic_read(&key->enabled);
+}
+
+static __always_inline bool static_key_false(struct static_key *key)
+{
+	if (unlikely(static_key_count(key) > 0))
+		return true;
+	return false;
+}
+
+static __always_inline bool static_key_true(struct static_key *key)
+{
+	if (likely(static_key_count(key) > 0))
+		return true;
+	return false;
+}
+
+#elif defined(CONFIG_JUMP_LABEL)
 
 #define JUMP_TYPE_FALSE		0UL
 #define JUMP_TYPE_TRUE		1UL
@@ -393,7 +414,7 @@ extern bool ____wrong_branch_error(void);
 	static_key_count((struct static_key *)x) > 0;				\
 })
 
-#ifdef CONFIG_JUMP_LABEL
+#if defined(CONFIG_JUMP_LABEL) && !defined(BUILD_FIPS140_KO)
 
 /*
  * Combine the right initial value (type) with the right branch order
