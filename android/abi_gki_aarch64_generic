@@ -544,9 +544,11 @@
   drm_atomic_normalize_zpos
   drm_atomic_private_obj_fini
   drm_atomic_private_obj_init
+  drm_atomic_set_crtc_for_connector
   drm_atomic_set_crtc_for_plane
   drm_atomic_set_fb_for_plane
   drm_atomic_set_mode_for_crtc
+  drm_atomic_set_mode_prop_for_crtc
   drm_atomic_state_alloc
   drm_atomic_state_clear
   __drm_atomic_state_free
