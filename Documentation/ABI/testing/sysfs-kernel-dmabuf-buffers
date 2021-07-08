@@ -22,31 +22,3 @@ KernelVersion:	v5.12
 Contact:	Hridya Valsaraju <hridya@google.com>
 Description:	This file is read-only and specifies the size of the DMA-BUF in
 		bytes.
-
-What:		/sys/kernel/dmabuf/buffers/<inode_number>/attachments
-Date:		January 2021
-KernelVersion:	v5.12
-Contact:	Hridya Valsaraju <hridya@google.com>
-Description:	This directory will contain subdirectories representing every
-		attachment of the DMA-BUF.
-
-What:		/sys/kernel/dmabuf/buffers/<inode_number>/attachments/<attachment_uid>
-Date:		January 2021
-KernelVersion:	v5.12
-Contact:	Hridya Valsaraju <hridya@google.com>
-Description:	This directory will contain information on the attaching device
-		and the number of current distinct device mappings.
-
-What:		/sys/kernel/dmabuf/buffers/<inode_number>/attachments/<attachment_uid>/device
-Date:		January 2021
-KernelVersion:	v5.12
-Contact:	Hridya Valsaraju <hridya@google.com>
-Description:	This file is read-only and is a symlink to the attaching devices's
-		sysfs entry.
-
-What:		/sys/kernel/dmabuf/buffers/<inode_number>/attachments/<attachment_uid>/map_counter
-Date:		January 2021
-KernelVersion:	v5.12
-Contact:	Hridya Valsaraju <hridya@google.com>
-Description:	This file is read-only and contains a map_counter indicating the
-		number of distinct device mappings of the attachment.
