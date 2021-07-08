@@ -53,12 +53,16 @@
   bitmap_release_region
   __bitmap_set
   blk_alloc_queue
+  blk_bio_list_merge
   blk_cleanup_queue
   blk_execute_rq
   blk_execute_rq_nowait
   blk_get_request
+  blk_mq_debugfs_rq_show
   blk_mq_rq_cpu
+  blk_mq_run_hw_queue
   blk_mq_sched_mark_restart_hctx
+  blk_mq_sched_request_inserted
   blk_put_request
   blk_queue_flag_clear
   blk_queue_flag_set
@@ -73,13 +77,14 @@
   blk_rq_map_user
   blk_rq_map_user_iov
   blk_rq_unmap_user
+  blk_stat_enable_accounting
   blk_verify_command
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run12
-  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -498,6 +503,9 @@
   edac_device_free_ctl_info
   edac_device_handle_ce_count
   edac_device_handle_ue_count
+  elevator_alloc
+  elv_register
+  elv_unregister
   enable_irq
   enable_percpu_irq
   eventfd_ctx_fdget
@@ -926,8 +934,8 @@
   mempool_free
   mempool_free_slab
   memremap
-  memset64
   memset
+  memset64
   __memset_io
   memstart_addr
   memunmap
@@ -963,8 +971,8 @@
   __next_zones_zonelist
   nla_find
   nla_put
-  nla_reserve_64bit
   nla_reserve
+  nla_reserve_64bit
   __nla_validate
   __nlmsg_put
   no_llseek
@@ -1403,7 +1411,16 @@
   rtc_update_irq
   rtc_valid_tm
   runqueues
+  sbitmap_add_wait_queue
+  sbitmap_any_bit_set
+  sbitmap_del_wait_queue
+  sbitmap_init_node
+  sbitmap_queue_clear
   __sbitmap_queue_get
+  sbitmap_queue_init_node
+  sbitmap_queue_min_shallow_depth
+  sbitmap_queue_resize
+  sbitmap_queue_show
   sched_clock
   sched_feat_keys
   sched_feat_names
@@ -1449,6 +1466,8 @@
   sdhci_set_power_noreg
   sdhci_setup_host
   seq_buf_printf
+  seq_list_next
+  seq_list_start
   seq_lseek
   seq_open
   seq_printf
@@ -1634,6 +1653,7 @@
   thermal_zone_of_sensor_unregister
   tick_nohz_get_sleep_length
   time64_to_tm
+  timer_reduce
   topology_set_thermal_pressure
   total_swapcache_pages
   trace_array_get_by_name
