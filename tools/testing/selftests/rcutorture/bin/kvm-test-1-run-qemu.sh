@@ -40,7 +40,7 @@ grep '^#' $resdir/qemu-cmd | sed -e 's/^# //' > $T/qemu-cmd-settings
 . $T/qemu-cmd-settings
 
 # Decorate qemu-cmd with redirection, backgrounding, and PID capture
-sed -e 's/$/ 2>\&1 \&/' < $resdir/qemu-cmd > $T/qemu-cmd
+sed -e 's/^[^#].*$/& 2>\&1 \&/' < $resdir/qemu-cmd > $T/qemu-cmd
 echo 'echo $! > $resdir/qemu_pid' >> $T/qemu-cmd
 
 # In case qemu refuses to run...
