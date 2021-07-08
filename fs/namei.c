@@ -247,6 +247,9 @@ getname_kernel(const char * filename)
 
 void putname(struct filename *name)
 {
+	if (IS_ERR_OR_NULL(name))
+		return;
+
 	BUG_ON(name->refcnt <= 0);
 
 	if (--name->refcnt > 0)
@@ -4728,11 +4731,9 @@ exit1:
 		goto retry;
 	}
 put_both:
-	if (!IS_ERR(from))
-		putname(from);
+	putname(from);
 put_new:
-	if (!IS_ERR(to))
-		putname(to);
+	putname(to);
 	return error;
 }
 
