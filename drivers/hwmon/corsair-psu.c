@@ -771,6 +771,16 @@ static int corsairpsu_raw_event(struct hid_device *hdev, struct hid_report *repo
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int corsairpsu_resume(struct hid_device *hdev)
+{
+	struct corsairpsu_data *priv = hid_get_drvdata(hdev);
+
+	/* some PSUs turn off the microcontroller during standby, so a reinit is required */
+	return corsairpsu_init(priv);
+}
+#endif
+
 static const struct hid_device_id corsairpsu_idtable[] = {
 	{ HID_USB_DEVICE(0x1b1c, 0x1c03) }, /* Corsair HX550i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c04) }, /* Corsair HX650i */
@@ -793,6 +803,10 @@ static struct hid_driver corsairpsu_driver = {
 	.probe		= corsairpsu_probe,
 	.remove		= corsairpsu_remove,
 	.raw_event	= corsairpsu_raw_event,
+#ifdef CONFIG_PM
+	.resume		= corsairpsu_resume,
+	.reset_resume	= corsairpsu_resume,
+#endif
 };
 module_hid_driver(corsairpsu_driver);
 

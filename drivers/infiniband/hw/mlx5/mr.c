@@ -1940,8 +1940,8 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 		mlx5r_deref_wait_odp_mkey(&mr->mmkey);
 
 	if (ibmr->type == IB_MR_TYPE_INTEGRITY) {
-		xa_cmpxchg(&dev->sig_mrs, mlx5_base_mkey(mr->mmkey.key), ibmr,
-			   NULL, GFP_KERNEL);
+		xa_cmpxchg(&dev->sig_mrs, mlx5_base_mkey(mr->mmkey.key),
+			   mr->sig, NULL, GFP_KERNEL);
 
 		if (mr->mtt_mr) {
 			rc = mlx5_ib_dereg_mr(&mr->mtt_mr->ibmr, NULL);

@@ -99,9 +99,22 @@ SECTIONS
 	}
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
-	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(8);
+	.alternative : {
+		__alt_start = .;
+		*(.alternative)
+		__alt_end = .;
+	}
 	__init_end = .;
 
+	. = ALIGN(16);
+	.xip.traps : {
+		__xip_traps_start = .;
+		*(.xip.traps)
+		__xip_traps_end = .;
+	}
+
+	. = ALIGN(PAGE_SIZE);
 	.sdata : {
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)

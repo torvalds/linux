@@ -85,12 +85,18 @@ static void rtsx_comm_set_aspm(struct rtsx_pcr *pcr, bool enable)
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (pcr->aspm_en & 0x02)
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
-			FORCE_ASPM_CTL1, enable ? 0 : FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
-	else
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
-			FORCE_ASPM_CTL1, FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
+	if (pcr->aspm_mode == ASPM_MODE_CFG) {
+		pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+						PCI_EXP_LNKCTL_ASPMC,
+						enable ? pcr->aspm_en : 0);
+	} else if (pcr->aspm_mode == ASPM_MODE_REG) {
+		if (pcr->aspm_en & 0x02)
+			rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
+				FORCE_ASPM_CTL1, enable ? 0 : FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
+		else
+			rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
+				FORCE_ASPM_CTL1, FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
+	}
 
 	if (!enable && (pcr->aspm_en & 0x02))
 		mdelay(10);
@@ -1394,7 +1400,8 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 			return err;
 	}
 
-	rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, 0x30, 0x30);
+	if (pcr->aspm_mode == ASPM_MODE_REG)
+		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, 0x30, 0x30);
 
 	/* No CD interrupt if probing driver with card inserted.
 	 * So we need to initialize pcr->card_exist here.
@@ -1410,6 +1417,8 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 {
 	int err;
+	u16 cfg_val;
+	u8 val;
 
 	spin_lock_init(&pcr->lock);
 	mutex_init(&pcr->pcr_mutex);
@@ -1477,6 +1486,21 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	if (!pcr->slots)
 		return -ENOMEM;
 
+	if (pcr->aspm_mode == ASPM_MODE_CFG) {
+		pcie_capability_read_word(pcr->pci, PCI_EXP_LNKCTL, &cfg_val);
+		if (cfg_val & PCI_EXP_LNKCTL_ASPM_L1)
+			pcr->aspm_enabled = true;
+		else
+			pcr->aspm_enabled = false;
+
+	} else if (pcr->aspm_mode == ASPM_MODE_REG) {
+		rtsx_pci_read_register(pcr, ASPM_FORCE_CTL, &val);
+		if (val & FORCE_ASPM_CTL0 && val & FORCE_ASPM_CTL1)
+			pcr->aspm_enabled = false;
+		else
+			pcr->aspm_enabled = true;
+	}
+
 	if (pcr->ops->fetch_vendor_settings)
 		pcr->ops->fetch_vendor_settings(pcr);
 
@@ -1506,7 +1530,6 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	struct pcr_handle *handle;
 	u32 base, len;
 	int ret, i, bar = 0;
-	u8 val;
 
 	dev_dbg(&(pcidev->dev),
 		": Realtek PCI-E Card Reader found at %s [%04x:%04x] (rev %x)\n",
@@ -1572,11 +1595,6 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	pcr->host_cmds_addr = pcr->rtsx_resv_buf_addr;
 	pcr->host_sg_tbl_ptr = pcr->rtsx_resv_buf + HOST_CMDS_BUF_LEN;
 	pcr->host_sg_tbl_addr = pcr->rtsx_resv_buf_addr + HOST_CMDS_BUF_LEN;
-	rtsx_pci_read_register(pcr, ASPM_FORCE_CTL, &val);
-	if (val & FORCE_ASPM_CTL0 && val & FORCE_ASPM_CTL1)
-		pcr->aspm_enabled = false;
-	else
-		pcr->aspm_enabled = true;
 	pcr->card_inserted = 0;
 	pcr->card_removed = 0;
 	INIT_DELAYED_WORK(&pcr->carddet_work, rtsx_pci_card_detect);

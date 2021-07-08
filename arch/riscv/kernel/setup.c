@@ -231,13 +231,13 @@ static void __init init_resources(void)
 
 	/* Clean-up any unused pre-allocated resources */
 	mem_res_sz = (num_resources - res_idx + 1) * sizeof(*mem_res);
-	memblock_free((phys_addr_t) mem_res, mem_res_sz);
+	memblock_free(__pa(mem_res), mem_res_sz);
 	return;
 
  error:
 	/* Better an empty resource tree than an inconsistent one */
 	release_child_resources(&iomem_resource);
-	memblock_free((phys_addr_t) mem_res, mem_res_sz);
+	memblock_free(__pa(mem_res), mem_res_sz);
 }
 
 

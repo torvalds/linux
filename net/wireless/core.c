@@ -1340,6 +1340,11 @@ void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 	rdev->devlist_generation++;
 	wdev->registered = true;
 
+	if (wdev->netdev &&
+	    sysfs_create_link(&wdev->netdev->dev.kobj, &rdev->wiphy.dev.kobj,
+			      "phy80211"))
+		pr_err("failed to add phy80211 symlink to netdev!\n");
+
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 }
 
@@ -1364,14 +1369,6 @@ int cfg80211_register_netdevice(struct net_device *dev)
 	ret = register_netdevice(dev);
 	if (ret)
 		goto out;
-
-	if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
-			      "phy80211")) {
-		pr_err("failed to add phy80211 symlink to netdev!\n");
-		unregister_netdevice(dev);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	cfg80211_register_wdev(rdev, wdev);
 	ret = 0;

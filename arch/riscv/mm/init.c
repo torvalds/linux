@@ -746,14 +746,18 @@ void __init protect_kernel_text_data(void)
 	unsigned long init_data_start = (unsigned long)__init_data_begin;
 	unsigned long rodata_start = (unsigned long)__start_rodata;
 	unsigned long data_start = (unsigned long)_data;
-	unsigned long max_low = (unsigned long)(__va(PFN_PHYS(max_low_pfn)));
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
+	unsigned long end_va = kernel_virt_addr + load_sz;
+#else
+	unsigned long end_va = (unsigned long)(__va(PFN_PHYS(max_low_pfn)));
+#endif
 
 	set_memory_ro(text_start, (init_text_start - text_start) >> PAGE_SHIFT);
 	set_memory_ro(init_text_start, (init_data_start - init_text_start) >> PAGE_SHIFT);
 	set_memory_nx(init_data_start, (rodata_start - init_data_start) >> PAGE_SHIFT);
 	/* rodata section is marked readonly in mark_rodata_ro */
 	set_memory_nx(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
-	set_memory_nx(data_start, (max_low - data_start) >> PAGE_SHIFT);
+	set_memory_nx(data_start, (end_va - data_start) >> PAGE_SHIFT);
 }
 
 void mark_rodata_ro(void)
