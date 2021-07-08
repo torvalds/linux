@@ -583,7 +583,7 @@ void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 	/*
 	 * Once the clear bit is set, the bit may be allocated out.
 	 *
-	 * Orders READ/WRITE on the asssociated instance(such as request
+	 * Orders READ/WRITE on the associated instance(such as request
 	 * of blk_mq) by this bit for avoiding race with re-allocation,
 	 * and its pair is the memory barrier implied in __sbitmap_get_word.
 	 *

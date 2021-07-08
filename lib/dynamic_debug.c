@@ -991,7 +991,7 @@ static int ddebug_dyndbg_param_cb(char *param, char *val,
 
 	ddebug_exec_queries((val ? val : "+p"), modname);
 
-	return 0; /* query failure shouldnt stop module load */
+	return 0; /* query failure shouldn't stop module load */
 }
 
 /* handle both dyndbg and $module.dyndbg params at boot */

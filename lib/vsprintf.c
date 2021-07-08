@@ -3417,7 +3417,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 
 	while (*fmt) {
 		/* skip any white space in format */
-		/* white space in format matchs any amount of
+		/* white space in format matches any amount of
 		 * white space, including none, in the input.
 		 */
 		if (isspace(*fmt)) {
