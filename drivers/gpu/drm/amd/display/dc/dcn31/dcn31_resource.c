@@ -220,6 +220,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 	.sr_exit_z8_time_us = 402.0,
 	.sr_enter_plus_exit_z8_time_us = 520.0,
 	.writeback_latency_us = 12.0,
+	.dram_channel_width_bytes = 4,
 	.round_trip_ping_latency_dcfclk_cycles = 106,
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
