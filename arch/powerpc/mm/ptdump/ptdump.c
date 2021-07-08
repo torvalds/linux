@@ -58,7 +58,7 @@ struct pg_state {
 	const struct addr_marker *marker;
 	unsigned long start_address;
 	unsigned long start_pa;
-	unsigned int level;
+	int level;
 	u64 current_flags;
 	bool check_wx;
 	unsigned long wx_pages;
@@ -188,10 +188,9 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page_update_state(struct pg_state *st, unsigned long addr,
-				   unsigned int level, u64 val)
+static void note_page_update_state(struct pg_state *st, unsigned long addr, int level, u64 val)
 {
-	u64 flag = val & pg_level[level].mask;
+	u64 flag = level >= 0 ? val & pg_level[level].mask : 0;
 	u64 pa = val & PTE_RPN_MASK;
 
 	st->level = level;
@@ -206,12 +205,12 @@ static void note_page_update_state(struct pg_state *st, unsigned long addr,
 }
 
 static void note_page(struct pg_state *st, unsigned long addr,
-	       unsigned int level, u64 val, unsigned long page_size)
+		      int level, u64 val, unsigned long page_size)
 {
-	u64 flag = val & pg_level[level].mask;
+	u64 flag = level >= 0 ? val & pg_level[level].mask : 0;
 
 	/* At first no level is set */
-	if (!st->level) {
+	if (st->level == -1) {
 		pt_dump_seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
 		note_page_update_state(st, addr, level, val);
 	/*
@@ -383,6 +382,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 	struct pg_state st = {
 		.seq = m,
 		.marker = address_markers,
+		.level = -1,
 		.start_address = IS_ENABLED(CONFIG_PPC64) ? PAGE_OFFSET : TASK_SIZE,
 	};
 
@@ -393,7 +393,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 
 	/* Traverse kernel page tables */
 	walk_pagetables(&st);
-	note_page(&st, 0, 0, 0, 0);
+	note_page(&st, 0, -1, 0, 0);
 	return 0;
 }
 
@@ -415,6 +415,7 @@ void ptdump_check_wx(void)
 	struct pg_state st = {
 		.seq = NULL,
 		.marker = address_markers,
+		.level = -1,
 		.check_wx = true,
 		.start_address = IS_ENABLED(CONFIG_PPC64) ? PAGE_OFFSET : TASK_SIZE,
 	};
