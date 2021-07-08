@@ -21,6 +21,8 @@
 #define BPARS600_MFR_IOUT_MAX	0xa6
 #define BPARS600_MFR_POUT_MAX	0xa7
 
+enum chips { bpa_rs600, bpd_rs600 };
+
 static int bpa_rs600_read_byte_data(struct i2c_client *client, int page, int reg)
 {
 	int ret;
@@ -146,11 +148,19 @@ static struct pmbus_driver_info bpa_rs600_info = {
 	.read_word_data = bpa_rs600_read_word_data,
 };
 
+static const struct i2c_device_id bpa_rs600_id[] = {
+	{ "bpa-rs600", bpa_rs600 },
+	{ "bpd-rs600", bpd_rs600 },
+	{},
+};
+MODULE_DEVICE_TABLE(i2c, bpa_rs600_id);
+
 static int bpa_rs600_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	u8 buf[I2C_SMBUS_BLOCK_MAX + 1];
 	int ret;
+	const struct i2c_device_id *mid;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
@@ -164,7 +174,11 @@ static int bpa_rs600_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (strncmp(buf, "BPA-RS600", 8)) {
+	for (mid = bpa_rs600_id; mid->name[0]; mid++) {
+		if (!strncasecmp(buf, mid->name, strlen(mid->name)))
+			break;
+	}
+	if (!mid->name[0]) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Model '%s'\n", buf);
 		return -ENODEV;
@@ -172,12 +186,6 @@ static int bpa_rs600_probe(struct i2c_client *client)
 
 	return pmbus_do_probe(client, &bpa_rs600_info);
 }
-
-static const struct i2c_device_id bpa_rs600_id[] = {
-	{ "bpars600", 0 },
-	{},
-};
-MODULE_DEVICE_TABLE(i2c, bpa_rs600_id);
 
 static const struct of_device_id __maybe_unused bpa_rs600_of_match[] = {
 	{ .compatible = "blutek,bpa-rs600" },
