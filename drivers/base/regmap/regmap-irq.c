@@ -531,6 +531,10 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		}
 	}
 
+	if (chip->status_invert)
+		for (i = 0; i < data->chip->num_regs; i++)
+			data->status_buf[i] = ~data->status_buf[i];
+
 	/*
 	 * Ignore masked IRQs and ack if we need to; we ack early so
 	 * there is no race between handling and acknowleding the
@@ -799,6 +803,9 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 				ret);
 			goto err_alloc;
 		}
+
+		if (chip->status_invert)
+			d->status_buf[i] = ~d->status_buf[i];
 
 		if (d->status_buf[i] && (chip->ack_base || chip->use_ack)) {
 			reg = sub_irq_reg(d, d->chip->ack_base, i);

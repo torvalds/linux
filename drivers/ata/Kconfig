@@ -1015,11 +1015,11 @@ config PATA_CMD640_PCI
 	  If unsure, say N.
 
 config PATA_FALCON
-	tristate "Atari Falcon PATA support"
-	depends on M68K && ATARI
+	tristate "Atari Falcon and Q40/Q60 PATA support"
+	depends on M68K && (ATARI || Q40)
 	help
 	  This option enables support for the on-board IDE
-	  interface on the Atari Falcon.
+	  interface on the Atari Falcon and Q40/Q60.
 
 	  If unsure, say N.
 

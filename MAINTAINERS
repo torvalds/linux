@@ -5189,6 +5189,13 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/sti/delta
 
+DELTA DPS920AB PSU DRIVER
+M:	Robert Marko <robert.marko@sartura.hr>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/dps920ab.rst
+F:	drivers/hwmon/pmbus/dps920ab.c
+
 DENALI NAND DRIVER
 L:	linux-mtd@lists.infradead.org
 S:	Orphan
@@ -8770,22 +8777,6 @@ M:	Max Staudt <max@enpas.org>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-icy.c
-
-IDE SUBSYSTEM
-M:	"David S. Miller" <davem@davemloft.net>
-L:	linux-ide@vger.kernel.org
-S:	Maintained
-Q:	http://patchwork.ozlabs.org/project/linux-ide/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/ide.git
-F:	Documentation/ide/
-F:	drivers/ide/
-F:	include/linux/ide.h
-
-IDE/ATAPI DRIVERS
-L:	linux-ide@vger.kernel.org
-S:	Orphan
-F:	Documentation/cdrom/ide-cd.rst
-F:	drivers/ide/ide-cd*
 
 IDEAPAD LAPTOP EXTRAS DRIVER
 M:	Ike Panhc <ike.pan@canonical.com>
@@ -19589,6 +19580,10 @@ F:	drivers/regulator/
 F:	include/dt-bindings/regulator/
 F:	include/linux/regulator/
 K:	regulator_get_optional
+
+VOLTAGE AND CURRENT REGULATOR IRQ HELPERS
+R:	Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+F:	drivers/regulator/irq_helpers.c
 
 VRF
 M:	David Ahern <dsahern@kernel.org>

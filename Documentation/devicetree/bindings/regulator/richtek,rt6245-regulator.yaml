@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/richtek,rt6245-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RT6245 High Current Voltage Regulator
+
+maintainers:
+  - ChiYuan Huang <cy_huang@richtek.com>
+
+description: |
+  The RT6245 is a high-performance, synchronous step-down converter
+  that can deliver up to 14A output current with an input supply
+  voltage range of 4.5V to 17V.
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - richtek,rt6245
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description: |
+      A connection of the chip 'enable' gpio line. If not provided,
+      it will be treat as a default-on power.
+    maxItems: 1
+
+  richtek,oc-level-select:
+    $ref: "/schemas/types.yaml#/definitions/uint8"
+    enum: [0, 1, 2, 3]
+    description: |
+      Over current level selection. Each respective value means the current
+      limit 8A, 14A, 12A, 10A. If this property is missing then keep in
+      in chip default.
+
+  richtek,ot-level-select:
+    $ref: "/schemas/types.yaml#/definitions/uint8"
+    enum: [0, 1, 2]
+    description: |
+      Over temperature level selection. Each respective value means the degree
+      150'c, 130'c, 170'c. If this property is missing then keep in chip
+      default.
+
+  richtek,pgdly-time-select:
+    $ref: "/schemas/types.yaml#/definitions/uint8"
+    enum: [0, 1, 2, 3]
+    description: |
+      Power good signal delay time selection. Each respective value means the
+      delay time 0us, 10us, 20us, 40us. If this property is missing then keep
+      in chip default.
+
+
+  richtek,switch-freq-select:
+    $ref: "/schemas/types.yaml#/definitions/uint8"
+    enum: [0, 1, 2]
+    description: |
+      Buck switch frequency selection. Each respective value means 400KHz,
+      800KHz, 1200KHz. If this property is missing then keep in chip default.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      rt6245@34 {
+        compatible = "richtek,rt6245";
+        status = "okay";
+        reg = <0x34>;
+        enable-gpios = <&gpio26 2 0>;
+
+        regulator-name = "rt6245-regulator";
+        regulator-min-microvolt = <437500>;
+        regulator-max-microvolt = <1387500>;
+        regulator-boot-on;
+      };
+    };

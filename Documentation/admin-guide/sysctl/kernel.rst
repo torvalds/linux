@@ -1088,6 +1088,13 @@ Model available). If your platform happens to meet the
 requirements for EAS but you do not want to use it, change
 this value to 0.
 
+task_delayacct
+===============
+
+Enables/disables task delay accounting (see
+:doc:`accounting/delay-accounting.rst`). Enabling this feature incurs
+a small amount of overhead in the scheduler but is useful for debugging
+and performance tuning. It is required by some tools such as iotop.
 
 sched_schedstats
 ================

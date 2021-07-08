@@ -288,7 +288,7 @@
 #define SPI_POLLING_TIMEOUT 1000
 
 /*
- * The type of reading going on on this chip
+ * The type of reading going on this chip
  */
 enum ssp_reading {
 	READING_NULL,
@@ -298,7 +298,7 @@ enum ssp_reading {
 };
 
 /*
- * The type of writing going on on this chip
+ * The type of writing going on this chip
  */
 enum ssp_writing {
 	WRITING_NULL,

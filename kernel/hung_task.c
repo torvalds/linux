@@ -196,7 +196,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 			last_break = jiffies;
 		}
 		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
-		if (t->state == TASK_UNINTERRUPTIBLE)
+		if (READ_ONCE(t->__state) == TASK_UNINTERRUPTIBLE)
 			check_hung_task(t, timeout);
 	}
  unlock:

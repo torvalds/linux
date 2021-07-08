@@ -330,7 +330,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (spi->mode & SPI_CPOL)
 		flags |= UWIRE_CLK_INVERTED;
 
-	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
+	switch (spi->mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 	case SPI_MODE_3:
 		flags |= UWIRE_WRITE_FALLING_EDGE | UWIRE_READ_RISING_EDGE;
@@ -460,7 +460,7 @@ static int uwire_probe(struct platform_device *pdev)
 	struct uwire_spi	*uwire;
 	int			status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *uwire);
+	master = spi_alloc_master(&pdev->dev, sizeof(*uwire));
 	if (!master)
 		return -ENODEV;
 

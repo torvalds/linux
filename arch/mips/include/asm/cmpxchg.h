@@ -90,7 +90,7 @@ unsigned long __xchg(volatile void *ptr, unsigned long x, int size)
 	}
 }
 
-#define xchg(ptr, x)							\
+#define arch_xchg(ptr, x)						\
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
@@ -175,14 +175,14 @@ unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	}
 }
 
-#define cmpxchg_local(ptr, old, new)					\
+#define arch_cmpxchg_local(ptr, old, new)				\
 	((__typeof__(*(ptr)))						\
 		__cmpxchg((ptr),					\
 			  (unsigned long)(__typeof__(*(ptr)))(old),	\
 			  (unsigned long)(__typeof__(*(ptr)))(new),	\
 			  sizeof(*(ptr))))
 
-#define cmpxchg(ptr, old, new)						\
+#define arch_cmpxchg(ptr, old, new)					\
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
@@ -194,7 +194,7 @@ unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	if (__SYNC_loongson3_war == 0)					\
 		smp_mb__before_llsc();					\
 									\
-	__res = cmpxchg_local((ptr), (old), (new));			\
+	__res = arch_cmpxchg_local((ptr), (old), (new));		\
 									\
 	/*								\
 	 * In the Loongson3 workaround case __cmpxchg_asm() already	\
@@ -208,21 +208,21 @@ unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 })
 
 #ifdef CONFIG_64BIT
-#define cmpxchg64_local(ptr, o, n)					\
+#define arch_cmpxchg64_local(ptr, o, n)					\
   ({									\
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg_local((ptr), (o), (n));					\
+	arch_cmpxchg_local((ptr), (o), (n));				\
   })
 
-#define cmpxchg64(ptr, o, n)						\
+#define arch_cmpxchg64(ptr, o, n)					\
   ({									\
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg((ptr), (o), (n));					\
+	arch_cmpxchg((ptr), (o), (n));					\
   })
 #else
 
 # include <asm-generic/cmpxchg-local.h>
-# define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+# define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
 
 # ifdef CONFIG_SMP
 
@@ -294,7 +294,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	return ret;
 }
 
-#  define cmpxchg64(ptr, o, n) ({					\
+#  define arch_cmpxchg64(ptr, o, n) ({					\
 	unsigned long long __old = (__typeof__(*(ptr)))(o);		\
 	unsigned long long __new = (__typeof__(*(ptr)))(n);		\
 	__typeof__(*(ptr)) __res;					\
@@ -317,7 +317,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 })
 
 # else /* !CONFIG_SMP */
-#  define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
+#  define arch_cmpxchg64(ptr, o, n) arch_cmpxchg64_local((ptr), (o), (n))
 # endif /* !CONFIG_SMP */
 #endif /* !CONFIG_64BIT */
 

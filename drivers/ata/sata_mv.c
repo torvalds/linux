@@ -666,10 +666,14 @@ static struct scsi_host_template mv5_sht = {
 };
 #endif
 static struct scsi_host_template mv6_sht = {
-	ATA_NCQ_SHT(DRV_NAME),
+	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= MV_MAX_Q_DEPTH - 1,
 	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.dma_boundary		= MV_DMA_BOUNDARY,
+	.sdev_attrs             = ata_ncq_sdev_attrs,
+	.change_queue_depth	= ata_scsi_change_queue_depth,
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
+	.slave_configure	= ata_scsi_slave_config
 };
 
 static struct ata_port_operations mv5_ops = {
