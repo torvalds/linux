@@ -309,7 +309,7 @@ int mali_mem_block_cpu_map(mali_mem_backend *mem_bkend, struct vm_area_struct *v
 
 	list_for_each_entry(m_page, &block_mem->pfns, list) {
 		MALI_DEBUG_ASSERT(m_page->type == MALI_PAGE_NODE_BLOCK);
-		ret = vm_insert_pfn(vma, addr, _mali_page_node_get_pfn(m_page));
+		ret = vmf_insert_pfn(vma, addr, _mali_page_node_get_pfn(m_page));
 
 		if (unlikely(0 != ret)) {
 			return -EFAULT;

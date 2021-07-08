@@ -57,7 +57,7 @@ static void mali_mem_vma_close(struct vm_area_struct *vma)
 	vma->vm_private_data = NULL;
 }
 
-static int mali_mem_vma_fault(struct vm_fault *vmf)
+static vm_fault_t mali_mem_vma_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	mali_mem_allocation *alloc = (mali_mem_allocation *)vma->vm_private_data;

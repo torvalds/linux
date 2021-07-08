@@ -361,11 +361,11 @@ int mali_mem_os_cpu_map(mali_mem_backend *mem_bkend, struct vm_area_struct *vma)
 
 	list_for_each_entry(m_page, &os_mem->pages, list) {
 		/* We should use vm_insert_page, but it does a dcache
-		 * flush which makes it way slower than remap_pfn_range or vm_insert_pfn.
+		 * flush which makes it way slower than remap_pfn_range or vmf_insert_pfn.
 		ret = vm_insert_page(vma, addr, page);
 		*/
 		page = m_page->page;
-		ret = vm_insert_pfn(vma, addr, page_to_pfn(page));
+		ret = vmf_insert_pfn(vma, addr, page_to_pfn(page));
 
 		if (unlikely(0 != ret)) {
 			return -EFAULT;
@@ -403,7 +403,7 @@ _mali_osk_errcode_t mali_mem_os_resize_cpu_map_locked(mali_mem_backend *mem_bken
 
 			vm_end -= _MALI_OSK_MALI_PAGE_SIZE;
 			if (mapping_page_num > 0) {
-				ret = vm_insert_pfn(vma, vm_end, page_to_pfn(m_page->page));
+				ret = vmf_insert_pfn(vma, vm_end, page_to_pfn(m_page->page));
 
 				if (unlikely(0 != ret)) {
 					/*will return -EBUSY If the page has already been mapped into table, but it's OK*/
@@ -426,7 +426,7 @@ _mali_osk_errcode_t mali_mem_os_resize_cpu_map_locked(mali_mem_backend *mem_bken
 		list_for_each_entry(m_page, &os_mem->pages, list) {
 			if (count >= offset) {
 
-				ret = vm_insert_pfn(vma, vstart, page_to_pfn(m_page->page));
+				ret = vmf_insert_pfn(vma, vstart, page_to_pfn(m_page->page));
 
 				if (unlikely(0 != ret)) {
 					/*will return -EBUSY If the page has already been mapped into table, but it's OK*/

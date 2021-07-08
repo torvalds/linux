@@ -177,11 +177,7 @@ static void mali_miscdevice_unregister(void);
 
 static int mali_open(struct inode *inode, struct file *filp);
 static int mali_release(struct inode *inode, struct file *filp);
-#ifdef HAVE_UNLOCKED_IOCTL
 static long mali_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-#else
-static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
-#endif
 
 static int mali_probe(struct platform_device *pdev);
 static int mali_remove(struct platform_device *pdev);
@@ -275,11 +271,7 @@ struct file_operations mali_fops = {
 	.owner = THIS_MODULE,
 	.open = mali_open,
 	.release = mali_release,
-#ifdef HAVE_UNLOCKED_IOCTL
 	.unlocked_ioctl = mali_ioctl,
-#else
-	.ioctl = mali_ioctl,
-#endif
 	.compat_ioctl = mali_ioctl,
 	.mmap = mali_mmap
 };
@@ -917,19 +909,10 @@ int map_errcode(_mali_osk_errcode_t err)
 	}
 }
 
-#ifdef HAVE_UNLOCKED_IOCTL
 static long mali_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-#else
-static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
-#endif
 {
 	int err;
 	struct mali_session_data *session_data;
-
-#ifndef HAVE_UNLOCKED_IOCTL
-	/* inode not used */
-	(void)inode;
-#endif
 
 	MALI_DEBUG_PRINT(7, ("Ioctl received 0x%08X 0x%08lX\n", cmd, arg));
 
