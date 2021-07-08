@@ -891,11 +891,12 @@ static int record__open(struct record *rec)
 	int rc = 0;
 
 	/*
-	 * For initial_delay or system wide, we need to add a dummy event so
-	 * that we can track PERF_RECORD_MMAP to cover the delay of waiting or
-	 * event synthesis.
+	 * For initial_delay, system wide or a hybrid system, we need to add a
+	 * dummy event so that we can track PERF_RECORD_MMAP to cover the delay
+	 * of waiting or event synthesis.
 	 */
-	if (opts->initial_delay || target__has_cpu(&opts->target)) {
+	if (opts->initial_delay || target__has_cpu(&opts->target) ||
+	    perf_pmu__has_hybrid()) {
 		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
 			/* Set up dummy event. */
