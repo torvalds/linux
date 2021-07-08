@@ -30,6 +30,7 @@ static inline bool page_is_secretmem(struct page *page)
 }
 
 bool vma_is_secretmem(struct vm_area_struct *vma);
+bool secretmem_active(void);
 
 #else
 
@@ -39,6 +40,11 @@ static inline bool vma_is_secretmem(struct vm_area_struct *vma)
 }
 
 static inline bool page_is_secretmem(struct page *page)
+{
+	return false;
+}
+
+static inline bool secretmem_active(void)
 {
 	return false;
 }
