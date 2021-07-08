@@ -121,6 +121,7 @@ struct aspeed_jtag_info {
 	struct reset_control		*reset;
 	struct clk			*clk;
 	u32				clkin;
+	u32				tck_period;
 	u32				sw_delay;
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
@@ -305,11 +306,16 @@ static int aspeed_jtag_set_freq(struct jtag *jtag, u32 freq)
 	if (aspeed_jtag->config->jtag_version == 6) {
 		if (div < 7)
 			div = 7;
+		aspeed_jtag->tck_period = DIV_ROUND_UP_ULL(
+			(u64)NSEC_PER_SEC * (div + 1), aspeed_jtag->clkin);
 	} else if (aspeed_jtag->config->jtag_version == 0) {
 		if (div < 1)
 			div = 1;
+		aspeed_jtag->tck_period = DIV_ROUND_UP_ULL(
+			(u64)NSEC_PER_SEC * (div + 1) << 2, aspeed_jtag->clkin);
 	}
-	JTAG_DBUG("set div = %x\n", div);
+	JTAG_DBUG("set div = %x, tck_period = %dns\n", div,
+		  aspeed_jtag->tck_period);
 
 	/*
 	 * At ast2500: Change clock divider may cause hardware logic confusion.
@@ -549,6 +555,8 @@ static int aspeed_jtag_status_set(struct jtag *jtag,
 	}
 	if (ret)
 		return ret;
+	for (i = 0; i < tapstate->tck; i++)
+		ndelay(aspeed_jtag->tck_period);
 	return 0;
 }
 
@@ -768,6 +776,11 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 				aspeed_jtag_write(aspeed_jtag,
 						  xfer_data_32[index + i],
 						  fifo_reg);
+			/*
+			 * Add 1 tck period delay to avoid jtag hardware
+			 * transfer will get wrong fifo pointer issue.
+			 */
+			ndelay(aspeed_jtag->tck_period);
 			if (xfer->type == JTAG_SIR_XFER)
 				aspeed_hw_ir_scan(aspeed_jtag,
 						  JTAG_STATE_PAUSEIR,
@@ -785,6 +798,7 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 				aspeed_jtag_write(aspeed_jtag,
 						  xfer_data_32[index + i],
 						  fifo_reg);
+			ndelay(aspeed_jtag->tck_period);
 			if (xfer->type == JTAG_SIR_XFER)
 				aspeed_hw_ir_scan(aspeed_jtag, xfer->endstate,
 						  shift_bits);
