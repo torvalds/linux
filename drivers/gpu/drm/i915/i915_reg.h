@@ -11060,6 +11060,7 @@ enum skl_power_gate {
 #define SKL_MEMORY_FREQ_MULTIPLIER_HZ		266666666
 #define SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5E04)
 #define  SKL_REQ_DATA_MASK			(0xF << 0)
+#define  DG1_GEAR_TYPE				REG_BIT(16)
 
 #define SKL_MAD_INTER_CHANNEL_0_0_0_MCHBAR_MCMAIN _MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5000)
 #define  SKL_DRAM_DDR_TYPE_MASK			(0x3 << 0)
@@ -11094,6 +11095,17 @@ enum skl_power_gate {
 #define  CNL_DRAM_RANK_2			(0x1 << 9)
 #define  CNL_DRAM_RANK_3			(0x2 << 9)
 #define  CNL_DRAM_RANK_4			(0x3 << 9)
+
+#define SA_PERF_STATUS_0_0_0_MCHBAR_PC		_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5918)
+#define  DG1_QCLK_RATIO_MASK			REG_GENMASK(9, 2)
+#define  DG1_QCLK_REFERENCE			REG_BIT(10)
+
+#define MCHBAR_CH0_CR_TC_PRE_0_0_0_MCHBAR	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x4000)
+#define   DG1_DRAM_T_RDPRE_MASK			REG_GENMASK(16, 11)
+#define   DG1_DRAM_T_RP_MASK			REG_GENMASK(6, 0)
+#define MCHBAR_CH0_CR_TC_PRE_0_0_0_MCHBAR_HIGH	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x4004)
+#define   DG1_DRAM_T_RCD_MASK			REG_GENMASK(15, 9)
+#define   DG1_DRAM_T_RAS_MASK			REG_GENMASK(8, 1)
 
 /*
  * Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
