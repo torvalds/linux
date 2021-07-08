@@ -91,6 +91,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_prepare_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_finish_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_user_nice);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_setscheduler);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_nf_conn_alloc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_nf_conn_free);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_is_fpsimd_save);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_init);
