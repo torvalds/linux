@@ -232,7 +232,6 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			pr_err("failed to create ptp aux_worker %d\n", err);
 			goto kworker_err;
 		}
-		ptp->pps_source->lookup_cookie = ptp;
 	}
 
 	/* PTP virtual clock is being registered under physical clock */
@@ -268,6 +267,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			pr_err("failed to register pps source\n");
 			goto no_pps;
 		}
+		ptp->pps_source->lookup_cookie = ptp;
 	}
 
 	/* Initialize a new device of our class in our clock structure. */
