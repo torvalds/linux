@@ -98,14 +98,16 @@ void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha)
 		pm8001_tag_free(pm8001_ha, i);
 }
 
- /**
-  * pm8001_mem_alloc - allocate memory for pm8001.
-  * @pdev: pci device.
-  * @virt_addr: the allocated virtual address
-  * @pphys_addr_hi: the physical address high byte address.
-  * @pphys_addr_lo: the physical address low byte address.
-  * @mem_size: memory size.
-  */
+/**
+ * pm8001_mem_alloc - allocate memory for pm8001.
+ * @pdev: pci device.
+ * @virt_addr: the allocated virtual address
+ * @pphys_addr: DMA address for this device
+ * @pphys_addr_hi: the physical address high byte address.
+ * @pphys_addr_lo: the physical address low byte address.
+ * @mem_size: memory size.
+ * @align: requested byte alignment
+ */
 int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi,
 	u32 *pphys_addr_lo, u32 mem_size, u32 align)
@@ -339,7 +341,7 @@ static int pm8001_task_prep_ssp_tm(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
-  * pm8001_task_prep_ssp - the dispatcher function,prepare ssp data for ssp task
+  * pm8001_task_prep_ssp - the dispatcher function, prepare ssp data for ssp task
   * @pm8001_ha: our hba card information
   * @ccb: the ccb which attached to ssp task
   */
@@ -554,10 +556,10 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	pm8001_tag_free(pm8001_ha, ccb_idx);
 }
 
- /**
-  * pm8001_alloc_dev - find a empty pm8001_device
-  * @pm8001_ha: our hba card information
-  */
+/**
+ * pm8001_alloc_dev - find a empty pm8001_device
+ * @pm8001_ha: our hba card information
+ */
 static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 dev;
@@ -705,7 +707,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
   * @parameter: ssp task parameter.
   *
   * when errors or exception happened, we may want to do something, for example
-  * abort the issued task which result in this execption, it is done by calling
+  * abort the issued task which result in this exception, it is done by calling
   * this function, note it is also with the task execute interface.
   */
 static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
@@ -984,11 +986,12 @@ void pm8001_open_reject_retry(
 }
 
 /**
- * pm8001_I_T_nexus_reset()
-  * Standard mandates link reset for ATA  (type 0) and hard reset for
-  * SSP (type 1) , only for RECOVERY
-  * @dev: the device structure for the device to reset.
-  */
+ * pm8001_I_T_nexus_reset() - reset the initiator/target connection
+ * @dev: the device structure for the device to reset.
+ *
+ * Standard mandates link reset for ATA (type 0) and hard reset for
+ * SSP (type 1), only for RECOVERY
+ */
 int pm8001_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc = TMF_RESP_FUNC_FAILED;
