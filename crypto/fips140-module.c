@@ -116,6 +116,38 @@ static bool __init is_fips140_algo(struct crypto_alg *alg)
 
 static LIST_HEAD(unchecked_fips140_algos);
 
+/*
+ * Release a list of algorithms which have been removed from crypto_alg_list.
+ *
+ * Note that even though the list is a private list, we have to hold
+ * crypto_alg_sem while iterating through it because crypto_unregister_alg() may
+ * run concurrently (as we haven't taken a reference to the algorithms on the
+ * list), and crypto_unregister_alg() will remove the algorithm from whichever
+ * list it happens to be on, while holding crypto_alg_sem.  That's okay, since
+ * in that case crypto_unregister_alg() will handle the crypto_alg_put().
+ */
+static void fips140_remove_final(struct list_head *list)
+{
+	struct crypto_alg *alg;
+	struct crypto_alg *n;
+
+	/*
+	 * We need to take crypto_alg_sem to safely traverse the list (see
+	 * comment above), but we have to drop it when doing each
+	 * crypto_alg_put() as that may take crypto_alg_sem again.
+	 */
+	down_write(&crypto_alg_sem);
+	list_for_each_entry_safe(alg, n, list, cra_list) {
+		list_del_init(&alg->cra_list);
+		up_write(&crypto_alg_sem);
+
+		crypto_alg_put(alg);
+
+		down_write(&crypto_alg_sem);
+	}
+	up_write(&crypto_alg_sem);
+}
+
 static void __init unregister_existing_fips140_algos(void)
 {
 	struct crypto_alg *alg, *tmp;
@@ -159,20 +191,10 @@ static void __init unregister_existing_fips140_algos(void)
 			}
 		}
 	}
-
-	/*
-	 * We haven't taken a reference to the algorithms on the remove_list,
-	 * so technically, we may be competing with a concurrent invocation of
-	 * crypto_unregister_alg() here. Fortunately, crypto_unregister_alg()
-	 * just gives up with a warning if the algo that is being unregistered
-	 * has already disappeared, so this happens to be safe. That does mean
-	 * we need to hold on to the lock, to ensure that the algo is either on
-	 * the list or it is not, and not in some limbo state.
-	 */
-	crypto_remove_final(&remove_list);
-	crypto_remove_final(&spawns);
-
 	up_write(&crypto_alg_sem);
+
+	fips140_remove_final(&remove_list);
+	fips140_remove_final(&spawns);
 }
 
 static void __init unapply_text_relocations(void *section, int section_size,
