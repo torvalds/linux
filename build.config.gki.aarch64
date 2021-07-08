@@ -7,6 +7,7 @@ Image.lz4
 "
 
 ABI_DEFINITION=android/abi_gki_aarch64.xml
+TIDY_ABI=1
 KMI_SYMBOL_LIST=android/abi_gki_aarch64
 ADDITIONAL_KMI_SYMBOL_LISTS="
 android/abi_gki_aarch64_core
