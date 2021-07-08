@@ -151,7 +151,9 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 		return;
 
 	for (i = 0; i < (1 << order); i++) {
-		if (!test_bit(PAGE_EXT_GET, &page_ext->flags))
+		if (!test_bit(PAGE_EXT_GET, &page_ext->flags) &&
+			!test_bit(PAGE_EXT_PINNER_MIGRATION_FAILED,
+				  &page_ext->flags))
 			continue;
 
 		page_pinner = get_page_pinner(page_ext);
