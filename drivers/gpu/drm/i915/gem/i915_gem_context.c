@@ -1453,16 +1453,9 @@ static int gem_context_register(struct i915_gem_context *ctx,
 				u32 *id)
 {
 	struct drm_i915_private *i915 = ctx->i915;
-	struct i915_address_space *vm;
 	int ret;
 
 	ctx->file_priv = fpriv;
-
-	mutex_lock(&ctx->mutex);
-	vm = i915_gem_context_vm(ctx);
-	if (vm)
-		WRITE_ONCE(vm->file, fpriv); /* XXX */
-	mutex_unlock(&ctx->mutex);
 
 	ctx->pid = get_task_pid(current, PIDTYPE_PID);
 	snprintf(ctx->name, sizeof(ctx->name), "%s[%d]",
@@ -1561,8 +1554,6 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	ppgtt = i915_ppgtt_create(&i915->gt);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
-
-	ppgtt->vm.file = file_priv;
 
 	if (args->extensions) {
 		err = i915_user_extensions(u64_to_user_ptr(args->extensions),
