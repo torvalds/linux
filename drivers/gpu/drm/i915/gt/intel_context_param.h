@@ -10,9 +10,6 @@
 
 #include "intel_context.h"
 
-int intel_context_set_ring_size(struct intel_context *ce, long sz);
-long intel_context_get_ring_size(struct intel_context *ce);
-
 static inline int
 intel_context_set_watchdog_us(struct intel_context *ce, u64 timeout_us)
 {
