@@ -277,7 +277,7 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 
 static void __ksmbd_remove_durable_fd(struct ksmbd_file *fp)
 {
-	if (!HAS_FILE_ID(fp->persistent_id))
+	if (!has_file_id(fp->persistent_id))
 		return;
 
 	write_lock(&global_ft.lock);
@@ -287,7 +287,7 @@ static void __ksmbd_remove_durable_fd(struct ksmbd_file *fp)
 
 static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 {
-	if (!HAS_FILE_ID(fp->volatile_id))
+	if (!has_file_id(fp->volatile_id))
 		return;
 
 	write_lock(&fp->f_ci->m_lock);
@@ -327,9 +327,12 @@ static struct ksmbd_file *ksmbd_fp_get(struct ksmbd_file *fp)
 }
 
 static struct ksmbd_file *__ksmbd_lookup_fd(struct ksmbd_file_table *ft,
-					    unsigned int id)
+					    u64 id)
 {
 	struct ksmbd_file *fp;
+
+	if (!has_file_id(id))
+		return NULL;
 
 	read_lock(&ft->lock);
 	fp = idr_find(ft->idr, id);
@@ -359,12 +362,12 @@ static void set_close_state_blocked_works(struct ksmbd_file *fp)
 	spin_unlock(&fp->f_lock);
 }
 
-int ksmbd_close_fd(struct ksmbd_work *work, unsigned int id)
+int ksmbd_close_fd(struct ksmbd_work *work, u64 id)
 {
 	struct ksmbd_file	*fp;
 	struct ksmbd_file_table	*ft;
 
-	if (!HAS_FILE_ID(id))
+	if (!has_file_id(id))
 		return 0;
 
 	ft = &work->sess->file_table;
@@ -404,12 +407,12 @@ static bool __sanity_check(struct ksmbd_tree_connect *tcon, struct ksmbd_file *f
 	return true;
 }
 
-struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, unsigned int id)
+struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, u64 id)
 {
 	return __ksmbd_lookup_fd(&work->sess->file_table, id);
 }
 
-struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work, unsigned int id)
+struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work, u64 id)
 {
 	struct ksmbd_file *fp = __ksmbd_lookup_fd(&work->sess->file_table, id);
 
@@ -420,18 +423,15 @@ struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work, unsigned int id
 	return NULL;
 }
 
-struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, unsigned int id,
-					unsigned int pid)
+struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, u64 id,
+					u64 pid)
 {
 	struct ksmbd_file *fp;
 
-	if (!HAS_FILE_ID(id)) {
+	if (!has_file_id(id)) {
 		id = work->compound_fid;
 		pid = work->compound_pfid;
 	}
-
-	if (!HAS_FILE_ID(id))
-		return NULL;
 
 	fp = __ksmbd_lookup_fd(&work->sess->file_table, id);
 	if (!__sanity_check(work->tcon, fp)) {
@@ -494,7 +494,7 @@ struct ksmbd_file *ksmbd_lookup_fd_inode(struct inode *inode)
 #define OPEN_ID_TYPE_VOLATILE_ID	(0)
 #define OPEN_ID_TYPE_PERSISTENT_ID	(1)
 
-static void __open_id_set(struct ksmbd_file *fp, unsigned int id, int type)
+static void __open_id_set(struct ksmbd_file *fp, u64 id, int type)
 {
 	if (type == OPEN_ID_TYPE_VOLATILE_ID)
 		fp->volatile_id = id;
@@ -505,7 +505,7 @@ static void __open_id_set(struct ksmbd_file *fp, unsigned int id, int type)
 static int __open_id(struct ksmbd_file_table *ft, struct ksmbd_file *fp,
 		     int type)
 {
-	unsigned int		id = 0;
+	u64			id = 0;
 	int			ret;
 
 	if (type == OPEN_ID_TYPE_VOLATILE_ID && fd_limit_depleted()) {
@@ -515,7 +515,7 @@ static int __open_id(struct ksmbd_file_table *ft, struct ksmbd_file *fp,
 
 	idr_preload(GFP_KERNEL);
 	write_lock(&ft->lock);
-	ret = idr_alloc_cyclic(ft->idr, fp, 0, INT_MAX, GFP_NOWAIT);
+	ret = idr_alloc_cyclic(ft->idr, fp, 0, INT_MAX - 1, GFP_NOWAIT);
 	if (ret >= 0) {
 		id = ret;
 		ret = 0;
