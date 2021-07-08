@@ -756,8 +756,13 @@ struct inode;
  */
 static inline int put_page_testzero(struct page *page)
 {
+	int ret;
+
 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
-	return page_ref_dec_and_test(page);
+	ret = page_ref_dec_and_test(page);
+	page_pinner_put_page(page);
+
+	return ret;
 }
 
 /*
@@ -1232,8 +1237,6 @@ static inline __must_check bool try_get_page(struct page *page)
 static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
-
-	page_pinner_put_page(page);
 
 	/*
 	 * For devmap managed pages we need to catch refcount transition from
