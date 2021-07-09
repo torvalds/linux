@@ -702,9 +702,8 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	/* If using mc, it's fine not to have any input registered. */
 	if (!vin->parallel.asd)
-		return vin->info->use_mc ? 0 : -ENODEV;
+		return -ENODEV;
 
 	vin_dbg(vin, "Found parallel subdevice %pOF\n",
 		to_of_node(vin->parallel.asd->match.fwnode));
@@ -955,11 +954,10 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 static void rvin_csi2_cleanup(struct rvin_dev *vin)
 {
-	if (!vin->info->use_mc)
-		return;
-
+	rvin_parallel_cleanup(vin);
 	rvin_group_notifier_cleanup(vin);
 	rvin_group_put(vin);
+	rvin_free_controls(vin);
 }
 
 static int rvin_csi2_init(struct rvin_dev *vin)
@@ -979,11 +977,18 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	if (ret)
 		goto err_controls;
 
-	ret = rvin_mc_parse_of_graph(vin);
-	if (ret)
+	/* It's OK to not have a parallel subdevice. */
+	ret = rvin_parallel_init(vin);
+	if (ret && ret != -ENODEV)
 		goto err_group;
 
+	ret = rvin_mc_parse_of_graph(vin);
+	if (ret)
+		goto err_parallel;
+
 	return 0;
+err_parallel:
+	rvin_parallel_cleanup(vin);
 err_group:
 	rvin_group_put(vin);
 err_controls:
@@ -1473,27 +1478,20 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vin);
 
-	if (vin->info->use_mc) {
+	if (vin->info->use_mc)
 		ret = rvin_csi2_init(vin);
-		if (ret)
-			goto error_dma_unregister;
-	}
+	else
+		ret = rvin_parallel_init(vin);
 
-	ret = rvin_parallel_init(vin);
-	if (ret)
-		goto error_group_unregister;
+	if (ret) {
+		rvin_dma_unregister(vin);
+		return ret;
+	}
 
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
-error_group_unregister:
-	rvin_free_controls(vin);
-	rvin_csi2_cleanup(vin);
-error_dma_unregister:
-	rvin_dma_unregister(vin);
-
-	return ret;
 }
 
 static int rcar_vin_remove(struct platform_device *pdev)
@@ -1504,11 +1502,10 @@ static int rcar_vin_remove(struct platform_device *pdev)
 
 	rvin_v4l2_unregister(vin);
 
-	rvin_parallel_cleanup(vin);
-
-	rvin_csi2_cleanup(vin);
-
-	rvin_free_controls(vin);
+	if (vin->info->use_mc)
+		rvin_csi2_cleanup(vin);
+	else
+		rvin_parallel_cleanup(vin);
 
 	rvin_dma_unregister(vin);
 
