@@ -19,7 +19,6 @@
 #include <linux/hypervisor.h>
 #include <linux/irqdomain.h>
 #include <linux/pm_runtime.h>
-#include <linux/list_sort.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -875,31 +874,14 @@ static void pci_set_bus_msi_domain(struct pci_bus *bus)
 	dev_set_msi_domain(&bus->dev, d);
 }
 
-static int res_cmp(void *priv, const struct list_head *a,
-		   const struct list_head *b)
-{
-	struct resource_entry *entry1, *entry2;
-
-	entry1 = container_of(a, struct resource_entry, node);
-	entry2 = container_of(b, struct resource_entry, node);
-
-	if (entry1->res->flags != entry2->res->flags)
-		return entry1->res->flags > entry2->res->flags;
-
-	if (entry1->offset != entry2->offset)
-		return entry1->offset > entry2->offset;
-
-	return entry1->res->start > entry2->res->start;
-}
-
 static int pci_register_host_bridge(struct pci_host_bridge *bridge)
 {
 	struct device *parent = bridge->dev.parent;
-	struct resource_entry *window, *next, *n;
+	struct resource_entry *window, *n;
 	struct pci_bus *bus, *b;
-	resource_size_t offset, next_offset;
+	resource_size_t offset;
 	LIST_HEAD(resources);
-	struct resource *res, *next_res;
+	struct resource *res;
 	char addr[64], *fmt;
 	const char *name;
 	int err;
@@ -979,35 +961,11 @@ static int pci_register_host_bridge(struct pci_host_bridge *bridge)
 	if (nr_node_ids > 1 && pcibus_to_node(bus) == NUMA_NO_NODE)
 		dev_warn(&bus->dev, "Unknown NUMA node; performance will be reduced\n");
 
-	/* Sort and coalesce contiguous windows */
-	list_sort(NULL, &resources, res_cmp);
-	resource_list_for_each_entry_safe(window, n, &resources) {
-		if (list_is_last(&window->node, &resources))
-			break;
-
-		next = list_next_entry(window, node);
-		offset = window->offset;
-		res = window->res;
-		next_offset = next->offset;
-		next_res = next->res;
-
-		if (res->flags != next_res->flags || offset != next_offset)
-			continue;
-
-		if (res->end + 1 == next_res->start) {
-			next_res->start = res->start;
-			res->flags = res->start = res->end = 0;
-		}
-	}
-
 	/* Add initial resources to the bus */
 	resource_list_for_each_entry_safe(window, n, &resources) {
+		list_move_tail(&window->node, &bridge->windows);
 		offset = window->offset;
 		res = window->res;
-		if (!res->end)
-			continue;
-
-		list_move_tail(&window->node, &bridge->windows);
 
 		if (res->flags & IORESOURCE_BUS)
 			pci_bus_insert_busn_res(bus, bus->number, res->end);
