@@ -180,7 +180,7 @@ static void show_gather(struct output *o, dma_addr_t phys_addr,
 		u32 val = *(map_addr + offset / 4 + i);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%pad: %08x: ", &addr, val);
+			host1x_debug_output(o, "    %pad: %08x: ", &addr, val);
 			data_count = show_channel_command(o, val, &payload);
 		} else {
 			host1x_debug_cont(o, "%08x%s", val,
@@ -195,18 +195,15 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 	struct push_buffer *pb = &cdma->push_buffer;
 	struct host1x_job *job;
 
-	host1x_debug_output(o, "PUSHBUF at %pad, %u words\n",
-			    &pb->dma, pb->size / 4);
-
-	show_gather(o, pb->dma, pb->size / 4, cdma, pb->dma, pb->mapped);
-
 	list_for_each_entry(job, &cdma->sync_queue, list) {
 		unsigned int i;
 
-		host1x_debug_output(o, "\n%p: JOB, syncpt_id=%d, syncpt_val=%d, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
-				    job, job->syncpt->id, job->syncpt_end,
-				    job->first_get, job->timeout,
+		host1x_debug_output(o, "JOB, syncpt %u: %u timeout: %u num_slots: %u num_handles: %u\n",
+				    job->syncpt->id, job->syncpt_end, job->timeout,
 				    job->num_slots, job->num_unpins);
+
+		show_gather(o, pb->dma + job->first_get, job->num_slots * 2, cdma,
+			    pb->dma + job->first_get, pb->mapped + job->first_get);
 
 		for (i = 0; i < job->num_cmds; i++) {
 			struct host1x_job_gather *g;
@@ -227,7 +224,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				continue;
 			}
 
-			host1x_debug_output(o, "    GATHER at %pad+%#x, %d words\n",
+			host1x_debug_output(o, "  GATHER at %pad+%#x, %d words\n",
 					    &g->base, g->offset, g->words);
 
 			show_gather(o, g->base + g->offset, g->words, cdma,
