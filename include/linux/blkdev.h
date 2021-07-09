@@ -27,6 +27,7 @@
 #include <linux/blkzoned.h>
 #include <linux/pm.h>
 #include <linux/android_kabi.h>
+#include <linux/android_vendor.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -1870,6 +1871,7 @@ struct block_device_operations {
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
+	ANDROID_OEM_DATA(1);
 };
 
 #ifdef CONFIG_COMPAT
