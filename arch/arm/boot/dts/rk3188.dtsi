@@ -638,7 +638,7 @@
 	power-domains = <&power RK3188_PD_GPU>;
 };
 
-&grf{
+&grf {
 	compatible = "rockchip,rk3188-grf", "syscon", "simple-mfd";
 
 	usbphy: usbphy {
