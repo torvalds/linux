@@ -2319,25 +2319,23 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 				 struct path *path)
 {
 	struct create_context *context;
-	int rc = -ENOENT;
+	struct create_sd_buf_req *sd_buf;
 
 	if (!req->CreateContextsOffset)
-		return rc;
+		return -ENOENT;
 
 	/* Parse SD BUFFER create contexts */
 	context = smb2_find_context_vals(req, SMB2_CREATE_SD_BUFFER);
-	if (context && !IS_ERR(context)) {
-		struct create_sd_buf_req *sd_buf;
+	if (!context)
+		return -ENOENT;
+	else if (IS_ERR(context))
+		return PTR_ERR(context);
 
-		ksmbd_debug(SMB,
-			    "Set ACLs using SMB2_CREATE_SD_BUFFER context\n");
-		sd_buf = (struct create_sd_buf_req *)context;
-		rc = set_info_sec(work->conn, work->tcon,
-				  path, &sd_buf->ntsd,
-				  le32_to_cpu(sd_buf->ccontext.DataLength), true);
-	}
-
-	return rc;
+	ksmbd_debug(SMB,
+		    "Set ACLs using SMB2_CREATE_SD_BUFFER context\n");
+	sd_buf = (struct create_sd_buf_req *)context;
+	return set_info_sec(work->conn, work->tcon, path, &sd_buf->ntsd,
+			    le32_to_cpu(sd_buf->ccontext.DataLength), true);
 }
 
 static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
