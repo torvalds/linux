@@ -311,9 +311,13 @@ END_BTB_FLUSH_SECTION
 	 * trace_hardirqs_off().
 	 */
 	li	r11,IRQS_ALL_DISABLED
-	li	r12,-1 /* Set MSR_EE and MSR_RI */
 	stb	r11,PACAIRQSOFTMASK(r13)
+#ifdef CONFIG_PPC_BOOK3S
+	li	r12,-1 /* Set MSR_EE and MSR_RI */
 	mtmsrd	r12,1
+#else
+	wrteei	1
+#endif
 
 	/* Calling convention has r9 = orig r0, r10 = regs */
 	mr	r9,r0
