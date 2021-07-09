@@ -52,7 +52,7 @@ static int igc_tsn_disable_offload(struct igc_adapter *adapter)
 		wr32(IGC_ENDQT(i), NSEC_PER_SEC);
 	}
 
-	wr32(IGC_QBVCYCLET_S, NSEC_PER_SEC);
+	wr32(IGC_QBVCYCLET_S, 0);
 	wr32(IGC_QBVCYCLET, NSEC_PER_SEC);
 
 	adapter->flags &= ~IGC_FLAG_TSN_QBV_ENABLED;
