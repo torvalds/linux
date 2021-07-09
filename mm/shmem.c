@@ -42,6 +42,8 @@
 
 #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
 
+#include "internal.h"
+
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/shmem_fs.h>
 
