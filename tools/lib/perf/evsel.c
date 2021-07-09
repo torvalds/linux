@@ -77,23 +77,30 @@ sys_perf_event_open(struct perf_event_attr *attr,
 	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
 }
 
-static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
+static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread, int *group_fd)
 {
 	struct perf_evsel *leader = evsel->leader;
 	int fd;
 
-	if (evsel == leader)
-		return -1;
+	if (evsel == leader) {
+		*group_fd = -1;
+		return 0;
+	}
 
 	/*
 	 * Leader must be already processed/open,
 	 * if not it's a bug.
 	 */
-	BUG_ON(!leader->fd);
+	if (!leader->fd)
+		return -ENOTCONN;
 
 	fd = FD(leader, cpu, thread);
-	BUG_ON(fd == -1);
-	return fd;
+	if (fd == -1)
+		return -EBADF;
+
+	*group_fd = fd;
+
+	return 0;
 }
 
 int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
@@ -133,7 +140,9 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		for (thread = 0; thread < threads->nr; thread++) {
 			int fd, group_fd;
 
-			group_fd = get_group_fd(evsel, cpu, thread);
+			err = get_group_fd(evsel, cpu, thread, &group_fd);
+			if (err < 0)
+				return err;
 
 			fd = sys_perf_event_open(&evsel->attr,
 						 threads->map[thread].pid,
