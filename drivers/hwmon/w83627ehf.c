@@ -1705,20 +1705,12 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, IOREGION_LENGTH, DRVNAME)) {
-		err = -EBUSY;
-		dev_err(dev, "Failed to request region 0x%lx-0x%lx\n",
-			(unsigned long)res->start,
-			(unsigned long)res->start + IOREGION_LENGTH - 1);
-		goto exit;
-	}
+	if (!devm_request_region(dev, res->start, IOREGION_LENGTH, DRVNAME))
+		return -EBUSY;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct w83627ehf_data),
-			    GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit_release;
-	}
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	data->addr = res->start;
 	mutex_init(&data->lock);
@@ -1882,7 +1874,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 
 	err = superio_enter(sio_data->sioreg);
 	if (err)
-		goto exit_release;
+		return err;
 
 	/* Read VID value */
 	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
@@ -1951,26 +1943,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 							 data,
 							 &w83627ehf_chip_info,
 							 w83627ehf_groups);
-	if (IS_ERR(hwmon_dev)) {
-		err = PTR_ERR(hwmon_dev);
-		goto exit_release;
-	}
-
-	return 0;
-
-exit_release:
-	release_region(res->start, IOREGION_LENGTH);
-exit:
-	return err;
-}
-
-static int w83627ehf_remove(struct platform_device *pdev)
-{
-	struct w83627ehf_data *data = platform_get_drvdata(pdev);
-
-	release_region(data->addr, IOREGION_LENGTH);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 #ifdef CONFIG_PM
@@ -2057,7 +2030,6 @@ static struct platform_driver w83627ehf_driver = {
 		.name	= DRVNAME,
 		.pm	= W83627EHF_DEV_PM_OPS,
 	},
-	.remove		= w83627ehf_remove,
 };
 
 /* w83627ehf_find() looks for a '627 in the Super-I/O config space */
