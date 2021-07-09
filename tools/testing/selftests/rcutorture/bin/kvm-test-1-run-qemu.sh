@@ -89,7 +89,7 @@ then
 fi
 while :
 do
-	if test -z "$qemu_pid" -a -s "$resdir/qemu-pid"
+	if test -z "$qemu_pid" && test -s "$resdir/qemu-pid"
 	then
 		qemu_pid=`cat "$resdir/qemu-pid"`
 	fi
@@ -122,11 +122,11 @@ do
 		break
 	fi
 done
-if test -z "$qemu_pid" -a -s "$resdir/qemu-pid"
+if test -z "$qemu_pid" && test -s "$resdir/qemu-pid"
 then
 	qemu_pid=`cat "$resdir/qemu-pid"`
 fi
-if test $commandcompleted -eq 0 -a -n "$qemu_pid"
+if test $commandcompleted -eq 0 && test -n "$qemu_pid"
 then
 	if ! test -f "$resdir/../STOP.1"
 	then
@@ -159,11 +159,11 @@ then
 		then
 			last_ts=0
 		fi
-		if test "$newline" != "$oldline" -a "$last_ts" -lt $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		if test "$newline" != "$oldline" && test "$last_ts" -lt $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			must_continue=yes
 		fi
-		if test $must_continue = no -a $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		if test $must_continue = no && test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
