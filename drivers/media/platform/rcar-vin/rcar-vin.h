@@ -269,6 +269,7 @@ struct rvin_dev {
  * @count:		number of enabled VIN instances found in DT
  * @notifier:		group notifier for CSI-2 async subdevices
  * @vin:		VIN instances which are part of the group
+ * @link_setup:		Callback to create all links for the media graph
  * @remotes:		array of pairs of fwnode and subdev pointers
  *			to all remote subdevices.
  */
@@ -281,6 +282,8 @@ struct rvin_group {
 	unsigned int count;
 	struct v4l2_async_notifier notifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
+
+	int (*link_setup)(struct rvin_dev *vin);
 
 	struct {
 		struct v4l2_async_subdev *asd;

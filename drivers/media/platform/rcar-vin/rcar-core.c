@@ -247,7 +247,8 @@ static void rvin_group_cleanup(struct rvin_group *group)
 	mutex_destroy(&group->lock);
 }
 
-static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
+static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
+			   int (*link_setup)(struct rvin_dev *))
 {
 	struct media_device *mdev = &group->mdev;
 	const struct of_device_id *match;
@@ -262,6 +263,8 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 			group->count++;
 
 	vin_dbg(vin, "found %u enabled VIN's in DT", group->count);
+
+	group->link_setup = link_setup;
 
 	mdev->dev = vin->dev;
 	mdev->ops = &rvin_media_ops;
@@ -295,7 +298,8 @@ static void rvin_group_release(struct kref *kref)
 	mutex_unlock(&rvin_group_lock);
 }
 
-static int rvin_group_get(struct rvin_dev *vin)
+static int rvin_group_get(struct rvin_dev *vin,
+			  int (*link_setup)(struct rvin_dev *))
 {
 	struct rvin_group *group;
 	u32 id;
@@ -327,7 +331,7 @@ static int rvin_group_get(struct rvin_dev *vin)
 			goto err_group;
 		}
 
-		ret = rvin_group_init(group, vin);
+		ret = rvin_group_init(group, vin, link_setup);
 		if (ret) {
 			kfree(group);
 			vin_err(vin, "Failed to initialize group\n");
@@ -386,7 +390,6 @@ out:
 static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
-	const struct rvin_group_route *route;
 	unsigned int i;
 	int ret;
 
@@ -410,46 +413,7 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 		}
 	}
 
-	/* Create all media device links between VINs and CSI-2's. */
-	mutex_lock(&vin->group->lock);
-	for (route = vin->info->routes; route->mask; route++) {
-		struct media_pad *source_pad, *sink_pad;
-		struct media_entity *source, *sink;
-		unsigned int source_idx;
-
-		/* Check that VIN is part of the group. */
-		if (!vin->group->vin[route->vin])
-			continue;
-
-		/* Check that VIN' master is part of the group. */
-		if (!vin->group->vin[rvin_group_id_to_master(route->vin)])
-			continue;
-
-		/* Check that CSI-2 is part of the group. */
-		if (!vin->group->remotes[route->csi].subdev)
-			continue;
-
-		source = &vin->group->remotes[route->csi].subdev->entity;
-		source_idx = rvin_group_csi_channel_to_pad(route->channel);
-		source_pad = &source->pads[source_idx];
-
-		sink = &vin->group->vin[route->vin]->vdev.entity;
-		sink_pad = &sink->pads[0];
-
-		/* Skip if link already exists. */
-		if (media_entity_find_link(source_pad, sink_pad))
-			continue;
-
-		ret = media_create_pad_link(source, source_idx, sink, 0, 0);
-		if (ret) {
-			vin_err(vin, "Error adding link from %s to %s\n",
-				source->name, sink->name);
-			break;
-		}
-	}
-	mutex_unlock(&vin->group->lock);
-
-	return ret;
+	return vin->group->link_setup(vin);
 }
 
 static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -953,6 +917,53 @@ static int rvin_parallel_init(struct rvin_dev *vin)
  * CSI-2
  */
 
+static int rvin_csi2_setup_links(struct rvin_dev *vin)
+{
+	const struct rvin_group_route *route;
+	int ret = -EINVAL;
+
+	/* Create all media device links between VINs and CSI-2's. */
+	mutex_lock(&vin->group->lock);
+	for (route = vin->info->routes; route->mask; route++) {
+		struct media_pad *source_pad, *sink_pad;
+		struct media_entity *source, *sink;
+		unsigned int source_idx;
+
+		/* Check that VIN is part of the group. */
+		if (!vin->group->vin[route->vin])
+			continue;
+
+		/* Check that VIN' master is part of the group. */
+		if (!vin->group->vin[rvin_group_id_to_master(route->vin)])
+			continue;
+
+		/* Check that CSI-2 is part of the group. */
+		if (!vin->group->remotes[route->csi].subdev)
+			continue;
+
+		source = &vin->group->remotes[route->csi].subdev->entity;
+		source_idx = rvin_group_csi_channel_to_pad(route->channel);
+		source_pad = &source->pads[source_idx];
+
+		sink = &vin->group->vin[route->vin]->vdev.entity;
+		sink_pad = &sink->pads[0];
+
+		/* Skip if link already exists. */
+		if (media_entity_find_link(source_pad, sink_pad))
+			continue;
+
+		ret = media_create_pad_link(source, source_idx, sink, 0, 0);
+		if (ret) {
+			vin_err(vin, "Error adding link from %s to %s\n",
+				source->name, sink->name);
+			break;
+		}
+	}
+	mutex_unlock(&vin->group->lock);
+
+	return ret;
+}
+
 static void rvin_csi2_cleanup(struct rvin_dev *vin)
 {
 	rvin_parallel_cleanup(vin);
@@ -974,7 +985,7 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	if (ret < 0)
 		return ret;
 
-	ret = rvin_group_get(vin);
+	ret = rvin_group_get(vin, rvin_csi2_setup_links);
 	if (ret)
 		goto err_controls;
 
