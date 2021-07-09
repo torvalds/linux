@@ -405,6 +405,45 @@ static const struct v4l2_ctrl_ops rvin_ctrl_ops = {
 	.s_ctrl = rvin_s_ctrl,
 };
 
+static void rvin_free_controls(struct rvin_dev *vin)
+{
+	v4l2_ctrl_handler_free(&vin->ctrl_handler);
+	vin->vdev.ctrl_handler = NULL;
+}
+
+static int rvin_create_controls(struct rvin_dev *vin, struct v4l2_subdev *subdev)
+{
+	int ret;
+
+	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 16);
+	if (ret < 0)
+		return ret;
+
+	/* The VIN directly deals with alpha component. */
+	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	if (vin->ctrl_handler.error) {
+		ret = vin->ctrl_handler.error;
+		rvin_free_controls(vin);
+		return ret;
+	}
+
+	/* For the non-MC mode add controls from the subdevice. */
+	if (subdev) {
+		ret = v4l2_ctrl_add_handler(&vin->ctrl_handler,
+					    subdev->ctrl_handler, NULL, true);
+		if (ret < 0) {
+			rvin_free_controls(vin);
+			return ret;
+		}
+	}
+
+	vin->vdev.ctrl_handler = &vin->ctrl_handler;
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * Async notifier
  */
@@ -490,27 +529,9 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 		return ret;
 
 	/* Add the controls */
-	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 16);
+	ret = rvin_create_controls(vin, subdev);
 	if (ret < 0)
 		return ret;
-
-	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
-			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
-
-	if (vin->ctrl_handler.error) {
-		ret = vin->ctrl_handler.error;
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
-		return ret;
-	}
-
-	ret = v4l2_ctrl_add_handler(&vin->ctrl_handler, subdev->ctrl_handler,
-				    NULL, true);
-	if (ret < 0) {
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
-		return ret;
-	}
-
-	vin->vdev.ctrl_handler = &vin->ctrl_handler;
 
 	vin->parallel.subdev = subdev;
 
@@ -522,10 +543,8 @@ static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 	rvin_v4l2_unregister(vin);
 	vin->parallel.subdev = NULL;
 
-	if (!vin->info->use_mc) {
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
-		vin->vdev.ctrl_handler = NULL;
-	}
+	if (!vin->info->use_mc)
+		rvin_free_controls(vin);
 }
 
 static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
@@ -935,20 +954,9 @@ static int rvin_mc_init(struct rvin_dev *vin)
 	if (ret)
 		rvin_group_put(vin);
 
-	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
+	ret = rvin_create_controls(vin, NULL);
 	if (ret < 0)
 		return ret;
-
-	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
-			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
-
-	if (vin->ctrl_handler.error) {
-		ret = vin->ctrl_handler.error;
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
-		return ret;
-	}
-
-	vin->vdev.ctrl_handler = &vin->ctrl_handler;
 
 	return ret;
 }
@@ -1450,7 +1458,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	return 0;
 
 error_group_unregister:
-	v4l2_ctrl_handler_free(&vin->ctrl_handler);
+	rvin_free_controls(vin);
 
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
@@ -1485,7 +1493,7 @@ static int rcar_vin_remove(struct platform_device *pdev)
 		rvin_group_put(vin);
 	}
 
-	v4l2_ctrl_handler_free(&vin->ctrl_handler);
+	rvin_free_controls(vin);
 
 	rvin_dma_unregister(vin);
 
