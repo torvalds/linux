@@ -49,16 +49,16 @@
  */
 
 /* group lock should be held when calling this function. */
-static int rvin_group_entity_to_csi_id(struct rvin_group *group,
-				       struct media_entity *entity)
+static int rvin_group_entity_to_remote_id(struct rvin_group *group,
+					  struct media_entity *entity)
 {
 	struct v4l2_subdev *sd;
 	unsigned int i;
 
 	sd = media_entity_to_v4l2_subdev(entity);
 
-	for (i = 0; i < RVIN_CSI_MAX; i++)
-		if (group->csi[i].subdev == sd)
+	for (i = 0; i < RVIN_REMOTES_MAX; i++)
+		if (group->remotes[i].subdev == sd)
 			return i;
 
 	return -ENODEV;
@@ -163,14 +163,14 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 		if (!csi_pad)
 			continue;
 
-		csi_id = rvin_group_entity_to_csi_id(group, csi_pad->entity);
+		csi_id = rvin_group_entity_to_remote_id(group, csi_pad->entity);
 		channel = rvin_group_csi_pad_to_channel(csi_pad->index);
 
 		mask &= rvin_group_get_mask(group->vin[i], csi_id, channel);
 	}
 
 	/* Add the new link to the existing mask and check if it works. */
-	csi_id = rvin_group_entity_to_csi_id(group, link->source->entity);
+	csi_id = rvin_group_entity_to_remote_id(group, link->source->entity);
 
 	if (csi_id == -ENODEV) {
 		struct v4l2_subdev *sd;
@@ -766,10 +766,10 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 			continue;
 
 		/* Check that CSI-2 is part of the group. */
-		if (!vin->group->csi[route->csi].subdev)
+		if (!vin->group->remotes[route->csi].subdev)
 			continue;
 
-		source = &vin->group->csi[route->csi].subdev->entity;
+		source = &vin->group->remotes[route->csi].subdev->entity;
 		source_idx = rvin_group_csi_channel_to_pad(route->channel);
 		source_pad = &source->pads[source_idx];
 
@@ -806,10 +806,10 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].asd != asd)
+		if (vin->group->remotes[i].asd != asd)
 			continue;
-		vin->group->csi[i].subdev = NULL;
-		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
+		vin->group->remotes[i].subdev = NULL;
+		vin_dbg(vin, "Unbind %s from slot %u\n", subdev->name, i);
 		break;
 	}
 
@@ -828,10 +828,10 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].asd != asd)
+		if (vin->group->remotes[i].asd != asd)
 			continue;
-		vin->group->csi[i].subdev = subdev;
-		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
+		vin->group->remotes[i].subdev = subdev;
+		vin_dbg(vin, "Bound %s to slot %u\n", subdev->name, i);
 		break;
 	}
 
@@ -883,7 +883,7 @@ static int rvin_mc_parse_of(struct rvin_dev *vin, unsigned int id)
 		goto out;
 	}
 
-	vin->group->csi[vep.base.id].asd = asd;
+	vin->group->remotes[vep.base.id].asd = asd;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
 		to_of_node(fwnode), vep.base.id);
@@ -928,7 +928,7 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 			continue;
 
 		for (id = 0; id < RVIN_CSI_MAX; id++) {
-			if (vin->group->csi[id].asd)
+			if (vin->group->remotes[id].asd)
 				continue;
 
 			ret = rvin_mc_parse_of(vin->group->vin[i], id);

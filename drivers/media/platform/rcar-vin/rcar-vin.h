@@ -48,6 +48,8 @@ enum rvin_csi_id {
 	RVIN_CSI_MAX,
 };
 
+#define RVIN_REMOTES_MAX RVIN_CSI_MAX
+
 /**
  * enum rvin_dma_state - DMA states
  * @STOPPED:   No operation in progress
@@ -267,8 +269,8 @@ struct rvin_dev {
  * @count:		number of enabled VIN instances found in DT
  * @notifier:		group notifier for CSI-2 async subdevices
  * @vin:		VIN instances which are part of the group
- * @csi:		array of pairs of fwnode and subdev pointers
- *			to all CSI-2 subdevices.
+ * @remotes:		array of pairs of fwnode and subdev pointers
+ *			to all remote subdevices.
  */
 struct rvin_group {
 	struct kref refcount;
@@ -283,7 +285,7 @@ struct rvin_group {
 	struct {
 		struct v4l2_async_subdev *asd;
 		struct v4l2_subdev *subdev;
-	} csi[RVIN_CSI_MAX];
+	} remotes[RVIN_REMOTES_MAX];
 };
 
 int rvin_dma_register(struct rvin_dev *vin, int irq);
