@@ -801,7 +801,8 @@ void __exit msm_dsi_phy_driver_unregister(void)
 }
 
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
-			struct msm_dsi_phy_clk_request *clk_req)
+			struct msm_dsi_phy_clk_request *clk_req,
+			struct msm_dsi_phy_shared_timings *shared_timings)
 {
 	struct device *dev = &phy->pdev->dev;
 	int ret;
@@ -828,6 +829,9 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
 		DRM_DEV_ERROR(dev, "%s: phy enable failed, %d\n", __func__, ret);
 		goto phy_en_fail;
 	}
+
+	memcpy(shared_timings, &phy->timing.shared_timings,
+	       sizeof(*shared_timings));
 
 	/*
 	 * Resetting DSI PHY silently changes its PLL registers to reset status,
@@ -866,13 +870,6 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 
 	dsi_phy_regulator_disable(phy);
 	dsi_phy_disable_resource(phy);
-}
-
-void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
-			struct msm_dsi_phy_shared_timings *shared_timings)
-{
-	memcpy(shared_timings, &phy->timing.shared_timings,
-	       sizeof(*shared_timings));
 }
 
 void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
