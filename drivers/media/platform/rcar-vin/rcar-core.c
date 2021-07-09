@@ -248,7 +248,8 @@ static void rvin_group_cleanup(struct rvin_group *group)
 }
 
 static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
-			   int (*link_setup)(struct rvin_dev *))
+			   int (*link_setup)(struct rvin_dev *),
+			   const struct media_device_ops *ops)
 {
 	struct media_device *mdev = &group->mdev;
 	const struct of_device_id *match;
@@ -267,7 +268,7 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
 	group->link_setup = link_setup;
 
 	mdev->dev = vin->dev;
-	mdev->ops = &rvin_media_ops;
+	mdev->ops = ops;
 
 	match = of_match_node(vin->dev->driver->of_match_table,
 			      vin->dev->of_node);
@@ -299,7 +300,8 @@ static void rvin_group_release(struct kref *kref)
 }
 
 static int rvin_group_get(struct rvin_dev *vin,
-			  int (*link_setup)(struct rvin_dev *))
+			  int (*link_setup)(struct rvin_dev *),
+			  const struct media_device_ops *ops)
 {
 	struct rvin_group *group;
 	u32 id;
@@ -331,7 +333,7 @@ static int rvin_group_get(struct rvin_dev *vin,
 			goto err_group;
 		}
 
-		ret = rvin_group_init(group, vin, link_setup);
+		ret = rvin_group_init(group, vin, link_setup, ops);
 		if (ret) {
 			kfree(group);
 			vin_err(vin, "Failed to initialize group\n");
@@ -985,7 +987,7 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	if (ret < 0)
 		return ret;
 
-	ret = rvin_group_get(vin, rvin_csi2_setup_links);
+	ret = rvin_group_get(vin, rvin_csi2_setup_links, &rvin_media_ops);
 	if (ret)
 		goto err_controls;
 
