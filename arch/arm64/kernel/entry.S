@@ -133,29 +133,37 @@ alternative_cb_end
 	.endm
 
 	/* Check for MTE asynchronous tag check faults */
-	.macro check_mte_async_tcf, tmp, ti_flags
+	.macro check_mte_async_tcf, tmp, ti_flags, thread_sctlr
 #ifdef CONFIG_ARM64_MTE
 	.arch_extension lse
 alternative_if_not ARM64_MTE
 	b	1f
 alternative_else_nop_endif
+	/*
+	 * Asynchronous tag check faults are only possible in ASYNC (2) or
+	 * ASYM (3) modes. In each of these modes bit 1 of SCTLR_EL1.TCF0 is
+	 * set, so skip the check if it is unset.
+	 */
+	tbz	\thread_sctlr, #(SCTLR_EL1_TCF0_SHIFT + 1), 1f
 	mrs_s	\tmp, SYS_TFSRE0_EL1
 	tbz	\tmp, #SYS_TFSR_EL1_TF0_SHIFT, 1f
 	/* Asynchronous TCF occurred for TTBR0 access, set the TI flag */
 	mov	\tmp, #_TIF_MTE_ASYNC_FAULT
 	add	\ti_flags, tsk, #TSK_TI_FLAGS
 	stset	\tmp, [\ti_flags]
-	msr_s	SYS_TFSRE0_EL1, xzr
 1:
 #endif
 	.endm
 
 	/* Clear the MTE asynchronous tag check faults */
-	.macro clear_mte_async_tcf
+	.macro clear_mte_async_tcf thread_sctlr
 #ifdef CONFIG_ARM64_MTE
 alternative_if ARM64_MTE
+	/* See comment in check_mte_async_tcf above. */
+	tbz	\thread_sctlr, #(SCTLR_EL1_TCF0_SHIFT + 1), 1f
 	dsb	ish
 	msr_s	SYS_TFSRE0_EL1, xzr
+1:
 alternative_else_nop_endif
 #endif
 	.endm
@@ -231,8 +239,8 @@ alternative_else_nop_endif
 	disable_step_tsk x19, x20
 
 	/* Check for asynchronous tag check faults in user space */
-	check_mte_async_tcf x22, x23
-	apply_ssbd 1, x22, x23
+	ldr	x0, [tsk, THREAD_SCTLR_USER]
+	check_mte_async_tcf x22, x23, x0
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 alternative_if ARM64_HAS_ADDRESS_AUTH
@@ -245,7 +253,6 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	 * was disabled on kernel exit then we would have left the kernel IA
 	 * installed so there is no need to install it again.
 	 */
-	ldr	x0, [tsk, THREAD_SCTLR_USER]
 	tbz	x0, SCTLR_ELx_ENIA_SHIFT, 1f
 	__ptrauth_keys_install_kernel_nosync tsk, x20, x22, x23
 	b	2f
@@ -257,6 +264,8 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	isb
 alternative_else_nop_endif
 #endif
+
+	apply_ssbd 1, x22, x23
 
 	mte_set_kernel_gcr x22, x23
 
@@ -362,6 +371,10 @@ alternative_else_nop_endif
 3:
 	scs_save tsk
 
+	/* Ignore asynchronous tag check faults in the uaccess routines */
+	ldr	x0, [tsk, THREAD_SCTLR_USER]
+	clear_mte_async_tcf x0
+
 #ifdef CONFIG_ARM64_PTR_AUTH
 alternative_if ARM64_HAS_ADDRESS_AUTH
 	/*
@@ -371,7 +384,6 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	 *
 	 * No kernel C function calls after this.
 	 */
-	ldr	x0, [tsk, THREAD_SCTLR_USER]
 	tbz	x0, SCTLR_ELx_ENIA_SHIFT, 1f
 	__ptrauth_keys_install_user tsk, x0, x1, x2
 	b	2f
@@ -599,8 +611,6 @@ SYM_CODE_START_LOCAL(ret_to_user)
 	cbnz	x2, work_pending
 finish_ret_to_user:
 	user_enter_irqoff
-	/* Ignore asynchronous tag check faults in the uaccess routines */
-	clear_mte_async_tcf
 	enable_step_tsk x19, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
