@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "DMABUF options"
 
+config DMABUF_CACHE
+	bool "DMABUF cache attachment"
+	default ARCH_ROCKCHIP
+	depends on NO_GKI
+	help
+	  This option support to store attachments in a list and destroy them by
+	  set to a callback list in the dtor of dma-buf.
+
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
