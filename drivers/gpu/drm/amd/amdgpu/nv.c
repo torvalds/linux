@@ -333,6 +333,19 @@ static const struct amdgpu_video_codecs bg_video_codecs_encode = {
 	.codec_array = NULL,
 };
 
+/* Yellow Carp*/
+static const struct amdgpu_video_codec_info yc_video_codecs_decode_array[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4906, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+};
+
+static const struct amdgpu_video_codecs yc_video_codecs_decode = {
+	.codec_count = ARRAY_SIZE(bg_video_codecs_decode_array),
+	.codec_array = bg_video_codecs_decode_array,
+};
+
 static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				 const struct amdgpu_video_codecs **codecs)
 {
@@ -353,11 +366,16 @@ static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_VANGOGH:
-	case CHIP_YELLOW_CARP:
 		if (encode)
 			*codecs = &nv_video_codecs_encode;
 		else
 			*codecs = &sc_video_codecs_decode;
+		return 0;
+	case CHIP_YELLOW_CARP:
+		if (encode)
+			*codecs = &nv_video_codecs_encode;
+		else
+			*codecs = &yc_video_codecs_decode;
 		return 0;
 	case CHIP_BEIGE_GOBY:
 		if (encode)
