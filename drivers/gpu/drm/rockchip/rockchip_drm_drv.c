@@ -6,7 +6,7 @@
  * based on exynos_drm_drv.c
  */
 
-#include <linux/dma-buf.h>
+#include <linux/dma-buf-cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
 #include <linux/genalloc.h>

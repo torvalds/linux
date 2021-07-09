@@ -4,7 +4,7 @@
  * Author:Mark Yao <mark.yao@rock-chips.com>
  */
 
-#include <linux/dma-buf.h>
+#include <linux/dma-buf-cache.h>
 #include <linux/iommu.h>
 #include <linux/vmalloc.h>
 
@@ -13,7 +13,6 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
 
-#include <linux/dma-buf.h>
 #include <linux/genalloc.h>
 #include <linux/iommu.h>
 #include <linux/pagemap.h>
