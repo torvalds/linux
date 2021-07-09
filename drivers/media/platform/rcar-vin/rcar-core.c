@@ -946,17 +946,23 @@ static int rvin_mc_init(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	ret = rvin_group_get(vin);
-	if (ret)
-		return ret;
-
-	ret = rvin_mc_parse_of_graph(vin);
-	if (ret)
-		rvin_group_put(vin);
-
 	ret = rvin_create_controls(vin, NULL);
 	if (ret < 0)
 		return ret;
+
+	ret = rvin_group_get(vin);
+	if (ret)
+		goto err_controls;
+
+	ret = rvin_mc_parse_of_graph(vin);
+	if (ret)
+		goto err_group;
+
+	return 0;
+err_group:
+	rvin_group_put(vin);
+err_controls:
+	rvin_free_controls(vin);
 
 	return ret;
 }
