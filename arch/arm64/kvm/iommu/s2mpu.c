@@ -18,7 +18,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	void __iomem *kaddr;
 	size_t res_size;
 	enum s2mpu_power_state power_state = S2MPU_POWER_ALWAYS_ON;
-	u32 power_domain_id = 0;
+	u32 version, power_domain_id = 0;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -56,6 +56,16 @@ static int s2mpu_probe(struct platform_device *pdev)
 	} else if (ret != -EINVAL) {
 		dev_err(&pdev->dev, "failed to parse power-domain-id: %d", ret);
 		return ret;
+	}
+
+	version = readl_relaxed(kaddr + REG_NS_VERSION);
+	switch (version & VERSION_CHECK_MASK) {
+	case S2MPU_VERSION_8:
+	case S2MPU_VERSION_9:
+		break;
+	default:
+		dev_err(&pdev->dev, "unexpected version 0x%08x", version);
+		return -EINVAL;
 	}
 
 	return 0;
