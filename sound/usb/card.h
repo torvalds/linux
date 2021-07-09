@@ -19,7 +19,7 @@ struct audioformat {
 	unsigned char iface;		/* interface number */
 	unsigned char altsetting;	/* corresponding alternate setting */
 	unsigned char ep_idx;		/* endpoint array index */
-	unsigned char altset_idx;	/* array index of altenate setting */
+	unsigned char altset_idx;	/* array index of alternate setting */
 	unsigned char attributes;	/* corresponding attributes of cs endpoint */
 	unsigned char endpoint;		/* endpoint */
 	unsigned char ep_attr;		/* endpoint attributes */
@@ -158,6 +158,7 @@ struct snd_usb_substream {
 	unsigned int stream_offset_adj;	/* Bytes to drop from beginning of stream (for non-compliant devices) */
 
 	unsigned int running: 1;	/* running status */
+	unsigned int period_elapsed_pending;	/* delay period handling */
 
 	unsigned int buffer_bytes;	/* buffer size in bytes */
 	unsigned int inflight_bytes;	/* in-flight data bytes on buffer (for playback) */

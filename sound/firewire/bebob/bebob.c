@@ -403,8 +403,6 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x01eeee, &spec_normal),
 	/* ESI, Quatafire610 */
 	SND_BEBOB_DEV_ENTRY(VEN_ESI, 0x00010064, &spec_normal),
-	// AcousticReality, eARMasterOne. Terratec OEM.
-	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* CME, MatrixKFW */
 	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000, &spec_normal),
 	// Phonic Helix Board 12 FireWire MkII.
@@ -434,7 +432,8 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000007, &yamaha_terratec_spec),
 	/* TerraTec Electronic GmbH, EWS MIC2/MIC8 */
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000005, &spec_normal),
-	/* Terratec Electronic GmbH, Aureon 7.1 Firewire */
+	// Terratec Electronic GmbH, Aureon 7.1 Firewire.
+	// AcousticReality, eAR Master One, Eroica, Figaro, and Ciaccona. Perhaps Terratec OEM.
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* Yamaha, GO44 */
 	SND_BEBOB_DEV_ENTRY(VEN_YAMAHA, 0x0010000b, &yamaha_terratec_spec),
