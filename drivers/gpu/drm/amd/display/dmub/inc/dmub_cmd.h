@@ -2636,6 +2636,7 @@ static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
  */
 static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 {
+	uint8_t buf[DMUB_RB_CMD_SIZE];
 	uint32_t rptr = rb->rptr;
 	uint32_t wptr = rb->wrpt;
 
