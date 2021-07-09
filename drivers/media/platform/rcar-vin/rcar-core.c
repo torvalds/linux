@@ -383,6 +383,16 @@ out:
 	kref_put(&group->refcount, rvin_group_release);
 }
 
+static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
+{
+	mutex_lock(&vin->group->lock);
+	if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
+		v4l2_async_notifier_unregister(&vin->group->notifier);
+		v4l2_async_notifier_cleanup(&vin->group->notifier);
+	}
+	mutex_unlock(&vin->group->lock);
+}
+
 /* -----------------------------------------------------------------------------
  * Controls
  */
@@ -676,6 +686,12 @@ out:
 	return ret;
 }
 
+static void rvin_parallel_cleanup(struct rvin_dev *vin)
+{
+	v4l2_async_notifier_unregister(&vin->notifier);
+	v4l2_async_notifier_cleanup(&vin->notifier);
+}
+
 static int rvin_parallel_init(struct rvin_dev *vin)
 {
 	int ret;
@@ -937,7 +953,16 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 	return 0;
 }
 
-static int rvin_mc_init(struct rvin_dev *vin)
+static void rvin_csi2_cleanup(struct rvin_dev *vin)
+{
+	if (!vin->info->use_mc)
+		return;
+
+	rvin_group_notifier_cleanup(vin);
+	rvin_group_put(vin);
+}
+
+static int rvin_csi2_init(struct rvin_dev *vin)
 {
 	int ret;
 
@@ -1449,7 +1474,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vin);
 
 	if (vin->info->use_mc) {
-		ret = rvin_mc_init(vin);
+		ret = rvin_csi2_init(vin);
 		if (ret)
 			goto error_dma_unregister;
 	}
@@ -1462,20 +1487,9 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
-
 error_group_unregister:
 	rvin_free_controls(vin);
-
-	if (vin->info->use_mc) {
-		mutex_lock(&vin->group->lock);
-		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-			v4l2_async_notifier_unregister(&vin->group->notifier);
-			v4l2_async_notifier_cleanup(&vin->group->notifier);
-		}
-		mutex_unlock(&vin->group->lock);
-		rvin_group_put(vin);
-	}
-
+	rvin_csi2_cleanup(vin);
 error_dma_unregister:
 	rvin_dma_unregister(vin);
 
@@ -1490,14 +1504,9 @@ static int rcar_vin_remove(struct platform_device *pdev)
 
 	rvin_v4l2_unregister(vin);
 
-	v4l2_async_notifier_unregister(&vin->notifier);
-	v4l2_async_notifier_cleanup(&vin->notifier);
+	rvin_parallel_cleanup(vin);
 
-	if (vin->info->use_mc) {
-		v4l2_async_notifier_unregister(&vin->group->notifier);
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
-		rvin_group_put(vin);
-	}
+	rvin_csi2_cleanup(vin);
 
 	rvin_free_controls(vin);
 
