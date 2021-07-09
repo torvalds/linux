@@ -506,7 +506,8 @@ static const struct v4l2_async_notifier_operations rvin_group_notify_ops = {
 	.complete = rvin_group_notify_complete,
 };
 
-static int rvin_mc_parse_of(struct rvin_dev *vin, unsigned int id)
+static int rvin_group_parse_of(struct rvin_dev *vin, unsigned int port,
+			       unsigned int id)
 {
 	struct fwnode_handle *ep, *fwnode;
 	struct v4l2_fwnode_endpoint vep = {
@@ -515,7 +516,7 @@ static int rvin_mc_parse_of(struct rvin_dev *vin, unsigned int id)
 	struct v4l2_async_subdev *asd;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 1, id, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
 	if (!ep)
 		return 0;
 
@@ -563,7 +564,8 @@ static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
 	mutex_unlock(&vin->group->lock);
 }
 
-static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
+static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
+				    unsigned int max_id)
 {
 	unsigned int count = 0, vin_mask = 0;
 	unsigned int i, id;
@@ -589,19 +591,18 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 	v4l2_async_notifier_init(&vin->group->notifier);
 
 	/*
-	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
-	 * overlap but the parser function can handle it, so each subdevice
-	 * will only be registered once with the group notifier.
+	 * Some subdevices may overlap but the parser function can handle it and
+	 * each subdevice will only be registered once with the group notifier.
 	 */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
 		if (!(vin_mask & BIT(i)))
 			continue;
 
-		for (id = 0; id < RVIN_CSI_MAX; id++) {
+		for (id = 0; id < max_id; id++) {
 			if (vin->group->remotes[id].asd)
 				continue;
 
-			ret = rvin_mc_parse_of(vin->group->vin[i], id);
+			ret = rvin_group_parse_of(vin->group->vin[i], port, id);
 			if (ret)
 				return ret;
 		}
@@ -982,7 +983,7 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	if (ret && ret != -ENODEV)
 		goto err_group;
 
-	ret = rvin_mc_parse_of_graph(vin);
+	ret = rvin_group_notifier_init(vin, 1, RVIN_CSI_MAX);
 	if (ret)
 		goto err_parallel;
 
