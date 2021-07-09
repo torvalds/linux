@@ -1856,7 +1856,6 @@ void amdgpu_vm_get_memory(struct amdgpu_vm *vm, uint64_t *vram_mem,
  * @adev: amdgpu_device pointer
  * @bo_va: requested BO and VM object
  * @clear: if true clear the entries
- * @table_freed: return true if page table is freed
  *
  * Fill in the page table entries for @bo_va.
  *
