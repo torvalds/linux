@@ -65,6 +65,7 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run12
   bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
@@ -87,6 +88,8 @@
   cdev_device_del
   cdev_init
   __cfi_slowpath
+  cgroup_taskset_first
+  cgroup_taskset_next
   __check_object_size
   check_preempt_curr
   __class_create
@@ -378,6 +381,8 @@
   devm_thermal_zone_of_sensor_register
   devm_watchdog_register_device
   _dev_notice
+  dev_pm_domain_attach_by_name
+  dev_pm_domain_detach
   dev_pm_genpd_add_notifier
   dev_pm_genpd_set_performance_state
   dev_pm_opp_add
@@ -655,11 +660,6 @@
   freq_qos_add_request
   freq_qos_remove_request
   freq_qos_update_request
-  fsg_common_create_luns
-  fsg_common_set_cdev
-  fsg_common_set_inquiry_string
-  fsg_common_set_sysfs
-  fsg_config_from_params
   fsync_bdev
   fwnode_handle_get
   fwnode_handle_put
@@ -718,6 +718,7 @@
   gpiod_direction_output
   gpiod_direction_output_raw
   gpiod_get_raw_value
+  gpiod_get_value_cansleep
   gpiod_set_debounce
   gpiod_set_value
   gpiod_set_value_cansleep
@@ -1182,7 +1183,6 @@
   __page_pinner_migration_failed
   panic
   panic_notifier_list
-  param_array_ops
   param_get_bool
   param_get_charp
   param_get_int
@@ -1530,6 +1530,8 @@
   skb_put
   skb_queue_tail
   skb_trim
+  smp_call_function
+  smp_call_function_single
   snd_card_add_dev_attr
   snd_ctl_boolean_mono_info
   snd_jack_set_key
@@ -1612,13 +1614,12 @@
   stack_trace_save
   static_key_slow_dec
   static_key_slow_inc
-  stpcpy
+  stop_one_cpu_nowait
   strcasecmp
   strchr
   strcmp
   strcpy
   strcspn
-  strim
   strlcat
   strlcpy
   strlen
@@ -1712,6 +1713,7 @@
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_transaction_init
+  __traceiter_android_vh_cgroup_attach
   __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_em_cpu_energy
@@ -1719,6 +1721,7 @@
   __traceiter_android_vh_finish_update_load_avg_se
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
+  __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_prepare_update_load_avg_se
@@ -1746,6 +1749,7 @@
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
   __traceiter_sched_update_nr_running_tp
+  __traceiter_task_newtask
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_dequeue_task_fair
@@ -1767,6 +1771,7 @@
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_transaction_init
+  __tracepoint_android_vh_cgroup_attach
   __tracepoint_android_vh_cgroup_set_task
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_em_cpu_energy
@@ -1774,6 +1779,7 @@
   __tracepoint_android_vh_finish_update_load_avg_se
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
+  __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_prepare_update_load_avg_se
@@ -1804,6 +1810,8 @@
   __tracepoint_rwmmio_write
   __tracepoint_sched_update_nr_running_tp
   tracepoint_srcu
+  __tracepoint_task_newtask
+  trace_print_array_seq
   trace_print_symbols_seq
   __trace_puts
   trace_raw_output_prep
@@ -1879,12 +1887,9 @@
   update_rq_clock
   up_read
   up_write
-  usb_add_config
   usb_add_function
   usb_add_gadget_udc
   usb_add_hcd
-  usb_composite_probe
-  usb_composite_unregister
   usb_copy_descriptors
   usb_create_hcd
   usb_create_shared_hcd
@@ -1903,17 +1908,11 @@
   usb_ep_set_maxpacket_limit
   usb_function_register
   usb_function_unregister
-  usb_gadget_connect
-  usb_gadget_disconnect
   usb_gadget_giveback_request
   usb_gadget_map_request
-  usb_gadget_probe_driver
-  usb_gadget_set_selfpowered
   usb_gadget_set_state
   usb_gadget_unmap_request
   usb_get_dr_mode
-  usb_get_function
-  usb_get_function_instance
   usb_get_maximum_speed
   usb_hcd_is_primary_hcd
   usb_hcd_poll_rh_status
@@ -1945,11 +1944,9 @@
   usbnet_write_cmd
   usbnet_write_cmd_async
   usbnet_write_cmd_nopm
-  usb_put_function
   usb_put_function_instance
   usb_put_hcd
   usb_register_driver
-  usb_remove_function
   usb_remove_hcd
   usb_role_switch_get
   usb_role_switch_get_drvdata
@@ -2161,6 +2158,11 @@
   down_read_trylock
   ether_setup
   eth_type_trans
+  fsg_common_create_luns
+  fsg_common_set_cdev
+  fsg_common_set_inquiry_string
+  fsg_common_set_sysfs
+  fsg_config_from_params
   gcd
   genlmsg_put
   genl_register_family
@@ -2193,6 +2195,7 @@
   n_tty_ioctl_helper
   of_devfreq_cooling_register_power
   of_root
+  param_array_ops
   param_ops_byte
   param_ops_string
   perf_num_counters
@@ -2236,9 +2239,10 @@
   skb_queue_head
   skb_queue_purge
   skb_realloc_headroom
-  smp_call_function_single
   snd_soc_component_test_bits
   sprint_symbol_no_offset
+  stpcpy
+  strim
   strpbrk
   strspn
   syscore_resume
@@ -2249,7 +2253,6 @@
   trace_output_call
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_gpu_mem_total
-  trace_print_array_seq
   trace_print_flags_seq
   try_module_get
   tty_driver_flush_buffer
@@ -2262,6 +2265,17 @@
   unregister_netdevice_notifier
   unregister_netdevice_queue
   unregister_syscore_ops
+  usb_add_config
+  usb_composite_probe
+  usb_composite_unregister
+  usb_gadget_connect
+  usb_gadget_disconnect
+  usb_gadget_probe_driver
+  usb_gadget_set_selfpowered
+  usb_get_function
+  usb_get_function_instance
+  usb_put_function
+  usb_remove_function
   v4l2_m2m_buf_copy_metadata
   v4l2_m2m_buf_remove_by_buf
   v4l2_m2m_register_media_controller
