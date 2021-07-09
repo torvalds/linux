@@ -189,6 +189,6 @@ machine_kexec(struct kimage *image)
 	/* Jump to the relocation code */
 	pr_notice("Bye...\n");
 	kexec_method(first_ind_entry, jump_addr, fdt_addr,
-		     this_hart_id, va_pa_offset);
+		     this_hart_id, kernel_map.va_pa_offset);
 	unreachable();
 }
