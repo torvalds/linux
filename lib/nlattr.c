@@ -619,7 +619,7 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
  * Validates all attributes in the specified attribute stream against the
  * specified policy. Validation depends on the validate flags passed, see
  * &enum netlink_validation for more details on that.
- * See documenation of struct nla_policy for more details.
+ * See documentation of struct nla_policy for more details.
  *
  * Returns 0 on success or a negative error code.
  */
@@ -633,7 +633,7 @@ int __nla_validate(const struct nlattr *head, int len, int maxtype,
 EXPORT_SYMBOL(__nla_validate);
 
 /**
- * nla_policy_len - Determin the max. length of a policy
+ * nla_policy_len - Determine the max. length of a policy
  * @policy: policy to use
  * @n: number of policies
  *
