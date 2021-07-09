@@ -570,6 +570,12 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
+	if (hws->wa.early_riommu_invalidation) {
+		struct hubbub *hubbub = dc->res_pool->hubbub;
+
+		hubbub->funcs->apply_invalidation_req_wa(hubbub, &hubbub->vmid_cache);
+	}
+
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
 	/* In flip immediate with pipe splitting case GSL is used for
