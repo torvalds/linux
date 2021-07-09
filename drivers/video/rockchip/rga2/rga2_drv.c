@@ -45,7 +45,7 @@
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 #include <linux/pm_runtime.h>
-#include <linux/dma-buf.h>
+#include <linux/dma-buf-cache.h>
 #endif
 
 #include "rga2.h"
