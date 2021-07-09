@@ -4956,7 +4956,7 @@ static int io_poll_double_wake(struct wait_queue_entry *wait, unsigned mode,
 
 	list_del_init(&wait->entry);
 
-	if (poll && poll->head) {
+	if (poll->head) {
 		bool done;
 
 		spin_lock(&poll->head->lock);
