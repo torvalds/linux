@@ -156,9 +156,9 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 	}
 }
 
-static void show_gather(struct output *o, phys_addr_t phys_addr,
+static void show_gather(struct output *o, dma_addr_t phys_addr,
 			unsigned int words, struct host1x_cdma *cdma,
-			phys_addr_t pin_addr, u32 *map_addr)
+			dma_addr_t pin_addr, u32 *map_addr)
 {
 	/* Map dmaget cursor to corresponding mem handle */
 	u32 offset = phys_addr - pin_addr;
@@ -176,11 +176,11 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 	}
 
 	for (i = 0; i < words; i++) {
-		u32 addr = phys_addr + i * 4;
+		dma_addr_t addr = phys_addr + i * 4;
 		u32 val = *(map_addr + offset / 4 + i);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%08x: %08x: ", addr, val);
+			host1x_debug_output(o, "%pad: %08x: ", &addr, val);
 			data_count = show_channel_command(o, val, &payload);
 		} else {
 			host1x_debug_cont(o, "%08x%s", val,
