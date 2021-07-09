@@ -82,11 +82,14 @@ Todolist:
    cachetlb
    cpu_hotplug
    genericirq
+   memory-hotplug
 
 Todolist:
 
 
    memory-hotplug
+   cpu_hotplug
+   genericirq
    protection-keys
 
 
