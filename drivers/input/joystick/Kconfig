@@ -4,6 +4,7 @@
 #
 menuconfig INPUT_JOYSTICK
 	bool "Joysticks/Gamepads"
+	depends on !UML
 	help
 	  If you have a joystick, 6dof controller, gamepad, steering wheel,
 	  weapon control system or something like that you can say Y here

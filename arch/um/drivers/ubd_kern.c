@@ -1242,8 +1242,7 @@ static int __init ubd_driver_init(void){
 		 * enough. So use anyway the io thread. */
 	}
 	stack = alloc_stack(0, 0);
-	io_pid = start_io_thread(stack + PAGE_SIZE - sizeof(void *),
-				 &thread_fd);
+	io_pid = start_io_thread(stack + PAGE_SIZE, &thread_fd);
 	if(io_pid < 0){
 		printk(KERN_ERR
 		       "ubd : Failed to start I/O thread (errno = %d) - "
