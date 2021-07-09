@@ -174,7 +174,7 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 	}
 
 	coloc_trigger = nr_run_trigger || coloc_load_trigger;
-#ifdef CONFIG_SCHED_CONSERVATIVE_BOOST_LPM_BIAS
+#if IS_ENABLED(CONFIG_SCHED_CONSERVATIVE_BOOST_LPM_BIAS)
 	hyst_trigger = nr_run_trigger || load_trigger || (sched_boost_type == CONSERVATIVE_BOOST);
 #else
 	hyst_trigger = nr_run_trigger || load_trigger;
