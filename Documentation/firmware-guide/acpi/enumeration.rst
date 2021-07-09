@@ -339,8 +339,8 @@ a code like this::
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
 
-See Documentation/firmware-guide/acpi/gpio-properties.rst for more information about the
-_DSD binding related to GPIOs.
+See Documentation/firmware-guide/acpi/gpio-properties.rst for more information
+about the _DSD binding related to GPIOs.
 
 MFD devices
 ===========
@@ -460,7 +460,8 @@ the _DSD of the device object itself or the _DSD of its ancestor in the
 Otherwise, the _DSD itself is regarded as invalid and therefore the "compatible"
 property returned by it is meaningless.
 
-Refer to :doc:`DSD-properties-rules` for more information.
+Refer to Documentation/firmware-guide/acpi/DSD-properties-rules.rst for more
+information.
 
 PCI hierarchy representation
 ============================

@@ -623,7 +623,7 @@ bool hv_query_ext_cap(u64 cap_query)
 	 * output parameter to the hypercall below and so it should be
 	 * compatible with 'virt_to_phys'. Which means, it's address should be
 	 * directly mapped. Use 'static' to keep it compatible; stack variables
-	 * can be virtually mapped, making them imcompatible with
+	 * can be virtually mapped, making them incompatible with
 	 * 'virt_to_phys'.
 	 * Hypercall input/output addresses should also be 8-byte aligned.
 	 */

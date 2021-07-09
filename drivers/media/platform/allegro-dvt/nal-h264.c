@@ -25,7 +25,7 @@
 #include "nal-rbsp.h"
 
 /*
- * See Rec. ITU-T H.264 (04/2017) Table 7-1 – NAL unit type codes, syntax
+ * See Rec. ITU-T H.264 (04/2017) Table 7-1 - NAL unit type codes, syntax
  * element categories, and NAL unit type classes
  */
 enum nal_unit_type {

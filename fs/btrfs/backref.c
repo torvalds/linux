@@ -2675,7 +2675,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
  *
  * @ref_key:	The same as @ref_key in  handle_direct_tree_backref()
  * @tree_key:	The first key of this tree block.
- * @path:	A clean (released) path, to avoid allocating path everytime
+ * @path:	A clean (released) path, to avoid allocating path every time
  *		the function get called.
  */
 static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,

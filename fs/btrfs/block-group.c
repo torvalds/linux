@@ -1399,7 +1399,6 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		btrfs_space_info_update_bytes_pinned(fs_info, space_info,
 						     -block_group->pinned);
 		space_info->bytes_readonly += block_group->pinned;
-		__btrfs_mod_total_bytes_pinned(space_info, -block_group->pinned);
 		block_group->pinned = 0;
 
 		spin_unlock(&block_group->lock);
@@ -1491,7 +1490,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
-	int ret;
+	LIST_HEAD(again_list);
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
 		return;
@@ -1502,6 +1501,8 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	mutex_lock(&fs_info->reclaim_bgs_lock);
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
+		int ret = 0;
+
 		bg = list_first_entry(&fs_info->reclaim_bgs,
 				      struct btrfs_block_group,
 				      bg_list);
@@ -1547,9 +1548,13 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 				  bg->start);
 
 next:
-		btrfs_put_block_group(bg);
 		spin_lock(&fs_info->unused_bgs_lock);
+		if (ret == -EAGAIN && list_empty(&bg->bg_list))
+			list_add_tail(&bg->bg_list, &again_list);
+		else
+			btrfs_put_block_group(bg);
 	}
+	list_splice_tail(&again_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	btrfs_exclop_finish(fs_info);
@@ -2505,7 +2510,7 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 	struct extent_changeset *data_reserved = NULL;
 	u64 alloc_hint = 0;
 	int dcs = BTRFS_DC_ERROR;
-	u64 num_pages = 0;
+	u64 cache_size = 0;
 	int retries = 0;
 	int ret = 0;
 
@@ -2617,20 +2622,20 @@ again:
 	 * taking up quite a bit since it's not folded into the other space
 	 * cache.
 	 */
-	num_pages = div_u64(block_group->length, SZ_256M);
-	if (!num_pages)
-		num_pages = 1;
+	cache_size = div_u64(block_group->length, SZ_256M);
+	if (!cache_size)
+		cache_size = 1;
 
-	num_pages *= 16;
-	num_pages *= PAGE_SIZE;
+	cache_size *= 16;
+	cache_size *= fs_info->sectorsize;
 
 	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved, 0,
-					  num_pages);
+					  cache_size);
 	if (ret)
 		goto out_put;
 
-	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
-					      num_pages, num_pages,
+	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, cache_size,
+					      cache_size, cache_size,
 					      &alloc_hint);
 	/*
 	 * Our cache requires contiguous chunks so that we don't modify a bunch
@@ -3062,8 +3067,6 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
 
-			__btrfs_mod_total_bytes_pinned(cache->space_info,
-						       num_bytes);
 			set_extent_dirty(&trans->transaction->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);

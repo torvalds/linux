@@ -238,6 +238,38 @@ struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
 	return &alloc_meta->free_track[0];
 }
 
+void kasan_alloc_pages(struct page *page, unsigned int order, gfp_t flags)
+{
+	/*
+	 * This condition should match the one in post_alloc_hook() in
+	 * page_alloc.c.
+	 */
+	bool init = !want_init_on_free() && want_init_on_alloc(flags);
+
+	if (flags & __GFP_SKIP_KASAN_POISON)
+		SetPageSkipKASanPoison(page);
+
+	if (flags & __GFP_ZEROTAGS) {
+		int i;
+
+		for (i = 0; i != 1 << order; ++i)
+			tag_clear_highpage(page + i);
+	} else {
+		kasan_unpoison_pages(page, order, init);
+	}
+}
+
+void kasan_free_pages(struct page *page, unsigned int order)
+{
+	/*
+	 * This condition should match the one in free_pages_prepare() in
+	 * page_alloc.c.
+	 */
+	bool init = want_init_on_free();
+
+	kasan_poison_pages(page, order, init);
+}
+
 #if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
 
 void kasan_set_tagging_report_once(bool state)

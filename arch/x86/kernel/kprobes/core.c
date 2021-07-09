@@ -674,7 +674,7 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 			break;
 
 		if (insn->addr_bytes != sizeof(unsigned long))
-			return -EOPNOTSUPP;	/* Don't support differnt size */
+			return -EOPNOTSUPP;	/* Don't support different size */
 		if (X86_MODRM_MOD(opcode) != 3)
 			return -EOPNOTSUPP;	/* TODO: support memory addressing */
 
