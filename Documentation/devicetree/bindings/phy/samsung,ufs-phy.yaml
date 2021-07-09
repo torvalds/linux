@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - samsung,exynos7-ufs-phy
+      - samsung,exynosautov9-ufs-phy
 
   reg:
     maxItems: 1
