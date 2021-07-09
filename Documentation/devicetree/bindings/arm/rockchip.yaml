@@ -115,6 +115,11 @@ properties:
           - const: firefly,roc-rk3328-cc
           - const: rockchip,rk3328
 
+      - description: Firefly ROC-RK3328-PC
+        items:
+          - const: firefly,roc-rk3328-pc
+          - const: rockchip,rk3328
+
       - description: Firefly ROC-RK3399-PC
         items:
           - enum:
