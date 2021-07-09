@@ -179,6 +179,6 @@ if test -n "$dryrun"
 then
 	echo ---- Dryrun complete, directory: $rundir | tee -a "$rundir/log"
 else
-	( cd "$rundir"; sh $T/runbatches.sh )
+	( cd "$rundir"; sh $T/runbatches.sh ) | tee -a "$rundir/log"
 	kvm-end-run-stats.sh "$rundir" "$starttime"
 fi
