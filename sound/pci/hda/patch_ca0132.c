@@ -2270,7 +2270,7 @@ static int dspio_send_scp_message(struct hda_codec *codec,
 				  unsigned int *bytes_returned)
 {
 	struct ca0132_spec *spec = codec->spec;
-	int status = -1;
+	int status;
 	unsigned int scp_send_size = 0;
 	unsigned int total_size;
 	bool waiting_for_resp = false;
