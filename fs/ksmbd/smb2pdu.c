@@ -2131,7 +2131,7 @@ static inline int check_context_err(void *ctx, char *str)
 	int err;
 
 	err = PTR_ERR(ctx);
-	ksmbd_debug(SMB, "find context %s err %d\n", str, err);
+	ksmbd_debug(SMB, "find context %s err %d\n", str, err ? err : -ENOENT);
 
 	if (err == -EINVAL) {
 		pr_err("bad name length\n");
@@ -2525,7 +2525,7 @@ int smb2_open(struct ksmbd_work *work)
 	if (req->CreateContextsOffset) {
 		/* Parse non-durable handle create contexts */
 		context = smb2_find_context_vals(req, SMB2_CREATE_EA_BUFFER);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context, SMB2_CREATE_EA_BUFFER);
 			if (rc < 0)
 				goto err_out1;
@@ -2540,7 +2540,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context,
 					       SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
 			if (rc < 0)
@@ -2553,7 +2553,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_TIMEWARP_REQUEST);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context,
 					       SMB2_CREATE_TIMEWARP_REQUEST);
 			if (rc < 0)
@@ -2567,7 +2567,7 @@ int smb2_open(struct ksmbd_work *work)
 		if (tcon->posix_extensions) {
 			context = smb2_find_context_vals(req,
 							 SMB2_CREATE_TAG_POSIX);
-			if (IS_ERR(context)) {
+			if (IS_ERR_OR_NULL(context)) {
 				rc = check_context_err(context,
 						       SMB2_CREATE_TAG_POSIX);
 				if (rc < 0)
@@ -2970,7 +2970,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		az_req = (struct create_alloc_size_req *)smb2_find_context_vals(req,
 					SMB2_CREATE_ALLOCATION_SIZE);
-		if (IS_ERR(az_req)) {
+		if (IS_ERR_OR_NULL(az_req)) {
 			rc = check_context_err(az_req,
 					       SMB2_CREATE_ALLOCATION_SIZE);
 			if (rc < 0)
@@ -2992,7 +2992,7 @@ int smb2_open(struct ksmbd_work *work)
 		}
 
 		context = smb2_find_context_vals(req, SMB2_CREATE_QUERY_ON_DISK_ID);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context, SMB2_CREATE_QUERY_ON_DISK_ID);
 			if (rc < 0)
 				goto err_out;
