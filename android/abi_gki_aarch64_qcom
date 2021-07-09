@@ -1420,6 +1420,7 @@
   mmc_send_tuning
   mmput
   mod_delayed_work_on
+  __mod_node_page_state
   mod_node_page_state
   mod_timer
   __module_get
@@ -2635,6 +2636,7 @@
   __tracepoint_android_vh_psi_group
   __tracepoint_android_vh_rproc_recovery
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_shmem_alloc_page
   __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
