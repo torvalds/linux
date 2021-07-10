@@ -67,6 +67,7 @@
 #include <trace/hooks/shmem_fs.h>
 #include <trace/hooks/net.h>
 #include <trace/hooks/syscall_check.h>
+#include <trace/hooks/usb.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -350,3 +351,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_kfree_skb);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_mmap_file);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_file_open);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_bpf_syscall);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_usb_dev_suspend);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_usb_dev_resume);

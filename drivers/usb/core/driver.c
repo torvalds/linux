@@ -34,6 +34,7 @@
 
 #include "usb.h"
 
+#include <trace/hooks/usb.h>
 
 /*
  * Adds a new dynamic USBdevice ID to this driver,
@@ -1403,9 +1404,14 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i = 0, n = 0;
 	struct usb_interface	*intf;
+	int			bypass = 0;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
+		goto done;
+
+	trace_android_vh_usb_dev_suspend(udev, msg, &bypass);
+	if (bypass)
 		goto done;
 
 	/* Suspend all the interfaces and then udev itself */
@@ -1504,11 +1510,17 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i;
 	struct usb_interface	*intf;
+	int			bypass = 0;
 
 	if (udev->state == USB_STATE_NOTATTACHED) {
 		status = -ENODEV;
 		goto done;
 	}
+
+	trace_android_vh_usb_dev_resume(udev, msg, &bypass);
+	if (bypass)
+		goto done;
+
 	udev->can_submit = 1;
 
 	/* Resume the device */
