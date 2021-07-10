@@ -434,6 +434,8 @@ struct hl_hints_range {
  *                  the device's MMU.
  * @dram_hints_align_mask: dram va hint addresses alignment mask which is used
  *                  for hints validity check.
+ * device_dma_offset_for_host_access: the offset to add to host DMA addresses
+ *                                    to enable the device to access them.
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -527,6 +529,7 @@ struct asic_fixed_properties {
 	u64				cb_va_start_addr;
 	u64				cb_va_end_addr;
 	u64				dram_hints_align_mask;
+	u64				device_dma_offset_for_host_access;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
 	u32				mmu_hop_table_size;
