@@ -660,8 +660,11 @@ static void handle_modversion(const struct module *mod,
 	unsigned int crc;
 
 	if (sym->st_shndx == SHN_UNDEF) {
-		warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n",
-		     symname, mod->name, mod->is_vmlinux ? "" : ".ko");
+		warn("EXPORT symbol \"%s\" [%s%s] version ...\n"
+		     "Is \"%s\" prototyped in <asm/asm-prototypes.h>?\n",
+		     symname, mod->name, mod->is_vmlinux ? "" : ".ko",
+		     symname);
+
 		return;
 	}
 
