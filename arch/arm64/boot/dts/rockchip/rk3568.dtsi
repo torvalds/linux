@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk356x.dtsi"
+
+/ {
+	compatible = "rockchip,rk3568";
+
+	qos_pcie3x1: qos@fe190080 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190080 0x0 0x20>;
+	};
+
+	qos_pcie3x2: qos@fe190100 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190100 0x0 0x20>;
+	};
+
+	qos_sata0: qos@fe190200 {
+		compatible = "rockchip,rk3568-qos", "syscon";
+		reg = <0x0 0xfe190200 0x0 0x20>;
+	};
+};
+
+&cpu0_opp_table {
+	opp-1992000000 {
+		opp-hz = /bits/ 64 <1992000000>;
+		opp-microvolt = <1150000 1150000 1150000>;
+	};
+};
+
+&power {
+	power-domain@RK3568_PD_PIPE {
+		reg = <RK3568_PD_PIPE>;
+		clocks = <&cru PCLK_PIPE>;
+		pm_qos = <&qos_pcie2x1>,
+			 <&qos_pcie3x1>,
+			 <&qos_pcie3x2>,
+			 <&qos_sata0>,
+			 <&qos_sata1>,
+			 <&qos_sata2>,
+			 <&qos_usb3_0>,
+			 <&qos_usb3_1>;
+		#power-domain-cells = <0>;
+	};
+};
