@@ -879,59 +879,24 @@ static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 static struct device
 *dw_mipi_dsi_rockchip_find_second(struct dw_mipi_dsi_rockchip *dsi)
 {
-	const struct of_device_id *match;
-	struct device_node *node = NULL, *local;
+	struct device_node *node = NULL;
+	struct platform_device *pdev;
+	struct dw_mipi_dsi_rockchip *dsi2;
 
-	match = of_match_device(dsi->dev->driver->of_match_table, dsi->dev);
+	node = of_parse_phandle(dsi->dev->of_node, "rockchip,dual-channel", 0);
+	if (node) {
+		pdev = of_find_device_by_node(node);
+		if (!pdev)
+			return ERR_PTR(-EPROBE_DEFER);
 
-	local = of_graph_get_remote_node(dsi->dev->of_node, 1, 0);
-	if (!local)
-		return NULL;
-
-	while ((node = of_find_compatible_node(node, NULL,
-					       match->compatible))) {
-		struct device_node *remote;
-
-		/* found ourself */
-		if (node == dsi->dev->of_node)
-			continue;
-
-		remote = of_graph_get_remote_node(node, 1, 0);
-		if (!remote)
-			continue;
-
-		/* same display device in port1-ep0 for both */
-		if (remote == local) {
-			struct dw_mipi_dsi_rockchip *dsi2;
-			struct platform_device *pdev;
-
-			pdev = of_find_device_by_node(node);
-
-			/*
-			 * we have found the second, so will either return it
-			 * or return with an error. In any case won't need the
-			 * nodes anymore nor continue the loop.
-			 */
-			of_node_put(remote);
-			of_node_put(node);
-			of_node_put(local);
-
-			if (!pdev)
-				return ERR_PTR(-EPROBE_DEFER);
-
-			dsi2 = platform_get_drvdata(pdev);
-			if (!dsi2) {
-				platform_device_put(pdev);
-				return ERR_PTR(-EPROBE_DEFER);
-			}
-
-			return &pdev->dev;
+		dsi2 = platform_get_drvdata(pdev);
+		if (!dsi2) {
+			platform_device_put(pdev);
+			return ERR_PTR(-EPROBE_DEFER);
 		}
 
-		of_node_put(remote);
+		return &pdev->dev;
 	}
-
-	of_node_put(local);
 
 	return NULL;
 }
@@ -943,7 +908,6 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 	struct dw_mipi_dsi_rockchip *dsi = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct device *second;
-	bool master1, master2;
 	int ret;
 
 	second = dw_mipi_dsi_rockchip_find_second(dsi);
@@ -951,27 +915,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return PTR_ERR(second);
 
 	if (second) {
-		master1 = of_property_read_bool(dsi->dev->of_node,
-						"clock-master");
-		master2 = of_property_read_bool(second->of_node,
-						"clock-master");
-
-		if (master1 && master2) {
-			DRM_DEV_ERROR(dsi->dev, "only one clock-master allowed\n");
-			return -EINVAL;
-		}
-
-		if (!master1 && !master2) {
-			DRM_DEV_ERROR(dsi->dev, "no clock-master defined\n");
-			return -EINVAL;
-		}
-
 		/* we are the slave in dual-DSI */
-		if (!master1) {
-			dsi->is_slave = true;
-			return 0;
-		}
-
 		dsi->slave = dev_get_drvdata(second);
 		if (!dsi->slave) {
 			DRM_DEV_ERROR(dev, "could not get slaves data\n");
@@ -982,6 +926,9 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		dw_mipi_dsi_set_slave(dsi->dmd, dsi->slave->dmd);
 		put_device(second);
 	}
+
+	if (dsi->is_slave)
+		return 0;
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
