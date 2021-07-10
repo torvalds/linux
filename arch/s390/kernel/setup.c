@@ -354,7 +354,7 @@ void __init arch_call_rest_init(void)
 	set_task_stack_end_magic(current);
 	stack += STACK_INIT_OFFSET;
 	S390_lowcore.kernel_stack = stack;
-	CALL_ON_STACK_NORETURN(rest_init, stack);
+	call_on_stack_noreturn(rest_init, stack);
 }
 
 static void __init setup_lowcore_dat_off(void)
@@ -442,6 +442,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
+	lc->preempt_count = PREEMPT_DISABLED;
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;

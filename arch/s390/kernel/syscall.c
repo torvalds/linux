@@ -108,7 +108,7 @@ SYSCALL_DEFINE0(ni_syscall)
 	return -ENOSYS;
 }
 
-void do_syscall(struct pt_regs *regs)
+static void do_syscall(struct pt_regs *regs)
 {
 	unsigned long nr;
 
@@ -121,6 +121,10 @@ void do_syscall(struct pt_regs *regs)
 
 	regs->gprs[2] = nr;
 
+	if (nr == __NR_restart_syscall && !(current->restart_block.arch_data & 1)) {
+		regs->psw.addr = current->restart_block.arch_data;
+		current->restart_block.arch_data = 1;
+	}
 	nr = syscall_enter_from_user_mode_work(regs, nr);
 
 	/*
@@ -130,13 +134,16 @@ void do_syscall(struct pt_regs *regs)
 	 * work, the ptrace code sets PIF_SYSCALL_RET_SET, which is checked here
 	 * and if set, the syscall will be skipped.
 	 */
-	if (!test_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)) {
-		regs->gprs[2] = -ENOSYS;
-		if (likely(nr < NR_syscalls))
-			regs->gprs[2] = current->thread.sys_call_table[nr](regs);
-	} else {
-		clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET);
-	}
+
+	if (unlikely(test_and_clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)))
+		goto out;
+	regs->gprs[2] = -ENOSYS;
+	if (likely(nr >= NR_syscalls))
+		goto out;
+	do {
+		regs->gprs[2] = current->thread.sys_call_table[nr](regs);
+	} while (test_and_clear_pt_regs_flag(regs, PIF_EXECVE_PGSTE_RESTART));
+out:
 	syscall_exit_to_user_mode_work(regs);
 }
 
@@ -154,13 +161,8 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 	if (per_trap)
 		set_thread_flag(TIF_PER_TRAP);
 
-	for (;;) {
-		regs->flags = 0;
-		set_pt_regs_flag(regs, PIF_SYSCALL);
-		do_syscall(regs);
-		if (!test_pt_regs_flag(regs, PIF_SYSCALL_RESTART))
-			break;
-		local_irq_enable();
-	}
+	regs->flags = 0;
+	set_pt_regs_flag(regs, PIF_SYSCALL);
+	do_syscall(regs);
 	exit_to_user_mode();
 }

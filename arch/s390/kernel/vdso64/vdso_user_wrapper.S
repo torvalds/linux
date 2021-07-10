@@ -37,3 +37,20 @@ vdso_func gettimeofday
 vdso_func clock_getres
 vdso_func clock_gettime
 vdso_func getcpu
+
+.macro vdso_syscall func,syscall
+	.globl __kernel_\func
+	.type  __kernel_\func,@function
+	.align 8
+__kernel_\func:
+	CFI_STARTPROC
+	svc	\syscall
+	/* Make sure we notice when a syscall returns, which shouldn't happen */
+	.word	0
+	CFI_ENDPROC
+	.size	__kernel_\func,.-__kernel_\func
+.endm
+
+vdso_syscall restart_syscall,__NR_restart_syscall
+vdso_syscall sigreturn,__NR_sigreturn
+vdso_syscall rt_sigreturn,__NR_rt_sigreturn

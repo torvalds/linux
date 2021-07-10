@@ -159,6 +159,8 @@ static inline unsigned long kaslr_offset(void)
 	return __kaslr_offset;
 }
 
+extern int is_full_image;
+
 static inline u32 gen_lpswe(unsigned long addr)
 {
 	BUILD_BUG_ON(addr > 0xfff);

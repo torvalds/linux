@@ -210,6 +210,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
+	lc->preempt_count = PREEMPT_DISABLED;
 	if (nmi_alloc_per_cpu(lc))
 		goto out;
 	lowcore_ptr[cpu] = lc;
@@ -300,24 +301,28 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 	pcpu_sigp_retry(pcpu, SIGP_RESTART, 0);
 }
 
+typedef void (pcpu_delegate_fn)(void *);
+
 /*
  * Call function via PSW restart on pcpu and stop the current cpu.
  */
-static void __pcpu_delegate(void (*func)(void*), void *data)
+static void __pcpu_delegate(pcpu_delegate_fn *func, void *data)
 {
 	func(data);	/* should not return */
 }
 
 static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
-						void (*func)(void *),
+						pcpu_delegate_fn *func,
 						void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
-	if (pcpu->address == source_cpu)
-		CALL_ON_STACK(__pcpu_delegate, stack, 2, func, data);
+	if (pcpu->address == source_cpu) {
+		call_on_stack(2, stack, void, __pcpu_delegate,
+			      pcpu_delegate_fn *, func, void *, data);
+	}
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
@@ -898,7 +903,7 @@ static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
-	CALL_ON_STACK_NORETURN(smp_init_secondary, S390_lowcore.kernel_stack);
+	call_on_stack_noreturn(smp_init_secondary, S390_lowcore.kernel_stack);
 }
 
 /* Upping and downing of CPUs */

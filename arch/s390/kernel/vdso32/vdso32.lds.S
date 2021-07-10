@@ -7,8 +7,8 @@
 #include <asm/page.h>
 #include <asm/vdso.h>
 
-OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
-OUTPUT_ARCH(s390:64-bit)
+OUTPUT_FORMAT("elf32-s390", "elf32-s390", "elf32-s390")
+OUTPUT_ARCH(s390:31-bit)
 ENTRY(_start)
 
 SECTIONS
@@ -133,13 +133,9 @@ VERSION
 		/*
 		 * Has to be there for the kernel to find
 		 */
-		__kernel_gettimeofday;
-		__kernel_clock_gettime;
-		__kernel_clock_getres;
-		__kernel_getcpu;
-		__kernel_restart_syscall;
-		__kernel_rt_sigreturn;
-		__kernel_sigreturn;
+		__kernel_compat_restart_syscall;
+		__kernel_compat_rt_sigreturn;
+		__kernel_compat_sigreturn;
 	local: *;
 	};
 }

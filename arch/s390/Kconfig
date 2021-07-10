@@ -163,7 +163,6 @@ config S390
 	select HAVE_GCC_PLUGINS
 	select HAVE_GENERIC_VDSO
 	select HAVE_IOREMAP_PROT if PCI
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -438,6 +437,7 @@ config COMPAT
 	select COMPAT_OLD_SIGACTION
 	select HAVE_UID16
 	depends on MULTIUSER
+	depends on !CC_IS_CLANG
 	help
 	  Select this option if you want to enable your system kernel to
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option

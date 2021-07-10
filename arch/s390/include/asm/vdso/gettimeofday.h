@@ -8,7 +8,6 @@
 
 #include <asm/timex.h>
 #include <asm/unistd.h>
-#include <asm/vdso.h>
 #include <linux/compiler.h>
 
 #define vdso_calc_delta __arch_vdso_calc_delta
