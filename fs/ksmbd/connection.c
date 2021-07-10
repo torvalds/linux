@@ -19,8 +19,8 @@ static DEFINE_MUTEX(init_lock);
 
 static struct ksmbd_conn_ops default_conn_ops;
 
-static LIST_HEAD(conn_list);
-static DEFINE_RWLOCK(conn_list_lock);
+LIST_HEAD(conn_list);
+DEFINE_RWLOCK(conn_list_lock);
 
 /**
  * ksmbd_conn_free() - free resources of the connection instance
@@ -69,6 +69,9 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	spin_lock_init(&conn->request_lock);
 	spin_lock_init(&conn->credits_lock);
 	ida_init(&conn->async_ida);
+
+	spin_lock_init(&conn->llist_lock);
+	INIT_LIST_HEAD(&conn->lock_list);
 
 	write_lock(&conn_list_lock);
 	list_add(&conn->conns_list, &conn_list);

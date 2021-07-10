@@ -48,8 +48,6 @@
 #define CIFS_DEFAULT_IOSIZE	(64 * 1024)
 #define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
 
-extern struct list_head global_lock_list;
-
 /* RFC 1002 session packet types */
 #define RFC1002_SESSION_MESSAGE			0x00
 #define RFC1002_SESSION_REQUEST			0x81

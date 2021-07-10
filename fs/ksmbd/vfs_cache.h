@@ -30,7 +30,8 @@ struct ksmbd_session;
 
 struct ksmbd_lock {
 	struct file_lock *fl;
-	struct list_head glist;
+	struct list_head clist;
+	struct list_head flist;
 	struct list_head llist;
 	unsigned int flags;
 	int cmd;
@@ -91,6 +92,7 @@ struct ksmbd_file {
 	struct stream			stream;
 	struct list_head		node;
 	struct list_head		blocked_works;
+	struct list_head		lock_list;
 
 	int				durable_timeout;
 

@@ -302,6 +302,7 @@ static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp
 static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 {
 	struct file *filp;
+	struct ksmbd_lock *smb_lock, *tmp_lock;
 
 	fd_limit_close();
 	__ksmbd_remove_durable_fd(fp);
@@ -313,6 +314,20 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 	__ksmbd_inode_close(fp);
 	if (!IS_ERR_OR_NULL(filp))
 		fput(filp);
+
+	/* because the reference count of fp is 0, it is guaranteed that
+	 * there are not accesses to fp->lock_list.
+	 */
+	list_for_each_entry_safe(smb_lock, tmp_lock, &fp->lock_list, flist) {
+		spin_lock(&fp->conn->llist_lock);
+		list_del(&smb_lock->clist);
+		spin_unlock(&fp->conn->llist_lock);
+
+		list_del(&smb_lock->flist);
+		locks_free_lock(smb_lock->fl);
+		kfree(smb_lock);
+	}
+
 	kfree(fp->filename);
 	if (ksmbd_stream_fd(fp))
 		kfree(fp->stream.name);
@@ -549,6 +564,7 @@ struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp)
 
 	INIT_LIST_HEAD(&fp->blocked_works);
 	INIT_LIST_HEAD(&fp->node);
+	INIT_LIST_HEAD(&fp->lock_list);
 	spin_lock_init(&fp->f_lock);
 	atomic_set(&fp->refcount, 1);
 
