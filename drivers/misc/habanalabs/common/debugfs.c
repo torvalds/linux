@@ -491,11 +491,10 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_ctx *ctx = hdev->compute_ctx;
 	struct hl_vm_hash_node *hnode;
+	u64 end_address, range_size;
 	struct hl_userptr *userptr;
 	enum vm_type *vm_type;
 	bool valid = false;
-	u64 end_address;
-	u32 range_size;
 	int i, rc = 0;
 
 	if (!ctx) {
