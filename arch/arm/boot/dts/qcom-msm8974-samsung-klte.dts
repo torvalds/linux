@@ -315,6 +315,10 @@
 	};
 
 	/delete-node/ vreg-boost;
+
+	adsp-pil {
+		cx-supply = <&pma8084_s2>;
+	};
 };
 
 &soc {
@@ -830,6 +834,13 @@
 
 			vddio-supply = <&pma8084_l12>;
 		};
+	};
+
+	remoteproc@fc880000 {
+		cx-supply = <&pma8084_s2>;
+		mss-supply = <&pma8084_s6>;
+		mx-supply = <&pma8084_s1>;
+		pll-supply = <&pma8084_l12>;
 	};
 };
 
