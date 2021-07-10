@@ -640,12 +640,27 @@ static int dwc3_qcom_of_register_core(struct platform_device *pdev)
 	struct dwc3_qcom	*qcom = platform_get_drvdata(pdev);
 	struct device_node	*np = pdev->dev.of_node, *dwc3_np;
 	struct device		*dev = &pdev->dev;
+	struct property		*prop;
 	int			ret;
 
 	dwc3_np = of_get_child_by_name(np, "dwc3");
 	if (!dwc3_np) {
 		dev_err(dev, "failed to find dwc3 core child\n");
 		return -ENODEV;
+	}
+
+	prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
+	if (!prop) {
+		ret = -ENOMEM;
+		dev_err(dev, "unable to allocate memory for property\n");
+		goto node_put;
+	}
+
+	prop->name = "tx-fifo-resize";
+	ret = of_add_property(dwc3_np, prop);
+	if (ret) {
+		dev_err(dev, "unable to add property\n");
+		goto node_put;
 	}
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
