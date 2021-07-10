@@ -37,6 +37,8 @@
 #include <linux/module.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+#include <mach/hardware.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #include "ixp46x_ts.h"
 

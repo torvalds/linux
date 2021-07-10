@@ -31,6 +31,10 @@
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
 
+/* Intermittent includes, delete this after v5.14-rc1 */
+#include <linux/soc/ixp4xx/cpu.h>
+#include <mach/ixp4xx-regs.h>
+
 #define MAX_KEYLEN 32
 
 /* hash: cfgword + 2 * digestlen; crypt: keylen + cfgword */

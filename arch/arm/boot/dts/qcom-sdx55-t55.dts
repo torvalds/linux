@@ -250,7 +250,7 @@
 		nand-ecc-step-size = <512>;
 		nand-bus-width = <8>;
 		/* efs2 partition is secured */
-		secure-regions = <0x500000 0xb00000>;
+		secure-regions = /bits/ 64 <0x500000 0xb00000>;
 	};
 };
 

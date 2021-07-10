@@ -394,7 +394,8 @@ config ARCH_IXP4XX
 	select HAVE_PCI
 	select IXP4XX_IRQ
 	select IXP4XX_TIMER
-	select NEED_MACH_IO_H
+	# With the new PCI driver this is not needed
+	select NEED_MACH_IO_H if PCI_IXP4XX_LEGACY
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
