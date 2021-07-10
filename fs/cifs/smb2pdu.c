@@ -433,6 +433,29 @@ build_compression_ctxt(struct smb2_compression_capabilities_context *pneg_ctxt)
 	pneg_ctxt->CompressionAlgorithms[2] = SMB3_COMPRESS_LZNT1;
 }
 
+static unsigned int
+build_signing_ctxt(struct smb2_signing_capabilities *pneg_ctxt)
+{
+	unsigned int ctxt_len = sizeof(struct smb2_signing_capabilities);
+	unsigned short num_algs = 1; /* number of signing algorithms sent */
+
+	pneg_ctxt->ContextType = SMB2_SIGNING_CAPABILITIES;
+	/*
+	 * Context Data length must be rounded to multiple of 8 for some servers
+	 */
+	pneg_ctxt->DataLength = cpu_to_le16(DIV_ROUND_UP(
+				sizeof(struct smb2_signing_capabilities) -
+				sizeof(struct smb2_neg_context) +
+				(num_algs * 2 /* sizeof u16 */), 8) * 8);
+	pneg_ctxt->SigningAlgorithmCount = cpu_to_le16(num_algs);
+	pneg_ctxt->SigningAlgorithms[0] = cpu_to_le16(SIGNING_ALG_AES_CMAC);
+
+	ctxt_len += 2 /* sizeof le16 */ * num_algs;
+	ctxt_len = DIV_ROUND_UP(ctxt_len, 8) * 8;
+	return ctxt_len;
+	/* TBD add SIGNING_ALG_AES_GMAC and/or SIGNING_ALG_HMAC_SHA256 */
+}
+
 static void
 build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 {
@@ -498,7 +521,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
 	char *pneg_ctxt;
-	unsigned int ctxt_len;
+	unsigned int ctxt_len, neg_context_count;
 
 	if (*total_len > 200) {
 		/* In case length corrupted don't want to overrun smb buffer */
@@ -525,6 +548,17 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
+	ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
+					server->hostname);
+	*total_len += ctxt_len;
+	pneg_ctxt += ctxt_len;
+
+	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
+	*total_len += sizeof(struct smb2_posix_neg_context);
+	pneg_ctxt += sizeof(struct smb2_posix_neg_context);
+
+	neg_context_count = 4;
+
 	if (server->compress_algorithm) {
 		build_compression_ctxt((struct smb2_compression_capabilities_context *)
 				pneg_ctxt);
@@ -533,17 +567,20 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 				8) * 8;
 		*total_len += ctxt_len;
 		pneg_ctxt += ctxt_len;
-		req->NegotiateContextCount = cpu_to_le16(5);
-	} else
-		req->NegotiateContextCount = cpu_to_le16(4);
+		neg_context_count++;
+	}
 
-	ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
-					server->hostname);
-	*total_len += ctxt_len;
-	pneg_ctxt += ctxt_len;
+	if (enable_negotiate_signing) {
+		ctxt_len = build_signing_ctxt((struct smb2_signing_capabilities *)
+				pneg_ctxt);
+		*total_len += ctxt_len;
+		pneg_ctxt += ctxt_len;
+		neg_context_count++;
+	}
 
-	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
-	*total_len += sizeof(struct smb2_posix_neg_context);
+	/* check for and add transport_capabilities and signing capabilities */
+	req->NegotiateContextCount = cpu_to_le16(neg_context_count);
+
 }
 
 static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
@@ -632,6 +669,31 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 	return 0;
 }
 
+static void decode_signing_ctx(struct TCP_Server_Info *server,
+			       struct smb2_signing_capabilities *pctxt)
+{
+	unsigned int len = le16_to_cpu(pctxt->DataLength);
+
+	if ((len < 4) || (len > 16)) {
+		pr_warn_once("server sent bad signing negcontext\n");
+		return;
+	}
+	if (le16_to_cpu(pctxt->SigningAlgorithmCount) != 1) {
+		pr_warn_once("Invalid signing algorithm count\n");
+		return;
+	}
+	if (le16_to_cpu(pctxt->SigningAlgorithms[0]) > 2) {
+		pr_warn_once("unknown signing algorithm\n");
+		return;
+	}
+
+	server->signing_negotiated = true;
+	server->signing_algorithm = le16_to_cpu(pctxt->SigningAlgorithms[0]);
+	cifs_dbg(FYI, "signing algorithm %d chosen\n",
+		     server->signing_algorithm);
+}
+
+
 static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 				     struct TCP_Server_Info *server,
 				     unsigned int len_of_smb)
@@ -675,6 +737,9 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 				(struct smb2_compression_capabilities_context *)pctx);
 		else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE)
 			server->posix_ext_supported = true;
+		else if (pctx->ContextType == SMB2_SIGNING_CAPABILITIES)
+			decode_signing_ctx(server,
+				(struct smb2_signing_capabilities *)pctx);
 		else
 			cifs_server_dbg(VFS, "unknown negcontext of type %d ignored\n",
 				le16_to_cpu(pctx->ContextType));
