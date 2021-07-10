@@ -1024,7 +1024,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
 		ctx->cred = get_cred(filp->f_cred);
 	else
 		ctx->cred = get_current_cred();
-	ctx->ll_cred = NULL;
+	rcu_assign_pointer(ctx->ll_cred, NULL);
 	ctx->state = NULL;
 	ctx->mode = f_mode;
 	ctx->flags = 0;
@@ -1063,7 +1063,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	put_cred(ctx->cred);
 	dput(ctx->dentry);
 	nfs_sb_deactive(sb);
-	put_rpccred(ctx->ll_cred);
+	put_rpccred(rcu_dereference_protected(ctx->ll_cred, 1));
 	kfree(ctx->mdsthreshold);
 	kfree_rcu(ctx, rcu_head);
 }
