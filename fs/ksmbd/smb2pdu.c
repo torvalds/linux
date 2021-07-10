@@ -6799,7 +6799,7 @@ skip:
 
 				smb2_send_interim_resp(work, STATUS_PENDING);
 
-				err = ksmbd_vfs_posix_lock_wait(flock);
+				ksmbd_vfs_posix_lock_wait(flock);
 
 				if (work->state != KSMBD_WORK_ACTIVE) {
 					list_del(&smb_lock->llist);

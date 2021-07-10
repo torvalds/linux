@@ -1784,9 +1784,9 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 	return 0;
 }
 
-int ksmbd_vfs_posix_lock_wait(struct file_lock *flock)
+void ksmbd_vfs_posix_lock_wait(struct file_lock *flock)
 {
-	return wait_event_interruptible(flock->fl_wait, !flock->fl_blocker);
+	wait_event(flock->fl_wait, !flock->fl_blocker);
 }
 
 int ksmbd_vfs_posix_lock_wait_timeout(struct file_lock *flock, long timeout)
