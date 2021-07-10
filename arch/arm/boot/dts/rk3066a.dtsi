@@ -217,7 +217,7 @@
 				       <150000000>, <75000000>;
 	};
 
-	timer@2000e000 {
+	timer2: timer@2000e000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x2000e000 0x100>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -238,7 +238,7 @@
 		};
 	};
 
-	timer@20038000 {
+	timer0: timer@20038000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x20038000 0x100>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
@@ -246,7 +246,7 @@
 		clock-names = "timer", "pclk";
 	};
 
-	timer@2003a000 {
+	timer1: timer@2003a000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x2003a000 0x100>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -264,30 +264,6 @@
 		resets = <&cru SRST_TSADC>;
 		reset-names = "saradc-apb";
 		status = "disabled";
-	};
-
-	usbphy: phy {
-		compatible = "rockchip,rk3066a-usb-phy", "rockchip,rk3288-usb-phy";
-		rockchip,grf = <&grf>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "disabled";
-
-		usbphy0: usb-phy@17c {
-			#phy-cells = <0>;
-			reg = <0x17c>;
-			clocks = <&cru SCLK_OTGPHY0>;
-			clock-names = "phyclk";
-			#clock-cells = <0>;
-		};
-
-		usbphy1: usb-phy@188 {
-			#phy-cells = <0>;
-			reg = <0x188>;
-			clocks = <&cru SCLK_OTGPHY1>;
-			clock-names = "phyclk";
-			#clock-cells = <0>;
-		};
 	};
 
 	pinctrl: pinctrl {
@@ -702,6 +678,34 @@
 	power-domains = <&power RK3066_PD_GPU>;
 };
 
+&grf {
+	compatible = "rockchip,rk3066-grf", "syscon", "simple-mfd";
+
+	usbphy: usbphy {
+		compatible = "rockchip,rk3066a-usb-phy",
+			     "rockchip,rk3288-usb-phy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		usbphy0: usb-phy@17c {
+			reg = <0x17c>;
+			clocks = <&cru SCLK_OTGPHY0>;
+			clock-names = "phyclk";
+			#clock-cells = <0>;
+			#phy-cells = <0>;
+		};
+
+		usbphy1: usb-phy@188 {
+			reg = <0x188>;
+			clocks = <&cru SCLK_OTGPHY1>;
+			clock-names = "phyclk";
+			#clock-cells = <0>;
+			#phy-cells = <0>;
+		};
+	};
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_xfer>;
@@ -755,7 +759,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pd_vio@RK3066_PD_VIO {
+		power-domain@RK3066_PD_VIO {
 			reg = <RK3066_PD_VIO>;
 			clocks = <&cru ACLK_LCDC0>,
 				 <&cru ACLK_LCDC1>,
@@ -780,21 +784,24 @@
 				 <&qos_cif1>,
 				 <&qos_ipp>,
 				 <&qos_rga>;
+			#power-domain-cells = <0>;
 		};
 
-		pd_video@RK3066_PD_VIDEO {
+		power-domain@RK3066_PD_VIDEO {
 			reg = <RK3066_PD_VIDEO>;
 			clocks = <&cru ACLK_VDPU>,
 				 <&cru ACLK_VEPU>,
 				 <&cru HCLK_VDPU>,
 				 <&cru HCLK_VEPU>;
 			pm_qos = <&qos_vpu>;
+			#power-domain-cells = <0>;
 		};
 
-		pd_gpu@RK3066_PD_GPU {
+		power-domain@RK3066_PD_GPU {
 			reg = <RK3066_PD_GPU>;
 			clocks = <&cru ACLK_GPU>;
 			pm_qos = <&qos_gpu>;
+			#power-domain-cells = <0>;
 		};
 	};
 };
@@ -859,6 +866,10 @@
 	dma-names = "tx", "rx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_xfer>;
+};
+
+&vpu {
+	power-domains = <&power RK3066_PD_VIDEO>;
 };
 
 &wdt {
