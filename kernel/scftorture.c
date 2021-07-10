@@ -513,7 +513,7 @@ static void scf_torture_cleanup(void)
 		return;
 
 	WRITE_ONCE(scfdone, true);
-	if (nthreads)
+	if (nthreads && scf_stats_p)
 		for (i = 0; i < nthreads; i++)
 			torture_stop_kthread("scftorture_invoker", scf_stats_p[i].task);
 	else
