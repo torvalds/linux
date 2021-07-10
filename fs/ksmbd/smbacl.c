@@ -962,25 +962,29 @@ int smb_inherit_dacl(struct ksmbd_conn *conn,
 	struct dentry *parent = path->dentry->d_parent;
 	struct user_namespace *user_ns = mnt_user_ns(path->mnt);
 	int inherited_flags = 0, flags = 0, i, ace_cnt = 0, nt_size = 0;
-	int rc = -ENOENT, num_aces, dacloffset, pntsd_type, acl_len;
+	int rc = 0, num_aces, dacloffset, pntsd_type, acl_len;
 	char *aces_base;
 	bool is_dir = S_ISDIR(d_inode(path->dentry)->i_mode);
 
 	acl_len = ksmbd_vfs_get_sd_xattr(conn, user_ns,
 					 parent, &parent_pntsd);
 	if (acl_len <= 0)
-		return rc;
+		return -ENOENT;
 	dacloffset = le32_to_cpu(parent_pntsd->dacloffset);
-	if (!dacloffset)
-		goto out;
+	if (!dacloffset) {
+		rc = -EINVAL;
+		goto free_parent_pntsd;
+	}
 
 	parent_pdacl = (struct smb_acl *)((char *)parent_pntsd + dacloffset);
 	num_aces = le32_to_cpu(parent_pdacl->num_aces);
 	pntsd_type = le16_to_cpu(parent_pntsd->type);
 
 	aces_base = kmalloc(sizeof(struct smb_ace) * num_aces * 2, GFP_KERNEL);
-	if (!aces_base)
-		goto out;
+	if (!aces_base) {
+		rc = -ENOMEM;
+		goto free_parent_pntsd;
+	}
 
 	aces = (struct smb_ace *)aces_base;
 	parent_aces = (struct smb_ace *)((char *)parent_pdacl +
@@ -1060,7 +1064,7 @@ pass:
 				nt_size, GFP_KERNEL);
 		if (!pntsd) {
 			rc = -ENOMEM;
-			goto out;
+			goto free_aces_base;
 		}
 
 		pntsd->revision = cpu_to_le16(1);
@@ -1101,11 +1105,12 @@ pass:
 		ksmbd_vfs_set_sd_xattr(conn, user_ns,
 				       path->dentry, pntsd, pntsd_size);
 		kfree(pntsd);
-		rc = 0;
 	}
 
+free_aces_base:
 	kfree(aces_base);
-out:
+free_parent_pntsd:
+	kfree(parent_pntsd);
 	return rc;
 }
 

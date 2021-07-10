@@ -43,9 +43,9 @@ struct ksmbd_work {
 	 * Current Local FID assigned compound response if SMB2 CREATE
 	 * command is present in compound request
 	 */
-	unsigned int                    compound_fid;
-	unsigned int                    compound_pfid;
-	unsigned int                    compound_sid;
+	u64				compound_fid;
+	u64				compound_pfid;
+	u64				compound_sid;
 
 	const struct cred		*saved_cred;
 

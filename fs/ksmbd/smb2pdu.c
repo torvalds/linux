@@ -2131,7 +2131,7 @@ static inline int check_context_err(void *ctx, char *str)
 	int err;
 
 	err = PTR_ERR(ctx);
-	ksmbd_debug(SMB, "find context %s err %d\n", str, err);
+	ksmbd_debug(SMB, "find context %s err %d\n", str, err ? err : -ENOENT);
 
 	if (err == -EINVAL) {
 		pr_err("bad name length\n");
@@ -2319,25 +2319,23 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 				 struct path *path)
 {
 	struct create_context *context;
-	int rc = -ENOENT;
+	struct create_sd_buf_req *sd_buf;
 
 	if (!req->CreateContextsOffset)
-		return rc;
+		return -ENOENT;
 
 	/* Parse SD BUFFER create contexts */
 	context = smb2_find_context_vals(req, SMB2_CREATE_SD_BUFFER);
-	if (context && !IS_ERR(context)) {
-		struct create_sd_buf_req *sd_buf;
+	if (!context)
+		return -ENOENT;
+	else if (IS_ERR(context))
+		return PTR_ERR(context);
 
-		ksmbd_debug(SMB,
-			    "Set ACLs using SMB2_CREATE_SD_BUFFER context\n");
-		sd_buf = (struct create_sd_buf_req *)context;
-		rc = set_info_sec(work->conn, work->tcon,
-				  path, &sd_buf->ntsd,
-				  le32_to_cpu(sd_buf->ccontext.DataLength), true);
-	}
-
-	return rc;
+	ksmbd_debug(SMB,
+		    "Set ACLs using SMB2_CREATE_SD_BUFFER context\n");
+	sd_buf = (struct create_sd_buf_req *)context;
+	return set_info_sec(work->conn, work->tcon, path, &sd_buf->ntsd,
+			    le32_to_cpu(sd_buf->ccontext.DataLength), true);
 }
 
 static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
@@ -2525,7 +2523,7 @@ int smb2_open(struct ksmbd_work *work)
 	if (req->CreateContextsOffset) {
 		/* Parse non-durable handle create contexts */
 		context = smb2_find_context_vals(req, SMB2_CREATE_EA_BUFFER);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context, SMB2_CREATE_EA_BUFFER);
 			if (rc < 0)
 				goto err_out1;
@@ -2540,7 +2538,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context,
 					       SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
 			if (rc < 0)
@@ -2553,7 +2551,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_TIMEWARP_REQUEST);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context,
 					       SMB2_CREATE_TIMEWARP_REQUEST);
 			if (rc < 0)
@@ -2567,7 +2565,7 @@ int smb2_open(struct ksmbd_work *work)
 		if (tcon->posix_extensions) {
 			context = smb2_find_context_vals(req,
 							 SMB2_CREATE_TAG_POSIX);
-			if (IS_ERR(context)) {
+			if (IS_ERR_OR_NULL(context)) {
 				rc = check_context_err(context,
 						       SMB2_CREATE_TAG_POSIX);
 				if (rc < 0)
@@ -2809,7 +2807,7 @@ int smb2_open(struct ksmbd_work *work)
 
 	/* Get Persistent-ID */
 	ksmbd_open_durable_fd(fp);
-	if (!HAS_FILE_ID(fp->persistent_id)) {
+	if (!has_file_id(fp->persistent_id)) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -2970,7 +2968,7 @@ int smb2_open(struct ksmbd_work *work)
 
 		az_req = (struct create_alloc_size_req *)smb2_find_context_vals(req,
 					SMB2_CREATE_ALLOCATION_SIZE);
-		if (IS_ERR(az_req)) {
+		if (IS_ERR_OR_NULL(az_req)) {
 			rc = check_context_err(az_req,
 					       SMB2_CREATE_ALLOCATION_SIZE);
 			if (rc < 0)
@@ -2992,7 +2990,7 @@ int smb2_open(struct ksmbd_work *work)
 		}
 
 		context = smb2_find_context_vals(req, SMB2_CREATE_QUERY_ON_DISK_ID);
-		if (IS_ERR(context)) {
+		if (IS_ERR_OR_NULL(context)) {
 			rc = check_context_err(context, SMB2_CREATE_QUERY_ON_DISK_ID);
 			if (rc < 0)
 				goto err_out;
@@ -3291,7 +3289,7 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 	char *conv_name;
 	int conv_len;
 	void *kstat;
-	int struct_sz;
+	int struct_sz, rc = 0;
 
 	conv_name = ksmbd_convert_dir_info_name(d_info,
 						conn->local_nls,
@@ -3301,8 +3299,8 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 	/* Somehow the name has only terminating NULL bytes */
 	if (conv_len < 0) {
-		kfree(conv_name);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto free_conv_name;
 	}
 
 	struct_sz = readdir_info_level_struct_sz(info_level);
@@ -3311,7 +3309,8 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 	if (next_entry_offset > d_info->out_buf_len) {
 		d_info->out_buf_len = 0;
-		return -ENOSPC;
+		rc = -ENOSPC;
+		goto free_conv_name;
 	}
 
 	kstat = d_info->wptr;
@@ -3453,14 +3452,15 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 	d_info->data_count += next_entry_offset;
 	d_info->out_buf_len -= next_entry_offset;
 	d_info->wptr += next_entry_offset;
-	kfree(conv_name);
 
 	ksmbd_debug(SMB,
 		    "info_level : %d, buf_len :%d, next_offset : %d, data_count : %d\n",
 		    info_level, d_info->out_buf_len,
 		    next_entry_offset, d_info->data_count);
 
-	return 0;
+free_conv_name:
+	kfree(conv_name);
+	return rc;
 }
 
 struct smb2_query_dir_private {
@@ -4575,15 +4575,15 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 	}
 
 	if (work->next_smb2_rcv_hdr_off) {
-		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
-			ksmbd_debug(SMB, "Compound request set FID = %u\n",
+		if (!has_file_id(le64_to_cpu(req->VolatileFileId))) {
+			ksmbd_debug(SMB, "Compound request set FID = %llu\n",
 				    work->compound_fid);
 			id = work->compound_fid;
 			pid = work->compound_pfid;
 		}
 	}
 
-	if (!HAS_FILE_ID(id)) {
+	if (!has_file_id(id)) {
 		id = le64_to_cpu(req->VolatileFileId);
 		pid = le64_to_cpu(req->PersistentFileId);
 	}
@@ -4947,15 +4947,15 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 	}
 
 	if (work->next_smb2_rcv_hdr_off) {
-		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
-			ksmbd_debug(SMB, "Compound request set FID = %u\n",
+		if (!has_file_id(le64_to_cpu(req->VolatileFileId))) {
+			ksmbd_debug(SMB, "Compound request set FID = %llu\n",
 				    work->compound_fid);
 			id = work->compound_fid;
 			pid = work->compound_pfid;
 		}
 	}
 
-	if (!HAS_FILE_ID(id)) {
+	if (!has_file_id(id)) {
 		id = le64_to_cpu(req->VolatileFileId);
 		pid = le64_to_cpu(req->PersistentFileId);
 	}
@@ -5081,7 +5081,7 @@ static noinline int smb2_close_pipe(struct ksmbd_work *work)
  */
 int smb2_close(struct ksmbd_work *work)
 {
-	unsigned int volatile_id = KSMBD_NO_FID;
+	u64 volatile_id = KSMBD_NO_FID;
 	u64 sess_id;
 	struct smb2_close_req *req;
 	struct smb2_close_rsp *rsp;
@@ -5117,15 +5117,16 @@ int smb2_close(struct ksmbd_work *work)
 	}
 
 	if (work->next_smb2_rcv_hdr_off &&
-	    !HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
-		if (!HAS_FILE_ID(work->compound_fid)) {
+	    !has_file_id(le64_to_cpu(req->VolatileFileId))) {
+		if (!has_file_id(work->compound_fid)) {
 			/* file already closed, return FILE_CLOSED */
 			ksmbd_debug(SMB, "file already closed\n");
 			rsp->hdr.Status = STATUS_FILE_CLOSED;
 			err = -EBADF;
 			goto out;
 		} else {
-			ksmbd_debug(SMB, "Compound request set FID = %u:%u\n",
+			ksmbd_debug(SMB,
+				    "Compound request set FID = %llu:%llu\n",
 				    work->compound_fid,
 				    work->compound_pfid);
 			volatile_id = work->compound_fid;
@@ -5137,7 +5138,7 @@ int smb2_close(struct ksmbd_work *work)
 	} else {
 		volatile_id = le64_to_cpu(req->VolatileFileId);
 	}
-	ksmbd_debug(SMB, "volatile_id = %u\n", volatile_id);
+	ksmbd_debug(SMB, "volatile_id = %llu\n", volatile_id);
 
 	rsp->StructureSize = cpu_to_le16(60);
 	rsp->Reserved = 0;
@@ -5787,8 +5788,8 @@ int smb2_set_info(struct ksmbd_work *work)
 	if (work->next_smb2_rcv_hdr_off) {
 		req = ksmbd_req_buf_next(work);
 		rsp = ksmbd_resp_buf_next(work);
-		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
-			ksmbd_debug(SMB, "Compound request set FID = %u\n",
+		if (!has_file_id(le64_to_cpu(req->VolatileFileId))) {
+			ksmbd_debug(SMB, "Compound request set FID = %llu\n",
 				    work->compound_fid);
 			id = work->compound_fid;
 			pid = work->compound_pfid;
@@ -5798,7 +5799,7 @@ int smb2_set_info(struct ksmbd_work *work)
 		rsp = work->response_buf;
 	}
 
-	if (!HAS_FILE_ID(id)) {
+	if (!has_file_id(id)) {
 		id = le64_to_cpu(req->VolatileFileId);
 		pid = le64_to_cpu(req->PersistentFileId);
 	}
@@ -6510,8 +6511,9 @@ static struct ksmbd_lock *smb2_lock_init(struct file_lock *flock,
 	lock->flags = flags;
 	if (lock->start == lock->end)
 		lock->zero_len = 1;
+	INIT_LIST_HEAD(&lock->clist);
+	INIT_LIST_HEAD(&lock->flist);
 	INIT_LIST_HEAD(&lock->llist);
-	INIT_LIST_HEAD(&lock->glist);
 	list_add_tail(&lock->llist, lock_list);
 
 	return lock;
@@ -6550,7 +6552,8 @@ int smb2_lock(struct ksmbd_work *work)
 	int cmd = 0;
 	int err = 0, i;
 	u64 lock_start, lock_length;
-	struct ksmbd_lock *smb_lock = NULL, *cmp_lock, *tmp;
+	struct ksmbd_lock *smb_lock = NULL, *cmp_lock, *tmp, *tmp2;
+	struct ksmbd_conn *conn;
 	int nolock = 0;
 	LIST_HEAD(lock_list);
 	LIST_HEAD(rollback_list);
@@ -6659,72 +6662,89 @@ int smb2_lock(struct ksmbd_work *work)
 
 		if (!(smb_lock->flags & SMB2_LOCKFLAG_UNLOCK) &&
 		    !(smb_lock->flags & SMB2_LOCKFLAG_FAIL_IMMEDIATELY))
-			goto no_check_gl;
+			goto no_check_cl;
 
 		nolock = 1;
-		/* check locks in global list */
-		list_for_each_entry(cmp_lock, &global_lock_list, glist) {
-			if (file_inode(cmp_lock->fl->fl_file) !=
-			    file_inode(smb_lock->fl->fl_file))
-				continue;
+		/* check locks in connection list */
+		read_lock(&conn_list_lock);
+		list_for_each_entry(conn, &conn_list, conns_list) {
+			spin_lock(&conn->llist_lock);
+			list_for_each_entry_safe(cmp_lock, tmp2, &conn->lock_list, clist) {
+				if (file_inode(cmp_lock->fl->fl_file) !=
+				    file_inode(smb_lock->fl->fl_file))
+					continue;
 
-			if (smb_lock->fl->fl_type == F_UNLCK) {
-				if (cmp_lock->fl->fl_file == smb_lock->fl->fl_file &&
-				    cmp_lock->start == smb_lock->start &&
-				    cmp_lock->end == smb_lock->end &&
-				    !lock_defer_pending(cmp_lock->fl)) {
-					nolock = 0;
-					locks_free_lock(cmp_lock->fl);
-					list_del(&cmp_lock->glist);
-					kfree(cmp_lock);
-					break;
+				if (smb_lock->fl->fl_type == F_UNLCK) {
+					if (cmp_lock->fl->fl_file == smb_lock->fl->fl_file &&
+					    cmp_lock->start == smb_lock->start &&
+					    cmp_lock->end == smb_lock->end &&
+					    !lock_defer_pending(cmp_lock->fl)) {
+						nolock = 0;
+						list_del(&cmp_lock->flist);
+						list_del(&cmp_lock->clist);
+						spin_unlock(&conn->llist_lock);
+						read_unlock(&conn_list_lock);
+
+						locks_free_lock(cmp_lock->fl);
+						kfree(cmp_lock);
+						goto out_check_cl;
+					}
+					continue;
 				}
-				continue;
-			}
 
-			if (cmp_lock->fl->fl_file == smb_lock->fl->fl_file) {
-				if (smb_lock->flags & SMB2_LOCKFLAG_SHARED)
-					continue;
-			} else {
-				if (cmp_lock->flags & SMB2_LOCKFLAG_SHARED)
-					continue;
-			}
+				if (cmp_lock->fl->fl_file == smb_lock->fl->fl_file) {
+					if (smb_lock->flags & SMB2_LOCKFLAG_SHARED)
+						continue;
+				} else {
+					if (cmp_lock->flags & SMB2_LOCKFLAG_SHARED)
+						continue;
+				}
 
-			/* check zero byte lock range */
-			if (cmp_lock->zero_len && !smb_lock->zero_len &&
-			    cmp_lock->start > smb_lock->start &&
-			    cmp_lock->start < smb_lock->end) {
-				pr_err("previous lock conflict with zero byte lock range\n");
-				rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
+				/* check zero byte lock range */
+				if (cmp_lock->zero_len && !smb_lock->zero_len &&
+				    cmp_lock->start > smb_lock->start &&
+				    cmp_lock->start < smb_lock->end) {
+					spin_unlock(&conn->llist_lock);
+					read_unlock(&conn_list_lock);
+					pr_err("previous lock conflict with zero byte lock range\n");
+					rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
+						goto out;
+				}
+
+				if (smb_lock->zero_len && !cmp_lock->zero_len &&
+				    smb_lock->start > cmp_lock->start &&
+				    smb_lock->start < cmp_lock->end) {
+					spin_unlock(&conn->llist_lock);
+					read_unlock(&conn_list_lock);
+					pr_err("current lock conflict with zero byte lock range\n");
+					rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
+						goto out;
+				}
+
+				if (((cmp_lock->start <= smb_lock->start &&
+				      cmp_lock->end > smb_lock->start) ||
+				     (cmp_lock->start < smb_lock->end &&
+				      cmp_lock->end >= smb_lock->end)) &&
+				    !cmp_lock->zero_len && !smb_lock->zero_len) {
+					spin_unlock(&conn->llist_lock);
+					read_unlock(&conn_list_lock);
+					pr_err("Not allow lock operation on exclusive lock range\n");
+					rsp->hdr.Status =
+						STATUS_LOCK_NOT_GRANTED;
 					goto out;
+				}
 			}
-
-			if (smb_lock->zero_len && !cmp_lock->zero_len &&
-			    smb_lock->start > cmp_lock->start &&
-			    smb_lock->start < cmp_lock->end) {
-				pr_err("current lock conflict with zero byte lock range\n");
-				rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
-					goto out;
-			}
-
-			if (((cmp_lock->start <= smb_lock->start &&
-			      cmp_lock->end > smb_lock->start) ||
-			     (cmp_lock->start < smb_lock->end && cmp_lock->end >= smb_lock->end)) &&
-			    !cmp_lock->zero_len && !smb_lock->zero_len) {
-				pr_err("Not allow lock operation on exclusive lock range\n");
-				rsp->hdr.Status =
-					STATUS_LOCK_NOT_GRANTED;
-				goto out;
-			}
+			spin_unlock(&conn->llist_lock);
 		}
-
+		read_unlock(&conn_list_lock);
+out_check_cl:
 		if (smb_lock->fl->fl_type == F_UNLCK && nolock) {
 			pr_err("Try to unlock nolocked range\n");
 			rsp->hdr.Status = STATUS_RANGE_NOT_LOCKED;
 			goto out;
 		}
 
-no_check_gl:
+no_check_cl:
 		if (smb_lock->zero_len) {
 			err = 0;
 			goto skip;
@@ -6750,8 +6770,10 @@ skip:
 
 				ksmbd_debug(SMB,
 					    "would have to wait for getting lock\n");
-				list_add_tail(&smb_lock->glist,
-					      &global_lock_list);
+				spin_lock(&work->conn->llist_lock);
+				list_add_tail(&smb_lock->clist,
+					      &work->conn->lock_list);
+				spin_unlock(&work->conn->llist_lock);
 				list_add(&smb_lock->llist, &rollback_list);
 
 				argv = kmalloc(sizeof(void *), GFP_KERNEL);
@@ -6775,11 +6797,13 @@ skip:
 
 				smb2_send_interim_resp(work, STATUS_PENDING);
 
-				err = ksmbd_vfs_posix_lock_wait(flock);
+				ksmbd_vfs_posix_lock_wait(flock);
 
 				if (work->state != KSMBD_WORK_ACTIVE) {
 					list_del(&smb_lock->llist);
-					list_del(&smb_lock->glist);
+					spin_lock(&work->conn->llist_lock);
+					list_del(&smb_lock->clist);
+					spin_unlock(&work->conn->llist_lock);
 					locks_free_lock(flock);
 
 					if (work->state == KSMBD_WORK_CANCELLED) {
@@ -6803,14 +6827,21 @@ skip:
 				}
 
 				list_del(&smb_lock->llist);
-				list_del(&smb_lock->glist);
+				spin_lock(&work->conn->llist_lock);
+				list_del(&smb_lock->clist);
+				spin_unlock(&work->conn->llist_lock);
+
 				spin_lock(&fp->f_lock);
 				list_del(&work->fp_entry);
 				spin_unlock(&fp->f_lock);
 				goto retry;
 			} else if (!err) {
-				list_add_tail(&smb_lock->glist,
-					      &global_lock_list);
+				spin_lock(&work->conn->llist_lock);
+				list_add_tail(&smb_lock->clist,
+					      &work->conn->lock_list);
+				list_add_tail(&smb_lock->flist,
+					      &fp->lock_list);
+				spin_unlock(&work->conn->llist_lock);
 				list_add(&smb_lock->llist, &rollback_list);
 				ksmbd_debug(SMB, "successful in taking lock\n");
 			} else {
@@ -6849,8 +6880,14 @@ out:
 		err = vfs_lock_file(filp, 0, rlock, NULL);
 		if (err)
 			pr_err("rollback unlock fail : %d\n", err);
+
 		list_del(&smb_lock->llist);
-		list_del(&smb_lock->glist);
+		spin_lock(&work->conn->llist_lock);
+		if (!list_empty(&smb_lock->flist))
+			list_del(&smb_lock->flist);
+		list_del(&smb_lock->clist);
+		spin_unlock(&work->conn->llist_lock);
+
 		locks_free_lock(smb_lock->fl);
 		locks_free_lock(rlock);
 		kfree(smb_lock);
@@ -7004,11 +7041,6 @@ static int fsctl_query_iface_info_ioctl(struct ksmbd_conn *conn,
 
 	rtnl_lock();
 	for_each_netdev(&init_net, netdev) {
-		if (unlikely(!netdev)) {
-			rtnl_unlock();
-			return -EINVAL;
-		}
-
 		if (netdev->type == ARPHRD_LOOPBACK)
 			continue;
 
@@ -7290,8 +7322,8 @@ int smb2_ioctl(struct ksmbd_work *work)
 	if (work->next_smb2_rcv_hdr_off) {
 		req = ksmbd_req_buf_next(work);
 		rsp = ksmbd_resp_buf_next(work);
-		if (!HAS_FILE_ID(le64_to_cpu(req->VolatileFileId))) {
-			ksmbd_debug(SMB, "Compound request set FID = %u\n",
+		if (!has_file_id(le64_to_cpu(req->VolatileFileId))) {
+			ksmbd_debug(SMB, "Compound request set FID = %llu\n",
 				    work->compound_fid);
 			id = work->compound_fid;
 		}
@@ -7300,7 +7332,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 		rsp = work->response_buf;
 	}
 
-	if (!HAS_FILE_ID(id))
+	if (!has_file_id(id))
 		id = le64_to_cpu(req->VolatileFileId);
 
 	if (req->Flags != cpu_to_le32(SMB2_0_IOCTL_IS_FSCTL)) {

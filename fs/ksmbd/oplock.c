@@ -1472,7 +1472,7 @@ struct create_context *smb2_find_context_vals(void *open_req, const char *tag)
 		next = le32_to_cpu(cc->Next);
 	} while (next != 0);
 
-	return ERR_PTR(-ENOENT);
+	return NULL;
 }
 
 /**
