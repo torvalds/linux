@@ -32,6 +32,13 @@ static inline void clear_btree_node_dirty(struct bch_fs *c, struct btree *b)
 		atomic_dec(&c->btree_cache.dirty);
 }
 
+static inline unsigned btree_ptr_sectors_written(struct bkey_i *k)
+{
+	return k->k.type == KEY_TYPE_btree_ptr_v2
+		? le16_to_cpu(bkey_i_to_btree_ptr_v2(k)->v.sectors_written)
+		: 0;
+}
+
 struct btree_read_bio {
 	struct bch_fs		*c;
 	struct btree		*b;
@@ -48,7 +55,8 @@ struct btree_write_bio {
 	struct work_struct	work;
 	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 	void			*data;
-	unsigned		bytes;
+	unsigned		data_bytes;
+	unsigned		sector_offset;
 	struct bch_write_bio	wbio;
 };
 
@@ -137,7 +145,6 @@ int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 
 void bch2_btree_complete_write(struct bch_fs *, struct btree *,
 			      struct btree_write *);
-void bch2_btree_write_error_work(struct work_struct *);
 
 void __bch2_btree_node_write(struct bch_fs *, struct btree *, bool);
 bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);

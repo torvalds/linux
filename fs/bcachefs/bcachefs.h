@@ -676,7 +676,7 @@ struct bch_fs {
 	struct btree_key_cache	btree_key_cache;
 
 	struct workqueue_struct	*btree_update_wq;
-	struct workqueue_struct	*btree_error_wq;
+	struct workqueue_struct	*btree_io_complete_wq;
 	/* copygc needs its own workqueue for index updates.. */
 	struct workqueue_struct	*copygc_wq;
 
@@ -827,8 +827,6 @@ mempool_t		bio_bounce_pages;
 
 	atomic64_t		btree_writes_nr;
 	atomic64_t		btree_writes_sectors;
-	struct bio_list		btree_write_error_list;
-	struct work_struct	btree_write_error_work;
 	spinlock_t		btree_write_error_lock;
 
 	/* ERRORS */

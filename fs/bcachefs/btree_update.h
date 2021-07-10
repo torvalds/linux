@@ -74,7 +74,9 @@ int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
 			    __le64, unsigned);
 void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
 int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
-			       struct btree *, struct bkey_i *);
+			       struct btree *, struct bkey_i *, bool);
+int bch2_btree_node_update_key_get_iter(struct btree_trans *,
+				struct btree *, struct bkey_i *, bool);
 
 int bch2_trans_update(struct btree_trans *, struct btree_iter *,
 		      struct bkey_i *, enum btree_update_flags);

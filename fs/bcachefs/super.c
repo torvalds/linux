@@ -514,8 +514,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 		destroy_workqueue(c->io_complete_wq );
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
-	if (c->btree_error_wq)
-		destroy_workqueue(c->btree_error_wq);
+	if (c->btree_io_complete_wq)
+		destroy_workqueue(c->btree_io_complete_wq);
 	if (c->btree_update_wq)
 		destroy_workqueue(c->btree_update_wq);
 
@@ -567,7 +567,6 @@ void __bch2_fs_stop(struct bch_fs *c)
 	for_each_member_device(ca, c, i)
 		cancel_work_sync(&ca->io_error_work);
 
-	cancel_work_sync(&c->btree_write_error_work);
 	cancel_work_sync(&c->read_only_work);
 }
 
@@ -696,9 +695,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	mutex_init(&c->bio_bounce_pages_lock);
 
-	bio_list_init(&c->btree_write_error_list);
 	spin_lock_init(&c->btree_write_error_lock);
-	INIT_WORK(&c->btree_write_error_work, bch2_btree_write_error_work);
 
 	INIT_WORK(&c->journal_seq_blacklist_gc_work,
 		  bch2_blacklist_entries_gc);
@@ -768,7 +765,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	if (!(c->btree_update_wq = alloc_workqueue("bcachefs",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
-	    !(c->btree_error_wq = alloc_workqueue("bcachefs_error",
+	    !(c->btree_io_complete_wq = alloc_workqueue("bcachefs_btree_io",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||

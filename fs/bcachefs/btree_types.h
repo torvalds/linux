@@ -435,6 +435,7 @@ enum btree_flags {
 	BTREE_NODE_write_idx,
 	BTREE_NODE_accessed,
 	BTREE_NODE_write_in_flight,
+	BTREE_NODE_write_in_flight_inner,
 	BTREE_NODE_just_written,
 	BTREE_NODE_dying,
 	BTREE_NODE_fake,
@@ -449,6 +450,7 @@ BTREE_FLAG(noevict);
 BTREE_FLAG(write_idx);
 BTREE_FLAG(accessed);
 BTREE_FLAG(write_in_flight);
+BTREE_FLAG(write_in_flight_inner);
 BTREE_FLAG(just_written);
 BTREE_FLAG(dying);
 BTREE_FLAG(fake);

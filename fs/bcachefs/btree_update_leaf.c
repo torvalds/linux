@@ -910,7 +910,8 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	unsigned u64s, reset_flags = 0;
 	int ret = 0;
 
-	if (!trans->nr_updates)
+	if (!trans->nr_updates &&
+	    !trans->extra_journal_entry_u64s)
 		goto out_reset;
 
 	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)

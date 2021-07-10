@@ -132,7 +132,7 @@ void __bch2_btree_iter_downgrade(struct btree_iter *, unsigned);
 
 static inline void bch2_btree_iter_downgrade(struct btree_iter *iter)
 {
-	unsigned new_locks_want = (iter->flags & BTREE_ITER_INTENT ? 1 : 0);
+	unsigned new_locks_want = iter->level + !!(iter->flags & BTREE_ITER_INTENT);
 
 	if (iter->locks_want > new_locks_want)
 		__bch2_btree_iter_downgrade(iter, new_locks_want);

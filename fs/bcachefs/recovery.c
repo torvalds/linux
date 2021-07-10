@@ -1005,6 +1005,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.fix_errors	= FSCK_OPT_YES;
 	}
 
+	if (c->sb.version < bcachefs_metadata_version_btree_ptr_sectors_written) {
+		bch_info(c, "version prior to btree_ptr_sectors_written, upgrade required");
+		c->opts.version_upgrade	= true;
+	}
+
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
 		bch_err(c, "error initializing blacklist table");

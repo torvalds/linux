@@ -95,7 +95,8 @@ struct bch_write_bio {
 				bounce:1,
 				put_bio:1,
 				have_ioref:1,
-				used_mempool:1;
+				used_mempool:1,
+				first_btree_write:1;
 	);
 
 	struct bio		bio;

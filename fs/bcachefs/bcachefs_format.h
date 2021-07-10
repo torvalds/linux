@@ -1214,7 +1214,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_inode_btree_change	= 11,
 	bcachefs_metadata_version_snapshot		= 12,
 	bcachefs_metadata_version_inode_backpointers	= 13,
-	bcachefs_metadata_version_max			= 14,
+	bcachefs_metadata_version_btree_ptr_sectors_written = 14,
+	bcachefs_metadata_version_max			= 15,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
