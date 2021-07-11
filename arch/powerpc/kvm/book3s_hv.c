@@ -3583,6 +3583,7 @@ static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 	unsigned long host_tidr = mfspr(SPRN_TIDR);
 	unsigned long host_iamr = mfspr(SPRN_IAMR);
 	unsigned long host_amr = mfspr(SPRN_AMR);
+	unsigned long host_fscr = mfspr(SPRN_FSCR);
 	s64 dec;
 	u64 tb;
 	int trap, save_pmu;
@@ -3725,6 +3726,9 @@ static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	if (host_amr != vcpu->arch.amr)
 		mtspr(SPRN_AMR, host_amr);
+
+	if (host_fscr != vcpu->arch.fscr)
+		mtspr(SPRN_FSCR, host_fscr);
 
 	msr_check_and_set(MSR_FP | MSR_VEC | MSR_VSX);
 	store_fp_state(&vcpu->arch.fp);
