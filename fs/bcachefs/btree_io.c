@@ -22,6 +22,44 @@
 
 #include <linux/sched/mm.h>
 
+void bch2_btree_node_io_unlock(struct btree *b)
+{
+	EBUG_ON(!btree_node_write_in_flight(b));
+
+	clear_btree_node_write_in_flight(b);
+	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
+}
+
+void bch2_btree_node_io_lock(struct btree *b)
+{
+	wait_on_bit_lock_io(&b->flags, BTREE_NODE_write_in_flight,
+			    TASK_UNINTERRUPTIBLE);
+}
+
+void __bch2_btree_node_wait_on_read(struct btree *b)
+{
+	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+}
+
+void __bch2_btree_node_wait_on_write(struct btree *b)
+{
+	wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+}
+
+void bch2_btree_node_wait_on_read(struct btree *b)
+{
+	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+}
+
+void bch2_btree_node_wait_on_write(struct btree *b)
+{
+	wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+}
+
 static void verify_no_dups(struct btree *b,
 			   struct bkey_packed *start,
 			   struct bkey_packed *end)
@@ -432,7 +470,8 @@ void bch2_btree_init_next(struct btree_trans *trans,
 	EBUG_ON(iter && iter->l[b->c.level].b != b);
 	BUG_ON(bset_written(b, bset(b, &b->set[1])));
 
-	if (b->nsets == MAX_BSETS) {
+	if (b->nsets == MAX_BSETS &&
+	    !btree_node_write_in_flight(b)) {
 		unsigned log_u64s[] = {
 			ilog2(bset_u64s(&b->set[0])),
 			ilog2(bset_u64s(&b->set[1])),
@@ -1402,8 +1441,6 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	btree_pos_to_text(&PBUF(buf), c, b);
 	trace_btree_read(c, b);
 
-	set_btree_node_read_in_flight(b);
-
 	if (bch2_verify_all_btree_replicas &&
 	    !btree_node_read_all_replicas(c, b, sync))
 		return;
@@ -1480,6 +1517,8 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 	bkey_copy(&b->key, k);
 	BUG_ON(bch2_btree_node_hash_insert(&c->btree_cache, b, level, id));
 
+	set_btree_node_read_in_flight(b);
+
 	bch2_btree_node_read(c, b, true);
 
 	if (btree_node_read_error(b)) {
@@ -1525,7 +1564,7 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 	struct btree_write *w = btree_prev_write(b);
 
 	bch2_btree_complete_write(c, b, w);
-	btree_node_io_unlock(b);
+	bch2_btree_node_io_unlock(b);
 }
 
 static void bch2_btree_node_write_error(struct bch_fs *c,
@@ -1707,6 +1746,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	bool validate_before_checksum = false;
 	void *data;
 
+	BUG_ON(btree_node_write_in_flight(b));
+
 	if (test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
 		return;
 
@@ -1734,7 +1775,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 			 * XXX waiting on btree writes with btree locks held -
 			 * this can deadlock, and we hit the write error path
 			 */
-			btree_node_wait_on_io(b);
+			bch2_btree_node_wait_on_write(b);
 			continue;
 		}
 

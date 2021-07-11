@@ -187,6 +187,17 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 	int ret = 0;
 
 	lockdep_assert_held(&bc->lock);
+wait_on_io:
+	if (b->flags & ((1U << BTREE_NODE_dirty)|
+			(1U << BTREE_NODE_read_in_flight)|
+			(1U << BTREE_NODE_write_in_flight))) {
+		if (!flush)
+			return -ENOMEM;
+
+		/* XXX: waiting on IO with btree cache lock held */
+		bch2_btree_node_wait_on_read(b);
+		bch2_btree_node_wait_on_write(b);
+	}
 
 	if (!six_trylock_intent(&b->c.lock))
 		return -ENOMEM;
@@ -194,25 +205,26 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 	if (!six_trylock_write(&b->c.lock))
 		goto out_unlock_intent;
 
+	/* recheck under lock */
+	if (b->flags & ((1U << BTREE_NODE_read_in_flight)|
+			(1U << BTREE_NODE_write_in_flight))) {
+		if (!flush)
+			goto out_unlock;
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
+		goto wait_on_io;
+	}
+
 	if (btree_node_noevict(b))
 		goto out_unlock;
 
 	if (!btree_node_may_write(b))
 		goto out_unlock;
 
-	if (btree_node_dirty(b) &&
-	    test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
-		goto out_unlock;
-
-	if (btree_node_dirty(b) ||
-	    btree_node_write_in_flight(b) ||
-	    btree_node_read_in_flight(b)) {
-		if (!flush)
+	if (btree_node_dirty(b)) {
+		if (!flush ||
+		    test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
 			goto out_unlock;
-
-		wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
-			       TASK_UNINTERRUPTIBLE);
-
 		/*
 		 * Using the underscore version because we don't want to compact
 		 * bsets after the write, since this node is about to be evicted
@@ -224,8 +236,9 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 		else
 			__bch2_btree_node_write(c, b);
 
-		/* wait for any in flight btree write */
-		btree_node_wait_on_io(b);
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
+		goto wait_on_io;
 	}
 out:
 	if (b->hash_val && !ret)
@@ -581,6 +594,7 @@ got_node:
 	}
 
 	BUG_ON(btree_node_hashed(b));
+	BUG_ON(btree_node_dirty(b));
 	BUG_ON(btree_node_write_in_flight(b));
 out:
 	b->flags		= 0;
@@ -634,6 +648,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
+	u32 seq;
 
 	BUG_ON(level + 1 >= BTREE_MAX_DEPTH);
 	/*
@@ -663,31 +678,31 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 		return NULL;
 	}
 
+	set_btree_node_read_in_flight(b);
+
+	six_unlock_write(&b->c.lock);
+	seq = b->c.lock.state.seq;
+	six_unlock_intent(&b->c.lock);
+
 	/* Unlock before doing IO: */
 	if (iter && sync)
 		bch2_trans_unlock(iter->trans);
 
 	bch2_btree_node_read(c, b, sync);
 
-	six_unlock_write(&b->c.lock);
-
-	if (!sync) {
-		six_unlock_intent(&b->c.lock);
+	if (!sync)
 		return NULL;
-	}
 
 	/*
 	 * XXX: this will probably always fail because btree_iter_relock()
 	 * currently fails for iterators that aren't pointed at a valid btree
 	 * node
 	 */
-	if (iter && !bch2_trans_relock(iter->trans)) {
-		six_unlock_intent(&b->c.lock);
+	if (iter && !bch2_trans_relock(iter->trans))
 		return ERR_PTR(-EINTR);
-	}
 
-	if (lock_type == SIX_LOCK_read)
-		six_lock_downgrade(&b->c.lock);
+	if (!six_relock_type(&b->c.lock, lock_type, seq))
+		return ERR_PTR(-EINTR);
 
 	return b;
 }
@@ -831,11 +846,12 @@ lock_node:
 	}
 
 	if (unlikely(btree_node_read_in_flight(b))) {
+		u32 seq = b->c.lock.state.seq;
+
 		six_unlock_type(&b->c.lock, lock_type);
 		bch2_trans_unlock(iter->trans);
 
-		wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
-			       TASK_UNINTERRUPTIBLE);
+		bch2_btree_node_wait_on_read(b);
 
 		/*
 		 * XXX: check if this always fails - btree_iter_relock()
@@ -844,7 +860,9 @@ lock_node:
 		 */
 		if (iter && !bch2_trans_relock(iter->trans))
 			return ERR_PTR(-EINTR);
-		goto retry;
+
+		if (!six_relock_type(&b->c.lock, lock_type, seq))
+			goto retry;
 	}
 
 	prefetch(b->aux_data);
@@ -923,8 +941,7 @@ lock_node:
 	}
 
 	/* XXX: waiting on IO with btree locks held: */
-	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
-		       TASK_UNINTERRUPTIBLE);
+	__bch2_btree_node_wait_on_read(b);
 
 	prefetch(b->aux_data);
 
@@ -979,16 +996,24 @@ void bch2_btree_node_evict(struct bch_fs *c, const struct bkey_i *k)
 	b = btree_cache_find(bc, k);
 	if (!b)
 		return;
+wait_on_io:
+	/* not allowed to wait on io with btree locks held: */
+
+	/* XXX we're called from btree_gc which will be holding other btree
+	 * nodes locked
+	 * */
+	__bch2_btree_node_wait_on_read(b);
+	__bch2_btree_node_wait_on_write(b);
 
 	six_lock_intent(&b->c.lock, NULL, NULL);
 	six_lock_write(&b->c.lock, NULL, NULL);
 
-	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
-		       TASK_UNINTERRUPTIBLE);
-	__bch2_btree_node_write(c, b);
-
-	/* wait for any in flight btree write */
-	btree_node_wait_on_io(b);
+	if (btree_node_dirty(b)) {
+		__bch2_btree_node_write(c, b);
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
+		goto wait_on_io;
+	}
 
 	BUG_ON(btree_node_dirty(b));
 

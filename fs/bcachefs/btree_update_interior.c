@@ -567,7 +567,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 		six_unlock_read(&old->c.lock);
 
 		if (seq == as->old_nodes_seq[i])
-			btree_node_wait_on_io(old);
+			bch2_btree_node_wait_on_write(old);
 	}
 
 	/*

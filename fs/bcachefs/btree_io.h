@@ -52,24 +52,12 @@ struct btree_write_bio {
 	struct bch_write_bio	wbio;
 };
 
-static inline void btree_node_io_unlock(struct btree *b)
-{
-	EBUG_ON(!btree_node_write_in_flight(b));
-	clear_btree_node_write_in_flight(b);
-	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
-}
-
-static inline void btree_node_io_lock(struct btree *b)
-{
-	wait_on_bit_lock_io(&b->flags, BTREE_NODE_write_in_flight,
-			    TASK_UNINTERRUPTIBLE);
-}
-
-static inline void btree_node_wait_on_io(struct btree *b)
-{
-	wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight,
-		       TASK_UNINTERRUPTIBLE);
-}
+void bch2_btree_node_io_unlock(struct btree *);
+void bch2_btree_node_io_lock(struct btree *);
+void __bch2_btree_node_wait_on_read(struct btree *);
+void __bch2_btree_node_wait_on_write(struct btree *);
+void bch2_btree_node_wait_on_read(struct btree *);
+void bch2_btree_node_wait_on_write(struct btree *);
 
 static inline bool btree_node_may_write(struct btree *b)
 {
@@ -169,7 +157,7 @@ static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 		}
 
 		six_unlock_type(&b->c.lock, lock_held);
-		btree_node_wait_on_io(b);
+		bch2_btree_node_wait_on_write(b);
 		btree_node_lock_type(c, b, lock_held);
 	}
 }

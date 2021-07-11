@@ -133,7 +133,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	if (c->opts.nochanges)
 		return;
 
-	btree_node_io_lock(b);
+	bch2_btree_node_io_lock(b);
 	mutex_lock(&c->verify_lock);
 
 	if (!c->verify_ondisk) {
@@ -176,7 +176,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	}
 out:
 	mutex_unlock(&c->verify_lock);
-	btree_node_io_unlock(b);
+	bch2_btree_node_io_unlock(b);
 }
 
 #ifdef CONFIG_DEBUG_FS
