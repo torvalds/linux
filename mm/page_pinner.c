@@ -174,6 +174,8 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 
 		page_pinner = get_page_pinner(page_ext);
 		if (free) {
+			/* record page free call path */
+			__page_pinner_migration_failed(page);
 			atomic_set(&page_pinner->count, 0);
 			__clear_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
 		} else {
@@ -363,6 +365,7 @@ void __page_pinner_mark_migration_failed_pages(struct list_head *page_list)
 		if (unlikely(!page_ext))
 			continue;
 		__set_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
+		__page_pinner_migration_failed(page);
 	}
 }
 
