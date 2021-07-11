@@ -139,7 +139,7 @@ void bch2_btree_complete_write(struct bch_fs *, struct btree *,
 			      struct btree_write *);
 void bch2_btree_write_error_work(struct work_struct *);
 
-void __bch2_btree_node_write(struct bch_fs *, struct btree *);
+void __bch2_btree_node_write(struct bch_fs *, struct btree *, bool);
 bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);
 
 void bch2_btree_node_write(struct bch_fs *, struct btree *,
@@ -148,18 +148,11 @@ void bch2_btree_node_write(struct bch_fs *, struct btree *,
 static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 					    enum six_lock_type lock_held)
 {
-	while (b->written &&
-	       btree_node_need_write(b) &&
-	       btree_node_may_write(b)) {
-		if (!btree_node_write_in_flight(b)) {
-			bch2_btree_node_write(c, b, lock_held);
-			break;
-		}
-
-		six_unlock_type(&b->c.lock, lock_held);
-		bch2_btree_node_wait_on_write(b);
-		btree_node_lock_type(c, b, lock_held);
-	}
+	if (b->written &&
+	    btree_node_need_write(b) &&
+	    btree_node_may_write(b) &&
+	    !btree_node_write_in_flight(b))
+		bch2_btree_node_write(c, b, lock_held);
 }
 
 #define bch2_btree_node_write_cond(_c, _b, cond)			\

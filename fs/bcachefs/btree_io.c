@@ -1562,9 +1562,47 @@ void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
 static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
 	struct btree_write *w = btree_prev_write(b);
+	unsigned long old, new, v;
 
 	bch2_btree_complete_write(c, b, w);
-	bch2_btree_node_io_unlock(b);
+
+	v = READ_ONCE(b->flags);
+	do {
+		old = new = v;
+
+		if (old & (1U << BTREE_NODE_need_write))
+			goto do_write;
+
+		new &= ~(1U << BTREE_NODE_write_in_flight);
+	} while ((v = cmpxchg(&b->flags, old, new)) != old);
+
+	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
+	return;
+
+do_write:
+	six_lock_read(&b->c.lock, NULL, NULL);
+	v = READ_ONCE(b->flags);
+	do {
+		old = new = v;
+
+		if ((old & (1U << BTREE_NODE_dirty)) &&
+		    (old & (1U << BTREE_NODE_need_write)) &&
+		    !(old & (1U << BTREE_NODE_never_write)) &&
+		    btree_node_may_write(b)) {
+			new &= ~(1U << BTREE_NODE_dirty);
+			new &= ~(1U << BTREE_NODE_need_write);
+			new |=  (1U << BTREE_NODE_write_in_flight);
+			new |=  (1U << BTREE_NODE_just_written);
+			new ^=  (1U << BTREE_NODE_write_idx);
+		} else {
+			new &= ~(1U << BTREE_NODE_write_in_flight);
+		}
+	} while ((v = cmpxchg(&b->flags, old, new)) != old);
+
+	if (new & (1U << BTREE_NODE_write_in_flight))
+		__bch2_btree_node_write(c, b, true);
+
+	six_unlock_read(&b->c.lock);
 }
 
 static void bch2_btree_node_write_error(struct bch_fs *c,
@@ -1729,7 +1767,7 @@ static void btree_write_submit(struct work_struct *work)
 	bch2_submit_wbio_replicas(&wbio->wbio, wbio->wbio.c, BCH_DATA_btree, &wbio->key);
 }
 
-void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
+void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, bool already_started)
 {
 	struct btree_write_bio *wbio;
 	struct bset_tree *t;
@@ -1746,7 +1784,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	bool validate_before_checksum = false;
 	void *data;
 
-	BUG_ON(btree_node_write_in_flight(b));
+	if (already_started)
+		goto do_write;
 
 	if (test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
 		return;
@@ -1770,14 +1809,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 		if (old & (1 << BTREE_NODE_never_write))
 			return;
 
-		if (old & (1 << BTREE_NODE_write_in_flight)) {
-			/*
-			 * XXX waiting on btree writes with btree locks held -
-			 * this can deadlock, and we hit the write error path
-			 */
-			bch2_btree_node_wait_on_write(b);
-			continue;
-		}
+		BUG_ON(old & (1 << BTREE_NODE_write_in_flight));
 
 		new &= ~(1 << BTREE_NODE_dirty);
 		new &= ~(1 << BTREE_NODE_need_write);
@@ -1786,6 +1818,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 		new ^=  (1 << BTREE_NODE_write_idx);
 	} while (cmpxchg_acquire(&b->flags, old, new) != old);
 
+	if (new & (1U << BTREE_NODE_need_write))
+		return;
+do_write:
 	atomic_dec(&c->btree_cache.dirty);
 
 	BUG_ON(btree_node_fake(b));
@@ -2041,7 +2076,7 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	if (lock_type_held == SIX_LOCK_intent ||
 	    (lock_type_held == SIX_LOCK_read &&
 	     six_lock_tryupgrade(&b->c.lock))) {
-		__bch2_btree_node_write(c, b);
+		__bch2_btree_node_write(c, b, false);
 
 		/* don't cycle lock unnecessarily: */
 		if (btree_node_just_written(b) &&
@@ -2053,7 +2088,7 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		if (lock_type_held == SIX_LOCK_read)
 			six_lock_downgrade(&b->c.lock);
 	} else {
-		__bch2_btree_node_write(c, b);
+		__bch2_btree_node_write(c, b, false);
 		if (lock_type_held == SIX_LOCK_write &&
 		    btree_node_just_written(b))
 			bch2_btree_post_write_cleanup(c, b);
