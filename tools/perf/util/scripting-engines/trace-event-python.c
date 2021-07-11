@@ -687,7 +687,7 @@ static void set_sample_datasrc_in_dict(PyObject *dict,
 			_PyUnicode_FromString(decode));
 }
 
-static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
+static void regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 {
 	unsigned int i = 0, r;
 	int printed = 0;
@@ -695,7 +695,7 @@ static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 	bf[0] = 0;
 
 	if (!regs || !regs->regs)
-		return 0;
+		return;
 
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs->regs[i++];
@@ -704,8 +704,6 @@ static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 				     "%5s:0x%" PRIx64 " ",
 				     perf_reg_name(r), val);
 	}
-
-	return printed;
 }
 
 static void set_regs_in_dict(PyObject *dict,
@@ -713,7 +711,16 @@ static void set_regs_in_dict(PyObject *dict,
 			     struct evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	char bf[512];
+
+	/*
+	 * Here value 28 is a constant size which can be used to print
+	 * one register value and its corresponds to:
+	 * 16 chars is to specify 64 bit register in hexadecimal.
+	 * 2 chars is for appending "0x" to the hexadecimal value and
+	 * 10 chars is for register name.
+	 */
+	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
+	char bf[size];
 
 	regs_map(&sample->intr_regs, attr->sample_regs_intr, bf, sizeof(bf));
 

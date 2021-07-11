@@ -17,11 +17,15 @@
 #include <linux/string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <asm/bug.h>
 
-void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
+void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr,
+		      int idx)
 {
 	INIT_LIST_HEAD(&evsel->node);
 	evsel->attr = *attr;
+	evsel->idx  = idx;
+	evsel->leader = evsel;
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
@@ -29,7 +33,7 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
 	if (evsel != NULL)
-		perf_evsel__init(evsel, attr);
+		perf_evsel__init(evsel, attr, 0);
 
 	return evsel;
 }
@@ -73,6 +77,32 @@ sys_perf_event_open(struct perf_event_attr *attr,
 	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
 }
 
+static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread, int *group_fd)
+{
+	struct perf_evsel *leader = evsel->leader;
+	int fd;
+
+	if (evsel == leader) {
+		*group_fd = -1;
+		return 0;
+	}
+
+	/*
+	 * Leader must be already processed/open,
+	 * if not it's a bug.
+	 */
+	if (!leader->fd)
+		return -ENOTCONN;
+
+	fd = FD(leader, cpu, thread);
+	if (fd == -1)
+		return -EBADF;
+
+	*group_fd = fd;
+
+	return 0;
+}
+
 int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		     struct perf_thread_map *threads)
 {
@@ -108,11 +138,15 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		for (thread = 0; thread < threads->nr; thread++) {
-			int fd;
+			int fd, group_fd;
+
+			err = get_group_fd(evsel, cpu, thread, &group_fd);
+			if (err < 0)
+				return err;
 
 			fd = sys_perf_event_open(&evsel->attr,
 						 threads->map[thread].pid,
-						 cpus->map[cpu], -1, 0);
+						 cpus->map[cpu], group_fd, 0);
 
 			if (fd < 0)
 				return -errno;
