@@ -985,6 +985,7 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);
+	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
