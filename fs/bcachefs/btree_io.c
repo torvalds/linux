@@ -420,9 +420,11 @@ void bch2_btree_build_aux_trees(struct btree *b)
  *
  * Returns true if we sorted (i.e. invalidated iterators
  */
-void bch2_btree_init_next(struct bch_fs *c, struct btree *b,
-			  struct btree_iter *iter)
+void bch2_btree_init_next(struct btree_trans *trans,
+			  struct btree_iter *iter,
+			  struct btree *b)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_node_entry *bne;
 	bool reinit_iter = false;
 
@@ -1563,7 +1565,7 @@ retry:
 	if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(k.k)))
 		goto err;
 
-	ret = bch2_btree_node_update_key(c, iter, b, k.k);
+	ret = bch2_btree_node_update_key(&trans, iter, b, k.k);
 	if (ret == -EINTR)
 		goto retry;
 	if (ret)

@@ -22,6 +22,10 @@
 
 #include <linux/random.h>
 
+static void bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
+				   struct btree_iter *, struct btree *,
+				   struct keylist *, unsigned);
+
 /* Debug code: */
 
 /*
@@ -1355,8 +1359,9 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 	btree_node_interior_verify(as->c, b);
 }
 
-static void btree_split(struct btree_update *as, struct btree *b,
-			struct btree_iter *iter, struct keylist *keys,
+static void btree_split(struct btree_update *as,
+			struct btree_trans *trans, struct btree_iter *iter,
+			struct btree *b, struct keylist *keys,
 			unsigned flags)
 {
 	struct bch_fs *c = as->c;
@@ -1422,7 +1427,7 @@ static void btree_split(struct btree_update *as, struct btree *b,
 
 	if (parent) {
 		/* Split a non root node */
-		bch2_btree_insert_node(as, parent, iter, &as->parent_keys, flags);
+		bch2_btree_insert_node(as, trans, iter, parent, &as->parent_keys, flags);
 	} else if (n3) {
 		bch2_btree_set_root(as, n3, iter);
 	} else {
@@ -1460,7 +1465,7 @@ static void btree_split(struct btree_update *as, struct btree *b,
 		six_unlock_intent(&n2->c.lock);
 	six_unlock_intent(&n1->c.lock);
 
-	bch2_btree_trans_verify_locks(iter->trans);
+	bch2_btree_trans_verify_locks(trans);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_split],
 			       start_time);
@@ -1494,9 +1499,10 @@ bch2_btree_insert_keys_interior(struct btree_update *as, struct btree *b,
  * If a split occurred, this function will return early. This can only happen
  * for leaf nodes -- inserts into interior nodes have to be atomic.
  */
-void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
-			    struct btree_iter *iter, struct keylist *keys,
-			    unsigned flags)
+static void bch2_btree_insert_node(struct btree_update *as,
+				   struct btree_trans *trans, struct btree_iter *iter,
+				   struct btree *b, struct keylist *keys,
+				   unsigned flags)
 {
 	struct bch_fs *c = as->c;
 	int old_u64s = le16_to_cpu(btree_bset_last(b)->u64s);
@@ -1509,7 +1515,7 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
 
-	bch2_btree_node_lock_for_insert(c, b, iter);
+	bch2_btree_node_lock_for_insert(trans, iter, b);
 
 	if (!bch2_btree_node_insert_fits(c, b, bch2_keylist_u64s(keys))) {
 		bch2_btree_node_unlock_write(b, iter);
@@ -1537,12 +1543,14 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 	btree_node_interior_verify(c, b);
 	return;
 split:
-	btree_split(as, b, iter, keys, flags);
+	btree_split(as, trans, iter, b, keys, flags);
 }
 
-int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
+int bch2_btree_split_leaf(struct btree_trans *trans,
+			  struct btree_iter *iter,
 			  unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree *b = iter_l(iter)->b;
 	struct btree_update *as;
 	unsigned l;
@@ -1553,22 +1561,22 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	if (IS_ERR(as))
 		return PTR_ERR(as);
 
-	btree_split(as, b, iter, NULL, flags);
+	btree_split(as, trans, iter, b, NULL, flags);
 	bch2_btree_update_done(as);
 
 	for (l = iter->level + 1; btree_iter_node(iter, l) && !ret; l++)
-		ret = bch2_foreground_maybe_merge(c, iter, l, flags);
+		ret = bch2_foreground_maybe_merge(trans, iter, l, flags);
 
 	return ret;
 }
 
-int __bch2_foreground_maybe_merge(struct bch_fs *c,
+int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 				  struct btree_iter *iter,
 				  unsigned level,
 				  unsigned flags,
 				  enum btree_node_sibling sib)
 {
-	struct btree_trans *trans = iter->trans;
+	struct bch_fs *c = trans->c;
 	struct btree_iter *sib_iter = NULL;
 	struct btree_update *as;
 	struct bkey_format_state new_s;
@@ -1697,7 +1705,7 @@ retry:
 
 	bch2_btree_node_write(c, n, SIX_LOCK_intent);
 
-	bch2_btree_insert_node(as, parent, iter, &as->parent_keys, flags);
+	bch2_btree_insert_node(as, trans, iter, parent, &as->parent_keys, flags);
 
 	bch2_btree_update_get_open_buckets(as, n);
 
@@ -1750,9 +1758,11 @@ err:
 /**
  * bch_btree_node_rewrite - Rewrite/move a btree node
  */
-int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
+int bch2_btree_node_rewrite(struct btree_trans *trans,
+			    struct btree_iter *iter,
 			    __le64 seq, unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree *b, *n, *parent;
 	struct btree_update *as;
 	int ret;
@@ -1795,7 +1805,8 @@ retry:
 
 	if (parent) {
 		bch2_keylist_add(&as->parent_keys, &n->key);
-		bch2_btree_insert_node(as, parent, iter, &as->parent_keys, flags);
+		bch2_btree_insert_node(as, trans, iter, parent,
+				       &as->parent_keys, flags);
 	} else {
 		bch2_btree_set_root(as, n, iter);
 	}
@@ -1834,7 +1845,7 @@ void async_btree_node_rewrite_work(struct work_struct *work)
 	bch2_trans_init(&trans, c, 0, 0);
 	iter = bch2_trans_get_node_iter(&trans, a->btree_id, a->pos,
 					BTREE_MAX_DEPTH, a->level, 0);
-	bch2_btree_node_rewrite(c, iter, a->seq, 0);
+	bch2_btree_node_rewrite(&trans, iter, a->seq, 0);
 	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	percpu_ref_put(&c->writes);
@@ -1867,12 +1878,13 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	queue_work(c->btree_interior_update_worker, &a->work);
 }
 
-static void __bch2_btree_node_update_key(struct bch_fs *c,
-					 struct btree_update *as,
+static void __bch2_btree_node_update_key(struct btree_update *as,
+					 struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 struct btree *b, struct btree *new_hash,
 					 struct bkey_i *new_key)
 {
+	struct bch_fs *c = as->c;
 	struct btree *parent;
 	int ret;
 
@@ -1889,7 +1901,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		}
 
 		bch2_keylist_add(&as->parent_keys, new_key);
-		bch2_btree_insert_node(as, parent, iter, &as->parent_keys, 0);
+		bch2_btree_insert_node(as, trans, iter, parent, &as->parent_keys, 0);
 
 		if (new_hash) {
 			mutex_lock(&c->btree_cache.lock);
@@ -1926,10 +1938,12 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 	bch2_btree_update_done(as);
 }
 
-int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
+int bch2_btree_node_update_key(struct btree_trans *trans,
+			       struct btree_iter *iter,
 			       struct btree *b,
 			       struct bkey_i *new_key)
 {
+	struct bch_fs *c = trans->c;
 	struct btree *parent = btree_node_parent(iter, b);
 	struct btree_update *as = NULL;
 	struct btree *new_hash = NULL;
@@ -1962,7 +1976,7 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		goto err;
 	}
 
-	__bch2_btree_node_update_key(c, as, iter, b, new_hash, new_key);
+	__bch2_btree_node_update_key(as, trans, iter, b, new_hash, new_key);
 
 	bch2_btree_iter_downgrade(iter);
 err:

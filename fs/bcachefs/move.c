@@ -786,7 +786,7 @@ static int bch2_move_btree(struct bch_fs *c,
 				BUG();
 			}
 
-			ret = bch2_btree_node_rewrite(c, iter,
+			ret = bch2_btree_node_rewrite(&trans, iter,
 					b->data->keys.seq, 0) ?: ret;
 next:
 			bch2_trans_cond_resched(&trans);

@@ -36,9 +36,12 @@ static inline bool same_leaf_as_prev(struct btree_trans *trans,
 		iter_l(i[0].iter)->b == iter_l(i[-1].iter)->b;
 }
 
-inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
-					    struct btree_iter *iter)
+inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
+					    struct btree_iter *iter,
+					    struct btree *b)
 {
+	struct bch_fs *c = trans->c;
+
 	bch2_btree_node_lock_write(b, iter);
 
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED)
@@ -53,7 +56,7 @@ inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
 	 * a new bset to insert into:
 	 */
 	if (want_new_bset(c, b))
-		bch2_btree_init_next(c, b, iter);
+		bch2_btree_init_next(trans, iter, b);
 }
 
 /* Inserting into a given leaf node (last stage of insert): */
@@ -518,7 +521,7 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
 	}
 
 	return u64s_delta <= 0
-		? (bch2_foreground_maybe_merge(trans->c, iter, iter->level,
+		? (bch2_foreground_maybe_merge(trans, iter, iter->level,
 				trans->flags & ~BTREE_INSERT_NOUNLOCK) ?: -EINTR)
 		: 0;
 }
@@ -608,8 +611,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
-			bch2_btree_node_lock_for_insert(c,
-					iter_l(i->iter)->b, i->iter);
+			bch2_btree_node_lock_for_insert(trans, i->iter,
+					iter_l(i->iter)->b);
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
@@ -662,7 +665,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 	switch (ret) {
 	case BTREE_INSERT_BTREE_NODE_FULL:
-		ret = bch2_btree_split_leaf(c, i->iter, flags);
+		ret = bch2_btree_split_leaf(trans, i->iter, flags);
 
 		/*
 		 * if the split succeeded without dropping locks the insert will

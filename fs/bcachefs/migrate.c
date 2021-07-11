@@ -139,7 +139,7 @@ retry:
 				break;
 			}
 
-			ret = bch2_btree_node_update_key(c, iter, b, k.k);
+			ret = bch2_btree_node_update_key(&trans, iter, b, k.k);
 			if (ret == -EINTR) {
 				b = bch2_btree_iter_peek_node(iter);
 				ret = 0;

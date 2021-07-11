@@ -138,8 +138,8 @@ void bch2_btree_sort_into(struct bch_fs *, struct btree *, struct btree *);
 void bch2_btree_node_drop_keys_outside_node(struct btree *);
 
 void bch2_btree_build_aux_trees(struct btree *);
-void bch2_btree_init_next(struct bch_fs *, struct btree *,
-			 struct btree_iter *);
+void bch2_btree_init_next(struct btree_trans *, struct btree_iter *,
+			  struct btree *);
 
 int bch2_btree_node_read_done(struct bch_fs *, struct bch_dev *,
 			      struct btree *, bool);
