@@ -3660,6 +3660,8 @@ struct qla_qpair {
 	struct qla_tgt_counters tgt_counters;
 	uint16_t cpuid;
 	struct qla_fw_resources fwres ____cacheline_aligned;
+	u32	cmd_cnt;
+	u32	cmd_completion_cnt;
 };
 
 /* Place holder for FW buffer parameters */
@@ -4616,6 +4618,7 @@ struct qla_hw_data {
 
 	struct qla_hw_data_stat stat;
 	pci_error_state_t pci_error_state;
+	u64 prev_cmd_cnt;
 };
 
 struct active_regions {
@@ -4743,6 +4746,7 @@ typedef struct scsi_qla_host {
 #define SET_ZIO_THRESHOLD_NEEDED 32
 #define ISP_ABORT_TO_ROM	33
 #define VPORT_DELETE		34
+#define HEARTBEAT_CHK		38
 
 #define PROCESS_PUREX_IOCB	63
 

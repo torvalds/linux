@@ -549,6 +549,7 @@ extern int qla2xxx_read_remote_register(scsi_qla_host_t *, uint32_t,
     uint32_t *);
 extern int qla2xxx_write_remote_register(scsi_qla_host_t *, uint32_t,
     uint32_t);
+void qla_no_op_mb(struct scsi_qla_host *vha);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.

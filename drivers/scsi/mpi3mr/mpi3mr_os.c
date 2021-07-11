@@ -867,8 +867,9 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		if ((dev_info & MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) !=
 		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE)
 			tgtdev->is_hidden = 1;
-		if (mrioc->shost)
-			prot_mask = scsi_host_get_prot(mrioc->shost);
+		if (!mrioc->shost)
+			break;
+		prot_mask = scsi_host_get_prot(mrioc->shost);
 		if (prot_mask & SHOST_DIX_TYPE0_PROTECTION) {
 			scsi_host_set_prot(mrioc->shost, prot_mask & 0x77);
 			ioc_info(mrioc,

@@ -3781,6 +3781,17 @@ S:	Supported
 F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.txt
 F:	drivers/gpio/gpio-bcm-kona.c
 
+BROADCOM MPI3 STORAGE CONTROLLER DRIVER
+M:	Sathya Prakash Veerichetty <sathya.prakash@broadcom.com>
+M:	Kashyap Desai <kashyap.desai@broadcom.com>
+M:	Sumit Saxena <sumit.saxena@broadcom.com>
+M:	Sreekanth Reddy <sreekanth.reddy@broadcom.com>
+L:	mpi3mr-linuxdrv.pdl@broadcom.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+W:	https://www.broadcom.com/support/storage
+F:	drivers/scsi/mpi3mr/
+
 BROADCOM NETXTREME-E ROCE DRIVER
 M:	Selvin Xavier <selvin.xavier@broadcom.com>
 M:	Naresh Kumar PBS <nareshkumar.pbs@broadcom.com>

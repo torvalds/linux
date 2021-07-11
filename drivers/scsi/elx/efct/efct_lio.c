@@ -832,10 +832,6 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 	}
 
 	vport_list->lio_vport = lio_vport;
-	spin_lock_irqsave(&efct->tgt_efct.efct_lio_lock, flags);
-	INIT_LIST_HEAD(&vport_list->list_entry);
-	list_add_tail(&vport_list->list_entry, &efct->tgt_efct.vport_list);
-	spin_unlock_irqrestore(&efct->tgt_efct.efct_lio_lock, flags);
 
 	memset(&vport_id, 0, sizeof(vport_id));
 	vport_id.port_name = npiv_wwpn;
@@ -853,6 +849,10 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 	}
 
 	lio_vport->fc_vport = new_fc_vport;
+	spin_lock_irqsave(&efct->tgt_efct.efct_lio_lock, flags);
+	INIT_LIST_HEAD(&vport_list->list_entry);
+	list_add_tail(&vport_list->list_entry, &efct->tgt_efct.vport_list);
+	spin_unlock_irqrestore(&efct->tgt_efct.efct_lio_lock, flags);
 
 	return &lio_vport->vport_wwn;
 }
