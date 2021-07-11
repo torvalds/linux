@@ -6019,11 +6019,13 @@ static bool io_drain_req(struct io_kiocb *req)
 
 	ret = io_req_prep_async(req);
 	if (ret)
-		return ret;
+		goto fail;
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL);
 	if (!de) {
-		io_req_complete_failed(req, -ENOMEM);
+		ret = -ENOMEM;
+fail:
+		io_req_complete_failed(req, ret);
 		return true;
 	}
 
