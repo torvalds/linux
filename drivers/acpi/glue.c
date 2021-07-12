@@ -292,22 +292,21 @@ static int acpi_device_notify(struct device *dev)
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
-	if (ret && type) {
-		struct acpi_device *adev;
+	if (ret) {
+		if (!type)
+			goto err;
 
 		adev = type->find_companion(dev);
 		if (!adev) {
-			pr_debug("Unable to get handle for %s\n", dev_name(dev));
+			dev_dbg(dev, "ACPI companion not found\n");
 			ret = -ENODEV;
-			goto out;
+			goto err;
 		}
 		ret = acpi_bind_one(dev, adev);
 		if (ret)
-			goto out;
+			goto err;
 	}
 	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		goto out;
 
 	if (dev_is_platform(dev))
 		acpi_configure_pmsi_domain(dev);
@@ -317,16 +316,13 @@ static int acpi_device_notify(struct device *dev)
 	else if (adev->handler && adev->handler->bind)
 		adev->handler->bind(dev);
 
- out:
-	if (!ret) {
-		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	acpi_handle_debug(ACPI_HANDLE(dev), "Bound to device %s\n",
+			  dev_name(dev));
 
-		acpi_get_name(ACPI_HANDLE(dev), ACPI_FULL_PATHNAME, &buffer);
-		pr_debug("Device %s -> %s\n", dev_name(dev), (char *)buffer.pointer);
-		kfree(buffer.pointer);
-	} else {
-		pr_debug("Device %s -> No ACPI support\n", dev_name(dev));
-	}
+	return 0;
+
+err:
+	dev_dbg(dev, "No ACPI support\n");
 
 	return ret;
 }
