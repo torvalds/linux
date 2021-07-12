@@ -2151,13 +2151,6 @@ static const struct snd_kcontrol_new snd_vt1724_mixer_pro_peak = {
 };
 
 /*
- *
- */
-
-static const struct snd_ice1712_card_info no_matched;
-
-
-/*
   ooAoo cards with no controls
 */
 static const unsigned char ooaoo_sq210_eeprom[] = {
@@ -2574,7 +2567,7 @@ static int snd_vt1724_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct snd_ice1712 *ice;
 	int pcm_dev = 0, err;
-	const struct snd_ice1712_card_info * const *tbl, *c;
+	const struct snd_ice1712_card_info *c;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -2600,27 +2593,20 @@ static int snd_vt1724_probe(struct pci_dev *pci,
 	/* field init before calling chip_init */
 	ice->ext_clock_count = 0;
 
-	for (tbl = card_tables; *tbl; tbl++) {
-		for (c = *tbl; c->name; c++) {
-			if ((model[dev] && c->model &&
-			     !strcmp(model[dev], c->model)) ||
-			    (c->subvendor == ice->eeprom.subvendor)) {
-				strcpy(card->shortname, c->name);
-				if (c->driver) /* specific driver? */
-					strcpy(card->driver, c->driver);
-				if (c->chip_init) {
-					err = c->chip_init(ice);
-					if (err < 0) {
-						snd_card_free(card);
-						return err;
-					}
-				}
-				goto __found;
+	c = ice->card_info;
+	if (c) {
+		strcpy(card->shortname, c->name);
+		if (c->driver) /* specific driver? */
+			strcpy(card->driver, c->driver);
+		if (c->chip_init) {
+			err = c->chip_init(ice);
+			if (err < 0) {
+				snd_card_free(card);
+				return err;
 			}
 		}
 	}
-	c = &no_matched;
-__found:
+
 	/*
 	* VT1724 has separate DMAs for the analog and the SPDIF streams while
 	* ICE1712 has only one for both (mixed up).
@@ -2688,7 +2674,7 @@ __found:
 		}
 	}
 
-	if (c->build_controls) {
+	if (c && c->build_controls) {
 		err = c->build_controls(ice);
 		if (err < 0) {
 			snd_card_free(card);
@@ -2696,7 +2682,7 @@ __found:
 		}
 	}
 
-	if (!c->no_mpu401) {
+	if (!c || !c->no_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
 			struct snd_rawmidi *rmidi;
 
