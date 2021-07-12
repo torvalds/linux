@@ -104,8 +104,11 @@ config SYSTEM_BLACKLIST_HASH_LIST
 	help
 	  If set, this option should be the filename of a list of hashes in the
 	  form "<hash>", "<hash>", ... .  This will be included into a C
-	  wrapper to incorporate the list into the kernel.  Each <hash> should
-	  be a string of hex digits.
+	  wrapper to incorporate the list into the kernel.  Each <hash> must be a
+	  string starting with a prefix ("tbs" or "bin"), then a colon (":"), and
+	  finally an even number of hexadecimal lowercase characters (up to 128).
+	  Certificate hashes can be generated with
+	  tools/certs/print-cert-tbs-hash.sh .
 
 config SYSTEM_REVOCATION_LIST
 	bool "Provide system-wide ring of revocation certificates"
