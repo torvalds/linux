@@ -1138,6 +1138,8 @@ scmi_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
  * @proto_id and @name: if device was still not existent it is created as a
  * child of the specified SCMI instance @info and its transport properly
  * initialized as usual.
+ *
+ * Return: A properly initialized scmi device, NULL otherwise.
  */
 static inline struct scmi_device *
 scmi_get_protocol_device(struct device_node *np, struct scmi_info *info,
