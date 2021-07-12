@@ -96,6 +96,7 @@ struct rtrs_con {
 	struct rdma_cm_id	*cm_id;
 	unsigned int		cid;
 	int                     nr_cqe;
+	atomic_t		wr_cnt;
 };
 
 struct rtrs_sess {
