@@ -29,6 +29,8 @@
 #include "dmub/dmub_srv.h"
 #include "core_types.h"
 
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+
 #define MAX_PIPES 6
 
 /*
@@ -96,10 +98,19 @@ static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state, 
 			// Return invalid state when GPINT times out
 			*state = PSR_STATE_INVALID;
 
-		// Assert if max retry hit
-		if (retry_count >= 1000)
-			ASSERT(0);
 	} while (++retry_count <= 1000 && *state == PSR_STATE_INVALID);
+
+	// Assert if max retry hit
+	if (retry_count >= 1000 && *state == PSR_STATE_INVALID) {
+		ASSERT(0);
+		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
+				WPP_BIT_FLAG_Firmware_PsrState,
+				"Unable to get PSR state from FW.");
+	} else
+		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_VERBOSE,
+				WPP_BIT_FLAG_Firmware_PsrState,
+				"Got PSR state from FW. PSR state: %d, Retry count: %d",
+				*state, retry_count);
 }
 
 /*
