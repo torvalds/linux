@@ -316,6 +316,7 @@ void rtrs_send_hb_ack(struct rtrs_sess *sess)
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
 					     0, NULL);
 	if (err) {
+		rtrs_err(sess, "send HB ACK failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -333,6 +334,7 @@ static void hb_work(struct work_struct *work)
 	usr_con = sess->con[0];
 
 	if (sess->hb_missed_cnt > sess->hb_missed_max) {
+		rtrs_err(sess, "HB missed max reached.\n");
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -348,6 +350,7 @@ static void hb_work(struct work_struct *work)
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
 					     0, NULL);
 	if (err) {
+		rtrs_err(sess, "HB send failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}
