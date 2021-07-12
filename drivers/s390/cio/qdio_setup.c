@@ -479,10 +479,8 @@ void qdio_shutdown_irq(struct qdio_irq *irq)
 
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 {
-	char s[80];
-
-	snprintf(s, 80, "qdio: %s %s on SC %x using AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s\n",
-		 dev_name(&irq_ptr->cdev->dev),
+	dev_info(&irq_ptr->cdev->dev,
+		 "qdio: %s on SC %x using AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s\n",
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
 		 irq_ptr->schid.sch_no,
@@ -493,7 +491,6 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 		 qdio_need_siga_in(irq_ptr) ? "R" : " ",
 		 qdio_need_siga_out(irq_ptr) ? "W" : " ",
 		 qdio_need_siga_sync(irq_ptr) ? "S" : " ");
-	printk(KERN_INFO "%s", s);
 }
 
 int __init qdio_setup_init(void)
