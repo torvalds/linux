@@ -33,19 +33,6 @@ static struct workqueue_struct *xcopy_wq = NULL;
 
 static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop);
 
-static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
-{
-	int off = 0;
-
-	buf[off++] = (0x6 << 4);
-	buf[off++] = 0x01;
-	buf[off++] = 0x40;
-	buf[off] = (0x5 << 4);
-
-	spc_parse_naa_6h_vendor_specific(dev, &buf[off]);
-	return 0;
-}
-
 /**
  * target_xcopy_locate_se_dev_e4_iter - compare XCOPY NAA device identifiers
  *
@@ -65,7 +52,7 @@ static int target_xcopy_locate_se_dev_e4_iter(struct se_device *se_dev,
 	}
 
 	memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
-	target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
+	spc_gen_naa_6h_vendor_specific(se_dev, &tmp_dev_wwn[0]);
 
 	rc = memcmp(&tmp_dev_wwn[0], dev_wwn, XCOPY_NAA_IEEE_REGEX_LEN);
 	if (rc != 0) {
@@ -241,7 +228,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 	 * se_device the XCOPY was received upon..
 	 */
 	memset(&xop->local_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
-	target_xcopy_gen_naa_ieee(local_dev, &xop->local_dev_wwn[0]);
+	spc_gen_naa_6h_vendor_specific(local_dev, &xop->local_dev_wwn[0]);
 
 	while (start < tdll) {
 		/*
@@ -1011,7 +998,7 @@ static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
 	put_unaligned_be32(42, &p[0]);
 
 	transport_kunmap_data_sg(se_cmd);
-	target_complete_cmd(se_cmd, GOOD);
+	target_complete_cmd(se_cmd, SAM_STAT_GOOD);
 
 	return TCM_NO_SENSE;
 }

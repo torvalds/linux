@@ -984,7 +984,8 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	spin_unlock_irq(&qp->r_lock);
 }
 
-/** rvt_free_qpn - Free a qpn from the bit map
+/**
+ * rvt_free_qpn - Free a qpn from the bit map
  * @qpt: QP table
  * @qpn: queue pair number to free
  */

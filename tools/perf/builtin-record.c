@@ -969,6 +969,15 @@ out:
 	return rc;
 }
 
+static void set_timestamp_boundary(struct record *rec, u64 sample_time)
+{
+	if (rec->evlist->first_sample_time == 0)
+		rec->evlist->first_sample_time = sample_time;
+
+	if (sample_time)
+		rec->evlist->last_sample_time = sample_time;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
@@ -977,10 +986,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct record *rec = container_of(tool, struct record, tool);
 
-	if (rec->evlist->first_sample_time == 0)
-		rec->evlist->first_sample_time = sample->time;
-
-	rec->evlist->last_sample_time = sample->time;
+	set_timestamp_boundary(rec, sample->time);
 
 	if (rec->buildid_all)
 		return 0;
@@ -2402,6 +2408,17 @@ static int build_id__process_mmap2(struct perf_tool *tool, union perf_event *eve
 	return perf_event__process_mmap2(tool, event, sample, machine);
 }
 
+static int process_timestamp_boundary(struct perf_tool *tool,
+				      union perf_event *event __maybe_unused,
+				      struct perf_sample *sample,
+				      struct machine *machine __maybe_unused)
+{
+	struct record *rec = container_of(tool, struct record, tool);
+
+	set_timestamp_boundary(rec, sample->time);
+	return 0;
+}
+
 /*
  * XXX Ideally would be local to cmd_record() and passed to a record__new
  * because we need to have access to it in record__exit, that is called
@@ -2436,6 +2453,8 @@ static struct record record = {
 		.namespaces	= perf_event__process_namespaces,
 		.mmap		= build_id__process_mmap,
 		.mmap2		= build_id__process_mmap2,
+		.itrace_start	= process_timestamp_boundary,
+		.aux		= process_timestamp_boundary,
 		.ordered_events	= true,
 	},
 };

@@ -140,26 +140,18 @@ static int vfio_fsl_mc_open(struct vfio_device *core_vdev)
 {
 	struct vfio_fsl_mc_device *vdev =
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
-	int ret;
-
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+	int ret = 0;
 
 	mutex_lock(&vdev->reflck->lock);
 	if (!vdev->refcnt) {
 		ret = vfio_fsl_mc_regions_init(vdev);
 		if (ret)
-			goto err_reg_init;
+			goto out;
 	}
 	vdev->refcnt++;
-
+out:
 	mutex_unlock(&vdev->reflck->lock);
 
-	return 0;
-
-err_reg_init:
-	mutex_unlock(&vdev->reflck->lock);
-	module_put(THIS_MODULE);
 	return ret;
 }
 
@@ -196,8 +188,6 @@ static void vfio_fsl_mc_release(struct vfio_device *core_vdev)
 	}
 
 	mutex_unlock(&vdev->reflck->lock);
-
-	module_put(THIS_MODULE);
 }
 
 static long vfio_fsl_mc_ioctl(struct vfio_device *core_vdev,

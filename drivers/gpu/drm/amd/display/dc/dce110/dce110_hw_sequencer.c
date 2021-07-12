@@ -32,7 +32,6 @@
 #include "core_status.h"
 #include "resource.h"
 #include "dm_helpers.h"
-#include "dce110_hw_sequencer.h"
 #include "dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
 #include "gpio_service_interface.h"
@@ -49,6 +48,9 @@
 #include "link_encoder.h"
 #include "link_hwss.h"
 #include "dc_link_dp.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#include "dccg.h"
+#endif
 #include "clock_source.h"
 #include "clk_mgr.h"
 #include "abm.h"
@@ -62,6 +64,8 @@
 #include "custom_float.h"
 
 #include "atomfirmware.h"
+
+#include "dcn10/dcn10_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
 
@@ -264,6 +268,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 		prescale_params->scale = 0x2008;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		prescale_params->scale = 0x2000;
 		break;
@@ -1306,41 +1311,6 @@ static void build_audio_output(
 			pipe_ctx->pll_settings.ss_percentage;
 }
 
-static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color)
-{
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
-
-	switch (pipe_ctx->plane_res.scl_data.format) {
-	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
-		color->color_r_cr = color_value;
-		break;
-
-	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
-		color->color_b_cb = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
-		color->color_g_y = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
-		color->color_g_y = color_value;
-		color->color_r_cr = color_value;
-		break;
-	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
-		color->color_r_cr = color_value;
-		color->color_b_cb = color_value;
-		color->color_g_y = color_value;
-		break;
-	default:
-		break;
-	}
-}
-
 static void program_scaler(const struct dc *dc,
 		const struct pipe_ctx *pipe_ctx)
 {
@@ -2120,11 +2090,31 @@ static void dce110_setup_audio_dto(
 
 			build_audio_output(context, pipe_ctx, &audio_output);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			/* For DCN3.1, audio to HPO FRL encoder is using audio DTBCLK DTO */
+			if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->set_audio_dtbclk_dto) {
+				/* disable audio DTBCLK DTO */
+				dc->res_pool->dccg->funcs->set_audio_dtbclk_dto(
+					dc->res_pool->dccg, 0);
+
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+						pipe_ctx->stream_res.audio,
+						pipe_ctx->stream->signal,
+						&audio_output.crtc_info,
+						&audio_output.pll_info);
+			} else
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+					pipe_ctx->stream_res.audio,
+					pipe_ctx->stream->signal,
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
+#else
 			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
 				&audio_output.crtc_info,
 				&audio_output.pll_info);
+#endif
 			break;
 		}
 	}

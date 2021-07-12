@@ -271,7 +271,7 @@ static int si1145_command(struct si1145_data *data, u8 cmd)
 		if ((ret & ~SI1145_RSP_COUNTER_MASK) == 0) {
 			if (ret == data->rsp_seq) {
 				if (time_after(jiffies, stop_jiffies)) {
-					dev_warn(dev, "timeout on command %#02hhx\n",
+					dev_warn(dev, "timeout on command 0x%02x\n",
 						 cmd);
 					ret = -ETIMEDOUT;
 					break;
@@ -291,12 +291,12 @@ static int si1145_command(struct si1145_data *data, u8 cmd)
 			ret = -EIO;
 		} else {
 			if (ret == SI1145_RSP_INVALID_SETTING) {
-				dev_warn(dev, "INVALID_SETTING error on command %#02hhx\n",
+				dev_warn(dev, "INVALID_SETTING error on command 0x%02x\n",
 					 cmd);
 				ret = -EINVAL;
 			} else {
 				/* All overflows are treated identically */
-				dev_dbg(dev, "overflow, ret=%d, cmd=%#02hhx\n",
+				dev_dbg(dev, "overflow, ret=%d, cmd=0x%02x\n",
 					ret, cmd);
 				ret = -EOVERFLOW;
 			}
@@ -1243,7 +1243,7 @@ static int si1145_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 
 	trig = devm_iio_trigger_alloc(&client->dev,
-			"%s-dev%d", indio_dev->name, indio_dev->id);
+			"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 	if (!trig)
 		return -ENOMEM;
 
@@ -1299,10 +1299,10 @@ static int si1145_probe(struct i2c_client *client,
 						SI1145_REG_SEQ_ID);
 	if (ret < 0)
 		return ret;
-	dev_info(&client->dev, "device ID part %#02hhx rev %#02hhx seq %#02hhx\n",
+	dev_info(&client->dev, "device ID part 0x%02x rev 0x%02x seq 0x%02x\n",
 			part_id, rev_id, seq_id);
 	if (part_id != data->part_info->part) {
-		dev_err(&client->dev, "part ID mismatch got %#02hhx, expected %#02x\n",
+		dev_err(&client->dev, "part ID mismatch got 0x%02x, expected 0x%02x\n",
 				part_id, data->part_info->part);
 		return -ENODEV;
 	}

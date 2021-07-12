@@ -400,16 +400,81 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }
 
-/**
+#ifdef CONFIG_DEBUG_FS
+
+/* Test the shrinker functions and dump the result */
+static int ttm_tt_debugfs_shrink_show(struct seq_file *m, void *data)
+{
+	struct ttm_operation_ctx ctx = { false, false };
+
+	seq_printf(m, "%d\n", ttm_global_swapout(&ctx, GFP_KERNEL));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_tt_debugfs_shrink);
+
+#endif
+
+
+/*
  * ttm_tt_mgr_init - register with the MM shrinker
  *
  * Register with the MM shrinker for swapping out BOs.
  */
 void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 {
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("tt_shrink", 0400, ttm_debugfs_root, NULL,
+			    &ttm_tt_debugfs_shrink_fops);
+#endif
+
 	if (!ttm_pages_limit)
 		ttm_pages_limit = num_pages;
 
 	if (!ttm_dma32_pages_limit)
 		ttm_dma32_pages_limit = num_dma32_pages;
 }
+
+static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
+				       struct dma_buf_map *dmap,
+				       pgoff_t i)
+{
+	struct ttm_kmap_iter_tt *iter_tt =
+		container_of(iter, typeof(*iter_tt), base);
+
+	dma_buf_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
+							 iter_tt->prot));
+}
+
+static void ttm_kmap_iter_tt_unmap_local(struct ttm_kmap_iter *iter,
+					 struct dma_buf_map *map)
+{
+	kunmap_local(map->vaddr);
+}
+
+static const struct ttm_kmap_iter_ops ttm_kmap_iter_tt_ops = {
+	.map_local = ttm_kmap_iter_tt_map_local,
+	.unmap_local = ttm_kmap_iter_tt_unmap_local,
+	.maps_tt = true,
+};
+
+/**
+ * ttm_kmap_iter_tt_init - Initialize a struct ttm_kmap_iter_tt
+ * @iter_tt: The struct ttm_kmap_iter_tt to initialize.
+ * @tt: Struct ttm_tt holding page pointers of the struct ttm_resource.
+ *
+ * Return: Pointer to the embedded struct ttm_kmap_iter.
+ */
+struct ttm_kmap_iter *
+ttm_kmap_iter_tt_init(struct ttm_kmap_iter_tt *iter_tt,
+		      struct ttm_tt *tt)
+{
+	iter_tt->base.ops = &ttm_kmap_iter_tt_ops;
+	iter_tt->tt = tt;
+	if (tt)
+		iter_tt->prot = ttm_prot_from_caching(tt->caching, PAGE_KERNEL);
+	else
+		iter_tt->prot = PAGE_KERNEL;
+
+	return &iter_tt->base;
+}
+EXPORT_SYMBOL(ttm_kmap_iter_tt_init);

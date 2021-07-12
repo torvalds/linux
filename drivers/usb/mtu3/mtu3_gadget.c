@@ -577,7 +577,7 @@ mtu3_gadget_set_speed(struct usb_gadget *g, enum usb_device_speed speed)
 	dev_dbg(mtu->dev, "%s %s\n", __func__, usb_speed_string(speed));
 
 	spin_lock_irqsave(&mtu->lock, flags);
-	mtu3_set_speed(mtu, speed);
+	mtu->speed = speed;
 	spin_unlock_irqrestore(&mtu->lock, flags);
 }
 

@@ -1120,8 +1120,9 @@ int auxtrace_queue_data(struct perf_session *session, bool samples, bool events)
 					 auxtrace_queue_data_cb, &qd);
 }
 
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw)
 {
+	int prot = rw ? PROT_READ | PROT_WRITE : PROT_READ;
 	size_t adj = buffer->data_offset & (page_size - 1);
 	size_t size = buffer->size + adj;
 	off_t file_offset = buffer->data_offset - adj;
@@ -1130,7 +1131,7 @@ void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
 	if (buffer->data)
 		return buffer->data;
 
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, file_offset);
+	addr = mmap(NULL, size, prot, MAP_SHARED, fd, file_offset);
 	if (addr == MAP_FAILED)
 		return NULL;
 
@@ -1404,10 +1405,9 @@ static int get_flags(const char **ptr, unsigned int *plus_flags, unsigned int *m
  * about the options parsed here, which is introduced after this cset,
  * when support in 'perf script' for these options is introduced.
  */
-int itrace_parse_synth_opts(const struct option *opt, const char *str,
-			    int unset)
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset)
 {
-	struct itrace_synth_opts *synth_opts = opt->value;
 	const char *p;
 	char *endptr;
 	bool period_type_set = false;
@@ -1569,6 +1569,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		case 'q':
 			synth_opts->quick += 1;
 			break;
+		case 'Z':
+			synth_opts->timeless_decoding = true;
+			break;
 		case ' ':
 		case ',':
 			break;
@@ -1590,6 +1593,11 @@ out:
 out_err:
 	pr_err("Bad Instruction Tracing options '%s'\n", str);
 	return -EINVAL;
+}
+
+int itrace_parse_synth_opts(const struct option *opt, const char *str, int unset)
+{
+	return itrace_do_parse_synth_opts(opt->value, str, unset);
 }
 
 static const char * const auxtrace_error_type_name[] = {

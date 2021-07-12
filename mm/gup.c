@@ -1501,6 +1501,64 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 }
 
 /*
+ * faultin_vma_page_range() - populate (prefault) page tables inside the
+ *			      given VMA range readable/writable
+ *
+ * This takes care of mlocking the pages, too, if VM_LOCKED is set.
+ *
+ * @vma: target vma
+ * @start: start address
+ * @end: end address
+ * @write: whether to prefault readable or writable
+ * @locked: whether the mmap_lock is still held
+ *
+ * Returns either number of processed pages in the vma, or a negative error
+ * code on error (see __get_user_pages()).
+ *
+ * vma->vm_mm->mmap_lock must be held. The range must be page-aligned and
+ * covered by the VMA.
+ *
+ * If @locked is NULL, it may be held for read or write and will be unperturbed.
+ *
+ * If @locked is non-NULL, it must held for read only and may be released.  If
+ * it's released, *@locked will be set to 0.
+ */
+long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end, bool write, int *locked)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long nr_pages = (end - start) / PAGE_SIZE;
+	int gup_flags;
+
+	VM_BUG_ON(!PAGE_ALIGNED(start));
+	VM_BUG_ON(!PAGE_ALIGNED(end));
+	VM_BUG_ON_VMA(start < vma->vm_start, vma);
+	VM_BUG_ON_VMA(end > vma->vm_end, vma);
+	mmap_assert_locked(mm);
+
+	/*
+	 * FOLL_TOUCH: Mark page accessed and thereby young; will also mark
+	 *	       the page dirty with FOLL_WRITE -- which doesn't make a
+	 *	       difference with !FOLL_FORCE, because the page is writable
+	 *	       in the page table.
+	 * FOLL_HWPOISON: Return -EHWPOISON instead of -EFAULT when we hit
+	 *		  a poisoned page.
+	 * FOLL_POPULATE: Always populate memory with VM_LOCKONFAULT.
+	 * !FOLL_FORCE: Require proper access permissions.
+	 */
+	gup_flags = FOLL_TOUCH | FOLL_POPULATE | FOLL_MLOCK | FOLL_HWPOISON;
+	if (write)
+		gup_flags |= FOLL_WRITE;
+
+	/*
+	 * See check_vma_flags(): Will return -EFAULT on incompatible mappings
+	 * or with insufficient permissions.
+	 */
+	return __get_user_pages(mm, start, nr_pages, gup_flags,
+				NULL, NULL, locked);
+}
+
+/*
  * __mm_populate - populate and/or mlock pages within a range of address space.
  *
  * This is used to implement mlock() and the MAP_POPULATE / MAP_LOCKED mmap

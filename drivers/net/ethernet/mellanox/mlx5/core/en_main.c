@@ -648,8 +648,8 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 		return -ENOMEM;
 
 	ts_format = mlx5_is_real_time_rq(mdev) ?
-		    MLX5_RQC_TIMESTAMP_FORMAT_REAL_TIME :
-		    MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
+			    MLX5_TIMESTAMP_FORMAT_REAL_TIME :
+			    MLX5_TIMESTAMP_FORMAT_FREE_RUNNING;
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	wq  = MLX5_ADDR_OF(rqc, rqc, wq);
 
@@ -1192,8 +1192,8 @@ static int mlx5e_create_sq(struct mlx5_core_dev *mdev,
 		return -ENOMEM;
 
 	ts_format = mlx5_is_real_time_sq(mdev) ?
-		    MLX5_SQC_TIMESTAMP_FORMAT_REAL_TIME :
-		    MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
+			    MLX5_TIMESTAMP_FORMAT_REAL_TIME :
+			    MLX5_TIMESTAMP_FORMAT_FREE_RUNNING;
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 

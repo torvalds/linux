@@ -377,6 +377,27 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	int ret = -EINVAL;
+
+	if (adev->in_suspend) {
+		pr_info("restore the fine grain parameters\n");
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinGfxClk,
+					smu10_data->gfx_actual_soft_min_freq,
+					NULL);
+		if (ret)
+			return ret;
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSoftMaxGfxClk,
+					smu10_data->gfx_actual_soft_max_freq,
+					NULL);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 

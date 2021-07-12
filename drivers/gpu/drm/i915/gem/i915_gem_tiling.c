@@ -62,14 +62,14 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 
 	GEM_BUG_ON(!stride);
 
-	if (INTEL_GEN(i915) >= 4) {
+	if (GRAPHICS_VER(i915) >= 4) {
 		stride *= i915_gem_tile_height(tiling);
 		GEM_BUG_ON(!IS_ALIGNED(stride, I965_FENCE_PAGE));
 		return roundup(size, stride);
 	}
 
 	/* Previous chips need a power-of-two fence region when tiling */
-	if (IS_GEN(i915, 3))
+	if (GRAPHICS_VER(i915) == 3)
 		ggtt_size = 1024*1024;
 	else
 		ggtt_size = 512*1024;
@@ -102,7 +102,7 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 	if (tiling == I915_TILING_NONE)
 		return I915_GTT_MIN_ALIGNMENT;
 
-	if (INTEL_GEN(i915) >= 4)
+	if (GRAPHICS_VER(i915) >= 4)
 		return I965_FENCE_PAGE;
 
 	/*
@@ -130,10 +130,10 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	/* check maximum stride & object size */
 	/* i965+ stores the end address of the gtt mapping in the fence
 	 * reg, so dont bother to check the size */
-	if (INTEL_GEN(i915) >= 7) {
+	if (GRAPHICS_VER(i915) >= 7) {
 		if (stride / 128 > GEN7_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (INTEL_GEN(i915) >= 4) {
+	} else if (GRAPHICS_VER(i915) >= 4) {
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else {
@@ -144,7 +144,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 			return false;
 	}
 
-	if (IS_GEN(i915, 2) ||
+	if (GRAPHICS_VER(i915) == 2 ||
 	    (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(i915)))
 		tile_width = 128;
 	else

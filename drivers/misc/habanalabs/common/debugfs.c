@@ -1278,6 +1278,11 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				&dev_entry->blob_desc);
 
+	debugfs_create_x8("skip_reset_on_timeout",
+				0644,
+				dev_entry->root,
+				&hdev->skip_reset_on_timeout);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,

@@ -3,7 +3,7 @@
 # DMA Engine Helpers
 #
 
-obj-$(CONFIG_SH_DMAE_BASE) += shdma-base.o shdma-of.o
+obj-$(CONFIG_SH_DMAE_BASE) += shdma-base.o
 
 #
 # DMA Controllers

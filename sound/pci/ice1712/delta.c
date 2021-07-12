@@ -676,13 +676,15 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_VX442:
 	case ICE1712_SUBDEVICE_DELTA66E:
-		if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
+		err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c);
+		if (err < 0) {
 			dev_err(ice->card->dev, "unable to create I2C bus\n");
 			return err;
 		}
 		ice->i2c->private_data = ice;
 		ice->i2c->ops = &ap_cs8427_i2c_ops;
-		if ((err = snd_ice1712_init_cs8427(ice, CS8427_BASE_ADDR)) < 0)
+		err = snd_ice1712_init_cs8427(ice, CS8427_BASE_ADDR);
+		if (err < 0)
 			return err;
 		break;
 	case ICE1712_SUBDEVICE_DELTA1010:

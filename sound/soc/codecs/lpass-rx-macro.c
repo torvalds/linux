@@ -2628,7 +2628,7 @@ static int rx_macro_enable_rx_path_clk(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 	return 0;
 }
 

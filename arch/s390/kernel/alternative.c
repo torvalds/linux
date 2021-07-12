@@ -76,8 +76,7 @@ static void __init_or_module __apply_alternatives(struct alt_instr *start,
 		instr = (u8 *)&a->instr_offset + a->instr_offset;
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
 
-		if (!__test_facility(a->facility,
-				     S390_lowcore.alt_stfle_fac_list))
+		if (!__test_facility(a->facility, alt_stfle_fac_list))
 			continue;
 
 		if (unlikely(a->instrlen % 2 || a->replacementlen % 2)) {

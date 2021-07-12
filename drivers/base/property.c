@@ -627,14 +627,15 @@ EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
  */
 struct device *fwnode_get_next_parent_dev(struct fwnode_handle *fwnode)
 {
-	struct device *dev = NULL;
+	struct device *dev;
 
 	fwnode_handle_get(fwnode);
 	do {
 		fwnode = fwnode_get_next_parent(fwnode);
-		if (fwnode)
-			dev = get_dev_from_fwnode(fwnode);
-	} while (fwnode && !dev);
+		if (!fwnode)
+			return NULL;
+		dev = get_dev_from_fwnode(fwnode);
+	} while (!dev);
 	fwnode_handle_put(fwnode);
 	return dev;
 }
@@ -742,10 +743,9 @@ fwnode_get_next_available_child_node(const struct fwnode_handle *fwnode,
 
 	do {
 		next_child = fwnode_get_next_child_node(fwnode, next_child);
-
-		if (!next_child || fwnode_device_is_available(next_child))
-			break;
-	} while (next_child);
+		if (!next_child)
+			return NULL;
+	} while (!fwnode_device_is_available(next_child));
 
 	return next_child;
 }

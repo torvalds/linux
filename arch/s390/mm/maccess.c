@@ -79,22 +79,21 @@ notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 
 static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
 {
-	register unsigned long _dest asm("2") = (unsigned long) dest;
-	register unsigned long _len1 asm("3") = (unsigned long) count;
-	register unsigned long _src  asm("4") = (unsigned long) src;
-	register unsigned long _len2 asm("5") = (unsigned long) count;
+	union register_pair _dst, _src;
 	int rc = -EFAULT;
 
+	_dst.even = (unsigned long) dest;
+	_dst.odd  = (unsigned long) count;
+	_src.even = (unsigned long) src;
+	_src.odd  = (unsigned long) count;
 	asm volatile (
-		"0:	mvcle	%1,%2,0x0\n"
+		"0:	mvcle	%[dst],%[src],0\n"
 		"1:	jo	0b\n"
-		"	lhi	%0,0x0\n"
+		"	lhi	%[rc],0\n"
 		"2:\n"
 		EX_TABLE(1b,2b)
-		: "+d" (rc), "+d" (_dest), "+d" (_src), "+d" (_len1),
-		  "+d" (_len2), "=m" (*((long *) dest))
-		: "m" (*((long *) src))
-		: "cc", "memory");
+		: [rc] "+&d" (rc), [dst] "+&d" (_dst.pair), [src] "+&d" (_src.pair)
+		: : "cc", "memory");
 	return rc;
 }
 

@@ -18,7 +18,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");
-MODULE_VERSION(DRIVERVERSION);
+MODULE_VERSION("v4.1.4_6773.20130222");
 MODULE_FIRMWARE("rtlwifi/rtl8188eufw.bin");
 
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
@@ -136,11 +136,9 @@ MODULE_PARM_DESC(monitor_enable, "Enable monitor interface (default: false)");
 
 static int netdev_close(struct net_device *pnetdev);
 
-static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
+static void loadparam(struct adapter *padapter)
 {
 	struct registry_priv *registry_par = &padapter->registrypriv;
-
-	GlobalDebugLevel = rtw_debug;
 
 	memcpy(registry_par->ssid.ssid, "ANY", 3);
 	registry_par->ssid.ssid_length = 3;
@@ -301,8 +299,6 @@ struct net_device *rtw_init_netdev(void)
 	struct adapter *padapter;
 	struct net_device *pnetdev;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
-
 	pnetdev = alloc_etherdev_mq(sizeof(struct adapter), 4);
 	if (!pnetdev)
 		return NULL;
@@ -310,12 +306,12 @@ struct net_device *rtw_init_netdev(void)
 	pnetdev->dev.type = &wlan_type;
 	padapter = netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
-	DBG_88E("register rtw_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtw_netdev_ops;
 	pnetdev->watchdog_timeo = HZ * 3; /* 3 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
 
-	loadparam(padapter, pnetdev);
+	loadparam(padapter);
+	padapter->cmdThread = NULL;
 
 	return pnetdev;
 }
@@ -324,27 +320,22 @@ static int rtw_start_drv_threads(struct adapter *padapter)
 {
 	int err = 0;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
-
-	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter,
-					  "RTW_CMD_THREAD");
-	if (IS_ERR(padapter->cmdThread))
+	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter, "RTW_CMD_THREAD");
+	if (IS_ERR(padapter->cmdThread)) {
 		err = PTR_ERR(padapter->cmdThread);
-	else
-		/* wait for cmd_thread to run */
-		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
+		padapter->cmdThread = NULL;
+	}
 
 	return err;
 }
 
 void rtw_stop_drv_threads(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
+	if (!padapter->cmdThread)
+		return;
 
-	/* Below is to terminate rtw_cmd_thread & event_thread... */
 	complete(&padapter->cmdpriv.cmd_queue_comp);
-	if (padapter->cmdThread)
-		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
+	kthread_stop(padapter->cmdThread);
 }
 
 static u8 rtw_init_default_value(struct adapter *padapter)
@@ -422,42 +413,29 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 {
 	u8 ret8 = _SUCCESS;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
-
-	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init cmd_priv\n"));
-		ret8 = _FAIL;
-		goto exit;
-	}
-
-	padapter->cmdpriv.padapter = padapter;
+	rtw_init_cmd_priv(&padapter->cmdpriv);
 
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_priv\n"));
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (init_mlme_ext_priv(padapter) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_ext_priv\n"));
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
-		DBG_88E("Can't _rtw_init_xmit_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL) {
-		DBG_88E("Can't _rtw_init_recv_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL) {
-		DBG_88E("Can't _rtw_init_sta_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -476,27 +454,19 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	rtw_hal_sreset_init(padapter);
 
 exit:
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-%s\n", __func__));
-
 	return ret8;
 }
 
 void rtw_cancel_all_timer(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
-
 	del_timer_sync(&padapter->mlmepriv.assoc_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("%s:cancel association timer complete!\n", __func__));
 
 	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("%s:cancel scan_to_timer!\n", __func__));
 
 	del_timer_sync(&padapter->mlmepriv.dynamic_chk_timer);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("%s:cancel dynamic_chk_timer!\n", __func__));
 
 	/*  cancel sw led timer */
 	rtw_hal_sw_led_deinit(padapter);
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("%s:cancel DeInitSwLeds!\n", __func__));
 
 	del_timer_sync(&padapter->pwrctrlpriv.pwr_state_check_timer);
 
@@ -505,8 +475,6 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 
 u8 rtw_free_drv_sw(struct adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("==>%s", __func__));
-
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
 	rtw_free_mlme_priv(&padapter->mlmepriv);
@@ -519,11 +487,7 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	rtw_hal_free_data(padapter);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("<== %s\n", __func__));
-
 	mutex_destroy(&padapter->hw_init_mutex);
-
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-%s\n", __func__));
 
 	return _SUCCESS;
 }
@@ -535,9 +499,6 @@ static int _netdev_open(struct net_device *pnetdev)
 	struct adapter *padapter = netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - dev_open\n"));
-	DBG_88E("+88eu_drv - drv_open, bup =%d\n", padapter->bup);
-
 	if (pwrctrlpriv->ps_flag) {
 		padapter->net_closed = false;
 		goto netdev_open_normal_process;
@@ -548,10 +509,8 @@ static int _netdev_open(struct net_device *pnetdev)
 		padapter->bSurpriseRemoved = false;
 
 		status = rtw_hal_init(padapter);
-		if (status == _FAIL) {
-			RT_TRACE(_module_os_intfs_c_, _drv_err_, ("rtl88eu_hal_init(): Can't init h/w!\n"));
+		if (status == _FAIL)
 			goto netdev_open_error;
-		}
 
 		pr_info("MAC Address = %pM\n", pnetdev->dev_addr);
 
@@ -585,16 +544,12 @@ static int _netdev_open(struct net_device *pnetdev)
 		netif_tx_wake_all_queues(pnetdev);
 
 netdev_open_normal_process:
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - dev_open\n"));
-	DBG_88E("-88eu_drv - drv_open, bup =%d\n", padapter->bup);
 	return 0;
 
 netdev_open_error:
 	padapter->bup = false;
 	netif_carrier_off(pnetdev);
 	netif_tx_stop_all_queues(pnetdev);
-	RT_TRACE(_module_os_intfs_c_, _drv_err_, ("-88eu_drv - dev_open, fail!\n"));
-	DBG_88E("-88eu_drv - drv_open fail, bup =%d\n", padapter->bup);
 	return -1;
 }
 
@@ -615,16 +570,13 @@ int  ips_netdrv_open(struct adapter *padapter)
 	int status = _SUCCESS;
 
 	padapter->net_closed = false;
-	DBG_88E("===> %s.........\n", __func__);
 
 	padapter->bDriverStopped = false;
 	padapter->bSurpriseRemoved = false;
 
 	status = rtw_hal_init(padapter);
-	if (status == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("%s(): Can't init h/w!\n", __func__));
+	if (status == _FAIL)
 		goto netdev_open_error;
-	}
 
 	rtw_hal_inirp_init(padapter);
 
@@ -635,47 +587,33 @@ int  ips_netdrv_open(struct adapter *padapter)
 	return _SUCCESS;
 
 netdev_open_error:
-	DBG_88E("-%s - drv_open failure, bup =%d\n", __func__, padapter->bup);
-
 	return _FAIL;
 }
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
-	unsigned long start_time = jiffies;
 
-	DBG_88E("===>  %s..............\n", __func__);
 	rtw_reset_drv_sw(padapter);
 
 	result = ips_netdrv_open(padapter);
 
 	led_control_8188eu(padapter, LED_CTL_NO_LINK);
 
-	DBG_88E("<===  %s.............. in %dms\n", __func__,
-		jiffies_to_msecs(jiffies - start_time));
 	return result;
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	unsigned long start_time = jiffies;
-
-	DBG_88E("===> %s...................\n", __func__);
-
 	padapter->net_closed = true;
 
 	led_control_8188eu(padapter, LED_CTL_POWER_OFF);
 
 	rtw_ips_dev_unload(padapter);
-	DBG_88E("<=== %s..................... in %dms\n", __func__,
-		jiffies_to_msecs(jiffies - start_time));
 }
 
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	DBG_88E("====> %s...\n", __func__);
-
 	rtw_hal_set_hwreg(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
 
 	usb_intf_stop(padapter);
@@ -689,8 +627,6 @@ static int netdev_close(struct net_device *pnetdev)
 {
 	struct adapter *padapter = netdev_priv(pnetdev);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - drv_close\n"));
-
 	if (padapter->pwrctrlpriv.bInternalAutoSuspend) {
 		if (padapter->pwrctrlpriv.rf_pwrstate == rf_off)
 			padapter->pwrctrlpriv.ps_flag = true;
@@ -698,9 +634,6 @@ static int netdev_close(struct net_device *pnetdev)
 	padapter->net_closed = true;
 
 	if (padapter->pwrctrlpriv.rf_pwrstate == rf_on) {
-		DBG_88E("(2)88eu_drv - drv_close, bup =%d, hw_init_completed =%d\n",
-			padapter->bup, padapter->hw_init_completed);
-
 		/* s1. */
 		if (pnetdev) {
 			if (!rtw_netif_queue_stopped(pnetdev))
@@ -720,7 +653,5 @@ static int netdev_close(struct net_device *pnetdev)
 		led_control_8188eu(padapter, LED_CTL_POWER_OFF);
 	}
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - drv_close\n"));
-	DBG_88E("-88eu_drv - drv_close, bup =%d\n", padapter->bup);
 	return 0;
 }

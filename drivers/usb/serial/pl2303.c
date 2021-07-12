@@ -789,20 +789,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	pl2303_get_line_request(port, buf);
 
-	switch (C_CSIZE(tty)) {
-	case CS5:
-		buf[6] = 5;
-		break;
-	case CS6:
-		buf[6] = 6;
-		break;
-	case CS7:
-		buf[6] = 7;
-		break;
-	default:
-	case CS8:
-		buf[6] = 8;
-	}
+	buf[6] = tty_get_char_size(tty->termios.c_cflag);
 	dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 
 	/* For reference buf[0]:buf[3] baud rate value */

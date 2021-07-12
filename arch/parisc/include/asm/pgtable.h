@@ -171,8 +171,6 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
  * pgd entries used up by user/kernel:
  */
 
-#define FIRST_USER_ADDRESS	0UL
-
 /* NB: The tlb miss handlers make certain assumptions about the order */
 /*     of the following bits, so be careful (One example, bits 25-31  */
 /*     are moved together in one instruction).                        */

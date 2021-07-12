@@ -1812,6 +1812,10 @@ static u16 sdhci_get_preset_value(struct sdhci_host *host)
 	u16 preset = 0;
 
 	switch (host->timing) {
+	case MMC_TIMING_MMC_HS:
+	case MMC_TIMING_SD_HS:
+		preset = sdhci_readw(host, SDHCI_PRESET_FOR_HIGH_SPEED);
+		break;
 	case MMC_TIMING_UHS_SDR12:
 		preset = sdhci_readw(host, SDHCI_PRESET_FOR_SDR12);
 		break;
@@ -4072,9 +4076,13 @@ static void sdhci_allocate_bounce_buffer(struct sdhci_host *host)
 					   bounce_size,
 					   DMA_BIDIRECTIONAL);
 	ret = dma_mapping_error(mmc_dev(mmc), host->bounce_addr);
-	if (ret)
+	if (ret) {
+		devm_kfree(mmc_dev(mmc), host->bounce_buffer);
+		host->bounce_buffer = NULL;
 		/* Again fall back to max_segs == 1 */
 		return;
+	}
+
 	host->bounce_buffer_size = bounce_size;
 
 	/* Lie about this since we're bouncing */

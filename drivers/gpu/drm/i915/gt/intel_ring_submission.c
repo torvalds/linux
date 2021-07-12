@@ -12,6 +12,7 @@
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
@@ -28,7 +29,7 @@ static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
 	 * lost interrupts following a reset.
 	 */
 	if (engine->class == RENDER_CLASS) {
-		if (INTEL_GEN(engine->i915) >= 6)
+		if (GRAPHICS_VER(engine->i915) >= 6)
 			mask &= ~BIT(0);
 		else
 			mask &= ~I915_USER_INTERRUPT;
@@ -42,7 +43,7 @@ static void set_hws_pga(struct intel_engine_cs *engine, phys_addr_t phys)
 	u32 addr;
 
 	addr = lower_32_bits(phys);
-	if (INTEL_GEN(engine->i915) >= 4)
+	if (GRAPHICS_VER(engine->i915) >= 4)
 		addr |= (phys >> 28) & 0xf0;
 
 	intel_uncore_write(engine->uncore, HWS_PGA, addr);
@@ -70,7 +71,7 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 	 * The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
-	if (IS_GEN(engine->i915, 7)) {
+	if (GRAPHICS_VER(engine->i915) == 7) {
 		switch (engine->id) {
 		/*
 		 * No more rings exist on Gen7. Default case is only to shut up
@@ -92,7 +93,7 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 			hwsp = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
-	} else if (IS_GEN(engine->i915, 6)) {
+	} else if (GRAPHICS_VER(engine->i915) == 6) {
 		hwsp = RING_HWS_PGA_GEN6(engine->mmio_base);
 	} else {
 		hwsp = RING_HWS_PGA(engine->mmio_base);
@@ -104,7 +105,7 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 
 static void flush_cs_tlb(struct intel_engine_cs *engine)
 {
-	if (!IS_GEN_RANGE(engine->i915, 6, 7))
+	if (!IS_GRAPHICS_VER(engine->i915, 6, 7))
 		return;
 
 	/* ring should be idle before issuing a sync flush*/
@@ -152,7 +153,7 @@ static void set_pp_dir(struct intel_engine_cs *engine)
 	ENGINE_WRITE_FW(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
 	ENGINE_WRITE_FW(engine, RING_PP_DIR_BASE, pp_dir(vm));
 
-	if (INTEL_GEN(engine->i915) >= 7) {
+	if (GRAPHICS_VER(engine->i915) >= 7) {
 		ENGINE_WRITE_FW(engine,
 				RING_MODE_GEN7,
 				_MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
@@ -228,7 +229,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 					 5000, 0, NULL))
 		goto err;
 
-	if (INTEL_GEN(engine->i915) > 2)
+	if (GRAPHICS_VER(engine->i915) > 2)
 		ENGINE_WRITE_FW(engine,
 				RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
@@ -645,9 +646,9 @@ static int mi_set_context(struct i915_request *rq,
 	u32 *cs;
 
 	len = 4;
-	if (IS_GEN(i915, 7))
+	if (GRAPHICS_VER(i915) == 7)
 		len += 2 + (num_engines ? 4 * num_engines + 6 : 0);
-	else if (IS_GEN(i915, 5))
+	else if (GRAPHICS_VER(i915) == 5)
 		len += 2;
 	if (flags & MI_FORCE_RESTORE) {
 		GEM_BUG_ON(flags & MI_RESTORE_INHIBIT);
@@ -661,7 +662,7 @@ static int mi_set_context(struct i915_request *rq,
 		return PTR_ERR(cs);
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (IS_GEN(i915, 7)) {
+	if (GRAPHICS_VER(i915) == 7) {
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 		if (num_engines) {
 			struct intel_engine_cs *signaller;
@@ -677,7 +678,7 @@ static int mi_set_context(struct i915_request *rq,
 						GEN6_PSMI_SLEEP_MSG_DISABLE);
 			}
 		}
-	} else if (IS_GEN(i915, 5)) {
+	} else if (GRAPHICS_VER(i915) == 5) {
 		/*
 		 * This w/a is only listed for pre-production ilk a/b steppings,
 		 * but is also mentioned for programming the powerctx. To be
@@ -715,7 +716,7 @@ static int mi_set_context(struct i915_request *rq,
 	 */
 	*cs++ = MI_NOOP;
 
-	if (IS_GEN(i915, 7)) {
+	if (GRAPHICS_VER(i915) == 7) {
 		if (num_engines) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
@@ -739,7 +740,7 @@ static int mi_set_context(struct i915_request *rq,
 			*cs++ = MI_NOOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	} else if (IS_GEN(i915, 5)) {
+	} else if (GRAPHICS_VER(i915) == 5) {
 		*cs++ = MI_SUSPEND_FLUSH;
 	}
 
@@ -989,14 +990,10 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
-
-	engine->park = NULL;
-	engine->unpark = NULL;
 }
 
 static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 {
-	i9xx_set_default_submission(engine);
 	engine->submit_request = gen6_bsd_submit_request;
 }
 
@@ -1004,7 +1001,7 @@ static void ring_release(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	drm_WARN_ON(&dev_priv->drm, INTEL_GEN(dev_priv) > 2 &&
+	drm_WARN_ON(&dev_priv->drm, GRAPHICS_VER(dev_priv) > 2 &&
 		    (ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 
 	intel_engine_cleanup_common(engine);
@@ -1021,17 +1018,24 @@ static void ring_release(struct intel_engine_cs *engine)
 	intel_timeline_put(engine->legacy.timeline);
 }
 
+static void irq_handler(struct intel_engine_cs *engine, u16 iir)
+{
+	intel_engine_signal_breadcrumbs(engine);
+}
+
 static void setup_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (INTEL_GEN(i915) >= 6) {
+	intel_engine_set_irq_handler(engine, irq_handler);
+
+	if (GRAPHICS_VER(i915) >= 6) {
 		engine->irq_enable = gen6_irq_enable;
 		engine->irq_disable = gen6_irq_disable;
-	} else if (INTEL_GEN(i915) >= 5) {
+	} else if (GRAPHICS_VER(i915) >= 5) {
 		engine->irq_enable = gen5_irq_enable;
 		engine->irq_disable = gen5_irq_disable;
-	} else if (INTEL_GEN(i915) >= 3) {
+	} else if (GRAPHICS_VER(i915) >= 3) {
 		engine->irq_enable = gen3_irq_enable;
 		engine->irq_disable = gen3_irq_disable;
 	} else {
@@ -1045,7 +1049,7 @@ static void setup_common(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 
 	/* gen8+ are only supported with execlists */
-	GEM_BUG_ON(INTEL_GEN(i915) >= 8);
+	GEM_BUG_ON(GRAPHICS_VER(i915) >= 8);
 
 	setup_irq(engine);
 
@@ -1066,14 +1070,14 @@ static void setup_common(struct intel_engine_cs *engine)
 	 * engine->emit_init_breadcrumb().
 	 */
 	engine->emit_fini_breadcrumb = gen3_emit_breadcrumb;
-	if (IS_GEN(i915, 5))
+	if (GRAPHICS_VER(i915) == 5)
 		engine->emit_fini_breadcrumb = gen5_emit_breadcrumb;
 
 	engine->set_default_submission = i9xx_set_default_submission;
 
-	if (INTEL_GEN(i915) >= 6)
+	if (GRAPHICS_VER(i915) >= 6)
 		engine->emit_bb_start = gen6_emit_bb_start;
-	else if (INTEL_GEN(i915) >= 4)
+	else if (GRAPHICS_VER(i915) >= 4)
 		engine->emit_bb_start = gen4_emit_bb_start;
 	else if (IS_I830(i915) || IS_I845G(i915))
 		engine->emit_bb_start = i830_emit_bb_start;
@@ -1090,16 +1094,16 @@ static void setup_rcs(struct intel_engine_cs *engine)
 
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 
-	if (INTEL_GEN(i915) >= 7) {
+	if (GRAPHICS_VER(i915) >= 7) {
 		engine->emit_flush = gen7_emit_flush_rcs;
 		engine->emit_fini_breadcrumb = gen7_emit_breadcrumb_rcs;
-	} else if (IS_GEN(i915, 6)) {
+	} else if (GRAPHICS_VER(i915) == 6) {
 		engine->emit_flush = gen6_emit_flush_rcs;
 		engine->emit_fini_breadcrumb = gen6_emit_breadcrumb_rcs;
-	} else if (IS_GEN(i915, 5)) {
+	} else if (GRAPHICS_VER(i915) == 5) {
 		engine->emit_flush = gen4_emit_flush_rcs;
 	} else {
-		if (INTEL_GEN(i915) < 4)
+		if (GRAPHICS_VER(i915) < 4)
 			engine->emit_flush = gen2_emit_flush;
 		else
 			engine->emit_flush = gen4_emit_flush_rcs;
@@ -1114,20 +1118,20 @@ static void setup_vcs(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (INTEL_GEN(i915) >= 6) {
+	if (GRAPHICS_VER(i915) >= 6) {
 		/* gen6 bsd needs a special wa for tail updates */
-		if (IS_GEN(i915, 6))
+		if (GRAPHICS_VER(i915) == 6)
 			engine->set_default_submission = gen6_bsd_set_default_submission;
 		engine->emit_flush = gen6_emit_flush_vcs;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 
-		if (IS_GEN(i915, 6))
+		if (GRAPHICS_VER(i915) == 6)
 			engine->emit_fini_breadcrumb = gen6_emit_breadcrumb_xcs;
 		else
 			engine->emit_fini_breadcrumb = gen7_emit_breadcrumb_xcs;
 	} else {
 		engine->emit_flush = gen4_emit_flush_vcs;
-		if (IS_GEN(i915, 5))
+		if (GRAPHICS_VER(i915) == 5)
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
 		else
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
@@ -1141,7 +1145,7 @@ static void setup_bcs(struct intel_engine_cs *engine)
 	engine->emit_flush = gen6_emit_flush_xcs;
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
-	if (IS_GEN(i915, 6))
+	if (GRAPHICS_VER(i915) == 6)
 		engine->emit_fini_breadcrumb = gen6_emit_breadcrumb_xcs;
 	else
 		engine->emit_fini_breadcrumb = gen7_emit_breadcrumb_xcs;
@@ -1151,7 +1155,7 @@ static void setup_vecs(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	GEM_BUG_ON(INTEL_GEN(i915) < 7);
+	GEM_BUG_ON(GRAPHICS_VER(i915) < 7);
 
 	engine->emit_flush = gen6_emit_flush_xcs;
 	engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
@@ -1199,7 +1203,7 @@ static struct i915_vma *gen7_ctx_vma(struct intel_engine_cs *engine)
 	struct i915_vma *vma;
 	int size, err;
 
-	if (!IS_GEN(engine->i915, 7) || engine->class != RENDER_CLASS)
+	if (GRAPHICS_VER(engine->i915) != 7 || engine->class != RENDER_CLASS)
 		return 0;
 
 	err = gen7_ctx_switch_bb_setup(engine, NULL /* probe size */);

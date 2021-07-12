@@ -1050,21 +1050,7 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	}
 
 	/* bits per char */
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		bits_per_char = 5;
-		break;
-	case CS6:
-		bits_per_char = 6;
-		break;
-	case CS7:
-		bits_per_char = 7;
-		break;
-	case CS8:
-	default:
-		bits_per_char = 8;
-		break;
-	}
+	bits_per_char = tty_get_char_size(termios->c_cflag);
 
 	/* stop bits */
 	if (termios->c_cflag & CSTOPB)
@@ -1338,7 +1324,7 @@ static const struct uart_ops qcom_geni_uart_pops = {
 static int qcom_geni_serial_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	int line = -1;
+	int line;
 	struct qcom_geni_serial_port *port;
 	struct uart_port *uport;
 	struct resource *res;
@@ -1354,7 +1340,9 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
 	} else {
 		drv = &qcom_geni_uart_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "hsuart");
+		line = of_alias_get_id(pdev->dev.of_node, "serial");
+		if (line == -ENODEV) /* compat with non-standard aliases */
+			line = of_alias_get_id(pdev->dev.of_node, "hsuart");
 	}
 
 	port = get_port_from_line(line, console);

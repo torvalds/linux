@@ -1148,18 +1148,6 @@ static struct parport_driver ppa_driver = {
 	.detach		= ppa_detach,
 	.devmodel	= true,
 };
+module_parport_driver(ppa_driver);
 
-static int __init ppa_driver_init(void)
-{
-	printk(KERN_INFO "ppa: Version %s\n", PPA_VERSION);
-	return parport_register_driver(&ppa_driver);
-}
-
-static void __exit ppa_driver_exit(void)
-{
-	parport_unregister_driver(&ppa_driver);
-}
-
-module_init(ppa_driver_init);
-module_exit(ppa_driver_exit);
 MODULE_LICENSE("GPL");

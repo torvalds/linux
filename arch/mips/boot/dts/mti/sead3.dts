@@ -244,7 +244,7 @@
 		no-loopback-test;
 	};
 
-	eth@1f010000 {
+	ethernet@1f010000 {
 		compatible = "smsc,lan9115";
 		reg = <0x1f010000 0x10000>;
 		reg-io-width = <4>;

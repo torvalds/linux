@@ -197,8 +197,5 @@ static inline bool i40e_client_is_registered(struct i40e_client *client)
 
 void i40e_client_device_register(struct i40e_info *ldev, struct i40e_client *client);
 void i40e_client_device_unregister(struct i40e_info *ldev);
-/* used by clients */
-int i40e_register_client(struct i40e_client *client);
-int i40e_unregister_client(struct i40e_client *client);
 
 #endif /* _I40E_CLIENT_H_ */

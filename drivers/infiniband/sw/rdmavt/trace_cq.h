@@ -85,7 +85,7 @@ DECLARE_EVENT_CLASS(rvt_cq_template,
 				     __field(int, comp_vector_cpu)
 				     __field(u32, flags)
 				     ),
-		    TP_fast_assign(RDI_DEV_ASSIGN(cq->rdi)
+		    TP_fast_assign(RDI_DEV_ASSIGN(cq->rdi);
 				   __entry->ip = cq->ip;
 				   __entry->cqe = attr->cqe;
 				   __entry->comp_vector = attr->comp_vector;
@@ -123,7 +123,7 @@ DECLARE_EVENT_CLASS(
 		__field(u32, imm)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(cq->rdi)
+		RDI_DEV_ASSIGN(cq->rdi);
 		__entry->wr_id = wc->wr_id;
 		__entry->status = wc->status;
 		__entry->opcode = wc->opcode;

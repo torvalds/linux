@@ -384,7 +384,8 @@ int snd_ak4531_mixer(struct snd_card *card,
 		return -ENOMEM;
 	*ak4531 = *_ak4531;
 	mutex_init(&ak4531->reg_mutex);
-	if ((err = snd_component_add(card, "AK4531")) < 0) {
+	err = snd_component_add(card, "AK4531");
+	if (err < 0) {
 		snd_ak4531_free(ak4531);
 		return err;
 	}
@@ -398,13 +399,15 @@ int snd_ak4531_mixer(struct snd_card *card,
 		ak4531->write(ak4531, idx, ak4531->regs[idx] = snd_ak4531_initial_map[idx]);	/* recording source is mixer */
 	}
 	for (idx = 0; idx < ARRAY_SIZE(snd_ak4531_controls); idx++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_ak4531_controls[idx], ak4531))) < 0) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_ak4531_controls[idx], ak4531));
+		if (err < 0) {
 			snd_ak4531_free(ak4531);
 			return err;
 		}
 	}
 	snd_ak4531_proc_init(card, ak4531);
-	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, ak4531, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_CODEC, ak4531, &ops);
+	if (err < 0) {
 		snd_ak4531_free(ak4531);
 		return err;
 	}

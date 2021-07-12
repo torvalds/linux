@@ -149,26 +149,30 @@ static int mp_start_test(struct _adapter *padapter)
 	struct mp_priv *pmppriv = &padapter->mppriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
-	struct wlan_bssid_ex bssid;
+	struct wlan_bssid_ex *bssid;
 	struct sta_info *psta;
 	unsigned long length;
 	unsigned long irqL;
 	int res = 0;
 
+	bssid = kzalloc(sizeof(*bssid), GFP_KERNEL);
+	if (!bssid)
+		return -ENOMEM;
+
 	/* 3 1. initialize a new struct wlan_bssid_ex */
-	memcpy(bssid.MacAddress, pmppriv->network_macaddr, ETH_ALEN);
-	bssid.Ssid.SsidLength = 16;
-	memcpy(bssid.Ssid.Ssid, (unsigned char *)"mp_pseudo_adhoc",
-		bssid.Ssid.SsidLength);
-	bssid.InfrastructureMode = Ndis802_11IBSS;
-	bssid.NetworkTypeInUse = Ndis802_11DS;
-	bssid.IELength = 0;
-	length = r8712_get_wlan_bssid_ex_sz(&bssid);
+	memcpy(bssid->MacAddress, pmppriv->network_macaddr, ETH_ALEN);
+	bssid->Ssid.SsidLength = 16;
+	memcpy(bssid->Ssid.Ssid, (unsigned char *)"mp_pseudo_adhoc",
+		bssid->Ssid.SsidLength);
+	bssid->InfrastructureMode = Ndis802_11IBSS;
+	bssid->NetworkTypeInUse = Ndis802_11DS;
+	bssid->IELength = 0;
+	length = r8712_get_wlan_bssid_ex_sz(bssid);
 	if (length % 4) {
 		/*round up to multiple of 4 bytes.*/
-		bssid.Length = ((length >> 2) + 1) << 2;
+		bssid->Length = ((length >> 2) + 1) << 2;
 	} else {
-		bssid.Length = length;
+		bssid->Length = length;
 	}
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
@@ -185,7 +189,7 @@ static int mp_start_test(struct _adapter *padapter)
 				 tgt_network->network.MacAddress);
 	if (psta)
 		r8712_free_stainfo(padapter, psta);
-	psta = r8712_alloc_stainfo(&padapter->stapriv, bssid.MacAddress);
+	psta = r8712_alloc_stainfo(&padapter->stapriv, bssid->MacAddress);
 	if (!psta) {
 		res = -ENOMEM;
 		goto end_of_mp_start_test;
@@ -193,13 +197,14 @@ static int mp_start_test(struct _adapter *padapter)
 	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = psta->aid = 1;
-	memcpy(&tgt_network->network, &bssid, length);
+	memcpy(&tgt_network->network, bssid, length);
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 	r8712_os_indicate_connect(padapter);
 	/* Set to LINKED STATE for MP TRX Testing */
 	set_fwstate(pmlmepriv, _FW_LINKED);
 end_of_mp_start_test:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
+	kfree(bssid);
 	return res;
 }
 

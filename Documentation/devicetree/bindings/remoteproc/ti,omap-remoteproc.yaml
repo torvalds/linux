@@ -65,7 +65,7 @@ properties:
       OMAP Mailbox specifier denoting the sub-mailbox, to be used for
       communication with the remote processor. The specifier format is
       as per the bindings,
-      Documentation/devicetree/bindings/mailbox/omap-mailbox.txt
+      Documentation/devicetree/bindings/mailbox/ti,omap-mailbox.yaml
       This property should match with the sub-mailbox node used in
       the firmware image.
 
@@ -116,7 +116,6 @@ properties:
       list, in the specified order, each representing the corresponding
       internal RAM memory region.
     minItems: 1
-    maxItems: 3
     items:
       - const: l2ram
       - const: l1pram

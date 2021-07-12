@@ -9,6 +9,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_14nm.xml.h"
 
 #define PHY_14NM_CKLN_IDX	4
 

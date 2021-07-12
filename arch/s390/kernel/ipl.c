@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
@@ -162,16 +163,18 @@ static bool reipl_ccw_clear;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long) addr;
-	register unsigned long _rc asm("1") = 0;
+	union register_pair r1;
 
+	r1.even = (unsigned long) addr;
+	r1.odd	= 0;
 	asm volatile(
-		"	diag	%0,%2,0x308\n"
+		"	diag	%[r1],%[subcode],0x308\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
-		: "+d" (_addr), "+d" (_rc)
-		: "d" (subcode) : "cc", "memory");
-	return _rc;
+		: [r1] "+&d" (r1.pair)
+		: [subcode] "d" (subcode)
+		: "cc", "memory");
+	return r1.odd;
 }
 
 int diag308(unsigned long subcode, void *addr)

@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(comedi_isadma_set_mode);
  * comedi_isadma_alloc - allocate and initialize the ISA DMA
  * @dev:	comedi_device struct
  * @n_desc:	the number of cookies to allocate
- * @dma_chan:	DMA channel for the first cookie
+ * @dma_chan1:	DMA channel for the first cookie
  * @dma_chan2:	DMA channel for the second cookie
  * @maxsize:	the size of the buffer to allocate for each cookie
  * @dma_dir:	the DMA direction

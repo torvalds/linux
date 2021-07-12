@@ -46,6 +46,7 @@ static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
  * __drm_gem_cma_create - Create a GEM CMA object without allocating memory
  * @drm: DRM device
  * @size: size of the object to allocate
+ * @private: true if used for internal purposes
  *
  * This function creates and initializes a GEM CMA object of the given size,
  * but doesn't allocate any memory to back the object.
@@ -55,11 +56,11 @@ static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
  * error code on failure.
  */
 static struct drm_gem_cma_object *
-__drm_gem_cma_create(struct drm_device *drm, size_t size)
+__drm_gem_cma_create(struct drm_device *drm, size_t size, bool private)
 {
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_gem_object *gem_obj;
-	int ret;
+	int ret = 0;
 
 	if (drm->driver->gem_create_object)
 		gem_obj = drm->driver->gem_create_object(drm, size);
@@ -73,7 +74,14 @@ __drm_gem_cma_create(struct drm_device *drm, size_t size)
 
 	cma_obj = container_of(gem_obj, struct drm_gem_cma_object, base);
 
-	ret = drm_gem_object_init(drm, gem_obj, size);
+	if (private) {
+		drm_gem_private_object_init(drm, gem_obj, size);
+
+		/* Always use writecombine for dma-buf mappings */
+		cma_obj->map_noncoherent = false;
+	} else {
+		ret = drm_gem_object_init(drm, gem_obj, size);
+	}
 	if (ret)
 		goto error;
 
@@ -96,8 +104,7 @@ error:
  * @size: size of the object to allocate
  *
  * This function creates a CMA GEM object and allocates a contiguous chunk of
- * memory as backing store. The backing memory has the writecombine attribute
- * set.
+ * memory as backing store.
  *
  * Returns:
  * A struct drm_gem_cma_object * on success or an ERR_PTR()-encoded negative
@@ -111,12 +118,19 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 
 	size = round_up(size, PAGE_SIZE);
 
-	cma_obj = __drm_gem_cma_create(drm, size);
+	cma_obj = __drm_gem_cma_create(drm, size, false);
 	if (IS_ERR(cma_obj))
 		return cma_obj;
 
-	cma_obj->vaddr = dma_alloc_wc(drm->dev, size, &cma_obj->paddr,
-				      GFP_KERNEL | __GFP_NOWARN);
+	if (cma_obj->map_noncoherent) {
+		cma_obj->vaddr = dma_alloc_noncoherent(drm->dev, size,
+						       &cma_obj->paddr,
+						       DMA_TO_DEVICE,
+						       GFP_KERNEL | __GFP_NOWARN);
+	} else {
+		cma_obj->vaddr = dma_alloc_wc(drm->dev, size, &cma_obj->paddr,
+					      GFP_KERNEL | __GFP_NOWARN);
+	}
 	if (!cma_obj->vaddr) {
 		drm_dbg(drm, "failed to allocate buffer with size %zu\n",
 			 size);
@@ -432,7 +446,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 
 	/* Create a CMA GEM buffer. */
-	cma_obj = __drm_gem_cma_create(dev, attach->dmabuf->size);
+	cma_obj = __drm_gem_cma_create(dev, attach->dmabuf->size, true);
 	if (IS_ERR(cma_obj))
 		return ERR_CAST(cma_obj);
 
@@ -499,8 +513,16 @@ int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 
 	cma_obj = to_drm_gem_cma_obj(obj);
 
-	ret = dma_mmap_wc(cma_obj->base.dev->dev, vma, cma_obj->vaddr,
-			  cma_obj->paddr, vma->vm_end - vma->vm_start);
+	if (cma_obj->map_noncoherent) {
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+
+		ret = dma_mmap_pages(cma_obj->base.dev->dev,
+				     vma, vma->vm_end - vma->vm_start,
+				     virt_to_page(cma_obj->vaddr));
+	} else {
+		ret = dma_mmap_wc(cma_obj->base.dev->dev, vma, cma_obj->vaddr,
+				  cma_obj->paddr, vma->vm_end - vma->vm_start);
+	}
 	if (ret)
 		drm_gem_vm_close(vma);
 

@@ -92,7 +92,7 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
 	dev->fua		    = !!(rsp->cache_policy & RNBD_FUA);
 
 	dev->max_hw_sectors = sess->max_io_size / SECTOR_SIZE;
-	dev->max_segments = BMAX_SEGMENTS;
+	dev->max_segments = sess->max_segments;
 
 	return 0;
 }
@@ -1292,7 +1292,7 @@ find_and_get_or_create_sess(const char *sessname,
 	sess->rtrs = rtrs_clt_open(&rtrs_ops, sessname,
 				   paths, path_cnt, port_nr,
 				   0, /* Do not use pdu of rtrs */
-				   RECONNECT_DELAY, BMAX_SEGMENTS,
+				   RECONNECT_DELAY,
 				   MAX_RECONNECTS, nr_poll_queues);
 	if (IS_ERR(sess->rtrs)) {
 		err = PTR_ERR(sess->rtrs);
@@ -1306,6 +1306,7 @@ find_and_get_or_create_sess(const char *sessname,
 	sess->max_io_size = attrs.max_io_size;
 	sess->queue_depth = attrs.queue_depth;
 	sess->nr_poll_queues = nr_poll_queues;
+	sess->max_segments = attrs.max_segments;
 
 	err = setup_mq_tags(sess);
 	if (err)

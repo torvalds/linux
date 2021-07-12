@@ -754,7 +754,7 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
- * sdma_v4_0_page_ring_set_wptr - commit the write pointer
+ * sdma_v4_0_ring_set_wptr - commit the write pointer
  *
  * @ring: amdgpu ring pointer
  *
@@ -820,7 +820,7 @@ static uint64_t sdma_v4_0_page_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
- * sdma_v4_0_ring_set_wptr - commit the write pointer
+ * sdma_v4_0_page_ring_set_wptr - commit the write pointer
  *
  * @ring: amdgpu ring pointer
  *
@@ -1109,6 +1109,8 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 		if (adev->asic_type == CHIP_ARCTURUS &&
 		    adev->sdma.instance[i].fw_version >= 14)
 			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
+		/* Extend page fault timeout to avoid interrupt storm */
+		WREG32_SDMA(i, mmSDMA0_UTCL1_TIMEOUT, 0x00800080);
 	}
 
 }
@@ -2227,7 +2229,7 @@ static int sdma_v4_0_print_iv_entry(struct amdgpu_device *adev,
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
-	dev_info(adev->dev,
+	dev_dbg_ratelimited(adev->dev,
 		   "[sdma%d] address:0x%016llx src_id:%u ring:%u vmid:%u "
 		   "pasid:%u, for process %s pid %d thread %s pid %d\n",
 		   instance, addr, entry->src_id, entry->ring_id, entry->vmid,
@@ -2240,7 +2242,7 @@ static int sdma_v4_0_process_vm_hole_irq(struct amdgpu_device *adev,
 					      struct amdgpu_irq_src *source,
 					      struct amdgpu_iv_entry *entry)
 {
-	dev_err(adev->dev, "MC or SEM address in VM hole\n");
+	dev_dbg_ratelimited(adev->dev, "MC or SEM address in VM hole\n");
 	sdma_v4_0_print_iv_entry(adev, entry);
 	return 0;
 }
@@ -2249,7 +2251,7 @@ static int sdma_v4_0_process_doorbell_invalid_irq(struct amdgpu_device *adev,
 					      struct amdgpu_irq_src *source,
 					      struct amdgpu_iv_entry *entry)
 {
-	dev_err(adev->dev, "SDMA received a doorbell from BIF with byte_enable !=0xff\n");
+	dev_dbg_ratelimited(adev->dev, "SDMA received a doorbell from BIF with byte_enable !=0xff\n");
 	sdma_v4_0_print_iv_entry(adev, entry);
 	return 0;
 }
@@ -2258,7 +2260,7 @@ static int sdma_v4_0_process_pool_timeout_irq(struct amdgpu_device *adev,
 					      struct amdgpu_irq_src *source,
 					      struct amdgpu_iv_entry *entry)
 {
-	dev_err(adev->dev,
+	dev_dbg_ratelimited(adev->dev,
 		"Polling register/memory timeout executing POLL_REG/MEM with finite timer\n");
 	sdma_v4_0_print_iv_entry(adev, entry);
 	return 0;
@@ -2268,7 +2270,7 @@ static int sdma_v4_0_process_srbm_write_irq(struct amdgpu_device *adev,
 					      struct amdgpu_irq_src *source,
 					      struct amdgpu_iv_entry *entry)
 {
-	dev_err(adev->dev,
+	dev_dbg_ratelimited(adev->dev,
 		"SDMA gets an Register Write SRBM_WRITE command in non-privilege command buffer\n");
 	sdma_v4_0_print_iv_entry(adev, entry);
 	return 0;
@@ -2597,27 +2599,18 @@ static const struct amdgpu_irq_src_funcs sdma_v4_0_srbm_write_irq_funcs = {
 
 static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 {
+	adev->sdma.trap_irq.num_types = adev->sdma.num_instances;
+	adev->sdma.ecc_irq.num_types = adev->sdma.num_instances;
+	/*For Arcturus and Aldebaran, add another 4 irq handler*/
 	switch (adev->sdma.num_instances) {
-	case 1:
-		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
-		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
-		break;
 	case 5:
-		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE5;
-		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE5;
-		break;
 	case 8:
-		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
-		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
-		adev->sdma.vm_hole_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE5;
-		adev->sdma.doorbell_invalid_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
-		adev->sdma.pool_timeout_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
-		adev->sdma.srbm_write_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
+		adev->sdma.vm_hole_irq.num_types = adev->sdma.num_instances;
+		adev->sdma.doorbell_invalid_irq.num_types = adev->sdma.num_instances;
+		adev->sdma.pool_timeout_irq.num_types = adev->sdma.num_instances;
+		adev->sdma.srbm_write_irq.num_types = adev->sdma.num_instances;
 		break;
-	case 2:
 	default:
-		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE2;
-		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE2;
 		break;
 	}
 	adev->sdma.trap_irq.funcs = &sdma_v4_0_trap_irq_funcs;

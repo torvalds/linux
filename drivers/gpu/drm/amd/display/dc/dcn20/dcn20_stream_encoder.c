@@ -552,6 +552,17 @@ void enc2_stream_encoder_dp_set_stream_attribute(
 		DP_SST_SDP_SPLITTING, enable_sdp_splitting);
 }
 
+uint32_t enc2_get_fifo_cal_average_level(
+		struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t fifo_level;
+
+	REG_GET(DIG_FIFO_STATUS,
+			DIG_FIFO_CAL_AVERAGE_LEVEL, &fifo_level);
+	return fifo_level;
+}
+
 static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.dp_set_odm_combine =
 		enc2_dp_set_odm_combine,
@@ -598,6 +609,7 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.dp_set_dsc_pps_info_packet = enc2_dp_set_dsc_pps_info_packet,
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
+	.get_fifo_cal_average_level = enc2_get_fifo_cal_average_level,
 };
 
 void dcn20_stream_encoder_construct(

@@ -27,7 +27,6 @@ properties:
       - description: Low speed clock
       - description: Optional peripheral clock
     minItems: 1
-    maxItems: 2
 
   clock-names:
     items:

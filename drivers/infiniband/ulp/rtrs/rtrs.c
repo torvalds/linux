@@ -18,7 +18,7 @@
 MODULE_DESCRIPTION("RDMA Transport Core");
 MODULE_LICENSE("GPL");
 
-struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
+struct rtrs_iu *rtrs_iu_alloc(u32 iu_num, size_t size, gfp_t gfp_mask,
 			      struct ib_device *dma_dev,
 			      enum dma_data_direction dir,
 			      void (*done)(struct ib_cq *cq, struct ib_wc *wc))
@@ -26,10 +26,10 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 	struct rtrs_iu *ius, *iu;
 	int i;
 
-	ius = kcalloc(queue_size, sizeof(*ius), gfp_mask);
+	ius = kcalloc(iu_num, sizeof(*ius), gfp_mask);
 	if (!ius)
 		return NULL;
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < iu_num; i++) {
 		iu = &ius[i];
 		iu->direction = dir;
 		iu->buf = kzalloc(size, gfp_mask);
@@ -50,7 +50,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_alloc);
 
-void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_size)
+void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_num)
 {
 	struct rtrs_iu *iu;
 	int i;
@@ -58,7 +58,7 @@ void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_size)
 	if (!ius)
 		return;
 
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < queue_num; i++) {
 		iu = &ius[i];
 		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, iu->direction);
 		kfree(iu->buf);
@@ -105,17 +105,20 @@ int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe)
 EXPORT_SYMBOL_GPL(rtrs_post_recv_empty);
 
 static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
-			     struct ib_send_wr *wr)
+			  struct ib_send_wr *wr, struct ib_send_wr *tail)
 {
 	if (head) {
-		struct ib_send_wr *tail = head;
+		struct ib_send_wr *next = head;
 
-		while (tail->next)
-			tail = tail->next;
-		tail->next = wr;
+		while (next->next)
+			next = next->next;
+		next->next = wr;
 	} else {
 		head = wr;
 	}
+
+	if (tail)
+		wr->next = tail;
 
 	return ib_post_send(qp, head, NULL);
 }
@@ -142,15 +145,16 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		.send_flags = IB_SEND_SIGNALED,
 	};
 
-	return rtrs_post_send(con->qp, head, &wr);
+	return rtrs_post_send(con->qp, head, &wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_send);
 
 int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
-				 struct ib_sge *sge, unsigned int num_sge,
-				 u32 rkey, u64 rdma_addr, u32 imm_data,
-				 enum ib_send_flags flags,
-				 struct ib_send_wr *head)
+				struct ib_sge *sge, unsigned int num_sge,
+				u32 rkey, u64 rdma_addr, u32 imm_data,
+				enum ib_send_flags flags,
+				struct ib_send_wr *head,
+				struct ib_send_wr *tail)
 {
 	struct ib_rdma_wr wr;
 	int i;
@@ -174,7 +178,7 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 		if (WARN_ON(sge[i].length == 0))
 			return -EINVAL;
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, tail);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
@@ -191,7 +195,7 @@ int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
 		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
@@ -212,20 +216,20 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 	}
 }
 
-static int create_cq(struct rtrs_con *con, int cq_vector, u16 cq_size,
+static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		     enum ib_poll_context poll_ctx)
 {
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	cq = ib_cq_pool_get(cm_id->device, cq_size, cq_vector, poll_ctx);
+	cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
 	if (IS_ERR(cq)) {
 		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
 		return PTR_ERR(cq);
 	}
 	con->cq = cq;
-	con->cq_size = cq_size;
+	con->nr_cqe = nr_cqe;
 
 	return 0;
 }
@@ -260,20 +264,20 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 }
 
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
-		       u32 max_send_sge, int cq_vector, int cq_size,
+		       u32 max_send_sge, int cq_vector, int nr_cqe,
 		       u32 max_send_wr, u32 max_recv_wr,
 		       enum ib_poll_context poll_ctx)
 {
 	int err;
 
-	err = create_cq(con, cq_vector, cq_size, poll_ctx);
+	err = create_cq(con, cq_vector, nr_cqe, poll_ctx);
 	if (err)
 		return err;
 
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		ib_cq_pool_put(con->cq, con->cq_size);
+		ib_cq_pool_put(con->cq, con->nr_cqe);
 		con->cq = NULL;
 		return err;
 	}
@@ -290,7 +294,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		con->qp = NULL;
 	}
 	if (con->cq) {
-		ib_cq_pool_put(con->cq, con->cq_size);
+		ib_cq_pool_put(con->cq, con->nr_cqe);
 		con->cq = NULL;
 	}
 }
@@ -376,7 +380,6 @@ void rtrs_stop_hb(struct rtrs_sess *sess)
 {
 	cancel_delayed_work_sync(&sess->hb_dwork);
 	sess->hb_missed_cnt = 0;
-	sess->hb_missed_max = 0;
 }
 EXPORT_SYMBOL_GPL(rtrs_stop_hb);
 

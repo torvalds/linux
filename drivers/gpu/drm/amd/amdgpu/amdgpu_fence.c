@@ -36,6 +36,7 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_drv.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
@@ -434,6 +435,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
  *
  * @ring: ring to init the fence driver on
  * @num_hw_submission: number of entries on the hardware queue
+ * @sched_score: optional score atomic shared with other schedulers
  *
  * Init the fence driver for the requested ring (all asics).
  * Helper function for amdgpu_fence_driver_init().
@@ -523,10 +525,9 @@ int amdgpu_fence_driver_init(struct amdgpu_device *adev)
  *
  * Tear down the fence driver for all possible rings (all asics).
  */
-void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
+void amdgpu_fence_driver_fini_hw(struct amdgpu_device *adev)
 {
-	unsigned i, j;
-	int r;
+	int i, r;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -535,16 +536,33 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 			continue;
 		if (!ring->no_scheduler)
 			drm_sched_fini(&ring->sched);
-		r = amdgpu_fence_wait_empty(ring);
-		if (r) {
-			/* no need to trigger GPU reset as we are unloading */
+		/* You can't wait for HW to signal if it's gone */
+		if (!drm_dev_is_unplugged(&adev->ddev))
+			r = amdgpu_fence_wait_empty(ring);
+		else
+			r = -ENODEV;
+		/* no need to trigger GPU reset as we are unloading */
+		if (r)
 			amdgpu_fence_driver_force_completion(ring);
-		}
+
 		if (ring->fence_drv.irq_src)
 			amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 				       ring->fence_drv.irq_type);
 
 		del_timer_sync(&ring->fence_drv.fallback_timer);
+	}
+}
+
+void amdgpu_fence_driver_fini_sw(struct amdgpu_device *adev)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring || !ring->fence_drv.initialized)
+			continue;
+
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);
 		kfree(ring->fence_drv.fences);

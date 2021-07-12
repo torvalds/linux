@@ -78,6 +78,8 @@ struct parmarea {
 	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
 };
 
+extern struct parmarea parmarea;
+
 extern unsigned int zlib_dfltcc_support;
 #define ZLIB_DFLTCC_DISABLED		0
 #define ZLIB_DFLTCC_FULL		1
@@ -87,7 +89,6 @@ extern unsigned int zlib_dfltcc_support;
 
 extern int noexec_disabled;
 extern unsigned long ident_map_size;
-extern unsigned long vmalloc_size;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;

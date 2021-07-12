@@ -21,7 +21,6 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 2
     items:
       - description: BSC register range
       - description: Auto-I2C register range

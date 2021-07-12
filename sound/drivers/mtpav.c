@@ -566,7 +566,8 @@ static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
  */
 static int snd_mtpav_get_ISA(struct mtpav *mcard)
 {
-	if ((mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI")) == NULL) {
+	mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI");
+	if (!mcard->res_port) {
 		snd_printk(KERN_ERR "MTVAP port 0x%lx is busy\n", port);
 		return -EBUSY;
 	}
@@ -628,10 +629,11 @@ static int snd_mtpav_get_RAWMIDI(struct mtpav *mcard)
 		hwports = 8;
 	mcard->num_ports = hwports;
 
-	if ((rval = snd_rawmidi_new(mcard->card, "MotuMIDI", 0,
-				    mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
-				    mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
-				    &mcard->rmidi)) < 0)
+	rval = snd_rawmidi_new(mcard->card, "MotuMIDI", 0,
+			       mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
+			       mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
+			       &mcard->rmidi);
+	if (rval < 0)
 		return rval;
 	rawmidi = mcard->rmidi;
 	rawmidi->private_data = mcard;
@@ -744,7 +746,8 @@ static int __init alsa_card_mtpav_init(void)
 {
 	int err;
 
-	if ((err = platform_driver_register(&snd_mtpav_driver)) < 0)
+	err = platform_driver_register(&snd_mtpav_driver);
+	if (err < 0)
 		return err;
 
 	device = platform_device_register_simple(SND_MTPAV_DRIVER, -1, NULL, 0);

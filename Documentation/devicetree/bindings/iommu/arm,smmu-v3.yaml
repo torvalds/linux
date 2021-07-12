@@ -38,7 +38,6 @@ properties:
           If provided, then the combined interrupt will be used in preference to
           any others.
       - minItems: 2
-        maxItems: 4
         items:
           - const: eventq     # Event Queue not empty
           - const: gerror     # Global Error activated

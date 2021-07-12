@@ -23,13 +23,13 @@
 #define BRANCH_ABSOLUTE	0x2
 
 bool is_offset_in_branch_range(long offset);
-int create_branch(struct ppc_inst *instr, const struct ppc_inst *addr,
+int create_branch(struct ppc_inst *instr, const u32 *addr,
 		  unsigned long target, int flags);
-int create_cond_branch(struct ppc_inst *instr, const struct ppc_inst *addr,
+int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
 		       unsigned long target, int flags);
-int patch_branch(struct ppc_inst *addr, unsigned long target, int flags);
-int patch_instruction(struct ppc_inst *addr, struct ppc_inst instr);
-int raw_patch_instruction(struct ppc_inst *addr, struct ppc_inst instr);
+int patch_branch(u32 *addr, unsigned long target, int flags);
+int patch_instruction(u32 *addr, struct ppc_inst instr);
+int raw_patch_instruction(u32 *addr, struct ppc_inst instr);
 
 static inline unsigned long patch_site_addr(s32 *site)
 {
@@ -38,18 +38,18 @@ static inline unsigned long patch_site_addr(s32 *site)
 
 static inline int patch_instruction_site(s32 *site, struct ppc_inst instr)
 {
-	return patch_instruction((struct ppc_inst *)patch_site_addr(site), instr);
+	return patch_instruction((u32 *)patch_site_addr(site), instr);
 }
 
 static inline int patch_branch_site(s32 *site, unsigned long target, int flags)
 {
-	return patch_branch((struct ppc_inst *)patch_site_addr(site), target, flags);
+	return patch_branch((u32 *)patch_site_addr(site), target, flags);
 }
 
 static inline int modify_instruction(unsigned int *addr, unsigned int clr,
 				     unsigned int set)
 {
-	return patch_instruction((struct ppc_inst *)addr, ppc_inst((*addr & ~clr) | set));
+	return patch_instruction(addr, ppc_inst((*addr & ~clr) | set));
 }
 
 static inline int modify_instruction_site(s32 *site, unsigned int clr, unsigned int set)
@@ -59,10 +59,8 @@ static inline int modify_instruction_site(s32 *site, unsigned int clr, unsigned 
 
 int instr_is_relative_branch(struct ppc_inst instr);
 int instr_is_relative_link_branch(struct ppc_inst instr);
-int instr_is_branch_to_addr(const struct ppc_inst *instr, unsigned long addr);
-unsigned long branch_target(const struct ppc_inst *instr);
-int translate_branch(struct ppc_inst *instr, const struct ppc_inst *dest,
-		     const struct ppc_inst *src);
+unsigned long branch_target(const u32 *instr);
+int translate_branch(struct ppc_inst *instr, const u32 *dest, const u32 *src);
 extern bool is_conditional_branch(struct ppc_inst instr);
 #ifdef CONFIG_PPC_BOOK3E_64
 void __patch_exception(int exc, unsigned long addr);
@@ -73,9 +71,9 @@ void __patch_exception(int exc, unsigned long addr);
 #endif
 
 #define OP_RT_RA_MASK	0xffff0000UL
-#define LIS_R2		(PPC_INST_ADDIS | __PPC_RT(R2))
-#define ADDIS_R2_R12	(PPC_INST_ADDIS | __PPC_RT(R2) | __PPC_RA(R12))
-#define ADDI_R2_R2	(PPC_INST_ADDI  | __PPC_RT(R2) | __PPC_RA(R2))
+#define LIS_R2		(PPC_RAW_LIS(_R2, 0))
+#define ADDIS_R2_R12	(PPC_RAW_ADDIS(_R2, _R12, 0))
+#define ADDI_R2_R2	(PPC_RAW_ADDI(_R2, _R2, 0))
 
 
 static inline unsigned long ppc_function_entry(void *func)
@@ -180,12 +178,10 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 #define R2_STACK_OFFSET         40
 #endif
 
-#define PPC_INST_LD_TOC		(PPC_INST_LD  | ___PPC_RT(__REG_R2) | \
-				 ___PPC_RA(__REG_R1) | R2_STACK_OFFSET)
+#define PPC_INST_LD_TOC		PPC_RAW_LD(_R2, _R1, R2_STACK_OFFSET)
 
 /* usually preceded by a mflr r0 */
-#define PPC_INST_STD_LR		(PPC_INST_STD | ___PPC_RS(__REG_R0) | \
-				 ___PPC_RA(__REG_R1) | PPC_LR_STKOFF)
+#define PPC_INST_STD_LR		PPC_RAW_STD(_R0, _R1, PPC_LR_STKOFF)
 #endif /* CONFIG_PPC64 */
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

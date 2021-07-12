@@ -418,7 +418,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
-	ret = mr = mlx5_mr_cache_alloc(
+	mr = mlx5_mr_cache_alloc(
 		mr_to_mdev(imr), MLX5_IMR_MTT_CACHE_ENTRY, imr->access_flags);
 	if (IS_ERR(mr)) {
 		ib_umem_odp_release(odp);
@@ -478,7 +478,6 @@ out_mr:
 }
 
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     struct ib_udata *udata,
 					     int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->ibpd.device);
@@ -1096,7 +1095,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	opcode = be32_to_cpu(ctrl->opmod_idx_opcode) &
 		 MLX5_WQE_CTRL_OPCODE_MASK;
 
-	if (qp->ibqp.qp_type == IB_QPT_XRC_INI)
+	if (qp->type == IB_QPT_XRC_INI)
 		*wqe += sizeof(struct mlx5_wqe_xrc_seg);
 
 	if (qp->type == IB_QPT_UD || qp->type == MLX5_IB_QPT_DCI) {

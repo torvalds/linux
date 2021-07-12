@@ -55,6 +55,7 @@
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
 #include <linux/err.h>
+#include "util/dlfilter.h"
 #include "util/record.h"
 #include "util/util.h"
 #include "perf.h"
@@ -79,6 +80,9 @@ static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 static struct perf_stat_config	stat_config;
 static int			max_blocks;
 static bool			native_arch;
+static struct dlfilter		*dlfilter;
+static int			dlargc;
+static char			**dlargv;
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
@@ -1337,17 +1341,18 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 				      struct evsel *evsel,
 				      struct thread *thread,
 				      struct addr_location *al,
+				      struct addr_location *addr_al,
 				      u64 *ip)
 {
-	struct addr_location addr_al;
 	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *name = NULL;
 
 	if (sample->flags & (PERF_IP_FLAG_CALL | PERF_IP_FLAG_TRACE_BEGIN)) {
 		if (sample_addr_correlates_sym(attr)) {
-			thread__resolve(thread, &addr_al, sample);
-			if (addr_al.sym)
-				name = addr_al.sym->name;
+			if (!addr_al->thread)
+				thread__resolve(thread, addr_al, sample);
+			if (addr_al->sym)
+				name = addr_al->sym->name;
 			else
 				*ip = sample->addr;
 		} else {
@@ -1365,7 +1370,9 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct evsel *evsel,
 					   struct thread *thread,
-					   struct addr_location *al, FILE *fp)
+					   struct addr_location *al,
+					   struct addr_location *addr_al,
+					   FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	size_t depth = thread_stack__depth(thread, sample->cpu);
@@ -1382,7 +1389,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 	if (thread->ts && sample->flags & PERF_IP_FLAG_RETURN)
 		depth += 1;
 
-	name = resolve_branch_sym(sample, evsel, thread, al, &ip);
+	name = resolve_branch_sym(sample, evsel, thread, al, addr_al, &ip);
 
 	if (PRINT_FIELD(DSO) && !(PRINT_FIELD(IP) || PRINT_FIELD(ADDR))) {
 		dlen += fprintf(fp, "(");
@@ -1417,6 +1424,13 @@ __weak void arch_fetch_insn(struct perf_sample *sample __maybe_unused,
 {
 }
 
+void script_fetch_insn(struct perf_sample *sample, struct thread *thread,
+		       struct machine *machine)
+{
+	if (sample->insn_len == 0 && native_arch)
+		arch_fetch_insn(sample, thread, machine);
+}
+
 static int perf_sample__fprintf_insn(struct perf_sample *sample,
 				     struct perf_event_attr *attr,
 				     struct thread *thread,
@@ -1424,8 +1438,7 @@ static int perf_sample__fprintf_insn(struct perf_sample *sample,
 {
 	int printed = 0;
 
-	if (sample->insn_len == 0 && native_arch)
-		arch_fetch_insn(sample, thread, machine);
+	script_fetch_insn(sample, thread, machine);
 
 	if (PRINT_FIELD(INSNLEN))
 		printed += fprintf(fp, " ilen: %d", sample->insn_len);
@@ -1460,6 +1473,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 				    struct evsel *evsel,
 				    struct thread *thread,
 				    struct addr_location *al,
+				    struct addr_location *addr_al,
 				    struct machine *machine, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
@@ -1468,7 +1482,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 	int printed = 0;
 
 	if (PRINT_FIELD(CALLINDENT))
-		printed += perf_sample__fprintf_callindent(sample, evsel, thread, al, fp);
+		printed += perf_sample__fprintf_callindent(sample, evsel, thread, al, addr_al, fp);
 
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
@@ -1553,41 +1567,49 @@ static const char *sample_flags_to_name(u32 flags)
 	return NULL;
 }
 
-static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
+int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz)
 {
 	const char *chars = PERF_IP_FLAG_CHARS;
-	const int n = strlen(PERF_IP_FLAG_CHARS);
+	const size_t n = strlen(PERF_IP_FLAG_CHARS);
 	bool in_tx = flags & PERF_IP_FLAG_IN_TX;
 	const char *name = NULL;
-	char str[33];
-	int i, pos = 0;
+	size_t i, pos = 0;
 
 	name = sample_flags_to_name(flags & ~PERF_IP_FLAG_IN_TX);
 	if (name)
-		return fprintf(fp, "  %-15s%4s ", name, in_tx ? "(x)" : "");
+		return snprintf(str, sz, "%-15s%4s", name, in_tx ? "(x)" : "");
 
 	if (flags & PERF_IP_FLAG_TRACE_BEGIN) {
 		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_BEGIN));
 		if (name)
-			return fprintf(fp, "  tr strt %-7s%4s ", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr strt %-7s%4s", name, in_tx ? "(x)" : "");
 	}
 
 	if (flags & PERF_IP_FLAG_TRACE_END) {
 		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_END));
 		if (name)
-			return fprintf(fp, "  tr end  %-7s%4s ", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr end  %-7s%4s", name, in_tx ? "(x)" : "");
 	}
 
 	for (i = 0; i < n; i++, flags >>= 1) {
-		if (flags & 1)
+		if ((flags & 1) && pos < sz)
 			str[pos++] = chars[i];
 	}
 	for (; i < 32; i++, flags >>= 1) {
-		if (flags & 1)
+		if ((flags & 1) && pos < sz)
 			str[pos++] = '?';
 	}
-	str[pos] = 0;
+	if (pos < sz)
+		str[pos] = 0;
 
+	return pos;
+}
+
+static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
+{
+	char str[SAMPLE_FLAGS_BUF_SIZE];
+
+	perf_sample__sprintf_flags(flags, str, sizeof(str));
 	return fprintf(fp, "  %-19s ", str);
 }
 
@@ -1917,7 +1939,8 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 static bool show_event(struct perf_sample *sample,
 		       struct evsel *evsel,
 		       struct thread *thread,
-		       struct addr_location *al)
+		       struct addr_location *al,
+		       struct addr_location *addr_al)
 {
 	int depth = thread_stack__depth(thread, sample->cpu);
 
@@ -1933,7 +1956,7 @@ static bool show_event(struct perf_sample *sample,
 	} else {
 		const char *s = symbol_conf.graph_function;
 		u64 ip;
-		const char *name = resolve_branch_sym(sample, evsel, thread, al,
+		const char *name = resolve_branch_sym(sample, evsel, thread, al, addr_al,
 				&ip);
 		unsigned nlen;
 
@@ -1958,6 +1981,7 @@ static bool show_event(struct perf_sample *sample,
 static void process_event(struct perf_script *script,
 			  struct perf_sample *sample, struct evsel *evsel,
 			  struct addr_location *al,
+			  struct addr_location *addr_al,
 			  struct machine *machine)
 {
 	struct thread *thread = al->thread;
@@ -1968,12 +1992,6 @@ static void process_event(struct perf_script *script,
 	char str[PAGE_SIZE_NAME_LEN];
 
 	if (output[type].fields == 0)
-		return;
-
-	if (!show_event(sample, evsel, thread, al))
-		return;
-
-	if (evswitch__discard(&script->evswitch, evsel))
 		return;
 
 	++es->samples;
@@ -1997,7 +2015,7 @@ static void process_event(struct perf_script *script,
 		perf_sample__fprintf_flags(sample->flags, fp);
 
 	if (is_bts_event(attr)) {
-		perf_sample__fprintf_bts(sample, evsel, thread, al, machine, fp);
+		perf_sample__fprintf_bts(sample, evsel, thread, al, addr_al, machine, fp);
 		return;
 	}
 
@@ -2160,10 +2178,23 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
+	struct addr_location addr_al;
+	int ret = 0;
+
+	/* Set thread to NULL to indicate addr_al and al are not initialized */
+	addr_al.thread = NULL;
+	al.thread = NULL;
+
+	ret = dlfilter__filter_event_early(dlfilter, event, sample, evsel, machine, &al, &addr_al);
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
+		goto out_put;
+	}
 
 	if (perf_time__ranges_skip_sample(scr->ptime_range, scr->range_num,
 					  sample->time)) {
-		return 0;
+		goto out_put;
 	}
 
 	if (debug_mode) {
@@ -2174,29 +2205,53 @@ static int process_sample_event(struct perf_tool *tool,
 			nr_unordered++;
 		}
 		last_timestamp = sample->time;
-		return 0;
+		goto out_put;
 	}
+
+	if (filter_cpu(sample))
+		goto out_put;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
-		return -1;
+		ret = -1;
+		goto out_put;
 	}
 
 	if (al.filtered)
 		goto out_put;
 
-	if (filter_cpu(sample))
+	if (!show_event(sample, evsel, al.thread, &al, &addr_al))
 		goto out_put;
 
-	if (scripting_ops)
-		scripting_ops->process_event(event, sample, evsel, &al);
-	else
-		process_event(scr, sample, evsel, &al, machine);
+	if (evswitch__discard(&scr->evswitch, evsel))
+		goto out_put;
+
+	ret = dlfilter__filter_event(dlfilter, event, sample, evsel, machine, &al, &addr_al);
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
+		goto out_put;
+	}
+
+	if (scripting_ops) {
+		struct addr_location *addr_al_ptr = NULL;
+
+		if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
+		    sample_addr_correlates_sym(&evsel->core.attr)) {
+			if (!addr_al.thread)
+				thread__resolve(al.thread, &addr_al, sample);
+			addr_al_ptr = &addr_al;
+		}
+		scripting_ops->process_event(event, sample, evsel, &al, addr_al_ptr);
+	} else {
+		process_event(scr, sample, evsel, &al, &addr_al, machine);
+	}
 
 out_put:
-	addr_location__put(&al);
-	return 0;
+	if (al.thread)
+		addr_location__put(&al);
+	return ret;
 }
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
@@ -2415,6 +2470,17 @@ static int process_switch_event(struct perf_tool *tool,
 			   sample->tid);
 }
 
+static int process_auxtrace_error(struct perf_session *session,
+				  union perf_event *event)
+{
+	if (scripting_ops && scripting_ops->process_auxtrace_error) {
+		scripting_ops->process_auxtrace_error(session, event);
+		return 0;
+	}
+
+	return perf_event__process_auxtrace_error(session, event);
+}
+
 static int
 process_lost_event(struct perf_tool *tool,
 		   union perf_event *event,
@@ -2554,6 +2620,8 @@ static int __cmd_script(struct perf_script *script)
 	}
 	if (script->show_switch_events || (scripting_ops && scripting_ops->process_switch))
 		script->tool.context_switch = process_switch_event;
+	if (scripting_ops && scripting_ops->process_auxtrace_error)
+		script->tool.auxtrace_error = process_auxtrace_error;
 	if (script->show_namespace_events)
 		script->tool.namespaces = process_namespaces_event;
 	if (script->show_cgroup_events)
@@ -2665,6 +2733,37 @@ static void list_available_languages(void)
 	fprintf(stderr, "\n");
 }
 
+/* Find script file relative to current directory or exec path */
+static char *find_script(const char *script)
+{
+	char path[PATH_MAX];
+
+	if (!scripting_ops) {
+		const char *ext = strrchr(script, '.');
+
+		if (!ext)
+			return NULL;
+
+		scripting_ops = script_spec__lookup(++ext);
+		if (!scripting_ops)
+			return NULL;
+	}
+
+	if (access(script, R_OK)) {
+		char *exec_path = get_argv_exec_path();
+
+		if (!exec_path)
+			return NULL;
+		snprintf(path, sizeof(path), "%s/scripts/%s/%s",
+			 exec_path, scripting_ops->dirname, script);
+		free(exec_path);
+		script = path;
+		if (access(script, R_OK))
+			return NULL;
+	}
+	return strdup(script);
+}
+
 static int parse_scriptname(const struct option *opt __maybe_unused,
 			    const char *str, int unset __maybe_unused)
 {
@@ -2706,7 +2805,9 @@ static int parse_scriptname(const struct option *opt __maybe_unused,
 		}
 	}
 
-	script_name = strdup(script);
+	script_name = find_script(script);
+	if (!script_name)
+		script_name = strdup(script);
 
 	return 0;
 }
@@ -3074,6 +3175,34 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	}
 
 	exit(0);
+}
+
+static int add_dlarg(const struct option *opt __maybe_unused,
+		     const char *s, int unset __maybe_unused)
+{
+	char *arg = strdup(s);
+	void *a;
+
+	if (!arg)
+		return -1;
+
+	a = realloc(dlargv, sizeof(dlargv[0]) * (dlargc + 1));
+	if (!a) {
+		free(arg);
+		return -1;
+	}
+
+	dlargv = a;
+	dlargv[dlargc++] = arg;
+
+	return 0;
+}
+
+static void free_dlarg(void)
+{
+	while (dlargc--)
+		free(dlargv[dlargc]);
+	free(dlargv);
 }
 
 /*
@@ -3489,6 +3618,7 @@ int cmd_script(int argc, const char **argv)
 	};
 	struct utsname uts;
 	char *script_path = NULL;
+	const char *dlfilter_file = NULL;
 	const char **__argv;
 	int i, j, err = 0;
 	struct perf_script script = {
@@ -3531,11 +3661,16 @@ int cmd_script(int argc, const char **argv)
 		    "show latency attributes (irqs/preemption disabled, etc)"),
 	OPT_CALLBACK_NOOPT('l', "list", NULL, NULL, "list available scripts",
 			   list_available_scripts),
+	OPT_CALLBACK_NOOPT(0, "list-dlfilters", NULL, NULL, "list available dlfilters",
+			   list_available_dlfilters),
 	OPT_CALLBACK('s', "script", NULL, "name",
 		     "script file name (lang:script name, script name, or *)",
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-script.xx script in specified language"),
+	OPT_STRING(0, "dlfilter", &dlfilter_file, "file", "filter .so file name"),
+	OPT_CALLBACK(0, "dlarg", NULL, "argument", "filter argument",
+		     add_dlarg),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
@@ -3718,6 +3853,12 @@ int cmd_script(int argc, const char **argv)
 		rep_script_path = get_script_path(argv[0], REPORT_SUFFIX);
 
 		if (!rec_script_path && !rep_script_path) {
+			script_name = find_script(argv[0]);
+			if (script_name) {
+				argc -= 1;
+				argv += 1;
+				goto script_found;
+			}
 			usage_with_options_msg(script_usage, options,
 				"Couldn't find script `%s'\n\n See perf"
 				" script -l for available scripts.\n", argv[0]);
@@ -3810,7 +3951,7 @@ int cmd_script(int argc, const char **argv)
 		free(__argv);
 		exit(-1);
 	}
-
+script_found:
 	if (rec_script_path)
 		script_path = rec_script_path;
 	if (rep_script_path)
@@ -3846,6 +3987,12 @@ int cmd_script(int argc, const char **argv)
 		execvp("/bin/sh", (char **)__argv);
 		free(__argv);
 		exit(-1);
+	}
+
+	if (dlfilter_file) {
+		dlfilter = dlfilter__new(dlfilter_file, dlargc, dlargv);
+		if (!dlfilter)
+			return -1;
 	}
 
 	if (!script_name) {
@@ -3947,8 +4094,12 @@ int cmd_script(int argc, const char **argv)
 		goto out_delete;
 	}
 
+	err = dlfilter__start(dlfilter, session);
+	if (err)
+		goto out_delete;
+
 	if (script_name) {
-		err = scripting_ops->start_script(script_name, argc, argv);
+		err = scripting_ops->start_script(script_name, argc, argv, session);
 		if (err)
 			goto out_delete;
 		pr_debug("perf script started with script %s\n\n", script_name);
@@ -3996,6 +4147,8 @@ out_delete:
 
 	if (script_started)
 		cleanup_scripting();
+	dlfilter__cleanup(dlfilter);
+	free_dlarg();
 out:
 	return err;
 }

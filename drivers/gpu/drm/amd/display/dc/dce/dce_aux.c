@@ -595,8 +595,28 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	return res;
 }
 
+int dce_aux_transfer_dmub_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result)
+{
+	struct ddc *ddc_pin = ddc->ddc_pin;
+
+	if (ddc_pin != NULL) {
+		struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+		/* XXX: Workaround to configure ddc channels for aux transactions */
+		if (!acquire(aux_engine, ddc_pin)) {
+			*operation_result = AUX_RET_ERROR_ENGINE_ACQUIRE;
+			return -1;
+		}
+		release_engine(aux_engine);
+	}
+
+	return dm_helper_dmub_aux_transfer_sync(ddc->ctx, ddc->link, payload, operation_result);
+}
+
 #define AUX_MAX_RETRIES 7
-#define AUX_MAX_DEFER_RETRIES 7
+#define AUX_MIN_DEFER_RETRIES 7
+#define AUX_MAX_DEFER_TIMEOUT_MS 50
 #define AUX_MAX_I2C_DEFER_RETRIES 7
 #define AUX_MAX_INVALID_REPLY_RETRIES 2
 #define AUX_MAX_TIMEOUT_RETRIES 3
@@ -609,6 +629,10 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	bool payload_reply = true;
 	enum aux_return_code_type operation_result;
 	bool retry_on_defer = false;
+	struct ddc *ddc_pin = ddc->ddc_pin;
+	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
+	uint32_t defer_time_in_ms = 0;
 
 	int aux_ack_retries = 0,
 		aux_defer_retries = 0,
@@ -641,19 +665,27 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 			case AUX_TRANSACTION_REPLY_AUX_DEFER:
+				/* polling_timeout_period is in us */
+				defer_time_in_ms += aux110->polling_timeout_period / 1000;
+				++aux_defer_retries;
+				fallthrough;
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
 				retry_on_defer = true;
 				fallthrough;
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
-				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES) {
+				if (aux_defer_retries >= AUX_MIN_DEFER_RETRIES
+						&& defer_time_in_ms >= AUX_MAX_DEFER_TIMEOUT_MS) {
 					goto fail;
 				} else {
 					if ((*payload->reply == AUX_TRANSACTION_REPLY_AUX_DEFER) ||
 						(*payload->reply == AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER)) {
-						if (payload->defer_delay > 1)
+						if (payload->defer_delay > 1) {
 							msleep(payload->defer_delay);
-						else if (payload->defer_delay <= 1)
+							defer_time_in_ms += payload->defer_delay;
+						} else if (payload->defer_delay <= 1) {
 							udelay(payload->defer_delay * 1000);
+							defer_time_in_ms += payload->defer_delay;
+						}
 					}
 				}
 				break;
@@ -682,7 +714,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			// Check whether a DEFER had occurred before the timeout.
 			// If so, treat timeout as a DEFER.
 			if (retry_on_defer) {
-				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES)
+				if (++aux_defer_retries >= AUX_MIN_DEFER_RETRIES)
 					goto fail;
 				else if (payload->defer_delay > 0)
 					msleep(payload->defer_delay);

@@ -663,7 +663,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	}
 
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
-					  indio_dev->name, indio_dev->id);
+					  indio_dev->name,
+					  iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 

@@ -268,7 +268,6 @@ static int ad7887_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7887_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 
 	indio_dev->name = spi_get_device_id(spi)->name;

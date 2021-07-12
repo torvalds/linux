@@ -295,126 +295,6 @@ u8 MRateToHwRate(u8 rate)
 	case MGN_MCS31:
 		ret = DESC_RATEMCS31;
 		break;
-	case MGN_VHT1SS_MCS0:
-		ret = DESC_RATEVHTSS1MCS0;
-		break;
-	case MGN_VHT1SS_MCS1:
-		ret = DESC_RATEVHTSS1MCS1;
-		break;
-	case MGN_VHT1SS_MCS2:
-		ret = DESC_RATEVHTSS1MCS2;
-		break;
-	case MGN_VHT1SS_MCS3:
-		ret = DESC_RATEVHTSS1MCS3;
-		break;
-	case MGN_VHT1SS_MCS4:
-		ret = DESC_RATEVHTSS1MCS4;
-		break;
-	case MGN_VHT1SS_MCS5:
-		ret = DESC_RATEVHTSS1MCS5;
-		break;
-	case MGN_VHT1SS_MCS6:
-		ret = DESC_RATEVHTSS1MCS6;
-		break;
-	case MGN_VHT1SS_MCS7:
-		ret = DESC_RATEVHTSS1MCS7;
-		break;
-	case MGN_VHT1SS_MCS8:
-		ret = DESC_RATEVHTSS1MCS8;
-		break;
-	case MGN_VHT1SS_MCS9:
-		ret = DESC_RATEVHTSS1MCS9;
-		break;
-	case MGN_VHT2SS_MCS0:
-		ret = DESC_RATEVHTSS2MCS0;
-		break;
-	case MGN_VHT2SS_MCS1:
-		ret = DESC_RATEVHTSS2MCS1;
-		break;
-	case MGN_VHT2SS_MCS2:
-		ret = DESC_RATEVHTSS2MCS2;
-		break;
-	case MGN_VHT2SS_MCS3:
-		ret = DESC_RATEVHTSS2MCS3;
-		break;
-	case MGN_VHT2SS_MCS4:
-		ret = DESC_RATEVHTSS2MCS4;
-		break;
-	case MGN_VHT2SS_MCS5:
-		ret = DESC_RATEVHTSS2MCS5;
-		break;
-	case MGN_VHT2SS_MCS6:
-		ret = DESC_RATEVHTSS2MCS6;
-		break;
-	case MGN_VHT2SS_MCS7:
-		ret = DESC_RATEVHTSS2MCS7;
-		break;
-	case MGN_VHT2SS_MCS8:
-		ret = DESC_RATEVHTSS2MCS8;
-		break;
-	case MGN_VHT2SS_MCS9:
-		ret = DESC_RATEVHTSS2MCS9;
-		break;
-	case MGN_VHT3SS_MCS0:
-		ret = DESC_RATEVHTSS3MCS0;
-		break;
-	case MGN_VHT3SS_MCS1:
-		ret = DESC_RATEVHTSS3MCS1;
-		break;
-	case MGN_VHT3SS_MCS2:
-		ret = DESC_RATEVHTSS3MCS2;
-		break;
-	case MGN_VHT3SS_MCS3:
-		ret = DESC_RATEVHTSS3MCS3;
-		break;
-	case MGN_VHT3SS_MCS4:
-		ret = DESC_RATEVHTSS3MCS4;
-		break;
-	case MGN_VHT3SS_MCS5:
-		ret = DESC_RATEVHTSS3MCS5;
-		break;
-	case MGN_VHT3SS_MCS6:
-		ret = DESC_RATEVHTSS3MCS6;
-		break;
-	case MGN_VHT3SS_MCS7:
-		ret = DESC_RATEVHTSS3MCS7;
-		break;
-	case MGN_VHT3SS_MCS8:
-		ret = DESC_RATEVHTSS3MCS8;
-		break;
-	case MGN_VHT3SS_MCS9:
-		ret = DESC_RATEVHTSS3MCS9;
-		break;
-	case MGN_VHT4SS_MCS0:
-		ret = DESC_RATEVHTSS4MCS0;
-		break;
-	case MGN_VHT4SS_MCS1:
-		ret = DESC_RATEVHTSS4MCS1;
-		break;
-	case MGN_VHT4SS_MCS2:
-		ret = DESC_RATEVHTSS4MCS2;
-		break;
-	case MGN_VHT4SS_MCS3:
-		ret = DESC_RATEVHTSS4MCS3;
-		break;
-	case MGN_VHT4SS_MCS4:
-		ret = DESC_RATEVHTSS4MCS4;
-		break;
-	case MGN_VHT4SS_MCS5:
-		ret = DESC_RATEVHTSS4MCS5;
-		break;
-	case MGN_VHT4SS_MCS6:
-		ret = DESC_RATEVHTSS4MCS6;
-		break;
-	case MGN_VHT4SS_MCS7:
-		ret = DESC_RATEVHTSS4MCS7;
-		break;
-	case MGN_VHT4SS_MCS8:
-		ret = DESC_RATEVHTSS4MCS8;
-		break;
-	case MGN_VHT4SS_MCS9:
-		ret = DESC_RATEVHTSS4MCS9;
-		break;
 	default:
 		break;
 	}
@@ -559,127 +439,6 @@ u8 HwRateToMRate(u8 rate)
 	case DESC_RATEMCS31:
 		ret_rate = MGN_MCS31;
 		break;
-	case DESC_RATEVHTSS1MCS0:
-		ret_rate = MGN_VHT1SS_MCS0;
-		break;
-	case DESC_RATEVHTSS1MCS1:
-		ret_rate = MGN_VHT1SS_MCS1;
-		break;
-	case DESC_RATEVHTSS1MCS2:
-		ret_rate = MGN_VHT1SS_MCS2;
-		break;
-	case DESC_RATEVHTSS1MCS3:
-		ret_rate = MGN_VHT1SS_MCS3;
-		break;
-	case DESC_RATEVHTSS1MCS4:
-		ret_rate = MGN_VHT1SS_MCS4;
-		break;
-	case DESC_RATEVHTSS1MCS5:
-		ret_rate = MGN_VHT1SS_MCS5;
-		break;
-	case DESC_RATEVHTSS1MCS6:
-		ret_rate = MGN_VHT1SS_MCS6;
-		break;
-	case DESC_RATEVHTSS1MCS7:
-		ret_rate = MGN_VHT1SS_MCS7;
-		break;
-	case DESC_RATEVHTSS1MCS8:
-		ret_rate = MGN_VHT1SS_MCS8;
-		break;
-	case DESC_RATEVHTSS1MCS9:
-		ret_rate = MGN_VHT1SS_MCS9;
-		break;
-	case DESC_RATEVHTSS2MCS0:
-		ret_rate = MGN_VHT2SS_MCS0;
-		break;
-	case DESC_RATEVHTSS2MCS1:
-		ret_rate = MGN_VHT2SS_MCS1;
-		break;
-	case DESC_RATEVHTSS2MCS2:
-		ret_rate = MGN_VHT2SS_MCS2;
-		break;
-	case DESC_RATEVHTSS2MCS3:
-		ret_rate = MGN_VHT2SS_MCS3;
-		break;
-	case DESC_RATEVHTSS2MCS4:
-		ret_rate = MGN_VHT2SS_MCS4;
-		break;
-	case DESC_RATEVHTSS2MCS5:
-		ret_rate = MGN_VHT2SS_MCS5;
-		break;
-	case DESC_RATEVHTSS2MCS6:
-		ret_rate = MGN_VHT2SS_MCS6;
-		break;
-	case DESC_RATEVHTSS2MCS7:
-		ret_rate = MGN_VHT2SS_MCS7;
-		break;
-	case DESC_RATEVHTSS2MCS8:
-		ret_rate = MGN_VHT2SS_MCS8;
-		break;
-	case DESC_RATEVHTSS2MCS9:
-		ret_rate = MGN_VHT2SS_MCS9;
-		break;
-	case DESC_RATEVHTSS3MCS0:
-		ret_rate = MGN_VHT3SS_MCS0;
-		break;
-	case DESC_RATEVHTSS3MCS1:
-		ret_rate = MGN_VHT3SS_MCS1;
-		break;
-	case DESC_RATEVHTSS3MCS2:
-		ret_rate = MGN_VHT3SS_MCS2;
-		break;
-	case DESC_RATEVHTSS3MCS3:
-		ret_rate = MGN_VHT3SS_MCS3;
-		break;
-	case DESC_RATEVHTSS3MCS4:
-		ret_rate = MGN_VHT3SS_MCS4;
-		break;
-	case DESC_RATEVHTSS3MCS5:
-		ret_rate = MGN_VHT3SS_MCS5;
-		break;
-	case DESC_RATEVHTSS3MCS6:
-		ret_rate = MGN_VHT3SS_MCS6;
-		break;
-	case DESC_RATEVHTSS3MCS7:
-		ret_rate = MGN_VHT3SS_MCS7;
-		break;
-	case DESC_RATEVHTSS3MCS8:
-		ret_rate = MGN_VHT3SS_MCS8;
-		break;
-	case DESC_RATEVHTSS3MCS9:
-		ret_rate = MGN_VHT3SS_MCS9;
-		break;
-	case DESC_RATEVHTSS4MCS0:
-		ret_rate = MGN_VHT4SS_MCS0;
-		break;
-	case DESC_RATEVHTSS4MCS1:
-		ret_rate = MGN_VHT4SS_MCS1;
-		break;
-	case DESC_RATEVHTSS4MCS2:
-		ret_rate = MGN_VHT4SS_MCS2;
-		break;
-	case DESC_RATEVHTSS4MCS3:
-		ret_rate = MGN_VHT4SS_MCS3;
-		break;
-	case DESC_RATEVHTSS4MCS4:
-		ret_rate = MGN_VHT4SS_MCS4;
-		break;
-	case DESC_RATEVHTSS4MCS5:
-		ret_rate = MGN_VHT4SS_MCS5;
-		break;
-	case DESC_RATEVHTSS4MCS6:
-		ret_rate = MGN_VHT4SS_MCS6;
-		break;
-	case DESC_RATEVHTSS4MCS7:
-		ret_rate = MGN_VHT4SS_MCS7;
-		break;
-	case DESC_RATEVHTSS4MCS8:
-		ret_rate = MGN_VHT4SS_MCS8;
-		break;
-	case DESC_RATEVHTSS4MCS9:
-		ret_rate = MGN_VHT4SS_MCS9;
-		break;
-
 	default:
 		break;
 	}
@@ -916,15 +675,9 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	c2h_evt->seq = rtw_read8(adapter, REG_C2HEVT_CMD_SEQ_88XX);
 	c2h_evt->plen = rtw_read8(adapter, REG_C2HEVT_CMD_LEN_88XX);
 
-	print_hex_dump_debug(DRIVER_PREFIX ": c2h_evt_read(): ", DUMP_PREFIX_NONE,
-			     16, 1, &c2h_evt, sizeof(c2h_evt), false);
-
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
 		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 2 + i);
-
-	print_hex_dump_debug(DRIVER_PREFIX ": c2h_evt_read(): Command Content:\n",
-			     DUMP_PREFIX_NONE, 16, 1, c2h_evt->payload, c2h_evt->plen, false);
 
 	ret = _SUCCESS;
 
@@ -1093,13 +846,6 @@ u8 SetHalDefVar(
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
-	case HW_DEF_FA_CNT_DUMP:
-		/* ODM_COMP_COMMON */
-		if (*((u8 *)value))
-			odm->DebugComponents |= (ODM_COMP_DIG | ODM_COMP_FA_CNT);
-		else
-			odm->DebugComponents &= ~(ODM_COMP_DIG | ODM_COMP_FA_CNT);
-		break;
 	case HAL_DEF_DBG_RX_INFO_DUMP:
 
 		if (odm->bLinked) {
@@ -1166,7 +912,6 @@ u8 GetHalDefVar(
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	struct dm_odm_t *odm = &(hal_data->odmpriv);
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
@@ -1182,12 +927,6 @@ u8 GetHalDefVar(
 			if (psta)
 				*((int *)value) = psta->rssi_stat.UndecoratedSmoothedPWDB;
 		}
-		break;
-	case HW_DEF_ODM_DBG_FLAG:
-		*((u64 *)value) = odm->DebugComponents;
-		break;
-	case HW_DEF_ODM_DBG_LEVEL:
-		*((u32 *)value) = odm->DebugLevel;
 		break;
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)value) = hal_data->odmpriv.SupportAbility;

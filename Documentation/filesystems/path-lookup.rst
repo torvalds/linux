@@ -1297,18 +1297,18 @@ to lookup: RCU-walk, REF-walk, and REF-walk with forced revalidation.
 yet.  This is primarily used to tell the audit subsystem the full
 context of a particular access being audited.
 
-``LOOKUP_ROOT`` indicates that the ``root`` field in the ``nameidata`` was
+``ND_ROOT_PRESET`` indicates that the ``root`` field in the ``nameidata`` was
 provided by the caller, so it shouldn't be released when it is no
 longer needed.
 
-``LOOKUP_JUMPED`` means that the current dentry was chosen not because
+``ND_JUMPED`` means that the current dentry was chosen not because
 it had the right name but for some other reason.  This happens when
 following "``..``", following a symlink to ``/``, crossing a mount point
 or accessing a "``/proc/$PID/fd/$FD``" symlink (also known as a "magic
 link"). In this case the filesystem has not been asked to revalidate the
 name (with ``d_revalidate()``).  In such cases the inode may still need
 to be revalidated, so ``d_op->d_weak_revalidate()`` is called if
-``LOOKUP_JUMPED`` is set when the look completes - which may be at the
+``ND_JUMPED`` is set when the look completes - which may be at the
 final component or, when creating, unlinking, or renaming, at the penultimate component.
 
 Resolution-restriction flags

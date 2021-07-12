@@ -971,7 +971,8 @@ int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip)
 	strcpy(card->mixername, snd_es1688_chip_id(chip));
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_es1688_controls); idx++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_es1688_controls[idx], chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_es1688_controls[idx], chip));
+		if (err < 0)
 			return err;
 	}
 	for (idx = 0; idx < ES1688_INIT_TABLE_SIZE; idx++) {

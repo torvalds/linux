@@ -258,3 +258,4 @@ MODULE_DESCRIPTION("SKL/KBL/BXT/APL HDA Generic Machine driver");
 MODULE_AUTHOR("Rakesh Ughreja <rakesh.a.ughreja@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:skl_hda_dsp_generic");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

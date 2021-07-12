@@ -56,7 +56,6 @@ properties:
 
   interrupts:
     minItems: 3
-    maxItems: 4
     items:
       - description: DirError interrupt
       - description: DataError interrupt

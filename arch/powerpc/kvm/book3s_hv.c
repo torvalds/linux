@@ -4626,6 +4626,9 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&kvm->arch.vcpus_running);
+
+	srr_regs_clobbered();
+
 	return r;
 }
 

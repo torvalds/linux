@@ -3,10 +3,6 @@
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
- * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  * Author: Johannes Berg <johannes@sipsolutions.net>
  */
 #include <linux/module.h>

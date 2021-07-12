@@ -1672,7 +1672,7 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 					      &sshdr);
 
 		/* failed to execute TUR, assume media not present */
-		if (host_byte(retval)) {
+		if (retval < 0 || host_byte(retval)) {
 			set_media_not_present(sdkp);
 			goto out;
 		}
@@ -1733,16 +1733,20 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 	if (res) {
 		sd_print_result(sdkp, "Synchronize Cache(10) failed", res);
 
-		if (driver_byte(res) == DRIVER_SENSE)
+		if (res < 0)
+			return res;
+
+		if (scsi_status_is_check_condition(res) &&
+		    scsi_sense_valid(sshdr)) {
 			sd_print_sense_hdr(sdkp, sshdr);
 
-		/* we need to evaluate the error return  */
-		if (scsi_sense_valid(sshdr) &&
-			(sshdr->asc == 0x3a ||	/* medium not present */
-			 sshdr->asc == 0x20 ||	/* invalid command */
-			 (sshdr->asc == 0x74 && sshdr->ascq == 0x71)))	/* drive is password locked */
+			/* we need to evaluate the error return  */
+			if (sshdr->asc == 0x3a ||	/* medium not present */
+			    sshdr->asc == 0x20 ||	/* invalid command */
+			    (sshdr->asc == 0x74 && sshdr->ascq == 0x71))	/* drive is password locked */
 				/* this is no error here */
 				return 0;
+		}
 
 		switch (host_byte(res)) {
 		/* ignore errors due to racing a disconnection */
@@ -1839,7 +1843,7 @@ static int sd_pr_command(struct block_device *bdev, u8 sa,
 	result = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, &data, sizeof(data),
 			&sshdr, SD_TIMEOUT, sdkp->max_retries, NULL);
 
-	if (driver_byte(result) == DRIVER_SENSE &&
+	if (scsi_status_is_check_condition(result) &&
 	    scsi_sense_valid(&sshdr)) {
 		sdev_printk(KERN_INFO, sdev, "PR command failed: %d\n", result);
 		scsi_print_sense_hdr(sdev, NULL, &sshdr);
@@ -2083,7 +2087,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	}
 	sdkp->medium_access_timed_out = 0;
 
-	if (driver_byte(result) != DRIVER_SENSE &&
+	if (!scsi_status_is_check_condition(result) &&
 	    (!sense_valid || sense_deferred))
 		goto out;
 
@@ -2186,12 +2190,12 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			if (the_result)
 				sense_valid = scsi_sense_valid(&sshdr);
 			retries++;
-		} while (retries < 3 && 
+		} while (retries < 3 &&
 			 (!scsi_status_is_good(the_result) ||
-			  ((driver_byte(the_result) == DRIVER_SENSE) &&
+			  (scsi_status_is_check_condition(the_result) &&
 			  sense_valid && sshdr.sense_key == UNIT_ATTENTION)));
 
-		if (driver_byte(the_result) != DRIVER_SENSE) {
+		if (!scsi_status_is_check_condition(the_result)) {
 			/* no sense, TUR either succeeded or failed
 			 * with a status error */
 			if(!spintime && !scsi_status_is_good(the_result)) {
@@ -2319,7 +2323,7 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 			struct scsi_sense_hdr *sshdr, int sense_valid,
 			int the_result)
 {
-	if (driver_byte(the_result) == DRIVER_SENSE)
+	if (sense_valid)
 		sd_print_sense_hdr(sdkp, sshdr);
 	else
 		sd_printk(KERN_NOTICE, sdkp, "Sense not available.\n");
@@ -2376,7 +2380,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
 
-		if (the_result) {
+		if (the_result > 0) {
 			sense_valid = scsi_sense_valid(&sshdr);
 			if (sense_valid &&
 			    sshdr.sense_key == ILLEGAL_REQUEST &&
@@ -2461,7 +2465,7 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
 
-		if (the_result) {
+		if (the_result > 0) {
 			sense_valid = scsi_sense_valid(&sshdr);
 			if (sense_valid &&
 			    sshdr.sense_key == UNIT_ATTENTION &&
@@ -2684,18 +2688,18 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 		 * 5: Illegal Request, Sense Code 24: Invalid field in
 		 * CDB.
 		 */
-		if (!scsi_status_is_good(res))
+		if (res < 0)
 			res = sd_do_mode_sense(sdkp, 0, 0, buffer, 4, &data, NULL);
 
 		/*
 		 * Third attempt: ask 255 bytes, as we did earlier.
 		 */
-		if (!scsi_status_is_good(res))
+		if (res < 0)
 			res = sd_do_mode_sense(sdkp, 0, 0x3F, buffer, 255,
 					       &data, NULL);
 	}
 
-	if (!scsi_status_is_good(res)) {
+	if (res < 0) {
 		sd_first_printk(KERN_WARNING, sdkp,
 			  "Test WP failed, assume Write Enabled\n");
 	} else {
@@ -2756,7 +2760,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	res = sd_do_mode_sense(sdkp, dbd, modepage, buffer, first_len,
 			&data, &sshdr);
 
-	if (!scsi_status_is_good(res))
+	if (res < 0)
 		goto bad_sense;
 
 	if (!data.header_length) {
@@ -2788,7 +2792,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 		res = sd_do_mode_sense(sdkp, dbd, modepage, buffer, len,
 				&data, &sshdr);
 
-	if (scsi_status_is_good(res)) {
+	if (!res) {
 		int offset = data.header_length + data.block_descriptor_length;
 
 		while (offset < len) {
@@ -2906,7 +2910,7 @@ static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 	res = scsi_mode_sense(sdp, 1, 0x0a, buffer, 36, SD_TIMEOUT,
 			      sdkp->max_retries, &data, &sshdr);
 
-	if (!scsi_status_is_good(res) || !data.header_length ||
+	if (res < 0 || !data.header_length ||
 	    data.length < 6) {
 		sd_first_printk(KERN_WARNING, sdkp,
 			  "getting Control mode page failed, assume no ATO\n");
@@ -3605,12 +3609,12 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
-		if (driver_byte(res) == DRIVER_SENSE)
+		if (res > 0 && scsi_sense_valid(&sshdr)) {
 			sd_print_sense_hdr(sdkp, &sshdr);
-		if (scsi_sense_valid(&sshdr) &&
 			/* 0x3a is medium not present */
-			sshdr.asc == 0x3a)
-			res = 0;
+			if (sshdr.asc == 0x3a)
+				res = 0;
+		}
 	}
 
 	/* SCSI error codes must not go to the generic layer */
@@ -3820,15 +3824,14 @@ void sd_print_sense_hdr(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 void sd_print_result(const struct scsi_disk *sdkp, const char *msg, int result)
 {
 	const char *hb_string = scsi_hostbyte_string(result);
-	const char *db_string = scsi_driverbyte_string(result);
 
-	if (hb_string || db_string)
+	if (hb_string)
 		sd_printk(KERN_INFO, sdkp,
 			  "%s: Result: hostbyte=%s driverbyte=%s\n", msg,
 			  hb_string ? hb_string : "invalid",
-			  db_string ? db_string : "invalid");
+			  "DRIVER_OK");
 	else
 		sd_printk(KERN_INFO, sdkp,
-			  "%s: Result: hostbyte=0x%02x driverbyte=0x%02x\n",
-			  msg, host_byte(result), driver_byte(result));
+			  "%s: Result: hostbyte=0x%02x driverbyte=%s\n",
+			  msg, host_byte(result), "DRIVER_OK");
 }

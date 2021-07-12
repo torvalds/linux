@@ -281,6 +281,11 @@ int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 
+	if (request_mask & STATX_BTIME) {
+		stat->result_mask |= STATX_BTIME;
+		stat->btime = hfsp_mt2ut(hip->create_date);
+	}
+
 	if (inode->i_flags & S_APPEND)
 		stat->attributes |= STATX_ATTR_APPEND;
 	if (inode->i_flags & S_IMMUTABLE)

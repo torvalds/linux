@@ -2395,21 +2395,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
-			       const struct drm_connector_state *new_state)
-{
-	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
-	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
-
-	if (!old_blob || !new_blob)
-		return old_blob == new_blob;
-
-	if (old_blob->length != new_blob->length)
-		return false;
-
-	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
-}
-
 static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 					  struct drm_atomic_state *state)
 {
@@ -2423,7 +2408,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (!crtc)
 		return 0;
 
-	if (!hdr_metadata_equal(old_state, new_state)) {
+	if (!drm_connector_atomic_hdr_metadata_equal(old_state, new_state)) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
@@ -2492,8 +2477,7 @@ static int dw_hdmi_connector_create(struct dw_hdmi *hdmi)
 	drm_connector_attach_max_bpc_property(connector, 8, 16);
 
 	if (hdmi->version >= 0x200a && hdmi->plat_data->use_drm_infoframe)
-		drm_object_attach_property(&connector->base,
-			connector->dev->mode_config.hdr_output_metadata_property, 0);
+		drm_connector_attach_hdr_output_metadata_property(connector);
 
 	drm_connector_attach_encoder(connector, hdmi->bridge.encoder);
 
@@ -3421,7 +3405,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->audio = platform_device_register_full(&pdevinfo);
 	}
 
-	if (config0 & HDMI_CONFIG0_CEC) {
+	if (!plat_data->disable_cec && (config0 & HDMI_CONFIG0_CEC)) {
 		cec.hdmi = hdmi;
 		cec.ops = &dw_hdmi_cec_ops;
 		cec.irq = irq;

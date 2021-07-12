@@ -399,7 +399,7 @@ static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 		/*
 		 * Copy data from userspace to the current page
 		 */
-		copied = iov_iter_copy_from_user_atomic(page, i, offset, count);
+		copied = copy_page_from_iter_atomic(page, offset, count, i);
 
 		/* Flush processor's dcache for this page */
 		flush_dcache_page(page);
@@ -413,20 +413,19 @@ static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 		 * The rest of the btrfs_file_write code will fall
 		 * back to page at a time copies after we return 0.
 		 */
-		if (!PageUptodate(page) && copied < count)
-			copied = 0;
+		if (unlikely(copied < count)) {
+			if (!PageUptodate(page)) {
+				iov_iter_revert(i, copied);
+				copied = 0;
+			}
+			if (!copied)
+				break;
+		}
 
-		iov_iter_advance(i, copied);
 		write_bytes -= copied;
 		total_copied += copied;
-
-		/* Return to btrfs_file_write_iter to fault page */
-		if (unlikely(copied == 0))
-			break;
-
-		if (copied < PAGE_SIZE - offset) {
-			offset += copied;
-		} else {
+		offset += copied;
+		if (offset == PAGE_SIZE) {
 			pg++;
 			offset = 0;
 		}

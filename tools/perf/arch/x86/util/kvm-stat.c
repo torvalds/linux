@@ -133,11 +133,56 @@ static struct kvm_events_ops ioport_events = {
 	.name = "IO Port Access"
 };
 
+ /* The time of emulation msr is from kvm_msr to kvm_entry. */
+static void msr_event_get_key(struct evsel *evsel,
+				 struct perf_sample *sample,
+				 struct event_key *key)
+{
+	key->key  = evsel__intval(evsel, sample, "ecx");
+	key->info = evsel__intval(evsel, sample, "write");
+}
+
+static bool msr_event_begin(struct evsel *evsel,
+			       struct perf_sample *sample,
+			       struct event_key *key)
+{
+	if (!strcmp(evsel->name, "kvm:kvm_msr")) {
+		msr_event_get_key(evsel, sample, key);
+		return true;
+	}
+
+	return false;
+}
+
+static bool msr_event_end(struct evsel *evsel,
+			     struct perf_sample *sample __maybe_unused,
+			     struct event_key *key __maybe_unused)
+{
+	return kvm_entry_event(evsel);
+}
+
+static void msr_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
+				    struct event_key *key,
+				    char *decode)
+{
+	scnprintf(decode, decode_str_len, "%#llx:%s",
+		  (unsigned long long)key->key,
+		  key->info ? "W" : "R");
+}
+
+static struct kvm_events_ops msr_events = {
+	.is_begin_event = msr_event_begin,
+	.is_end_event = msr_event_end,
+	.decode_key = msr_event_decode_key,
+	.name = "MSR Access"
+};
+
 const char *kvm_events_tp[] = {
 	"kvm:kvm_entry",
 	"kvm:kvm_exit",
 	"kvm:kvm_mmio",
 	"kvm:kvm_pio",
+	"kvm:kvm_msr",
 	NULL,
 };
 
@@ -145,6 +190,7 @@ struct kvm_reg_events_ops kvm_reg_events_ops[] = {
 	{ .name = "vmexit", .ops = &exit_events },
 	{ .name = "mmio", .ops = &mmio_events },
 	{ .name = "ioport", .ops = &ioport_events },
+	{ .name = "msr", .ops = &msr_events },
 	{ NULL, NULL },
 };
 

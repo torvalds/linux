@@ -208,8 +208,7 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	s3c2412_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
+	s3c2412_i2s.regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(s3c2412_i2s.regs))
 		return PTR_ERR(s3c2412_i2s.regs);
 

@@ -30,7 +30,6 @@ DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
 	.alert = ATOMIC64_INIT(0),
 	.state = 0,
 	.flags = 0,
-	.txn_flags = 0,
 };
 /* Indicator whether the CPU-Measurement Counter Facility Support is ready */
 static bool cpum_cf_initalized;

@@ -145,7 +145,7 @@ read_nonprivs(struct intel_context *ce)
 		goto err_req;
 
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	if (INTEL_GEN(engine->i915) >= 8)
+	if (GRAPHICS_VER(engine->i915) >= 8)
 		srm++;
 
 	cs = intel_ring_begin(rq, 4 * RING_MAX_NONPRIV_SLOTS);
@@ -546,7 +546,7 @@ retry:
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
-		if (INTEL_GEN(engine->i915) >= 8)
+		if (GRAPHICS_VER(engine->i915) >= 8)
 			lrm++, srm++;
 
 		pr_debug("%s: Writing garbage to %x\n",
@@ -749,7 +749,7 @@ static int live_dirty_whitelist(void *arg)
 
 	/* Can the user write to the whitelisted registers? */
 
-	if (INTEL_GEN(gt->i915) < 7) /* minimum requirement for LRI, SRM, LRM */
+	if (GRAPHICS_VER(gt->i915) < 7) /* minimum requirement for LRI, SRM, LRM */
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -829,7 +829,7 @@ static int read_whitelisted_registers(struct intel_context *ce,
 		goto err_req;
 
 	srm = MI_STORE_REGISTER_MEM;
-	if (INTEL_GEN(engine->i915) >= 8)
+	if (GRAPHICS_VER(engine->i915) >= 8)
 		srm++;
 
 	cs = intel_ring_begin(rq, 4 * engine->whitelist.count);
@@ -927,7 +927,7 @@ err_batch:
 
 struct regmask {
 	i915_reg_t reg;
-	unsigned long gen_mask;
+	u8 graphics_ver;
 };
 
 static bool find_reg(struct drm_i915_private *i915,
@@ -938,7 +938,7 @@ static bool find_reg(struct drm_i915_private *i915,
 	u32 offset = i915_mmio_reg_offset(reg);
 
 	while (count--) {
-		if (INTEL_INFO(i915)->gen_mask & tbl->gen_mask &&
+		if (GRAPHICS_VER(i915) == tbl->graphics_ver &&
 		    i915_mmio_reg_offset(tbl->reg) == offset)
 			return true;
 		tbl++;
@@ -951,8 +951,8 @@ static bool pardon_reg(struct drm_i915_private *i915, i915_reg_t reg)
 {
 	/* Alas, we must pardon some whitelists. Mistakes already made */
 	static const struct regmask pardon[] = {
-		{ GEN9_CTX_PREEMPT_REG, INTEL_GEN_MASK(9, 9) },
-		{ GEN8_L3SQCREG4, INTEL_GEN_MASK(9, 9) },
+		{ GEN9_CTX_PREEMPT_REG, 9 },
+		{ GEN8_L3SQCREG4, 9 },
 	};
 
 	return find_reg(i915, reg, pardon, ARRAY_SIZE(pardon));
@@ -974,7 +974,7 @@ static bool writeonly_reg(struct drm_i915_private *i915, i915_reg_t reg)
 {
 	/* Some registers do not seem to behave and our writes unreadable */
 	static const struct regmask wo[] = {
-		{ GEN9_SLICE_COMMON_ECO_CHICKEN1, INTEL_GEN_MASK(9, 9) },
+		{ GEN9_SLICE_COMMON_ECO_CHICKEN1, 9 },
 	};
 
 	return find_reg(i915, reg, wo, ARRAY_SIZE(wo));

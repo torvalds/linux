@@ -1309,7 +1309,6 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	master->cf_mem = devm_ioremap_resource(&pdev->dev, &res);
  	if (IS_ERR(master->cf_mem)) {
 		rc = PTR_ERR(master->cf_mem);
-		dev_err(&pdev->dev, "Error %d mapping coldfire memory\n", rc);
  		goto err_free;
 	}
 	dev_dbg(&pdev->dev, "DRAM allocation @%x\n", master->cf_mem_addr);
@@ -1427,6 +1426,7 @@ static const struct of_device_id fsi_master_acf_match[] = {
 	{ .compatible = "aspeed,ast2500-cf-fsi-master" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, fsi_master_acf_match);
 
 static struct platform_driver fsi_master_acf = {
 	.driver = {

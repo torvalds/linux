@@ -369,7 +369,6 @@ struct anx7625_i2c_client {
 
 struct anx7625_data {
 	struct anx7625_platform_data pdata;
-	atomic_t power_status;
 	int hpd_status;
 	int hpd_high_cnt;
 	/* Lock for work queue */

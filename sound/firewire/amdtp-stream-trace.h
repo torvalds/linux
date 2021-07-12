@@ -49,7 +49,7 @@ TRACE_EVENT(amdtp_packet,
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = data_block_counter,
 		__entry->packet_index = packet_index;
-		__entry->irq = !!in_interrupt();
+		__entry->irq = !!in_softirq();
 		__entry->index = index;
 	),
 	TP_printk(

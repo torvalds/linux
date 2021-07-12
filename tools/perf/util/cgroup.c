@@ -9,6 +9,7 @@
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,49 @@ static int open_cgroup(const char *name)
 		fprintf(stderr, "no access to cgroup %s\n", path);
 
 	return fd;
+}
+
+#ifdef HAVE_FILE_HANDLE
+int read_cgroup_id(struct cgroup *cgrp)
+{
+	char path[PATH_MAX + 1];
+	char mnt[PATH_MAX + 1];
+	struct {
+		struct file_handle fh;
+		uint64_t cgroup_id;
+	} handle;
+	int mount_id;
+
+	if (cgroupfs_find_mountpoint(mnt, PATH_MAX + 1, "perf_event"))
+		return -1;
+
+	scnprintf(path, PATH_MAX, "%s/%s", mnt, cgrp->name);
+
+	handle.fh.handle_bytes = sizeof(handle.cgroup_id);
+	if (name_to_handle_at(AT_FDCWD, path, &handle.fh, &mount_id, 0) < 0)
+		return -1;
+
+	cgrp->id = handle.cgroup_id;
+	return 0;
+}
+#endif  /* HAVE_FILE_HANDLE */
+
+#ifndef CGROUP2_SUPER_MAGIC
+#define CGROUP2_SUPER_MAGIC  0x63677270
+#endif
+
+int cgroup_is_v2(const char *subsys)
+{
+	char mnt[PATH_MAX + 1];
+	struct statfs stbuf;
+
+	if (cgroupfs_find_mountpoint(mnt, PATH_MAX + 1, subsys))
+		return -1;
+
+	if (statfs(mnt, &stbuf) < 0)
+		return -1;
+
+	return (stbuf.f_type == CGROUP2_SUPER_MAGIC);
 }
 
 static struct cgroup *evlist__find_cgroup(struct evlist *evlist, const char *str)

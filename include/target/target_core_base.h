@@ -326,6 +326,7 @@ struct t10_wwn {
 	char model[INQUIRY_MODEL_LEN + 1];
 	char revision[INQUIRY_REVISION_LEN + 1];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
+	u32 company_id;
 	spinlock_t t10_vpd_lock;
 	struct se_device *t10_dev;
 	struct config_group t10_wwn_group;

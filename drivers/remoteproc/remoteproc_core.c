@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/panic_notifier.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/dma-map-ops.h>
@@ -1788,7 +1789,7 @@ static int rproc_trigger_auto_boot(struct rproc *rproc)
 	 * We're initiating an asynchronous firmware loading, so we can
 	 * be built-in kernel code, without hanging the boot process.
 	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      rproc->firmware, &rproc->dev, GFP_KERNEL,
 				      rproc, rproc_auto_boot_callback);
 	if (ret < 0)

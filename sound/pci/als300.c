@@ -298,7 +298,8 @@ static int snd_als300_ac97(struct snd_als300 *chip)
 		.read = snd_als300_ac97_read,
 	};
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &bus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &bus);
+	if (err < 0)
 		return err;
 
 	memset(&ac97, 0, sizeof(ac97));
@@ -621,7 +622,8 @@ static int snd_als300_create(struct snd_card *card,
 	};
 	*rchip = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
@@ -643,7 +645,8 @@ static int snd_als300_create(struct snd_card *card,
 	chip->chip_type = chip_type;
 	spin_lock_init(&chip->reg_lock);
 
-	if ((err = pci_request_regions(pci, "ALS300")) < 0) {
+	err = pci_request_regions(pci, "ALS300");
+	if (err < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return err;
@@ -673,14 +676,15 @@ static int snd_als300_create(struct snd_card *card,
 		return err;
 	}
 
-	if ((err = snd_als300_new_pcm(chip)) < 0) {
+	err = snd_als300_new_pcm(chip);
+	if (err < 0) {
 		dev_err(card->dev, "Could not create PCM\n");
 		snd_als300_free(chip);
 		return err;
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
-						chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_als300_free(chip);
 		return err;
 	}
@@ -741,7 +745,8 @@ static int snd_als300_probe(struct pci_dev *pci,
 
 	chip_type = pci_id->driver_data;
 
-	if ((err = snd_als300_create(card, pci, chip_type, &chip)) < 0) {
+	err = snd_als300_create(card, pci, chip_type, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -758,7 +763,8 @@ static int snd_als300_probe(struct pci_dev *pci,
 	sprintf(card->longname, "%s at 0x%lx irq %i",
 				card->shortname, chip->port, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

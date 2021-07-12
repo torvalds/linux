@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _OS_INTFS_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <hal_data.h>
@@ -24,7 +22,7 @@ static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 static int rtw_network_mode = Ndis802_11IBSS;/* Ndis802_11Infrastructure;infra, ad-hoc, auto */
 /* struct ndis_802_11_ssid	ssid; */
 static int rtw_channel = 1;/* ad-hoc support requirement */
-static int rtw_wireless_mode = WIRELESS_MODE_MAX;
+static int rtw_wireless_mode = WIRELESS_11BG_24N;
 static int rtw_vrtl_carrier_sense = AUTO_VCS;
 static int rtw_vcs_type = RTS_CTS;/*  */
 static int rtw_rts_thresh = 2347;/*  */
@@ -67,10 +65,12 @@ static int rtw_uapsd_acvi_en;
 static int rtw_uapsd_acvo_en;
 
 int rtw_ht_enable = 1;
-/*  0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160MHz, 4: 80+80MHz */
-/*  2.4G use bit 0 ~ 3, 5G use bit 4 ~ 7 */
-/*  0x21 means enable 2.4G 40MHz & 5G 80MHz */
-static int rtw_bw_mode = 0x21;
+/*
+ * 0: 20 MHz, 1: 40 MHz
+ * 2.4G use bit 0 ~ 3
+ * 0x01 means enable 2.4G 40MHz
+ */
+static int rtw_bw_mode = 0x01;
 static int rtw_ampdu_enable = 1;/* for enable tx_ampdu ,0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
 static int rtw_rx_stbc = 1;/*  0: disable, 1:enable 2.4g */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
@@ -289,7 +289,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 	registry_par->RegPowerBase = 14;
 	registry_par->TxBBSwing_2G = 0xFF;
-	registry_par->TxBBSwing_5G = 0xFF;
 	registry_par->bEn_RFE = 1;
 	registry_par->RFE_Type = 64;
 
@@ -1152,14 +1151,13 @@ static void rtw_suspend_normal(struct adapter *padapter)
 		padapter->intf_deinit(adapter_to_dvobj(padapter));
 }
 
-int rtw_suspend_common(struct adapter *padapter)
+void rtw_suspend_common(struct adapter *padapter)
 {
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	int ret = 0;
 	unsigned long start_time = jiffies;
 
 	netdev_dbg(padapter->pnetdev, " suspend start\n");
@@ -1190,19 +1188,14 @@ int rtw_suspend_common(struct adapter *padapter)
 
 	rtw_ps_deny_cancel(padapter, PS_DENY_SUSPEND);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-		rtw_suspend_normal(padapter);
-	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-		rtw_suspend_normal(padapter);
-	else
-		rtw_suspend_normal(padapter);
+	rtw_suspend_normal(padapter);
 
 	netdev_dbg(padapter->pnetdev, "rtw suspend success in %d ms\n",
 		   jiffies_to_msecs(jiffies - start_time));
 
 exit:
 
-	return ret;
+	return;
 }
 
 static int rtw_resume_process_normal(struct adapter *padapter)
@@ -1269,17 +1262,10 @@ int rtw_resume_common(struct adapter *padapter)
 	int ret = 0;
 	unsigned long start_time = jiffies;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	netdev_dbg(padapter->pnetdev, "resume start\n");
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		rtw_resume_process_normal(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		rtw_resume_process_normal(padapter);
-	} else {
-		rtw_resume_process_normal(padapter);
-	}
+	rtw_resume_process_normal(padapter);
 
 	hal_btcoex_SuspendNotify(padapter, 0);
 

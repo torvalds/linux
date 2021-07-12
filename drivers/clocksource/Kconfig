@@ -374,7 +374,7 @@ config ARM_GT_INITIAL_PRESCALER_VAL
 
 config ARM_TIMER_SP804
 	bool "Support for Dual Timer SP804 module" if COMPILE_TEST
-	depends on GENERIC_SCHED_CLOCK && CLKDEV_LOOKUP
+	depends on GENERIC_SCHED_CLOCK && HAVE_CLK
 	select CLKSRC_MMIO
 	select TIMER_OF if OF
 
@@ -584,12 +584,12 @@ config H8300_TPU
 
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
-	depends on (ARM || ARM64) && CLKDEV_LOOKUP
+	depends on (ARM || ARM64) && HAVE_CLK
 	select CLKSRC_MMIO
 
 config CLKSRC_IMX_TPM
 	bool "Clocksource using i.MX TPM" if COMPILE_TEST
-	depends on (ARM || ARM64) && CLKDEV_LOOKUP
+	depends on (ARM || ARM64) && HAVE_CLK
 	select CLKSRC_MMIO
 	select TIMER_OF
 	help

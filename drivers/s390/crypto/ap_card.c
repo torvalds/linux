@@ -167,6 +167,8 @@ static ssize_t config_store(struct device *dev,
 
 	ac->config = cfg ? true : false;
 
+	ap_send_config_uevent(&ac->ap_dev, ac->config);
+
 	return count;
 }
 

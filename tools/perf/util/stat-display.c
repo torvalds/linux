@@ -825,11 +825,11 @@ static void counter_aggr_cb(struct perf_stat_config *config __maybe_unused,
 			    bool first __maybe_unused)
 {
 	struct caggr_data *cd = data;
-	struct perf_stat_evsel *ps = counter->stats;
+	struct perf_counts_values *aggr = &counter->counts->aggr;
 
-	cd->avg += avg_stats(&ps->res_stats[0]);
-	cd->avg_enabled += avg_stats(&ps->res_stats[1]);
-	cd->avg_running += avg_stats(&ps->res_stats[2]);
+	cd->avg += aggr->val;
+	cd->avg_enabled += aggr->ena;
+	cd->avg_running += aggr->run;
 }
 
 /*

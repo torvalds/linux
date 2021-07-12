@@ -554,7 +554,7 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec)
 	} else {
 		/*
 		 * The page's writeback ends up during pagevec
-		 * We moves tha page into tail of inactive.
+		 * We move that page into tail of inactive.
 		 */
 		add_page_to_lru_list_tail(page, lruvec);
 		__count_vm_events(PGROTATED, nr_pages);

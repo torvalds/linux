@@ -129,10 +129,10 @@ int smu7_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 }
 
 /**
-* Reset Fan Speed Control to default mode.
-* @hwmgr:  the address of the powerplay hardware manager.
-* Exception: Should always succeed.
-*/
+ * smu7_fan_ctrl_set_default_mode - Reset Fan Speed Control to default mode.
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Exception: Should always succeed.
+ */
 int smu7_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 {
 	if (!hwmgr->fan_ctrl_is_in_default_mode) {

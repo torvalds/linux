@@ -498,7 +498,7 @@ static struct mei_fixup {
 };
 
 /**
- * mei_cldev_fixup - run fixup handlers
+ * mei_cl_bus_dev_fixup - run fixup handlers
  *
  * @cldev: me client device
  */

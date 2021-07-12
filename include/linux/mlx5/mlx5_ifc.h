@@ -956,9 +956,9 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 };
 
 enum {
-	MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING               = 0x0,
-	MLX5_QP_TIMESTAMP_FORMAT_CAP_REAL_TIME                  = 0x1,
-	MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME = 0x2,
+	MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING               = 0x0,
+	MLX5_TIMESTAMP_FORMAT_CAP_REAL_TIME                  = 0x1,
+	MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME = 0x2,
 };
 
 struct mlx5_ifc_roce_cap_bits {
@@ -1297,18 +1297,6 @@ enum mlx5_fc_bulk_alloc_bitmask {
 enum {
 	MLX5_STEERING_FORMAT_CONNECTX_5   = 0,
 	MLX5_STEERING_FORMAT_CONNECTX_6DX = 1,
-};
-
-enum {
-	MLX5_SQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING               = 0x0,
-	MLX5_SQ_TIMESTAMP_FORMAT_CAP_REAL_TIME                  = 0x1,
-	MLX5_SQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME = 0x2,
-};
-
-enum {
-	MLX5_RQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING               = 0x0,
-	MLX5_RQ_TIMESTAMP_FORMAT_CAP_REAL_TIME                  = 0x1,
-	MLX5_RQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME = 0x2,
 };
 
 struct mlx5_ifc_cmd_hca_cap_bits {
@@ -2959,9 +2947,9 @@ enum {
 };
 
 enum {
-	MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING = 0x0,
-	MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT      = 0x1,
-	MLX5_QPC_TIMESTAMP_FORMAT_REAL_TIME    = 0x2,
+	MLX5_TIMESTAMP_FORMAT_FREE_RUNNING = 0x0,
+	MLX5_TIMESTAMP_FORMAT_DEFAULT      = 0x1,
+	MLX5_TIMESTAMP_FORMAT_REAL_TIME    = 0x2,
 };
 
 struct mlx5_ifc_qpc_bits {
@@ -3412,12 +3400,6 @@ enum {
 	MLX5_SQC_STATE_ERR  = 0x3,
 };
 
-enum {
-	MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING = 0x0,
-	MLX5_SQC_TIMESTAMP_FORMAT_DEFAULT      = 0x1,
-	MLX5_SQC_TIMESTAMP_FORMAT_REAL_TIME    = 0x2,
-};
-
 struct mlx5_ifc_sqc_bits {
 	u8         rlky[0x1];
 	u8         cd_master[0x1];
@@ -3521,12 +3503,6 @@ enum {
 	MLX5_RQC_STATE_RST  = 0x0,
 	MLX5_RQC_STATE_RDY  = 0x1,
 	MLX5_RQC_STATE_ERR  = 0x3,
-};
-
-enum {
-	MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING = 0x0,
-	MLX5_RQC_TIMESTAMP_FORMAT_DEFAULT      = 0x1,
-	MLX5_RQC_TIMESTAMP_FORMAT_REAL_TIME    = 0x2,
 };
 
 struct mlx5_ifc_rqc_bits {

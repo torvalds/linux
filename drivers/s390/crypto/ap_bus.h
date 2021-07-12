@@ -362,4 +362,7 @@ int ap_parse_mask_str(const char *str,
  */
 int ap_wait_init_apqn_bindings_complete(unsigned long timeout);
 
+void ap_send_config_uevent(struct ap_device *ap_dev, bool cfg);
+void ap_send_online_uevent(struct ap_device *ap_dev, int online);
+
 #endif /* _AP_BUS_H_ */

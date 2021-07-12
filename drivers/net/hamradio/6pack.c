@@ -428,7 +428,7 @@ out:
  * and sent on to some IP layer for further processing.
  */
 static void sixpack_receive_buf(struct tty_struct *tty,
-	const unsigned char *cp, char *fp, int count)
+	const unsigned char *cp, const char *fp, int count)
 {
 	struct sixpack *sp;
 	int count1;
@@ -742,6 +742,7 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops sp_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_6PACK,
 	.name		= "6pack",
 	.open		= sixpack_open,
 	.close		= sixpack_close,
@@ -764,21 +765,16 @@ static int __init sixpack_init_driver(void)
 	printk(msg_banner);
 
 	/* Register the provided line protocol discipline */
-	if ((status = tty_register_ldisc(N_6PACK, &sp_ldisc)) != 0)
+	status = tty_register_ldisc(&sp_ldisc);
+	if (status)
 		printk(msg_regfail, status);
 
 	return status;
 }
 
-static const char msg_unregfail[] = KERN_ERR \
-	"6pack: can't unregister line discipline (err = %d)\n";
-
 static void __exit sixpack_exit_driver(void)
 {
-	int ret;
-
-	if ((ret = tty_unregister_ldisc(N_6PACK)))
-		printk(msg_unregfail, ret);
+	tty_unregister_ldisc(&sp_ldisc);
 }
 
 /* encode an AX.25 packet into 6pack */

@@ -42,7 +42,7 @@ struct at91_gpio_chip {
 	int			pioc_idx;	/* PIO bank index */
 	void __iomem		*regbase;	/* PIO bank virtual address */
 	struct clk		*clock;		/* associated clock */
-	struct at91_pinctrl_mux_ops *ops;	/* ops */
+	const struct at91_pinctrl_mux_ops *ops;	/* ops */
 };
 
 static struct at91_gpio_chip *gpio_chips[MAX_GPIO_BANKS];
@@ -210,7 +210,7 @@ struct at91_pinctrl {
 	struct at91_pin_group	*groups;
 	int			ngroups;
 
-	struct at91_pinctrl_mux_ops *ops;
+	const struct at91_pinctrl_mux_ops *ops;
 };
 
 static inline const struct at91_pin_group *at91_pinctrl_find_group_by_name(
@@ -688,7 +688,7 @@ static void at91_mux_sam9x60_set_slewrate(void __iomem *pio, unsigned pin,
 	writel_relaxed(tmp, pio + SAM9X60_PIO_SLEWR);
 }
 
-static struct at91_pinctrl_mux_ops at91rm9200_ops = {
+static const struct at91_pinctrl_mux_ops at91rm9200_ops = {
 	.get_periph	= at91_mux_get_periph,
 	.mux_A_periph	= at91_mux_set_A_periph,
 	.mux_B_periph	= at91_mux_set_B_periph,
@@ -697,7 +697,7 @@ static struct at91_pinctrl_mux_ops at91rm9200_ops = {
 	.irq_type	= gpio_irq_type,
 };
 
-static struct at91_pinctrl_mux_ops at91sam9x5_ops = {
+static const struct at91_pinctrl_mux_ops at91sam9x5_ops = {
 	.get_periph	= at91_mux_pio3_get_periph,
 	.mux_A_periph	= at91_mux_pio3_set_A_periph,
 	.mux_B_periph	= at91_mux_pio3_set_B_periph,
@@ -737,7 +737,7 @@ static const struct at91_pinctrl_mux_ops sam9x60_ops = {
 	.irq_type	= alt_gpio_irq_type,
 };
 
-static struct at91_pinctrl_mux_ops sama5d3_ops = {
+static const struct at91_pinctrl_mux_ops sama5d3_ops = {
 	.get_periph	= at91_mux_pio3_get_periph,
 	.mux_A_periph	= at91_mux_pio3_set_A_periph,
 	.mux_B_periph	= at91_mux_pio3_set_B_periph,
@@ -1284,7 +1284,7 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 		return -ENODEV;
 
 	info->dev = &pdev->dev;
-	info->ops = (struct at91_pinctrl_mux_ops *)
+	info->ops = (const struct at91_pinctrl_mux_ops *)
 		of_match_device(at91_pinctrl_of_match, &pdev->dev)->data;
 	at91_pinctrl_child_count(info, np);
 
@@ -1849,7 +1849,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->ops = (struct at91_pinctrl_mux_ops *)
+	at91_chip->ops = (const struct at91_pinctrl_mux_ops *)
 		of_match_device(at91_gpio_of_match, &pdev->dev)->data;
 	at91_chip->pioc_virq = irq;
 	at91_chip->pioc_idx = alias_idx;

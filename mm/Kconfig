@@ -96,6 +96,9 @@ config HAVE_FAST_GUP
 	depends on MMU
 	bool
 
+config HOLES_IN_ZONE
+	bool
+
 # Don't discard allocated memory used to track "memory" and "reserved" memblocks
 # after early boot, so it can still be used to test for validity of memory.
 # Also, memblocks are updated with memory hot(un)plug.
@@ -671,6 +674,7 @@ config ZPOOL
 
 config ZBUD
 	tristate "Low (Up to 2x) density storage for compressed pages"
+	depends on ZPOOL
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to two compressed pages per physical
@@ -756,6 +760,18 @@ config ARCH_HAS_CACHE_LINE_SIZE
 
 config ARCH_HAS_PTE_DEVMAP
 	bool
+
+config ARCH_HAS_ZONE_DMA_SET
+	bool
+
+config ZONE_DMA
+	bool "Support DMA zone" if ARCH_HAS_ZONE_DMA_SET
+	default y if ARM64 || X86
+
+config ZONE_DMA32
+	bool "Support DMA32 zone" if ARCH_HAS_ZONE_DMA_SET
+	depends on !X86_32
+	default y if ARM64
 
 config ZONE_DEVICE
 	bool "Device memory (pmem, HMM, etc...) hotplug support"

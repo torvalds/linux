@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/panic_notifier.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/smp.h>

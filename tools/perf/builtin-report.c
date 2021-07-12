@@ -934,6 +934,8 @@ static int __cmd_report(struct report *rep)
 		return ret;
 	}
 
+	evlist__check_mem_load_aux(session->evlist);
+
 	if (rep->stats_mode)
 		return stats_print(rep);
 

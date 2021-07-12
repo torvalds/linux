@@ -6,13 +6,9 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
+#include <linux/mod_devicetable.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
@@ -587,3 +583,4 @@ module_platform_driver(hid_magn_3d_platform_driver);
 MODULE_DESCRIPTION("HID Sensor Magnetometer 3D");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

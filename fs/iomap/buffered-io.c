@@ -746,10 +746,6 @@ again:
 		 * Otherwise there's a nasty deadlock on copying from the
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
-		 *
-		 * Not only is this an optimisation, but it is also required
-		 * to check that the address is actually valid, when atomic
-		 * usercopies are used, below.
 		 */
 		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
 			status = -EFAULT;
@@ -764,30 +760,29 @@ again:
 		if (mapping_writably_mapped(inode->i_mapping))
 			flush_dcache_page(page);
 
-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+		copied = copy_page_from_iter_atomic(page, offset, bytes, i);
 
-		copied = iomap_write_end(inode, pos, bytes, copied, page, iomap,
+		status = iomap_write_end(inode, pos, bytes, copied, page, iomap,
 				srcmap);
 
-		cond_resched();
+		if (unlikely(copied != status))
+			iov_iter_revert(i, copied - status);
 
-		iov_iter_advance(i, copied);
-		if (unlikely(copied == 0)) {
+		cond_resched();
+		if (unlikely(status == 0)) {
 			/*
-			 * If we were unable to copy any data at all, we must
-			 * fall back to a single segment length write.
-			 *
-			 * If we didn't fallback here, we could livelock
-			 * because not all segments in the iov can be copied at
-			 * once without a pagefault.
+			 * A short copy made iomap_write_end() reject the
+			 * thing entirely.  Might be memory poisoning
+			 * halfway through, might be a race with munmap,
+			 * might be severe memory pressure.
 			 */
-			bytes = min_t(unsigned long, PAGE_SIZE - offset,
-						iov_iter_single_seg_count(i));
+			if (copied)
+				bytes = copied;
 			goto again;
 		}
-		pos += copied;
-		written += copied;
-		length -= copied;
+		pos += status;
+		written += status;
+		length -= status;
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 	} while (iov_iter_count(i) && length);

@@ -1,0 +1,242 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/brcm,brcmnand.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom STB NAND Controller
+
+maintainers:
+  - Brian Norris <computersforpeace@gmail.com>
+  - Kamal Dasu <kdasu.kdev@gmail.com>
+
+description: |
+  The Broadcom Set-Top Box NAND controller supports low-level access to raw NAND
+  flash chips. It has a memory-mapped register interface for both control
+  registers and for its data input/output buffer. On some SoCs, this controller
+  is paired with a custom DMA engine (inventively named "Flash DMA") which
+  supports basic PROGRAM and READ functions, among other features.
+
+  This controller was originally designed for STB SoCs (BCM7xxx) but is now
+  available on a variety of Broadcom SoCs, including some BCM3xxx, BCM63xx, and
+  iProc/Cygnus. Its history includes several similar (but not fully register
+  compatible) versions.
+
+  -- Additional SoC-specific NAND controller properties --
+
+  The NAND controller is integrated differently on the variety of SoCs on which
+  it is found. Part of this integration involves providing status and enable
+  bits with which to control the 8 exposed NAND interrupts, as well as hardware
+  for configuring the endianness of the data bus. On some SoCs, these features
+  are handled via standard, modular components (e.g., their interrupts look like
+  a normal IRQ chip), but on others, they are controlled in unique and
+  interesting ways, sometimes with registers that lump multiple NAND-related
+  functions together. The former case can be described simply by the standard
+  interrupts properties in the main controller node. But for the latter
+  exceptional cases, we define additional 'compatible' properties and associated
+  register resources within the NAND controller node above.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,brcmnand-v2.1
+              - brcm,brcmnand-v2.2
+              - brcm,brcmnand-v4.0
+              - brcm,brcmnand-v5.0
+              - brcm,brcmnand-v6.0
+              - brcm,brcmnand-v6.1
+              - brcm,brcmnand-v6.2
+              - brcm,brcmnand-v7.0
+              - brcm,brcmnand-v7.1
+              - brcm,brcmnand-v7.2
+              - brcm,brcmnand-v7.3
+          - const: brcm,brcmnand
+      - description: BCM63138 SoC-specific NAND controller
+        items:
+          - const: brcm,nand-bcm63138
+          - enum:
+              - brcm,brcmnand-v7.0
+              - brcm,brcmnand-v7.1
+          - const: brcm,brcmnand
+      - description: iProc SoC-specific NAND controller
+        items:
+          - const: brcm,nand-iproc
+          - const: brcm,brcmnand-v6.1
+          - const: brcm,brcmnand
+      - description: BCM63168 SoC-specific NAND controller
+        items:
+          - const: brcm,nand-bcm63168
+          - const: brcm,nand-bcm6368
+          - const: brcm,brcmnand-v4.0
+          - const: brcm,brcmnand
+
+  reg:
+    minItems: 1
+    maxItems: 6
+
+  reg-names:
+    minItems: 1
+    maxItems: 6
+    items:
+      enum: [ nand, flash-dma, flash-edu, nand-cache, nand-int-base, iproc-idm, iproc-ext ]
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+    items:
+      - description: NAND CTLRDY interrupt
+      - description: FLASH_DMA_DONE if flash DMA is available
+      - description: FLASH_EDU_DONE if EDU is available
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 3
+    items:
+      - const: nand_ctlrdy
+      - const: flash_dma_done
+      - const: flash_edu_done
+
+  clocks:
+    maxItems: 1
+    description: reference to the clock for the NAND controller
+
+  clock-names:
+    const: nand
+
+  brcm,nand-has-wp:
+    description: >
+      Some versions of this IP include a write-protect
+      (WP) control bit. It is always available on >=
+      v7.0. Use this property to describe the rare
+      earlier versions of this core that include WP
+    type: boolean
+
+patternProperties:
+  "^nand@[a-f0-9]$":
+    type: object
+    properties:
+      compatible:
+        const: brcm,nandcs
+
+      nand-ecc-step-size:
+        enum: [ 512, 1024 ]
+
+      brcm,nand-oob-sector-size:
+        description: |
+          integer, to denote the spare area sector size
+          expected for the ECC layout in use. This size, in
+          addition to the strength and step-size,
+          determines how the hardware BCH engine will lay
+          out the parity bytes it stores on the flash.
+          This property can be automatically determined by
+          the flash geometry (particularly the NAND page
+          and OOB size) in many cases, but when booting
+          from NAND, the boot controller has only a limited
+          number of available options for its default ECC
+          layout.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+allOf:
+  - $ref: nand-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,nand-bcm63138
+    then:
+      properties:
+        reg-names:
+          minItems: 2
+          maxItems: 2
+          items:
+            - const: nand
+            - const: nand-int-base
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,nand-bcm6368
+    then:
+      properties:
+        reg-names:
+          minItems: 3
+          maxItems: 3
+          items:
+            - const: nand
+            - const: nand-int-base
+            - const: nand-cache
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,nand-iproc
+    then:
+      properties:
+        reg-names:
+          minItems: 3
+          maxItems: 3
+          items:
+            - const: nand
+            - const: iproc-idm
+            - const: iproc-ext
+
+unevaluatedProperties: false
+
+required:
+  - reg
+  - reg-names
+  - interrupts
+
+examples:
+  - |
+    nand-controller@f0442800 {
+            compatible = "brcm,brcmnand-v7.0", "brcm,brcmnand";
+            reg = <0xf0442800 0x600>,
+                  <0xf0443000 0x100>;
+            reg-names = "nand", "flash-dma";
+            interrupt-parent = <&hif_intr2_intc>;
+            interrupts = <24>, <4>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            nand@1 {
+                    compatible = "brcm,nandcs";
+                    reg = <1>; // Chip select 1
+                    nand-on-flash-bbt;
+                    nand-ecc-strength = <12>;
+                    nand-ecc-step-size = <512>;
+
+                    #address-cells = <1>;
+                    #size-cells = <1>;
+            };
+    };
+  - |
+    nand-controller@10000200 {
+            compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
+                         "brcm,brcmnand-v4.0", "brcm,brcmnand";
+            reg = <0x10000200 0x180>,
+                  <0x100000b0 0x10>,
+                  <0x10000600 0x200>;
+            reg-names = "nand", "nand-int-base", "nand-cache";
+            interrupt-parent = <&periph_intc>;
+            interrupts = <50>;
+            clocks = <&periph_clk 20>;
+            clock-names = "nand";
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            nand@0 {
+                    compatible = "brcm,nandcs";
+                    reg = <0>;
+                    nand-on-flash-bbt;
+                    nand-ecc-strength = <1>;
+                    nand-ecc-step-size = <512>;
+
+                    #address-cells = <1>;
+                    #size-cells = <1>;
+            };
+    };

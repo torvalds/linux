@@ -608,7 +608,7 @@ static struct coresight_device *
 coresight_find_enabled_sink(struct coresight_device *csdev)
 {
 	int i;
-	struct coresight_device *sink;
+	struct coresight_device *sink = NULL;
 
 	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
 	     csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) &&
@@ -886,7 +886,6 @@ void coresight_release_path(struct list_head *path)
 	}
 
 	kfree(path);
-	path = NULL;
 }
 
 /* return true if the device is a suitable type for a default sink */
@@ -1392,7 +1391,7 @@ static int coresight_fixup_device_conns(struct coresight_device *csdev)
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int coresight_remove_match(struct device *dev, void *data)
@@ -1730,9 +1729,9 @@ char *coresight_alloc_device_name(struct coresight_dev_list *dict,
 	if (idx < 0) {
 		/* Make space for the new entry */
 		idx = dict->nr_idx;
-		list = krealloc(dict->fwnode_list,
-				(idx + 1) * sizeof(*dict->fwnode_list),
-				GFP_KERNEL);
+		list = krealloc_array(dict->fwnode_list,
+				      idx + 1, sizeof(*dict->fwnode_list),
+				      GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(list)) {
 			idx = -ENOMEM;
 			goto done;

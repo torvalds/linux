@@ -575,7 +575,7 @@ EXPORT_SYMBOL_GPL(kmem_valid_obj);
  * depends on the type of object and on how much debugging is enabled.
  * For a slab-cache object, the fact that it is a slab object is printed,
  * and, if available, the slab name, return address, and stack trace from
- * the allocation of that object.
+ * the allocation and last free path of that object.
  *
  * This function will splat if passed a pointer to a non-slab object.
  * If you are not sure what type of object you have, you should instead
@@ -620,6 +620,16 @@ void kmem_dump_obj(void *object)
 			break;
 		pr_info("    %pS\n", kp.kp_stack[i]);
 	}
+
+	if (kp.kp_free_stack[0])
+		pr_cont(" Free path:\n");
+
+	for (i = 0; i < ARRAY_SIZE(kp.kp_free_stack); i++) {
+		if (!kp.kp_free_stack[i])
+			break;
+		pr_info("    %pS\n", kp.kp_free_stack[i]);
+	}
+
 }
 EXPORT_SYMBOL_GPL(kmem_dump_obj);
 #endif

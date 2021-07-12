@@ -185,14 +185,12 @@ void rtl92e_cam_restore(struct net_device *dev)
 			rtl92e_set_key(dev, 4, 0,
 				       priv->rtllib->pairwise_key_type,
 				       (u8 *)dev->dev_addr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].
-				       key_buf[0]));
+				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
 		} else {
 			rtl92e_set_key(dev, 4, 0,
 				       priv->rtllib->pairwise_key_type,
 				       MacAddr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].
-				       key_buf[0]));
+				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
 		}
 
 	} else if (priv->rtllib->pairwise_key_type == KEY_TYPE_CCMP) {
@@ -200,13 +198,11 @@ void rtl92e_cam_restore(struct net_device *dev)
 			rtl92e_set_key(dev, 4, 0,
 				       priv->rtllib->pairwise_key_type,
 				       (u8 *)dev->dev_addr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].
-				       key_buf[0]));
+				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
 		} else {
 			rtl92e_set_key(dev, 4, 0,
 				       priv->rtllib->pairwise_key_type, MacAddr,
-				       0, (u32 *)(&priv->rtllib->swcamtable[4].
-				       key_buf[0]));
+				       0, (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
 			}
 	}
 

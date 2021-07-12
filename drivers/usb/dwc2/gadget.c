@@ -1496,8 +1496,8 @@ static int dwc2_hsotg_ep_queue_lock(struct usb_ep *ep, struct usb_request *req,
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
-	unsigned long flags = 0;
-	int ret = 0;
+	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hs->lock, flags);
 	ret = dwc2_hsotg_ep_queue(ep, req, gfp_flags);
@@ -3338,7 +3338,7 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 
 static int dwc2_hsotg_ep_disable(struct usb_ep *ep);
 /**
- * dwc2_hsotg_core_init - issue softreset to the core
+ * dwc2_hsotg_core_init_disconnected - issue softreset to the core
  * @hsotg: The device state
  * @is_usb_reset: Usb resetting flag
  *
@@ -4374,8 +4374,8 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
-	unsigned long flags = 0;
-	int ret = 0;
+	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hs->lock, flags);
 	ret = dwc2_hsotg_ep_sethalt(ep, value, false);
@@ -4505,7 +4505,7 @@ err:
 static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 {
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int ep;
 
 	if (!hsotg)
@@ -4577,7 +4577,7 @@ static int dwc2_hsotg_set_selfpowered(struct usb_gadget *gadget,
 static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(hsotg->dev, "%s: is_on: %d op_state: %d\n", __func__, is_on,
 		hsotg->op_state);

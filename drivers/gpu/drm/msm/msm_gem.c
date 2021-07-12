@@ -211,6 +211,13 @@ void msm_gem_put_pages(struct drm_gem_object *obj)
 	msm_gem_unlock(obj);
 }
 
+static pgprot_t msm_gem_pgprot(struct msm_gem_object *msm_obj, pgprot_t prot)
+{
+	if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
+		return pgprot_writecombine(prot);
+	return prot;
+}
+
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
 		struct vm_area_struct *vma)
 {
@@ -218,22 +225,7 @@ int msm_gem_mmap_obj(struct drm_gem_object *obj,
 
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
-
-	if (msm_obj->flags & MSM_BO_WC) {
-		vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-	} else if (msm_obj->flags & MSM_BO_UNCACHED) {
-		vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-	} else {
-		/*
-		 * Shunt off cached objs to shmem file so they have their own
-		 * address_space (so unmap_mapping_range does what we want,
-		 * in particular in the case of mmap'd dmabufs)
-		 */
-		vma->vm_pgoff = 0;
-		vma_set_file(vma, obj->filp);
-
-		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	}
+	vma->vm_page_prot = msm_gem_pgprot(msm_obj, vm_get_page_prot(vma->vm_flags));
 
 	return 0;
 }
@@ -372,7 +364,7 @@ static void del_vma(struct msm_gem_vma *vma)
 	kfree(vma);
 }
 
-/**
+/*
  * If close is true, this also closes the VMA (releasing the allocated
  * iova range) in addition to removing the iommu mapping.  In the eviction
  * case (!close), we keep the iova allocated, but only remove the iommu
@@ -450,6 +442,9 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 
 	if (msm_obj->flags & MSM_BO_MAP_PRIV)
 		prot |= IOMMU_PRIV;
+
+	if (msm_obj->flags & MSM_BO_CACHED_COHERENT)
+		prot |= IOMMU_CACHE;
 
 	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
@@ -653,7 +648,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 			goto fail;
 		}
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
-				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+				VM_MAP, msm_gem_pgprot(msm_obj, PAGE_KERNEL));
 		if (msm_obj->vaddr == NULL) {
 			ret = -ENOMEM;
 			goto fail;
@@ -773,7 +768,7 @@ void msm_gem_purge(struct drm_gem_object *obj)
 			0, (loff_t)-1);
 }
 
-/**
+/*
  * Unpin the backing pages and make them available to be swapped out.
  */
 void msm_gem_evict(struct drm_gem_object *obj)
@@ -817,9 +812,9 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	struct dma_fence *fence;
 	int i, ret;
 
-	fobj = dma_resv_get_list(obj->resv);
+	fobj = dma_resv_shared_list(obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
-		fence = dma_resv_get_excl(obj->resv);
+		fence = dma_resv_excl_fence(obj->resv);
 		/* don't need to wait on our own fences, since ring is fifo */
 		if (fence && (fence->context != fctx->context)) {
 			ret = dma_fence_wait(fence, true);
@@ -915,8 +910,7 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
 	long ret;
 
-	ret = dma_resv_wait_timeout_rcu(obj->resv, write,
-						  true,  remain);
+	ret = dma_resv_wait_timeout(obj->resv, write, true,  remain);
 	if (ret == 0)
 		return remain == 0 ? -EBUSY : -ETIMEDOUT;
 	else if (ret < 0)
@@ -1025,7 +1019,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 	}
 
 	rcu_read_lock();
-	fobj = rcu_dereference(robj->fence);
+	fobj = dma_resv_shared_list(robj);
 	if (fobj) {
 		unsigned int i, shared_count = fobj->shared_count;
 
@@ -1035,7 +1029,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 		}
 	}
 
-	fence = rcu_dereference(robj->fence_excl);
+	fence = dma_resv_excl_fence(robj);
 	if (fence)
 		describe_fence(fence, "Exclusive", m);
 	rcu_read_unlock();
@@ -1164,6 +1158,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
 		struct drm_gem_object **obj)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
 
 	switch (flags & MSM_BO_CACHE_MASK) {
@@ -1171,6 +1166,10 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	case MSM_BO_CACHED:
 	case MSM_BO_WC:
 		break;
+	case MSM_BO_CACHED_COHERENT:
+		if (priv->has_cached_coherent)
+			break;
+		/* fallthrough */
 	default:
 		DRM_DEV_ERROR(dev->dev, "invalid cache flag: %x\n",
 				(flags & MSM_BO_CACHE_MASK));
