@@ -42,6 +42,7 @@
 #define SOF_CS42L42_DAILINK(link1, link2, link3, link4, link5) \
 	((((link1) | ((link2) << 3) | ((link3) << 6) | ((link4) << 9) | ((link5) << 12)) << SOF_CS42L42_DAILINK_SHIFT) & SOF_CS42L42_DAILINK_MASK)
 #define SOF_MAX98357A_SPEAKER_AMP_PRESENT	BIT(25)
+#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(26)
 
 enum {
 	LINK_NONE = 0,
@@ -299,6 +300,8 @@ static int create_spk_amp_dai_links(struct device *dev,
 
 	if (sof_cs42l42_quirk & SOF_MAX98357A_SPEAKER_AMP_PRESENT) {
 		max_98357a_dai_link(&links[*id]);
+	} else if (sof_cs42l42_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
+		max_98360a_dai_link(&links[*id]);
 	} else {
 		dev_err(dev, "no amp defined\n");
 		ret = -EINVAL;
@@ -609,6 +612,14 @@ static const struct platform_device_id board_ids[] = {
 					SOF_MAX98357A_SPEAKER_AMP_PRESENT |
 					SOF_CS42L42_SSP_AMP(1)) |
 					SOF_CS42L42_DAILINK(LINK_SPK, LINK_HP, LINK_DMIC, LINK_HDMI, LINK_NONE),
+	},
+	{
+		.name = "jsl_cs4242_mx98360a",
+		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
+					SOF_CS42L42_SSP_AMP(1)) |
+					SOF_CS42L42_DAILINK(LINK_HP, LINK_DMIC, LINK_HDMI, LINK_SPK, LINK_NONE),
 	},
 	{ }
 };
