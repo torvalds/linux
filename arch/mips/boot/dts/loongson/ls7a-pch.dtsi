@@ -186,7 +186,8 @@
 				compatible = "pci0014,7a03.0",
 						   "pci0014,7a03",
 						   "pciclass020000",
-						   "pciclass0200";
+						   "pciclass0200",
+						   "loongson, pci-gmac";
 
 				reg = <0x1800 0x0 0x0 0x0 0x0>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
@@ -208,7 +209,8 @@
 				compatible = "pci0014,7a03.0",
 						   "pci0014,7a03",
 						   "pciclass020000",
-						   "pciclass0200";
+						   "pciclass0200",
+						   "loongson, pci-gmac";
 
 				reg = <0x1900 0x0 0x0 0x0 0x0>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,

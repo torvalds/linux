@@ -428,7 +428,6 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	spin_lock_init(&ipsec->sadb_rx_lock);
 	ida_init(&ipsec->halloc);
 	ipsec->en_priv = priv;
-	ipsec->en_priv->ipsec = ipsec;
 	ipsec->no_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
 			       MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER);
 	ipsec->wq = alloc_ordered_workqueue("mlx5e_ipsec: %s", 0,
@@ -438,6 +437,7 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 		return -ENOMEM;
 	}
 
+	priv->ipsec = ipsec;
 	mlx5e_accel_ipsec_fs_init(priv);
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
 	return 0;

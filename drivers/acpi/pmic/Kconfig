@@ -52,7 +52,7 @@ endif	# PMIC_OPREGION
 
 config TPS68470_PMIC_OPREGION
 	bool "ACPI operation region support for TPS68470 PMIC"
-	depends on MFD_TPS68470
+	depends on INTEL_SKL_INT3472
 	help
 	  This config adds ACPI operation region support for TI TPS68470 PMIC.
 	  TPS68470 device is an advanced power management unit that powers

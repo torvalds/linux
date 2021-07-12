@@ -2932,11 +2932,11 @@ static struct ctl_table vm_table[] = {
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
-		.procname	= "percpu_pagelist_fraction",
-		.data		= &percpu_pagelist_fraction,
-		.maxlen		= sizeof(percpu_pagelist_fraction),
+		.procname	= "percpu_pagelist_high_fraction",
+		.data		= &percpu_pagelist_high_fraction,
+		.maxlen		= sizeof(percpu_pagelist_high_fraction),
 		.mode		= 0644,
-		.proc_handler	= percpu_pagelist_fraction_sysctl_handler,
+		.proc_handler	= percpu_pagelist_high_fraction_sysctl_handler,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -2972,14 +2972,6 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(laptop_mode),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "block_dump",
-		.data		= &block_dump,
-		.maxlen		= sizeof(block_dump),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
 	},
 	{
 		.procname	= "vfs_cache_pressure",

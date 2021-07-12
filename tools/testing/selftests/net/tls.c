@@ -25,6 +25,47 @@
 #define TLS_PAYLOAD_MAX_LEN 16384
 #define SOL_TLS 282
 
+struct tls_crypto_info_keys {
+	union {
+		struct tls12_crypto_info_aes_gcm_128 aes128;
+		struct tls12_crypto_info_chacha20_poly1305 chacha20;
+	};
+	size_t len;
+};
+
+static void tls_crypto_info_init(uint16_t tls_version, uint16_t cipher_type,
+				 struct tls_crypto_info_keys *tls12)
+{
+	memset(tls12, 0, sizeof(*tls12));
+
+	switch (cipher_type) {
+	case TLS_CIPHER_CHACHA20_POLY1305:
+		tls12->len = sizeof(struct tls12_crypto_info_chacha20_poly1305);
+		tls12->chacha20.info.version = tls_version;
+		tls12->chacha20.info.cipher_type = cipher_type;
+		break;
+	case TLS_CIPHER_AES_GCM_128:
+		tls12->len = sizeof(struct tls12_crypto_info_aes_gcm_128);
+		tls12->aes128.info.version = tls_version;
+		tls12->aes128.info.cipher_type = cipher_type;
+		break;
+	default:
+		break;
+	}
+}
+
+static void memrnd(void *s, size_t n)
+{
+	int *dword = s;
+	char *byte;
+
+	for (; n >= 4; n -= 4)
+		*dword++ = rand();
+	byte = (void *)dword;
+	while (n--)
+		*byte++ = rand();
+}
+
 FIXTURE(tls_basic)
 {
 	int fd, cfd;
@@ -133,33 +174,16 @@ FIXTURE_VARIANT_ADD(tls, 13_chacha)
 
 FIXTURE_SETUP(tls)
 {
-	union {
-		struct tls12_crypto_info_aes_gcm_128 aes128;
-		struct tls12_crypto_info_chacha20_poly1305 chacha20;
-	} tls12;
+	struct tls_crypto_info_keys tls12;
 	struct sockaddr_in addr;
 	socklen_t len;
 	int sfd, ret;
-	size_t tls12_sz;
 
 	self->notls = false;
 	len = sizeof(addr);
 
-	memset(&tls12, 0, sizeof(tls12));
-	switch (variant->cipher_type) {
-	case TLS_CIPHER_CHACHA20_POLY1305:
-		tls12_sz = sizeof(struct tls12_crypto_info_chacha20_poly1305);
-		tls12.chacha20.info.version = variant->tls_version;
-		tls12.chacha20.info.cipher_type = variant->cipher_type;
-		break;
-	case TLS_CIPHER_AES_GCM_128:
-		tls12_sz = sizeof(struct tls12_crypto_info_aes_gcm_128);
-		tls12.aes128.info.version = variant->tls_version;
-		tls12.aes128.info.cipher_type = variant->cipher_type;
-		break;
-	default:
-		tls12_sz = 0;
-	}
+	tls_crypto_info_init(variant->tls_version, variant->cipher_type,
+			     &tls12);
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -187,7 +211,7 @@ FIXTURE_SETUP(tls)
 
 	if (!self->notls) {
 		ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12,
-				 tls12_sz);
+				 tls12.len);
 		ASSERT_EQ(ret, 0);
 	}
 
@@ -200,7 +224,7 @@ FIXTURE_SETUP(tls)
 		ASSERT_EQ(ret, 0);
 
 		ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12,
-				 tls12_sz);
+				 tls12.len);
 		ASSERT_EQ(ret, 0);
 	}
 
@@ -307,6 +331,8 @@ TEST_F(tls, recv_max)
 	unsigned int send_len = TLS_PAYLOAD_MAX_LEN;
 	char recv_mem[TLS_PAYLOAD_MAX_LEN];
 	char buf[TLS_PAYLOAD_MAX_LEN];
+
+	memrnd(buf, sizeof(buf));
 
 	EXPECT_GE(send(self->fd, buf, send_len, 0), 0);
 	EXPECT_NE(recv(self->cfd, recv_mem, send_len, 0), -1);
@@ -588,6 +614,8 @@ TEST_F(tls, recvmsg_single_max)
 	struct iovec vec;
 	struct msghdr hdr;
 
+	memrnd(send_mem, sizeof(send_mem));
+
 	EXPECT_EQ(send(self->fd, send_mem, send_len, 0), send_len);
 	vec.iov_base = (char *)recv_mem;
 	vec.iov_len = TLS_PAYLOAD_MAX_LEN;
@@ -609,6 +637,8 @@ TEST_F(tls, recvmsg_multiple)
 	char buf[1 << 14];
 	struct msghdr hdr;
 	int i;
+
+	memrnd(buf, sizeof(buf));
 
 	EXPECT_EQ(send(self->fd, buf, send_len, 0), send_len);
 	for (i = 0; i < msg_iovlen; i++) {
@@ -633,6 +663,8 @@ TEST_F(tls, single_send_multiple_recv)
 	unsigned int send_len = TLS_PAYLOAD_MAX_LEN;
 	char send_mem[TLS_PAYLOAD_MAX_LEN * 2];
 	char recv_mem[TLS_PAYLOAD_MAX_LEN * 2];
+
+	memrnd(send_mem, sizeof(send_mem));
 
 	EXPECT_GE(send(self->fd, send_mem, total_len, 0), 0);
 	memset(recv_mem, 0, total_len);
@@ -834,18 +866,17 @@ TEST_F(tls, bidir)
 	int ret;
 
 	if (!self->notls) {
-		struct tls12_crypto_info_aes_gcm_128 tls12;
+		struct tls_crypto_info_keys tls12;
 
-		memset(&tls12, 0, sizeof(tls12));
-		tls12.info.version = variant->tls_version;
-		tls12.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+		tls_crypto_info_init(variant->tls_version, variant->cipher_type,
+				     &tls12);
 
 		ret = setsockopt(self->fd, SOL_TLS, TLS_RX, &tls12,
-				 sizeof(tls12));
+				 tls12.len);
 		ASSERT_EQ(ret, 0);
 
 		ret = setsockopt(self->cfd, SOL_TLS, TLS_TX, &tls12,
-				 sizeof(tls12));
+				 tls12.len);
 		ASSERT_EQ(ret, 0);
 	}
 

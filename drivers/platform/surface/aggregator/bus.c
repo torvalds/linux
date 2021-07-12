@@ -2,7 +2,7 @@
 /*
  * Surface System Aggregator Module bus and device integration.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/device.h>

@@ -16,7 +16,7 @@
 #include "qed_ll2.h"
 #include "qed_ooo.h"
 #include "qed_cxt.h"
-
+#include "qed_nvmetcp.h"
 static struct qed_ooo_archipelago
 *qed_ooo_seek_archipelago(struct qed_hwfn *p_hwfn,
 			  struct qed_ooo_info
@@ -83,7 +83,8 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 
 	switch (p_hwfn->hw_info.personality) {
 	case QED_PCI_ISCSI:
-		proto = PROTOCOLID_ISCSI;
+	case QED_PCI_NVMETCP:
+		proto = PROTOCOLID_TCP_ULP;
 		break;
 	case QED_PCI_ETH_RDMA:
 	case QED_PCI_ETH_IWARP:

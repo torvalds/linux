@@ -1834,8 +1834,8 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		struct page *page;
 		int err = -EFAULT;
 
-		vma = find_vma(mm, addr);
-		if (!vma || addr < vma->vm_start)
+		vma = vma_lookup(mm, addr);
+		if (!vma)
 			goto set_status;
 
 		/* FOLL_DUMP to ignore special (like zero) pages */

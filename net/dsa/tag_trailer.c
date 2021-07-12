@@ -55,8 +55,7 @@ static const struct dsa_device_ops trailer_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_TRAILER,
 	.xmit	= trailer_xmit,
 	.rcv	= trailer_rcv,
-	.overhead = 4,
-	.tail_tag = true,
+	.needed_tailroom = 4,
 };
 
 MODULE_LICENSE("GPL");

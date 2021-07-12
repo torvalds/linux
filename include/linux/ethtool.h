@@ -401,12 +401,12 @@ struct ethtool_rmon_stats {
  * required information to the driver.
  */
 struct ethtool_module_eeprom {
-	__u32	offset;
-	__u32	length;
-	__u8	page;
-	__u8	bank;
-	__u8	i2c_address;
-	__u8	*data;
+	u32	offset;
+	u32	length;
+	u8	page;
+	u8	bank;
+	u8	i2c_address;
+	u8	*data;
 };
 
 /**

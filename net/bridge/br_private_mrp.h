@@ -6,6 +6,8 @@
 #include "br_private.h"
 #include <uapi/linux/mrp_bridge.h>
 
+#define MRP_OPT_PADDING		0x2
+
 struct br_mrp {
 	/* list of mrp instances */
 	struct hlist_node		list;
@@ -133,5 +135,14 @@ struct br_mrp_in_test_hdr {
 	__be16 transitions;
 	__be32 timestamp;
 } __attribute__((__packed__));
+
+struct br_mrp_oui_hdr {
+	__u8 oui[MRP_OUI_LENGTH];
+};
+
+struct br_mrp_sub_option1_hdr {
+	__u8 type;
+	__u8 data[MRP_MANUFACTURE_DATA_LENGTH];
+};
 
 #endif /* _BR_PRIVATE_MRP_H */

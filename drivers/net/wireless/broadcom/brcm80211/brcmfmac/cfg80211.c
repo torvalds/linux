@@ -2767,8 +2767,9 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_sta_info_le sta_info_le;
 	u32 sta_flags;
 	u32 is_tdls_peer;
-	s32 total_rssi;
-	s32 count_rssi;
+	s32 total_rssi_avg = 0;
+	s32 total_rssi = 0;
+	s32 count_rssi = 0;
 	int rssi;
 	u32 i;
 
@@ -2834,25 +2835,27 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES);
 			sinfo->rx_bytes = le64_to_cpu(sta_info_le.rx_tot_bytes);
 		}
-		total_rssi = 0;
-		count_rssi = 0;
 		for (i = 0; i < BRCMF_ANT_MAX; i++) {
-			if (sta_info_le.rssi[i]) {
-				sinfo->chain_signal_avg[count_rssi] =
-					sta_info_le.rssi[i];
-				sinfo->chain_signal[count_rssi] =
-					sta_info_le.rssi[i];
-				total_rssi += sta_info_le.rssi[i];
-				count_rssi++;
-			}
+			if (sta_info_le.rssi[i] == 0 ||
+			    sta_info_le.rx_lastpkt_rssi[i] == 0)
+				continue;
+			sinfo->chains |= BIT(count_rssi);
+			sinfo->chain_signal[count_rssi] =
+				sta_info_le.rx_lastpkt_rssi[i];
+			sinfo->chain_signal_avg[count_rssi] =
+				sta_info_le.rssi[i];
+			total_rssi += sta_info_le.rx_lastpkt_rssi[i];
+			total_rssi_avg += sta_info_le.rssi[i];
+			count_rssi++;
 		}
 		if (count_rssi) {
-			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL);
-			sinfo->chains = count_rssi;
-
 			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
-			total_rssi /= count_rssi;
-			sinfo->signal = total_rssi;
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL);
+			sinfo->filled |=
+				BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL_AVG);
+			sinfo->signal = total_rssi / count_rssi;
+			sinfo->signal_avg = total_rssi_avg / count_rssi;
 		} else if (test_bit(BRCMF_VIF_STATUS_CONNECTED,
 			&ifp->vif->sme_state)) {
 			memset(&scb_val, 0, sizeof(scb_val));
@@ -2892,8 +2895,13 @@ brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
 					     &cfg->assoclist,
 					     sizeof(cfg->assoclist));
 		if (err) {
-			bphy_err(drvr, "BRCMF_C_GET_ASSOCLIST unsupported, err=%d\n",
-				 err);
+			/* GET_ASSOCLIST unsupported by firmware of older chips */
+			if (err == -EBADE)
+				bphy_info_once(drvr, "BRCMF_C_GET_ASSOCLIST unsupported\n");
+			else
+				bphy_err(drvr, "BRCMF_C_GET_ASSOCLIST failed, err=%d\n",
+					 err);
+
 			cfg->assoclist.count = 0;
 			return -EOPNOTSUPP;
 		}
@@ -6848,7 +6856,12 @@ static int brcmf_setup_wiphybands(struct brcmf_cfg80211_info *cfg)
 
 	err = brcmf_fil_iovar_int_get(ifp, "rxchain", &rxchain);
 	if (err) {
-		bphy_err(drvr, "rxchain error (%d)\n", err);
+		/* rxchain unsupported by firmware of older chips */
+		if (err == -EBADE)
+			bphy_info_once(drvr, "rxchain unsupported\n");
+		else
+			bphy_err(drvr, "rxchain error (%d)\n", err);
+
 		nchain = 1;
 	} else {
 		for (nchain = 0; rxchain; nchain++)
@@ -7442,16 +7455,21 @@ static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 	s32 found_index;
 	int i;
 
-	country_codes = drvr->settings->country_codes;
-	if (!country_codes) {
-		brcmf_dbg(TRACE, "No country codes configured for device\n");
-		return -EINVAL;
-	}
-
 	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
 	    (alpha2[1] == ccreq->country_abbrev[1])) {
 		brcmf_dbg(TRACE, "Country code already set\n");
 		return -EAGAIN;
+	}
+
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		brcmf_dbg(TRACE, "No country codes configured for device, using ISO3166 code and 0 rev\n");
+		memset(ccreq, 0, sizeof(*ccreq));
+		ccreq->country_abbrev[0] = alpha2[0];
+		ccreq->country_abbrev[1] = alpha2[1];
+		ccreq->ccode[0] = alpha2[0];
+		ccreq->ccode[1] = alpha2[1];
+		return 0;
 	}
 
 	found_index = -1;

@@ -193,6 +193,7 @@ enum iwl_error_event_table_status {
 	IWL_ERROR_EVENT_TABLE_LMAC1 = BIT(0),
 	IWL_ERROR_EVENT_TABLE_LMAC2 = BIT(1),
 	IWL_ERROR_EVENT_TABLE_UMAC = BIT(2),
+	IWL_ERROR_EVENT_TABLE_TCM = BIT(3),
 };
 
 /**
@@ -589,6 +590,8 @@ struct iwl_trans_ops {
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
+	int (*set_reduce_power)(struct iwl_trans *trans,
+				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
 };
 
@@ -706,6 +709,7 @@ struct iwl_self_init_dram {
  * @trigger_tlv: array of pointers to triggers TLVs for debug
  * @lmac_error_event_table: addrs of lmacs error tables
  * @umac_error_event_table: addr of umac error table
+ * @tcm_error_event_table: address of TCM error table
  * @error_event_table_tlv_status: bitmap that indicates what error table
  *	pointers was recevied via TLV. uses enum &iwl_error_event_table_status
  * @internal_ini_cfg: internal debug cfg state. Uses &enum iwl_ini_cfg_state
@@ -732,6 +736,7 @@ struct iwl_trans_debug {
 
 	u32 lmac_error_event_table[2];
 	u32 umac_error_event_table;
+	u32 tcm_error_event_table;
 	unsigned int error_event_table_tlv_status;
 
 	enum iwl_ini_cfg_state internal_ini_cfg;
@@ -957,6 +962,7 @@ struct iwl_trans {
 	bool pm_support;
 	bool ltr_enabled;
 	u8 pnvm_loaded:1;
+	u8 reduce_power_loaded:1;
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -1417,6 +1423,20 @@ static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
 
 	trans->pnvm_loaded = true;
 
+	return 0;
+}
+
+static inline int iwl_trans_set_reduce_power(struct iwl_trans *trans,
+					     const void *data, u32 len)
+{
+	if (trans->ops->set_reduce_power) {
+		int ret = trans->ops->set_reduce_power(trans, data, len);
+
+		if (ret)
+			return ret;
+	}
+
+	trans->reduce_power_loaded = true;
 	return 0;
 }
 

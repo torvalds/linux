@@ -49,7 +49,7 @@ config COSA
 	  network device.
 
 	  You will need user-space utilities COSA or SRP boards for downloading
- 	  the firmware to the cards and to set them up. Look at the
+	  the firmware to the cards and to set them up. Look at the
 	  <http://www.fi.muni.cz/~kas/cosa/> for more information. You can also
 	  read the comment at the top of the <file:drivers/net/wan/cosa.c> for
 	  details about the cards and the driver itself.
@@ -108,7 +108,7 @@ config HDLC
 	  Generic HDLC driver currently supports raw HDLC, Cisco HDLC, Frame
 	  Relay, synchronous Point-to-Point Protocol (PPP) and X.25.
 
- 	  To compile this driver as a module, choose M here: the
+	  To compile this driver as a module, choose M here: the
 	  module will be called hdlc.
 
 	  If unsure, say N.

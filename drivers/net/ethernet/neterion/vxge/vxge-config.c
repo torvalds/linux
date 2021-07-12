@@ -4885,7 +4885,7 @@ vpath_open_exit1:
 }
 
 /**
- * vxge_hw_vpath_rx_doorbell_post - Close the handle got from previous vpath
+ * vxge_hw_vpath_rx_doorbell_init - Close the handle got from previous vpath
  * (vpath) open
  * @vp: Handle got from previous vpath open
  *

@@ -2574,7 +2574,7 @@ static void _rtl92d_phy_lc_calibrate_sw(struct ieee80211_hw *hw, bool is2t)
 			RTPRINT(rtlpriv, FINIT, INIT_IQK,
 				"path-B / 2.4G LCK\n");
 		}
-		memset(&curvecount_val[0], 0, CV_CURVE_CNT * 2);
+		memset(curvecount_val, 0, sizeof(curvecount_val));
 		/* Set LC calibration off */
 		rtl_set_rfreg(hw, (enum radio_path)index, RF_CHNLBW,
 			      0x08000, 0x0);

@@ -549,28 +549,11 @@ config NR_CPUS
 	  MARVEL support can handle a maximum of 32 CPUs, all the others
 	  with working support have a maximum of 4 CPUs.
 
-config ARCH_DISCONTIGMEM_ENABLE
-	bool "Discontiguous Memory Support"
-	depends on BROKEN
-	help
-	  Say Y to support efficient handling of discontiguous physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
-	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa.rst> for more.
-
 config ARCH_SPARSEMEM_ENABLE
 	bool "Sparse Memory Support"
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for systems that have huge holes in the physical address space.
-
-config NUMA
-	bool "NUMA Support (EXPERIMENTAL)"
-	depends on DISCONTIGMEM && BROKEN
-	help
-	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
-	  Access).  This option is for configuring high-end multiprocessor
-	  server machines.  If in doubt, say N.
 
 config ALPHA_WTINT
 	bool "Use WTINT" if ALPHA_SRM || ALPHA_GENERIC
@@ -595,11 +578,6 @@ config ALPHA_WTINT
 	  so you might as well say Y here.
 
 	  If unsure, say N.
-
-config NODES_SHIFT
-	int
-	default "7"
-	depends on NEED_MULTIPLE_NODES
 
 # LARGE_VMALLOC is racy, if you *really* need it then fix it first
 config ALPHA_LARGE_VMALLOC

@@ -147,7 +147,7 @@ struct htt_tx_pdev_stats_cmn_tlv {
 	u32 hw_flush;
 	u32 hw_filt;
 	u32 tx_abort;
-	u32 mpdu_requed;
+	u32 mpdu_requeued;
 	u32 tx_xretry;
 	u32 data_rc;
 	u32 mpdu_dropped_xretry;

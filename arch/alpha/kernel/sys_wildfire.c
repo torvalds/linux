@@ -337,10 +337,5 @@ struct alpha_machine_vector wildfire_mv __initmv = {
 	.kill_arch		= wildfire_kill_arch,
 	.pci_map_irq		= wildfire_map_irq,
 	.pci_swizzle		= common_swizzle,
-
-	.pa_to_nid		= wildfire_pa_to_nid,
-	.cpuid_to_nid		= wildfire_cpuid_to_nid,
-	.node_mem_start		= wildfire_node_mem_start,
-	.node_mem_size		= wildfire_node_mem_size,
 };
 ALIAS_MV(wildfire)

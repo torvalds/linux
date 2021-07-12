@@ -718,6 +718,7 @@ static void flush_stashed_error_work(struct work_struct *work)
 			goto write_directly;
 		}
 		jbd2_journal_stop(handle);
+		ext4_notify_error_sysfs(sbi);
 		return;
 	}
 write_directly:
@@ -726,6 +727,7 @@ write_directly:
 	 * out and hope for the best.
 	 */
 	ext4_commit_super(sbi->s_sb);
+	ext4_notify_error_sysfs(sbi);
 }
 
 #define ext4_error_ratelimit(sb)					\
@@ -1174,6 +1176,7 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_unregister_sysfs(sb);
 
 	if (sbi->s_journal) {
+		jbd2_journal_unregister_shrinker(sbi->s_journal);
 		aborted = is_journal_aborted(sbi->s_journal);
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
@@ -1245,8 +1248,8 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
 	sbi->s_ea_block_cache = NULL;
 
-	if (sbi->s_mmp_tsk)
-		kthread_stop(sbi->s_mmp_tsk);
+	ext4_stop_mmpd(sbi);
+
 	brelse(sbi->s_sbh);
 	sb->s_fs_info = NULL;
 	/*
@@ -1439,26 +1442,6 @@ static int ext4_nfs_commit_metadata(struct inode *inode)
 
 	trace_ext4_nfs_commit_metadata(inode);
 	return ext4_write_inode(inode, &wbc);
-}
-
-/*
- * Try to release metadata pages (indirect blocks, directories) which are
- * mapped via the block device.  Since these pages could have journal heads
- * which would prevent try_to_free_buffers() from freeing them, we must use
- * jbd2 layer's try_to_free_buffers() function to release them.
- */
-static int bdev_try_to_free_page(struct super_block *sb, struct page *page,
-				 gfp_t wait)
-{
-	journal_t *journal = EXT4_SB(sb)->s_journal;
-
-	WARN_ON(PageChecked(page));
-	if (!page_has_buffers(page))
-		return 0;
-	if (journal)
-		return jbd2_journal_try_to_free_buffers(journal, page);
-
-	return try_to_free_buffers(page);
 }
 
 #ifdef CONFIG_FS_ENCRYPTION
@@ -1655,7 +1638,6 @@ static const struct super_operations ext4_sops = {
 	.quota_write	= ext4_quota_write,
 	.get_dquots	= ext4_get_dquots,
 #endif
-	.bdev_try_to_free_page = bdev_try_to_free_page,
 };
 
 static const struct export_operations ext4_export_ops = {
@@ -3101,8 +3083,15 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 			inode_lock(inode);
 			truncate_inode_pages(inode->i_mapping, inode->i_size);
 			ret = ext4_truncate(inode);
-			if (ret)
+			if (ret) {
+				/*
+				 * We need to clean up the in-core orphan list
+				 * manually if ext4_truncate() failed to get a
+				 * transaction handle.
+				 */
+				ext4_orphan_del(NULL, inode);
 				ext4_std_error(inode->i_sb, ret);
+			}
 			inode_unlock(inode);
 			nr_truncates++;
 		} else {
@@ -5058,6 +5047,7 @@ no_journal:
 			ext4_msg(sb, KERN_ERR,
 			       "unable to initialize "
 			       "flex_bg meta info!");
+			ret = -ENOMEM;
 			goto failed_mount6;
 		}
 
@@ -5178,6 +5168,7 @@ failed_mount_wq:
 	sbi->s_ea_block_cache = NULL;
 
 	if (sbi->s_journal) {
+		jbd2_journal_unregister_shrinker(sbi->s_journal);
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 	}
@@ -5186,8 +5177,7 @@ failed_mount3a:
 failed_mount3:
 	flush_work(&sbi->s_error_work);
 	del_timer_sync(&sbi->s_err_report);
-	if (sbi->s_mmp_tsk)
-		kthread_stop(sbi->s_mmp_tsk);
+	ext4_stop_mmpd(sbi);
 failed_mount2:
 	rcu_read_lock();
 	group_desc = rcu_dereference(sbi->s_group_desc);
@@ -5504,6 +5494,12 @@ static int ext4_load_journal(struct super_block *sb,
 		ext4_commit_super(sb);
 	}
 
+	err = jbd2_journal_register_shrinker(journal);
+	if (err) {
+		EXT4_SB(sb)->s_journal = NULL;
+		goto err_out;
+	}
+
 	return 0;
 
 err_out:
@@ -5646,7 +5642,7 @@ static int ext4_mark_recovery_complete(struct super_block *sb,
 		return 0;
 	}
 	jbd2_journal_lock_updates(journal);
-	err = jbd2_journal_flush(journal);
+	err = jbd2_journal_flush(journal, 0);
 	if (err < 0)
 		goto out;
 
@@ -5788,7 +5784,7 @@ static int ext4_freeze(struct super_block *sb)
 		 * Don't clear the needs_recovery flag if we failed to
 		 * flush the journal.
 		 */
-		error = jbd2_journal_flush(journal);
+		error = jbd2_journal_flush(journal, 0);
 		if (error < 0)
 			goto out;
 
@@ -5989,8 +5985,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				 */
 				ext4_mark_recovery_complete(sb, es);
 			}
-			if (sbi->s_mmp_tsk)
-				kthread_stop(sbi->s_mmp_tsk);
+			ext4_stop_mmpd(sbi);
 		} else {
 			/* Make sure we can mount this feature set readwrite */
 			if (ext4_has_feature_readonly(sb) ||
@@ -6383,7 +6378,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		 * otherwise be livelocked...
 		 */
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 		if (err)
 			return err;

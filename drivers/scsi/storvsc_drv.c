@@ -406,6 +406,14 @@ static void storvsc_on_channel_callback(void *context);
 #define STORVSC_IDE_MAX_TARGETS				1
 #define STORVSC_IDE_MAX_CHANNELS			1
 
+/*
+ * Upper bound on the size of a storvsc packet. vmscsi_size_delta is not
+ * included in the calculation because it is set after STORVSC_MAX_PKT_SIZE
+ * is used in storvsc_connect_to_vsp
+ */
+#define STORVSC_MAX_PKT_SIZE (sizeof(struct vmpacket_descriptor) +\
+			      sizeof(struct vstor_packet))
+
 struct storvsc_cmd_request {
 	struct scsi_cmnd *cmd;
 
@@ -688,6 +696,23 @@ old_is_alloced:
 	spin_unlock_irqrestore(&stor_device->lock, flags);
 }
 
+static u64 storvsc_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
+{
+	struct storvsc_cmd_request *request =
+		(struct storvsc_cmd_request *)(unsigned long)rqst_addr;
+
+	if (rqst_addr == VMBUS_RQST_INIT)
+		return VMBUS_RQST_INIT;
+	if (rqst_addr == VMBUS_RQST_RESET)
+		return VMBUS_RQST_RESET;
+
+	/*
+	 * Cannot return an ID of 0, which is reserved for an unsolicited
+	 * message from Hyper-V.
+	 */
+	return (u64)blk_mq_unique_tag(request->cmd->request) + 1;
+}
+
 static void handle_sc_creation(struct vmbus_channel *new_sc)
 {
 	struct hv_device *device = new_sc->primary_channel->device_obj;
@@ -701,12 +726,9 @@ static void handle_sc_creation(struct vmbus_channel *new_sc)
 		return;
 
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
+	new_sc->max_pkt_size = STORVSC_MAX_PKT_SIZE;
 
-	/*
-	 * The size of vmbus_requestor is an upper bound on the number of requests
-	 * that can be in-progress at any one time across all channels.
-	 */
-	new_sc->rqstor_size = scsi_driver.can_queue;
+	new_sc->next_request_id_callback = storvsc_next_request_id;
 
 	ret = vmbus_open(new_sc,
 			 storvsc_ringbuffer_size,
@@ -773,7 +795,7 @@ static void  handle_multichannel_storage(struct hv_device *device, int max_chns)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       (sizeof(struct vstor_packet) -
 			       stor_device->vmscsi_size_delta),
-			       (unsigned long)request,
+			       VMBUS_RQST_INIT,
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -842,7 +864,7 @@ static int storvsc_execute_vstor_op(struct hv_device *device,
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       (sizeof(struct vstor_packet) -
 			       stor_device->vmscsi_size_delta),
-			       (unsigned long)request,
+			       VMBUS_RQST_INIT,
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
@@ -1244,6 +1266,7 @@ static void storvsc_on_channel_callback(void *context)
 	const struct vmpacket_descriptor *desc;
 	struct hv_device *device;
 	struct storvsc_device *stor_device;
+	struct Scsi_Host *shost;
 
 	if (channel->primary_channel != NULL)
 		device = channel->primary_channel->device_obj;
@@ -1254,20 +1277,12 @@ static void storvsc_on_channel_callback(void *context)
 	if (!stor_device)
 		return;
 
+	shost = stor_device->host;
+
 	foreach_vmbus_pkt(desc, channel) {
-		void *packet = hv_pkt_data(desc);
-		struct storvsc_cmd_request *request;
-		u64 cmd_rqst;
-
-		cmd_rqst = vmbus_request_addr(&channel->requestor,
-					      desc->trans_id);
-		if (cmd_rqst == VMBUS_RQST_ERROR) {
-			dev_err(&device->device,
-				"Incorrect transaction id\n");
-			continue;
-		}
-
-		request = (struct storvsc_cmd_request *)(unsigned long)cmd_rqst;
+		struct vstor_packet *packet = hv_pkt_data(desc);
+		struct storvsc_cmd_request *request = NULL;
+		u64 rqst_id = desc->trans_id;
 
 		if (hv_pkt_datalen(desc) < sizeof(struct vstor_packet) -
 				stor_device->vmscsi_size_delta) {
@@ -1275,14 +1290,44 @@ static void storvsc_on_channel_callback(void *context)
 			continue;
 		}
 
-		if (request == &stor_device->init_request ||
-		    request == &stor_device->reset_request) {
-			memcpy(&request->vstor_packet, packet,
-			       (sizeof(struct vstor_packet) - stor_device->vmscsi_size_delta));
-			complete(&request->wait_event);
+		if (rqst_id == VMBUS_RQST_INIT) {
+			request = &stor_device->init_request;
+		} else if (rqst_id == VMBUS_RQST_RESET) {
+			request = &stor_device->reset_request;
 		} else {
+			/* Hyper-V can send an unsolicited message with ID of 0 */
+			if (rqst_id == 0) {
+				/*
+				 * storvsc_on_receive() looks at the vstor_packet in the message
+				 * from the ring buffer.  If the operation in the vstor_packet is
+				 * COMPLETE_IO, then we call storvsc_on_io_completion(), and
+				 * dereference the guest memory address.  Make sure we don't call
+				 * storvsc_on_io_completion() with a guest memory address that is
+				 * zero if Hyper-V were to construct and send such a bogus packet.
+				 */
+				if (packet->operation == VSTOR_OPERATION_COMPLETE_IO) {
+					dev_err(&device->device, "Invalid packet with ID of 0\n");
+					continue;
+				}
+			} else {
+				struct scsi_cmnd *scmnd;
+
+				/* Transaction 'rqst_id' corresponds to tag 'rqst_id - 1' */
+				scmnd = scsi_host_find_tag(shost, rqst_id - 1);
+				if (scmnd == NULL) {
+					dev_err(&device->device, "Incorrect transaction ID\n");
+					continue;
+				}
+				request = (struct storvsc_cmd_request *)scsi_cmd_priv(scmnd);
+			}
+
 			storvsc_on_receive(stor_device, packet, request);
+			continue;
 		}
+
+		memcpy(&request->vstor_packet, packet,
+		       (sizeof(struct vstor_packet) - stor_device->vmscsi_size_delta));
+		complete(&request->wait_event);
 	}
 }
 
@@ -1294,11 +1339,8 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
 
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
-	/*
-	 * The size of vmbus_requestor is an upper bound on the number of requests
-	 * that can be in-progress at any one time across all channels.
-	 */
-	device->channel->rqstor_size = scsi_driver.can_queue;
+	device->channel->max_pkt_size = STORVSC_MAX_PKT_SIZE;
+	device->channel->next_request_id_callback = storvsc_next_request_id;
 
 	ret = vmbus_open(device->channel,
 			 ring_size,
@@ -1624,7 +1666,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       (sizeof(struct vstor_packet) -
 				stor_device->vmscsi_size_delta),
-			       (unsigned long)&stor_device->reset_request,
+			       VMBUS_RQST_RESET,
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)

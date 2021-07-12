@@ -103,7 +103,8 @@ static void usage(const char *prog)
 	fprintf(stderr,
 		"%s: %s [OPTS] <ifname|ifindex>\n\n"
 		"OPTS:\n"
-		"    -F    force loading prog\n",
+		"    -F    force loading prog\n"
+		"    -S    use skb-mode\n",
 		__func__, prog);
 }
 

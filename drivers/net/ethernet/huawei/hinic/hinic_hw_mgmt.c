@@ -294,7 +294,7 @@ static int msg_to_mgmt_sync(struct hinic_pf_to_mgmt *pf_to_mgmt,
 		goto unlock_sync_msg;
 	}
 
-	if ((buf_out) && (recv_msg->msg_len <= MAX_PF_MGMT_BUF_SIZE)) {
+	if (buf_out && recv_msg->msg_len <= MAX_PF_MGMT_BUF_SIZE) {
 		memcpy(buf_out, recv_msg->msg, recv_msg->msg_len);
 		*out_size = recv_msg->msg_len;
 	}
@@ -411,7 +411,7 @@ static void recv_mgmt_msg_work_handler(struct work_struct *work)
 			   HINIC_MGMT_CB_ENABLED,
 			   HINIC_MGMT_CB_ENABLED | HINIC_MGMT_CB_RUNNING);
 
-	if ((cb_state == HINIC_MGMT_CB_ENABLED) && (mgmt_cb->cb))
+	if (cb_state == HINIC_MGMT_CB_ENABLED && mgmt_cb->cb)
 		mgmt_cb->cb(mgmt_cb->handle, mgmt_work->cmd,
 			    mgmt_work->msg, mgmt_work->msg_len,
 			    buf_out, &out_size);

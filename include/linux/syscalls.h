@@ -485,8 +485,8 @@ asmlinkage long sys_pipe2(int __user *fildes, int flags);
 /* fs/quota.c */
 asmlinkage long sys_quotactl(unsigned int cmd, const char __user *special,
 				qid_t id, void __user *addr);
-asmlinkage long sys_quotactl_path(unsigned int cmd, const char __user *mountpoint,
-				  qid_t id, void __user *addr);
+asmlinkage long sys_quotactl_fd(unsigned int fd, unsigned int cmd, qid_t id,
+				void __user *addr);
 
 /* fs/readdir.c */
 asmlinkage long sys_getdents64(unsigned int fd,

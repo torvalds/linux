@@ -19,6 +19,8 @@ config CIFS
 	select CRYPTO_LIB_DES
 	select KEYS
 	select DNS_RESOLVER
+	select ASN1
+	select OID_REGISTRY
 	help
 	  This is the client VFS module for the SMB3 family of NAS protocols,
 	  (including support for the most recent, most secure dialect SMB3.1.1)
@@ -57,6 +59,7 @@ config CIFS
 config CIFS_STATS2
 	bool "Extended statistics"
 	depends on CIFS
+	default y
 	help
 	  Enabling this option will allow more detailed statistics on SMB
 	  request timing to be displayed in /proc/fs/cifs/DebugData and also
@@ -65,8 +68,7 @@ config CIFS_STATS2
 	  for more details. These additional statistics may have a minor effect
 	  on performance and memory utilization.
 
-	  Unless you are a developer or are doing network performance analysis
-	  or tuning, say N.
+	  If unsure, say Y.
 
 config CIFS_ALLOW_INSECURE_LEGACY
 	bool "Support legacy servers which use less secure dialects"

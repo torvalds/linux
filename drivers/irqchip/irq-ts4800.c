@@ -79,10 +79,9 @@ static void ts4800_ic_chained_handle_irq(struct irq_desc *desc)
 
 	do {
 		unsigned int bit = __ffs(status);
-		int irq = irq_find_mapping(data->domain, bit);
 
+		generic_handle_domain_irq(data->domain, bit);
 		status &= ~(1 << bit);
-		generic_handle_irq(irq);
 	} while (status);
 
 out:

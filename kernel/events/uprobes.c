@@ -2047,8 +2047,8 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	struct vm_area_struct *vma;
 
 	mmap_read_lock(mm);
-	vma = find_vma(mm, bp_vaddr);
-	if (vma && vma->vm_start <= bp_vaddr) {
+	vma = vma_lookup(mm, bp_vaddr);
+	if (vma) {
 		if (valid_vma(vma, false)) {
 			struct inode *inode = file_inode(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);

@@ -4924,8 +4924,8 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	/* Look up the VMA for the start of this memory slot */
 	hva = memslot->userspace_addr;
 	mmap_read_lock(kvm->mm);
-	vma = find_vma(kvm->mm, hva);
-	if (!vma || vma->vm_start > hva || (vma->vm_flags & VM_IO))
+	vma = vma_lookup(kvm->mm, hva);
+	if (!vma || (vma->vm_flags & VM_IO))
 		goto up_out;
 
 	psize = vma_kernel_pagesize(vma);

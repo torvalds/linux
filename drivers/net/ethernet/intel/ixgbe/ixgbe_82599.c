@@ -1514,8 +1514,7 @@ static u32 ixgbe_get_fdirtcpm_82599(union ixgbe_atr_input *input_mask)
 #define IXGBE_WRITE_REG_BE32(a, reg, value) \
 	IXGBE_WRITE_REG((a), (reg), IXGBE_STORE_AS_BE32(ntohl(value)))
 
-#define IXGBE_STORE_AS_BE16(_value) \
-	ntohs(((u16)(_value) >> 8) | ((u16)(_value) << 8))
+#define IXGBE_STORE_AS_BE16(_value) __swab16(ntohs((_value)))
 
 s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 				    union ixgbe_atr_input *input_mask)
@@ -1651,13 +1650,13 @@ s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRIPDA, input->formatted.dst_ip[0]);
 
 	/* record source and destination port (little-endian)*/
-	fdirport = ntohs(input->formatted.dst_port);
+	fdirport = be16_to_cpu(input->formatted.dst_port);
 	fdirport <<= IXGBE_FDIRPORT_DESTINATION_SHIFT;
-	fdirport |= ntohs(input->formatted.src_port);
+	fdirport |= be16_to_cpu(input->formatted.src_port);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, fdirport);
 
 	/* record vlan (little-endian) and flex_bytes(big-endian) */
-	fdirvlan = IXGBE_STORE_AS_BE16((__force u16)input->formatted.flex_bytes);
+	fdirvlan = IXGBE_STORE_AS_BE16(input->formatted.flex_bytes);
 	fdirvlan <<= IXGBE_FDIRVLAN_FLEX_SHIFT;
 	fdirvlan |= ntohs(input->formatted.vlan_id);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, fdirvlan);

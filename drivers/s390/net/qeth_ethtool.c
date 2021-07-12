@@ -41,6 +41,7 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("Queue stopped", stopped),
 	QETH_TXQ_STAT("Doorbell", doorbell),
 	QETH_TXQ_STAT("IRQ for frames", coal_frames),
+	QETH_TXQ_STAT("Completion IRQ", completion_irq),
 	QETH_TXQ_STAT("Completion yield", completion_yield),
 	QETH_TXQ_STAT("Completion timer", completion_timer),
 };
@@ -79,10 +80,8 @@ static void qeth_add_stat_strings(u8 **data, const char *prefix,
 {
 	unsigned int i;
 
-	for (i = 0; i < size; i++) {
-		snprintf(*data, ETH_GSTRING_LEN, "%s%s", prefix, stats[i].name);
-		*data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < size; i++)
+		ethtool_sprintf(data, "%s%s", prefix, stats[i].name);
 }
 
 static int qeth_get_sset_count(struct net_device *dev, int stringset)

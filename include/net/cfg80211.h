@@ -7,7 +7,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 #include <linux/ethtool.h>
@@ -22,6 +22,7 @@
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
 #include <linux/net.h>
+#include <linux/rfkill.h>
 #include <net/regulatory.h>
 
 /**
@@ -370,11 +371,18 @@ struct ieee80211_sta_he_cap {
  * @he_cap: holds the HE capabilities
  * @he_6ghz_capa: HE 6 GHz capabilities, must be filled in for a
  *	6 GHz band channel (and 0 may be valid value).
+ * @vendor_elems: vendor element(s) to advertise
+ * @vendor_elems.data: vendor element(s) data
+ * @vendor_elems.len: vendor element(s) length
  */
 struct ieee80211_sband_iftype_data {
 	u16 types_mask;
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
+	struct {
+		const u8 *data;
+		unsigned int len;
+	} vendor_elems;
 };
 
 /**
@@ -531,18 +539,6 @@ ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *sband,
 		return &data->he_cap;
 
 	return NULL;
-}
-
-/**
- * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
- * @sband: the sband to search for the STA on
- *
- * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
- */
-static inline const struct ieee80211_sta_he_cap *
-ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
-{
-	return ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_STATION);
 }
 
 /**
@@ -906,6 +902,17 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
 }
 
 /**
+ * cfg80211_any_usable_channels - check for usable channels
+ * @wiphy: the wiphy to check for
+ * @band_mask: which bands to check on
+ * @prohibited_flags: which channels to not consider usable,
+ *	%IEEE80211_CHAN_DISABLED is always taken into account
+ */
+bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+				  unsigned long band_mask,
+				  u32 prohibited_flags);
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
@@ -1244,8 +1251,6 @@ struct cfg80211_csa_settings {
 	bool block_tx;
 	u8 count;
 };
-
-#define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
 
 /**
  * struct iface_combination_params - input parameters for interface combinations
@@ -3522,7 +3527,10 @@ struct cfg80211_pmsr_result {
  *		 If neither @trigger_based nor @non_trigger_based is set,
  *		 EDCA based ranging will be used.
  * @lmr_feedback: negotiate for I2R LMR feedback. Only valid if either
- *	@trigger_based or @non_trigger_based is set.
+ *		 @trigger_based or @non_trigger_based is set.
+ * @bss_color: the bss color of the responder. Optional. Set to zero to
+ *	indicate the driver should set the BSS color. Only valid if
+ *	@non_trigger_based or @trigger_based is set.
  *
  * See also nl80211 for the respective attribute documentation.
  */
@@ -3540,6 +3548,7 @@ struct cfg80211_pmsr_ftm_request_peer {
 	u8 burst_duration;
 	u8 ftms_per_burst;
 	u8 ftmr_retries;
+	u8 bss_color;
 };
 
 /**
@@ -4945,6 +4954,7 @@ struct wiphy_iftype_akm_suites {
  *	configuration through the %NL80211_TID_CONFIG_ATTR_RETRY_SHORT and
  *	%NL80211_TID_CONFIG_ATTR_RETRY_LONG attributes
  * @sar_capa: SAR control capabilities
+ * @rfkill: a pointer to the rfkill structure
  */
 struct wiphy {
 	struct mutex mtx;
@@ -5086,6 +5096,8 @@ struct wiphy {
 	u8 max_data_retry_count;
 
 	const struct cfg80211_sar_capa *sar_capa;
+
+	struct rfkill *rfkill;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -6661,7 +6673,10 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
  * wiphy_rfkill_stop_polling - stop polling rfkill
  * @wiphy: the wiphy
  */
-void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+static inline void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	rfkill_pause_polling(wiphy->rfkill);
+}
 
 /**
  * DOC: Vendor commands
@@ -8154,6 +8169,8 @@ bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 	dev_notice(&(wiphy)->dev, format, ##args)
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
+#define wiphy_info_once(wiphy, format, args...)			\
+	dev_info_once(&(wiphy)->dev, format, ##args)
 
 #define wiphy_err_ratelimited(wiphy, format, args...)		\
 	dev_err_ratelimited(&(wiphy)->dev, format, ##args)

@@ -757,7 +757,7 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 	int queue_sends;
 	u64 cmd_rqst;
 
-	cmd_rqst = vmbus_request_addr(&channel->requestor, (u64)desc->trans_id);
+	cmd_rqst = channel->request_addr_callback(channel, (u64)desc->trans_id);
 	if (cmd_rqst == VMBUS_RQST_ERROR) {
 		netdev_err(ndev, "Incorrect transaction id\n");
 		return;
@@ -817,8 +817,8 @@ static void netvsc_send_completion(struct net_device *ndev,
 
 	/* First check if this is a VMBUS completion without data payload */
 	if (!msglen) {
-		cmd_rqst = vmbus_request_addr(&incoming_channel->requestor,
-					      (u64)desc->trans_id);
+		cmd_rqst = incoming_channel->request_addr_callback(incoming_channel,
+								   (u64)desc->trans_id);
 		if (cmd_rqst == VMBUS_RQST_ERROR) {
 			netdev_err(ndev, "Invalid transaction id\n");
 			return;
@@ -1649,7 +1649,11 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		       netvsc_poll, NAPI_POLL_WEIGHT);
 
 	/* Open the channel */
+	device->channel->next_request_id_callback = vmbus_next_request_id;
+	device->channel->request_addr_callback = vmbus_request_addr;
 	device->channel->rqstor_size = netvsc_rqstor_size(netvsc_ring_bytes);
+	device->channel->max_pkt_size = NETVSC_MAX_PKT_SIZE;
+
 	ret = vmbus_open(device->channel, netvsc_ring_bytes,
 			 netvsc_ring_bytes,  NULL, 0,
 			 netvsc_channel_cb, net_device->chan_table);

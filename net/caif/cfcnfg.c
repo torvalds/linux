@@ -480,7 +480,7 @@ got_phyid:
 	phyinfo = kzalloc(sizeof(struct cfcnfg_phyinfo), GFP_ATOMIC);
 	if (!phyinfo) {
 		res = -ENOMEM;
-		goto out_err;
+		goto out;
 	}
 
 	phy_layer->id = phyid;
