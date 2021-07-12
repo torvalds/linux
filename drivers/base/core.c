@@ -2005,9 +2005,10 @@ device_platform_notify(struct device *dev, enum kobject_action action)
 {
 	int ret;
 
-	ret = acpi_platform_notify(dev, action);
-	if (ret)
-		return ret;
+	if (action == KOBJ_ADD)
+		acpi_device_notify(dev);
+	else if (action == KOBJ_REMOVE)
+		acpi_device_notify_remove(dev);
 
 	ret = software_node_notify(dev, action);
 	if (ret)
