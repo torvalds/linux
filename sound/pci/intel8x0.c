@@ -2656,6 +2656,8 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 
 	if (chip->ac97_bus->clock != 48000)
 		return; /* specified in module option */
+	if (chip->inside_vm && !ac97_clock)
+		return; /* no measurement on VM */
 
       __again:
 	subs = chip->pcm[0]->streams[0].substream;
