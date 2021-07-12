@@ -1621,8 +1621,6 @@ int ib_cache_setup_one(struct ib_device *device)
 	u32 p;
 	int err;
 
-	rwlock_init(&device->cache_lock);
-
 	err = gid_table_setup_one(device);
 	if (err)
 		return err;

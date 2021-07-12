@@ -607,6 +607,8 @@ struct ib_device *_ib_alloc_device(size_t size)
 	for (i = 0; i < ARRAY_SIZE(device->cq_pools); i++)
 		INIT_LIST_HEAD(&device->cq_pools[i]);
 
+	rwlock_init(&device->cache_lock);
+
 	device->uverbs_cmd_mask =
 		BIT_ULL(IB_USER_VERBS_CMD_ALLOC_MW) |
 		BIT_ULL(IB_USER_VERBS_CMD_ALLOC_PD) |
