@@ -41,21 +41,21 @@ enum {
 	SOF_I2S_SSP5 = BIT(5),
 };
 
-#define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(1, 0))
-#define SOF_SDW_FOUR_SPK		BIT(2)
-#define SOF_SDW_TGL_HDMI		BIT(3)
-#define SOF_SDW_PCH_DMIC		BIT(4)
-#define SOF_SSP_PORT(x)		(((x) & GENMASK(5, 0)) << 5)
-#define SOF_SSP_GET_PORT(quirk)	(((quirk) >> 5) & GENMASK(5, 0))
-#define SOF_RT715_DAI_ID_FIX		BIT(11)
-#define SOF_SDW_NO_AGGREGATION		BIT(12)
+#define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
+#define SOF_SDW_FOUR_SPK		BIT(4)
+#define SOF_SDW_TGL_HDMI		BIT(5)
+#define SOF_SDW_PCH_DMIC		BIT(6)
+#define SOF_SSP_PORT(x)		(((x) & GENMASK(5, 0)) << 7)
+#define SOF_SSP_GET_PORT(quirk)	(((quirk) >> 7) & GENMASK(5, 0))
+#define SOF_RT715_DAI_ID_FIX		BIT(13)
+#define SOF_SDW_NO_AGGREGATION		BIT(14)
 
 /* BT audio offload: reserve 3 bits for future */
-#define SOF_BT_OFFLOAD_SSP_SHIFT	13
-#define SOF_BT_OFFLOAD_SSP_MASK	(GENMASK(15, 13))
+#define SOF_BT_OFFLOAD_SSP_SHIFT	15
+#define SOF_BT_OFFLOAD_SSP_MASK	(GENMASK(17, 15))
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
-#define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(16)
+#define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
 struct sof_sdw_codec_info {
 	const int part_id;
