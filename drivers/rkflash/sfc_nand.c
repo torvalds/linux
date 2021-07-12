@@ -2,6 +2,8 @@
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
+#define pr_fmt(fmt) "sfc_nand: " fmt
+
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -1037,8 +1039,11 @@ u32 sfc_nand_init(void)
 
 	p_nand_info = sfc_nand_get_info(id_byte);
 
-	if (!p_nand_info)
+	if (!p_nand_info) {
+		pr_err("The device not support yet!\n");
+
 		return (u32)FTL_UNSUPPORTED_FLASH;
+	}
 
 	gp_page_buf = (u32 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
 	if (!gp_page_buf)

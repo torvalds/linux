@@ -2,6 +2,8 @@
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
+#define pr_fmt(fmt) "sfc_nor: " fmt
+
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -718,6 +720,8 @@ int snor_init(struct SFNOR_DEV *p_dev)
 	if (g_spi_flash_info) {
 		snor_parse_flash_table(p_dev, g_spi_flash_info);
 	} else {
+		pr_err("The device not support yet!\n");
+
 		p_dev->manufacturer = id_byte[0];
 		p_dev->mem_type = id_byte[1];
 		p_dev->capacity = 1 << (id_byte[2] - 9);

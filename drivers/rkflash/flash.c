@@ -2,6 +2,8 @@
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
+#define pr_fmt(fmt) "nandc: " fmt
+
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -450,8 +452,11 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			    id_byte[0][1] != 0xA1 &&
 			    id_byte[0][1] != 0xAA &&
 			    id_byte[0][1] != 0xAC &&
-			    id_byte[0][1] != 0x6A)
+			    id_byte[0][1] != 0x6A) {
+				pr_err("The device not support yet!\n");
+
 				return FTL_UNSUPPORTED_FLASH;
+			}
 		}
 	}
 	if (id_byte[0][0] == 0x98 && (id_byte[0][4] & 0x80))
