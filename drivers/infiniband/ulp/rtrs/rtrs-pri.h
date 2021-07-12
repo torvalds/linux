@@ -311,9 +311,6 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 				struct ib_send_wr *tail);
 
 int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe);
-int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
-				   u32 imm_data, enum ib_send_flags flags,
-				   struct ib_send_wr *head);
 
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 		      u32 max_send_sge, int cq_vector, int nr_cqe,
