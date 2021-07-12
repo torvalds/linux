@@ -5,6 +5,7 @@
 #define __MLX5_EN_TC_PRIV_H__
 
 #include "en_tc.h"
+#include "en/tc/act/act.h"
 
 #define MLX5E_TC_FLOW_BASE (MLX5E_TC_FLAG_LAST_EXPORTED_BIT + 1)
 
@@ -37,6 +38,7 @@ struct mlx5e_tc_flow_parse_attr {
 	struct mlx5e_tc_mod_hdr_acts mod_hdr_acts;
 	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct ethhdr eth;
+	struct mlx5e_tc_act_parse_state parse_state;
 };
 
 /* Helper struct for accessing a struct containing list_head array.

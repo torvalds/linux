@@ -62,6 +62,7 @@
 #include "en/mod_hdr.h"
 #include "en/tc_tun_encap.h"
 #include "en/tc/sample.h"
+#include "en/tc/act/act.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
@@ -3468,31 +3469,27 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 		     struct mlx5e_tc_flow *flow,
 		     struct netlink_ext_ack *extack)
 {
+	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct pedit_headers_action hdrs[2] = {};
+	enum mlx5_flow_namespace_type ns_type;
 	const struct flow_action_entry *act;
-	struct mlx5_nic_flow_attr *nic_attr;
+	struct mlx5e_tc_act *tc_act;
 	int err, i;
 
 	err = flow_action_supported(flow_action, extack);
 	if (err)
 		return err;
 
-	nic_attr = attr->nic_attr;
-	nic_attr->flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
+	attr->nic_attr->flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	parse_attr = attr->parse_attr;
+	parse_state = &parse_attr->parse_state;
+	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
+	ns_type = get_flow_name_space(flow);
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
-		case FLOW_ACTION_ACCEPT:
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			break;
-		case FLOW_ACTION_DROP:
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			break;
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
 			err = parse_tc_pedit_action(priv, act, MLX5_FLOW_NAMESPACE_KERNEL,
@@ -3536,19 +3533,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			}
 			}
 			break;
-		case FLOW_ACTION_MARK: {
-			u32 mark = act->mark;
-
-			if (mark & ~MLX5E_TC_FLOW_ID_MASK) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Bad flow mark - only 16 bit is supported");
-				return -EOPNOTSUPP;
-			}
-
-			nic_attr->flow_tag = mark;
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-			}
-			break;
 		case FLOW_ACTION_GOTO:
 			err = validate_goto_chain(priv, flow, act, extack);
 			if (err)
@@ -3568,10 +3552,21 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			flow_flag_set(flow, CT);
 			break;
 		default:
-			NL_SET_ERR_MSG_MOD(extack,
-					   "The offload action is not supported in NIC action");
+			break;
+		}
+
+		tc_act = mlx5e_tc_act_get(act->id, ns_type);
+		if (!tc_act) {
+			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
 			return -EOPNOTSUPP;
 		}
+
+		if (!tc_act->can_offload(parse_state, act, i))
+			return -EOPNOTSUPP;
+
+		err = tc_act->parse_action(parse_state, act, priv, attr);
+		if (err)
+			return err;
 	}
 
 	if (attr->dest_chain && parse_attr->mirred_ifindex[0]) {
@@ -3880,6 +3875,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 {
 	struct pedit_headers_action hdrs[2] = {};
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5e_sample_attr sample_attr = {};
@@ -3887,9 +3883,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5_flow_attr *attr = flow->attr;
 	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
 	bool ft_flow = mlx5e_is_ft_flow(flow);
+	enum mlx5_flow_namespace_type ns_type;
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
 	bool encap = false, decap = false;
+	struct mlx5e_tc_act *tc_act;
 	int err, i, if_count = 0;
 	bool ptype_host = false;
 	bool mpls_push = false;
@@ -3900,14 +3898,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	esw_attr = attr->esw_attr;
 	parse_attr = attr->parse_attr;
+	parse_state = &parse_attr->parse_state;
+	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
+	ns_type = get_flow_name_space(flow);
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
-		case FLOW_ACTION_ACCEPT:
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			attr->flags |= MLX5_ESW_ATTR_FLAG_ACCEPT;
-			break;
 		case FLOW_ACTION_PTYPE:
 			if (act->ptype != PACKET_HOST) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -3916,20 +3912,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			}
 
 			ptype_host = true;
-			break;
-		case FLOW_ACTION_DROP:
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			break;
-		case FLOW_ACTION_TRAP:
-			if (!flow_offload_has_one_action(flow_action)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "action trap is supported as a sole action only");
-				return -EOPNOTSUPP;
-			}
-			attr->action |= (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					 MLX5_FLOW_CONTEXT_ACTION_COUNT);
-			attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 			break;
 		case FLOW_ACTION_MPLS_PUSH:
 			if (!MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
@@ -4237,10 +4219,21 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			flow_flag_set(flow, SAMPLE);
 			break;
 		default:
-			NL_SET_ERR_MSG_MOD(extack,
-					   "The offload action is not supported in FDB action");
+			break;
+		}
+
+		tc_act = mlx5e_tc_act_get(act->id, ns_type);
+		if (!tc_act) {
+			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
 			return -EOPNOTSUPP;
 		}
+
+		if (!tc_act->can_offload(parse_state, act, i))
+			return -EOPNOTSUPP;
+
+		err = tc_act->parse_action(parse_state, act, priv, attr);
+		if (err)
+			return err;
 	}
 
 	/* Forward to/from internal port can only have 1 dest */
