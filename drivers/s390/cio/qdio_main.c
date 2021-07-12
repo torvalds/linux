@@ -516,13 +516,6 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 
 	q->timestamp = get_tod_clock_fast();
 
-	if (need_siga_sync(q))
-		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
-		    !pci_out_supported(q->irq_ptr)) ||
-		    (queue_type(q) == QDIO_IQDIO_QFMT &&
-		    multicast_outbound(q)))
-			qdio_siga_sync_q(q);
-
 	count = atomic_read(&q->nr_buf_used);
 	if (!count)
 		return 0;
