@@ -430,8 +430,14 @@ static s64 gaudi_state_dump_specs_props[] = {
 	[SP_NUM_CORES] = 1,
 };
 
+/* The order here is opposite to the order of the indexing in the h/w.
+ * i.e. SYNC_MGR_W_S is actually 0, SYNC_MGR_E_S is 1, etc.
+ */
 static const char * const gaudi_sync_manager_names[] = {
-	"SYNC_MGR_E_N", "SYNC_MGR_W_N", "SYNC_MGR_E_S", "SYNC_MGR_W_S",
+	"SYNC_MGR_E_N",
+	"SYNC_MGR_W_N",
+	"SYNC_MGR_E_S",
+	"SYNC_MGR_W_S",
 	NULL
 };
 
@@ -7414,24 +7420,30 @@ static void gaudi_print_sm_sei_info(struct hl_device *hdev, u16 event_type,
 {
 	u32 index = event_type - GAUDI_EVENT_DMA_IF_SEI_0;
 
+	/* Flip the bits as the enum is ordered in the opposite way */
+	index = (index ^ 0x3) & 0x3;
+
 	switch (sei_data->sei_cause) {
 	case SM_SEI_SO_OVERFLOW:
-		dev_err(hdev->dev,
-			"SM %u SEI Error: SO %u overflow/underflow",
-			index, le32_to_cpu(sei_data->sei_log));
+		dev_err_ratelimited(hdev->dev,
+			"%s SEI Error: SOB Group %u overflow/underflow",
+			gaudi_sync_manager_names[index],
+			le32_to_cpu(sei_data->sei_log));
 		break;
 	case SM_SEI_LBW_4B_UNALIGNED:
-		dev_err(hdev->dev,
-			"SM %u SEI Error: Unaligned 4B LBW access, monitor agent address low - %#x",
-			index, le32_to_cpu(sei_data->sei_log));
+		dev_err_ratelimited(hdev->dev,
+			"%s SEI Error: Unaligned 4B LBW access, monitor agent address low - %#x",
+			gaudi_sync_manager_names[index],
+			le32_to_cpu(sei_data->sei_log));
 		break;
 	case SM_SEI_AXI_RESPONSE_ERR:
-		dev_err(hdev->dev,
-			"SM %u SEI Error: AXI ID %u response error",
-			index, le32_to_cpu(sei_data->sei_log));
+		dev_err_ratelimited(hdev->dev,
+			"%s SEI Error: AXI ID %u response error",
+			gaudi_sync_manager_names[index],
+			le32_to_cpu(sei_data->sei_log));
 		break;
 	default:
-		dev_err(hdev->dev, "Unknown SM SEI cause %u",
+		dev_err_ratelimited(hdev->dev, "Unknown SM SEI cause %u",
 				le32_to_cpu(sei_data->sei_log));
 		break;
 	}
