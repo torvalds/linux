@@ -299,11 +299,28 @@ static int smsm_set_irq_type(struct irq_data *irqd, unsigned int type)
 	return 0;
 }
 
+static int smsm_get_irqchip_state(struct irq_data *irqd,
+				  enum irqchip_irq_state which, bool *state)
+{
+	struct smsm_entry *entry = irq_data_get_irq_chip_data(irqd);
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
+	u32 val;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	val = readl(entry->remote_state);
+	*state = !!(val & BIT(irq));
+
+	return 0;
+}
+
 static struct irq_chip smsm_irq_chip = {
 	.name           = "smsm",
 	.irq_mask       = smsm_mask_irq,
 	.irq_unmask     = smsm_unmask_irq,
 	.irq_set_type	= smsm_set_irq_type,
+	.irq_get_irqchip_state = smsm_get_irqchip_state,
 };
 
 /**
