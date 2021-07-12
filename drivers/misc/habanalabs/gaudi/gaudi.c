@@ -7894,8 +7894,9 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
 	u16 event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK)
 			>> EQ_CTL_EVENT_TYPE_SHIFT);
-	u8 cause;
 	bool reset_required;
+	u8 cause;
+	int rc;
 
 	gaudi->events_stat[event_type]++;
 	gaudi->events_stat_aggregate[event_type]++;
@@ -8081,6 +8082,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_sm_sei_info(hdev, event_type,
 					&eq_entry->sm_sei_data);
+		rc = hl_state_dump(hdev);
+		if (rc)
+			dev_err(hdev->dev,
+				"Error during system state dump %d\n", rc);
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
