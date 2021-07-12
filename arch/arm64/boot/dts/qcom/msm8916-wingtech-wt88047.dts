@@ -42,6 +42,30 @@
 	};
 };
 
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@38 {
+		/* Likely some other model but works just fine with this one */
+		compatible = "edt,edt-ft5506";
+		reg = <0x38>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		reset-gpios = <&msmgpio 12 GPIO_ACTIVE_LOW>;
+
+		vcc-supply = <&pm8916_l17>;
+		iovcc-supply = <&pm8916_l6>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchscreen_default>;
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
@@ -196,6 +220,22 @@
 
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	touchscreen_default: touchscreen-default {
+		pins = "gpio13";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-up;
+
+		reset {
+			pins = "gpio12";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 
 	usb_id_default: usb-id-default {
