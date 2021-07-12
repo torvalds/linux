@@ -1024,19 +1024,21 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 	dev_err(intelhaddata->dev, "Unable to clear UNDERRUN bits\n");
 }
 
-/* Perform some reset procedure but only when need_reset is set;
+/* Perform some reset procedure after stopping the stream;
  * this is called from prepare or hw_free callbacks once after trigger STOP
  * or underrun has been processed in order to settle down the h/w state.
  */
-static void had_do_reset(struct snd_intelhad *intelhaddata)
+static int had_pcm_sync_stop(struct snd_pcm_substream *substream)
 {
-	if (!intelhaddata->need_reset || !intelhaddata->connected)
-		return;
+	struct snd_intelhad *intelhaddata = snd_pcm_substream_chip(substream);
+
+	if (!intelhaddata->connected)
+		return 0;
 
 	/* Reset buffer pointers */
 	had_reset_audio(intelhaddata);
 	wait_clear_underrun_bit(intelhaddata);
-	intelhaddata->need_reset = false;
+	return 0;
 }
 
 /* called from irq handler */
@@ -1050,7 +1052,6 @@ static void had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 		snd_pcm_stop_xrun(substream);
 		had_substream_put(intelhaddata);
 	}
-	intelhaddata->need_reset = true;
 }
 
 /*
@@ -1142,19 +1143,6 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 /*
- * ALSA PCM hw_free callback
- */
-static int had_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_intelhad *intelhaddata;
-
-	intelhaddata = snd_pcm_substream_chip(substream);
-	had_do_reset(intelhaddata);
-
-	return 0;
-}
-
-/*
  * ALSA PCM trigger callback
  */
 static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -1178,7 +1166,6 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		/* Disable Audio */
 		had_enable_audio(intelhaddata, false);
-		intelhaddata->need_reset = true;
 		break;
 
 	default:
@@ -1209,8 +1196,6 @@ static int had_pcm_prepare(struct snd_pcm_substream *substream)
 		(int)snd_pcm_lib_buffer_bytes(substream));
 	dev_dbg(intelhaddata->dev, "rate=%d\n", runtime->rate);
 	dev_dbg(intelhaddata->dev, "channels=%d\n", runtime->channels);
-
-	had_do_reset(intelhaddata);
 
 	/* Get N value in KHz */
 	disp_samp_freq = intelhaddata->tmds_clock_speed;
@@ -1287,9 +1272,9 @@ static const struct snd_pcm_ops had_pcm_ops = {
 	.open =		had_pcm_open,
 	.close =	had_pcm_close,
 	.hw_params =	had_pcm_hw_params,
-	.hw_free =	had_pcm_hw_free,
 	.prepare =	had_pcm_prepare,
 	.trigger =	had_pcm_trigger,
+	.sync_stop =	had_pcm_sync_stop,
 	.pointer =	had_pcm_pointer,
 	.mmap =		had_pcm_mmap,
 };
