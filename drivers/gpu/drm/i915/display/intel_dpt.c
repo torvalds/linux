@@ -133,7 +133,7 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 	iomem = i915_vma_pin_iomap(vma);
 	i915_vma_unpin(vma);
 	if (IS_ERR(iomem)) {
-		vma = iomem;
+		vma = ERR_CAST(iomem);
 		goto err;
 	}
 
