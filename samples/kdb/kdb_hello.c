@@ -29,10 +29,10 @@ static int kdb_hello_cmd(int argc, const char **argv)
 }
 
 static kdbtab_t hello_cmd = {
-	.cmd_name = "hello",
-	.cmd_func = kdb_hello_cmd,
-	.cmd_usage = "[string]",
-	.cmd_help = "Say Hello World or Hello [string]",
+	.name = "hello",
+	.func = kdb_hello_cmd,
+	.usage = "[string]",
+	.help = "Say Hello World or Hello [string]",
 };
 
 static int __init kdb_hello_cmd_init(void)

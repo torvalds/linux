@@ -68,12 +68,12 @@ typedef int (*kdb_func_t)(int, const char **);
 
 /* The KDB shell command table */
 typedef struct _kdbtab {
-	char    *cmd_name;		/* Command name */
-	kdb_func_t cmd_func;		/* Function to execute command */
-	char    *cmd_usage;		/* Usage String for this command */
-	char    *cmd_help;		/* Help message for this command */
-	short    cmd_minlen;		/* Minimum legal # cmd chars required */
-	kdb_cmdflags_t cmd_flags;	/* Command behaviour flags */
+	char    *name;			/* Command name */
+	kdb_func_t func;		/* Function to execute command */
+	char    *usage;			/* Usage String for this command */
+	char    *help;			/* Help message for this command */
+	short    minlen;		/* Minimum legal # cmd chars required */
+	kdb_cmdflags_t flags;		/* Command behaviour flags */
 	struct list_head list_node;	/* Command list */
 } kdbtab_t;
 

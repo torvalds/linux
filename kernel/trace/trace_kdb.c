@@ -148,11 +148,11 @@ static int kdb_ftdump(int argc, const char **argv)
 }
 
 static kdbtab_t ftdump_cmd = {
-	.cmd_name = "ftdump",
-	.cmd_func = kdb_ftdump,
-	.cmd_usage = "[skip_#entries] [cpu]",
-	.cmd_help = "Dump ftrace log; -skip dumps last #entries",
-	.cmd_flags = KDB_ENABLE_ALWAYS_SAFE,
+	.name = "ftdump",
+	.func = kdb_ftdump,
+	.usage = "[skip_#entries] [cpu]",
+	.help = "Dump ftrace log; -skip dumps last #entries",
+	.flags = KDB_ENABLE_ALWAYS_SAFE,
 };
 
 static __init int kdb_ftrace_register(void)
