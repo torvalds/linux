@@ -32,7 +32,6 @@ struct backlight_device;
 struct device_node;
 struct drm_connector;
 struct drm_device;
-struct drm_dp_aux;
 struct drm_panel;
 struct display_timing;
 
@@ -209,15 +208,8 @@ static inline int of_drm_get_panel_orientation(const struct device_node *np,
 #if IS_ENABLED(CONFIG_DRM_PANEL) && (IS_BUILTIN(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
 	(IS_MODULE(CONFIG_DRM) && IS_MODULE(CONFIG_BACKLIGHT_CLASS_DEVICE)))
 int drm_panel_of_backlight(struct drm_panel *panel);
-int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux);
 #else
 static inline int drm_panel_of_backlight(struct drm_panel *panel)
-{
-	return 0;
-}
-
-static inline int drm_panel_dp_aux_backlight(struct drm_panel *panel,
-					     struct drm_dp_aux *aux)
 {
 	return 0;
 }
