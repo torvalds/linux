@@ -123,6 +123,7 @@ struct intel_pt {
 	u64 noretcomp_bit;
 	unsigned max_non_turbo_ratio;
 	unsigned cbr2khz;
+	int max_loops;
 
 	unsigned long num_events;
 
@@ -1200,6 +1201,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.vm_time_correlation = pt->synth_opts.vm_time_correlation;
 	params.vm_tm_corr_dry_run = pt->synth_opts.vm_tm_corr_dry_run;
 	params.first_timestamp = pt->first_timestamp;
+	params.max_loops = pt->max_loops;
 
 	if (pt->filts.cnt > 0)
 		params.pgd_ip = intel_pt_pgd_ip;
@@ -3430,6 +3432,9 @@ static int intel_pt_perf_config(const char *var, const char *value, void *data)
 
 	if (!strcmp(var, "intel-pt.mispred-all"))
 		pt->mispred_all = perf_config_bool(var, value);
+
+	if (!strcmp(var, "intel-pt.max-loops"))
+		perf_config_int(&pt->max_loops, var, value);
 
 	return 0;
 }

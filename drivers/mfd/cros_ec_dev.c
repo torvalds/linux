@@ -5,6 +5,7 @@
  * Copyright (C) 2014 Google, Inc.
  */
 
+#include <linux/dmi.h>
 #include <linux/kconfig.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
@@ -112,8 +113,12 @@ static const struct cros_feature_to_cells cros_subdevices[] = {
 static const struct mfd_cell cros_ec_platform_cells[] = {
 	{ .name = "cros-ec-chardev", },
 	{ .name = "cros-ec-debugfs", },
-	{ .name = "cros-ec-lightbar", },
 	{ .name = "cros-ec-sysfs", },
+	{ .name = "cros-ec-pchg", },
+};
+
+static const struct mfd_cell cros_ec_lightbar_cells[] = {
+	{ .name = "cros-ec-lightbar", }
 };
 
 static const struct mfd_cell cros_ec_vbc_cells[] = {
@@ -204,6 +209,20 @@ static int ec_device_probe(struct platform_device *pdev)
 					cros_subdevices[i].mfd_cells->name,
 					retval);
 		}
+	}
+
+	/*
+	 * Lightbar is a special case. Newer devices support autodetection,
+	 * but older ones do not.
+	 */
+	if (cros_ec_check_features(ec, EC_FEATURE_LIGHTBAR) ||
+	    dmi_match(DMI_PRODUCT_NAME, "Link")) {
+		retval = mfd_add_hotplug_devices(ec->dev,
+					cros_ec_lightbar_cells,
+					ARRAY_SIZE(cros_ec_lightbar_cells));
+		if (retval)
+			dev_warn(ec->dev, "failed to add lightbar: %d\n",
+				 retval);
 	}
 
 	/*

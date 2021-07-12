@@ -2331,7 +2331,7 @@ static void remap_page(struct page *page, unsigned int nr)
 {
 	int i;
 
-	/* If TTU_SPLIT_FREEZE is ever extended to file, remove this check */
+	/* If unmap_page() uses try_to_migrate() on file, remove this check */
 	if (!PageAnon(page))
 		return;
 	if (PageTransHuge(page)) {

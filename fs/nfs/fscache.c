@@ -385,12 +385,15 @@ static void nfs_readpage_from_fscache_complete(struct page *page,
 		 "NFS: readpage_from_fscache_complete (0x%p/0x%p/%d)\n",
 		 page, context, error);
 
-	/* if the read completes with an error, we just unlock the page and let
-	 * the VM reissue the readpage */
-	if (!error) {
+	/*
+	 * If the read completes with an error, mark the page with PG_checked,
+	 * unlock the page, and let the VM reissue the readpage.
+	 */
+	if (!error)
 		SetPageUptodate(page);
-		unlock_page(page);
-	}
+	else
+		SetPageChecked(page);
+	unlock_page(page);
 }
 
 /*
@@ -404,6 +407,11 @@ int __nfs_readpage_from_fscache(struct nfs_open_context *ctx,
 	dfprintk(FSCACHE,
 		 "NFS: readpage_from_fscache(fsc:%p/p:%p(i:%lx f:%lx)/0x%p)\n",
 		 nfs_i_fscache(inode), page, page->index, page->flags, inode);
+
+	if (PageChecked(page)) {
+		ClearPageChecked(page);
+		return 1;
+	}
 
 	ret = fscache_read_or_alloc_page(nfs_i_fscache(inode),
 					 page,

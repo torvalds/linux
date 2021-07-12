@@ -12,15 +12,38 @@
 
 / {
 	aliases {
+		i2c0 = &i2c2;
+		i2c1 = &i2c1;
+		i2c2 = &i2c3;
 		mmc0 = &usdhc2;
 		mmc1 = &usdhc3;
 		mmc2 = &usdhc4;
 		mmc3 = &usdhc1;
+		rtc0 = &rtc_i2c;
+		rtc1 = &snvs_rtc;
+		serial0 = &uart1;
+		serial1 = &uart5;
+		serial2 = &uart4;
+		serial3 = &uart2;
+		serial4 = &uart3;
 	};
 
 	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
+	};
+
+	reg_eth_vio: regulator-eth-vio {
+		compatible = "regulator-fixed";
+		gpio = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&pinctrl_enet_vio>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "eth_vio";
+		vin-supply = <&sw2_reg>;
 	};
 
 	reg_usb_otg_vbus: regulator-usb-otg-vbus {
@@ -96,30 +119,40 @@
 			reg = <0>;
 			max-speed = <100>;
 			reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
-			reset-delay-us = <1000>;
-			reset-post-delay-us = <1000>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <1000>;
+			smsc,disable-energy-detect; /* Make plugin detection reliable */
 		};
 	};
 };
 
 &i2c1 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio3 21 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 28 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
 &i2c2 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio4 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio4 13 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	ltc3676: pmic@3c {
@@ -203,7 +236,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@56 {
+	rtc_i2c: rtc@56 {
 		compatible = "microcrystal,rv3029";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rtc_hw300>;
@@ -260,6 +293,11 @@
 			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
 			MX6QDL_PAD_EIM_WAIT__GPIO5_IO00		0x000b0
 			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x000b1
+		>;
+	};
+
+	pinctrl_enet_vio: enet-vio-grp {
+		fsl,pins = <
 			MX6QDL_PAD_GPIO_7__GPIO1_IO07		0x120b0
 		>;
 	};
@@ -285,6 +323,13 @@
 		>;
 	};
 
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D21__GPIO3_IO21		0x4001b8b1
+			MX6QDL_PAD_EIM_D28__GPIO3_IO28		0x4001b8b1
+		>;
+	};
+
 	pinctrl_i2c2: i2c2-grp {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001b8b1
@@ -292,10 +337,24 @@
 		>;
 	};
 
+	pinctrl_i2c2_gpio: i2c2-gpio-grp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_COL3__GPIO4_IO12		0x4001b8b1
+			MX6QDL_PAD_KEY_ROW3__GPIO4_IO13		0x4001b8b1
+		>;
+	};
+
 	pinctrl_i2c3: i2c3-grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__I2C3_SCL		0x4001b8b1
 			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3-gpio-grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_3__GPIO1_IO03		0x4001b8b1
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06		0x4001b8b1
 		>;
 	};
 

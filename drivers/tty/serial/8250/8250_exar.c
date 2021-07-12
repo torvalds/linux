@@ -501,22 +501,26 @@ static const struct dmi_system_id exar_platforms[] = {
 	{}
 };
 
+static const struct exar8250_platform *exar_get_platform(void)
+{
+	const struct dmi_system_id *dmi_match;
+
+	dmi_match = dmi_first_match(exar_platforms);
+	if (dmi_match)
+		return dmi_match->driver_data;
+
+	return &exar8250_default_platform;
+}
+
 static int
 pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		   struct uart_8250_port *port, int idx)
 {
-	const struct exar8250_platform *platform;
-	const struct dmi_system_id *dmi_match;
+	const struct exar8250_platform *platform = exar_get_platform();
 	unsigned int offset = idx * 0x400;
 	unsigned int baud = 7812500;
 	u8 __iomem *p;
 	int ret;
-
-	dmi_match = dmi_first_match(exar_platforms);
-	if (dmi_match)
-		platform = dmi_match->driver_data;
-	else
-		platform = &exar8250_default_platform;
 
 	port->port.uartclk = baud * 16;
 	port->port.rs485_config = platform->rs485_config;

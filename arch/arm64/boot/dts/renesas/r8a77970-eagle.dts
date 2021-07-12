@@ -73,6 +73,12 @@
 		/* first 128MB is reserved for secure area. */
 		reg = <0x0 0x48000000 0x0 0x38000000>;
 	};
+
+	x1_clk: x1-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <148500000>;
+	};
 };
 
 &avb {
@@ -104,6 +110,8 @@
 };
 
 &du {
+	clocks = <&cpg CPG_MOD 724>, <&x1_clk>;
+	clock-names = "du.0", "dclkin.0";
 	status = "okay";
 };
 

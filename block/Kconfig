@@ -153,7 +153,7 @@ config BLK_CGROUP_IOLATENCY
 
 config BLK_CGROUP_FC_APPID
 	bool "Enable support to track FC I/O Traffic across cgroup applications"
-	depends on BLK_CGROUP=y
+	depends on BLK_CGROUP && NVME_FC
 	help
 	  Enabling this option enables the support to track FC I/O traffic across
 	  cgroup applications. It enables the Fabric and the storage targets to

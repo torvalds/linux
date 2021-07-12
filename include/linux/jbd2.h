@@ -918,11 +918,11 @@ struct journal_s
 	struct shrinker		j_shrinker;
 
 	/**
-	 * @j_jh_shrink_count:
+	 * @j_checkpoint_jh_count:
 	 *
 	 * Number of journal buffers on the checkpoint list. [j_list_lock]
 	 */
-	struct percpu_counter	j_jh_shrink_count;
+	struct percpu_counter	j_checkpoint_jh_count;
 
 	/**
 	 * @j_shrink_transaction:
@@ -1556,8 +1556,6 @@ extern int	   jbd2_journal_set_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern void	   jbd2_journal_clear_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
-extern int	   jbd2_journal_register_shrinker(journal_t *journal);
-extern void	   jbd2_journal_unregister_shrinker(journal_t *journal);
 extern int	   jbd2_journal_load       (journal_t *journal);
 extern int	   jbd2_journal_destroy    (journal_t *);
 extern int	   jbd2_journal_recover    (journal_t *journal);

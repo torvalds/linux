@@ -122,6 +122,10 @@ properties:
           - enum:
               - mediatek,mt8195-evb
           - const: mediatek,mt8195
+      - description: Google Burnet (HP Chromebook x360 11MK G3 EE)
+        items:
+          - const: google,burnet
+          - const: mediatek,mt8183
       - description: Google Krane (Lenovo IdeaPad Duet, 10e,...)
         items:
           - enum:
@@ -133,9 +137,19 @@ properties:
         items:
           - const: google,damu
           - const: mediatek,mt8183
-      - description: Google Juniper (Acer Chromebook Spin 311)
+      - description: Google Fennel (Lenovo IdeaPad 3 Chromebook)
         items:
-          - const: google,juniper-sku16
+          - enum:
+              - google,fennel-sku0
+              - google,fennel-sku1
+              - google,fennel-sku6
+          - const: google,fennel
+          - const: mediatek,mt8183
+      - description: Google Juniper (Acer Chromebook Spin 311) / Kenzo (Acer Chromebook 311)
+        items:
+          - enum:
+              - google,juniper-sku16
+              - google,juniper-sku17
           - const: google,juniper
           - const: mediatek,mt8183
       - description: Google Kakadu (ASUS Chromebook Detachable CM3)
@@ -143,6 +157,10 @@ properties:
           - const: google,kakadu-rev3
           - const: google,kakadu-rev2
           - const: google,kakadu
+          - const: mediatek,mt8183
+      - description: Google Kappa (HP Chromebook 11a)
+        items:
+          - const: google,kappa
           - const: mediatek,mt8183
       - description: Google Kodama (Lenovo 10e Chromebook Tablet)
         items:
@@ -152,6 +170,13 @@ properties:
               - google,kodama-sku288
               - google,kodama-sku32
           - const: google,kodama
+          - const: mediatek,mt8183
+      - description: Google Willow (Acer Chromebook 311 C722/C722T)
+        items:
+          - enum:
+              - google,willow-sku0
+              - google,willow-sku1
+          - const: google,willow
           - const: mediatek,mt8183
       - items:
           - enum:

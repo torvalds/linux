@@ -11,7 +11,7 @@ too complex for a single device to be managed by a monolithic driver
 (e.g. Sound Open Firmware), multiple devices might implement a common
 intersection of functionality (e.g. NICs + RDMA), or a driver may want to
 export an interface for another subsystem to drive (e.g. SIOV Physical Function
-export Virtual Function management).  A split of the functinoality into child-
+export Virtual Function management).  A split of the functionality into child-
 devices representing sub-domains of functionality makes it possible to
 compartmentalize, layer, and distribute domain-specific concerns via a Linux
 device-driver model.

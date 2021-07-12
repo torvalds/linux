@@ -701,7 +701,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 
 	__buffer_unlink(jh);
 	jh->b_cp_transaction = NULL;
-	percpu_counter_dec(&journal->j_jh_shrink_count);
+	percpu_counter_dec(&journal->j_checkpoint_jh_count);
 	jbd2_journal_put_journal_head(jh);
 
 	/* Is this transaction empty? */
@@ -764,7 +764,7 @@ void __jbd2_journal_insert_checkpoint(struct journal_head *jh,
 		jh->b_cpnext->b_cpprev = jh;
 	}
 	transaction->t_checkpoint_list = jh;
-	percpu_counter_inc(&transaction->t_journal->j_jh_shrink_count);
+	percpu_counter_inc(&transaction->t_journal->j_checkpoint_jh_count);
 }
 
 /*

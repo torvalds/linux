@@ -416,6 +416,29 @@ static ssize_t kfd_procfs_stats_show(struct kobject *kobj,
 	return 0;
 }
 
+static ssize_t kfd_sysfs_counters_show(struct kobject *kobj,
+				       struct attribute *attr, char *buf)
+{
+	struct kfd_process_device *pdd;
+
+	if (!strcmp(attr->name, "faults")) {
+		pdd = container_of(attr, struct kfd_process_device,
+				   attr_faults);
+		return sysfs_emit(buf, "%llu\n", READ_ONCE(pdd->faults));
+	}
+	if (!strcmp(attr->name, "page_in")) {
+		pdd = container_of(attr, struct kfd_process_device,
+				   attr_page_in);
+		return sysfs_emit(buf, "%llu\n", READ_ONCE(pdd->page_in));
+	}
+	if (!strcmp(attr->name, "page_out")) {
+		pdd = container_of(attr, struct kfd_process_device,
+				   attr_page_out);
+		return sysfs_emit(buf, "%llu\n", READ_ONCE(pdd->page_out));
+	}
+	return 0;
+}
+
 static struct attribute attr_queue_size = {
 	.name = "size",
 	.mode = KFD_SYSFS_FILE_MODE
@@ -451,13 +474,18 @@ static const struct sysfs_ops procfs_stats_ops = {
 	.show = kfd_procfs_stats_show,
 };
 
-static struct attribute *procfs_stats_attrs[] = {
-	NULL
-};
-
 static struct kobj_type procfs_stats_type = {
 	.sysfs_ops = &procfs_stats_ops,
-	.default_attrs = procfs_stats_attrs,
+	.release = kfd_procfs_kobj_release,
+};
+
+static const struct sysfs_ops sysfs_counters_ops = {
+	.show = kfd_sysfs_counters_show,
+};
+
+static struct kobj_type sysfs_counters_type = {
+	.sysfs_ops = &sysfs_counters_ops,
+	.release = kfd_procfs_kobj_release,
 };
 
 int kfd_procfs_add_queue(struct queue *q)
@@ -484,34 +512,31 @@ int kfd_procfs_add_queue(struct queue *q)
 	return 0;
 }
 
-static int kfd_sysfs_create_file(struct kfd_process *p, struct attribute *attr,
+static void kfd_sysfs_create_file(struct kobject *kobj, struct attribute *attr,
 				 char *name)
 {
-	int ret = 0;
+	int ret;
 
-	if (!p || !attr || !name)
-		return -EINVAL;
+	if (!kobj || !attr || !name)
+		return;
 
 	attr->name = name;
 	attr->mode = KFD_SYSFS_FILE_MODE;
 	sysfs_attr_init(attr);
 
-	ret = sysfs_create_file(p->kobj, attr);
-
-	return ret;
+	ret = sysfs_create_file(kobj, attr);
+	if (ret)
+		pr_warn("Create sysfs %s/%s failed %d", kobj->name, name, ret);
 }
 
-static int kfd_procfs_add_sysfs_stats(struct kfd_process *p)
+static void kfd_procfs_add_sysfs_stats(struct kfd_process *p)
 {
-	int ret = 0;
+	int ret;
 	int i;
 	char stats_dir_filename[MAX_SYSFS_FILENAME_LEN];
 
-	if (!p)
-		return -EINVAL;
-
-	if (!p->kobj)
-		return -EFAULT;
+	if (!p || !p->kobj)
+		return;
 
 	/*
 	 * Create sysfs files for each GPU:
@@ -521,63 +546,87 @@ static int kfd_procfs_add_sysfs_stats(struct kfd_process *p)
 	 */
 	for (i = 0; i < p->n_pdds; i++) {
 		struct kfd_process_device *pdd = p->pdds[i];
-		struct kobject *kobj_stats;
 
 		snprintf(stats_dir_filename, MAX_SYSFS_FILENAME_LEN,
 				"stats_%u", pdd->dev->id);
-		kobj_stats = kfd_alloc_struct(kobj_stats);
-		if (!kobj_stats)
-			return -ENOMEM;
+		pdd->kobj_stats = kfd_alloc_struct(pdd->kobj_stats);
+		if (!pdd->kobj_stats)
+			return;
 
-		ret = kobject_init_and_add(kobj_stats,
-						&procfs_stats_type,
-						p->kobj,
-						stats_dir_filename);
+		ret = kobject_init_and_add(pdd->kobj_stats,
+					   &procfs_stats_type,
+					   p->kobj,
+					   stats_dir_filename);
 
 		if (ret) {
 			pr_warn("Creating KFD proc/stats_%s folder failed",
-					stats_dir_filename);
-			kobject_put(kobj_stats);
-			goto err;
+				stats_dir_filename);
+			kobject_put(pdd->kobj_stats);
+			pdd->kobj_stats = NULL;
+			return;
 		}
 
-		pdd->kobj_stats = kobj_stats;
-		pdd->attr_evict.name = "evicted_ms";
-		pdd->attr_evict.mode = KFD_SYSFS_FILE_MODE;
-		sysfs_attr_init(&pdd->attr_evict);
-		ret = sysfs_create_file(kobj_stats, &pdd->attr_evict);
-		if (ret)
-			pr_warn("Creating eviction stats for gpuid %d failed",
-					(int)pdd->dev->id);
-
+		kfd_sysfs_create_file(pdd->kobj_stats, &pdd->attr_evict,
+				      "evicted_ms");
 		/* Add sysfs file to report compute unit occupancy */
-		if (pdd->dev->kfd2kgd->get_cu_occupancy != NULL) {
-			pdd->attr_cu_occupancy.name = "cu_occupancy";
-			pdd->attr_cu_occupancy.mode = KFD_SYSFS_FILE_MODE;
-			sysfs_attr_init(&pdd->attr_cu_occupancy);
-			ret = sysfs_create_file(kobj_stats,
-						&pdd->attr_cu_occupancy);
-			if (ret)
-				pr_warn("Creating %s failed for gpuid: %d",
-					pdd->attr_cu_occupancy.name,
-					(int)pdd->dev->id);
-		}
+		if (pdd->dev->kfd2kgd->get_cu_occupancy)
+			kfd_sysfs_create_file(pdd->kobj_stats,
+					      &pdd->attr_cu_occupancy,
+					      "cu_occupancy");
 	}
-err:
-	return ret;
 }
 
-
-static int kfd_procfs_add_sysfs_files(struct kfd_process *p)
+static void kfd_procfs_add_sysfs_counters(struct kfd_process *p)
 {
 	int ret = 0;
 	int i;
+	char counters_dir_filename[MAX_SYSFS_FILENAME_LEN];
 
-	if (!p)
-		return -EINVAL;
+	if (!p || !p->kobj)
+		return;
 
-	if (!p->kobj)
-		return -EFAULT;
+	/*
+	 * Create sysfs files for each GPU which supports SVM
+	 * - proc/<pid>/counters_<gpuid>/
+	 * - proc/<pid>/counters_<gpuid>/faults
+	 * - proc/<pid>/counters_<gpuid>/page_in
+	 * - proc/<pid>/counters_<gpuid>/page_out
+	 */
+	for_each_set_bit(i, p->svms.bitmap_supported, p->n_pdds) {
+		struct kfd_process_device *pdd = p->pdds[i];
+		struct kobject *kobj_counters;
+
+		snprintf(counters_dir_filename, MAX_SYSFS_FILENAME_LEN,
+			"counters_%u", pdd->dev->id);
+		kobj_counters = kfd_alloc_struct(kobj_counters);
+		if (!kobj_counters)
+			return;
+
+		ret = kobject_init_and_add(kobj_counters, &sysfs_counters_type,
+					   p->kobj, counters_dir_filename);
+		if (ret) {
+			pr_warn("Creating KFD proc/%s folder failed",
+				counters_dir_filename);
+			kobject_put(kobj_counters);
+			return;
+		}
+
+		pdd->kobj_counters = kobj_counters;
+		kfd_sysfs_create_file(kobj_counters, &pdd->attr_faults,
+				      "faults");
+		kfd_sysfs_create_file(kobj_counters, &pdd->attr_page_in,
+				      "page_in");
+		kfd_sysfs_create_file(kobj_counters, &pdd->attr_page_out,
+				      "page_out");
+	}
+}
+
+static void kfd_procfs_add_sysfs_files(struct kfd_process *p)
+{
+	int i;
+
+	if (!p || !p->kobj)
+		return;
 
 	/*
 	 * Create sysfs files for each GPU:
@@ -589,20 +638,14 @@ static int kfd_procfs_add_sysfs_files(struct kfd_process *p)
 
 		snprintf(pdd->vram_filename, MAX_SYSFS_FILENAME_LEN, "vram_%u",
 			 pdd->dev->id);
-		ret = kfd_sysfs_create_file(p, &pdd->attr_vram, pdd->vram_filename);
-		if (ret)
-			pr_warn("Creating vram usage for gpu id %d failed",
-				(int)pdd->dev->id);
+		kfd_sysfs_create_file(p->kobj, &pdd->attr_vram,
+				      pdd->vram_filename);
 
 		snprintf(pdd->sdma_filename, MAX_SYSFS_FILENAME_LEN, "sdma_%u",
 			 pdd->dev->id);
-		ret = kfd_sysfs_create_file(p, &pdd->attr_sdma, pdd->sdma_filename);
-		if (ret)
-			pr_warn("Creating sdma usage for gpu id %d failed",
-				(int)pdd->dev->id);
+		kfd_sysfs_create_file(p->kobj, &pdd->attr_sdma,
+					    pdd->sdma_filename);
 	}
-
-	return ret;
 }
 
 void kfd_procfs_del_queue(struct queue *q)
@@ -800,28 +843,17 @@ struct kfd_process *kfd_create_process(struct file *filep)
 			goto out;
 		}
 
-		process->attr_pasid.name = "pasid";
-		process->attr_pasid.mode = KFD_SYSFS_FILE_MODE;
-		sysfs_attr_init(&process->attr_pasid);
-		ret = sysfs_create_file(process->kobj, &process->attr_pasid);
-		if (ret)
-			pr_warn("Creating pasid for pid %d failed",
-					(int)process->lead_thread->pid);
+		kfd_sysfs_create_file(process->kobj, &process->attr_pasid,
+				      "pasid");
 
 		process->kobj_queues = kobject_create_and_add("queues",
 							process->kobj);
 		if (!process->kobj_queues)
 			pr_warn("Creating KFD proc/queues folder failed");
 
-		ret = kfd_procfs_add_sysfs_stats(process);
-		if (ret)
-			pr_warn("Creating sysfs stats dir for pid %d failed",
-				(int)process->lead_thread->pid);
-
-		ret = kfd_procfs_add_sysfs_files(process);
-		if (ret)
-			pr_warn("Creating sysfs usage file for pid %d failed",
-				(int)process->lead_thread->pid);
+		kfd_procfs_add_sysfs_stats(process);
+		kfd_procfs_add_sysfs_files(process);
+		kfd_procfs_add_sysfs_counters(process);
 	}
 out:
 	if (!IS_ERR(process))
@@ -964,6 +996,50 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 	p->n_pdds = 0;
 }
 
+static void kfd_process_remove_sysfs(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+	int i;
+
+	if (!p->kobj)
+		return;
+
+	sysfs_remove_file(p->kobj, &p->attr_pasid);
+	kobject_del(p->kobj_queues);
+	kobject_put(p->kobj_queues);
+	p->kobj_queues = NULL;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		pdd = p->pdds[i];
+
+		sysfs_remove_file(p->kobj, &pdd->attr_vram);
+		sysfs_remove_file(p->kobj, &pdd->attr_sdma);
+
+		sysfs_remove_file(pdd->kobj_stats, &pdd->attr_evict);
+		if (pdd->dev->kfd2kgd->get_cu_occupancy)
+			sysfs_remove_file(pdd->kobj_stats,
+					  &pdd->attr_cu_occupancy);
+		kobject_del(pdd->kobj_stats);
+		kobject_put(pdd->kobj_stats);
+		pdd->kobj_stats = NULL;
+	}
+
+	for_each_set_bit(i, p->svms.bitmap_supported, p->n_pdds) {
+		pdd = p->pdds[i];
+
+		sysfs_remove_file(pdd->kobj_counters, &pdd->attr_faults);
+		sysfs_remove_file(pdd->kobj_counters, &pdd->attr_page_in);
+		sysfs_remove_file(pdd->kobj_counters, &pdd->attr_page_out);
+		kobject_del(pdd->kobj_counters);
+		kobject_put(pdd->kobj_counters);
+		pdd->kobj_counters = NULL;
+	}
+
+	kobject_del(p->kobj);
+	kobject_put(p->kobj);
+	p->kobj = NULL;
+}
+
 /* No process locking is needed in this function, because the process
  * is not findable any more. We must assume that no other thread is
  * using it any more, otherwise we couldn't safely free the process
@@ -973,33 +1049,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 {
 	struct kfd_process *p = container_of(work, struct kfd_process,
 					     release_work);
-	int i;
-
-	/* Remove the procfs files */
-	if (p->kobj) {
-		sysfs_remove_file(p->kobj, &p->attr_pasid);
-		kobject_del(p->kobj_queues);
-		kobject_put(p->kobj_queues);
-		p->kobj_queues = NULL;
-
-		for (i = 0; i < p->n_pdds; i++) {
-			struct kfd_process_device *pdd = p->pdds[i];
-
-			sysfs_remove_file(p->kobj, &pdd->attr_vram);
-			sysfs_remove_file(p->kobj, &pdd->attr_sdma);
-			sysfs_remove_file(p->kobj, &pdd->attr_evict);
-			if (pdd->dev->kfd2kgd->get_cu_occupancy != NULL)
-				sysfs_remove_file(p->kobj, &pdd->attr_cu_occupancy);
-			kobject_del(pdd->kobj_stats);
-			kobject_put(pdd->kobj_stats);
-			pdd->kobj_stats = NULL;
-		}
-
-		kobject_del(p->kobj);
-		kobject_put(p->kobj);
-		p->kobj = NULL;
-	}
-
+	kfd_process_remove_sysfs(p);
 	kfd_iommu_unbind_process(p);
 
 	kfd_process_free_outstanding_kfd_bos(p);

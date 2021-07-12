@@ -1113,7 +1113,7 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static int garmin_write_room(struct tty_struct *tty)
+static unsigned int garmin_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/*

@@ -142,24 +142,17 @@ static struct i2c_driver isp1301_driver = {
 
 module_i2c_driver(isp1301_driver);
 
-static int match(struct device *dev, const void *data)
-{
-	const struct device_node *node = (const struct device_node *)data;
-	return (dev->of_node == node) &&
-		(dev->driver == &isp1301_driver.driver);
-}
-
 struct i2c_client *isp1301_get_client(struct device_node *node)
 {
-	if (node) { /* reference of ISP1301 I2C node via DT */
-		struct device *dev = bus_find_device(&i2c_bus_type, NULL,
-						     node, match);
-		if (!dev)
-			return NULL;
-		return to_i2c_client(dev);
-	} else { /* non-DT: only one ISP1301 chip supported */
-		return isp1301_i2c_client;
-	}
+	struct i2c_client *client;
+
+	/* reference of ISP1301 I2C node via DT */
+	client = of_find_i2c_device_by_node(node);
+	if (client)
+		return client;
+
+	/* non-DT: only one ISP1301 chip supported */
+	return isp1301_i2c_client;
 }
 EXPORT_SYMBOL_GPL(isp1301_get_client);
 

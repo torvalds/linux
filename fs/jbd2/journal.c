@@ -1283,6 +1283,48 @@ static int jbd2_min_tag_size(void)
 	return sizeof(journal_block_tag_t) - 4;
 }
 
+/**
+ * jbd2_journal_shrink_scan()
+ *
+ * Scan the checkpointed buffer on the checkpoint list and release the
+ * journal_head.
+ */
+static unsigned long jbd2_journal_shrink_scan(struct shrinker *shrink,
+					      struct shrink_control *sc)
+{
+	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
+	unsigned long nr_to_scan = sc->nr_to_scan;
+	unsigned long nr_shrunk;
+	unsigned long count;
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_scan_enter(journal, sc->nr_to_scan, count);
+
+	nr_shrunk = jbd2_journal_shrink_checkpoint_list(journal, &nr_to_scan);
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_scan_exit(journal, nr_to_scan, nr_shrunk, count);
+
+	return nr_shrunk;
+}
+
+/**
+ * jbd2_journal_shrink_count()
+ *
+ * Count the number of checkpoint buffers on the checkpoint list.
+ */
+static unsigned long jbd2_journal_shrink_count(struct shrinker *shrink,
+					       struct shrink_control *sc)
+{
+	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
+	unsigned long count;
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_count(journal, sc->nr_to_scan, count);
+
+	return count;
+}
+
 /*
  * Management for journal control blocks: functions to create and
  * destroy journal_t structures, and to initialise and read existing
@@ -1361,9 +1403,23 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	journal->j_sb_buffer = bh;
 	journal->j_superblock = (journal_superblock_t *)bh->b_data;
 
+	journal->j_shrink_transaction = NULL;
+	journal->j_shrinker.scan_objects = jbd2_journal_shrink_scan;
+	journal->j_shrinker.count_objects = jbd2_journal_shrink_count;
+	journal->j_shrinker.seeks = DEFAULT_SEEKS;
+	journal->j_shrinker.batch = journal->j_max_transaction_buffers;
+
+	if (percpu_counter_init(&journal->j_checkpoint_jh_count, 0, GFP_KERNEL))
+		goto err_cleanup;
+
+	if (register_shrinker(&journal->j_shrinker)) {
+		percpu_counter_destroy(&journal->j_checkpoint_jh_count);
+		goto err_cleanup;
+	}
 	return journal;
 
 err_cleanup:
+	brelse(journal->j_sb_buffer);
 	kfree(journal->j_wbuf);
 	jbd2_journal_destroy_revoke(journal);
 	kfree(journal);
@@ -2051,93 +2107,6 @@ recovery_error:
 }
 
 /**
- * jbd2_journal_shrink_scan()
- *
- * Scan the checkpointed buffer on the checkpoint list and release the
- * journal_head.
- */
-static unsigned long jbd2_journal_shrink_scan(struct shrinker *shrink,
-					      struct shrink_control *sc)
-{
-	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
-	unsigned long nr_to_scan = sc->nr_to_scan;
-	unsigned long nr_shrunk;
-	unsigned long count;
-
-	count = percpu_counter_read_positive(&journal->j_jh_shrink_count);
-	trace_jbd2_shrink_scan_enter(journal, sc->nr_to_scan, count);
-
-	nr_shrunk = jbd2_journal_shrink_checkpoint_list(journal, &nr_to_scan);
-
-	count = percpu_counter_read_positive(&journal->j_jh_shrink_count);
-	trace_jbd2_shrink_scan_exit(journal, nr_to_scan, nr_shrunk, count);
-
-	return nr_shrunk;
-}
-
-/**
- * jbd2_journal_shrink_count()
- *
- * Count the number of checkpoint buffers on the checkpoint list.
- */
-static unsigned long jbd2_journal_shrink_count(struct shrinker *shrink,
-					       struct shrink_control *sc)
-{
-	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
-	unsigned long count;
-
-	count = percpu_counter_read_positive(&journal->j_jh_shrink_count);
-	trace_jbd2_shrink_count(journal, sc->nr_to_scan, count);
-
-	return count;
-}
-
-/**
- * jbd2_journal_register_shrinker()
- * @journal: Journal to act on.
- *
- * Init a percpu counter to record the checkpointed buffers on the checkpoint
- * list and register a shrinker to release their journal_head.
- */
-int jbd2_journal_register_shrinker(journal_t *journal)
-{
-	int err;
-
-	journal->j_shrink_transaction = NULL;
-
-	err = percpu_counter_init(&journal->j_jh_shrink_count, 0, GFP_KERNEL);
-	if (err)
-		return err;
-
-	journal->j_shrinker.scan_objects = jbd2_journal_shrink_scan;
-	journal->j_shrinker.count_objects = jbd2_journal_shrink_count;
-	journal->j_shrinker.seeks = DEFAULT_SEEKS;
-	journal->j_shrinker.batch = journal->j_max_transaction_buffers;
-
-	err = register_shrinker(&journal->j_shrinker);
-	if (err) {
-		percpu_counter_destroy(&journal->j_jh_shrink_count);
-		return err;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(jbd2_journal_register_shrinker);
-
-/**
- * jbd2_journal_unregister_shrinker()
- * @journal: Journal to act on.
- *
- * Unregister the checkpointed buffer shrinker and destroy the percpu counter.
- */
-void jbd2_journal_unregister_shrinker(journal_t *journal)
-{
-	percpu_counter_destroy(&journal->j_jh_shrink_count);
-	unregister_shrinker(&journal->j_shrinker);
-}
-EXPORT_SYMBOL(jbd2_journal_unregister_shrinker);
-
-/**
  * jbd2_journal_destroy() - Release a journal_t structure.
  * @journal: Journal to act on.
  *
@@ -2209,8 +2178,10 @@ int jbd2_journal_destroy(journal_t *journal)
 		brelse(journal->j_sb_buffer);
 	}
 
-	jbd2_journal_unregister_shrinker(journal);
-
+	if (journal->j_shrinker.flags & SHRINKER_REGISTERED) {
+		percpu_counter_destroy(&journal->j_checkpoint_jh_count);
+		unregister_shrinker(&journal->j_shrinker);
+	}
 	if (journal->j_proc_entry)
 		jbd2_stats_proc_exit(journal);
 	iput(journal->j_inode);

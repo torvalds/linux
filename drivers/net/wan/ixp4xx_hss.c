@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0

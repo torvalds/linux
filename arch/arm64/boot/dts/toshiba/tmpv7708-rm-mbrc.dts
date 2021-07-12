@@ -68,3 +68,11 @@
 &gpio {
 	status = "okay";
 };
+
+&pwm_mux {
+	groups = "pwm0_gpio16_grp", "pwm1_gpio17_grp", "pwm2_gpio18_grp", "pwm3_gpio19_grp";
+};
+
+&pwm {
+	status = "okay";
+};

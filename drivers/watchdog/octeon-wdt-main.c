@@ -120,7 +120,7 @@ static int cpu2core(int cpu)
 }
 
 /**
- * Poke the watchdog when an interrupt is received
+ * octeon_wdt_poke_irq - Poke the watchdog when an interrupt is received
  *
  * @cpl:
  * @dev_id:
@@ -154,7 +154,7 @@ static irqreturn_t octeon_wdt_poke_irq(int cpl, void *dev_id)
 extern int prom_putchar(char c);
 
 /**
- * Write a string to the uart
+ * octeon_wdt_write_string - Write a string to the uart
  *
  * @str:        String to write
  */
@@ -166,7 +166,7 @@ static void octeon_wdt_write_string(const char *str)
 }
 
 /**
- * Write a hex number out of the uart
+ * octeon_wdt_write_hex() - Write a hex number out of the uart
  *
  * @value:      Number to display
  * @digits:     Number of digits to print (1 to 16)
@@ -193,6 +193,8 @@ static const char reg_name[][3] = {
 };
 
 /**
+ * octeon_wdt_nmi_stage3:
+ *
  * NMI stage 3 handler. NMIs are handled in the following manner:
  * 1) The first NMI handler enables CVMSEG and transfers from
  * the bootbus region into normal memory. It is careful to not
@@ -514,7 +516,7 @@ static struct watchdog_device octeon_wdt = {
 
 static enum cpuhp_state octeon_wdt_online;
 /**
- * Module/ driver initialization.
+ * octeon_wdt_init - Module/ driver initialization.
  *
  * Returns Zero on success
  */
@@ -586,7 +588,7 @@ err:
 }
 
 /**
- * Module / driver shutdown
+ * octeon_wdt_cleanup - Module / driver shutdown
  */
 static void __exit octeon_wdt_cleanup(void)
 {

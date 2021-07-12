@@ -195,6 +195,7 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_5_SLP				BIT(0)
 #define ROUTER_CS_5_WOP				BIT(1)
 #define ROUTER_CS_5_WOU				BIT(2)
+#define ROUTER_CS_5_WOD				BIT(3)
 #define ROUTER_CS_5_C3S				BIT(23)
 #define ROUTER_CS_5_PTO				BIT(24)
 #define ROUTER_CS_5_UTO				BIT(25)
@@ -228,6 +229,7 @@ enum usb4_switch_op {
 	USB4_SWITCH_OP_NVM_SET_OFFSET = 0x23,
 	USB4_SWITCH_OP_DROM_READ = 0x24,
 	USB4_SWITCH_OP_NVM_SECTOR_SIZE = 0x25,
+	USB4_SWITCH_OP_BUFFER_ALLOC = 0x33,
 };
 
 /* Router TMU configuration */
@@ -458,6 +460,8 @@ struct tb_regs_hop {
 #define TB_LC_SX_CTRL			0x96
 #define TB_LC_SX_CTRL_WOC		BIT(1)
 #define TB_LC_SX_CTRL_WOD		BIT(2)
+#define TB_LC_SX_CTRL_WODPC		BIT(3)
+#define TB_LC_SX_CTRL_WODPD		BIT(4)
 #define TB_LC_SX_CTRL_WOU4		BIT(5)
 #define TB_LC_SX_CTRL_WOP		BIT(6)
 #define TB_LC_SX_CTRL_L1C		BIT(16)

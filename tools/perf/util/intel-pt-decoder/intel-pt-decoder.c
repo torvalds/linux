@@ -41,8 +41,11 @@
 
 #define INTEL_PT_RETURN 1
 
-/* Maximum number of loops with no packets consumed i.e. stuck in a loop */
-#define INTEL_PT_MAX_LOOPS 10000
+/*
+ * Default maximum number of loops with no packets consumed i.e. stuck in a
+ * loop.
+ */
+#define INTEL_PT_MAX_LOOPS 100000
 
 struct intel_pt_blk {
 	struct intel_pt_blk *prev;
@@ -220,6 +223,7 @@ struct intel_pt_decoder {
 	uint64_t timestamp_insn_cnt;
 	uint64_t sample_insn_cnt;
 	uint64_t stuck_ip;
+	int max_loops;
 	int no_progress;
 	int stuck_ip_prd;
 	int stuck_ip_cnt;
@@ -315,6 +319,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->vm_tm_corr_dry_run = params->vm_tm_corr_dry_run;
 	decoder->first_timestamp    = params->first_timestamp;
 	decoder->last_reliable_timestamp = params->first_timestamp;
+	decoder->max_loops          = params->max_loops ? params->max_loops : INTEL_PT_MAX_LOOPS;
 
 	decoder->flags              = params->flags;
 
@@ -483,7 +488,7 @@ static const char *intel_pt_err_msgs[] = {
 	[INTEL_PT_ERR_OVR]    = "Overflow packet",
 	[INTEL_PT_ERR_LOST]   = "Lost trace data",
 	[INTEL_PT_ERR_UNK]    = "Unknown error!",
-	[INTEL_PT_ERR_NELOOP] = "Never-ending loop",
+	[INTEL_PT_ERR_NELOOP] = "Never-ending loop (refer perf config intel-pt.max-loops)",
 };
 
 int intel_pt__strerror(int code, char *buf, size_t buflen)
@@ -1168,7 +1173,7 @@ static int intel_pt_walk_insn(struct intel_pt_decoder *decoder,
 				decoder->stuck_ip = decoder->state.to_ip;
 				decoder->stuck_ip_prd = 1;
 				decoder->stuck_ip_cnt = 1;
-			} else if (cnt > INTEL_PT_MAX_LOOPS ||
+			} else if (cnt > decoder->max_loops ||
 				   decoder->state.to_ip == decoder->stuck_ip) {
 				intel_pt_log_at("ERROR: Never-ending loop",
 						decoder->state.to_ip);

@@ -692,6 +692,13 @@ static long ext4_ioctl_group_add(struct file *file,
 	if (err)
 		return err;
 
+	if (ext4_has_feature_bigalloc(sb)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Online resizing not supported with bigalloc");
+		err = -EOPNOTSUPP;
+		goto group_add_out;
+	}
+
 	err = mnt_want_write_file(file);
 	if (err)
 		goto group_add_out;
@@ -816,7 +823,7 @@ static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
 	if (!EXT4_SB(sb)->s_journal)
 		return -ENODEV;
 
-	if (flags & ~JBD2_JOURNAL_FLUSH_VALID)
+	if (flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID)
 		return -EINVAL;
 
 	q = bdev_get_queue(EXT4_SB(sb)->s_journal->j_dev);
@@ -911,6 +918,13 @@ setversion_out:
 
 		if (get_user(n_blocks_count, (__u32 __user *)arg)) {
 			err = -EFAULT;
+			goto group_extend_out;
+		}
+
+		if (ext4_has_feature_bigalloc(sb)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online resizing not supported with bigalloc");
+			err = -EOPNOTSUPP;
 			goto group_extend_out;
 		}
 

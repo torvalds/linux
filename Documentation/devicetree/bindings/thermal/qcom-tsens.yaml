@@ -46,6 +46,8 @@ properties:
               - qcom,msm8996-tsens
               - qcom,msm8998-tsens
               - qcom,sc7180-tsens
+              - qcom,sc7280-tsens
+              - qcom,sc8180x-tsens
               - qcom,sdm845-tsens
               - qcom,sm8150-tsens
               - qcom,sm8250-tsens
@@ -77,7 +79,6 @@ properties:
 
   nvmem-cell-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: calib
       - enum:

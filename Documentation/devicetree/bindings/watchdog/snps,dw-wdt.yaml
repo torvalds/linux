@@ -27,6 +27,7 @@ properties:
               - rockchip,rk3328-wdt
               - rockchip,rk3368-wdt
               - rockchip,rk3399-wdt
+              - rockchip,rk3568-wdt
               - rockchip,rv1108-wdt
           - const: snps,dw-wdt
 

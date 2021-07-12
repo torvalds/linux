@@ -2902,14 +2902,15 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
 	return sprintf(buf, "%i\n", 0);
 }
 
-static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
+
+static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
+					struct device_attribute *attr,
+					char *buf,
+					enum pp_power_limit_level pp_limit_level)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
-	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_MAX;
 	uint32_t limit;
 	ssize_t size;
 	int r;
@@ -2919,17 +2920,17 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
+	if ( !(pp_funcs && pp_funcs->get_power_limit))
+		return -ENODATA;
+
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 		return r;
 	}
 
-	if (pp_funcs && pp_funcs->get_power_limit)
-		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					      pp_limit_level, power_type);
-	else
-		r = -ENODATA;
+	r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+				      pp_limit_level, power_type);
 
 	if (!r)
 		size = sysfs_emit(buf, "%u\n", limit * 1000000);
@@ -2940,87 +2941,33 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	return size;
+}
+
+
+static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	return amdgpu_hwmon_show_power_cap_generic(dev, attr, buf, PP_PWR_LIMIT_MAX);
+
 }
 
 static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct amdgpu_device *adev = dev_get_drvdata(dev);
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
-	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_CURRENT;
-	uint32_t limit;
-	ssize_t size;
-	int r;
+	return amdgpu_hwmon_show_power_cap_generic(dev, attr, buf, PP_PWR_LIMIT_CURRENT);
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
-	if (pp_funcs && pp_funcs->get_power_limit)
-		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					      pp_limit_level, power_type);
-	else
-		r = -ENODATA;
-
-	if (!r)
-		size = sysfs_emit(buf, "%u\n", limit * 1000000);
-	else
-		size = sysfs_emit(buf, "\n");
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
-	return size;
 }
 
 static ssize_t amdgpu_hwmon_show_power_cap_default(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct amdgpu_device *adev = dev_get_drvdata(dev);
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	enum pp_power_type power_type = to_sensor_dev_attr(attr)->index;
-	enum pp_power_limit_level pp_limit_level = PP_PWR_LIMIT_DEFAULT;
-	uint32_t limit;
-	ssize_t size;
-	int r;
+	return amdgpu_hwmon_show_power_cap_generic(dev, attr, buf, PP_PWR_LIMIT_DEFAULT);
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
-	if (pp_funcs && pp_funcs->get_power_limit)
-		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					      pp_limit_level, power_type);
-	else
-		r = -ENODATA;
-
-	if (!r)
-		size = sysfs_emit(buf, "%u\n", limit * 1000000);
-	else
-		size = sysfs_emit(buf, "\n");
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
-	return size;
 }
+
 static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)

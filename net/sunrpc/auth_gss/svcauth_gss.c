@@ -1275,7 +1275,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	long long ctxh;
 	struct gss_api_mech *gm = NULL;
 	time64_t expiry;
-	int status = -EINVAL;
+	int status;
 
 	memset(&rsci, 0, sizeof(rsci));
 	/* context handle */

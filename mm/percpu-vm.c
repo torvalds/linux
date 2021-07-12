@@ -303,6 +303,9 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
  * from @chunk.
  *
+ * Caller is required to call pcpu_post_unmap_tlb_flush() if not returning the
+ * region back to vmalloc() which will lazily flush the tlb.
+ *
  * CONTEXT:
  * pcpu_alloc_mutex.
  */
@@ -323,8 +326,6 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	pcpu_pre_unmap_flush(chunk, page_start, page_end);
 
 	pcpu_unmap_pages(chunk, pages, page_start, page_end);
-
-	/* no need to flush tlb, vmalloc will handle it lazily */
 
 	pcpu_free_pages(chunk, pages, page_start, page_end);
 }

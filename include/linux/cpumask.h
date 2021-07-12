@@ -259,7 +259,7 @@ extern int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool 
 /**
  * for_each_cpu_wrap - iterate over every cpu in a mask, starting at a specified location
  * @cpu: the (optionally unsigned) integer iterator
- * @mask: the cpumask poiter
+ * @mask: the cpumask pointer
  * @start: the start location
  *
  * The implementation does not assume any bit in @mask is set (including @start).

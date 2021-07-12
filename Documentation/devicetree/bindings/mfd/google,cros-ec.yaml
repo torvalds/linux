@@ -117,6 +117,22 @@ properties:
       - "#address-cells"
       - "#size-cells"
 
+  cbas:
+    type: object
+
+    description:
+      This device is used to signal when a detachable base is attached
+      to a Chrome OS tablet. This device cannot be detected at runtime.
+
+    properties:
+      compatible:
+        const: google,cros-cbas
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
 patternProperties:
   "^i2c-tunnel[0-9]*$":
     type: object
@@ -186,6 +202,10 @@ examples:
 
             proximity {
                     compatible = "google,cros-ec-mkbp-proximity";
+            };
+
+            cbas {
+                compatible = "google,cros-cbas";
             };
         };
     };

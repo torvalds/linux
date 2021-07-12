@@ -117,7 +117,7 @@ SECTIONS
 	. = ALIGN(SECTION_ALIGN);
 	_data = .;
 
-	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_ALIGN)
 	.sdata : {
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)

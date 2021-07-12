@@ -12,7 +12,6 @@
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
-	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	int i;
 
 	/* Release all allocated pending cb's, those cb's were never
@@ -57,14 +56,6 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 
 		/* Scrub both SRAM and DRAM */
 		hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
-
-		if ((!hdev->pldm) && (hdev->pdev) &&
-				(!hdev->asic_funcs->is_device_idle(hdev,
-					idle_mask,
-					HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)))
-			dev_notice(hdev->dev,
-					"device not idle after user context is closed (0x%llx, 0x%llx)\n",
-						idle_mask[0], idle_mask[1]);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
 		hdev->asic_funcs->ctx_fini(ctx);

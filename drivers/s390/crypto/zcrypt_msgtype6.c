@@ -403,7 +403,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	} __packed * msg = ap_msg->msg;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);
-	int replylen, req_sumlen, resp_sumlen;
+	int req_sumlen, resp_sumlen;
 	char *req_data = ap_msg->msg + sizeof(struct type6_hdr) + rcblen;
 	char *function_code;
 
@@ -415,7 +415,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	ap_msg->len = sizeof(struct type6_hdr) +
 		CEIL4(xcRB->request_control_blk_length) +
 		xcRB->request_data_length;
-	if (ap_msg->len > MSGTYPE06_MAX_MSG_SIZE)
+	if (ap_msg->len > ap_msg->bufsize)
 		return -EINVAL;
 
 	/*
@@ -434,12 +434,6 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	if (CEIL4(xcRB->reply_control_blk_length) <
 			xcRB->reply_control_blk_length)
 		return -EINVAL; /* overflow after alignment*/
-
-	replylen = sizeof(struct type86_fmt2_msg) +
-		CEIL4(xcRB->reply_control_blk_length) +
-		xcRB->reply_data_length;
-	if (replylen > MSGTYPE06_MAX_MSG_SIZE)
-		return -EINVAL;
 
 	/*
 	 * Overflow check
@@ -530,17 +524,12 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 		return -EINVAL; /* overflow after alignment*/
 
 	/* length checks */
-	ap_msg->len = sizeof(struct type6_hdr) + xcRB->req_len;
-	if (CEIL4(xcRB->req_len) > MSGTYPE06_MAX_MSG_SIZE -
-				   (sizeof(struct type6_hdr)))
+	ap_msg->len = sizeof(struct type6_hdr) + CEIL4(xcRB->req_len);
+	if (ap_msg->len > ap_msg->bufsize)
 		return -EINVAL;
 
 	if (CEIL4(xcRB->resp_len) < xcRB->resp_len)
 		return -EINVAL; /* overflow after alignment*/
-
-	if (CEIL4(xcRB->resp_len) > MSGTYPE06_MAX_MSG_SIZE -
-				    (sizeof(struct type86_fmt2_msg)))
-		return -EINVAL;
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_ep11_hdr;
@@ -675,6 +664,7 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) service_rc, (int) service_rs);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 	data = msg->text;
@@ -820,6 +810,7 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -854,6 +845,7 @@ static int convert_response_xcrb(bool userspace, struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -883,6 +875,7 @@ static int convert_response_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -913,6 +906,7 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 			       AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -947,13 +941,21 @@ static void zcrypt_msgtype6_receive(struct ap_queue *aq,
 		switch (resp_type->type) {
 		case CEXXC_RESPONSE_TYPE_ICA:
 			len = sizeof(struct type86x_reply) + t86r->length - 2;
-			len = min_t(int, CEXXC_MAX_ICA_RESPONSE_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		case CEXXC_RESPONSE_TYPE_XCRB:
 			len = t86r->fmt2.offset2 + t86r->fmt2.count2;
-			len = min_t(int, MSGTYPE06_MAX_MSG_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		default:
 			memcpy(msg->msg, &error_reply, sizeof(error_reply));
@@ -994,8 +996,12 @@ static void zcrypt_msgtype6_receive_ep11(struct ap_queue *aq,
 		switch (resp_type->type) {
 		case CEXXC_RESPONSE_TYPE_EP11:
 			len = t86r->fmt2.offset1 + t86r->fmt2.count1;
-			len = min_t(int, MSGTYPE06_MAX_MSG_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		default:
 			memcpy(msg->msg, &error_reply, sizeof(error_reply));
@@ -1028,6 +1034,7 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
+	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
@@ -1075,6 +1082,7 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
+	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
@@ -1119,7 +1127,8 @@ unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *xcRB,
 		.type = CEXXC_RESPONSE_TYPE_XCRB,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
@@ -1176,7 +1185,8 @@ unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *xcrb,
 		.type = CEXXC_RESPONSE_TYPE_EP11,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
@@ -1272,7 +1282,8 @@ unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
 		.type = CEXXC_RESPONSE_TYPE_XCRB,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = AP_DEFAULT_MAX_MSG_SIZE;
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;

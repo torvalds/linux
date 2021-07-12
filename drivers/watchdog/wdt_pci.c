@@ -537,7 +537,7 @@ static int wdtpci_temp_release(struct inode *inode, struct file *file)
 }
 
 /**
- *	notify_sys:
+ *	wdtpci_notify_sys:
  *	@this: our notifier block
  *	@code: the event being reported
  *	@unused: unused

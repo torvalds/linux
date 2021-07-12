@@ -33,7 +33,7 @@
 #include <linux/sched/signal.h>
 
 /* Don't take this from <ctype.h>: 011-015 on the screen aren't spaces */
-#define isspace(c)	((c) == ' ')
+#define is_space_on_vt(c)	((c) == ' ')
 
 /* FIXME: all this needs locking */
 static struct vc_selection {
@@ -109,7 +109,7 @@ static inline int inword(const u32 c)
 }
 
 /**
- *	set loadlut		-	load the LUT table
+ *	sel_loadlut()		-	load the LUT table
  *	@p: user table
  *
  *	Load the LUT table from user space. The caller must hold the console
@@ -209,7 +209,7 @@ static int vc_selection_store_chars(struct vc_data *vc, bool unicode)
 			bp += store_utf8(c, bp);
 		else
 			*bp++ = c;
-		if (!isspace(c))
+		if (!is_space_on_vt(c))
 			obp = bp;
 		if (!((i + 2) % vc->vc_size_row)) {
 			/* strip trailing blanks from line and add newline,
@@ -238,9 +238,9 @@ static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 		new_sel_end = pe;
 		break;
 	case TIOCL_SELWORD:	/* word-by-word selection */
-		spc = isspace(sel_pos(ps, unicode));
+		spc = is_space_on_vt(sel_pos(ps, unicode));
 		for (new_sel_start = ps; ; ps -= 2) {
-			if ((spc && !isspace(sel_pos(ps, unicode))) ||
+			if ((spc && !is_space_on_vt(sel_pos(ps, unicode))) ||
 			    (!spc && !inword(sel_pos(ps, unicode))))
 				break;
 			new_sel_start = ps;
@@ -248,9 +248,9 @@ static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 				break;
 		}
 
-		spc = isspace(sel_pos(pe, unicode));
+		spc = is_space_on_vt(sel_pos(pe, unicode));
 		for (new_sel_end = pe; ; pe += 2) {
-			if ((spc && !isspace(sel_pos(pe, unicode))) ||
+			if ((spc && !is_space_on_vt(sel_pos(pe, unicode))) ||
 			    (!spc && !inword(sel_pos(pe, unicode))))
 				break;
 			new_sel_end = pe;
@@ -276,12 +276,12 @@ static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 	/* select to end of line if on trailing space */
 	if (new_sel_end > new_sel_start &&
 		!atedge(new_sel_end, vc->vc_size_row) &&
-		isspace(sel_pos(new_sel_end, unicode))) {
+		is_space_on_vt(sel_pos(new_sel_end, unicode))) {
 		for (pe = new_sel_end + 2; ; pe += 2)
-			if (!isspace(sel_pos(pe, unicode)) ||
+			if (!is_space_on_vt(sel_pos(pe, unicode)) ||
 			    atedge(pe, vc->vc_size_row))
 				break;
-		if (isspace(sel_pos(pe, unicode)))
+		if (is_space_on_vt(sel_pos(pe, unicode)))
 			new_sel_end = pe;
 	}
 	if (vc_sel.start == -1)	/* no current selection */

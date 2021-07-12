@@ -19,8 +19,6 @@
 #define MSGTYPE06_VARIANT_NORNG		1
 #define MSGTYPE06_VARIANT_EP11		2
 
-#define MSGTYPE06_MAX_MSG_SIZE		(12*1024)
-
 /**
  * The type 6 message family is associated with CEXxC/CEXxP cards.
  *

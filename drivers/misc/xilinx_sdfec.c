@@ -1013,9 +1013,6 @@ static __poll_t xsdfec_poll(struct file *file, poll_table *wait)
 
 	xsdfec = container_of(file->private_data, struct xsdfec_dev, miscdev);
 
-	if (!xsdfec)
-		return EPOLLNVAL | EPOLLHUP;
-
 	poll_wait(file, &xsdfec->waitq, wait);
 
 	/* XSDFEC ISR detected an error */

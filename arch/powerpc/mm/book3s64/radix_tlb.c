@@ -1111,14 +1111,13 @@ static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_
 
 static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 					    unsigned long start, unsigned long end)
-
 {
 	unsigned long pid;
 	unsigned int page_shift = mmu_psize_defs[mmu_virtual_psize].shift;
 	unsigned long page_size = 1UL << page_shift;
 	unsigned long nr_pages = (end - start) >> page_shift;
 	bool fullmm = (end == TLB_FLUSH_ALL);
-	bool flush_pid;
+	bool flush_pid, flush_pwc = false;
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
@@ -1137,8 +1136,16 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 		flush_pid = nr_pages > tlb_single_page_flush_ceiling;
 	else
 		flush_pid = nr_pages > tlb_local_single_page_flush_ceiling;
+	/*
+	 * full pid flush already does the PWC flush. if it is not full pid
+	 * flush check the range is more than PMD and force a pwc flush
+	 * mremap() depends on this behaviour.
+	 */
+	if (!flush_pid && (end - start) >= PMD_SIZE)
+		flush_pwc = true;
 
 	if (!mmu_has_feature(MMU_FTR_GTSE) && type == FLUSH_TYPE_GLOBAL) {
+		unsigned long type = H_RPTI_TYPE_TLB;
 		unsigned long tgt = H_RPTI_TARGET_CMMU;
 		unsigned long pg_sizes = psize_to_rpti_pgsize(mmu_virtual_psize);
 
@@ -1146,19 +1153,20 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 			pg_sizes |= psize_to_rpti_pgsize(MMU_PAGE_2M);
 		if (atomic_read(&mm->context.copros) > 0)
 			tgt |= H_RPTI_TARGET_NMMU;
-		pseries_rpt_invalidate(pid, tgt, H_RPTI_TYPE_TLB, pg_sizes,
-				       start, end);
+		if (flush_pwc)
+			type |= H_RPTI_TYPE_PWC;
+		pseries_rpt_invalidate(pid, tgt, type, pg_sizes, start, end);
 	} else if (flush_pid) {
+		/*
+		 * We are now flushing a range larger than PMD size force a RIC_FLUSH_ALL
+		 */
 		if (type == FLUSH_TYPE_LOCAL) {
-			_tlbiel_pid(pid, RIC_FLUSH_TLB);
+			_tlbiel_pid(pid, RIC_FLUSH_ALL);
 		} else {
 			if (cputlb_use_tlbie()) {
-				if (mm_needs_flush_escalation(mm))
-					_tlbie_pid(pid, RIC_FLUSH_ALL);
-				else
-					_tlbie_pid(pid, RIC_FLUSH_TLB);
+				_tlbie_pid(pid, RIC_FLUSH_ALL);
 			} else {
-				_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_TLB);
+				_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_ALL);
 			}
 		}
 	} else {
@@ -1174,6 +1182,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 
 		if (type == FLUSH_TYPE_LOCAL) {
 			asm volatile("ptesync": : :"memory");
+			if (flush_pwc)
+				/* For PWC, only one flush is needed */
+				__tlbiel_pid(pid, 0, RIC_FLUSH_PWC);
 			__tlbiel_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbiel_va_range(hstart, hend, pid,
@@ -1181,6 +1192,8 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 			ppc_after_tlbiel_barrier();
 		} else if (cputlb_use_tlbie()) {
 			asm volatile("ptesync": : :"memory");
+			if (flush_pwc)
+				__tlbie_pid(pid, RIC_FLUSH_PWC);
 			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbie_va_range(hstart, hend, pid,
@@ -1188,10 +1201,10 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 			asm volatile("eieio; tlbsync; ptesync": : :"memory");
 		} else {
 			_tlbiel_va_range_multicast(mm,
-					start, end, pid, page_size, mmu_virtual_psize, false);
+					start, end, pid, page_size, mmu_virtual_psize, flush_pwc);
 			if (hflush)
 				_tlbiel_va_range_multicast(mm,
-					hstart, hend, pid, PMD_SIZE, MMU_PAGE_2M, false);
+					hstart, hend, pid, PMD_SIZE, MMU_PAGE_2M, flush_pwc);
 		}
 	}
 out:
@@ -1264,9 +1277,6 @@ void radix__flush_all_lpid_guest(unsigned int lpid)
 {
 	_tlbie_lpid_guest(lpid, RIC_FLUSH_ALL);
 }
-
-static void radix__flush_tlb_pwc_range_psize(struct mm_struct *mm, unsigned long start,
-				  unsigned long end, int psize);
 
 void radix__tlb_flush(struct mmu_gather *tlb)
 {
@@ -1374,8 +1384,8 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 	return __radix__flush_tlb_range_psize(mm, start, end, psize, false);
 }
 
-static void radix__flush_tlb_pwc_range_psize(struct mm_struct *mm, unsigned long start,
-				  unsigned long end, int psize)
+void radix__flush_tlb_pwc_range_psize(struct mm_struct *mm, unsigned long start,
+				      unsigned long end, int psize)
 {
 	__radix__flush_tlb_range_psize(mm, start, end, psize, true);
 }

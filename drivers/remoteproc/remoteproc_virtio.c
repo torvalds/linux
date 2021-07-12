@@ -45,7 +45,7 @@ static bool rproc_virtio_notify(struct virtqueue *vq)
  * when the remote processor signals that a specific virtqueue has pending
  * messages available.
  *
- * Returns IRQ_NONE if no message was found in the @notifyid virtqueue,
+ * Return: IRQ_NONE if no message was found in the @notifyid virtqueue,
  * and otherwise returns IRQ_HANDLED.
  */
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int notifyid)
@@ -325,7 +325,7 @@ static void rproc_virtio_dev_release(struct device *dev)
  * This function registers a virtio device. This vdev's partent is
  * the rproc device.
  *
- * Returns 0 on success or an appropriate error value otherwise.
+ * Return: 0 on success or an appropriate error value otherwise
  */
 int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 {
@@ -432,6 +432,8 @@ out:
  * @data: must be null
  *
  * This function unregisters an existing virtio device.
+ *
+ * Return: 0
  */
 int rproc_remove_virtio_dev(struct device *dev, void *data)
 {

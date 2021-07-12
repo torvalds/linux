@@ -369,6 +369,7 @@ err_out:
 	dev->card_link = NULL;
 	return NULL;
 }
+EXPORT_SYMBOL(pnp_request_card_device);
 
 /**
  * pnp_release_card_device - call this when the driver no longer needs the device
@@ -382,6 +383,7 @@ void pnp_release_card_device(struct pnp_dev *dev)
 	device_release_driver(&dev->dev);
 	drv->link.remove = &card_remove_first;
 }
+EXPORT_SYMBOL(pnp_release_card_device);
 
 /*
  * suspend/resume callbacks
@@ -439,6 +441,7 @@ int pnp_register_card_driver(struct pnp_card_driver *drv)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(pnp_register_card_driver);
 
 /**
  * pnp_unregister_card_driver - unregisters a PnP card driver from the PnP Layer
@@ -451,8 +454,4 @@ void pnp_unregister_card_driver(struct pnp_card_driver *drv)
 	mutex_unlock(&pnp_lock);
 	pnp_unregister_driver(&drv->link);
 }
-
-EXPORT_SYMBOL(pnp_request_card_device);
-EXPORT_SYMBOL(pnp_release_card_device);
-EXPORT_SYMBOL(pnp_register_card_driver);
 EXPORT_SYMBOL(pnp_unregister_card_driver);

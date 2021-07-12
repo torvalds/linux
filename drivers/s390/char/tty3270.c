@@ -1071,7 +1071,7 @@ static void tty3270_cleanup(struct tty_struct *tty)
 /*
  * We always have room.
  */
-static int
+static unsigned int
 tty3270_write_room(struct tty_struct *tty)
 {
 	return INT_MAX;
@@ -1640,7 +1640,7 @@ tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 	int i_msg, i;
 
 	spin_lock_bh(&tp->view.lock);
-	for (i_msg = 0; !tty->stopped && i_msg < count; i_msg++) {
+	for (i_msg = 0; !tty->flow.stopped && i_msg < count; i_msg++) {
 		if (tp->esc_state != 0) {
 			/* Continue escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);
@@ -1754,22 +1754,6 @@ tty3270_flush_chars(struct tty_struct *tty)
 		tty3270_do_write(tp, tty, tp->char_buf, tp->char_count);
 		tp->char_count = 0;
 	}
-}
-
-/*
- * Returns the number of characters in the output buffer. This is
- * used in tty_wait_until_sent to wait until all characters have
- * appeared on the screen.
- */
-static int
-tty3270_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
-static void
-tty3270_flush_buffer(struct tty_struct *tty)
-{
 }
 
 /*
@@ -1892,8 +1876,6 @@ static const struct tty_operations tty3270_ops = {
 	.put_char = tty3270_put_char,
 	.flush_chars = tty3270_flush_chars,
 	.write_room = tty3270_write_room,
-	.chars_in_buffer = tty3270_chars_in_buffer,
-	.flush_buffer = tty3270_flush_buffer,
 	.throttle = tty3270_throttle,
 	.unthrottle = tty3270_unthrottle,
 	.hangup = tty3270_hangup,

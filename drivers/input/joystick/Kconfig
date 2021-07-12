@@ -4,6 +4,7 @@
 #
 menuconfig INPUT_JOYSTICK
 	bool "Joysticks/Gamepads"
+	depends on !UML
 	help
 	  If you have a joystick, 6dof controller, gamepad, steering wheel,
 	  weapon control system or something like that you can say Y here
@@ -371,6 +372,15 @@ config JOYSTICK_PXRC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxrc.
+
+config JOYSTICK_QWIIC
+	tristate "SparkFun Qwiic Joystick"
+	depends on I2C
+	help
+	  Say Y here if you want to use the SparkFun Qwiic Joystick.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qwiic-joystick.
 
 config JOYSTICK_FSIA6B
 	tristate "FlySky FS-iA6B RC Receiver"

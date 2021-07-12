@@ -41,14 +41,14 @@
 
 / {
 	aliases {
-		serial0 = &blsp2_uart1;
-		serial1 = &blsp2_uart2;
-		serial2 = &blsp1_uart1;
-		i2c0	= &blsp1_i2c2;
+		serial0 = &blsp2_uart2;
+		serial1 = &blsp2_uart3;
+		serial2 = &blsp1_uart2;
+		i2c0	= &blsp1_i2c3;
 		i2c1	= &blsp2_i2c1;
-		i2c2	= &blsp2_i2c0;
-		spi0	= &blsp1_spi0;
-		spi1	= &blsp2_spi5;
+		i2c2	= &blsp2_i2c1;
+		spi0	= &blsp1_spi1;
+		spi1	= &blsp2_spi6;
 	};
 
 	chosen {
@@ -133,24 +133,24 @@
 	};
 };
 
-&blsp1_i2c2 {
+&blsp1_i2c3 {
 	/* On Low speed expansion */
 	label = "LS-I2C0";
 	status = "okay";
 };
 
-&blsp1_spi0 {
+&blsp1_spi1 {
 	/* On Low speed expansion */
 	label = "LS-SPI0";
 	status = "okay";
 };
 
-&blsp1_uart1 {
+&blsp1_uart2 {
 	label = "BT-UART";
 	status = "okay";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart1_default>;
-	pinctrl-1 = <&blsp1_uart1_sleep>;
+	pinctrl-0 = <&blsp1_uart2_default>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
 
 	bluetooth {
 		compatible = "qcom,qca6174-bt";
@@ -162,7 +162,11 @@
 	};
 };
 
-&blsp2_i2c0 {
+&adsp_pil {
+	status = "okay";
+};
+
+&blsp2_i2c1 {
 	/* On High speed expansion */
 	label = "HS-I2C2";
 	status = "okay";
@@ -174,30 +178,34 @@
 	status = "okay";
 };
 
-&blsp2_spi5 {
+&blsp2_spi6 {
 	/* On High speed expansion */
 	label = "HS-SPI1";
 	status = "okay";
 };
 
-&blsp2_uart1 {
+&blsp2_uart2 {
 	label = "LS-UART1";
 	status = "okay";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp2_uart1_2pins_default>;
-	pinctrl-1 = <&blsp2_uart1_2pins_sleep>;
+	pinctrl-0 = <&blsp2_uart2_2pins_default>;
+	pinctrl-1 = <&blsp2_uart2_2pins_sleep>;
 };
 
-&blsp2_uart2 {
+&blsp2_uart3 {
 	label = "LS-UART0";
 	status = "disabled";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp2_uart2_4pins_default>;
-	pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
+	pinctrl-0 = <&blsp2_uart3_4pins_default>;
+	pinctrl-1 = <&blsp2_uart3_4pins_sleep>;
 };
 
 &camss {
 	vdda-supply = <&vreg_l2a_1p25>;
+};
+
+&gpu {
+	status = "okay";
 };
 
 &hdmi {
@@ -245,7 +253,12 @@
 	vdd-gfx-supply = <&vdd_gfx>;
 };
 
-&msmgpio {
+&pm8994_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&tlmm {
 	gpio-line-names =
 		"[SPI0_DOUT]", /* GPIO_0, BLSP1_SPI_MOSI, LSEC pin 14 */
 		"[SPI0_DIN]", /* GPIO_1, BLSP1_SPI_MISO, LSEC pin 10 */
@@ -424,7 +437,7 @@
 		};
 	};
 
-	blsp1_uart1_default: blsp1_uart1_default {
+	blsp1_uart2_default: blsp1_uart2_default {
 		mux {
 			pins = "gpio41", "gpio42", "gpio43", "gpio44";
 			function = "blsp_uart2";
@@ -437,7 +450,7 @@
 		};
 	};
 
-	blsp1_uart1_sleep: blsp1_uart1_sleep {
+	blsp1_uart2_sleep: blsp1_uart2_sleep {
 		mux {
 			pins = "gpio41", "gpio42", "gpio43", "gpio44";
 			function = "gpio";
@@ -505,20 +518,20 @@
 
 &pcie0 {
 	status = "okay";
-	perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 35 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&wlan_en>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie1 {
 	status = "okay";
-	perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 130 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie2 {
 	status = "okay";
-	perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 114 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
@@ -929,9 +942,9 @@
 &sdhc2 {
 	/* External SD card */
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
-	cd-gpios = <&msmgpio 38 0x1>;
+	pinctrl-0 = <&sdc2_state_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_state_off &sdc2_cd_off>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vreg_l21a_2p95>;
 	vqmmc-supply = <&vreg_l13a_2p95>;
 	status = "okay";
@@ -1026,20 +1039,6 @@
 	};
 };
 
-&spmi_bus {
-	pmic@0 {
-		pon@800 {
-			resin {
-				compatible = "qcom,pm8941-resin";
-				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-				debounce = <15625>;
-				bias-pull-up;
-				linux,code = <KEY_VOLUMEDOWN>;
-			};
-		};
-	};
-};
-
 &ufsphy {
 	status = "okay";
 
@@ -1064,7 +1063,7 @@
 	status = "okay";
 	extcon = <&usb2_id>;
 
-	dwc3@7600000 {
+	usb@7600000 {
 		extcon = <&usb2_id>;
 		dr_mode = "otg";
 		maximum-speed = "high-speed";
@@ -1075,7 +1074,7 @@
 	status = "okay";
 	extcon = <&usb3_id>;
 
-	dwc3@6a00000 {
+	usb@6a00000 {
 		extcon = <&usb3_id>;
 		dr_mode = "otg";
 	};
@@ -1087,6 +1086,10 @@
 	vdda-phy-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
 
+};
+
+&venus {
+	status = "okay";
 };
 
 &wcd9335 {

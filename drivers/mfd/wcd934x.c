@@ -17,6 +17,21 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slimbus.h>
 
+#define WCD934X_REGMAP_IRQ_REG(_irq, _off, _mask)		\
+	[_irq] = {						\
+		.reg_offset = (_off),				\
+		.mask = (_mask),				\
+		.type = {					\
+			.type_reg_offset = (_off),		\
+			.types_supported = IRQ_TYPE_EDGE_BOTH,	\
+			.type_reg_mask  = (_mask),		\
+			.type_level_low_val = (_mask),		\
+			.type_level_high_val = (_mask),		\
+			.type_falling_val = 0,			\
+			.type_rising_val = 0,			\
+		},						\
+	}
+
 static const struct mfd_cell wcd934x_devices[] = {
 	{
 		.name = "wcd934x-codec",
@@ -30,32 +45,15 @@ static const struct mfd_cell wcd934x_devices[] = {
 };
 
 static const struct regmap_irq wcd934x_irqs[] = {
-	[WCD934X_IRQ_SLIMBUS] = {
-		.reg_offset = 0,
-		.mask = BIT(0),
-		.type = {
-			.type_reg_offset = 0,
-			.types_supported = IRQ_TYPE_EDGE_BOTH,
-			.type_reg_mask  = BIT(0),
-			.type_level_low_val = BIT(0),
-			.type_level_high_val = BIT(0),
-			.type_falling_val = 0,
-			.type_rising_val = 0,
-		},
-	},
-	[WCD934X_IRQ_SOUNDWIRE] = {
-		.reg_offset = 2,
-		.mask = BIT(4),
-		.type = {
-			.type_reg_offset = 2,
-			.types_supported = IRQ_TYPE_EDGE_BOTH,
-			.type_reg_mask  = BIT(4),
-			.type_level_low_val = BIT(4),
-			.type_level_high_val = BIT(4),
-			.type_falling_val = 0,
-			.type_rising_val = 0,
-		},
-	},
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_SLIMBUS, 0, BIT(0)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_HPH_PA_OCPL_FAULT, 0, BIT(2)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_HPH_PA_OCPR_FAULT, 0, BIT(3)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_SW_DET, 1, BIT(0)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_ELECT_INS_REM_DET, 1, BIT(1)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_BUTTON_PRESS_DET, 1, BIT(2)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_BUTTON_RELEASE_DET, 1, BIT(3)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_ELECT_INS_REM_LEG_DET, 1, BIT(4)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_SOUNDWIRE, 2, BIT(4)),
 };
 
 static const struct regmap_irq_chip wcd934x_regmap_irq_chip = {

@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <subcmd/exec-cmd.h>
+#include <linux/zalloc.h>
 
 static bool dont_fork;
 
@@ -540,7 +541,7 @@ static int shell_tests__max_desc_width(void)
 {
 	struct dirent **entlist;
 	struct dirent *ent;
-	int n_dirs;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	const char *path = shell_tests__dir(path_dir, sizeof(path_dir));
 	int width = 0;
@@ -564,8 +565,9 @@ static int shell_tests__max_desc_width(void)
 		}
 	}
 
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
 	free(entlist);
-
 	return width;
 }
 
@@ -596,7 +598,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 {
 	struct dirent **entlist;
 	struct dirent *ent;
-	int n_dirs;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	struct shell_test st = {
 		.dir = shell_tests__dir(path_dir, sizeof(path_dir)),
@@ -629,6 +631,8 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 		test_and_print(&test, false, -1);
 	}
 
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
 	free(entlist);
 	return 0;
 }
@@ -730,7 +734,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 {
 	struct dirent **entlist;
 	struct dirent *ent;
-	int n_dirs;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	const char *path = shell_tests__dir(path_dir, sizeof(path_dir));
 
@@ -752,8 +756,11 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 			continue;
 
 		pr_info("%2d: %s\n", i, t.desc);
+
 	}
 
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
 	free(entlist);
 	return 0;
 }

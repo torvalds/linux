@@ -33,6 +33,8 @@ struct omap2430_glue {
 	enum musb_vbus_id_status status;
 	struct work_struct	omap_musb_mailbox_work;
 	struct device		*control_otghs;
+	unsigned int		is_runtime_suspended:1;
+	unsigned int		needs_resume:1;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -459,6 +461,8 @@ static int omap2430_runtime_suspend(struct device *dev)
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
 
+	glue->is_runtime_suspended = 1;
+
 	return 0;
 }
 
@@ -480,12 +484,40 @@ static int omap2430_runtime_resume(struct device *dev)
 	/* Wait for musb to get oriented. Otherwise we can get babble */
 	usleep_range(200000, 250000);
 
+	glue->is_runtime_suspended = 0;
+
 	return 0;
+}
+
+static int omap2430_suspend(struct device *dev)
+{
+	struct omap2430_glue *glue = dev_get_drvdata(dev);
+
+	if (glue->is_runtime_suspended)
+		return 0;
+
+	glue->needs_resume = 1;
+
+	return omap2430_runtime_suspend(dev);
+}
+
+static int omap2430_resume(struct device *dev)
+{
+	struct omap2430_glue *glue = dev_get_drvdata(dev);
+
+	if (!glue->needs_resume)
+		return 0;
+
+	glue->needs_resume = 0;
+
+	return omap2430_runtime_resume(dev);
 }
 
 static const struct dev_pm_ops omap2430_pm_ops = {
 	.runtime_suspend = omap2430_runtime_suspend,
 	.runtime_resume = omap2430_runtime_resume,
+	.suspend = omap2430_suspend,
+	.resume = omap2430_resume,
 };
 
 #define DEV_PM_OPS	(&omap2430_pm_ops)

@@ -207,6 +207,14 @@ Contact:        ogabbay@kernel.org
 Description:    Sets the PCI power state. Valid values are "1" for D0 and "2"
                 for D3Hot
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/skip_reset_on_timeout
+Date:           Jun 2021
+KernelVersion:  5.13
+Contact:        ynudelman@habana.ai
+Description:    Sets the skip reset on timeout option for the device. Value of
+                "0" means device will be reset in case some CS has timed out,
+                otherwise it will not be reset.
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
 Date:           Mar 2020
 KernelVersion:  5.6

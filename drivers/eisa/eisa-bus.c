@@ -155,34 +155,29 @@ void eisa_driver_unregister(struct eisa_driver *edrv)
 }
 EXPORT_SYMBOL(eisa_driver_unregister);
 
-static ssize_t eisa_show_sig(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t signature_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, "%s\n", edev->id.sig);
 }
+static DEVICE_ATTR_RO(signature);
 
-static DEVICE_ATTR(signature, S_IRUGO, eisa_show_sig, NULL);
-
-static ssize_t eisa_show_state(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t enabled_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, "%d\n", edev->state & EISA_CONFIG_ENABLED);
 }
+static DEVICE_ATTR_RO(enabled);
 
-static DEVICE_ATTR(enabled, S_IRUGO, eisa_show_state, NULL);
-
-static ssize_t eisa_show_modalias(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, EISA_DEVICE_MODALIAS_FMT "\n", edev->id.sig);
 }
-
-static DEVICE_ATTR(modalias, S_IRUGO, eisa_show_modalias, NULL);
+static DEVICE_ATTR_RO(modalias);
 
 static int __init eisa_init_device(struct eisa_root_device *root,
 				   struct eisa_device *edev,
