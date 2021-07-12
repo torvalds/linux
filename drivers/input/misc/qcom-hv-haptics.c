@@ -1042,7 +1042,7 @@ static int haptics_get_closeloop_lra_period(
 
 	rc_clk_cal = ((val[0] & CAL_RC_CLK_MASK) >> CAL_RC_CLK_SHIFT);
 	/* read auto resonance calibration result */
-	if (in_boot && (chip->hw_type == HAP520)) {
+	if (in_boot && ((chip->hw_type == HAP520) || (chip->hw_type == HAP520_MV))) {
 		if (chip->hap_cfg_nvmem == NULL) {
 			dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
 			return -EINVAL;
