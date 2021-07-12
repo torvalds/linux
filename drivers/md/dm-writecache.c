@@ -1301,6 +1301,19 @@ enum wc_map_op {
 	WC_MAP_ERROR,
 };
 
+static enum wc_map_op writecache_map_remap_origin(struct dm_writecache *wc, struct bio *bio,
+						  struct wc_entry *e)
+{
+	if (e) {
+		sector_t next_boundary =
+			read_original_sector(wc, e) - bio->bi_iter.bi_sector;
+		if (next_boundary < bio->bi_iter.bi_size >> SECTOR_SHIFT)
+			dm_accept_partial_bio(bio, next_boundary);
+	}
+
+	return WC_MAP_REMAP_ORIGIN;
+}
+
 static enum wc_map_op writecache_map_read(struct dm_writecache *wc, struct bio *bio)
 {
 	enum wc_map_op map_op;
@@ -1323,13 +1336,7 @@ read_next_block:
 			map_op = WC_MAP_REMAP;
 		}
 	} else {
-		if (e) {
-			sector_t next_boundary =
-				read_original_sector(wc, e) - bio->bi_iter.bi_sector;
-			if (next_boundary < bio->bi_iter.bi_size >> SECTOR_SHIFT)
-				dm_accept_partial_bio(bio, next_boundary);
-		}
-		map_op = WC_MAP_REMAP_ORIGIN;
+		map_op = writecache_map_remap_origin(wc, bio, e);
 	}
 
 	return map_op;
@@ -1417,14 +1424,7 @@ static enum wc_map_op writecache_map_write(struct dm_writecache *wc, struct bio 
 			if (!WC_MODE_PMEM(wc) && !found_entry) {
 direct_write:
 				e = writecache_find_entry(wc, bio->bi_iter.bi_sector, WFE_RETURN_FOLLOWING);
-				if (e) {
-					sector_t next_boundary = read_original_sector(wc, e) - bio->bi_iter.bi_sector;
-					BUG_ON(!next_boundary);
-					if (next_boundary < bio->bi_iter.bi_size >> SECTOR_SHIFT) {
-						dm_accept_partial_bio(bio, next_boundary);
-					}
-				}
-				return WC_MAP_REMAP_ORIGIN;
+				return writecache_map_remap_origin(wc, bio, e);
 			}
 			writecache_wait_on_freelist(wc);
 			continue;
