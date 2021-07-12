@@ -1292,10 +1292,10 @@ xfs_ioctl_setattr_check_extsize(
 	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
 
 	/*
-	 * Inode verifiers on older kernels don't check that the extent size
-	 * hint is an integer multiple of the rt extent size on a directory
-	 * with both rtinherit and extszinherit flags set.  Don't let sysadmins
-	 * misconfigure directories.
+	 * Inode verifiers do not check that the extent size hint is an integer
+	 * multiple of the rt extent size on a directory with both rtinherit
+	 * and extszinherit flags set.  Don't let sysadmins misconfigure
+	 * directories.
 	 */
 	if ((new_diflags & XFS_DIFLAG_RTINHERIT) &&
 	    (new_diflags & XFS_DIFLAG_EXTSZINHERIT)) {
