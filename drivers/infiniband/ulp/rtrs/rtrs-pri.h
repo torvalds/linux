@@ -97,6 +97,7 @@ struct rtrs_con {
 	unsigned int		cid;
 	int                     nr_cqe;
 	atomic_t		wr_cnt;
+	atomic_t		sq_wr_avail;
 };
 
 struct rtrs_sess {

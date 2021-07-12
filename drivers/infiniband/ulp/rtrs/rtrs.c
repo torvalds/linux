@@ -191,6 +191,7 @@ static int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con,
 	struct rtrs_sess *sess = con->sess;
 	enum ib_send_flags sflags;
 
+	atomic_dec_if_positive(&con->sq_wr_avail);
 	sflags = (atomic_inc_return(&con->wr_cnt) % sess->signal_interval) ?
 		0 : IB_SEND_SIGNALED;
 

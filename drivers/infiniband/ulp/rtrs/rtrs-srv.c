@@ -507,11 +507,11 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 		ib_update_fast_reg_key(mr->mr, ib_inc_rkey(mr->mr->rkey));
 	}
 	if (unlikely(atomic_sub_return(1,
-				       &con->sq_wr_avail) < 0)) {
+				       &con->c.sq_wr_avail) < 0)) {
 		rtrs_err(s, "IB send queue full: sess=%s cid=%d\n",
 			 kobject_name(&sess->kobj),
 			 con->c.cid);
-		atomic_add(1, &con->sq_wr_avail);
+		atomic_add(1, &con->c.sq_wr_avail);
 		spin_lock(&con->rsp_wr_wait_lock);
 		list_add_tail(&id->wait_list, &con->rsp_wr_wait_list);
 		spin_unlock(&con->rsp_wr_wait_lock);
@@ -1268,7 +1268,7 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 		 * post_send() RDMA write completions of IO reqs (read/write)
 		 * and hb.
 		 */
-		atomic_add(s->signal_interval, &con->sq_wr_avail);
+		atomic_add(s->signal_interval, &con->c.sq_wr_avail);
 
 		if (unlikely(!list_empty_careful(&con->rsp_wr_wait_list)))
 			rtrs_rdma_process_wr_wait_list(con);
@@ -1680,7 +1680,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 		 */
 	}
 	cq_num = max_send_wr + max_recv_wr;
-	atomic_set(&con->sq_wr_avail, max_send_wr);
+	atomic_set(&con->c.sq_wr_avail, max_send_wr);
 	cq_vector = rtrs_srv_get_next_cq_vector(sess);
 
 	/* TODO: SOFTIRQ can be faster, but be careful with softirq context */
