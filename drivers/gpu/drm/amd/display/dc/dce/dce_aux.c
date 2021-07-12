@@ -71,6 +71,8 @@ enum {
 #define DEFAULT_AUX_ENGINE_MULT   0
 #define DEFAULT_AUX_ENGINE_LENGTH 69
 
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+
 static void release_engine(
 	struct dce_aux *engine)
 {
@@ -743,5 +745,11 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 fail:
 	if (!payload_reply)
 		payload->reply = NULL;
+
+	DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
+				WPP_BIT_FLAG_DC_ERROR,
+				"AUX transaction failed. Result: %d",
+				operation_result);
+
 	return false;
 }
