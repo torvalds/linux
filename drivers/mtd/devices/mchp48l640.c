@@ -255,6 +255,7 @@ static int mchp48l640_read_page(struct mtd_info *mtd, loff_t from, size_t len,
 	if (!ret)
 		*retlen += len;
 
+	kfree(cmd);
 	return ret;
 
 fail:
