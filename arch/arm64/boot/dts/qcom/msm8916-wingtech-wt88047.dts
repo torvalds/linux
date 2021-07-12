@@ -43,6 +43,28 @@
 	};
 };
 
+&blsp_i2c2 {
+	status = "okay";
+
+	imu@68 {
+		compatible = "invensense,mpu6880";
+		reg = <0x68>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&imu_default>;
+
+		mount-matrix = "1",  "0", "0",
+			       "0", "-1", "0",
+			       "0",  "0", "1";
+	};
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -255,6 +277,14 @@
 
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	imu_default: imu-default {
+		pins = "gpio115";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	touchscreen_default: touchscreen-default {
