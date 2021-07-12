@@ -1052,6 +1052,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	init_waitqueue_head(&aspeed_jtag->jtag_wq);
 
 	aspeed_jtag_set_freq(jtag, TCK_FREQ);
+	/* Enable jtag clock */
+	aspeed_jtag_write(aspeed_jtag, JTAG_ENG_OUT_EN, ASPEED_JTAG_CTRL);
 
 	/* Initialize JTAG core structure*/
 	ret = devm_jtag_register(aspeed_jtag->dev, jtag);
