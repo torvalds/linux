@@ -288,7 +288,7 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 	struct otx2_nic *priv;
 	u32 burst, mark = 0;
 	u8 nr_police = 0;
-	bool pps;
+	bool pps = false;
 	u64 rate;
 	int i;
 
