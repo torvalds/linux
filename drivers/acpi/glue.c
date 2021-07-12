@@ -285,7 +285,7 @@ int acpi_unbind_one(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
-static int acpi_device_notify(struct device *dev)
+static void acpi_device_notify(struct device *dev)
 {
 	struct acpi_bus_type *type = acpi_get_bus_type(dev);
 	struct acpi_device *adev;
@@ -299,7 +299,6 @@ static int acpi_device_notify(struct device *dev)
 		adev = type->find_companion(dev);
 		if (!adev) {
 			dev_dbg(dev, "ACPI companion not found\n");
-			ret = -ENODEV;
 			goto err;
 		}
 		ret = acpi_bind_one(dev, adev);
@@ -319,21 +318,19 @@ static int acpi_device_notify(struct device *dev)
 	acpi_handle_debug(ACPI_HANDLE(dev), "Bound to device %s\n",
 			  dev_name(dev));
 
-	return 0;
+	return;
 
 err:
 	dev_dbg(dev, "No ACPI support\n");
-
-	return ret;
 }
 
-static int acpi_device_notify_remove(struct device *dev)
+static void acpi_device_notify_remove(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_bus_type *type;
 
 	if (!adev)
-		return 0;
+		return;
 
 	type = acpi_get_bus_type(dev);
 	if (type && type->cleanup)
@@ -342,7 +339,6 @@ static int acpi_device_notify_remove(struct device *dev)
 		adev->handler->unbind(dev);
 
 	acpi_unbind_one(dev);
-	return 0;
 }
 
 int acpi_platform_notify(struct device *dev, enum kobject_action action)
