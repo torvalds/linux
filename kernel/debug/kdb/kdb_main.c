@@ -33,7 +33,6 @@
 #include <linux/kallsyms.h>
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
-#include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -657,9 +656,7 @@ static void kdb_cmderror(int diag)
 struct kdb_macro {
 	int count;
 	bool usable;
-	char *name;
-	char *usage;
-	char *help;
+	kdbtab_t cmd;
 	char **command;
 };
 static struct kdb_macro *kdb_macro;
@@ -678,13 +675,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 		if (!s->count)
 			s->usable = false;
 		if (s->usable)
-			/* macros are always safe because when executed each
-			 * internal command re-enters kdb_parse() and is
-			 * safety checked individually.
-			 */
-			kdb_register_flags(s->name, kdb_exec_defcmd, s->usage,
-					   s->help, 0,
-					   KDB_ENABLE_ALWAYS_SAFE);
+			kdb_register(&s->cmd);
 		return 0;
 	}
 	if (!s->usable)
@@ -705,6 +696,8 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 static int kdb_defcmd(int argc, const char **argv)
 {
 	struct kdb_macro *save_kdb_macro = kdb_macro, *s;
+	kdbtab_t *mp;
+
 	if (defcmd_in_progress) {
 		kdb_printf("kdb: nested defcmd detected, assuming missing "
 			   "endefcmd\n");
@@ -713,8 +706,8 @@ static int kdb_defcmd(int argc, const char **argv)
 	if (argc == 0) {
 		int i;
 		for (s = kdb_macro; s < kdb_macro + kdb_macro_count; ++s) {
-			kdb_printf("defcmd %s \"%s\" \"%s\"\n", s->name,
-				   s->usage, s->help);
+			kdb_printf("defcmd %s \"%s\" \"%s\"\n", s->cmd.cmd_name,
+				   s->cmd.cmd_usage, s->cmd.cmd_help);
 			for (i = 0; i < s->count; ++i)
 				kdb_printf("%s", s->command[i]);
 			kdb_printf("endefcmd\n");
@@ -736,31 +729,36 @@ static int kdb_defcmd(int argc, const char **argv)
 	s = kdb_macro + kdb_macro_count;
 	memset(s, 0, sizeof(*s));
 	s->usable = true;
-	s->name = kdb_strdup(argv[1], GFP_KDB);
-	if (!s->name)
+
+	mp = &s->cmd;
+	mp->cmd_func = kdb_exec_defcmd;
+	mp->cmd_minlen = 0;
+	mp->cmd_flags = KDB_ENABLE_ALWAYS_SAFE;
+	mp->cmd_name = kdb_strdup(argv[1], GFP_KDB);
+	if (!mp->cmd_name)
 		goto fail_name;
-	s->usage = kdb_strdup(argv[2], GFP_KDB);
-	if (!s->usage)
+	mp->cmd_usage = kdb_strdup(argv[2], GFP_KDB);
+	if (!mp->cmd_usage)
 		goto fail_usage;
-	s->help = kdb_strdup(argv[3], GFP_KDB);
-	if (!s->help)
+	mp->cmd_help = kdb_strdup(argv[3], GFP_KDB);
+	if (!mp->cmd_help)
 		goto fail_help;
-	if (s->usage[0] == '"') {
-		strcpy(s->usage, argv[2]+1);
-		s->usage[strlen(s->usage)-1] = '\0';
+	if (mp->cmd_usage[0] == '"') {
+		strcpy(mp->cmd_usage, argv[2]+1);
+		mp->cmd_usage[strlen(mp->cmd_usage)-1] = '\0';
 	}
-	if (s->help[0] == '"') {
-		strcpy(s->help, argv[3]+1);
-		s->help[strlen(s->help)-1] = '\0';
+	if (mp->cmd_help[0] == '"') {
+		strcpy(mp->cmd_help, argv[3]+1);
+		mp->cmd_help[strlen(mp->cmd_help)-1] = '\0';
 	}
 	++kdb_macro_count;
 	defcmd_in_progress = true;
 	kfree(save_kdb_macro);
 	return 0;
 fail_help:
-	kfree(s->usage);
+	kfree(mp->cmd_usage);
 fail_usage:
-	kfree(s->name);
+	kfree(mp->cmd_name);
 fail_name:
 	kfree(kdb_macro);
 fail_defcmd:
@@ -785,7 +783,7 @@ static int kdb_exec_defcmd(int argc, const char **argv)
 	if (argc != 0)
 		return KDB_ARGCOUNT;
 	for (s = kdb_macro, i = 0; i < kdb_macro_count; ++i, ++s) {
-		if (strcmp(s->name, argv[0]) == 0)
+		if (strcmp(s->cmd.cmd_name, argv[0]) == 0)
 			break;
 	}
 	if (i == kdb_macro_count) {
@@ -797,7 +795,7 @@ static int kdb_exec_defcmd(int argc, const char **argv)
 		/* Recursive use of kdb_parse, do not use argv after
 		 * this point */
 		argv = NULL;
-		kdb_printf("[%s]kdb> %s\n", s->name, s->command[i]);
+		kdb_printf("[%s]kdb> %s\n", s->cmd.cmd_name, s->command[i]);
 		ret = kdb_parse(s->command[i]);
 		if (ret)
 			return ret;
@@ -2613,56 +2611,32 @@ static int kdb_grep_help(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_register_flags - This function is used to register a kernel
- * 	debugger command.
- * Inputs:
- *	cmd	Command name
- *	func	Function to execute the command
- *	usage	A simple usage string showing arguments
- *	help	A simple help string describing command
- *	repeat	Does the command auto repeat on enter?
- * Returns:
- *	zero for success, one if a duplicate command.
+/**
+ * kdb_register() - This function is used to register a kernel debugger
+ *                  command.
+ * @cmd: pointer to kdb command
+ *
+ * Note that it's the job of the caller to keep the memory for the cmd
+ * allocated until unregister is called.
  */
-int kdb_register_flags(char *cmd,
-		       kdb_func_t func,
-		       char *usage,
-		       char *help,
-		       short minlen,
-		       kdb_cmdflags_t flags)
+int kdb_register(kdbtab_t *cmd)
 {
 	kdbtab_t *kp;
 
 	list_for_each_entry(kp, &kdb_cmds_head, list_node) {
-		if (strcmp(kp->cmd_name, cmd) == 0) {
-			kdb_printf("Duplicate kdb command registered: "
-				"%s, func %px help %s\n", cmd, func, help);
+		if (strcmp(kp->cmd_name, cmd->cmd_name) == 0) {
+			kdb_printf("Duplicate kdb cmd: %s, func %p help %s\n",
+				   cmd->cmd_name, cmd->cmd_func, cmd->cmd_help);
 			return 1;
 		}
 	}
 
-	kp = kmalloc(sizeof(*kp), GFP_KDB);
-	if (!kp) {
-		kdb_printf("Could not allocate new kdb_command table\n");
-		return 1;
-	}
-
-	kp->cmd_name   = cmd;
-	kp->cmd_func   = func;
-	kp->cmd_usage  = usage;
-	kp->cmd_help   = help;
-	kp->cmd_minlen = minlen;
-	kp->cmd_flags  = flags;
-	kp->is_dynamic = true;
-
-	list_add_tail(&kp->list_node, &kdb_cmds_head);
-
+	list_add_tail(&cmd->list_node, &kdb_cmds_head);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kdb_register_flags);
+EXPORT_SYMBOL_GPL(kdb_register);
 
-/*
+/**
  * kdb_register_table() - This function is used to register a kdb command
  *                        table.
  * @kp: pointer to kdb command table
@@ -2676,55 +2650,15 @@ void kdb_register_table(kdbtab_t *kp, size_t len)
 	}
 }
 
-/*
- * kdb_register - Compatibility register function for commands that do
- *	not need to specify a repeat state.  Equivalent to
- *	kdb_register_flags with flags set to 0.
- * Inputs:
- *	cmd	Command name
- *	func	Function to execute the command
- *	usage	A simple usage string showing arguments
- *	help	A simple help string describing command
- * Returns:
- *	zero for success, one if a duplicate command.
+/**
+ * kdb_unregister() - This function is used to unregister a kernel debugger
+ *                    command. It is generally called when a module which
+ *                    implements kdb command is unloaded.
+ * @cmd: pointer to kdb command
  */
-int kdb_register(char *cmd,
-	     kdb_func_t func,
-	     char *usage,
-	     char *help,
-	     short minlen)
+void kdb_unregister(kdbtab_t *cmd)
 {
-	return kdb_register_flags(cmd, func, usage, help, minlen, 0);
-}
-EXPORT_SYMBOL_GPL(kdb_register);
-
-/*
- * kdb_unregister - This function is used to unregister a kernel
- *	debugger command.  It is generally called when a module which
- *	implements kdb commands is unloaded.
- * Inputs:
- *	cmd	Command name
- * Returns:
- *	zero for success, one command not registered.
- */
-int kdb_unregister(char *cmd)
-{
-	kdbtab_t *kp;
-
-	/*
-	 *  find the command.
-	 */
-	list_for_each_entry(kp, &kdb_cmds_head, list_node) {
-		if (strcmp(kp->cmd_name, cmd) == 0) {
-			list_del(&kp->list_node);
-			if (kp->is_dynamic)
-				kfree(kp);
-			return 0;
-		}
-	}
-
-	/* Couldn't find it.  */
-	return 1;
+	list_del(&cmd->list_node);
 }
 EXPORT_SYMBOL_GPL(kdb_unregister);
 
@@ -2900,6 +2834,11 @@ static kdbtab_t maintab[] = {
 		.cmd_func = kdb_defcmd,
 		.cmd_usage = "name \"usage\" \"help\"",
 		.cmd_help = "Define a set of commands, down to endefcmd",
+		/*
+		 * Macros are always safe because when executed each
+		 * internal command re-enters kdb_parse() and is safety
+		 * checked individually.
+		 */
 		.cmd_flags = KDB_ENABLE_ALWAYS_SAFE,
 	},
 	{	.cmd_name = "kill",
