@@ -77,13 +77,13 @@ struct rockchip_pvtm {
 	struct thermal_zone_device *tz;
 	const struct rockchip_pvtm_info *info;
 	const struct rockchip_pvtm_ops *ops;
+	struct dentry *dentry;
 };
 
 static LIST_HEAD(pvtm_list);
 
 #ifdef CONFIG_DEBUG_FS
-
-static struct dentry *rootdir;
+static struct dentry *rockchip_pvtm_debugfs_root;
 
 static int pvtm_value_show(struct seq_file *s, void *data)
 {
@@ -125,44 +125,63 @@ static const struct file_operations pvtm_value_fops = {
 	.release	= single_release,
 };
 
-static int __init pvtm_debug_init(void)
+static int rockchip_pvtm_debugfs_init(void)
 {
-	struct dentry *dentry, *d;
-	struct rockchip_pvtm *pvtm;
-
-	rootdir = debugfs_create_dir("pvtm", NULL);
-	if (!rootdir) {
+	rockchip_pvtm_debugfs_root = debugfs_create_dir("pvtm", NULL);
+	if (IS_ERR_OR_NULL(rockchip_pvtm_debugfs_root)) {
 		pr_err("Failed to create pvtm debug directory\n");
+		rockchip_pvtm_debugfs_root = NULL;
 		return -ENOMEM;
-	}
-
-	if (list_empty(&pvtm_list)) {
-		pr_info("pvtm list NULL\n");
-		return 0;
-	}
-
-	list_for_each_entry(pvtm, &pvtm_list, node) {
-		dentry = debugfs_create_dir(pvtm->info->name, rootdir);
-		if (!dentry) {
-			dev_err(pvtm->dev, "failed to creat pvtm %s debug dir\n",
-				pvtm->info->name);
-			return -ENOMEM;
-		}
-
-		d = debugfs_create_file("value", 0444, dentry,
-					(void *)pvtm, &pvtm_value_fops);
-		if (!d) {
-			dev_err(pvtm->dev, "failed to pvtm %s value node\n",
-				pvtm->info->name);
-			return -ENOMEM;
-		}
 	}
 
 	return 0;
 }
 
-late_initcall(pvtm_debug_init);
+static void rockchip_pvtm_debugfs_exit(void)
+{
+	debugfs_remove_recursive(rockchip_pvtm_debugfs_root);
+}
 
+static int rockchip_pvtm_add_debugfs(struct rockchip_pvtm *pvtm)
+{
+	struct dentry *d;
+
+	if (!rockchip_pvtm_debugfs_root)
+		return 0;
+
+	pvtm->dentry = debugfs_create_dir(pvtm->info->name,
+					  rockchip_pvtm_debugfs_root);
+	if (!pvtm->dentry) {
+		dev_err(pvtm->dev, "failed to create pvtm %s debug dir\n",
+			pvtm->info->name);
+		return -ENOMEM;
+	}
+
+	d = debugfs_create_file("value", 0444, pvtm->dentry,
+				(void *)pvtm, &pvtm_value_fops);
+	if (!d) {
+		dev_err(pvtm->dev, "failed to pvtm %s value node\n",
+			pvtm->info->name);
+		debugfs_remove_recursive(pvtm->dentry);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+#else
+static inline int rockchip_pvtm_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void rockchip_pvtm_debugfs_exit(void)
+{
+}
+
+static inline int rockchip_pvtm_add_debugfs(struct rockchip_pvtm *pvtm)
+{
+	return 0;
+}
 #endif
 
 static int rockchip_pvtm_reset(struct rockchip_pvtm *pvtm)
@@ -717,7 +736,8 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 {
 	struct rockchip_pvtm *pvtm;
 	const char *tz_name;
-	u32 id, index, i;
+	u32 id, index;
+	int i;
 
 	if (of_property_read_u32(node, "reg", &id)) {
 		dev_err(dev, "%s: failed to retrieve pvtm id\n", node->name);
@@ -751,18 +771,18 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 	pvtm->num_clks = of_clk_get_parent_count(node);
 	if (pvtm->num_clks <= 0) {
 		dev_err(dev, "%s: does not have clocks\n", node->name);
-		return NULL;
+		goto clk_num_err;
 	}
 	pvtm->clks = devm_kcalloc(dev, pvtm->num_clks, sizeof(*pvtm->clks),
 				  GFP_KERNEL);
 	if (!pvtm->clks)
-		return NULL;
+		goto clk_num_err;
 	for (i = 0; i < pvtm->num_clks; i++) {
 		pvtm->clks[i].clk = of_clk_get(node, i);
 		if (IS_ERR(pvtm->clks[i].clk)) {
 			dev_err(dev, "%s: failed to get clk at index %d\n",
 				node->name, i);
-			return NULL;
+			goto clk_err;
 		}
 	}
 
@@ -770,23 +790,18 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 	if (IS_ERR(pvtm->rst))
 		dev_dbg(dev, "%s: failed to get reset\n", node->name);
 
+	rockchip_pvtm_add_debugfs(pvtm);
+
 	return pvtm;
-}
 
-static void rockchip_del_pvtm(const struct rockchip_pvtm_data *data)
-{
-	struct rockchip_pvtm *pvtm, *tmp;
-	int i;
+clk_err:
+	while (--i >= 0)
+		clk_put(pvtm->clks[i].clk);
+	devm_kfree(dev, pvtm->clks);
+clk_num_err:
+	devm_kfree(dev, pvtm);
 
-	if (list_empty(&pvtm_list))
-		return;
-
-	for (i = 0; i < data->num_pvtms; i++) {
-		list_for_each_entry_safe(pvtm, tmp, &pvtm_list, node) {
-			if (pvtm->info->id == data->infos[i].id)
-				list_del(&pvtm->node);
-		}
-	}
+	return NULL;
 }
 
 static int rockchip_pvtm_probe(struct platform_device *pdev)
@@ -818,18 +833,15 @@ static int rockchip_pvtm_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, node) {
 		pvtm = rockchip_pvtm_init(dev, node, match->data, grf, base);
 		if (!pvtm) {
-			dev_err(dev, "failed to handle node %s\n", node->name);
-			goto error;
+			dev_err(dev, "failed to handle node %s\n",
+				node->full_name);
+			continue;
 		}
 		list_add(&pvtm->node, &pvtm_list);
+		dev_info(dev, "%s probed\n", node->full_name);
 	}
 
 	return 0;
-
-error:
-	rockchip_del_pvtm(match->data);
-
-	return -EINVAL;
 }
 
 static struct platform_driver rockchip_pvtm_driver = {
@@ -840,7 +852,20 @@ static struct platform_driver rockchip_pvtm_driver = {
 	},
 };
 
-module_platform_driver(rockchip_pvtm_driver);
+static int __init rockchip_pvtm_module_init(void)
+{
+	rockchip_pvtm_debugfs_init();
+
+	return platform_driver_register(&rockchip_pvtm_driver);
+}
+module_init(rockchip_pvtm_module_init);
+
+static void __exit rockchip_pvtm_module_exit(void)
+{
+	rockchip_pvtm_debugfs_exit();
+	platform_driver_unregister(&rockchip_pvtm_driver);
+}
+module_exit(rockchip_pvtm_module_exit);
 
 MODULE_DESCRIPTION("Rockchip PVTM driver");
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>");
