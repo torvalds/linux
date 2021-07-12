@@ -11,9 +11,6 @@
 
 #ifdef CONFIG_CGROUP_BPF
 
-DEFINE_PER_CPU(struct bpf_cgroup_storage_info,
-	       bpf_cgroup_storage_info[BPF_CGROUP_STORAGE_NEST_MAX]);
-
 #include "../cgroup/cgroup-internal.h"
 
 #define LOCAL_STORAGE_CREATE_FLAG_MASK					\
