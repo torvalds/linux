@@ -102,7 +102,7 @@ static ssize_t name_show(struct device *dev,
 
 	if (!i2c_dev)
 		return -ENODEV;
-	return sprintf(buf, "%s\n", i2c_dev->adap->name);
+	return sysfs_emit(buf, "%s\n", i2c_dev->adap->name);
 }
 static DEVICE_ATTR_RO(name);
 
