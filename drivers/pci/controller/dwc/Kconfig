@@ -83,7 +83,7 @@ config PCIE_DW_PLAT_EP
 	  selected.
 
 config PCIE_DW_ROCKCHIP
-	bool "Rockchip DesignWare PCIe controller"
+	tristate "Rockchip DesignWare PCIe controller"
 	select PCIE_DW
 	select PCIE_DW_HOST
 	depends on ARCH_ROCKCHIP
