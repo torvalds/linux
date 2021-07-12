@@ -19,6 +19,7 @@
 #include <linux/iopoll.h>
 #include <linux/list.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_iommu.h>
@@ -1906,3 +1907,8 @@ static int __init rk_iommu_init(void)
 	return platform_driver_register(&rk_iommu_driver);
 }
 subsys_initcall(rk_iommu_init);
+
+MODULE_DESCRIPTION("IOMMU API for Rockchip");
+MODULE_AUTHOR("Simon Xue <xxm@rock-chips.com> and Daniel Kurtz <djkurtz@chromium.org>");
+MODULE_ALIAS("platform:rockchip-iommu");
+MODULE_LICENSE("GPL v2");
