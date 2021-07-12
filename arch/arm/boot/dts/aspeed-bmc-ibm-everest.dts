@@ -2832,7 +2832,7 @@
 
 &emmc {
 	status = "okay";
-	clk-phase-mmc-hs200 = <180>, <180>;
+	clk-phase-mmc-hs200 = <210>, <228>;
 };
 
 &fsim0 {
