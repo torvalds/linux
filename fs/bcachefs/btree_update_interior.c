@@ -948,13 +948,6 @@ bch2_btree_update_start(struct btree_iter *iter, unsigned level,
 
 	closure_init_stack(&cl);
 retry:
-	/*
-	 * This check isn't necessary for correctness - it's just to potentially
-	 * prevent us from doing a lot of work that'll end up being wasted:
-	 */
-	ret = bch2_journal_error(&c->journal);
-	if (ret)
-		return ERR_PTR(ret);
 
 	/*
 	 * XXX: figure out how far we might need to split,
@@ -994,6 +987,22 @@ retry:
 	bch2_keylist_init(&as->old_keys, as->_old_keys);
 	bch2_keylist_init(&as->new_keys, as->_new_keys);
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
+
+	mutex_lock(&c->btree_interior_update_lock);
+	list_add_tail(&as->list, &c->btree_interior_update_list);
+	mutex_unlock(&c->btree_interior_update_lock);
+
+	/*
+	 * We don't want to allocate if we're in an error state, that can cause
+	 * deadlock on emergency shutdown due to open buckets getting stuck in
+	 * the btree_reserve_cache after allocator shutdown has cleared it out.
+	 * This check needs to come after adding us to the btree_interior_update
+	 * list but before calling bch2_btree_reserve_get, to synchronize with
+	 * __bch2_fs_read_only().
+	 */
+	ret = bch2_journal_error(&c->journal);
+	if (ret)
+		goto err;
 
 	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
 				      BTREE_UPDATE_JOURNAL_RES,
@@ -1045,10 +1054,6 @@ retry:
 	bch2_journal_pin_add(&c->journal,
 			     atomic64_read(&c->journal.seq),
 			     &as->journal, NULL);
-
-	mutex_lock(&c->btree_interior_update_lock);
-	list_add_tail(&as->list, &c->btree_interior_update_list);
-	mutex_unlock(&c->btree_interior_update_lock);
 
 	return as;
 err:
