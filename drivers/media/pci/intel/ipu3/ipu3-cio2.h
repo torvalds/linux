@@ -401,6 +401,8 @@ struct cio2_device {
 	dma_addr_t dummy_lop_bus_addr;
 };
 
+#define to_cio2_device(n)	container_of(n, struct cio2_device, notifier)
+
 /**************** Virtual channel ****************/
 /*
  * This should come from sensor driver. No

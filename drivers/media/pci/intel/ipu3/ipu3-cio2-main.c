@@ -1376,8 +1376,7 @@ static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *sd,
 			       struct v4l2_async_subdev *asd)
 {
-	struct cio2_device *cio2 = container_of(notifier,
-					struct cio2_device, notifier);
+	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 	struct cio2_queue *q;
 
@@ -1398,8 +1397,7 @@ static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
 				 struct v4l2_async_subdev *asd)
 {
-	struct cio2_device *cio2 = container_of(notifier,
-						struct cio2_device, notifier);
+	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 
 	cio2->queue[s_asd->csi2.port].sensor = NULL;
@@ -1408,8 +1406,7 @@ static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
 /* .complete() is called after all subdevices have been located */
 static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 {
-	struct cio2_device *cio2 = container_of(notifier, struct cio2_device,
-						notifier);
+	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct device *dev = &cio2->pci_dev->dev;
 	struct sensor_async_subdev *s_asd;
 	struct v4l2_async_subdev *asd;
