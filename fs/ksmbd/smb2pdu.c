@@ -2126,21 +2126,6 @@ next:
 	return rc;
 }
 
-static inline int check_context_err(void *ctx, char *str)
-{
-	int err;
-
-	err = PTR_ERR(ctx);
-	ksmbd_debug(SMB, "find context %s err %d\n", str, err ? err : -ENOENT);
-
-	if (err == -EINVAL) {
-		pr_err("bad name length\n");
-		return err;
-	}
-
-	return 0;
-}
-
 static noinline int smb2_set_stream_name_xattr(struct path *path,
 					       struct ksmbd_file *fp,
 					       char *stream_name, int s_type)
@@ -2523,11 +2508,10 @@ int smb2_open(struct ksmbd_work *work)
 	if (req->CreateContextsOffset) {
 		/* Parse non-durable handle create contexts */
 		context = smb2_find_context_vals(req, SMB2_CREATE_EA_BUFFER);
-		if (IS_ERR_OR_NULL(context)) {
-			rc = check_context_err(context, SMB2_CREATE_EA_BUFFER);
-			if (rc < 0)
-				goto err_out1;
-		} else {
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out1;
+		} else if (context) {
 			ea_buf = (struct create_ea_buf_req *)context;
 			if (req->CreateOptions & FILE_NO_EA_KNOWLEDGE_LE) {
 				rsp->hdr.Status = STATUS_ACCESS_DENIED;
@@ -2538,12 +2522,10 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
-		if (IS_ERR_OR_NULL(context)) {
-			rc = check_context_err(context,
-					       SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST);
-			if (rc < 0)
-				goto err_out1;
-		} else {
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out1;
+		} else if (context) {
 			ksmbd_debug(SMB,
 				    "get query maximal access context\n");
 			maximal_access_ctxt = 1;
@@ -2551,12 +2533,10 @@ int smb2_open(struct ksmbd_work *work)
 
 		context = smb2_find_context_vals(req,
 						 SMB2_CREATE_TIMEWARP_REQUEST);
-		if (IS_ERR_OR_NULL(context)) {
-			rc = check_context_err(context,
-					       SMB2_CREATE_TIMEWARP_REQUEST);
-			if (rc < 0)
-				goto err_out1;
-		} else {
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out1;
+		} else if (context) {
 			ksmbd_debug(SMB, "get timewarp context\n");
 			rc = -EBADF;
 			goto err_out1;
@@ -2565,12 +2545,10 @@ int smb2_open(struct ksmbd_work *work)
 		if (tcon->posix_extensions) {
 			context = smb2_find_context_vals(req,
 							 SMB2_CREATE_TAG_POSIX);
-			if (IS_ERR_OR_NULL(context)) {
-				rc = check_context_err(context,
-						       SMB2_CREATE_TAG_POSIX);
-				if (rc < 0)
-					goto err_out1;
-			} else {
+			if (IS_ERR(context)) {
+				rc = PTR_ERR(context);
+				goto err_out1;
+			} else if (context) {
 				struct create_posix *posix =
 					(struct create_posix *)context;
 				ksmbd_debug(SMB, "get posix context\n");
@@ -2968,12 +2946,10 @@ int smb2_open(struct ksmbd_work *work)
 
 		az_req = (struct create_alloc_size_req *)smb2_find_context_vals(req,
 					SMB2_CREATE_ALLOCATION_SIZE);
-		if (IS_ERR_OR_NULL(az_req)) {
-			rc = check_context_err(az_req,
-					       SMB2_CREATE_ALLOCATION_SIZE);
-			if (rc < 0)
-				goto err_out;
-		} else {
+		if (IS_ERR(az_req)) {
+			rc = PTR_ERR(az_req);
+			goto err_out;
+		} else if (az_req) {
 			loff_t alloc_size = le64_to_cpu(az_req->AllocationSize);
 			int err;
 
@@ -2990,11 +2966,10 @@ int smb2_open(struct ksmbd_work *work)
 		}
 
 		context = smb2_find_context_vals(req, SMB2_CREATE_QUERY_ON_DISK_ID);
-		if (IS_ERR_OR_NULL(context)) {
-			rc = check_context_err(context, SMB2_CREATE_QUERY_ON_DISK_ID);
-			if (rc < 0)
-				goto err_out;
-		} else {
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out;
+		} else if (context) {
 			ksmbd_debug(SMB, "get query on disk id context\n");
 			query_disk_id = 1;
 		}
