@@ -651,6 +651,10 @@ static int __init scf_torture_init(void)
 unwind:
 	torture_init_end();
 	scf_torture_cleanup();
+	if (shutdown_secs) {
+		WARN_ON(!IS_MODULE(CONFIG_SCF_TORTURE_TEST));
+		kernel_power_off();
+	}
 	return firsterr;
 }
 
