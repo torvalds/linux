@@ -197,13 +197,13 @@ static inline void walt_task_dump(struct task_struct *p)
 	for (i = 0 ; i < nr_cpu_ids; i++)
 		j += scnprintf(buff + j, buffsz - j, "%u ",
 				wts->curr_window_cpu[i]);
-	printk_deferred("%s=%d (%s)\n", STRG(wts->curr_window),
+	printk_deferred("%s=%u (%s)\n", STRG(wts->curr_window),
 			wts->curr_window, buff);
 
 	for (i = 0, j = 0 ; i < nr_cpu_ids; i++)
 		j += scnprintf(buff + j, buffsz - j, "%u ",
 				wts->prev_window_cpu[i]);
-	printk_deferred("%s=%d (%s)\n", STRG(wts->prev_window),
+	printk_deferred("%s=%u (%s)\n", STRG(wts->prev_window),
 			wts->prev_window, buff);
 
 	SCHED_PRINT(wts->last_wake_ts);
