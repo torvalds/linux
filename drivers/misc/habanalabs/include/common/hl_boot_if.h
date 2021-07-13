@@ -345,7 +345,9 @@ struct cpu_dyn_regs {
 	__le32 gic_dma_core_irq_ctrl;
 	__le32 gic_host_halt_irq;
 	__le32 gic_host_ints_irq;
-	__le32 reserved1[24];		/* reserve for future use */
+	__le32 gic_host_soft_rst_irq;
+	__le32 gic_rot_qm_irq_ctrl;
+	__le32 reserved1[22];		/* reserve for future use */
 };
 
 /* TODO: remove the desc magic after the code is updated to use message */
