@@ -27,6 +27,7 @@
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/iio/consumer.h>
+#include <linux/fixp-arith.h>
 
 #include "ab8500-bm.h"
 
@@ -437,8 +438,9 @@ static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
 			i++;
 	}
 
-	return tbl[i].temp + ((tbl[i + 1].temp - tbl[i].temp) *
-		(res - tbl[i].resist)) / (tbl[i + 1].resist - tbl[i].resist);
+	return fixp_linear_interpolate(tbl[i].resist, tbl[i].temp,
+				       tbl[i + 1].resist, tbl[i + 1].temp,
+				       res);
 }
 
 /**

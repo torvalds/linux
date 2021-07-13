@@ -34,6 +34,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/iio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/fixp-arith.h>
 
 #include "ab8500-bm.h"
 
@@ -55,9 +56,6 @@
 
 /* FG constants */
 #define BATT_OVV			0x01
-
-#define interpolate(x, x1, y1, x2, y2) \
-	((y1) + ((((y2) - (y1)) * ((x) - (x1))) / ((x2) - (x1))));
 
 /**
  * struct ab8500_fg_interrupts - ab8500 fg interrupts
@@ -868,11 +866,12 @@ static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 	}
 
 	if ((i > 0) && (i < tbl_size)) {
-		cap = interpolate(voltage,
+		cap = fixp_linear_interpolate(
 			tbl[i].voltage,
 			tbl[i].capacity * 10,
 			tbl[i-1].voltage,
-			tbl[i-1].capacity * 10);
+			tbl[i-1].capacity * 10,
+			voltage);
 	} else if (i == 0) {
 		cap = 1000;
 	} else {
@@ -920,11 +919,12 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 	}
 
 	if ((i > 0) && (i < tbl_size)) {
-		resist = interpolate(di->bat_temp / 10,
+		resist = fixp_linear_interpolate(
 			tbl[i].temp,
 			tbl[i].resist,
 			tbl[i-1].temp,
-			tbl[i-1].resist);
+			tbl[i-1].resist,
+			di->bat_temp / 10);
 	} else if (i == 0) {
 		resist = tbl[0].resist;
 	} else {
