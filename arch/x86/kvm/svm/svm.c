@@ -1253,8 +1253,7 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	svm_set_efer(vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
-	save->rip = 0x0000fff0;
-	vcpu->arch.regs[VCPU_REGS_RIP] = save->rip;
+	vcpu->arch.regs[VCPU_REGS_RIP] = 0x0000fff0;
 
 	/*
 	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
