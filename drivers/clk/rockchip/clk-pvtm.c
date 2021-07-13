@@ -207,7 +207,6 @@ static const struct rockchip_clock_pvtm_info rk3368_pvtm_data = {
 	.get_value = rockchip_clock_pvtm_get_value,
 	.init_freq = rockchip_clock_pvtm_init_freq,
 };
-MODULE_DEVICE_TABLE(of, rockchip_clock_pvtm_match);
 
 static const struct of_device_id rockchip_clock_pvtm_match[] = {
 	{
@@ -216,6 +215,7 @@ static const struct of_device_id rockchip_clock_pvtm_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, rockchip_clock_pvtm_match);
 
 static int rockchip_clock_pvtm_probe(struct platform_device *pdev)
 {
