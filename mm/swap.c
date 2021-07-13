@@ -924,7 +924,18 @@ void lru_add_drain_all(void)
 }
 #endif /* CONFIG_SMP */
 
-atomic_t lru_disable_count = ATOMIC_INIT(0);
+static atomic_t lru_disable_count = ATOMIC_INIT(0);
+
+bool lru_cache_disabled(void)
+{
+	return atomic_read(&lru_disable_count) != 0;
+}
+
+void lru_cache_enable(void)
+{
+	atomic_dec(&lru_disable_count);
+}
+EXPORT_SYMBOL_GPL(lru_cache_enable);
 
 /*
  * lru_cache_disable() needs to be called before we start compiling
@@ -936,7 +947,12 @@ atomic_t lru_disable_count = ATOMIC_INIT(0);
  */
 void lru_cache_disable(void)
 {
-	atomic_inc(&lru_disable_count);
+	/*
+	 * If someone is already disabled lru_cache, just return with
+	 * increasing the lru_disable_count.
+	 */
+	if (atomic_inc_not_zero(&lru_disable_count))
+		return;
 #ifdef CONFIG_SMP
 	/*
 	 * lru_add_drain_all in the force mode will schedule draining on
@@ -950,7 +966,9 @@ void lru_cache_disable(void)
 #else
 	lru_add_drain();
 #endif
+	atomic_inc(&lru_disable_count);
 }
+EXPORT_SYMBOL_GPL(lru_cache_disable);
 
 /**
  * release_pages - batched put_page()
