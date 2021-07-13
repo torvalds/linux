@@ -4305,9 +4305,6 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	kvm_set_dr(vcpu, 7, 0x400);
 	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
 
-	if (cpu_has_vmx_msr_bitmap())
-		vmx_update_msr_bitmap(vcpu);
-
 	if (nested_vmx_load_msr(vcpu, vmcs12->vm_exit_msr_load_addr,
 				vmcs12->vm_exit_msr_load_count))
 		nested_vmx_abort(vcpu, VMX_ABORT_LOAD_HOST_MSR_FAIL);
@@ -4385,9 +4382,6 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 		ept_save_pdptrs(vcpu);
 
 	kvm_mmu_reset_context(vcpu);
-
-	if (cpu_has_vmx_msr_bitmap())
-		vmx_update_msr_bitmap(vcpu);
 
 	/*
 	 * This nasty bit of open coding is a compromise between blindly
