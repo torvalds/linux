@@ -57,6 +57,11 @@ static const struct intel_step_info icl_revids[] = {
 	[7] = { COMMON_STEP(D0) },
 };
 
+static const struct intel_step_info jsl_ehl_revids[] = {
+	[0] = { COMMON_STEP(A0) },
+	[1] = { COMMON_STEP(B0) },
+};
+
 static const struct intel_step_info tgl_uy_revids[] = {
 	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[1] = { .gt_step = STEP_B0, .display_step = STEP_C0 },
@@ -104,6 +109,9 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_TIGERLAKE(i915)) {
 		revids = tgl_revids;
 		size = ARRAY_SIZE(tgl_revids);
+	} else if (IS_JSL_EHL(i915)) {
+		revids = jsl_ehl_revids;
+		size = ARRAY_SIZE(jsl_ehl_revids);
 	} else if (IS_ICELAKE(i915)) {
 		revids = icl_revids;
 		size = ARRAY_SIZE(icl_revids);
