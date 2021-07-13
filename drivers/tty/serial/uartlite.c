@@ -784,6 +784,7 @@ static int ulite_probe(struct platform_device *pdev)
 		ret = uart_register_driver(&ulite_uart_driver);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Failed to register driver\n");
+			clk_disable_unprepare(pdata->clk);
 			return ret;
 		}
 	}
