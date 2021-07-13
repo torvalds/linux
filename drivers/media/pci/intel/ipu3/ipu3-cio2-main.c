@@ -11,6 +11,7 @@
  * et al.
  */
 
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
@@ -612,6 +613,20 @@ static const char *const cio2_irq_errs[] = {
 	"non-matching Long Packet stalled",
 };
 
+static void cio2_irq_log_irq_errs(struct device *dev, u8 port, u32 status)
+{
+	unsigned long csi2_status = status;
+	unsigned int i;
+
+	for_each_set_bit(i, &csi2_status, ARRAY_SIZE(cio2_irq_errs))
+		dev_err(dev, "CSI-2 receiver port %i: %s\n",
+			port, cio2_irq_errs[i]);
+
+	if (fls_long(csi2_status) >= ARRAY_SIZE(cio2_irq_errs))
+		dev_warn(dev, "unknown CSI2 error 0x%lx on port %i\n",
+			 csi2_status, port);
+}
+
 static const char *const cio2_port_errs[] = {
 	"ECC recoverable",
 	"DPHY not recoverable",
@@ -621,6 +636,15 @@ static const char *const cio2_port_errs[] = {
 	"PKT2SHORT",
 	"PKT2LONG",
 };
+
+static void cio2_irq_log_port_errs(struct device *dev, u8 port, u32 status)
+{
+	unsigned long port_status = status;
+	unsigned int i;
+
+	for_each_set_bit(i, &port_status, ARRAY_SIZE(cio2_port_errs))
+		dev_err(dev, "port %i error %s\n", port, cio2_port_errs[i]);
+}
 
 static void cio2_irq_handle_once(struct cio2_device *cio2, u32 int_status)
 {
@@ -687,59 +711,32 @@ static void cio2_irq_handle_once(struct cio2_device *cio2, u32 int_status)
 
 	if (int_status & (CIO2_INT_IOIE | CIO2_INT_IOIRQ)) {
 		/* CSI2 receiver (error) interrupt */
-		u32 ie_status, ie_clear;
 		unsigned int port;
+		u32 ie_status;
 
-		ie_clear = readl(base + CIO2_REG_INT_STS_EXT_IE);
-		ie_status = ie_clear;
+		ie_status = readl(base + CIO2_REG_INT_STS_EXT_IE);
 
 		for (port = 0; port < CIO2_NUM_PORTS; port++) {
 			u32 port_status = (ie_status >> (port * 8)) & 0xff;
-			u32 err_mask = BIT_MASK(ARRAY_SIZE(cio2_port_errs)) - 1;
-			void __iomem *const csi_rx_base =
-						base + CIO2_REG_PIPE_BASE(port);
-			unsigned int i;
 
-			while (port_status & err_mask) {
-				i = ffs(port_status) - 1;
-				dev_err(dev, "port %i error %s\n",
-					port, cio2_port_errs[i]);
-				ie_status &= ~BIT(port * 8 + i);
-				port_status &= ~BIT(i);
-			}
+			cio2_irq_log_port_errs(dev, port, port_status);
 
 			if (ie_status & CIO2_INT_EXT_IE_IRQ(port)) {
-				u32 csi2_status, csi2_clear;
+				void __iomem *csi_rx_base =
+						base + CIO2_REG_PIPE_BASE(port);
+				u32 csi2_status;
 
 				csi2_status = readl(csi_rx_base +
 						CIO2_REG_IRQCTRL_STATUS);
-				csi2_clear = csi2_status;
-				err_mask =
-					BIT_MASK(ARRAY_SIZE(cio2_irq_errs)) - 1;
 
-				while (csi2_status & err_mask) {
-					i = ffs(csi2_status) - 1;
-					dev_err(dev,
-						"CSI-2 receiver port %i: %s\n",
-							port, cio2_irq_errs[i]);
-					csi2_status &= ~BIT(i);
-				}
+				cio2_irq_log_irq_errs(dev, port, csi2_status);
 
-				writel(csi2_clear,
+				writel(csi2_status,
 				       csi_rx_base + CIO2_REG_IRQCTRL_CLEAR);
-				if (csi2_status)
-					dev_warn(dev,
-						 "unknown CSI2 error 0x%x on port %i\n",
-						 csi2_status, port);
-
-				ie_status &= ~CIO2_INT_EXT_IE_IRQ(port);
 			}
 		}
 
-		writel(ie_clear, base + CIO2_REG_INT_STS_EXT_IE);
-		if (ie_status)
-			dev_warn(dev, "unknown interrupt 0x%x on IE\n",
-				 ie_status);
+		writel(ie_status, base + CIO2_REG_INT_STS_EXT_IE);
 
 		int_status &= ~(CIO2_INT_IOIE | CIO2_INT_IOIRQ);
 	}
