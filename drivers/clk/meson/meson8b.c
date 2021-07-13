@@ -118,6 +118,35 @@ static struct clk_regmap meson8b_fixed_pll = {
 	},
 };
 
+static struct clk_fixed_factor hdmi_pll_dco_in = {
+	.mult = 2,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll_dco_in",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+			.index = -1,
+		},
+		.num_parents = 1,
+	},
+};
+
+/*
+ * Taken from the vendor driver for the 2970/2975MHz (both only differ in the
+ * FRAC part in HHI_VID_PLL_CNTL2) where these values are identical for Meson8,
+ * Meson8b and Meson8m2. This doubles the input (or output - it's not clear
+ * which one but the result is the same) clock. The vendor driver additionally
+ * has the following comment about: "optimise HPLL VCO 2.97GHz performance".
+ */
+static const struct reg_sequence meson8b_hdmi_pll_init_regs[] = {
+	{ .reg = HHI_VID_PLL_CNTL2,	.def = 0x69c84000 },
+	{ .reg = HHI_VID_PLL_CNTL3,	.def = 0x8a46c023 },
+	{ .reg = HHI_VID_PLL_CNTL4,	.def = 0x4123b100 },
+	{ .reg = HHI_VID_PLL_CNTL5,	.def = 0x00012385 },
+	{ .reg = HHI_VID2_PLL_CNTL2,	.def = 0x0430a800 },
+};
+
 static const struct pll_params_table hdmi_pll_params_table[] = {
 	PLL_PARAMS(40, 1),
 	PLL_PARAMS(42, 1),
@@ -172,15 +201,15 @@ static struct clk_regmap meson8b_hdmi_pll_dco = {
 			.width   = 1,
 		},
 		.table = hdmi_pll_params_table,
+		.init_regs = meson8b_hdmi_pll_init_regs,
+		.init_count = ARRAY_SIZE(meson8b_hdmi_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		/* sometimes also called "HPLL" or "HPLL PLL" */
 		.name = "hdmi_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "xtal",
-			.name = "xtal",
-			.index = -1,
+		.parent_hws = (const struct clk_hw *[]) {
+			&hdmi_pll_dco_in.hw
 		},
 		.num_parents = 1,
 	},
@@ -2945,6 +2974,7 @@ static struct clk_hw_onecell_data meson8_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
 		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLKID_VID_PLL_LVDS_EN]	    = &meson8b_vid_pll_lvds_en.hw,
+		[CLKID_HDMI_PLL_DCO_IN]	    = &hdmi_pll_dco_in.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -3163,6 +3193,7 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
 		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLKID_VID_PLL_LVDS_EN]	    = &meson8b_vid_pll_lvds_en.hw,
+		[CLKID_HDMI_PLL_DCO_IN]	    = &hdmi_pll_dco_in.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -3383,6 +3414,7 @@ static struct clk_hw_onecell_data meson8m2_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
 		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLKID_VID_PLL_LVDS_EN]	    = &meson8b_vid_pll_lvds_en.hw,
+		[CLKID_HDMI_PLL_DCO_IN]	    = &hdmi_pll_dco_in.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
