@@ -140,6 +140,9 @@ void kvm_flush_remote_tlbs_with_address(struct kvm *kvm,
  * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
  * RET_PF_FIXED: The faulting entry has been fixed.
  * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
+ *
+ * Any names added to this enum should be exported to userspace for use in
+ * tracepoints via TRACE_DEFINE_ENUM() in mmutrace.h
  */
 enum {
 	RET_PF_RETRY = 0,
