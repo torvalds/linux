@@ -1498,63 +1498,66 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 {
 	int rc;
 	struct ndr n;
+	struct inode *inode = d_inode(dentry);
+	struct ndr acl_ndr = {0};
+	struct xattr_ntacl acl;
+	struct xattr_smb_acl *smb_acl = NULL, *def_smb_acl = NULL;
+	__u8 cmp_hash[XATTR_SD_HASH_SIZE] = {0};
 
 	rc = ksmbd_vfs_getxattr(user_ns, dentry, XATTR_NAME_SD, &n.data);
-	if (rc > 0) {
-		struct inode *inode = d_inode(dentry);
-		struct ndr acl_ndr = {0};
-		struct xattr_ntacl acl;
-		struct xattr_smb_acl *smb_acl = NULL, *def_smb_acl = NULL;
-		__u8 cmp_hash[XATTR_SD_HASH_SIZE] = {0};
+	if (rc <= 0)
+		return rc;
 
-		n.length = rc;
-		rc = ndr_decode_v4_ntacl(&n, &acl);
-		if (rc)
-			return rc;
+	n.length = rc;
+	rc = ndr_decode_v4_ntacl(&n, &acl);
+	if (rc)
+		goto free_n_data;
 
-		smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
-							 ACL_TYPE_ACCESS);
-		if (S_ISDIR(inode->i_mode))
-			def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns,
-								     inode,
-								     ACL_TYPE_DEFAULT);
+	smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+						 ACL_TYPE_ACCESS);
+	if (S_ISDIR(inode->i_mode))
+		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+							     ACL_TYPE_DEFAULT);
 
-		rc = ndr_encode_posix_acl(&acl_ndr, user_ns, inode,
-					  smb_acl, def_smb_acl);
-		if (rc) {
-			pr_err("failed to encode ndr to posix acl\n");
-			goto out;
-		}
-
-		rc = ksmbd_gen_sd_hash(conn, acl_ndr.data, acl_ndr.offset,
-				       cmp_hash);
-		if (rc) {
-			pr_err("failed to generate hash for ndr acl\n");
-			goto out;
-		}
-
-		if (memcmp(cmp_hash, acl.posix_acl_hash, XATTR_SD_HASH_SIZE)) {
-			pr_err("hash value diff\n");
-			rc = -EINVAL;
-			goto out;
-		}
-
-		*pntsd = acl.sd_buf;
-		(*pntsd)->osidoffset =
-			cpu_to_le32(le32_to_cpu((*pntsd)->osidoffset) - NDR_NTSD_OFFSETOF);
-		(*pntsd)->gsidoffset =
-			cpu_to_le32(le32_to_cpu((*pntsd)->gsidoffset) - NDR_NTSD_OFFSETOF);
-		(*pntsd)->dacloffset =
-			cpu_to_le32(le32_to_cpu((*pntsd)->dacloffset) - NDR_NTSD_OFFSETOF);
-
-		rc = acl.sd_size;
-out:
-		kfree(n.data);
-		kfree(acl_ndr.data);
-		kfree(smb_acl);
-		kfree(def_smb_acl);
+	rc = ndr_encode_posix_acl(&acl_ndr, user_ns, inode, smb_acl,
+				  def_smb_acl);
+	if (rc) {
+		pr_err("failed to encode ndr to posix acl\n");
+		goto out_free;
 	}
 
+	rc = ksmbd_gen_sd_hash(conn, acl_ndr.data, acl_ndr.offset, cmp_hash);
+	if (rc) {
+		pr_err("failed to generate hash for ndr acl\n");
+		goto out_free;
+	}
+
+	if (memcmp(cmp_hash, acl.posix_acl_hash, XATTR_SD_HASH_SIZE)) {
+		pr_err("hash value diff\n");
+		rc = -EINVAL;
+		goto out_free;
+	}
+
+	*pntsd = acl.sd_buf;
+	(*pntsd)->osidoffset = cpu_to_le32(le32_to_cpu((*pntsd)->osidoffset) -
+					   NDR_NTSD_OFFSETOF);
+	(*pntsd)->gsidoffset = cpu_to_le32(le32_to_cpu((*pntsd)->gsidoffset) -
+					   NDR_NTSD_OFFSETOF);
+	(*pntsd)->dacloffset = cpu_to_le32(le32_to_cpu((*pntsd)->dacloffset) -
+					   NDR_NTSD_OFFSETOF);
+
+	rc = acl.sd_size;
+out_free:
+	kfree(acl_ndr.data);
+	kfree(smb_acl);
+	kfree(def_smb_acl);
+	if (rc < 0) {
+		kfree(acl.sd_buf);
+		*pntsd = NULL;
+	}
+
+free_n_data:
+	kfree(n.data);
 	return rc;
 }
 
