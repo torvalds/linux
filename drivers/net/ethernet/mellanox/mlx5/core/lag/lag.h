@@ -6,6 +6,7 @@
 
 #include "mlx5_core.h"
 #include "mp.h"
+#include "port_sel.h"
 
 enum {
 	MLX5_LAG_P1,
@@ -49,6 +50,7 @@ struct mlx5_lag {
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
 	struct lag_mp             lag_mp;
+	struct mlx5_lag_port_sel  port_sel;
 };
 
 static inline struct mlx5_lag *
