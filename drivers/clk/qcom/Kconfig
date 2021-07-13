@@ -332,6 +332,15 @@ config SC_DISPCC_7180
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SC_DISPCC_7280
+	tristate "SC7280 Display Clock Controller"
+	select SC_GCC_7280
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc.
+	  SC7280 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
