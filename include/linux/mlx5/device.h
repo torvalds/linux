@@ -1157,6 +1157,9 @@ enum mlx5_cap_mode {
 	HCA_CAP_OPMOD_GET_CUR	= 1,
 };
 
+/* Any new cap addition must update mlx5_hca_caps_alloc() to allocate
+ * capability memory.
+ */
 enum mlx5_cap_type {
 	MLX5_CAP_GENERAL = 0,
 	MLX5_CAP_ETHERNET_OFFLOADS,
@@ -1213,55 +1216,55 @@ enum mlx5_qcam_feature_groups {
 
 /* GET Dev Caps macros */
 #define MLX5_CAP_GEN(mdev, cap) \
-	MLX5_GET(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL].cur, cap)
+	MLX5_GET(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL]->cur, cap)
 
 #define MLX5_CAP_GEN_64(mdev, cap) \
-	MLX5_GET64(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL].cur, cap)
+	MLX5_GET64(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL]->cur, cap)
 
 #define MLX5_CAP_GEN_MAX(mdev, cap) \
-	MLX5_GET(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL].max, cap)
+	MLX5_GET(cmd_hca_cap, mdev->caps.hca[MLX5_CAP_GENERAL]->max, cap)
 
 #define MLX5_CAP_GEN_2(mdev, cap) \
-	MLX5_GET(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2].cur, cap)
+	MLX5_GET(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2]->cur, cap)
 
 #define MLX5_CAP_GEN_2_64(mdev, cap) \
-	MLX5_GET64(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2].cur, cap)
+	MLX5_GET64(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2]->cur, cap)
 
 #define MLX5_CAP_GEN_2_MAX(mdev, cap) \
-	MLX5_GET(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2].max, cap)
+	MLX5_GET(cmd_hca_cap_2, mdev->caps.hca[MLX5_CAP_GENERAL_2]->max, cap)
 
 #define MLX5_CAP_ETH(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
-		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS].cur, cap)
+		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS]->cur, cap)
 
 #define MLX5_CAP_ETH_MAX(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
-		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS].max, cap)
+		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS]->max, cap)
 
 #define MLX5_CAP_IPOIB_ENHANCED(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
-		 mdev->caps.hca[MLX5_CAP_IPOIB_ENHANCED_OFFLOADS].cur, cap)
+		 mdev->caps.hca[MLX5_CAP_IPOIB_ENHANCED_OFFLOADS]->cur, cap)
 
 #define MLX5_CAP_ROCE(mdev, cap) \
-	MLX5_GET(roce_cap, mdev->caps.hca[MLX5_CAP_ROCE].cur, cap)
+	MLX5_GET(roce_cap, mdev->caps.hca[MLX5_CAP_ROCE]->cur, cap)
 
 #define MLX5_CAP_ROCE_MAX(mdev, cap) \
-	MLX5_GET(roce_cap, mdev->caps.hca[MLX5_CAP_ROCE].max, cap)
+	MLX5_GET(roce_cap, mdev->caps.hca[MLX5_CAP_ROCE]->max, cap)
 
 #define MLX5_CAP_ATOMIC(mdev, cap) \
-	MLX5_GET(atomic_caps, mdev->caps.hca[MLX5_CAP_ATOMIC].cur, cap)
+	MLX5_GET(atomic_caps, mdev->caps.hca[MLX5_CAP_ATOMIC]->cur, cap)
 
 #define MLX5_CAP_ATOMIC_MAX(mdev, cap) \
-	MLX5_GET(atomic_caps, mdev->caps.hca[MLX5_CAP_ATOMIC].max, cap)
+	MLX5_GET(atomic_caps, mdev->caps.hca[MLX5_CAP_ATOMIC]->max, cap)
 
 #define MLX5_CAP_FLOWTABLE(mdev, cap) \
-	MLX5_GET(flow_table_nic_cap, mdev->caps.hca[MLX5_CAP_FLOW_TABLE].cur, cap)
+	MLX5_GET(flow_table_nic_cap, mdev->caps.hca[MLX5_CAP_FLOW_TABLE]->cur, cap)
 
 #define MLX5_CAP64_FLOWTABLE(mdev, cap) \
-	MLX5_GET64(flow_table_nic_cap, (mdev)->caps.hca[MLX5_CAP_FLOW_TABLE].cur, cap)
+	MLX5_GET64(flow_table_nic_cap, (mdev)->caps.hca[MLX5_CAP_FLOW_TABLE]->cur, cap)
 
 #define MLX5_CAP_FLOWTABLE_MAX(mdev, cap) \
-	MLX5_GET(flow_table_nic_cap, mdev->caps.hca[MLX5_CAP_FLOW_TABLE].max, cap)
+	MLX5_GET(flow_table_nic_cap, mdev->caps.hca[MLX5_CAP_FLOW_TABLE]->max, cap)
 
 #define MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.cap)
@@ -1301,11 +1304,11 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE].cur, cap)
+		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->cur, cap)
 
 #define MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE].max, cap)
+		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->max, cap)
 
 #define MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_nic_esw_fdb.cap)
@@ -1327,31 +1330,31 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH].cur, cap)
+		 mdev->caps.hca[MLX5_CAP_ESWITCH]->cur, cap)
 
 #define MLX5_CAP64_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET64(flow_table_eswitch_cap, \
-		(mdev)->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE].cur, cap)
+		(mdev)->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->cur, cap)
 
 #define MLX5_CAP_ESW_MAX(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH].max, cap)
+		 mdev->caps.hca[MLX5_CAP_ESWITCH]->max, cap)
 
 #define MLX5_CAP_ODP(mdev, cap)\
-	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP].cur, cap)
+	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, cap)
 
 #define MLX5_CAP_ODP_MAX(mdev, cap)\
-	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP].max, cap)
+	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->max, cap)
 
 #define MLX5_CAP_VECTOR_CALC(mdev, cap) \
 	MLX5_GET(vector_calc_cap, \
-		 mdev->caps.hca[MLX5_CAP_VECTOR_CALC].cur, cap)
+		 mdev->caps.hca[MLX5_CAP_VECTOR_CALC]->cur, cap)
 
 #define MLX5_CAP_QOS(mdev, cap)\
-	MLX5_GET(qos_cap, mdev->caps.hca[MLX5_CAP_QOS].cur, cap)
+	MLX5_GET(qos_cap, mdev->caps.hca[MLX5_CAP_QOS]->cur, cap)
 
 #define MLX5_CAP_DEBUG(mdev, cap)\
-	MLX5_GET(debug_cap, mdev->caps.hca[MLX5_CAP_DEBUG].cur, cap)
+	MLX5_GET(debug_cap, mdev->caps.hca[MLX5_CAP_DEBUG]->cur, cap)
 
 #define MLX5_CAP_PCAM_FEATURE(mdev, fld) \
 	MLX5_GET(pcam_reg, (mdev)->caps.pcam, feature_cap_mask.enhanced_features.fld)
@@ -1387,27 +1390,27 @@ enum mlx5_qcam_feature_groups {
 	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
 
 #define MLX5_CAP_DEV_MEM(mdev, cap)\
-	MLX5_GET(device_mem_cap, mdev->caps.hca[MLX5_CAP_DEV_MEM].cur, cap)
+	MLX5_GET(device_mem_cap, mdev->caps.hca[MLX5_CAP_DEV_MEM]->cur, cap)
 
 #define MLX5_CAP64_DEV_MEM(mdev, cap)\
-	MLX5_GET64(device_mem_cap, mdev->caps.hca[MLX5_CAP_DEV_MEM].cur, cap)
+	MLX5_GET64(device_mem_cap, mdev->caps.hca[MLX5_CAP_DEV_MEM]->cur, cap)
 
 #define MLX5_CAP_TLS(mdev, cap) \
-	MLX5_GET(tls_cap, (mdev)->caps.hca[MLX5_CAP_TLS].cur, cap)
+	MLX5_GET(tls_cap, (mdev)->caps.hca[MLX5_CAP_TLS]->cur, cap)
 
 #define MLX5_CAP_DEV_EVENT(mdev, cap)\
-	MLX5_ADDR_OF(device_event_cap, (mdev)->caps.hca[MLX5_CAP_DEV_EVENT].cur, cap)
+	MLX5_ADDR_OF(device_event_cap, (mdev)->caps.hca[MLX5_CAP_DEV_EVENT]->cur, cap)
 
 #define MLX5_CAP_DEV_VDPA_EMULATION(mdev, cap)\
 	MLX5_GET(virtio_emulation_cap, \
-		(mdev)->caps.hca[MLX5_CAP_VDPA_EMULATION].cur, cap)
+		(mdev)->caps.hca[MLX5_CAP_VDPA_EMULATION]->cur, cap)
 
 #define MLX5_CAP64_DEV_VDPA_EMULATION(mdev, cap)\
 	MLX5_GET64(virtio_emulation_cap, \
-		(mdev)->caps.hca[MLX5_CAP_VDPA_EMULATION].cur, cap)
+		(mdev)->caps.hca[MLX5_CAP_VDPA_EMULATION]->cur, cap)
 
 #define MLX5_CAP_IPSEC(mdev, cap)\
-	MLX5_GET(ipsec_cap, (mdev)->caps.hca[MLX5_CAP_IPSEC].cur, cap)
+	MLX5_GET(ipsec_cap, (mdev)->caps.hca[MLX5_CAP_IPSEC]->cur, cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

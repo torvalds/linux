@@ -389,11 +389,11 @@ static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
 
 	switch (cap_mode) {
 	case HCA_CAP_OPMOD_GET_MAX:
-		memcpy(dev->caps.hca[cap_type].max, hca_caps,
+		memcpy(dev->caps.hca[cap_type]->max, hca_caps,
 		       MLX5_UN_SZ_BYTES(hca_cap_union));
 		break;
 	case HCA_CAP_OPMOD_GET_CUR:
-		memcpy(dev->caps.hca[cap_type].cur, hca_caps,
+		memcpy(dev->caps.hca[cap_type]->cur, hca_caps,
 		       MLX5_UN_SZ_BYTES(hca_cap_union));
 		break;
 	default:
@@ -469,7 +469,7 @@ static int handle_hca_cap_odp(struct mlx5_core_dev *dev, void *set_ctx)
 		return err;
 
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
-	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_ODP].cur,
+	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_ODP]->cur,
 	       MLX5_ST_SZ_BYTES(odp_cap));
 
 #define ODP_CAP_SET_MAX(dev, field)                                            \
@@ -514,7 +514,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx,
 				   capability);
-	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_GENERAL].cur,
+	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_GENERAL]->cur,
 	       MLX5_ST_SZ_BYTES(cmd_hca_cap));
 
 	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
@@ -596,7 +596,7 @@ static int handle_hca_cap_roce(struct mlx5_core_dev *dev, void *set_ctx)
 		return 0;
 
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
-	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_ROCE].cur,
+	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_ROCE]->cur,
 	       MLX5_ST_SZ_BYTES(roce_cap));
 	MLX5_SET(roce_cap, set_hca_cap, sw_r_roce_src_udp_port, 1);
 
@@ -1375,6 +1375,60 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
+static const int types[] = {
+	MLX5_CAP_GENERAL,
+	MLX5_CAP_GENERAL_2,
+	MLX5_CAP_ETHERNET_OFFLOADS,
+	MLX5_CAP_IPOIB_ENHANCED_OFFLOADS,
+	MLX5_CAP_ODP,
+	MLX5_CAP_ATOMIC,
+	MLX5_CAP_ROCE,
+	MLX5_CAP_IPOIB_OFFLOADS,
+	MLX5_CAP_FLOW_TABLE,
+	MLX5_CAP_ESWITCH_FLOW_TABLE,
+	MLX5_CAP_ESWITCH,
+	MLX5_CAP_VECTOR_CALC,
+	MLX5_CAP_QOS,
+	MLX5_CAP_DEBUG,
+	MLX5_CAP_DEV_MEM,
+	MLX5_CAP_DEV_EVENT,
+	MLX5_CAP_TLS,
+	MLX5_CAP_VDPA_EMULATION,
+	MLX5_CAP_IPSEC,
+};
+
+static void mlx5_hca_caps_free(struct mlx5_core_dev *dev)
+{
+	int type;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		type = types[i];
+		kfree(dev->caps.hca[type]);
+	}
+}
+
+static int mlx5_hca_caps_alloc(struct mlx5_core_dev *dev)
+{
+	struct mlx5_hca_cap *cap;
+	int type;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+		if (!cap)
+			goto err;
+		type = types[i];
+		dev->caps.hca[type] = cap;
+	}
+
+	return 0;
+
+err:
+	mlx5_hca_caps_free(dev);
+	return -ENOMEM;
+}
+
 int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -1410,8 +1464,14 @@ int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	if (err)
 		goto err_adev_init;
 
+	err = mlx5_hca_caps_alloc(dev);
+	if (err)
+		goto err_hca_caps;
+
 	return 0;
 
+err_hca_caps:
+	mlx5_adev_cleanup(dev);
 err_adev_init:
 	mlx5_pagealloc_cleanup(dev);
 err_pagealloc_init:
@@ -1430,6 +1490,7 @@ void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
+	mlx5_hca_caps_free(dev);
 	mlx5_adev_cleanup(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
