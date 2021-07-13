@@ -372,7 +372,7 @@ int ksmbd_conn_transport_init(void)
 
 	ret = ksmbd_rdma_init();
 	if (ret) {
-		pr_err("Failed to init KSMBD subsystem: %d\n", ret);
+		pr_err("Failed to init RDMA subsystem: %d\n", ret);
 		goto out;
 	}
 out:
