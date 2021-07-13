@@ -52,6 +52,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap);
 void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all);
 void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map);
+void dm_ima_measure_on_device_rename(struct mapped_device *md);
 
 #else
 
@@ -60,6 +61,7 @@ static inline void dm_ima_measure_on_table_load(struct dm_table *table, unsigned
 static inline void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap) {}
 static inline void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all) {}
 static inline void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map) {}
+static inline void dm_ima_measure_on_device_rename(struct mapped_device *md) {}
 
 #endif /* CONFIG_IMA */
 

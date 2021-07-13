@@ -655,3 +655,51 @@ error2:
 error1:
 	kfree(device_table_data);
 }
+
+/*
+ * Measure IMA data on device rename.
+ */
+void dm_ima_measure_on_device_rename(struct mapped_device *md)
+{
+	char *old_device_data = NULL, *new_device_data = NULL, *combined_device_data = NULL;
+	char *new_dev_name = NULL, *new_dev_uuid = NULL, *capacity_str = NULL;
+	bool noio = true;
+	int r;
+
+	if (dm_ima_alloc_and_copy_device_data(md, &new_device_data,
+					      md->ima.active_table.num_targets, noio))
+		return;
+
+	if (dm_ima_alloc_and_copy_name_uuid(md, &new_dev_name, &new_dev_uuid, noio))
+		goto error;
+
+	combined_device_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN * 2, GFP_KERNEL, noio);
+	if (!combined_device_data)
+		goto error;
+
+	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (r)
+		goto error;
+
+	old_device_data = md->ima.active_table.device_metadata;
+
+	md->ima.active_table.device_metadata = new_device_data;
+	md->ima.active_table.device_metadata_len = strlen(new_device_data);
+
+	scnprintf(combined_device_data, DM_IMA_DEVICE_BUF_LEN * 2, "%snew_name=%s,new_uuid=%s;%s",
+		  old_device_data, new_dev_name, new_dev_uuid, capacity_str);
+
+	dm_ima_measure_data("device_rename", combined_device_data, strlen(combined_device_data),
+			    noio);
+
+	goto exit;
+
+error:
+	kfree(new_device_data);
+exit:
+	kfree(capacity_str);
+	kfree(combined_device_data);
+	kfree(old_device_data);
+	kfree(new_dev_name);
+	kfree(new_dev_uuid);
+}
