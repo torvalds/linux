@@ -7,6 +7,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pmr735b.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
@@ -272,6 +273,34 @@
 	status = "okay";
 };
 
+&sdhc_1 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_on>;
+	pinctrl-1 = <&sdc1_off>;
+
+	non-removable;
+	no-sd;
+	no-sdio;
+
+	vmmc-supply = <&vreg_l7b_2p9>;
+	vqmmc-supply = <&vreg_l19b_1p8>;
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_on>;
+	pinctrl-1 = <&sdc2_off>;
+
+	vmmc-supply = <&vreg_l9c_2p9>;
+	vqmmc-supply = <&vreg_l6c_2p9>;
+
+	cd-gpios = <&tlmm 91 GPIO_ACTIVE_LOW>;
+};
+
 &uart5 {
 	status = "okay";
 };
@@ -288,6 +317,48 @@
 	rx {
 		pins = "gpio47";
 		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
+&sdc1_on {
+	clk {
+		bias-disable;
+		drive-strength = <16>;
+	};
+
+	cmd {
+		bias-pull-up;
+		drive-strength = <10>;
+	};
+
+	data {
+		bias-pull-up;
+		drive-strength = <10>;
+	};
+
+	rclk {
+		bias-pull-down;
+	};
+};
+
+&sdc2_on {
+	clk {
+		bias-disable;
+		drive-strength = <16>;
+	};
+
+	cmd {
+		bias-pull-up;
+		drive-strength = <10>;
+	};
+
+	data {
+		bias-pull-up;
+		drive-strength = <10>;
+	};
+
+	sd-cd {
 		bias-pull-up;
 	};
 };
