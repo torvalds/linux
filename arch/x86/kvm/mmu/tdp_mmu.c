@@ -1516,6 +1516,8 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 /*
  * Return the level of the lowest level SPTE added to sptes.
  * That SPTE may be non-present.
+ *
+ * Must be called between kvm_tdp_mmu_walk_lockless_{begin,end}.
  */
 int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 			 int *root_level)
@@ -1527,14 +1529,10 @@ int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 
 	*root_level = vcpu->arch.mmu->shadow_root_level;
 
-	rcu_read_lock();
-
 	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
 		leaf = iter.level;
 		sptes[leaf] = iter.old_spte;
 	}
-
-	rcu_read_unlock();
 
 	return leaf;
 }

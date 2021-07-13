@@ -686,28 +686,36 @@ static bool mmu_spte_age(u64 *sptep)
 
 static void walk_shadow_page_lockless_begin(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * Prevent page table teardown by making any free-er wait during
-	 * kvm_flush_remote_tlbs() IPI to all active vcpus.
-	 */
-	local_irq_disable();
+	if (is_tdp_mmu(vcpu->arch.mmu)) {
+		kvm_tdp_mmu_walk_lockless_begin();
+	} else {
+		/*
+		 * Prevent page table teardown by making any free-er wait during
+		 * kvm_flush_remote_tlbs() IPI to all active vcpus.
+		 */
+		local_irq_disable();
 
-	/*
-	 * Make sure a following spte read is not reordered ahead of the write
-	 * to vcpu->mode.
-	 */
-	smp_store_mb(vcpu->mode, READING_SHADOW_PAGE_TABLES);
+		/*
+		 * Make sure a following spte read is not reordered ahead of the write
+		 * to vcpu->mode.
+		 */
+		smp_store_mb(vcpu->mode, READING_SHADOW_PAGE_TABLES);
+	}
 }
 
 static void walk_shadow_page_lockless_end(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * Make sure the write to vcpu->mode is not reordered in front of
-	 * reads to sptes.  If it does, kvm_mmu_commit_zap_page() can see us
-	 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
-	 */
-	smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
-	local_irq_enable();
+	if (is_tdp_mmu(vcpu->arch.mmu)) {
+		kvm_tdp_mmu_walk_lockless_end();
+	} else {
+		/*
+		 * Make sure the write to vcpu->mode is not reordered in front of
+		 * reads to sptes.  If it does, kvm_mmu_commit_zap_page() can see us
+		 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
+		 */
+		smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
+		local_irq_enable();
+	}
 }
 
 static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu, bool maybe_indirect)
@@ -3617,14 +3625,14 @@ static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 /*
  * Return the level of the lowest level SPTE added to sptes.
  * That SPTE may be non-present.
+ *
+ * Must be called between walk_shadow_page_lockless_{begin,end}.
  */
 static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes, int *root_level)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	int leaf = -1;
 	u64 spte;
-
-	walk_shadow_page_lockless_begin(vcpu);
 
 	for (shadow_walk_init(&iterator, vcpu, addr),
 	     *root_level = iterator.level;
@@ -3639,8 +3647,6 @@ static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes, int *root_level
 			break;
 	}
 
-	walk_shadow_page_lockless_end(vcpu);
-
 	return leaf;
 }
 
@@ -3652,10 +3658,14 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	int root, leaf, level;
 	bool reserved = false;
 
+	walk_shadow_page_lockless_begin(vcpu);
+
 	if (is_tdp_mmu(vcpu->arch.mmu))
 		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, &root);
 	else
 		leaf = get_walk(vcpu, addr, sptes, &root);
+
+	walk_shadow_page_lockless_end(vcpu);
 
 	if (unlikely(leaf < 0)) {
 		*sptep = 0ull;
