@@ -137,7 +137,7 @@ static void bch2_inode_pack_v2(struct bkey_inode_buf *packed,
 	nr_fields++;							\
 									\
 	if (inode->_name) {						\
-		ret = bch2_varint_encode(out, inode->_name);		\
+		ret = bch2_varint_encode_fast(out, inode->_name);	\
 		out += ret;						\
 									\
 		if (_bits > 64)						\
@@ -246,13 +246,13 @@ static int bch2_inode_unpack_v2(struct bkey_s_c_inode inode,
 
 #define x(_name, _bits)							\
 	if (fieldnr < INODE_NR_FIELDS(inode.v)) {			\
-		ret = bch2_varint_decode(in, end, &v[0]);		\
+		ret = bch2_varint_decode_fast(in, end, &v[0]);		\
 		if (ret < 0)						\
 			return ret;					\
 		in += ret;						\
 									\
 		if (_bits > 64) {					\
-			ret = bch2_varint_decode(in, end, &v[1]);	\
+			ret = bch2_varint_decode_fast(in, end, &v[1]);	\
 			if (ret < 0)					\
 				return ret;				\
 			in += ret;					\

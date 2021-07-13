@@ -130,7 +130,7 @@ static int bch2_alloc_unpack_v2(struct bkey_alloc_unpacked *out,
 
 #define x(_name, _bits)							\
 	if (fieldnr < a.v->nr_fields) {					\
-		ret = bch2_varint_decode(in, end, &v);			\
+		ret = bch2_varint_decode_fast(in, end, &v);		\
 		if (ret < 0)						\
 			return ret;					\
 		in += ret;						\
@@ -166,7 +166,7 @@ static void bch2_alloc_pack_v2(struct bkey_alloc_buf *dst,
 	nr_fields++;							\
 									\
 	if (src._name) {						\
-		out += bch2_varint_encode(out, src._name);		\
+		out += bch2_varint_encode_fast(out, src._name);		\
 									\
 		last_nonzero_field = out;				\
 		last_nonzero_fieldnr = nr_fields;			\
