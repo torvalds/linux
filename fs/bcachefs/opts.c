@@ -63,7 +63,7 @@ const char * const bch2_member_states[] = {
 
 #undef x
 
-const char * const bch2_d_types[] = {
+const char * const bch2_d_types[DT_MAX] = {
 	[DT_UNKNOWN]	= "unknown",
 	[DT_FIFO]	= "fifo",
 	[DT_CHR]	= "chr",

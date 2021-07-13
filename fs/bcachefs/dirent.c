@@ -112,7 +112,10 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch_scnmemcpy(out, d.v->d_name,
 		      bch2_dirent_name_bytes(d));
-	pr_buf(out, " -> %llu type %s", d.v->d_inum, bch2_d_types[d.v->d_type]);
+	pr_buf(out, " -> %llu type %s", d.v->d_inum,
+	       d.v->d_type < DT_MAX
+	       ? bch2_d_types[d.v->d_type]
+	       : "(bad d_type)");
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
