@@ -298,13 +298,9 @@ static int yellow_carp_mode_reset(struct smu_context *smu, int type)
 	if (index < 0)
 		return index == -EACCES ? 0 : index;
 
-	mutex_lock(&smu->message_lock);
-
-	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
-
-	mutex_unlock(&smu->message_lock);
-
-	mdelay(10);
+	ret = smu_cmn_send_smc_msg_with_param(smu, (uint16_t)index, type, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to mode reset!\n");
 
 	return ret;
 }
