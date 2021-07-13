@@ -1741,7 +1741,7 @@ ccw_device_probe (struct device *dev)
 	return 0;
 }
 
-static int ccw_device_remove(struct device *dev)
+static void ccw_device_remove(struct device *dev)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_driver *cdrv = cdev->drv;
@@ -1775,8 +1775,6 @@ static int ccw_device_remove(struct device *dev)
 	spin_unlock_irq(cdev->ccwlock);
 	io_subchannel_quiesce(sch);
 	__disable_cmf(cdev);
-
-	return 0;
 }
 
 static void ccw_device_shutdown(struct device *dev)

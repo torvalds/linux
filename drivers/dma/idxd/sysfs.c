@@ -260,7 +260,7 @@ static void disable_wq(struct idxd_wq *wq)
 	dev_info(dev, "wq %s disabled\n", dev_name(&wq->conf_dev));
 }
 
-static int idxd_config_bus_remove(struct device *dev)
+static void idxd_config_bus_remove(struct device *dev)
 {
 	int rc;
 
@@ -305,8 +305,6 @@ static int idxd_config_bus_remove(struct device *dev)
 			dev_info(dev, "Device %s disabled\n", dev_name(dev));
 
 	}
-
-	return 0;
 }
 
 static void idxd_config_bus_shutdown(struct device *dev)

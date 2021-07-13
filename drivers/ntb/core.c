@@ -271,7 +271,7 @@ static int ntb_probe(struct device *dev)
 	return rc;
 }
 
-static int ntb_remove(struct device *dev)
+static void ntb_remove(struct device *dev)
 {
 	struct ntb_dev *ntb;
 	struct ntb_client *client;
@@ -283,8 +283,6 @@ static int ntb_remove(struct device *dev)
 		client->ops.remove(client, ntb);
 		put_device(dev);
 	}
-
-	return 0;
 }
 
 static void ntb_dev_release(struct device *dev)

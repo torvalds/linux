@@ -901,7 +901,7 @@ out:
 	return rc;
 }
 
-static int ap_device_remove(struct device *dev)
+static void ap_device_remove(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
@@ -926,8 +926,6 @@ static int ap_device_remove(struct device *dev)
 	ap_dev->drv = NULL;
 
 	put_device(dev);
-
-	return 0;
 }
 
 struct ap_queue *ap_get_qdev(ap_qid_t qid)

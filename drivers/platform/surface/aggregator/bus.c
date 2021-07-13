@@ -316,14 +316,12 @@ static int ssam_bus_probe(struct device *dev)
 		->probe(to_ssam_device(dev));
 }
 
-static int ssam_bus_remove(struct device *dev)
+static void ssam_bus_remove(struct device *dev)
 {
 	struct ssam_device_driver *sdrv = to_ssam_device_driver(dev->driver);
 
 	if (sdrv->remove)
 		sdrv->remove(to_ssam_device(dev));
-
-	return 0;
 }
 
 struct bus_type ssam_bus_type = {
