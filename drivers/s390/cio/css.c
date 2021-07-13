@@ -1374,12 +1374,13 @@ static int css_probe(struct device *dev)
 static int css_remove(struct device *dev)
 {
 	struct subchannel *sch;
-	int ret;
 
 	sch = to_subchannel(dev);
-	ret = sch->driver->remove ? sch->driver->remove(sch) : 0;
+	if (sch->driver->remove)
+		sch->driver->remove(sch);
 	sch->driver = NULL;
-	return ret;
+
+	return 0;
 }
 
 static void css_shutdown(struct device *dev)

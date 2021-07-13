@@ -137,7 +137,7 @@ static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static void io_subchannel_irq(struct subchannel *);
 static int io_subchannel_probe(struct subchannel *);
-static int io_subchannel_remove(struct subchannel *);
+static void io_subchannel_remove(struct subchannel *);
 static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
@@ -1101,7 +1101,7 @@ out_schedule:
 	return 0;
 }
 
-static int io_subchannel_remove(struct subchannel *sch)
+static void io_subchannel_remove(struct subchannel *sch)
 {
 	struct io_subchannel_private *io_priv = to_io_private(sch);
 	struct ccw_device *cdev;
@@ -1120,7 +1120,6 @@ out_free:
 			  io_priv->dma_area, io_priv->dma_area_dma);
 	kfree(io_priv);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
-	return 0;
 }
 
 static void io_subchannel_verify(struct subchannel *sch)
