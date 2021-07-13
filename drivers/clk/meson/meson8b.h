@@ -172,8 +172,9 @@
 #define CLKID_CTS_MCLK_I958_DIV	211
 #define CLKID_VCLK_EN		214
 #define CLKID_VCLK2_EN		215
+#define CLKID_VID_PLL_LVDS_EN	216
 
-#define CLK_NR_CLKS		216
+#define CLK_NR_CLKS		217
 
 /*
  * include the CLKID and RESETID that have
