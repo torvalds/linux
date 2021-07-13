@@ -1264,7 +1264,6 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	kvm_mmu_reset_context(vcpu);
 
 	save->cr4 = X86_CR4_PAE;
-	/* rdx = ?? */
 
 	if (npt_enabled) {
 		/* Setup VMCB for Nested Paging */
@@ -1346,7 +1345,15 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	}
 	init_vmcb(vcpu);
 
-	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, true);
+	/*
+	 * Fall back to KVM's default Family/Model/Stepping if no CPUID match
+	 * is found.  Note, it's impossible to get a match at RESET since KVM
+	 * emulates RESET before exposing the vCPU to userspace, i.e. it's
+	 * impossible for kvm_cpuid() to find a valid entry on RESET.  But, go
+	 * through the motions in case that's ever remedied, and to be pedantic.
+	 */
+	if (!kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, true))
+		eax = get_rdx_init_val();
 	kvm_rdx_write(vcpu, eax);
 
 	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
