@@ -8,6 +8,7 @@
 #include "dm-core.h"
 #include "dm-rq.h"
 #include "dm-uevent.h"
+#include "dm-ima.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -1996,6 +1997,8 @@ int dm_create(int minor, struct mapped_device **result)
 	md = alloc_dev(minor);
 	if (!md)
 		return -ENXIO;
+
+	dm_ima_reset_data(md);
 
 	*result = md;
 	return 0;

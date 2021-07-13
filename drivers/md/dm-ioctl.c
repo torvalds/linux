@@ -6,7 +6,7 @@
  */
 
 #include "dm-core.h"
-
+#include "dm-ima.h"
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
@@ -20,6 +20,7 @@
 #include <linux/compat.h>
 
 #include <linux/uaccess.h>
+#include <linux/ima.h>
 
 #define DM_MSG_PREFIX "ioctl"
 #define DM_DRIVER_EMAIL "dm-devel@redhat.com"
@@ -1224,6 +1225,8 @@ static void retrieve_status(struct dm_table *table,
 
 	if (param->flags & DM_STATUS_TABLE_FLAG)
 		type = STATUSTYPE_TABLE;
+	else if (param->flags & DM_IMA_MEASUREMENT_FLAG)
+		type = STATUSTYPE_IMA;
 	else
 		type = STATUSTYPE_INFO;
 
@@ -1424,6 +1427,8 @@ static int table_load(struct file *filp, struct dm_ioctl *param, size_t param_si
 	r = populate_table(t, param, param_size);
 	if (r)
 		goto err_unlock_md_type;
+
+	dm_ima_measure_on_table_load(t, STATUSTYPE_IMA);
 
 	immutable_target_type = dm_get_immutable_target_type(md);
 	if (immutable_target_type &&

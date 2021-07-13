@@ -31,7 +31,7 @@ enum dm_queue_mode {
 	DM_TYPE_DAX_BIO_BASED	 = 3,
 };
 
-typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
+typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE, STATUSTYPE_IMA } status_type_t;
 
 union map_info {
 	void *ptr;
