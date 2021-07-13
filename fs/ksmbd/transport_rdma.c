@@ -2033,6 +2033,20 @@ int ksmbd_rdma_destroy(void)
 	return 0;
 }
 
+bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+{
+	struct ib_device *ibdev;
+	bool rdma_capable = false;
+
+	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_UNKNOWN);
+	if (ibdev) {
+		if (rdma_frwr_is_supported(&ibdev->attrs))
+			rdma_capable = true;
+		ib_device_put(ibdev);
+	}
+	return rdma_capable;
+}
+
 static struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.prepare	= smb_direct_prepare,
 	.disconnect	= smb_direct_disconnect,
