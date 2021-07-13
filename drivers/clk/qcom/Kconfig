@@ -385,6 +385,14 @@ config SC_GPUCC_7180
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SC_GPUCC_7280
+	tristate "SC7280 Graphics Clock Controller"
+	select SC_GCC_7280
+	help
+	  Support for the graphics clock controller on SC7280 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SC_MSS_7180
 	tristate "SC7180 Modem Clock Controller"
 	select SC_GCC_7180
