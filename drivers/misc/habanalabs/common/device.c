@@ -129,8 +129,8 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
 	if (!hl_hpriv_put(hpriv))
-		dev_warn(hdev->dev,
-			"Device is still in use because there are live CS and/or memory mappings\n");
+		dev_notice(hdev->dev,
+			"User process closed FD but device still in use\n");
 
 	hdev->last_open_session_duration_jif =
 		jiffies - hdev->last_successful_open_jif;
