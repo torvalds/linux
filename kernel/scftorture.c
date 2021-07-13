@@ -553,18 +553,18 @@ static int __init scf_torture_init(void)
 
 	scftorture_print_module_parms("Start of test");
 
-	if (weight_resched == -1 &&
-	    weight_single == -1 && weight_single_rpc == -1 && weight_single_wait == -1 &&
-	    weight_many == -1 && weight_many_wait == -1 &&
-	    weight_all == -1 && weight_all_wait == -1) {
-		weight_resched1 = 2 * nr_cpu_ids;
-		weight_single1 = 2 * nr_cpu_ids;
-		weight_single_rpc1 = 2 * nr_cpu_ids;
-		weight_single_wait1 = 2 * nr_cpu_ids;
-		weight_many1 = 2;
-		weight_many_wait1 = 2;
-		weight_all1 = 1;
-		weight_all_wait1 = 1;
+	if (weight_resched <= 0 &&
+	    weight_single <= 0 && weight_single_rpc <= 0 && weight_single_wait <= 0 &&
+	    weight_many <= 0 && weight_many_wait <= 0 &&
+	    weight_all <= 0 && weight_all_wait <= 0) {
+		weight_resched1 = weight_resched == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single1 = weight_single == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single_rpc1 = weight_single_rpc == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single_wait1 = weight_single_wait == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_many1 = weight_many == 0 ? 0 : 2;
+		weight_many_wait1 = weight_many_wait == 0 ? 0 : 2;
+		weight_all1 = weight_all == 0 ? 0 : 1;
+		weight_all_wait1 = weight_all_wait == 0 ? 0 : 1;
 	} else {
 		if (weight_resched == -1)
 			weight_resched1 = 0;
