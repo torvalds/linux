@@ -652,21 +652,24 @@ static inline int hrtimer_hres_active(void)
 	return __hrtimer_hres_active(this_cpu_ptr(&hrtimer_bases));
 }
 
-/*
- * Reprogram the event source with checking both queues for the
- * next event
- * Called with interrupts disabled and base->lock held
- */
 static void
-hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
+__hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal,
+		    struct hrtimer *next_timer, ktime_t expires_next)
 {
-	ktime_t expires_next;
+	/*
+	 * If the hrtimer interrupt is running, then it will reevaluate the
+	 * clock bases and reprogram the clock event device.
+	 */
+	if (cpu_base->in_hrtirq)
+		return;
 
-	expires_next = hrtimer_update_next_event(cpu_base);
+	if (expires_next > cpu_base->expires_next)
+		return;
 
 	if (skip_equal && expires_next == cpu_base->expires_next)
 		return;
 
+	cpu_base->next_timer = next_timer;
 	cpu_base->expires_next = expires_next;
 
 	/*
@@ -689,7 +692,23 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 	if (!__hrtimer_hres_active(cpu_base) || cpu_base->hang_detected)
 		return;
 
-	tick_program_event(cpu_base->expires_next, 1);
+	tick_program_event(expires_next, 1);
+}
+
+/*
+ * Reprogram the event source with checking both queues for the
+ * next event
+ * Called with interrupts disabled and base->lock held
+ */
+static void
+hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
+{
+	ktime_t expires_next;
+
+	expires_next = hrtimer_update_next_event(cpu_base);
+
+	__hrtimer_reprogram(cpu_base, skip_equal, cpu_base->next_timer,
+			    expires_next);
 }
 
 /* High resolution timer related functions */
@@ -835,40 +854,7 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 	if (base->cpu_base != cpu_base)
 		return;
 
-	/*
-	 * If the hrtimer interrupt is running, then it will
-	 * reevaluate the clock bases and reprogram the clock event
-	 * device. The callbacks are always executed in hard interrupt
-	 * context so we don't need an extra check for a running
-	 * callback.
-	 */
-	if (cpu_base->in_hrtirq)
-		return;
-
-	if (expires >= cpu_base->expires_next)
-		return;
-
-	/* Update the pointer to the next expiring timer */
-	cpu_base->next_timer = timer;
-	cpu_base->expires_next = expires;
-
-	/*
-	 * If hres is not active, hardware does not have to be
-	 * programmed yet.
-	 *
-	 * If a hang was detected in the last timer interrupt then we
-	 * do not schedule a timer which is earlier than the expiry
-	 * which we enforced in the hang detection. We want the system
-	 * to make progress.
-	 */
-	if (!__hrtimer_hres_active(cpu_base) || cpu_base->hang_detected)
-		return;
-
-	/*
-	 * Program the timer hardware. We enforce the expiry for
-	 * events which are already in the past.
-	 */
-	tick_program_event(expires, 1);
+	__hrtimer_reprogram(cpu_base, true, timer, expires);
 }
 
 /*
