@@ -6835,7 +6835,7 @@ skip:
 	rsp->Reserved = 0;
 	inc_rfc1001_len(rsp, 4);
 	ksmbd_fd_put(work, fp);
-	return err;
+	return 0;
 
 out:
 	list_for_each_entry_safe(smb_lock, tmp, &lock_list, llist) {
@@ -6846,15 +6846,16 @@ out:
 
 	list_for_each_entry_safe(smb_lock, tmp, &rollback_list, llist) {
 		struct file_lock *rlock = NULL;
+		int rc;
 
 		rlock = smb_flock_init(filp);
 		rlock->fl_type = F_UNLCK;
 		rlock->fl_start = smb_lock->start;
 		rlock->fl_end = smb_lock->end;
 
-		err = vfs_lock_file(filp, 0, rlock, NULL);
-		if (err)
-			pr_err("rollback unlock fail : %d\n", err);
+		rc = vfs_lock_file(filp, 0, rlock, NULL);
+		if (rc)
+			pr_err("rollback unlock fail : %d\n", rc);
 
 		list_del(&smb_lock->llist);
 		spin_lock(&work->conn->llist_lock);
@@ -6871,7 +6872,7 @@ out2:
 	ksmbd_debug(SMB, "failed in taking lock(flags : %x)\n", flags);
 	smb2_set_err_rsp(work);
 	ksmbd_fd_put(work, fp);
-	return 0;
+	return err;
 }
 
 static int fsctl_copychunk(struct ksmbd_work *work, struct smb2_ioctl_req *req,
