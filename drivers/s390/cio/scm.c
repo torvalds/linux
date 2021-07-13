@@ -33,7 +33,10 @@ static int scmdev_remove(struct device *dev)
 	struct scm_device *scmdev = to_scm_dev(dev);
 	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
 
-	return scmdrv->remove ? scmdrv->remove(scmdev) : -ENODEV;
+	if (scmdrv->remove)
+		scmdrv->remove(scmdev);
+
+	return 0;
 }
 
 static int scmdev_uevent(struct device *dev, struct kobj_uevent_env *env)
