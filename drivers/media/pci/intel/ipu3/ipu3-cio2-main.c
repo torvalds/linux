@@ -823,8 +823,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 {
 	struct cio2_device *cio2 = vb2_get_drv_priv(vb->vb2_queue);
 	struct device *dev = &cio2->pci_dev->dev;
-	struct cio2_buffer *b =
-		container_of(vb, struct cio2_buffer, vbb.vb2_buf);
+	struct cio2_buffer *b = to_cio2_buffer(vb);
 	unsigned int pages = PFN_UP(vb->planes[0].length);
 	unsigned int lops = DIV_ROUND_UP(pages + 1, CIO2_LOP_ENTRIES);
 	struct sg_table *sg;
@@ -881,8 +880,7 @@ static void cio2_vb2_buf_queue(struct vb2_buffer *vb)
 	struct device *dev = &cio2->pci_dev->dev;
 	struct cio2_queue *q =
 		container_of(vb->vb2_queue, struct cio2_queue, vbq);
-	struct cio2_buffer *b =
-		container_of(vb, struct cio2_buffer, vbb.vb2_buf);
+	struct cio2_buffer *b = to_cio2_buffer(vb);
 	struct cio2_fbpt_entry *entry;
 	unsigned long flags;
 	unsigned int i, j, next = q->bufs_next;
@@ -955,8 +953,7 @@ static void cio2_vb2_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct cio2_device *cio2 = vb2_get_drv_priv(vb->vb2_queue);
 	struct device *dev = &cio2->pci_dev->dev;
-	struct cio2_buffer *b =
-		container_of(vb, struct cio2_buffer, vbb.vb2_buf);
+	struct cio2_buffer *b = to_cio2_buffer(vb);
 	unsigned int i;
 
 	/* Free LOP table */

@@ -338,6 +338,8 @@ struct cio2_buffer {
 	unsigned int offset;
 };
 
+#define to_cio2_buffer(vb)	container_of(vb, struct cio2_buffer, vbb.vb2_buf)
+
 struct csi2_bus_info {
 	u32 port;
 	u32 lanes;
