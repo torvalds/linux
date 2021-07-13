@@ -1253,6 +1253,11 @@ static int nv_common_early_init(void *handle)
 		else
 			adev->external_rev_id = adev->rev_id + 0x01;
 		break;
+	case CHIP_CYAN_SKILLFISH:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x82;
+		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
