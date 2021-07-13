@@ -563,3 +563,95 @@ exit:
 	kfree(dev_name);
 	kfree(dev_uuid);
 }
+
+/*
+ * Measure ima data on table clear.
+ */
+void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map)
+{
+	unsigned int l = 0, capacity_len = 0;
+	char *device_table_data = NULL, *dev_name = NULL, *dev_uuid = NULL, *capacity_str = NULL;
+	char inactive_str[] = "inactive_table_hash=";
+	unsigned int inactive_len = strlen(inactive_str);
+	bool noio = true;
+	int r;
+
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, GFP_KERNEL, noio);
+	if (!device_table_data)
+		return;
+
+	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (r)
+		goto error1;
+
+	if (md->ima.inactive_table.device_metadata_len &&
+	    md->ima.inactive_table.hash_len) {
+		memcpy(device_table_data + l, md->ima.inactive_table.device_metadata,
+		       md->ima.inactive_table.device_metadata_len);
+		l += md->ima.inactive_table.device_metadata_len;
+
+		memcpy(device_table_data + l, inactive_str, inactive_len);
+		l += inactive_len;
+
+		memcpy(device_table_data + l, md->ima.inactive_table.hash,
+			   md->ima.inactive_table.hash_len);
+
+		l += md->ima.inactive_table.hash_len;
+
+		memcpy(device_table_data + l, ";", 1);
+		l++;
+	}
+
+	if (!l) {
+		if (dm_ima_alloc_and_copy_name_uuid(md, &dev_name, &dev_uuid, noio))
+			goto error2;
+
+		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
+			  "name=%s,uuid=%s;table_clear=no_data;", dev_name, dev_uuid);
+		l += strlen(device_table_data);
+	}
+
+	capacity_len = strlen(capacity_str);
+	memcpy(device_table_data + l, capacity_str, capacity_len);
+	l += capacity_len;
+
+	dm_ima_measure_data("table_clear", device_table_data, l, noio);
+
+	if (new_map) {
+		if (md->ima.inactive_table.hash &&
+		    md->ima.inactive_table.hash != md->ima.active_table.hash)
+			kfree(md->ima.inactive_table.hash);
+
+		md->ima.inactive_table.hash = NULL;
+		md->ima.inactive_table.hash_len = 0;
+
+		if (md->ima.inactive_table.device_metadata &&
+		    md->ima.inactive_table.device_metadata != md->ima.active_table.device_metadata)
+			kfree(md->ima.inactive_table.device_metadata);
+
+		md->ima.inactive_table.device_metadata = NULL;
+		md->ima.inactive_table.device_metadata_len = 0;
+		md->ima.inactive_table.num_targets = 0;
+
+		if (md->ima.active_table.hash) {
+			md->ima.inactive_table.hash = md->ima.active_table.hash;
+			md->ima.inactive_table.hash_len = md->ima.active_table.hash_len;
+		}
+
+		if (md->ima.active_table.device_metadata) {
+			md->ima.inactive_table.device_metadata =
+				md->ima.active_table.device_metadata;
+			md->ima.inactive_table.device_metadata_len =
+				md->ima.active_table.device_metadata_len;
+			md->ima.inactive_table.num_targets =
+				md->ima.active_table.num_targets;
+		}
+	}
+
+	kfree(dev_name);
+	kfree(dev_uuid);
+error2:
+	kfree(capacity_str);
+error1:
+	kfree(device_table_data);
+}
