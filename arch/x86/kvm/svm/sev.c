@@ -584,6 +584,7 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->xcr0 = svm->vcpu.arch.xcr0;
 	save->pkru = svm->vcpu.arch.pkru;
 	save->xss  = svm->vcpu.arch.ia32_xss;
+	save->dr6  = svm->vcpu.arch.dr6;
 
 	/*
 	 * SEV-ES will use a VMSA that is pointed to by the VMCB, not
