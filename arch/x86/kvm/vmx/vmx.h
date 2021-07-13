@@ -227,7 +227,7 @@ struct nested_vmx {
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	u8                    fail;
-	u8		      msr_bitmap_mode;
+	u8		      x2apic_msr_bitmap_mode;
 
 	/*
 	 * If true, host state has been stored in vmx->loaded_vmcs for
