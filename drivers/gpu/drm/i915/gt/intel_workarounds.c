@@ -517,20 +517,11 @@ static void cfl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	struct drm_i915_private *i915 = engine->i915;
-
 	/* WaDisableBankHangMode:icl */
 	wa_write(wal,
 		 GEN8_L3CNTLREG,
 		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
 		 GEN8_ERRDETBCTRL);
-
-	/* Wa_1604370585:icl (pre-prod)
-	 * Formerly known as WaPushConstantDereferenceHoldDisable
-	 */
-	if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_B0))
-		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
-			     PUSH_CONSTANT_DEREF_DISABLE);
 
 	/* WaForceEnableNonCoherent:icl
 	 * This is not the same workaround as in early Gen9 platforms, where
@@ -540,18 +531,6 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * for coherency if they have a good reason).
 	 */
 	wa_masked_en(wal, ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
-
-	/* Wa_2006611047:icl (pre-prod)
-	 * Formerly known as WaDisableImprovedTdlClkGating
-	 */
-	if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_A0))
-		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
-			     GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
-
-	/* Wa_2006665173:icl (pre-prod) */
-	if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_A0))
-		wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
-			     GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
 
 	/* WaEnableFloatBlendOptimization:icl */
 	wa_write_clr_set(wal,
@@ -1014,18 +993,6 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	wa_write_or(wal,
 		    GEN8_GAMW_ECO_DEV_RW_IA,
 		    GAMW_ECO_DEV_CTX_RELOAD_DISABLE);
-
-	/* Wa_1405779004:icl (pre-prod) */
-	if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_A0))
-		wa_write_or(wal,
-			    SLICE_UNIT_LEVEL_CLKGATE,
-			    MSCUNIT_CLKGATE_DIS);
-
-	/* Wa_1406838659:icl (pre-prod) */
-	if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    INF_UNIT_LEVEL_CLKGATE,
-			    CGPSF_CLKGATE_DIS);
 
 	/* Wa_1406463099:icl
 	 * Formerly known as WaGamTlbPendError
@@ -1685,12 +1652,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    PMFLUSHDONE_LNICRSDROP |
 			    PMFLUSH_GAPL3UNBLOCK |
 			    PMFLUSHDONE_LNEBLK);
-
-		/* Wa_1406609255:icl (pre-prod) */
-		if (IS_ICL_GT_STEP(i915, STEP_A0, STEP_B0))
-			wa_write_or(wal,
-				    GEN7_SARCHKMD,
-				    GEN7_DISABLE_DEMAND_PREFETCH);
 
 		/* Wa_1606682166:icl */
 		wa_write_or(wal,

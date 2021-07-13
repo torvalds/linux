@@ -1454,9 +1454,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_KBL_DISPLAY_STEP(dev_priv, since, until) \
 	(IS_KABYLAKE(dev_priv) && IS_DISPLAY_STEP(dev_priv, since, until))
 
-#define IS_ICL_GT_STEP(p, since, until) \
-	(IS_ICELAKE(p) && IS_GT_STEP(p, since, until))
-
 #define IS_JSL_EHL_GT_STEP(p, since, until) \
 	(IS_JSL_EHL(p) && IS_GT_STEP(p, since, until))
 #define IS_JSL_EHL_DISPLAY_STEP(p, since, until) \
