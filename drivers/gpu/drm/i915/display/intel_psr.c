@@ -545,7 +545,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val |= EDP_PSR2_FRAME_BEFORE_SU(intel_dp->psr.sink_sync_latency + 1);
 	val |= intel_psr2_get_tp_time(intel_dp);
 
-	/* Wa_22012278275:adlp */
+	/* Wa_22012278275:adl-p */
 	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_D1)) {
 		static const u8 map[] = {
 			2, /* 5 lines */
@@ -733,7 +733,7 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
 		return;
 
-	/* Wa_16011303918:adlp */
+	/* Wa_16011303918:adl-p */
 	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
 		return;
 
@@ -965,7 +965,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/* Wa_16011303918:adlp */
+	/* Wa_16011303918:adl-p */
 	if (crtc_state->vrr.enable &&
 	    IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -1160,7 +1160,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
 			     IGNORE_PSR2_HW_TRACKING : 0);
 
-	/* Wa_16011168373:adlp */
+	/* Wa_16011168373:adl-p */
 	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
 	    intel_dp->psr.psr2_enabled)
 		intel_de_rmw(dev_priv,
@@ -1346,7 +1346,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
 
-	/* Wa_16011168373:adlp */
+	/* Wa_16011168373:adl-p */
 	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
 	    intel_dp->psr.psr2_enabled)
 		intel_de_rmw(dev_priv,
