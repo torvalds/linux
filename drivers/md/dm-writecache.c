@@ -1447,31 +1447,52 @@ bio_copy:
 	return WC_MAP_SUBMIT;
 }
 
+static enum wc_map_op writecache_map_flush(struct dm_writecache *wc, struct bio *bio)
+{
+	if (writecache_has_error(wc))
+		return WC_MAP_ERROR;
+
+	if (WC_MODE_PMEM(wc)) {
+		writecache_flush(wc);
+		if (writecache_has_error(wc))
+			return WC_MAP_ERROR;
+		else if (unlikely(wc->cleaner) || unlikely(wc->metadata_only))
+			return WC_MAP_REMAP_ORIGIN;
+		return WC_MAP_SUBMIT;
+	}
+	/* SSD: */
+	if (dm_bio_get_target_bio_nr(bio))
+		return WC_MAP_REMAP_ORIGIN;
+	writecache_offload_bio(wc, bio);
+	return WC_MAP_RETURN;
+}
+
+static enum wc_map_op writecache_map_discard(struct dm_writecache *wc, struct bio *bio)
+{
+	if (writecache_has_error(wc))
+		return WC_MAP_ERROR;
+
+	if (WC_MODE_PMEM(wc)) {
+		writecache_discard(wc, bio->bi_iter.bi_sector, bio_end_sector(bio));
+		return WC_MAP_REMAP_ORIGIN;
+	}
+	/* SSD: */
+	writecache_offload_bio(wc, bio);
+	return WC_MAP_RETURN;
+}
+
 static int writecache_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_writecache *wc = ti->private;
-	enum wc_map_op map_op = WC_MAP_ERROR;
+	enum wc_map_op map_op;
 
 	bio->bi_private = NULL;
 
 	wc_lock(wc);
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
-		if (writecache_has_error(wc))
-			goto unlock_error;
-		if (WC_MODE_PMEM(wc)) {
-			writecache_flush(wc);
-			if (writecache_has_error(wc))
-				goto unlock_error;
-			if (unlikely(wc->cleaner) || unlikely(wc->metadata_only))
-				goto unlock_remap_origin;
-			goto unlock_submit;
-		} else {
-			if (dm_bio_get_target_bio_nr(bio))
-				goto unlock_remap_origin;
-			writecache_offload_bio(wc, bio);
-			goto unlock_return;
-		}
+		map_op = writecache_map_flush(wc, bio);
+		goto done;
 	}
 
 	bio->bi_iter.bi_sector = dm_target_offset(ti, bio->bi_iter.bi_sector);
@@ -1481,29 +1502,22 @@ static int writecache_map(struct dm_target *ti, struct bio *bio)
 		DMERR("I/O is not aligned, sector %llu, size %u, block size %u",
 		      (unsigned long long)bio->bi_iter.bi_sector,
 		      bio->bi_iter.bi_size, wc->block_size);
-		goto unlock_error;
+		map_op = WC_MAP_ERROR;
+		goto done;
 	}
 
 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
-		if (writecache_has_error(wc))
-			goto unlock_error;
-		if (WC_MODE_PMEM(wc)) {
-			writecache_discard(wc, bio->bi_iter.bi_sector, bio_end_sector(bio));
-			goto unlock_remap_origin;
-		} else {
-			writecache_offload_bio(wc, bio);
-			goto unlock_return;
-		}
+		map_op = writecache_map_discard(wc, bio);
+		goto done;
 	}
 
 	if (bio_data_dir(bio) == READ)
 		map_op = writecache_map_read(wc, bio);
 	else
 		map_op = writecache_map_write(wc, bio);
-
+done:
 	switch (map_op) {
 	case WC_MAP_REMAP_ORIGIN:
-unlock_remap_origin:
 		if (likely(wc->pause != 0)) {
 			if (bio_op(bio) == REQ_OP_WRITE) {
 				dm_iot_io_begin(&wc->iot, 1);
@@ -1515,7 +1529,6 @@ unlock_remap_origin:
 		return DM_MAPIO_REMAPPED;
 
 	case WC_MAP_REMAP:
-unlock_remap:
 		/* make sure that writecache_end_io decrements bio_in_progress: */
 		bio->bi_private = (void *)1;
 		atomic_inc(&wc->bio_in_progress[bio_data_dir(bio)]);
@@ -1523,18 +1536,16 @@ unlock_remap:
 		return DM_MAPIO_REMAPPED;
 
 	case WC_MAP_SUBMIT:
-unlock_submit:
 		wc_unlock(wc);
 		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
 
 	case WC_MAP_RETURN:
-unlock_return:
 		wc_unlock(wc);
 		return DM_MAPIO_SUBMITTED;
 
 	case WC_MAP_ERROR:
-unlock_error:
+	default:
 		wc_unlock(wc);
 		bio_io_error(bio);
 		return DM_MAPIO_SUBMITTED;
