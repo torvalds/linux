@@ -91,7 +91,10 @@ static ssize_t configfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	}
 	pr_debug("%s: count = %zd, pos = %lld, buf = %s\n",
 		 __func__, iov_iter_count(to), iocb->ki_pos, buffer->page);
-	retval = copy_to_iter(buffer->page, buffer->count, to);
+	if (iocb->ki_pos >= buffer->count)
+		goto out;
+	retval = copy_to_iter(buffer->page + iocb->ki_pos,
+			      buffer->count - iocb->ki_pos, to);
 	iocb->ki_pos += retval;
 	if (retval == 0)
 		retval = -EFAULT;
@@ -162,7 +165,10 @@ static ssize_t configfs_bin_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		buffer->needs_read_fill = 0;
 	}
 
-	retval = copy_to_iter(buffer->bin_buffer, buffer->bin_buffer_size, to);
+	if (iocb->ki_pos >= buffer->bin_buffer_size)
+		goto out;
+	retval = copy_to_iter(buffer->bin_buffer + iocb->ki_pos,
+			      buffer->bin_buffer_size - iocb->ki_pos, to);
 	iocb->ki_pos += retval;
 	if (retval == 0)
 		retval = -EFAULT;
@@ -171,21 +177,28 @@ out:
 	return retval;
 }
 
-static int fill_write_buffer(struct configfs_buffer *buffer,
+/* Fill [buffer, buffer + pos) with data coming from @from. */
+static int fill_write_buffer(struct configfs_buffer *buffer, loff_t pos,
 			     struct iov_iter *from)
 {
+	loff_t to_copy;
 	int copied;
+	u8 *to;
 
 	if (!buffer->page)
 		buffer->page = (char *)__get_free_pages(GFP_KERNEL, 0);
 	if (!buffer->page)
 		return -ENOMEM;
 
-	copied = copy_from_iter(buffer->page, SIMPLE_ATTR_SIZE - 1, from);
+	to_copy = SIMPLE_ATTR_SIZE - 1 - pos;
+	if (to_copy <= 0)
+		return 0;
+	to = buffer->page + pos;
+	copied = copy_from_iter(to, to_copy, from);
 	buffer->needs_read_fill = 1;
 	/* if buf is assumed to contain a string, terminate it by \0,
 	 * so e.g. sscanf() can scan the string easily */
-	buffer->page[copied] = 0;
+	to[copied] = 0;
 	return copied ? : -EFAULT;
 }
 
@@ -217,7 +230,7 @@ static ssize_t configfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t len;
 
 	mutex_lock(&buffer->mutex);
-	len = fill_write_buffer(buffer, from);
+	len = fill_write_buffer(buffer, iocb->ki_pos, from);
 	if (len > 0)
 		len = flush_write_buffer(file, buffer, len);
 	if (len > 0)
@@ -272,7 +285,9 @@ static ssize_t configfs_bin_write_iter(struct kiocb *iocb,
 		buffer->bin_buffer_size = end_offset;
 	}
 
-	len = copy_from_iter(buffer->bin_buffer, buffer->bin_buffer_size, from);
+	len = copy_from_iter(buffer->bin_buffer + iocb->ki_pos,
+			     buffer->bin_buffer_size - iocb->ki_pos, from);
+	iocb->ki_pos += len;
 out:
 	mutex_unlock(&buffer->mutex);
 	return len ? : -EFAULT;
