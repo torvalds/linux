@@ -10792,6 +10792,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	unsigned long old_cr0 = kvm_read_cr0(vcpu);
+	unsigned long new_cr0;
 	u32 eax, dummy;
 
 	kvm_lapic_reset(vcpu, init_event);
@@ -10878,7 +10879,18 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
 	kvm_rip_write(vcpu, 0xfff0);
 
-	static_call(kvm_x86_set_cr0)(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
+	/*
+	 * CR0.CD/NW are set on RESET, preserved on INIT.  Note, some versions
+	 * of Intel's SDM list CD/NW as being set on INIT, but they contradict
+	 * (or qualify) that with a footnote stating that CD/NW are preserved.
+	 */
+	new_cr0 = X86_CR0_ET;
+	if (init_event)
+		new_cr0 |= (old_cr0 & (X86_CR0_NW | X86_CR0_CD));
+	else
+		new_cr0 |= X86_CR0_NW | X86_CR0_CD;
+
+	static_call(kvm_x86_set_cr0)(vcpu, new_cr0);
 	static_call(kvm_x86_set_cr4)(vcpu, 0);
 	static_call(kvm_x86_set_efer)(vcpu, 0);
 	static_call(kvm_x86_update_exception_bitmap)(vcpu);
