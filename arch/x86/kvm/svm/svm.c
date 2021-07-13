@@ -1249,12 +1249,6 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
-	svm_set_cr0(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
-	svm_set_cr4(vcpu, 0);
-	svm_set_efer(vcpu, 0);
-	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
-	vcpu->arch.regs[VCPU_REGS_RIP] = 0x0000fff0;
-
 	if (npt_enabled) {
 		/* Setup VMCB for Nested Paging */
 		control->nested_ctl |= SVM_NESTED_CTL_NP_ENABLE;

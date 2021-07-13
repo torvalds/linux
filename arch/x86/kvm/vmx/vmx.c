@@ -4455,9 +4455,6 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
 	}
 
-	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
-	kvm_rip_write(vcpu, 0xfff0);
-
 	vmcs_writel(GUEST_GDTR_BASE, 0);
 	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);
 
@@ -4484,12 +4481,6 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	}
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
-
-	vmx_set_cr0(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
-	vmx_set_cr4(vcpu, 0);
-	vmx_set_efer(vcpu, 0);
-
-	vmx_update_exception_bitmap(vcpu);
 
 	vpid_sync_context(vmx->vpid);
 	if (init_event)

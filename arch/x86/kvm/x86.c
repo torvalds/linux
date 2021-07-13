@@ -10875,6 +10875,14 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	static_call(kvm_x86_vcpu_reset)(vcpu, init_event);
 
+	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
+	kvm_rip_write(vcpu, 0xfff0);
+
+	static_call(kvm_x86_set_cr0)(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
+	static_call(kvm_x86_set_cr4)(vcpu, 0);
+	static_call(kvm_x86_set_efer)(vcpu, 0);
+	static_call(kvm_x86_update_exception_bitmap)(vcpu);
+
 	/*
 	 * Reset the MMU context if paging was enabled prior to INIT (which is
 	 * implied if CR0.PG=1 as CR0 will be '0' prior to RESET).  Unlike the
