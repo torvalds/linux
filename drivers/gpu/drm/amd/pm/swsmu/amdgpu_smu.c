@@ -36,6 +36,7 @@
 #include "vangogh_ppt.h"
 #include "aldebaran_ppt.h"
 #include "yellow_carp_ppt.h"
+#include "cyan_skillfish_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -587,6 +588,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_YELLOW_CARP:
 		yellow_carp_set_ppt_funcs(smu);
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		cyan_skillfish_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
