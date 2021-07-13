@@ -85,7 +85,7 @@ struct pci_epf_ops {
  */
 struct pci_epf_driver {
 	int	(*probe)(struct pci_epf *epf);
-	int	(*remove)(struct pci_epf *epf);
+	void	(*remove)(struct pci_epf *epf);
 
 	struct device_driver	driver;
 	struct pci_epf_ops	*ops;
