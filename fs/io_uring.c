@@ -8505,9 +8505,8 @@ static int io_uring_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &ctx->cq_fasync);
 }
 
-static int io_remove_personalities(int id, void *p, void *data)
+static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 {
-	struct io_ring_ctx *ctx = data;
 	struct io_identity *iod;
 
 	iod = idr_remove(&ctx->personality_idr, id);
@@ -8515,7 +8514,17 @@ static int io_remove_personalities(int id, void *p, void *data)
 		put_cred(iod->creds);
 		if (refcount_dec_and_test(&iod->count))
 			kfree(iod);
+		return 0;
 	}
+
+	return -EINVAL;
+}
+
+static int io_remove_personalities(int id, void *p, void *data)
+{
+	struct io_ring_ctx *ctx = data;
+
+	io_unregister_personality(ctx, id);
 	return 0;
 }
 
@@ -9604,21 +9613,6 @@ static int io_register_personality(struct io_ring_ctx *ctx)
 		kfree(id);
 	}
 	return ret;
-}
-
-static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
-{
-	struct io_identity *iod;
-
-	iod = idr_remove(&ctx->personality_idr, id);
-	if (iod) {
-		put_cred(iod->creds);
-		if (refcount_dec_and_test(&iod->count))
-			kfree(iod);
-		return 0;
-	}
-
-	return -EINVAL;
 }
 
 static int io_register_restrictions(struct io_ring_ctx *ctx, void __user *arg,
