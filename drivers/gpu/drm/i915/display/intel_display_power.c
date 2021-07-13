@@ -5822,10 +5822,11 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 			intel_de_write(dev_priv, BW_BUDDY_PAGE_MASK(i),
 				       table[config].page_mask);
 
-			/* Wa_22010178259:tgl,rkl */
-			intel_de_rmw(dev_priv, BW_BUDDY_CTL(i),
-				     BW_BUDDY_TLB_REQ_TIMER_MASK,
-				     BW_BUDDY_TLB_REQ_TIMER(0x8));
+			/* Wa_22010178259:tgl,dg1,rkl,adl-s */
+			if (DISPLAY_VER(dev_priv) == 12)
+				intel_de_rmw(dev_priv, BW_BUDDY_CTL(i),
+					     BW_BUDDY_TLB_REQ_TIMER_MASK,
+					     BW_BUDDY_TLB_REQ_TIMER(0x8));
 		}
 	}
 }
