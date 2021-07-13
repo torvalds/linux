@@ -1810,8 +1810,10 @@ void timekeeping_resume(void)
 
 	touch_softlockup_watchdog();
 
+	/* Resume the clockevent device(s) and hrtimers */
 	tick_resume();
-	hrtimers_resume();
+	/* Notify timerfd as resume is equivalent to clock_was_set() */
+	timerfd_resume();
 }
 
 int timekeeping_suspend(void)

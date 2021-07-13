@@ -354,7 +354,6 @@ extern void timerfd_resume(void);
 static inline void timerfd_clock_was_set(void) { }
 static inline void timerfd_resume(void) { }
 #endif
-extern void hrtimers_resume(void);
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 
