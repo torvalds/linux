@@ -17,6 +17,9 @@ Optional properties:
 			property (above).
 - rockchip,temp-offline-cpus: A string containing cpus which will be killed
 			when temperature is high.
+- rockchip,thermal-governor-dummy: This property allows system monitor to
+			change thermal governor to dummy, and the system
+			monitor will manage cooling devices.
 
 Example:
 

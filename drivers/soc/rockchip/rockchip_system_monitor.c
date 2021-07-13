@@ -1160,12 +1160,20 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 }
 EXPORT_SYMBOL(rockchip_system_monitor_unregister);
 
+static int notify_dummy(struct thermal_zone_device *tz, int trip)
+{
+	return 0;
+}
+
+static struct thermal_governor thermal_gov_dummy = {
+	.name		= "dummy",
+	.throttle	= notify_dummy,
+};
+
 static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 {
 	struct device_node *np = monitor->dev->of_node;
-	struct thermal_governor **governor;
 	const char *tz_name, *buf = NULL;
-	const char *gov_name;
 
 	if (of_property_read_string(np, "rockchip,video-4k-offline-cpus", &buf))
 		cpumask_clear(&system_monitor->video_4k_offline_cpus);
@@ -1195,19 +1203,12 @@ static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 	of_property_read_u32(np, "rockchip,temp-hysteresis",
 			     &system_monitor->temp_hysteresis);
 
-	if (of_property_read_string(np, "rockchip,thermal-governor", &gov_name))
-		goto out;
-	for_each_governor_table(governor) {
-		if (!strncasecmp((*governor)->name, gov_name,
-				 THERMAL_NAME_LENGTH)) {
-			if (monitor->tz->governor->unbind_from_tz)
-				monitor->tz->governor->unbind_from_tz(monitor->tz);
-			if ((*governor)->bind_to_tz)
-				(*governor)->bind_to_tz(monitor->tz);
-			monitor->tz->governor = (*governor);
-			break;
-		}
+	if (of_find_property(np, "rockchip,thermal-governor-dummy", NULL)) {
+		if (monitor->tz->governor->unbind_from_tz)
+			monitor->tz->governor->unbind_from_tz(monitor->tz);
+		monitor->tz->governor = &thermal_gov_dummy;
 	}
+
 out:
 	return 0;
 }
