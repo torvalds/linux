@@ -166,7 +166,14 @@ DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
 extern u64 get_next_timer_interrupt(unsigned long basej, u64 basem);
 void timer_clear_idle(void);
 
-void clock_was_set(void);
+#define CLOCK_SET_WALL							\
+	(BIT(HRTIMER_BASE_REALTIME) | BIT(HRTIMER_BASE_REALTIME_SOFT) |	\
+	 BIT(HRTIMER_BASE_TAI) | BIT(HRTIMER_BASE_TAI_SOFT))
+
+#define CLOCK_SET_BOOT							\
+	(BIT(HRTIMER_BASE_BOOTTIME) | BIT(HRTIMER_BASE_BOOTTIME_SOFT))
+
+void clock_was_set(unsigned int bases);
 void clock_was_set_delayed(void);
 
 void hrtimers_resume_local(void);

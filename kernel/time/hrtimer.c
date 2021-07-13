@@ -880,7 +880,7 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
  * in the tick, which obviously might be stopped, so this has to bring out
  * the remote CPU which might sleep in idle to get this sorted.
  */
-void clock_was_set(void)
+void clock_was_set(unsigned int bases)
 {
 	if (!hrtimer_hres_active() && !tick_nohz_active)
 		goto out_timerfd;
@@ -894,7 +894,7 @@ out_timerfd:
 
 static void clock_was_set_work(struct work_struct *work)
 {
-	clock_was_set();
+	clock_was_set(CLOCK_SET_WALL);
 }
 
 static DECLARE_WORK(hrtimer_work, clock_was_set_work);

@@ -1323,8 +1323,8 @@ out:
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 
-	/* signal hrtimers about time change */
-	clock_was_set();
+	/* Signal hrtimers about time change */
+	clock_was_set(CLOCK_SET_WALL);
 
 	if (!ret)
 		audit_tk_injoffset(ts_delta);
@@ -1371,8 +1371,8 @@ error: /* even if we error out, we forwarded the time, so call update */
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 
-	/* signal hrtimers about time change */
-	clock_was_set();
+	/* Signal hrtimers about time change */
+	clock_was_set(CLOCK_SET_WALL);
 
 	return ret;
 }
@@ -1746,8 +1746,8 @@ void timekeeping_inject_sleeptime64(const struct timespec64 *delta)
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 
-	/* signal hrtimers about time change */
-	clock_was_set();
+	/* Signal hrtimers about time change */
+	clock_was_set(CLOCK_SET_WALL | CLOCK_SET_BOOT);
 }
 #endif
 
@@ -2440,7 +2440,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 		clock_set |= timekeeping_advance(TK_ADV_FREQ);
 
 	if (clock_set)
-		clock_was_set();
+		clock_was_set(CLOCK_REALTIME);
 
 	ntp_notify_cmos_timer();
 
