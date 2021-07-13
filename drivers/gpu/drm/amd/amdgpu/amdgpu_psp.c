@@ -33,6 +33,7 @@
 #include "psp_v3_1.h"
 #include "psp_v10_0.h"
 #include "psp_v11_0.h"
+#include "psp_v11_0_8.h"
 #include "psp_v12_0.h"
 #include "psp_v13_0.h"
 
@@ -120,6 +121,12 @@ static int psp_early_init(void *handle)
 	case CHIP_YELLOW_CARP:
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
+			psp_v11_0_8_set_psp_funcs(psp);
+			psp->autoload_supported = false;
+		}
 		break;
 	default:
 		return -EINVAL;
