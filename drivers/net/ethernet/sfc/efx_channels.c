@@ -170,6 +170,8 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		netif_err(efx, drv, efx->net_dev,
 			  "Insufficient resources for %d XDP event queues (%d other channels, max %d)\n",
 			  n_xdp_ev, n_channels, max_channels);
+		netif_err(efx, drv, efx->net_dev,
+			  "XDP_TX and XDP_REDIRECT will not work on this interface");
 		efx->n_xdp_channels = 0;
 		efx->xdp_tx_per_channel = 0;
 		efx->xdp_tx_queue_count = 0;
@@ -177,6 +179,8 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		netif_err(efx, drv, efx->net_dev,
 			  "Insufficient resources for %d XDP TX queues (%d other channels, max VIs %d)\n",
 			  n_xdp_tx, n_channels, efx->max_vis);
+		netif_err(efx, drv, efx->net_dev,
+			  "XDP_TX and XDP_REDIRECT will not work on this interface");
 		efx->n_xdp_channels = 0;
 		efx->xdp_tx_per_channel = 0;
 		efx->xdp_tx_queue_count = 0;
