@@ -256,6 +256,39 @@ MODULE_FIRMWARE("amdgpu/yellow_carp_mec.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_mec2.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_ce.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_pfp.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_me.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec2.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_rlc.bin");
+
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_ce.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_pfp.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_me.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_mec.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_mec2.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_rlc.bin");
+
+static const struct soc15_reg_golden golden_settings_gc_10_0[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_INDEX, 0xffffffff, 0x00000000),
+	/* TA_GRAD_ADJ_UCONFIG -> TA_GRAD_ADJ */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2544c382),
+	/* VGT_TF_RING_SIZE_UMD -> VGT_TF_RING_SIZE */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2262c24e),
+	/* VGT_HS_OFFCHIP_PARAM_UMD -> VGT_HS_OFFCHIP_PARAM */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x226cc24f),
+	/* VGT_TF_MEMORY_BASE_UMD -> VGT_TF_MEMORY_BASE */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x226ec250),
+	/* VGT_TF_MEMORY_BASE_HI_UMD -> VGT_TF_MEMORY_BASE_HI */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2278c261),
+	/* VGT_ESGS_RING_SIZE_UMD -> VGT_ESGS_RING_SIZE */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2232c240),
+	/* VGT_GSVS_RING_SIZE_UMD -> VGT_GSVS_RING_SIZE */
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2233c241),
+};
+
 static const struct soc15_reg_golden golden_settings_gc_10_1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_4, 0xffffffff, 0x00400014),
@@ -4042,6 +4075,12 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_YELLOW_CARP:
 		chip_name = "yellow_carp";
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
+			chip_name = "cyan_skillfish2";
+		else
+			chip_name = "cyan_skillfish";
 		break;
 	default:
 		BUG();
