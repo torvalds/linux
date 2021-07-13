@@ -1313,15 +1313,15 @@ static int cio2_subdev_link_validate_get_format(struct media_pad *pad,
 
 static int cio2_video_link_validate(struct media_link *link)
 {
-	struct video_device *vd = container_of(link->sink->entity,
-						struct video_device, entity);
+	struct media_entity *entity = link->sink->entity;
+	struct video_device *vd = media_entity_to_video_device(entity);
 	struct cio2_queue *q = container_of(vd, struct cio2_queue, vdev);
 	struct cio2_device *cio2 = video_get_drvdata(vd);
 	struct device *dev = &cio2->pci_dev->dev;
 	struct v4l2_subdev_format source_fmt;
 	int ret;
 
-	if (!media_entity_remote_pad(link->sink->entity->pads)) {
+	if (!media_entity_remote_pad(entity->pads)) {
 		dev_info(dev, "video node %s pad not connected\n", vd->name);
 		return -ENOTCONN;
 	}
