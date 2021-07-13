@@ -5883,8 +5883,8 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	if (resume && intel_dmc_has_payload(dev_priv))
 		intel_dmc_load_program(dev_priv);
 
-	/* Wa_14011508470 */
-	if (DISPLAY_VER(dev_priv) == 12) {
+	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p */
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		val = DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
 		      DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR;
 		intel_uncore_rmw(&dev_priv->uncore, GEN11_CHICKEN_DCPR_2, 0, val);
