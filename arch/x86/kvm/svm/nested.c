@@ -515,7 +515,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * Also covers avic_vapic_bar, avic_backing_page, avic_logical_id,
 	 * avic_physical_id.
 	 */
-	WARN_ON(svm->vmcb01.ptr->control.int_ctl & AVIC_ENABLE_MASK);
+	WARN_ON(kvm_apicv_activated(svm->vcpu.kvm));
 
 	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
 	svm->vmcb->control.nested_ctl = svm->vmcb01.ptr->control.nested_ctl;
