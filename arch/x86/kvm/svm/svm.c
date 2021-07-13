@@ -1261,7 +1261,6 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	 * It also updates the guest-visible cr0 value.
 	 */
 	svm_set_cr0(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
-	kvm_mmu_reset_context(vcpu);
 
 	save->cr4 = X86_CR4_PAE;
 
