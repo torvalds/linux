@@ -729,6 +729,6 @@ int ab8500_bm_of_probe(struct device *dev,
 
 extern struct platform_driver ab8500_fg_driver;
 extern struct platform_driver ab8500_btemp_driver;
-extern struct platform_driver abx500_chargalg_driver;
+extern struct platform_driver ab8500_chargalg_driver;
 
 #endif /* _AB8500_CHARGER_H_ */
