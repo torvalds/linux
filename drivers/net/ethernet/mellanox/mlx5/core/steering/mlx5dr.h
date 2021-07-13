@@ -53,6 +53,9 @@ void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 struct mlx5dr_table *
 mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags);
 
+struct mlx5dr_table *
+mlx5dr_table_get_from_fs_ft(struct mlx5_flow_table *ft);
+
 int mlx5dr_table_destroy(struct mlx5dr_table *table);
 
 u32 mlx5dr_table_get_id(struct mlx5dr_table *table);
