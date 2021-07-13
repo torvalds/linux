@@ -672,6 +672,7 @@ struct vop2_data {
 	uint8_t nr_mixers;
 	uint8_t nr_layers;
 	uint8_t nr_axi_intr;
+	uint8_t nr_gammas;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
 	const struct vop2_win_data *win;

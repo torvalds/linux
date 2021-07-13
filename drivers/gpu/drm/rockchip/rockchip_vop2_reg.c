@@ -1253,6 +1253,7 @@ static const struct vop2_data rk3568_vop = {
 	.version = VOP_VERSION(0x40, 0x15),
 	.nr_vps = 3,
 	.nr_mixers = 5,
+	.nr_gammas = 1,
 	.max_input = { 4096, 2304 },
 	.max_output = { 4096, 2304 },
 	.ctrl = &rk3568_vop_ctrl,
