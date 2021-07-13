@@ -152,6 +152,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 	 * maximum size.
 	 */
 	tx_per_ev = EFX_MAX_EVQ_SIZE / EFX_TXQ_MAX_ENT(efx);
+	tx_per_ev = min(tx_per_ev, EFX_MAX_TXQ_PER_CHANNEL);
 	n_xdp_tx = num_possible_cpus();
 	n_xdp_ev = DIV_ROUND_UP(n_xdp_tx, tx_per_ev);
 
@@ -181,7 +182,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		efx->xdp_tx_queue_count = 0;
 	} else {
 		efx->n_xdp_channels = n_xdp_ev;
-		efx->xdp_tx_per_channel = EFX_MAX_TXQ_PER_CHANNEL;
+		efx->xdp_tx_per_channel = tx_per_ev;
 		efx->xdp_tx_queue_count = n_xdp_tx;
 		n_channels += n_xdp_ev;
 		netif_dbg(efx, drv, efx->net_dev,
