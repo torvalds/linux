@@ -1330,24 +1330,11 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	u32 dummy;
-	u32 eax = 1;
 
 	svm->spec_ctrl = 0;
 	svm->virt_spec_ctrl = 0;
 
 	init_vmcb(vcpu);
-
-	/*
-	 * Fall back to KVM's default Family/Model/Stepping if no CPUID match
-	 * is found.  Note, it's impossible to get a match at RESET since KVM
-	 * emulates RESET before exposing the vCPU to userspace, i.e. it's
-	 * impossible for kvm_cpuid() to find a valid entry on RESET.  But, go
-	 * through the motions in case that's ever remedied, and to be pedantic.
-	 */
-	if (!kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, true))
-		eax = get_rdx_init_val();
-	kvm_rdx_write(vcpu, eax);
 
 	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
 		avic_update_vapic_bar(svm, APIC_DEFAULT_PHYS_BASE);
