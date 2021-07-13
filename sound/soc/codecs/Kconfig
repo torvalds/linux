@@ -1557,6 +1557,7 @@ config SND_SOC_WCD934X
 	  Qualcomm SoCs like SDM845.
 
 config SND_SOC_WCD938X
+	depends on SND_SOC_WCD938X_SDW
 	tristate
 
 config SND_SOC_WCD938X_SDW
