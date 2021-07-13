@@ -89,6 +89,8 @@ static inline void kvm_tdp_mmu_walk_lockless_end(void)
 
 int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 			 int *root_level);
+u64 *kvm_tdp_mmu_fast_pf_get_last_sptep(struct kvm_vcpu *vcpu, u64 addr,
+					u64 *spte);
 
 #ifdef CONFIG_X86_64
 bool kvm_mmu_init_tdp_mmu(struct kvm *kvm);

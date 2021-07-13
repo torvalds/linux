@@ -527,6 +527,10 @@ static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
 	if (is_removed_spte(iter->old_spte))
 		return false;
 
+	/*
+	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
+	 * does not hold the mmu_lock.
+	 */
 	if (cmpxchg64(rcu_dereference(iter->sptep), iter->old_spte,
 		      new_spte) != iter->old_spte)
 		return false;
@@ -1535,4 +1539,41 @@ int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 	}
 
 	return leaf;
+}
+
+/*
+ * Returns the last level spte pointer of the shadow page walk for the given
+ * gpa, and sets *spte to the spte value. This spte may be non-preset. If no
+ * walk could be performed, returns NULL and *spte does not contain valid data.
+ *
+ * Contract:
+ *  - Must be called between kvm_tdp_mmu_walk_lockless_{begin,end}.
+ *  - The returned sptep must not be used after kvm_tdp_mmu_walk_lockless_end.
+ *
+ * WARNING: This function is only intended to be called during fast_page_fault.
+ */
+u64 *kvm_tdp_mmu_fast_pf_get_last_sptep(struct kvm_vcpu *vcpu, u64 addr,
+					u64 *spte)
+{
+	struct tdp_iter iter;
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	gfn_t gfn = addr >> PAGE_SHIFT;
+	tdp_ptep_t sptep = NULL;
+
+	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
+		*spte = iter.old_spte;
+		sptep = iter.sptep;
+	}
+
+	/*
+	 * Perform the rcu_dereference to get the raw spte pointer value since
+	 * we are passing it up to fast_page_fault, which is shared with the
+	 * legacy MMU and thus does not retain the TDP MMU-specific __rcu
+	 * annotation.
+	 *
+	 * This is safe since fast_page_fault obeys the contracts of this
+	 * function as well as all TDP MMU contracts around modifying SPTEs
+	 * outside of mmu_lock.
+	 */
+	return rcu_dereference(sptep);
 }
