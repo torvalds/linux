@@ -2,8 +2,6 @@
 #include <linux/export.h>
 #include <linux/power_supply.h>
 #include <linux/of.h>
-#include <linux/mfd/abx500.h>
-#include <linux/mfd/abx500/ab8500.h>
 
 #include "ab8500-bm.h"
 
