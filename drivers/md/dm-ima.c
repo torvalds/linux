@@ -143,6 +143,26 @@ static void dm_ima_measure_data(const char *event_name, const void *buf, size_t 
 }
 
 /*
+ * Internal function to allocate and copy current device capacity for IMA measurements.
+ */
+static int dm_ima_alloc_and_copy_capacity_str(struct mapped_device *md, char **capacity_str,
+					      bool noio)
+{
+	sector_t capacity;
+
+	capacity = get_capacity(md->disk);
+
+	*capacity_str = dm_ima_alloc(DM_IMA_DEVICE_CAPACITY_BUF_LEN, GFP_KERNEL, noio);
+	if (!(*capacity_str))
+		return -ENOMEM;
+
+	scnprintf(*capacity_str, DM_IMA_DEVICE_BUF_LEN, "current_device_capacity=%llu;",
+		  capacity);
+
+	return 0;
+}
+
+/*
  * Initialize/reset the dm ima related data structure variables.
  */
 void dm_ima_reset_data(struct mapped_device *md)
@@ -327,4 +347,100 @@ exit:
 	kfree(ima_buf);
 	kfree(target_metadata_buf);
 	kfree(target_data_buf);
+}
+
+/*
+ * Measure IMA data on device resume.
+ */
+void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
+{
+	char *device_table_data, *dev_name = NULL, *dev_uuid = NULL, *capacity_str = NULL;
+	char active[] = "active_table_hash=";
+	unsigned int active_len = strlen(active), capacity_len = 0;
+	unsigned int l = 0;
+	bool noio = true;
+	int r;
+
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, GFP_KERNEL, noio);
+	if (!device_table_data)
+		return;
+
+	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (r)
+		goto error;
+
+	if (swap) {
+		if (md->ima.active_table.hash != md->ima.inactive_table.hash)
+			kfree(md->ima.active_table.hash);
+
+		md->ima.active_table.hash = NULL;
+		md->ima.active_table.hash_len = 0;
+
+		if (md->ima.active_table.device_metadata !=
+		    md->ima.inactive_table.device_metadata)
+			kfree(md->ima.active_table.device_metadata);
+
+		md->ima.active_table.device_metadata = NULL;
+		md->ima.active_table.device_metadata_len = 0;
+		md->ima.active_table.num_targets = 0;
+
+		if (md->ima.inactive_table.hash) {
+			md->ima.active_table.hash = md->ima.inactive_table.hash;
+			md->ima.active_table.hash_len = md->ima.inactive_table.hash_len;
+			md->ima.inactive_table.hash = NULL;
+			md->ima.inactive_table.hash_len = 0;
+		}
+
+		if (md->ima.inactive_table.device_metadata) {
+			md->ima.active_table.device_metadata =
+				md->ima.inactive_table.device_metadata;
+			md->ima.active_table.device_metadata_len =
+				md->ima.inactive_table.device_metadata_len;
+			md->ima.active_table.num_targets = md->ima.inactive_table.num_targets;
+			md->ima.inactive_table.device_metadata = NULL;
+			md->ima.inactive_table.device_metadata_len = 0;
+			md->ima.inactive_table.num_targets = 0;
+		}
+	}
+
+	if (md->ima.active_table.device_metadata) {
+		l = md->ima.active_table.device_metadata_len;
+		memcpy(device_table_data, md->ima.active_table.device_metadata, l);
+	}
+
+	if (md->ima.active_table.hash) {
+		memcpy(device_table_data + l, active, active_len);
+		l += active_len;
+
+		memcpy(device_table_data + l, md->ima.active_table.hash,
+		       md->ima.active_table.hash_len);
+		l += md->ima.active_table.hash_len;
+
+		memcpy(device_table_data + l, ";", 1);
+		l++;
+	}
+
+	if (!l) {
+		r = dm_ima_alloc_and_copy_name_uuid(md, &dev_name, &dev_uuid, noio);
+		if (r)
+			goto error;
+
+		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
+			  "name=%s,uuid=%s;device_resume=no_data;",
+			  dev_name, dev_uuid);
+		l += strlen(device_table_data);
+
+	}
+
+	capacity_len = strlen(capacity_str);
+	memcpy(device_table_data + l, capacity_str, capacity_len);
+	l += capacity_len;
+
+	dm_ima_measure_data("device_resume", device_table_data, l, noio);
+
+	kfree(dev_name);
+	kfree(dev_uuid);
+error:
+	kfree(capacity_str);
+	kfree(device_table_data);
 }

@@ -15,6 +15,7 @@
 #define DM_IMA_DEVICE_BUF_LEN		1024
 #define DM_IMA_TARGET_METADATA_BUF_LEN	128
 #define DM_IMA_TARGET_DATA_BUF_LEN	2048
+#define DM_IMA_DEVICE_CAPACITY_BUF_LEN	128
 
 #ifdef CONFIG_IMA
 
@@ -48,11 +49,13 @@ struct dm_ima_measurements {
 
 void dm_ima_reset_data(struct mapped_device *md);
 void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_flags);
+void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap);
 
 #else
 
 static inline void dm_ima_reset_data(struct mapped_device *md) {}
 static inline void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_flags) {}
+static inline void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap) {}
 
 #endif /* CONFIG_IMA */
 
