@@ -255,6 +255,9 @@ static int hst_status(struct path_selector *ps, struct dm_path *path,
 		case STATUSTYPE_TABLE:
 			DMEMIT("0 ");
 			break;
+		case STATUSTYPE_IMA:
+			*result = '\0';
+			break;
 		}
 	}
 

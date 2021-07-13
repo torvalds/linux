@@ -2723,6 +2723,9 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 		if (wc->pause_set)
 			DMEMIT(" pause_writeback %u", wc->pause_value);
 		break;
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 }
 

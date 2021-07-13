@@ -1904,6 +1904,34 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 			}
 		}
 		break;
+
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		list_for_each_entry(pg, &m->priority_groups, list) {
+			if (pg->bypassed)
+				state = 'D';	/* Disabled */
+			else if (pg == m->current_pg)
+				state = 'A';	/* Currently Active */
+			else
+				state = 'E';	/* Enabled */
+			DMEMIT(",pg_state=%c", state);
+			DMEMIT(",nr_pgpaths=%u", pg->nr_pgpaths);
+			DMEMIT(",path_selector_name=%s", pg->ps.type->name);
+
+			list_for_each_entry(p, &pg->pgpaths, list) {
+				DMEMIT(",path_name=%s,is_active=%c,fail_count=%u",
+				       p->path.dev->name, p->is_active ? 'A' : 'F',
+				       p->fail_count);
+				if (pg->ps.type->status) {
+					DMEMIT(",path_selector_status=");
+					sz += pg->ps.type->status(&pg->ps, &p->path,
+								  type, result + sz,
+								  maxlen - sz);
+				}
+			}
+		}
+		DMEMIT(";");
+		break;
 	}
 
 	spin_unlock_irqrestore(&m->lock, flags);
