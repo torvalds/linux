@@ -249,7 +249,7 @@ struct ab8500_chargalg {
 	struct ab8500_chargalg_suspension_status susp_status;
 	struct ab8500 *parent;
 	struct ab8500_chargalg_current_step_status curr_status;
-	struct abx500_bm_data *bm;
+	struct ab8500_bm_data *bm;
 	struct power_supply *chargalg_psy;
 	struct ux500_charger *ac_chg;
 	struct ux500_charger *usb_chg;
