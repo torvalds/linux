@@ -132,4 +132,6 @@ int bch2_dev_allocator_start(struct bch_dev *);
 int bch2_alloc_write(struct bch_fs *, unsigned);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
+void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
+
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */
