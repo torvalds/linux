@@ -912,8 +912,7 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
 			stm32h7_spi_read_rxfifo(spi);
 		if (!spi->cur_usedma ||
-		    (spi->cur_usedma && (spi->cur_comm == SPI_SIMPLEX_TX ||
-		     spi->cur_comm == SPI_3WIRE_TX)))
+		    (spi->cur_comm == SPI_SIMPLEX_TX || spi->cur_comm == SPI_3WIRE_TX))
 			end = true;
 	}
 
