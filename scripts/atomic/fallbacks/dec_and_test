@@ -1,6 +1,6 @@
 cat <<EOF
 /**
- * ${arch}${atomic}_dec_and_test - decrement and test
+ * arch_${atomic}_dec_and_test - decrement and test
  * @v: pointer of type ${atomic}_t
  *
  * Atomically decrements @v by 1 and
@@ -8,8 +8,8 @@ cat <<EOF
  * cases.
  */
 static __always_inline bool
-${arch}${atomic}_dec_and_test(${atomic}_t *v)
+arch_${atomic}_dec_and_test(${atomic}_t *v)
 {
-	return ${arch}${atomic}_dec_return(v) == 0;
+	return arch_${atomic}_dec_return(v) == 0;
 }
 EOF
