@@ -1454,6 +1454,7 @@ again:
 				get_ccwdev_lock(ch->cdev), saveflags);
 		if (rc != 0)
 			ctcm_ccw_check_rc(ch, rc, "normal RX");
+		break;
 	default:
 		break;
 	}
