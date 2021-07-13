@@ -1275,7 +1275,8 @@ static void ab8500_chargalg_external_power_changed(struct power_supply *psy)
 	 * Trigger execution of the algorithm instantly and read
 	 * all power_supply properties there instead
 	 */
-	queue_work(di->chargalg_wq, &di->chargalg_work);
+	if (di->chargalg_wq)
+		queue_work(di->chargalg_wq, &di->chargalg_work);
 }
 
 /**
@@ -1949,7 +1950,7 @@ static char *supply_interface[] = {
 };
 
 static const struct power_supply_desc ab8500_chargalg_desc = {
-	.name			= "abx500_chargalg",
+	.name			= "ab8500_chargalg",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= ab8500_chargalg_props,
 	.num_properties		= ARRAY_SIZE(ab8500_chargalg_props),
