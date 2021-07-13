@@ -107,6 +107,7 @@ int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
 
 	return 0;
 }
+EXPORT_SYMBOL(rockchip_pll_clk_adaptive_scaling);
 
 int rockchip_pll_clk_rate_to_scale(struct clk *clk, unsigned long rate)
 {
@@ -130,6 +131,7 @@ int rockchip_pll_clk_rate_to_scale(struct clk *clk, unsigned long rate)
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL(rockchip_pll_clk_rate_to_scale);
 
 int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale)
 {
@@ -153,6 +155,7 @@ int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale)
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL(rockchip_pll_clk_scale_to_rate);
 
 static struct rockchip_pll_rate_table *rk_pll_rate_table_get(void)
 {
