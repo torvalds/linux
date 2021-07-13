@@ -10872,6 +10872,18 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	 */
 	if (old_cr0 & X86_CR0_PG)
 		kvm_mmu_reset_context(vcpu);
+
+	/*
+	 * Intel's SDM states that all TLB entries are flushed on INIT.  AMD's
+	 * APM states the TLBs are untouched by INIT, but it also states that
+	 * the TLBs are flushed on "External initialization of the processor."
+	 * Flush the guest TLB regardless of vendor, there is no meaningful
+	 * benefit in relying on the guest to flush the TLB immediately after
+	 * INIT.  A spurious TLB flush is benign and likely negligible from a
+	 * performance perspective.
+	 */
+	if (init_event)
+		kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
 }
 
 void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
