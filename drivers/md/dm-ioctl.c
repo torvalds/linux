@@ -348,6 +348,7 @@ retry:
 			dm_sync_table(md);
 			dm_table_destroy(t);
 		}
+		dm_ima_measure_on_device_remove(md, true);
 		dm_put(md);
 		if (likely(keep_open_devices))
 			dm_destroy(md);
@@ -981,6 +982,8 @@ static int dev_remove(struct file *filp, struct dm_ioctl *param, size_t param_si
 	}
 
 	param->flags &= ~DM_DEFERRED_REMOVE;
+
+	dm_ima_measure_on_device_remove(md, false);
 
 	if (!dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr))
 		param->flags |= DM_UEVENT_GENERATED_FLAG;

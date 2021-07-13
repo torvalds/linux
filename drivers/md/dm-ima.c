@@ -444,3 +444,122 @@ error:
 	kfree(capacity_str);
 	kfree(device_table_data);
 }
+
+/*
+ * Measure IMA data on remove.
+ */
+void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all)
+{
+	char *device_table_data, *dev_name = NULL, *dev_uuid = NULL, *capacity_str = NULL;
+	char active_table_str[] = "active_table_hash=";
+	char inactive_table_str[] = "inactive_table_hash=";
+	char device_active_str[] = "device_active_metadata=";
+	char device_inactive_str[] = "device_inactive_metadata=";
+	char remove_all_str[] = "remove_all=";
+	unsigned int active_table_len = strlen(active_table_str);
+	unsigned int inactive_table_len = strlen(inactive_table_str);
+	unsigned int device_active_len = strlen(device_active_str);
+	unsigned int device_inactive_len = strlen(device_inactive_str);
+	unsigned int remove_all_len = strlen(remove_all_str);
+	unsigned int capacity_len = 0;
+	unsigned int l = 0;
+	bool noio = true;
+	int r;
+
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN*2, GFP_KERNEL, noio);
+	if (!device_table_data)
+		goto exit;
+
+	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (r) {
+		kfree(device_table_data);
+		goto exit;
+	}
+
+	if (md->ima.active_table.device_metadata) {
+		memcpy(device_table_data + l, device_active_str, device_active_len);
+		l += device_active_len;
+
+		memcpy(device_table_data + l, md->ima.active_table.device_metadata,
+		       md->ima.active_table.device_metadata_len);
+		l += md->ima.active_table.device_metadata_len;
+	}
+
+	if (md->ima.inactive_table.device_metadata) {
+		memcpy(device_table_data + l, device_inactive_str, device_inactive_len);
+		l += device_inactive_len;
+
+		memcpy(device_table_data + l, md->ima.inactive_table.device_metadata,
+		       md->ima.inactive_table.device_metadata_len);
+		l += md->ima.inactive_table.device_metadata_len;
+	}
+
+	if (md->ima.active_table.hash) {
+		memcpy(device_table_data + l, active_table_str, active_table_len);
+		l += active_table_len;
+
+		memcpy(device_table_data + l, md->ima.active_table.hash,
+			   md->ima.active_table.hash_len);
+		l += md->ima.active_table.hash_len;
+
+		memcpy(device_table_data + l, ",", 1);
+		l++;
+	}
+
+	if (md->ima.inactive_table.hash) {
+		memcpy(device_table_data + l, inactive_table_str, inactive_table_len);
+		l += inactive_table_len;
+
+		memcpy(device_table_data + l, md->ima.inactive_table.hash,
+		       md->ima.inactive_table.hash_len);
+		l += md->ima.inactive_table.hash_len;
+
+		memcpy(device_table_data + l, ",", 1);
+		l++;
+	}
+	/*
+	 * In case both active and inactive tables, and corresponding
+	 * device metadata is cleared/missing - record the name and uuid
+	 * in IMA measurements.
+	 */
+	if (!l) {
+		if (dm_ima_alloc_and_copy_name_uuid(md, &dev_name, &dev_uuid, noio))
+			goto error;
+
+		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
+			  "name=%s,uuid=%s;device_remove=no_data;",
+			  dev_name, dev_uuid);
+		l += strlen(device_table_data);
+	}
+
+	memcpy(device_table_data + l, remove_all_str, remove_all_len);
+	l += remove_all_len;
+	memcpy(device_table_data + l, remove_all ? "y;" : "n;", 2);
+	l += 2;
+
+	capacity_len = strlen(capacity_str);
+	memcpy(device_table_data + l, capacity_str, capacity_len);
+	l += capacity_len;
+
+	dm_ima_measure_data("device_remove", device_table_data, l, noio);
+
+error:
+	kfree(device_table_data);
+	kfree(capacity_str);
+exit:
+	kfree(md->ima.active_table.device_metadata);
+
+	if (md->ima.active_table.device_metadata !=
+	    md->ima.inactive_table.device_metadata)
+		kfree(md->ima.inactive_table.device_metadata);
+
+	kfree(md->ima.active_table.hash);
+
+	if (md->ima.active_table.hash != md->ima.inactive_table.hash)
+		kfree(md->ima.inactive_table.hash);
+
+	dm_ima_reset_data(md);
+
+	kfree(dev_name);
+	kfree(dev_uuid);
+}
