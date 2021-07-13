@@ -882,11 +882,42 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
  */
 void clock_was_set(unsigned int bases)
 {
+	cpumask_var_t mask;
+	int cpu;
+
 	if (!hrtimer_hres_active() && !tick_nohz_active)
 		goto out_timerfd;
 
-	/* Retrigger the CPU local events everywhere */
-	on_each_cpu(retrigger_next_event, NULL, 1);
+	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
+		on_each_cpu(retrigger_next_event, NULL, 1);
+		goto out_timerfd;
+	}
+
+	/* Avoid interrupting CPUs if possible */
+	cpus_read_lock();
+	for_each_online_cpu(cpu) {
+		struct hrtimer_cpu_base *cpu_base = &per_cpu(hrtimer_bases, cpu);
+		unsigned long flags;
+
+		raw_spin_lock_irqsave(&cpu_base->lock, flags);
+		/*
+		 * Only send the IPI when there are timers queued in one of
+		 * the affected clock bases. Otherwise update the base
+		 * remote to ensure that the next enqueue of a timer on
+		 * such a clock base will see the correct offsets.
+		 */
+		if (cpu_base->active_bases & bases)
+			cpumask_set_cpu(cpu, mask);
+		else
+			hrtimer_update_base(cpu_base);
+		raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
+	}
+
+	preempt_disable();
+	smp_call_function_many(mask, retrigger_next_event, NULL, 1);
+	preempt_enable();
+	cpus_read_unlock();
+	free_cpumask_var(mask);
 
 out_timerfd:
 	timerfd_clock_was_set();
