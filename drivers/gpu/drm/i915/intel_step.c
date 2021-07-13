@@ -7,14 +7,31 @@
 #include "intel_step.h"
 
 /*
- * KBL revision ID ordering is bizarre; higher revision ID's map to lower
- * steppings in some cases.  So rather than test against the revision ID
- * directly, let's map that into our own range of increasing ID's that we
- * can test against in a regular manner.
+ * Some platforms have unusual ways of mapping PCI revision ID to GT/display
+ * steppings.  E.g., in some cases a higher PCI revision may translate to a
+ * lower stepping of the GT and/or display IP.  This file provides lookup
+ * tables to map the PCI revision into a standard set of stepping values that
+ * can be compared numerically.
+ *
+ * Also note that some revisions/steppings may have been set aside as
+ * placeholders but never materialized in real hardware; in those cases there
+ * may be jumps in the revision IDs or stepping values in the tables below.
  */
 
+/*
+ * Some platforms always have the same stepping value for GT and display;
+ * use a macro to define these to make it easier to identify the platforms
+ * where the two steppings can deviate.
+ */
+#define COMMON_STEP(x)  .gt_step = STEP_##x, .display_step = STEP_##x
 
-/* FIXME: what about REVID_E0 */
+static const struct intel_step_info skl_revids[] = {
+	[0x6] = { COMMON_STEP(G0) },
+	[0x7] = { COMMON_STEP(H0) },
+	[0x9] = { COMMON_STEP(J0) },
+	[0xA] = { COMMON_STEP(I1) },
+};
+
 static const struct intel_step_info kbl_revids[] = {
 	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[1] = { .gt_step = STEP_B0, .display_step = STEP_B0 },
@@ -76,6 +93,9 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_KABYLAKE(i915)) {
 		revids = kbl_revids;
 		size = ARRAY_SIZE(kbl_revids);
+	} else if (IS_SKYLAKE(i915)) {
+		revids = skl_revids;
+		size = ARRAY_SIZE(skl_revids);
 	}
 
 	/* Not using the stepping scheme for the platform yet. */
