@@ -78,7 +78,7 @@
 })
 
 #include <linux/atomic/atomic-arch-fallback.h>
-#include <linux/atomic/atomic-instrumented.h>
 #include <linux/atomic/atomic-long.h>
+#include <linux/atomic/atomic-instrumented.h>
 
 #endif /* _LINUX_ATOMIC_H */
