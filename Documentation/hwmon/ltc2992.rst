@@ -19,7 +19,7 @@ This driver supports hardware monitoring for Linear Technology LTC2992 power mon
 LTC2992 is a rail-to-rail system monitor that measures current,
 voltage, and power of two supplies.
 
-Two ADCs simultaneously measure each supply’s current. A third ADC monitors
+Two ADCs simultaneously measure each supply's current. A third ADC monitors
 the input voltages and four auxiliary external voltages.
 
 

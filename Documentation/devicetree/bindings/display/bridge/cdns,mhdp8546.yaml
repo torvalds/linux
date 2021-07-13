@@ -18,7 +18,6 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 3
     items:
       - description:
           Register block of mhdptx apb registers up to PHY mapped area (AUX_CONFIG_P).
@@ -31,7 +30,6 @@ properties:
 
   reg-names:
     minItems: 1
-    maxItems: 3
     items:
       - const: mhdptx
       - const: j721e-intg

@@ -56,10 +56,8 @@ static void x25_connect_disconnect(struct net_device *dev, int reason, int code)
 	unsigned char *ptr;
 
 	skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
-	if (!skb) {
-		netdev_err(dev, "out of memory\n");
+	if (!skb)
 		return;
-	}
 
 	ptr = skb_put(skb, 1);
 	*ptr = code;
@@ -70,21 +68,15 @@ static void x25_connect_disconnect(struct net_device *dev, int reason, int code)
 	tasklet_schedule(&x25st->rx_tasklet);
 }
 
-
-
 static void x25_connected(struct net_device *dev, int reason)
 {
 	x25_connect_disconnect(dev, reason, X25_IFACE_CONNECT);
 }
 
-
-
 static void x25_disconnected(struct net_device *dev, int reason)
 {
 	x25_connect_disconnect(dev, reason, X25_IFACE_DISCONNECT);
 }
-
-
 
 static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 {
@@ -108,8 +100,6 @@ static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-
-
 static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -122,8 +112,6 @@ static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 
 	hdlc->xmit(skb, dev); /* Ignore return value :-( */
 }
-
-
 
 static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -149,13 +137,15 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:	/* Data to be transmitted */
 		skb_pull(skb, 1);
-		if ((result = lapb_data_request(dev, skb)) != LAPB_OK)
+		result = lapb_data_request(dev, skb);
+		if (result != LAPB_OK)
 			dev_kfree_skb(skb);
 		spin_unlock_bh(&x25st->up_lock);
 		return NETDEV_TX_OK;
 
 	case X25_IFACE_CONNECT:
-		if ((result = lapb_connect_request(dev))!= LAPB_OK) {
+		result = lapb_connect_request(dev);
+		if (result != LAPB_OK) {
 			if (result == LAPB_CONNECTED)
 				/* Send connect confirm. msg to level 3 */
 				x25_connected(dev, 0);
@@ -166,7 +156,8 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 
 	case X25_IFACE_DISCONNECT:
-		if ((result = lapb_disconnect_request(dev)) != LAPB_OK) {
+		result = lapb_disconnect_request(dev);
+		if (result != LAPB_OK) {
 			if (result == LAPB_NOTCONNECTED)
 				/* Send disconnect confirm. msg to level 3 */
 				x25_disconnected(dev, 0);
@@ -184,8 +175,6 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
-
-
 
 static int x25_open(struct net_device *dev)
 {
@@ -232,8 +221,6 @@ static int x25_open(struct net_device *dev)
 	return 0;
 }
 
-
-
 static void x25_close(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -247,15 +234,14 @@ static void x25_close(struct net_device *dev)
 	tasklet_kill(&x25st->rx_tasklet);
 }
 
-
-
 static int x25_rx(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct x25_state *x25st = state(hdlc);
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb) {
 		dev->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
@@ -279,7 +265,6 @@ static int x25_rx(struct sk_buff *skb)
 	return NET_RX_DROP;
 }
 
-
 static struct hdlc_proto proto = {
 	.open		= x25_open,
 	.close		= x25_close,
@@ -288,7 +273,6 @@ static struct hdlc_proto proto = {
 	.xmit		= x25_xmit,
 	.module		= THIS_MODULE,
 };
-
 
 static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
@@ -326,35 +310,36 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 			new_settings.t1 = 3;
 			new_settings.t2 = 1;
 			new_settings.n2 = 10;
-		}
-		else {
+		} else {
 			if (copy_from_user(&new_settings, x25_s, size))
 				return -EFAULT;
 
 			if ((new_settings.dce != 0 &&
-			new_settings.dce != 1) ||
-			(new_settings.modulo != 8 &&
-			new_settings.modulo != 128) ||
-			new_settings.window < 1 ||
-			(new_settings.modulo == 8 &&
-			new_settings.window > 7) ||
-			(new_settings.modulo == 128 &&
-			new_settings.window > 127) ||
-			new_settings.t1 < 1 ||
-			new_settings.t1 > 255 ||
-			new_settings.t2 < 1 ||
-			new_settings.t2 > 255 ||
-			new_settings.n2 < 1 ||
-			new_settings.n2 > 255)
+			     new_settings.dce != 1) ||
+			    (new_settings.modulo != 8 &&
+			     new_settings.modulo != 128) ||
+			    new_settings.window < 1 ||
+			    (new_settings.modulo == 8 &&
+			     new_settings.window > 7) ||
+			    (new_settings.modulo == 128 &&
+			     new_settings.window > 127) ||
+			    new_settings.t1 < 1 ||
+			    new_settings.t1 > 255 ||
+			    new_settings.t2 < 1 ||
+			    new_settings.t2 > 255 ||
+			    new_settings.n2 < 1 ||
+			    new_settings.n2 > 255)
 				return -EINVAL;
 		}
 
-		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
-		if ((result = attach_hdlc_protocol(dev, &proto,
-						   sizeof(struct x25_state))))
+		result = attach_hdlc_protocol(dev, &proto,
+					      sizeof(struct x25_state));
+		if (result)
 			return result;
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
@@ -380,20 +365,16 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
 static int __init mod_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
-
 static void __exit mod_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
-
 
 module_init(mod_init);
 module_exit(mod_exit);

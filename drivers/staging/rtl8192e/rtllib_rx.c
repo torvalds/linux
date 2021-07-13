@@ -2285,8 +2285,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 		length -= sizeof(*info_element) + info_element->len;
 		info_element =
-		    (struct rtllib_info_element *)&info_element->
-		    data[info_element->len];
+		    (struct rtllib_info_element *)&info_element->data[info_element->len];
 	}
 
 	if (!network->atheros_cap_exist && !network->broadcom_cap_exist &&

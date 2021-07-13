@@ -123,11 +123,8 @@ static bool npc_is_field_present(struct rvu *rvu, enum key_fields type, u8 intf)
 static bool npc_is_same(struct npc_key_field *input,
 			struct npc_key_field *field)
 {
-	int ret;
-
-	ret = memcmp(&input->layer_mdata, &field->layer_mdata,
-		     sizeof(struct npc_layer_mdata));
-	return ret == 0;
+	return memcmp(&input->layer_mdata, &field->layer_mdata,
+		     sizeof(struct npc_layer_mdata)) == 0;
 }
 
 static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
@@ -1103,10 +1100,17 @@ find_rule:
 	if (pf_set_vfs_mac) {
 		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
 		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
+		set_bit(PF_SET_VF_MAC, &pfvf->flags);
 	}
 
-	if (pfvf->pf_set_vf_cfg && req->vtag0_type == NIX_AF_LFX_RX_VTAG_TYPE7)
+	if (test_bit(PF_SET_VF_CFG, &pfvf->flags) &&
+	    req->vtag0_type == NIX_AF_LFX_RX_VTAG_TYPE7)
 		rule->vfvlan_cfg = true;
+
+	if (is_npc_intf_rx(req->intf) && req->match_id &&
+	    (req->op == NIX_RX_ACTIONOP_UCAST || req->op == NIX_RX_ACTIONOP_RSS))
+		return rvu_nix_setup_ratelimit_aggr(rvu, req->hdr.pcifunc,
+					     req->index, req->match_id);
 
 	return 0;
 }
@@ -1167,7 +1171,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 
 	/* PF installing for its VF */
 	if (req->hdr.pcifunc && !from_vf && req->vf)
-		pfvf->pf_set_vf_cfg = 1;
+		set_bit(PF_SET_VF_CFG, &pfvf->flags);
 
 	/* update req destination mac addr */
 	if ((req->features & BIT_ULL(NPC_DMAC)) && is_npc_intf_rx(req->intf) &&
@@ -1177,9 +1181,12 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	}
 
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
+	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
+		return -EINVAL;
 
-	/* If interface is uninitialized then do not enable entry */
-	if (err || (!req->default_rule && !pfvf->def_ucast_rule))
+	/* don't enable rule when nixlf not attached or initialized */
+	if (!(is_nixlf_attached(rvu, target) &&
+	      test_bit(NIXLF_INITIALIZED, &pfvf->flags)))
 		enable = false;
 
 	/* Packets reaching NPC in Tx path implies that a
@@ -1192,6 +1199,14 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	/* Do not allow requests from uninitialized VFs */
 	if (from_vf && !enable)
 		return -EINVAL;
+
+	/* PF sets VF mac & VF NIXLF is not attached, update the mac addr */
+	if (pf_set_vfs_mac && !enable) {
+		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
+		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
+		set_bit(PF_SET_VF_MAC, &pfvf->flags);
+		return 0;
+	}
 
 	/* If message is from VF then its flow should not overlap with
 	 * reserved unicast flow.

@@ -148,7 +148,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * fsl_mc_msi_create_irq_domain - Create a fsl-mc MSI interrupt domain
- * @np:		Optional device-tree node of the interrupt controller
+ * @fwnode:	Optional firmware node of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *

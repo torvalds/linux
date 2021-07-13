@@ -101,12 +101,10 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
 
 	if (port[dev] != SNDRV_AUTO_PORT) {
-		if ((err = snd_sbdsp_create(card, port[dev], irq[dev],
-					    snd_sb8_interrupt,
-					    dma8[dev],
-					    -1,
-					    SB_HW_AUTO,
-					    &chip)) < 0)
+		err = snd_sbdsp_create(card, port[dev], irq[dev],
+				       snd_sb8_interrupt, dma8[dev],
+				       -1, SB_HW_AUTO, &chip);
+		if (err < 0)
 			goto _err;
 	} else {
 		/* auto-probe legacy ports */
@@ -145,32 +143,35 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 	}
 
-	if ((err = snd_sb8dsp_pcm(chip, 0)) < 0)
+	err = snd_sb8dsp_pcm(chip, 0);
+	if (err < 0)
 		goto _err;
 
-	if ((err = snd_sbmixer_new(chip)) < 0)
+	err = snd_sbmixer_new(chip);
+	if (err < 0)
 		goto _err;
 
 	if (chip->hardware == SB_HW_10 || chip->hardware == SB_HW_20) {
-		if ((err = snd_opl3_create(card, chip->port + 8, 0,
-					   OPL3_HW_AUTO, 1,
-					   &opl3)) < 0) {
+		err = snd_opl3_create(card, chip->port + 8, 0,
+				      OPL3_HW_AUTO, 1, &opl3);
+		if (err < 0)
 			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
-		}
 	} else {
-		if ((err = snd_opl3_create(card, chip->port, chip->port + 2,
-					   OPL3_HW_AUTO, 1,
-					   &opl3)) < 0) {
+		err = snd_opl3_create(card, chip->port, chip->port + 2,
+				      OPL3_HW_AUTO, 1, &opl3);
+		if (err < 0) {
 			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}
 	if (err >= 0) {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+		if (err < 0)
 			goto _err;
 	}
 
-	if ((err = snd_sb8dsp_midi(chip, 0)) < 0)
+	err = snd_sb8dsp_midi(chip, 0);
+	if (err < 0)
 		goto _err;
 
 	strcpy(card->driver, chip->hardware == SB_HW_PRO ? "SB Pro" : "SB8");
@@ -180,7 +181,8 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		chip->port,
 		irq[dev], dma8[dev]);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		goto _err;
 
 	dev_set_drvdata(pdev, card);

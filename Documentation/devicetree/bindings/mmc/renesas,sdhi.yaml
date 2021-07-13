@@ -75,7 +75,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: core
       - const: cd
@@ -107,7 +106,6 @@ properties:
 
   pinctrl-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: default
       - const: state_uhs

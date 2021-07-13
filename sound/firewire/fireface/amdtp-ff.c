@@ -168,6 +168,6 @@ int amdtp_ff_init(struct amdtp_stream *s, struct fw_unit *unit,
 	else
 		process_ctx_payloads = process_it_ctx_payloads;
 
-	return amdtp_stream_init(s, unit, dir, CIP_NO_HEADER, 0,
+	return amdtp_stream_init(s, unit, dir, CIP_BLOCKING | CIP_UNAWARE_SYT | CIP_NO_HEADER, 0,
 				 process_ctx_payloads, sizeof(struct amdtp_ff));
 }

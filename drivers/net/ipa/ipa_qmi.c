@@ -298,32 +298,32 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 	req.platform_type_valid = 1;
 	req.platform_type = IPA_QMI_PLATFORM_TYPE_MSM_ANDROID;
 
-	mem = &ipa->mem[IPA_MEM_MODEM_HEADER];
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_HEADER);
 	if (mem->size) {
 		req.hdr_tbl_info_valid = 1;
 		req.hdr_tbl_info.start = ipa->mem_offset + mem->offset;
 		req.hdr_tbl_info.end = req.hdr_tbl_info.start + mem->size - 1;
 	}
 
-	mem = &ipa->mem[IPA_MEM_V4_ROUTE];
+	mem = ipa_mem_find(ipa, IPA_MEM_V4_ROUTE);
 	req.v4_route_tbl_info_valid = 1;
 	req.v4_route_tbl_info.start = ipa->mem_offset + mem->offset;
 	req.v4_route_tbl_info.count = mem->size / sizeof(__le64);
 
-	mem = &ipa->mem[IPA_MEM_V6_ROUTE];
+	mem = ipa_mem_find(ipa, IPA_MEM_V6_ROUTE);
 	req.v6_route_tbl_info_valid = 1;
 	req.v6_route_tbl_info.start = ipa->mem_offset + mem->offset;
 	req.v6_route_tbl_info.count = mem->size / sizeof(__le64);
 
-	mem = &ipa->mem[IPA_MEM_V4_FILTER];
+	mem = ipa_mem_find(ipa, IPA_MEM_V4_FILTER);
 	req.v4_filter_tbl_start_valid = 1;
 	req.v4_filter_tbl_start = ipa->mem_offset + mem->offset;
 
-	mem = &ipa->mem[IPA_MEM_V6_FILTER];
+	mem = ipa_mem_find(ipa, IPA_MEM_V6_FILTER);
 	req.v6_filter_tbl_start_valid = 1;
 	req.v6_filter_tbl_start = ipa->mem_offset + mem->offset;
 
-	mem = &ipa->mem[IPA_MEM_MODEM];
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM);
 	if (mem->size) {
 		req.modem_mem_info_valid = 1;
 		req.modem_mem_info.start = ipa->mem_offset + mem->offset;
@@ -336,7 +336,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 
 	/* skip_uc_load_valid and skip_uc_load are set above */
 
-	mem = &ipa->mem[IPA_MEM_MODEM_PROC_CTX];
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_PROC_CTX);
 	if (mem->size) {
 		req.hdr_proc_ctx_tbl_info_valid = 1;
 		req.hdr_proc_ctx_tbl_info.start =
@@ -347,7 +347,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 
 	/* Nothing to report for the compression table (zip_tbl_info) */
 
-	mem = &ipa->mem[IPA_MEM_V4_ROUTE_HASHED];
+	mem = ipa_mem_find(ipa, IPA_MEM_V4_ROUTE_HASHED);
 	if (mem->size) {
 		req.v4_hash_route_tbl_info_valid = 1;
 		req.v4_hash_route_tbl_info.start =
@@ -355,7 +355,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v4_hash_route_tbl_info.count = mem->size / sizeof(__le64);
 	}
 
-	mem = &ipa->mem[IPA_MEM_V6_ROUTE_HASHED];
+	mem = ipa_mem_find(ipa, IPA_MEM_V6_ROUTE_HASHED);
 	if (mem->size) {
 		req.v6_hash_route_tbl_info_valid = 1;
 		req.v6_hash_route_tbl_info.start =
@@ -363,22 +363,21 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v6_hash_route_tbl_info.count = mem->size / sizeof(__le64);
 	}
 
-	mem = &ipa->mem[IPA_MEM_V4_FILTER_HASHED];
+	mem = ipa_mem_find(ipa, IPA_MEM_V4_FILTER_HASHED);
 	if (mem->size) {
 		req.v4_hash_filter_tbl_start_valid = 1;
 		req.v4_hash_filter_tbl_start = ipa->mem_offset + mem->offset;
 	}
 
-	mem = &ipa->mem[IPA_MEM_V6_FILTER_HASHED];
+	mem = ipa_mem_find(ipa, IPA_MEM_V6_FILTER_HASHED);
 	if (mem->size) {
 		req.v6_hash_filter_tbl_start_valid = 1;
 		req.v6_hash_filter_tbl_start = ipa->mem_offset + mem->offset;
 	}
 
-	/* None of the stats fields are valid (IPA v4.0 and above) */
-
+	/* The stats fields are only valid for IPA v4.0+ */
 	if (ipa->version >= IPA_VERSION_4_0) {
-		mem = &ipa->mem[IPA_MEM_STATS_QUOTA_MODEM];
+		mem = ipa_mem_find(ipa, IPA_MEM_STATS_QUOTA_MODEM);
 		if (mem->size) {
 			req.hw_stats_quota_base_addr_valid = 1;
 			req.hw_stats_quota_base_addr =
@@ -387,8 +386,9 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 			req.hw_stats_quota_size = ipa->mem_offset + mem->size;
 		}
 
-		mem = &ipa->mem[IPA_MEM_STATS_DROP];
-		if (mem->size) {
+		/* If the DROP stats region is defined, include it */
+		mem = ipa_mem_find(ipa, IPA_MEM_STATS_DROP);
+		if (mem && mem->size) {
 			req.hw_stats_drop_base_addr_valid = 1;
 			req.hw_stats_drop_base_addr =
 				ipa->mem_offset + mem->offset;

@@ -9,11 +9,9 @@
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
 
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
-
 #define PAGES_PER_REGION 4
 
-void virt_pgd_alloc(struct kvm_vm *vm, uint32_t memslot)
+void virt_pgd_alloc(struct kvm_vm *vm)
 {
 	vm_paddr_t paddr;
 
@@ -24,7 +22,7 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t memslot)
 		return;
 
 	paddr = vm_phy_pages_alloc(vm, PAGES_PER_REGION,
-				   KVM_GUEST_PAGE_TABLE_MIN_PADDR, memslot);
+				   KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
 	memset(addr_gpa2hva(vm, paddr), 0xff, PAGES_PER_REGION * vm->page_size);
 
 	vm->pgd = paddr;
@@ -36,12 +34,12 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t memslot)
  * a page table (ri == 4). Returns a suitable region/segment table entry
  * which points to the freshly allocated pages.
  */
-static uint64_t virt_alloc_region(struct kvm_vm *vm, int ri, uint32_t memslot)
+static uint64_t virt_alloc_region(struct kvm_vm *vm, int ri)
 {
 	uint64_t taddr;
 
 	taddr = vm_phy_pages_alloc(vm,  ri < 4 ? PAGES_PER_REGION : 1,
-				   KVM_GUEST_PAGE_TABLE_MIN_PADDR, memslot);
+				   KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
 	memset(addr_gpa2hva(vm, taddr), 0xff, PAGES_PER_REGION * vm->page_size);
 
 	return (taddr & REGION_ENTRY_ORIGIN)
@@ -49,8 +47,7 @@ static uint64_t virt_alloc_region(struct kvm_vm *vm, int ri, uint32_t memslot)
 		| ((ri < 4 ? (PAGES_PER_REGION - 1) : 0) & REGION_ENTRY_LENGTH);
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
-		 uint32_t memslot)
+void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 {
 	int ri, idx;
 	uint64_t *entry;
@@ -77,7 +74,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
 	for (ri = 1; ri <= 4; ri++) {
 		idx = (gva >> (64 - 11 * ri)) & 0x7ffu;
 		if (entry[idx] & REGION_ENTRY_INVALID)
-			entry[idx] = virt_alloc_region(vm, ri, memslot);
+			entry[idx] = virt_alloc_region(vm, ri);
 		entry = addr_gpa2hva(vm, entry[idx] & REGION_ENTRY_ORIGIN);
 	}
 
@@ -170,7 +167,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 		    vm->page_size);
 
 	stack_vaddr = vm_vaddr_alloc(vm, stack_size,
-				     DEFAULT_GUEST_STACK_VADDR_MIN, 0, 0);
+				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
 	vm_vcpu_add(vm, vcpuid);
 

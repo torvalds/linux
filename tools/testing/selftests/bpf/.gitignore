@@ -10,6 +10,7 @@ FEATURE-DUMP.libbpf
 fixdep
 test_dev_cgroup
 /test_progs*
+!test_progs.h
 test_verifier_log
 feature
 test_sock
@@ -30,10 +31,13 @@ test_sysctl
 xdping
 test_cpp
 *.skel.h
+*.lskel.h
 /no_alu32
 /bpf_gcc
 /tools
 /runqslower
 /bench
 *.ko
+*.tmp
 xdpxceiver
+xdp_redirect_multi

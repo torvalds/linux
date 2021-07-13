@@ -371,8 +371,6 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	lpc18xx_pwm->chip.dev = &pdev->dev;
 	lpc18xx_pwm->chip.ops = &lpc18xx_pwm_ops;
 	lpc18xx_pwm->chip.npwm = 16;
-	lpc18xx_pwm->chip.of_xlate = of_pwm_xlate_with_flags;
-	lpc18xx_pwm->chip.of_pwm_n_cells = 3;
 
 	/* SCT counter must be in unify (32 bit) mode */
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CONFIG,

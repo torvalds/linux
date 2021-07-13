@@ -124,13 +124,10 @@ static void partition_handle_irq(struct irq_desc *desc)
 			break;
 	}
 
-	if (unlikely(hwirq == part->nr_parts)) {
+	if (unlikely(hwirq == part->nr_parts))
 		handle_bad_irq(desc);
-	} else {
-		unsigned int irq;
-		irq = irq_find_mapping(part->domain, hwirq);
-		generic_handle_irq(irq);
-	}
+	else
+		generic_handle_domain_irq(part->domain, hwirq);
 
 	chained_irq_exit(chip, desc);
 }

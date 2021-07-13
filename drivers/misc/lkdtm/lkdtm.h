@@ -6,6 +6,47 @@
 
 #include <linux/kernel.h>
 
+#define pr_expected_config(kconfig)				\
+{								\
+	if (IS_ENABLED(kconfig)) 				\
+		pr_err("Unexpected! This kernel was built with " #kconfig "=y\n"); \
+	else							\
+		pr_warn("This is probably expected, since this kernel was built *without* " #kconfig "=y\n"); \
+}
+
+#ifndef MODULE
+int lkdtm_check_bool_cmdline(const char *param);
+#define pr_expected_config_param(kconfig, param)		\
+{								\
+	if (IS_ENABLED(kconfig)) {				\
+		switch (lkdtm_check_bool_cmdline(param)) {	\
+		case 0:						\
+			pr_warn("This is probably expected, since this kernel was built with " #kconfig "=y but booted with '" param "=N'\n"); \
+			break;					\
+		case 1:						\
+			pr_err("Unexpected! This kernel was built with " #kconfig "=y and booted with '" param "=Y'\n"); \
+			break;					\
+		default:					\
+			pr_err("Unexpected! This kernel was built with " #kconfig "=y (and booted without '" param "' specified)\n"); \
+		}						\
+	} else {						\
+		switch (lkdtm_check_bool_cmdline(param)) {	\
+		case 0:						\
+			pr_warn("This is probably expected, as kernel was built *without* " #kconfig "=y and booted with '" param "=N'\n"); \
+			break;					\
+		case 1:						\
+			pr_err("Unexpected! This kernel was built *without* " #kconfig "=y but booted with '" param "=Y'\n"); \
+			break;					\
+		default:					\
+			pr_err("This is probably expected, since this kernel was built *without* " #kconfig "=y (and booted without '" param "' specified)\n"); \
+			break;					\
+		}						\
+	}							\
+}
+#else
+#define pr_expected_config_param(kconfig, param) pr_expected_config(kconfig)
+#endif
+
 /* bugs.c */
 void __init lkdtm_bugs_init(int *recur_param);
 void lkdtm_PANIC(void);
@@ -39,11 +80,14 @@ void lkdtm_FORTIFY_SUBOBJECT(void);
 /* heap.c */
 void __init lkdtm_heap_init(void);
 void __exit lkdtm_heap_exit(void);
-void lkdtm_OVERWRITE_ALLOCATION(void);
+void lkdtm_VMALLOC_LINEAR_OVERFLOW(void);
+void lkdtm_SLAB_LINEAR_OVERFLOW(void);
 void lkdtm_WRITE_AFTER_FREE(void);
 void lkdtm_READ_AFTER_FREE(void);
 void lkdtm_WRITE_BUDDY_AFTER_FREE(void);
 void lkdtm_READ_BUDDY_AFTER_FREE(void);
+void lkdtm_SLAB_INIT_ON_ALLOC(void);
+void lkdtm_BUDDY_INIT_ON_ALLOC(void);
 void lkdtm_SLAB_FREE_DOUBLE(void);
 void lkdtm_SLAB_FREE_CROSS(void);
 void lkdtm_SLAB_FREE_PAGE(void);

@@ -1,4 +1,4 @@
-What: /sys/bus/thunderbolt/devices/.../domainX/boot_acl
+What:		/sys/bus/thunderbolt/devices/.../domainX/boot_acl
 Date:		Jun 2018
 KernelVersion:	4.17
 Contact:	thunderbolt-software@lists.01.org
@@ -21,7 +21,7 @@ Description:	Holds a comma separated list of device unique_ids that
 		If a device is authorized automatically during boot its
 		boot attribute is set to 1.
 
-What: /sys/bus/thunderbolt/devices/.../domainX/deauthorization
+What:		/sys/bus/thunderbolt/devices/.../domainX/deauthorization
 Date:		May 2021
 KernelVersion:	5.12
 Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -30,7 +30,7 @@ Description:	This attribute tells whether the system supports
 		de-authorize PCIe tunnel by writing 0 to authorized
 		attribute under each device.
 
-What: /sys/bus/thunderbolt/devices/.../domainX/iommu_dma_protection
+What:		/sys/bus/thunderbolt/devices/.../domainX/iommu_dma_protection
 Date:		Mar 2019
 KernelVersion:	4.21
 Contact:	thunderbolt-software@lists.01.org
@@ -39,7 +39,7 @@ Description:	This attribute tells whether the system uses IOMMU
 		it is not (DMA protection is solely based on Thunderbolt
 		security levels).
 
-What: /sys/bus/thunderbolt/devices/.../domainX/security
+What:		/sys/bus/thunderbolt/devices/.../domainX/security
 Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
@@ -61,7 +61,7 @@ Description:	This attribute holds current Thunderbolt security level
 			 the BIOS.
 		=======  ==================================================
 
-What: /sys/bus/thunderbolt/devices/.../authorized
+What:		/sys/bus/thunderbolt/devices/.../authorized
 Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
@@ -95,14 +95,14 @@ Description:	This attribute is used to authorize Thunderbolt devices
 		    EKEYREJECTED if the challenge response did not match.
 		==  ========================================================
 
-What: /sys/bus/thunderbolt/devices/.../boot
+What:		/sys/bus/thunderbolt/devices/.../boot
 Date:		Jun 2018
 KernelVersion:	4.17
 Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains 1 if Thunderbolt device was already
 		authorized on boot and 0 otherwise.
 
-What: /sys/bus/thunderbolt/devices/.../generation
+What:		/sys/bus/thunderbolt/devices/.../generation
 Date:		Jan 2020
 KernelVersion:	5.5
 Contact:	Christian Kellner <christian@kellner.me>
@@ -110,7 +110,7 @@ Description:	This attribute contains the generation of the Thunderbolt
 		controller associated with the device. It will contain 4
 		for USB4.
 
-What: /sys/bus/thunderbolt/devices/.../key
+What:		/sys/bus/thunderbolt/devices/.../key
 Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
@@ -213,18 +213,35 @@ Description:	When new NVM image is written to the non-active NVM
 		restarted with the new NVM firmware. If the image
 		verification fails an error code is returned instead.
 
-		This file will accept writing values "1" or "2"
+		This file will accept writing values "1", "2" or "3".
 
 		- Writing "1" will flush the image to the storage
 		  area and authenticate the image in one action.
 		- Writing "2" will run some basic validation on the image
 		  and flush it to the storage area.
+		- Writing "3" will authenticate the image that is
+		  currently written in the storage area. This is only
+		  supported with USB4 devices and retimers.
 
 		When read holds status of the last authentication
 		operation if an error occurred during the process. This
 		is directly the status value from the DMA configuration
 		based mailbox before the device is power cycled. Writing
 		0 here clears the status.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate_on_disconnect
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mario Limonciello <mario.limonciello@dell.com>
+Description:	For supported devices, automatically authenticate the new Thunderbolt
+		image when the device is disconnected from the host system.
+
+		This file will accept writing values "1" or "2"
+
+		- Writing "1" will flush the image to the storage
+		  area and prepare the device for authentication on disconnect.
+		- Writing "2" will run some basic validation on the image
+		  and flush it to the storage area.
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/key
 Date:		Jan 2018
@@ -276,6 +293,39 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This contains XDomain service specific settings as
 		bitmask. Format: %x
 
+What:		/sys/bus/thunderbolt/devices/usb4_portX/link
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Returns the current link mode. Possible values are
+		"usb4", "tbt" and "none".
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/offline
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	Writing 1 to this attribute puts the USB4 port into
+		offline mode. Only allowed when there is nothing
+		connected to the port (link attribute returns "none").
+		Once the port is in offline mode it does not receive any
+		hotplug events. This is used to update NVM firmware of
+		on-board retimers. Writing 0 puts the port back to
+		online mode.
+
+		This attribute is only visible if the platform supports
+		powering on retimers when there is no cable connected.
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/rescan
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	When the USB4 port is in offline mode writing 1 to this
+		attribute forces rescan of the sideband for on-board
+		retimers. Each retimer appear under the USB4 port as if
+		the USB4 link was up. These retimers act in the same way
+		as if the cable was connected so upgrading their NVM
+		firmware can be done the usual way.
+
 What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/device
 Date:		Oct 2020
 KernelVersion:	v5.9
@@ -308,17 +358,3 @@ Date:		Oct 2020
 KernelVersion:	v5.9
 Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	Retimer vendor identifier read from the hardware.
-
-What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate_on_disconnect
-Date:		Oct 2020
-KernelVersion:	v5.9
-Contact:	Mario Limonciello <mario.limonciello@dell.com>
-Description:	For supported devices, automatically authenticate the new Thunderbolt
-		image when the device is disconnected from the host system.
-
-		This file will accept writing values "1" or "2"
-
-		- Writing "1" will flush the image to the storage
-		  area and prepare the device for authentication on disconnect.
-		- Writing "2" will run some basic validation on the image
-		  and flush it to the storage area.

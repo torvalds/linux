@@ -216,26 +216,36 @@ void __init kasan_init_hw_tags(void)
 	pr_info("KernelAddressSanitizer initialized\n");
 }
 
-void kasan_set_free_info(struct kmem_cache *cache,
-				void *object, u8 tag)
+void kasan_alloc_pages(struct page *page, unsigned int order, gfp_t flags)
 {
-	struct kasan_alloc_meta *alloc_meta;
+	/*
+	 * This condition should match the one in post_alloc_hook() in
+	 * page_alloc.c.
+	 */
+	bool init = !want_init_on_free() && want_init_on_alloc(flags);
 
-	alloc_meta = kasan_get_alloc_meta(cache, object);
-	if (alloc_meta)
-		kasan_set_track(&alloc_meta->free_track[0], GFP_NOWAIT);
+	if (flags & __GFP_SKIP_KASAN_POISON)
+		SetPageSkipKASanPoison(page);
+
+	if (flags & __GFP_ZEROTAGS) {
+		int i;
+
+		for (i = 0; i != 1 << order; ++i)
+			tag_clear_highpage(page + i);
+	} else {
+		kasan_unpoison_pages(page, order, init);
+	}
 }
 
-struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
-				void *object, u8 tag)
+void kasan_free_pages(struct page *page, unsigned int order)
 {
-	struct kasan_alloc_meta *alloc_meta;
+	/*
+	 * This condition should match the one in free_pages_prepare() in
+	 * page_alloc.c.
+	 */
+	bool init = want_init_on_free();
 
-	alloc_meta = kasan_get_alloc_meta(cache, object);
-	if (!alloc_meta)
-		return NULL;
-
-	return &alloc_meta->free_track[0];
+	kasan_poison_pages(page, order, init);
 }
 
 #if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)

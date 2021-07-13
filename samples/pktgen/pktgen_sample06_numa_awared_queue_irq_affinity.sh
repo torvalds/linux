@@ -92,6 +92,8 @@ for ((i = 0; i < $THREADS; i++)); do
 	pg_set $dev "udp_dst_max $UDP_DST_MAX"
     fi
 
+    [ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
+
     # Setup random UDP port src range
     pg_set $dev "flag UDPSRC_RND"
     pg_set $dev "udp_src_min $UDP_SRC_MIN"

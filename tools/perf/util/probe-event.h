@@ -15,6 +15,7 @@ struct probe_conf {
 	bool	force_add;
 	bool	no_inlines;
 	bool	cache;
+	bool	bootconfig;
 	int	max_probes;
 	unsigned long	magic_num;
 };
@@ -163,6 +164,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
+int show_bootconfig_events(struct perf_probe_event *pevs, int npevs);
 void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 
 struct strfilter;

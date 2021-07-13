@@ -276,6 +276,12 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	size_t i;
 	int err;
 
+	err = ice_wait_for_reset(pf, 10 * HZ);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Device is busy resetting");
+		return err;
+	}
+
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
@@ -283,6 +289,9 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	/* discover capabilities first */
 	status = ice_discover_dev_caps(hw, &ctx->dev_caps);
 	if (status) {
+		dev_dbg(dev, "Failed to discover device capabilities, status %s aq_err %s\n",
+			ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+		NL_SET_ERR_MSG_MOD(extack, "Unable to discover device capabilities");
 		err = -EIO;
 		goto out_free_ctx;
 	}

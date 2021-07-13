@@ -134,7 +134,7 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 	dst_zone_block = dmz_start_block(zmd, dst_zone);
 
 	if (dmz_is_seq(dst_zone))
-		set_bit(DM_KCOPYD_WRITE_SEQ, &flags);
+		flags |= BIT(DM_KCOPYD_WRITE_SEQ);
 
 	while (block < end_block) {
 		if (src_zone->dev->flags & DMZ_BDEV_DYING)

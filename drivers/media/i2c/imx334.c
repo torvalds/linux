@@ -497,13 +497,13 @@ static const struct v4l2_ctrl_ops imx334_ctrl_ops = {
 /**
  * imx334_enum_mbus_code() - Enumerate V4L2 sub-device mbus codes
  * @sd: pointer to imx334 V4L2 sub-device structure
- * @cfg: V4L2 sub-device pad configuration
+ * @sd_state: V4L2 sub-device state
  * @code: V4L2 sub-device code enumeration need to be filled
  *
  * Return: 0 if successful, error code otherwise.
  */
 static int imx334_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index > 0)
@@ -517,13 +517,13 @@ static int imx334_enum_mbus_code(struct v4l2_subdev *sd,
 /**
  * imx334_enum_frame_size() - Enumerate V4L2 sub-device frame sizes
  * @sd: pointer to imx334 V4L2 sub-device structure
- * @cfg: V4L2 sub-device pad configuration
+ * @sd_state: V4L2 sub-device state
  * @fsize: V4L2 sub-device size enumeration need to be filled
  *
  * Return: 0 if successful, error code otherwise.
  */
 static int imx334_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
 {
 	if (fsize->index > 0)
@@ -564,13 +564,13 @@ static void imx334_fill_pad_format(struct imx334 *imx334,
 /**
  * imx334_get_pad_format() - Get subdevice pad format
  * @sd: pointer to imx334 V4L2 sub-device structure
- * @cfg: V4L2 sub-device pad configuration
+ * @sd_state: V4L2 sub-device state
  * @fmt: V4L2 sub-device format need to be set
  *
  * Return: 0 if successful, error code otherwise.
  */
 static int imx334_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx334 *imx334 = to_imx334(sd);
@@ -580,7 +580,7 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx334_fill_pad_format(imx334, imx334->cur_mode, fmt);
@@ -594,13 +594,13 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 /**
  * imx334_set_pad_format() - Set subdevice pad format
  * @sd: pointer to imx334 V4L2 sub-device structure
- * @cfg: V4L2 sub-device pad configuration
+ * @sd_state: V4L2 sub-device state
  * @fmt: V4L2 sub-device format need to be set
  *
  * Return: 0 if successful, error code otherwise.
  */
 static int imx334_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx334 *imx334 = to_imx334(sd);
@@ -615,7 +615,7 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ret = imx334_update_controls(imx334, mode);
@@ -631,20 +631,20 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 /**
  * imx334_init_pad_cfg() - Initialize sub-device pad configuration
  * @sd: pointer to imx334 V4L2 sub-device structure
- * @cfg: V4L2 sub-device pad configuration
+ * @sd_state: V4L2 sub-device state
  *
  * Return: 0 if successful, error code otherwise.
  */
 static int imx334_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg)
+			       struct v4l2_subdev_state *sd_state)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	struct v4l2_subdev_format fmt = { 0 };
 
-	fmt.which = cfg ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	imx334_fill_pad_format(imx334, &supported_mode, &fmt);
 
-	return imx334_set_pad_format(sd, cfg, &fmt);
+	return imx334_set_pad_format(sd, sd_state, &fmt);
 }
 
 /**
@@ -717,9 +717,9 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(imx334->dev);
-		if (ret)
-			goto error_power_off;
+		ret = pm_runtime_resume_and_get(imx334->dev);
+		if (ret < 0)
+			goto error_unlock;
 
 		ret = imx334_start_streaming(imx334);
 		if (ret)
@@ -737,6 +737,7 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 
 error_power_off:
 	pm_runtime_put(imx334->dev);
+error_unlock:
 	mutex_unlock(&imx334->mutex);
 
 	return ret;

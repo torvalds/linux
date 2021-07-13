@@ -33,6 +33,7 @@
 #include <linux/pgtable.h>
 
 #include <asm/debugfs.h>
+#include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -788,7 +789,7 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
 					size_t align)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
-#ifdef CONFIG_NEED_MULTIPLE_NODES
+#ifdef CONFIG_NUMA
 	int node = early_cpu_to_node(cpu);
 	void *ptr;
 
@@ -939,16 +940,20 @@ u64 hw_nmi_get_sample_period(int watchdog_thresh)
  * disable it by default. Book3S has a soft-nmi hardlockup detector based
  * on the decrementer interrupt, so it does not suffer from this problem.
  *
- * It is likely to get false positives in VM guests, so disable it there
- * by default too.
+ * It is likely to get false positives in KVM guests, so disable it there
+ * by default too. PowerVM will not stop or arbitrarily oversubscribe
+ * CPUs, but give a minimum regular allotment even with SPLPAR, so enable
+ * the detector for non-KVM guests, assume PowerVM.
  */
 static int __init disable_hardlockup_detector(void)
 {
 #ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
 	hardlockup_detector_disable();
 #else
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hardlockup_detector_disable();
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+		if (is_kvm_guest())
+			hardlockup_detector_disable();
+	}
 #endif
 
 	return 0;

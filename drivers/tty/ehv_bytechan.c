@@ -536,11 +536,11 @@ static void ehv_bc_tty_close(struct tty_struct *ttys, struct file *filp)
  * how much write room the driver can guarantee will be sent OR BUFFERED.  This
  * driver MUST honor the return value.
  */
-static int ehv_bc_tty_write_room(struct tty_struct *ttys)
+static unsigned int ehv_bc_tty_write_room(struct tty_struct *ttys)
 {
 	struct ehv_bc_data *bc = ttys->driver_data;
 	unsigned long flags;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&bc->lock, flags);
 	count = CIRC_SPACE(bc->head, bc->tail, BUF_SIZE);

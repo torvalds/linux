@@ -83,7 +83,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 		 *    is safe-kept and BLINK at a well known location in there
 		 */
 
-		if (tsk->state == TASK_RUNNING)
+		if (task_is_running(tsk))
 			return -1;
 
 		frame_info->task = tsk;

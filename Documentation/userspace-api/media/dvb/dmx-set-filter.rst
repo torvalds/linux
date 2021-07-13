@@ -37,7 +37,7 @@ parameters provided. A timeout may be defined stating number of seconds
 to wait for a section to be loaded. A value of 0 means that no timeout
 should be applied. Finally there is a flag field where it is possible to
 state whether a section should be CRC-checked, whether the filter should
-be a ”one-shot” filter, i.e. if the filtering operation should be
+be a "one-shot" filter, i.e. if the filtering operation should be
 stopped after the first section is received, and whether the filtering
 operation should be started immediately (without waiting for a
 :ref:`DMX_START` ioctl call). If a filter was previously set-up, this

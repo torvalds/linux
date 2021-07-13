@@ -63,65 +63,14 @@ int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 	return ret;
 }
 
-void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
-			  int rr)
+void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj)
 {
-	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
-}
-
-int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
-				int align, unsigned long *obj)
-{
-	int ret = 0;
-	int i;
-
-	if (likely(cnt == 1 && align == 1))
-		return hns_roce_bitmap_alloc(bitmap, obj);
-
-	spin_lock(&bitmap->lock);
-
-	*obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
-					  bitmap->last, cnt, align - 1);
-	if (*obj >= bitmap->max) {
-		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
-			       & bitmap->mask;
-		*obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max, 0,
-						  cnt, align - 1);
-	}
-
-	if (*obj < bitmap->max) {
-		for (i = 0; i < cnt; i++)
-			set_bit(*obj + i, bitmap->table);
-
-		if (*obj == bitmap->last) {
-			bitmap->last = (*obj + cnt);
-			if (bitmap->last >= bitmap->max)
-				bitmap->last = 0;
-		}
-		*obj |= bitmap->top;
-	} else {
-		ret = -EINVAL;
-	}
-
-	spin_unlock(&bitmap->lock);
-
-	return ret;
-}
-
-void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
-				unsigned long obj, int cnt,
-				int rr)
-{
-	int i;
-
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
-	for (i = 0; i < cnt; i++)
-		clear_bit(obj + i, bitmap->table);
+	clear_bit(obj, bitmap->table);
 
-	if (!rr)
-		bitmap->last = min(bitmap->last, obj);
+	bitmap->last = min(bitmap->last, obj);
 	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 		       & bitmap->mask;
 	spin_unlock(&bitmap->lock);
@@ -208,10 +157,10 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 
 	/* Calc the trunk size and num by required size and page_shift */
 	if (flags & HNS_ROCE_BUF_DIRECT) {
-		buf->trunk_shift = ilog2(ALIGN(size, PAGE_SIZE));
+		buf->trunk_shift = order_base_2(ALIGN(size, PAGE_SIZE));
 		ntrunk = 1;
 	} else {
-		buf->trunk_shift = ilog2(ALIGN(page_size, PAGE_SIZE));
+		buf->trunk_shift = order_base_2(ALIGN(page_size, PAGE_SIZE));
 		ntrunk = DIV_ROUND_UP(size, 1 << buf->trunk_shift);
 	}
 
@@ -252,50 +201,41 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 }
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct hns_roce_buf *buf)
+			   int buf_cnt, struct hns_roce_buf *buf,
+			   unsigned int page_shift)
 {
-	int i, end;
-	int total;
+	unsigned int offset, max_size;
+	int total = 0;
+	int i;
 
-	end = start + buf_cnt;
-	if (end > buf->npages) {
-		dev_err(hr_dev->dev,
-			"failed to check kmem bufs, end %d + %d total %u!\n",
-			start, buf_cnt, buf->npages);
+	if (page_shift > buf->trunk_shift) {
+		dev_err(hr_dev->dev, "failed to check kmem buf shift %u > %u\n",
+			page_shift, buf->trunk_shift);
 		return -EINVAL;
 	}
 
-	total = 0;
-	for (i = start; i < end; i++)
-		bufs[total++] = hns_roce_buf_page(buf, i);
+	offset = 0;
+	max_size = buf->ntrunks << buf->trunk_shift;
+	for (i = 0; i < buf_cnt && offset < max_size; i++) {
+		bufs[total++] = hns_roce_buf_dma_addr(buf, offset);
+		offset += (1 << page_shift);
+	}
 
 	return total;
 }
 
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct ib_umem *umem,
+			   int buf_cnt, struct ib_umem *umem,
 			   unsigned int page_shift)
 {
 	struct ib_block_iter biter;
 	int total = 0;
-	int idx = 0;
-	u64 addr;
-
-	if (page_shift < HNS_HW_PAGE_SHIFT) {
-		dev_err(hr_dev->dev, "failed to check umem page shift %u!\n",
-			page_shift);
-		return -EINVAL;
-	}
 
 	/* convert system page cnt to hw page cnt */
 	rdma_umem_for_each_dma_block(umem, &biter, 1 << page_shift) {
-		addr = rdma_block_iter_dma_address(&biter);
-		if (idx >= start) {
-			bufs[total++] = addr;
-			if (total >= buf_cnt)
-				goto done;
-		}
-		idx++;
+		bufs[total++] = rdma_block_iter_dma_address(&biter);
+		if (total >= buf_cnt)
+			goto done;
 	}
 
 done:
@@ -305,13 +245,13 @@ done:
 void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev)
 {
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
-		hns_roce_cleanup_xrcd_table(hr_dev);
+		ida_destroy(&hr_dev->xrcd_ida.ida);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
 		hns_roce_cleanup_srq_table(hr_dev);
 	hns_roce_cleanup_qp_table(hr_dev);
 	hns_roce_cleanup_cq_table(hr_dev);
-	hns_roce_cleanup_mr_table(hr_dev);
-	hns_roce_cleanup_pd_table(hr_dev);
+	ida_destroy(&hr_dev->mr_table.mtpt_ida.ida);
+	ida_destroy(&hr_dev->pd_ida.ida);
 	hns_roce_cleanup_uar_table(hr_dev);
 }

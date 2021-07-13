@@ -70,7 +70,7 @@ DECLARE_EVENT_CLASS(hfi1_rc_template,
 			__field(u32, r_psn)
 			),
 		    TP_fast_assign(
-			DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+			DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 			__entry->qpn = qp->ibqp.qp_num;
 			__entry->s_flags = qp->s_flags;
 			__entry->psn = psn;
@@ -130,7 +130,7 @@ DECLARE_EVENT_CLASS(/* rc_ack */
 		__field(u32, lpsn)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->aeth = aeth;
 		__entry->psn = psn;

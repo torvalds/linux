@@ -8,6 +8,7 @@
 #define __ARM_KVM_ASM_H__
 
 #include <asm/hyp_image.h>
+#include <asm/insn.h>
 #include <asm/virt.h>
 
 #define ARM_EXIT_WITH_SERROR_BIT  31

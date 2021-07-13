@@ -231,7 +231,6 @@ static struct sclp_register sclp_ftp_event = {
 	.receive_mask = EVTYP_DIAG_TEST_MASK, /* want rx events */
 	.receiver_fn = sclp_ftp_rxcb,	      /* async callback (rx) */
 	.state_change_fn = NULL,
-	.pm_event_fn = NULL,
 };
 
 /**

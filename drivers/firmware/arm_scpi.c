@@ -899,6 +899,14 @@ static const struct of_device_id legacy_scpi_of_match[] = {
 	{},
 };
 
+static const struct of_device_id shmem_of_match[] __maybe_unused = {
+	{ .compatible = "amlogic,meson-gxbb-scp-shmem", },
+	{ .compatible = "amlogic,meson-axg-scp-shmem", },
+	{ .compatible = "arm,juno-scp-shmem", },
+	{ .compatible = "arm,scp-shmem", },
+	{ }
+};
+
 static int scpi_probe(struct platform_device *pdev)
 {
 	int count, idx, ret;
@@ -934,6 +942,9 @@ static int scpi_probe(struct platform_device *pdev)
 		struct scpi_chan *pchan = scpi_info->channels + idx;
 		struct mbox_client *cl = &pchan->cl;
 		struct device_node *shmem = of_parse_phandle(np, "shmem", idx);
+
+		if (!of_match_node(shmem_of_match, shmem))
+			return -ENXIO;
 
 		ret = of_address_to_resource(shmem, 0, &res);
 		of_node_put(shmem);

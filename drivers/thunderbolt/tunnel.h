@@ -27,6 +27,7 @@ enum tb_tunnel_type {
  * @paths: All paths required by the tunnel
  * @npaths: Number of paths in @paths
  * @init: Optional tunnel specific initialization
+ * @deinit: Optional tunnel specific de-initialization
  * @activate: Optional tunnel specific activation/deactivation
  * @consumed_bandwidth: Return how much bandwidth the tunnel consumes
  * @release_unused_bandwidth: Release all unused bandwidth
@@ -47,6 +48,7 @@ struct tb_tunnel {
 	struct tb_path **paths;
 	size_t npaths;
 	int (*init)(struct tb_tunnel *tunnel);
+	void (*deinit)(struct tb_tunnel *tunnel);
 	int (*activate)(struct tb_tunnel *tunnel, bool activate);
 	int (*consumed_bandwidth)(struct tb_tunnel *tunnel, int *consumed_up,
 				  int *consumed_down);

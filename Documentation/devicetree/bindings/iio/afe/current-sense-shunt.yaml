@@ -24,6 +24,9 @@ properties:
     description: |
       Channel node of a voltage io-channel.
 
+  "#io-channel-cells":
+    const: 0
+
   shunt-resistor-micro-ohms:
     description: The shunt resistance.
 
@@ -57,6 +60,7 @@ examples:
     sysi {
         compatible = "current-sense-shunt";
         io-channels = <&tiadc 0>;
+        #io-channel-cells = <0>;
 
         /* Divide the voltage by 3300000/1000000 (or 3.3) for the current. */
         shunt-resistor-micro-ohms = <3300000>;

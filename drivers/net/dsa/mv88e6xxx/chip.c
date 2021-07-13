@@ -1618,9 +1618,6 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
-	if (!vid)
-		return -EOPNOTSUPP;
-
 	/* DSA and CPU ports have to be members of multiple vlans */
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
 		return 0;
@@ -2108,6 +2105,9 @@ static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	bool warn;
 	u8 member;
 	int err;
+
+	if (!vlan->vid)
+		return 0;
 
 	err = mv88e6xxx_port_vlan_prepare(ds, port, vlan);
 	if (err)

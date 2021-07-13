@@ -33,12 +33,6 @@
  * Context tracking and irqflag tracing need to instrument transitions between
  * user and kernel mode.
  */
-	.macro user_exit_irqoff
-#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
-	bl	enter_from_user_mode
-#endif
-	.endm
-
 	.macro user_enter_irqoff
 #if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
 	bl	exit_to_user_mode
@@ -51,16 +45,7 @@
 	.endr
 	.endm
 
-/*
- * Bad Abort numbers
- *-----------------
- */
-#define BAD_SYNC	0
-#define BAD_IRQ		1
-#define BAD_FIQ		2
-#define BAD_ERROR	3
-
-	.macro kernel_ventry, el, label, regsize = 64
+	.macro kernel_ventry, el:req, ht:req, regsize:req, label:req
 	.align 7
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	.if	\el == 0
@@ -87,7 +72,7 @@ alternative_else_nop_endif
 	tbnz	x0, #THREAD_SHIFT, 0f
 	sub	x0, sp, x0			// x0'' = sp' - x0' = (sp + x0) - sp = x0
 	sub	sp, sp, x0			// sp'' = sp' - x0 = (sp + x0) - x0 = sp
-	b	el\()\el\()_\label
+	b	el\el\ht\()_\regsize\()_\label
 
 0:
 	/*
@@ -119,7 +104,7 @@ alternative_else_nop_endif
 	sub	sp, sp, x0
 	mrs	x0, tpidrro_el0
 #endif
-	b	el\()\el\()_\label
+	b	el\el\ht\()_\regsize\()_\label
 	.endm
 
 	.macro tramp_alias, dst, sym
@@ -275,7 +260,7 @@ alternative_else_nop_endif
 
 	mte_set_kernel_gcr x22, x23
 
-	scs_load tsk, x20
+	scs_load tsk
 	.else
 	add	x21, sp, #PT_REGS_SIZE
 	get_current_task tsk
@@ -285,7 +270,7 @@ alternative_else_nop_endif
 	stp	lr, x21, [sp, #S_LR]
 
 	/*
-	 * For exceptions from EL0, create a terminal frame record.
+	 * For exceptions from EL0, create a final frame record.
 	 * For exceptions from EL1, create a synthetic frame record so the
 	 * interrupted code shows up in the backtrace.
 	 */
@@ -375,7 +360,7 @@ alternative_if ARM64_WORKAROUND_845719
 alternative_else_nop_endif
 #endif
 3:
-	scs_save tsk, x0
+	scs_save tsk
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 alternative_if ARM64_HAS_ADDRESS_AUTH
@@ -486,63 +471,12 @@ SYM_CODE_START_LOCAL(__swpan_exit_el0)
 SYM_CODE_END(__swpan_exit_el0)
 #endif
 
-	.macro	irq_stack_entry
-	mov	x19, sp			// preserve the original sp
-#ifdef CONFIG_SHADOW_CALL_STACK
-	mov	x24, scs_sp		// preserve the original shadow stack
-#endif
-
-	/*
-	 * Compare sp with the base of the task stack.
-	 * If the top ~(THREAD_SIZE - 1) bits match, we are on a task stack,
-	 * and should switch to the irq stack.
-	 */
-	ldr	x25, [tsk, TSK_STACK]
-	eor	x25, x25, x19
-	and	x25, x25, #~(THREAD_SIZE - 1)
-	cbnz	x25, 9998f
-
-	ldr_this_cpu x25, irq_stack_ptr, x26
-	mov	x26, #IRQ_STACK_SIZE
-	add	x26, x25, x26
-
-	/* switch to the irq stack */
-	mov	sp, x26
-
-#ifdef CONFIG_SHADOW_CALL_STACK
-	/* also switch to the irq shadow stack */
-	ldr_this_cpu scs_sp, irq_shadow_call_stack_ptr, x26
-#endif
-
-9998:
-	.endm
-
-	/*
-	 * The callee-saved regs (x19-x29) should be preserved between
-	 * irq_stack_entry and irq_stack_exit, but note that kernel_entry
-	 * uses x20-x23 to store data for later use.
-	 */
-	.macro	irq_stack_exit
-	mov	sp, x19
-#ifdef CONFIG_SHADOW_CALL_STACK
-	mov	scs_sp, x24
-#endif
-	.endm
-
 /* GPRs used by entry code */
 tsk	.req	x28		// current thread_info
 
 /*
  * Interrupt handling.
  */
-	.macro	irq_handler, handler:req
-	ldr_l	x1, \handler
-	mov	x0, sp
-	irq_stack_entry
-	blr	x1
-	irq_stack_exit
-	.endm
-
 	.macro	gic_prio_kentry_setup, tmp:req
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 	alternative_if ARM64_HAS_IRQ_PRIO_MASKING
@@ -550,45 +484,6 @@ tsk	.req	x28		// current thread_info
 	msr_s	SYS_ICC_PMR_EL1, \tmp
 	alternative_else_nop_endif
 #endif
-	.endm
-
-	.macro el1_interrupt_handler, handler:req
-	enable_da
-
-	mov	x0, sp
-	bl	enter_el1_irq_or_nmi
-
-	irq_handler	\handler
-
-#ifdef CONFIG_PREEMPTION
-	ldr	x24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
-alternative_if ARM64_HAS_IRQ_PRIO_MASKING
-	/*
-	 * DA were cleared at start of handling, and IF are cleared by
-	 * the GIC irqchip driver using gic_arch_enable_irqs() for
-	 * normal IRQs. If anything is set, it means we come back from
-	 * an NMI instead of a normal IRQ, so skip preemption
-	 */
-	mrs	x0, daif
-	orr	x24, x24, x0
-alternative_else_nop_endif
-	cbnz	x24, 1f				// preempt count != 0 || NMI return path
-	bl	arm64_preempt_schedule_irq	// irq en/disable is done inside
-1:
-#endif
-
-	mov	x0, sp
-	bl	exit_el1_irq_or_nmi
-	.endm
-
-	.macro el0_interrupt_handler, handler:req
-	user_exit_irqoff
-	enable_da
-
-	tbz	x22, #55, 1f
-	bl	do_el0_irq_bp_hardening
-1:
-	irq_handler	\handler
 	.endm
 
 	.text
@@ -600,32 +495,25 @@ alternative_else_nop_endif
 
 	.align	11
 SYM_CODE_START(vectors)
-	kernel_ventry	1, sync_invalid			// Synchronous EL1t
-	kernel_ventry	1, irq_invalid			// IRQ EL1t
-	kernel_ventry	1, fiq_invalid			// FIQ EL1t
-	kernel_ventry	1, error_invalid		// Error EL1t
+	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
+	kernel_ventry	1, t, 64, irq		// IRQ EL1t
+	kernel_ventry	1, t, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, t, 64, error		// Error EL1t
 
-	kernel_ventry	1, sync				// Synchronous EL1h
-	kernel_ventry	1, irq				// IRQ EL1h
-	kernel_ventry	1, fiq				// FIQ EL1h
-	kernel_ventry	1, error			// Error EL1h
+	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
+	kernel_ventry	1, h, 64, irq		// IRQ EL1h
+	kernel_ventry	1, h, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, h, 64, error		// Error EL1h
 
-	kernel_ventry	0, sync				// Synchronous 64-bit EL0
-	kernel_ventry	0, irq				// IRQ 64-bit EL0
-	kernel_ventry	0, fiq				// FIQ 64-bit EL0
-	kernel_ventry	0, error			// Error 64-bit EL0
+	kernel_ventry	0, t, 64, sync		// Synchronous 64-bit EL0
+	kernel_ventry	0, t, 64, irq		// IRQ 64-bit EL0
+	kernel_ventry	0, t, 64, fiq		// FIQ 64-bit EL0
+	kernel_ventry	0, t, 64, error		// Error 64-bit EL0
 
-#ifdef CONFIG_COMPAT
-	kernel_ventry	0, sync_compat, 32		// Synchronous 32-bit EL0
-	kernel_ventry	0, irq_compat, 32		// IRQ 32-bit EL0
-	kernel_ventry	0, fiq_compat, 32		// FIQ 32-bit EL0
-	kernel_ventry	0, error_compat, 32		// Error 32-bit EL0
-#else
-	kernel_ventry	0, sync_invalid, 32		// Synchronous 32-bit EL0
-	kernel_ventry	0, irq_invalid, 32		// IRQ 32-bit EL0
-	kernel_ventry	0, fiq_invalid, 32		// FIQ 32-bit EL0
-	kernel_ventry	0, error_invalid, 32		// Error 32-bit EL0
-#endif
+	kernel_ventry	0, t, 32, sync		// Synchronous 32-bit EL0
+	kernel_ventry	0, t, 32, irq		// IRQ 32-bit EL0
+	kernel_ventry	0, t, 32, fiq		// FIQ 32-bit EL0
+	kernel_ventry	0, t, 32, error		// Error 32-bit EL0
 SYM_CODE_END(vectors)
 
 #ifdef CONFIG_VMAP_STACK
@@ -656,147 +544,46 @@ __bad_stack:
 	ASM_BUG()
 #endif /* CONFIG_VMAP_STACK */
 
-/*
- * Invalid mode handlers
- */
-	.macro	inv_entry, el, reason, regsize = 64
+
+	.macro entry_handler el:req, ht:req, regsize:req, label:req
+SYM_CODE_START_LOCAL(el\el\ht\()_\regsize\()_\label)
 	kernel_entry \el, \regsize
 	mov	x0, sp
-	mov	x1, #\reason
-	mrs	x2, esr_el1
-	bl	bad_mode
-	ASM_BUG()
+	bl	el\el\ht\()_\regsize\()_\label\()_handler
+	.if \el == 0
+	b	ret_to_user
+	.else
+	b	ret_to_kernel
+	.endif
+SYM_CODE_END(el\el\ht\()_\regsize\()_\label)
 	.endm
 
-SYM_CODE_START_LOCAL(el0_sync_invalid)
-	inv_entry 0, BAD_SYNC
-SYM_CODE_END(el0_sync_invalid)
-
-SYM_CODE_START_LOCAL(el0_irq_invalid)
-	inv_entry 0, BAD_IRQ
-SYM_CODE_END(el0_irq_invalid)
-
-SYM_CODE_START_LOCAL(el0_fiq_invalid)
-	inv_entry 0, BAD_FIQ
-SYM_CODE_END(el0_fiq_invalid)
-
-SYM_CODE_START_LOCAL(el0_error_invalid)
-	inv_entry 0, BAD_ERROR
-SYM_CODE_END(el0_error_invalid)
-
-SYM_CODE_START_LOCAL(el1_sync_invalid)
-	inv_entry 1, BAD_SYNC
-SYM_CODE_END(el1_sync_invalid)
-
-SYM_CODE_START_LOCAL(el1_irq_invalid)
-	inv_entry 1, BAD_IRQ
-SYM_CODE_END(el1_irq_invalid)
-
-SYM_CODE_START_LOCAL(el1_fiq_invalid)
-	inv_entry 1, BAD_FIQ
-SYM_CODE_END(el1_fiq_invalid)
-
-SYM_CODE_START_LOCAL(el1_error_invalid)
-	inv_entry 1, BAD_ERROR
-SYM_CODE_END(el1_error_invalid)
-
 /*
- * EL1 mode handlers.
+ * Early exception handlers
  */
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el1_sync)
-	kernel_entry 1
-	mov	x0, sp
-	bl	el1_sync_handler
+	entry_handler	1, t, 64, sync
+	entry_handler	1, t, 64, irq
+	entry_handler	1, t, 64, fiq
+	entry_handler	1, t, 64, error
+
+	entry_handler	1, h, 64, sync
+	entry_handler	1, h, 64, irq
+	entry_handler	1, h, 64, fiq
+	entry_handler	1, h, 64, error
+
+	entry_handler	0, t, 64, sync
+	entry_handler	0, t, 64, irq
+	entry_handler	0, t, 64, fiq
+	entry_handler	0, t, 64, error
+
+	entry_handler	0, t, 32, sync
+	entry_handler	0, t, 32, irq
+	entry_handler	0, t, 32, fiq
+	entry_handler	0, t, 32, error
+
+SYM_CODE_START_LOCAL(ret_to_kernel)
 	kernel_exit 1
-SYM_CODE_END(el1_sync)
-
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el1_irq)
-	kernel_entry 1
-	el1_interrupt_handler handle_arch_irq
-	kernel_exit 1
-SYM_CODE_END(el1_irq)
-
-SYM_CODE_START_LOCAL_NOALIGN(el1_fiq)
-	kernel_entry 1
-	el1_interrupt_handler handle_arch_fiq
-	kernel_exit 1
-SYM_CODE_END(el1_fiq)
-
-/*
- * EL0 mode handlers.
- */
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_sync)
-	kernel_entry 0
-	mov	x0, sp
-	bl	el0_sync_handler
-	b	ret_to_user
-SYM_CODE_END(el0_sync)
-
-#ifdef CONFIG_COMPAT
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_sync_compat)
-	kernel_entry 0, 32
-	mov	x0, sp
-	bl	el0_sync_compat_handler
-	b	ret_to_user
-SYM_CODE_END(el0_sync_compat)
-
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_irq_compat)
-	kernel_entry 0, 32
-	b	el0_irq_naked
-SYM_CODE_END(el0_irq_compat)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_fiq_compat)
-	kernel_entry 0, 32
-	b	el0_fiq_naked
-SYM_CODE_END(el0_fiq_compat)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_error_compat)
-	kernel_entry 0, 32
-	b	el0_error_naked
-SYM_CODE_END(el0_error_compat)
-#endif
-
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_irq)
-	kernel_entry 0
-el0_irq_naked:
-	el0_interrupt_handler handle_arch_irq
-	b	ret_to_user
-SYM_CODE_END(el0_irq)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_fiq)
-	kernel_entry 0
-el0_fiq_naked:
-	el0_interrupt_handler handle_arch_fiq
-	b	ret_to_user
-SYM_CODE_END(el0_fiq)
-
-SYM_CODE_START_LOCAL(el1_error)
-	kernel_entry 1
-	mrs	x1, esr_el1
-	enable_dbg
-	mov	x0, sp
-	bl	do_serror
-	kernel_exit 1
-SYM_CODE_END(el1_error)
-
-SYM_CODE_START_LOCAL(el0_error)
-	kernel_entry 0
-el0_error_naked:
-	mrs	x25, esr_el1
-	user_exit_irqoff
-	enable_dbg
-	mov	x0, sp
-	mov	x1, x25
-	bl	do_serror
-	enable_da
-	b	ret_to_user
-SYM_CODE_END(el0_error)
+SYM_CODE_END(ret_to_kernel)
 
 /*
  * "slow" syscall return path.
@@ -979,8 +766,8 @@ SYM_FUNC_START(cpu_switch_to)
 	mov	sp, x9
 	msr	sp_el0, x1
 	ptrauth_keys_install_kernel x1, x8, x9, x10
-	scs_save x0, x8
-	scs_load x1, x8
+	scs_save x0
+	scs_load x1
 	ret
 SYM_FUNC_END(cpu_switch_to)
 NOKPROBE(cpu_switch_to)
@@ -997,6 +784,42 @@ SYM_CODE_START(ret_from_fork)
 	b	ret_to_user
 SYM_CODE_END(ret_from_fork)
 NOKPROBE(ret_from_fork)
+
+/*
+ * void call_on_irq_stack(struct pt_regs *regs,
+ * 		          void (*func)(struct pt_regs *));
+ *
+ * Calls func(regs) using this CPU's irq stack and shadow irq stack.
+ */
+SYM_FUNC_START(call_on_irq_stack)
+#ifdef CONFIG_SHADOW_CALL_STACK
+	stp	scs_sp, xzr, [sp, #-16]!
+	ldr_this_cpu scs_sp, irq_shadow_call_stack_ptr, x17
+#endif
+	/* Create a frame record to save our LR and SP (implicit in FP) */
+	stp	x29, x30, [sp, #-16]!
+	mov	x29, sp
+
+	ldr_this_cpu x16, irq_stack_ptr, x17
+	mov	x15, #IRQ_STACK_SIZE
+	add	x16, x16, x15
+
+	/* Move to the new stack and call the function there */
+	mov	sp, x16
+	blr	x1
+
+	/*
+	 * Restore the SP from the FP, and restore the FP and LR from the frame
+	 * record.
+	 */
+	mov	sp, x29
+	ldp	x29, x30, [sp], #16
+#ifdef CONFIG_SHADOW_CALL_STACK
+	ldp	scs_sp, xzr, [sp], #16
+#endif
+	ret
+SYM_FUNC_END(call_on_irq_stack)
+NOKPROBE(call_on_irq_stack)
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
 

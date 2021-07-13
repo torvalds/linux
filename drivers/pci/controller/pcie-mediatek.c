@@ -991,10 +991,8 @@ static int mtk_pcie_subsys_powerup(struct mtk_pcie *pcie)
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "subsys");
 	if (regs) {
 		pcie->base = devm_ioremap_resource(dev, regs);
-		if (IS_ERR(pcie->base)) {
-			dev_err(dev, "failed to map shared register\n");
+		if (IS_ERR(pcie->base))
 			return PTR_ERR(pcie->base);
-		}
 	}
 
 	pcie->free_ck = devm_clk_get(dev, "free_ck");

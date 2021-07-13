@@ -50,7 +50,6 @@ struct vfio_platform_device {
 	u32				num_irqs;
 	int				refcnt;
 	struct mutex			igate;
-	struct module			*parent_module;
 	const char			*compat;
 	const char			*acpihid;
 	struct module			*reset_module;

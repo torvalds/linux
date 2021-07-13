@@ -62,6 +62,7 @@ config V4L2_FLASH_LED_CLASS
 	tristate "V4L2 flash API for LED flash class devices"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on LEDS_CLASS_FLASH
+	select V4L2_ASYNC
 	help
 	  Say Y here to enable V4L2 flash API support for LED flash
 	  class drivers.
@@ -69,6 +70,10 @@ config V4L2_FLASH_LED_CLASS
 	  When in doubt, say N.
 
 config V4L2_FWNODE
+	tristate
+	select V4L2_ASYNC
+
+config V4L2_ASYNC
 	tristate
 
 # Used by drivers that need Videobuf modules

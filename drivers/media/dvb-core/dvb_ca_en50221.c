@@ -1386,6 +1386,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 			err = -EINVAL;
 			goto out_unlock;
 		}
+		slot = array_index_nospec(slot, ca->slot_count);
 
 		info->type = CA_CI_LINK;
 		info->flags = 0;

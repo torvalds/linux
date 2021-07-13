@@ -17,7 +17,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/of.h>
-#include <linux/clk.h>
 
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"

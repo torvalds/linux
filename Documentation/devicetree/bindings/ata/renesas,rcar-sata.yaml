@@ -53,6 +53,17 @@ required:
   - reg
   - interrupts
   - clocks
+  - power-domains
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          const: renesas,sata-r8a7779
+then:
+  required:
+    - resets
 
 additionalProperties: false
 

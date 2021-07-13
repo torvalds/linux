@@ -1022,8 +1022,20 @@ void dce110_edp_backlight_control(
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
 	panel_instance = link->panel_cntl->inst;
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
-		edp_receiver_ready_T7(link);
+
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T7-ready.
+		 */
+			edp_receiver_ready_T7(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
+	}
 
 	if (ctx->dc->ctx->dmub_srv &&
 			ctx->dc->debug.dmub_command_table) {
@@ -1048,8 +1060,19 @@ void dce110_edp_backlight_control(
 		dc_link_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
-		edp_add_delay_for_T9(link);
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T9-ready.
+		 */
+			edp_add_delay_for_T9(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
+	}
 
 	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_PRE_T11_DELAY);

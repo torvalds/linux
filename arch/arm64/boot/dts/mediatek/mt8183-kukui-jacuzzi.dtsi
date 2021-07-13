@@ -92,6 +92,14 @@
 	};
 };
 
+&cros_ec {
+	cros_ec_pwm: ec-pwm {
+		compatible = "google,cros-ec-pwm";
+		#pwm-cells = <1>;
+		status = "disabled";
+	};
+};
+
 &dsi0 {
 	status = "okay";
 	/delete-node/panel@0;

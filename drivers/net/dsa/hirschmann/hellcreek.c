@@ -927,7 +927,6 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 
 	/* Read table */
 	for (i = 0; i < hellcreek->fdb_entries; ++i) {
-		unsigned char null_addr[ETH_ALEN] = { 0 };
 		struct hellcreek_fdb_entry entry = { 0 };
 
 		/* Read entry */
@@ -937,7 +936,7 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 		hellcreek_write(hellcreek, 0x00, HR_FDBRDH);
 
 		/* Check valid */
-		if (!memcmp(entry.mac, null_addr, ETH_ALEN))
+		if (is_zero_ether_addr(entry.mac))
 			continue;
 
 		/* Check port mask */

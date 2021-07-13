@@ -11,10 +11,8 @@ void user_enable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
-	if (regs != NULL) {
-		regs->msr &= ~MSR_BE;
-		regs->msr |= MSR_SE;
-	}
+	if (regs != NULL)
+		regs_set_return_msr(regs, (regs->msr & ~MSR_BE) | MSR_SE);
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
@@ -22,10 +20,8 @@ void user_enable_block_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
-	if (regs != NULL) {
-		regs->msr &= ~MSR_SE;
-		regs->msr |= MSR_BE;
-	}
+	if (regs != NULL)
+		regs_set_return_msr(regs, (regs->msr & ~MSR_SE) | MSR_BE);
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
@@ -34,7 +30,7 @@ void user_disable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL)
-		regs->msr &= ~(MSR_SE | MSR_BE);
+		regs_set_return_msr(regs, regs->msr & ~(MSR_SE | MSR_BE));
 
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }

@@ -379,7 +379,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 	evlist__for_each_entry(evsel_list, counter) {
 		bool invalid = false;
 
-		leader = counter->leader;
+		leader = evsel__leader(counter);
 		if (!counter->metric_expr)
 			continue;
 

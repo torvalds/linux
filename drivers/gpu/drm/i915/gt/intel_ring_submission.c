@@ -184,8 +184,11 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	ENGINE_TRACE(engine, "ring:{HEAD:%04x, TAIL:%04x}\n",
 		     ring->head, ring->tail);
 
-	/* Double check the ring is empty & disabled before we resume */
-	synchronize_hardirq(engine->i915->drm.irq);
+	/*
+	 * Double check the ring is empty & disabled before we resume. Called
+	 * from atomic context during PCI probe, so _hardirq().
+	 */
+	intel_synchronize_hardirq(engine->i915);
 	if (!stop_ring(engine))
 		goto err;
 

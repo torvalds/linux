@@ -32,7 +32,13 @@ void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma, unsigned long st
 	struct hstate *hstate = hstate_file(vma->vm_file);
 
 	psize = hstate_get_psize(hstate);
-	radix__flush_tlb_range_psize(vma->vm_mm, start, end, psize);
+	/*
+	 * Flush PWC even if we get PUD_SIZE hugetlb invalidate to keep this simpler.
+	 */
+	if (end - start >= PUD_SIZE)
+		radix__flush_tlb_pwc_range_psize(vma->vm_mm, start, end, psize);
+	else
+		radix__flush_tlb_range_psize(vma->vm_mm, start, end, psize);
 }
 
 /*

@@ -11,6 +11,11 @@
 #include <linux/sched.h>
 #include "ishtp-hid.h"
 
+/* ISH Transport protocol (ISHTP in short) GUID */
+static const guid_t hid_ishtp_guid =
+	GUID_INIT(0x33AECD58, 0xB679, 0x4E54,
+		  0x9B, 0xD9, 0xA0, 0x4D, 0x34, 0xF0, 0xC2, 0x26);
+
 /* Rx ring buffer pool size */
 #define HID_CL_RX_RING_SIZE	32
 #define HID_CL_TX_RING_SIZE	16
@@ -18,7 +23,7 @@
 #define cl_data_to_dev(client_data) ishtp_device(client_data->cl_device)
 
 /**
- * report_bad_packets() - Report bad packets
+ * report_bad_packet() - Report bad packets
  * @hid_ishtp_cl:	Client instance to get stats
  * @recv_buf:		Raw received host interface message
  * @cur_pos:		Current position index in payload
@@ -779,7 +784,7 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 	}
 }
 
-void (*hid_print_trace)(void *unused, const char *format, ...);
+ishtp_print_log ishtp_hid_print_trace;
 
 /**
  * hid_ishtp_cl_probe() - ISHTP client driver probe
@@ -818,7 +823,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 
 	INIT_WORK(&client_data->work, hid_ishtp_cl_reset_handler);
 
-	hid_print_trace = ishtp_trace_callback(cl_device);
+	ishtp_hid_print_trace = ishtp_trace_callback(cl_device);
 
 	rv = hid_ishtp_cl_init(hid_ishtp_cl, 0);
 	if (rv) {
@@ -838,7 +843,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
  *
  * Return: 0
  */
-static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
+static void hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(hid_ishtp_cl);
@@ -856,8 +861,6 @@ static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 	hid_ishtp_cl = NULL;
 
 	client_data->num_hid_devices = 0;
-
-	return 0;
 }
 
 /**

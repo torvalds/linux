@@ -13,7 +13,7 @@
 #include "edac_module.h"
 #include "skx_common.h"
 
-#define I10NM_REVISION	"v0.0.4"
+#define I10NM_REVISION	"v0.0.5"
 #define EDAC_MOD_STR	"i10nm_edac"
 
 /* Debug macros */
@@ -24,19 +24,39 @@
 	pci_read_config_dword((d)->uracu, 0xd0, &(reg))
 #define I10NM_GET_IMC_BAR(d, i, reg)	\
 	pci_read_config_dword((d)->uracu, 0xd8 + (i) * 4, &(reg))
+#define I10NM_GET_SAD(d, offset, i, reg)\
+	pci_read_config_dword((d)->sad_all, (offset) + (i) * 8, &(reg))
+#define I10NM_GET_HBM_IMC_BAR(d, reg)	\
+	pci_read_config_dword((d)->uracu, 0xd4, &(reg))
+#define I10NM_GET_CAPID3_CFG(d, reg)	\
+	pci_read_config_dword((d)->pcu_cr3, 0x90, &(reg))
 #define I10NM_GET_DIMMMTR(m, i, j)	\
-	readl((m)->mbase + 0x2080c + (i) * (m)->chan_mmio_sz + (j) * 4)
+	readl((m)->mbase + ((m)->hbm_mc ? 0x80c : 0x2080c) + \
+	(i) * (m)->chan_mmio_sz + (j) * 4)
 #define I10NM_GET_MCDDRTCFG(m, i, j)	\
-	readl((m)->mbase + 0x20970 + (i) * (m)->chan_mmio_sz + (j) * 4)
+	readl((m)->mbase + ((m)->hbm_mc ? 0x970 : 0x20970) + \
+	(i) * (m)->chan_mmio_sz + (j) * 4)
 #define I10NM_GET_MCMTR(m, i)		\
-	readl((m)->mbase + 0x20ef8 + (i) * (m)->chan_mmio_sz)
+	readl((m)->mbase + ((m)->hbm_mc ? 0xef8 : 0x20ef8) + \
+	(i) * (m)->chan_mmio_sz)
 #define I10NM_GET_AMAP(m, i)		\
-	readl((m)->mbase + 0x20814 + (i) * (m)->chan_mmio_sz)
+	readl((m)->mbase + ((m)->hbm_mc ? 0x814 : 0x20814) + \
+	(i) * (m)->chan_mmio_sz)
 
 #define I10NM_GET_SCK_MMIO_BASE(reg)	(GET_BITFIELD(reg, 0, 28) << 23)
 #define I10NM_GET_IMC_MMIO_OFFSET(reg)	(GET_BITFIELD(reg, 0, 10) << 12)
 #define I10NM_GET_IMC_MMIO_SIZE(reg)	((GET_BITFIELD(reg, 13, 23) - \
 					 GET_BITFIELD(reg, 0, 10) + 1) << 12)
+#define I10NM_GET_HBM_IMC_MMIO_OFFSET(reg)	\
+	((GET_BITFIELD(reg, 0, 10) << 12) + 0x140000)
+
+#define I10NM_HBM_IMC_MMIO_SIZE		0x9000
+#define I10NM_IS_HBM_PRESENT(reg)	GET_BITFIELD(reg, 27, 30)
+#define I10NM_IS_HBM_IMC(reg)		GET_BITFIELD(reg, 29, 29)
+
+#define I10NM_MAX_SAD			16
+#define I10NM_SAD_ENABLE(reg)		GET_BITFIELD(reg, 0, 0)
+#define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
 static struct list_head *i10nm_edac_list;
 
@@ -63,7 +83,32 @@ static struct pci_dev *pci_get_dev_wrapper(int dom, unsigned int bus,
 	return pdev;
 }
 
-static int i10nm_get_all_munits(void)
+static bool i10nm_check_2lm(struct res_config *cfg)
+{
+	struct skx_dev *d;
+	u32 reg;
+	int i;
+
+	list_for_each_entry(d, i10nm_edac_list, list) {
+		d->sad_all = pci_get_dev_wrapper(d->seg, d->bus[1],
+						 PCI_SLOT(cfg->sad_all_devfn),
+						 PCI_FUNC(cfg->sad_all_devfn));
+		if (!d->sad_all)
+			continue;
+
+		for (i = 0; i < I10NM_MAX_SAD; i++) {
+			I10NM_GET_SAD(d, cfg->sad_all_offset, i, reg);
+			if (I10NM_SAD_ENABLE(reg) && I10NM_SAD_NM_CACHEABLE(reg)) {
+				edac_dbg(2, "2-level memory configuration.\n");
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static int i10nm_get_ddr_munits(void)
 {
 	struct pci_dev *mdev;
 	void __iomem *mbase;
@@ -91,7 +136,7 @@ static int i10nm_get_all_munits(void)
 		edac_dbg(2, "socket%d mmio base 0x%llx (reg 0x%x)\n",
 			 j++, base, reg);
 
-		for (i = 0; i < I10NM_NUM_IMC; i++) {
+		for (i = 0; i < I10NM_NUM_DDR_IMC; i++) {
 			mdev = pci_get_dev_wrapper(d->seg, d->bus[0],
 						   12 + i, 0);
 			if (i == 0 && !mdev) {
@@ -127,11 +172,97 @@ static int i10nm_get_all_munits(void)
 	return 0;
 }
 
+static bool i10nm_check_hbm_imc(struct skx_dev *d)
+{
+	u32 reg;
+
+	if (I10NM_GET_CAPID3_CFG(d, reg)) {
+		i10nm_printk(KERN_ERR, "Failed to get capid3_cfg\n");
+		return false;
+	}
+
+	return I10NM_IS_HBM_PRESENT(reg) != 0;
+}
+
+static int i10nm_get_hbm_munits(void)
+{
+	struct pci_dev *mdev;
+	void __iomem *mbase;
+	u32 reg, off, mcmtr;
+	struct skx_dev *d;
+	int i, lmc;
+	u64 base;
+
+	list_for_each_entry(d, i10nm_edac_list, list) {
+		d->pcu_cr3 = pci_get_dev_wrapper(d->seg, d->bus[1], 30, 3);
+		if (!d->pcu_cr3)
+			return -ENODEV;
+
+		if (!i10nm_check_hbm_imc(d)) {
+			i10nm_printk(KERN_DEBUG, "No hbm memory\n");
+			return -ENODEV;
+		}
+
+		if (I10NM_GET_SCK_BAR(d, reg)) {
+			i10nm_printk(KERN_ERR, "Failed to get socket bar\n");
+			return -ENODEV;
+		}
+		base = I10NM_GET_SCK_MMIO_BASE(reg);
+
+		if (I10NM_GET_HBM_IMC_BAR(d, reg)) {
+			i10nm_printk(KERN_ERR, "Failed to get hbm mc bar\n");
+			return -ENODEV;
+		}
+		base += I10NM_GET_HBM_IMC_MMIO_OFFSET(reg);
+
+		lmc = I10NM_NUM_DDR_IMC;
+
+		for (i = 0; i < I10NM_NUM_HBM_IMC; i++) {
+			mdev = pci_get_dev_wrapper(d->seg, d->bus[0],
+						   12 + i / 4, 1 + i % 4);
+			if (i == 0 && !mdev) {
+				i10nm_printk(KERN_ERR, "No hbm mc found\n");
+				return -ENODEV;
+			}
+			if (!mdev)
+				continue;
+
+			d->imc[lmc].mdev = mdev;
+			off = i * I10NM_HBM_IMC_MMIO_SIZE;
+
+			edac_dbg(2, "hbm mc%d mmio base 0x%llx size 0x%x\n",
+				 lmc, base + off, I10NM_HBM_IMC_MMIO_SIZE);
+
+			mbase = ioremap(base + off, I10NM_HBM_IMC_MMIO_SIZE);
+			if (!mbase) {
+				i10nm_printk(KERN_ERR, "Failed to ioremap for hbm mc 0x%llx\n",
+					     base + off);
+				return -ENOMEM;
+			}
+
+			d->imc[lmc].mbase = mbase;
+			d->imc[lmc].hbm_mc = true;
+
+			mcmtr = I10NM_GET_MCMTR(&d->imc[lmc], 0);
+			if (!I10NM_IS_HBM_IMC(mcmtr)) {
+				i10nm_printk(KERN_ERR, "This isn't an hbm mc!\n");
+				return -ENODEV;
+			}
+
+			lmc++;
+		}
+	}
+
+	return 0;
+}
+
 static struct res_config i10nm_cfg0 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xcc,
 	.ddr_chan_mmio_sz	= 0x4000,
+	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_offset		= 0x108,
 };
 
 static struct res_config i10nm_cfg1 = {
@@ -139,6 +270,8 @@ static struct res_config i10nm_cfg1 = {
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xd0,
 	.ddr_chan_mmio_sz	= 0x4000,
+	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_offset		= 0x108,
 };
 
 static struct res_config spr_cfg = {
@@ -146,7 +279,10 @@ static struct res_config spr_cfg = {
 	.decs_did		= 0x3252,
 	.busno_cfg_offset	= 0xd0,
 	.ddr_chan_mmio_sz	= 0x8000,
+	.hbm_chan_mmio_sz	= 0x4000,
 	.support_ddr5		= true,
+	.sad_all_devfn		= PCI_DEVFN(10, 0),
+	.sad_all_offset		= 0x300,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
@@ -179,13 +315,13 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 	struct dimm_info *dimm;
 	int i, j, ndimms;
 
-	for (i = 0; i < I10NM_NUM_CHANNELS; i++) {
+	for (i = 0; i < imc->num_channels; i++) {
 		if (!imc->mbase)
 			continue;
 
 		ndimms = 0;
 		amap = I10NM_GET_AMAP(imc, i);
-		for (j = 0; j < I10NM_NUM_DIMMS; j++) {
+		for (j = 0; j < imc->num_dimms; j++) {
 			dimm = edac_get_dimm(mci, i, j, 0);
 			mtr = I10NM_GET_DIMMMTR(imc, i, j);
 			mcddrtcfg = I10NM_GET_MCDDRTCFG(imc, i, j);
@@ -278,6 +414,9 @@ static int __init i10nm_init(void)
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
 		return -EBUSY;
 
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return -ENODEV;
+
 	id = x86_match_cpu(i10nm_cpuids);
 	if (!id)
 		return -ENODEV;
@@ -296,8 +435,11 @@ static int __init i10nm_init(void)
 		return -ENODEV;
 	}
 
-	rc = i10nm_get_all_munits();
-	if (rc < 0)
+	skx_set_mem_cfg(i10nm_check_2lm(cfg));
+
+	rc = i10nm_get_ddr_munits();
+
+	if (i10nm_get_hbm_munits() && rc)
 		goto fail;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
@@ -318,7 +460,15 @@ static int __init i10nm_init(void)
 			d->imc[i].lmc = i;
 			d->imc[i].src_id  = src_id;
 			d->imc[i].node_id = node_id;
-			d->imc[i].chan_mmio_sz = cfg->ddr_chan_mmio_sz;
+			if (d->imc[i].hbm_mc) {
+				d->imc[i].chan_mmio_sz = cfg->hbm_chan_mmio_sz;
+				d->imc[i].num_channels = I10NM_NUM_HBM_CHANNELS;
+				d->imc[i].num_dimms    = I10NM_NUM_HBM_DIMMS;
+			} else {
+				d->imc[i].chan_mmio_sz = cfg->ddr_chan_mmio_sz;
+				d->imc[i].num_channels = I10NM_NUM_DDR_CHANNELS;
+				d->imc[i].num_dimms    = I10NM_NUM_DDR_DIMMS;
+			}
 
 			rc = skx_register_mci(&d->imc[i], d->imc[i].mdev,
 					      "Intel_10nm Socket", EDAC_MOD_STR,

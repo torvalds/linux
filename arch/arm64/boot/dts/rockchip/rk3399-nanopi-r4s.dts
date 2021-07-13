@@ -33,7 +33,7 @@
 
 		sys_led: led-sys {
 			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
-			label = "red:sys";
+			label = "red:power";
 			default-state = "on";
 		};
 

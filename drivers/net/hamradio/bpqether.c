@@ -368,7 +368,7 @@ static int bpq_close(struct net_device *dev)
 
 /* ------------------------------------------------------------------------ */
 
-
+#ifdef CONFIG_PROC_FS
 /*
  *	Proc filesystem
  */
@@ -440,7 +440,7 @@ static const struct seq_operations bpq_seqops = {
 	.stop = bpq_seq_stop,
 	.show = bpq_seq_show,
 };
-
+#endif
 /* ------------------------------------------------------------------------ */
 
 static const struct net_device_ops bpq_netdev_ops = {

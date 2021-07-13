@@ -180,7 +180,7 @@ static int qlcnic_83xx_init_non_privileged_vnic(struct qlcnic_adapter *adapter)
 }
 
 /**
- * qlcnic_83xx_vnic_opmode
+ * qlcnic_83xx_config_vnic_opmode
  *
  * @adapter: adapter structure
  * Identify virtual NIC operational modes.

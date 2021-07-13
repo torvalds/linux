@@ -34,15 +34,11 @@ static int find_max_nr_alloc(void)
 {
 	struct pcpu_chunk *chunk;
 	int slot, max_nr_alloc;
-	enum pcpu_chunk_type type;
 
 	max_nr_alloc = 0;
-	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++)
-		for (slot = 0; slot < pcpu_nr_slots; slot++)
-			list_for_each_entry(chunk, &pcpu_chunk_list(type)[slot],
-					    list)
-				max_nr_alloc = max(max_nr_alloc,
-						   chunk->nr_alloc);
+	for (slot = 0; slot < pcpu_nr_slots; slot++)
+		list_for_each_entry(chunk, &pcpu_chunk_lists[slot], list)
+			max_nr_alloc = max(max_nr_alloc, chunk->nr_alloc);
 
 	return max_nr_alloc;
 }
@@ -133,9 +129,6 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	P("cur_min_alloc", cur_min_alloc);
 	P("cur_med_alloc", cur_med_alloc);
 	P("cur_max_alloc", cur_max_alloc);
-#ifdef CONFIG_MEMCG_KMEM
-	P("memcg_aware", pcpu_is_memcg_chunk(pcpu_chunk_type(chunk)));
-#endif
 	seq_putc(m, '\n');
 }
 
@@ -144,8 +137,6 @@ static int percpu_stats_show(struct seq_file *m, void *v)
 	struct pcpu_chunk *chunk;
 	int slot, max_nr_alloc;
 	int *buffer;
-	enum pcpu_chunk_type type;
-	int nr_empty_pop_pages;
 
 alloc_buffer:
 	spin_lock_irq(&pcpu_lock);
@@ -165,10 +156,6 @@ alloc_buffer:
 		vfree(buffer);
 		goto alloc_buffer;
 	}
-
-	nr_empty_pop_pages = 0;
-	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++)
-		nr_empty_pop_pages += pcpu_nr_empty_pop_pages[type];
 
 #define PL(X)								\
 	seq_printf(m, "  %-20s: %12lld\n", #X, (long long int)pcpu_stats_ai.X)
@@ -201,7 +188,7 @@ alloc_buffer:
 	PU(nr_max_chunks);
 	PU(min_alloc_size);
 	PU(max_alloc_size);
-	P("empty_pop_pages", nr_empty_pop_pages);
+	P("empty_pop_pages", pcpu_nr_empty_pop_pages);
 	seq_putc(m, '\n');
 
 #undef PU
@@ -215,18 +202,17 @@ alloc_buffer:
 		chunk_map_stats(m, pcpu_reserved_chunk, buffer);
 	}
 
-	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++) {
-		for (slot = 0; slot < pcpu_nr_slots; slot++) {
-			list_for_each_entry(chunk, &pcpu_chunk_list(type)[slot],
-					    list) {
-				if (chunk == pcpu_first_chunk) {
-					seq_puts(m, "Chunk: <- First Chunk\n");
-					chunk_map_stats(m, chunk, buffer);
-				} else {
-					seq_puts(m, "Chunk:\n");
-					chunk_map_stats(m, chunk, buffer);
-				}
-			}
+	for (slot = 0; slot < pcpu_nr_slots; slot++) {
+		list_for_each_entry(chunk, &pcpu_chunk_lists[slot], list) {
+			if (chunk == pcpu_first_chunk)
+				seq_puts(m, "Chunk: <- First Chunk\n");
+			else if (slot == pcpu_to_depopulate_slot)
+				seq_puts(m, "Chunk (to_depopulate)\n");
+			else if (slot == pcpu_sidelined_slot)
+				seq_puts(m, "Chunk (sidelined):\n");
+			else
+				seq_puts(m, "Chunk:\n");
+			chunk_map_stats(m, chunk, buffer);
 		}
 	}
 

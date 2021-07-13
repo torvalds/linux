@@ -223,10 +223,12 @@ enum amd_harvest_ip_mask {
 };
 
 enum DC_FEATURE_MASK {
-	DC_FBC_MASK = 0x1,
-	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
-	DC_DISABLE_FRACTIONAL_PWM_MASK = 0x4,
-	DC_PSR_MASK = 0x8,
+	//Default value can be found at "uint amdgpu_dc_feature_mask"
+	DC_FBC_MASK = (1 << 0), //0x1, disabled by default
+	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = (1 << 1), //0x2, enabled by default
+	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
+	DC_PSR_MASK = (1 << 3), //0x8, disabled by default
+	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 };
 
 enum DC_DEBUG_MASK {

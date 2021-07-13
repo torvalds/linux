@@ -113,6 +113,7 @@ typedef struct {
 
 /* patch sites */
 extern s32 patch__tlb_44x_hwater_D, patch__tlb_44x_hwater_I;
+extern s32 patch__tlb_44x_kuep, patch__tlb_47x_kuep;
 
 #endif /* !__ASSEMBLY__ */
 

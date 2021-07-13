@@ -609,23 +609,25 @@ unsigned long kdb_task_state_string(const char *s)
  */
 char kdb_task_state_char (const struct task_struct *p)
 {
-	int cpu;
-	char state;
+	unsigned int p_state;
 	unsigned long tmp;
+	char state;
+	int cpu;
 
 	if (!p ||
 	    copy_from_kernel_nofault(&tmp, (char *)p, sizeof(unsigned long)))
 		return 'E';
 
 	cpu = kdb_process_cpu(p);
-	state = (p->state == 0) ? 'R' :
-		(p->state < 0) ? 'U' :
-		(p->state & TASK_UNINTERRUPTIBLE) ? 'D' :
-		(p->state & TASK_STOPPED) ? 'T' :
-		(p->state & TASK_TRACED) ? 'C' :
+	p_state = READ_ONCE(p->__state);
+	state = (p_state == 0) ? 'R' :
+		(p_state < 0) ? 'U' :
+		(p_state & TASK_UNINTERRUPTIBLE) ? 'D' :
+		(p_state & TASK_STOPPED) ? 'T' :
+		(p_state & TASK_TRACED) ? 'C' :
 		(p->exit_state & EXIT_ZOMBIE) ? 'Z' :
 		(p->exit_state & EXIT_DEAD) ? 'E' :
-		(p->state & TASK_INTERRUPTIBLE) ? 'S' : '?';
+		(p_state & TASK_INTERRUPTIBLE) ? 'S' : '?';
 	if (is_idle_task(p)) {
 		/* Idle task.  Is it really idle, apart from the kdb
 		 * interrupt? */

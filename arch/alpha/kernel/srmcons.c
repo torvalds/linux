@@ -142,16 +142,10 @@ srmcons_write(struct tty_struct *tty,
 	return count;
 }
 
-static int
+static unsigned int
 srmcons_write_room(struct tty_struct *tty)
 {
 	return 512;
-}
-
-static int
-srmcons_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
 }
 
 static int
@@ -200,7 +194,6 @@ static const struct tty_operations srmcons_ops = {
 	.close		= srmcons_close,
 	.write		= srmcons_write,
 	.write_room	= srmcons_write_room,
-	.chars_in_buffer= srmcons_chars_in_buffer,
 };
 
 static int __init

@@ -150,7 +150,7 @@ struct lance_memory {
 struct lance_private {
 	volatile unsigned short	*iobase;
 	struct lance_memory	*mem;
-     	int new_rx, new_tx;	/* The next free ring entry */
+	int new_rx, new_tx;	/* The next free ring entry */
 	int old_tx, old_rx;     /* ring entry to be processed */
 /* These two must be longs for set_bit() */
 	long	    tx_full;
@@ -465,7 +465,7 @@ static void lance_init_ring( struct net_device *dev )
 	for( i = 0; i < TX_RING_SIZE; i++ ) {
 		MEM->tx_head[i].base = dvma_vtob(MEM->tx_data[i]);
 		MEM->tx_head[i].flag = 0;
- 		MEM->tx_head[i].base_hi =
+		MEM->tx_head[i].base_hi =
 			(dvma_vtob(MEM->tx_data[i])) >>16;
 		MEM->tx_head[i].length = 0;
 		MEM->tx_head[i].misc = 0;
@@ -581,8 +581,8 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	AREG = CSR0;
-  	DPRINTK( 2, ( "%s: lance_start_xmit() called, csr0 %4.4x.\n",
-  				  dev->name, DREG ));
+	DPRINTK( 2, ( "%s: lance_start_xmit() called, csr0 %4.4x.\n",
+				  dev->name, DREG ));
 
 #ifdef CONFIG_SUN3X
 	/* this weirdness doesn't appear on sun3... */
@@ -636,8 +636,8 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate send poll. */
 	REGA(CSR0) = CSR0_INEA | CSR0_TDMD | CSR0_STRT;
 	AREG = CSR0;
-  	DPRINTK( 2, ( "%s: lance_start_xmit() exiting, csr0 %4.4x.\n",
-  				  dev->name, DREG ));
+	DPRINTK( 2, ( "%s: lance_start_xmit() exiting, csr0 %4.4x.\n",
+				  dev->name, DREG ));
 	dev_kfree_skb(skb);
 
 	lp->lock = 0;

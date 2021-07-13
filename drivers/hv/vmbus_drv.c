@@ -25,6 +25,7 @@
 
 #include <linux/delay.h>
 #include <linux/notifier.h>
+#include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>

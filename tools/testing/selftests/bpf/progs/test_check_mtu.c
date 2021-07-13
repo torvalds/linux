@@ -11,8 +11,8 @@
 char _license[] SEC("license") = "GPL";
 
 /* Userspace will update with MTU it can see on device */
-static volatile const int GLOBAL_USER_MTU;
-static volatile const __u32 GLOBAL_USER_IFINDEX;
+volatile const int GLOBAL_USER_MTU;
+volatile const __u32 GLOBAL_USER_IFINDEX;
 
 /* BPF-prog will update these with MTU values it can see */
 __u32 global_bpf_mtu_xdp = 0;

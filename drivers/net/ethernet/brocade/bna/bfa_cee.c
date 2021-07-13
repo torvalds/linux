@@ -82,7 +82,7 @@ bfa_cee_get_attr_isr(struct bfa_cee *cee, enum bfa_status status)
 }
 
 /**
- * bfa_cee_get_attr_isr - CEE ISR for get-stats responses from f/w
+ * bfa_cee_get_stats_isr - CEE ISR for get-stats responses from f/w
  *
  * @cee: Pointer to the CEE module
  * @status: Return status from the f/w

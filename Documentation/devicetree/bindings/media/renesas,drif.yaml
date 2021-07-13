@@ -78,7 +78,6 @@ properties:
 
   dma-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: rx
       - const: rx

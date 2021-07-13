@@ -550,8 +550,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 		goto err_unset_ahub;
 	}
 
-	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs_apbif = devm_ioremap_resource(&pdev->dev, res0);
+	regs_apbif = devm_platform_get_and_ioremap_resource(pdev, 0, &res0);
 	if (IS_ERR(regs_apbif)) {
 		ret = PTR_ERR(regs_apbif);
 		goto err_unset_ahub;

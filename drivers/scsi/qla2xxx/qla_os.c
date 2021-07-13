@@ -6969,6 +6969,17 @@ intr_on_check:
 			qla2x00_lip_reset(base_vha);
 		}
 
+		if (test_bit(HEARTBEAT_CHK, &base_vha->dpc_flags)) {
+			/*
+			 * if there is a mb in progress then that's
+			 * enough of a check to see if fw is still ticking.
+			 */
+			if (!ha->flags.mbox_busy && base_vha->flags.init_done)
+				qla_no_op_mb(base_vha);
+
+			clear_bit(HEARTBEAT_CHK, &base_vha->dpc_flags);
+		}
+
 		ha->dpc_active = 0;
 end_loop:
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -7022,6 +7033,61 @@ qla2x00_rst_aen(scsi_qla_host_t *vha)
 			vha->marker_needed = 1;
 		} while (!atomic_read(&vha->loop_down_timer) &&
 		    (test_bit(RESET_MARKER_NEEDED, &vha->dpc_flags)));
+	}
+}
+
+static bool qla_do_heartbeat(struct scsi_qla_host *vha)
+{
+	u64 cmd_cnt, prev_cmd_cnt;
+	bool do_hb = false;
+	struct qla_hw_data *ha = vha->hw;
+	int i;
+
+	/* if cmds are still pending down in fw, then do hb */
+	if (ha->base_qpair->cmd_cnt != ha->base_qpair->cmd_completion_cnt) {
+		do_hb = true;
+		goto skip;
+	}
+
+	for (i = 0; i < ha->max_qpairs; i++) {
+		if (ha->queue_pair_map[i] &&
+		    ha->queue_pair_map[i]->cmd_cnt !=
+		    ha->queue_pair_map[i]->cmd_completion_cnt) {
+			do_hb = true;
+			break;
+		}
+	}
+
+skip:
+	prev_cmd_cnt = ha->prev_cmd_cnt;
+	cmd_cnt = ha->base_qpair->cmd_cnt;
+	for (i = 0; i < ha->max_qpairs; i++) {
+		if (ha->queue_pair_map[i])
+			cmd_cnt += ha->queue_pair_map[i]->cmd_cnt;
+	}
+	ha->prev_cmd_cnt = cmd_cnt;
+
+	if (!do_hb && ((cmd_cnt - prev_cmd_cnt) > 50))
+		/*
+		 * IOs are completing before periodic hb check.
+		 * IOs seems to be running, do hb for sanity check.
+		 */
+		do_hb = true;
+
+	return do_hb;
+}
+
+static void qla_heart_beat(struct scsi_qla_host *vha)
+{
+	if (vha->vp_idx)
+		return;
+
+	if (vha->hw->flags.eeh_busy || qla2x00_chip_is_down(vha))
+		return;
+
+	if (qla_do_heartbeat(vha)) {
+		set_bit(HEARTBEAT_CHK, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
 	}
 }
 
@@ -7242,6 +7308,8 @@ qla2x00_timer(struct timer_list *t)
 		    test_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags));
 		qla2xxx_wake_dpc(vha);
 	}
+
+	qla_heart_beat(vha);
 
 	qla2x00_restart_timer(vha, WATCH_INTERVAL);
 }
