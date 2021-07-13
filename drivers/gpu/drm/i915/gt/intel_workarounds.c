@@ -1677,8 +1677,9 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
 	}
 
-	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1406941453:tgl,rkl,dg1 */
+	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) ||
+	    IS_ALDERLAKE_S(i915)) {
+		/* Wa_1406941453:tgl,rkl,dg1,adl-s */
 		wa_masked_en(wal,
 			     GEN10_SAMPLER_MODE,
 			     ENABLE_SMALLPL);
