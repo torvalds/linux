@@ -121,8 +121,8 @@ cat << EOF
  * arch_ variants (i.e. arch_atomic_read()/arch_atomic_cmpxchg()) to avoid
  * double instrumentation.
  */
-#ifndef _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
-#define _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
+#ifndef _LINUX_ATOMIC_INSTRUMENTED_H
+#define _LINUX_ATOMIC_INSTRUMENTED_H
 
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
@@ -158,5 +158,5 @@ gen_xchg "cmpxchg_double_local" "2 * "
 
 cat <<EOF
 
-#endif /* _ASM_GENERIC_ATOMIC_INSTRUMENTED_H */
+#endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
 EOF

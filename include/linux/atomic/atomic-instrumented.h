@@ -14,8 +14,8 @@
  * arch_ variants (i.e. arch_atomic_read()/arch_atomic_cmpxchg()) to avoid
  * double instrumentation.
  */
-#ifndef _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
-#define _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
+#ifndef _LINUX_ATOMIC_INSTRUMENTED_H
+#define _LINUX_ATOMIC_INSTRUMENTED_H
 
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
@@ -1333,5 +1333,5 @@ atomic64_dec_if_positive(atomic64_t *v)
 	arch_cmpxchg_double_local(__ai_ptr, __VA_ARGS__); \
 })
 
-#endif /* _ASM_GENERIC_ATOMIC_INSTRUMENTED_H */
-// 1d7c3a25aca5c7fb031c307be4c3d24c7b48fcd5
+#endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
+// 5edd72f105b6f54b7e9492d794abee88e6912d29
