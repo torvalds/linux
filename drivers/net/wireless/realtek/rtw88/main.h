@@ -1146,6 +1146,7 @@ struct rtw_chip_info {
 	u8 txgi_factor;
 	bool is_pwr_by_rate_dec;
 	bool rx_ldpc;
+	bool tx_stbc;
 	u8 max_power_index;
 
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
@@ -1957,6 +1958,11 @@ static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
 static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
 {
 	return rtwdev->chip->rx_ldpc;
+}
+
+static inline bool rtw_chip_has_tx_stbc(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->tx_stbc;
 }
 
 static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)
