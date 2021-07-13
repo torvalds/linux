@@ -866,6 +866,68 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 	__hrtimer_reprogram(cpu_base, true, timer, expires);
 }
 
+static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
+			     unsigned int active)
+{
+	struct hrtimer_clock_base *base;
+	unsigned int seq;
+	ktime_t expires;
+
+	/*
+	 * Update the base offsets unconditionally so the following
+	 * checks whether the SMP function call is required works.
+	 *
+	 * The update is safe even when the remote CPU is in the hrtimer
+	 * interrupt or the hrtimer soft interrupt and expiring affected
+	 * bases. Either it will see the update before handling a base or
+	 * it will see it when it finishes the processing and reevaluates
+	 * the next expiring timer.
+	 */
+	seq = cpu_base->clock_was_set_seq;
+	hrtimer_update_base(cpu_base);
+
+	/*
+	 * If the sequence did not change over the update then the
+	 * remote CPU already handled it.
+	 */
+	if (seq == cpu_base->clock_was_set_seq)
+		return false;
+
+	/*
+	 * If the remote CPU is currently handling an hrtimer interrupt, it
+	 * will reevaluate the first expiring timer of all clock bases
+	 * before reprogramming. Nothing to do here.
+	 */
+	if (cpu_base->in_hrtirq)
+		return false;
+
+	/*
+	 * Walk the affected clock bases and check whether the first expiring
+	 * timer in a clock base is moving ahead of the first expiring timer of
+	 * @cpu_base. If so, the IPI must be invoked because per CPU clock
+	 * event devices cannot be remotely reprogrammed.
+	 */
+	active &= cpu_base->active_bases;
+
+	for_each_active_base(base, cpu_base, active) {
+		struct timerqueue_node *next;
+
+		next = timerqueue_getnext(&base->active);
+		expires = ktime_sub(next->expires, base->offset);
+		if (expires < cpu_base->expires_next)
+			return true;
+
+		/* Extra check for softirq clock bases */
+		if (base->clockid < HRTIMER_BASE_MONOTONIC_SOFT)
+			continue;
+		if (cpu_base->softirq_activated)
+			continue;
+		if (expires < cpu_base->softirq_expires_next)
+			return true;
+	}
+	return false;
+}
+
 /*
  * Clock was set. This might affect CLOCK_REALTIME, CLOCK_TAI and
  * CLOCK_BOOTTIME (for late sleep time injection).
@@ -900,16 +962,10 @@ void clock_was_set(unsigned int bases)
 		unsigned long flags;
 
 		raw_spin_lock_irqsave(&cpu_base->lock, flags);
-		/*
-		 * Only send the IPI when there are timers queued in one of
-		 * the affected clock bases. Otherwise update the base
-		 * remote to ensure that the next enqueue of a timer on
-		 * such a clock base will see the correct offsets.
-		 */
-		if (cpu_base->active_bases & bases)
+
+		if (update_needs_ipi(cpu_base, bases))
 			cpumask_set_cpu(cpu, mask);
-		else
-			hrtimer_update_base(cpu_base);
+
 		raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 	}
 
