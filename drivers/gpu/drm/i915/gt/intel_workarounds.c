@@ -1078,7 +1078,7 @@ gen12_gt_workarounds_init(struct drm_i915_private *i915,
 {
 	icl_wa_init_mcr(i915, wal);
 
-	/* Wa_14011060649:tgl,rkl,dg1,adls,adl-p */
+	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
 	wa_14011060649(i915, wal);
 }
 
