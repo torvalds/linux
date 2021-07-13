@@ -22,6 +22,8 @@ select:
         enum:
           - ingenic,jz4740-cgu
           - ingenic,jz4725b-cgu
+          - ingenic,jz4760-cgu
+          - ingenic,jz4760b-cgu
           - ingenic,jz4770-cgu
           - ingenic,jz4780-cgu
           - ingenic,x1000-cgu
@@ -49,6 +51,8 @@ properties:
       - enum:
           - ingenic,jz4740-cgu
           - ingenic,jz4725b-cgu
+          - ingenic,jz4760-cgu
+          - ingenic,jz4760b-cgu
           - ingenic,jz4770-cgu
           - ingenic,jz4780-cgu
           - ingenic,x1000-cgu
@@ -93,6 +97,8 @@ required:
 patternProperties:
   "^usb-phy@[a-f0-9]+$":
     allOf: [ $ref: "../phy/ingenic,phy-usb.yaml#" ]
+  "^mac-phy-ctrl@[a-f0-9]+$":
+    allOf: [ $ref: "../net/ingenic,mac.yaml#" ]
 
 additionalProperties: false
 

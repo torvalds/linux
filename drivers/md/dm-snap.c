@@ -859,7 +859,8 @@ static uint32_t __minimum_chunk_size(struct origin *o)
 
 	if (o)
 		list_for_each_entry(snap, &o->snapshots, list)
-			chunk_size = min(chunk_size, snap->store->chunk_size);
+			chunk_size = min_not_zero(chunk_size,
+						  snap->store->chunk_size);
 
 	return (uint32_t) chunk_size;
 }

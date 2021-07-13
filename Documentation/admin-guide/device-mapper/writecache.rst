@@ -12,7 +12,6 @@ first sector should contain valid superblock from previous invocation.
 Constructor parameters:
 
 1. type of the cache device - "p" or "s"
-
 	- p - persistent memory
 	- s - SSD
 2. the underlying device that will be cached
@@ -21,7 +20,6 @@ Constructor parameters:
    size)
 5. the number of optional parameters (the parameters with an argument
    count as two)
-
 	start_sector n		(default: 0)
 		offset from the start of cache device in 512-byte sectors
 	high_watermark n	(default: 50)
@@ -53,6 +51,27 @@ Constructor parameters:
 
 		- some underlying devices perform better with fua, some
 		  with nofua. The user should test it
+	cleaner
+		when this option is activated (either in the constructor
+		arguments or by a message), the cache will not promote
+		new writes (however, writes to already cached blocks are
+		promoted, to avoid data corruption due to misordered
+		writes) and it will gradually writeback any cached
+		data. The userspace can then monitor the cleaning
+		process with "dmsetup status". When the number of cached
+		blocks drops to zero, userspace can unload the
+		dm-writecache target and replace it with dm-linear or
+		other targets.
+	max_age n
+		specifies the maximum age of a block in milliseconds. If
+		a block is stored in the cache for too long, it will be
+		written to the underlying device and cleaned up.
+	metadata_only
+		only metadata is promoted to the cache. This option
+		improves performance for heavier REQ_META workloads.
+	pause_writeback n	(default: 3000)
+		pause writeback if there was some write I/O redirected to
+		the origin volume in the last n milliseconds
 
 Status:
 1. error indicator - 0 if there was no error, otherwise error number
@@ -77,3 +96,5 @@ Messages:
 		5. resume the device, so that it will use the linear
 		   target
 		6. the cache device is now inactive and it can be deleted
+	cleaner
+		See above "cleaner" constructor documentation.

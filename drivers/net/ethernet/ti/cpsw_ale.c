@@ -70,7 +70,7 @@ enum {
 };
 
 /**
- * struct ale_dev_id - The ALE version/SoC specific configuration
+ * struct cpsw_ale_dev_id - The ALE version/SoC specific configuration
  * @dev_id: ALE version/SoC id
  * @features: features supported by ALE
  * @tbl_entries: number of ALE entries

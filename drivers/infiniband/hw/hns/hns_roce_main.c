@@ -748,34 +748,16 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_uar_table_free;
 	}
 
-	ret = hns_roce_init_pd_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init protected domain table.\n");
-		goto err_uar_alloc_free;
-	}
+	hns_roce_init_pd_table(hr_dev);
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC) {
-		ret = hns_roce_init_xrcd_table(hr_dev);
-		if (ret) {
-			dev_err(dev, "failed to init xrcd table, ret = %d.\n",
-				ret);
-			goto err_pd_table_free;
-		}
-	}
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
+		hns_roce_init_xrcd_table(hr_dev);
 
-	ret = hns_roce_init_mr_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init memory region table.\n");
-		goto err_xrcd_table_free;
-	}
+	hns_roce_init_mr_table(hr_dev);
 
 	hns_roce_init_cq_table(hr_dev);
 
-	ret = hns_roce_init_qp_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init queue pair table.\n");
-		goto err_cq_table_free;
-	}
+	hns_roce_init_qp_table(hr_dev);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		ret = hns_roce_init_srq_table(hr_dev);
@@ -790,19 +772,13 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 err_qp_table_free:
 	hns_roce_cleanup_qp_table(hr_dev);
-
-err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
-	hns_roce_cleanup_mr_table(hr_dev);
+	ida_destroy(&hr_dev->mr_table.mtpt_ida.ida);
 
-err_xrcd_table_free:
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
-		hns_roce_cleanup_xrcd_table(hr_dev);
+		ida_destroy(&hr_dev->xrcd_ida.ida);
 
-err_pd_table_free:
-	hns_roce_cleanup_pd_table(hr_dev);
-
-err_uar_alloc_free:
+	ida_destroy(&hr_dev->pd_ida.ida);
 	hns_roce_uar_free(hr_dev, &hr_dev->priv_uar);
 
 err_uar_table_free:

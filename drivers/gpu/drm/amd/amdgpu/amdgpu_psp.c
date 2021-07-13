@@ -171,11 +171,81 @@ Err_out:
 	return ret;
 }
 
+/*
+ * Helper funciton to query psp runtime database entry
+ *
+ * @adev: amdgpu_device pointer
+ * @entry_type: the type of psp runtime database entry
+ * @db_entry: runtime database entry pointer
+ *
+ * Return false if runtime database doesn't exit or entry is invalid
+ * or true if the specific database entry is found, and copy to @db_entry
+ */
+static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
+				     enum psp_runtime_entry_type entry_type,
+				     void *db_entry)
+{
+	uint64_t db_header_pos, db_dir_pos;
+	struct psp_runtime_data_header db_header = {0};
+	struct psp_runtime_data_directory db_dir = {0};
+	bool ret = false;
+	int i;
+
+	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
+	db_dir_pos = db_header_pos + sizeof(struct psp_runtime_data_header);
+
+	/* read runtime db header from vram */
+	amdgpu_device_vram_access(adev, db_header_pos, (uint32_t *)&db_header,
+			sizeof(struct psp_runtime_data_header), false);
+
+	if (db_header.cookie != PSP_RUNTIME_DB_COOKIE_ID) {
+		/* runtime db doesn't exist, exit */
+		dev_warn(adev->dev, "PSP runtime database doesn't exist\n");
+		return false;
+	}
+
+	/* read runtime database entry from vram */
+	amdgpu_device_vram_access(adev, db_dir_pos, (uint32_t *)&db_dir,
+			sizeof(struct psp_runtime_data_directory), false);
+
+	if (db_dir.entry_count >= PSP_RUNTIME_DB_DIAG_ENTRY_MAX_COUNT) {
+		/* invalid db entry count, exit */
+		dev_warn(adev->dev, "Invalid PSP runtime database entry count\n");
+		return false;
+	}
+
+	/* look up for requested entry type */
+	for (i = 0; i < db_dir.entry_count && !ret; i++) {
+		if (db_dir.entry_list[i].entry_type == entry_type) {
+			switch (entry_type) {
+			case PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG:
+				if (db_dir.entry_list[i].size < sizeof(struct psp_runtime_boot_cfg_entry)) {
+					/* invalid db entry size */
+					dev_warn(adev->dev, "Invalid PSP runtime database entry size\n");
+					return false;
+				}
+				/* read runtime database entry */
+				amdgpu_device_vram_access(adev, db_header_pos + db_dir.entry_list[i].offset,
+							  (uint32_t *)db_entry, sizeof(struct psp_runtime_boot_cfg_entry), false);
+				ret = true;
+				break;
+			default:
+				ret = false;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static int psp_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 	int ret;
+	struct psp_runtime_boot_cfg_entry boot_cfg_entry;
+	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		ret = psp_init_microcode(psp);
@@ -191,15 +261,39 @@ static int psp_sw_init(void *handle)
 		}
 	}
 
-	ret = psp_memory_training_init(psp);
-	if (ret) {
-		DRM_ERROR("Failed to initialize memory training!\n");
-		return ret;
+	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
+	if (psp_get_runtime_db_entry(adev,
+				PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG,
+				&boot_cfg_entry)) {
+		psp->boot_cfg_bitmask = boot_cfg_entry.boot_cfg_bitmask;
+		if ((psp->boot_cfg_bitmask) &
+		    BOOT_CFG_FEATURE_TWO_STAGE_DRAM_TRAINING) {
+			/* If psp runtime database exists, then
+			 * only enable two stage memory training
+			 * when TWO_STAGE_DRAM_TRAINING bit is set
+			 * in runtime database */
+			mem_training_ctx->enable_mem_training = true;
+		}
+
+	} else {
+		/* If psp runtime database doesn't exist or
+		 * is invalid, force enable two stage memory
+		 * training */
+		mem_training_ctx->enable_mem_training = true;
 	}
-	ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
-	if (ret) {
-		DRM_ERROR("Failed to process memory training!\n");
-		return ret;
+
+	if (mem_training_ctx->enable_mem_training) {
+		ret = psp_memory_training_init(psp);
+		if (ret) {
+			DRM_ERROR("Failed to initialize memory training!\n");
+			return ret;
+		}
+
+		ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
+		if (ret) {
+			DRM_ERROR("Failed to process memory training!\n");
+			return ret;
+		}
 	}
 
 	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_SIENNA_CICHLID) {
@@ -551,7 +645,30 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
-static int psp_boot_config_set(struct amdgpu_device *adev)
+static int psp_boot_config_get(struct amdgpu_device *adev, uint32_t *boot_cfg)
+{
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
+	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_GET;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (!ret) {
+		*boot_cfg =
+			(cmd->resp.uresp.boot_cfg.boot_cfg & BOOT_CONFIG_GECC) ? 1 : 0;
+	}
+
+	return ret;
+}
+
+static int psp_boot_config_set(struct amdgpu_device *adev, uint32_t boot_cfg)
 {
 	struct psp_context *psp = &adev->psp;
 	struct psp_gfx_cmd_resp *cmd = psp->cmd;
@@ -563,8 +680,8 @@ static int psp_boot_config_set(struct amdgpu_device *adev)
 
 	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
 	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_SET;
-	cmd->cmd.boot_cfg.boot_config = BOOT_CONFIG_GECC;
-	cmd->cmd.boot_cfg.boot_config_valid = BOOT_CONFIG_GECC;
+	cmd->cmd.boot_cfg.boot_config = boot_cfg;
+	cmd->cmd.boot_cfg.boot_config_valid = boot_cfg;
 
 	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 }
@@ -1212,17 +1329,60 @@ static int psp_ras_terminate(struct psp_context *psp)
 static int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
+	uint32_t boot_cfg = 0xFF;
+	struct amdgpu_device *adev = psp->adev;
 
 	/*
 	 * TODO: bypass the initialize in sriov for now
 	 */
-	if (amdgpu_sriov_vf(psp->adev))
+	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (!psp->adev->psp.ta_ras_ucode_size ||
-	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_info(psp->adev->dev, "RAS: optional ras ta ucode is not available\n");
+	if (!adev->psp.ta_ras_ucode_size ||
+	    !adev->psp.ta_ras_start_addr) {
+		dev_info(adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
+	}
+
+	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
+		/* query GECC enablement status from boot config
+		 * boot_cfg: 1: GECC is enabled or 0: GECC is disabled
+		 */
+		ret = psp_boot_config_get(adev, &boot_cfg);
+		if (ret)
+			dev_warn(adev->dev, "PSP get boot config failed\n");
+
+		if (!amdgpu_ras_is_supported(psp->adev, AMDGPU_RAS_BLOCK__UMC)) {
+			if (!boot_cfg) {
+				dev_info(adev->dev, "GECC is disabled\n");
+			} else {
+				/* disable GECC in next boot cycle if ras is
+				 * disabled by module parameter amdgpu_ras_enable
+				 * and/or amdgpu_ras_mask, or boot_config_get call
+				 * is failed
+				 */
+				ret = psp_boot_config_set(adev, 0);
+				if (ret)
+					dev_warn(adev->dev, "PSP set boot config failed\n");
+				else
+					dev_warn(adev->dev, "GECC will be disabled in next boot cycle "
+						 "if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
+			}
+		} else {
+			if (1 == boot_cfg) {
+				dev_info(adev->dev, "GECC is enabled\n");
+			} else {
+				/* enable GECC in next boot cycle if it is disabled
+				 * in boot config, or force enable GECC if failed to
+				 * get boot configuration
+				 */
+				ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
+				if (ret)
+					dev_warn(adev->dev, "PSP set boot config failed\n");
+				else
+					dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+			}
+		}
 	}
 
 	if (!psp->ras.ras_initialized) {
@@ -1945,12 +2105,6 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
-		ret = psp_boot_config_set(adev);
-		if (ret)
-			dev_warn(adev->dev, "PSP set boot config failed\n");
-	}
-
 	ret = psp_tmr_init(psp);
 	if (ret) {
 		DRM_ERROR("PSP tmr init failed!\n");
@@ -2188,10 +2342,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	if ((amdgpu_in_reset(adev) &&
 	     ras && adev->ras_enabled &&
 	     (adev->asic_type == CHIP_ARCTURUS ||
-	      adev->asic_type == CHIP_VEGA20)) ||
-	     (adev->in_runpm &&
-	      adev->asic_type >= CHIP_NAVI10 &&
-	      adev->asic_type <= CHIP_NAVI12)) {
+	      adev->asic_type == CHIP_VEGA20))) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -2562,10 +2713,12 @@ static int psp_resume(void *handle)
 
 	DRM_INFO("PSP is resuming...\n");
 
-	ret = psp_mem_training(psp, PSP_MEM_TRAIN_RESUME);
-	if (ret) {
-		DRM_ERROR("Failed to process memory training!\n");
-		return ret;
+	if (psp->mem_train_ctx.enable_mem_training) {
+		ret = psp_mem_training(psp, PSP_MEM_TRAIN_RESUME);
+		if (ret) {
+			DRM_ERROR("Failed to process memory training!\n");
+			return ret;
+		}
 	}
 
 	mutex_lock(&adev->firmware.mutex);
@@ -2749,7 +2902,7 @@ int psp_init_asd_microcode(struct psp_context *psp,
 
 	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
 	adev->psp.asd_fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
-	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->ucode_feature_version);
+	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->sos.fw_version);
 	adev->psp.asd_ucode_size = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
 	adev->psp.asd_start_addr = (uint8_t *)asd_hdr +
 				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
@@ -2785,7 +2938,7 @@ int psp_init_toc_microcode(struct psp_context *psp,
 
 	toc_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.toc_fw->data;
 	adev->psp.toc_fw_version = le32_to_cpu(toc_hdr->header.ucode_version);
-	adev->psp.toc_feature_version = le32_to_cpu(toc_hdr->ucode_feature_version);
+	adev->psp.toc_feature_version = le32_to_cpu(toc_hdr->sos.fw_version);
 	adev->psp.toc_bin_size = le32_to_cpu(toc_hdr->header.ucode_size_bytes);
 	adev->psp.toc_start_addr = (uint8_t *)toc_hdr +
 				le32_to_cpu(toc_hdr->header.ucode_array_offset_bytes);
@@ -2795,6 +2948,50 @@ out:
 	release_firmware(adev->psp.toc_fw);
 	adev->psp.toc_fw = NULL;
 	return err;
+}
+
+static int psp_init_sos_base_fw(struct amdgpu_device *adev)
+{
+	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct psp_firmware_header_v1_3 *sos_hdr_v1_3;
+	uint8_t *ucode_array_start_addr;
+
+	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
+	ucode_array_start_addr = (uint8_t *)sos_hdr +
+		le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
+
+	if (adev->gmc.xgmi.connected_to_cpu || (adev->asic_type != CHIP_ALDEBARAN)) {
+		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
+		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->sos.fw_version);
+
+		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos.offset_bytes);
+		adev->psp.sys_start_addr = ucode_array_start_addr;
+
+		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos.size_bytes);
+		adev->psp.sos_start_addr = ucode_array_start_addr +
+				le32_to_cpu(sos_hdr->sos.offset_bytes);
+	} else {
+		/* Load alternate PSP SOS FW */
+		sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
+
+		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
+		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
+
+		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr_v1_3->sys_drv_aux.size_bytes);
+		adev->psp.sys_start_addr = ucode_array_start_addr +
+			le32_to_cpu(sos_hdr_v1_3->sys_drv_aux.offset_bytes);
+
+		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
+		adev->psp.sos_start_addr = ucode_array_start_addr +
+			le32_to_cpu(sos_hdr_v1_3->sos_aux.offset_bytes);
+	}
+
+	if ((adev->psp.sys_bin_size == 0) || (adev->psp.sos_bin_size == 0)) {
+		dev_warn(adev->dev, "PSP SOS FW not available");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int psp_init_sos_microcode(struct psp_context *psp,
@@ -2807,6 +3004,7 @@ int psp_init_sos_microcode(struct psp_context *psp,
 	const struct psp_firmware_header_v1_2 *sos_hdr_v1_2;
 	const struct psp_firmware_header_v1_3 *sos_hdr_v1_3;
 	int err = 0;
+	uint8_t *ucode_array_start_addr;
 
 	if (!chip_name) {
 		dev_err(adev->dev, "invalid chip name for sos microcode\n");
@@ -2823,47 +3021,45 @@ int psp_init_sos_microcode(struct psp_context *psp,
 		goto out;
 
 	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
+	ucode_array_start_addr = (uint8_t *)sos_hdr +
+		le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 	amdgpu_ucode_print_psp_hdr(&sos_hdr->header);
 
 	switch (sos_hdr->header.header_version_major) {
 	case 1:
-		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
-		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
-		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos_offset_bytes);
-		adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
-				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
-		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr->sos_offset_bytes);
+		err = psp_init_sos_base_fw(adev);
+		if (err)
+			goto out;
+
 		if (sos_hdr->header.header_version_minor == 1) {
 			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc_size_bytes);
+			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc.size_bytes);
 			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->toc_offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb_size_bytes);
+					le32_to_cpu(sos_hdr_v1_1->toc.offset_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb.size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->kdb_offset_bytes);
+					le32_to_cpu(sos_hdr_v1_1->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 2) {
 			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb_size_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb.size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-						    le32_to_cpu(sos_hdr_v1_2->kdb_offset_bytes);
+						    le32_to_cpu(sos_hdr_v1_2->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 3) {
 			sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.toc_size_bytes);
-			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->v1_1.toc_offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb_size_bytes);
-			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->v1_1.kdb_offset_bytes);
-			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl_size_bytes);
-			adev->psp.spl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->spl_offset_bytes);
-			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl_size_bytes);
-			adev->psp.rl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->rl_offset_bytes);
+			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.toc.size_bytes);
+			adev->psp.toc_start_addr = ucode_array_start_addr +
+				le32_to_cpu(sos_hdr_v1_3->v1_1.toc.offset_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.size_bytes);
+			adev->psp.kdb_start_addr = ucode_array_start_addr +
+				le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.offset_bytes);
+			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl.size_bytes);
+			adev->psp.spl_start_addr = ucode_array_start_addr +
+				le32_to_cpu(sos_hdr_v1_3->spl.offset_bytes);
+			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl.size_bytes);
+			adev->psp.rl_start_addr = ucode_array_start_addr +
+				le32_to_cpu(sos_hdr_v1_3->rl.offset_bytes);
 		}
 		break;
 	default:

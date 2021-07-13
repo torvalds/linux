@@ -601,7 +601,7 @@ MODULE_DEVICE_TABLE(usb, products);
 
 static int mcs7830_reset_resume (struct usb_interface *intf)
 {
- 	/* YES, this function is successful enough that ethtool -d
+	/* YES, this function is successful enough that ethtool -d
            does show same output pre-/post-suspend */
 
 	struct usbnet		*dev = usb_get_intfdata(intf);

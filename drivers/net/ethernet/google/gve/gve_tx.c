@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_utils.h"
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/vmalloc.h>
@@ -131,14 +132,6 @@ static void gve_tx_free_fifo(struct gve_tx_fifo *fifo, size_t bytes)
 	atomic_add(bytes, &fifo->available);
 }
 
-static void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx)
-{
-	struct gve_notify_block *block =
-			&priv->ntfy_blocks[gve_tx_idx_to_ntfy(priv, queue_idx)];
-
-	block->tx = NULL;
-}
-
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     u32 to_do, bool try_to_wake);
 
@@ -174,16 +167,6 @@ static void gve_tx_free_ring(struct gve_priv *priv, int idx)
 	netif_dbg(priv, drv, priv->dev, "freed tx queue %d\n", idx);
 }
 
-static void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx)
-{
-	int ntfy_idx = gve_tx_idx_to_ntfy(priv, queue_idx);
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
-	struct gve_tx_ring *tx = &priv->tx[queue_idx];
-
-	block->tx = tx;
-	tx->ntfy_id = ntfy_idx;
-}
-
 static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 {
 	struct gve_tx_ring *tx = &priv->tx[idx];
@@ -208,14 +191,15 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	if (!tx->desc)
 		goto abort_with_info;
 
-	tx->raw_addressing = priv->raw_addressing;
+	tx->raw_addressing = priv->queue_format == GVE_GQI_RDA_FORMAT;
 	tx->dev = &priv->pdev->dev;
 	if (!tx->raw_addressing) {
 		tx->tx_fifo.qpl = gve_assign_tx_qpl(priv);
-
+		if (!tx->tx_fifo.qpl)
+			goto abort_with_desc;
 		/* map Tx FIFO */
 		if (gve_tx_fifo_init(priv, &tx->tx_fifo))
-			goto abort_with_desc;
+			goto abort_with_qpl;
 	}
 
 	tx->q_resources =
@@ -236,6 +220,9 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 abort_with_fifo:
 	if (!tx->raw_addressing)
 		gve_tx_fifo_release(priv, &tx->tx_fifo);
+abort_with_qpl:
+	if (!tx->raw_addressing)
+		gve_unassign_qpl(priv, tx->tx_fifo.qpl->id);
 abort_with_desc:
 	dma_free_coherent(hdev, bytes, tx->desc, tx->bus);
 	tx->desc = NULL;
@@ -269,7 +256,7 @@ int gve_tx_alloc_rings(struct gve_priv *priv)
 	return err;
 }
 
-void gve_tx_free_rings(struct gve_priv *priv)
+void gve_tx_free_rings_gqi(struct gve_priv *priv)
 {
 	int i;
 
@@ -589,7 +576,7 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 	struct gve_tx_ring *tx;
 	int nsegs;
 
-	WARN(skb_get_queue_mapping(skb) > priv->tx_cfg.num_queues,
+	WARN(skb_get_queue_mapping(skb) >= priv->tx_cfg.num_queues,
 	     "skb queue index out of range");
 	tx = &priv->tx[skb_get_queue_mapping(skb)];
 	if (unlikely(gve_maybe_stop_tx(tx, skb))) {

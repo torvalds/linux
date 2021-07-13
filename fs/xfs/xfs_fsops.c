@@ -538,25 +538,25 @@ xfs_do_force_shutdown(
 
 	if (flags & SHUTDOWN_FORCE_UMOUNT) {
 		xfs_alert(mp,
-"User initiated shutdown received. Shutting down filesystem");
+"User initiated shutdown (0x%x) received. Shutting down filesystem",
+				flags);
 		return;
 	}
 
-	xfs_notice(mp,
-"%s(0x%x) called from line %d of file %s. Return address = "PTR_FMT,
-		__func__, flags, lnnum, fname, __return_address);
-
 	if (flags & SHUTDOWN_CORRUPT_INCORE) {
 		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_CORRUPT,
-"Corruption of in-memory data detected.  Shutting down filesystem");
+"Corruption of in-memory data (0x%x) detected at %pS (%s:%d).  Shutting down filesystem",
+				flags, __return_address, fname, lnnum);
 		if (XFS_ERRLEVEL_HIGH <= xfs_error_level)
 			xfs_stack_trace();
 	} else if (logerror) {
 		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
-			"Log I/O Error Detected. Shutting down filesystem");
+"Log I/O error (0x%x) detected at %pS (%s:%d). Shutting down filesystem",
+				flags, __return_address, fname, lnnum);
 	} else {
 		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
-			"I/O Error Detected. Shutting down filesystem");
+"I/O error (0x%x) detected at %pS (%s:%d). Shutting down filesystem",
+				flags, __return_address, fname, lnnum);
 	}
 
 	xfs_alert(mp,
@@ -576,10 +576,8 @@ xfs_fs_reserve_ag_blocks(
 	int			err2;
 
 	mp->m_finobt_nores = false;
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for_each_perag(mp, agno, pag) {
 		err2 = xfs_ag_resv_init(pag, NULL);
-		xfs_perag_put(pag);
 		if (err2 && !error)
 			error = err2;
 	}
@@ -605,10 +603,8 @@ xfs_fs_unreserve_ag_blocks(
 	int			error = 0;
 	int			err2;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for_each_perag(mp, agno, pag) {
 		err2 = xfs_ag_resv_free(pag);
-		xfs_perag_put(pag);
 		if (err2 && !error)
 			error = err2;
 	}

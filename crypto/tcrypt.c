@@ -1847,8 +1847,20 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("cts(cbc(aes))");
 		break;
 
+        case 39:
+		ret += tcrypt_test("xxhash64");
+		break;
+
         case 40:
 		ret += tcrypt_test("rmd160");
+		break;
+
+	case 41:
+		ret += tcrypt_test("blake2s-256");
+		break;
+
+	case 42:
+		ret += tcrypt_test("blake2b-512");
 		break;
 
 	case 43:
@@ -2356,8 +2368,20 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_hash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
+	case 314:
+		test_hash_speed("xxhash64", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+		fallthrough;
 	case 315:
 		test_hash_speed("rmd160", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+		fallthrough;
+	case 316:
+		test_hash_speed("blake2s-256", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+		fallthrough;
+	case 317:
+		test_hash_speed("blake2b-512", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 318:
@@ -2456,8 +2480,20 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_ahash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
+	case 414:
+		test_ahash_speed("xxhash64", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+		fallthrough;
 	case 415:
 		test_ahash_speed("rmd160", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+		fallthrough;
+	case 416:
+		test_ahash_speed("blake2s-256", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+		fallthrough;
+	case 417:
+		test_ahash_speed("blake2b-512", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
 	case 418:

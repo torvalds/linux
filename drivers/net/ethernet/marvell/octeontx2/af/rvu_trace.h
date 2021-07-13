@@ -21,7 +21,7 @@ TRACE_EVENT(otx2_msg_alloc,
 			     __field(u16, id)
 			     __field(u64, size)
 	    ),
-	    TP_fast_assign(__assign_str(dev, pci_name(pdev))
+	    TP_fast_assign(__assign_str(dev, pci_name(pdev));
 			   __entry->id = id;
 			   __entry->size = size;
 	    ),
@@ -36,7 +36,7 @@ TRACE_EVENT(otx2_msg_send,
 			     __field(u16, num_msgs)
 			     __field(u64, msg_size)
 	    ),
-	    TP_fast_assign(__assign_str(dev, pci_name(pdev))
+	    TP_fast_assign(__assign_str(dev, pci_name(pdev));
 			   __entry->num_msgs = num_msgs;
 			   __entry->msg_size = msg_size;
 	    ),
@@ -52,7 +52,7 @@ TRACE_EVENT(otx2_msg_check,
 			     __field(u16, rspid)
 			     __field(int, rc)
 	    ),
-	    TP_fast_assign(__assign_str(dev, pci_name(pdev))
+	    TP_fast_assign(__assign_str(dev, pci_name(pdev));
 			   __entry->reqid = reqid;
 			   __entry->rspid = rspid;
 			   __entry->rc = rc;
@@ -69,8 +69,8 @@ TRACE_EVENT(otx2_msg_interrupt,
 			     __string(str, msg)
 			     __field(u64, intr)
 	    ),
-	    TP_fast_assign(__assign_str(dev, pci_name(pdev))
-			   __assign_str(str, msg)
+	    TP_fast_assign(__assign_str(dev, pci_name(pdev));
+			   __assign_str(str, msg);
 			   __entry->intr = intr;
 	    ),
 	    TP_printk("[%s] mbox interrupt %s (0x%llx)\n", __get_str(dev),
@@ -84,7 +84,7 @@ TRACE_EVENT(otx2_msg_process,
 			     __field(u16, id)
 			     __field(int, err)
 	    ),
-	    TP_fast_assign(__assign_str(dev, pci_name(pdev))
+	    TP_fast_assign(__assign_str(dev, pci_name(pdev));
 			   __entry->id = id;
 			   __entry->err = err;
 	    ),

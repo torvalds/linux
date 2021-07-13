@@ -64,7 +64,6 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 		    int pages, dma_addr_t *dma_addr, uint64_t flags,
 		    void *dst);
 int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
-		     int pages, struct page **pagelist,
-		     dma_addr_t *dma_addr, uint64_t flags);
+		     int pages, dma_addr_t *dma_addr, uint64_t flags);
 void amdgpu_gart_invalidate_tlb(struct amdgpu_device *adev);
 #endif

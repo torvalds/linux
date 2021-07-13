@@ -1,20 +1,9 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * Marvell NFC-over-SPI driver: SPI interface related functions
  *
  * Copyright (C) 2015, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available on the worldwide web at
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
- **/
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -196,7 +185,7 @@ static int nfcmrvl_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct of_device_id of_nfcmrvl_spi_match[] = {
+static const struct of_device_id of_nfcmrvl_spi_match[] __maybe_unused = {
 	{ .compatible = "marvell,nfc-spi", },
 	{},
 };

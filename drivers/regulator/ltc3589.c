@@ -54,6 +54,11 @@
 #define LTC3589_VCCR_SW3_GO		BIT(4)
 #define LTC3589_VCCR_LDO2_GO		BIT(6)
 
+#define LTC3589_VRRCR_SW1_RAMP_MASK	GENMASK(1, 0)
+#define LTC3589_VRRCR_SW2_RAMP_MASK	GENMASK(3, 2)
+#define LTC3589_VRRCR_SW3_RAMP_MASK	GENMASK(5, 4)
+#define LTC3589_VRRCR_LDO2_RAMP_MASK	GENMASK(7, 6)
+
 enum ltc3589_variant {
 	LTC3589,
 	LTC3589_1,
@@ -88,27 +93,9 @@ static const int ltc3589_12_ldo4[] = {
 	1200000, 1800000, 2500000, 3200000,
 };
 
-static int ltc3589_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	struct ltc3589 *ltc3589 = rdev_get_drvdata(rdev);
-	int sel, shift;
-
-	if (unlikely(ramp_delay <= 0))
-		return -EINVAL;
-
-	/* VRRCR slew rate offsets are the same as VCCR go bit offsets */
-	shift = ffs(rdev->desc->apply_bit) - 1;
-
-	/* The slew rate can be set to 0.88, 1.75, 3.5, or 7 mV/uS */
-	for (sel = 0; sel < 4; sel++) {
-		if ((880 << sel) >= ramp_delay) {
-			return regmap_update_bits(ltc3589->regmap,
-						  LTC3589_VRRCR,
-						  0x3 << shift, sel << shift);
-		}
-	}
-	return -EINVAL;
-}
+static const unsigned int ltc3589_ramp_table[] = {
+	880, 1750, 3500, 7000
+};
 
 static int ltc3589_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
@@ -149,7 +136,7 @@ static const struct regulator_ops ltc3589_linear_regulator_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_ramp_delay = ltc3589_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.set_suspend_voltage = ltc3589_set_suspend_voltage,
 	.set_suspend_mode = ltc3589_set_suspend_mode,
@@ -218,16 +205,13 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 	return 0;
 }
 
-#define LTC3589_REG(_name, _of_name, _ops, en_bit, dtv1_reg, dtv_mask, go_bit)\
+#define LTC3589_REG(_name, _of_name, _ops, en_bit, dtv1_reg, dtv_mask)	\
 	[LTC3589_ ## _name] = {						\
 		.name = #_name,						\
 		.of_match = of_match_ptr(#_of_name),			\
 		.regulators_node = of_match_ptr("regulators"),		\
 		.of_parse_cb = ltc3589_of_parse_cb,			\
 		.n_voltages = (dtv_mask) + 1,				\
-		.min_uV = (go_bit) ? 362500 : 0,			\
-		.uV_step = (go_bit) ? 12500 : 0,			\
-		.ramp_delay = (go_bit) ? 1750 : 0,			\
 		.fixed_uV = (dtv_mask) ? 0 : 800000,			\
 		.ops = &ltc3589_ ## _ops ## _regulator_ops,		\
 		.type = REGULATOR_VOLTAGE,				\
@@ -235,30 +219,49 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 		.owner = THIS_MODULE,					\
 		.vsel_reg = (dtv1_reg),					\
 		.vsel_mask = (dtv_mask),				\
-		.apply_reg = (go_bit) ? LTC3589_VCCR : 0,		\
-		.apply_bit = (go_bit),					\
 		.enable_reg = (en_bit) ? LTC3589_OVEN : 0,		\
 		.enable_mask = (en_bit),				\
 	}
 
 #define LTC3589_LINEAR_REG(_name, _of_name, _dtv1)			\
-	LTC3589_REG(_name, _of_name, linear, LTC3589_OVEN_ ## _name,	\
-		    LTC3589_ ## _dtv1, 0x1f,				\
-		    LTC3589_VCCR_ ## _name ## _GO)
+	[LTC3589_ ## _name] = {						\
+		.name = #_name,						\
+		.of_match = of_match_ptr(#_of_name),			\
+		.regulators_node = of_match_ptr("regulators"),		\
+		.of_parse_cb = ltc3589_of_parse_cb,			\
+		.n_voltages = 32,					\
+		.min_uV = 362500,					\
+		.uV_step = 12500,					\
+		.ramp_delay = 1750,					\
+		.ops = &ltc3589_linear_regulator_ops,			\
+		.type = REGULATOR_VOLTAGE,				\
+		.id = LTC3589_ ## _name,				\
+		.owner = THIS_MODULE,					\
+		.vsel_reg = LTC3589_ ## _dtv1,				\
+		.vsel_mask = 0x1f,					\
+		.apply_reg = LTC3589_VCCR,				\
+		.apply_bit = LTC3589_VCCR_ ## _name ## _GO,		\
+		.enable_reg = LTC3589_OVEN,				\
+		.enable_mask = (LTC3589_OVEN_ ## _name),		\
+		.ramp_reg = LTC3589_VRRCR,				\
+		.ramp_mask = LTC3589_VRRCR_ ## _name ## _RAMP_MASK,	\
+		.ramp_delay_table = ltc3589_ramp_table,			\
+		.n_ramp_values = ARRAY_SIZE(ltc3589_ramp_table),	\
+	}
+
 
 #define LTC3589_FIXED_REG(_name, _of_name)				\
-	LTC3589_REG(_name, _of_name, fixed, LTC3589_OVEN_ ## _name, 0, 0, 0)
+	LTC3589_REG(_name, _of_name, fixed, LTC3589_OVEN_ ## _name, 0, 0)
 
 static const struct regulator_desc ltc3589_regulators[] = {
 	LTC3589_LINEAR_REG(SW1, sw1, B1DTV1),
 	LTC3589_LINEAR_REG(SW2, sw2, B2DTV1),
 	LTC3589_LINEAR_REG(SW3, sw3, B3DTV1),
 	LTC3589_FIXED_REG(BB_OUT, bb-out),
-	LTC3589_REG(LDO1, ldo1, fixed_standby, 0, 0, 0, 0),
+	LTC3589_REG(LDO1, ldo1, fixed_standby, 0, 0, 0),
 	LTC3589_LINEAR_REG(LDO2, ldo2, L2DTV1),
 	LTC3589_FIXED_REG(LDO3, ldo3),
-	LTC3589_REG(LDO4, ldo4, table, LTC3589_OVEN_LDO4, LTC3589_L2DTV2,
-		    0x60, 0),
+	LTC3589_REG(LDO4, ldo4, table, LTC3589_OVEN_LDO4, LTC3589_L2DTV2, 0x60),
 };
 
 static bool ltc3589_writeable_reg(struct device *dev, unsigned int reg)

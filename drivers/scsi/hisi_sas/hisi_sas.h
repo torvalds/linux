@@ -8,6 +8,7 @@
 #define _HISI_SAS_H_
 
 #include <linux/acpi.h>
+#include <linux/async.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-mq-pci.h>
 #include <linux/clk.h>
@@ -37,6 +38,7 @@
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
 #define HISI_SAS_PM_BIT		2
+#define HISI_SAS_HW_FAULT_BIT	3
 #define HISI_SAS_MAX_COMMANDS (HISI_SAS_QUEUE_SLOTS)
 #define HISI_SAS_RESERVED_IPTT  96
 #define HISI_SAS_UNRESERVED_IPTT \
@@ -90,8 +92,8 @@
 
 #define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK | HISI_SAS_DIX_PROT_MASK)
 
-#define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
-#define CLEAR_ITCT_TIMEOUT	20
+#define HISI_SAS_WAIT_PHYUP_TIMEOUT	(20 * HZ)
+#define HISI_SAS_CLEAR_ITCT_TIMEOUT	(20 * HZ)
 
 struct hisi_hba;
 
@@ -185,6 +187,7 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	int wait_phyup_cnt;
 	atomic_t down_cnt;
 
 	/* Trace FIFO */

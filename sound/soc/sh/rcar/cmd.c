@@ -114,12 +114,26 @@ static int rsnd_cmd_stop(struct rsnd_mod *mod,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_cmd_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+				  0x180 + rsnd_mod_id_raw(mod) * 0x20, 0x30);
+}
+#define DEBUG_INFO .debug_info = rsnd_cmd_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_cmd_ops = {
 	.name		= CMD_NAME,
 	.init		= rsnd_cmd_init,
 	.start		= rsnd_cmd_start,
 	.stop		= rsnd_cmd_stop,
 	.get_status	= rsnd_mod_get_status,
+	DEBUG_INFO
 };
 
 static struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)

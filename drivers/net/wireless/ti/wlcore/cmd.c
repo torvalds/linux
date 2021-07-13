@@ -821,7 +821,7 @@ out:
 
 
 /**
- * send test command to firmware
+ * wl1271_cmd_test - send test command to firmware
  *
  * @wl: wl struct
  * @buf: buffer containing the command, with all headers, must work with dma
@@ -850,7 +850,7 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer)
 EXPORT_SYMBOL_GPL(wl1271_cmd_test);
 
 /**
- * read acx from firmware
+ * wl1271_cmd_interrogate - read acx from firmware
  *
  * @wl: wl struct
  * @id: acx id
@@ -879,7 +879,7 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf,
 }
 
 /**
- * write acx value to firmware
+ * wlcore_cmd_configure_failsafe - write acx value to firmware
  *
  * @wl: wl struct
  * @id: acx id

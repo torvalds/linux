@@ -9,6 +9,12 @@ config MQ_IOSCHED_DEADLINE
 	help
 	  MQ version of the deadline IO scheduler.
 
+config MQ_IOSCHED_DEADLINE_CGROUP
+       tristate
+       default y
+       depends on MQ_IOSCHED_DEADLINE
+       depends on BLK_CGROUP
+
 config MQ_IOSCHED_KYBER
 	tristate "Kyber I/O scheduler"
 	default y

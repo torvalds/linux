@@ -688,7 +688,10 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	ret = smu_get_asic_power_limits(smu);
+	ret = smu_get_asic_power_limits(smu,
+					&smu->current_power_limit,
+					&smu->default_power_limit,
+					&smu->max_power_limit);
 	if (ret) {
 		dev_err(adev->dev, "Failed to get asic power limits!\n");
 		return ret;
@@ -1379,15 +1382,20 @@ static int smu_disable_dpms(struct smu_context *smu)
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
 	    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
-		return 0;
+		return smu_disable_all_features_with_exception(smu,
+							       true,
+							       SMU_FEATURE_COUNT);
 
 	/*
 	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
 	 * on BACO in. Driver involvement is unnecessary.
 	 */
-	if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	if (((adev->asic_type == CHIP_SIENNA_CICHLID) ||
+	     ((adev->asic_type >= CHIP_NAVI10) && (adev->asic_type <= CHIP_NAVI12))) &&
 	     use_baco)
-		return 0;
+		return smu_disable_all_features_with_exception(smu,
+							       true,
+							       SMU_FEATURE_BACO_BIT);
 
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,
@@ -1395,6 +1403,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
 		ret = smu_disable_all_features_with_exception(smu,
+							      false,
 							      SMU_FEATURE_BACO_BIT);
 		if (ret)
 			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");
@@ -1444,9 +1453,13 @@ static int smu_hw_fini(void *handle)
 
 	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, true);
-		smu_dpm_set_vcn_enable(smu, false);
-		smu_dpm_set_jpeg_enable(smu, false);
 	}
+
+	smu_dpm_set_vcn_enable(smu, false);
+	smu_dpm_set_jpeg_enable(smu, false);
+
+	adev->vcn.cur_state = AMD_PG_STATE_GATE;
+	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
 
 	if (!smu->pm_enabled)
 		return 0;
@@ -2232,6 +2245,15 @@ int smu_get_power_limit(void *handle,
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:
+			if ((smu->adev->asic_type == CHIP_ALDEBARAN) ||
+			     (smu->adev->asic_type == CHIP_SIENNA_CICHLID) ||
+			     (smu->adev->asic_type == CHIP_NAVY_FLOUNDER) ||
+			     (smu->adev->asic_type == CHIP_DIMGREY_CAVEFISH) ||
+			     (smu->adev->asic_type == CHIP_BEIGE_GOBY))
+				ret = smu_get_asic_power_limits(smu,
+								&smu->current_power_limit,
+								NULL,
+								NULL);
 			*limit = smu->current_power_limit;
 			break;
 		case SMU_PPT_LIMIT_DEFAULT:

@@ -58,6 +58,7 @@ enum ipa_flag {
  * @mem_virt:		Virtual address of IPA-local memory space
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
  * @mem_size:		Total size (bytes) of memory at @mem_virt
+ * @mem_count:		Number of entries in the mem array
  * @mem:		Array of IPA-local memory region descriptors
  * @imem_iova:		I/O virtual address of IPA region in IMEM
  * @imem_size:		Size of IMEM region
@@ -103,6 +104,7 @@ struct ipa {
 	void *mem_virt;
 	u32 mem_offset;
 	u32 mem_size;
+	u32 mem_count;
 	const struct ipa_mem *mem;
 
 	unsigned long imem_iova;

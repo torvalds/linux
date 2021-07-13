@@ -23,8 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
-
 #include "../display_mode_lib.h"
 #include "../display_mode_vba.h"
 #include "../dml_inline_defs.h"
@@ -52,7 +50,7 @@ static bool CalculateBytePerPixelAnd256BBlockSizes(
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 4;
 		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_16) {
+	} else if (SourcePixelFormat == dm_444_16) {
 		*BytePerPixelDETY = 2;
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 2;
@@ -1724,4 +1722,3 @@ void dml31_rq_dlg_get_dlg_reg(
 	dml_print("DML_DLG: Calculation for pipe[%d] end\n", pipe_idx);
 }
 
-#endif

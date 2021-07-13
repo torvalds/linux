@@ -9,11 +9,11 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 #include "xfs_health.h"
+#include "xfs_ag.h"
 
 /*
  * Warn about metadata corruption that we detected but haven't fixed, and
@@ -34,14 +34,12 @@ xfs_health_unmount(
 		return;
 
 	/* Measure AG corruption levels. */
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for_each_perag(mp, agno, pag) {
 		xfs_ag_measure_sickness(pag, &sick, &checked);
 		if (sick) {
 			trace_xfs_ag_unfixed_corruption(mp, agno, sick);
 			warn = true;
 		}
-		xfs_perag_put(pag);
 	}
 
 	/* Measure realtime volume corruption levels. */
@@ -231,6 +229,15 @@ xfs_inode_mark_sick(
 	ip->i_sick |= mask;
 	ip->i_checked |= mask;
 	spin_unlock(&ip->i_flags_lock);
+
+	/*
+	 * Keep this inode around so we don't lose the sickness report.  Scrub
+	 * grabs inodes with DONTCACHE assuming that most inode are ok, which
+	 * is not the case here.
+	 */
+	spin_lock(&VFS_I(ip)->i_lock);
+	VFS_I(ip)->i_state &= ~I_DONTCACHE;
+	spin_unlock(&VFS_I(ip)->i_lock);
 }
 
 /* Mark parts of an inode healed. */

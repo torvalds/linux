@@ -244,8 +244,6 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	jz4740->chip.dev = dev;
 	jz4740->chip.ops = &jz4740_pwm_ops;
 	jz4740->chip.npwm = info->num_pwms;
-	jz4740->chip.of_xlate = of_pwm_xlate_with_flags;
-	jz4740->chip.of_pwm_n_cells = 3;
 
 	platform_set_drvdata(pdev, jz4740);
 

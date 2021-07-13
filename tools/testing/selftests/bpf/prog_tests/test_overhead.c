@@ -73,7 +73,7 @@ void test_test_overhead(void)
 		return;
 
 	obj = bpf_object__open_file("./test_overhead.o", NULL);
-	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
 	kprobe_prog = bpf_object__find_program_by_title(obj, kprobe_name);
@@ -108,7 +108,7 @@ void test_test_overhead(void)
 	/* attach kprobe */
 	link = bpf_program__attach_kprobe(kprobe_prog, false /* retprobe */,
 					  kprobe_func);
-	if (CHECK(IS_ERR(link), "attach_kprobe", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_kprobe"))
 		goto cleanup;
 	test_run("kprobe");
 	bpf_link__destroy(link);
@@ -116,28 +116,28 @@ void test_test_overhead(void)
 	/* attach kretprobe */
 	link = bpf_program__attach_kprobe(kretprobe_prog, true /* retprobe */,
 					  kprobe_func);
-	if (CHECK(IS_ERR(link), "attach kretprobe", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_kretprobe"))
 		goto cleanup;
 	test_run("kretprobe");
 	bpf_link__destroy(link);
 
 	/* attach raw_tp */
 	link = bpf_program__attach_raw_tracepoint(raw_tp_prog, "task_rename");
-	if (CHECK(IS_ERR(link), "attach fentry", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto cleanup;
 	test_run("raw_tp");
 	bpf_link__destroy(link);
 
 	/* attach fentry */
 	link = bpf_program__attach_trace(fentry_prog);
-	if (CHECK(IS_ERR(link), "attach fentry", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_fentry"))
 		goto cleanup;
 	test_run("fentry");
 	bpf_link__destroy(link);
 
 	/* attach fexit */
 	link = bpf_program__attach_trace(fexit_prog);
-	if (CHECK(IS_ERR(link), "attach fexit", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_fexit"))
 		goto cleanup;
 	test_run("fexit");
 	bpf_link__destroy(link);

@@ -85,16 +85,14 @@ void test_attach_probe(void)
 	kprobe_link = bpf_program__attach_kprobe(skel->progs.handle_kprobe,
 						 false /* retprobe */,
 						 SYS_NANOSLEEP_KPROBE_NAME);
-	if (CHECK(IS_ERR(kprobe_link), "attach_kprobe",
-		  "err %ld\n", PTR_ERR(kprobe_link)))
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe"))
 		goto cleanup;
 	skel->links.handle_kprobe = kprobe_link;
 
 	kretprobe_link = bpf_program__attach_kprobe(skel->progs.handle_kretprobe,
 						    true /* retprobe */,
 						    SYS_NANOSLEEP_KPROBE_NAME);
-	if (CHECK(IS_ERR(kretprobe_link), "attach_kretprobe",
-		  "err %ld\n", PTR_ERR(kretprobe_link)))
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe"))
 		goto cleanup;
 	skel->links.handle_kretprobe = kretprobe_link;
 
@@ -103,8 +101,7 @@ void test_attach_probe(void)
 						 0 /* self pid */,
 						 "/proc/self/exe",
 						 uprobe_offset);
-	if (CHECK(IS_ERR(uprobe_link), "attach_uprobe",
-		  "err %ld\n", PTR_ERR(uprobe_link)))
+	if (!ASSERT_OK_PTR(uprobe_link, "attach_uprobe"))
 		goto cleanup;
 	skel->links.handle_uprobe = uprobe_link;
 
@@ -113,8 +110,7 @@ void test_attach_probe(void)
 						    -1 /* any pid */,
 						    "/proc/self/exe",
 						    uprobe_offset);
-	if (CHECK(IS_ERR(uretprobe_link), "attach_uretprobe",
-		  "err %ld\n", PTR_ERR(uretprobe_link)))
+	if (!ASSERT_OK_PTR(uretprobe_link, "attach_uretprobe"))
 		goto cleanup;
 	skel->links.handle_uretprobe = uretprobe_link;
 

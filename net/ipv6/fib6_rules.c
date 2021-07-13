@@ -467,7 +467,7 @@ static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 static int __net_init fib6_rules_net_init(struct net *net)
 {
 	struct fib_rules_ops *ops;
-	int err = -ENOMEM;
+	int err;
 
 	ops = fib_rules_register(&fib6_rules_ops_template, net);
 	if (IS_ERR(ops))

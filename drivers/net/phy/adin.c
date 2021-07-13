@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  *  Driver for Analog Devices Industrial Ethernet PHYs
  *
  * Copyright 2019 Analog Devices Inc.

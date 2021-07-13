@@ -140,7 +140,6 @@
 	type PHYCSYMCLK_FORCE_EN;\
 	type PHYCSYMCLK_FORCE_SRC_SEL;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 #define DCCG31_REG_FIELD_LIST(type) \
 	type PHYDSYMCLK_FORCE_EN;\
 	type PHYDSYMCLK_FORCE_SRC_SEL;\
@@ -171,22 +170,17 @@
 	type DCCG_AUDIO_DTO_SEL;\
 	type DCCG_AUDIO_DTO0_SOURCE_SEL;\
 	type DENTIST_DISPCLK_CHG_MODE;
-#endif
 
 struct dccg_shift {
 	DCCG_REG_FIELD_LIST(uint8_t)
 	DCCG3_REG_FIELD_LIST(uint8_t)
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	DCCG31_REG_FIELD_LIST(uint8_t)
-#endif
 };
 
 struct dccg_mask {
 	DCCG_REG_FIELD_LIST(uint32_t)
 	DCCG3_REG_FIELD_LIST(uint32_t)
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	DCCG31_REG_FIELD_LIST(uint32_t)
-#endif
 };
 
 struct dccg_registers {
@@ -199,7 +193,6 @@ struct dccg_registers {
 	uint32_t PHYASYMCLK_CLOCK_CNTL;
 	uint32_t PHYBSYMCLK_CLOCK_CNTL;
 	uint32_t PHYCSYMCLK_CLOCK_CNTL;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	uint32_t PHYDSYMCLK_CLOCK_CNTL;
 	uint32_t PHYESYMCLK_CLOCK_CNTL;
 	uint32_t DTBCLK_DTO_MODULO[MAX_PIPES];
@@ -212,7 +205,6 @@ struct dccg_registers {
 	uint32_t SYMCLK32_SE_CNTL;
 	uint32_t SYMCLK32_LE_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
-#endif
 };
 
 struct dcn_dccg {

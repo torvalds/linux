@@ -35,6 +35,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 {
 	struct sja1105_rule *rule = sja1105_rule_find(priv, cookie);
 	struct sja1105_l2_policing_entry *policing;
+	struct dsa_switch *ds = priv->ds;
 	bool new_rule = false;
 	unsigned long p;
 	int rc;
@@ -59,7 +60,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
-	if (policing[(SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port].sharindx != port) {
+	if (policing[(ds->num_ports * SJA1105_NUM_TC) + port].sharindx != port) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Port already has a broadcast policer");
 		rc = -EEXIST;
@@ -71,8 +72,8 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	/* Make the broadcast policers of all ports attached to this block
 	 * point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
-		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + p;
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
+		int bcast = (ds->num_ports * SJA1105_NUM_TC) + p;
 
 		policing[bcast].sharindx = rule->bcast_pol.sharindx;
 	}
@@ -143,7 +144,7 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	/* Make the policers for traffic class @tc of all ports attached to
 	 * this block point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
 		int index = (p * SJA1105_NUM_TC) + tc;
 
 		policing[index].sharindx = rule->tc_pol.sharindx;
@@ -435,7 +436,7 @@ int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
 	if (rule->type == SJA1105_RULE_BCAST_POLICER) {
-		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port;
+		int bcast = (ds->num_ports * SJA1105_NUM_TC) + port;
 
 		old_sharindx = policing[bcast].sharindx;
 		policing[bcast].sharindx = port;
@@ -486,7 +487,7 @@ void sja1105_flower_setup(struct dsa_switch *ds)
 
 	INIT_LIST_HEAD(&priv->flow_block.rules);
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++)
+	for (port = 0; port < ds->num_ports; port++)
 		priv->flow_block.l2_policer_used[port] = true;
 }
 

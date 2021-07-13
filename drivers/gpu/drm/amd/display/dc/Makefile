@@ -34,9 +34,7 @@ DC_LIBS += dcn30
 DC_LIBS += dcn301
 DC_LIBS += dcn302
 DC_LIBS += dcn303
-ifdef CONFIG_DRM_AMD_DC_DCN3_1
 DC_LIBS += dcn31
-endif
 endif
 
 DC_LIBS += dce120
@@ -60,7 +58,7 @@ include $(AMD_DC)
 
 DISPLAY_CORE = dc.o  dc_stat.o dc_link.o dc_resource.o dc_hw_sequencer.o dc_sink.o \
 dc_surface.o dc_link_hwss.o dc_link_dp.o dc_link_ddc.o dc_debug.o dc_stream.o \
-dc_link_enc_cfg.o
+dc_link_enc_cfg.o dc_link_dpcd.o
 
 ifdef CONFIG_DRM_AMD_DC_DCN
 DISPLAY_CORE += dc_vm_helper.o

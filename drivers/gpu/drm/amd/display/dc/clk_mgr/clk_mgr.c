@@ -41,9 +41,7 @@
 #include "dcn21/rn_clk_mgr.h"
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dcn301/vg_clk_mgr.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 #include "dcn31/dcn31_clk_mgr.h"
-#endif
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -273,9 +271,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			return &clk_mgr->base.base;
 		}
 		break;
-#endif
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case FAMILY_YELLOW_CARP: {
 		struct clk_mgr_dcn31 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
 
@@ -325,12 +320,10 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 			vg_clk_mgr_destroy(clk_mgr);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case FAMILY_YELLOW_CARP:
 		if (ASICREV_IS_YELLOW_CARP(clk_mgr_base->ctx->asic_id.hw_internal_rev))
 			dcn31_clk_mgr_destroy(clk_mgr);
 		break;
-#endif
 
 	default:
 		break;

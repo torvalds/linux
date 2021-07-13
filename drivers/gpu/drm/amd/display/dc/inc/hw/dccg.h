@@ -29,7 +29,6 @@
 #include "dc_types.h"
 #include "hw_shared.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 enum phyd32clk_clock_source {
 	PHYD32CLKA,
 	PHYD32CLKB,
@@ -55,18 +54,15 @@ enum dentist_dispclk_change_mode {
 	DISPCLK_CHANGE_MODE_IMMEDIATE,
 	DISPCLK_CHANGE_MODE_RAMPING,
 };
-#endif
 
 struct dccg {
 	struct dc_context *ctx;
 	const struct dccg_funcs *funcs;
 	int pipe_dppclk_khz[MAX_PIPES];
 	int ref_dppclk;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	int dtbclk_khz[MAX_PIPES];
 	int audio_dtbclk_khz;
 	int ref_dtbclk_khz;
-#endif
 };
 
 struct dccg_funcs {
@@ -83,7 +79,6 @@ struct dccg_funcs {
 	void (*otg_drop_pixel)(struct dccg *dccg,
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 
 	void (*set_physymclk)(
 			struct dccg *dccg,
@@ -105,7 +100,6 @@ struct dccg_funcs {
 	void (*set_dispclk_change_mode)(
 			struct dccg *dccg,
 			enum dentist_dispclk_change_mode change_mode);
-#endif
 };
 
 #endif //__DAL_DCCG_H__

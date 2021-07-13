@@ -1729,26 +1729,26 @@ static void ip6_mc_hdr(struct sock *sk, struct sk_buff *skb,
 
 static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 {
+	u8 ra[8] = { IPPROTO_ICMPV6, 0, IPV6_TLV_ROUTERALERT,
+		     2, 0, 0, IPV6_TLV_PADN, 0 };
 	struct net_device *dev = idev->dev;
-	struct net *net = dev_net(dev);
-	struct sock *sk = net->ipv6.igmp_sk;
-	struct sk_buff *skb;
-	struct mld2_report *pmr;
-	struct in6_addr addr_buf;
-	const struct in6_addr *saddr;
 	int hlen = LL_RESERVED_SPACE(dev);
 	int tlen = dev->needed_tailroom;
-	unsigned int size = mtu + hlen + tlen;
+	struct net *net = dev_net(dev);
+	const struct in6_addr *saddr;
+	struct in6_addr addr_buf;
+	struct mld2_report *pmr;
+	struct sk_buff *skb;
+	unsigned int size;
+	struct sock *sk;
 	int err;
-	u8 ra[8] = { IPPROTO_ICMPV6, 0,
-		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
-		     IPV6_TLV_PADN, 0 };
 
-	/* we assume size > sizeof(ra) here */
-	/* limit our allocations to order-0 page */
-	size = min_t(int, size, SKB_MAX_ORDER(0, 0));
+	sk = net->ipv6.igmp_sk;
+	/* we assume size > sizeof(ra) here
+	 * Also try to not allocate high-order pages for big MTU
+	 */
+	size = min_t(int, mtu, PAGE_SIZE / 2) + hlen + tlen;
 	skb = sock_alloc_send_skb(sk, size, 1, &err);
-
 	if (!skb)
 		return NULL;
 

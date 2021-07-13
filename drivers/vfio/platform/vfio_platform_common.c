@@ -241,8 +241,6 @@ static void vfio_platform_release(struct vfio_device *core_vdev)
 	}
 
 	mutex_unlock(&driver_lock);
-
-	module_put(vdev->parent_module);
 }
 
 static int vfio_platform_open(struct vfio_device *core_vdev)
@@ -250,9 +248,6 @@ static int vfio_platform_open(struct vfio_device *core_vdev)
 	struct vfio_platform_device *vdev =
 		container_of(core_vdev, struct vfio_platform_device, vdev);
 	int ret;
-
-	if (!try_module_get(vdev->parent_module))
-		return -ENODEV;
 
 	mutex_lock(&driver_lock);
 
@@ -291,7 +286,6 @@ err_irq:
 	vfio_platform_regions_cleanup(vdev);
 err_reg:
 	mutex_unlock(&driver_lock);
-	module_put(THIS_MODULE);
 	return ret;
 }
 

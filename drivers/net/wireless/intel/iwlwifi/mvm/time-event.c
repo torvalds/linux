@@ -31,6 +31,13 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 		return;
 
 	list_del(&te_data->list);
+
+	/*
+	 * the list is only used for AUX ROC events so make sure it is always
+	 * initialized
+	 */
+	INIT_LIST_HEAD(&te_data->list);
+
 	te_data->running = false;
 	te_data->uid = 0;
 	te_data->id = TE_MAX;
@@ -310,6 +317,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
+				!te_data->vif->bss_conf.assoc ?
+				"Not associated and the time event is over already..." :
 				"No beacon heard and the time event is over already...");
 			break;
 		default:
@@ -607,14 +616,15 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
-					      struct iwl_mvm_vif *mvmvif)
+					      struct iwl_mvm_vif *mvmvif,
+					      u32 id)
 {
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							mvmvif->color)),
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
-		.conf_id = cpu_to_le32(mvmvif->time_event_data.id),
+		.conf_id = cpu_to_le32(id),
 	};
 	int ret;
 
@@ -632,6 +642,12 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 {
 	u32 id;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+	enum nl80211_iftype iftype;
+
+	if (!te_data->vif)
+		return false;
+
+	iftype = te_data->vif->type;
 
 	/*
 	 * It is possible that by the time we got to this point the time
@@ -656,8 +672,8 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
 		if (mvmvif && id < SESSION_PROTECT_CONF_MAX_ID) {
 			/* Session protection is still ongoing. Cancel it */
-			iwl_mvm_cancel_session_protection(mvm, mvmvif);
-			if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+			iwl_mvm_cancel_session_protection(mvm, mvmvif, id);
+			if (iftype == NL80211_IFTYPE_P2P_DEVICE) {
 				set_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status);
 				iwl_mvm_roc_finished(mvm);
 			}
@@ -738,11 +754,6 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Couldn't remove the time event\n");
 }
 
-/*
- * When the firmware supports the session protection API,
- * this is not needed since it'll automatically remove the
- * session protection after association + beacon reception.
- */
 void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif)
 {
@@ -756,7 +767,15 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 	id = te_data->id;
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
+		if (id != SESSION_PROTECT_CONF_ASSOC) {
+			IWL_DEBUG_TE(mvm,
+				     "don't remove session protection id=%u\n",
+				     id);
+			return;
+		}
+	} else if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
 		IWL_DEBUG_TE(mvm,
 			     "don't remove TE with id=%u (not session protection)\n",
 			     id);
@@ -808,6 +827,8 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, vif,
+						    !vif->bss_conf.assoc ?
+						    "Not associated and the session protection is over already..." :
 						    "No beacon heard and the session protection is over already...");
 			spin_lock_bh(&mvm->time_event_lock);
 			iwl_mvm_te_clear_data(mvm, te_data);
@@ -981,7 +1002,8 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-			iwl_mvm_cancel_session_protection(mvm, mvmvif);
+			iwl_mvm_cancel_session_protection(mvm, mvmvif,
+							  mvmvif->time_event_data.id);
 			set_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status);
 		} else {
 			iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
@@ -1141,6 +1163,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 
 	iwl_mvm_te_clear_data(mvm, te_data);
 	te_data->duration = le32_to_cpu(cmd.duration_tu);
+	te_data->vif = vif;
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	IWL_DEBUG_TE(mvm, "Add new session protection, duration %d TU\n",

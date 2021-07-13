@@ -192,18 +192,17 @@ examples:
             arm,mhuv2-protocols = <1 1>, <1 7>, <0 2>;
         };
 
-        mhu_client: scb@2e000000 {
-            compatible = "fujitsu,mb86s70-scb-1.0";
-            reg = <0 0x2e000000 0 0x4000>;
-
-            mboxes =
-                     //data-transfer protocol with 5 windows, mhu-tx
-                     <&mhu_tx 2 0>,
-                     //data-transfer protocol with 7 windows, mhu-tx
-                     <&mhu_tx 3 0>,
-                     //doorbell protocol channel 4, doorbell 27, mhu-tx
-                     <&mhu_tx 4 27>,
-                     //data-transfer protocol with 1 window, mhu-rx
-                     <&mhu_rx 0 0>;
+        mhu_client: dsp@596e8000 {
+            compatible = "fsl,imx8qxp-dsp";
+            reg = <0 0x596e8000 0 0x88000>;
+            clocks = <&adma_lpcg 0>, <&adma_lpcg 1>, <&adma_lpcg 2>;
+            clock-names = "ipg", "ocram", "core";
+            power-domains = <&pd 0>, <&pd 1>, <&pd 2>, <&pd 3>;
+            mbox-names = "txdb0", "txdb1", "rxdb0", "rxdb1";
+            mboxes = <&mhu_tx 2 0>, //data-transfer protocol with 5 windows, mhu-tx
+                     <&mhu_tx 3 0>, //data-transfer protocol with 7 windows, mhu-tx
+                     <&mhu_rx 2 27>, //doorbell protocol channel 2, doorbell 27, mhu-rx
+                     <&mhu_rx 0 0>;  //data-transfer protocol with 1 window, mhu-rx
+            memory-region = <&dsp_reserved>;
         };
     };

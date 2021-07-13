@@ -66,6 +66,18 @@ config DWMAC_ANARION
 
 	  This selects the Anarion SoC glue layer support for the stmmac driver.
 
+config DWMAC_INGENIC
+	tristate "Ingenic MAC support"
+	default MACH_INGENIC
+	depends on OF && HAS_IOMEM && (MACH_INGENIC || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for ethernet controller on Ingenic SoCs.
+
+	  This selects Ingenic SoCs glue layer support for the stmmac
+	  device driver. This driver is used on for the Ingenic SoCs
+	  MAC ethernet controller.
+
 config DWMAC_IPQ806X
 	tristate "QCA IPQ806x DWMAC support"
 	default ARCH_QCOM
@@ -237,6 +249,15 @@ config DWMAC_INTEL
 	help
 	  This selects the Intel platform specific bus support for the
 	  stmmac driver. This driver is used for Intel Quark/EHL/TGL.
+
+config DWMAC_LOONGSON
+	tristate "Loongson PCI DWMAC support"
+	default MACH_LOONGSON64
+	depends on STMMAC_ETH && PCI
+	depends on COMMON_CLK
+	help
+	  This selects the LOONGSON PCI bus support for the stmmac driver,
+	  Support for ethernet controller on Loongson-2K1000 SoC and LS7A1000 bridge.
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"

@@ -263,18 +263,13 @@ static int w5100_writebulk_direct(struct net_device *ndev, u32 addr,
 static int w5100_mmio_init(struct net_device *ndev)
 {
 	struct platform_device *pdev = to_platform_device(ndev->dev.parent);
-	struct w5100_priv *priv = netdev_priv(ndev);
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	struct resource *mem;
 
 	spin_lock_init(&mmio_priv->reg_lock);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio_priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	mmio_priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mmio_priv->base))
 		return PTR_ERR(mmio_priv->base);
-
-	netdev_info(ndev, "at 0x%llx irq %d\n", (u64)mem->start, priv->irq);
 
 	return 0;
 }

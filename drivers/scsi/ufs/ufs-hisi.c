@@ -400,7 +400,7 @@ static int ufs_hisi_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 
-	if (ufshcd_is_runtime_pm(pm_op))
+	if (pm_op == UFS_RUNTIME_PM)
 		return 0;
 
 	if (host->in_suspend) {
@@ -577,6 +577,8 @@ static const struct dev_pm_ops ufs_hisi_pm_ops = {
 	.runtime_suspend = ufshcd_pltfrm_runtime_suspend,
 	.runtime_resume  = ufshcd_pltfrm_runtime_resume,
 	.runtime_idle    = ufshcd_pltfrm_runtime_idle,
+	.prepare	 = ufshcd_suspend_prepare,
+	.complete	 = ufshcd_resume_complete,
 };
 
 static struct platform_driver ufs_hisi_pltform = {

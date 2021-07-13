@@ -227,6 +227,7 @@ static int psp_v3_1_ring_create(struct psp_context *psp,
 	psp_v3_1_reroute_ih(psp);
 
 	if (amdgpu_sriov_vf(adev)) {
+		ring->ring_wptr = 0;
 		ret = psp_v3_1_ring_stop(psp, ring_type);
 		if (ret) {
 			DRM_ERROR("psp_v3_1_ring_stop_sriov failed!\n");

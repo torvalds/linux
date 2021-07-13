@@ -636,8 +636,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 	dw_i2s_dai->ops = &dw_i2s_dai_ops;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->i2s_base = devm_ioremap_resource(&pdev->dev, res);
+	dev->i2s_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dev->i2s_base))
 		return PTR_ERR(dev->i2s_base);
 

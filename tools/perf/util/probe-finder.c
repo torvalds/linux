@@ -118,11 +118,16 @@ struct debuginfo *debuginfo__new(const char *path)
 	char buf[PATH_MAX], nil = '\0';
 	struct dso *dso;
 	struct debuginfo *dinfo = NULL;
+	struct build_id bid;
 
 	/* Try to open distro debuginfo files */
 	dso = dso__new(path);
 	if (!dso)
 		goto out;
+
+	/* Set the build id for DSO_BINARY_TYPE__BUILDID_DEBUGINFO */
+	if (is_regular_file(path) && filename__read_build_id(path, &bid) > 0)
+		dso__set_build_id(dso, &bid);
 
 	for (type = distro_dwarf_types;
 	     !dinfo && *type != DSO_BINARY_TYPE__NOT_FOUND;
@@ -189,6 +194,9 @@ static int convert_variable_location(Dwarf_Die *vr_die, Dwarf_Addr addr,
 	if (dwarf_attr(vr_die, DW_AT_const_value, &attr) &&
 	    immediate_value_is_supported()) {
 		Dwarf_Sword snum;
+
+		if (!tvar)
+			return 0;
 
 		dwarf_formsdata(&attr, &snum);
 		ret = asprintf(&tvar->value, "\\%ld", (long)snum);

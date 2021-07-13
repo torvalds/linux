@@ -17,6 +17,7 @@
 #include <linux/libata.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/pata_ixp4xx_cf.h>
 #include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_ixp4xx_cf"

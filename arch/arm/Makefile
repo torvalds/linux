@@ -252,7 +252,6 @@ endif
 
 export	TEXT_OFFSET GZFLAGS MMUEXT
 
-core-y				+= arch/arm/
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= $(machdirs) $(platdirs)
 

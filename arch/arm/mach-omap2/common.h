@@ -130,7 +130,6 @@ void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti814x_init_early(void);
 void ti816x_init_early(void);
-void am33xx_init_early(void);
 void am43xx_init_early(void);
 void am43xx_init_late(void);
 void omap4430_init_early(void);

@@ -51,6 +51,8 @@ bool hl_device_operational(struct hl_device *hdev,
 
 static void hpriv_release(struct kref *ref)
 {
+	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
+	bool device_is_idle = true;
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
 
@@ -71,8 +73,20 @@ static void hpriv_release(struct kref *ref)
 
 	kfree(hpriv);
 
-	if (hdev->reset_upon_device_release)
-		hl_device_reset(hdev, 0);
+	if ((!hdev->pldm) && (hdev->pdev) &&
+			(!hdev->asic_funcs->is_device_idle(hdev,
+				idle_mask,
+				HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL))) {
+		dev_err(hdev->dev,
+			"device not idle after user context is closed (0x%llx_%llx)\n",
+			idle_mask[1], idle_mask[0]);
+
+		device_is_idle = false;
+	}
+
+	if ((hdev->reset_if_device_not_idle && !device_is_idle)
+			|| hdev->reset_upon_device_release)
+		hl_device_reset(hdev, HL_RESET_DEVICE_RELEASE);
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -117,6 +131,9 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	if (!hl_hpriv_put(hpriv))
 		dev_warn(hdev->dev,
 			"Device is still in use because there are live CS and/or memory mappings\n");
+
+	hdev->last_open_session_duration_jif =
+		jiffies - hdev->last_successful_open_jif;
 
 	return 0;
 }
@@ -868,7 +885,7 @@ static void device_disable_open_processes(struct hl_device *hdev)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
-	bool hard_reset, from_hard_reset_thread;
+	bool hard_reset, from_hard_reset_thread, hard_instead_soft = false;
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -880,11 +897,28 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	hard_reset = (flags & HL_RESET_HARD) != 0;
 	from_hard_reset_thread = (flags & HL_RESET_FROM_RESET_THREAD) != 0;
 
-	if ((!hard_reset) && (!hdev->supports_soft_reset)) {
-		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+	if (!hard_reset && !hdev->supports_soft_reset) {
+		hard_instead_soft = true;
 		hard_reset = true;
 	}
 
+	if (hdev->reset_upon_device_release &&
+			(flags & HL_RESET_DEVICE_RELEASE)) {
+		dev_dbg(hdev->dev,
+			"Perform %s-reset upon device release\n",
+			hard_reset ? "hard" : "soft");
+		goto do_reset;
+	}
+
+	if (!hard_reset && !hdev->allow_external_soft_reset) {
+		hard_instead_soft = true;
+		hard_reset = true;
+	}
+
+	if (hard_instead_soft)
+		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+
+do_reset:
 	/* Re-entry of reset thread */
 	if (from_hard_reset_thread && hdev->process_kill_trial_cnt)
 		goto kill_processes;
@@ -899,6 +933,19 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 		if (rc)
 			return 0;
+
+		/*
+		 * 'reset cause' is being updated here, because getting here
+		 * means that it's the 1st time and the last time we're here
+		 * ('in_reset' makes sure of it). This makes sure that
+		 * 'reset_cause' will continue holding its 1st recorded reason!
+		 */
+		if (flags & HL_RESET_HEARTBEAT)
+			hdev->curr_reset_cause = HL_RESET_CAUSE_HEARTBEAT;
+		else if (flags & HL_RESET_TDR)
+			hdev->curr_reset_cause = HL_RESET_CAUSE_TDR;
+		else
+			hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 
 		/*
 		 * if reset is due to heartbeat, device CPU is no responsive in
@@ -943,9 +990,8 @@ again:
 		hdev->process_kill_trial_cnt = 0;
 
 		/*
-		 * Because the reset function can't run from interrupt or
-		 * from heartbeat work, we need to call the reset function
-		 * from a dedicated work
+		 * Because the reset function can't run from heartbeat work,
+		 * we need to call the reset function from a dedicated work.
 		 */
 		queue_delayed_work(hdev->device_reset_work.wq,
 			&hdev->device_reset_work.reset_work, 0);
@@ -1096,8 +1142,8 @@ kill_processes:
 	if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 			HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
 		dev_err(hdev->dev,
-			"device is not idle (mask %#llx %#llx) after reset\n",
-			idle_mask[0], idle_mask[1]);
+			"device is not idle (mask 0x%llx_%llx) after reset\n",
+			idle_mask[1], idle_mask[0]);
 		rc = -EIO;
 		goto out_err;
 	}
@@ -1334,8 +1380,9 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	}
 
 	/*
-	 * From this point, in case of an error, add char devices and create
-	 * sysfs nodes as part of the error flow, to allow debugging.
+	 * From this point, override rc (=0) in case of an error to allow
+	 * debugging (by adding char devices and create sysfs nodes as part of
+	 * the error flow).
 	 */
 	add_cdev_sysfs_on_err = true;
 
@@ -1369,7 +1416,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	dev_info(hdev->dev, "Found %s device with %lluGB DRAM\n",
 		hdev->asic_name,
-		hdev->asic_prop.dram_size / 1024 / 1024 / 1024);
+		hdev->asic_prop.dram_size / SZ_1G);
 
 	rc = hl_vm_init(hdev);
 	if (rc) {
@@ -1475,12 +1522,18 @@ out_disabled:
 void hl_device_fini(struct hl_device *hdev)
 {
 	ktime_t timeout;
+	u64 reset_sec;
 	int i, rc;
 
 	dev_info(hdev->dev, "Removing device\n");
 
 	hdev->device_fini_pending = 1;
 	flush_delayed_work(&hdev->device_reset_work.reset_work);
+
+	if (hdev->pldm)
+		reset_sec = HL_PLDM_HARD_RESET_MAX_TIMEOUT;
+	else
+		reset_sec = HL_HARD_RESET_MAX_TIMEOUT;
 
 	/*
 	 * This function is competing with the reset function, so try to
@@ -1490,8 +1543,7 @@ void hl_device_fini(struct hl_device *hdev)
 	 * ports, the hard reset could take between 10-30 seconds
 	 */
 
-	timeout = ktime_add_us(ktime_get(),
-				HL_HARD_RESET_MAX_TIMEOUT * 1000 * 1000);
+	timeout = ktime_add_us(ktime_get(), reset_sec * 1000 * 1000);
 	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 	while (rc) {
 		usleep_range(50, 200);

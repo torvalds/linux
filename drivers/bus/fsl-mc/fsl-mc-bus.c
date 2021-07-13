@@ -24,7 +24,7 @@
 
 #include "fsl-mc-private.h"
 
-/**
+/*
  * Default DMA mask for devices on a fsl-mc bus
  */
 #define FSL_MC_DEFAULT_DMA_MASK	(~0ULL)
@@ -36,6 +36,7 @@ static struct fsl_mc_version mc_version;
  * @root_mc_bus_dev: fsl-mc device representing the root DPRC
  * @num_translation_ranges: number of entries in addr_translation_ranges
  * @translation_ranges: array of bus to system address translation ranges
+ * @fsl_mc_regs: base address of register bank
  */
 struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
@@ -117,7 +118,7 @@ out:
 	return found;
 }
 
-/**
+/*
  * fsl_mc_bus_uevent - callback invoked when a device is added
  */
 static int fsl_mc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -467,7 +468,7 @@ static void fsl_mc_driver_shutdown(struct device *dev)
 	mc_drv->shutdown(mc_dev);
 }
 
-/**
+/*
  * __fsl_mc_driver_register - registers a child device driver with the
  * MC bus
  *
@@ -503,7 +504,7 @@ int __fsl_mc_driver_register(struct fsl_mc_driver *mc_driver,
 }
 EXPORT_SYMBOL_GPL(__fsl_mc_driver_register);
 
-/**
+/*
  * fsl_mc_driver_unregister - unregisters a device driver from the
  * MC bus
  */
@@ -563,7 +564,7 @@ struct fsl_mc_version *fsl_mc_get_version(void)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_get_version);
 
-/**
+/*
  * fsl_mc_get_root_dprc - function to traverse to the root dprc
  */
 void fsl_mc_get_root_dprc(struct device *dev,
@@ -732,7 +733,7 @@ error_cleanup_regions:
 	return error;
 }
 
-/**
+/*
  * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
  */
 bool fsl_mc_is_root_dprc(struct device *dev)
@@ -757,7 +758,7 @@ static void fsl_mc_device_release(struct device *dev)
 		kfree(mc_dev);
 }
 
-/**
+/*
  * Add a newly discovered fsl-mc device to be visible in Linux
  */
 int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
@@ -1058,7 +1059,7 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	return 0;
 }
 
-/**
+/*
  * fsl_mc_bus_probe - callback invoked when the root MC bus is being
  * added
  */
@@ -1182,7 +1183,7 @@ error_cleanup_mc_io:
 	return error;
 }
 
-/**
+/*
  * fsl_mc_bus_remove - callback invoked when the root MC bus is being
  * removed
  */

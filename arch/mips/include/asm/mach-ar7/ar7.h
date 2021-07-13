@@ -131,10 +131,6 @@ static inline u8 ar7_chip_rev(void)
 		0x14))) >> 16) & 0xff;
 }
 
-struct clk {
-	unsigned int	rate;
-};
-
 static inline int ar7_has_high_cpmac(void)
 {
 	u16 chip_id = ar7_chip_id();

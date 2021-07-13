@@ -26,6 +26,7 @@ void atl1c_phy_disable(struct atl1c_hw *hw);
 void atl1c_hw_set_mac_addr(struct atl1c_hw *hw, u8 *mac_addr);
 int atl1c_phy_reset(struct atl1c_hw *hw);
 int atl1c_read_mac_addr(struct atl1c_hw *hw);
+bool atl1c_get_link_status(struct atl1c_hw *hw);
 int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex);
 u32 atl1c_hash_mc_addr(struct atl1c_hw *hw, u8 *mc_addr);
 void atl1c_hash_set(struct atl1c_hw *hw, u32 hash_value);
@@ -527,15 +528,24 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define REG_RX_BASE_ADDR_HI		0x1540
 #define REG_TX_BASE_ADDR_HI		0x1544
 #define REG_RFD0_HEAD_ADDR_LO		0x1550
+#define REG_RFD1_HEAD_ADDR_LO          0x1554
+#define REG_RFD2_HEAD_ADDR_LO          0x1558
+#define REG_RFD3_HEAD_ADDR_LO          0x155C
 #define REG_RFD_RING_SIZE		0x1560
 #define RFD_RING_SIZE_MASK		0x0FFF
 #define REG_RX_BUF_SIZE			0x1564
 #define RX_BUF_SIZE_MASK		0xFFFF
 #define REG_RRD0_HEAD_ADDR_LO		0x1568
+#define REG_RRD1_HEAD_ADDR_LO          0x156C
+#define REG_RRD2_HEAD_ADDR_LO          0x1570
+#define REG_RRD3_HEAD_ADDR_LO          0x1574
 #define REG_RRD_RING_SIZE		0x1578
 #define RRD_RING_SIZE_MASK		0x0FFF
 #define REG_TPD_PRI1_ADDR_LO		0x157C
 #define REG_TPD_PRI0_ADDR_LO		0x1580
+#define REG_TPD_PRI2_ADDR_LO           0x1F10
+#define REG_TPD_PRI3_ADDR_LO           0x1F14
+
 #define REG_TPD_RING_SIZE		0x1584
 #define TPD_RING_SIZE_MASK		0xFFFF
 
@@ -654,15 +664,26 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 /* Mail box */
 #define MB_RFDX_PROD_IDX_MASK		0xFFFF
 #define REG_MB_RFD0_PROD_IDX		0x15E0
+#define REG_MB_RFD1_PROD_IDX           0x15E4
+#define REG_MB_RFD2_PROD_IDX           0x15E8
+#define REG_MB_RFD3_PROD_IDX           0x15EC
 
 #define REG_TPD_PRI1_PIDX               0x15F0	/* 16bit,hi-tpd producer idx */
 #define REG_TPD_PRI0_PIDX		0x15F2	/* 16bit,lo-tpd producer idx */
 #define REG_TPD_PRI1_CIDX		0x15F4	/* 16bit,hi-tpd consumer idx */
 #define REG_TPD_PRI0_CIDX		0x15F6	/* 16bit,lo-tpd consumer idx */
+#define REG_TPD_PRI3_PIDX              0x1F18
+#define REG_TPD_PRI2_PIDX              0x1F1A
+#define REG_TPD_PRI3_CIDX              0x1F1C
+#define REG_TPD_PRI2_CIDX              0x1F1E
+
 
 #define REG_MB_RFD01_CONS_IDX		0x15F8
 #define MB_RFD0_CONS_IDX_MASK		0x0000FFFF
 #define MB_RFD1_CONS_IDX_MASK		0xFFFF0000
+#define REG_MB_RFD23_CONS_IDX          0x15FC
+#define MB_RFD2_CONS_IDX_MASK          0x0000FFFF
+#define MB_RFD3_CONS_IDX_MASK          0xFFFF0000
 
 /* Interrupt Status Register */
 #define REG_ISR    			0x1600
@@ -686,7 +707,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 /* GPHY low power state interrupt */
 #define ISR_GPHY_LPW           		0x00002000
 #define ISR_TXQ_TO_RST			0x00004000
-#define ISR_TX_PKT			0x00008000
+#define ISR_TX_PKT_0                   0x00008000
 #define ISR_RX_PKT_0			0x00010000
 #define ISR_RX_PKT_1			0x00020000
 #define ISR_RX_PKT_2			0x00040000
@@ -698,6 +719,9 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define ISR_NFERR_DETECTED		0x01000000
 #define ISR_CERR_DETECTED		0x02000000
 #define ISR_PHY_LINKDOWN		0x04000000
+#define ISR_TX_PKT_1                   0x10000000
+#define ISR_TX_PKT_2                   0x20000000
+#define ISR_TX_PKT_3                   0x40000000
 #define ISR_DIS_INT			0x80000000
 
 /* Interrupt Mask Register */
@@ -712,10 +736,14 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 		ISR_TXQ_TO_RST  |\
 		ISR_DMAW_TO_RST	|\
 		ISR_GPHY	|\
-		ISR_TX_PKT	|\
-		ISR_RX_PKT_0	|\
 		ISR_GPHY_LPW    |\
 		ISR_PHY_LINKDOWN)
+
+#define ISR_TX_PKT     (			\
+	ISR_TX_PKT_0    |			\
+	ISR_TX_PKT_1    |			\
+	ISR_TX_PKT_2    |			\
+	ISR_TX_PKT_3)
 
 #define ISR_RX_PKT 	(\
 	ISR_RX_PKT_0    |\
@@ -763,6 +791,14 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 /* DEBUG ADDR */
 #define REG_DEBUG_DATA0 		0x1900
 #define REG_DEBUG_DATA1 		0x1904
+
+#define REG_MT_MAGIC			0x1F00
+#define REG_MT_MODE			0x1F04
+#define REG_MT_SPEED			0x1F08
+#define REG_MT_VERSION			0x1F0C
+
+#define MT_MAGIC			0xaabb1234
+#define MT_MODE_4Q			BIT(0)
 
 #define L1D_MPW_PHYID1			0xD01C  /* V7 */
 #define L1D_MPW_PHYID2			0xD01D  /* V1-V6 */

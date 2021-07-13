@@ -121,7 +121,9 @@ struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 
 	init.name = name;
 	init.ops = &zynqmp_clk_gate_ops;
-	init.flags = nodes->flag;
+
+	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+
 	init.parent_names = parents;
 	init.num_parents = 1;
 

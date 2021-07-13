@@ -22,7 +22,6 @@ properties:
 
 required:
   - compatible
-  - reg
 
 additionalProperties: false
 
@@ -35,6 +34,12 @@ examples:
       air-pollution-sensor@69 {
         compatible = "sensirion,sps30";
         reg = <0x69>;
+      };
+    };
+  - |
+    serial {
+      air-pollution-sensor {
+        compatible = "sensirion,sps30";
       };
     };
 

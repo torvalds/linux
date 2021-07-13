@@ -79,7 +79,8 @@ the ANOD object which is also the final target node of the reference.
 	    })
 	}
 
-Please also see a graph example in :doc:`graph`.
+Please also see a graph example in
+Documentation/firmware-guide/acpi/dsd/graph.rst.
 
 References
 ==========

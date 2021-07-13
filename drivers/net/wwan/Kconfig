@@ -3,15 +3,9 @@
 # Wireless WAN device configuration
 #
 
-menuconfig WWAN
-	bool "Wireless WAN"
-	help
-	  This section contains Wireless WAN configuration for WWAN framework
-	  and drivers.
+menu "Wireless WAN"
 
-if WWAN
-
-config WWAN_CORE
+config WWAN
 	tristate "WWAN Driver Core"
 	help
 	  Say Y here if you want to use the WWAN driver core. This driver
@@ -20,9 +14,19 @@ config WWAN_CORE
 	  To compile this driver as a module, choose M here: the module will be
 	  called wwan.
 
+if WWAN
+
+config WWAN_HWSIM
+	tristate "Simulated WWAN device"
+	help
+	  This driver is a developer testing tool that can be used to test WWAN
+	  framework.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wwan_hwsim.  If unsure, say N.
+
 config MHI_WWAN_CTRL
 	tristate "MHI WWAN control driver for QCOM-based PCIe modems"
-	select WWAN_CORE
 	depends on MHI_BUS
 	help
 	  MHI WWAN CTRL allows QCOM-based PCIe modems to expose different modem
@@ -34,4 +38,35 @@ config MHI_WWAN_CTRL
 	  To compile this driver as a module, choose M here: the module will be
 	  called mhi_wwan_ctrl.
 
+config RPMSG_WWAN_CTRL
+	tristate "RPMSG WWAN control driver"
+	depends on RPMSG
+	help
+	  RPMSG WWAN CTRL allows modems available via RPMSG channels to expose
+	  different modem protocols/ports to userspace, including AT and QMI.
+	  These protocols can be accessed directly from userspace
+	  (e.g. AT commands) or via libraries/tools (e.g. libqmi, libqcdm...).
+
+	  This is mainly used for modems integrated into many Qualcomm SoCs,
+	  e.g. for AT and QMI on Qualcomm MSM8916 or MSM8974. Note that many
+	  newer Qualcomm SoCs (e.g. SDM845) still provide an AT port through
+	  this driver but the QMI messages can only be sent through
+	  QRTR network sockets (CONFIG_QRTR).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called rpmsg_wwan_ctrl.
+
+config IOSM
+	tristate "IOSM Driver for Intel M.2 WWAN Device"
+	depends on INTEL_IOMMU
+	help
+	  This driver enables Intel M.2 WWAN Device communication.
+
+	  If you have one of those Intel M.2 WWAN Modules and wish to use it in
+	  Linux say Y/M here.
+
+	  If unsure, say N.
+
 endif # WWAN
+
+endmenu

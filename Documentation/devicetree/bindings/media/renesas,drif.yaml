@@ -67,9 +67,7 @@ properties:
     maxItems: 1
 
   clock-names:
-    maxItems: 1
-    items:
-      - const: fck
+    const: fck
 
   resets:
     maxItems: 1
@@ -80,7 +78,6 @@ properties:
 
   dma-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: rx
       - const: rx

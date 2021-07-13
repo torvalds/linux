@@ -886,7 +886,7 @@ DECLARE_EVENT_CLASS(/* sender_info */
 		__field(u8, s_retry)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->state = qp->state;
 		__entry->s_cur = qp->s_cur;
@@ -1285,7 +1285,7 @@ DECLARE_EVENT_CLASS(/* rc_rcv_err */
 		__field(int, diff)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->s_flags = qp->s_flags;
 		__entry->state = qp->state;
@@ -1574,7 +1574,7 @@ DECLARE_EVENT_CLASS(/* tid_ack */
 		__field(u32, resync_psn)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->aeth = aeth;
 		__entry->psn = psn;

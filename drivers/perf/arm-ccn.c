@@ -1211,7 +1211,7 @@ static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	perf_pmu_migrate_context(&dt->pmu, cpu, target);
 	dt->cpu = target;
 	if (ccn->irq)
-		WARN_ON(irq_set_affinity_hint(ccn->irq, cpumask_of(dt->cpu)));
+		WARN_ON(irq_set_affinity(ccn->irq, cpumask_of(dt->cpu)));
 	return 0;
 }
 
@@ -1291,7 +1291,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 
 	/* Also make sure that the overflow interrupt is handled by this CPU */
 	if (ccn->irq) {
-		err = irq_set_affinity_hint(ccn->irq, cpumask_of(ccn->dt.cpu));
+		err = irq_set_affinity(ccn->irq, cpumask_of(ccn->dt.cpu));
 		if (err) {
 			dev_err(ccn->dev, "Failed to set interrupt affinity!\n");
 			goto error_set_affinity;
@@ -1325,8 +1325,6 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
 					    &ccn->dt.node);
-	if (ccn->irq)
-		irq_set_affinity_hint(ccn->irq, NULL);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
 	writel(0, ccn->dt.base + CCN_DT_PMCR);

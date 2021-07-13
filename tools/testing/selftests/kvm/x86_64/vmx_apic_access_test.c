@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 	}
 
 	vmx = vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	prepare_virtualize_apic_accesses(vmx, vm, 0);
+	prepare_virtualize_apic_accesses(vmx, vm);
 	vcpu_args_set(vm, VCPU_ID, 2, vmx_pages_gva, high_gpa);
 
 	while (!done) {

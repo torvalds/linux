@@ -940,6 +940,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	sp->nsubnodes = node;
 
 	if (sp->num_lanes > SIERRA_MAX_LANES) {
+		ret = -EINVAL;
 		dev_err(dev, "Invalid lane configuration\n");
 		goto put_child2;
 	}

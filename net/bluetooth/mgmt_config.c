@@ -146,7 +146,7 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		const u16 type = le16_to_cpu(TO_TLV(buffer)->type);
 
 		if (buffer_left < exp_len) {
-			bt_dev_warn(hdev, "invalid len left %d, exp >= %d",
+			bt_dev_warn(hdev, "invalid len left %u, exp >= %u",
 				    buffer_left, exp_len);
 
 			return mgmt_cmd_status(sk, hdev->id,
@@ -198,7 +198,7 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		}
 
 		if (exp_type_len && len != exp_type_len) {
-			bt_dev_warn(hdev, "invalid length %d, exp %zu for type %d",
+			bt_dev_warn(hdev, "invalid length %d, exp %zu for type %u",
 				    len, exp_type_len, type);
 
 			return mgmt_cmd_status(sk, hdev->id,

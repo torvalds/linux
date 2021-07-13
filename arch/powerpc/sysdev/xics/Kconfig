@@ -12,3 +12,6 @@ config PPC_ICP_HV
 
 config PPC_ICS_RTAS
 	def_bool n
+
+config PPC_ICS_NATIVE
+	def_bool n

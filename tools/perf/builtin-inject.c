@@ -31,6 +31,7 @@
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 
 #include <linux/list.h>
+#include <linux/string.h>
 #include <errno.h>
 #include <signal.h>
 
@@ -43,6 +44,8 @@ struct perf_inject {
 	bool			have_auxtrace;
 	bool			strip;
 	bool			jit_mode;
+	bool			in_place_update;
+	bool			in_place_update_dry_run;
 	const char		*input_name;
 	struct perf_data	output;
 	u64			bytes_written;
@@ -380,8 +383,8 @@ static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
 	if (dso && !dso->hit) {
 		dso->hit = 1;
 		dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
-		dso__put(dso);
 	}
+	dso__put(dso);
 
 	return perf_event__repipe(tool, event, sample, machine);
 }
@@ -395,6 +398,18 @@ static int perf_event__repipe_mmap2(struct perf_tool *tool,
 
 	err = perf_event__process_mmap2(tool, event, sample, machine);
 	perf_event__repipe(tool, event, sample, machine);
+
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		struct dso *dso;
+
+		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+				  event->mmap2.filename, NULL, machine);
+		if (dso) {
+			/* mark it not to inject build-id */
+			dso->hit = 1;
+		}
+		dso__put(dso);
+	}
 
 	return err;
 }
@@ -437,6 +452,18 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 	};
 	struct dso *dso;
 
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		/* cannot use dso_id since it'd have invalid info */
+		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+				  event->mmap2.filename, NULL, machine);
+		if (dso) {
+			/* mark it not to inject build-id */
+			dso->hit = 1;
+		}
+		dso__put(dso);
+		return 0;
+	}
+
 	dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
 			  event->mmap2.filename, &dso_id, machine);
 
@@ -444,8 +471,8 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 		dso->hit = 1;
 		dso__inject_build_id(dso, tool, machine, sample->cpumode,
 				     event->mmap2.flags);
-		dso__put(dso);
 	}
+	dso__put(dso);
 
 	perf_event__repipe(tool, event, sample, machine);
 
@@ -696,12 +723,42 @@ static void strip_init(struct perf_inject *inject)
 		evsel->handler = drop_sample;
 }
 
+static int parse_vm_time_correlation(const struct option *opt, const char *str, int unset)
+{
+	struct perf_inject *inject = opt->value;
+	const char *args;
+	char *dry_run;
+
+	if (unset)
+		return 0;
+
+	inject->itrace_synth_opts.set = true;
+	inject->itrace_synth_opts.vm_time_correlation = true;
+	inject->in_place_update = true;
+
+	if (!str)
+		return 0;
+
+	dry_run = skip_spaces(str);
+	if (!strncmp(dry_run, "dry-run", strlen("dry-run"))) {
+		inject->itrace_synth_opts.vm_tm_corr_dry_run = true;
+		inject->in_place_update_dry_run = true;
+		args = dry_run + strlen("dry-run");
+	} else {
+		args = str;
+	}
+
+	inject->itrace_synth_opts.vm_tm_corr_args = strdup(args);
+
+	return inject->itrace_synth_opts.vm_tm_corr_args ? 0 : -ENOMEM;
+}
+
 static int __cmd_inject(struct perf_inject *inject)
 {
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
 	struct perf_data *data_out = &inject->output;
-	int fd = perf_data__fd(data_out);
+	int fd = inject->in_place_update ? -1 : perf_data__fd(data_out);
 	u64 output_data_offset;
 
 	signal(SIGINT, sig_handler);
@@ -737,6 +794,15 @@ static int __cmd_inject(struct perf_inject *inject)
 			else if (!strncmp(name, "sched:sched_stat_", 17))
 				evsel->handler = perf_inject__sched_stat;
 		}
+	} else if (inject->itrace_synth_opts.vm_time_correlation) {
+		session->itrace_synth_opts = &inject->itrace_synth_opts;
+		memset(&inject->tool, 0, sizeof(inject->tool));
+		inject->tool.id_index	    = perf_event__process_id_index;
+		inject->tool.auxtrace_info  = perf_event__process_auxtrace_info;
+		inject->tool.auxtrace	    = perf_event__process_auxtrace;
+		inject->tool.auxtrace_error = perf_event__process_auxtrace_error;
+		inject->tool.ordered_events = true;
+		inject->tool.ordering_requires_timestamps = true;
 	} else if (inject->itrace_synth_opts.set) {
 		session->itrace_synth_opts = &inject->itrace_synth_opts;
 		inject->itrace_synth_opts.inject = true;
@@ -759,14 +825,14 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!data_out->is_pipe)
+	if (!data_out->is_pipe && !inject->in_place_update)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
-	if (!data_out->is_pipe) {
+	if (!data_out->is_pipe && !inject->in_place_update) {
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
@@ -878,6 +944,9 @@ int cmd_inject(int argc, const char **argv)
 				    itrace_parse_synth_opts),
 		OPT_BOOLEAN(0, "strip", &inject.strip,
 			    "strip non-synthesized events (use with --itrace)"),
+		OPT_CALLBACK_OPTARG(0, "vm-time-correlation", &inject, NULL, "opts",
+				    "correlate time between VM guests and the host",
+				    parse_vm_time_correlation),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {
@@ -900,7 +969,23 @@ int cmd_inject(int argc, const char **argv)
 		return -1;
 	}
 
-	if (perf_data__open(&inject.output)) {
+	if (inject.in_place_update) {
+		if (!strcmp(inject.input_name, "-")) {
+			pr_err("Input file name required for in-place updating\n");
+			return -1;
+		}
+		if (strcmp(inject.output.path, "-")) {
+			pr_err("Output file name must not be specified for in-place updating\n");
+			return -1;
+		}
+		if (!data.force && !inject.in_place_update_dry_run) {
+			pr_err("The input file would be updated in place, "
+				"the --force option is required.\n");
+			return -1;
+		}
+		if (!inject.in_place_update_dry_run)
+			data.in_place_update = true;
+	} else if (perf_data__open(&inject.output)) {
 		perror("failed to create output file");
 		return -1;
 	}
@@ -950,5 +1035,6 @@ int cmd_inject(int argc, const char **argv)
 out_delete:
 	zstd_fini(&(inject.session->zstd_data));
 	perf_session__delete(inject.session);
+	free(inject.itrace_synth_opts.vm_tm_corr_args);
 	return ret;
 }

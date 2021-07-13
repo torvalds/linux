@@ -11,6 +11,7 @@
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/swap.h>
+#include <linux/swiotlb.h>
 #include <linux/sizes.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -29,10 +30,14 @@
 
 #include "../kernel/head.h"
 
-unsigned long kernel_virt_addr = KERNEL_LINK_ADDR;
-EXPORT_SYMBOL(kernel_virt_addr);
+struct kernel_mapping kernel_map __ro_after_init;
+EXPORT_SYMBOL(kernel_map);
 #ifdef CONFIG_XIP_KERNEL
-#define kernel_virt_addr       (*((unsigned long *)XIP_FIXUP(&kernel_virt_addr)))
+#define kernel_map	(*(struct kernel_mapping *)XIP_FIXUP(&kernel_map))
+#endif
+
+#ifdef CONFIG_XIP_KERNEL
+extern char _xiprom[], _exiprom[];
 #endif
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
@@ -53,7 +58,7 @@ struct pt_alloc_ops {
 #endif
 };
 
-static phys_addr_t dma32_phys_limit __ro_after_init;
+static phys_addr_t dma32_phys_limit __initdata;
 
 static void __init zone_sizes_init(void)
 {
@@ -65,11 +70,6 @@ static void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfns);
-}
-
-static void __init setup_zero_page(void)
-{
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 }
 
 #if defined(CONFIG_MMU) && defined(CONFIG_DEBUG_VM)
@@ -113,25 +113,53 @@ void __init mem_init(void)
 	BUG_ON(!mem_map);
 #endif /* CONFIG_FLATMEM */
 
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_force == SWIOTLB_FORCE ||
+	    max_pfn > PFN_DOWN(dma32_phys_limit))
+		swiotlb_init(1);
+	else
+		swiotlb_force = SWIOTLB_NO_FORCE;
+#endif
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
 	memblock_free_all();
 
 	print_vm_layout();
 }
 
-void __init setup_bootmem(void)
+/*
+ * The default maximal physical memory size is -PAGE_OFFSET,
+ * limit the memory size via mem.
+ */
+static phys_addr_t memory_limit = -PAGE_OFFSET;
+
+static int __init early_mem(char *p)
+{
+	u64 size;
+
+	if (!p)
+		return 1;
+
+	size = memparse(p, &p) & PAGE_MASK;
+	memory_limit = min_t(u64, size, memory_limit);
+
+	pr_notice("Memory limited to %lldMB\n", (u64)memory_limit >> 20);
+
+	return 0;
+}
+early_param("mem", early_mem);
+
+static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
-	phys_addr_t dram_end = memblock_end_of_DRAM();
 	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
+	phys_addr_t dram_end;
 
 #ifdef CONFIG_XIP_KERNEL
 	vmlinux_start = __pa_symbol(&_sdata);
 #endif
 
-	/* The maximal physical memory size is -PAGE_OFFSET. */
-	memblock_enforce_memory_limit(-PAGE_OFFSET);
+	memblock_enforce_memory_limit(memory_limit);
 
 	/*
 	 * Reserve from the start of the kernel to the end of the kernel
@@ -146,6 +174,7 @@ void __init setup_bootmem(void)
 #endif
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
+	dram_end = memblock_end_of_DRAM();
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
 	 * the addressable memory can not be mapped because of IS_ERR_VALUE
@@ -176,15 +205,8 @@ void __init setup_bootmem(void)
 	memblock_allow_resize();
 }
 
-#ifdef CONFIG_XIP_KERNEL
-
-extern char _xiprom[], _exiprom[];
-extern char _sdata[], _edata[];
-
-#endif /* CONFIG_XIP_KERNEL */
-
 #ifdef CONFIG_MMU
-static struct pt_alloc_ops _pt_ops __ro_after_init;
+static struct pt_alloc_ops _pt_ops __initdata;
 
 #ifdef CONFIG_XIP_KERNEL
 #define pt_ops (*(struct pt_alloc_ops *)XIP_FIXUP(&_pt_ops))
@@ -192,31 +214,12 @@ static struct pt_alloc_ops _pt_ops __ro_after_init;
 #define pt_ops _pt_ops
 #endif
 
-/* Offset between linear mapping virtual address and kernel load address */
-unsigned long va_pa_offset __ro_after_init;
-EXPORT_SYMBOL(va_pa_offset);
-#ifdef CONFIG_XIP_KERNEL
-#define va_pa_offset   (*((unsigned long *)XIP_FIXUP(&va_pa_offset)))
-#endif
-/* Offset between kernel mapping virtual address and kernel load address */
-#ifdef CONFIG_64BIT
-unsigned long va_kernel_pa_offset;
-EXPORT_SYMBOL(va_kernel_pa_offset);
-#endif
-#ifdef CONFIG_XIP_KERNEL
-#define va_kernel_pa_offset    (*((unsigned long *)XIP_FIXUP(&va_kernel_pa_offset)))
-#endif
-unsigned long va_kernel_xip_pa_offset;
-EXPORT_SYMBOL(va_kernel_xip_pa_offset);
-#ifdef CONFIG_XIP_KERNEL
-#define va_kernel_xip_pa_offset        (*((unsigned long *)XIP_FIXUP(&va_kernel_xip_pa_offset)))
-#endif
 unsigned long pfn_base __ro_after_init;
 EXPORT_SYMBOL(pfn_base);
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pgd_t trampoline_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
-pte_t fixmap_pte[PTRS_PER_PTE] __page_aligned_bss;
+static pte_t fixmap_pte[PTRS_PER_PTE] __page_aligned_bss;
 
 pgd_t early_pg_dir[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 
@@ -253,7 +256,7 @@ static inline pte_t *__init get_pte_virt_fixmap(phys_addr_t pa)
 	return (pte_t *)set_fixmap_offset(FIX_PTE, pa);
 }
 
-static inline pte_t *get_pte_virt_late(phys_addr_t pa)
+static inline pte_t *__init get_pte_virt_late(phys_addr_t pa)
 {
 	return (pte_t *) __va(pa);
 }
@@ -272,7 +275,7 @@ static inline phys_addr_t __init alloc_pte_fixmap(uintptr_t va)
 	return memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
-static phys_addr_t alloc_pte_late(uintptr_t va)
+static phys_addr_t __init alloc_pte_late(uintptr_t va)
 {
 	unsigned long vaddr;
 
@@ -296,10 +299,10 @@ static void __init create_pte_mapping(pte_t *ptep,
 
 #ifndef __PAGETABLE_PMD_FOLDED
 
-pmd_t trampoline_pmd[PTRS_PER_PMD] __page_aligned_bss;
-pmd_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
-pmd_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
-pmd_t early_dtb_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
+static pmd_t trampoline_pmd[PTRS_PER_PMD] __page_aligned_bss;
+static pmd_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
+static pmd_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
+static pmd_t early_dtb_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 
 #ifdef CONFIG_XIP_KERNEL
 #define trampoline_pmd ((pmd_t *)XIP_FIXUP(trampoline_pmd))
@@ -319,14 +322,14 @@ static pmd_t *__init get_pmd_virt_fixmap(phys_addr_t pa)
 	return (pmd_t *)set_fixmap_offset(FIX_PMD, pa);
 }
 
-static pmd_t *get_pmd_virt_late(phys_addr_t pa)
+static pmd_t *__init get_pmd_virt_late(phys_addr_t pa)
 {
 	return (pmd_t *) __va(pa);
 }
 
 static phys_addr_t __init alloc_pmd_early(uintptr_t va)
 {
-	BUG_ON((va - kernel_virt_addr) >> PGDIR_SHIFT);
+	BUG_ON((va - kernel_map.virt_addr) >> PGDIR_SHIFT);
 
 	return (uintptr_t)early_pmd;
 }
@@ -336,7 +339,7 @@ static phys_addr_t __init alloc_pmd_fixmap(uintptr_t va)
 	return memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
-static phys_addr_t alloc_pmd_late(uintptr_t va)
+static phys_addr_t __init alloc_pmd_late(uintptr_t va)
 {
 	unsigned long vaddr;
 
@@ -436,6 +439,43 @@ asmlinkage void __init __copy_data(void)
 }
 #endif
 
+#ifdef CONFIG_STRICT_KERNEL_RWX
+static __init pgprot_t pgprot_from_va(uintptr_t va)
+{
+	if (is_va_kernel_text(va))
+		return PAGE_KERNEL_READ_EXEC;
+
+	/*
+	 * In 64-bit kernel, the kernel mapping is outside the linear mapping so
+	 * we must protect its linear mapping alias from being executed and
+	 * written.
+	 * And rodata section is marked readonly in mark_rodata_ro.
+	 */
+	if (IS_ENABLED(CONFIG_64BIT) && is_va_kernel_lm_alias_text(va))
+		return PAGE_KERNEL_READ;
+
+	return PAGE_KERNEL;
+}
+
+void mark_rodata_ro(void)
+{
+	set_kernel_memory(__start_rodata, _data, set_memory_ro);
+	if (IS_ENABLED(CONFIG_64BIT))
+		set_kernel_memory(lm_alias(__start_rodata), lm_alias(_data),
+				  set_memory_ro);
+
+	debug_checkwx();
+}
+#else
+static __init pgprot_t pgprot_from_va(uintptr_t va)
+{
+	if (IS_ENABLED(CONFIG_64BIT) && !is_kernel_mapping(va))
+		return PAGE_KERNEL;
+
+	return PAGE_KERNEL_EXEC;
+}
+#endif /* CONFIG_STRICT_KERNEL_RWX */
+
 /*
  * setup_vm() is called from head.S with MMU-off.
  *
@@ -454,45 +494,39 @@ asmlinkage void __init __copy_data(void)
 #error "setup_vm() is called from head.S before relocate so it should not use absolute addressing."
 #endif
 
-uintptr_t load_pa, load_sz;
 #ifdef CONFIG_XIP_KERNEL
-#define load_pa        (*((uintptr_t *)XIP_FIXUP(&load_pa)))
-#define load_sz        (*((uintptr_t *)XIP_FIXUP(&load_sz)))
-#endif
-
-#ifdef CONFIG_XIP_KERNEL
-uintptr_t xiprom, xiprom_sz;
-#define xiprom_sz      (*((uintptr_t *)XIP_FIXUP(&xiprom_sz)))
-#define xiprom         (*((uintptr_t *)XIP_FIXUP(&xiprom)))
-
-static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size)
+static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size,
+					    __always_unused bool early)
 {
 	uintptr_t va, end_va;
 
 	/* Map the flash resident part */
-	end_va = kernel_virt_addr + xiprom_sz;
-	for (va = kernel_virt_addr; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + kernel_map.xiprom_sz;
+	for (va = kernel_map.virt_addr; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   xiprom + (va - kernel_virt_addr),
+				   kernel_map.xiprom + (va - kernel_map.virt_addr),
 				   map_size, PAGE_KERNEL_EXEC);
 
 	/* Map the data in RAM */
-	end_va = kernel_virt_addr + XIP_OFFSET + load_sz;
-	for (va = kernel_virt_addr + XIP_OFFSET; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + XIP_OFFSET + kernel_map.size;
+	for (va = kernel_map.virt_addr + XIP_OFFSET; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   load_pa + (va - (kernel_virt_addr + XIP_OFFSET)),
+				   kernel_map.phys_addr + (va - (kernel_map.virt_addr + XIP_OFFSET)),
 				   map_size, PAGE_KERNEL);
 }
 #else
-static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size)
+static void __init create_kernel_page_table(pgd_t *pgdir, uintptr_t map_size,
+					    bool early)
 {
 	uintptr_t va, end_va;
 
-	end_va = kernel_virt_addr + load_sz;
-	for (va = kernel_virt_addr; va < end_va; va += map_size)
+	end_va = kernel_map.virt_addr + kernel_map.size;
+	for (va = kernel_map.virt_addr; va < end_va; va += map_size)
 		create_pgd_mapping(pgdir, va,
-				   load_pa + (va - kernel_virt_addr),
-				   map_size, PAGE_KERNEL_EXEC);
+				   kernel_map.phys_addr + (va - kernel_map.virt_addr),
+				   map_size,
+				   early ?
+					PAGE_KERNEL_EXEC : pgprot_from_va(va));
 }
 #endif
 
@@ -504,25 +538,27 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	pmd_t fix_bmap_spmd, fix_bmap_epmd;
 #endif
 
+	kernel_map.virt_addr = KERNEL_LINK_ADDR;
+
 #ifdef CONFIG_XIP_KERNEL
-	xiprom = (uintptr_t)CONFIG_XIP_PHYS_ADDR;
-	xiprom_sz = (uintptr_t)(&_exiprom) - (uintptr_t)(&_xiprom);
+	kernel_map.xiprom = (uintptr_t)CONFIG_XIP_PHYS_ADDR;
+	kernel_map.xiprom_sz = (uintptr_t)(&_exiprom) - (uintptr_t)(&_xiprom);
 
-	load_pa = (uintptr_t)CONFIG_PHYS_RAM_BASE;
-	load_sz = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
+	kernel_map.phys_addr = (uintptr_t)CONFIG_PHYS_RAM_BASE;
+	kernel_map.size = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
 
-	va_kernel_xip_pa_offset = kernel_virt_addr - xiprom;
+	kernel_map.va_kernel_xip_pa_offset = kernel_map.virt_addr - kernel_map.xiprom;
 #else
-	load_pa = (uintptr_t)(&_start);
-	load_sz = (uintptr_t)(&_end) - load_pa;
+	kernel_map.phys_addr = (uintptr_t)(&_start);
+	kernel_map.size = (uintptr_t)(&_end) - kernel_map.phys_addr;
 #endif
 
-	va_pa_offset = PAGE_OFFSET - load_pa;
+	kernel_map.va_pa_offset = PAGE_OFFSET - kernel_map.phys_addr;
 #ifdef CONFIG_64BIT
-	va_kernel_pa_offset = kernel_virt_addr - load_pa;
+	kernel_map.va_kernel_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr;
 #endif
 
-	pfn_base = PFN_DOWN(load_pa);
+	pfn_base = PFN_DOWN(kernel_map.phys_addr);
 
 	/*
 	 * Enforce boot alignment requirements of RV32 and
@@ -532,7 +568,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 	/* Sanity check alignment and size */
 	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
-	BUG_ON((load_pa % map_size) != 0);
+	BUG_ON((kernel_map.phys_addr % map_size) != 0);
 
 	pt_ops.alloc_pte = alloc_pte_early;
 	pt_ops.get_pte_virt = get_pte_virt_early;
@@ -549,19 +585,19 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	create_pmd_mapping(fixmap_pmd, FIXADDR_START,
 			   (uintptr_t)fixmap_pte, PMD_SIZE, PAGE_TABLE);
 	/* Setup trampoline PGD and PMD */
-	create_pgd_mapping(trampoline_pg_dir, kernel_virt_addr,
+	create_pgd_mapping(trampoline_pg_dir, kernel_map.virt_addr,
 			   (uintptr_t)trampoline_pmd, PGDIR_SIZE, PAGE_TABLE);
 #ifdef CONFIG_XIP_KERNEL
-	create_pmd_mapping(trampoline_pmd, kernel_virt_addr,
-			   xiprom, PMD_SIZE, PAGE_KERNEL_EXEC);
+	create_pmd_mapping(trampoline_pmd, kernel_map.virt_addr,
+			   kernel_map.xiprom, PMD_SIZE, PAGE_KERNEL_EXEC);
 #else
-	create_pmd_mapping(trampoline_pmd, kernel_virt_addr,
-			   load_pa, PMD_SIZE, PAGE_KERNEL_EXEC);
+	create_pmd_mapping(trampoline_pmd, kernel_map.virt_addr,
+			   kernel_map.phys_addr, PMD_SIZE, PAGE_KERNEL_EXEC);
 #endif
 #else
 	/* Setup trampoline PGD */
-	create_pgd_mapping(trampoline_pg_dir, kernel_virt_addr,
-			   load_pa, PGDIR_SIZE, PAGE_KERNEL_EXEC);
+	create_pgd_mapping(trampoline_pg_dir, kernel_map.virt_addr,
+			   kernel_map.phys_addr, PGDIR_SIZE, PAGE_KERNEL_EXEC);
 #endif
 
 	/*
@@ -569,7 +605,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	 * us to reach paging_init(). We map all memory banks later
 	 * in setup_vm_final() below.
 	 */
-	create_kernel_page_table(early_pg_dir, map_size);
+	create_kernel_page_table(early_pg_dir, map_size, true);
 
 #ifndef __PAGETABLE_PMD_FOLDED
 	/* Setup early PMD for DTB */
@@ -645,22 +681,6 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 #endif
 }
 
-#if defined(CONFIG_64BIT) && defined(CONFIG_STRICT_KERNEL_RWX)
-void protect_kernel_linear_mapping_text_rodata(void)
-{
-	unsigned long text_start = (unsigned long)lm_alias(_start);
-	unsigned long init_text_start = (unsigned long)lm_alias(__init_text_begin);
-	unsigned long rodata_start = (unsigned long)lm_alias(__start_rodata);
-	unsigned long data_start = (unsigned long)lm_alias(_data);
-
-	set_memory_ro(text_start, (init_text_start - text_start) >> PAGE_SHIFT);
-	set_memory_nx(text_start, (init_text_start - text_start) >> PAGE_SHIFT);
-
-	set_memory_ro(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
-	set_memory_nx(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
-}
-#endif
-
 static void __init setup_vm_final(void)
 {
 	uintptr_t va, map_size;
@@ -693,21 +713,15 @@ static void __init setup_vm_final(void)
 		map_size = best_map_size(start, end - start);
 		for (pa = start; pa < end; pa += map_size) {
 			va = (uintptr_t)__va(pa);
-			create_pgd_mapping(swapper_pg_dir, va, pa,
-					   map_size,
-#ifdef CONFIG_64BIT
-					   PAGE_KERNEL
-#else
-					   PAGE_KERNEL_EXEC
-#endif
-					);
 
+			create_pgd_mapping(swapper_pg_dir, va, pa, map_size,
+					   pgprot_from_va(va));
 		}
 	}
 
 #ifdef CONFIG_64BIT
 	/* Map the kernel */
-	create_kernel_page_table(swapper_pg_dir, PMD_SIZE);
+	create_kernel_page_table(swapper_pg_dir, PMD_SIZE, false);
 #endif
 
 	/* Clear fixmap PTE and PMD mappings */
@@ -737,35 +751,6 @@ static inline void setup_vm_final(void)
 {
 }
 #endif /* CONFIG_MMU */
-
-#ifdef CONFIG_STRICT_KERNEL_RWX
-void __init protect_kernel_text_data(void)
-{
-	unsigned long text_start = (unsigned long)_start;
-	unsigned long init_text_start = (unsigned long)__init_text_begin;
-	unsigned long init_data_start = (unsigned long)__init_data_begin;
-	unsigned long rodata_start = (unsigned long)__start_rodata;
-	unsigned long data_start = (unsigned long)_data;
-	unsigned long max_low = (unsigned long)(__va(PFN_PHYS(max_low_pfn)));
-
-	set_memory_ro(text_start, (init_text_start - text_start) >> PAGE_SHIFT);
-	set_memory_ro(init_text_start, (init_data_start - init_text_start) >> PAGE_SHIFT);
-	set_memory_nx(init_data_start, (rodata_start - init_data_start) >> PAGE_SHIFT);
-	/* rodata section is marked readonly in mark_rodata_ro */
-	set_memory_nx(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
-	set_memory_nx(data_start, (max_low - data_start) >> PAGE_SHIFT);
-}
-
-void mark_rodata_ro(void)
-{
-	unsigned long rodata_start = (unsigned long)__start_rodata;
-	unsigned long data_start = (unsigned long)_data;
-
-	set_memory_ro(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
-
-	debug_checkwx();
-}
-#endif
 
 #ifdef CONFIG_KEXEC_CORE
 /*
@@ -854,7 +839,7 @@ static void __init reserve_crashkernel(void)
  * reserved once we call early_init_fdt_scan_reserved_mem()
  * later on.
  */
-static int elfcore_hdr_setup(struct reserved_mem *rmem)
+static int __init elfcore_hdr_setup(struct reserved_mem *rmem)
 {
 	elfcorehdr_addr = rmem->base;
 	elfcorehdr_size = rmem->size;
@@ -866,8 +851,8 @@ RESERVEDMEM_OF_DECLARE(elfcorehdr, "linux,elfcorehdr", elfcore_hdr_setup);
 
 void __init paging_init(void)
 {
+	setup_bootmem();
 	setup_vm_final();
-	setup_zero_page();
 }
 
 void __init misc_mem_init(void)

@@ -38,7 +38,7 @@
 struct mlx5_flow_cmds {
 	int (*create_flow_table)(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_table *ft,
-				 unsigned int log_size,
+				 unsigned int size,
 				 struct mlx5_flow_table *next_ft);
 	int (*destroy_flow_table)(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft);
@@ -77,9 +77,7 @@ struct mlx5_flow_cmds {
 			      bool disconnect);
 
 	int (*packet_reformat_alloc)(struct mlx5_flow_root_namespace *ns,
-				     int reformat_type,
-				     size_t size,
-				     void *reformat_data,
+				     struct mlx5_pkt_reformat_params *params,
 				     enum mlx5_flow_namespace_type namespace,
 				     struct mlx5_pkt_reformat *pkt_reformat);
 

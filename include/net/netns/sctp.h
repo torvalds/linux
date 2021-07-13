@@ -84,6 +84,9 @@ struct netns_sctp {
 	/* HB.interval		    - 30 seconds  */
 	unsigned int hb_interval;
 
+	/* The interval for PLPMTUD probe timer */
+	unsigned int probe_interval;
+
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans	    - 5	 attempts (per destination address)
 	 * Max.Init.Retransmits	    - 8	 attempts

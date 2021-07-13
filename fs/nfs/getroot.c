@@ -67,7 +67,7 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 int nfs_get_root(struct super_block *s, struct fs_context *fc)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
-	struct nfs_server *server = NFS_SB(s);
+	struct nfs_server *server = NFS_SB(s), *clone_server;
 	struct nfs_fsinfo fsinfo;
 	struct dentry *root;
 	struct inode *inode;
@@ -127,7 +127,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	}
 	spin_unlock(&root->d_lock);
 	fc->root = root;
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
+	if (server->caps & NFS_CAP_SECURITY_LABEL)
 		kflags |= SECURITY_LSM_NATIVE_LABELS;
 	if (ctx->clone_data.sb) {
 		if (d_inode(fc->root)->i_fop != &nfs_dir_operations) {
@@ -137,15 +137,19 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 		/* clone lsm security options from the parent to the new sb */
 		error = security_sb_clone_mnt_opts(ctx->clone_data.sb,
 						   s, kflags, &kflags_out);
+		if (error)
+			goto error_splat_root;
+		clone_server = NFS_SB(ctx->clone_data.sb);
+		server->has_sec_mnt_opts = clone_server->has_sec_mnt_opts;
 	} else {
 		error = security_sb_set_mnt_opts(s, fc->security,
 							kflags, &kflags_out);
 	}
 	if (error)
 		goto error_splat_root;
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
+	if (server->caps & NFS_CAP_SECURITY_LABEL &&
 		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
-		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
+		server->caps &= ~NFS_CAP_SECURITY_LABEL;
 
 	nfs_setsecurity(inode, fsinfo.fattr, fsinfo.fattr->label);
 	error = 0;

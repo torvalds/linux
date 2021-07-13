@@ -298,7 +298,7 @@ struct lan78xx_net;
 struct lan78xx_priv {
 	struct lan78xx_net *dev;
 	u32 rfe_ctl;
-	u32 mchash_table[DP_SEL_VHF_HASH_LEN]; /* multicat hash table */
+	u32 mchash_table[DP_SEL_VHF_HASH_LEN]; /* multicast hash table */
 	u32 pfilter_table[NUM_OF_MAF][2]; /* perfect filter table */
 	u32 vlan_table[DP_SEL_VHF_VLAN_LEN];
 	struct mutex dataport_mutex; /* for dataport access */
@@ -1645,6 +1645,7 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_strings	= lan78xx_get_strings,
 	.get_wol	= lan78xx_get_wol,
 	.set_wol	= lan78xx_set_wol,
+	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_eee	= lan78xx_get_eee,
 	.set_eee	= lan78xx_set_eee,
 	.get_pauseparam	= lan78xx_get_pause,

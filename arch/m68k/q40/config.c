@@ -286,14 +286,39 @@ static int q40_set_rtc_pll(struct rtc_pll_info *pll)
 		return -EINVAL;
 }
 
-static __init int q40_add_kbd_device(void)
-{
-	struct platform_device *pdev;
+#define PCIDE_BASE1	0x1f0
+#define PCIDE_BASE2	0x170
+#define PCIDE_CTL	0x206
 
+static const struct resource q40_pata_rsrc_0[] __initconst = {
+	DEFINE_RES_MEM(q40_isa_io_base + PCIDE_BASE1 * 4, 0x38),
+	DEFINE_RES_MEM(q40_isa_io_base + (PCIDE_BASE1 + PCIDE_CTL) * 4, 2),
+	DEFINE_RES_IO(PCIDE_BASE1, 8),
+	DEFINE_RES_IO(PCIDE_BASE1 + PCIDE_CTL, 1),
+	DEFINE_RES_IRQ(14),
+};
+
+static const struct resource q40_pata_rsrc_1[] __initconst = {
+	DEFINE_RES_MEM(q40_isa_io_base + PCIDE_BASE2 * 4, 0x38),
+	DEFINE_RES_MEM(q40_isa_io_base + (PCIDE_BASE2 + PCIDE_CTL) * 4, 2),
+	DEFINE_RES_IO(PCIDE_BASE2, 8),
+	DEFINE_RES_IO(PCIDE_BASE2 + PCIDE_CTL, 1),
+	DEFINE_RES_IRQ(15),
+};
+
+static __init int q40_platform_init(void)
+{
 	if (!MACH_IS_Q40)
 		return -ENODEV;
 
-	pdev = platform_device_register_simple("q40kbd", -1, NULL, 0);
-	return PTR_ERR_OR_ZERO(pdev);
+	platform_device_register_simple("q40kbd", -1, NULL, 0);
+
+	platform_device_register_simple("atari-falcon-ide", 0, q40_pata_rsrc_0,
+					ARRAY_SIZE(q40_pata_rsrc_0));
+
+	platform_device_register_simple("atari-falcon-ide", 1, q40_pata_rsrc_1,
+					ARRAY_SIZE(q40_pata_rsrc_1));
+
+	return 0;
 }
-arch_initcall(q40_add_kbd_device);
+arch_initcall(q40_platform_init);

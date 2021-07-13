@@ -24,7 +24,7 @@ my $help = 0;
 my $fix = 0;
 my $warn = 0;
 
-if (! -d ".git") {
+if (! -e ".git") {
 	printf "Warning: can't check if file exists, as this is not a git tree\n";
 	exit 0;
 }

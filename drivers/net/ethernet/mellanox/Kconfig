@@ -22,5 +22,6 @@ source "drivers/net/ethernet/mellanox/mlx4/Kconfig"
 source "drivers/net/ethernet/mellanox/mlx5/core/Kconfig"
 source "drivers/net/ethernet/mellanox/mlxsw/Kconfig"
 source "drivers/net/ethernet/mellanox/mlxfw/Kconfig"
+source "drivers/net/ethernet/mellanox/mlxbf_gige/Kconfig"
 
 endif # NET_VENDOR_MELLANOX

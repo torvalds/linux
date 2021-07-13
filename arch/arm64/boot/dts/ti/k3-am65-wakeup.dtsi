@@ -6,24 +6,24 @@
  */
 
 &cbass_wakeup {
-	dmsc: dmsc {
+	dmsc: system-controller@44083000 {
 		compatible = "ti,am654-sci";
 		ti,host-id = <12>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
 
 		mbox-names = "rx", "tx";
 
 		mboxes= <&secure_proxy_main 11>,
 			<&secure_proxy_main 13>;
 
+		reg-names = "debug_messages";
+		reg = <0x44083000 0x1000>;
+
 		k3_pds: power-controller {
 			compatible = "ti,sci-pm-domain";
 			#power-domain-cells = <2>;
 		};
 
-		k3_clks: clocks {
+		k3_clks: clock-controller {
 			compatible = "ti,k2g-sci-clk";
 			#clock-cells = <2>;
 		};
@@ -50,8 +50,6 @@
 	wkup_uart0: serial@42300000 {
 		compatible = "ti,am654-uart";
 		reg = <0x42300000 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 697 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
@@ -69,8 +67,9 @@
 		power-domains = <&k3_pds 115 TI_SCI_PD_EXCLUSIVE>;
 	};
 
-	intr_wkup_gpio: interrupt-controller2 {
+	intr_wkup_gpio: interrupt-controller@42200000 {
 		compatible = "ti,sci-intr";
+		reg = <0x42200000 0x200>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;

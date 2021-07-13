@@ -13,6 +13,12 @@
 	model = "BQ Edison2 Quad-Core";
 	compatible = "mundoreader,bq-edison2qc", "rockchip,rk3188";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &emmc;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x80000000>;

@@ -454,7 +454,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	struct stmmac_resources stmmac_res;
 	const struct ethqos_emac_driver_data *data;
 	struct qcom_ethqos *ethqos;
-	struct resource *res;
 	int ret;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
@@ -474,8 +473,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	}
 
 	ethqos->pdev = pdev;
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rgmii");
-	ethqos->rgmii_base = devm_ioremap_resource(&pdev->dev, res);
+	ethqos->rgmii_base = devm_platform_ioremap_resource_byname(pdev, "rgmii");
 	if (IS_ERR(ethqos->rgmii_base)) {
 		ret = PTR_ERR(ethqos->rgmii_base);
 		goto err_mem;

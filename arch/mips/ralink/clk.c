@@ -10,79 +10,21 @@
 #include <linux/export.h>
 #include <linux/clkdev.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #include <asm/time.h>
 
 #include "common.h"
 
-struct clk {
-	struct clk_lookup cl;
-	unsigned long rate;
-};
-
 void ralink_clk_add(const char *dev, unsigned long rate)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = clk_register_fixed_rate(NULL, dev, NULL, 0, rate);
 
 	if (!clk)
 		panic("failed to add clock");
 
-	clk->cl.dev_id = dev;
-	clk->cl.clk = clk;
-
-	clk->rate = rate;
-
-	clkdev_add(&clk->cl);
+	clkdev_create(clk, NULL, "%s", dev);
 }
-
-/*
- * Linux clock API
- */
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL_GPL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	if (!clk)
-		return 0;
-
-	return clk->rate;
-}
-EXPORT_SYMBOL_GPL(clk_get_rate);
-
-int clk_set_rate(struct clk *clk, unsigned long rate)
-{
-	return -1;
-}
-EXPORT_SYMBOL_GPL(clk_set_rate);
-
-long clk_round_rate(struct clk *clk, unsigned long rate)
-{
-	return -1;
-}
-EXPORT_SYMBOL_GPL(clk_round_rate);
-
-int clk_set_parent(struct clk *clk, struct clk *parent)
-{
-	WARN_ON(clk);
-	return -1;
-}
-EXPORT_SYMBOL_GPL(clk_set_parent);
-
-struct clk *clk_get_parent(struct clk *clk)
-{
-	WARN_ON(clk);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(clk_get_parent);
 
 void __init plat_time_init(void)
 {

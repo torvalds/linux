@@ -43,9 +43,12 @@ static void smuio_v11_0_update_rom_clock_gating(struct amdgpu_device *adev, bool
 	if (adev->flags & AMD_IS_APU)
 		return;
 
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_ROM_MGCG))
+		return;
+
 	def = data = RREG32_SOC15(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0);
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ROM_MGCG))
+	if (enable)
 		data &= ~(CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
 			CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK);
 	else

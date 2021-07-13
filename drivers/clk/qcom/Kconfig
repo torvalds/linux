@@ -210,6 +210,13 @@ config MSM_LCC_8960
 	  Say Y if you want to use audio devices such as i2s, pcm,
 	  SLIMBus, etc.
 
+config MDM_GCC_9607
+	tristate "MDM9607 Global Clock Controller"
+	help
+	  Support for the global clock controller on mdm9607 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SD/eMMC, etc.
+
 config MDM_GCC_9615
 	tristate "MDM9615 Global Clock Controller"
 	help
@@ -483,6 +490,13 @@ config SDX_GCC_55
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_CAMCC_8250
+	tristate "SM8250 Camera Clock Controller"
+	select SM_GCC_8250
+	help
+	  Support for the camera clock controller on SM8250 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_DISPCC_8250
 	tristate "SM8150 and SM8250 Display Clock Controller"
 	depends on SM_GCC_8150 || SM_GCC_8250
@@ -491,6 +505,13 @@ config SM_DISPCC_8250
 	  SM8150 and SM8250 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
+
+config SM_GCC_6125
+	tristate "SM6125 Global Clock Controller"
+	help
+	  Support for the global clock controller on SM6125 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
 config SM_GCC_8150
 	tristate "SM8150 Global Clock Controller"

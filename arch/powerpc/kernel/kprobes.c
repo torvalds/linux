@@ -19,11 +19,13 @@
 #include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
+#include <linux/moduleloader.h>
 #include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/sections.h>
 #include <asm/inst.h>
+#include <asm/set_memory.h>
 #include <linux/uaccess.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
@@ -103,28 +105,42 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 	return addr;
 }
 
+void *alloc_insn_page(void)
+{
+	void *page;
+
+	page = module_alloc(PAGE_SIZE);
+	if (!page)
+		return NULL;
+
+	if (strict_module_rwx_enabled()) {
+		set_memory_ro((unsigned long)page, 1);
+		set_memory_x((unsigned long)page, 1);
+	}
+	return page;
+}
+
 int arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;
 	struct kprobe *prev;
-	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->addr);
-	struct ppc_inst prefix = ppc_inst_read((struct ppc_inst *)(p->addr - 1));
+	struct ppc_inst insn = ppc_inst_read(p->addr);
 
 	if ((unsigned long)p->addr & 0x03) {
 		printk("Attempt to register kprobe at an unaligned address\n");
 		ret = -EINVAL;
-	} else if (IS_MTMSRD(insn) || IS_RFID(insn) || IS_RFI(insn)) {
-		printk("Cannot register a kprobe on rfi/rfid or mtmsr[d]\n");
+	} else if (IS_MTMSRD(insn) || IS_RFID(insn)) {
+		printk("Cannot register a kprobe on mtmsr[d]/rfi[d]\n");
 		ret = -EINVAL;
-	} else if (ppc_inst_prefixed(prefix)) {
+	} else if ((unsigned long)p->addr & ~PAGE_MASK &&
+		   ppc_inst_prefixed(ppc_inst_read(p->addr - 1))) {
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
 	preempt_disable();
 	prev = get_kprobe(p->addr - 1);
 	preempt_enable_no_resched();
-	if (prev &&
-	    ppc_inst_prefixed(ppc_inst_read((struct ppc_inst *)prev->ainsn.insn))) {
+	if (prev && ppc_inst_prefixed(ppc_inst_read(prev->ainsn.insn))) {
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
@@ -138,7 +154,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	}
 
 	if (!ret) {
-		patch_instruction((struct ppc_inst *)p->ainsn.insn, insn);
+		patch_instruction(p->ainsn.insn, insn);
 		p->opcode = ppc_inst_val(insn);
 	}
 
@@ -149,13 +165,13 @@ NOKPROBE_SYMBOL(arch_prepare_kprobe);
 
 void arch_arm_kprobe(struct kprobe *p)
 {
-	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(BREAKPOINT_INSTRUCTION));
+	WARN_ON_ONCE(patch_instruction(p->addr, ppc_inst(BREAKPOINT_INSTRUCTION)));
 }
 NOKPROBE_SYMBOL(arch_arm_kprobe);
 
 void arch_disarm_kprobe(struct kprobe *p)
 {
-	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(p->opcode));
+	WARN_ON_ONCE(patch_instruction(p->addr, ppc_inst(p->opcode)));
 }
 NOKPROBE_SYMBOL(arch_disarm_kprobe);
 
@@ -178,7 +194,7 @@ static nokprobe_inline void prepare_singlestep(struct kprobe *p, struct pt_regs 
 	 * variant as values in regs could play a part in
 	 * if the trap is taken or not
 	 */
-	regs->nip = (unsigned long)p->ainsn.insn;
+	regs_set_return_ip(regs, (unsigned long)p->ainsn.insn);
 }
 
 static nokprobe_inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -228,7 +244,7 @@ NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
-	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->ainsn.insn);
+	struct ppc_inst insn = ppc_inst_read(p->ainsn.insn);
 
 	/* regs->nip is also adjusted if emulate_step returns 1 */
 	ret = emulate_step(regs, insn);
@@ -319,8 +335,9 @@ int kprobe_handler(struct pt_regs *regs)
 		kprobe_opcode_t insn = *p->ainsn.insn;
 		if (kcb->kprobe_status == KPROBE_HIT_SS && is_trap(insn)) {
 			/* Turn off 'trace' bits */
-			regs->msr &= ~MSR_SINGLESTEP;
-			regs->msr |= kcb->kprobe_saved_msr;
+			regs_set_return_msr(regs,
+				(regs->msr & ~MSR_SINGLESTEP) |
+				kcb->kprobe_saved_msr);
 			goto no_kprobe;
 		}
 
@@ -415,7 +432,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 * we end up emulating it in kprobe_handler(), which increments the nip
 	 * again.
 	 */
-	regs->nip = orig_ret_address - 4;
+	regs_set_return_ip(regs, orig_ret_address - 4);
 	regs->link = orig_ret_address;
 
 	return 0;
@@ -439,7 +456,7 @@ int kprobe_post_handler(struct pt_regs *regs)
 	if (!cur || user_mode(regs))
 		return 0;
 
-	len = ppc_inst_len(ppc_inst_read((struct ppc_inst *)cur->ainsn.insn));
+	len = ppc_inst_len(ppc_inst_read(cur->ainsn.insn));
 	/* make sure we got here for instruction we have a kprobe on */
 	if (((unsigned long)cur->ainsn.insn + len) != regs->nip)
 		return 0;
@@ -450,8 +467,8 @@ int kprobe_post_handler(struct pt_regs *regs)
 	}
 
 	/* Adjust nip to after the single-stepped instruction */
-	regs->nip = (unsigned long)cur->addr + len;
-	regs->msr |= kcb->kprobe_saved_msr;
+	regs_set_return_ip(regs, (unsigned long)cur->addr + len);
+	regs_set_return_msr(regs, regs->msr | kcb->kprobe_saved_msr);
 
 	/*Restore back the original saved kprobes variables and continue. */
 	if (kcb->kprobe_status == KPROBE_REENTER) {
@@ -490,9 +507,11 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * and allow the page fault handler to continue as a
 		 * normal page fault.
 		 */
-		regs->nip = (unsigned long)cur->addr;
-		regs->msr &= ~MSR_SINGLESTEP; /* Turn off 'trace' bits */
-		regs->msr |= kcb->kprobe_saved_msr;
+		regs_set_return_ip(regs, (unsigned long)cur->addr);
+		/* Turn off 'trace' bits */
+		regs_set_return_msr(regs,
+			(regs->msr & ~MSR_SINGLESTEP) |
+			kcb->kprobe_saved_msr);
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
 		else
@@ -502,28 +521,11 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
 		/*
-		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accounting
-		 * these specific fault cases.
-		 */
-		kprobes_inc_nmissed_count(cur);
-
-		/*
-		 * We come here because instructions in the pre/post
-		 * handler caused the page_fault, this could happen
-		 * if handler tries to access user space by
-		 * copy_from_user(), get_user() etc. Let the
-		 * user-specified handler try to fix it first.
-		 */
-		if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
-			return 1;
-
-		/*
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
 		if ((entry = search_exception_tables(regs->nip)) != NULL) {
-			regs->nip = extable_fixup(entry);
+			regs_set_return_ip(regs, extable_fixup(entry));
 			return 1;
 		}
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+set -e
 
 # Assume script is located under tools/testing/selftests/bpf/. We want to start
 # build attempts from the top of kernel repository.

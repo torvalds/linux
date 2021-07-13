@@ -300,7 +300,6 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * @adev: amdgpu_device pointer
  * @offset: offset into the GPU's gart aperture
  * @pages: number of pages to bind
- * @pagelist: pages to bind
  * @dma_addr: DMA addresses of pages
  * @flags: page table entry flags
  *
@@ -309,7 +308,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * Returns 0 for success, -EINVAL for failure.
  */
 int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
-		     int pages, struct page **pagelist, dma_addr_t *dma_addr,
+		     int pages, dma_addr_t *dma_addr,
 		     uint64_t flags)
 {
 	if (!adev->gart.ready) {

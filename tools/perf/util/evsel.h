@@ -49,7 +49,6 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist		*evlist;
 	off_t			id_offset;
-	int			idx;
 	int			id_pos;
 	int			is_pos;
 	unsigned int		sample_size;
@@ -83,8 +82,10 @@ struct evsel {
 		bool			collect_stat;
 		bool			weak_group;
 		bool			bpf_counter;
+		bool			use_config_name;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
+		struct list_head	config_terms;
 	};
 
 	/*
@@ -116,10 +117,7 @@ struct evsel {
 	bool			merged_stat;
 	bool			reset_group;
 	bool			errored;
-	bool			use_config_name;
 	struct hashmap		*per_pkg_mask;
-	struct evsel		*leader;
-	struct list_head	config_terms;
 	int			err;
 	int			cpu_iter;
 	struct {
@@ -368,7 +366,7 @@ static inline struct evsel *evsel__prev(struct evsel *evsel)
  */
 static inline bool evsel__is_group_leader(const struct evsel *evsel)
 {
-	return evsel->leader == evsel;
+	return evsel->core.leader == &evsel->core;
 }
 
 /**
@@ -406,19 +404,19 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 
 static inline int evsel__group_idx(struct evsel *evsel)
 {
-	return evsel->idx - evsel->leader->idx;
+	return evsel->core.idx - evsel->core.leader->idx;
 }
 
 /* Iterates group WITHOUT the leader. */
 #define for_each_group_member(_evsel, _leader) 					\
 for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node); \
-     (_evsel) && (_evsel)->leader == (_leader);					\
+     (_evsel) && (_evsel)->core.leader == (&_leader->core);					\
      (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 /* Iterates group WITH the leader. */
 #define for_each_group_evsel(_evsel, _leader) 					\
 for ((_evsel) = _leader; 							\
-     (_evsel) && (_evsel)->leader == (_leader);					\
+     (_evsel) && (_evsel)->core.leader == (&_leader->core);					\
      (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 static inline bool evsel__has_branch_callstack(const struct evsel *evsel)
@@ -463,4 +461,8 @@ int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
 void evsel__zero_per_pkg(struct evsel *evsel);
 bool evsel__is_hybrid(struct evsel *evsel);
+struct evsel *evsel__leader(struct evsel *evsel);
+bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
+bool evsel__is_leader(struct evsel *evsel);
+void evsel__set_leader(struct evsel *evsel, struct evsel *leader);
 #endif /* __PERF_EVSEL_H */

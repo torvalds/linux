@@ -43,12 +43,10 @@ properties:
 
 patternProperties:
   # Optional children
-  "^serdes-ln-ctrl@[0-9a-f]+$":
+  "^mux-controller@[0-9a-f]+$":
     type: object
-    description: |
-      This is the SERDES lane control mux. It should follow the bindings
-      specified in
-      Documentation/devicetree/bindings/mux/reg-mux.txt
+    description:
+      This is the SERDES lane control mux.
 
 required:
   - compatible
@@ -68,9 +66,18 @@ examples:
         #size-cells = <1>;
         ranges;
 
-        serdes_ln_ctrl: serdes-ln-ctrl@4080 {
+        serdes_ln_ctrl: mux-controller@4080 {
             compatible = "mmio-mux";
             reg = <0x00004080 0x50>;
+
+            #mux-control-cells = <1>;
+            mux-reg-masks =
+                <0x4080 0x3>, <0x4084 0x3>, /* SERDES0 lane0/1 select */
+                <0x4090 0x3>, <0x4094 0x3>, /* SERDES1 lane0/1 select */
+                <0x40a0 0x3>, <0x40a4 0x3>, /* SERDES2 lane0/1 select */
+                <0x40b0 0x3>, <0x40b4 0x3>, /* SERDES3 lane0/1 select */
+                <0x40c0 0x3>, <0x40c4 0x3>, <0x40c8 0x3>, <0x40cc 0x3>;
+                /* SERDES4 lane0/1/2/3 select */
         };
     };
 ...

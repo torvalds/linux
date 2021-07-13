@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 #include "dc.h"
 #include "dc_link.h"
 #include "../display_mode_lib.h"
@@ -2668,6 +2667,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 												(double) v->WritebackDelay[v->VoltageLevel][k]
 														/ (v->HTotal[k] / v->PixelClock[k]),
 												1));
+		if (v->MaxVStartupLines[k] > 1023)
+			v->MaxVStartupLines[k] = 1023;
 
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%d MaxVStartupLines = %d\n", __func__, k, v->MaxVStartupLines[k]);
@@ -3536,7 +3537,7 @@ static bool CalculateBytePerPixelAnd256BBlockSizes(
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 4;
 		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_16) {
+	} else if (SourcePixelFormat == dm_444_16) {
 		*BytePerPixelDETY = 2;
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 2;
@@ -5064,6 +5065,8 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 																/ (v->HTotal[k]
 																		/ v->PixelClock[k]),
 														1.0));
+				if (v->MaximumVStartup[i][j][k] > 1023)
+					v->MaximumVStartup[i][j][k] = 1023;
 				v->MaxMaxVStartup[i][j] = dml_max(v->MaxMaxVStartup[i][j], v->MaximumVStartup[i][j][k]);
 			}
 		}
@@ -5674,7 +5677,7 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	for (k = 0; k < v->NumberOfActivePlanes; k++) {
 		if (v->ViewportWidth[k] > v->SurfaceWidthY[k] || v->ViewportHeight[k] > v->SurfaceHeightY[k]) {
 			ViewportExceedsSurface = true;
-			if (v->SourcePixelFormat[k] != dm_444_64 && v->SourcePixelFormat[k] != dm_444_32 && v->SourcePixelFormat[k] != dm_444_16
+			if (v->SourcePixelFormat[k] != dm_444_64 && v->SourcePixelFormat[k] != dm_444_32
 					&& v->SourcePixelFormat[k] != dm_444_16 && v->SourcePixelFormat[k] != dm_444_8
 					&& v->SourcePixelFormat[k] != dm_rgbe) {
 				if (v->ViewportWidthChroma[k] > v->SurfaceWidthC[k]
@@ -7505,4 +7508,3 @@ static bool UnboundedRequest(enum unbounded_requesting_policy UseUnboundedReques
 	return (ret_val);
 }
 
-#endif /* CONFIG_DRM_AMD_DC_DCN3_1 */

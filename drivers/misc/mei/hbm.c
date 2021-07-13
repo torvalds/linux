@@ -853,7 +853,7 @@ out:
 }
 
 /**
- * mei_hbm_cl_flow_control_res - flow control response from me
+ * mei_hbm_cl_tx_flow_ctrl_creds_res - flow control response from me
  *
  * @dev: the device structure
  * @fctrl: flow control response bus message

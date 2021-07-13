@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 	ksft_set_plan(2);
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
-		ksft_exit_skip("SVE not available");
+		ksft_exit_skip("SVE not available\n");
 
 	/*
 	 * Enumerate up to SVE_VQ_MAX vector lengths

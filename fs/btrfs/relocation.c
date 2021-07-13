@@ -2876,11 +2876,12 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 }
 
 /*
- * Allow error injection to test balance cancellation
+ * Allow error injection to test balance/relocation cancellation
  */
 noinline int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info)
 {
 	return atomic_read(&fs_info->balance_cancel_req) ||
+		atomic_read(&fs_info->reloc_cancel_req) ||
 		fatal_signal_pending(current);
 }
 ALLOW_ERROR_INJECTION(btrfs_should_cancel_balance, TRUE);
@@ -3780,6 +3781,60 @@ out:
 	return inode;
 }
 
+/*
+ * Mark start of chunk relocation that is cancellable. Check if the cancellation
+ * has been requested meanwhile and don't start in that case.
+ *
+ * Return:
+ *   0             success
+ *   -EINPROGRESS  operation is already in progress, that's probably a bug
+ *   -ECANCELED    cancellation request was set before the operation started
+ *   -EAGAIN       can not start because there are ongoing send operations
+ */
+static int reloc_chunk_start(struct btrfs_fs_info *fs_info)
+{
+	spin_lock(&fs_info->send_reloc_lock);
+	if (fs_info->send_in_progress) {
+		btrfs_warn_rl(fs_info,
+"cannot run relocation while send operations are in progress (%d in progress)",
+			      fs_info->send_in_progress);
+		spin_unlock(&fs_info->send_reloc_lock);
+		return -EAGAIN;
+	}
+	if (test_and_set_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags)) {
+		/* This should not happen */
+		spin_unlock(&fs_info->send_reloc_lock);
+		btrfs_err(fs_info, "reloc already running, cannot start");
+		return -EINPROGRESS;
+	}
+	spin_unlock(&fs_info->send_reloc_lock);
+
+	if (atomic_read(&fs_info->reloc_cancel_req) > 0) {
+		btrfs_info(fs_info, "chunk relocation canceled on start");
+		/*
+		 * On cancel, clear all requests but let the caller mark
+		 * the end after cleanup operations.
+		 */
+		atomic_set(&fs_info->reloc_cancel_req, 0);
+		return -ECANCELED;
+	}
+	return 0;
+}
+
+/*
+ * Mark end of chunk relocation that is cancellable and wake any waiters.
+ */
+static void reloc_chunk_end(struct btrfs_fs_info *fs_info)
+{
+	/* Requested after start, clear bit first so any waiters can continue */
+	if (atomic_read(&fs_info->reloc_cancel_req) > 0)
+		btrfs_info(fs_info, "chunk relocation canceled during operation");
+	spin_lock(&fs_info->send_reloc_lock);
+	clear_and_wake_up_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags);
+	spin_unlock(&fs_info->send_reloc_lock);
+	atomic_set(&fs_info->reloc_cancel_req, 0);
+}
+
 static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 {
 	struct reloc_control *rc;
@@ -3860,6 +3915,12 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	if (!rc) {
 		btrfs_put_block_group(bg);
 		return -ENOMEM;
+	}
+
+	ret = reloc_chunk_start(fs_info);
+	if (ret < 0) {
+		err = ret;
+		goto out_put_bg;
 	}
 
 	rc->extent_root = extent_root;
@@ -3952,7 +4013,9 @@ out:
 	if (err && rw)
 		btrfs_dec_block_group_ro(rc->block_group);
 	iput(rc->data_inode);
-	btrfs_put_block_group(rc->block_group);
+out_put_bg:
+	btrfs_put_block_group(bg);
+	reloc_chunk_end(fs_info);
 	free_reloc_control(rc);
 	return err;
 }
@@ -4073,6 +4136,12 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 		goto out;
 	}
 
+	ret = reloc_chunk_start(fs_info);
+	if (ret < 0) {
+		err = ret;
+		goto out_end;
+	}
+
 	rc->extent_root = fs_info->extent_root;
 
 	set_reloc_control(rc);
@@ -4137,6 +4206,8 @@ out_clean:
 		err = ret;
 out_unset:
 	unset_reloc_control(rc);
+out_end:
+	reloc_chunk_end(fs_info);
 	free_reloc_control(rc);
 out:
 	free_reloc_roots(&reloc_roots);

@@ -139,7 +139,7 @@
 #define xbpf_map_delete_elem(fd, key)                                          \
 	({                                                                     \
 		int __ret = bpf_map_delete_elem((fd), (key));                  \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_delete");                              \
 		__ret;                                                         \
 	})
@@ -147,7 +147,7 @@
 #define xbpf_map_lookup_elem(fd, key, val)                                     \
 	({                                                                     \
 		int __ret = bpf_map_lookup_elem((fd), (key), (val));           \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_lookup");                              \
 		__ret;                                                         \
 	})
@@ -155,7 +155,7 @@
 #define xbpf_map_update_elem(fd, key, val, flags)                              \
 	({                                                                     \
 		int __ret = bpf_map_update_elem((fd), (key), (val), (flags));  \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_update");                              \
 		__ret;                                                         \
 	})
@@ -164,7 +164,7 @@
 	({                                                                     \
 		int __ret =                                                    \
 			bpf_prog_attach((prog), (target), (type), (flags));    \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("prog_attach(" #type ")");                  \
 		__ret;                                                         \
 	})
@@ -172,7 +172,7 @@
 #define xbpf_prog_detach2(prog, target, type)                                  \
 	({                                                                     \
 		int __ret = bpf_prog_detach2((prog), (target), (type));        \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("prog_detach2(" #type ")");                 \
 		__ret;                                                         \
 	})
@@ -1610,6 +1610,7 @@ static void udp_redir_to_connected(int family, int sotype, int sock_mapfd,
 	struct sockaddr_storage addr;
 	int c0, c1, p0, p1;
 	unsigned int pass;
+	int retries = 100;
 	socklen_t len;
 	int err, n;
 	u64 value;
@@ -1686,9 +1687,13 @@ static void udp_redir_to_connected(int family, int sotype, int sock_mapfd,
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 
+again:
 	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
-	if (n < 0)
+	if (n < 0) {
+		if (errno == EAGAIN && retries--)
+			goto again;
 		FAIL_ERRNO("%s: read", log_prefix);
+	}
 	if (n == 0)
 		FAIL("%s: incomplete read", log_prefix);
 

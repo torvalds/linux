@@ -71,7 +71,7 @@ static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
 	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
 
 	*res = kzalloc(sizeof(**res), GFP_KERNEL);
-	if (*res)
+	if (!*res)
 		return -ENOMEM;
 
 	ttm_resource_init(tbo, place, *res);

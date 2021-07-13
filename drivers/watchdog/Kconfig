@@ -22,9 +22,9 @@ menuconfig WATCHDOG
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
-	  <ftp://ibiblio.org/pub/Linux/system/daemons/watchdog/>. This daemon can
-	  also monitor NFS connections and can reboot the machine when the process
-	  table is full.
+	  <https://ibiblio.org/pub/Linux/system/daemons/watchdog/>. This daemon
+	  can also monitor NFS connections and can reboot the machine when the
+	  process table is full.
 
 	  If unsure, say N.
 
@@ -72,6 +72,14 @@ config WATCHDOG_SYSFS
 	help
 	  Say Y here if you want to enable watchdog device status read through
 	  sysfs attributes.
+
+config WATCHDOG_HRTIMER_PRETIMEOUT
+	bool "Enable watchdog hrtimer-based pretimeouts"
+	help
+	  Enable this if you want to use a hrtimer timer based pretimeout for
+	  watchdogs that do not natively support pretimeout support. Be aware
+	  that because this pretimeout functionality uses hrtimers, it may not
+	  be able to fire before the actual watchdog fires in some situations.
 
 comment "Watchdog Pretimeout Governors"
 
@@ -302,7 +310,7 @@ config XILINX_WATCHDOG
 	depends on HAS_IOMEM
 	select WATCHDOG_CORE
 	help
-	  Watchdog driver for the xps_timebase_wdt ip core.
+	  Watchdog driver for the xps_timebase_wdt IP core.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called of_xilinx_wdt.
@@ -404,8 +412,8 @@ config ASM9260_WATCHDOG
 	select WATCHDOG_CORE
 	select RESET_CONTROLLER
 	help
-	  Watchdog timer embedded into Alphascale asm9260 chips. This will reboot your
-	  system when the timeout is reached.
+	  Watchdog timer embedded into Alphascale asm9260 chips. This will
+	  reboot your system when the timeout is reached.
 
 config AT91RM9200_WATCHDOG
 	tristate "AT91RM9200 watchdog"
@@ -548,8 +556,9 @@ config OMAP_WATCHDOG
 	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
-	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog.  Say 'Y'
-	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog timer.
+	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog.
+	  Say 'Y' here to enable the
+	  OMAP1610/OMAP1710/OMAP2420/OMAP3430/OMAP4430 watchdog timer.
 
 config PNX4008_WATCHDOG
 	tristate "LPC32XX Watchdog"
@@ -980,6 +989,18 @@ config VISCONTI_WATCHDOG
 	  Say Y here to include support for the watchdog timer in Toshiba
 	  Visconti SoCs.
 
+config MSC313E_WATCHDOG
+	tristate "MStar MSC313e watchdog"
+	depends on ARCH_MSTARV7 || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the Watchdog timer embedded
+	  into MStar MSC313e chips. This will reboot your system when the
+	  timeout is reached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called msc313e_wdt.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
@@ -1096,13 +1117,16 @@ config SBC_FITPC2_WATCHDOG
 	  This is the driver for the built-in watchdog timer on the fit-PC2,
 	  fit-PC2i, CM-iAM single-board computers made by Compulab.
 
-	  It`s possible to enable watchdog timer either from BIOS (F2) or from booted Linux.
-	  When "Watchdog Timer Value" enabled one can set 31-255 s operational range.
+	  It's possible to enable the watchdog timer either from BIOS (F2) or
+	  from booted Linux.
+	  When the "Watchdog Timer Value" is enabled one can set 31-255 seconds
+	  operational range.
 
-	  Entering BIOS setup temporary disables watchdog operation regardless to current state,
-	  so system will not be restarted while user in BIOS setup.
+	  Entering BIOS setup temporarily disables watchdog operation regardless
+	  of current state, so system will not be restarted while user is in
+	  BIOS setup.
 
-	  Once watchdog was enabled the system will be restarted every
+	  Once the watchdog is enabled the system will be restarted every
 	  "Watchdog Timer Value" period, so to prevent it user can restart or
 	  disable the watchdog.
 
@@ -1124,11 +1148,12 @@ config IB700_WDT
 	depends on X86
 	help
 	  This is the driver for the hardware watchdog on the IB700 Single
-	  Board Computer produced by TMC Technology (www.tmc-uk.com). This watchdog
-	  simply watches your kernel to make sure it doesn't freeze, and if
-	  it does, it reboots your computer after a certain amount of time.
+	  Board Computer produced by TMC Technology (www.tmc-uk.com). This
+	  watchdog simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of time.
 
-	  This driver is like the WDT501 driver but for slightly different hardware.
+	  This driver is like the WDT501 driver but for slightly different
+	  hardware.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ib700wdt.
@@ -1807,10 +1832,10 @@ config PIC32_DMT
 	select WATCHDOG_CORE
 	depends on MACH_PIC32 || (MIPS && COMPILE_TEST)
 	help
-	  Watchdog driver for PIC32 instruction fetch counting timer. This specific
-	  timer is typically be used in misson critical and safety critical
-	  applications, where any single failure of the software functionality
-	  and sequencing must be detected.
+	  Watchdog driver for PIC32 instruction fetch counting timer. This
+	  specific timer is typically be used in mission critical and safety
+	  critical applications, where any single failure of the software
+	  functionality and sequencing must be detected.
 
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called pic32-dmt.
@@ -1843,10 +1868,6 @@ config 8xxx_WDT
 	  - MPC86xx watchdogs
 
 	  For BookE processors (MPC85xx) use the BOOKE_WDT driver instead.
-
-config MV64X60_WDT
-	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
-	depends on MV64X60 || COMPILE_TEST
 
 config PIKA_WDT
 	tristate "PIKA FPGA Watchdog"
@@ -2013,8 +2034,8 @@ config PCWATCHDOG
 	  This card simply watches your kernel to make sure it doesn't freeze,
 	  and if it does, it reboots your computer after a certain amount of
 	  time. This driver is like the WDT501 driver but for different
-	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.rst>. The PC
-	  watchdog cards can be ordered from <http://www.berkprod.com/>.
+	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.rst>.
+	  The PC watchdog cards can be ordered from <http://www.berkprod.com/>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcwd.
@@ -2115,7 +2136,7 @@ config KEEMBAY_WATCHDOG
 	 This option enable support for an In-secure watchdog timer driver for
 	 Intel Keem Bay SoC. This WDT has a 32 bit timer and decrements in every
 	 count unit. An interrupt will be triggered, when the count crosses
-	 the thershold configured in the register.
+	 the threshold configured in the register.
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called keembay_wdt.

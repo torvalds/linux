@@ -22,11 +22,10 @@ void test_udp_limit(void)
 		goto close_cgroup_fd;
 
 	skel->links.sock = bpf_program__attach_cgroup(skel->progs.sock, cgroup_fd);
+	if (!ASSERT_OK_PTR(skel->links.sock, "cg_attach_sock"))
+		goto close_skeleton;
 	skel->links.sock_release = bpf_program__attach_cgroup(skel->progs.sock_release, cgroup_fd);
-	if (CHECK(IS_ERR(skel->links.sock) || IS_ERR(skel->links.sock_release),
-		  "cg-attach", "sock %ld sock_release %ld",
-		  PTR_ERR(skel->links.sock),
-		  PTR_ERR(skel->links.sock_release)))
+	if (!ASSERT_OK_PTR(skel->links.sock_release, "cg_attach_sock_release"))
 		goto close_skeleton;
 
 	/* BPF program enforces a single UDP socket per cgroup,

@@ -220,16 +220,13 @@ static void initcall_debug_report(struct device *dev, ktime_t calltime,
 				  void *cb, int error)
 {
 	ktime_t rettime;
-	s64 nsecs;
 
 	if (!pm_print_times_enabled)
 		return;
 
 	rettime = ktime_get();
-	nsecs = (s64) ktime_to_ns(ktime_sub(rettime, calltime));
-
 	dev_info(dev, "%pS returned %d after %Ld usecs\n", cb, error,
-		 (unsigned long long)nsecs >> 10);
+		 (unsigned long long)ktime_us_delta(rettime, calltime));
 }
 
 /**

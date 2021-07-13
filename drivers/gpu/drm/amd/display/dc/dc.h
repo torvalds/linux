@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.139"
+#define DC_VER "3.2.141"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -297,12 +297,14 @@ struct dc_config {
 	bool allow_seamless_boot_optimization;
 	bool power_down_display_on_boot;
 	bool edp_not_connected;
+	bool edp_no_power_sequencing;
 	bool force_enum_edp;
 	bool forced_clocks;
 	bool allow_lttpr_non_transparent_mode;
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
+	bool allow_edp_hotplug_detection;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool clamp_min_dcfclk;
 #endif
@@ -351,7 +353,7 @@ enum dcn_pwr_state {
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dcn_z9_support_state {
 	DCN_Z9_SUPPORT_UNKNOWN,
 	DCN_Z9_SUPPORT_ALLOW,
@@ -375,7 +377,7 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dcn_z9_support_state z9_support;
 	bool dtbclk_en;
 #endif
@@ -500,7 +502,7 @@ struct dc_debug_options {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_mem_low_power;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool pstate_enabled;
 #endif
 	bool disable_dmcu;
@@ -521,8 +523,6 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	bool disable_z9_mpc;
 #endif
 	unsigned int force_fclk_khz;
@@ -566,7 +566,7 @@ struct dc_debug_options {
 	bool force_enable_edp_fec;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
 	bool enable_sw_cntl_psr;
 #endif
@@ -594,7 +594,7 @@ struct dc_phy_addr_space_config {
 		uint64_t page_table_start_addr;
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		bool base_addr_is_mc_addr;
 #endif
 	} gart_config;
@@ -1334,7 +1334,7 @@ void dc_hardware_release(struct dc *dc);
 #endif
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 void dc_z10_restore(struct dc *dc);
 #endif
 

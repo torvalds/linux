@@ -348,7 +348,7 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 	 * For YUV planar modes, the number of bytes per pixel takes into
 	 * account only the luma component and therefore is 1.
 	 */
-	yuv = tegra_plane_format_is_yuv(window->format, &planar);
+	yuv = tegra_plane_format_is_yuv(window->format, &planar, NULL);
 	if (!yuv)
 		bpp = window->bits_per_pixel / 8;
 	else

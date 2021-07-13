@@ -176,11 +176,14 @@ static inline s32 mlx90614_iir_search(const struct i2c_client *client,
 static int mlx90614_power_get(struct mlx90614_data *data, bool startup)
 {
 	unsigned long now;
+	int ret;
 
 	if (!data->wakeup_gpio)
 		return 0;
 
-	pm_runtime_get_sync(&data->client->dev);
+	ret = pm_runtime_resume_and_get(&data->client->dev);
+	if (ret < 0)
+		return ret;
 
 	if (startup) {
 		now = jiffies;
@@ -267,7 +270,10 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 		*val = MLX90614_CONST_SCALE;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBEMISSIVITY: /* 1/65535 / LSB */
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = i2c_smbus_read_word_data(data->client,
 					       MLX90614_EMISSIVITY);
@@ -287,7 +293,10 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY: /* IIR setting with
 							     FIR = 1024 */
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = i2c_smbus_read_word_data(data->client, MLX90614_CONFIG);
 		mutex_unlock(&data->lock);
@@ -319,7 +328,10 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		val = val * MLX90614_CONST_RAW_EMISSIVITY_MAX +
 			val2 / MLX90614_CONST_EMISSIVITY_RESOLUTION;
 
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = mlx90614_write_word(data->client, MLX90614_EMISSIVITY,
 					  val);
@@ -331,7 +343,10 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		if (val < 0 || val2 < 0)
 			return -EINVAL;
 
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = mlx90614_iir_search(data->client,
 					  val * 100 + val2 / 10000);

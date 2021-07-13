@@ -1563,10 +1563,12 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 		return;
 	}
 
+	mutex_lock(&tgt->ha->optrom_mutex);
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
 	tgt->tgt_stop = 0;
 	tgt->tgt_stopped = 1;
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+	mutex_unlock(&tgt->ha->optrom_mutex);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00c, "Stop of tgt %p finished\n",
 	    tgt);
@@ -5479,8 +5481,7 @@ qlt_free_qfull_cmds(struct qla_qpair *qpair)
 			    "%s: Unexpected cmd in QFull list %p\n", __func__,
 			    cmd);
 
-		list_del(&cmd->cmd_list);
-		list_add_tail(&cmd->cmd_list, &free_list);
+		list_move_tail(&cmd->cmd_list, &free_list);
 
 		/* piggy back on hardware_lock for protection */
 		vha->hw->tgt.num_qfull_cmds_alloc--;

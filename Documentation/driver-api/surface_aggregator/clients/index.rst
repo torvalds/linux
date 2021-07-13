@@ -5,7 +5,8 @@ Client Driver Documentation
 ===========================
 
 This is the documentation for client drivers themselves. Refer to
-:doc:`../client` for documentation on how to write client drivers.
+Documentation/driver-api/surface_aggregator/client.rst for documentation
+on how to write client drivers.
 
 .. toctree::
    :maxdepth: 1

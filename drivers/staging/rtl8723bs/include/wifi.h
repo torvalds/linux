@@ -234,7 +234,7 @@ static inline int IS_MCAST(unsigned char *da)
 		return false;
 }
 
-static inline unsigned char *get_ra(unsigned char *pframe)
+static inline unsigned char *rtl8723bs_get_ra(unsigned char *pframe)
 {
 	unsigned char *ra;
 	ra = GetAddr1Ptr(pframe);
@@ -336,7 +336,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _PRE_ALLOCICVHDR_		5
 #define _PRE_ALLOCMICHDR_		6
 
-#define _SIFSTIME_				((priv->pmib->dot11BssType.net_work_type&WIRELESS_11A)?16:10)
 #define _ACKCTSLNG_				14	/* 14 bytes long, including crclng */
 #define _CRCLNG_				4
 

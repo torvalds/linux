@@ -115,18 +115,24 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  * The __COUNTER__ based labels are a hack to make each instance of the macros
  * unique, to convince GCC not to merge duplicate inline asm statements.
  */
-#define annotate_reachable() ({						\
-	asm volatile("%c0:\n\t"						\
+#define __stringify_label(n) #n
+
+#define __annotate_reachable(c) ({					\
+	asm volatile(__stringify_label(c) ":\n\t"			\
 		     ".pushsection .discard.reachable\n\t"		\
-		     ".long %c0b - .\n\t"				\
-		     ".popsection\n\t" : : "i" (__COUNTER__));		\
+		     ".long " __stringify_label(c) "b - .\n\t"		\
+		     ".popsection\n\t");				\
 })
-#define annotate_unreachable() ({					\
-	asm volatile("%c0:\n\t"						\
+#define annotate_reachable() __annotate_reachable(__COUNTER__)
+
+#define __annotate_unreachable(c) ({					\
+	asm volatile(__stringify_label(c) ":\n\t"			\
 		     ".pushsection .discard.unreachable\n\t"		\
-		     ".long %c0b - .\n\t"				\
-		     ".popsection\n\t" : : "i" (__COUNTER__));		\
+		     ".long " __stringify_label(c) "b - .\n\t"		\
+		     ".popsection\n\t");				\
 })
+#define annotate_unreachable() __annotate_unreachable(__COUNTER__)
+
 #define ASM_UNREACHABLE							\
 	"999:\n\t"							\
 	".pushsection .discard.unreachable\n\t"				\
@@ -212,6 +218,16 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	__kcsan_enable_current();					\
 	__v;								\
 })
+
+/*
+ * With CONFIG_CFI_CLANG, the compiler replaces function addresses in
+ * instrumented C code with jump table addresses. Architectures that
+ * support CFI can define this macro to return the actual function address
+ * when needed.
+ */
+#ifndef function_nocfi
+#define function_nocfi(x) (x)
+#endif
 
 #endif /* __KERNEL__ */
 

@@ -195,7 +195,6 @@ static int gre_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol net_gre_protocol = {
 	.handler     = gre_rcv,
 	.err_handler = gre_err,
-	.netns_ok    = 1,
 };
 
 static int __init gre_init(void)

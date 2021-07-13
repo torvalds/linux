@@ -46,6 +46,7 @@ static struct scsi_host_template mvs_sht = {
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
+	.slave_alloc		= sas_slave_alloc,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 #ifdef CONFIG_COMPAT
@@ -692,22 +693,17 @@ static struct pci_driver mvs_pci_driver = {
 	.remove		= mvs_pci_remove,
 };
 
-static ssize_t
-mvs_show_driver_version(struct device *cdev,
-		struct device_attribute *attr,  char *buffer)
+static ssize_t driver_version_show(struct device *cdev,
+				   struct device_attribute *attr, char *buffer)
 {
 	return snprintf(buffer, PAGE_SIZE, "%s\n", DRV_VERSION);
 }
 
-static DEVICE_ATTR(driver_version,
-			 S_IRUGO,
-			 mvs_show_driver_version,
-			 NULL);
+static DEVICE_ATTR_RO(driver_version);
 
-static ssize_t
-mvs_store_interrupt_coalescing(struct device *cdev,
-			struct device_attribute *attr,
-			const char *buffer, size_t size)
+static ssize_t interrupt_coalescing_store(struct device *cdev,
+					  struct device_attribute *attr,
+					  const char *buffer, size_t size)
 {
 	unsigned int val = 0;
 	struct mvs_info *mvi = NULL;
@@ -745,16 +741,13 @@ mvs_store_interrupt_coalescing(struct device *cdev,
 	return strlen(buffer);
 }
 
-static ssize_t mvs_show_interrupt_coalescing(struct device *cdev,
-			struct device_attribute *attr, char *buffer)
+static ssize_t interrupt_coalescing_show(struct device *cdev,
+					 struct device_attribute *attr, char *buffer)
 {
 	return snprintf(buffer, PAGE_SIZE, "%d\n", interrupt_coalescing);
 }
 
-static DEVICE_ATTR(interrupt_coalescing,
-			 S_IRUGO|S_IWUSR,
-			 mvs_show_interrupt_coalescing,
-			 mvs_store_interrupt_coalescing);
+static DEVICE_ATTR_RW(interrupt_coalescing);
 
 static int __init mvs_init(void)
 {

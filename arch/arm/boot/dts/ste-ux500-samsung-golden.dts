@@ -121,7 +121,7 @@
 			#size-cells = <0>;
 
 			wifi@1 {
-				compatible = "brcm,bcm4329-fmac";
+				compatible = "brcm,bcm4334-fmac", "brcm,bcm4329-fmac";
 				reg = <1>;
 
 				/* GPIO216 (WLAN_HOST_WAKE) */
@@ -162,6 +162,7 @@
 			pinctrl-1 = <&u0_a_1_sleep>;
 
 			bluetooth {
+				/* BCM4334B0 actually */
 				compatible = "brcm,bcm4330-bt";
 				/* GPIO222 (BT_VREG_ON) */
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;

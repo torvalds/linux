@@ -101,7 +101,8 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	if (snd_BUG_ON(!substream || !buf))
 		return -EINVAL;
 	runtime = substream->runtime;
-	if ((tmp = runtime->avail) < count) {
+	tmp = runtime->avail;
+	if (tmp < count) {
 		if (printk_ratelimit())
 			pr_err("ALSA: seq_midi: MIDI output buffer overrun\n");
 		return -ENOMEM;
@@ -167,10 +168,11 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
-	if ((err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
-					   msynth->subdevice,
-					   SNDRV_RAWMIDI_LFLG_INPUT,
-					   &msynth->input_rfile)) < 0) {
+	err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
+				      msynth->subdevice,
+				      SNDRV_RAWMIDI_LFLG_INPUT,
+				      &msynth->input_rfile);
+	if (err < 0) {
 		pr_debug("ALSA: seq_midi: midi input open failed!!!\n");
 		return err;
 	}
@@ -178,7 +180,8 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 	memset(&params, 0, sizeof(params));
 	params.avail_min = 1;
 	params.buffer_size = input_buffer_size;
-	if ((err = snd_rawmidi_input_params(msynth->input_rfile.input, &params)) < 0) {
+	err = snd_rawmidi_input_params(msynth->input_rfile.input, &params);
+	if (err < 0) {
 		snd_rawmidi_kernel_release(&msynth->input_rfile);
 		return err;
 	}
@@ -209,10 +212,11 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
-	if ((err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
-					   msynth->subdevice,
-					   SNDRV_RAWMIDI_LFLG_OUTPUT,
-					   &msynth->output_rfile)) < 0) {
+	err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
+				      msynth->subdevice,
+				      SNDRV_RAWMIDI_LFLG_OUTPUT,
+				      &msynth->output_rfile);
+	if (err < 0) {
 		pr_debug("ALSA: seq_midi: midi output open failed!!!\n");
 		return err;
 	}
@@ -220,7 +224,8 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	params.avail_min = 1;
 	params.buffer_size = output_buffer_size;
 	params.no_active_sensing = 1;
-	if ((err = snd_rawmidi_output_params(msynth->output_rfile.output, &params)) < 0) {
+	err = snd_rawmidi_output_params(msynth->output_rfile.output, &params);
+	if (err < 0) {
 		snd_rawmidi_kernel_release(&msynth->output_rfile);
 		return err;
 	}

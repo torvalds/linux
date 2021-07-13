@@ -398,11 +398,8 @@ static struct status_msg *stex_get_status(struct st_hba *hba)
 static void stex_invalid_field(struct scsi_cmnd *cmd,
 			       void (*done)(struct scsi_cmnd *))
 {
-	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
 	/* "Invalid field in cdb" */
-	scsi_build_sense_buffer(0, cmd->sense_buffer, ILLEGAL_REQUEST, 0x24,
-				0x0);
+	scsi_build_sense(cmd, 0, ILLEGAL_REQUEST, 0x24, 0x0);
 	done(cmd);
 }
 
@@ -740,7 +737,7 @@ static void stex_scsi_done(struct st_ccb *ccb)
 			result |= DID_OK << 16;
 			break;
 		case SAM_STAT_CHECK_CONDITION:
-			result |= DRIVER_SENSE << 24;
+			result |= DID_OK << 16;
 			break;
 		case SAM_STAT_BUSY:
 			result |= DID_BUS_BUSY << 16;
@@ -751,7 +748,7 @@ static void stex_scsi_done(struct st_ccb *ccb)
 		}
 	}
 	else if (ccb->srb_status & SRB_SEE_SENSE)
-		result = DRIVER_SENSE << 24 | SAM_STAT_CHECK_CONDITION;
+		result = SAM_STAT_CHECK_CONDITION;
 	else switch (ccb->srb_status) {
 		case SRB_STATUS_SELECTION_TIMEOUT:
 			result = DID_NO_CONNECT << 16;

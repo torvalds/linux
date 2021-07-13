@@ -139,7 +139,6 @@ struct dcn_hubbub_registers {
 	uint32_t DCHVM_CLK_CTRL;
 	uint32_t DCHVM_RIOMMU_CTRL0;
 	uint32_t DCHVM_RIOMMU_STAT0;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	uint32_t DCHUBBUB_DET0_CTRL;
 	uint32_t DCHUBBUB_DET1_CTRL;
 	uint32_t DCHUBBUB_DET2_CTRL;
@@ -155,7 +154,6 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_C;
 	uint32_t DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_D;
 	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_D;
-#endif
 };
 
 /* set field name */
@@ -292,7 +290,7 @@ struct dcn_hubbub_registers {
 		type HOSTVM_POWERSTATUS; \
 		type RIOMMU_ACTIVE; \
 		type HOSTVM_PREFETCH_DONE
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+
 #define HUBBUB_RET_REG_FIELD_LIST(type) \
 		type DET_DEPTH;\
 		type DET0_SIZE;\
@@ -315,25 +313,20 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_C;\
 		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_D;\
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_D
-#endif
 
 
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint8_t);
 	HUBBUB_HVM_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	HUBBUB_RET_REG_FIELD_LIST(uint8_t);
-#endif
 };
 
 struct dcn_hubbub_mask {
 	DCN_HUBBUB_REG_FIELD_LIST(uint32_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint32_t);
 	HUBBUB_HVM_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	HUBBUB_RET_REG_FIELD_LIST(uint32_t);
-#endif
 };
 
 struct dc;

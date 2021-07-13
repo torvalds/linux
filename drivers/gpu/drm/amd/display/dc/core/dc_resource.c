@@ -58,9 +58,7 @@
 #include "dcn301/dcn301_resource.h"
 #include "dcn302/dcn302_resource.h"
 #include "dcn303/dcn303_resource.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
-#include "../dcn31/dcn31_resource.h"
-#endif
+#include "dcn31/dcn31_resource.h"
 #endif
 
 #define DC_LOGGER_INIT(logger)
@@ -141,9 +139,7 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case FAMILY_VGH:
 		dc_version = DCN_VERSION_3_01;
 		break;
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case FAMILY_YELLOW_CARP:
 		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_1;
@@ -233,11 +229,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_3_03:
 		res_pool = dcn303_create_resource_pool(init_data, dc);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	case DCN_VERSION_3_1:
 		res_pool = dcn31_create_resource_pool(init_data, dc);
 		break;
-#endif
 #endif
 	default:
 		break;
@@ -445,7 +439,7 @@ bool resource_are_vblanks_synchronizable(
 {
 	uint32_t base60_refresh_rates[] = {10, 20, 5};
 	uint8_t i;
-	uint8_t rr_count = sizeof(base60_refresh_rates)/sizeof(base60_refresh_rates[0]);
+	uint8_t rr_count = ARRAY_SIZE(base60_refresh_rates);
 	uint64_t frame_time_diff;
 
 	if (stream1->ctx->dc->config.vblank_alignment_dto_params &&
@@ -2142,7 +2136,7 @@ enum dc_status dc_validate_global_state(
 
 	if (!new_ctx)
 		return DC_ERROR_UNEXPECTED;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 	/*
 	 * Update link encoder to stream assignment.

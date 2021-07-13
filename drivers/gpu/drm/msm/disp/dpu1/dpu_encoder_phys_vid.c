@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020-2021 The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -9,6 +9,7 @@
 #include "dpu_core_irq.h"
 #include "dpu_formats.h"
 #include "dpu_trace.h"
+#include "disp/msm_disp_snapshot.h"
 
 #define DPU_DEBUG_VIDENC(e, fmt, ...) DPU_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->parent ? \
@@ -284,7 +285,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
 	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
 	if (phys_enc->hw_pp->merge_3d)
-		intf_cfg.merge_3d = phys_enc->hw_pp->merge_3d->id;
+		intf_cfg.merge_3d = phys_enc->hw_pp->merge_3d->idx;
 
 	spin_lock_irqsave(phys_enc->enc_spinlock, lock_flags);
 	phys_enc->hw_intf->ops.setup_timing_gen(phys_enc->hw_intf,
@@ -298,11 +299,8 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 				true,
 				phys_enc->hw_pp->idx);
 
-	if (phys_enc->hw_pp->merge_3d) {
-		struct dpu_hw_merge_3d *merge_3d = to_dpu_hw_merge_3d(phys_enc->hw_pp->merge_3d);
-
-		merge_3d->ops.setup_3d_mode(merge_3d, intf_cfg.mode_3d);
-	}
+	if (phys_enc->hw_pp->merge_3d)
+		phys_enc->hw_pp->merge_3d->ops.setup_3d_mode(phys_enc->hw_pp->merge_3d, intf_cfg.mode_3d);
 
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
@@ -363,38 +361,24 @@ static bool dpu_encoder_phys_vid_needs_single_flush(
 	return phys_enc->split_role != ENC_ROLE_SOLO;
 }
 
-static void _dpu_encoder_phys_vid_setup_irq_hw_idx(
-		struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_encoder_irq *irq;
-
-	/*
-	 * Initialize irq->hw_idx only when irq is not registered.
-	 * Prevent invalidating irq->irq_idx as modeset may be
-	 * called many times during dfps.
-	 */
-
-	irq = &phys_enc->irq[INTR_IDX_VSYNC];
-	if (irq->irq_idx < 0)
-		irq->hw_idx = phys_enc->intf_idx;
-
-	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
-	if (irq->irq_idx < 0)
-		irq->hw_idx = phys_enc->intf_idx;
-}
-
 static void dpu_encoder_phys_vid_mode_set(
 		struct dpu_encoder_phys *phys_enc,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
+	struct dpu_encoder_irq *irq;
+
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
 		drm_mode_debug_printmodeline(adj_mode);
 		DPU_DEBUG_VIDENC(phys_enc, "caching mode:\n");
 	}
 
-	_dpu_encoder_phys_vid_setup_irq_hw_idx(phys_enc);
+	irq = &phys_enc->irq[INTR_IDX_VSYNC];
+	irq->irq_idx = phys_enc->hw_intf->cap->intr_vsync;
+
+	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
+	irq->irq_idx = phys_enc->hw_intf->cap->intr_underrun;
 }
 
 static int dpu_encoder_phys_vid_control_vblank_irq(
@@ -416,7 +400,7 @@ static int dpu_encoder_phys_vid_control_vblank_irq(
 		goto end;
 	}
 
-	DRM_DEBUG_KMS("id:%u enable=%d/%d\n", DRMID(phys_enc->parent), enable,
+	DRM_DEBUG_VBL("id:%u enable=%d/%d\n", DRMID(phys_enc->parent), enable,
 		      atomic_read(&phys_enc->vblank_refcount));
 
 	if (enable && atomic_inc_return(&phys_enc->vblank_refcount) == 1)
@@ -461,13 +445,14 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 
 	ctl->ops.update_pending_flush_intf(ctl, phys_enc->hw_intf->idx);
 	if (ctl->ops.update_pending_flush_merge_3d && phys_enc->hw_pp->merge_3d)
-		ctl->ops.update_pending_flush_merge_3d(ctl, phys_enc->hw_pp->merge_3d->id);
+		ctl->ops.update_pending_flush_merge_3d(ctl, phys_enc->hw_pp->merge_3d->idx);
 
 skip_flush:
 	DPU_DEBUG_VIDENC(phys_enc,
 		"update pending flush ctl %d intf %d\n",
 		ctl->idx - CTL_0, phys_enc->hw_intf->idx);
 
+	atomic_set(&phys_enc->underrun_cnt, 0);
 
 	/* ctl_flush & timing engine enable will be triggered by framework */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED)
@@ -537,6 +522,9 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 {
 	struct dpu_hw_ctl *ctl;
 	int rc;
+	struct drm_encoder *drm_enc;
+
+	drm_enc = phys_enc->parent;
 
 	ctl = phys_enc->hw_ctl;
 	if (!ctl->ops.wait_reset_status)
@@ -550,6 +538,7 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 	if (rc) {
 		DPU_ERROR_VIDENC(phys_enc, "ctl %d reset failure: %d\n",
 				ctl->idx, rc);
+		msm_disp_snapshot_state(drm_enc->dev);
 		dpu_encoder_helper_unregister_irq(phys_enc, INTR_IDX_VSYNC);
 	}
 }
@@ -636,7 +625,7 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 
 	if (enable) {
 		ret = dpu_encoder_phys_vid_control_vblank_irq(phys_enc, true);
-		if (ret)
+		if (WARN_ON(ret))
 			return;
 
 		dpu_encoder_helper_register_irq(phys_enc, INTR_IDX_UNDERRUN);
@@ -738,19 +727,16 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		irq = &phys_enc->irq[i];
 		INIT_LIST_HEAD(&irq->cb.list);
 		irq->irq_idx = -EINVAL;
-		irq->hw_idx = -EINVAL;
 		irq->cb.arg = phys_enc;
 	}
 
 	irq = &phys_enc->irq[INTR_IDX_VSYNC];
 	irq->name = "vsync_irq";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_VSYNC;
 	irq->intr_idx = INTR_IDX_VSYNC;
 	irq->cb.func = dpu_encoder_phys_vid_vblank_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
 	irq->name = "underrun";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_UNDER_RUN;
 	irq->intr_idx = INTR_IDX_UNDERRUN;
 	irq->cb.func = dpu_encoder_phys_vid_underrun_irq;
 

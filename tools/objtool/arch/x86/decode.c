@@ -684,7 +684,7 @@ static int elf_add_alternative(struct elf *elf,
 	sec = find_section_by_name(elf, ".altinstructions");
 	if (!sec) {
 		sec = elf_create_section(elf, ".altinstructions",
-					 SHF_WRITE, size, 0);
+					 SHF_ALLOC, size, 0);
 
 		if (!sec) {
 			WARN_ELF("elf_create_section");
@@ -746,6 +746,10 @@ int arch_rewrite_retpolines(struct objtool_file *file)
 	char name[32] = "";
 
 	list_for_each_entry(insn, &file->retpoline_call_list, call_node) {
+
+		if (insn->type != INSN_JUMP_DYNAMIC &&
+		    insn->type != INSN_CALL_DYNAMIC)
+			continue;
 
 		if (!strcmp(insn->sec->name, ".text.__x86.indirect_thunk"))
 			continue;

@@ -526,7 +526,7 @@ bool tcp_fastopen_active_should_disable(struct sock *sk)
 	if (!tfo_da_times)
 		return false;
 
-	/* Limit timout to max: 2^6 * initial timeout */
+	/* Limit timeout to max: 2^6 * initial timeout */
 	multiplier = 1 << min(tfo_da_times - 1, 6);
 	timeout = multiplier * tfo_bh_timeout * HZ;
 	if (time_before(jiffies, sock_net(sk)->ipv4.tfo_active_disable_stamp + timeout))

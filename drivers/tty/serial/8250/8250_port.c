@@ -1809,6 +1809,18 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	count = up->tx_loadsz;
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		if (up->bugs & UART_BUG_TXRACE) {
+			/*
+			 * The Aspeed BMC virtual UARTs have a bug where data
+			 * may get stuck in the BMC's Tx FIFO from bursts of
+			 * writes on the APB interface.
+			 *
+			 * Delay back-to-back writes by a read cycle to avoid
+			 * stalling the VUART. Read a register that won't have
+			 * side-effects and discard the result.
+			 */
+			serial_in(up, UART_SCR);
+		}
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
@@ -2500,19 +2512,45 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 					      unsigned int baud,
 					      unsigned int *frac)
 {
+	upf_t magic_multiplier = port->flags & UPF_MAGIC_MULTIPLIER;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int quot;
 
 	/*
-	 * Handle magic divisors for baud rates above baud_base on
-	 * SMSC SuperIO chips.
+	 * Handle magic divisors for baud rates above baud_base on SMSC
+	 * Super I/O chips.  We clamp custom rates from clk/6 and clk/12
+	 * up to clk/4 (0x8001) and clk/8 (0x8002) respectively.  These
+	 * magic divisors actually reprogram the baud rate generator's
+	 * reference clock derived from chips's 14.318MHz clock input.
 	 *
+	 * Documentation claims that with these magic divisors the base
+	 * frequencies of 7.3728MHz and 3.6864MHz are used respectively
+	 * for the extra baud rates of 460800bps and 230400bps rather
+	 * than the usual base frequency of 1.8462MHz.  However empirical
+	 * evidence contradicts that.
+	 *
+	 * Instead bit 7 of the DLM register (bit 15 of the divisor) is
+	 * effectively used as a clock prescaler selection bit for the
+	 * base frequency of 7.3728MHz, always used.  If set to 0, then
+	 * the base frequency is divided by 4 for use by the Baud Rate
+	 * Generator, for the usual arrangement where the value of 1 of
+	 * the divisor produces the baud rate of 115200bps.  Conversely,
+	 * if set to 1 and high-speed operation has been enabled with the
+	 * Serial Port Mode Register in the Device Configuration Space,
+	 * then the base frequency is supplied directly to the Baud Rate
+	 * Generator, so for the divisor values of 0x8001, 0x8002, 0x8003,
+	 * 0x8004, etc. the respective baud rates produced are 460800bps,
+	 * 230400bps, 153600bps, 115200bps, etc.
+	 *
+	 * In all cases only low 15 bits of the divisor are used to divide
+	 * the baud base and therefore 32767 is the maximum divisor value
+	 * possible, even though documentation says that the programmable
+	 * Baud Rate Generator is capable of dividing the internal PLL
+	 * clock by any divisor from 1 to 65535.
 	 */
-	if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
-	    baud == (port->uartclk/4))
+	if (magic_multiplier && baud >= port->uartclk / 6)
 		quot = 0x8001;
-	else if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
-		 baud == (port->uartclk/8))
+	else if (magic_multiplier && baud >= port->uartclk / 12)
 		quot = 0x8002;
 	else if (up->port.type == PORT_NPCM)
 		quot = npcm_get_divisor(up, baud);
@@ -2617,6 +2655,21 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 					     struct ktermios *old)
 {
 	unsigned int tolerance = port->uartclk / 100;
+	unsigned int min;
+	unsigned int max;
+
+	/*
+	 * Handle magic divisors for baud rates above baud_base on SMSC
+	 * Super I/O chips.  Enable custom rates of clk/4 and clk/8, but
+	 * disable divisor values beyond 32767, which are unavailable.
+	 */
+	if (port->flags & UPF_MAGIC_MULTIPLIER) {
+		min = port->uartclk / 16 / UART_DIV_MAX >> 1;
+		max = (port->uartclk + tolerance) / 4;
+	} else {
+		min = port->uartclk / 16 / UART_DIV_MAX;
+		max = (port->uartclk + tolerance) / 16;
+	}
 
 	/*
 	 * Ask the core to calculate the divisor for us.
@@ -2624,9 +2677,7 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 	 * slower than nominal still match standard baud rates without
 	 * causing transmission errors.
 	 */
-	return uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / UART_DIV_MAX,
-				  (port->uartclk + tolerance) / 16);
+	return uart_get_baud_rate(port, termios, old, min, max);
 }
 
 /*

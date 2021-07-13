@@ -408,7 +408,7 @@ static bool dwc2_check_core_endianness(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * Check core version
+ * dwc2_check_core_version() - Check core version
  *
  * @hsotg: Programming view of the DWC_otg controller
  *

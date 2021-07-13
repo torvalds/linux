@@ -112,12 +112,13 @@ static int __init pps_tty_init(void)
 
 	/* Init PPS_TTY data */
 	pps_ldisc_ops.owner = THIS_MODULE;
+	pps_ldisc_ops.num = N_PPS;
 	pps_ldisc_ops.name = "pps_tty";
 	pps_ldisc_ops.dcd_change = pps_tty_dcd_change;
 	pps_ldisc_ops.open = pps_tty_open;
 	pps_ldisc_ops.close = pps_tty_close;
 
-	err = tty_register_ldisc(N_PPS, &pps_ldisc_ops);
+	err = tty_register_ldisc(&pps_ldisc_ops);
 	if (err)
 		pr_err("can't register PPS line discipline\n");
 	else
@@ -128,13 +129,7 @@ static int __init pps_tty_init(void)
 
 static void __exit pps_tty_cleanup(void)
 {
-	int err;
-
-	err = tty_unregister_ldisc(N_PPS);
-	if (err)
-		pr_err("can't unregister PPS line discipline\n");
-	else
-		pr_info("PPS line discipline removed\n");
+	tty_unregister_ldisc(&pps_ldisc_ops);
 }
 
 module_init(pps_tty_init);

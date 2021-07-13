@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/ethtool.h>
 #include <linux/sfp.h>
 
 #include "core.h"
@@ -25,8 +26,8 @@ struct mlxsw_env {
 static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 					  bool *qsfp, bool *cmis)
 {
-	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
+	char *eeprom_tmp;
 	u8 ident;
 	int err;
 
@@ -35,7 +36,7 @@ static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
 		return err;
-	mlxsw_reg_mcia_eeprom_memcpy_from(mcia_pl, eeprom_tmp);
+	eeprom_tmp = mlxsw_reg_mcia_eeprom_data(mcia_pl);
 	ident = eeprom_tmp[0];
 	*cmis = false;
 	switch (ident) {
@@ -63,8 +64,8 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 			      u16 offset, u16 size, void *data,
 			      bool qsfp, unsigned int *p_read_size)
 {
-	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
+	char *eeprom_tmp;
 	u16 i2c_addr;
 	u8 page = 0;
 	int status;
@@ -115,7 +116,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 	if (status)
 		return -EIO;
 
-	mlxsw_reg_mcia_eeprom_memcpy_from(mcia_pl, eeprom_tmp);
+	eeprom_tmp = mlxsw_reg_mcia_eeprom_data(mcia_pl);
 	memcpy(data, eeprom_tmp, size);
 	*p_read_size = size;
 
@@ -125,14 +126,14 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 					 int off, int *temp)
 {
-	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
+	unsigned int module_temp, module_crit, module_emerg;
 	union {
 		u8 buf[MLXSW_REG_MCIA_TH_ITEM_SIZE];
 		u16 temp;
 	} temp_thresh;
 	char mcia_pl[MLXSW_REG_MCIA_LEN] = {0};
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int module_temp;
+	char *eeprom_tmp;
 	bool qsfp, cmis;
 	int page;
 	int err;
@@ -142,9 +143,18 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, &module_crit,
+			      &module_emerg, NULL);
 	if (!module_temp) {
 		*temp = 0;
+		return 0;
+	}
+
+	/* Validate if threshold reading is available through MTMP register,
+	 * otherwise fallback to read through MCIA.
+	 */
+	if (module_emerg) {
+		*temp = off == SFP_TEMP_HIGH_WARN ? module_crit : module_emerg;
 		return 0;
 	}
 
@@ -185,7 +195,7 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	if (err)
 		return err;
 
-	mlxsw_reg_mcia_eeprom_memcpy_from(mcia_pl, eeprom_tmp);
+	eeprom_tmp = mlxsw_reg_mcia_eeprom_data(mcia_pl);
 	memcpy(temp_thresh.buf, eeprom_tmp, MLXSW_REG_MCIA_TH_ITEM_SIZE);
 	*temp = temp_thresh.temp * 1000;
 
@@ -305,6 +315,79 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom);
+
+static int mlxsw_env_mcia_status_process(const char *mcia_pl,
+					 struct netlink_ext_ack *extack)
+{
+	u8 status = mlxsw_reg_mcia_status_get(mcia_pl);
+
+	switch (status) {
+	case MLXSW_REG_MCIA_STATUS_GOOD:
+		return 0;
+	case MLXSW_REG_MCIA_STATUS_NO_EEPROM_MODULE:
+		NL_SET_ERR_MSG_MOD(extack, "No response from module's EEPROM");
+		return -EIO;
+	case MLXSW_REG_MCIA_STATUS_MODULE_NOT_SUPPORTED:
+		NL_SET_ERR_MSG_MOD(extack, "Module type not supported by the device");
+		return -EOPNOTSUPP;
+	case MLXSW_REG_MCIA_STATUS_MODULE_NOT_CONNECTED:
+		NL_SET_ERR_MSG_MOD(extack, "No module present indication");
+		return -EIO;
+	case MLXSW_REG_MCIA_STATUS_I2C_ERROR:
+		NL_SET_ERR_MSG_MOD(extack, "Error occurred while trying to access module's EEPROM using I2C");
+		return -EIO;
+	case MLXSW_REG_MCIA_STATUS_MODULE_DISABLED:
+		NL_SET_ERR_MSG_MOD(extack, "Module is disabled");
+		return -EIO;
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "Unknown error");
+		return -EIO;
+	}
+}
+
+int
+mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
+				    const struct ethtool_module_eeprom *page,
+				    struct netlink_ext_ack *extack)
+{
+	u32 bytes_read = 0;
+	u16 device_addr;
+
+	/* Offset cannot be larger than 2 * ETH_MODULE_EEPROM_PAGE_LEN */
+	device_addr = page->offset;
+
+	while (bytes_read < page->length) {
+		char mcia_pl[MLXSW_REG_MCIA_LEN];
+		char *eeprom_tmp;
+		u8 size;
+		int err;
+
+		size = min_t(u8, page->length - bytes_read,
+			     MLXSW_REG_MCIA_EEPROM_SIZE);
+
+		mlxsw_reg_mcia_pack(mcia_pl, module, 0, page->page,
+				    device_addr + bytes_read, size,
+				    page->i2c_address);
+		mlxsw_reg_mcia_bank_number_set(mcia_pl, page->bank);
+
+		err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to access module's EEPROM");
+			return err;
+		}
+
+		err = mlxsw_env_mcia_status_process(mcia_pl, extack);
+		if (err)
+			return err;
+
+		eeprom_tmp = mlxsw_reg_mcia_eeprom_data(mcia_pl);
+		memcpy(page->data + bytes_read, eeprom_tmp, size);
+		bytes_read += size;
+	}
+
+	return bytes_read;
+}
+EXPORT_SYMBOL(mlxsw_env_get_module_eeprom_by_page);
 
 static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 					    u8 module,

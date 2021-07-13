@@ -63,27 +63,6 @@ static void enqueue_external_timestamp(struct timestamp_event_queue *queue,
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
 
-s32 scaled_ppm_to_ppb(long ppm)
-{
-	/*
-	 * The 'freq' field in the 'struct timex' is in parts per
-	 * million, but with a 16 bit binary fractional field.
-	 *
-	 * We want to calculate
-	 *
-	 *    ppb = scaled_ppm * 1000 / 2^16
-	 *
-	 * which simplifies to
-	 *
-	 *    ppb = scaled_ppm * 125 / 2^13
-	 */
-	s64 ppb = 1 + ppm;
-	ppb *= 125;
-	ppb >>= 13;
-	return (s32) ppb;
-}
-EXPORT_SYMBOL(scaled_ppm_to_ppb);
-
 /* posix clock implementation */
 
 static int ptp_clock_getres(struct posix_clock *pc, struct timespec64 *tp)
@@ -138,7 +117,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 		delta = ktime_to_ns(kt);
 		err = ops->adjtime(ops, delta);
 	} else if (tx->modes & ADJ_FREQUENCY) {
-		s32 ppb = scaled_ppm_to_ppb(tx->freq);
+		long ppb = scaled_ppm_to_ppb(tx->freq);
 		if (ppb > ops->max_adj || ppb < -ops->max_adj)
 			return -ERANGE;
 		if (ops->adjfine)
@@ -239,6 +218,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			pr_err("failed to create ptp aux_worker %d\n", err);
 			goto kworker_err;
 		}
+		ptp->pps_source->lookup_cookie = ptp;
 	}
 
 	err = ptp_populate_pin_groups(ptp);

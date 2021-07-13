@@ -10,9 +10,6 @@
  */
 #ifndef _ATMEL_ISC_H_
 
-#define ISC_MAX_SUPPORT_WIDTH   2592
-#define ISC_MAX_SUPPORT_HEIGHT  1944
-
 #define ISC_CLK_MAX_DIV		255
 
 enum isc_clk_id {
@@ -71,17 +68,21 @@ struct isc_format {
 };
 
 /* Pipeline bitmap */
-#define WB_ENABLE	BIT(0)
-#define CFA_ENABLE	BIT(1)
-#define CC_ENABLE	BIT(2)
-#define GAM_ENABLE	BIT(3)
-#define GAM_BENABLE	BIT(4)
-#define GAM_GENABLE	BIT(5)
-#define GAM_RENABLE	BIT(6)
-#define CSC_ENABLE	BIT(7)
-#define CBC_ENABLE	BIT(8)
-#define SUB422_ENABLE	BIT(9)
-#define SUB420_ENABLE	BIT(10)
+#define DPC_DPCENABLE	BIT(0)
+#define DPC_GDCENABLE	BIT(1)
+#define DPC_BLCENABLE	BIT(2)
+#define WB_ENABLE	BIT(3)
+#define CFA_ENABLE	BIT(4)
+#define CC_ENABLE	BIT(5)
+#define GAM_ENABLE	BIT(6)
+#define GAM_BENABLE	BIT(7)
+#define GAM_GENABLE	BIT(8)
+#define GAM_RENABLE	BIT(9)
+#define VHXS_ENABLE	BIT(10)
+#define CSC_ENABLE	BIT(11)
+#define CBC_ENABLE	BIT(12)
+#define SUB422_ENABLE	BIT(13)
+#define SUB420_ENABLE	BIT(14)
 
 #define GAM_ENABLES	(GAM_RENABLE | GAM_GENABLE | GAM_BENABLE | GAM_ENABLE)
 
@@ -145,7 +146,31 @@ struct isc_ctrls {
 	u32 hist_minmax[HIST_BAYER][2];
 };
 
-#define ISC_PIPE_LINE_NODE_NUM	11
+#define ISC_PIPE_LINE_NODE_NUM	15
+
+/*
+ * struct isc_reg_offsets - ISC device register offsets
+ * @csc:		Offset for the CSC register
+ * @cbc:		Offset for the CBC register
+ * @sub422:		Offset for the SUB422 register
+ * @sub420:		Offset for the SUB420 register
+ * @rlp:		Offset for the RLP register
+ * @his:		Offset for the HIS related registers
+ * @dma:		Offset for the DMA related registers
+ * @version:		Offset for the version register
+ * @his_entry:		Offset for the HIS entries registers
+ */
+struct isc_reg_offsets {
+	u32 csc;
+	u32 cbc;
+	u32 sub422;
+	u32 sub420;
+	u32 rlp;
+	u32 his;
+	u32 dma;
+	u32 version;
+	u32 his_entry;
+};
 
 /*
  * struct isc_device - ISC device driver data/config struct
@@ -153,6 +178,7 @@ struct isc_ctrls {
  * @hclock:		Hclock clock input (refer datasheet)
  * @ispck:		iscpck clock (refer datasheet)
  * @isc_clks:		ISC clocks
+ * @dcfg:		DMA master configuration, architecture dependent
  *
  * @dev:		Registered device driver
  * @v4l2_dev:		v4l2 registered device
@@ -187,12 +213,46 @@ struct isc_ctrls {
  *
  * @current_subdev:	current subdevice: the sensor
  * @subdev_entities:	list of subdevice entitites
+ *
+ * @gamma_table:	pointer to the table with gamma values, has
+ *			gamma_max sets of GAMMA_ENTRIES entries each
+ * @gamma_max:		maximum number of sets of inside the gamma_table
+ *
+ * @max_width:		maximum frame width, dependent on the internal RAM
+ * @max_height:		maximum frame height, dependent on the internal RAM
+ *
+ * @config_dpc:		pointer to a function that initializes product
+ *			specific DPC module
+ * @config_csc:		pointer to a function that initializes product
+ *			specific CSC module
+ * @config_cbc:		pointer to a function that initializes product
+ *			specific CBC module
+ * @config_cc:		pointer to a function that initializes product
+ *			specific CC module
+ * @config_gam:		pointer to a function that initializes product
+ *			specific GAMMA module
+ * @config_rlp:		pointer to a function that initializes product
+ *			specific RLP module
+ * @config_ctrls:	pointer to a functoin that initializes product
+ *			specific v4l2 controls.
+ *
+ * @adapt_pipeline:	pointer to a function that adapts the pipeline bits
+ *			to the product specific pipeline
+ *
+ * @offsets:		struct holding the product specific register offsets
+ * @controller_formats:	pointer to the array of possible formats that the
+ *			controller can output
+ * @formats_list:	pointer to the array of possible formats that can
+ *			be used as an input to the controller
+ * @controller_formats_size:	size of controller_formats array
+ * @formats_list_size:	size of formats_list array
  */
 struct isc_device {
 	struct regmap		*regmap;
 	struct clk		*hclock;
 	struct clk		*ispck;
 	struct isc_clk		isc_clks[2];
+	u32			dcfg;
 
 	struct device		*dev;
 	struct v4l2_device	v4l2_dev;
@@ -245,16 +305,36 @@ struct isc_device {
 		struct v4l2_ctrl	*gr_off_ctrl;
 		struct v4l2_ctrl	*gb_off_ctrl;
 	};
+
+#define GAMMA_ENTRIES	64
+	/* pointer to the defined gamma table */
+	const u32	(*gamma_table)[GAMMA_ENTRIES];
+	u32		gamma_max;
+
+	u32		max_width;
+	u32		max_height;
+
+	struct {
+		void (*config_dpc)(struct isc_device *isc);
+		void (*config_csc)(struct isc_device *isc);
+		void (*config_cbc)(struct isc_device *isc);
+		void (*config_cc)(struct isc_device *isc);
+		void (*config_gam)(struct isc_device *isc);
+		void (*config_rlp)(struct isc_device *isc);
+
+		void (*config_ctrls)(struct isc_device *isc,
+				     const struct v4l2_ctrl_ops *ops);
+
+		void (*adapt_pipeline)(struct isc_device *isc);
+	};
+
+	struct isc_reg_offsets		offsets;
+	const struct isc_format		*controller_formats;
+	struct isc_format		*formats_list;
+	u32				controller_formats_size;
+	u32				formats_list_size;
 };
 
-#define GAMMA_MAX	2
-#define GAMMA_ENTRIES	64
-
-#define ATMEL_ISC_NAME "atmel-isc"
-
-extern struct isc_format formats_list[];
-extern const struct isc_format controller_formats[];
-extern const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES];
 extern const struct regmap_config isc_regmap_config;
 extern const struct v4l2_async_notifier_operations isc_async_ops;
 

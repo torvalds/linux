@@ -77,6 +77,14 @@
 
 #define hr_reg_clear(ptr, field) _hr_reg_clear(ptr, field)
 
+#define _hr_reg_write_bool(ptr, field_type, field_h, field_l, val)             \
+	({                                                                     \
+		(val) ? _hr_reg_enable(ptr, field_type, field_h, field_l) :    \
+			_hr_reg_clear(ptr, field_type, field_h, field_l);      \
+	})
+
+#define hr_reg_write_bool(ptr, field, val) _hr_reg_write_bool(ptr, field, val)
+
 #define _hr_reg_write(ptr, field_type, field_h, field_l, val)                  \
 	({                                                                     \
 		_hr_reg_clear(ptr, field_type, field_h, field_l);              \
@@ -373,8 +381,8 @@
 #define ROCEE_TX_CMQ_BASEADDR_L_REG		0x07000
 #define ROCEE_TX_CMQ_BASEADDR_H_REG		0x07004
 #define ROCEE_TX_CMQ_DEPTH_REG			0x07008
-#define ROCEE_TX_CMQ_HEAD_REG			0x07010
-#define ROCEE_TX_CMQ_TAIL_REG			0x07014
+#define ROCEE_TX_CMQ_PI_REG			0x07010
+#define ROCEE_TX_CMQ_CI_REG			0x07014
 
 #define ROCEE_RX_CMQ_BASEADDR_L_REG		0x07018
 #define ROCEE_RX_CMQ_BASEADDR_H_REG		0x0701c

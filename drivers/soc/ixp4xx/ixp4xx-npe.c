@@ -18,8 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/npe.h>
+#include <mach/hardware.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #define DEBUG_MSG			0
 #define DEBUG_FW			0
@@ -679,6 +682,7 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 {
 	int i, found = 0;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct resource *res;
 
 	for (i = 0; i < NPE_COUNT; i++) {
@@ -711,6 +715,11 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 
 	if (!found)
 		return -ENODEV;
+
+	/* Spawn crypto subdevice if using device tree */
+	if (IS_ENABLED(CONFIG_OF) && np)
+		devm_of_platform_populate(dev);
+
 	return 0;
 }
 

@@ -644,7 +644,7 @@ static umode_t cros_ec_keyb_attr_is_visible(struct kobject *kobj,
 					    struct attribute *attr,
 					    int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
 
 	if (attr == &dev_attr_function_row_physmap.attr &&

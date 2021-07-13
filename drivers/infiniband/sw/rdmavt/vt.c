@@ -144,7 +144,7 @@ static int rvt_modify_device(struct ib_device *device,
 }
 
 /**
- * rvt_query_port: Passes the query port call to the driver
+ * rvt_query_port - Passes the query port call to the driver
  * @ibdev: Verbs IB dev
  * @port_num: port number, 1 based from ib core
  * @props: structure to hold returned properties
@@ -175,7 +175,7 @@ static int rvt_query_port(struct ib_device *ibdev, u32 port_num,
 }
 
 /**
- * rvt_modify_port
+ * rvt_modify_port - modify port
  * @ibdev: Verbs IB dev
  * @port_num: Port number, 1 based from ib core
  * @port_modify_mask: How to change the port
@@ -418,7 +418,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * These functions are not part of verbs specifically but are
 		 * required for rdmavt to function.
 		 */
-		if ((!rdi->ibdev.ops.init_port) ||
+		if ((!rdi->ibdev.ops.port_groups) ||
 		    (!rdi->driver_f.get_pci_dev))
 			return -EINVAL;
 		break;

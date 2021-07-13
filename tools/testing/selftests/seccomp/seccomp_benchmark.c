@@ -143,9 +143,15 @@ int main(int argc, char *argv[])
 	unsigned long long native, filter1, filter2, bitmap1, bitmap2;
 	unsigned long long entry, per_filter1, per_filter2;
 
+	setbuf(stdout, NULL);
+
+	printf("Running on:\n");
+	system("uname -a");
+
 	printf("Current BPF sysctl settings:\n");
-	system("sysctl net.core.bpf_jit_enable");
-	system("sysctl net.core.bpf_jit_harden");
+	/* Avoid using "sysctl" which may not be installed. */
+	system("grep -H . /proc/sys/net/core/bpf_jit_enable");
+	system("grep -H . /proc/sys/net/core/bpf_jit_harden");
 
 	if (argc > 1)
 		samples = strtoull(argv[1], NULL, 0);

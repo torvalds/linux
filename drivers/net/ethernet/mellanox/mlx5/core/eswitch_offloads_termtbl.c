@@ -65,7 +65,7 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *root_ns;
-	int err;
+	int err, err2;
 
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
@@ -76,33 +76,34 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 	/* As this is the terminating action then the termination table is the
 	 * same prio as the slow path
 	 */
-	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION |
+	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION | MLX5_FLOW_TABLE_UNMANAGED |
 			MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft_attr.prio = FDB_SLOW_PATH;
+	ft_attr.prio = FDB_TC_OFFLOAD;
 	ft_attr.max_fte = 1;
+	ft_attr.level = 1;
 	ft_attr.autogroup.max_num_groups = 1;
 	tt->termtbl = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(tt->termtbl)) {
-		esw_warn(dev, "Failed to create termination table (error %d)\n",
-			 IS_ERR(tt->termtbl));
-		return -EOPNOTSUPP;
+		err = PTR_ERR(tt->termtbl);
+		esw_warn(dev, "Failed to create termination table, err %pe\n", tt->termtbl);
+		return err;
 	}
 
 	tt->rule = mlx5_add_flow_rules(tt->termtbl, NULL, flow_act,
 				       &tt->dest, 1);
 	if (IS_ERR(tt->rule)) {
-		esw_warn(dev, "Failed to create termination table rule (error %d)\n",
-			 IS_ERR(tt->rule));
+		err = PTR_ERR(tt->rule);
+		esw_warn(dev, "Failed to create termination table rule, err %pe\n", tt->rule);
 		goto add_flow_err;
 	}
 	return 0;
 
 add_flow_err:
-	err = mlx5_destroy_flow_table(tt->termtbl);
-	if (err)
-		esw_warn(dev, "Failed to destroy termination table\n");
+	err2 = mlx5_destroy_flow_table(tt->termtbl);
+	if (err2)
+		esw_warn(dev, "Failed to destroy termination table, err %d\n", err2);
 
-	return -EOPNOTSUPP;
+	return err;
 }
 
 static struct mlx5_termtbl_handle *
@@ -172,19 +173,6 @@ mlx5_eswitch_termtbl_put(struct mlx5_eswitch *esw,
 	}
 }
 
-static bool mlx5_eswitch_termtbl_is_encap_reformat(struct mlx5_pkt_reformat *rt)
-{
-	switch (rt->reformat_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
-	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
-	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void
 mlx5_eswitch_termtbl_actions_move(struct mlx5_flow_act *src,
 				  struct mlx5_flow_act *dst)
@@ -201,14 +189,6 @@ mlx5_eswitch_termtbl_actions_move(struct mlx5_flow_act *src,
 			memcpy(&dst->vlan[1], &src->vlan[1], sizeof(src->vlan[1]));
 			memset(&src->vlan[1], 0, sizeof(src->vlan[1]));
 		}
-	}
-
-	if (src->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT &&
-	    mlx5_eswitch_termtbl_is_encap_reformat(src->pkt_reformat)) {
-		src->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-		dst->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-		dst->pkt_reformat = src->pkt_reformat;
-		src->pkt_reformat = NULL;
 	}
 }
 
@@ -238,6 +218,7 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 	int i;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
+	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level) ||
 	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH ||
 	    !mlx5_eswitch_offload_is_uplink_port(esw, spec))
 		return false;
@@ -279,12 +260,19 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 		if (dest[i].type != MLX5_FLOW_DESTINATION_TYPE_VPORT)
 			continue;
 
+		if (attr->dests[num_vport_dests].flags & MLX5_ESW_DEST_ENCAP) {
+			term_tbl_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			term_tbl_act.pkt_reformat = attr->dests[num_vport_dests].pkt_reformat;
+		} else {
+			term_tbl_act.action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			term_tbl_act.pkt_reformat = NULL;
+		}
+
 		/* get the terminating table for the action list */
 		tt = mlx5_eswitch_termtbl_get_create(esw, &term_tbl_act,
 						     &dest[i], attr);
 		if (IS_ERR(tt)) {
-			esw_warn(esw->dev, "Failed to get termination table (error %d)\n",
-				 IS_ERR(tt));
+			esw_warn(esw->dev, "Failed to get termination table, err %pe\n", tt);
 			goto revert_changes;
 		}
 		attr->dests[num_vport_dests].termtbl = tt;
@@ -301,6 +289,9 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 		goto revert_changes;
 
 	/* create the FTE */
+	flow_act->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+	flow_act->pkt_reformat = NULL;
+	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	rule = mlx5_add_flow_rules(fdb, spec, flow_act, dest, num_dest);
 	if (IS_ERR(rule))
 		goto revert_changes;

@@ -212,6 +212,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	int ipv4_encap_size;
@@ -295,9 +296,12 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		 */
 		goto release_neigh;
 	}
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv4_encap_size, encap_header,
+
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv4_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -324,6 +328,7 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	int ipv4_encap_size;
 	char *encap_header;
@@ -396,9 +401,12 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 		 */
 		goto release_neigh;
 	}
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv4_encap_size, encap_header,
+
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv4_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -471,6 +479,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	struct ipv6hdr *ip6h;
@@ -553,9 +562,11 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv6_encap_size, encap_header,
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv6_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -582,6 +593,7 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	struct ipv6hdr *ip6h;
 	int ipv6_encap_size;
@@ -654,9 +666,11 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv6_encap_size, encap_header,
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv6_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);

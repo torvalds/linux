@@ -563,14 +563,14 @@ static int armpmu_filter_match(struct perf_event *event)
 	return ret;
 }
 
-static ssize_t armpmu_cpumask_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t cpus_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(dev_get_drvdata(dev));
 	return cpumap_print_to_pagebuf(true, buf, &armpmu->supported_cpus);
 }
 
-static DEVICE_ATTR(cpus, S_IRUGO, armpmu_cpumask_show, NULL);
+static DEVICE_ATTR_RO(cpus);
 
 static struct attribute *armpmu_common_attrs[] = {
 	&dev_attr_cpus.attr,
@@ -644,10 +644,8 @@ int armpmu_request_irq(int irq, int cpu)
 		}
 
 		irq_flags = IRQF_PERCPU |
-			    IRQF_NOBALANCING |
+			    IRQF_NOBALANCING | IRQF_NO_AUTOEN |
 			    IRQF_NO_THREAD;
-
-		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
 		err = request_nmi(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&cpu_armpmu, cpu));
@@ -670,7 +668,7 @@ int armpmu_request_irq(int irq, int cpu)
 						 &cpu_armpmu);
 			irq_ops = &percpu_pmuirq_ops;
 		} else {
-			has_nmi= true;
+			has_nmi = true;
 			irq_ops = &percpu_pmunmi_ops;
 		}
 	} else {
@@ -869,10 +867,8 @@ static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 	int cpu;
 
 	pmu = kzalloc(sizeof(*pmu), flags);
-	if (!pmu) {
-		pr_info("failed to allocate PMU device!\n");
+	if (!pmu)
 		goto out;
-	}
 
 	pmu->hw_events = alloc_percpu_gfp(struct pmu_hw_events, flags);
 	if (!pmu->hw_events) {

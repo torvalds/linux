@@ -54,6 +54,8 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
+#include "inc/dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1402,6 +1404,9 @@ void dcn10_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
+
+			/* DP 2.0 requires that LTTPR Caps be read first */
+			dp_retrieve_lttpr_cap(dc->links[i]);
 
 			/*
 			 * If any of the displays are lit up turn them off.
@@ -3240,10 +3245,17 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * about the actual size being incorrect, that's a limitation of
 	 * the hardware.
 	 */
-	x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
-			pipe_ctx->plane_state->dst_rect.width;
-	y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
-			pipe_ctx->plane_state->dst_rect.height;
+	if (param.rotation == ROTATION_ANGLE_90 || param.rotation == ROTATION_ANGLE_270) {
+		x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.height /
+				pipe_ctx->plane_state->dst_rect.width;
+		y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.width /
+				pipe_ctx->plane_state->dst_rect.height;
+	} else {
+		x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
+				pipe_ctx->plane_state->dst_rect.width;
+		y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
+				pipe_ctx->plane_state->dst_rect.height;
+	}
 
 	/**
 	 * If the cursor's source viewport is clipped then we need to

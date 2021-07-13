@@ -10,6 +10,8 @@
  *  Copyright (C) 2002 Andy Grover <andrew.grover@intel.com>
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
@@ -49,12 +51,12 @@ int __init acpi_blacklisted(void)
 
 	i = acpi_match_platform_list(acpi_blacklist);
 	if (i >= 0) {
-		pr_err(PREFIX "Vendor \"%6.6s\" System \"%8.8s\" Revision 0x%x has a known ACPI BIOS problem.\n",
+		pr_err("Vendor \"%6.6s\" System \"%8.8s\" Revision 0x%x has a known ACPI BIOS problem.\n",
 		       acpi_blacklist[i].oem_id,
 		       acpi_blacklist[i].oem_table_id,
 		       acpi_blacklist[i].oem_revision);
 
-		pr_err(PREFIX "Reason: %s. This is a %s error\n",
+		pr_err("Reason: %s. This is a %s error\n",
 		       acpi_blacklist[i].reason,
 		       (acpi_blacklist[i].data ?
 			"non-recoverable" : "recoverable"));
@@ -73,8 +75,7 @@ int __init acpi_blacklisted(void)
 #ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
 static int __init dmi_enable_rev_override(const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s (force ACPI _REV to 5)\n",
-	       d->ident);
+	pr_notice("DMI detected: %s (force ACPI _REV to 5)\n", d->ident);
 	acpi_rev_override_setup(NULL);
 	return 0;
 }

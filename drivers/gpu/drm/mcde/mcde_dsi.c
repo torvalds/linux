@@ -577,7 +577,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	 * porches and sync.
 	 */
 	/* (ps/s) / (pixels/s) = ps/pixels */
-	pclk = DIV_ROUND_UP_ULL(1000000000000, mode->clock);
+	pclk = DIV_ROUND_UP_ULL(1000000000000, (mode->clock * 1000));
 	dev_dbg(d->dev, "picoseconds between two pixels: %llu\n",
 		pclk);
 

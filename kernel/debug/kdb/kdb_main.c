@@ -253,7 +253,7 @@ static char *kdballocenv(size_t bytes)
  * Parameters:
  *	match	A character string representing a numeric value
  * Outputs:
- *	*value  the unsigned long represntation of the env variable 'match'
+ *	*value  the unsigned long representation of the env variable 'match'
  * Returns:
  *	Zero on success, a kdb diagnostic on failure.
  */
@@ -356,7 +356,7 @@ static void kdb_printenv(void)
  * Parameters:
  *	arg	A character string representing a numeric value
  * Outputs:
- *	*value  the unsigned long represntation of arg.
+ *	*value  the unsigned long representation of arg.
  * Returns:
  *	Zero on success, a kdb diagnostic on failure.
  */
@@ -470,7 +470,7 @@ static int kdb_check_regs(void)
  *	symbol name, and offset to the caller.
  *
  *	The argument may consist of a numeric value (decimal or
- *	hexidecimal), a symbol name, a register name (preceded by the
+ *	hexadecimal), a symbol name, a register name (preceded by the
  *	percent sign), an environment variable with a numeric value
  *	(preceded by a dollar sign) or a simple arithmetic expression
  *	consisting of a symbol name, +/-, and a numeric constant value
@@ -894,7 +894,7 @@ static void parse_grep(const char *str)
  *	Limited to 20 tokens.
  *
  *	Real rudimentary tokenization. Basically only whitespace
- *	is considered a token delimeter (but special consideration
+ *	is considered a token delimiter (but special consideration
  *	is taken of the '=' sign as used by the 'set' command).
  *
  *	The algorithm used to tokenize the input string relies on
@@ -2488,7 +2488,6 @@ static void kdb_sysinfo(struct sysinfo *val)
 static int kdb_summary(int argc, const char **argv)
 {
 	time64_t now;
-	struct tm tm;
 	struct sysinfo val;
 
 	if (argc)
@@ -2502,13 +2501,7 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 
 	now = __ktime_get_real_seconds();
-	time64_to_tm(now, 0, &tm);
-	kdb_printf("date       %04ld-%02d-%02d %02d:%02d:%02d "
-		   "tz_minuteswest %d\n",
-		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
-		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		sys_tz.tz_minuteswest);
-
+	kdb_printf("date       %ptTs tz_minuteswest %d\n", &now, sys_tz.tz_minuteswest);
 	kdb_sysinfo(&val);
 	kdb_printf("uptime     ");
 	if (val.uptime > (24*60*60)) {

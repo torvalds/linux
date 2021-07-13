@@ -23,8 +23,6 @@
 	mcu_uart0: serial@40a00000 {
 		compatible = "ti,am654-uart";
 			reg = <0x00 0x40a00000 0x00 0x100>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
 			interrupts = <GIC_SPI 565 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <96000000>;
 			current-speed = <115200>;
@@ -116,11 +114,11 @@
 		};
 	};
 
-	mcu-navss {
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>;
 		dma-coherent;
 		dma-ranges;
 

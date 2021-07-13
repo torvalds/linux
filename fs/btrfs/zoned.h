@@ -65,6 +65,8 @@ void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,
 int btrfs_zoned_issue_zeroout(struct btrfs_device *device, u64 physical, u64 length);
 int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 				  u64 physical_start, u64 physical_pos);
+struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
+					    u64 logical, u64 length);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -189,6 +191,13 @@ static inline int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev,
 						u64 physical_pos)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline struct btrfs_device *btrfs_zoned_get_device(
+						  struct btrfs_fs_info *fs_info,
+						  u64 logical, u64 length)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 #endif

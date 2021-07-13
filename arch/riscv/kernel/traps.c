@@ -86,8 +86,13 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 	}
 }
 
+#if defined (CONFIG_XIP_KERNEL) && defined (CONFIG_RISCV_ERRATA_ALTERNATIVE)
+#define __trap_section		__section(".xip.traps")
+#else
+#define __trap_section
+#endif
 #define DO_ERROR_INFO(name, signo, code, str)				\
-asmlinkage __visible void name(struct pt_regs *regs)			\
+asmlinkage __visible __trap_section void name(struct pt_regs *regs)	\
 {									\
 	do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
 }
@@ -111,7 +116,7 @@ DO_ERROR_INFO(do_trap_store_misaligned,
 int handle_misaligned_load(struct pt_regs *regs);
 int handle_misaligned_store(struct pt_regs *regs);
 
-asmlinkage void do_trap_load_misaligned(struct pt_regs *regs)
+asmlinkage void __trap_section do_trap_load_misaligned(struct pt_regs *regs)
 {
 	if (!handle_misaligned_load(regs))
 		return;
@@ -119,7 +124,7 @@ asmlinkage void do_trap_load_misaligned(struct pt_regs *regs)
 		      "Oops - load address misaligned");
 }
 
-asmlinkage void do_trap_store_misaligned(struct pt_regs *regs)
+asmlinkage void __trap_section do_trap_store_misaligned(struct pt_regs *regs)
 {
 	if (!handle_misaligned_store(regs))
 		return;
@@ -146,7 +151,7 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 	return GET_INSN_LENGTH(insn);
 }
 
-asmlinkage __visible void do_trap_break(struct pt_regs *regs)
+asmlinkage __visible __trap_section void do_trap_break(struct pt_regs *regs)
 {
 #ifdef CONFIG_KPROBES
 	if (kprobe_single_step_handler(regs))
@@ -198,3 +203,38 @@ int is_valid_bugaddr(unsigned long pc)
 void __init trap_init(void)
 {
 }
+
+#ifdef CONFIG_VMAP_STACK
+static DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)],
+		overflow_stack)__aligned(16);
+/*
+ * shadow stack, handled_ kernel_ stack_ overflow(in kernel/entry.S) is used
+ * to get per-cpu overflow stack(get_overflow_stack).
+ */
+long shadow_stack[SHADOW_OVERFLOW_STACK_SIZE/sizeof(long)];
+asmlinkage unsigned long get_overflow_stack(void)
+{
+	return (unsigned long)this_cpu_ptr(overflow_stack) +
+		OVERFLOW_STACK_SIZE;
+}
+
+asmlinkage void handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned long tsk_stk = (unsigned long)current->stack;
+	unsigned long ovf_stk = (unsigned long)this_cpu_ptr(overflow_stack);
+
+	console_verbose();
+
+	pr_emerg("Insufficient stack space to handle exception!\n");
+	pr_emerg("Task stack:     [0x%016lx..0x%016lx]\n",
+			tsk_stk, tsk_stk + THREAD_SIZE);
+	pr_emerg("Overflow stack: [0x%016lx..0x%016lx]\n",
+			ovf_stk, ovf_stk + OVERFLOW_STACK_SIZE);
+
+	__show_regs(regs);
+	panic("Kernel stack overflow");
+
+	for (;;)
+		wait_for_interrupt();
+}
+#endif

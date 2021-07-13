@@ -12,7 +12,7 @@ KernelVersion:  4.12
 Contact:        linux-fsi@lists.ozlabs.org
 Description:
 		Sends an FSI BREAK command on a master's communication
-		link to any connnected slaves.  A BREAK resets connected
+		link to any connected slaves.  A BREAK resets connected
 		device's logic and preps it to receive further commands
 		from the master.
 
