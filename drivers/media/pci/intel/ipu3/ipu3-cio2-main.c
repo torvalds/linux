@@ -1372,6 +1372,8 @@ struct sensor_async_subdev {
 	struct csi2_bus_info csi2;
 };
 
+#define to_sensor_asd(asd)	container_of(asd, struct sensor_async_subdev, asd)
+
 /* The .bound() notifier callback when a match is found */
 static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *sd,
@@ -1379,8 +1381,7 @@ static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 {
 	struct cio2_device *cio2 = container_of(notifier,
 					struct cio2_device, notifier);
-	struct sensor_async_subdev *s_asd = container_of(asd,
-					struct sensor_async_subdev, asd);
+	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 	struct cio2_queue *q;
 
 	if (cio2->queue[s_asd->csi2.port].sensor)
@@ -1402,8 +1403,7 @@ static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
 {
 	struct cio2_device *cio2 = container_of(notifier,
 						struct cio2_device, notifier);
-	struct sensor_async_subdev *s_asd = container_of(asd,
-					struct sensor_async_subdev, asd);
+	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 
 	cio2->queue[s_asd->csi2.port].sensor = NULL;
 }
@@ -1421,7 +1421,7 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 	int ret;
 
 	list_for_each_entry(asd, &cio2->notifier.asd_list, asd_list) {
-		s_asd = container_of(asd, struct sensor_async_subdev, asd);
+		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 
 		for (pad = 0; pad < q->sensor->entity.num_pads; pad++)
