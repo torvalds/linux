@@ -81,6 +81,11 @@ static const struct intel_step_info rkl_revids[] = {
 	[4] = { COMMON_STEP(C0) },
 };
 
+static const struct intel_step_info dg1_revids[] = {
+	[0] = { COMMON_STEP(A0) },
+	[1] = { COMMON_STEP(B0) },
+};
+
 static const struct intel_step_info adls_revids[] = {
 	[0x0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[0x1] = { .gt_step = STEP_A0, .display_step = STEP_A2 },
@@ -109,6 +114,9 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_ALDERLAKE_S(i915)) {
 		revids = adls_revids;
 		size = ARRAY_SIZE(adls_revids);
+	} else if (IS_DG1(i915)) {
+		revids = dg1_revids;
+		size = ARRAY_SIZE(dg1_revids);
 	} else if (IS_ROCKETLAKE(i915)) {
 		revids = rkl_revids;
 		size = ARRAY_SIZE(rkl_revids);
