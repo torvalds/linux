@@ -4931,6 +4931,13 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	}
 }
 
+/*
+ * HDR window is fixed(not move in the overlay path with port_mux change)
+ * and is the most slow window. And the bg is the fast. So other windows
+ * and bg need to add delay number to keep align with the most slow window.
+ * The delay number list in the trm is a relative value for port_mux set at
+ * last level.
+ */
 static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
@@ -4955,7 +4962,8 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 		}
 	}
 
-	bg_dly -= vp->bg_ovl_dly;
+	if (!vp->hdr_in)
+		bg_dly -= vp->bg_ovl_dly;
 
 	pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
 	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
@@ -4978,12 +4986,15 @@ static void vop2_setup_dly_for_window(struct vop2_video_port *vp, const struct v
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
 		plane = &win->base;
 		vpstate = to_vop2_plane_state(plane->state);
-		if (vp->hdr_in && !vp->hdr_out && !vpstate->hdr_in)
+		if (vp->hdr_in && !vp->hdr_out && !vpstate->hdr_in) {
 			dly = win->dly[VOP2_DLY_MODE_HISO_S];
-		else if (vp->hdr_in && vp->hdr_out && vpstate->hdr_in)
+			dly += vp->bg_ovl_dly;
+		} else if (vp->hdr_in && vp->hdr_out && vpstate->hdr_in) {
 			dly = win->dly[VOP2_DLY_MODE_HIHO_H];
-		else
+			dly -= vp->bg_ovl_dly;
+		} else {
 			dly = win->dly[VOP2_DLY_MODE_DEFAULT];
+		}
 		if (vop2_cluster_window(win))
 			dly |= dly << 8;
 
