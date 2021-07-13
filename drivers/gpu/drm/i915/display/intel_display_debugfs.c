@@ -2256,6 +2256,11 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
+	if (DISPLAY_VER(i915) >= 13) {
+		LPSP_CAPABLE(encoder->port <= PORT_B);
+		return 0;
+	}
+
 	switch (DISPLAY_VER(i915)) {
 	case 12:
 		/*
