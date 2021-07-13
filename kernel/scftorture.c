@@ -583,8 +583,8 @@ static int __init scf_torture_init(void)
 		if (weight_all_wait == -1)
 			weight_all_wait1 = 0;
 	}
-	if (weight_single1 == 0 && weight_single_rpc1 == 0 && weight_single_wait1 == 0 &&
-	    weight_many1 == 0 && weight_many_wait1 == 0 &&
+	if (weight_resched1 == 0 && weight_single1 == 0 && weight_single_rpc1 == 0 &&
+	    weight_single_wait1 == 0 && weight_many1 == 0 && weight_many_wait1 == 0 &&
 	    weight_all1 == 0 && weight_all_wait1 == 0) {
 		VERBOSE_SCFTORTOUT_ERRSTRING("all zero weights makes no sense");
 		firsterr = -EINVAL;
