@@ -6,6 +6,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/panic_notifier.h>
 #include <linux/seq_file.h>
@@ -17,6 +18,7 @@
 #include <linux/suspend.h>
 
 #include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <as-layout.h>
@@ -51,8 +53,12 @@ static void __init add_arg(char *arg)
  */
 struct cpuinfo_um boot_cpu_data = {
 	.loops_per_jiffy	= 0,
-	.ipi_pipe		= { -1, -1 }
+	.ipi_pipe		= { -1, -1 },
+	.cache_alignment	= L1_CACHE_BYTES,
+	.x86_capability		= { 0 }
 };
+
+EXPORT_SYMBOL(boot_cpu_data);
 
 union thread_union cpu0_irqstack
 	__section(".data..init_irqstack") =
@@ -63,16 +69,24 @@ static char host_info[(__NEW_UTS_LEN + 1) * 5];
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	int index = 0;
+	int i = 0;
 
-	seq_printf(m, "processor\t: %d\n", index);
+	seq_printf(m, "processor\t: %d\n", i);
 	seq_printf(m, "vendor_id\t: User Mode Linux\n");
 	seq_printf(m, "model name\t: UML\n");
 	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
-	seq_printf(m, "bogomips\t: %lu.%02lu\n\n",
+	seq_printf(m, "fpu\t\t: %s\n", cpu_has(&boot_cpu_data, X86_FEATURE_FPU) ? "yes" : "no");
+	seq_printf(m, "flags\t\t:");
+	for (i = 0; i < 32*NCAPINTS; i++)
+		if (cpu_has(&boot_cpu_data, i) && (x86_cap_flags[i] != NULL))
+			seq_printf(m, " %s", x86_cap_flags[i]);
+	seq_printf(m, "\n");
+	seq_printf(m, "cache_alignment\t: %d\n", boot_cpu_data.cache_alignment);
+	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		   loops_per_jiffy/(500000/HZ),
 		   (loops_per_jiffy/(5000/HZ)) % 100);
+
 
 	return 0;
 }
@@ -262,6 +276,30 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
+static void parse_host_cpu_flags(char *line)
+{
+	int i;
+	for (i = 0; i < 32*NCAPINTS; i++) {
+		if ((x86_cap_flags[i] != NULL) && strstr(line, x86_cap_flags[i]))
+			set_cpu_cap(&boot_cpu_data, i);
+	}
+}
+static void parse_cache_line(char *line)
+{
+	long res;
+	char *to_parse = strstr(line, ":");
+	if (to_parse) {
+		to_parse++;
+		while (*to_parse != 0 && isspace(*to_parse)) {
+			to_parse++;
+		}
+		if (kstrtoul(to_parse, 10, &res) == 0 && is_power_of_2(res))
+			boot_cpu_data.cache_alignment = res;
+		else
+			boot_cpu_data.cache_alignment = L1_CACHE_BYTES;
+	}
+}
+
 int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
@@ -297,6 +335,8 @@ int __init linux_main(int argc, char **argv)
 
 	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
+
+	get_host_cpu_features(parse_host_cpu_flags, parse_cache_line);
 
 	brk_start = (unsigned long) sbrk(0);
 

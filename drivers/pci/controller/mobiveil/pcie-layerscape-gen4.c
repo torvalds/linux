@@ -42,17 +42,6 @@ struct ls_pcie_g4 {
 	int irq;
 };
 
-static inline u32 ls_pcie_g4_lut_readl(struct ls_pcie_g4 *pcie, u32 off)
-{
-	return ioread32(pcie->pci.csr_axi_slave_base + PCIE_LUT_OFF + off);
-}
-
-static inline void ls_pcie_g4_lut_writel(struct ls_pcie_g4 *pcie,
-					 u32 off, u32 val)
-{
-	iowrite32(val, pcie->pci.csr_axi_slave_base + PCIE_LUT_OFF + off);
-}
-
 static inline u32 ls_pcie_g4_pf_readl(struct ls_pcie_g4 *pcie, u32 off)
 {
 	return ioread32(pcie->pci.csr_axi_slave_base + PCIE_PF_OFF + off);

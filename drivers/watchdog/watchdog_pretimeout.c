@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/watchdog.h>
 
+#include "watchdog_core.h"
 #include "watchdog_pretimeout.h"
 
 /* Default watchdog pretimeout governor */
@@ -55,7 +56,7 @@ int watchdog_pretimeout_available_governors_get(char *buf)
 	mutex_lock(&governor_lock);
 
 	list_for_each_entry(priv, &governor_list, entry)
-		count += sprintf(buf + count, "%s\n", priv->gov->name);
+		count += sysfs_emit_at(buf, count, "%s\n", priv->gov->name);
 
 	mutex_unlock(&governor_lock);
 
@@ -68,7 +69,7 @@ int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
 
 	spin_lock_irq(&pretimeout_lock);
 	if (wdd->gov)
-		count = sprintf(buf, "%s\n", wdd->gov->name);
+		count = sysfs_emit(buf, "%s\n", wdd->gov->name);
 	spin_unlock_irq(&pretimeout_lock);
 
 	return count;
@@ -177,7 +178,7 @@ int watchdog_register_pretimeout(struct watchdog_device *wdd)
 {
 	struct watchdog_pretimeout *p;
 
-	if (!(wdd->info->options & WDIOF_PRETIMEOUT))
+	if (!watchdog_have_pretimeout(wdd))
 		return 0;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -197,7 +198,7 @@ void watchdog_unregister_pretimeout(struct watchdog_device *wdd)
 {
 	struct watchdog_pretimeout *p, *t;
 
-	if (!(wdd->info->options & WDIOF_PRETIMEOUT))
+	if (!watchdog_have_pretimeout(wdd))
 		return;
 
 	spin_lock_irq(&pretimeout_lock);

@@ -51,7 +51,7 @@ struct hugepage_subpool {
 	long count;
 	long max_hpages;	/* Maximum huge pages or -1 if no maximum. */
 	long used_hpages;	/* Used count against maximum, includes */
-				/* both alloced and reserved pages. */
+				/* both allocated and reserved pages. */
 	struct hstate *hstate;
 	long min_hpages;	/* Minimum huge pages or -1 if no minimum. */
 	long rsv_hpages;	/* Pages reserved against global pool to */
@@ -85,7 +85,7 @@ struct resv_map {
  * by a resv_map's lock.  The set of regions within the resv_map represent
  * reservations for huge pages, or huge pages that have already been
  * instantiated within the map.  The from and to elements are huge page
- * indicies into the associated mapping.  from indicates the starting index
+ * indices into the associated mapping.  from indicates the starting index
  * of the region.  to represents the first index past the end of  the region.
  *
  * For example, a file region structure with from == 0 and to == 4 represents
@@ -797,7 +797,7 @@ static inline bool hugepage_migration_supported(struct hstate *h)
  * It determines whether or not a huge page should be placed on
  * movable zone or not. Movability of any huge page should be
  * required only if huge page size is supported for migration.
- * There wont be any reason for the huge page to be movable if
+ * There won't be any reason for the huge page to be movable if
  * it is not migratable to start with. Also the size of the huge
  * page should be large enough to be placed under a movable zone
  * and still feasible enough to be migratable. Just the presence

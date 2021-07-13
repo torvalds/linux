@@ -270,6 +270,7 @@ struct intel_pt_params {
 	uint32_t tsc_ctc_ratio_d;
 	enum intel_pt_param_flags flags;
 	unsigned int quick;
+	int max_loops;
 };
 
 struct intel_pt_decoder;

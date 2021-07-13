@@ -8957,6 +8957,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static int __ufshcd_wl_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int ret;
@@ -9083,6 +9084,7 @@ static int ufshcd_wl_runtime_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int ufshcd_wl_suspend(struct device *dev)
@@ -9798,6 +9800,7 @@ static inline int ufshcd_clear_rpmb_uac(struct ufs_hba *hba)
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static int ufshcd_rpmb_resume(struct device *dev)
 {
 	struct ufs_hba *hba = wlun_dev_to_hba(dev);
@@ -9806,6 +9809,7 @@ static int ufshcd_rpmb_resume(struct device *dev)
 		ufshcd_clear_rpmb_uac(hba);
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops ufs_rpmb_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, ufshcd_rpmb_resume, NULL)

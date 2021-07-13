@@ -11,7 +11,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/resource.h>
 #include <linux/amba/bus.h>
@@ -23,8 +22,8 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -58,7 +57,8 @@
  * @wdd: instance of struct watchdog_device
  * @lock: spin lock protecting dev structure and io access
  * @base: base address of wdt
- * @clk: clock structure of wdt
+ * @clk: (optional) clock structure of wdt
+ * @rate: (optional) clock rate when provided via properties
  * @adev: amba device structure of wdt
  * @status: current status of wdt
  * @load_val: load value to be set for current timeout
@@ -231,6 +231,7 @@ static int
 sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct sp805_wdt *wdt;
+	u64 rate = 0;
 	int ret = 0;
 
 	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
@@ -243,25 +244,23 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	if (adev->dev.of_node) {
-		wdt->clk = devm_clk_get(&adev->dev, NULL);
-		if (IS_ERR(wdt->clk)) {
-			dev_err(&adev->dev, "Clock not found\n");
-			return PTR_ERR(wdt->clk);
-		}
-		wdt->rate = clk_get_rate(wdt->clk);
-	} else if (has_acpi_companion(&adev->dev)) {
-		/*
-		 * When Driver probe with ACPI device, clock devices
-		 * are not available, so watchdog rate get from
-		 * clock-frequency property given in _DSD object.
-		 */
-		device_property_read_u64(&adev->dev, "clock-frequency",
-					 &wdt->rate);
-		if (!wdt->rate) {
-			dev_err(&adev->dev, "no clock-frequency property\n");
-			return -ENODEV;
-		}
+	/*
+	 * When driver probe with ACPI device, clock devices
+	 * are not available, so watchdog rate get from
+	 * clock-frequency property given in _DSD object.
+	 */
+	device_property_read_u64(&adev->dev, "clock-frequency", &rate);
+
+	wdt->clk = devm_clk_get_optional(&adev->dev, NULL);
+	if (IS_ERR(wdt->clk))
+		return dev_err_probe(&adev->dev, PTR_ERR(wdt->clk), "Clock not found\n");
+
+	wdt->rate = clk_get_rate(wdt->clk);
+	if (!wdt->rate)
+		wdt->rate = rate;
+	if (!wdt->rate) {
+		dev_err(&adev->dev, "no clock-frequency property\n");
+		return -ENODEV;
 	}
 
 	wdt->adev = adev;

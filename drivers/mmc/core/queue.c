@@ -424,9 +424,10 @@ static inline bool mmc_merge_capable(struct mmc_host *host)
  *
  * Initialise a MMC card request queue.
  */
-int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
+struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
+	struct gendisk *disk;
 	int ret;
 
 	mq->card = card;
@@ -464,26 +465,22 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 
 	ret = blk_mq_alloc_tag_set(&mq->tag_set);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
+		
 
-	mq->queue = blk_mq_init_queue(&mq->tag_set);
-	if (IS_ERR(mq->queue)) {
-		ret = PTR_ERR(mq->queue);
-		goto free_tag_set;
+	disk = blk_mq_alloc_disk(&mq->tag_set, mq);
+	if (IS_ERR(disk)) {
+		blk_mq_free_tag_set(&mq->tag_set);
+		return disk;
 	}
+	mq->queue = disk->queue;
 
 	if (mmc_host_is_spi(host) && host->use_spi_crc)
 		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, mq->queue);
-
-	mq->queue->queuedata = mq;
 	blk_queue_rq_timeout(mq->queue, 60 * HZ);
 
 	mmc_setup_queue(mq, card);
-	return 0;
-
-free_tag_set:
-	blk_mq_free_tag_set(&mq->tag_set);
-	return ret;
+	return disk;
 }
 
 void mmc_queue_suspend(struct mmc_queue *mq)

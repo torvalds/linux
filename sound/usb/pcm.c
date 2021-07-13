@@ -611,12 +611,8 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->hwptr_done = 0;
 	subs->transfer_done = 0;
 	subs->last_frame_number = 0;
+	subs->period_elapsed_pending = 0;
 	runtime->delay = 0;
-
-	/* for playback, submit the URBs now; otherwise, the first hwptr_done
-	 * updates for all URBs would happen at the same time when starting */
-	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = start_endpoints(subs);
 
  unlock:
 	snd_usb_unlock_shutdown(chip);
@@ -1398,6 +1394,10 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		subs->trigger_tstamp_pending_update = false;
 	}
 
+	if (period_elapsed && !subs->running) {
+		subs->period_elapsed_pending = 1;
+		period_elapsed = 0;
+	}
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = bytes;
 	if (period_elapsed)
@@ -1413,6 +1413,7 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 {
 	unsigned long flags;
 	struct snd_urb_ctx *ctx = urb->context;
+	bool period_elapsed = false;
 
 	spin_lock_irqsave(&subs->lock, flags);
 	if (ctx->queued) {
@@ -1423,13 +1424,20 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	}
 
 	subs->last_frame_number = usb_get_current_frame_number(subs->dev);
+	if (subs->running) {
+		period_elapsed = subs->period_elapsed_pending;
+		subs->period_elapsed_pending = 0;
+	}
 	spin_unlock_irqrestore(&subs->lock, flags);
+	if (period_elapsed)
+		snd_pcm_period_elapsed(subs->pcm_substream);
 }
 
 static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substream,
 					      int cmd)
 {
 	struct snd_usb_substream *subs = substream->runtime->private_data;
+	int err;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1440,6 +1448,14 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 					      prepare_playback_urb,
 					      retire_playback_urb,
 					      subs);
+		if (cmd == SNDRV_PCM_TRIGGER_START) {
+			err = start_endpoints(subs);
+			if (err < 0) {
+				snd_usb_endpoint_set_callback(subs->data_endpoint,
+							      NULL, NULL, NULL);
+				return err;
+			}
+		}
 		subs->running = 1;
 		dev_dbg(&subs->dev->dev, "%d:%d Start Playback PCM\n",
 			subs->cur_audiofmt->iface,

@@ -243,7 +243,7 @@ struct fw_rsc_trace {
  * @da: device address
  * @align: the alignment between the consumer and producer parts of the vring
  * @num: num of buffers supported by this vring (must be power of two)
- * @notifyid is a unique rproc-wide notify index for this vring. This notify
+ * @notifyid: a unique rproc-wide notify index for this vring. This notify
  * index is used when kicking a remote processor, to let it know that this
  * vring is triggered.
  * @pa: physical address
@@ -266,18 +266,18 @@ struct fw_rsc_vdev_vring {
 /**
  * struct fw_rsc_vdev - virtio device header
  * @id: virtio device id (as in virtio_ids.h)
- * @notifyid is a unique rproc-wide notify index for this vdev. This notify
+ * @notifyid: a unique rproc-wide notify index for this vdev. This notify
  * index is used when kicking a remote processor, to let it know that the
  * status/features of this vdev have changes.
- * @dfeatures specifies the virtio device features supported by the firmware
- * @gfeatures is a place holder used by the host to write back the
+ * @dfeatures: specifies the virtio device features supported by the firmware
+ * @gfeatures: a place holder used by the host to write back the
  * negotiated features that are supported by both sides.
- * @config_len is the size of the virtio config space of this vdev. The config
+ * @config_len: the size of the virtio config space of this vdev. The config
  * space lies in the resource table immediate after this vdev header.
- * @status is a place holder where the host will indicate its virtio progress.
- * @num_of_vrings indicates how many vrings are described in this vdev header
+ * @status: a place holder where the host will indicate its virtio progress.
+ * @num_of_vrings: indicates how many vrings are described in this vdev header
  * @reserved: reserved (must be zero)
- * @vring is an array of @num_of_vrings entries of 'struct fw_rsc_vdev_vring'.
+ * @vring: an array of @num_of_vrings entries of 'struct fw_rsc_vdev_vring'.
  *
  * This resource is a virtio device header: it provides information about
  * the vdev, and is then used by the host and its peer remote processors
@@ -287,16 +287,17 @@ struct fw_rsc_vdev_vring {
  * to statically allocate a vdev upon registration of the rproc (dynamic vdev
  * allocation is not yet supported).
  *
- * Note: unlike virtualization systems, the term 'host' here means
- * the Linux side which is running remoteproc to control the remote
- * processors. We use the name 'gfeatures' to comply with virtio's terms,
- * though there isn't really any virtualized guest OS here: it's the host
- * which is responsible for negotiating the final features.
- * Yeah, it's a bit confusing.
+ * Note:
+ * 1. unlike virtualization systems, the term 'host' here means
+ *    the Linux side which is running remoteproc to control the remote
+ *    processors. We use the name 'gfeatures' to comply with virtio's terms,
+ *    though there isn't really any virtualized guest OS here: it's the host
+ *    which is responsible for negotiating the final features.
+ *    Yeah, it's a bit confusing.
  *
- * Note: immediately following this structure is the virtio config space for
- * this vdev (which is specific to the vdev; for more info, read the virtio
- * spec). the size of the config space is specified by @config_len.
+ * 2. immediately following this structure is the virtio config space for
+ *    this vdev (which is specific to the vdev; for more info, read the virtio
+ *    spec). The size of the config space is specified by @config_len.
  */
 struct fw_rsc_vdev {
 	u32 id;
@@ -440,7 +441,7 @@ enum rproc_state {
  * enum rproc_crash_type - remote processor crash types
  * @RPROC_MMUFAULT:	iommu fault
  * @RPROC_WATCHDOG:	watchdog bite
- * @RPROC_FATAL_ERROR	fatal error
+ * @RPROC_FATAL_ERROR:	fatal error
  *
  * Each element of the enum is used as an array index. So that, the value of
  * the elements should be always something sane.
@@ -457,9 +458,9 @@ enum rproc_crash_type {
  * enum rproc_dump_mechanism - Coredump options for core
  * @RPROC_COREDUMP_DISABLED:	Don't perform any dump
  * @RPROC_COREDUMP_ENABLED:	Copy dump to separate buffer and carry on with
-				recovery
+ *				recovery
  * @RPROC_COREDUMP_INLINE:	Read segments directly from device memory. Stall
-				recovery until all segments are read
+ *				recovery until all segments are read
  */
 enum rproc_dump_mechanism {
 	RPROC_COREDUMP_DISABLED,
@@ -475,6 +476,7 @@ enum rproc_dump_mechanism {
  * @priv:	private data associated with the dump_segment
  * @dump:	custom dump function to fill device memory segment associated
  *		with coredump
+ * @offset:	offset of the segment
  */
 struct rproc_dump_segment {
 	struct list_head node;
@@ -524,7 +526,9 @@ struct rproc_dump_segment {
  * @auto_boot: flag to indicate if remote processor should be auto-started
  * @dump_segments: list of segments in the firmware
  * @nb_vdev: number of vdev currently handled by rproc
- * @char_dev: character device of the rproc
+ * @elf_class: firmware ELF class
+ * @elf_machine: firmware ELF machine
+ * @cdev: character device of the rproc
  * @cdev_put_on_release: flag to indicate if remoteproc should be shutdown on @char_dev release
  */
 struct rproc {
@@ -613,10 +617,10 @@ struct rproc_vring {
  * struct rproc_vdev - remoteproc state for a supported virtio device
  * @refcount: reference counter for the vdev and vring allocations
  * @subdev: handle for registering the vdev as a rproc subdevice
+ * @dev: device struct used for reference count semantics
  * @id: virtio device id (as in virtio_ids.h)
  * @node: list node
  * @rproc: the rproc handle
- * @vdev: the virio device
  * @vring: the vrings for this vdev
  * @rsc_offset: offset of the vdev's resource entry
  * @index: vdev position versus other vdev declared in resource table

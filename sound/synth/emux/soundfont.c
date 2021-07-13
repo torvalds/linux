@@ -108,7 +108,7 @@ snd_soundfont_close_check(struct snd_sf_list *sflist, int client)
  * Deal with a soundfont patch.  Any driver could use these routines
  * although it was designed for the AWE64.
  *
- * The sample_write and callargs pararameters allow a callback into
+ * The sample_write and callargs parameters allow a callback into
  * the actual driver to write sample data to the board or whatever
  * it wants to do with it.
  */
@@ -799,7 +799,7 @@ snd_sf_linear_to_log(unsigned int amount, int offset, int ratio)
 		amount <<= 1;
 	s = (amount >> 24) & 0x7f;
 	low = (amount >> 16) & 0xff;
-	/* linear approxmimation by lower 8 bit */
+	/* linear approximation by lower 8 bit */
 	v = (log_tbl[s + 1] * low + log_tbl[s] * (0x100 - low)) >> 8;
 	v -= offset;
 	v = (v * ratio) >> 16;
@@ -1433,7 +1433,7 @@ snd_sf_free(struct snd_sf_list *sflist)
 
 /*
  * Remove all samples
- * The soundcard should be silet before calling this function.
+ * The soundcard should be silent before calling this function.
  */
 int
 snd_soundfont_remove_samples(struct snd_sf_list *sflist)

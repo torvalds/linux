@@ -1572,6 +1572,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
  *
  * pcpu_populate_chunk		- populate the specified range of a chunk
  * pcpu_depopulate_chunk	- depopulate the specified range of a chunk
+ * pcpu_post_unmap_tlb_flush	- flush tlb for the specified range of a chunk
  * pcpu_create_chunk		- create a new chunk
  * pcpu_destroy_chunk		- destroy a chunk, always preceded by full depop
  * pcpu_addr_to_page		- translate address to physical address
@@ -1581,6 +1582,8 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
 			       int page_start, int page_end, gfp_t gfp);
 static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 				  int page_start, int page_end);
+static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
+				      int page_start, int page_end);
 static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp);
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
 static struct page *pcpu_addr_to_page(void *addr);
@@ -2137,11 +2140,12 @@ static void pcpu_reclaim_populated(void)
 {
 	struct pcpu_chunk *chunk;
 	struct pcpu_block_md *block;
+	int freed_page_start, freed_page_end;
 	int i, end;
+	bool reintegrate;
 
 	lockdep_assert_held(&pcpu_lock);
 
-restart:
 	/*
 	 * Once a chunk is isolated to the to_depopulate list, the chunk is no
 	 * longer discoverable to allocations whom may populate pages.  The only
@@ -2157,6 +2161,9 @@ restart:
 		 * Scan chunk's pages in the reverse order to keep populated
 		 * pages close to the beginning of the chunk.
 		 */
+		freed_page_start = chunk->nr_pages;
+		freed_page_end = 0;
+		reintegrate = false;
 		for (i = chunk->nr_pages - 1, end = -1; i >= 0; i--) {
 			/* no more work to do */
 			if (chunk->nr_empty_pop_pages == 0)
@@ -2164,8 +2171,8 @@ restart:
 
 			/* reintegrate chunk to prevent atomic alloc failures */
 			if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_HIGH) {
-				pcpu_reintegrate_chunk(chunk);
-				goto restart;
+				reintegrate = true;
+				goto end_chunk;
 			}
 
 			/*
@@ -2194,16 +2201,29 @@ restart:
 			spin_lock_irq(&pcpu_lock);
 
 			pcpu_chunk_depopulated(chunk, i + 1, end + 1);
+			freed_page_start = min(freed_page_start, i + 1);
+			freed_page_end = max(freed_page_end, end + 1);
 
 			/* reset the range and continue */
 			end = -1;
 		}
 
-		if (chunk->free_bytes == pcpu_unit_size)
+end_chunk:
+		/* batch tlb flush per chunk to amortize cost */
+		if (freed_page_start < freed_page_end) {
+			spin_unlock_irq(&pcpu_lock);
+			pcpu_post_unmap_tlb_flush(chunk,
+						  freed_page_start,
+						  freed_page_end);
+			cond_resched();
+			spin_lock_irq(&pcpu_lock);
+		}
+
+		if (reintegrate || chunk->free_bytes == pcpu_unit_size)
 			pcpu_reintegrate_chunk(chunk);
 		else
-			list_move(&chunk->list,
-				  &pcpu_chunk_lists[pcpu_sidelined_slot]);
+			list_move_tail(&chunk->list,
+				       &pcpu_chunk_lists[pcpu_sidelined_slot]);
 	}
 }
 

@@ -400,7 +400,8 @@ POWER
 
 PWM
   devm_pwm_get()
-  devm_pwm_put()
+  devm_of_pwm_get()
+  devm_fwnode_pwm_get()
 
 REGULATOR
   devm_regulator_bulk_get()

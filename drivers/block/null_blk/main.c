@@ -1849,7 +1849,6 @@ static int null_add_dev(struct nullb_device *dev)
 		if (!null_setup_fault())
 			goto out_cleanup_tags;
 
-		rv = -ENOMEM;
 		nullb->tag_set->timeout = 5 * HZ;
 		nullb->disk = blk_mq_alloc_disk(nullb->tag_set, nullb);
 		if (IS_ERR(nullb->disk)) {

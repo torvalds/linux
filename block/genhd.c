@@ -365,12 +365,12 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action)
 	xa_for_each(&disk->part_tbl, idx, part) {
 		if (bdev_is_partition(part) && !bdev_nr_sectors(part))
 			continue;
-		if (!bdgrab(part))
+		if (!kobject_get_unless_zero(&part->bd_device.kobj))
 			continue;
 
 		rcu_read_unlock();
 		kobject_uevent(bdev_kobj(part), action);
-		bdput(part);
+		put_device(&part->bd_device);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();

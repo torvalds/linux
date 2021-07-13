@@ -125,12 +125,18 @@ static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
  */
 int memcpy_real(void *dest, void *src, size_t count)
 {
+	unsigned long _dest  = (unsigned long)dest;
+	unsigned long _src   = (unsigned long)src;
+	unsigned long _count = (unsigned long)count;
 	int rc;
 
 	if (S390_lowcore.nodat_stack != 0) {
 		preempt_disable();
-		rc = CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack, 3,
-				   dest, src, count);
+		rc = call_on_stack(3, S390_lowcore.nodat_stack,
+				   unsigned long, _memcpy_real,
+				   unsigned long, _dest,
+				   unsigned long, _src,
+				   unsigned long, _count);
 		preempt_enable();
 		return rc;
 	}
@@ -139,8 +145,7 @@ int memcpy_real(void *dest, void *src, size_t count)
 	 * not set up yet. Just call _memcpy_real on the early boot
 	 * stack
 	 */
-	return _memcpy_real((unsigned long) dest,(unsigned long) src,
-			    (unsigned long) count);
+	return _memcpy_real(_dest, _src, _count);
 }
 
 /*

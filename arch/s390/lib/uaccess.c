@@ -224,7 +224,7 @@ static inline unsigned long copy_in_user_mvcos(void __user *to, const void __use
 		EX_TABLE(0b,3b)
 		: "+a" (size), "+a" (to), "+a" (from), "+a" (tmp1), "=a" (tmp2)
 		: [spec] "d" (0x810081UL)
-		: "cc", "memory");
+		: "cc", "memory", "0");
 	return size;
 }
 

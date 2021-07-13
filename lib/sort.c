@@ -51,7 +51,7 @@ static bool is_aligned(const void *base, size_t size, unsigned char align)
  * which basically all CPUs have, to minimize loop overhead computations.
  *
  * For some reason, on x86 gcc 7.3.0 adds a redundant test of n at the
- * bottom of the loop, even though the zero flag is stil valid from the
+ * bottom of the loop, even though the zero flag is still valid from the
  * subtract (since the intervening mov instructions don't alter the flags).
  * Gcc 8.1.0 doesn't have that problem.
  */

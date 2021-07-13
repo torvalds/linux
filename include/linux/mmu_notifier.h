@@ -33,7 +33,7 @@ struct mmu_interval_notifier;
  *
  * @MMU_NOTIFY_SOFT_DIRTY: soft dirty accounting (still same page and same
  * access flags). User should soft dirty the page in the end callback to make
- * sure that anyone relying on soft dirtyness catch pages that might be written
+ * sure that anyone relying on soft dirtiness catch pages that might be written
  * through non CPU mappings.
  *
  * @MMU_NOTIFY_RELEASE: used during mmu_interval_notifier invalidate to signal
@@ -167,7 +167,7 @@ struct mmu_notifier_ops {
 	 * decrease the refcount. If the refcount is decreased on
 	 * invalidate_range_start() then the VM can free pages as page
 	 * table entries are removed.  If the refcount is only
-	 * droppped on invalidate_range_end() then the driver itself
+	 * dropped on invalidate_range_end() then the driver itself
 	 * will drop the last refcount but it must take care to flush
 	 * any secondary tlb before doing the final free on the
 	 * page. Pages will no longer be referenced by the linux
@@ -196,7 +196,7 @@ struct mmu_notifier_ops {
 	 * If invalidate_range() is used to manage a non-CPU TLB with
 	 * shared page-tables, it not necessary to implement the
 	 * invalidate_range_start()/end() notifiers, as
-	 * invalidate_range() alread catches the points in time when an
+	 * invalidate_range() already catches the points in time when an
 	 * external TLB range needs to be flushed. For more in depth
 	 * discussion on this see Documentation/vm/mmu_notifier.rst
 	 *
@@ -369,7 +369,7 @@ mmu_interval_read_retry(struct mmu_interval_notifier *interval_sub,
  * mmu_interval_read_retry() will return true.
  *
  * False is not reliable and only suggests a collision may not have
- * occured. It can be called many times and does not have to hold the user
+ * occurred. It can be called many times and does not have to hold the user
  * provided lock.
  *
  * This call can be used as part of loops and other expensive operations to

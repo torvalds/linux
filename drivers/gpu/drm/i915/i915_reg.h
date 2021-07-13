@@ -10513,7 +10513,6 @@ enum skl_power_gate {
 #define _DG1_DPCLKA1_CFGCR0				0x16C280
 #define _DG1_DPCLKA_PHY_IDX(phy)			((phy) % 2)
 #define _DG1_DPCLKA_PLL_IDX(pll)			((pll) % 2)
-#define _DG1_PHY_DPLL_MAP(phy)				((phy) >= PHY_C ? DPLL_ID_DG1_DPLL2 : DPLL_ID_DG1_DPLL0)
 #define DG1_DPCLKA_CFGCR0(phy)				_MMIO_PHY((phy) / 2, \
 								  _DG1_DPCLKA_CFGCR0, \
 								  _DG1_DPCLKA1_CFGCR0)
@@ -10521,8 +10520,6 @@ enum skl_power_gate {
 #define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy)	(_DG1_DPCLKA_PHY_IDX(phy) * 2)
 #define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL(pll, phy)	(_DG1_DPCLKA_PLL_IDX(pll) << DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
 #define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy)	(0x3 << DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
-#define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_DPLL_MAP(clk_sel, phy) \
-	(((clk_sel) >> DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy)) + _DG1_PHY_DPLL_MAP(phy))
 
 /* ADLS Clocks */
 #define _ADLS_DPCLKA_CFGCR0			0x164280

@@ -8,16 +8,10 @@
 #define __TIMER_INTERNAL_H__
 #include <linux/list.h>
 #include <asm/bug.h>
+#include <shared/timetravel.h>
 
 #define TIMER_MULTIPLIER 256
 #define TIMER_MIN_DELTA  500
-
-enum time_travel_mode {
-	TT_MODE_OFF,
-	TT_MODE_BASIC,
-	TT_MODE_INFCPU,
-	TT_MODE_EXTERNAL,
-};
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
 struct time_travel_event {
@@ -26,8 +20,6 @@ struct time_travel_event {
 	struct list_head list;
 	bool pending, onstack;
 };
-
-extern enum time_travel_mode time_travel_mode;
 
 void time_travel_sleep(void);
 
@@ -61,8 +53,6 @@ bool time_travel_del_event(struct time_travel_event *e);
 #else
 struct time_travel_event {
 };
-
-#define time_travel_mode TT_MODE_OFF
 
 static inline void time_travel_sleep(void)
 {
