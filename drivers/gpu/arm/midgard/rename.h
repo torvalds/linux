@@ -414,6 +414,7 @@
 #define kbase_vmap_prot midgard_kbase_vmap_prot
 #define kbase_vm_ops midgard_kbase_vm_ops
 #define kbase_vunmap midgard_kbase_vunmap
+#define _mali_profiling_control midgard__mali_profiling_control
 #define platform_funcs midgard_platform_funcs
 #define pm_callbacks midgard_pm_callbacks
 #define rk_kbase_device_runtime_disable midgard_rk_kbase_device_runtime_disable
