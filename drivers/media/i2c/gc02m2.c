@@ -1046,6 +1046,7 @@ static const struct v4l2_subdev_ops gc02m2_subdev_ops = {
 	.pad	= &gc02m2_pad_ops,
 };
 
+#define DIGITAL_GAIN_BASE 1024
 static int gc02m2_set_gain_reg(struct gc02m2 *gc02m2, u32 total_gain)
 {
 	struct device *dev = &gc02m2->client->dev;
@@ -1065,7 +1066,7 @@ static int gc02m2_set_gain_reg(struct gc02m2 *gc02m2, u32 total_gain)
 		GC02M2_PAGE_SELECT,	0x00);
 	ret |= gc02m2_write_reg(gc02m2->client,
 		GC02M2_ANALOG_GAIN_REG, GC02M2_AGC_Param[i][1]);
-	dgain = total_gain * 256 / GC02M2_AGC_Param[i][0];
+	dgain = total_gain * DIGITAL_GAIN_BASE / GC02M2_AGC_Param[i][0];
 
 	dev_dbg(dev, "AGC_Param[%d][0] = %d dgain = 0x%04x!\n",
 		i, GC02M2_AGC_Param[i][0], dgain);
