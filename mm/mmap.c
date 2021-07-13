@@ -2101,7 +2101,7 @@ static unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
 	if (length < info->length)
 		return -ENOMEM;
 
-	trace_android_vh_get_unmapped_area_from_anti_fragment_pool(mm, info, &addr);
+	trace_android_vh_get_from_fragment_pool(mm, info, &addr);
 	if (addr)
 		return addr;
 
@@ -2214,6 +2214,7 @@ unsigned long vm_unmapped_area(struct vm_unmapped_area_info *info)
 	trace_vm_unmapped_area(addr, info);
 	return addr;
 }
+EXPORT_SYMBOL_GPL(vm_unmapped_area);
 
 #ifndef arch_get_mmap_end
 #define arch_get_mmap_end(addr)	(TASK_SIZE)
@@ -2324,7 +2325,7 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 		addr = vm_unmapped_area(&info);
 	}
 
-	trace_android_vh_get_unmapped_area_include_reserved_zone(mm, &info, &addr);
+	trace_android_vh_include_reserved_zone(mm, &info, &addr);
 
 	return addr;
 }
