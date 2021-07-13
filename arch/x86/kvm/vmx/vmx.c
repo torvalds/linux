@@ -4410,6 +4410,8 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 		vmx->pt_desc.guest.output_mask = 0x7F;
 		vmcs_write64(GUEST_IA32_RTIT_CTL, 0);
 	}
+
+	vmx_setup_uret_msrs(vmx);
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -4467,8 +4469,6 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vmcs_writel(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 	if (kvm_mpx_supported())
 		vmcs_write64(GUEST_BNDCFGS, 0);
-
-	vmx_setup_uret_msrs(vmx);
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);
