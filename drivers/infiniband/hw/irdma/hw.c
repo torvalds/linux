@@ -1920,7 +1920,7 @@ enum irdma_status_code irdma_ctrl_init_hw(struct irdma_pci_f *rf)
  * irdma_set_hw_rsrc - set hw memory resources.
  * @rf: RDMA PCI function
  */
-static u32 irdma_set_hw_rsrc(struct irdma_pci_f *rf)
+static void irdma_set_hw_rsrc(struct irdma_pci_f *rf)
 {
 	rf->allocated_qps = (void *)(rf->mem_rsrc +
 		   (sizeof(struct irdma_arp_entry) * rf->arp_table_size));
@@ -1937,8 +1937,6 @@ static u32 irdma_set_hw_rsrc(struct irdma_pci_f *rf)
 	spin_lock_init(&rf->arp_lock);
 	spin_lock_init(&rf->qptable_lock);
 	spin_lock_init(&rf->qh_list_lock);
-
-	return 0;
 }
 
 /**
@@ -2000,9 +1998,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 
 	rf->arp_table = (struct irdma_arp_entry *)rf->mem_rsrc;
 
-	ret = irdma_set_hw_rsrc(rf);
-	if (ret)
-		goto set_hw_rsrc_fail;
+	irdma_set_hw_rsrc(rf);
 
 	set_bit(0, rf->allocated_mrs);
 	set_bit(0, rf->allocated_qps);
@@ -2025,9 +2021,6 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 
 	return 0;
 
-set_hw_rsrc_fail:
-	kfree(rf->mem_rsrc);
-	rf->mem_rsrc = NULL;
 mem_rsrc_kzalloc_fail:
 	kfree(rf->allocated_ws_nodes);
 	rf->allocated_ws_nodes = NULL;
