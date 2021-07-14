@@ -420,6 +420,12 @@ properties:
           - const: dfi,fs700e-m60
           - const: fsl,imx6dl
 
+      - description: i.MX6DL DHCOM PicoITX Board
+        items:
+          - const: dh,imx6dl-dhcom-picoitx
+          - const: dh,imx6dl-dhcom-som
+          - const: fsl,imx6dl
+
       - description: i.MX6DL Gateworks Ventana Boards
         items:
           - enum:
@@ -469,6 +475,12 @@ properties:
           - const: toradex,colibri_imx6dl-v1_1     # Colibri iMX6 Module V1.1
           - const: toradex,colibri_imx6dl-eval-v3
           - const: toradex,colibri_imx6dl          # Colibri iMX6 Module
+          - const: fsl,imx6dl
+
+      - description: i.MX6S DHCOM DRC02 Board
+        items:
+          - const: dh,imx6s-dhcom-drc02
+          - const: dh,imx6s-dhcom-som
           - const: fsl,imx6dl
 
       - description: i.MX6SL based Boards
