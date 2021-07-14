@@ -49,8 +49,10 @@
 #include "mmhub_v1_0.h"
 #include "athub_v1_0.h"
 #include "gfxhub_v1_1.h"
+#include "gfxhub_v1_2.h"
 #include "mmhub_v9_4.h"
 #include "mmhub_v1_7.h"
+#include "mmhub_v1_8.h"
 #include "umc_v6_1.h"
 #include "umc_v6_0.h"
 #include "umc_v6_7.h"
@@ -1332,6 +1334,9 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 2):
 		adev->mmhub.funcs = &mmhub_v1_7_funcs;
 		break;
+	case IP_VERSION(1, 8, 0):
+		adev->mmhub.funcs = &mmhub_v1_8_funcs;
+		break;
 	default:
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
 		break;
@@ -1358,7 +1363,10 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		adev->gfxhub.funcs = &gfxhub_v1_2_funcs;
+	else
+		adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
 }
 
 static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
