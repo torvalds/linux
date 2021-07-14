@@ -338,32 +338,22 @@ __setup("rootflags=", root_data_setup);
 __setup("rootfstype=", fs_names_setup);
 __setup("rootdelay=", root_delay_setup);
 
-static void __init split_fs_names(char *page, char *names)
+static int __init split_fs_names(char *page, char *names)
 {
-	strcpy(page, root_fs_names);
-	while (*page++) {
-		if (page[-1] == ',')
-			page[-1] = '\0';
+	int count = 0;
+	char *p = page;
+
+	strcpy(p, root_fs_names);
+	while (*p++) {
+		if (p[-1] == ',')
+			p[-1] = '\0';
 	}
-	*page = '\0';
-}
+	*p = '\0';
 
-static void __init get_all_fs_names(char *page)
-{
-	int len = get_filesystem_list(page);
-	char *s = page, *p, *next;
+	for (p = page; *p; p += strlen(p)+1)
+		count++;
 
-	page[len] = '\0';
-	for (p = page - 1; p; p = next) {
-		next = strchr(++p, '\n');
-		if (*p++ != '\t')
-			continue;
-		while ((*s++ = *p++) != '\n')
-			;
-		s[-1] = '\0';
-	}
-
-	*s = '\0';
+	return count;
 }
 
 static int __init do_mount_root(const char *name, const char *fs,
@@ -409,15 +399,16 @@ void __init mount_block_root(char *name, int flags)
 	char *fs_names = page_address(page);
 	char *p;
 	char b[BDEVNAME_SIZE];
+	int num_fs, i;
 
 	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
 		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	if (root_fs_names)
-		split_fs_names(fs_names, root_fs_names);
+		num_fs = split_fs_names(fs_names, root_fs_names);
 	else
-		get_all_fs_names(fs_names);
+		num_fs = list_bdev_fs_names(fs_names, PAGE_SIZE);
 retry:
-	for (p = fs_names; *p; p += strlen(p)+1) {
+	for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1) {
 		int err = do_mount_root(name, p, flags, root_mount_data);
 		switch (err) {
 			case 0:
@@ -450,7 +441,7 @@ retry:
 	printk("List of all partitions:\n");
 	printk_all_partitions();
 	printk("No filesystem could mount root, tried: ");
-	for (p = fs_names; *p; p += strlen(p)+1)
+	for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1)
 		printk(" %s", p);
 	printk("\n");
 	panic("VFS: Unable to mount root fs on %s", b);
@@ -551,13 +542,15 @@ static int __init mount_nodev_root(void)
 {
 	char *fs_names, *fstype;
 	int err = -EINVAL;
+	int num_fs, i;
 
 	fs_names = (void *)__get_free_page(GFP_KERNEL);
 	if (!fs_names)
 		return -EINVAL;
-	split_fs_names(fs_names, root_fs_names);
+	num_fs = split_fs_names(fs_names, root_fs_names);
 
-	for (fstype = fs_names; *fstype; fstype += strlen(fstype) + 1) {
+	for (i = 0, fstype = fs_names; i < num_fs;
+	     i++, fstype += strlen(fstype) + 1) {
 		if (!fs_is_nodev(fstype))
 			continue;
 		err = do_mount_root(root_device_name, fstype, root_mountflags,
