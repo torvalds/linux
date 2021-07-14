@@ -31,8 +31,6 @@ x86_64_outs = common_outs + ["bzImage"]
 
 [kernel_build(
     name = name,
-    outs = outs,
-    build_config = config,
     srcs = glob(
         ["**"],
         exclude = [
@@ -41,25 +39,27 @@ x86_64_outs = common_outs + ["bzImage"]
             "**/*.bzl",
         ],
     ),
+    outs = outs,
+    build_config = config,
 ) for name, config, outs in [
     (
         "kernel_aarch64",
-        "common/build.config.gki.aarch64",
+        "build.config.gki.aarch64",
         aarch64_outs,
     ),
     (
         "kernel_aarch64_debug",
-        "common/build.config.gki-debug.aarch64",
+        "build.config.gki-debug.aarch64",
         aarch64_outs,
     ),
     (
         "kernel_x86_64",
-        "common/build.config.gki.x86_64",
+        "build.config.gki.x86_64",
         x86_64_outs,
     ),
     (
         "kernel_x86_64_debug",
-        "common/build.config.gki-debug.x86_64",
+        "build.config.gki-debug.x86_64",
         x86_64_outs,
     ),
 ]]
