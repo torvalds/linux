@@ -110,23 +110,6 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
-/*
- * PLL setup
- */
-
-static void mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
-{
-	struct mgag200_pll *pixpll = &mdev->pixpll;
-	struct mgag200_pll_values pixpllc;
-	int ret;
-
-	ret = pixpll->funcs->compute(pixpll, clock, &pixpllc);
-	if (ret)
-		return;
-
-	pixpll->funcs->update(pixpll, &pixpllc);
-}
-
 static void mgag200_g200wb_hold_bmc(struct mga_device *mdev)
 {
 	u8 tmp;
@@ -881,7 +864,9 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
+	struct mgag200_pll *pixpll = &mdev->pixpll;
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_rect fullscreen = {
@@ -896,7 +881,8 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mgag200_set_format_regs(mdev, fb);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
-	mgag200_crtc_set_plls(mdev, adjusted_mode->clock);
+
+	pixpll->funcs->update(pixpll, &mgag200_crtc_state->pixpllc);
 
 	if (mdev->type == G200_ER)
 		mgag200_g200er_reset_tagfifo(mdev);
@@ -930,8 +916,13 @@ mgag200_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
 				  struct drm_crtc_state *crtc_state)
 {
 	struct drm_plane *plane = plane_state->plane;
+	struct drm_device *dev = plane->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct mgag200_pll *pixpll = &mdev->pixpll;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	struct drm_framebuffer *new_fb = plane_state->fb;
 	struct drm_framebuffer *fb = NULL;
+	int ret;
 
 	if (!new_fb)
 		return 0;
@@ -941,6 +932,13 @@ mgag200_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
 
 	if (!fb || (fb->format != new_fb->format))
 		crtc_state->mode_changed = true; /* update PLL settings */
+
+	if (crtc_state->mode_changed) {
+		ret = pixpll->funcs->compute(pixpll, crtc_state->mode.clock,
+					     &mgag200_crtc_state->pixpllc);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -969,6 +967,7 @@ mgag200_simple_display_pipe_duplicate_crtc_state(struct drm_simple_display_pipe 
 {
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	struct mgag200_crtc_state *new_mgag200_crtc_state;
 
 	if (!crtc_state)
@@ -978,6 +977,9 @@ mgag200_simple_display_pipe_duplicate_crtc_state(struct drm_simple_display_pipe 
 	if (!new_mgag200_crtc_state)
 		return NULL;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_mgag200_crtc_state->base);
+
+	memcpy(&new_mgag200_crtc_state->pixpllc, &mgag200_crtc_state->pixpllc,
+	       sizeof(new_mgag200_crtc_state->pixpllc));
 
 	return &new_mgag200_crtc_state->base;
 }
