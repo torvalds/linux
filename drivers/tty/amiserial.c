@@ -22,8 +22,6 @@
  *
  */
 
-#include <linux/delay.h>
-
 /* Set of debugging defines */
 
 #undef SERIAL_DEBUG_INTR
@@ -35,40 +33,38 @@
  * End of serial driver configuration section.
  */
 
-#include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/serial.h>
-#include <linux/serial_reg.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/tty.h>
-#include <linux/tty_flip.h>
+#include <linux/bitops.h>
 #include <linux/circ_buf.h>
 #include <linux/console.h>
-#include <linux/major.h>
-#include <linux/string.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/fcntl.h>
-#include <linux/ptrace.h>
-#include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/seq_file.h>
-#include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bitops.h>
+#include <linux/interrupt.h>
+#include <linux/ioport.h>
+#include <linux/kernel.h>
+#include <linux/major.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-
-#include <asm/setup.h>
-
-
-#include <asm/irq.h>
+#include <linux/ptrace.h>
+#include <linux/seq_file.h>
+#include <linux/serial.h>
+#include <linux/serial_reg.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/timer.h>
+#include <linux/tty_flip.h>
+#include <linux/tty.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
+#include <asm/irq.h>
+#include <asm/setup.h>
 
 struct serial_state {
 	struct tty_port		tport;
@@ -104,8 +100,6 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 static struct serial_state rs_table[1];
 
 #define NR_PORTS ARRAY_SIZE(rs_table)
-
-#include <linux/uaccess.h>
 
 /* some serial hardware definitions */
 #define SDR_OVRUN   (1<<15)
