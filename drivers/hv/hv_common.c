@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/bitfield.h>
 #include <linux/cpumask.h>
+#include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
@@ -202,3 +203,51 @@ bool hv_query_ext_cap(u64 cap_query)
 	return hv_extended_cap & cap_query;
 }
 EXPORT_SYMBOL_GPL(hv_query_ext_cap);
+
+/* These __weak functions provide default "no-op" behavior and
+ * may be overridden by architecture specific versions. Architectures
+ * for which the default "no-op" behavior is sufficient can leave
+ * them unimplemented and not be cluttered with a bunch of stub
+ * functions in arch-specific code.
+ */
+
+bool __weak hv_is_isolation_supported(void)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(hv_is_isolation_supported);
+
+void __weak hv_setup_vmbus_handler(void (*handler)(void))
+{
+}
+EXPORT_SYMBOL_GPL(hv_setup_vmbus_handler);
+
+void __weak hv_remove_vmbus_handler(void)
+{
+}
+EXPORT_SYMBOL_GPL(hv_remove_vmbus_handler);
+
+void __weak hv_setup_kexec_handler(void (*handler)(void))
+{
+}
+EXPORT_SYMBOL_GPL(hv_setup_kexec_handler);
+
+void __weak hv_remove_kexec_handler(void)
+{
+}
+EXPORT_SYMBOL_GPL(hv_remove_kexec_handler);
+
+void __weak hv_setup_crash_handler(void (*handler)(struct pt_regs *regs))
+{
+}
+EXPORT_SYMBOL_GPL(hv_setup_crash_handler);
+
+void __weak hv_remove_crash_handler(void)
+{
+}
+EXPORT_SYMBOL_GPL(hv_remove_crash_handler);
+
+void __weak hyperv_cleanup(void)
+{
+}
+EXPORT_SYMBOL_GPL(hyperv_cleanup);

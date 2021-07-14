@@ -468,7 +468,6 @@ void hyperv_cleanup(void)
 	hypercall_msr.as_uint64 = 0;
 	wrmsrl(HV_X64_MSR_REFERENCE_TSC, hypercall_msr.as_uint64);
 }
-EXPORT_SYMBOL_GPL(hyperv_cleanup);
 
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 {
@@ -542,4 +541,3 @@ bool hv_is_isolation_supported(void)
 {
 	return hv_get_isolation_type() != HV_ISOLATION_TYPE_NONE;
 }
-EXPORT_SYMBOL_GPL(hv_is_isolation_supported);
