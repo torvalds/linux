@@ -1527,13 +1527,8 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	tty_set_operations(serial_driver, &serial_ops);
 
 	state = rs_table;
+	memset(state, 0, sizeof(*state));
 	state->port = (int)&custom.serdatr; /* Just to give it a value */
-	state->custom_divisor = 0;
-	state->icount.cts = state->icount.dsr = 
-	  state->icount.rng = state->icount.dcd = 0;
-	state->icount.rx = state->icount.tx = 0;
-	state->icount.frame = state->icount.parity = 0;
-	state->icount.overrun = state->icount.brk = 0;
 	tty_port_init(&state->tport);
 	state->tport.ops = &amiga_port_ops;
 	tty_port_link_device(&state->tport, serial_driver, 0);
