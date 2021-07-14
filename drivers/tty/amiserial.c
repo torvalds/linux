@@ -31,15 +31,6 @@
 #undef SERIAL_DEBUG_FLOW
 #undef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 
-/* Sanity checks */
-
-#if defined(MODULE) && defined(SERIAL_DEBUG_MCOUNT)
-#define DBG_CNT(s) printk("(%s): [%x] refc=%d, serc=%d, ttyc=%d -> %s\n", \
- tty->name, (info->tport.flags), serial_driver->refcount,info->count,tty->count,s)
-#else
-#define DBG_CNT(s)
-#endif
-
 /*
  * End of serial driver configuration section.
  */
