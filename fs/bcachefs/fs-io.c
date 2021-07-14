@@ -1826,8 +1826,6 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	struct bch_inode_info *inode = file_bch_inode(req->ki_filp);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bio *bio = &dio->op.wbio.bio;
-	struct bvec_iter_all iter;
-	struct bio_vec *bv;
 	unsigned unaligned, iter_count;
 	bool sync = dio->sync, dropped_locks;
 	long ret;
@@ -1882,8 +1880,6 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 			 * bio_iov_iter_get_pages was only able to get <
 			 * blocksize worth of pages:
 			 */
-			bio_for_each_segment_all(bv, bio, iter)
-				put_page(bv->bv_page);
 			ret = -EFAULT;
 			goto err;
 		}
@@ -1938,6 +1934,7 @@ loop:
 		spin_unlock(&inode->v.i_lock);
 
 		bio_release_pages(bio, false);
+		bio->bi_vcnt = 0;
 
 		if (dio->op.error) {
 			set_bit(EI_INODE_ERROR, &inode->ei_flags);
@@ -1959,6 +1956,7 @@ err:
 	if (dio->free_iov)
 		kfree(dio->iter.__iov);
 
+	bio_release_pages(bio, false);
 	bio_put(bio);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
