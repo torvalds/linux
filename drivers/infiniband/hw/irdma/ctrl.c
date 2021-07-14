@@ -4186,11 +4186,9 @@ enum irdma_status_code irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
  * @dev: sc device struct
  * @count: allocate count
  */
-enum irdma_status_code irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count)
+void irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count)
 {
 	writel(count, dev->hw_regs[IRDMA_AEQALLOC]);
-
-	return 0;
 }
 
 /**
