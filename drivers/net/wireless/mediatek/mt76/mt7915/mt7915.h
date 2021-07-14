@@ -65,10 +65,6 @@ enum mt7915_rxq_id {
 };
 
 struct mt7915_sta_stats {
-	struct rate_info prob_rate;
-	struct rate_info tx_rate;
-
-	unsigned long per;
 	unsigned long changed;
 	unsigned long jiffies;
 };
@@ -83,7 +79,6 @@ struct mt7915_sta {
 
 	struct mt7915_vif *vif;
 
-	struct list_head stats_list;
 	struct list_head poll_list;
 	struct list_head rc_list;
 	u32 airtime_ac[8];
@@ -94,7 +89,6 @@ struct mt7915_sta {
 
 	struct mt7915_sta_key_conf bip;
 };
-
 struct mt7915_vif {
 	u16 idx;
 	u8 omac_idx;
@@ -151,9 +145,6 @@ struct mt7915_phy {
 
 	struct mib_stats mib;
 	struct mt76_channel_state state_ts;
-	struct list_head stats_list;
-
-	u8 sta_work_count;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	struct {
@@ -248,13 +239,6 @@ enum mt7915_rdd_cmd {
 	RDD_READ_PULSE,
 	RDD_RESUME_BF,
 	RDD_IRQ_OFF,
-};
-
-enum {
-	RATE_CTRL_RU_INFO,
-	RATE_CTRL_FIXED_RATE_INFO,
-	RATE_CTRL_DUMP_INFO,
-	RATE_CTRL_MU_INFO,
 };
 
 static inline struct mt7915_phy *
@@ -367,7 +351,6 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy);
 int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
 int mt7915_mcu_get_temperature(struct mt7915_phy *phy);
 int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
-int mt7915_mcu_get_tx_rate(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx);
 int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7915_mcu_rdd_cmd(struct mt7915_dev *dev, enum mt7915_rdd_cmd cmd,

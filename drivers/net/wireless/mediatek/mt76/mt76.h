@@ -244,6 +244,8 @@ struct mt76_wcid {
 	struct ewma_signal rssi;
 	int inactive_count;
 
+	struct rate_info rate;
+
 	u16 idx;
 	u8 hw_key_idx;
 	u8 hw_key_idx2;

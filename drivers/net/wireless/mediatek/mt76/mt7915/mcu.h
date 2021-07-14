@@ -43,7 +43,6 @@ enum {
 	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
 	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
 	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
-	MCU_EXT_EVENT_RATE_REPORT = 0x87,
 };
 
 enum {
@@ -164,41 +163,6 @@ struct mt7915_mcu_eeprom_info {
 	u8 data[16];
 } __packed;
 
-struct mt7915_mcu_ra_info {
-	struct mt7915_mcu_rxd rxd;
-
-	__le32 event_id;
-	__le16 wlan_idx;
-	__le16 ru_idx;
-	__le16 direction;
-	__le16 dump_group;
-
-	__le32 suggest_rate;
-	__le32 min_rate;	/* for dynamic sounding */
-	__le32 max_rate;	/* for dynamic sounding */
-	__le32 init_rate_down_rate;
-
-	__le16 curr_rate;
-	__le16 init_rate_down_total;
-	__le16 init_rate_down_succ;
-	__le16 success;
-	__le16 attempts;
-
-	__le16 prev_rate;
-	__le16 prob_up_rate;
-	u8 no_rate_up_cnt;
-	u8 ppdu_cnt;
-	u8 gi;
-
-	u8 try_up_fail;
-	u8 try_up_total;
-	u8 suggest_wf;
-	u8 try_up_check;
-	u8 prob_up_period;
-	u8 prob_down_pending;
-} __packed;
-
-
 struct mt7915_mcu_phy_rx_info {
 	u8 category;
 	u8 rate;
@@ -209,12 +173,6 @@ struct mt7915_mcu_phy_rx_info {
 	u8 stbc;
 	u8 bw;
 };
-
-#define MT_RA_RATE_NSS			GENMASK(8, 6)
-#define MT_RA_RATE_MCS			GENMASK(3, 0)
-#define MT_RA_RATE_TX_MODE		GENMASK(12, 9)
-#define MT_RA_RATE_DCM_EN		BIT(4)
-#define MT_RA_RATE_BW			GENMASK(14, 13)
 
 struct mt7915_mcu_mib {
 	__le32 band;
@@ -318,7 +276,6 @@ enum {
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
 	MCU_EXT_CMD_SCS_CTRL = 0x82,
-	MCU_EXT_CMD_RATE_CTRL = 0x87,
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
 	MCU_EXT_CMD_SET_SPR = 0xa8,

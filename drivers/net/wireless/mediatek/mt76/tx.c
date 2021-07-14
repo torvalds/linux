@@ -64,8 +64,12 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
 		struct mt76_wcid *wcid;
 
 		wcid = rcu_dereference(dev->wcid[cb->wcid]);
-		if (wcid)
+		if (wcid) {
 			status.sta = wcid_to_sta(wcid);
+
+			if (status.sta)
+				status.rate = &wcid->rate;
+		}
 
 		hw = mt76_tx_status_get_hw(dev, skb);
 		ieee80211_tx_status_ext(hw, &status);
