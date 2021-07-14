@@ -474,8 +474,8 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	file_update_time(vmf->vma->vm_file);
 
 	/* page is wholly or partially inside EOF */
-	if (offset > size - PAGE_SIZE)
-		length = offset_in_page(size);
+	if (size - offset < PAGE_SIZE)
+		length = size - offset;
 	else
 		length = PAGE_SIZE;
 

@@ -1212,7 +1212,7 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 		irq = cmn->dtc[i].irq;
 		for (j = i; j--; ) {
 			if (cmn->dtc[j].irq == irq) {
-				cmn->dtc[j].irq_friend = j - i;
+				cmn->dtc[j].irq_friend = i - j;
 				goto next;
 			}
 		}

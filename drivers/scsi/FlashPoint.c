@@ -40,7 +40,7 @@ struct sccb_mgr_info {
 	u16 si_per_targ_ultra_nego;
 	u16 si_per_targ_no_disc;
 	u16 si_per_targ_wide_nego;
-	u16 si_flags;
+	u16 si_mflags;
 	unsigned char si_card_family;
 	unsigned char si_bustype;
 	unsigned char si_card_model[3];
@@ -1073,22 +1073,22 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 		ScamFlg =
 		    (unsigned char)FPT_utilEERead(ioport, SCAM_CONFIG / 2);
 
-	pCardInfo->si_flags = 0x0000;
+	pCardInfo->si_mflags = 0x0000;
 
 	if (i & 0x01)
-		pCardInfo->si_flags |= SCSI_PARITY_ENA;
+		pCardInfo->si_mflags |= SCSI_PARITY_ENA;
 
 	if (!(i & 0x02))
-		pCardInfo->si_flags |= SOFT_RESET;
+		pCardInfo->si_mflags |= SOFT_RESET;
 
 	if (i & 0x10)
-		pCardInfo->si_flags |= EXTENDED_TRANSLATION;
+		pCardInfo->si_mflags |= EXTENDED_TRANSLATION;
 
 	if (ScamFlg & SCAM_ENABLED)
-		pCardInfo->si_flags |= FLAG_SCAM_ENABLED;
+		pCardInfo->si_mflags |= FLAG_SCAM_ENABLED;
 
 	if (ScamFlg & SCAM_LEVEL2)
-		pCardInfo->si_flags |= FLAG_SCAM_LEVEL2;
+		pCardInfo->si_mflags |= FLAG_SCAM_LEVEL2;
 
 	j = (RD_HARPOON(ioport + hp_bm_ctrl) & ~SCSI_TERM_ENA_L);
 	if (i & 0x04) {
@@ -1104,7 +1104,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 
 	if (!(RD_HARPOON(ioport + hp_page_ctrl) & NARROW_SCSI_CARD))
 
-		pCardInfo->si_flags |= SUPPORT_16TAR_32LUN;
+		pCardInfo->si_mflags |= SUPPORT_16TAR_32LUN;
 
 	pCardInfo->si_card_family = HARPOON_FAMILY;
 	pCardInfo->si_bustype = BUSTYPE_PCI;
@@ -1140,15 +1140,15 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 
 	if (pCardInfo->si_card_model[1] == '3') {
 		if (RD_HARPOON(ioport + hp_ee_ctrl) & BIT(7))
-			pCardInfo->si_flags |= LOW_BYTE_TERM;
+			pCardInfo->si_mflags |= LOW_BYTE_TERM;
 	} else if (pCardInfo->si_card_model[2] == '0') {
 		temp = RD_HARPOON(ioport + hp_xfer_pad);
 		WR_HARPOON(ioport + hp_xfer_pad, (temp & ~BIT(4)));
 		if (RD_HARPOON(ioport + hp_ee_ctrl) & BIT(7))
-			pCardInfo->si_flags |= LOW_BYTE_TERM;
+			pCardInfo->si_mflags |= LOW_BYTE_TERM;
 		WR_HARPOON(ioport + hp_xfer_pad, (temp | BIT(4)));
 		if (RD_HARPOON(ioport + hp_ee_ctrl) & BIT(7))
-			pCardInfo->si_flags |= HIGH_BYTE_TERM;
+			pCardInfo->si_mflags |= HIGH_BYTE_TERM;
 		WR_HARPOON(ioport + hp_xfer_pad, temp);
 	} else {
 		temp = RD_HARPOON(ioport + hp_ee_ctrl);
@@ -1166,9 +1166,9 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 		WR_HARPOON(ioport + hp_ee_ctrl, temp);
 		WR_HARPOON(ioport + hp_xfer_pad, temp2);
 		if (!(temp3 & BIT(7)))
-			pCardInfo->si_flags |= LOW_BYTE_TERM;
+			pCardInfo->si_mflags |= LOW_BYTE_TERM;
 		if (!(temp3 & BIT(6)))
-			pCardInfo->si_flags |= HIGH_BYTE_TERM;
+			pCardInfo->si_mflags |= HIGH_BYTE_TERM;
 	}
 
 	ARAM_ACCESS(ioport);
@@ -1275,7 +1275,7 @@ static void *FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info
 	WR_HARPOON(ioport + hp_arb_id, pCardInfo->si_id);
 	CurrCard->ourId = pCardInfo->si_id;
 
-	i = (unsigned char)pCardInfo->si_flags;
+	i = (unsigned char)pCardInfo->si_mflags;
 	if (i & SCSI_PARITY_ENA)
 		WR_HARPOON(ioport + hp_portctrl_1, (HOST_MODE8 | CHK_SCSI_P));
 
@@ -1289,14 +1289,14 @@ static void *FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info
 		j |= SCSI_TERM_ENA_H;
 	WR_HARPOON(ioport + hp_ee_ctrl, j);
 
-	if (!(pCardInfo->si_flags & SOFT_RESET)) {
+	if (!(pCardInfo->si_mflags & SOFT_RESET)) {
 
 		FPT_sresb(ioport, thisCard);
 
 		FPT_scini(thisCard, pCardInfo->si_id, 0);
 	}
 
-	if (pCardInfo->si_flags & POST_ALL_UNDERRRUNS)
+	if (pCardInfo->si_mflags & POST_ALL_UNDERRRUNS)
 		CurrCard->globalFlags |= F_NO_FILTER;
 
 	if (pCurrNvRam) {

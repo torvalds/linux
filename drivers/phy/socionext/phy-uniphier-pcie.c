@@ -24,10 +24,12 @@
 #define PORT_SEL_1		FIELD_PREP(PORT_SEL_MASK, 1)
 
 #define PCL_PHY_TEST_I		0x2000
-#define PCL_PHY_TEST_O		0x2004
 #define TESTI_DAT_MASK		GENMASK(13, 6)
 #define TESTI_ADR_MASK		GENMASK(5, 1)
 #define TESTI_WR_EN		BIT(0)
+
+#define PCL_PHY_TEST_O		0x2004
+#define TESTO_DAT_MASK		GENMASK(7, 0)
 
 #define PCL_PHY_RESET		0x200c
 #define PCL_PHY_RESET_N_MNMODE	BIT(8)	/* =1:manual */
@@ -77,11 +79,12 @@ static void uniphier_pciephy_set_param(struct uniphier_pciephy_priv *priv,
 	val  = FIELD_PREP(TESTI_DAT_MASK, 1);
 	val |= FIELD_PREP(TESTI_ADR_MASK, reg);
 	uniphier_pciephy_testio_write(priv, val);
-	val = readl(priv->base + PCL_PHY_TEST_O);
+	val = readl(priv->base + PCL_PHY_TEST_O) & TESTO_DAT_MASK;
 
 	/* update value */
-	val &= ~FIELD_PREP(TESTI_DAT_MASK, mask);
-	val  = FIELD_PREP(TESTI_DAT_MASK, mask & param);
+	val &= ~mask;
+	val |= mask & param;
+	val = FIELD_PREP(TESTI_DAT_MASK, val);
 	val |= FIELD_PREP(TESTI_ADR_MASK, reg);
 	uniphier_pciephy_testio_write(priv, val);
 	uniphier_pciephy_testio_write(priv, val | TESTI_WR_EN);
