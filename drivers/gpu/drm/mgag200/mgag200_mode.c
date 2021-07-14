@@ -964,6 +964,49 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 		mgag200_handle_damage(mdev, fb, &damage, &shadow_plane_state->map[0]);
 }
 
+static struct drm_crtc_state *
+mgag200_simple_display_pipe_duplicate_crtc_state(struct drm_simple_display_pipe *pipe)
+{
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *new_mgag200_crtc_state;
+
+	if (!crtc_state)
+		return NULL;
+
+	new_mgag200_crtc_state = kzalloc(sizeof(*new_mgag200_crtc_state), GFP_KERNEL);
+	if (!new_mgag200_crtc_state)
+		return NULL;
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_mgag200_crtc_state->base);
+
+	return &new_mgag200_crtc_state->base;
+}
+
+static void mgag200_simple_display_pipe_destroy_crtc_state(struct drm_simple_display_pipe *pipe,
+							   struct drm_crtc_state *crtc_state)
+{
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+
+	__drm_atomic_helper_crtc_destroy_state(&mgag200_crtc_state->base);
+	kfree(mgag200_crtc_state);
+}
+
+static void mgag200_simple_display_pipe_reset_crtc(struct drm_simple_display_pipe *pipe)
+{
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct mgag200_crtc_state *mgag200_crtc_state;
+
+	if (crtc->state) {
+		mgag200_simple_display_pipe_destroy_crtc_state(pipe, crtc->state);
+		crtc->state = NULL; /* must be set to NULL here */
+	}
+
+	mgag200_crtc_state = kzalloc(sizeof(*mgag200_crtc_state), GFP_KERNEL);
+	if (!mgag200_crtc_state)
+		return;
+	__drm_atomic_helper_crtc_reset(crtc, &mgag200_crtc_state->base);
+}
+
 static const struct drm_simple_display_pipe_funcs
 mgag200_simple_display_pipe_funcs = {
 	.mode_valid = mgag200_simple_display_pipe_mode_valid,
@@ -971,6 +1014,9 @@ mgag200_simple_display_pipe_funcs = {
 	.disable    = mgag200_simple_display_pipe_disable,
 	.check	    = mgag200_simple_display_pipe_check,
 	.update	    = mgag200_simple_display_pipe_update,
+	.reset_crtc = mgag200_simple_display_pipe_reset_crtc,
+	.duplicate_crtc_state = mgag200_simple_display_pipe_duplicate_crtc_state,
+	.destroy_crtc_state = mgag200_simple_display_pipe_destroy_crtc_state,
 	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
 };
 
