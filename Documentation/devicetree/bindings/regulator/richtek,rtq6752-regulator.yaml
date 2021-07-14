@@ -30,7 +30,6 @@ properties:
 
   regulators:
     type: object
-    $ref: regulator.yaml#
 
     patternProperties:
       "^(p|n)avdd$":
@@ -56,7 +55,6 @@ examples:
 
       rtq6752@6b {
         compatible = "richtek,rtq6752";
-        status = "okay";
         reg = <0x6b>;
         enable-gpios = <&gpio26 2 0>;
 
