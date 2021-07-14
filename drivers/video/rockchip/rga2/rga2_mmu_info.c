@@ -181,14 +181,9 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
     switch(format)
     {
         case RGA2_FORMAT_RGBA_8888 :
-            stride = (w * 4 + 3) & (~3);
-            size_yrgb = stride*h;
-            start = yrgb_addr >> PAGE_SHIFT;
-	    end = yrgb_addr + size_yrgb;
-	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	    pageCount = end - start;
-            break;
         case RGA2_FORMAT_RGBX_8888 :
+        case RGA2_FORMAT_BGRA_8888 :
+        case RGA2_FORMAT_BGRX_8888 :
             stride = (w * 4 + 3) & (~3);
             size_yrgb = stride*h;
             start = yrgb_addr >> PAGE_SHIFT;
@@ -197,6 +192,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
 	    pageCount = end - start;
             break;
         case RGA2_FORMAT_RGB_888 :
+        case RGA2_FORMAT_BGR_888 :
             stride = (w * 3 + 3) & (~3);
             size_yrgb = stride*h;
             start = yrgb_addr >> PAGE_SHIFT;
@@ -204,41 +200,13 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
 	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	    pageCount = end - start;
             break;
-        case RGA2_FORMAT_BGRA_8888 :
-	case RGA2_FORMAT_BGRX_8888 :
-            stride = (w * 4 + 3) & (~3);
-            size_yrgb = stride * h;
-            start = yrgb_addr >> PAGE_SHIFT;
-	    end = yrgb_addr + size_yrgb;
-	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	    pageCount = end - start;
-            break;
         case RGA2_FORMAT_RGB_565 :
-            stride = (w*2 + 3) & (~3);
-            size_yrgb = stride * h;
-            start = yrgb_addr >> PAGE_SHIFT;
-	    end = yrgb_addr + size_yrgb;
-	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	    pageCount = end - start;
-            break;
         case RGA2_FORMAT_RGBA_5551 :
-            stride = (w*2 + 3) & (~3);
-            size_yrgb = stride * h;
-            start = yrgb_addr >> PAGE_SHIFT;
-	    end = yrgb_addr + size_yrgb;
-	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	    pageCount = end - start;
-            break;
         case RGA2_FORMAT_RGBA_4444 :
+        case RGA2_FORMAT_BGR_565 :
+        case RGA2_FORMAT_BGRA_5551 :
+        case RGA2_FORMAT_BGRA_4444 :
             stride = (w*2 + 3) & (~3);
-            size_yrgb = stride * h;
-            start = yrgb_addr >> PAGE_SHIFT;
-	    end = yrgb_addr + size_yrgb;
-	    end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	    pageCount = end - start;
-            break;
-        case RGA2_FORMAT_BGR_888 :
-            stride = (w*3 + 3) & (~3);
             size_yrgb = stride * h;
             start = yrgb_addr >> PAGE_SHIFT;
 	    end = yrgb_addr + size_yrgb;

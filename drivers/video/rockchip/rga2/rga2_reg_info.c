@@ -1137,6 +1137,10 @@ static void format_name_convert(uint32_t *df, uint32_t sf)
         case 0x21:*df = RGA2_FORMAT_YCrCb_420_SP_10B; break;
         case 0x22:*df = RGA2_FORMAT_YCbCr_422_SP_10B; break;
         case 0x23:*df = RGA2_FORMAT_YCrCb_422_SP_10B; break;
+
+	case 0x24:*df = RGA2_FORMAT_BGR_565; break;
+	case 0x25:*df = RGA2_FORMAT_BGRA_5551; break;
+	case 0x26:*df = RGA2_FORMAT_BGRA_4444; break;
     }
 }
 

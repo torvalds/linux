@@ -130,6 +130,7 @@ static void rga2_try_set_reg(void);
 static const char *rga2_get_cmd_mode_str(u32 cmd)
 {
 	switch (cmd) {
+	/* RGA1 */
 	case RGA_BLIT_SYNC:
 		return "RGA_BLIT_SYNC";
 	case RGA_BLIT_ASYNC:
@@ -140,6 +141,17 @@ static const char *rga2_get_cmd_mode_str(u32 cmd)
 		return "RGA_GET_RESULT";
 	case RGA_GET_VERSION:
 		return "RGA_GET_VERSION";
+	/* RGA2 */
+	case RGA2_BLIT_SYNC:
+		return "RGA2_BLIT_SYNC";
+	case RGA2_BLIT_ASYNC:
+		return "RGA2_BLIT_ASYNC";
+	case RGA2_FLUSH:
+		return "RGA2_FLUSH";
+	case RGA2_GET_RESULT:
+		return "RGA2_GET_RESULT";
+	case RGA2_GET_VERSION:
+		return "RGA2_GET_VERSION";
 	default:
 		return "UNF";
 	}
