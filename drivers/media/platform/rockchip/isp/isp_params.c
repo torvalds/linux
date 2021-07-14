@@ -197,6 +197,7 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		params_vdev->cur_buf = NULL;
 	}
 
+	rkisp_params_disable_isp(params_vdev);
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
 	params_vdev->rdbk_times = 0;
