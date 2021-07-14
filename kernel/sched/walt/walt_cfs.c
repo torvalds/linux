@@ -517,7 +517,7 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 
 	max_util = max_util + (max_util >> 2); /* account  for TARGET_LOAD usually 80 */
 	max_util = max(max_util,
-			(arch_scale_freq_capacity(cpu) * capacity_orig_of(cpu)) >>
+			(arch_scale_freq_capacity(cpu) * scale_cpu) >>
 			SCHED_CAPACITY_SHIFT);
 
 	/*
