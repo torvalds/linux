@@ -349,7 +349,7 @@ static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long cl
 {
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
-	unsigned int testp, testm, testn, testp2;
+	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
@@ -357,64 +357,29 @@ static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long cl
 
 	delta = 0xffffffff;
 
-	if (mdev->type == G200_EW3) {
-		vcomax = 800000;
-		vcomin = 400000;
-		pllreffreq = 25000;
+	vcomax = 550000;
+	vcomin = 150000;
+	pllreffreq = 48000;
 
-		for (testp = 1; testp < 8; testp++) {
-			for (testp2 = 1; testp2 < 8; testp2++) {
-				if (testp < testp2)
-					continue;
-				if ((clock * testp * testp2) > vcomax)
-					continue;
-				if ((clock * testp * testp2) < vcomin)
-					continue;
-				for (testm = 1; testm < 26; testm++) {
-					for (testn = 32; testn < 2048 ; testn++) {
-						computed = (pllreffreq * testn) /
-							(testm * testp * testp2);
-						if (computed > clock)
-							tmpdelta = computed - clock;
-						else
-							tmpdelta = clock - computed;
-						if (tmpdelta < delta) {
-							delta = tmpdelta;
-							m = testm + 1;
-							n = testn + 1;
-							p = testp + 1;
-							s = testp2;
-						}
-					}
-				}
-			}
-		}
-	} else {
-		vcomax = 550000;
-		vcomin = 150000;
-		pllreffreq = 48000;
+	for (testp = 1; testp < 9; testp++) {
+		if (clock * testp > vcomax)
+			continue;
+		if (clock * testp < vcomin)
+			continue;
 
-		for (testp = 1; testp < 9; testp++) {
-			if (clock * testp > vcomax)
-				continue;
-			if (clock * testp < vcomin)
-				continue;
-
-			for (testm = 1; testm < 17; testm++) {
-				for (testn = 1; testn < 151; testn++) {
-					computed = (pllreffreq * testn) /
-						(testm * testp);
-					if (computed > clock)
-						tmpdelta = computed - clock;
-					else
-						tmpdelta = clock - computed;
-					if (tmpdelta < delta) {
-						delta = tmpdelta;
-						n = testn;
-						m = testm;
-						p = testp;
-						s = 0;
-					}
+		for (testm = 1; testm < 17; testm++) {
+			for (testn = 1; testn < 151; testn++) {
+				computed = (pllreffreq * testn) / (testm * testp);
+				if (computed > clock)
+					tmpdelta = computed - clock;
+				else
+					tmpdelta = clock - computed;
+				if (tmpdelta < delta) {
+					delta = tmpdelta;
+					n = testn;
+					m = testm;
+					p = testp;
+					s = 0;
 				}
 			}
 		}
@@ -671,66 +636,30 @@ static int mgag200_compute_pixpll_values_g200eh(struct mga_device *mdev, long cl
 
 	m = n = p = s = 0;
 
-	if (mdev->type == G200_EH3) {
-		vcomax = 3000000;
-		vcomin = 1500000;
-		pllreffreq = 25000;
+	vcomax = 800000;
+	vcomin = 400000;
+	pllreffreq = 33333;
 
-		delta = 0xffffffff;
+	delta = 0xffffffff;
 
-		testp = 0;
+	for (testp = 16; testp > 0; testp >>= 1) {
+		if (clock * testp > vcomax)
+			continue;
+		if (clock * testp < vcomin)
+			continue;
 
-		for (testm = 150; testm >= 6; testm--) {
-			if (clock * testm > vcomax)
-				continue;
-			if (clock * testm < vcomin)
-				continue;
-			for (testn = 120; testn >= 60; testn--) {
-				computed = (pllreffreq * testn) / testm;
+		for (testm = 1; testm < 33; testm++) {
+			for (testn = 17; testn < 257; testn++) {
+				computed = (pllreffreq * testn) / (testm * testp);
 				if (computed > clock)
 					tmpdelta = computed - clock;
 				else
 					tmpdelta = clock - computed;
 				if (tmpdelta < delta) {
 					delta = tmpdelta;
-					n = testn + 1;
-					m = testm + 1;
-					p = testp + 1;
-				}
-				if (delta == 0)
-					break;
-			}
-			if (delta == 0)
-				break;
-		}
-	} else {
-
-		vcomax = 800000;
-		vcomin = 400000;
-		pllreffreq = 33333;
-
-		delta = 0xffffffff;
-
-		for (testp = 16; testp > 0; testp >>= 1) {
-			if (clock * testp > vcomax)
-				continue;
-			if (clock * testp < vcomin)
-				continue;
-
-			for (testm = 1; testm < 33; testm++) {
-				for (testn = 17; testn < 257; testn++) {
-					computed = (pllreffreq * testn) /
-						(testm * testp);
-					if (computed > clock)
-						tmpdelta = computed - clock;
-					else
-						tmpdelta = clock - computed;
-					if (tmpdelta < delta) {
-						delta = tmpdelta;
-						n = testn;
-						m = testm;
-						p = testp;
-					}
+					n = testn;
+					m = testm;
+					p = testp;
 				}
 			}
 		}
@@ -810,6 +739,57 @@ static void mgag200_set_pixpll_g200eh(struct mga_device *mdev,
 				udelay(5);
 		}
 	}
+}
+
+static int mgag200_compute_pixpll_values_g200eh3(struct mga_device *mdev, long clock,
+						 struct mgag200_pll_values *pixpllc)
+{
+	unsigned int vcomax, vcomin, pllreffreq;
+	unsigned int delta, tmpdelta;
+	unsigned int testp, testm, testn;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+
+	vcomax = 3000000;
+	vcomin = 1500000;
+	pllreffreq = 25000;
+
+	delta = 0xffffffff;
+
+	testp = 0;
+
+	for (testm = 150; testm >= 6; testm--) {
+		if (clock * testm > vcomax)
+			continue;
+		if (clock * testm < vcomin)
+			continue;
+		for (testn = 120; testn >= 60; testn--) {
+			computed = (pllreffreq * testn) / testm;
+			if (computed > clock)
+				tmpdelta = computed - clock;
+			else
+				tmpdelta = clock - computed;
+			if (tmpdelta < delta) {
+				delta = tmpdelta;
+				n = testn + 1;
+				m = testm + 1;
+				p = testp + 1;
+			}
+			if (delta == 0)
+				break;
+		}
+		if (delta == 0)
+			break;
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
 }
 
 static int mgag200_compute_pixpll_values_g200er(struct mga_device *mdev, long clock,
@@ -916,6 +896,58 @@ static void mgag200_set_pixpll_g200er(struct mga_device *mdev,
 	udelay(50);
 }
 
+static int mgag200_compute_pixpll_values_g200ew3(struct mga_device *mdev, long clock,
+						 struct mgag200_pll_values *pixpllc)
+{
+	unsigned int vcomax, vcomin, pllreffreq;
+	unsigned int delta, tmpdelta;
+	unsigned int testp, testm, testn, testp2;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+
+	delta = 0xffffffff;
+
+	vcomax = 800000;
+	vcomin = 400000;
+	pllreffreq = 25000;
+
+	for (testp = 1; testp < 8; testp++) {
+		for (testp2 = 1; testp2 < 8; testp2++) {
+			if (testp < testp2)
+				continue;
+			if ((clock * testp * testp2) > vcomax)
+				continue;
+			if ((clock * testp * testp2) < vcomin)
+				continue;
+			for (testm = 1; testm < 26; testm++) {
+				for (testn = 32; testn < 2048 ; testn++) {
+					computed = (pllreffreq * testn) / (testm * testp * testp2);
+					if (computed > clock)
+						tmpdelta = computed - clock;
+					else
+						tmpdelta = clock - computed;
+					if (tmpdelta < delta) {
+						delta = tmpdelta;
+						m = testm + 1;
+						n = testn + 1;
+						p = testp + 1;
+						s = testp2;
+					}
+				}
+			}
+		}
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
 static void mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 {
 	struct mgag200_pll_values pixpll;
@@ -931,18 +963,22 @@ static void mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 		ret = mgag200_compute_pixpll_values_g200se(mdev, clock, &pixpll);
 		break;
 	case G200_WB:
-	case G200_EW3:
 		ret = mgag200_compute_pixpll_values_g200wb(mdev, clock, &pixpll);
 		break;
 	case G200_EV:
 		ret = mgag200_compute_pixpll_values_g200ev(mdev, clock, &pixpll);
 		break;
 	case G200_EH:
-	case G200_EH3:
 		ret = mgag200_compute_pixpll_values_g200eh(mdev, clock, &pixpll);
+		break;
+	case G200_EH3:
+		ret = mgag200_compute_pixpll_values_g200eh3(mdev, clock, &pixpll);
 		break;
 	case G200_ER:
 		ret = mgag200_compute_pixpll_values_g200er(mdev, clock, &pixpll);
+		break;
+	case G200_EW3:
+		ret = mgag200_compute_pixpll_values_g200ew3(mdev, clock, &pixpll);
 		break;
 	}
 
