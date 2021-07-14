@@ -896,7 +896,8 @@ static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
 	do {
 		val = sdw_bread_no_pm(bus, dev_num, SDW_SCP_STAT);
 		if (val < 0) {
-			dev_err(bus->dev, "SDW_SCP_STAT bread failed:%d\n", val);
+			if (val != -ENODATA)
+				dev_err(bus->dev, "SDW_SCP_STAT bread failed:%d\n", val);
 			return val;
 		}
 		val &= SDW_SCP_STAT_CLK_STP_NF;
