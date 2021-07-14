@@ -476,6 +476,13 @@ struct sdma_driver_data {
 	int num_events;
 	struct sdma_script_start_addrs	*script_addrs;
 	bool check_ratio;
+	/*
+	 * ecspi ERR009165 fixed should be done in sdma script
+	 * and it has been fixed in soc from i.mx6ul.
+	 * please get more information from the below link:
+	 * https://www.nxp.com/docs/en/errata/IMX6DQCE.pdf
+	 */
+	bool ecspi_fixed;
 };
 
 struct sdma_engine {
@@ -596,6 +603,13 @@ static struct sdma_driver_data sdma_imx6q = {
 	.script_addrs = &sdma_script_imx6q,
 };
 
+static struct sdma_driver_data sdma_imx6ul = {
+	.chnenbl0 = SDMA_CHNENBL0_IMX35,
+	.num_events = 48,
+	.script_addrs = &sdma_script_imx6q,
+	.ecspi_fixed = true,
+};
+
 static struct sdma_script_start_addrs sdma_script_imx7d = {
 	.ap_2_ap_addr = 644,
 	.uart_2_mcu_addr = 819,
@@ -629,6 +643,7 @@ static const struct of_device_id sdma_dt_ids[] = {
 	{ .compatible = "fsl,imx31-sdma", .data = &sdma_imx31, },
 	{ .compatible = "fsl,imx25-sdma", .data = &sdma_imx25, },
 	{ .compatible = "fsl,imx7d-sdma", .data = &sdma_imx7d, },
+	{ .compatible = "fsl,imx6ul-sdma", .data = &sdma_imx6ul, },
 	{ .compatible = "fsl,imx8mq-sdma", .data = &sdma_imx8mq, },
 	{ /* sentinel */ }
 };
@@ -948,8 +963,15 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 		break;
 	case IMX_DMATYPE_CSPI:
 		per_2_emi = sdma->script_addrs->app_2_mcu_addr;
-		emi_2_per = sdma->script_addrs->mcu_2_ecspi_addr;
-		sdmac->is_ram_script = true;
+
+		/* Use rom script mcu_2_app if ERR009165 fixed */
+		if (sdmac->sdma->drvdata->ecspi_fixed) {
+			emi_2_per = sdma->script_addrs->mcu_2_app_addr;
+		} else {
+			emi_2_per = sdma->script_addrs->mcu_2_ecspi_addr;
+			sdmac->is_ram_script = true;
+		}
+
 		break;
 	case IMX_DMATYPE_EXT:
 	case IMX_DMATYPE_SSI:
