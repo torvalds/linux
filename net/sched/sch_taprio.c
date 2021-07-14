@@ -564,7 +564,7 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 	/* if there's no entry, it means that the schedule didn't
 	 * start yet, so force all gates to be open, this is in
 	 * accordance to IEEE 802.1Qbv-2015 Section 8.6.9.4.5
-	 * "AdminGateSates"
+	 * "AdminGateStates"
 	 */
 	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
 

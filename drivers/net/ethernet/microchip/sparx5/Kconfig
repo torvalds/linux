@@ -2,6 +2,7 @@ config SPARX5_SWITCH
 	tristate "Sparx5 switch driver"
 	depends on NET_SWITCHDEV
 	depends on HAS_IOMEM
+	depends on OF
 	select PHYLINK
 	select PHY_SPARX5_SERDES
 	select RESET_CONTROLLER

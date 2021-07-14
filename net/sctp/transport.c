@@ -335,10 +335,13 @@ void sctp_transport_pl_recv(struct sctp_transport *t)
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
-	} else if (t->pl.state == SCTP_PL_COMPLETE && ++t->pl.raise_count == 30) {
-		/* Raise probe_size again after 30 * interval in Search Complete */
-		t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
-		t->pl.probe_size += SCTP_PL_MIN_STEP;
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		t->pl.raise_count++;
+		if (t->pl.raise_count == 30) {
+			/* Raise probe_size again after 30 * interval in Search Complete */
+			t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
+			t->pl.probe_size += SCTP_PL_MIN_STEP;
+		}
 	}
 }
 
