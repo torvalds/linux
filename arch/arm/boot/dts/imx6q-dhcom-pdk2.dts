@@ -13,7 +13,7 @@
 	compatible = "dh,imx6q-dhcom-pdk2", "dh,imx6q-dhcom-som", "fsl,imx6q";
 
 	chosen {
-		stdout-path = &uart1;
+		stdout-path = "serial0:115200n8";
 	};
 
 	clk_ext_audio_codec: clock-codec {
