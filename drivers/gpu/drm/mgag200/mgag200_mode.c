@@ -209,17 +209,16 @@ static void mgag200_set_pixpll_g200(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200se_00(struct mga_device *mdev, long clock,
 						   struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 320000;
+	static const unsigned int vcomin = 160000;
+	static const unsigned int pllreffreq = 25000;
+
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
 	m = n = p = s = 0;
-
-	vcomax = 320000;
-	vcomin = 160000;
-	pllreffreq = 25000;
 	permitteddelta = clock * 5 / 1000;
 
 	for (testp = 8; testp > 0; testp /= 2) {
@@ -261,9 +260,11 @@ static int mgag200_compute_pixpll_values_g200se_00(struct mga_device *mdev, long
 static int mgag200_compute_pixpll_values_g200se_04(struct mga_device *mdev, long clock,
 						   struct mgag200_pll_values *pixpllc)
 {
+	static const unsigned int vcomax = 1600000;
+	static const unsigned int vcomin = 800000;
+	static const unsigned int pllreffreq = 25000;
 	static const unsigned int pvalues_e4[] = {16, 14, 12, 10, 8, 6, 4, 2, 1};
 
-	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
@@ -273,10 +274,6 @@ static int mgag200_compute_pixpll_values_g200se_04(struct mga_device *mdev, long
 
 	m = n = p = s = 0;
 	delta = 0xffffffff;
-
-	vcomax        = 1600000;
-	vcomin        = 800000;
-	pllreffreq    = 25000;
 
 	if (clock < 25000)
 		clock = 25000;
@@ -373,7 +370,10 @@ static void mgag200_set_pixpll_g200se(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long clock,
 						struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 550000;
+	static const unsigned int vcomin = 150000;
+	static const unsigned int pllreffreq = 48000;
+
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
@@ -382,10 +382,6 @@ static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long cl
 	m = n = p = s = 0;
 
 	delta = 0xffffffff;
-
-	vcomax = 550000;
-	vcomin = 150000;
-	pllreffreq = 48000;
 
 	for (testp = 1; testp < 9; testp++) {
 		if (clock * testp > vcomax)
@@ -538,17 +534,16 @@ static void mgag200_set_pixpll_g200wb(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200ev(struct mga_device *mdev, long clock,
 						struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 550000;
+	static const unsigned int vcomin = 150000;
+	static const unsigned int pllreffreq = 50000;
+
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
 	m = n = p = s = 0;
-	vcomax = 550000;
-	vcomin = 150000;
-	pllreffreq = 50000;
-
 	delta = 0xffffffff;
 
 	for (testp = 16; testp > 0; testp--) {
@@ -654,18 +649,16 @@ static void mgag200_set_pixpll_g200ev(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200eh(struct mga_device *mdev, long clock,
 						struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 800000;
+	static const unsigned int vcomin = 400000;
+	static const unsigned int pllreffreq = 33333;
+
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
 	m = n = p = s = 0;
-
-	vcomax = 800000;
-	vcomin = 400000;
-	pllreffreq = 33333;
-
 	delta = 0xffffffff;
 
 	for (testp = 16; testp > 0; testp >>= 1) {
@@ -770,20 +763,17 @@ static void mgag200_set_pixpll_g200eh(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200eh3(struct mga_device *mdev, long clock,
 						 struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 3000000;
+	static const unsigned int vcomin = 1500000;
+	static const unsigned int pllreffreq = 25000;
+
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
 	m = n = p = s = 0;
-
-	vcomax = 3000000;
-	vcomin = 1500000;
-	pllreffreq = 25000;
-
 	delta = 0xffffffff;
-
 	testp = 0;
 
 	for (testm = 150; testm >= 6; testm--) {
@@ -821,18 +811,17 @@ static int mgag200_compute_pixpll_values_g200eh3(struct mga_device *mdev, long c
 static int mgag200_compute_pixpll_values_g200er(struct mga_device *mdev, long clock,
 						struct mgag200_pll_values *pixpllc)
 {
+	static const unsigned int vcomax = 1488000;
+	static const unsigned int vcomin = 1056000;
+	static const unsigned int pllreffreq = 48000;
 	static const unsigned int m_div_val[] = { 1, 2, 4, 8 };
-	unsigned int vcomax, vcomin, pllreffreq;
+
 	unsigned int delta, tmpdelta;
 	int testr, testn, testm, testo;
 	unsigned int p, m, n, s;
 	unsigned int computed, vco;
 
 	m = n = p = s = 0;
-	vcomax = 1488000;
-	vcomin = 1056000;
-	pllreffreq = 48000;
-
 	delta = 0xffffffff;
 
 	for (testr = 0; testr < 4; testr++) {
@@ -925,19 +914,17 @@ static void mgag200_set_pixpll_g200er(struct mga_device *mdev,
 static int mgag200_compute_pixpll_values_g200ew3(struct mga_device *mdev, long clock,
 						 struct mgag200_pll_values *pixpllc)
 {
-	unsigned int vcomax, vcomin, pllreffreq;
+	static const unsigned int vcomax = 800000;
+	static const unsigned int vcomin = 400000;
+	static const unsigned int pllreffreq = 25000;
+
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn, testp2;
 	unsigned int p, m, n, s;
 	unsigned int computed;
 
 	m = n = p = s = 0;
-
 	delta = 0xffffffff;
-
-	vcomax = 800000;
-	vcomin = 400000;
-	pllreffreq = 25000;
 
 	for (testp = 1; testp < 8; testp++) {
 		for (testp2 = 1; testp2 < 8; testp2++) {
