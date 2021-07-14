@@ -1404,6 +1404,7 @@
   __put_net
   __put_page
   put_pid
+  put_task_stack
   __put_task_struct
   put_unused_fd
   put_vaddr_frames
