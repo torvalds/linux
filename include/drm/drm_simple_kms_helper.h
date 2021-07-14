@@ -154,6 +154,33 @@ struct drm_simple_display_pipe_funcs {
 	void (*disable_vblank)(struct drm_simple_display_pipe *pipe);
 
 	/**
+	 * @reset_crtc:
+	 *
+	 * Optional, called by &drm_crtc_funcs.reset. Please read the
+	 * documentation for the &drm_crtc_funcs.reset hook for more details.
+	 */
+	void (*reset_crtc)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @duplicate_crtc_state:
+	 *
+	 * Optional, called by &drm_crtc_funcs.atomic_duplicate_state. Please
+	 * read the documentation for the &drm_crtc_funcs.atomic_duplicate_state
+	 * hook for more details.
+	 */
+	struct drm_crtc_state * (*duplicate_crtc_state)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @destroy_crtc_state:
+	 *
+	 * Optional, called by &drm_crtc_funcs.atomic_destroy_state. Please
+	 * read the documentation for the &drm_crtc_funcs.atomic_destroy_state
+	 * hook for more details.
+	 */
+	void (*destroy_crtc_state)(struct drm_simple_display_pipe *pipe,
+				   struct drm_crtc_state *crtc_state);
+
+	/**
 	 * @reset_plane:
 	 *
 	 * Optional, called by &drm_plane_funcs.reset. Please read the
