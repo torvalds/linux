@@ -143,6 +143,8 @@
 				     <GIC_SPI 351 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&cpg CPG_MOD R9A07G044_I2C0_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G044_I2C0_MRST>;
@@ -163,6 +165,8 @@
 				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 363 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&cpg CPG_MOD R9A07G044_I2C1_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G044_I2C1_MRST>;
@@ -183,6 +187,8 @@
 				     <GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&cpg CPG_MOD R9A07G044_I2C2_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G044_I2C2_MRST>;
@@ -203,6 +209,8 @@
 				     <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&cpg CPG_MOD R9A07G044_I2C3_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G044_I2C3_MRST>;
