@@ -97,9 +97,7 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 
-static struct serial_state rs_table[1];
-
-#define NR_PORTS ARRAY_SIZE(rs_table)
+static struct serial_state serial_state;
 
 /* some serial hardware definitions */
 #define SDR_OVRUN   (1<<15)
@@ -1424,7 +1422,7 @@ static inline void line_info(struct seq_file *m, int line,
 static int rs_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "serinfo:1.0 driver:4.30\n");
-	line_info(m, 0, &rs_table[0]);
+	line_info(m, 0, &serial_state);
 	return 0;
 }
 
@@ -1494,11 +1492,11 @@ static const struct tty_port_operations amiga_port_ops = {
  */
 static int __init amiga_serial_probe(struct platform_device *pdev)
 {
+	struct serial_state *state = &serial_state;
 	unsigned long flags;
-	struct serial_state * state;
 	int error;
 
-	serial_driver = alloc_tty_driver(NR_PORTS);
+	serial_driver = alloc_tty_driver(1);
 	if (!serial_driver)
 		return -ENOMEM;
 
@@ -1516,7 +1514,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &serial_ops);
 
-	state = rs_table;
 	memset(state, 0, sizeof(*state));
 	state->port = (int)&amiga_custom.serdatr; /* Just to give it a value */
 	tty_port_init(&state->tport);
