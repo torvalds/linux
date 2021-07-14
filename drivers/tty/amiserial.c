@@ -77,7 +77,6 @@ struct serial_state {
 
 	unsigned long		port;
 	int			baud_base;
-	int			xmit_fifo_size;
 	int			custom_divisor;
 	int			read_status_mask;
 	int			ignore_status_mask;
@@ -94,6 +93,8 @@ static struct tty_driver *serial_driver;
 
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS 256
+
+#define XMIT_FIFO_SIZE 1
 
 static unsigned char current_ctl_bits;
 
@@ -646,7 +647,7 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	if (!quot)
 		quot = baud_base / 9600;
 	info->quot = quot;
-	info->timeout = ((info->xmit_fifo_size*HZ*bits*quot) / baud_base);
+	info->timeout = (XMIT_FIFO_SIZE*HZ*bits*quot) / baud_base;
 	info->timeout += HZ/50;		/* Add .02 seconds of slop */
 
 	/* CTS flow control flag and modem status interrupts */
@@ -923,7 +924,7 @@ static int get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	ss->line = tty->index;
 	ss->port = state->port;
 	ss->flags = state->tport.flags;
-	ss->xmit_fifo_size = state->xmit_fifo_size;
+	ss->xmit_fifo_size = XMIT_FIFO_SIZE;
 	ss->baud_base = state->baud_base;
 	ss->close_delay = close_delay;
 	ss->closing_wait = closing_wait;
@@ -944,7 +945,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	change_spd = ((ss->flags ^ port->flags) & ASYNC_SPD_MASK) ||
 		ss->custom_divisor != state->custom_divisor;
 	if (ss->irq || ss->port != state->port ||
-			ss->xmit_fifo_size != state->xmit_fifo_size) {
+			ss->xmit_fifo_size != XMIT_FIFO_SIZE) {
 		tty_unlock(tty);
 		return -EINVAL;
 	}
@@ -958,7 +959,6 @@ static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 		if ((ss->baud_base != state->baud_base) ||
 		    (close_delay != port->close_delay) ||
 		    (closing_wait != port->closing_wait) ||
-		    (ss->xmit_fifo_size != state->xmit_fifo_size) ||
 		    ((ss->flags & ~ASYNC_USR_MASK) !=
 		     (port->flags & ~ASYNC_USR_MASK))) {
 			tty_unlock(tty);
@@ -1290,9 +1290,6 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	unsigned long orig_jiffies, char_time;
 	int lsr;
 
-	if (info->xmit_fifo_size == 0)
-		return; /* Just in case.... */
-
 	orig_jiffies = jiffies;
 
 	/*
@@ -1303,7 +1300,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: we have to use pretty tight timings here to satisfy
 	 * the NIST-PCTS.
 	 */
-	char_time = (info->timeout - HZ/50) / info->xmit_fifo_size;
+	char_time = (info->timeout - HZ/50) / XMIT_FIFO_SIZE;
 	char_time = char_time / 5;
 	if (char_time == 0)
 		char_time = 1;
@@ -1550,7 +1547,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	/* Hardware set up */
 
 	state->baud_base = amiga_colorclock;
-	state->xmit_fifo_size = 1;
 
 	/* set ISRs, and then disable the rx interrupts */
 	error = request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
