@@ -347,7 +347,7 @@ static int rockchip_bus_cpufreq_notifier(struct notifier_block *nb,
 {
 	struct rockchip_bus *bus = to_rockchip_bus_cpufreq_nb(nb);
 	struct cpufreq_freqs *freqs = data;
-	int id = topology_physical_package_id(freqs->cpu);
+	int id = topology_physical_package_id(freqs->policy->cpu);
 
 	if (id < 0 || id >= MAX_CLUSTERS)
 		return NOTIFY_DONE;
@@ -363,7 +363,7 @@ static int rockchip_bus_cpufreq_notifier(struct notifier_block *nb,
 		     bus->cpu_freq[CLUSTER1] > bus->cpu_high_freq) &&
 		     bus->cur_rate != bus->high_rate) {
 			dev_dbg(bus->dev, "cpu%d freq=%d %d, up cci rate to %lu\n",
-				freqs->cpu,
+				freqs->policy->cpu,
 				bus->cpu_freq[CLUSTER0],
 				bus->cpu_freq[CLUSTER1],
 				bus->high_rate);
@@ -376,7 +376,7 @@ static int rockchip_bus_cpufreq_notifier(struct notifier_block *nb,
 		    bus->cpu_freq[CLUSTER1] <= bus->cpu_high_freq &&
 		    bus->cur_rate != bus->low_rate) {
 			dev_dbg(bus->dev, "cpu%d freq=%d %d, down cci rate to %lu\n",
-				freqs->cpu,
+				freqs->policy->cpu,
 				bus->cpu_freq[CLUSTER0],
 				bus->cpu_freq[CLUSTER1],
 				bus->low_rate);
