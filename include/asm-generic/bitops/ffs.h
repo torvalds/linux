@@ -8,7 +8,7 @@
  *
  * This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
+ * differs in spirit from ffz (man ffs).
  */
 static inline int ffs(int x)
 {
