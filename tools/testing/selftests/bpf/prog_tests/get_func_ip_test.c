@@ -8,9 +8,20 @@ void test_get_func_ip_test(void)
 	__u32 duration = 0, retval;
 	int err, prog_fd;
 
-	skel = get_func_ip_test__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "get_func_ip_test__open_and_load"))
+	skel = get_func_ip_test__open();
+	if (!ASSERT_OK_PTR(skel, "get_func_ip_test__open"))
 		return;
+
+	/* test6 is x86_64 specifc because of the instruction
+	 * offset, disabling it for all other archs
+	 */
+#ifndef __x86_64__
+	bpf_program__set_autoload(skel->progs.test6, false);
+#endif
+
+	err = get_func_ip_test__load(skel);
+	if (!ASSERT_OK(err, "get_func_ip_test__load"))
+		goto cleanup;
 
 	err = get_func_ip_test__attach(skel);
 	if (!ASSERT_OK(err, "get_func_ip_test__attach"))
@@ -33,6 +44,9 @@ void test_get_func_ip_test(void)
 	ASSERT_EQ(skel->bss->test3_result, 1, "test3_result");
 	ASSERT_EQ(skel->bss->test4_result, 1, "test4_result");
 	ASSERT_EQ(skel->bss->test5_result, 1, "test5_result");
+#ifdef __x86_64__
+	ASSERT_EQ(skel->bss->test6_result, 1, "test6_result");
+#endif
 
 cleanup:
 	get_func_ip_test__destroy(skel);
