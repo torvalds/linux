@@ -291,15 +291,14 @@ struct qdio_ssqd_desc {
 typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 			    int, int, unsigned long);
 
-/* qdio errors reported to the upper-layer program */
+/* qdio errors reported through the queue handlers: */
 #define QDIO_ERROR_ACTIVATE			0x0001
 #define QDIO_ERROR_GET_BUF_STATE		0x0002
 #define QDIO_ERROR_SET_BUF_STATE		0x0004
+
+/* extra info for completed SBALs: */
 #define QDIO_ERROR_SLSB_STATE			0x0100
 #define QDIO_ERROR_SLSB_PENDING			0x0200
-
-#define QDIO_ERROR_FATAL			0x00ff
-#define QDIO_ERROR_TEMPORARY			0xff00
 
 /* for qdio_cleanup */
 #define QDIO_FLAG_CLEANUP_USING_CLEAR		0x01
