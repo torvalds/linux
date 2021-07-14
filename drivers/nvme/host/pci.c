@@ -155,6 +155,8 @@ struct nvme_dev {
 	unsigned int nr_allocated_queues;
 	unsigned int nr_write_queues;
 	unsigned int nr_poll_queues;
+
+	bool attrs_added;
 };
 
 static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
@@ -1804,17 +1806,6 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	return ret >= 0 ? 0 : ret;
 }
 
-static ssize_t nvme_cmb_show(struct device *dev,
-			     struct device_attribute *attr,
-			     char *buf)
-{
-	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
-
-	return scnprintf(buf, PAGE_SIZE, "cmbloc : x%08x\ncmbsz  : x%08x\n",
-		       ndev->cmbloc, ndev->cmbsz);
-}
-static DEVICE_ATTR(cmb, S_IRUGO, nvme_cmb_show, NULL);
-
 static u64 nvme_cmb_size_unit(struct nvme_dev *dev)
 {
 	u8 szu = (dev->cmbsz >> NVME_CMBSZ_SZU_SHIFT) & NVME_CMBSZ_SZU_MASK;
@@ -1883,20 +1874,6 @@ static void nvme_map_cmb(struct nvme_dev *dev)
 	if ((dev->cmbsz & (NVME_CMBSZ_WDS | NVME_CMBSZ_RDS)) ==
 			(NVME_CMBSZ_WDS | NVME_CMBSZ_RDS))
 		pci_p2pmem_publish(pdev, true);
-
-	if (sysfs_add_file_to_group(&dev->ctrl.device->kobj,
-				    &dev_attr_cmb.attr, NULL))
-		dev_warn(dev->ctrl.device,
-			 "failed to add sysfs attribute for CMB\n");
-}
-
-static inline void nvme_release_cmb(struct nvme_dev *dev)
-{
-	if (dev->cmb_size) {
-		sysfs_remove_file_from_group(&dev->ctrl.device->kobj,
-					     &dev_attr_cmb.attr, NULL);
-		dev->cmb_size = 0;
-	}
 }
 
 static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
@@ -2075,6 +2052,38 @@ static int nvme_setup_host_mem(struct nvme_dev *dev)
 		nvme_free_host_mem(dev);
 	return ret;
 }
+
+static ssize_t cmb_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "cmbloc : x%08x\ncmbsz  : x%08x\n",
+		       ndev->cmbloc, ndev->cmbsz);
+}
+static DEVICE_ATTR_RO(cmb);
+
+static umode_t nvme_pci_attrs_are_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct nvme_ctrl *ctrl =
+		dev_get_drvdata(container_of(kobj, struct device, kobj));
+	struct nvme_dev *dev = to_nvme_dev(ctrl);
+
+	if (a == &dev_attr_cmb.attr && !dev->cmbsz)
+		return 0;
+	return a->mode;
+}
+
+static struct attribute *nvme_pci_attrs[] = {
+	&dev_attr_cmb.attr,
+	NULL,
+};
+
+static const struct attribute_group nvme_pci_attr_group = {
+	.attrs		= nvme_pci_attrs,
+	.is_visible	= nvme_pci_attrs_are_visible,
+};
 
 /*
  * nirqs is the number of interrupts available for write and read
@@ -2747,6 +2756,10 @@ static void nvme_reset_work(struct work_struct *work)
 		goto out;
 	}
 
+	if (!dev->attrs_added && !sysfs_create_group(&dev->ctrl.device->kobj,
+			&nvme_pci_attr_group))
+		dev->attrs_added = true;
+
 	nvme_start_ctrl(&dev->ctrl);
 	return;
 
@@ -2995,6 +3008,13 @@ static void nvme_shutdown(struct pci_dev *pdev)
 	nvme_disable_prepare_reset(dev, true);
 }
 
+static void nvme_remove_attrs(struct nvme_dev *dev)
+{
+	if (dev->attrs_added)
+		sysfs_remove_group(&dev->ctrl.device->kobj,
+				   &nvme_pci_attr_group);
+}
+
 /*
  * The driver's remove may be called on a device in a partially initialized
  * state. This function must not have any dependencies on the device state in
@@ -3016,7 +3036,7 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_stop_ctrl(&dev->ctrl);
 	nvme_remove_namespaces(&dev->ctrl);
 	nvme_dev_disable(dev, true);
-	nvme_release_cmb(dev);
+	nvme_remove_attrs(dev);
 	nvme_free_host_mem(dev);
 	nvme_dev_remove_admin(dev);
 	nvme_free_queues(dev, 0);
