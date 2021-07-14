@@ -17,15 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config MACH_NSLU2
-	bool
-	prompt "Linksys NSLU2"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Linksys's
-	  NSLU2 NAS device. For more information on this platform,
-	  see http://www.nslu2-linux.org
-
 config MACH_AVILA
 	bool "Avila"
 	depends on IXP4XX_PCI_LEGACY
