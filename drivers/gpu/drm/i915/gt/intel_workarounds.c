@@ -1984,12 +1984,30 @@ static const struct mcr_range mcr_ranges_gen12[] = {
 	{},
 };
 
+static const struct mcr_range mcr_ranges_xehp[] = {
+	{ .start =  0x4000, .end =  0x4aff },
+	{ .start =  0x5200, .end =  0x52ff },
+	{ .start =  0x5400, .end =  0x7fff },
+	{ .start =  0x8140, .end =  0x815f },
+	{ .start =  0x8c80, .end =  0x8dff },
+	{ .start =  0x94d0, .end =  0x955f },
+	{ .start =  0x9680, .end =  0x96ff },
+	{ .start =  0xb000, .end =  0xb3ff },
+	{ .start =  0xc800, .end =  0xcfff },
+	{ .start =  0xd800, .end =  0xd8ff },
+	{ .start =  0xdc00, .end =  0xffff },
+	{ .start = 0x17000, .end = 0x17fff },
+	{ .start = 0x24a00, .end = 0x24a7f },
+};
+
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
 	const struct mcr_range *mcr_ranges;
 	int i;
 
-	if (GRAPHICS_VER(i915) >= 12)
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		mcr_ranges = mcr_ranges_xehp;
+	else if (GRAPHICS_VER(i915) >= 12)
 		mcr_ranges = mcr_ranges_gen12;
 	else if (GRAPHICS_VER(i915) >= 8)
 		mcr_ranges = mcr_ranges_gen8;
