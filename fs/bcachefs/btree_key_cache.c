@@ -271,7 +271,9 @@ int bch2_btree_iter_traverse_cached(struct btree_iter *iter)
 
 	BUG_ON(iter->level);
 
-	if (btree_node_locked(iter, 0)) {
+	iter->l[1].b = NULL;
+
+	if (bch2_btree_node_relock(iter, 0)) {
 		ck = (void *) iter->l[0].b;
 		goto fill;
 	}
