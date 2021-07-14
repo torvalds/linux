@@ -706,7 +706,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		       WAKE_LOCK_SUSPEND, "rockchip_pwm_remote");
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu_id, &cpumask);
-	irq_set_affinity(irq, &cpumask);
+	irq_set_affinity_hint(irq, &cpumask);
 	ret = devm_request_irq(&pdev->dev, irq, rockchip_pwm_irq,
 			       IRQF_NO_SUSPEND, "rk_pwm_irq", ddata);
 	if (ret) {
@@ -763,7 +763,7 @@ static int remotectl_suspend(struct device *dev)
 	}
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu, &cpumask);
-	irq_set_affinity(ddata->irq, &cpumask);
+	irq_set_affinity_hint(ddata->irq, &cpumask);
 	return 0;
 }
 
@@ -778,7 +778,7 @@ static int remotectl_resume(struct device *dev)
 
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(ddata->handle_cpu_id, &cpumask);
-	irq_set_affinity(ddata->irq, &cpumask);
+	irq_set_affinity_hint(ddata->irq, &cpumask);
 	if (ddata->support_psci) {
 		/*
 		 * loop wakeup state
