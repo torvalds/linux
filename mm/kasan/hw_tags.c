@@ -248,12 +248,6 @@ void kasan_free_pages(struct page *page, unsigned int order)
 
 #if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
 
-void kasan_set_tagging_report_once(bool state)
-{
-	hw_set_tagging_report_once(state);
-}
-EXPORT_SYMBOL_GPL(kasan_set_tagging_report_once);
-
 void kasan_enable_tagging_sync(void)
 {
 	hw_enable_tagging_sync();

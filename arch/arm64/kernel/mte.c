@@ -23,8 +23,6 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
-static bool report_fault_once = true;
-
 static DEFINE_PER_CPU_READ_MOSTLY(u64, mte_tcf_preferred);
 
 #ifdef CONFIG_KASAN_HW_TAGS
@@ -140,16 +138,6 @@ void mte_enable_kernel_async(void)
 		static_branch_enable(&mte_async_mode);
 }
 #endif
-
-void mte_set_report_once(bool state)
-{
-	WRITE_ONCE(report_fault_once, state);
-}
-
-bool mte_report_once(void)
-{
-	return READ_ONCE(report_fault_once);
-}
 
 #ifdef CONFIG_KASAN_HW_TAGS
 void mte_check_tfsr_el1(void)
