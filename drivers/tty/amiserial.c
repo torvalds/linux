@@ -179,21 +179,8 @@ static void rs_start(struct tty_struct *tty)
 /*
  * ----------------------------------------------------------------------
  *
- * Here starts the interrupt handling routines.  All of the following
- * subroutines are declared as inline and are folded into
- * rs_interrupt().  They were separated out for readability's sake.
+ * Here start the interrupt handling routines.
  *
- * Note: rs_interrupt() is a "fast" interrupt, which means that it
- * runs with interrupts turned off.  People who may want to modify
- * rs_interrupt() should try to keep the interrupt handler as fast as
- * possible.  After you are done making modifications, it is not a bad
- * idea to do:
- * 
- * gcc -S -DKERNEL -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer serial.c
- *
- * and look at the resulting assemble code in serial.s.
- *
- * 				- Ted Ts'o (tytso@mit.edu), 7-Mar-93
  * -----------------------------------------------------------------------
  */
 
