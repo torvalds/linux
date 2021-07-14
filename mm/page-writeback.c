@@ -2443,7 +2443,7 @@ static void folio_account_dirtied(struct folio *folio,
 {
 	struct inode *inode = mapping->host;
 
-	trace_writeback_dirty_page(&folio->page, mapping);
+	trace_writeback_dirty_folio(folio, mapping);
 
 	if (mapping_can_writeback(mapping)) {
 		struct bdi_writeback *wb;
@@ -2894,7 +2894,7 @@ EXPORT_SYMBOL(__folio_start_writeback);
 void folio_wait_writeback(struct folio *folio)
 {
 	while (folio_test_writeback(folio)) {
-		trace_wait_on_page_writeback(&folio->page, folio_mapping(folio));
+		trace_folio_wait_writeback(folio, folio_mapping(folio));
 		folio_wait_bit(folio, PG_writeback);
 	}
 }
@@ -2916,7 +2916,7 @@ EXPORT_SYMBOL_GPL(folio_wait_writeback);
 int folio_wait_writeback_killable(struct folio *folio)
 {
 	while (folio_test_writeback(folio)) {
-		trace_wait_on_page_writeback(&folio->page, folio_mapping(folio));
+		trace_folio_wait_writeback(folio, folio_mapping(folio));
 		if (folio_wait_bit_killable(folio, PG_writeback))
 			return -EINTR;
 	}

@@ -52,11 +52,11 @@ WB_WORK_REASON
 
 struct wb_writeback_work;
 
-DECLARE_EVENT_CLASS(writeback_page_template,
+DECLARE_EVENT_CLASS(writeback_folio_template,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping),
+	TP_ARGS(folio, mapping),
 
 	TP_STRUCT__entry (
 		__array(char, name, 32)
@@ -69,7 +69,7 @@ DECLARE_EVENT_CLASS(writeback_page_template,
 			    bdi_dev_name(mapping ? inode_to_bdi(mapping->host) :
 					 NULL), 32);
 		__entry->ino = mapping ? mapping->host->i_ino : 0;
-		__entry->index = page->index;
+		__entry->index = folio->index;
 	),
 
 	TP_printk("bdi %s: ino=%lu index=%lu",
@@ -79,18 +79,18 @@ DECLARE_EVENT_CLASS(writeback_page_template,
 	)
 );
 
-DEFINE_EVENT(writeback_page_template, writeback_dirty_page,
+DEFINE_EVENT(writeback_folio_template, writeback_dirty_folio,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping)
+	TP_ARGS(folio, mapping)
 );
 
-DEFINE_EVENT(writeback_page_template, wait_on_page_writeback,
+DEFINE_EVENT(writeback_folio_template, folio_wait_writeback,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping)
+	TP_ARGS(folio, mapping)
 );
 
 DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
