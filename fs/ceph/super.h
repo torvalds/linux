@@ -89,6 +89,8 @@ struct ceph_mount_options {
 	unsigned int max_readdir;       /* max readdir result (entries) */
 	unsigned int max_readdir_bytes; /* max readdir result (bytes) */
 
+	bool new_dev_syntax;
+
 	/*
 	 * everything above this point can be memcmp'd; everything below
 	 * is handled in compare_mount_options()
@@ -98,6 +100,7 @@ struct ceph_mount_options {
 	char *mds_namespace;  /* default NULL */
 	char *server_path;    /* default NULL (means "/") */
 	char *fscache_uniq;   /* default NULL */
+	char *mon_addr;
 };
 
 struct ceph_fs_client {
