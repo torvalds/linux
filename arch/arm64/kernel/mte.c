@@ -23,8 +23,6 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
-u64 gcr_kernel_excl __ro_after_init;
-
 static bool report_fault_once = true;
 
 static DEFINE_PER_CPU_READ_MOSTLY(u64, mte_tcf_preferred);
@@ -102,26 +100,6 @@ int memcmp_pages(struct page *page1, struct page *page2)
 		return addr1 != addr2;
 
 	return ret;
-}
-
-void mte_init_tags(u64 max_tag)
-{
-	static bool gcr_kernel_excl_initialized;
-
-	if (!gcr_kernel_excl_initialized) {
-		/*
-		 * The format of the tags in KASAN is 0xFF and in MTE is 0xF.
-		 * This conversion extracts an MTE tag from a KASAN tag.
-		 */
-		u64 incl = GENMASK(FIELD_GET(MTE_TAG_MASK >> MTE_TAG_SHIFT,
-					     max_tag), 0);
-
-		gcr_kernel_excl = ~incl & SYS_GCR_EL1_EXCL_MASK;
-		gcr_kernel_excl_initialized = true;
-	}
-
-	/* Enable the kernel exclude mask for random tags generation. */
-	write_sysreg_s(SYS_GCR_EL1_RRND | gcr_kernel_excl, SYS_GCR_EL1);
 }
 
 static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
@@ -260,15 +238,6 @@ void mte_suspend_enter(void)
 
 	/* Report SYS_TFSR_EL1 before suspend entry */
 	mte_check_tfsr_el1();
-}
-
-void mte_suspend_exit(void)
-{
-	if (!system_supports_mte())
-		return;
-
-	sysreg_clear_set_s(SYS_GCR_EL1, SYS_GCR_EL1_EXCL_MASK, gcr_kernel_excl);
-	isb();
 }
 
 long set_mte_ctrl(struct task_struct *task, unsigned long arg)
