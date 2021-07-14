@@ -1388,27 +1388,22 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 					sizeof(p->o_arg.u.verifier.data));
 		}
 	}
-	/* don't put an ACCESS op in OPEN compound if O_EXCL, because ACCESS
-	 * will return permission denied for all bits until close */
-	if (!(flags & O_EXCL)) {
-		/* ask server to check for all possible rights as results
-		 * are cached */
-		switch (p->o_arg.claim) {
-		default:
-			break;
-		case NFS4_OPEN_CLAIM_NULL:
-		case NFS4_OPEN_CLAIM_FH:
-			p->o_arg.access = NFS4_ACCESS_READ |
-				NFS4_ACCESS_MODIFY |
-				NFS4_ACCESS_EXTEND |
-				NFS4_ACCESS_EXECUTE;
+	/* ask server to check for all possible rights as results
+	 * are cached */
+	switch (p->o_arg.claim) {
+	default:
+		break;
+	case NFS4_OPEN_CLAIM_NULL:
+	case NFS4_OPEN_CLAIM_FH:
+		p->o_arg.access = NFS4_ACCESS_READ | NFS4_ACCESS_MODIFY |
+				  NFS4_ACCESS_EXTEND | NFS4_ACCESS_DELETE |
+				  NFS4_ACCESS_EXECUTE;
 #ifdef CONFIG_NFS_V4_2
-			if (server->caps & NFS_CAP_XATTR)
-				p->o_arg.access |= NFS4_ACCESS_XAREAD |
-				    NFS4_ACCESS_XAWRITE |
-				    NFS4_ACCESS_XALIST;
+		if (!(server->caps & NFS_CAP_XATTR))
+			break;
+		p->o_arg.access |= NFS4_ACCESS_XAREAD | NFS4_ACCESS_XAWRITE |
+				   NFS4_ACCESS_XALIST;
 #endif
-		}
 	}
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
 	p->o_arg.id.create_time = ktime_to_ns(sp->so_seqid.create_time);
@@ -2472,11 +2467,15 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	/* Set the create mode (note dependency on the session type) */
 	data->o_arg.createmode = NFS4_CREATE_UNCHECKED;
 	if (data->o_arg.open_flags & O_EXCL) {
-		data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE;
-		if (nfs4_has_persistent_session(clp))
+		data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE4_1;
+		if (clp->cl_mvops->minor_version == 0) {
+			data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE;
+			/* don't put an ACCESS op in OPEN compound if O_EXCL,
+			 * because ACCESS will return permission denied for
+			 * all bits until close */
+			data->o_res.access_request = data->o_arg.access = 0;
+		} else if (nfs4_has_persistent_session(clp))
 			data->o_arg.createmode = NFS4_CREATE_GUARDED;
-		else if (clp->cl_mvops->minor_version > 0)
-			data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE4_1;
 	}
 	return;
 unlock_no_action:
