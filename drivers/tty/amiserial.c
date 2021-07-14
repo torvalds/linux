@@ -40,8 +40,6 @@
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
-static char *serial_version = "4.30";
-
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -91,7 +89,6 @@ struct serial_state {
 };
 
 #define custom amiga_custom
-static char *serial_name = "Amiga-builtin serial driver";
 
 static struct tty_driver *serial_driver;
 
@@ -1452,7 +1449,7 @@ static inline void line_info(struct seq_file *m, int line,
 
 static int rs_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
+	seq_printf(m, "serinfo:1.0 driver:4.30\n");
 	line_info(m, 0, &rs_table[0]);
 	return 0;
 }
@@ -1464,17 +1461,6 @@ static int rs_proc_show(struct seq_file *m, void *v)
  * rs_init() is called at boot-time to initialize the serial driver.
  * ---------------------------------------------------------------------
  */
-
-/*
- * This routine prints out the appropriate serial driver version
- * number, and identifies which options were configured into this
- * driver.
- */
-static void show_serial_version(void)
-{
- 	printk(KERN_INFO "%s version %s\n", serial_name, serial_version);
-}
-
 
 static const struct tty_operations serial_ops = {
 	.open = rs_open,
@@ -1541,8 +1527,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!serial_driver)
 		return -ENOMEM;
-
-	show_serial_version();
 
 	/* Initialize the tty_driver structure */
 
@@ -1628,7 +1612,6 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 {
 	struct serial_state *state = platform_get_drvdata(pdev);
 
-	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
 	tty_unregister_driver(serial_driver);
 	put_tty_driver(serial_driver);
 	tty_port_destroy(&state->tport);
