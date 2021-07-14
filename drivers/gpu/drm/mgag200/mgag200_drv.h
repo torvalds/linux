@@ -126,6 +126,23 @@
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
+/*
+ * Stores parameters for programming the PLLs
+ *
+ * Fref: reference frequency (A: 25.175 Mhz, B: 28.361, C: XX Mhz)
+ * Fo: output frequency
+ * Fvco = Fref * (N / M)
+ * Fo = Fvco / P
+ *
+ * S = [0..3]
+ */
+struct mgag200_pll_values {
+	unsigned int m;
+	unsigned int n;
+	unsigned int p;
+	unsigned int s;
+};
+
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
 
 struct mga_i2c_chan {
