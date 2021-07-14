@@ -1361,14 +1361,14 @@ static void rs_hangup(struct tty_struct *tty)
  */
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
-	struct serial_state *info = rs_table + tty->index;
-	struct tty_port *port = &info->tport;
+	struct tty_port *port = tty->port;
+	struct serial_state *info = container_of(port, struct serial_state,
+			tport);
 	int retval;
 
 	port->count++;
 	port->tty = tty;
 	tty->driver_data = info;
-	tty->port = port;
 
 	retval = startup(tty, info);
 	if (retval) {
