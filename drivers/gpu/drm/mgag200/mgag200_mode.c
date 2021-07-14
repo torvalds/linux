@@ -183,17 +183,16 @@ static int mgag200_g200_set_plls(struct mga_device *mdev, long clock)
 	return 0;
 }
 
-#define P_ARRAY_SIZE 9
-
 static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 {
+	static const unsigned int pvalues_e4[] = {16, 14, 12, 10, 8, 6, 4, 2, 1};
+
 	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n;
 	unsigned int computed;
-	unsigned int pvalues_e4[P_ARRAY_SIZE] = {16, 14, 12, 10, 8, 6, 4, 2, 1};
 	unsigned int fvv;
 	unsigned int i;
 
@@ -247,7 +246,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 		/* Permited delta is 0.5% as VESA Specification */
 		permitteddelta = clock * 5 / 1000;
 
-		for (i = 0 ; i < P_ARRAY_SIZE ; i++) {
+		for (i = 0 ; i < ARRAY_SIZE(pvalues_e4); i++) {
 			testp = pvalues_e4[i];
 
 			if ((clock * testp) > vcomax)
