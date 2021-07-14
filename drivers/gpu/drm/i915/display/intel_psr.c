@@ -870,7 +870,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	/* Wa_16011181250 */
-	if (IS_ROCKETLAKE(dev_priv) || IS_ALDERLAKE_S(dev_priv)) {
+	if (IS_ROCKETLAKE(dev_priv) || IS_ALDERLAKE_S(dev_priv) ||
+	    IS_DG2(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm, "PSR2 is defeatured for this platform\n");
 		return false;
 	}
