@@ -222,6 +222,20 @@ bool hv_is_hibernation_supported(void)
 }
 EXPORT_SYMBOL_GPL(hv_is_hibernation_supported);
 
+/*
+ * Default function to read the Hyper-V reference counter, independent
+ * of whether Hyper-V enlightened clocks/timers are being used. But on
+ * architectures where it is used, Hyper-V enlightenment code in
+ * hyperv_timer.c may override this function.
+ */
+static u64 __hv_read_ref_counter(void)
+{
+	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+}
+
+u64 (*hv_read_reference_counter)(void) = __hv_read_ref_counter;
+EXPORT_SYMBOL_GPL(hv_read_reference_counter);
+
 /* These __weak functions provide default "no-op" behavior and
  * may be overridden by architecture specific versions. Architectures
  * for which the default "no-op" behavior is sufficient can leave

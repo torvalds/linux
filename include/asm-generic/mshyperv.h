@@ -167,6 +167,8 @@ extern bool hv_root_partition;
 extern u32 *hv_vp_index;
 extern u32 hv_max_vp_index;
 
+extern u64 (*hv_read_reference_counter)(void);
+
 /* Sentinel value for an uninitialized entry in hv_vp_index array */
 #define VP_INVAL	U32_MAX
 
