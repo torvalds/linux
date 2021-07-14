@@ -39,8 +39,12 @@ static void push_error_status(struct mod_hdcp *hdcp,
 
 	if (is_hdcp1(hdcp)) {
 		hdcp->connection.hdcp1_retry_count++;
+		if (hdcp->connection.hdcp1_retry_count == MAX_NUM_OF_ATTEMPTS)
+			hdcp->connection.link.adjust.hdcp1.disable = 1;
 	} else if (is_hdcp2(hdcp)) {
 		hdcp->connection.hdcp2_retry_count++;
+		if (hdcp->connection.hdcp2_retry_count == MAX_NUM_OF_ATTEMPTS)
+			hdcp->connection.link.adjust.hdcp2.disable = 1;
 	}
 }
 
@@ -59,8 +63,7 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 		}
 	}
 
-	return (hdcp->connection.hdcp1_retry_count < MAX_NUM_OF_ATTEMPTS) &&
-			is_auth_needed &&
+	return is_auth_needed &&
 			!hdcp->connection.link.adjust.hdcp1.disable &&
 			!hdcp->connection.is_hdcp1_revoked;
 }
@@ -80,8 +83,7 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 		}
 	}
 
-	return (hdcp->connection.hdcp2_retry_count < MAX_NUM_OF_ATTEMPTS) &&
-			is_auth_needed &&
+	return is_auth_needed &&
 			!hdcp->connection.link.adjust.hdcp2.disable &&
 			!hdcp->connection.is_hdcp2_revoked;
 }
@@ -386,6 +388,60 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	if (current_state(hdcp) != HDCP_UNINITIALIZED)
 		callback_in_ms(hdcp->connection.link.adjust.auth_delay * 1000,
 				output);
+out:
+	if (status != MOD_HDCP_STATUS_SUCCESS)
+		push_error_status(hdcp, status);
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_update_authentication(struct mod_hdcp *hdcp,
+		uint8_t index,
+		struct mod_hdcp_link_adjustment *link_adjust,
+		struct mod_hdcp_display_adjustment *display_adjust,
+		struct mod_hdcp_output *output)
+{
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
+	struct mod_hdcp_display *display = NULL;
+
+	HDCP_TOP_INTERFACE_TRACE_WITH_INDEX(hdcp, index);
+	memset(output, 0, sizeof(struct mod_hdcp_output));
+
+	/* find display in connection */
+	display = get_active_display_at_index(hdcp, index);
+	if (!display) {
+		status = MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		goto out;
+	}
+
+	/* skip if no changes */
+	if (memcmp(link_adjust, &hdcp->connection.link.adjust,
+			sizeof(struct mod_hdcp_link_adjustment)) == 0 &&
+			memcmp(display_adjust, &display->adjust,
+					sizeof(struct mod_hdcp_display_adjustment)) == 0) {
+		status = MOD_HDCP_STATUS_SUCCESS;
+		goto out;
+	}
+
+	/* stop current authentication */
+	status = reset_authentication(hdcp, output);
+	if (status != MOD_HDCP_STATUS_SUCCESS)
+		goto out;
+
+	/* clear retry counters */
+	reset_retry_counts(hdcp);
+
+	/* reset error trace */
+	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
+
+	/* set new adjustment */
+	hdcp->connection.link.adjust = *link_adjust;
+	display->adjust = *display_adjust;
+
+	/* request authentication when connection is not reset */
+	if (current_state(hdcp) != HDCP_UNINITIALIZED)
+		/* wait 100ms to debounce simultaneous updates for different indices */
+		callback_in_ms(100, output);
+
 out:
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		push_error_status(hdcp, status);

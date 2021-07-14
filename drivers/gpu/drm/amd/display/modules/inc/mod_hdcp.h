@@ -282,14 +282,21 @@ enum mod_hdcp_status mod_hdcp_setup(struct mod_hdcp *hdcp,
 /* called per link on link destroy */
 enum mod_hdcp_status mod_hdcp_teardown(struct mod_hdcp *hdcp);
 
-/* called per display on cp_desired set to true */
+/* called per display after stream is enabled */
 enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 		struct mod_hdcp_link *link, struct mod_hdcp_display *display,
 		struct mod_hdcp_output *output);
 
-/* called per display on cp_desired set to false */
+/* called per display before stream is disabled */
 enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		uint8_t index, struct mod_hdcp_output *output);
+
+/* called per display to apply new authentication adjustment */
+enum mod_hdcp_status mod_hdcp_update_authentication(struct mod_hdcp *hdcp,
+		uint8_t index,
+		struct mod_hdcp_link_adjustment *link_adjust,
+		struct mod_hdcp_display_adjustment *display_adjust,
+		struct mod_hdcp_output *output);
 
 /* called to query hdcp information on a specific index */
 enum mod_hdcp_status mod_hdcp_query_display(struct mod_hdcp *hdcp,
