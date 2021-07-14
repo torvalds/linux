@@ -801,7 +801,8 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 	return -1;
 }
 
-static void manual_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -834,7 +835,8 @@ static void manual_hpte_clear_all(void)
 	}
 }
 
-static int hcall_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace int hcall_hpte_clear_all(void)
 {
 	int rc;
 
@@ -845,7 +847,8 @@ static int hcall_hpte_clear_all(void)
 	return rc;
 }
 
-static void pseries_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void pseries_hpte_clear_all(void)
 {
 	int rc;
 
