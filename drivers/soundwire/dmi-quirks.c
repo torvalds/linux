@@ -22,12 +22,12 @@ struct adr_remap {
  */
 static const struct adr_remap hp_spectre_360[] = {
 	{
-		0x000010025D070100,
-		0x000020025D071100
+		0x000010025D070100ull,
+		0x000020025D071100ull
 	},
 	{
-		0x000110025d070100,
-		0x000120025D130800
+		0x000110025d070100ull,
+		0x000120025D130800ull
 	},
 	{}
 };
@@ -39,18 +39,18 @@ static const struct adr_remap hp_spectre_360[] = {
 static const struct adr_remap dell_sku_0A3E[] = {
 	/* rt715 on link0 */
 	{
-		0x00020025d071100,
-		0x00021025d071500
+		0x00020025d071100ull,
+		0x00021025d071500ull
 	},
 	/* rt711 on link1 */
 	{
-		0x000120025d130800,
-		0x000120025d071100,
+		0x000120025d130800ull,
+		0x000120025d071100ull,
 	},
 	/* rt1308 on link2 */
 	{
-		0x000220025d071500,
-		0x000220025d130800
+		0x000220025d071500ull,
+		0x000220025d130800ull
 	},
 	{}
 };
