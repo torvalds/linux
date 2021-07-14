@@ -1899,11 +1899,12 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	bool skip_rx = false;
+	unsigned long flags;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
 
-	spin_lock(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 
 	status = serial_port_in(port, UART_LSR);
 
@@ -1929,7 +1930,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 		(up->ier & UART_IER_THRI))
 		serial8250_tx_chars(up);
 
-	uart_unlock_and_check_sysrq(port);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 
 	return 1;
 }
