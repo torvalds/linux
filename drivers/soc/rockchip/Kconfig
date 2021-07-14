@@ -136,6 +136,7 @@ config ROCKCHIP_DEBUG
 
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"
+	depends on NO_GKI
 	help
 	  Say y here to enable Rockchip thunder boot support.
 	  This option make the kernel boot faster.
