@@ -1581,8 +1581,6 @@ end:
 	if (dev->hdr.sensor)
 		dev->hdr.sensor = NULL;
 
-	rkisp_params_stream_stop(&dev->params_vdev);
-
 	return 0;
 }
 
@@ -1645,7 +1643,6 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		dev->hw_dev->monitor.state = ISP_FRAME_END;
 		schedule_work(&dev->hw_dev->monitor.work);
 	}
-	rkisp_rdbk_trigger_event(dev, T_CMD_QUEUE, NULL);
 	return 0;
 }
 
@@ -2214,30 +2211,30 @@ static void rkisp_isp_read_add_fifo_data(struct rkisp_device *dev)
 static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
-	int ret = 0;
 
 	if (!on) {
 		rkisp_stop_3a_run(isp_dev);
-		atomic_dec(&isp_dev->hw_dev->refcnt);
 		wait_event_timeout(isp_dev->sync_onoff,
 			isp_dev->irq_ends_mask == (ISP_FRAME_END | ISP_FRAME_IN) &&
 			(!IS_HDR_RDBK(isp_dev->rd_mode) ||
 			 isp_dev->isp_state & ISP_STOP), msecs_to_jiffies(5));
-		return rkisp_isp_stop(isp_dev);
+		mutex_lock(&isp_dev->hw_dev->dev_lock);
+		rkisp_isp_stop(isp_dev);
+		atomic_dec(&isp_dev->hw_dev->refcnt);
+		mutex_unlock(&isp_dev->hw_dev->dev_lock);
+		rkisp_params_stream_stop(&isp_dev->params_vdev);
+		return 0;
 	}
 
 	rkisp_start_3a_run(isp_dev);
+	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	atomic_inc(&isp_dev->hw_dev->refcnt);
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
-	ret = rkisp_config_cif(isp_dev);
-	if (ret < 0)
-		goto out;
-
-	ret = rkisp_isp_start(isp_dev);
-out:
-	if (ret < 0)
-		atomic_dec(&isp_dev->hw_dev->refcnt);
-	return ret;
+	rkisp_config_cif(isp_dev);
+	rkisp_isp_start(isp_dev);
+	mutex_unlock(&isp_dev->hw_dev->dev_lock);
+	rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
+	return 0;
 }
 
 static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
