@@ -134,7 +134,6 @@
 
 	panel {
 		compatible = "edt,etm0700g0edh6";
-		ddc-i2c-bus = <&i2c2>;
 		backlight = <&display_bl>;
 
 		port {
