@@ -935,6 +935,49 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 
 }
 
+/* paranoia check to make sure self-cleared bits are indeed cleared */
+void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
+				       bool initial_delay, int reset_iterations)
+{
+	u32 mcp_control;
+	u32 mcp_config_update;
+	int i;
+
+	if (initial_delay)
+		usleep_range(1000, 1500);
+
+	mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
+
+	/* the following bits should be cleared immediately */
+	if (mcp_control & CDNS_MCP_CONTROL_CMD_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CMD_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_SOFT_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SOFT_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_SW_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SW_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_CLK_STOP_CLR)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CLK_STOP_CLR is not cleared\n", string);
+	mcp_config_update = cdns_readl(cdns, CDNS_MCP_CONFIG_UPDATE);
+	if (mcp_config_update & CDNS_MCP_CONFIG_UPDATE_BIT)
+		dev_err(cdns->dev, "%s failed: MCP_CONFIG_UPDATE_BIT is not cleared\n", string);
+
+	i = 0;
+	while (mcp_control & CDNS_MCP_CONTROL_HW_RST) {
+		if (i == reset_iterations) {
+			dev_err(cdns->dev, "%s failed: MCP_CONTROL_HW_RST is not cleared\n", string);
+			break;
+		}
+
+		dev_dbg(cdns->dev, "%s: MCP_CONTROL_HW_RST is not cleared at iteration %d\n", string, i);
+		i++;
+
+		usleep_range(1000, 1500);
+		mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
+	}
+
+}
+EXPORT_SYMBOL(sdw_cdns_check_self_clearing_bits);
+
 /*
  * init routines
  */
@@ -1212,6 +1255,8 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 
 	cdns_init_clock_ctrl(cdns);
 
+	sdw_cdns_check_self_clearing_bits(cdns, __func__, false, 0);
+
 	/* reset msg_count to default value of FIFOLEVEL */
 	cdns->msg_count = cdns_readl(cdns, CDNS_MCP_FIFOLEVEL);
 
@@ -1395,6 +1440,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	bool slave_present = false;
 	struct sdw_slave *slave;
 	int ret;
+
+	sdw_cdns_check_self_clearing_bits(cdns, __func__, false, 0);
 
 	/* Check suspend status */
 	if (sdw_cdns_is_clock_stop(cdns)) {
