@@ -124,8 +124,13 @@
 		#size-cells = <0>;
 
 		ethphy0: ethernet-phy@0 {	/* SMSC LAN8710Ai */
-			reg = <0>;
+			compatible = "ethernet-phy-ieee802.3-c22";
+			interrupt-parent = <&gpio4>;
+			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 			max-speed = <100>;
+			pinctrl-0 = <&pinctrl_ethphy0>;
+			pinctrl-names = "default";
+			reg = <0>;
 			reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
@@ -299,14 +304,19 @@
 			MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0	0x1b0b0
 			MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1	0x1b0b0
 			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
-			MX6QDL_PAD_EIM_WAIT__GPIO5_IO00		0x000b0
-			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x000b1
 		>;
 	};
 
 	pinctrl_enet_vio: enet-vio-grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_7__GPIO1_IO07		0x120b0
+		>;
+	};
+
+	pinctrl_ethphy0: ethphy0-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_WAIT__GPIO5_IO00		0xb0 /* Reset */
+			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0xb1 /* Int */
 		>;
 	};
 
