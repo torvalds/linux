@@ -4841,6 +4841,12 @@ union bpf_attr {
  *		**-EINVAL** if *timer* was not initialized with bpf_timer_init() earlier.
  *		**-EDEADLK** if callback_fn tried to call bpf_timer_cancel() on its
  *		own timer which would have led to a deadlock otherwise.
+ *
+ * u64 bpf_get_func_ip(void *ctx)
+ * 	Description
+ * 		Get address of the traced function (for tracing programs).
+ * 	Return
+ * 		Address of the traced function.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5016,6 +5022,7 @@ union bpf_attr {
 	FN(timer_set_callback),		\
 	FN(timer_start),		\
 	FN(timer_cancel),		\
+	FN(get_func_ip),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
