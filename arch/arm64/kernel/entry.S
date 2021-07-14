@@ -183,15 +183,11 @@ alternative_else_nop_endif
 #endif
 	.endm
 
-	.macro mte_set_gcr, tmp, tmp2
+	.macro mte_set_gcr, mte_ctrl, tmp
 #ifdef CONFIG_ARM64_MTE
-	/*
-	 * Calculate and set the exclude mask preserving
-	 * the RRND (bit[16]) setting.
-	 */
-	mrs_s	\tmp2, SYS_GCR_EL1
-	bfxil	\tmp2, \tmp, #MTE_CTRL_GCR_USER_EXCL_SHIFT, #16
-	msr_s	SYS_GCR_EL1, \tmp2
+	ubfx	\tmp, \mte_ctrl, #MTE_CTRL_GCR_USER_EXCL_SHIFT, #16
+	orr	\tmp, \tmp, #SYS_GCR_EL1_RRND
+	msr_s	SYS_GCR_EL1, \tmp
 #endif
 	.endm
 
