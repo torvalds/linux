@@ -697,7 +697,7 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 	else
 		ret = sdw_transfer(bus, wr_msg);
 
-	if (ret < 0) {
+	if (ret < 0 && ret != -ENODATA) {
 		dev_err(bus->dev, "Slave frame_ctrl reg write failed\n");
 		goto error;
 	}
