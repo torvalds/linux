@@ -341,6 +341,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			cpu = torture_random(trsp) % nr_cpu_ids;
 			scfp->n_resched++;
 			resched_cpu(cpu);
+			this_cpu_inc(scf_invoked_count);
 		}
 		break;
 	case SCF_PRIM_SINGLE:
