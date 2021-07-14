@@ -390,7 +390,10 @@ sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 	if (ret < 0)
 		return ret;
 
-	return sdw_transfer(slave->bus, &msg);
+	ret = sdw_transfer(slave->bus, &msg);
+	if (slave->is_mockup_device)
+		ret = 0;
+	return ret;
 }
 
 static int
@@ -404,7 +407,10 @@ sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 	if (ret < 0)
 		return ret;
 
-	return sdw_transfer(slave->bus, &msg);
+	ret = sdw_transfer(slave->bus, &msg);
+	if (slave->is_mockup_device)
+		ret = 0;
+	return ret;
 }
 
 int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value)
