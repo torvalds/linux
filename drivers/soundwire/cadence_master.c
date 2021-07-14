@@ -1374,20 +1374,37 @@ static int cdns_port_params(struct sdw_bus *bus,
 			    struct sdw_port_params *p_params, unsigned int bank)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	int dpn_config = 0, dpn_config_off;
+	int dpn_config_off_source;
+	int dpn_config_off_target;
+	int target_num = p_params->num;
+	int source_num = p_params->num;
+	bool override = false;
+	int dpn_config;
 
-	if (bank)
-		dpn_config_off = CDNS_DPN_B1_CONFIG(p_params->num);
-	else
-		dpn_config_off = CDNS_DPN_B0_CONFIG(p_params->num);
+	if (target_num == cdns->pdi_loopback_target &&
+	    cdns->pdi_loopback_source != -1) {
+		source_num = cdns->pdi_loopback_source;
+		override = true;
+	}
 
-	dpn_config = cdns_readl(cdns, dpn_config_off);
+	if (bank) {
+		dpn_config_off_source = CDNS_DPN_B1_CONFIG(source_num);
+		dpn_config_off_target = CDNS_DPN_B1_CONFIG(target_num);
+	} else {
+		dpn_config_off_source = CDNS_DPN_B0_CONFIG(source_num);
+		dpn_config_off_target = CDNS_DPN_B0_CONFIG(target_num);
+	}
 
-	u32p_replace_bits(&dpn_config, (p_params->bps - 1), CDNS_DPN_CONFIG_WL);
-	u32p_replace_bits(&dpn_config, p_params->flow_mode, CDNS_DPN_CONFIG_PORT_FLOW);
-	u32p_replace_bits(&dpn_config, p_params->data_mode, CDNS_DPN_CONFIG_PORT_DAT);
+	dpn_config = cdns_readl(cdns, dpn_config_off_source);
 
-	cdns_writel(cdns, dpn_config_off, dpn_config);
+	/* use port params if there is no loopback, otherwise use source as is */
+	if (!override) {
+		u32p_replace_bits(&dpn_config, p_params->bps - 1, CDNS_DPN_CONFIG_WL);
+		u32p_replace_bits(&dpn_config, p_params->flow_mode, CDNS_DPN_CONFIG_PORT_FLOW);
+		u32p_replace_bits(&dpn_config, p_params->data_mode, CDNS_DPN_CONFIG_PORT_DAT);
+	}
+
+	cdns_writel(cdns, dpn_config_off_target, dpn_config);
 
 	return 0;
 }
@@ -1397,11 +1414,27 @@ static int cdns_transport_params(struct sdw_bus *bus,
 				 enum sdw_reg_bank bank)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	int dpn_offsetctrl = 0, dpn_offsetctrl_off;
-	int dpn_config = 0, dpn_config_off;
-	int dpn_hctrl = 0, dpn_hctrl_off;
-	int num = t_params->port_num;
-	int dpn_samplectrl_off;
+	int dpn_config;
+	int dpn_config_off_source;
+	int dpn_config_off_target;
+	int dpn_hctrl;
+	int dpn_hctrl_off_source;
+	int dpn_hctrl_off_target;
+	int dpn_offsetctrl;
+	int dpn_offsetctrl_off_source;
+	int dpn_offsetctrl_off_target;
+	int dpn_samplectrl;
+	int dpn_samplectrl_off_source;
+	int dpn_samplectrl_off_target;
+	int source_num = t_params->port_num;
+	int target_num = t_params->port_num;
+	bool override = false;
+
+	if (target_num == cdns->pdi_loopback_target &&
+	    cdns->pdi_loopback_source != -1) {
+		source_num = cdns->pdi_loopback_source;
+		override = true;
+	}
 
 	/*
 	 * Note: Only full data port is supported on the Master side for
@@ -1409,32 +1442,59 @@ static int cdns_transport_params(struct sdw_bus *bus,
 	 */
 
 	if (bank) {
-		dpn_config_off = CDNS_DPN_B1_CONFIG(num);
-		dpn_samplectrl_off = CDNS_DPN_B1_SAMPLE_CTRL(num);
-		dpn_hctrl_off = CDNS_DPN_B1_HCTRL(num);
-		dpn_offsetctrl_off = CDNS_DPN_B1_OFFSET_CTRL(num);
+		dpn_config_off_source = CDNS_DPN_B1_CONFIG(source_num);
+		dpn_hctrl_off_source = CDNS_DPN_B1_HCTRL(source_num);
+		dpn_offsetctrl_off_source = CDNS_DPN_B1_OFFSET_CTRL(source_num);
+		dpn_samplectrl_off_source = CDNS_DPN_B1_SAMPLE_CTRL(source_num);
+
+		dpn_config_off_target = CDNS_DPN_B1_CONFIG(target_num);
+		dpn_hctrl_off_target = CDNS_DPN_B1_HCTRL(target_num);
+		dpn_offsetctrl_off_target = CDNS_DPN_B1_OFFSET_CTRL(target_num);
+		dpn_samplectrl_off_target = CDNS_DPN_B1_SAMPLE_CTRL(target_num);
+
 	} else {
-		dpn_config_off = CDNS_DPN_B0_CONFIG(num);
-		dpn_samplectrl_off = CDNS_DPN_B0_SAMPLE_CTRL(num);
-		dpn_hctrl_off = CDNS_DPN_B0_HCTRL(num);
-		dpn_offsetctrl_off = CDNS_DPN_B0_OFFSET_CTRL(num);
+		dpn_config_off_source = CDNS_DPN_B0_CONFIG(source_num);
+		dpn_hctrl_off_source = CDNS_DPN_B0_HCTRL(source_num);
+		dpn_offsetctrl_off_source = CDNS_DPN_B0_OFFSET_CTRL(source_num);
+		dpn_samplectrl_off_source = CDNS_DPN_B0_SAMPLE_CTRL(source_num);
+
+		dpn_config_off_target = CDNS_DPN_B0_CONFIG(target_num);
+		dpn_hctrl_off_target = CDNS_DPN_B0_HCTRL(target_num);
+		dpn_offsetctrl_off_target = CDNS_DPN_B0_OFFSET_CTRL(target_num);
+		dpn_samplectrl_off_target = CDNS_DPN_B0_SAMPLE_CTRL(target_num);
 	}
 
-	dpn_config = cdns_readl(cdns, dpn_config_off);
-	u32p_replace_bits(&dpn_config, t_params->blk_grp_ctrl, CDNS_DPN_CONFIG_BGC);
-	u32p_replace_bits(&dpn_config, t_params->blk_pkg_mode, CDNS_DPN_CONFIG_BPM);
-	cdns_writel(cdns, dpn_config_off, dpn_config);
+	dpn_config = cdns_readl(cdns, dpn_config_off_source);
+	if (!override) {
+		u32p_replace_bits(&dpn_config, t_params->blk_grp_ctrl, CDNS_DPN_CONFIG_BGC);
+		u32p_replace_bits(&dpn_config, t_params->blk_pkg_mode, CDNS_DPN_CONFIG_BPM);
+	}
+	cdns_writel(cdns, dpn_config_off_target, dpn_config);
 
-	u32p_replace_bits(&dpn_offsetctrl, t_params->offset1, CDNS_DPN_OFFSET_CTRL_1);
-	u32p_replace_bits(&dpn_offsetctrl, t_params->offset2, CDNS_DPN_OFFSET_CTRL_2);
-	cdns_writel(cdns, dpn_offsetctrl_off,  dpn_offsetctrl);
+	if (!override) {
+		dpn_offsetctrl = 0;
+		u32p_replace_bits(&dpn_offsetctrl, t_params->offset1, CDNS_DPN_OFFSET_CTRL_1);
+		u32p_replace_bits(&dpn_offsetctrl, t_params->offset2, CDNS_DPN_OFFSET_CTRL_2);
+	} else {
+		dpn_offsetctrl = cdns_readl(cdns, dpn_offsetctrl_off_source);
+	}
+	cdns_writel(cdns, dpn_offsetctrl_off_target,  dpn_offsetctrl);
 
-	u32p_replace_bits(&dpn_hctrl, t_params->hstart, CDNS_DPN_HCTRL_HSTART);
-	u32p_replace_bits(&dpn_hctrl, t_params->hstop, CDNS_DPN_HCTRL_HSTOP);
-	u32p_replace_bits(&dpn_hctrl, t_params->lane_ctrl, CDNS_DPN_HCTRL_LCTRL);
+	if (!override) {
+		dpn_hctrl = 0;
+		u32p_replace_bits(&dpn_hctrl, t_params->hstart, CDNS_DPN_HCTRL_HSTART);
+		u32p_replace_bits(&dpn_hctrl, t_params->hstop, CDNS_DPN_HCTRL_HSTOP);
+		u32p_replace_bits(&dpn_hctrl, t_params->lane_ctrl, CDNS_DPN_HCTRL_LCTRL);
+	} else {
+		dpn_hctrl = cdns_readl(cdns, dpn_hctrl_off_source);
+	}
+	cdns_writel(cdns, dpn_hctrl_off_target, dpn_hctrl);
 
-	cdns_writel(cdns, dpn_hctrl_off, dpn_hctrl);
-	cdns_writel(cdns, dpn_samplectrl_off, (t_params->sample_interval - 1));
+	if (!override)
+		dpn_samplectrl = t_params->sample_interval - 1;
+	else
+		dpn_samplectrl = cdns_readl(cdns, dpn_samplectrl_off_source);
+	cdns_writel(cdns, dpn_samplectrl_off_target, dpn_samplectrl);
 
 	return 0;
 }
