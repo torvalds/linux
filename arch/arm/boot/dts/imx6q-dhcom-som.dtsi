@@ -450,6 +450,12 @@
 		>;
 	};
 
+	pinctrl_pcie: pcie-grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x1b0b1 /* Wake */
+		>;
+	};
+
 	pinctrl_uart1: uart1-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA	0x1b0b1
@@ -566,6 +572,11 @@
 			MX6QDL_PAD_EIM_CS1__EIM_CS1_B		0xb0b1
 		>;
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
 };
 
 &reg_arm {
