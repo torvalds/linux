@@ -1312,6 +1312,7 @@ source "usr/Kconfig"
 
 config INITRD_ASYNC
 	bool "Initrd async"
+	depends on NO_GKI
 	help
 	  Init ramdisk async, can reduce kernel init time.
 
