@@ -46,6 +46,14 @@
 		vin-supply = <&sw2_reg>;
 	};
 
+	/* OE pin of the latch is low active */
+	reg_latch_oe_on: regulator-latch-oe-on {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 22 0>;
+		regulator-always-on;
+		regulator-name = "latch_oe_on";
+	};
+
 	reg_usb_otg_vbus: regulator-usb-otg-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg_vbus";
@@ -455,6 +463,43 @@
 			MX6QDL_PAD_SD4_DAT7__SD4_DATA7		0x17059
 		>;
 	};
+
+	pinctrl_weim: weim-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0a6
+			MX6QDL_PAD_EIM_RW__EIM_RW		0xb0a6 /* WE */
+			MX6QDL_PAD_EIM_LBA__EIM_LBA_B		0xb060 /* LE */
+			MX6QDL_PAD_EIM_D22__GPIO3_IO22		0x130b0
+			MX6QDL_PAD_EIM_DA15__EIM_AD15		0xb0a6
+			MX6QDL_PAD_EIM_DA14__EIM_AD14		0xb0a6
+			MX6QDL_PAD_EIM_DA13__EIM_AD13		0xb0a6
+			MX6QDL_PAD_EIM_DA12__EIM_AD12		0xb0a6
+			MX6QDL_PAD_EIM_DA11__EIM_AD11		0xb0a6
+			MX6QDL_PAD_EIM_DA10__EIM_AD10		0xb0a6
+			MX6QDL_PAD_EIM_DA9__EIM_AD09		0xb0a6
+			MX6QDL_PAD_EIM_DA8__EIM_AD08		0xb0a6
+			MX6QDL_PAD_EIM_DA7__EIM_AD07		0xb0a6
+			MX6QDL_PAD_EIM_DA6__EIM_AD06		0xb0a6
+			MX6QDL_PAD_EIM_DA5__EIM_AD05		0xb0a6
+			MX6QDL_PAD_EIM_DA4__EIM_AD04		0xb0a6
+			MX6QDL_PAD_EIM_DA3__EIM_AD03		0xb0a6
+			MX6QDL_PAD_EIM_DA2__EIM_AD02		0xb0a6
+			MX6QDL_PAD_EIM_DA1__EIM_AD01		0xb0a6
+			MX6QDL_PAD_EIM_DA0__EIM_AD00		0xb0a6
+		>;
+	};
+
+	pinctrl_weim_cs0: weim-cs0-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_CS0__EIM_CS0_B		0xb0b1
+		>;
+	};
+
+	pinctrl_weim_cs1: weim-cs1-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_CS1__EIM_CS1_B		0xb0b1
+		>;
+	};
 };
 
 &reg_arm {
@@ -543,4 +588,16 @@
 	no-1-8-v;
 	keep-power-in-suspend;
 	status = "okay";
+};
+
+&weim {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	fsl,weim-cs-gpr = <&gpr>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim &pinctrl_weim_cs0 &pinctrl_weim_cs1>;
+	/* It is necessary to setup 2x 64MB otherwise setting gpr fails */
+	ranges = <0 0 0x08000000 0x04000000>, /* CS0 */
+		 <1 0 0x0c000000 0x04000000>; /* CS1 */
+	status = "disabled";
 };
