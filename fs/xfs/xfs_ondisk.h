@@ -126,8 +126,8 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_STRUCT_SIZE(struct xfs_extent_64,		16);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_log_dinode,		176);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_icreate_log,		28);
-	XFS_CHECK_STRUCT_SIZE(xfs_ictimestamp_t,		8);
-	XFS_CHECK_STRUCT_SIZE(struct xfs_legacy_ictimestamp,	8);
+	XFS_CHECK_STRUCT_SIZE(xfs_log_timestamp_t,		8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_log_legacy_timestamp,	8);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_inode_log_format_32,	52);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_inode_log_format,	56);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_qoff_logformat,	20);

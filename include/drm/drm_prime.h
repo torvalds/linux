@@ -110,6 +110,4 @@ int drm_prime_sg_to_page_array(struct sg_table *sgt, struct page **pages,
 int drm_prime_sg_to_dma_addr_array(struct sg_table *sgt, dma_addr_t *addrs,
 				   int max_pages);
 
-int drm_gem_dmabuf_get_uuid(struct dma_buf *dma_buf, uuid_t *uuid);
-
 #endif /* __DRM_PRIME_H__ */

@@ -114,7 +114,7 @@ static const char * const bnxt_re_stat_name[] = {
 
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    struct rdma_hw_stats *stats,
-			    u8 port, int index)
+			    u32 port, int index)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct ctx_hw_stats *bnxt_re_stats = rdev->qplib_ctx.stats.dma;
@@ -235,7 +235,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 }
 
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_stats(struct ib_device *ibdev,
-						u8 port_num)
+						u32 port_num)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(bnxt_re_stat_name) != BNXT_RE_NUM_COUNTERS);
 	/* We support only per port stats */

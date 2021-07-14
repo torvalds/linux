@@ -29,7 +29,7 @@ int arm_cpuidle_init(unsigned int cpu)
 
 /**
  * arm_cpuidle_suspend() - function to enter a low-power idle state
- * @arg: argument to pass to CPU suspend operations
+ * @index: argument to pass to CPU suspend operations
  *
  * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
  * operations back-end error code otherwise.

@@ -164,6 +164,21 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
+static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
+				   unsigned char bus_width)
+{
+	u16 reg = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT)
+				& ~(CARD_OPT_WIDTH | CARD_OPT_WIDTH8);
+
+	/* reg now applies to MMC_BUS_WIDTH_4 */
+	if (bus_width == MMC_BUS_WIDTH_1)
+		reg |= CARD_OPT_WIDTH;
+	else if (bus_width == MMC_BUS_WIDTH_8)
+		reg |= CARD_OPT_WIDTH8;
+
+	sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, reg);
+}
+
 static void tmio_mmc_reset(struct tmio_mmc_host *host)
 {
 	/* FIXME - should we set stop clock reg here */
@@ -172,15 +187,23 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
 	usleep_range(10000, 11000);
 
+	tmio_mmc_abort_dma(host);
+
 	if (host->reset)
 		host->reset(host);
 
-	tmio_mmc_abort_dma(host);
+	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
+	host->sdcard_irq_mask = host->sdcard_irq_mask_all;
+
+	tmio_mmc_set_bus_width(host, host->mmc->ios.bus_width);
 
 	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
 	}
+
+	if (host->mmc->card)
+		mmc_retune_needed(host->mmc);
 }
 
 static void tmio_mmc_reset_work(struct work_struct *work)
@@ -874,21 +897,6 @@ static void tmio_mmc_power_off(struct tmio_mmc_host *host)
 		host->set_pwr(host->pdev, 0);
 }
 
-static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
-				   unsigned char bus_width)
-{
-	u16 reg = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT)
-				& ~(CARD_OPT_WIDTH | CARD_OPT_WIDTH8);
-
-	/* reg now applies to MMC_BUS_WIDTH_4 */
-	if (bus_width == MMC_BUS_WIDTH_1)
-		reg |= CARD_OPT_WIDTH;
-	else if (bus_width == MMC_BUS_WIDTH_8)
-		reg |= CARD_OPT_WIDTH8;
-
-	sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, reg);
-}
-
 static unsigned int tmio_mmc_get_timeout_cycles(struct tmio_mmc_host *host)
 {
 	u16 val = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT);
@@ -1161,15 +1169,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 				  !mmc_card_is_removable(mmc));
 
 	/*
-	 * On Gen2+, eMMC with NONREMOVABLE currently fails because native
-	 * hotplug gets disabled. It seems RuntimePM related yet we need further
-	 * research. Since we are planning a PM overhaul anyway, let's enforce
-	 * for now the device being active by enabling native hotplug always.
-	 */
-	if (pdata->flags & TMIO_MMC_MIN_RCAR2)
-		_host->native_hotplug = true;
-
-	/*
 	 * While using internal tmio hardware logic for card detection, we need
 	 * to ensure it stays powered for it to work.
 	 */
@@ -1180,11 +1179,11 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		_host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
 
+	if (!_host->sdcard_irq_mask_all)
+		_host->sdcard_irq_mask_all = TMIO_MASK_ALL;
+
 	_host->set_clock(_host, 0);
 	tmio_mmc_reset(_host);
-
-	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
-	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
 
 	if (_host->native_hotplug)
 		tmio_mmc_enable_mmc_irqs(_host,
@@ -1238,7 +1237,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	cancel_work_sync(&host->done);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
-	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+	tmio_mmc_disable_mmc_irqs(host, host->sdcard_irq_mask_all);
 
 	if (host->native_hotplug)
 		pm_runtime_put_noidle(&pdev->dev);
@@ -1268,7 +1267,7 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
-	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+	tmio_mmc_disable_mmc_irqs(host, host->sdcard_irq_mask_all);
 
 	if (host->clk_cache)
 		host->set_clock(host, 0);
@@ -1294,8 +1293,6 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 				TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
 
 	tmio_mmc_enable_dma(host, true);
-
-	mmc_retune_needed(host->mmc);
 
 	return 0;
 }

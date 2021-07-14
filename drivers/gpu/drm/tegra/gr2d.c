@@ -67,7 +67,7 @@ static int gr2d_init(struct host1x_client *client)
 detach:
 	host1x_client_iommu_detach(client);
 free:
-	host1x_syncpt_free(client->syncpts[0]);
+	host1x_syncpt_put(client->syncpts[0]);
 put:
 	host1x_channel_put(gr2d->channel);
 	return err;
@@ -86,7 +86,7 @@ static int gr2d_exit(struct host1x_client *client)
 		return err;
 
 	host1x_client_iommu_detach(client);
-	host1x_syncpt_free(client->syncpts[0]);
+	host1x_syncpt_put(client->syncpts[0]);
 	host1x_channel_put(gr2d->channel);
 
 	return 0;

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <inttypes.h>
+#include <string.h>
 
 #include <linux/compiler.h>
 #include <linux/perf_event.h>
@@ -109,4 +111,32 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 u64 __weak rdtsc(void)
 {
 	return 0;
+}
+
+size_t perf_event__fprintf_time_conv(union perf_event *event, FILE *fp)
+{
+	struct perf_record_time_conv *tc = (struct perf_record_time_conv *)event;
+	size_t ret;
+
+	ret  = fprintf(fp, "\n... Time Shift      %" PRI_lu64 "\n", tc->time_shift);
+	ret += fprintf(fp, "... Time Muliplier  %" PRI_lu64 "\n", tc->time_mult);
+	ret += fprintf(fp, "... Time Zero       %" PRI_lu64 "\n", tc->time_zero);
+
+	/*
+	 * The event TIME_CONV was extended for the fields from "time_cycles"
+	 * when supported cap_user_time_short, for backward compatibility,
+	 * prints the extended fields only if they are contained in the event.
+	 */
+	if (event_contains(*tc, time_cycles)) {
+		ret += fprintf(fp, "... Time Cycles     %" PRI_lu64 "\n",
+			       tc->time_cycles);
+		ret += fprintf(fp, "... Time Mask       %#" PRI_lx64 "\n",
+			       tc->time_mask);
+		ret += fprintf(fp, "... Cap Time Zero   %" PRId32 "\n",
+			       tc->cap_user_time_zero);
+		ret += fprintf(fp, "... Cap Time Short  %" PRId32 "\n",
+			       tc->cap_user_time_short);
+	}
+
+	return ret;
 }

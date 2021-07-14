@@ -153,12 +153,12 @@ static void rtc_wait_not_busy(struct spear_rtc_config *config)
 static irqreturn_t spear_rtc_irq(int irq, void *dev_id)
 {
 	struct spear_rtc_config *config = dev_id;
-	unsigned long flags, events = 0;
+	unsigned long events = 0;
 	unsigned int irq_data;
 
-	spin_lock_irqsave(&config->lock, flags);
+	spin_lock(&config->lock);
 	irq_data = readl(config->ioaddr + STATUS_REG);
-	spin_unlock_irqrestore(&config->lock, flags);
+	spin_unlock(&config->lock);
 
 	if ((irq_data & RTC_INT_MASK)) {
 		spear_rtc_clear_interrupt(config);

@@ -37,13 +37,13 @@ enum wcd_clsh_mode {
 struct wcd_clsh_ctrl;
 
 extern struct wcd_clsh_ctrl *wcd_clsh_ctrl_alloc(
-				struct snd_soc_component *component,
+				struct snd_soc_component *comp,
 				int version);
 extern void wcd_clsh_ctrl_free(struct wcd_clsh_ctrl *ctrl);
 extern int wcd_clsh_ctrl_get_state(struct wcd_clsh_ctrl *ctrl);
 extern int wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl,
-				   enum wcd_clsh_event event,
-				   int state,
+				   enum wcd_clsh_event clsh_event,
+				   int nstate,
 				   enum wcd_clsh_mode mode);
 
 #endif /* _WCD_CLSH_V2_H_ */

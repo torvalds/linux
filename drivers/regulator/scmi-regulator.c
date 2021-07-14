@@ -173,7 +173,7 @@ scmi_config_linear_regulator_mappings(struct scmi_regulator *sreg,
 		sreg->desc.uV_step =
 			vinfo->levels_uv[SCMI_VOLTAGE_SEGMENT_STEP];
 		sreg->desc.linear_min_sel = 0;
-		sreg->desc.n_voltages = delta_uV / sreg->desc.uV_step;
+		sreg->desc.n_voltages = (delta_uV / sreg->desc.uV_step) + 1;
 		sreg->desc.ops = &scmi_reg_linear_ops;
 	}
 

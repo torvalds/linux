@@ -25,10 +25,11 @@ void qla2x00_bsg_job_done(srb_t *sp, int res)
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 
+	sp->free(sp);
+
 	bsg_reply->result = res;
 	bsg_job_done(bsg_job, bsg_reply->result,
 		       bsg_reply->reply_payload_rcv_len);
-	sp->free(sp);
 }
 
 void qla2x00_bsg_sp_free(srb_t *sp)
@@ -2583,6 +2584,10 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 	}
 
 	data = kzalloc(response_len, GFP_KERNEL);
+	if (!data) {
+		ret = -ENOMEM;
+		goto host_stat_out;
+	}
 
 	ret = qla2xxx_get_ini_stats(fc_bsg_to_shost(bsg_job), req_data->stat_type,
 				    data, response_len);

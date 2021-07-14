@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014, 2018 - 2021 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
@@ -1926,9 +1926,7 @@ static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (is_ht(rate))
 		return index == IWL_RATE_MCS_7_INDEX;
 	if (is_vht(rate))
-		return index == IWL_RATE_MCS_7_INDEX ||
-		       index == IWL_RATE_MCS_8_INDEX ||
-		       index == IWL_RATE_MCS_9_INDEX;
+		return index == IWL_RATE_MCS_9_INDEX;
 
 	WARN_ON_ONCE(1);
 	return false;

@@ -26,7 +26,6 @@
 #include <linux/sched/signal.h>
 #include <linux/wait_bit.h>
 #include <linux/fiemap.h>
-
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -38,7 +37,7 @@
 #include "cifs_unicode.h"
 #include "fscache.h"
 #include "fs_context.h"
-
+#include "cifs_ioctl.h"
 
 static void cifs_set_ops(struct inode *inode)
 {
@@ -1610,6 +1609,9 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 
 	cifs_dbg(FYI, "cifs_unlink, dir=0x%p, dentry=0x%p\n", dir, dentry);
 
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1632,6 +1634,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
+	cifs_close_all_deferred_files(tcon);
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
@@ -1872,6 +1875,8 @@ int cifs_mkdir(struct user_namespace *mnt_userns, struct inode *inode,
 		 mode, inode);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1954,6 +1959,11 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	}
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb))) {
+		rc = -EIO;
+		goto rmdir_exit;
+	}
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		rc = PTR_ERR(tlink);
@@ -2088,6 +2098,9 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 		return -EINVAL;
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -2109,6 +2122,7 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 		goto cifs_rename_exit;
 	}
 
+	cifs_close_all_deferred_files(tcon);
 	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
 			    to_name);
 
@@ -2404,6 +2418,9 @@ int cifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
+	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
+		return -EIO;
+
 	/*
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
@@ -2475,6 +2492,9 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifsFileInfo *cfile;
 	int rc;
+
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 
 	/*
 	 * We need to be sure that all dirty pages are written as they
@@ -2961,6 +2981,9 @@ cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *pTcon = cifs_sb_master_tcon(cifs_sb);
 	int rc, retries = 0;
+
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 
 	do {
 		if (pTcon->unix_ext)

@@ -75,7 +75,7 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	INIT_DELAYED_WORK(&mi->mi_zstd_cleanup_work, zstd_free_workspace);
 	mutex_init(&mi->mi_le_mutex);
 
-	node = incfs_add_sysfs_node(options->sysfs_name);
+	node = incfs_add_sysfs_node(options->sysfs_name, mi);
 	if (IS_ERR(node)) {
 		error = PTR_ERR(node);
 		goto err;
@@ -130,13 +130,25 @@ int incfs_realloc_mount_info(struct mount_info *mi,
 		kfree(old_buffer);
 	}
 
-	if ((options->sysfs_name && !mi->mi_sysfs_node) ||
-	    (!options->sysfs_name && mi->mi_sysfs_node) ||
-	    (options->sysfs_name &&
+	if (options->sysfs_name && !mi->mi_sysfs_node)
+		mi->mi_sysfs_node = incfs_add_sysfs_node(options->sysfs_name,
+							 mi);
+	else if (!options->sysfs_name && mi->mi_sysfs_node) {
+		incfs_free_sysfs_node(mi->mi_sysfs_node);
+		mi->mi_sysfs_node = NULL;
+	} else if (options->sysfs_name &&
 		strcmp(options->sysfs_name,
-		       kobject_name(&mi->mi_sysfs_node->isn_sysfs_node)))) {
-		pr_err("incfs: Can't change sysfs_name mount option on remount\n");
-		return -EOPNOTSUPP;
+		       kobject_name(&mi->mi_sysfs_node->isn_sysfs_node))) {
+		incfs_free_sysfs_node(mi->mi_sysfs_node);
+		mi->mi_sysfs_node = incfs_add_sysfs_node(options->sysfs_name,
+							 mi);
+	}
+
+	if (IS_ERR(mi->mi_sysfs_node)) {
+		int err = PTR_ERR(mi->mi_sysfs_node);
+
+		mi->mi_sysfs_node = NULL;
+		return err;
 	}
 
 	mi->mi_options = *options;
@@ -1119,6 +1131,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	int error;
 	int wait_res = 0;
 	unsigned int delayed_pending_us = 0, delayed_min_us = 0;
+	bool delayed_pending = false;
 
 	if (!df || !res_block)
 		return -EFAULT;
@@ -1193,6 +1206,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return wait_res;
 	}
 
+	delayed_pending = true;
 	delayed_pending_us = timeouts->max_pending_time_us -
 				jiffies_to_usecs(wait_res);
 	if (timeouts->min_pending_time_us > delayed_pending_us) {
@@ -1230,18 +1244,15 @@ out:
 	if (error)
 		return error;
 
-	if (!mi->mi_sysfs_node)
-		return 0;
-
-	if (delayed_pending_us) {
-		mi->mi_sysfs_node->isn_reads_delayed_pending++;
-		mi->mi_sysfs_node->isn_reads_delayed_pending_us +=
+	if (delayed_pending) {
+		mi->mi_reads_delayed_pending++;
+		mi->mi_reads_delayed_pending_us +=
 			delayed_pending_us;
 	}
 
 	if (delayed_min_us) {
-		mi->mi_sysfs_node->isn_reads_delayed_min++;
-		mi->mi_sysfs_node->isn_reads_delayed_min_us += delayed_min_us;
+		mi->mi_reads_delayed_min++;
+		mi->mi_reads_delayed_min_us += delayed_min_us;
 	}
 
 	return 0;
@@ -1263,6 +1274,7 @@ static int incfs_update_sysfs_error(struct file *file, int index, int result,
 	mi->mi_le_time_us = ktime_to_us(ktime_get());
 	mi->mi_le_page = index;
 	mi->mi_le_errno = result;
+	mi->mi_le_uid = current_uid().val;
 	mutex_unlock(&mi->mi_le_mutex);
 
 	return 0;
@@ -1332,16 +1344,14 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 		log_block_read(mi, &df->df_id, index);
 
 out:
-	if (mi->mi_sysfs_node) {
-		if (result == -ETIME)
-			mi->mi_sysfs_node->isn_reads_failed_timed_out++;
-		else if (result == -EBADMSG)
-			mi->mi_sysfs_node->isn_reads_failed_hash_verification++;
-		else if (result < 0)
-			mi->mi_sysfs_node->isn_reads_failed_other++;
+	if (result == -ETIME)
+		mi->mi_reads_failed_timed_out++;
+	else if (result == -EBADMSG)
+		mi->mi_reads_failed_hash_verification++;
+	else if (result < 0)
+		mi->mi_reads_failed_other++;
 
-		incfs_update_sysfs_error(f, index, result, mi, df);
-	}
+	incfs_update_sysfs_error(f, index, result, mi, df);
 
 	return result;
 }

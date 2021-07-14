@@ -73,7 +73,6 @@ static int __init tsi108_eth_of_init(void)
 		struct device_node *phy, *mdio;
 		hw_info tsi_eth_data;
 		const unsigned int *phy_id;
-		const void *mac_addr;
 		const phandle *ph;
 
 		memset(r, 0, sizeof(r));
@@ -101,9 +100,7 @@ static int __init tsi108_eth_of_init(void)
 			goto err;
 		}
 
-		mac_addr = of_get_mac_address(np);
-		if (!IS_ERR(mac_addr))
-			ether_addr_copy(tsi_eth_data.mac_addr, mac_addr);
+		of_get_mac_address(np, tsi_eth_data.mac_addr);
 
 		ph = of_get_property(np, "mdio-handle", NULL);
 		mdio = of_find_node_by_phandle(*ph);

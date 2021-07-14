@@ -196,7 +196,7 @@ static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *ade
 }
 
 /**
- *	pdc2027x_pata_cable_detect - Probe host controller cable detect info
+ *	pdc2027x_cable_detect - Probe host controller cable detect info
  *	@ap: Port for which cable detect info is desired
  *
  *	Read 80c cable indicator from Promise extended register.
@@ -251,7 +251,7 @@ static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	pdc2720x_mode_filter	-	mode selection filter
+ *	pdc2027x_mode_filter	-	mode selection filter
  *	@adev: ATA device
  *	@mask: list of modes proposed
  *
@@ -503,11 +503,11 @@ retry:
 }
 
 /**
- * adjust_pll - Adjust the PLL input clock in Hz.
+ * pdc_adjust_pll - Adjust the PLL input clock in Hz.
  *
- * @pdc_controller: controller specific information
  * @host: target ATA host
  * @pll_clock: The input of PLL in HZ
+ * @board_idx: board identifier
  */
 static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int board_idx)
 {
@@ -590,7 +590,7 @@ static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int b
 }
 
 /**
- * detect_pll_input_clock - Detect the PLL input clock in Hz.
+ * pdc_detect_pll_input_clock - Detect the PLL input clock in Hz.
  * @host: target ATA host
  * Ex. 16949000 on 33MHz PCI bus for pdc20275.
  *     Half of the PCI clock.

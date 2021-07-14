@@ -414,7 +414,6 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 	rq->pi_virt_addr = dma_alloc_coherent(&pdev->dev, pi_size,
 					      &rq->pi_dma_addr, GFP_KERNEL);
 	if (!rq->pi_virt_addr) {
-		dev_err(&pdev->dev, "Failed to allocate PI address\n");
 		err = -ENOMEM;
 		goto err_pi_virt;
 	}

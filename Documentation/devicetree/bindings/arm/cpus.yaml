@@ -258,13 +258,11 @@ properties:
       where voltage is in V, frequency is in MHz.
 
   power-domains:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
     description:
       List of phandles and PM domain specifiers, as defined by bindings of the
       PM domain provider (see also ../power_domain.txt).
 
   power-domain-names:
-    $ref: '/schemas/types.yaml#/definitions/string-array'
     description:
       A list of power domain name strings sorted in the same order as the
       power-domains property.

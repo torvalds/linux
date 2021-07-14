@@ -26,6 +26,15 @@
 
 #define MBIM_NDP16_SIGN_MASK 0x00ffffff
 
+/* Usual WWAN MTU */
+#define MHI_MBIM_DEFAULT_MTU 1500
+
+/* 3500 allows to optimize skb allocation, the skbs will basically fit in
+ * one 4K page. Large MBIM packets will simply be split over several MHI
+ * transfers and chained by the MHI net layer (zerocopy).
+ */
+#define MHI_MBIM_DEFAULT_MRU 3500
+
 struct mbim_context {
 	u16 rx_seq;
 	u16 tx_seq;
@@ -91,19 +100,10 @@ static int mbim_rx_verify_nth16(struct sk_buff *skb)
 	return le16_to_cpu(nth16->wNdpIndex);
 }
 
-static int mbim_rx_verify_ndp16(struct sk_buff *skb, int ndpoffset)
+static int mbim_rx_verify_ndp16(struct sk_buff *skb, struct usb_cdc_ncm_ndp16 *ndp16)
 {
 	struct mhi_net_dev *dev = netdev_priv(skb->dev);
-	struct usb_cdc_ncm_ndp16 *ndp16;
 	int ret;
-
-	if (ndpoffset + sizeof(struct usb_cdc_ncm_ndp16) > skb->len) {
-		netif_dbg(dev, rx_err, dev->ndev, "invalid NDP offset  <%u>\n",
-			  ndpoffset);
-		return -EINVAL;
-	}
-
-	ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb->data + ndpoffset);
 
 	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {
 		netif_dbg(dev, rx_err, dev->ndev, "invalid DPT16 length <%u>\n",
@@ -130,9 +130,6 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 	struct net_device *ndev = mhi_netdev->ndev;
 	int ndpoffset;
 
-	if (skb_linearize(skb))
-		goto error;
-
 	/* Check NTB header and retrieve first NDP offset */
 	ndpoffset = mbim_rx_verify_nth16(skb);
 	if (ndpoffset < 0) {
@@ -142,12 +139,19 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 
 	/* Process each NDP */
 	while (1) {
-		struct usb_cdc_ncm_ndp16 *ndp16;
-		struct usb_cdc_ncm_dpe16 *dpe16;
-		int nframes, n;
+		struct usb_cdc_ncm_ndp16 ndp16;
+		struct usb_cdc_ncm_dpe16 dpe16;
+		int nframes, n, dpeoffset;
+
+		if (skb_copy_bits(skb, ndpoffset, &ndp16, sizeof(ndp16))) {
+			net_err_ratelimited("%s: Incorrect NDP offset (%u)\n",
+					    ndev->name, ndpoffset);
+			__mbim_length_errors_inc(mhi_netdev);
+			goto error;
+		}
 
 		/* Check NDP header and retrieve number of datagrams */
-		nframes = mbim_rx_verify_ndp16(skb, ndpoffset);
+		nframes = mbim_rx_verify_ndp16(skb, &ndp16);
 		if (nframes < 0) {
 			net_err_ratelimited("%s: Incorrect NDP16\n", ndev->name);
 			__mbim_length_errors_inc(mhi_netdev);
@@ -155,8 +159,7 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 		}
 
 		 /* Only IP data type supported, no DSS in MHI context */
-		ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb->data + ndpoffset);
-		if ((ndp16->dwSignature & cpu_to_le32(MBIM_NDP16_SIGN_MASK))
+		if ((ndp16.dwSignature & cpu_to_le32(MBIM_NDP16_SIGN_MASK))
 				!= cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN)) {
 			net_err_ratelimited("%s: Unsupported NDP type\n", ndev->name);
 			__mbim_errors_inc(mhi_netdev);
@@ -164,18 +167,23 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 		}
 
 		/* Only primary IP session 0 (0x00) supported for now */
-		if (ndp16->dwSignature & ~cpu_to_le32(MBIM_NDP16_SIGN_MASK)) {
+		if (ndp16.dwSignature & ~cpu_to_le32(MBIM_NDP16_SIGN_MASK)) {
 			net_err_ratelimited("%s: bad packet session\n", ndev->name);
 			__mbim_errors_inc(mhi_netdev);
 			goto next_ndp;
 		}
 
 		/* de-aggregate and deliver IP packets */
-		dpe16 = ndp16->dpe16;
-		for (n = 0; n < nframes; n++, dpe16++) {
-			u16 dgram_offset = le16_to_cpu(dpe16->wDatagramIndex);
-			u16 dgram_len = le16_to_cpu(dpe16->wDatagramLength);
+		dpeoffset = ndpoffset + sizeof(struct usb_cdc_ncm_ndp16);
+		for (n = 0; n < nframes; n++, dpeoffset += sizeof(dpe16)) {
+			u16 dgram_offset, dgram_len;
 			struct sk_buff *skbn;
+
+			if (skb_copy_bits(skb, dpeoffset, &dpe16, sizeof(dpe16)))
+				break;
+
+			dgram_offset = le16_to_cpu(dpe16.wDatagramIndex);
+			dgram_len = le16_to_cpu(dpe16.wDatagramLength);
 
 			if (!dgram_offset || !dgram_len)
 				break; /* null terminator */
@@ -185,7 +193,7 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 				continue;
 
 			skb_put(skbn, dgram_len);
-			memcpy(skbn->data, skb->data + dgram_offset, dgram_len);
+			skb_copy_bits(skb, dgram_offset, skbn->data, dgram_len);
 
 			switch (skbn->data[0] & 0xf0) {
 			case 0x40:
@@ -206,7 +214,7 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 		}
 next_ndp:
 		/* Other NDP to process? */
-		ndpoffset = (int)le16_to_cpu(ndp16->wNextNdpIndex);
+		ndpoffset = (int)le16_to_cpu(ndp16.wNextNdpIndex);
 		if (!ndpoffset)
 			break;
 	}
@@ -282,6 +290,8 @@ static int mbim_init(struct mhi_net_dev *mhi_netdev)
 		return -ENOMEM;
 
 	ndev->needed_headroom = sizeof(struct mbim_tx_hdr);
+	ndev->mtu = MHI_MBIM_DEFAULT_MTU;
+	mhi_netdev->mru = MHI_MBIM_DEFAULT_MRU;
 
 	return 0;
 }

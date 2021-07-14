@@ -1385,7 +1385,7 @@ static int destroy_synth_event(struct synth_event *se)
 
 /**
  * synth_event_delete - Delete a synthetic event
- * @event_name: The name of the new sythetic event
+ * @event_name: The name of the new synthetic event
  *
  * Delete a synthetic event that was created with synth_event_create().
  *

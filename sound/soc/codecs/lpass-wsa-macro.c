@@ -944,6 +944,8 @@ static int wsa_macro_set_interpolator_rate(struct snd_soc_dai *dai,
 		goto prim_rate;
 
 	ret = wsa_macro_set_mix_interpolator_rate(dai, (u8) rate_val, sample_rate);
+	if (ret < 0)
+		return ret;
 prim_rate:
 	/* set primary path sample rate */
 	for (i = 0; i < ARRAY_SIZE(int_prim_sample_rate_val); i++) {
@@ -1029,7 +1031,7 @@ static int wsa_macro_get_channel_map(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops wsa_macro_dai_ops = {
+static const struct snd_soc_dai_ops wsa_macro_dai_ops = {
 	.hw_params = wsa_macro_hw_params,
 	.get_channel_map = wsa_macro_get_channel_map,
 };
@@ -2335,10 +2337,9 @@ static const struct clk_ops swclk_gate_ops = {
 	.recalc_rate = swclk_recalc_rate,
 };
 
-static struct clk *wsa_macro_register_mclk_output(struct wsa_macro *wsa)
+static int wsa_macro_register_mclk_output(struct wsa_macro *wsa)
 {
 	struct device *dev = wsa->dev;
-	struct device_node *np = dev->of_node;
 	const char *parent_clk_name;
 	const char *clk_name = "mclk";
 	struct clk_hw *hw;
@@ -2356,11 +2357,9 @@ static struct clk *wsa_macro_register_mclk_output(struct wsa_macro *wsa)
 	hw = &wsa->hw;
 	ret = clk_hw_register(wsa->dev, hw);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	of_clk_add_provider(np, of_clk_src_simple_get, hw->clk);
-
-	return NULL;
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);
 }
 
 static const struct snd_soc_component_driver wsa_macro_component_drv = {
@@ -2435,8 +2434,6 @@ err:
 static int wsa_macro_remove(struct platform_device *pdev)
 {
 	struct wsa_macro *wsa = dev_get_drvdata(&pdev->dev);
-
-	of_clk_del_provider(pdev->dev.of_node);
 
 	clk_bulk_disable_unprepare(WSA_NUM_CLKS_MAX, wsa->clks);
 

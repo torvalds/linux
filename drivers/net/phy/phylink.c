@@ -271,8 +271,9 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 		pl->cfg_link_an_mode = MLO_AN_FIXED;
 	fwnode_handle_put(dn);
 
-	if (fwnode_property_read_string(fwnode, "managed", &managed) == 0 &&
-	    strcmp(managed, "in-band-status") == 0) {
+	if ((fwnode_property_read_string(fwnode, "managed", &managed) == 0 &&
+	     strcmp(managed, "in-band-status") == 0) ||
+	    pl->config->ovr_an_inband) {
 		if (pl->cfg_link_an_mode == MLO_AN_FIXED) {
 			phylink_err(pl,
 				    "can't use both fixed-link and in-band-status\n");

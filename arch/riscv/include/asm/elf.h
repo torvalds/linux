@@ -81,4 +81,10 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 	int uses_interp);
 #endif /* CONFIG_MMU */
 
+#define ELF_CORE_COPY_REGS(dest, regs)			\
+do {							\
+	*(struct user_regs_struct *)&(dest) =		\
+		*(struct user_regs_struct *)regs;	\
+} while (0);
+
 #endif /* _ASM_RISCV_ELF_H */

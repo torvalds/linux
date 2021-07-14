@@ -45,7 +45,7 @@ struct aiu {
 		     SNDRV_PCM_FMTBIT_S24_LE)
 
 int aiu_of_xlate_dai_name(struct snd_soc_component *component,
-			  struct of_phandle_args *args,
+			  const struct of_phandle_args *args,
 			  const char **dai_name,
 			  unsigned int component_id);
 

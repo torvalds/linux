@@ -414,8 +414,10 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 		err = ip_mc_join_group(sk, &mreqn);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
+		lock_sock(sk);
 		err = ipv6_stub->ipv6_sock_mc_join(sk, ub->ifindex,
 						   &remote->ipv6);
+		release_sock(sk);
 #endif
 	}
 	return err;
@@ -812,6 +814,7 @@ static void cleanup_bearer(struct work_struct *work)
 		kfree_rcu(rcast, rcu);
 	}
 
+	atomic_dec(&tipc_net(sock_net(ub->ubsock->sk))->wq_count);
 	dst_cache_destroy(&ub->rcast.dst_cache);
 	udp_tunnel_sock_release(ub->ubsock);
 	synchronize_net();
@@ -832,6 +835,7 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 	RCU_INIT_POINTER(ub->bearer, NULL);
 
 	/* sock_release need to be done outside of rtnl lock */
+	atomic_inc(&tipc_net(sock_net(ub->ubsock->sk))->wq_count);
 	INIT_WORK(&ub->work, cleanup_bearer);
 	schedule_work(&ub->work);
 }

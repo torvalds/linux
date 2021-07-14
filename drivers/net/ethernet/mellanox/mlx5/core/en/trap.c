@@ -30,172 +30,62 @@ static int mlx5e_trap_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static int mlx5e_alloc_trap_rq(struct mlx5e_priv *priv, struct mlx5e_rq_param *rqp,
-			       struct mlx5e_rq_stats *stats, struct mlx5e_params *params,
-			       struct mlx5e_ch_stats *ch_stats,
+static void mlx5e_init_trap_rq(struct mlx5e_trap *t, struct mlx5e_params *params,
 			       struct mlx5e_rq *rq)
 {
-	void *rqc_wq = MLX5_ADDR_OF(rqc, rqp->rqc, wq);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct page_pool_params pp_params = {};
-	int node = dev_to_node(mdev->device);
-	u32 pool_size;
-	int wq_sz;
-	int err;
-	int i;
+	struct mlx5_core_dev *mdev = t->mdev;
+	struct mlx5e_priv *priv = t->priv;
 
-	rqp->wq.db_numa_node = node;
-
-	rq->wq_type  = params->rq_wq_type;
-	rq->pdev     = mdev->device;
-	rq->netdev   = priv->netdev;
-	rq->mdev     = mdev;
-	rq->priv     = priv;
-	rq->stats    = stats;
-	rq->clock    = &mdev->clock;
-	rq->tstamp   = &priv->tstamp;
-	rq->hw_mtu   = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-
+	rq->wq_type      = params->rq_wq_type;
+	rq->pdev         = mdev->device;
+	rq->netdev       = priv->netdev;
+	rq->priv         = priv;
+	rq->clock        = &mdev->clock;
+	rq->tstamp       = &priv->tstamp;
+	rq->mdev         = mdev;
+	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	rq->stats        = &priv->trap_stats.rq;
+	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
 	xdp_rxq_info_unused(&rq->xdp_rxq);
-
-	rq->buff.map_dir = DMA_FROM_DEVICE;
-	rq->buff.headroom = mlx5e_get_rq_headroom(mdev, params, NULL);
-	pool_size = 1 << params->log_rq_mtu_frames;
-
-	err = mlx5_wq_cyc_create(mdev, &rqp->wq, rqc_wq, &rq->wqe.wq, &rq->wq_ctrl);
-	if (err)
-		return err;
-
-	rq->wqe.wq.db = &rq->wqe.wq.db[MLX5_RCV_DBR];
-
-	wq_sz = mlx5_wq_cyc_get_size(&rq->wqe.wq);
-
-	rq->wqe.info = rqp->frags_info;
-	rq->buff.frame0_sz = rq->wqe.info.arr[0].frag_stride;
-	rq->wqe.frags =	kvzalloc_node(array_size(sizeof(*rq->wqe.frags),
-						 (wq_sz << rq->wqe.info.log_num_frags)),
-				      GFP_KERNEL, node);
-	if (!rq->wqe.frags) {
-		err = -ENOMEM;
-		goto err_wq_cyc_destroy;
-	}
-
-	err = mlx5e_init_di_list(rq, wq_sz, node);
-	if (err)
-		goto err_free_frags;
-
-	rq->mkey_be = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
-
 	mlx5e_rq_set_trap_handlers(rq, params);
-
-	/* Create a page_pool and register it with rxq */
-	pp_params.order     = 0;
-	pp_params.flags     = 0; /* No-internal DMA mapping in page_pool */
-	pp_params.pool_size = pool_size;
-	pp_params.nid       = node;
-	pp_params.dev       = mdev->device;
-	pp_params.dma_dir   = rq->buff.map_dir;
-
-	/* page_pool can be used even when there is no rq->xdp_prog,
-	 * given page_pool does not handle DMA mapping there is no
-	 * required state to clear. And page_pool gracefully handle
-	 * elevated refcnt.
-	 */
-	rq->page_pool = page_pool_create(&pp_params);
-	if (IS_ERR(rq->page_pool)) {
-		err = PTR_ERR(rq->page_pool);
-		rq->page_pool = NULL;
-		goto err_free_di_list;
-	}
-	for (i = 0; i < wq_sz; i++) {
-		struct mlx5e_rx_wqe_cyc *wqe =
-			mlx5_wq_cyc_get_wqe(&rq->wqe.wq, i);
-		int f;
-
-		for (f = 0; f < rq->wqe.info.num_frags; f++) {
-			u32 frag_size = rq->wqe.info.arr[f].frag_size |
-				MLX5_HW_START_PADDING;
-
-			wqe->data[f].byte_count = cpu_to_be32(frag_size);
-			wqe->data[f].lkey = rq->mkey_be;
-		}
-		/* check if num_frags is not a pow of two */
-		if (rq->wqe.info.num_frags < (1 << rq->wqe.info.log_num_frags)) {
-			wqe->data[f].byte_count = 0;
-			wqe->data[f].lkey = cpu_to_be32(MLX5_INVALID_LKEY);
-			wqe->data[f].addr = 0;
-		}
-	}
-	return 0;
-
-err_free_di_list:
-	mlx5e_free_di_list(rq);
-err_free_frags:
-	kvfree(rq->wqe.frags);
-err_wq_cyc_destroy:
-	mlx5_wq_destroy(&rq->wq_ctrl);
-
-	return err;
 }
 
-static void mlx5e_free_trap_rq(struct mlx5e_rq *rq)
+static int mlx5e_open_trap_rq(struct mlx5e_priv *priv, struct mlx5e_trap *t)
 {
-	page_pool_destroy(rq->page_pool);
-	mlx5e_free_di_list(rq);
-	kvfree(rq->wqe.frags);
-	mlx5_wq_destroy(&rq->wq_ctrl);
-}
-
-static int mlx5e_open_trap_rq(struct mlx5e_priv *priv, struct napi_struct *napi,
-			      struct mlx5e_rq_stats *stats, struct mlx5e_params *params,
-			      struct mlx5e_rq_param *rq_param,
-			      struct mlx5e_ch_stats *ch_stats,
-			      struct mlx5e_rq *rq)
-{
+	struct mlx5e_rq_param *rq_param = &t->rq_param;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_create_cq_param ccp = {};
 	struct dim_cq_moder trap_moder = {};
-	struct mlx5e_cq *cq = &rq->cq;
+	struct mlx5e_rq *rq = &t->rq;
+	int node;
 	int err;
 
-	ccp.node     = dev_to_node(mdev->device);
-	ccp.ch_stats = ch_stats;
-	ccp.napi     = napi;
+	node = dev_to_node(mdev->device);
+
+	ccp.node     = node;
+	ccp.ch_stats = t->stats;
+	ccp.napi     = &t->napi;
 	ccp.ix       = 0;
-	err = mlx5e_open_cq(priv, trap_moder, &rq_param->cqp, &ccp, cq);
+	err = mlx5e_open_cq(priv, trap_moder, &rq_param->cqp, &ccp, &rq->cq);
 	if (err)
 		return err;
 
-	err = mlx5e_alloc_trap_rq(priv, rq_param, stats, params, ch_stats, rq);
+	mlx5e_init_trap_rq(t, &t->params, rq);
+	err = mlx5e_open_rq(&t->params, rq_param, NULL, node, rq);
 	if (err)
 		goto err_destroy_cq;
 
-	err = mlx5e_create_rq(rq, rq_param);
-	if (err)
-		goto err_free_rq;
-
-	err = mlx5e_modify_rq_state(rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
-	if (err)
-		goto err_destroy_rq;
-
 	return 0;
 
-err_destroy_rq:
-	mlx5e_destroy_rq(rq);
-	mlx5e_free_rx_descs(rq);
-err_free_rq:
-	mlx5e_free_trap_rq(rq);
 err_destroy_cq:
-	mlx5e_close_cq(cq);
+	mlx5e_close_cq(&rq->cq);
 
 	return err;
 }
 
 static void mlx5e_close_trap_rq(struct mlx5e_rq *rq)
 {
-	mlx5e_destroy_rq(rq);
-	mlx5e_free_rx_descs(rq);
-	mlx5e_free_trap_rq(rq);
+	mlx5e_close_rq(rq);
 	mlx5e_close_cq(&rq->cq);
 }
 
@@ -213,7 +103,7 @@ static int mlx5e_create_trap_direct_rq_tir(struct mlx5_core_dev *mdev, struct ml
 		return -ENOMEM;
 
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.td.tdn);
+	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_NONE);
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
 	MLX5_SET(tirc, tirc, inline_rqn, rqn);
@@ -228,24 +118,16 @@ static void mlx5e_destroy_trap_direct_rq_tir(struct mlx5_core_dev *mdev, struct 
 	mlx5e_destroy_tir(mdev, tir);
 }
 
-static void mlx5e_activate_trap_rq(struct mlx5e_rq *rq)
-{
-	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-}
-
-static void mlx5e_deactivate_trap_rq(struct mlx5e_rq *rq)
-{
-	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-}
-
-static void mlx5e_build_trap_params(struct mlx5e_priv *priv, struct mlx5e_trap *t)
+static void mlx5e_build_trap_params(struct mlx5_core_dev *mdev,
+				    int max_mtu, u16 q_counter,
+				    struct mlx5e_trap *t)
 {
 	struct mlx5e_params *params = &t->params;
 
 	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
-	mlx5e_init_rq_type_params(priv->mdev, params);
-	params->sw_mtu = priv->netdev->max_mtu;
-	mlx5e_build_rq_param(priv, params, NULL, &t->rq_param);
+	mlx5e_init_rq_type_params(mdev, params);
+	params->sw_mtu = max_mtu;
+	mlx5e_build_rq_param(mdev, params, NULL, q_counter, &t->rq_param);
 }
 
 static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
@@ -259,23 +141,19 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	if (!t)
 		return ERR_PTR(-ENOMEM);
 
-	mlx5e_build_trap_params(priv, t);
+	mlx5e_build_trap_params(priv->mdev, netdev->max_mtu, priv->q_counter, t);
 
 	t->priv     = priv;
 	t->mdev     = priv->mdev;
 	t->tstamp   = &priv->tstamp;
 	t->pdev     = mlx5_core_dma_dev(priv->mdev);
 	t->netdev   = priv->netdev;
-	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
+	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey.key);
 	t->stats    = &priv->trap_stats.ch;
 
 	netif_napi_add(netdev, &t->napi, mlx5e_trap_napi_poll, 64);
 
-	err = mlx5e_open_trap_rq(priv, &t->napi,
-				 &priv->trap_stats.rq,
-				 &t->params, &t->rq_param,
-				 &priv->trap_stats.ch,
-				 &t->rq);
+	err = mlx5e_open_trap_rq(priv, t);
 	if (unlikely(err))
 		goto err_napi_del;
 
@@ -304,15 +182,14 @@ void mlx5e_close_trap(struct mlx5e_trap *trap)
 static void mlx5e_activate_trap(struct mlx5e_trap *trap)
 {
 	napi_enable(&trap->napi);
-	mlx5e_activate_trap_rq(&trap->rq);
-	napi_schedule(&trap->napi);
+	mlx5e_activate_rq(&trap->rq);
 }
 
 void mlx5e_deactivate_trap(struct mlx5e_priv *priv)
 {
 	struct mlx5e_trap *trap = priv->en_trap;
 
-	mlx5e_deactivate_trap_rq(&trap->rq);
+	mlx5e_deactivate_rq(&trap->rq);
 	napi_disable(&trap->napi);
 }
 

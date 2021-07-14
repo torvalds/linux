@@ -1060,14 +1060,16 @@ xfs_fill_fsxattr(
 	int			whichfork,
 	struct fileattr		*fa)
 {
+	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 
 	fileattr_fill_xflags(fa, xfs_ip2xflags(ip));
-	fa->fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
-	fa->fsx_cowextsize = ip->i_d.di_cowextsize <<
-			ip->i_mount->m_sb.sb_blocklog;
-	fa->fsx_projid = ip->i_d.di_projid;
-	if (ifp && (ifp->if_flags & XFS_IFEXTENTS))
+
+	fa->fsx_extsize = XFS_FSB_TO_B(mp, ip->i_extsize);
+	if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
+		fa->fsx_cowextsize = XFS_FSB_TO_B(mp, ip->i_cowextsize);
+	fa->fsx_projid = ip->i_projid;
+	if (ifp && !xfs_need_iread_extents(ifp))
 		fa->fsx_nextents = xfs_iext_count(ifp);
 	else
 		fa->fsx_nextents = xfs_ifork_nextents(ifp);
@@ -1111,7 +1113,7 @@ xfs_flags2diflags(
 {
 	/* can't set PREALLOC this way, just preserve it */
 	uint16_t		di_flags =
-		(ip->i_d.di_flags & XFS_DIFLAG_PREALLOC);
+		(ip->i_diflags & XFS_DIFLAG_PREALLOC);
 
 	if (xflags & FS_XFLAG_IMMUTABLE)
 		di_flags |= XFS_DIFLAG_IMMUTABLE;
@@ -1152,8 +1154,8 @@ xfs_flags2diflags2(
 	unsigned int		xflags)
 {
 	uint64_t		di_flags2 =
-		(ip->i_d.di_flags2 & (XFS_DIFLAG2_REFLINK |
-				      XFS_DIFLAG2_BIGTIME));
+		(ip->i_diflags2 & (XFS_DIFLAG2_REFLINK |
+				   XFS_DIFLAG2_BIGTIME));
 
 	if (xflags & FS_XFLAG_DAX)
 		di_flags2 |= XFS_DIFLAG2_DAX;
@@ -1170,7 +1172,7 @@ xfs_ioctl_setattr_xflags(
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	uint64_t		di_flags2;
+	uint64_t		i_flags2;
 
 	/* Can't change realtime flag if any extents are allocated. */
 	if ((ip->i_df.if_nextents || ip->i_delayed_blks) &&
@@ -1180,25 +1182,25 @@ xfs_ioctl_setattr_xflags(
 	/* If realtime flag is set then must have realtime device */
 	if (fa->fsx_xflags & FS_XFLAG_REALTIME) {
 		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
-		    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize))
+		    (ip->i_extsize % mp->m_sb.sb_rextsize))
 			return -EINVAL;
 	}
 
 	/* Clear reflink if we are actually able to set the rt flag. */
 	if ((fa->fsx_xflags & FS_XFLAG_REALTIME) && xfs_is_reflink_inode(ip))
-		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+		ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 
 	/* Don't allow us to set DAX mode for a reflinked file for now. */
 	if ((fa->fsx_xflags & FS_XFLAG_DAX) && xfs_is_reflink_inode(ip))
 		return -EINVAL;
 
 	/* diflags2 only valid for v3 inodes. */
-	di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
-	if (di_flags2 && !xfs_sb_version_has_v3inode(&mp->m_sb))
+	i_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
+	if (i_flags2 && !xfs_sb_version_has_v3inode(&mp->m_sb))
 		return -EINVAL;
 
-	ip->i_d.di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
-	ip->i_d.di_flags2 = di_flags2;
+	ip->i_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
+	ip->i_diflags2 = i_flags2;
 
 	xfs_diflags_to_iflags(ip, false);
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
@@ -1223,9 +1225,9 @@ xfs_ioctl_setattr_prepare_dax(
 		return;
 
 	if (((fa->fsx_xflags & FS_XFLAG_DAX) &&
-	    !(ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)) ||
+	    !(ip->i_diflags2 & XFS_DIFLAG2_DAX)) ||
 	    (!(fa->fsx_xflags & FS_XFLAG_DAX) &&
-	     (ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)))
+	     (ip->i_diflags2 & XFS_DIFLAG2_DAX)))
 		d_mark_dontcache(inode);
 }
 
@@ -1265,20 +1267,8 @@ out_error:
 }
 
 /*
- * extent size hint validation is somewhat cumbersome. Rules are:
- *
- * 1. extent size hint is only valid for directories and regular files
- * 2. FS_XFLAG_EXTSIZE is only valid for regular files
- * 3. FS_XFLAG_EXTSZINHERIT is only valid for directories.
- * 4. can only be changed on regular files if no extents are allocated
- * 5. can be changed on directories at any time
- * 6. extsize hint of 0 turns off hints, clears inode flags.
- * 7. Extent size must be a multiple of the appropriate block size.
- * 8. for non-realtime files, the extent size hint must be limited
- *    to half the AG size to avoid alignment extending the extent beyond the
- *    limits of the AG.
- *
- * Please keep this function in sync with xfs_scrub_inode_extsize.
+ * Validate a proposed extent size hint.  For regular files, the hint can only
+ * be changed if no extents are allocated.
  */
 static int
 xfs_ioctl_setattr_check_extsize(
@@ -1286,86 +1276,65 @@ xfs_ioctl_setattr_check_extsize(
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	xfs_extlen_t		size;
-	xfs_fsblock_t		extsize_fsb;
+	xfs_failaddr_t		failaddr;
+	uint16_t		new_diflags;
 
 	if (!fa->fsx_valid)
 		return 0;
 
 	if (S_ISREG(VFS_I(ip)->i_mode) && ip->i_df.if_nextents &&
-	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
+	    XFS_FSB_TO_B(mp, ip->i_extsize) != fa->fsx_extsize)
 		return -EINVAL;
 
-	if (fa->fsx_extsize == 0)
-		return 0;
-
-	extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
-	if (extsize_fsb > MAXEXTLEN)
+	if (fa->fsx_extsize & mp->m_blockmask)
 		return -EINVAL;
 
-	if (XFS_IS_REALTIME_INODE(ip) ||
-	    (fa->fsx_xflags & FS_XFLAG_REALTIME)) {
-		size = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
-	} else {
-		size = mp->m_sb.sb_blocksize;
-		if (extsize_fsb > mp->m_sb.sb_agblocks / 2)
+	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
+
+	/*
+	 * Inode verifiers on older kernels don't check that the extent size
+	 * hint is an integer multiple of the rt extent size on a directory
+	 * with both rtinherit and extszinherit flags set.  Don't let sysadmins
+	 * misconfigure directories.
+	 */
+	if ((new_diflags & XFS_DIFLAG_RTINHERIT) &&
+	    (new_diflags & XFS_DIFLAG_EXTSZINHERIT)) {
+		unsigned int	rtextsize_bytes;
+
+		rtextsize_bytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
+		if (fa->fsx_extsize % rtextsize_bytes)
 			return -EINVAL;
 	}
 
-	if (fa->fsx_extsize % size)
-		return -EINVAL;
-
-	return 0;
+	failaddr = xfs_inode_validate_extsize(ip->i_mount,
+			XFS_B_TO_FSB(mp, fa->fsx_extsize),
+			VFS_I(ip)->i_mode, new_diflags);
+	return failaddr != NULL ? -EINVAL : 0;
 }
 
-/*
- * CoW extent size hint validation rules are:
- *
- * 1. CoW extent size hint can only be set if reflink is enabled on the fs.
- *    The inode does not have to have any shared blocks, but it must be a v3.
- * 2. FS_XFLAG_COWEXTSIZE is only valid for directories and regular files;
- *    for a directory, the hint is propagated to new files.
- * 3. Can be changed on files & directories at any time.
- * 4. CoW extsize hint of 0 turns off hints, clears inode flags.
- * 5. Extent size must be a multiple of the appropriate block size.
- * 6. The extent size hint must be limited to half the AG size to avoid
- *    alignment extending the extent beyond the limits of the AG.
- *
- * Please keep this function in sync with xfs_scrub_inode_cowextsize.
- */
 static int
 xfs_ioctl_setattr_check_cowextsize(
 	struct xfs_inode	*ip,
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	xfs_extlen_t		size;
-	xfs_fsblock_t		cowextsize_fsb;
+	xfs_failaddr_t		failaddr;
+	uint64_t		new_diflags2;
+	uint16_t		new_diflags;
 
 	if (!fa->fsx_valid)
 		return 0;
 
-	if (!(fa->fsx_xflags & FS_XFLAG_COWEXTSIZE))
-		return 0;
-
-	if (!xfs_sb_version_hasreflink(&ip->i_mount->m_sb))
+	if (fa->fsx_cowextsize & mp->m_blockmask)
 		return -EINVAL;
 
-	if (fa->fsx_cowextsize == 0)
-		return 0;
+	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
+	new_diflags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
 
-	cowextsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_cowextsize);
-	if (cowextsize_fsb > MAXEXTLEN)
-		return -EINVAL;
-
-	size = mp->m_sb.sb_blocksize;
-	if (cowextsize_fsb > mp->m_sb.sb_agblocks / 2)
-		return -EINVAL;
-
-	if (fa->fsx_cowextsize % size)
-		return -EINVAL;
-
-	return 0;
+	failaddr = xfs_inode_validate_cowextsize(ip->i_mount,
+			XFS_B_TO_FSB(mp, fa->fsx_cowextsize),
+			VFS_I(ip)->i_mode, new_diflags, new_diflags2);
+	return failaddr != NULL ? -EINVAL : 0;
 }
 
 static int
@@ -1463,12 +1432,12 @@ xfs_fileattr_set(
 		VFS_I(ip)->i_mode &= ~(S_ISUID|S_ISGID);
 
 	/* Change the ownerships and register project quota modifications */
-	if (ip->i_d.di_projid != fa->fsx_projid) {
+	if (ip->i_projid != fa->fsx_projid) {
 		if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp)) {
 			olddquot = xfs_qm_vop_chown(tp, ip,
 						&ip->i_pdquot, pdqp);
 		}
-		ip->i_d.di_projid = fa->fsx_projid;
+		ip->i_projid = fa->fsx_projid;
 	}
 
 	/*
@@ -1476,16 +1445,17 @@ xfs_fileattr_set(
 	 * extent size hint should be set on the inode. If no extent size flags
 	 * are set on the inode then unconditionally clear the extent size hint.
 	 */
-	if (ip->i_d.di_flags & (XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
-		ip->i_d.di_extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
+	if (ip->i_diflags & (XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
+		ip->i_extsize = XFS_B_TO_FSB(mp, fa->fsx_extsize);
 	else
-		ip->i_d.di_extsize = 0;
-	if (xfs_sb_version_has_v3inode(&mp->m_sb) &&
-	    (ip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
-		ip->i_d.di_cowextsize = fa->fsx_cowextsize >>
-				mp->m_sb.sb_blocklog;
-	else
-		ip->i_d.di_cowextsize = 0;
+		ip->i_extsize = 0;
+
+	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
+			ip->i_cowextsize = XFS_B_TO_FSB(mp, fa->fsx_cowextsize);
+		else
+			ip->i_cowextsize = 0;
+	}
 
 skip_xattr:
 	error = xfs_trans_commit(tp);
@@ -1543,8 +1513,6 @@ xfs_ioc_getbmap(
 		bmx.bmv_iflags = BMV_IF_ATTRFORK;
 		/*FALLTHRU*/
 	case XFS_IOC_GETBMAP:
-		if (file->f_mode & FMODE_NOCMTIME)
-			bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 		/* struct getbmap is a strict subset of struct getbmapx. */
 		recsize = sizeof(struct getbmap);
 		break;
@@ -1720,7 +1688,7 @@ out_free:
 
 STATIC int
 xfs_ioc_scrub_metadata(
-	struct xfs_inode		*ip,
+	struct file			*file,
 	void				__user *arg)
 {
 	struct xfs_scrub_metadata	scrub;
@@ -1732,7 +1700,7 @@ xfs_ioc_scrub_metadata(
 	if (copy_from_user(&scrub, arg, sizeof(scrub)))
 		return -EFAULT;
 
-	error = xfs_scrub_metadata(ip, &scrub);
+	error = xfs_scrub_metadata(file, &scrub);
 	if (error)
 		return error;
 
@@ -2023,7 +1991,7 @@ xfs_file_ioctl(
 		return xfs_ioc_getfsmap(ip, arg);
 
 	case XFS_IOC_SCRUB_METADATA:
-		return xfs_ioc_scrub_metadata(ip, arg);
+		return xfs_ioc_scrub_metadata(filp, arg);
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:

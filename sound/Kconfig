@@ -99,6 +99,8 @@ source "sound/synth/Kconfig"
 
 source "sound/xen/Kconfig"
 
+source "sound/virtio/Kconfig"
+
 endif # SND
 
 endif # !UML

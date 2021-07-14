@@ -317,7 +317,7 @@ Default is to monitor all CPUS.
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf top' with no events
-	explicitely specified does.
+	explicitly specified does.
 
 --stitch-lbr::
 	Show callgraph with stitched LBRs, which may have more complete

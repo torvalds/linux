@@ -83,7 +83,7 @@ examples:
         #size-cells = <0>;
 
         gyroscope@0 {
-          compatible = "nxp,fxas2102c";
+          compatible = "nxp,fxas21002c";
           reg = <0x0>;
 
           spi-max-frequency = <2000000>;

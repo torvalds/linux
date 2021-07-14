@@ -474,7 +474,6 @@ prototypes::
 	int (*direct_access) (struct block_device *, sector_t, void **,
 				unsigned long *);
 	void (*unlock_native_capacity) (struct gendisk *);
-	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 
@@ -489,7 +488,6 @@ ioctl:			no
 compat_ioctl:		no
 direct_access:		no
 unlock_native_capacity:	no
-revalidate_disk:	no
 getgeo:			no
 swap_slot_free_notify:	no	(see below)
 ======================= ===================

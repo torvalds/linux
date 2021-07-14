@@ -308,7 +308,7 @@ struct qla2xxx_fw_dump {
 };
 
 #define QL_MSGHDR "qla2xxx"
-#define QL_DBG_DEFAULT1_MASK    0x1e400000
+#define QL_DBG_DEFAULT1_MASK    0x1e600000
 
 #define ql_log_fatal		0 /* display fatal errors */
 #define ql_log_warn		1 /* display critical errors */

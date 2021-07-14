@@ -2,6 +2,7 @@
 /*
  * AES-128-CMAC with TLen 16 for IEEE 802.11w BIP
  * Copyright 2008, Jouni Malinen <j@w1.fi>
+ * Copyright (C) 2020 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -73,8 +74,14 @@ struct crypto_shash *ieee80211_aes_cmac_key_setup(const u8 key[],
 	struct crypto_shash *tfm;
 
 	tfm = crypto_alloc_shash("cmac(aes)", 0, 0);
-	if (!IS_ERR(tfm))
-		crypto_shash_setkey(tfm, key, key_len);
+	if (!IS_ERR(tfm)) {
+		int err = crypto_shash_setkey(tfm, key, key_len);
+
+		if (err) {
+			crypto_free_shash(tfm);
+			return ERR_PTR(err);
+		}
+	}
 
 	return tfm;
 }

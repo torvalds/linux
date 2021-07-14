@@ -699,7 +699,7 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 		mce_err.error_type = MCE_ERROR_TYPE_DCACHE;
 		break;
 	case MC_ERROR_TYPE_I_CACHE:
-		mce_err.error_type = MCE_ERROR_TYPE_DCACHE;
+		mce_err.error_type = MCE_ERROR_TYPE_ICACHE;
 		break;
 	case MC_ERROR_TYPE_UNKNOWN:
 	default:

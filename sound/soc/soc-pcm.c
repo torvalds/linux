@@ -29,6 +29,15 @@
 
 #define DPCM_MAX_BE_USERS	8
 
+static inline const char *soc_cpu_dai_name(struct snd_soc_pcm_runtime *rtd)
+{
+	return (rtd)->num_cpus == 1 ? asoc_rtd_to_cpu(rtd, 0)->name : "multicpu";
+}
+static inline const char *soc_codec_dai_name(struct snd_soc_pcm_runtime *rtd)
+{
+	return (rtd)->num_codecs == 1 ? asoc_rtd_to_codec(rtd, 0)->name : "multicodec";
+}
+
 #ifdef CONFIG_DEBUG_FS
 static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {
@@ -156,9 +165,6 @@ static const struct file_operations dpcm_state_fops = {
 
 void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 {
-	if (!rtd->dai_link)
-		return;
-
 	if (!rtd->dai_link->dynamic)
 		return;
 
@@ -291,15 +297,8 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hardware *hw)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	runtime->hw.info = hw->info;
-	runtime->hw.formats = hw->formats;
-	runtime->hw.period_bytes_min = hw->period_bytes_min;
-	runtime->hw.period_bytes_max = hw->period_bytes_max;
-	runtime->hw.periods_min = hw->periods_min;
-	runtime->hw.periods_max = hw->periods_max;
-	runtime->hw.buffer_bytes_max = hw->buffer_bytes_max;
-	runtime->hw.fifo_size = hw->fifo_size;
+	substream->runtime->hw = *hw;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
@@ -349,6 +348,9 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret;
 
+	if (!snd_soc_dai_active(soc_dai))
+		return 0;
+
 #define __soc_pcm_apply_symmetry(name, NAME)				\
 	if (soc_dai->name && (soc_dai->driver->symmetric_##name ||	\
 			      rtd->dai_link->symmetric_##name)) {	\
@@ -382,18 +384,20 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai;
 	unsigned int symmetry, i;
 
+	d.name = __func__;
 	soc_pcm_set_dai_params(&d, params);
 
-#define __soc_pcm_params_symmetry(name)					\
-	symmetry = rtd->dai_link->symmetric_##name;			\
+#define __soc_pcm_params_symmetry(xxx)					\
+	symmetry = rtd->dai_link->symmetric_##xxx;			\
 	for_each_rtd_dais(rtd, i, dai)					\
-		symmetry |= dai->driver->symmetric_##name;		\
+		symmetry |= dai->driver->symmetric_##xxx;		\
 									\
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
-			if (cpu_dai->name && cpu_dai->name != d.name) {	\
-				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %d - %d\n", \
-					#name, cpu_dai->name, d.name);	\
+			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
+			    cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
+				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
+					#xxx, cpu_dai->name, cpu_dai->xxx, d.name, d.xxx); \
 				return -EINVAL;				\
 			}
 
@@ -405,7 +409,7 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
+static void soc_pcm_update_symmetry(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai_link *link = rtd->dai_link;
@@ -422,7 +426,8 @@ static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
 			dai->driver->symmetric_channels ||
 			dai->driver->symmetric_sample_bits;
 
-	return symmetry;
+	if (symmetry)
+		substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 }
 
 static void soc_pcm_set_msb(struct snd_pcm_substream *substream, int bits)
@@ -683,6 +688,44 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	return soc_pcm_clean(substream, 0);
 }
 
+static int soc_hw_sanity_check(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_pcm_hardware *hw = &substream->runtime->hw;
+	const char *name_cpu = soc_cpu_dai_name(rtd);
+	const char *name_codec = soc_codec_dai_name(rtd);
+	const char *err_msg;
+	struct device *dev = rtd->dev;
+
+	err_msg = "rates";
+	if (!hw->rates)
+		goto config_err;
+
+	err_msg = "formats";
+	if (!hw->formats)
+		goto config_err;
+
+	err_msg = "channels";
+	if (!hw->channels_min || !hw->channels_max ||
+	     hw->channels_min  >  hw->channels_max)
+		goto config_err;
+
+	dev_dbg(dev, "ASoC: %s <-> %s info:\n",		name_codec,
+							name_cpu);
+	dev_dbg(dev, "ASoC: rate mask 0x%x\n",		hw->rates);
+	dev_dbg(dev, "ASoC: ch   min %d max %d\n",	hw->channels_min,
+							hw->channels_max);
+	dev_dbg(dev, "ASoC: rate min %d max %d\n",	hw->rate_min,
+							hw->rate_max);
+
+	return 0;
+
+config_err:
+	dev_err(dev, "ASoC: %s <-> %s No matching %s\n",
+		name_codec, name_cpu, err_msg);
+	return -EINVAL;
+}
+
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -691,11 +734,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 static int soc_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
-	const char *codec_dai_name = "multicodec";
-	const char *cpu_dai_name = "multicpu";
 	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component)
@@ -734,59 +774,30 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	/* Check that the codec and cpu DAIs are compatible */
 	soc_pcm_init_runtime_hw(substream);
 
-	if (rtd->num_codecs == 1)
-		codec_dai_name = asoc_rtd_to_codec(rtd, 0)->name;
+	soc_pcm_update_symmetry(substream);
 
-	if (rtd->num_cpus == 1)
-		cpu_dai_name = asoc_rtd_to_cpu(rtd, 0)->name;
-
-	if (soc_pcm_has_symmetry(substream))
-		runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
-
-	ret = -EINVAL;
-	if (!runtime->hw.rates) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching rates\n",
-			codec_dai_name, cpu_dai_name);
+	ret = soc_hw_sanity_check(substream);
+	if (ret < 0)
 		goto err;
-	}
-	if (!runtime->hw.formats) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching formats\n",
-			codec_dai_name, cpu_dai_name);
-		goto err;
-	}
-	if (!runtime->hw.channels_min || !runtime->hw.channels_max ||
-	    runtime->hw.channels_min > runtime->hw.channels_max) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching channels\n",
-				codec_dai_name, cpu_dai_name);
-		goto err;
-	}
 
 	soc_pcm_apply_msb(substream);
 
 	/* Symmetry only applies if we've already got an active stream. */
 	for_each_rtd_dais(rtd, i, dai) {
-		if (snd_soc_dai_active(dai)) {
-			ret = soc_pcm_apply_symmetry(substream, dai);
-			if (ret != 0)
-				goto err;
-		}
+		ret = soc_pcm_apply_symmetry(substream, dai);
+		if (ret != 0)
+			goto err;
 	}
-
-	pr_debug("ASoC: %s <-> %s info:\n",
-		 codec_dai_name, cpu_dai_name);
-	pr_debug("ASoC: rate mask 0x%x\n", runtime->hw.rates);
-	pr_debug("ASoC: min ch %d max ch %d\n", runtime->hw.channels_min,
-		 runtime->hw.channels_max);
-	pr_debug("ASoC: min rate %d max rate %d\n", runtime->hw.rate_min,
-		 runtime->hw.rate_max);
 dynamic:
 	snd_soc_runtime_activate(rtd, substream->stream);
 	ret = 0;
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
-	if (ret < 0)
+	if (ret < 0) {
 		soc_pcm_clean(substream, 1);
+		dev_err(rtd->dev, "%s() failed (%d)", __func__, ret);
+	}
 
 	return ret;
 }
@@ -823,10 +834,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		goto out;
 
 	ret = snd_soc_pcm_dai_prepare(substream);
-	if (ret < 0) {
-		dev_err(rtd->dev, "ASoC: DAI prepare error: %d\n", ret);
+	if (ret < 0)
 		goto out;
-	}
 
 	/* cancel any delayed stream shutdown that is pending */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
@@ -843,6 +852,10 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
+
+	if (ret < 0)
+		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -992,8 +1005,10 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 
-	if (ret < 0)
+	if (ret < 0) {
 		soc_pcm_hw_clean(substream, 1);
+		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+	}
 
 	return ret;
 }
@@ -1275,8 +1290,12 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 			fe->card->component_chaining ?
 				NULL : dpcm_end_walk_at_be);
 
-	dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
+	if (paths > 0)
+		dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
 			stream ? "capture" : "playback");
+	else if (paths == 0)
+		dev_dbg(fe->dev, "ASoC: %s no valid %s path\n", fe->dai_link->name,
+			 stream ? "capture" : "playback");
 
 	return paths;
 }
@@ -1410,28 +1429,43 @@ void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 }
 
-static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
-	int stream)
+void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
+		      int do_hw_free, struct snd_soc_dpcm *last)
 {
 	struct snd_soc_dpcm *dpcm;
 
 	/* disable any enabled and non active backends */
 	for_each_dpcm_be(fe, stream, dpcm) {
-
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *be_substream =
 			snd_soc_dpcm_get_substream(be, stream);
 
-		if (be->dpcm[stream].users == 0)
+		if (dpcm == last)
+			return;
+
+		/* is this op for this BE ? */
+		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+			continue;
+
+		if (be->dpcm[stream].users == 0) {
 			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
+			continue;
+		}
 
 		if (--be->dpcm[stream].users != 0)
 			continue;
 
-		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)
-			continue;
+		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN) {
+			if (!do_hw_free)
+				continue;
+
+			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE) {
+				soc_pcm_hw_free(be_substream);
+				be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
+			}
+		}
 
 		soc_pcm_close(be_substream);
 		be_substream->runtime = NULL;
@@ -1441,15 +1475,16 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 {
+	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 	int err, count = 0;
 
 	/* only startup BE DAIs that are either sinks or sources to this FE DAI */
 	for_each_dpcm_be(fe, stream, dpcm) {
+		struct snd_pcm_substream *be_substream;
 
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		if (!be_substream) {
 			dev_err(be->dev, "ASoC: no backend %s stream\n",
@@ -1462,10 +1497,12 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			continue;
 
 		/* first time the dpcm is open ? */
-		if (be->dpcm[stream].users == DPCM_MAX_BE_USERS)
+		if (be->dpcm[stream].users == DPCM_MAX_BE_USERS) {
 			dev_err(be->dev, "ASoC: too many users %s at open %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
+			continue;
+		}
 
 		if (be->dpcm[stream].users++ != 0)
 			continue;
@@ -1480,7 +1517,6 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 		be_substream->runtime = be->dpcm[stream].runtime;
 		err = soc_pcm_open(be_substream);
 		if (err < 0) {
-			dev_err(be->dev, "ASoC: BE open failed %d\n", err);
 			be->dpcm[stream].users--;
 			if (be->dpcm[stream].users < 0)
 				dev_err(be->dev, "ASoC: no users %s at unwind %d\n",
@@ -1498,51 +1534,48 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	return count;
 
 unwind:
-	/* disable any enabled and non active backends */
-	for_each_dpcm_be_rollback(fe, stream, dpcm) {
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+	dpcm_be_dai_startup_rollback(fe, stream, dpcm);
 
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
-			continue;
-
-		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close %d\n",
-				stream ? "capture" : "playback",
-				be->dpcm[stream].state);
-
-		if (--be->dpcm[stream].users != 0)
-			continue;
-
-		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)
-			continue;
-
-		soc_pcm_close(be_substream);
-		be_substream->runtime = NULL;
-		be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	}
+	dev_err(fe->dev, "ASoC: %s() failed at %s (%d)\n",
+		__func__, be->dai_link->name, err);
 
 	return err;
 }
 
-static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
-				 struct snd_soc_pcm_stream *stream)
-{
-	struct snd_pcm_hardware *hw = &runtime->hw;
-
-	soc_pcm_hw_update_rate(hw, stream);
-	soc_pcm_hw_update_chan(hw, stream);
-	if (runtime->hw.formats)
-		runtime->hw.formats &= stream->formats;
-	else
-		runtime->hw.formats = stream->formats;
-}
-
-static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
-				      struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
+	struct snd_soc_dai *dai;
+	int stream = substream->stream;
+	int i;
+
+	soc_pcm_hw_init(hw);
+
+	for_each_rtd_cpu_dais(fe, i, dai) {
+		struct snd_soc_pcm_stream *cpu_stream;
+
+		/*
+		 * Skip CPUs which don't support the current stream
+		 * type. See soc_pcm_init_runtime_hw() for more details
+		 */
+		if (!snd_soc_dai_stream_valid(dai, stream))
+			continue;
+
+		cpu_stream = snd_soc_dai_get_pcm_stream(dai, stream);
+
+		soc_pcm_hw_update_rate(hw, cpu_stream);
+		soc_pcm_hw_update_chan(hw, cpu_stream);
+		soc_pcm_hw_update_format(hw, cpu_stream);
+	}
+
+}
+
+static void dpcm_runtime_setup_be_format(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dai *dai;
@@ -1576,10 +1609,10 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1624,10 +1657,10 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_rate(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1661,34 +1694,6 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_pcm_hardware *hw = &runtime->hw;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai;
-	int i;
-
-	soc_pcm_hw_init(hw);
-
-	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		/*
-		 * Skip CPUs which don't support the current stream
-		 * type. See soc_pcm_init_runtime_hw() for more details
-		 */
-		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
-			continue;
-
-		dpcm_init_runtime_hw(runtime,
-			snd_soc_dai_get_pcm_stream(cpu_dai,
-						   substream->stream));
-	}
-
-	dpcm_runtime_merge_format(substream, runtime);
-	dpcm_runtime_merge_chan(substream, runtime);
-	dpcm_runtime_merge_rate(substream, runtime);
-}
-
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 			       int stream)
 {
@@ -1699,16 +1704,13 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 	int i;
 
 	/* apply symmetry for FE */
-	if (soc_pcm_has_symmetry(fe_substream))
-		fe_substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+	soc_pcm_update_symmetry(fe_substream);
 
 	for_each_rtd_cpu_dais (fe, i, fe_cpu_dai) {
 		/* Symmetry only applies if we've got an active stream. */
-		if (snd_soc_dai_active(fe_cpu_dai)) {
-			err = soc_pcm_apply_symmetry(fe_substream, fe_cpu_dai);
-			if (err < 0)
-				return err;
-		}
+		err = soc_pcm_apply_symmetry(fe_substream, fe_cpu_dai);
+		if (err < 0)
+			goto error;
 	}
 
 	/* apply symmetry for BE */
@@ -1718,7 +1720,6 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 			snd_soc_dpcm_get_substream(be, stream);
 		struct snd_soc_pcm_runtime *rtd;
 		struct snd_soc_dai *dai;
-		int i;
 
 		/* A backend may not have the requested substream */
 		if (!be_substream)
@@ -1728,20 +1729,20 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		if (rtd->dai_link->be_hw_params_fixup)
 			continue;
 
-		if (soc_pcm_has_symmetry(be_substream))
-			be_substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+		soc_pcm_update_symmetry(be_substream);
 
 		/* Symmetry only applies if we've got an active stream. */
 		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_active(dai)) {
-				err = soc_pcm_apply_symmetry(fe_substream, dai);
-				if (err < 0)
-					return err;
-			}
+			err = soc_pcm_apply_symmetry(fe_substream, dai);
+			if (err < 0)
+				goto error;
 		}
 	}
+error:
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, err);
 
-	return 0;
+	return err;
 }
 
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
@@ -1752,75 +1753,36 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	ret = dpcm_be_dai_startup(fe, stream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: failed to start some BEs %d\n", ret);
+	if (ret < 0)
 		goto be_err;
-	}
 
 	dev_dbg(fe->dev, "ASoC: open FE %s\n", fe->dai_link->name);
 
 	/* start the DAI frontend */
 	ret = soc_pcm_open(fe_substream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: failed to start FE %d\n", ret);
+	if (ret < 0)
 		goto unwind;
-	}
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 
-	dpcm_set_fe_runtime(fe_substream);
+	dpcm_runtime_setup_fe(fe_substream);
+
+	dpcm_runtime_setup_be_format(fe_substream);
+	dpcm_runtime_setup_be_chan(fe_substream);
+	dpcm_runtime_setup_be_rate(fe_substream);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: failed to apply dpcm symmetry %d\n",
-			ret);
 
 unwind:
 	if (ret < 0)
 		dpcm_be_dai_startup_unwind(fe, stream);
 be_err:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
+
+	if (ret < 0)
+		dev_err(fe->dev, "%s() failed (%d)\n", __func__, ret);
+
 	return ret;
-}
-
-int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
-{
-	struct snd_soc_dpcm *dpcm;
-
-	/* only shutdown BEs that are either sinks or sources to this FE DAI */
-	for_each_dpcm_be(fe, stream, dpcm) {
-
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
-
-		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
-			continue;
-
-		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
-				stream ? "capture" : "playback",
-				be->dpcm[stream].state);
-
-		if (--be->dpcm[stream].users != 0)
-			continue;
-
-		if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE) &&
-		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)) {
-			soc_pcm_hw_free(be_substream);
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
-		}
-
-		dev_dbg(be->dev, "ASoC: close BE %s\n",
-			be->dai_link->name);
-
-		soc_pcm_close(be_substream);
-		be_substream->runtime = NULL;
-
-		be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	}
-	return 0;
 }
 
 static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
@@ -1846,7 +1808,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
+void dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -1885,14 +1847,12 @@ int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	}
-
-	return 0;
 }
 
 static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
-	int err, stream = substream->stream;
+	int stream = substream->stream;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
@@ -1900,14 +1860,11 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	dev_dbg(fe->dev, "ASoC: hw_free FE %s\n", fe->dai_link->name);
 
 	/* call hw_free on the frontend */
-	err = soc_pcm_hw_free(substream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: hw_free FE %s failed\n",
-			fe->dai_link->name);
+	soc_pcm_hw_free(substream);
 
 	/* only hw_params backends that are either sinks or sources
 	 * to this frontend DAI */
-	err = dpcm_be_dai_hw_free(fe, stream);
+	dpcm_be_dai_hw_free(fe, stream);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
@@ -1918,14 +1875,14 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 
 int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 {
+	struct snd_soc_pcm_runtime *be;
+	struct snd_pcm_substream *be_substream;
 	struct snd_soc_dpcm *dpcm;
 	int ret;
 
 	for_each_dpcm_be(fe, stream, dpcm) {
-
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
@@ -1957,22 +1914,21 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 			be->dai_link->name);
 
 		ret = soc_pcm_hw_params(be_substream, &dpcm->hw_params);
-		if (ret < 0) {
-			dev_err(dpcm->be->dev,
-				"ASoC: hw_params BE failed %d\n", ret);
+		if (ret < 0)
 			goto unwind;
-		}
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_PARAMS;
 	}
 	return 0;
 
 unwind:
+	dev_dbg(fe->dev, "ASoC: %s() failed at %s (%d)\n",
+		__func__, be->dai_link->name, ret);
+
 	/* disable any enabled and non active backends */
 	for_each_dpcm_be_rollback(fe, stream, dpcm) {
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
@@ -2005,10 +1961,8 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 	memcpy(&fe->dpcm[stream].hw_params, params,
 			sizeof(struct snd_pcm_hw_params));
 	ret = dpcm_be_dai_hw_params(fe, stream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: hw_params BE failed %d\n", ret);
+	if (ret < 0)
 		goto out;
-	}
 
 	dev_dbg(fe->dev, "ASoC: hw_params FE %s rate %d chan %x fmt %d\n",
 			fe->dai_link->name, params_rate(params),
@@ -2016,29 +1970,33 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 
 	/* call hw_params on the frontend */
 	ret = soc_pcm_hw_params(substream, params);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: hw_params FE failed %d\n", ret);
+	if (ret < 0)
 		dpcm_be_dai_hw_free(fe, stream);
-	 } else
+	else
 		fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_PARAMS;
 
 out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
 int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			       int cmd)
 {
+	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 	int ret = 0;
 
 	for_each_dpcm_be(fe, stream, dpcm) {
+		struct snd_pcm_substream *be_substream;
 
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
@@ -2056,7 +2014,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
@@ -2066,7 +2024,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
@@ -2076,7 +2034,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
@@ -2090,7 +2048,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
 			break;
@@ -2103,7 +2061,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_SUSPEND;
 			break;
@@ -2116,13 +2074,16 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 
 			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret)
-				return ret;
+				goto end;
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_PAUSED;
 			break;
 		}
 	}
-
+end:
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed at %s (%d)\n",
+			__func__, be->dai_link->name, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dpcm_be_dai_trigger);
@@ -2288,14 +2249,15 @@ int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 			be->dai_link->name);
 
 		ret = soc_pcm_prepare(be_substream);
-		if (ret < 0) {
-			dev_err(be->dev, "ASoC: backend prepare failed %d\n",
-				ret);
+		if (ret < 0)
 			break;
-		}
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 	}
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2324,17 +2286,17 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	/* call prepare on the frontend */
 	ret = soc_pcm_prepare(substream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: prepare FE %s failed\n",
-			fe->dai_link->name);
+	if (ret < 0)
 		goto out;
-	}
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 
 out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
 
 	return ret;
 }
@@ -2355,29 +2317,24 @@ static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 				fe->dai_link->name);
 
 		err = snd_soc_pcm_dai_bespoke_trigger(substream, SNDRV_PCM_TRIGGER_STOP);
-		if (err < 0)
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", err);
 	} else {
 		dev_dbg(fe->dev, "ASoC: trigger FE %s cmd stop\n",
 			fe->dai_link->name);
 
 		err = dpcm_be_dai_trigger(fe, stream, SNDRV_PCM_TRIGGER_STOP);
-		if (err < 0)
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", err);
 	}
 
-	err = dpcm_be_dai_hw_free(fe, stream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: hw_free FE failed %d\n", err);
+	dpcm_be_dai_hw_free(fe, stream);
 
-	err = dpcm_be_dai_shutdown(fe, stream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: shutdown FE failed %d\n", err);
+	dpcm_be_dai_shutdown(fe, stream);
 
 	/* run the stream event for each BE */
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_NOP);
 
-	return 0;
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, err);
+
+	return err;
 }
 
 static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2395,7 +2352,6 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	/* Only start the BE if the FE is ready */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_FREE ||
 		fe->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE) {
-		ret = -EINVAL;
 		dev_err(fe->dev, "ASoC: FE %s is not ready %d\n",
 			fe->dai_link->name, fe->dpcm[stream].state);
 		ret = -EINVAL;
@@ -2419,7 +2375,6 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_PARAMS)
 		return 0;
 
-
 	ret = dpcm_be_dai_prepare(fe, stream);
 	if (ret < 0)
 		goto hw_free;
@@ -2438,20 +2393,16 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 				fe->dai_link->name);
 
 		ret = snd_soc_pcm_dai_bespoke_trigger(substream, SNDRV_PCM_TRIGGER_START);
-		if (ret < 0) {
-			dev_err(fe->dev,"ASoC: bespoke trigger FE failed %d\n", ret);
+		if (ret < 0)
 			goto hw_free;
-		}
 	} else {
 		dev_dbg(fe->dev, "ASoC: trigger FE %s cmd start\n",
 			fe->dai_link->name);
 
 		ret = dpcm_be_dai_trigger(fe, stream,
 					SNDRV_PCM_TRIGGER_START);
-		if (ret < 0) {
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", ret);
+		if (ret < 0)
 			goto hw_free;
-		}
 	}
 
 	return 0;
@@ -2476,6 +2427,9 @@ disconnect:
 	}
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2484,7 +2438,6 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	struct snd_soc_dapm_widget_list *list;
 	int stream;
 	int count, paths;
-	int ret;
 
 	if (!fe->dai_link->dynamic)
 		return 0;
@@ -2516,24 +2469,17 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 			continue;
 
 		paths = dpcm_path_get(fe, stream, &list);
-		if (paths < 0) {
-			dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-				 fe->dai_link->name,
-				 stream == SNDRV_PCM_STREAM_PLAYBACK ?
-				 "playback" : "capture");
+		if (paths < 0)
 			return paths;
-		}
 
 		/* update any playback/capture paths */
 		count = dpcm_process_paths(fe, stream, &list, new);
 		if (count) {
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 			if (new)
-				ret = dpcm_run_update_startup(fe, stream);
+				dpcm_run_update_startup(fe, stream);
 			else
-				ret = dpcm_run_update_shutdown(fe, stream);
-			if (ret < 0)
-				dev_err(fe->dev, "ASoC: failed to shutdown some BEs\n");
+				dpcm_run_update_shutdown(fe, stream);
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
 			dpcm_clear_pending_state(fe, stream);
@@ -2615,12 +2561,8 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	ret = dpcm_path_get(fe, stream, &list);
-	if (ret < 0) {
+	if (ret < 0)
 		goto open_end;
-	} else if (ret == 0) {
-		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
-			fe->dai_link->name, stream ? "capture" : "playback");
-	}
 
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_process_paths(fe, stream, &list, 1);
@@ -2751,8 +2693,7 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		else
 			snprintf(new_name, sizeof(new_name), "%s %s-%d",
 				rtd->dai_link->stream_name,
-				(rtd->num_codecs > 1) ?
-				"multicodec" : asoc_rtd_to_codec(rtd, 0)->name, num);
+				soc_codec_dai_name(rtd), num);
 
 		ret = snd_pcm_new(rtd->card->snd_card, new_name, num, playback,
 			capture, pcm);
@@ -2833,6 +2774,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 			rtd->ops.page		= snd_soc_pcm_component_page;
 		if (drv->mmap)
 			rtd->ops.mmap		= snd_soc_pcm_component_mmap;
+		if (drv->ack)
+			rtd->ops.ack            = snd_soc_pcm_component_ack;
 	}
 
 	if (playback)
@@ -2842,17 +2785,13 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
 	ret = snd_soc_pcm_component_new(rtd);
-	if (ret < 0) {
-		dev_err(rtd->dev, "ASoC: pcm constructor failed for dailink %s: %d\n",
-			rtd->dai_link->name, ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	pcm->no_device_suspend = true;
 out:
 	dev_dbg(rtd->card->dev, "%s <-> %s mapping ok\n",
-		(rtd->num_codecs > 1) ? "multicodec" : asoc_rtd_to_codec(rtd, 0)->name,
-		(rtd->num_cpus > 1)   ? "multicpu"   : asoc_rtd_to_cpu(rtd, 0)->name);
+		soc_codec_dai_name(rtd), soc_cpu_dai_name(rtd));
 	return ret;
 }
 

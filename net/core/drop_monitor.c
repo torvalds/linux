@@ -1754,7 +1754,7 @@ static void exit_net_drop_monitor(void)
 
 	/*
 	 * Because of the module_get/put we do in the trace state change path
-	 * we are guarnateed not to have any current users when we get here
+	 * we are guaranteed not to have any current users when we get here
 	 */
 
 	for_each_possible_cpu(cpu) {

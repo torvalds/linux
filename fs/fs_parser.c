@@ -310,7 +310,6 @@ EXPORT_SYMBOL(fs_param_is_path);
 #ifdef CONFIG_VALIDATE_FS_PARSER
 /**
  * validate_constant_table - Validate a constant table
- * @name: Name to use in reporting
  * @tbl: The constant table to validate.
  * @tbl_size: The size of the table.
  * @low: The lowest permissible value.
@@ -360,6 +359,7 @@ bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
 
 /**
  * fs_validate_description - Validate a parameter description
+ * @name: The parameter name to search for.
  * @desc: The parameter description to validate.
  */
 bool fs_validate_description(const char *name,

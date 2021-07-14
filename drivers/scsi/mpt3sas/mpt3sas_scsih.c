@@ -749,9 +749,10 @@ __mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_get_sdev_by_addr - get _sas_device object corresponding to provided
+ * __mpt3sas_get_sdev_by_addr - get _sas_device object corresponding to provided
  *				sas address from sas_device_list list
  * @ioc: per adapter object
+ * @sas_address: device sas address
  * @port: port number
  *
  * Search for _sas_device object corresponding to provided sas address,
@@ -3423,7 +3424,7 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 		MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 0,
 		tr_timeout, tr_method);
 	/* Check for busy commands after reset */
-	if (r == SUCCESS && atomic_read(&scmd->device->device_busy))
+	if (r == SUCCESS && scsi_device_busy(scmd->device))
 		r = FAILED;
  out:
 	sdev_printk(KERN_INFO, scmd->device, "device reset: %s scmd(0x%p)\n",
@@ -4518,7 +4519,7 @@ _scsih_issue_delayed_sas_io_unit_ctrl(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_check_for_pending_internal_cmds - check for pending internal messages
+ * mpt3sas_check_for_pending_internal_cmds - check for pending internal messages
  * @ioc: per adapter object
  * @smid: system request message index
  *
@@ -6174,10 +6175,10 @@ enum hba_port_matched_codes {
  * _scsih_look_and_get_matched_port_entry - Get matched hba port entry
  *					from HBA port table
  * @ioc: per adapter object
- * @port_entry - hba port entry from temporary port table which needs to be
+ * @port_entry: hba port entry from temporary port table which needs to be
  *		searched for matched entry in the HBA port table
- * @matched_port_entry - save matched hba port entry here
- * @count - count of matched entries
+ * @matched_port_entry: save matched hba port entry here
+ * @count: count of matched entries
  *
  * return type of matched entry found.
  */
@@ -6483,6 +6484,9 @@ _scsih_alloc_vphy(struct MPT3SAS_ADAPTER *ioc, u8 port_id, u8 phy_num)
 		if (!vphy)
 			return NULL;
 
+		if (!port->vphys_mask)
+			INIT_LIST_HEAD(&port->vphys_list);
+
 		/*
 		 * Enable bit corresponding to HBA phy number on its
 		 * parent hba_port object's vphys_mask field.
@@ -6490,7 +6494,6 @@ _scsih_alloc_vphy(struct MPT3SAS_ADAPTER *ioc, u8 port_id, u8 phy_num)
 		port->vphys_mask |= (1 << phy_num);
 		vphy->phy_mask |= (1 << phy_num);
 
-		INIT_LIST_HEAD(&port->vphys_list);
 		list_add_tail(&vphy->list, &port->vphys_list);
 
 		ioc_info(ioc,
@@ -6952,6 +6955,7 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
  * mpt3sas_expander_remove - removing expander object
  * @ioc: per adapter object
  * @sas_address: expander sas_address
+ * @port: hba port entry
  */
 void
 mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
@@ -10219,8 +10223,8 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 	Mpi2ExpanderPage0_t expander_pg0;
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	Mpi26PCIeDevicePage0_t pcie_device_pg0;
-	Mpi2RaidVolPage1_t volume_pg1;
-	Mpi2RaidVolPage0_t volume_pg0;
+	Mpi2RaidVolPage1_t *volume_pg1;
+	Mpi2RaidVolPage0_t *volume_pg0;
 	Mpi2RaidPhysDiskPage0_t pd_pg0;
 	Mpi2EventIrConfigElement_t element;
 	Mpi2ConfigReply_t mpi_reply;
@@ -10234,6 +10238,16 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 	static struct _raid_device *raid_device;
 	u8 retry_count;
 	unsigned long flags;
+
+	volume_pg0 = kzalloc(sizeof(*volume_pg0), GFP_KERNEL);
+	if (!volume_pg0)
+		return;
+
+	volume_pg1 = kzalloc(sizeof(*volume_pg1), GFP_KERNEL);
+	if (!volume_pg1) {
+		kfree(volume_pg0);
+		return;
+	}
 
 	ioc_info(ioc, "scan devices: start\n");
 
@@ -10344,7 +10358,7 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 	/* volumes */
 	handle = 0xFFFF;
 	while (!(mpt3sas_config_get_raid_volume_pg1(ioc, &mpi_reply,
-	    &volume_pg1, MPI2_RAID_VOLUME_PGAD_FORM_GET_NEXT_HANDLE, handle))) {
+	    volume_pg1, MPI2_RAID_VOLUME_PGAD_FORM_GET_NEXT_HANDLE, handle))) {
 		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
@@ -10352,15 +10366,15 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 				 ioc_status, le32_to_cpu(mpi_reply.IOCLogInfo));
 			break;
 		}
-		handle = le16_to_cpu(volume_pg1.DevHandle);
+		handle = le16_to_cpu(volume_pg1->DevHandle);
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
 		raid_device = _scsih_raid_device_find_by_wwid(ioc,
-		    le64_to_cpu(volume_pg1.WWID));
+		    le64_to_cpu(volume_pg1->WWID));
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
 		if (raid_device)
 			continue;
 		if (mpt3sas_config_get_raid_volume_pg0(ioc, &mpi_reply,
-		    &volume_pg0, MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, handle,
+		    volume_pg0, MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, handle,
 		     sizeof(Mpi2RaidVolPage0_t)))
 			continue;
 		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
@@ -10370,17 +10384,17 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 				 ioc_status, le32_to_cpu(mpi_reply.IOCLogInfo));
 			break;
 		}
-		if (volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_OPTIMAL ||
-		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_ONLINE ||
-		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_DEGRADED) {
+		if (volume_pg0->VolumeState == MPI2_RAID_VOL_STATE_OPTIMAL ||
+		    volume_pg0->VolumeState == MPI2_RAID_VOL_STATE_ONLINE ||
+		    volume_pg0->VolumeState == MPI2_RAID_VOL_STATE_DEGRADED) {
 			memset(&element, 0, sizeof(Mpi2EventIrConfigElement_t));
 			element.ReasonCode = MPI2_EVENT_IR_CHANGE_RC_ADDED;
-			element.VolDevHandle = volume_pg1.DevHandle;
+			element.VolDevHandle = volume_pg1->DevHandle;
 			ioc_info(ioc, "\tBEFORE adding volume: handle (0x%04x)\n",
-				 volume_pg1.DevHandle);
+				 volume_pg1->DevHandle);
 			_scsih_sas_volume_add(ioc, &element);
 			ioc_info(ioc, "\tAFTER adding volume: handle (0x%04x)\n",
-				 volume_pg1.DevHandle);
+				 volume_pg1->DevHandle);
 		}
 	}
 
@@ -10468,12 +10482,16 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 		ioc_info(ioc, "\tAFTER adding pcie end device: handle (0x%04x), wwid(0x%016llx)\n",
 			 handle, (u64)le64_to_cpu(pcie_device_pg0.WWID));
 	}
+
+	kfree(volume_pg0);
+	kfree(volume_pg1);
+
 	ioc_info(ioc, "\tpcie devices: pcie end devices complete\n");
 	ioc_info(ioc, "scan devices: complete\n");
 }
 
 /**
- * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_pre_reset_handler - reset callback handler (for scsih)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -10514,7 +10532,7 @@ mpt3sas_scsih_clear_outstanding_scsi_tm_commands(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_reset_done_handler - reset callback handler (for scsih)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -10802,7 +10820,8 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 			pr_notice("cannot be powered and devices connected\n");
 			pr_notice("to this active cable will not be seen\n");
 			pr_notice("This active cable requires %d mW of power\n",
-			     ActiveCableEventData->ActiveCablePowerRequirement);
+			    le32_to_cpu(
+			    ActiveCableEventData->ActiveCablePowerRequirement));
 			break;
 
 		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
@@ -12281,7 +12300,7 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 }
 
 /**
- * scsih__ncq_prio_supp - Check for NCQ command priority support
+ * scsih_ncq_prio_supp - Check for NCQ command priority support
  * @sdev: scsi device struct
  *
  * This is called when a user indicates they would like to enable

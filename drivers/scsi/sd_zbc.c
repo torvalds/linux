@@ -134,7 +134,7 @@ static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
 }
 
 /**
- * Allocate a buffer for report zones reply.
+ * sd_zbc_alloc_report_buffer() - Allocate a buffer for report zones reply.
  * @sdkp: The target disk
  * @nr_zones: Maximum number of zones to report
  * @buflen: Size of the buffer allocated

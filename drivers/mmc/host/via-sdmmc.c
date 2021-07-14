@@ -1271,7 +1271,6 @@ static int __maybe_unused via_sd_suspend(struct device *dev)
 static int __maybe_unused via_sd_resume(struct device *dev)
 {
 	struct via_crdr_mmc_host *sdhost;
-	int ret = 0;
 	u8 gatt;
 
 	sdhost = dev_get_drvdata(dev);
@@ -1292,7 +1291,7 @@ static int __maybe_unused via_sd_resume(struct device *dev)
 	via_restore_pcictrlreg(sdhost);
 	via_init_sdc_pm(sdhost);
 
-	return ret;
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(via_sd_pm_ops, via_sd_suspend, via_sd_resume);

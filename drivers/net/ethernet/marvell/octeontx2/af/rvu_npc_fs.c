@@ -29,6 +29,8 @@ static const char * const npc_flow_names[] = {
 	[NPC_IPPROTO_TCP] = "ip proto tcp",
 	[NPC_IPPROTO_UDP] = "ip proto udp",
 	[NPC_IPPROTO_SCTP] = "ip proto sctp",
+	[NPC_IPPROTO_ICMP] = "ip proto icmp",
+	[NPC_IPPROTO_ICMP6] = "ip proto icmp6",
 	[NPC_IPPROTO_AH] = "ip proto AH",
 	[NPC_IPPROTO_ESP] = "ip proto ESP",
 	[NPC_SPORT_TCP]	= "tcp source port",
@@ -427,6 +429,7 @@ do {									       \
 	 * packet header fields below.
 	 * Example: Source IP is 4 bytes and starts at 12th byte of IP header
 	 */
+	NPC_SCAN_HDR(NPC_TOS, NPC_LID_LC, NPC_LT_LC_IP, 1, 1);
 	NPC_SCAN_HDR(NPC_SIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 12, 4);
 	NPC_SCAN_HDR(NPC_DIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 16, 4);
 	NPC_SCAN_HDR(NPC_SIP_IPV6, NPC_LID_LC, NPC_LT_LC_IP6, 8, 16);
@@ -477,9 +480,12 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 				     BIT_ULL(NPC_IPPROTO_SCTP);
 	}
 
-	/* for AH, check if corresponding layer type is present in the key */
-	if (npc_check_field(rvu, blkaddr, NPC_LD, intf))
+	/* for AH/ICMP/ICMPv6/, check if corresponding layer type is present in the key */
+	if (npc_check_field(rvu, blkaddr, NPC_LD, intf)) {
 		*features |= BIT_ULL(NPC_IPPROTO_AH);
+		*features |= BIT_ULL(NPC_IPPROTO_ICMP);
+		*features |= BIT_ULL(NPC_IPPROTO_ICMP6);
+	}
 
 	/* for ESP, check if corresponding layer type is present in the key */
 	if (npc_check_field(rvu, blkaddr, NPC_LE, intf))
@@ -597,7 +603,7 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
 		dev_info(rvu->dev, "Unsupported flow(s):\n");
 		for_each_set_bit(bit, (unsigned long *)&unsupported, 64)
 			dev_info(rvu->dev, "%s ", npc_get_field_name(bit));
-		return -EOPNOTSUPP;
+		return NIX_AF_ERR_NPC_KEY_NOT_SUPP;
 	}
 
 	return 0;
@@ -769,6 +775,12 @@ static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 	if (features & BIT_ULL(NPC_IPPROTO_SCTP))
 		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_SCTP,
 				 0, ~0ULL, 0, intf);
+	if (features & BIT_ULL(NPC_IPPROTO_ICMP))
+		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP,
+				 0, ~0ULL, 0, intf);
+	if (features & BIT_ULL(NPC_IPPROTO_ICMP6))
+		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP6,
+				 0, ~0ULL, 0, intf);
 
 	if (features & BIT_ULL(NPC_OUTER_VID))
 		npc_update_entry(rvu, NPC_LB, entry,
@@ -798,6 +810,7 @@ do {									      \
 	NPC_WRITE_FLOW(NPC_SMAC, smac, smac_val, 0, smac_mask, 0);
 	NPC_WRITE_FLOW(NPC_ETYPE, etype, ntohs(pkt->etype), 0,
 		       ntohs(mask->etype), 0);
+	NPC_WRITE_FLOW(NPC_TOS, tos, pkt->tos, 0, mask->tos, 0);
 	NPC_WRITE_FLOW(NPC_SIP_IPV4, ip4src, ntohl(pkt->ip4src), 0,
 		       ntohl(mask->ip4src), 0);
 	NPC_WRITE_FLOW(NPC_DIP_IPV4, ip4dst, ntohl(pkt->ip4dst), 0,
@@ -903,9 +916,11 @@ static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_rx_action action;
+	u64 chan_mask;
 
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0,
-			 ~0ULL, 0, NIX_INTF_RX);
+	chan_mask = req->chan_mask ? req->chan_mask : ~0ULL;
+	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, chan_mask, 0,
+			 NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
 	action.pf_func = target;
@@ -998,33 +1013,21 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	if (is_npc_intf_tx(req->intf))
 		goto find_rule;
 
-	if (def_ucast_rule)
+	if (req->default_rule) {
+		entry_index = npc_get_nixlf_mcam_index(mcam, target, nixlf,
+						       NIXLF_UCAST_ENTRY);
+		enable = is_mcam_entry_enabled(rvu, mcam, blkaddr, entry_index);
+	}
+
+	/* update mcam entry with default unicast rule attributes */
+	if (def_ucast_rule && (msg_from_vf || (req->default_rule && req->append))) {
 		missing_features = (def_ucast_rule->features ^ features) &
 					def_ucast_rule->features;
-
-	if (req->default_rule && req->append) {
-		/* add to default rule */
 		if (missing_features)
 			npc_update_flow(rvu, entry, missing_features,
 					&def_ucast_rule->packet,
 					&def_ucast_rule->mask,
 					&dummy, req->intf);
-		enable = rvu_npc_write_default_rule(rvu, blkaddr,
-						    nixlf, target,
-						    pfvf->nix_rx_intf, entry,
-						    &entry_index);
-		installed_features = req->features | missing_features;
-	} else if (req->default_rule && !req->append) {
-		/* overwrite default rule */
-		enable = rvu_npc_write_default_rule(rvu, blkaddr,
-						    nixlf, target,
-						    pfvf->nix_rx_intf, entry,
-						    &entry_index);
-	} else if (msg_from_vf) {
-		/* normal rule - include default rule also to it for VF */
-		npc_update_flow(rvu, entry, missing_features,
-				&def_ucast_rule->packet, &def_ucast_rule->mask,
-				&dummy, req->intf);
 		installed_features = req->features | missing_features;
 	}
 
@@ -1036,12 +1039,9 @@ find_rule:
 			return -ENOMEM;
 		new = true;
 	}
-	/* no counter for default rule */
-	if (req->default_rule)
-		goto update_rule;
 
 	/* allocate new counter if rule has no counter */
-	if (req->set_cntr && !rule->has_cntr)
+	if (!req->default_rule && req->set_cntr && !rule->has_cntr)
 		rvu_mcam_add_counter_to_rule(rvu, owner, rule, rsp);
 
 	/* if user wants to delete an existing counter for a rule then
@@ -1051,7 +1051,14 @@ find_rule:
 		rvu_mcam_remove_counter_from_rule(rvu, owner, rule);
 
 	write_req.hdr.pcifunc = owner;
-	write_req.entry = req->entry;
+
+	/* AF owns the default rules so change the owner just to relax
+	 * the checks in rvu_mbox_handler_npc_mcam_write_entry
+	 */
+	if (req->default_rule)
+		write_req.hdr.pcifunc = 0;
+
+	write_req.entry = entry_index;
 	write_req.intf = req->intf;
 	write_req.enable_entry = (u8)enable;
 	/* if counter is available then clear and use it */
@@ -1069,7 +1076,7 @@ find_rule:
 			kfree(rule);
 		return err;
 	}
-update_rule:
+	/* update rule */
 	memcpy(&rule->packet, &dummy.packet, sizeof(rule->packet));
 	memcpy(&rule->mask, &dummy.mask, sizeof(rule->mask));
 	rule->entry = entry_index;
@@ -1145,8 +1152,13 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	else
 		target = req->hdr.pcifunc;
 
-	if (npc_check_unsupported_flows(rvu, req->features, req->intf))
-		return -EOPNOTSUPP;
+	/* ignore chan_mask in case pf func is not AF, revisit later */
+	if (!is_pffunc_af(req->hdr.pcifunc))
+		req->chan_mask = 0xFFF;
+
+	err = npc_check_unsupported_flows(rvu, req->features, req->intf);
+	if (err)
+		return err;
 
 	if (npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
 		return -EINVAL;
@@ -1278,6 +1290,7 @@ static int npc_update_dmac_value(struct rvu *rvu, int npcblkaddr,
 
 	write_req.hdr.pcifunc = rule->owner;
 	write_req.entry = rule->entry;
+	write_req.intf = pfvf->nix_rx_intf;
 
 	mutex_unlock(&mcam->lock);
 	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req, &rsp);

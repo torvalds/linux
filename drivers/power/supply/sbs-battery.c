@@ -1124,11 +1124,9 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
 			"sbs,battery-detect", GPIOD_IN);
-	if (IS_ERR(chip->gpio_detect)) {
-		dev_err(&client->dev, "Failed to get gpio: %ld\n",
-			PTR_ERR(chip->gpio_detect));
-		return PTR_ERR(chip->gpio_detect);
-	}
+	if (IS_ERR(chip->gpio_detect))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->gpio_detect),
+				     "Failed to get gpio\n");
 
 	i2c_set_clientdata(client, chip);
 
@@ -1159,11 +1157,9 @@ skip_gpio:
 
 		rc = sbs_get_battery_presence_and_health(
 				client, POWER_SUPPLY_PROP_PRESENT, &val);
-		if (rc < 0 || !val.intval) {
-			dev_err(&client->dev, "Failed to get present status\n");
-			rc = -ENODEV;
-			goto exit_psupply;
-		}
+		if (rc < 0 || !val.intval)
+			return dev_err_probe(&client->dev, -ENODEV,
+					     "Failed to get present status\n");
 	}
 
 	rc = devm_delayed_work_autocancel(&client->dev, &chip->work,
@@ -1173,20 +1169,14 @@ skip_gpio:
 
 	chip->power_supply = devm_power_supply_register(&client->dev, sbs_desc,
 						   &psy_cfg);
-	if (IS_ERR(chip->power_supply)) {
-		dev_err(&client->dev,
-			"%s: Failed to register power supply\n", __func__);
-		rc = PTR_ERR(chip->power_supply);
-		goto exit_psupply;
-	}
+	if (IS_ERR(chip->power_supply))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->power_supply),
+				     "Failed to register power supply\n");
 
 	dev_info(&client->dev,
 		"%s: battery gas gauge device registered\n", client->name);
 
 	return 0;
-
-exit_psupply:
-	return rc;
 }
 
 #if defined CONFIG_PM_SLEEP

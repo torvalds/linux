@@ -1429,7 +1429,7 @@ static void qeth_free_out_buf(struct qeth_qdio_out_buffer *buf)
 
 static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 					  struct qeth_qdio_out_q *queue,
-					  bool drain)
+					  bool drain, int budget)
 {
 	struct qeth_qdio_out_buffer *buf, *tmp;
 
@@ -1441,7 +1441,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			if (drain)
 				qeth_notify_skbs(queue, buf,
 						 TX_NOTIFY_GENERALERROR);
-			qeth_tx_complete_buf(buf, drain, 0);
+			qeth_tx_complete_buf(buf, drain, budget);
 
 			list_del(&buf->list_entry);
 			qeth_free_out_buf(buf);
@@ -1453,7 +1453,7 @@ static void qeth_drain_output_queue(struct qeth_qdio_out_q *q, bool free)
 {
 	int j;
 
-	qeth_tx_complete_pending_bufs(q->card, q, true);
+	qeth_tx_complete_pending_bufs(q->card, q, true, 0);
 
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
 		if (!q->bufs[j])
@@ -2566,11 +2566,12 @@ static int qeth_ulp_setup(struct qeth_card *card)
 	return qeth_send_control_data(card, iob, qeth_ulp_setup_cb, NULL);
 }
 
-static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *q, int bidx)
+static int qeth_alloc_out_buf(struct qeth_qdio_out_q *q, unsigned int bidx,
+			      gfp_t gfp)
 {
 	struct qeth_qdio_out_buffer *newbuf;
 
-	newbuf = kmem_cache_zalloc(qeth_qdio_outbuf_cache, GFP_ATOMIC);
+	newbuf = kmem_cache_zalloc(qeth_qdio_outbuf_cache, gfp);
 	if (!newbuf)
 		return -ENOMEM;
 
@@ -2605,7 +2606,7 @@ static struct qeth_qdio_out_q *qeth_alloc_output_queue(void)
 		goto err_qdio_bufs;
 
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
-		if (qeth_init_qdio_out_buf(q, i))
+		if (qeth_alloc_out_buf(q, i, GFP_KERNEL))
 			goto err_out_bufs;
 	}
 
@@ -6080,7 +6081,8 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 
 				/* Prepare the queue slot for immediate re-use: */
 				qeth_scrub_qdio_buffer(buffer->buffer, queue->max_elements);
-				if (qeth_init_qdio_out_buf(queue, bidx)) {
+				if (qeth_alloc_out_buf(queue, bidx,
+						       GFP_ATOMIC)) {
 					QETH_CARD_TEXT(card, 2, "outofbuf");
 					qeth_schedule_recovery(card);
 				}
@@ -6144,7 +6146,7 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 		unsigned int bytes = 0;
 		int completed;
 
-		qeth_tx_complete_pending_bufs(card, queue, false);
+		qeth_tx_complete_pending_bufs(card, queue, false, budget);
 
 		if (qeth_out_queue_is_empty(queue)) {
 			napi_complete(napi);

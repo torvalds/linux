@@ -238,7 +238,6 @@ struct dc_stream_state {
 	bool apply_seamless_boot_optimization;
 
 	uint32_t stream_id;
-	bool is_dsc_enabled;
 
 	struct test_pattern test_pattern;
 	union stream_update_flags update_flags;

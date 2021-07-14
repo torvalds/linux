@@ -370,7 +370,7 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		/* short preamble */
 		if ((mi->supported[group] & BIT(idx + 4)) &&
 		    (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
-				idx += 4;
+			idx += 4;
 		goto out;
 	}
 
@@ -868,7 +868,6 @@ static u16
 minstrel_ht_next_jump_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur,
 			   u32 slow_rate_dur, int *slow_rate_ofs)
 {
-	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mrs;
 	u32 max_duration = slow_rate_dur;
 	int i, index, offset;
@@ -886,7 +885,6 @@ minstrel_ht_next_jump_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur,
 		u8 type;
 
 		group = (group + 1) % ARRAY_SIZE(minstrel_mcs_groups);
-		mg = &mi->groups[group];
 
 		supported = mi->supported[group];
 		if (!supported)
@@ -1516,7 +1514,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		return;
 
-	if (time_is_before_jiffies(mi->sample_time))
+	if (time_is_after_jiffies(mi->sample_time))
 		return;
 
 	mi->sample_time = jiffies + MINSTREL_SAMPLE_INTERVAL;

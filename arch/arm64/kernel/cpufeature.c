@@ -68,6 +68,7 @@
 #include <linux/sort.h>
 #include <linux/stop_machine.h>
 #include <linux/types.h>
+#include <linux/minmax.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/kasan.h>
@@ -694,14 +695,14 @@ static s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 		ret = ftrp->safe_val;
 		break;
 	case FTR_LOWER_SAFE:
-		ret = new < cur ? new : cur;
+		ret = min(new, cur);
 		break;
 	case FTR_HIGHER_OR_ZERO_SAFE:
 		if (!cur || !new)
 			break;
 		fallthrough;
 	case FTR_HIGHER_SAFE:
-		ret = new > cur ? new : cur;
+		ret = max(new, cur);
 		break;
 	default:
 		BUG();

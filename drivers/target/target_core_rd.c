@@ -530,12 +530,13 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 }
 
 enum {
-	Opt_rd_pages, Opt_rd_nullio, Opt_err
+	Opt_rd_pages, Opt_rd_nullio, Opt_rd_dummy, Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_rd_pages, "rd_pages=%d"},
 	{Opt_rd_nullio, "rd_nullio=%d"},
+	{Opt_rd_dummy, "rd_dummy=%d"},
 	{Opt_err, NULL}
 };
 
@@ -574,6 +575,14 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 			pr_debug("RAMDISK: Setting NULLIO flag: %d\n", arg);
 			rd_dev->rd_flags |= RDF_NULLIO;
 			break;
+		case Opt_rd_dummy:
+			match_int(args, &arg);
+			if (arg != 1)
+				break;
+
+			pr_debug("RAMDISK: Setting DUMMY flag: %d\n", arg);
+			rd_dev->rd_flags |= RDF_DUMMY;
+			break;
 		default:
 			break;
 		}
@@ -590,10 +599,20 @@ static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
 	ssize_t bl = sprintf(b, "TCM RamDisk ID: %u  RamDisk Makeup: rd_mcp\n",
 			rd_dev->rd_dev_id);
 	bl += sprintf(b + bl, "        PAGES/PAGE_SIZE: %u*%lu"
-			"  SG_table_count: %u  nullio: %d\n", rd_dev->rd_page_count,
+			"  SG_table_count: %u  nullio: %d dummy: %d\n",
+			rd_dev->rd_page_count,
 			PAGE_SIZE, rd_dev->sg_table_count,
-			!!(rd_dev->rd_flags & RDF_NULLIO));
+			!!(rd_dev->rd_flags & RDF_NULLIO),
+			!!(rd_dev->rd_flags & RDF_DUMMY));
 	return bl;
+}
+
+static u32 rd_get_device_type(struct se_device *dev)
+{
+	if (RD_DEV(dev)->rd_flags & RDF_DUMMY)
+		return 0x3f; /* Unknown device type, not connected */
+	else
+		return sbc_get_device_type(dev);
 }
 
 static sector_t rd_get_blocks(struct se_device *dev)
@@ -647,7 +666,7 @@ static const struct target_backend_ops rd_mcp_ops = {
 	.parse_cdb		= rd_parse_cdb,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
-	.get_device_type	= sbc_get_device_type,
+	.get_device_type	= rd_get_device_type,
 	.get_blocks		= rd_get_blocks,
 	.init_prot		= rd_init_prot,
 	.free_prot		= rd_free_prot,

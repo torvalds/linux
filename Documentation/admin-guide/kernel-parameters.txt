@@ -497,16 +497,21 @@
 	ccw_timeout_log	[S390]
 			See Documentation/s390/common_io.rst for details.
 
-	cgroup_disable=	[KNL] Disable a particular controller
-			Format: {name of the controller(s) to disable}
+	cgroup_disable=	[KNL] Disable a particular controller or optional feature
+			Format: {name of the controller(s) or feature(s) to disable}
 			The effects of cgroup_disable=foo are:
 			- foo isn't auto-mounted if you mount all cgroups in
 			  a single hierarchy
 			- foo isn't visible as an individually mountable
 			  subsystem
+			- if foo is an optional feature then the feature is
+			  disabled and corresponding cgroup files are not
+			  created
 			{Currently only "memory" controller deal with this and
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
+			Specifying "pressure" disables per-cgroup pressure
+			stall information accounting feature
 
 	cgroup_no_v1=	[KNL] Disable cgroup controllers and named hierarchies in v1
 			Format: { { controller | "all" | "named" }
@@ -1469,6 +1474,12 @@
 			Don't use this when you are not running on the
 			android emulator
 
+	gpio-mockup.gpio_mockup_ranges
+			[HW] Sets the ranges of gpiochip of for this device.
+			Format: <start1>,<end1>,<start2>,<end2>...
+	gpio-mockup.gpio_mockup_named_lines
+			[HW] Let the driver know GPIO lines should be named.
+
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT. If the
 			primary GPT is corrupted, it enables the backup/alternate
@@ -1491,10 +1502,6 @@
 	grcan.rxsize=	[HW] Sets the size of the rx buffer.
 			Format: <unsigned int> such that (rxsize & ~0x1fffc0) == 0.
 			Default: 1024
-
-	gpio-mockup.gpio_mockup_ranges
-			[HW] Sets the ranges of gpiochip of for this device.
-			Format: <start1>,<end1>,<start2>,<end2>...
 
 	hardlockup_all_cpu_backtrace=
 			[KNL] Should the hard-lockup detector generate
@@ -1837,6 +1844,18 @@
 			initcall functions.  Useful for debugging built-in
 			modules and initcalls.
 
+	initramfs_async= [KNL]
+			Format: <bool>
+			Default: 1
+			This parameter controls whether the initramfs
+			image is unpacked asynchronously, concurrently
+			with devices being probed and
+			initialized. This should normally just work,
+			but as a debugging aid, one can get the
+			historical behaviour of the initramfs
+			unpacking being completed before device_ and
+			late_ initcalls.
+
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 
 	initrdmem=	[KNL] Specify a physical address and size from which to
@@ -1881,13 +1900,6 @@
 			bypassed by not enabling DMAR with this option. In
 			this case, gfx device will use physical address for
 			DMA.
-		forcedac [X86-64]
-			With this option iommu will not optimize to look
-			for io virtual address below 32-bit forcing dual
-			address cycle on pci bus for cards supporting greater
-			than 32-bit addressing. The default is to look
-			for translation below 32-bit and if not available
-			then look in the higher range.
 		strict [Default Off]
 			With this option on every unmap_single operation will
 			result in a hardware IOTLB flush operation as opposed
@@ -1975,6 +1987,14 @@
 		nopt		[X86]
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
+
+	iommu.forcedac=	[ARM64, X86] Control IOVA allocation for PCI devices.
+			Format: { "0" | "1" }
+			0 - Try to allocate a 32-bit DMA address first, before
+			  falling back to the full range if needed.
+			1 - Allocate directly from the full usable range,
+			  forcing Dual Address Cycle for PCI cards supporting
+			  greater than 32-bit addressing.
 
 	iommu.strict=	[ARM64] Configure TLB invalidation behaviour
 			Format: { "0" | "1" }
@@ -2805,7 +2825,24 @@
 			seconds.  Use this parameter to check at some
 			other rate.  0 disables periodic checking.
 
-	memtest=	[KNL,X86,ARM,PPC] Enable memtest
+	memory_hotplug.memmap_on_memory
+			[KNL,X86,ARM] Boolean flag to enable this feature.
+			Format: {on | off (default)}
+			When enabled, runtime hotplugged memory will
+			allocate its internal metadata (struct pages)
+			from the hotadded memory which will allow to
+			hotadd a lot of memory without requiring
+			additional memory to do so.
+			This feature is disabled by default because it
+			has some implication on large (e.g. GB)
+			allocations in some configurations (e.g. small
+			memory blocks).
+			The state of the flag can be read in
+			/sys/module/memory_hotplug/parameters/memmap_on_memory.
+			Note that even when enabled, there are a few cases where
+			the feature is not effective.
+
+	memtest=	[KNL,X86,ARM,PPC,RISCV] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -3254,6 +3291,8 @@
 
 	nohugeiomap	[KNL,X86,PPC,ARM64] Disable kernel huge I/O mappings.
 
+	nohugevmalloc	[PPC] Disable kernel huge vmalloc mappings.
+
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
@@ -3603,6 +3642,96 @@
 			up parallel port mode and sets it to spp.
 			Currently this function knows 686a and 8231 chips.
 			Format: [spp|ps2|epp|ecp|ecpepp]
+
+	pata_legacy.all=	[HW,LIBATA]
+			Format: <int>
+			Set to non-zero to probe primary and secondary ISA
+			port ranges on PCI systems where no PCI PATA device
+			has been found at either range.  Disabled by default.
+
+	pata_legacy.autospeed=	[HW,LIBATA]
+			Format: <int>
+			Set to non-zero if a chip is present that snoops speed
+			changes.  Disabled by default.
+
+	pata_legacy.ht6560a=	[HW,LIBATA]
+			Format: <int>
+			Set to 1, 2, or 3 for HT 6560A on the primary channel,
+			the secondary channel, or both channels respectively.
+			Disabled by default.
+
+	pata_legacy.ht6560b=	[HW,LIBATA]
+			Format: <int>
+			Set to 1, 2, or 3 for HT 6560B on the primary channel,
+			the secondary channel, or both channels respectively.
+			Disabled by default.
+
+	pata_legacy.iordy_mask=	[HW,LIBATA]
+			Format: <int>
+			IORDY enable mask.  Set individual bits to allow IORDY
+			for the respective channel.  Bit 0 is for the first
+			legacy channel handled by this driver, bit 1 is for
+			the second channel, and so on.  The sequence will often
+			correspond to the primary legacy channel, the secondary
+			legacy channel, and so on, but the handling of a PCI
+			bus and the use of other driver options may interfere
+			with the sequence.  By default IORDY is allowed across
+			all channels.
+
+	pata_legacy.opti82c46x=	[HW,LIBATA]
+			Format: <int>
+			Set to 1, 2, or 3 for Opti 82c611A on the primary
+			channel, the secondary channel, or both channels
+			respectively.  Disabled by default.
+
+	pata_legacy.opti82c611a=	[HW,LIBATA]
+			Format: <int>
+			Set to 1, 2, or 3 for Opti 82c465MV on the primary
+			channel, the secondary channel, or both channels
+			respectively.  Disabled by default.
+
+	pata_legacy.pio_mask=	[HW,LIBATA]
+			Format: <int>
+			PIO mode mask for autospeed devices.  Set individual
+			bits to allow the use of the respective PIO modes.
+			Bit 0 is for mode 0, bit 1 is for mode 1, and so on.
+			All modes allowed by default.
+
+	pata_legacy.probe_all=	[HW,LIBATA]
+			Format: <int>
+			Set to non-zero to probe tertiary and further ISA
+			port ranges on PCI systems.  Disabled by default.
+
+	pata_legacy.probe_mask=	[HW,LIBATA]
+			Format: <int>
+			Probe mask for legacy ISA PATA ports.  Depending on
+			platform configuration and the use of other driver
+			options up to 6 legacy ports are supported: 0x1f0,
+			0x170, 0x1e8, 0x168, 0x1e0, 0x160, however probing
+			of individual ports can be disabled by setting the
+			corresponding bits in the mask to 1.  Bit 0 is for
+			the first port in the list above (0x1f0), and so on.
+			By default all supported ports are probed.
+
+	pata_legacy.qdi=	[HW,LIBATA]
+			Format: <int>
+			Set to non-zero to probe QDI controllers.  By default
+			set to 1 if CONFIG_PATA_QDI_MODULE, 0 otherwise.
+
+	pata_legacy.winbond=	[HW,LIBATA]
+			Format: <int>
+			Set to non-zero to probe Winbond controllers.  Use
+			the standard I/O port (0x130) if 1, otherwise the
+			value given is the I/O port to use (typically 0x1b0).
+			By default set to 1 if CONFIG_PATA_WINBOND_VLB_MODULE,
+			0 otherwise.
+
+	pata_platform.pio_mask=	[HW,LIBATA]
+			Format: <int>
+			Supported PIO mode mask.  Set individual bits to allow
+			the use of the respective PIO modes.  Bit 0 is for
+			mode 0, bit 1 is for mode 1, and so on.  Mode 0 only
+			allowed by default.
 
 	pause_on_oops=
 			Halt all CPUs after the first oops has been printed for
@@ -4910,6 +5039,10 @@
 
 	slram=		[HW,MTD]
 
+	slab_merge	[MM]
+			Enable merging of slabs with similar size when the
+			kernel is built without CONFIG_SLAB_MERGE_DEFAULT.
+
 	slab_nomerge	[MM]
 			Disable merging of slabs with similar size. May be
 			necessary if there is some reason to distinguish
@@ -4956,6 +5089,9 @@
 			Determines the minimum page order for slabs. Must be
 			lower than slub_max_order.
 			For more information see Documentation/vm/slub.rst.
+
+	slub_merge	[MM, SLUB]
+			Same with slab_merge.
 
 	slub_nomerge	[MM, SLUB]
 			Same with slab_nomerge. This is supported for legacy.

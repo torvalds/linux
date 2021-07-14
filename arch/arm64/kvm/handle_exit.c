@@ -291,3 +291,48 @@ void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 	if (exception_index == ARM_EXCEPTION_EL1_SERROR)
 		kvm_handle_guest_serror(vcpu, kvm_vcpu_get_esr(vcpu));
 }
+
+void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr,
+					      u64 par, uintptr_t vcpu,
+					      u64 far, u64 hpfar) {
+	u64 elr_in_kimg = __phys_to_kimg(__hyp_pa(elr));
+	u64 hyp_offset = elr_in_kimg - kaslr_offset() - elr;
+	u64 mode = spsr & PSR_MODE_MASK;
+
+	/*
+	 * The nVHE hyp symbols are not included by kallsyms to avoid issues
+	 * with aliasing. That means that the symbols cannot be printed with the
+	 * "%pS" format specifier, so fall back to the vmlinux address if
+	 * there's no better option.
+	 */
+	if (mode != PSR_MODE_EL2t && mode != PSR_MODE_EL2h) {
+		kvm_err("Invalid host exception to nVHE hyp!\n");
+	} else if (ESR_ELx_EC(esr) == ESR_ELx_EC_BRK64 &&
+		   (esr & ESR_ELx_BRK64_ISS_COMMENT_MASK) == BUG_BRK_IMM) {
+		struct bug_entry *bug = find_bug(elr_in_kimg);
+		const char *file = NULL;
+		unsigned int line = 0;
+
+		/* All hyp bugs, including warnings, are treated as fatal. */
+		if (bug)
+			bug_get_file_line(bug, &file, &line);
+
+		if (file)
+			kvm_err("nVHE hyp BUG at: %s:%u!\n", file, line);
+		else
+			kvm_err("nVHE hyp BUG at: %016llx!\n", elr + hyp_offset);
+	} else {
+		kvm_err("nVHE hyp panic at: %016llx!\n", elr + hyp_offset);
+	}
+
+	/*
+	 * Hyp has panicked and we're going to handle that by panicking the
+	 * kernel. The kernel offset will be revealed in the panic so we're
+	 * also safe to reveal the hyp offset as a debugging aid for translating
+	 * hyp VAs to vmlinux addresses.
+	 */
+	kvm_err("Hyp Offset: 0x%llx\n", hyp_offset);
+
+	panic("HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%016lx\n",
+	      spsr, elr, esr, far, hpfar, par, vcpu);
+}

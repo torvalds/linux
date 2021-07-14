@@ -10,7 +10,22 @@
 #ifndef MDEV_H
 #define MDEV_H
 
-struct mdev_device;
+struct mdev_type;
+
+struct mdev_device {
+	struct device dev;
+	guid_t uuid;
+	void *driver_data;
+	struct list_head next;
+	struct mdev_type *type;
+	struct device *iommu_device;
+	bool active;
+};
+
+static inline struct mdev_device *to_mdev_device(struct device *dev)
+{
+	return container_of(dev, struct mdev_device, dev);
+}
 
 /*
  * Called by the parent device driver to set the device which represents
@@ -19,12 +34,21 @@ struct mdev_device;
  *
  * @dev: the mediated device that iommu will isolate.
  * @iommu_device: a pci device which represents the iommu for @dev.
- *
- * Return 0 for success, otherwise negative error value.
  */
-int mdev_set_iommu_device(struct device *dev, struct device *iommu_device);
+static inline void mdev_set_iommu_device(struct mdev_device *mdev,
+					 struct device *iommu_device)
+{
+	mdev->iommu_device = iommu_device;
+}
 
-struct device *mdev_get_iommu_device(struct device *dev);
+static inline struct device *mdev_get_iommu_device(struct mdev_device *mdev)
+{
+	return mdev->iommu_device;
+}
+
+unsigned int mdev_get_type_group_id(struct mdev_device *mdev);
+unsigned int mtype_get_type_group_id(struct mdev_type *mtype);
+struct device *mtype_get_parent_dev(struct mdev_type *mtype);
 
 /**
  * struct mdev_parent_ops - Structure to be registered for each parent device to
@@ -38,7 +62,6 @@ struct device *mdev_get_iommu_device(struct device *dev);
  * @create:		Called to allocate basic resources in parent device's
  *			driver for a particular mediated device. It is
  *			mandatory to provide create ops.
- *			@kobj: kobject of type for which 'create' is called.
  *			@mdev: mdev_device structure on of mediated device
  *			      that is being created
  *			Returns integer: success (0) or error (< 0)
@@ -84,7 +107,7 @@ struct mdev_parent_ops {
 	const struct attribute_group **mdev_attr_groups;
 	struct attribute_group **supported_type_groups;
 
-	int     (*create)(struct kobject *kobj, struct mdev_device *mdev);
+	int     (*create)(struct mdev_device *mdev);
 	int     (*remove)(struct mdev_device *mdev);
 	int     (*open)(struct mdev_device *mdev);
 	void    (*release)(struct mdev_device *mdev);
@@ -101,9 +124,11 @@ struct mdev_parent_ops {
 /* interface for exporting mdev supported type attributes */
 struct mdev_type_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct device *dev, char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct device *dev,
-			 const char *buf, size_t count);
+	ssize_t (*show)(struct mdev_type *mtype,
+			struct mdev_type_attribute *attr, char *buf);
+	ssize_t (*store)(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, const char *buf,
+			 size_t count);
 };
 
 #define MDEV_TYPE_ATTR(_name, _mode, _show, _store)		\
@@ -118,35 +143,46 @@ struct mdev_type_attribute mdev_type_attr_##_name =		\
 
 /**
  * struct mdev_driver - Mediated device driver
- * @name: driver name
  * @probe: called when new device created
  * @remove: called when device removed
  * @driver: device driver structure
  *
  **/
 struct mdev_driver {
-	const char *name;
-	int  (*probe)(struct device *dev);
-	void (*remove)(struct device *dev);
+	int (*probe)(struct mdev_device *dev);
+	void (*remove)(struct mdev_device *dev);
 	struct device_driver driver;
 };
 
-#define to_mdev_driver(drv)	container_of(drv, struct mdev_driver, driver)
-
-void *mdev_get_drvdata(struct mdev_device *mdev);
-void mdev_set_drvdata(struct mdev_device *mdev, void *data);
-const guid_t *mdev_uuid(struct mdev_device *mdev);
+static inline void *mdev_get_drvdata(struct mdev_device *mdev)
+{
+	return mdev->driver_data;
+}
+static inline void mdev_set_drvdata(struct mdev_device *mdev, void *data)
+{
+	mdev->driver_data = data;
+}
+static inline const guid_t *mdev_uuid(struct mdev_device *mdev)
+{
+	return &mdev->uuid;
+}
 
 extern struct bus_type mdev_bus_type;
 
 int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops);
 void mdev_unregister_device(struct device *dev);
 
-int mdev_register_driver(struct mdev_driver *drv, struct module *owner);
+int mdev_register_driver(struct mdev_driver *drv);
 void mdev_unregister_driver(struct mdev_driver *drv);
 
 struct device *mdev_parent_dev(struct mdev_device *mdev);
-struct device *mdev_dev(struct mdev_device *mdev);
-struct mdev_device *mdev_from_dev(struct device *dev);
+static inline struct device *mdev_dev(struct mdev_device *mdev)
+{
+	return &mdev->dev;
+}
+static inline struct mdev_device *mdev_from_dev(struct device *dev)
+{
+	return dev->bus == &mdev_bus_type ? to_mdev_device(dev) : NULL;
+}
 
 #endif /* MDEV_H */

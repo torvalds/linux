@@ -1,0 +1,8 @@
+[
+  {
+    "PublicDescription": "This event counts energy consumption per cycle of CMG local memory.",
+    "EventCode": "0x3E8",
+    "EventName": "EA_MEMORY",
+    "BriefDescription": "This event counts energy consumption per cycle of CMG local memory."
+  }
+]

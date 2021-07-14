@@ -1064,17 +1064,6 @@ static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
 #endif
 #endif /* CONFIG_GENERIC_IOMAP */
 
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#ifndef xlate_dev_kmem_ptr
-#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
-static inline void *xlate_dev_kmem_ptr(void *addr)
-{
-	return addr;
-}
-#endif
-
 #ifndef xlate_dev_mem_ptr
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr
 static inline void *xlate_dev_mem_ptr(phys_addr_t addr)

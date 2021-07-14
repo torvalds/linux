@@ -1357,7 +1357,7 @@ cxlflash_sync_err_irq_exit:
 
 /**
  * process_hrrq() - process the read-response queue
- * @afu:	AFU associated with the host.
+ * @hwq:	HWQ associated with the host.
  * @doneq:	Queue of commands harvested from the RRQ.
  * @budget:	Threshold of RRQ entries to process.
  *
@@ -1649,8 +1649,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	}
 
 	/* Get the read only section offset */
-	ro_start = pci_vpd_find_tag(vpd_data, 0, vpd_size,
-				    PCI_VPD_LRDT_RO_DATA);
+	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
 	if (unlikely(ro_start < 0)) {
 		dev_err(dev, "%s: VPD Read-only data not found\n", __func__);
 		rc = -ENODEV;
@@ -1997,7 +1996,7 @@ out:
 /**
  * init_mc() - create and register as the master context
  * @cfg:	Internal structure associated with the host.
- * index:	HWQ Index of the master context.
+ * @index:	HWQ Index of the master context.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -3294,7 +3293,7 @@ static char *decode_hioctl(unsigned int cmd)
 /**
  * cxlflash_lun_provision() - host LUN provisioning handler
  * @cfg:	Internal structure associated with the host.
- * @arg:	Kernel copy of userspace ioctl data structure.
+ * @lunprov:	Kernel copy of userspace ioctl data structure.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -3385,7 +3384,7 @@ out:
 /**
  * cxlflash_afu_debug() - host AFU debug handler
  * @cfg:	Internal structure associated with the host.
- * @arg:	Kernel copy of userspace ioctl data structure.
+ * @afu_dbg:	Kernel copy of userspace ioctl data structure.
  *
  * For debug requests requiring a data buffer, always provide an aligned
  * (cache line) buffer to the AFU to appease any alignment requirements.

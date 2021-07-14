@@ -114,7 +114,7 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 
 	if (amdgpu_ras_check_bad_page(adev, address)) {
 		dev_warn(adev->dev,
-			 "RAS WARN: 0x%llx has been marked as bad page!\n",
+			 "RAS WARN: 0x%llx has already been marked as bad page!\n",
 			 address);
 		return 0;
 	}
@@ -221,18 +221,17 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		op = 1;
 	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
 		op = 2;
-	else if (sscanf(str, "retire_page") == 0)
+	else if (strstr(str, "retire_page") != NULL)
 		op = 3;
 	else if (str[0] && str[1] && str[2] && str[3])
 		/* ascii string, but commands are not matched. */
 		return -EINVAL;
 
 	if (op != -1) {
-
 		if (op == 3) {
-			if (sscanf(str, "%*s %llu", &address) != 1)
-				if (sscanf(str, "%*s 0x%llx", &address) != 1)
-					return -EINVAL;
+			if (sscanf(str, "%*s 0x%llx", &address) != 1 &&
+			    sscanf(str, "%*s %llu", &address) != 1)
+				return -EINVAL;
 
 			data->op = op;
 			data->inject.address = address;
@@ -255,11 +254,11 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s %u %llu %llu",
-						&sub_block, &address, &value) != 3)
-				if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
-							&sub_block, &address, &value) != 3)
-					return -EINVAL;
+			if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+				   &sub_block, &address, &value) != 3 &&
+			    sscanf(str, "%*s %*s %*s %u %llu %llu",
+				   &sub_block, &address, &value) != 3)
+				return -EINVAL;
 			data->head.sub_block_index = sub_block;
 			data->inject.address = address;
 			data->inject.value = value;
@@ -278,7 +277,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 /**
  * DOC: AMDGPU RAS debugfs control interface
  *
- * It accepts struct ras_debug_if who has two members.
+ * The control interface accepts struct ras_debug_if which has two members.
  *
  * First member: ras_debug_if::head or ras_debug_if::inject.
  *
@@ -303,32 +302,33 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *
  * How to use the interface?
  *
- * Programs
+ * In a program
  *
- * Copy the struct ras_debug_if in your codes and initialize it.
- * Write the struct to the control node.
+ * Copy the struct ras_debug_if in your code and initialize it.
+ * Write the struct to the control interface.
  *
- * Shells
+ * From shell
  *
  * .. code-block:: bash
  *
- *	echo op block [error [sub_block address value]] > .../ras/ras_ctrl
+ *	echo "disable <block>" > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
+ *	echo "enable  <block> <error>" > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
+ *	echo "inject  <block> <error> <sub-block> <address> <value> > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
  *
- * Parameters:
+ * Where N, is the card which you want to affect.
  *
- * op: disable, enable, inject
- *	disable: only block is needed
- *	enable: block and error are needed
- *	inject: error, address, value are needed
- * block: umc, sdma, gfx, .........
+ * "disable" requires only the block.
+ * "enable" requires the block and error type.
+ * "inject" requires the block, error type, address, and value.
+ * The block is one of: umc, sdma, gfx, etc.
  *	see ras_block_string[] for details
- * error: ue, ce
- *	ue: multi_uncorrectable
- *	ce: single_correctable
- * sub_block:
- *	sub block index, pass 0 if there is no sub block
+ * The error type is one of: ue, ce, where,
+ *	ue is multi-uncorrectable
+ *	ce is single-correctable
+ * The sub-block is a the sub-block index, pass 0 if there is no sub-block.
+ * The address and value are hexadecimal numbers, leading 0x is optional.
  *
- * here are some examples for bash commands:
+ * For instance,
  *
  * .. code-block:: bash
  *
@@ -336,17 +336,17 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
- * How to check the result?
+ * How to check the result of the operation?
  *
- * For disable/enable, please check ras features at
+ * To check disable/enable, see "ras" features at,
  * /sys/class/drm/card[0/1/2...]/device/ras/features
  *
- * For inject, please check corresponding err count at
- * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
+ * To check inject, see the corresponding error count at,
+ * /sys/class/drm/card[0/1/2...]/device/ras/[gfx|sdma|umc|...]_err_count
  *
  * .. note::
  *	Operations are only allowed on blocks which are supported.
- *	Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
+ *	Check the "ras" mask at /sys/module/amdgpu/parameters/ras_mask
  *	to see which blocks support RAS on a particular asic.
  *
  */
@@ -367,11 +367,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	if (ret)
 		return -EINVAL;
 
-	if (data.op == 3)
-	{
+	if (data.op == 3) {
 		ret = amdgpu_reserve_page_direct(adev, data.inject.address);
-
-		if (ret)
+		if (!ret)
 			return size;
 		else
 			return ret;
@@ -502,6 +500,12 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
+
+
+	if (obj->adev->asic_type == CHIP_ALDEBARAN) {
+		if (amdgpu_ras_reset_error_status(obj->adev, info.head.block))
+			DRM_WARN("Failed to reset error counter and error status");
+	}
 
 	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
 			  "ce", info.ce_count);
@@ -1269,6 +1273,8 @@ static struct dentry *amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *
 			    &amdgpu_ras_debugfs_ctrl_ops);
 	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, dir, adev,
 			    &amdgpu_ras_debugfs_eeprom_ops);
+	debugfs_create_u32("bad_page_cnt_threshold", 0444, dir,
+			   &con->bad_page_cnt_threshold);
 
 	/*
 	 * After one uncorrectable error happens, usually GPU recovery will

@@ -4,6 +4,7 @@
 #ifndef _ICE_VIRTCHNL_PF_H_
 #define _ICE_VIRTCHNL_PF_H_
 #include "ice.h"
+#include "ice_virtchnl_fdir.h"
 
 /* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
@@ -70,6 +71,8 @@ struct ice_vf {
 
 	u16 vf_id;			/* VF ID in the PF space */
 	u16 lan_vsi_idx;		/* index into PF struct */
+	u16 ctrl_vsi_idx;
+	struct ice_vf_fdir fdir;
 	/* first vector index of this VF in the PF space */
 	int first_vector_idx;
 	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
@@ -100,6 +103,7 @@ struct ice_vf {
 	u16 num_vf_qs;			/* num of queue configured per VF */
 	struct ice_mdd_vf_events mdd_rx_events;
 	struct ice_mdd_vf_events mdd_tx_events;
+	DECLARE_BITMAP(opcodes_allowlist, VIRTCHNL_OP_MAX);
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -116,6 +120,9 @@ void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
+bool
+ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
+		    u16 num_msg_proc, u16 num_msg_pending);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -138,6 +145,11 @@ void
 ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_print_vfs_mdd_events(struct ice_pf *pf);
 void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
+struct ice_vsi *ice_vf_ctrl_vsi_setup(struct ice_vf *vf);
+int
+ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
+		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen);
+bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -149,6 +161,15 @@ void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
 #define ice_print_vfs_mdd_events(pf) do {} while (0)
 #define ice_print_vf_rx_mdd_event(vf) do {} while (0)
 #define ice_restore_all_vfs_msi_state(pdev) do {} while (0)
+
+static inline bool
+ice_is_malicious_vf(struct ice_pf __always_unused *pf,
+		    struct ice_rq_event_info __always_unused *event,
+		    u16 __always_unused num_msg_proc,
+		    u16 __always_unused num_msg_pending)
+{
+	return false;
+}
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,

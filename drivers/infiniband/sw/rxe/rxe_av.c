@@ -88,7 +88,7 @@ void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 		type = RXE_NETWORK_TYPE_IPV4;
 		break;
 	case RDMA_NETWORK_IPV6:
-		type = RXE_NETWORK_TYPE_IPV4;
+		type = RXE_NETWORK_TYPE_IPV6;
 		break;
 	default:
 		/* not reached - checked in rxe_av_chk_attr */

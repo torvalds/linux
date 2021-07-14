@@ -137,10 +137,8 @@ static struct sk_buff *rx_alloc_skb(struct hinic_rxq *rxq,
 	int err;
 
 	skb = netdev_alloc_skb_ip_align(rxq->netdev, rxq->rq->buf_sz);
-	if (!skb) {
-		netdev_err(rxq->netdev, "Failed to allocate Rx SKB\n");
+	if (!skb)
 		return NULL;
-	}
 
 	addr = dma_map_single(&pdev->dev, skb->data, rxq->rq->buf_sz,
 			      DMA_FROM_DEVICE);
@@ -212,10 +210,8 @@ static int rx_alloc_pkts(struct hinic_rxq *rxq)
 
 	for (i = 0; i < free_wqebbs; i++) {
 		skb = rx_alloc_skb(rxq, &dma_addr);
-		if (!skb) {
-			netdev_err(rxq->netdev, "Failed to alloc Rx skb\n");
+		if (!skb)
 			goto skb_out;
-		}
 
 		hinic_set_sge(&sge, dma_addr, skb->len);
 

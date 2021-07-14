@@ -35,7 +35,6 @@ struct st_request {
 
 /* The tape buffer descriptor. */
 struct st_buffer {
-	unsigned char dma;	/* DMA-able buffer */
 	unsigned char cleared;  /* internal buffer cleared after open? */
 	unsigned short do_dio;  /* direct i/o set up? */
 	int buffer_size;
@@ -133,7 +132,6 @@ struct scsi_tape {
 	unsigned char two_fm;
 	unsigned char fast_mteom;
 	unsigned char immediate;
-	unsigned char restr_dma;
 	unsigned char scsi2_logical;
 	unsigned char default_drvbuffer;	/* 0xff = don't touch, value 3 bits */
 	unsigned char cln_mode;			/* 0 = none, otherwise sense byte nbr */

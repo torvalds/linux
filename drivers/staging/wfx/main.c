@@ -334,7 +334,6 @@ int wfx_probe(struct wfx_dev *wdev)
 {
 	int i;
 	int err;
-	const void *macaddr;
 	struct gpio_desc *gpio_saved;
 
 	// During first part of boot, gpio_wakeup cannot yet been used. So
@@ -423,9 +422,9 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
-		macaddr = of_get_mac_address(wdev->dev->of_node);
-		if (!IS_ERR_OR_NULL(macaddr)) {
-			ether_addr_copy(wdev->addresses[i].addr, macaddr);
+		err = of_get_mac_address(wdev->dev->of_node,
+					 wdev->addresses[i].addr);
+		if (!err) {
 			wdev->addresses[i].addr[ETH_ALEN - 1] += i;
 		} else {
 			ether_addr_copy(wdev->addresses[i].addr,

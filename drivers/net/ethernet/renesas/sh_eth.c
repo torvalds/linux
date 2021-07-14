@@ -560,7 +560,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 			  EESR_TDE,
 	.fdr_value	= 0x0000070f,
 
-	.trscer_err_mask = DESC_I_RINT8 | DESC_I_RINT5,
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
 	.no_psr		= 1,
 	.apr		= 1,
@@ -701,7 +701,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 	.fdr_value	= 0x00000f0f,
 
-	.trscer_err_mask = DESC_I_RINT8,
+	.trscer_err_mask = TRSCER_RMAFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -782,7 +782,7 @@ static struct sh_eth_cpu_data r7s9210_data = {
 
 	.fdr_value	= 0x0000070f,
 
-	.trscer_err_mask = DESC_I_RINT8 | DESC_I_RINT5,
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -1094,7 +1094,7 @@ static struct sh_eth_cpu_data sh771x_data = {
 			  EESIPR_RRFIP | EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.trscer_err_mask = DESC_I_RINT8,
+	.trscer_err_mask = TRSCER_RMAFCE,
 
 	.tsu		= 1,
 	.dual_port	= 1,
@@ -1749,7 +1749,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
 			link_stat = ~link_stat;
-		if (!(link_stat & PHY_ST_LINK)) {
+		if (!(link_stat & PSR_LMON)) {
 			sh_eth_rcv_snd_disable(ndev);
 		} else {
 			/* Link Up */
@@ -2287,7 +2287,7 @@ static void sh_eth_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
-		memcpy(data, *sh_eth_gstrings_stats,
+		memcpy(data, sh_eth_gstrings_stats,
 		       sizeof(sh_eth_gstrings_stats));
 		break;
 	}
@@ -3170,7 +3170,6 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct sh_eth_plat_data *pdata;
 	phy_interface_t interface;
-	const char *mac_addr;
 	int ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -3182,9 +3181,7 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 		return NULL;
 	pdata->phy_interface = interface;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(pdata->mac_addr, mac_addr);
+	of_get_mac_address(np, pdata->mac_addr);
 
 	pdata->no_ether_link =
 		of_property_read_bool(np, "renesas,no-ether-link");

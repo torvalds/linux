@@ -15,7 +15,6 @@ struct sample {
 
 struct ringbuf_map {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
-	__uint(max_entries, 1 << 12);
 } ringbuf1 SEC(".maps"),
   ringbuf2 SEC(".maps");
 
@@ -28,6 +27,17 @@ struct {
 	.values = {
 		[0] = &ringbuf1,
 		[2] = &ringbuf2,
+	},
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__array(values, struct ringbuf_map);
+} ringbuf_hash SEC(".maps") = {
+	.values = {
+		[0] = &ringbuf1,
 	},
 };
 

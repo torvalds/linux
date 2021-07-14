@@ -94,12 +94,11 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 		rx_buf->len -= hdr_len;
 
 		for (;;) {
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-					   rx_buf->page, rx_buf->page_offset,
-					   rx_buf->len);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+					rx_buf->page, rx_buf->page_offset,
+					rx_buf->len, efx->rx_buffer_truesize);
 			rx_buf->page = NULL;
-			skb->len += rx_buf->len;
-			skb->data_len += rx_buf->len;
+
 			if (skb_shinfo(skb)->nr_frags == n_frags)
 				break;
 
@@ -110,8 +109,6 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 		rx_buf->page = NULL;
 		n_frags = 0;
 	}
-
-	skb->truesize += n_frags * efx->rx_buffer_truesize;
 
 	/* Move past the ethernet header */
 	skb->protocol = eth_type_trans(skb, efx->net_dev);

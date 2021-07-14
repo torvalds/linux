@@ -99,6 +99,8 @@ static const struct hw_sequencer_funcs dcn301_funcs = {
 	.set_pipe = dcn21_set_pipe,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
+	.optimize_pwr_state = dcn21_optimize_pwr_state,
+	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
 };
 
 static const struct hwseq_private_funcs dcn301_private_funcs = {

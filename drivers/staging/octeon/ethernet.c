@@ -407,14 +407,10 @@ static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
 int cvm_oct_common_init(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	const u8 *mac = NULL;
+	int ret;
 
-	if (priv->of_node)
-		mac = of_get_mac_address(priv->of_node);
-
-	if (!IS_ERR_OR_NULL(mac))
-		ether_addr_copy(dev->dev_addr, mac);
-	else
+	ret = of_get_mac_address(priv->of_node, dev->dev_addr);
+	if (ret)
 		eth_hw_addr_random(dev);
 
 	/*

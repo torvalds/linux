@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include "ahci.h"
 
 /* Vendor Specific Register Offsets */
@@ -87,6 +88,7 @@ struct ceva_ahci_priv {
 	u32 axicc;
 	bool is_cci_enabled;
 	int flags;
+	struct reset_control *rst;
 };
 
 static unsigned int ceva_ahci_read_id(struct ata_device *dev,
@@ -202,13 +204,46 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 
 	cevapriv->ahci_pdev = pdev;
 
+	cevapriv->rst = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								  NULL);
+	if (IS_ERR(cevapriv->rst))
+		dev_err_probe(&pdev->dev, PTR_ERR(cevapriv->rst),
+			      "failed to get reset\n");
+
 	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
-	rc = ahci_platform_enable_resources(hpriv);
-	if (rc)
-		return rc;
+	if (!cevapriv->rst) {
+		rc = ahci_platform_enable_resources(hpriv);
+		if (rc)
+			return rc;
+	} else {
+		int i;
+
+		rc = ahci_platform_enable_clks(hpriv);
+		if (rc)
+			return rc;
+		/* Assert the controller reset */
+		reset_control_assert(cevapriv->rst);
+
+		for (i = 0; i < hpriv->nports; i++) {
+			rc = phy_init(hpriv->phys[i]);
+			if (rc)
+				return rc;
+		}
+
+		/* De-assert the controller reset */
+		reset_control_deassert(cevapriv->rst);
+
+		for (i = 0; i < hpriv->nports; i++) {
+			rc = phy_power_on(hpriv->phys[i]);
+			if (rc) {
+				phy_exit(hpriv->phys[i]);
+				return rc;
+			}
+		}
+	}
 
 	if (of_property_read_bool(np, "ceva,broken-gen2"))
 		cevapriv->flags = CEVA_FLAG_BROKEN_GEN2;

@@ -96,7 +96,6 @@ static int opt_xsk_frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 static int opt_timeout = 1000;
 static bool opt_need_wakeup = true;
 static u32 opt_num_xsks = 1;
-static u32 prog_id;
 static bool opt_busy_poll;
 static bool opt_reduced_cap;
 
@@ -462,45 +461,9 @@ static void *poller(void *arg)
 	return NULL;
 }
 
-static void remove_xdp_program(void)
-{
-	u32 curr_prog_id = 0;
-	int cmd = CLOSE_CONN;
-
-	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
-		printf("bpf_get_link_xdp_id failed\n");
-		exit(EXIT_FAILURE);
-	}
-	if (prog_id == curr_prog_id)
-		bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
-	else if (!curr_prog_id)
-		printf("couldn't find a prog id on a given interface\n");
-	else
-		printf("program on interface changed, not removing\n");
-
-	if (opt_reduced_cap) {
-		if (write(sock, &cmd, sizeof(int)) < 0) {
-			fprintf(stderr, "Error writing into stream socket: %s", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-}
-
 static void int_exit(int sig)
 {
 	benchmark_done = true;
-}
-
-static void xdpsock_cleanup(void)
-{
-	struct xsk_umem *umem = xsks[0]->umem->umem;
-	int i;
-
-	dump_stats();
-	for (i = 0; i < num_socks; i++)
-		xsk_socket__delete(xsks[i]->xsk);
-	(void)xsk_umem__delete(umem);
-	remove_xdp_program();
 }
 
 static void __exit_with_error(int error, const char *file, const char *func,
@@ -508,13 +471,27 @@ static void __exit_with_error(int error, const char *file, const char *func,
 {
 	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));
-	dump_stats();
-	remove_xdp_program();
 	exit(EXIT_FAILURE);
 }
 
-#define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, \
-						 __LINE__)
+#define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
+
+static void xdpsock_cleanup(void)
+{
+	struct xsk_umem *umem = xsks[0]->umem->umem;
+	int i, cmd = CLOSE_CONN;
+
+	dump_stats();
+	for (i = 0; i < num_socks; i++)
+		xsk_socket__delete(xsks[i]->xsk);
+	(void)xsk_umem__delete(umem);
+
+	if (opt_reduced_cap) {
+		if (write(sock, &cmd, sizeof(int)) < 0)
+			exit_with_error(errno);
+	}
+}
+
 static void swap_mac_addresses(void *data)
 {
 	struct ether_header *eth = (struct ether_header *)data;
@@ -877,10 +854,6 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 	txr = tx ? &xsk->tx : NULL;
 	ret = xsk_socket__create(&xsk->xsk, opt_if, opt_queue, umem->umem,
 				 rxr, txr, &cfg);
-	if (ret)
-		exit_with_error(-ret);
-
-	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -1282,7 +1255,7 @@ static void tx_only(struct xsk_socket_info *xsk, u32 *frame_nb, int batch_size)
 	for (i = 0; i < batch_size; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx,
 								  idx + i);
-		tx_desc->addr = (*frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
+		tx_desc->addr = (*frame_nb + i) * opt_xsk_frame_size;
 		tx_desc->len = PKT_SIZE;
 	}
 

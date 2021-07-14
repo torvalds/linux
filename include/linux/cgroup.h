@@ -32,7 +32,7 @@ struct kernel_clone_args;
 #ifdef CONFIG_CGROUPS
 
 /*
- * All weight knobs on the default hierarhcy should use the following min,
+ * All weight knobs on the default hierarchy should use the following min,
  * default and max values.  The default value is the logarithmic center of
  * MIN and MAX and allows 100x to be expressed in both directions.
  */
@@ -676,6 +676,8 @@ static inline struct psi_group *cgroup_psi(struct cgroup *cgrp)
 	return &cgrp->psi;
 }
 
+bool cgroup_psi_enabled(void);
+
 static inline void cgroup_init_kthreadd(void)
 {
 	/*
@@ -733,6 +735,11 @@ static inline struct cgroup *cgroup_parent(struct cgroup *cgrp)
 static inline struct psi_group *cgroup_psi(struct cgroup *cgrp)
 {
 	return NULL;
+}
+
+static inline bool cgroup_psi_enabled(void)
+{
+	return false;
 }
 
 static inline bool task_under_cgroup_hierarchy(struct task_struct *task,

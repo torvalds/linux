@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
@@ -25,41 +26,47 @@
 #define SPRD_MBOX_LOCK		0x20
 #define SPRD_MBOX_FIFO_DEPTH	0x24
 
-/* Bit and mask definiation for inbox's SPRD_MBOX_FIFO_STS register */
+/* Bit and mask definition for inbox's SPRD_MBOX_FIFO_STS register */
 #define SPRD_INBOX_FIFO_DELIVER_MASK		GENMASK(23, 16)
 #define SPRD_INBOX_FIFO_OVERLOW_MASK		GENMASK(15, 8)
 #define SPRD_INBOX_FIFO_DELIVER_SHIFT		16
 #define SPRD_INBOX_FIFO_BUSY_MASK		GENMASK(7, 0)
 
-/* Bit and mask definiation for SPRD_MBOX_IRQ_STS register */
+/* Bit and mask definition for SPRD_MBOX_IRQ_STS register */
 #define SPRD_MBOX_IRQ_CLR			BIT(0)
 
-/* Bit and mask definiation for outbox's SPRD_MBOX_FIFO_STS register */
+/* Bit and mask definition for outbox's SPRD_MBOX_FIFO_STS register */
 #define SPRD_OUTBOX_FIFO_FULL			BIT(2)
 #define SPRD_OUTBOX_FIFO_WR_SHIFT		16
 #define SPRD_OUTBOX_FIFO_RD_SHIFT		24
 #define SPRD_OUTBOX_FIFO_POS_MASK		GENMASK(7, 0)
 
-/* Bit and mask definiation for inbox's SPRD_MBOX_IRQ_MSK register */
+/* Bit and mask definition for inbox's SPRD_MBOX_IRQ_MSK register */
 #define SPRD_INBOX_FIFO_BLOCK_IRQ		BIT(0)
 #define SPRD_INBOX_FIFO_OVERFLOW_IRQ		BIT(1)
 #define SPRD_INBOX_FIFO_DELIVER_IRQ		BIT(2)
 #define SPRD_INBOX_FIFO_IRQ_MASK		GENMASK(2, 0)
 
-/* Bit and mask definiation for outbox's SPRD_MBOX_IRQ_MSK register */
+/* Bit and mask definition for outbox's SPRD_MBOX_IRQ_MSK register */
 #define SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ		BIT(0)
 #define SPRD_OUTBOX_FIFO_IRQ_MASK		GENMASK(4, 0)
 
+#define SPRD_OUTBOX_BASE_SPAN			0x1000
 #define SPRD_MBOX_CHAN_MAX			8
+#define SPRD_SUPP_INBOX_ID_SC9863A		7
 
 struct sprd_mbox_priv {
 	struct mbox_controller	mbox;
 	struct device		*dev;
 	void __iomem		*inbox_base;
 	void __iomem		*outbox_base;
+	/*  Base register address for supplementary outbox */
+	void __iomem		*supp_base;
 	struct clk		*clk;
 	u32			outbox_fifo_depth;
 
+	struct mutex		lock;
+	u32			refcnt;
 	struct mbox_chan	chan[SPRD_MBOX_CHAN_MAX];
 };
 
@@ -94,14 +101,13 @@ static u32 sprd_mbox_get_fifo_len(struct sprd_mbox_priv *priv, u32 fifo_sts)
 	return fifo_len;
 }
 
-static irqreturn_t sprd_mbox_outbox_isr(int irq, void *data)
+static irqreturn_t do_outbox_isr(void __iomem *base, struct sprd_mbox_priv *priv)
 {
-	struct sprd_mbox_priv *priv = data;
 	struct mbox_chan *chan;
 	u32 fifo_sts, fifo_len, msg[2];
 	int i, id;
 
-	fifo_sts = readl(priv->outbox_base + SPRD_MBOX_FIFO_STS);
+	fifo_sts = readl(base + SPRD_MBOX_FIFO_STS);
 
 	fifo_len = sprd_mbox_get_fifo_len(priv, fifo_sts);
 	if (!fifo_len) {
@@ -110,21 +116,39 @@ static irqreturn_t sprd_mbox_outbox_isr(int irq, void *data)
 	}
 
 	for (i = 0; i < fifo_len; i++) {
-		msg[0] = readl(priv->outbox_base + SPRD_MBOX_MSG_LOW);
-		msg[1] = readl(priv->outbox_base + SPRD_MBOX_MSG_HIGH);
-		id = readl(priv->outbox_base + SPRD_MBOX_ID);
+		msg[0] = readl(base + SPRD_MBOX_MSG_LOW);
+		msg[1] = readl(base + SPRD_MBOX_MSG_HIGH);
+		id = readl(base + SPRD_MBOX_ID);
 
 		chan = &priv->chan[id];
-		mbox_chan_received_data(chan, (void *)msg);
+		if (chan->cl)
+			mbox_chan_received_data(chan, (void *)msg);
+		else
+			dev_warn_ratelimited(priv->dev,
+				    "message's been dropped at ch[%d]\n", id);
 
 		/* Trigger to update outbox FIFO pointer */
-		writel(0x1, priv->outbox_base + SPRD_MBOX_TRIGGER);
+		writel(0x1, base + SPRD_MBOX_TRIGGER);
 	}
 
 	/* Clear irq status after reading all message. */
-	writel(SPRD_MBOX_IRQ_CLR, priv->outbox_base + SPRD_MBOX_IRQ_STS);
+	writel(SPRD_MBOX_IRQ_CLR, base + SPRD_MBOX_IRQ_STS);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t sprd_mbox_outbox_isr(int irq, void *data)
+{
+	struct sprd_mbox_priv *priv = data;
+
+	return do_outbox_isr(priv->outbox_base, priv);
+}
+
+static irqreturn_t sprd_mbox_supp_isr(int irq, void *data)
+{
+	struct sprd_mbox_priv *priv = data;
+
+	return do_outbox_isr(priv->supp_base, priv);
 }
 
 static irqreturn_t sprd_mbox_inbox_isr(int irq, void *data)
@@ -150,7 +174,7 @@ static irqreturn_t sprd_mbox_inbox_isr(int irq, void *data)
 		chan = &priv->chan[id];
 
 		/*
-		 * Check if the message was fetched by remote traget, if yes,
+		 * Check if the message was fetched by remote target, if yes,
 		 * that means the transmission has been completed.
 		 */
 		busy = fifo_sts & SPRD_INBOX_FIFO_BUSY_MASK;
@@ -215,18 +239,30 @@ static int sprd_mbox_startup(struct mbox_chan *chan)
 	struct sprd_mbox_priv *priv = to_sprd_mbox_priv(chan->mbox);
 	u32 val;
 
-	/* Select outbox FIFO mode and reset the outbox FIFO status */
-	writel(0x0, priv->outbox_base + SPRD_MBOX_FIFO_RST);
+	mutex_lock(&priv->lock);
+	if (priv->refcnt++ == 0) {
+		/* Select outbox FIFO mode and reset the outbox FIFO status */
+		writel(0x0, priv->outbox_base + SPRD_MBOX_FIFO_RST);
 
-	/* Enable inbox FIFO overflow and delivery interrupt */
-	val = readl(priv->inbox_base + SPRD_MBOX_IRQ_MSK);
-	val &= ~(SPRD_INBOX_FIFO_OVERFLOW_IRQ | SPRD_INBOX_FIFO_DELIVER_IRQ);
-	writel(val, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
+		/* Enable inbox FIFO overflow and delivery interrupt */
+		val = readl(priv->inbox_base + SPRD_MBOX_IRQ_MSK);
+		val &= ~(SPRD_INBOX_FIFO_OVERFLOW_IRQ | SPRD_INBOX_FIFO_DELIVER_IRQ);
+		writel(val, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
 
-	/* Enable outbox FIFO not empty interrupt */
-	val = readl(priv->outbox_base + SPRD_MBOX_IRQ_MSK);
-	val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
-	writel(val, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+		/* Enable outbox FIFO not empty interrupt */
+		val = readl(priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+		val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
+		writel(val, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+
+		/* Enable supplementary outbox as the fundamental one */
+		if (priv->supp_base) {
+			writel(0x0, priv->supp_base + SPRD_MBOX_FIFO_RST);
+			val = readl(priv->supp_base + SPRD_MBOX_IRQ_MSK);
+			val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
+			writel(val, priv->supp_base + SPRD_MBOX_IRQ_MSK);
+		}
+	}
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
@@ -235,9 +271,17 @@ static void sprd_mbox_shutdown(struct mbox_chan *chan)
 {
 	struct sprd_mbox_priv *priv = to_sprd_mbox_priv(chan->mbox);
 
-	/* Disable inbox & outbox interrupt */
-	writel(SPRD_INBOX_FIFO_IRQ_MASK, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
-	writel(SPRD_OUTBOX_FIFO_IRQ_MASK, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+	mutex_lock(&priv->lock);
+	if (--priv->refcnt == 0) {
+		/* Disable inbox & outbox interrupt */
+		writel(SPRD_INBOX_FIFO_IRQ_MASK, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
+		writel(SPRD_OUTBOX_FIFO_IRQ_MASK, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+
+		if (priv->supp_base)
+			writel(SPRD_OUTBOX_FIFO_IRQ_MASK,
+			       priv->supp_base + SPRD_MBOX_IRQ_MSK);
+	}
+	mutex_unlock(&priv->lock);
 }
 
 static const struct mbox_chan_ops sprd_mbox_ops = {
@@ -258,21 +302,26 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sprd_mbox_priv *priv;
-	int ret, inbox_irq, outbox_irq;
-	unsigned long id;
+	int ret, inbox_irq, outbox_irq, supp_irq;
+	unsigned long id, supp;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->dev = dev;
+	mutex_init(&priv->lock);
 
 	/*
-	 * The Spreadtrum mailbox uses an inbox to send messages to the target
-	 * core, and uses an outbox to receive messages from other cores.
+	 * Unisoc mailbox uses an inbox to send messages to the target
+	 * core, and uses (an) outbox(es) to receive messages from other
+	 * cores.
 	 *
-	 * Thus the mailbox controller supplies 2 different register addresses
-	 * and IRQ numbers for inbox and outbox.
+	 * Thus in general the mailbox controller supplies 2 different
+	 * register addresses and IRQ numbers for inbox and outbox.
+	 *
+	 * If necessary, a supplementary inbox could be enabled optionally
+	 * with an independent FIFO and an extra interrupt.
 	 */
 	priv->inbox_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->inbox_base))
@@ -298,7 +347,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	inbox_irq = platform_get_irq(pdev, 0);
+	inbox_irq = platform_get_irq_byname(pdev, "inbox");
 	if (inbox_irq < 0)
 		return inbox_irq;
 
@@ -309,7 +358,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	outbox_irq = platform_get_irq(pdev, 1);
+	outbox_irq = platform_get_irq_byname(pdev, "outbox");
 	if (outbox_irq < 0)
 		return outbox_irq;
 
@@ -318,6 +367,24 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to request outbox IRQ: %d\n", ret);
 		return ret;
+	}
+
+	/* Supplementary outbox IRQ is optional */
+	supp_irq = platform_get_irq_byname(pdev, "supp-outbox");
+	if (supp_irq > 0) {
+		ret = devm_request_irq(dev, supp_irq, sprd_mbox_supp_isr,
+				       IRQF_NO_SUSPEND, dev_name(dev), priv);
+		if (ret) {
+			dev_err(dev, "failed to request outbox IRQ: %d\n", ret);
+			return ret;
+		}
+
+		supp = (unsigned long) of_device_get_match_data(dev);
+		if (!supp) {
+			dev_err(dev, "no supplementary outbox specified\n");
+			return -ENODEV;
+		}
+		priv->supp_base = priv->outbox_base + (SPRD_OUTBOX_BASE_SPAN * supp);
 	}
 
 	/* Get the default outbox FIFO depth */
@@ -342,7 +409,9 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sprd_mbox_of_match[] = {
-	{ .compatible = "sprd,sc9860-mailbox", },
+	{ .compatible = "sprd,sc9860-mailbox" },
+	{ .compatible = "sprd,sc9863a-mailbox",
+	  .data = (void *)SPRD_SUPP_INBOX_ID_SC9863A },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sprd_mbox_of_match);

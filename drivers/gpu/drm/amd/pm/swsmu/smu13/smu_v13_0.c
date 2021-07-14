@@ -276,8 +276,6 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 	void *table;
 	uint16_t version_major, version_minor;
 
-	/* temporarily hardcode to use vbios pptable */
-	smu->smu_table.boot_values.pp_table_id = 0;
 
 	if (amdgpu_smu_pptable_id >= 0) {
 		smu->smu_table.boot_values.pp_table_id = amdgpu_smu_pptable_id;

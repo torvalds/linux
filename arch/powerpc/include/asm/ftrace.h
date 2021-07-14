@@ -12,7 +12,7 @@
 
 #ifdef __ASSEMBLY__
 
-/* Based off of objdump optput from glibc */
+/* Based off of objdump output from glibc */
 
 #define MCOUNT_SAVE_FRAME			\
 	stwu	r1,-48(r1);			\
@@ -52,7 +52,7 @@ extern void _mcount(void);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
-       /* reloction of mcount call site is the same as the address */
+       /* relocation of mcount call site is the same as the address */
        return addr;
 }
 

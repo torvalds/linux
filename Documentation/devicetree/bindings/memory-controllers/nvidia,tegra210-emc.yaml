@@ -34,7 +34,7 @@ properties:
       - description: EMC general interrupt
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       phandle to a reserved memory region describing the table of EMC
       frequencies trained by the firmware

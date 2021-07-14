@@ -197,8 +197,8 @@
 		ddr: memory-controller@1080000 {
 			compatible = "fsl,qoriq-memory-controller";
 			reg = <0x0 0x1080000 0x0 0x1000>;
-			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
-			big-endian;
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			little-endian;
 		};
 
 		dcfg: syscon@1e00000 {
@@ -1116,6 +1116,12 @@
 				/* IEP INT_A */
 				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		/* Integrated Endpoint Register Block */
+		ierb@1f0800000 {
+			compatible = "fsl,ls1028a-enetc-ierb";
+			reg = <0x01 0xf0800000 0x0 0x10000>;
 		};
 
 		rcpm: power-controller@1e34040 {

@@ -12,6 +12,12 @@ struct task_struct;
 DECLARE_HOOK(android_vh_cgroup_set_task,
 	TP_PROTO(int ret, struct task_struct *task),
 	TP_ARGS(ret, task));
+
+struct cgroup_subsys;
+struct cgroup_taskset;
+DECLARE_HOOK(android_vh_cgroup_attach,
+	TP_PROTO(struct cgroup_subsys *ss, struct cgroup_taskset *tset),
+	TP_ARGS(ss, tset))
 #endif
 
 #include <trace/define_trace.h>

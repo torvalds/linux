@@ -962,7 +962,6 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 			   struct hfi1_msix_entry *msix)
 {
 	struct cpu_mask_set *set = NULL;
-	struct hfi1_ctxtdata *rcd;
 	struct hfi1_affinity_node *entry;
 
 	mutex_lock(&node_affinity.lock);
@@ -976,14 +975,15 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 	case IRQ_GENERAL:
 		/* Don't do accounting for general contexts */
 		break;
-	case IRQ_RCVCTXT:
-		rcd = (struct hfi1_ctxtdata *)msix->arg;
+	case IRQ_RCVCTXT: {
+		struct hfi1_ctxtdata *rcd = msix->arg;
+
 		/* Don't do accounting for control contexts */
 		if (rcd->ctxt != HFI1_CTRL_CTXT)
 			set = &entry->rcv_intr;
 		break;
+	}
 	case IRQ_NETDEVCTXT:
-		rcd = (struct hfi1_ctxtdata *)msix->arg;
 		set = &entry->def_intr;
 		break;
 	default:

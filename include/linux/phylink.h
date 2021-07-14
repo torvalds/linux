@@ -64,6 +64,7 @@ enum phylink_op_type {
  * @pcs_poll: MAC PCS cannot provide link change interrupt
  * @poll_fixed_state: if true, starts link_poll,
  *		      if MAC link is at %MLO_AN_FIXED mode.
+ * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
  * @get_fixed_state: callback to execute to determine the fixed link state,
  *		     if MAC link is at %MLO_AN_FIXED mode.
  */
@@ -72,6 +73,7 @@ struct phylink_config {
 	enum phylink_op_type type;
 	bool pcs_poll;
 	bool poll_fixed_state;
+	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
 };

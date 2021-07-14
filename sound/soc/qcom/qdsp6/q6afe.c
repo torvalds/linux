@@ -845,7 +845,7 @@ static void q6afe_port_free(struct kref *ref)
 
 static struct q6afe_port *q6afe_find_port(struct q6afe *afe, int token)
 {
-	struct q6afe_port *p = NULL;
+	struct q6afe_port *p;
 	struct q6afe_port *ret = NULL;
 	unsigned long flags;
 
@@ -930,7 +930,7 @@ EXPORT_SYMBOL_GPL(q6afe_get_port_id);
 static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
 			    struct q6afe_port *port, uint32_t rsp_opcode)
 {
-	wait_queue_head_t *wait = &port->wait;
+	wait_queue_head_t *wait;
 	struct aprv2_ibasic_rsp_result_t *result;
 	int ret;
 
@@ -1188,7 +1188,6 @@ int q6afe_port_stop(struct q6afe_port *port)
 	int index, pkt_size;
 	void *p;
 
-	port_id = port->id;
 	index = port->token;
 	if (index < 0 || index >= AFE_PORT_MAX) {
 		dev_err(afe->dev, "AFE port index[%d] invalid!\n", index);
@@ -1449,7 +1448,7 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 EXPORT_SYMBOL_GPL(q6afe_i2s_port_prepare);
 
 /**
- * q6afe_dam_port_prepare() - Prepare dma afe port.
+ * q6afe_cdc_dma_port_prepare() - Prepare dma afe port.
  *
  * @port: Instance of afe port
  * @cfg: DMA configuration for the afe port
@@ -1681,7 +1680,7 @@ int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 EXPORT_SYMBOL(q6afe_unvote_lpass_core_hw);
 
 int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
-			     char *client_name, uint32_t *client_handle)
+			     const char *client_name, uint32_t *client_handle)
 {
 	struct q6afe *afe = dev_get_drvdata(dev->parent);
 	struct afe_cmd_remote_lpass_core_hw_vote_request *vote_cfg;

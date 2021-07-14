@@ -732,7 +732,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 		 * socket is not a valid test. So in this case lets not
 		 * enable kTLS but still run the test.
 		 */
-		if (!txmsg_redir || (txmsg_redir && txmsg_ingress)) {
+		if (!txmsg_redir || txmsg_ingress) {
 			err = sockmap_init_ktls(opt->verbose, rx_fd);
 			if (err)
 				return err;

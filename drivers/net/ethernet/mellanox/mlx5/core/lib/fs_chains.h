@@ -7,6 +7,7 @@
 #include <linux/mlx5/fs.h>
 
 struct mlx5_fs_chains;
+struct mlx5_mapped_obj;
 
 enum mlx5_chains_flags {
 	MLX5_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
@@ -20,13 +21,14 @@ struct mlx5_chains_attr {
 	u32 max_ft_sz;
 	u32 max_grp_num;
 	struct mlx5_flow_table *default_ft;
-	u32 max_restore_tag;
+	struct mapping_ctx *mapping;
 };
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 
 bool
 mlx5_chains_prios_supported(struct mlx5_fs_chains *chains);
+bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains);
 bool
 mlx5_chains_backwards_supported(struct mlx5_fs_chains *chains);
 u32
@@ -63,14 +65,15 @@ struct mlx5_fs_chains *
 mlx5_chains_create(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr);
 void mlx5_chains_destroy(struct mlx5_fs_chains *chains);
 
-int
-mlx5_get_chain_for_tag(struct mlx5_fs_chains *chains, u32 tag, u32 *chain);
-
 void
 mlx5_chains_set_end_ft(struct mlx5_fs_chains *chains,
 		       struct mlx5_flow_table *ft);
 
 #else /* CONFIG_MLX5_CLS_ACT */
+
+static inline bool
+mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
+{ return false; }
 
 static inline struct mlx5_flow_table *
 mlx5_chains_get_table(struct mlx5_fs_chains *chains, u32 chain, u32 prio,

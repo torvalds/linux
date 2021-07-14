@@ -344,7 +344,7 @@ xfs_dir2_block_to_sf(
 	ASSERT(dp->i_df.if_bytes == 0);
 	xfs_init_local_fork(dp, XFS_DATA_FORK, sfp, size);
 	dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
-	dp->i_d.di_size = size;
+	dp->i_disk_size = size;
 
 	logflags |= XFS_ILOG_DDATA;
 	xfs_dir2_sf_check(args);
@@ -367,7 +367,7 @@ xfs_dir2_sf_addname(
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
 	int			incr_isize;	/* total change in size */
-	int			new_isize;	/* di_size after adding name */
+	int			new_isize;	/* size after adding name */
 	int			objchange;	/* changing to 8-byte inodes */
 	xfs_dir2_data_aoff_t	offset = 0;	/* offset for new entry */
 	int			pick;		/* which algorithm to use */
@@ -378,12 +378,12 @@ xfs_dir2_sf_addname(
 
 	ASSERT(xfs_dir2_sf_lookup(args) == -ENOENT);
 	dp = args->dp;
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	ASSERT(dp->i_d.di_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
-	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
+	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
+	ASSERT(dp->i_disk_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
 	/*
 	 * Compute entry (and change in) size.
 	 */
@@ -401,7 +401,7 @@ xfs_dir2_sf_addname(
 		objchange = 1;
 	}
 
-	new_isize = (int)dp->i_d.di_size + incr_isize;
+	new_isize = (int)dp->i_disk_size + incr_isize;
 	/*
 	 * Won't fit as shortform any more (due to size),
 	 * or the pick routine says it won't (due to offset values).
@@ -492,7 +492,7 @@ xfs_dir2_sf_addname_easy(
 	sfp->count++;
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM)
 		sfp->i8count++;
-	dp->i_d.di_size = new_isize;
+	dp->i_disk_size = new_isize;
 	xfs_dir2_sf_check(args);
 }
 
@@ -519,7 +519,7 @@ xfs_dir2_sf_addname_hard(
 	int			nbytes;		/* temp for byte copies */
 	xfs_dir2_data_aoff_t	new_offset;	/* next offset value */
 	xfs_dir2_data_aoff_t	offset;		/* current offset value */
-	int			old_isize;	/* previous di_size */
+	int			old_isize;	/* previous size */
 	xfs_dir2_sf_entry_t	*oldsfep;	/* entry in original dir */
 	xfs_dir2_sf_hdr_t	*oldsfp;	/* original shortform dir */
 	xfs_dir2_sf_entry_t	*sfep;		/* entry in new dir */
@@ -529,7 +529,7 @@ xfs_dir2_sf_addname_hard(
 	 * Copy the old directory to the stack buffer.
 	 */
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	old_isize = (int)dp->i_d.di_size;
+	old_isize = (int)dp->i_disk_size;
 	buf = kmem_alloc(old_isize, 0);
 	oldsfp = (xfs_dir2_sf_hdr_t *)buf;
 	memcpy(oldsfp, sfp, old_isize);
@@ -586,7 +586,7 @@ xfs_dir2_sf_addname_hard(
 		memcpy(sfep, oldsfep, old_isize - nbytes);
 	}
 	kmem_free(buf);
-	dp->i_d.di_size = new_isize;
+	dp->i_disk_size = new_isize;
 	xfs_dir2_sf_check(args);
 }
 
@@ -697,7 +697,7 @@ xfs_dir2_sf_check(
 		ASSERT(xfs_dir2_sf_get_ftype(mp, sfep) < XFS_DIR3_FT_MAX);
 	}
 	ASSERT(i8count == sfp->i8count);
-	ASSERT((char *)sfep - (char *)sfp == dp->i_d.di_size);
+	ASSERT((char *)sfep - (char *)sfp == dp->i_disk_size);
 	ASSERT(offset +
 	       (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
 	       (uint)sizeof(xfs_dir2_block_tail_t) <= args->geo->blksize);
@@ -821,18 +821,16 @@ xfs_dir2_sf_create(
 	dp = args->dp;
 
 	ASSERT(dp != NULL);
-	ASSERT(dp->i_d.di_size == 0);
+	ASSERT(dp->i_disk_size == 0);
 	/*
 	 * If it's currently a zero-length extent file,
 	 * convert it to local format.
 	 */
 	if (dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS) {
-		dp->i_df.if_flags &= ~XFS_IFEXTENTS;	/* just in case */
 		dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
-		dp->i_df.if_flags |= XFS_IFINLINE;
 	}
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_df.if_bytes == 0);
 	i8count = pino > XFS_DIR2_MAX_SHORT_INUM;
 	size = xfs_dir2_sf_hdr_size(i8count);
@@ -850,7 +848,7 @@ xfs_dir2_sf_create(
 	 */
 	xfs_dir2_sf_put_parent_ino(sfp, pino);
 	sfp->count = 0;
-	dp->i_d.di_size = size;
+	dp->i_disk_size = size;
 	xfs_dir2_sf_check(args);
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
 	return 0;
@@ -877,12 +875,12 @@ xfs_dir2_sf_lookup(
 
 	xfs_dir2_sf_check(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	ASSERT(dp->i_d.di_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
-	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
+	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
+	ASSERT(dp->i_disk_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
 	/*
 	 * Special case for .
 	 */
@@ -954,8 +952,8 @@ xfs_dir2_sf_removename(
 
 	trace_xfs_dir2_sf_removename(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	oldsize = (int)dp->i_d.di_size;
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
+	oldsize = (int)dp->i_disk_size;
 	ASSERT(oldsize >= offsetof(struct xfs_dir2_sf_hdr, parent));
 	ASSERT(dp->i_df.if_bytes == oldsize);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
@@ -995,7 +993,7 @@ xfs_dir2_sf_removename(
 	 * Fix up the header and file size.
 	 */
 	sfp->count--;
-	dp->i_d.di_size = newsize;
+	dp->i_disk_size = newsize;
 	/*
 	 * Reallocate, making it smaller.
 	 */
@@ -1053,12 +1051,12 @@ xfs_dir2_sf_replace(
 
 	trace_xfs_dir2_sf_replace(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	ASSERT(dp->i_d.di_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
-	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
+	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
+	ASSERT(dp->i_disk_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
 
 	/*
 	 * New inode number is large, and need to convert to 8-byte inodes.
@@ -1219,7 +1217,7 @@ xfs_dir2_sf_toino4(
 	 * Clean up the inode.
 	 */
 	kmem_free(buf);
-	dp->i_d.di_size = newsize;
+	dp->i_disk_size = newsize;
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
 }
 
@@ -1292,6 +1290,6 @@ xfs_dir2_sf_toino8(
 	 * Clean up the inode.
 	 */
 	kmem_free(buf);
-	dp->i_d.di_size = newsize;
+	dp->i_disk_size = newsize;
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
 }

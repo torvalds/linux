@@ -123,6 +123,7 @@ Given a $HOME/.perfconfig like this:
 		queue-size = 0
 		children = true
 		group = true
+		skip-empty = true
 
 	[llvm]
 		dump-obj = true
@@ -393,6 +394,12 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
+	annotate.demangle::
+		Demangle symbol names to human readable form. Default is 'true'.
+
+	annotate.demangle_kernel::
+		Demangle kernel symbol names to human readable form. Default is 'true'.
+
 hist.*::
 	hist.percentage::
 		This option control the way to calculate overhead of filtered entries -
@@ -524,6 +531,10 @@ report.*::
 		    99.84%  99.76%  noploop  noploop            [.] main
 		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
 		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
+
+	report.skip-empty::
+		This option can change default stat behavior with empty results.
+		If it's set true, 'perf report --stat' will not show 0 stats.
 
 top.*::
 	top.children::

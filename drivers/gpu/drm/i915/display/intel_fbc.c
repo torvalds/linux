@@ -597,7 +597,7 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 		return false;
 
 	/* Display WA #1105: skl,bxt,kbl,cfl,glk */
-	if (IS_DISPLAY_VER(dev_priv, 9) &&
+	if ((IS_DISPLAY_VER(dev_priv, 9) || IS_GEMINILAKE(dev_priv)) &&
 	    modifier == DRM_FORMAT_MOD_LINEAR && stride & 511)
 		return false;
 

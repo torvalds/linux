@@ -41,7 +41,6 @@
 #define RT2880_PCI_REG_ARBCTL		0x80
 
 static void __iomem *rt2880_pci_base;
-static DEFINE_SPINLOCK(rt2880_pci_lock);
 
 static u32 rt2880_pci_reg_read(u32 reg)
 {
@@ -63,17 +62,14 @@ static inline u32 rt2880_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
 static int rt2880_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 *val)
 {
-	unsigned long flags;
 	u32 address;
 	u32 data;
 
 	address = rt2880_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
 
-	spin_lock_irqsave(&rt2880_pci_lock, flags);
 	rt2880_pci_reg_write(address, RT2880_PCI_REG_CONFIG_ADDR);
 	data = rt2880_pci_reg_read(RT2880_PCI_REG_CONFIG_DATA);
-	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 
 	switch (size) {
 	case 1:
@@ -93,14 +89,12 @@ static int rt2880_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 static int rt2880_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 val)
 {
-	unsigned long flags;
 	u32 address;
 	u32 data;
 
 	address = rt2880_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
 
-	spin_lock_irqsave(&rt2880_pci_lock, flags);
 	rt2880_pci_reg_write(address, RT2880_PCI_REG_CONFIG_ADDR);
 	data = rt2880_pci_reg_read(RT2880_PCI_REG_CONFIG_DATA);
 
@@ -119,7 +113,6 @@ static int rt2880_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	rt2880_pci_reg_write(data, RT2880_PCI_REG_CONFIG_DATA);
-	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -151,36 +144,29 @@ static struct pci_controller rt2880_pci_controller = {
 
 static inline u32 rt2880_pci_read_u32(unsigned long reg)
 {
-	unsigned long flags;
 	u32 address;
 	u32 ret;
 
 	address = rt2880_pci_get_cfgaddr(0, 0, 0, reg);
 
-	spin_lock_irqsave(&rt2880_pci_lock, flags);
 	rt2880_pci_reg_write(address, RT2880_PCI_REG_CONFIG_ADDR);
 	ret = rt2880_pci_reg_read(RT2880_PCI_REG_CONFIG_DATA);
-	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 
 	return ret;
 }
 
 static inline void rt2880_pci_write_u32(unsigned long reg, u32 val)
 {
-	unsigned long flags;
 	u32 address;
 
 	address = rt2880_pci_get_cfgaddr(0, 0, 0, reg);
 
-	spin_lock_irqsave(&rt2880_pci_lock, flags);
 	rt2880_pci_reg_write(address, RT2880_PCI_REG_CONFIG_ADDR);
 	rt2880_pci_reg_write(val, RT2880_PCI_REG_CONFIG_DATA);
-	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 }
 
 int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	u16 cmd;
 	int irq = -1;
 
 	if (dev->bus->number != 0)
@@ -188,8 +174,6 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 	switch (PCI_SLOT(dev->devfn)) {
 	case 0x00:
-		rt2880_pci_write_u32(PCI_BASE_ADDRESS_0, 0x08000000);
-		(void) rt2880_pci_read_u32(PCI_BASE_ADDRESS_0);
 		break;
 	case 0x11:
 		irq = RT288X_CPU_IRQ_PCI;
@@ -201,16 +185,6 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		break;
 	}
 
-	pci_write_config_byte((struct pci_dev *) dev,
-		PCI_CACHE_LINE_SIZE, 0x14);
-	pci_write_config_byte((struct pci_dev *) dev, PCI_LATENCY_TIMER, 0xFF);
-	pci_read_config_word((struct pci_dev *) dev, PCI_COMMAND, &cmd);
-	cmd |= PCI_COMMAND_MASTER | PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-		PCI_COMMAND_INVALIDATE | PCI_COMMAND_FAST_BACK |
-		PCI_COMMAND_SERR | PCI_COMMAND_WAIT | PCI_COMMAND_PARITY;
-	pci_write_config_word((struct pci_dev *) dev, PCI_COMMAND, cmd);
-	pci_write_config_byte((struct pci_dev *) dev, PCI_INTERRUPT_LINE,
-			      dev->irq);
 	return irq;
 }
 
@@ -251,6 +225,30 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
+	static bool slot0_init;
+
+	/*
+	 * Nobody seems to initialize slot 0, but this platform requires it, so
+	 * do it once when some other slot is being enabled. The PCI subsystem
+	 * should configure other slots properly, so no need to do anything
+	 * special for those.
+	 */
+	if (!slot0_init && dev->bus->number == 0) {
+		u16 cmd;
+		u32 bar0;
+
+		slot0_init = true;
+
+		pci_bus_write_config_dword(dev->bus, 0, PCI_BASE_ADDRESS_0,
+					   0x08000000);
+		pci_bus_read_config_dword(dev->bus, 0, PCI_BASE_ADDRESS_0,
+					  &bar0);
+
+		pci_bus_read_config_word(dev->bus, 0, PCI_COMMAND, &cmd);
+		cmd |= PCI_COMMAND_MASTER | PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
+		pci_bus_write_config_word(dev->bus, 0, PCI_COMMAND, cmd);
+	}
+
 	return 0;
 }
 

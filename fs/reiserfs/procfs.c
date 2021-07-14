@@ -488,13 +488,3 @@ int reiserfs_proc_info_global_done(void)
  * (available at http://www.namesys.com/legalese.html)
  *
  */
-
-/*
- * Make Linus happy.
- * Local variables:
- * c-indentation-style: "K&R"
- * mode-name: "LC"
- * c-basic-offset: 8
- * tab-width: 8
- * End:
- */

@@ -239,7 +239,7 @@ static void zcd_disable(struct mt6359_priv *priv)
 
 static void hp_main_output_ramp(struct mt6359_priv *priv, bool up)
 {
-	int i = 0, stage = 0;
+	int i, stage;
 	int target = 7;
 
 	/* Enable/Reduce HPL/R main output stage step by step */
@@ -257,7 +257,7 @@ static void hp_main_output_ramp(struct mt6359_priv *priv, bool up)
 
 static void hp_aux_feedback_loop_gain_ramp(struct mt6359_priv *priv, bool up)
 {
-	int i = 0, stage = 0;
+	int i, stage;
 	int target = 0xf;
 
 	/* Enable/Reduce HP aux feedback loop gain step by step */

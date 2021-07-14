@@ -49,11 +49,11 @@ struct floppy_struct {
 #define FDCLRPRM _IO(2, 0x41)
 /* clear user-defined parameters */
 
-#define FDSETPRM _IOW(2, 0x42, struct floppy_struct) 
+#define FDSETPRM _IOW(2, 0x42, struct floppy_struct)
 #define FDSETMEDIAPRM FDSETPRM
 /* set user-defined parameters for current media */
 
-#define FDDEFPRM _IOW(2, 0x43, struct floppy_struct) 
+#define FDDEFPRM _IOW(2, 0x43, struct floppy_struct)
 #define FDGETPRM _IOR(2, 0x04, struct floppy_struct)
 #define FDDEFMEDIAPRM FDDEFPRM
 #define FDGETMEDIAPRM FDGETPRM
@@ -65,7 +65,7 @@ struct floppy_struct {
 /* issue/don't issue kernel messages on media type change */
 
 
-/* 
+/*
  * Formatting (obsolete)
  */
 #define FD_FILL_BYTE 0xF6 /* format fill byte. */
@@ -126,13 +126,13 @@ typedef char floppy_drive_name[16];
  */
 struct floppy_drive_params {
 	signed char cmos;		/* CMOS type */
-	
-	/* Spec2 is (HLD<<1 | ND), where HLD is head load time (1=2ms, 2=4 ms 
+
+	/* Spec2 is (HLD<<1 | ND), where HLD is head load time (1=2ms, 2=4 ms
 	 * etc) and ND is set means no DMA. Hardcoded to 6 (HLD=6ms, use DMA).
 	 */
 	unsigned long max_dtr;		/* Step rate, usec */
 	unsigned long hlt;     		/* Head load/settle time, msec */
-	unsigned long hut;     		/* Head unload time (remnant of 
+	unsigned long hut;     		/* Head unload time (remnant of
 					 * 8" drives) */
 	unsigned long srt;     		/* Step rate, usec */
 
@@ -145,12 +145,12 @@ struct floppy_drive_params {
 	unsigned char rps;		/* rotations per second */
 	unsigned char tracks;		/* maximum number of tracks */
 	unsigned long timeout;		/* timeout for interrupt requests */
-	
-	unsigned char interleave_sect;	/* if there are more sectors, use 
+
+	unsigned char interleave_sect;	/* if there are more sectors, use
 					 * interleave */
-	
+
 	struct floppy_max_errors max_errors;
-	
+
 	char flags;			/* various flags, including ftd_msg */
 /*
  * Announce successful media type detection and media information loss after
@@ -162,7 +162,7 @@ struct floppy_drive_params {
 #define FD_BROKEN_DCL 0x20
 #define FD_DEBUG 0x02
 #define FD_SILENT_DCL_CLEAR 0x4
-#define FD_INVERTED_DCL 0x80 /* must be 0x80, because of hardware 
+#define FD_INVERTED_DCL 0x80 /* must be 0x80, because of hardware
 				considerations */
 
 	char read_track;		/* use readtrack during probing? */
@@ -176,8 +176,8 @@ struct floppy_drive_params {
 #define FD_AUTODETECT_SIZE 8
 
 	short autodetect[FD_AUTODETECT_SIZE]; /* autodetected formats */
-	
-	int checkfreq; /* how often should the drive be checked for disk 
+
+	int checkfreq; /* how often should the drive be checked for disk
 			* changes */
 	int native_format; /* native format of this drive */
 };
@@ -225,13 +225,13 @@ struct floppy_drive_struct {
  * decremented after each probe.
  */
 	int keep_data;
-	
+
 	/* Prevent "aliased" accesses. */
 	int fd_ref;
 	int fd_device;
-	unsigned long last_checked; /* when was the drive last checked for a disk 
+	unsigned long last_checked; /* when was the drive last checked for a disk
 			   * change? */
-	
+
 	char *dmabuf;
 	int bufblocks;
 };
@@ -255,7 +255,7 @@ enum reset_mode {
 /*
  * FDC state
  */
-struct floppy_fdc_state {	
+struct floppy_fdc_state {
 	int spec1;		/* spec1 value last used */
 	int spec2;		/* spec2 value last used */
 	int dtr;
@@ -302,16 +302,16 @@ struct floppy_write_errors {
 	 * to the user process are not counted.
 	 */
 
-	unsigned int write_errors;  /* number of physical write errors 
+	unsigned int write_errors;  /* number of physical write errors
 				     * encountered */
-	
+
 	/* position of first and last write errors */
 	unsigned long first_error_sector;
 	int           first_error_generation;
 	unsigned long last_error_sector;
 	int           last_error_generation;
-	
-	unsigned int badness; /* highest retry count for a read or write 
+
+	unsigned int badness; /* highest retry count for a read or write
 			       * operation */
 };
 
@@ -335,7 +335,7 @@ struct floppy_raw_cmd {
 #define FD_RAW_DISK_CHANGE 4 /* out: disk change flag was set */
 #define FD_RAW_INTR 8    /* wait for an interrupt */
 #define FD_RAW_SPIN 0x10 /* spin up the disk for this command */
-#define FD_RAW_NO_MOTOR_AFTER 0x20 /* switch the motor off after command 
+#define FD_RAW_NO_MOTOR_AFTER 0x20 /* switch the motor off after command
 				    * completion */
 #define FD_RAW_NEED_DISK 0x40  /* this command needs a disk to be present */
 #define FD_RAW_NEED_SEEK 0x80  /* this command uses an implied seek (soft) */
@@ -353,7 +353,7 @@ struct floppy_raw_cmd {
 
 	void __user *data;
 	char *kernel_data; /* location of data buffer in the kernel */
-	struct floppy_raw_cmd *next; /* used for chaining of raw cmd's 
+	struct floppy_raw_cmd *next; /* used for chaining of raw cmd's
 				      * within the kernel */
 	long length; /* in: length of dma transfer. out: remaining bytes */
 	long phys_length; /* physical length, if different from dma length */

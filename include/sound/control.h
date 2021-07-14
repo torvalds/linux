@@ -24,13 +24,19 @@ typedef int (snd_kcontrol_tlv_rw_t)(struct snd_kcontrol *kcontrol,
 
 /* internal flag for skipping validations */
 #ifdef CONFIG_SND_CTL_VALIDATION
-#define SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK	(1 << 27)
+#define SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK	(1 << 24)
 #define snd_ctl_skip_validation(info) \
 	((info)->access & SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK)
 #else
 #define SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK	0
 #define snd_ctl_skip_validation(info)		true
 #endif
+
+/* kernel only - LED bits */
+#define SNDRV_CTL_ELEM_ACCESS_LED_SHIFT		25
+#define SNDRV_CTL_ELEM_ACCESS_LED_MASK		(7<<25) /* kernel three bits - LED group */
+#define SNDRV_CTL_ELEM_ACCESS_SPK_LED		(1<<25) /* kernel speaker (output) LED flag */
+#define SNDRV_CTL_ELEM_ACCESS_MIC_LED		(2<<25) /* kernel microphone (input) LED flag */
 
 enum {
 	SNDRV_CTL_TLV_OP_READ = 0,
@@ -108,6 +114,14 @@ struct snd_ctl_file {
 	struct list_head events;	/* waiting events for read */
 };
 
+struct snd_ctl_layer_ops {
+	struct snd_ctl_layer_ops *next;
+	const char *module_name;
+	void (*lregister)(struct snd_card *card);
+	void (*ldisconnect)(struct snd_card *card);
+	void (*lnotify)(struct snd_card *card, unsigned int mask, struct snd_kcontrol *kctl, unsigned int ioff);
+};
+
 #define snd_ctl_file(n) list_entry(n, struct snd_ctl_file, list)
 
 typedef int (*snd_kctl_ioctl_func_t) (struct snd_card * card,
@@ -115,6 +129,7 @@ typedef int (*snd_kctl_ioctl_func_t) (struct snd_card * card,
 				      unsigned int cmd, unsigned long arg);
 
 void snd_ctl_notify(struct snd_card * card, unsigned int mask, struct snd_ctl_elem_id * id);
+void snd_ctl_notify_one(struct snd_card * card, unsigned int mask, struct snd_kcontrol * kctl, unsigned int ioff);
 
 struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new * kcontrolnew, void * private_data);
 void snd_ctl_free_one(struct snd_kcontrol * kcontrol);
@@ -123,8 +138,7 @@ int snd_ctl_remove(struct snd_card * card, struct snd_kcontrol * kcontrol);
 int snd_ctl_replace(struct snd_card *card, struct snd_kcontrol *kcontrol, bool add_on_replace);
 int snd_ctl_remove_id(struct snd_card * card, struct snd_ctl_elem_id *id);
 int snd_ctl_rename_id(struct snd_card * card, struct snd_ctl_elem_id *src_id, struct snd_ctl_elem_id *dst_id);
-int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
-			int active);
+int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id, int active);
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card * card, unsigned int numid);
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card * card, struct snd_ctl_elem_id *id);
 
@@ -139,6 +153,10 @@ int snd_ctl_unregister_ioctl_compat(snd_kctl_ioctl_func_t fcn);
 #define snd_ctl_register_ioctl_compat(fcn)
 #define snd_ctl_unregister_ioctl_compat(fcn)
 #endif
+
+int snd_ctl_request_layer(const char *module_name);
+void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops);
+void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops);
 
 int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type);
 
@@ -252,6 +270,17 @@ int snd_ctl_apply_vmaster_followers(struct snd_kcontrol *kctl,
 						struct snd_kcontrol *follower,
 						void *arg),
 				    void *arg);
+
+/*
+ * Control LED trigger layer
+ */
+#define SND_CTL_LAYER_MODULE_LED	"snd-ctl-led"
+
+#if IS_MODULE(CONFIG_SND_CTL_LED)
+static inline int snd_ctl_led_request(void) { return snd_ctl_request_layer(SND_CTL_LAYER_MODULE_LED); }
+#else
+static inline int snd_ctl_led_request(void) { return 0; }
+#endif
 
 /*
  * Helper functions for jack-detection controls

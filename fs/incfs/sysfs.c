@@ -100,7 +100,7 @@ static ssize_t name##_show(struct kobject *kobj,			\
 	struct incfs_sysfs_node *node = container_of(kobj,		\
 			struct incfs_sysfs_node, isn_sysfs_node);	\
 									\
-	return sysfs_emit(buff, "%d\n", node->isn_##name);		\
+	return sysfs_emit(buff, "%d\n", node->isn_mi->mi_##name);	\
 }									\
 									\
 static struct kobj_attribute name##_attr = __ATTR_RO(name)
@@ -112,7 +112,7 @@ static ssize_t name##_show(struct kobject *kobj,			\
 	struct incfs_sysfs_node *node = container_of(kobj,		\
 			struct incfs_sysfs_node, isn_sysfs_node);	\
 									\
-	return sysfs_emit(buff, "%lld\n", node->isn_##name);		\
+	return sysfs_emit(buff, "%lld\n", node->isn_mi->mi_##name);	\
 }									\
 									\
 static struct kobj_attribute name##_attr = __ATTR_RO(name)
@@ -141,7 +141,7 @@ static void incfs_sysfs_release(struct kobject *kobj)
 	struct incfs_sysfs_node *node = container_of(kobj,
 				struct incfs_sysfs_node, isn_sysfs_node);
 
-	kfree(node);
+	complete(&node->isn_completion);
 }
 
 static const struct attribute_group mount_attr_group = {
@@ -153,7 +153,8 @@ static struct kobj_type incfs_kobj_node_ktype = {
 	.release	= &incfs_sysfs_release,
 };
 
-struct incfs_sysfs_node *incfs_add_sysfs_node(const char *name)
+struct incfs_sysfs_node *incfs_add_sysfs_node(const char *name,
+					      struct mount_info *mi)
 {
 	struct incfs_sysfs_node *node = NULL;
 	int error;
@@ -165,6 +166,9 @@ struct incfs_sysfs_node *incfs_add_sysfs_node(const char *name)
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
+	node->isn_mi = mi;
+
+	init_completion(&node->isn_completion);
 	kobject_init(&node->isn_sysfs_node, &incfs_kobj_node_ktype);
 	error = kobject_add(&node->isn_sysfs_node, instances_node, "%s", name);
 	if (error)
@@ -192,4 +196,6 @@ void incfs_free_sysfs_node(struct incfs_sysfs_node *node)
 
 	sysfs_remove_group(&node->isn_sysfs_node, &mount_attr_group);
 	kobject_put(&node->isn_sysfs_node);
+	wait_for_completion_interruptible(&node->isn_completion);
+	kfree(node);
 }

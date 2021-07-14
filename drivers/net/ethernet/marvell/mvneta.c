@@ -1087,7 +1087,7 @@ static int mvneta_mbus_io_win_set(struct mvneta_port *pp, u32 base, u32 wsize,
 	return 0;
 }
 
-static  int mvneta_bm_port_mbus_init(struct mvneta_port *pp)
+static int mvneta_bm_port_mbus_init(struct mvneta_port *pp)
 {
 	u32 wsize;
 	u8 target, attr;
@@ -2137,7 +2137,7 @@ mvneta_xdp_xmit(struct net_device *dev, int num_frame,
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-	int i, nxmit_byte = 0, nxmit = num_frame;
+	int i, nxmit_byte = 0, nxmit = 0;
 	int cpu = smp_processor_id();
 	struct mvneta_tx_queue *txq;
 	struct netdev_queue *nq;
@@ -2155,12 +2155,11 @@ mvneta_xdp_xmit(struct net_device *dev, int num_frame,
 	__netif_tx_lock(nq, cpu);
 	for (i = 0; i < num_frame; i++) {
 		ret = mvneta_xdp_submit_frame(pp, txq, frames[i], true);
-		if (ret == MVNETA_XDP_TX) {
-			nxmit_byte += frames[i]->len;
-		} else {
-			xdp_return_frame_rx_napi(frames[i]);
-			nxmit--;
-		}
+		if (ret != MVNETA_XDP_TX)
+			break;
+
+		nxmit_byte += frames[i]->len;
+		nxmit++;
 	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
@@ -3994,7 +3993,8 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 
 	/* Armada 370 documentation says we can only change the port mode
 	 * and in-band enable when the link is down, so force it down
-	 * while making these changes. We also do this for GMAC_CTRL2 */
+	 * while making these changes. We also do this for GMAC_CTRL2
+	 */
 	if ((new_ctrl0 ^ gmac_ctrl0) & MVNETA_GMAC0_PORT_1000BASE_X ||
 	    (new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
 	    (new_an  ^ gmac_an) & MVNETA_GMAC_INBAND_AN_ENABLE) {
@@ -4176,9 +4176,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
 
 		if (cpu == elected_cpu)
-			/* Map the default receive queue queue to the
-			 * elected CPU
-			 */
+			/* Map the default receive queue to the elected CPU */
 			rxq_map |= MVNETA_CPU_RXQ_ACCESS(pp->rxq_def);
 
 		/* We update the TX queue map only if we have one
@@ -4908,7 +4906,8 @@ static int mvneta_ethtool_set_eee(struct net_device *dev,
 	u32 lpi_ctl0;
 
 	/* The Armada 37x documents do not give limits for this other than
-	 * it being an 8-bit register. */
+	 * it being an 8-bit register.
+	 */
 	if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
 		return -EINVAL;
 
@@ -5142,7 +5141,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct phylink *phylink;
 	struct phy *comphy;
-	const char *dt_mac_addr;
 	char hw_mac_addr[ETH_ALEN];
 	phy_interface_t phy_mode;
 	const char *mac_from;
@@ -5238,10 +5236,9 @@ static int mvneta_probe(struct platform_device *pdev)
 		goto err_free_ports;
 	}
 
-	dt_mac_addr = of_get_mac_address(dn);
-	if (!IS_ERR(dt_mac_addr)) {
+	err = of_get_mac_address(dn, dev->dev_addr);
+	if (!err) {
 		mac_from = "device tree";
-		ether_addr_copy(dev->dev_addr, dt_mac_addr);
 	} else {
 		mvneta_get_mac_addr(pp, hw_mac_addr);
 		if (is_valid_ether_addr(hw_mac_addr)) {

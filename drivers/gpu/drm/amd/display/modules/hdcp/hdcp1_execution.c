@@ -427,8 +427,6 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 		event_ctx->unexpected_event = 1;
 		goto out;
 	}
-	if (!mod_hdcp_is_link_encryption_enabled(hdcp))
-		goto out;
 
 	if (status == MOD_HDCP_STATUS_SUCCESS)
 		mod_hdcp_execute_and_set(mod_hdcp_read_bstatus,

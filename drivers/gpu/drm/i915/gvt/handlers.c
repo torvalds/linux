@@ -669,8 +669,8 @@ static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 	link_n = vgpu_vreg_t(vgpu, PIPE_LINK_N1(TRANSCODER_A));
 
 	/* Get H/V total from transcoder timing */
-	htotal = (vgpu_vreg_t(vgpu, HTOTAL(TRANSCODER_A)) >> TRANS_HTOTAL_SHIFT) + 1;
-	vtotal = (vgpu_vreg_t(vgpu, VTOTAL(TRANSCODER_A)) >> TRANS_VTOTAL_SHIFT) + 1;
+	htotal = (vgpu_vreg_t(vgpu, HTOTAL(TRANSCODER_A)) >> TRANS_HTOTAL_SHIFT);
+	vtotal = (vgpu_vreg_t(vgpu, VTOTAL(TRANSCODER_A)) >> TRANS_VTOTAL_SHIFT);
 
 	if (dp_br && link_n && htotal && vtotal) {
 		u64 pixel_clk = 0;
@@ -682,7 +682,7 @@ static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 		pixel_clk *= MSEC_PER_SEC;
 
 		/* Calcuate refresh rate by (pixel_clk / (h_total * v_total)) */
-		new_rate = DIV64_U64_ROUND_CLOSEST(pixel_clk, div64_u64(mul_u32_u32(htotal, vtotal), MSEC_PER_SEC));
+		new_rate = DIV64_U64_ROUND_CLOSEST(mul_u64_u32_shr(pixel_clk, MSEC_PER_SEC, 0), mul_u32_u32(htotal + 1, vtotal + 1));
 
 		if (*old_rate != new_rate)
 			*old_rate = new_rate;

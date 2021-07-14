@@ -109,6 +109,7 @@ struct ice_buf_hdr {
 	(ent_sz))
 
 /* ice package section IDs */
+#define ICE_SID_METADATA		1
 #define ICE_SID_XLT0_SW			10
 #define ICE_SID_XLT_KEY_BUILDER_SW	11
 #define ICE_SID_XLT1_SW			12
@@ -117,6 +118,14 @@ struct ice_buf_hdr {
 #define ICE_SID_PROFID_REDIR_SW		15
 #define ICE_SID_FLD_VEC_SW		16
 #define ICE_SID_CDID_KEY_BUILDER_SW	17
+
+struct ice_meta_sect {
+	struct ice_pkg_ver ver;
+#define ICE_META_SECT_NAME_SIZE	28
+	char name[ICE_META_SECT_NAME_SIZE];
+	__le32 track_id;
+};
+
 #define ICE_SID_CDID_REDIR_SW		18
 
 #define ICE_SID_XLT0_ACL		20
@@ -188,6 +197,64 @@ enum ice_sect {
 	ICE_CDID_KB,
 	ICE_CDID_REDIR,
 	ICE_SECT_COUNT
+};
+
+#define ICE_MAC_IPV4_GTPU_IPV4_FRAG	331
+#define ICE_MAC_IPV4_GTPU_IPV4_PAY	332
+#define ICE_MAC_IPV4_GTPU_IPV4_UDP_PAY	333
+#define ICE_MAC_IPV4_GTPU_IPV4_TCP	334
+#define ICE_MAC_IPV4_GTPU_IPV4_ICMP	335
+#define ICE_MAC_IPV6_GTPU_IPV4_FRAG	336
+#define ICE_MAC_IPV6_GTPU_IPV4_PAY	337
+#define ICE_MAC_IPV6_GTPU_IPV4_UDP_PAY	338
+#define ICE_MAC_IPV6_GTPU_IPV4_TCP	339
+#define ICE_MAC_IPV6_GTPU_IPV4_ICMP	340
+#define ICE_MAC_IPV4_GTPU_IPV6_FRAG	341
+#define ICE_MAC_IPV4_GTPU_IPV6_PAY	342
+#define ICE_MAC_IPV4_GTPU_IPV6_UDP_PAY	343
+#define ICE_MAC_IPV4_GTPU_IPV6_TCP	344
+#define ICE_MAC_IPV4_GTPU_IPV6_ICMPV6	345
+#define ICE_MAC_IPV6_GTPU_IPV6_FRAG	346
+#define ICE_MAC_IPV6_GTPU_IPV6_PAY	347
+#define ICE_MAC_IPV6_GTPU_IPV6_UDP_PAY	348
+#define ICE_MAC_IPV6_GTPU_IPV6_TCP	349
+#define ICE_MAC_IPV6_GTPU_IPV6_ICMPV6	350
+
+/* Attributes that can modify PTYPE definitions.
+ *
+ * These values will represent special attributes for PTYPEs, which will
+ * resolve into metadata packet flags definitions that can be used in the TCAM
+ * for identifying a PTYPE with specific characteristics.
+ */
+enum ice_ptype_attrib_type {
+	/* GTP PTYPEs */
+	ICE_PTYPE_ATTR_GTP_PDU_EH,
+	ICE_PTYPE_ATTR_GTP_SESSION,
+	ICE_PTYPE_ATTR_GTP_DOWNLINK,
+	ICE_PTYPE_ATTR_GTP_UPLINK,
+};
+
+struct ice_ptype_attrib_info {
+	u16 flags;
+	u16 mask;
+};
+
+/* TCAM flag definitions */
+#define ICE_GTP_PDU			BIT(14)
+#define ICE_GTP_PDU_LINK		BIT(13)
+
+/* GTP attributes */
+#define ICE_GTP_PDU_FLAG_MASK		(ICE_GTP_PDU)
+#define ICE_GTP_PDU_EH			ICE_GTP_PDU
+
+#define ICE_GTP_FLAGS_MASK		(ICE_GTP_PDU | ICE_GTP_PDU_LINK)
+#define ICE_GTP_SESSION			0
+#define ICE_GTP_DOWNLINK		ICE_GTP_PDU
+#define ICE_GTP_UPLINK			(ICE_GTP_PDU | ICE_GTP_PDU_LINK)
+
+struct ice_ptype_attributes {
+	u16 ptype;
+	enum ice_ptype_attrib_type attrib;
 };
 
 /* package labels */
@@ -335,6 +402,7 @@ struct ice_es {
 	u16 count;
 	u16 fvw;
 	u16 *ref_count;
+	u32 *mask_ena;
 	struct list_head prof_map;
 	struct ice_fv_word *t;
 	struct mutex prof_map_lock;	/* protect access to profiles list */
@@ -372,12 +440,14 @@ struct ice_prof_map {
 	u8 prof_id;
 	u8 ptg_cnt;
 	u8 ptg[ICE_MAX_PTG_PER_PROFILE];
+	struct ice_ptype_attrib_info attr[ICE_MAX_PTG_PER_PROFILE];
 };
 
 #define ICE_INVALID_TCAM	0xFFFF
 
 struct ice_tcam_inf {
 	u16 tcam_idx;
+	struct ice_ptype_attrib_info attr;
 	u8 ptg;
 	u8 prof_id;
 	u8 in_use;
@@ -427,8 +497,8 @@ struct ice_xlt1 {
 #define ICE_PF_NUM_S	13
 #define ICE_PF_NUM_M	(0x07 << ICE_PF_NUM_S)
 #define ICE_VSIG_VALUE(vsig, pf_id) \
-	(u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
-	      (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M))
+	((u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
+	       (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M)))
 #define ICE_DEFAULT_VSIG	0
 
 /* XLT2 Table */
@@ -478,6 +548,21 @@ struct ice_prof_redir {
 	u16 count;
 };
 
+struct ice_mask {
+	u16 mask;	/* 16-bit mask */
+	u16 idx;	/* index */
+	u16 ref;	/* reference count */
+	u8 in_use;	/* non-zero if used */
+};
+
+struct ice_masks {
+	struct mutex lock; /* lock to protect this structure */
+	u16 first;	/* first mask owned by the PF */
+	u16 count;	/* number of masks owned by the PF */
+#define ICE_PROF_MASK_COUNT 32
+	struct ice_mask masks[ICE_PROF_MASK_COUNT];
+};
+
 /* Tables per block */
 struct ice_blk_info {
 	struct ice_xlt1 xlt1;
@@ -485,6 +570,7 @@ struct ice_blk_info {
 	struct ice_prof_tcam prof;
 	struct ice_prof_redir prof_redir;
 	struct ice_es es;
+	struct ice_masks masks;
 	u8 overwrite; /* set to true to allow overwrite of table entries */
 	u8 is_list_init;
 };
@@ -513,6 +599,7 @@ struct ice_chs_chg {
 	u16 vsig;
 	u16 orig_vsig;
 	u16 tcam_idx;
+	struct ice_ptype_attrib_info attr;
 };
 
 #define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT

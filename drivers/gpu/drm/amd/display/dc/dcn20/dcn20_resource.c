@@ -2201,10 +2201,11 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.output_bpp = (output_bpc * 3.0) / 2;
 			break;
 		case PIXEL_ENCODING_YCBCR422:
-			if (true) /* todo */
-				pipes[pipe_cnt].dout.output_format = dm_s422;
-			else
+			if (res_ctx->pipe_ctx[i].stream->timing.flags.DSC &&
+			    !res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.ycbcr422_simple)
 				pipes[pipe_cnt].dout.output_format = dm_n422;
+			else
+				pipes[pipe_cnt].dout.output_format = dm_s422;
 			pipes[pipe_cnt].dout.output_bpp = output_bpc * 2;
 			break;
 		default:
@@ -3235,7 +3236,7 @@ static noinline bool dcn20_validate_bandwidth_fp(struct dc *dc,
 	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
 	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 
-	if (voltage_supported && dummy_pstate_supported) {
+	if (voltage_supported && (dummy_pstate_supported || !(context->stream_count))) {
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
 		goto restore_dml_state;
 	}

@@ -56,6 +56,14 @@ typedef int __bitwise mhp_t;
 #define MHP_MERGE_RESOURCE	((__force mhp_t)BIT(0))
 
 /*
+ * We want memmap (struct page array) to be self contained.
+ * To do so, we will use the beginning of the hot-added range to build
+ * the page tables for the memmap array that describes the entire range.
+ * Only selected architectures support it with SPARSE_VMEMMAP.
+ */
+#define MHP_MEMMAP_ON_MEMORY   ((__force mhp_t)BIT(1))
+
+/*
  * Extended parameters for memory hotplug:
  * altmap: alternative allocator for memmap array (optional)
  * pgprot: page protection flags to apply to newly created page tables
@@ -99,9 +107,13 @@ static inline void zone_seqlock_init(struct zone *zone)
 extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
 extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
 extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+extern void adjust_present_page_count(struct zone *zone, long nr_pages);
 /* VM interface that may be used by firmware interface */
+extern int mhp_init_memmap_on_memory(unsigned long pfn, unsigned long nr_pages,
+				     struct zone *zone);
+extern void mhp_deinit_memmap_on_memory(unsigned long pfn, unsigned long nr_pages);
 extern int online_pages(unsigned long pfn, unsigned long nr_pages,
-			int online_type, int nid);
+			struct zone *zone);
 extern struct zone *test_pages_in_a_zone(unsigned long start_pfn,
 					 unsigned long end_pfn);
 extern void __offline_isolated_pages(unsigned long start_pfn,
@@ -359,6 +371,7 @@ extern struct zone *zone_for_pfn_range(int online_type, int nid, unsigned start_
 extern int arch_create_linear_mapping(int nid, u64 start, u64 size,
 				      struct mhp_params *params);
 void arch_remove_linear_mapping(u64 start, u64 size);
+extern bool mhp_supports_memmap_on_memory(unsigned long size);
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

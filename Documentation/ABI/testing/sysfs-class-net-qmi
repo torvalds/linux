@@ -58,3 +58,19 @@ Description:
 
 		Indicates the mux id associated to the qmimux network interface
 		during its creation.
+
+What:		/sys/class/net/<iface>/qmi/pass_through
+Date:		January 2021
+KernelVersion:	5.12
+Contact:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+Description:
+		Boolean.  Default: 'N'
+
+		Set this to 'Y' to enable 'pass-through' mode, allowing packets
+		in MAP format to be passed on to the stack.
+
+		Normally the rmnet driver (CONFIG_RMNET) is then used to process
+		and demultiplex these packets.
+
+		'Pass-through' mode can be enabled when the device is in
+		'raw-ip' mode only.

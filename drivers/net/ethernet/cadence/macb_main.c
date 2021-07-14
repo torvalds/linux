@@ -694,6 +694,22 @@ static void macb_mac_config(struct phylink_config *config, unsigned int mode,
 	if (old_ncr ^ ncr)
 		macb_or_gem_writel(bp, NCR, ncr);
 
+	/* Disable AN for SGMII fixed link configuration, enable otherwise.
+	 * Must be written after PCSSEL is set in NCFGR,
+	 * otherwise writes will not take effect.
+	 */
+	if (macb_is_gem(bp) && state->interface == PHY_INTERFACE_MODE_SGMII) {
+		u32 pcsctrl, old_pcsctrl;
+
+		old_pcsctrl = gem_readl(bp, PCSCNTRL);
+		if (mode == MLO_AN_FIXED)
+			pcsctrl = old_pcsctrl & ~GEM_BIT(PCSAUTONEG);
+		else
+			pcsctrl = old_pcsctrl | GEM_BIT(PCSAUTONEG);
+		if (old_pcsctrl != pcsctrl)
+			gem_writel(bp, PCSCNTRL, pcsctrl);
+	}
+
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
@@ -847,6 +863,15 @@ static int macb_phylink_connect(struct macb *bp)
 	return 0;
 }
 
+static void macb_get_pcs_fixed_state(struct phylink_config *config,
+				     struct phylink_link_state *state)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct macb *bp = netdev_priv(ndev);
+
+	state->link = (macb_readl(bp, NSR) & MACB_BIT(NSR_LINK)) != 0;
+}
+
 /* based on au1000_eth. c*/
 static int macb_mii_probe(struct net_device *dev)
 {
@@ -854,6 +879,11 @@ static int macb_mii_probe(struct net_device *dev)
 
 	bp->phylink_config.dev = &dev->dev;
 	bp->phylink_config.type = PHYLINK_NETDEV;
+
+	if (bp->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+		bp->phylink_config.poll_fixed_state = true;
+		bp->phylink_config.get_fixed_state = macb_get_pcs_fixed_state;
+	}
 
 	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
 				     bp->phy_interface, &macb_phylink_ops);
@@ -2837,6 +2867,9 @@ static struct net_device_stats *gem_get_stats(struct macb *bp)
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
 	struct net_device_stats *nstat = &bp->dev->stats;
 
+	if (!netif_running(bp->dev))
+		return nstat;
+
 	gem_update_stats(bp);
 
 	nstat->rx_errors = (hwstat->rx_frame_check_sequence_errors +
@@ -3735,17 +3768,15 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 		*hclk = devm_clk_get(&pdev->dev, "hclk");
 	}
 
-	if (IS_ERR_OR_NULL(*pclk)) {
-		err = IS_ERR(*pclk) ? PTR_ERR(*pclk) : -ENODEV;
-		dev_err(&pdev->dev, "failed to get macb_clk (%d)\n", err);
-		return err;
-	}
+	if (IS_ERR_OR_NULL(*pclk))
+		return dev_err_probe(&pdev->dev,
+				     IS_ERR(*pclk) ? PTR_ERR(*pclk) : -ENODEV,
+				     "failed to get pclk\n");
 
-	if (IS_ERR_OR_NULL(*hclk)) {
-		err = IS_ERR(*hclk) ? PTR_ERR(*hclk) : -ENODEV;
-		dev_err(&pdev->dev, "failed to get hclk (%d)\n", err);
-		return err;
-	}
+	if (IS_ERR_OR_NULL(*hclk))
+		return dev_err_probe(&pdev->dev,
+				     IS_ERR(*hclk) ? PTR_ERR(*hclk) : -ENODEV,
+				     "failed to get hclk\n");
 
 	*tx_clk = devm_clk_get_optional(&pdev->dev, "tx_clk");
 	if (IS_ERR(*tx_clk))
@@ -4621,7 +4652,6 @@ static int macb_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct resource *regs;
 	void __iomem *mem;
-	const char *mac;
 	struct macb *bp;
 	int err, val;
 
@@ -4736,15 +4766,11 @@ static int macb_probe(struct platform_device *pdev)
 	if (bp->caps & MACB_CAPS_NEEDS_RSTONUBR)
 		bp->rx_intr_mask |= MACB_BIT(RXUBR);
 
-	mac = of_get_mac_address(np);
-	if (PTR_ERR(mac) == -EPROBE_DEFER) {
-		err = -EPROBE_DEFER;
+	err = of_get_mac_address(np, bp->dev->dev_addr);
+	if (err == -EPROBE_DEFER)
 		goto err_out_free_netdev;
-	} else if (!IS_ERR_OR_NULL(mac)) {
-		ether_addr_copy(bp->dev->dev_addr, mac);
-	} else {
+	else if (err)
 		macb_get_hwaddr(bp);
-	}
 
 	err = of_get_phy_mode(np, &interface);
 	if (err)
@@ -4829,7 +4855,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
-	struct macb_queue *queue = bp->queues;
+	struct macb_queue *queue;
 	unsigned long flags;
 	unsigned int q;
 	int err;
@@ -4916,7 +4942,7 @@ static int __maybe_unused macb_resume(struct device *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
-	struct macb_queue *queue = bp->queues;
+	struct macb_queue *queue;
 	unsigned long flags;
 	unsigned int q;
 	int err;

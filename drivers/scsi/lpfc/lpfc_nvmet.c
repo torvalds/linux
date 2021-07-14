@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Fibre Channsel Host Bus Adapters.                               *
- * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1440,7 +1440,10 @@ __lpfc_nvmet_clean_io_for_cpu(struct lpfc_hba *phba,
 		list_del_init(&ctx_buf->list);
 		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 
+		spin_lock(&phba->hbalock);
 		__lpfc_clear_active_sglq(phba, ctx_buf->sglq->sli4_lxritag);
+		spin_unlock(&phba->hbalock);
+
 		ctx_buf->sglq->state = SGL_FREED;
 		ctx_buf->sglq->ndlp = NULL;
 
@@ -1787,8 +1790,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_fcp_xri_abort_cqe);
 	}
 
-	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+	spin_lock_irqsave(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
@@ -1806,10 +1808,10 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		}
 		ctxp->flag &= ~LPFC_NVME_XBUSY;
 		spin_unlock(&ctxp->ctxlock);
-		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
+				       iflag);
 
 		rrq_empty = list_empty(&phba->active_rrq_list);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
 		if (ndlp &&
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
@@ -1830,9 +1832,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 			lpfc_worker_wake_up(phba);
 		return;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
-
+	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 	ctxp = lpfc_nvmet_get_ctx_for_xri(phba, xri);
 	if (ctxp) {
 		/*
@@ -1876,8 +1876,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 
-	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+	spin_lock_irqsave(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
@@ -1886,9 +1885,8 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 
 		xri = ctxp->ctxbuf->sglq->sli4_xritag;
 
-		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-
+		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
+				       iflag);
 		spin_lock_irqsave(&ctxp->ctxlock, iflag);
 		ctxp->flag |= LPFC_NVME_ABTS_RCV;
 		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
@@ -1907,9 +1905,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
-
+	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 	/* check the wait list */
 	if (phba->sli4_hba.nvmet_io_wait_cnt) {
 		struct rqb_dmabuf *nvmebuf;
@@ -3304,7 +3300,6 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 	bf_set(wqe_rcvoxid, &wqe_abts->xmit_sequence.wqe_com, xri);
 
 	/* Word 10 */
-	bf_set(wqe_dbde, &wqe_abts->xmit_sequence.wqe_com, 1);
 	bf_set(wqe_iod, &wqe_abts->xmit_sequence.wqe_com, LPFC_WQE_IOD_WRITE);
 	bf_set(wqe_lenloc, &wqe_abts->xmit_sequence.wqe_com,
 	       LPFC_WQE_LENLOC_WORD12);

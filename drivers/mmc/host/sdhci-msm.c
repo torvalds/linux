@@ -1863,7 +1863,6 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	struct mmc_host *mmc = msm_host->mmc;
 	struct device *dev = mmc_dev(mmc);
 	struct resource *res;
-	int err;
 
 	if (!(cqhci_readl(cq_host, CQHCI_CAP) & CQHCI_CAP_CS))
 		return 0;
@@ -1881,11 +1880,8 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	}
 
 	msm_host->ice_mem = devm_ioremap_resource(dev, res);
-	if (IS_ERR(msm_host->ice_mem)) {
-		err = PTR_ERR(msm_host->ice_mem);
-		dev_err(dev, "Failed to map ICE registers; err=%d\n", err);
-		return err;
-	}
+	if (IS_ERR(msm_host->ice_mem))
+		return PTR_ERR(msm_host->ice_mem);
 
 	if (!sdhci_msm_ice_supported(msm_host))
 		goto disable;
