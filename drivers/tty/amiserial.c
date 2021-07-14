@@ -517,12 +517,9 @@ errout:
 static void shutdown(struct tty_struct *tty, struct serial_state *info)
 {
 	unsigned long	flags;
-	struct serial_state *state;
 
 	if (!tty_port_initialized(&info->tport))
 		return;
-
-	state = info;
 
 #ifdef SERIAL_DEBUG_OPEN
 	printk("Shutting down serial port %d ....\n", info->line);
