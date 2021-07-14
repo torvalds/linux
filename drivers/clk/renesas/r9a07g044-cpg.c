@@ -12,7 +12,7 @@
 
 #include <dt-bindings/clock/r9a07g044-cpg.h>
 
-#include "renesas-rzg2l-cpg.h"
+#include "rzg2l-cpg.h"
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */

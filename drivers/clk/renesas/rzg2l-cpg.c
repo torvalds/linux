@@ -29,7 +29,7 @@
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
-#include "renesas-rzg2l-cpg.h"
+#include "rzg2l-cpg.h"
 
 #ifdef DEBUG
 #define WARN_DEBUG(x)	WARN_ON(x)
