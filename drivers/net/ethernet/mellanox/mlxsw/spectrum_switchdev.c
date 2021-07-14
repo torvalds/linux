@@ -1569,7 +1569,6 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 {
 	long *flood_bitmap;
 	int num_of_ports;
-	int alloc_size;
 	u16 mid_idx;
 	int err;
 
@@ -1579,18 +1578,17 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 		return false;
 
 	num_of_ports = mlxsw_core_max_ports(mlxsw_sp->core);
-	alloc_size = sizeof(long) * BITS_TO_LONGS(num_of_ports);
-	flood_bitmap = kzalloc(alloc_size, GFP_KERNEL);
+	flood_bitmap = bitmap_alloc(num_of_ports, GFP_KERNEL);
 	if (!flood_bitmap)
 		return false;
 
-	bitmap_copy(flood_bitmap,  mid->ports_in_mid, num_of_ports);
+	bitmap_copy(flood_bitmap, mid->ports_in_mid, num_of_ports);
 	mlxsw_sp_mc_get_mrouters_bitmap(flood_bitmap, bridge_device, mlxsw_sp);
 
 	mid->mid = mid_idx;
 	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap,
 					    bridge_device->mrouter);
-	kfree(flood_bitmap);
+	bitmap_free(flood_bitmap);
 	if (err)
 		return false;
 
