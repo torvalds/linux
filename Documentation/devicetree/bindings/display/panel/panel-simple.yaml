@@ -208,8 +208,14 @@ properties:
       - logictechno,lt161010-2nhr
         # Logic Technologies LT170410-2WHC 10.1" 1280x800 IPS TFT Cap Touch Mod.
       - logictechno,lt170410-2whc
+        # Logic Technologies LTTD800x480 L2RT 7" 800x480 TFT Resistive Touch Module
+      - logictechno,lttd800480070-l2rt
+        # Logic Technologies LTTD800480070-L6WH-RT 7” 800x480 TFT Resistive Touch Module
+      - logictechno,lttd800480070-l6wh-rt
         # Mitsubishi "AA070MC01 7.0" WVGA TFT LCD panel
       - mitsubishi,aa070mc01-ca1
+        # Multi-Inno Technology Co.,Ltd MI1010AIT-1CP 10.1" 1280x800 LVDS IPS Cap Touch Mod.
+      - multi-inno,mi1010ait-1cp
         # NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
       - nec,nl12880bc20-05
         # NEC LCD Technologies,Ltd. WQVGA TFT LCD panel
