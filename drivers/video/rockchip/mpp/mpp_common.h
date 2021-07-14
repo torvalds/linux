@@ -369,7 +369,7 @@ struct mpp_task {
 	struct kref ref;
 
 	/* record context running start time */
-	struct timeval start;
+	struct timespec64 start;
 	/* hardware info for current task */
 	struct mpp_hw_info *hw_info;
 	u32 task_index;

@@ -1298,7 +1298,7 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	mutex_init(&dec->set_clk_lock);
-	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, 0);
+	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, "rkvdec_devfreq", 0);
 	if (IS_ERR_OR_NULL(dec->parent_devfreq)) {
 		if (PTR_ERR(dec->parent_devfreq) == -EPROBE_DEFER) {
 			dev_warn(mpp->dev, "parent devfreq is not ready, retry\n");

@@ -1832,21 +1832,21 @@ int mpp_set_grf(struct mpp_grf_info *grf_info)
 int mpp_time_record(struct mpp_task *task)
 {
 	if (mpp_debug_unlikely(DEBUG_TIMING) && task)
-		do_gettimeofday(&task->start);
+		ktime_get_real_ts64(&task->start);
 
 	return 0;
 }
 
 int mpp_time_diff(struct mpp_task *task)
 {
-	struct timeval end;
+	struct timespec64 end;
 	struct mpp_dev *mpp = task->session->mpp;
 
-	do_gettimeofday(&end);
-	mpp_debug(DEBUG_TIMING, "%s: pid: %d, session: %p, time: %ld us\n",
+	ktime_get_real_ts64(&end);
+	mpp_debug(DEBUG_TIMING, "%s: pid: %d, session: %p, time: %lld us\n",
 		  dev_name(mpp->dev), task->session->pid, task->session,
 		  (end.tv_sec  - task->start.tv_sec)  * 1000000 +
-		  (end.tv_usec - task->start.tv_usec));
+		  (end.tv_nsec - task->start.tv_nsec)/1000);
 
 	return 0;
 }
@@ -2018,11 +2018,11 @@ static ssize_t fops_write_u32(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations procfs_fops_u32 = {
-	.open = fops_open_u32,
-	.read = seq_read,
-	.release = single_release,
-	.write = fops_write_u32,
+static const struct proc_ops procfs_fops_u32 = {
+	.proc_open = fops_open_u32,
+	.proc_read = seq_read,
+	.proc_release = single_release,
+	.proc_write = fops_write_u32,
 };
 
 struct proc_dir_entry *
