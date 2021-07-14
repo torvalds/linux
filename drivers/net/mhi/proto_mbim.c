@@ -292,7 +292,9 @@ static int mbim_init(struct mhi_net_dev *mhi_netdev)
 
 	ndev->needed_headroom = sizeof(struct mbim_tx_hdr);
 	ndev->mtu = MHI_MBIM_DEFAULT_MTU;
-	mhi_netdev->mru = MHI_MBIM_DEFAULT_MRU;
+
+	if (!mhi_netdev->mru)
+		mhi_netdev->mru = MHI_MBIM_DEFAULT_MRU;
 
 	return 0;
 }
