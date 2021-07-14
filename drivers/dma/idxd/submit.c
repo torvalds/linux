@@ -25,11 +25,10 @@ static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 	 * Descriptor completion vectors are 1...N for MSIX. We will round
 	 * robin through the N vectors.
 	 */
-	wq->vec_ptr = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
+	wq->vec_ptr = desc->vector = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
 	if (!idxd->int_handles) {
 		desc->hw->int_handle = wq->vec_ptr;
 	} else {
-		desc->vector = wq->vec_ptr;
 		/*
 		 * int_handles are only for descriptor completion. However for device
 		 * MSIX enumeration, vec 0 is used for misc interrupts. Therefore even
