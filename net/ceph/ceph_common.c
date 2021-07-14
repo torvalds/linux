@@ -422,14 +422,14 @@ out:
 }
 
 int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
-		       struct fc_log *l)
+		       struct fc_log *l, char delim)
 {
 	struct p_log log = {.prefix = "libceph", .log = l};
 	int ret;
 
-	/* ip1[:port1][,ip2[:port2]...] */
+	/* ip1[:port1][<delim>ip2[:port2]...] */
 	ret = ceph_parse_ips(buf, buf + len, opt->mon_addr, CEPH_MAX_MON,
-			     &opt->num_mon);
+			     &opt->num_mon, delim);
 	if (ret) {
 		error_plog(&log, "Failed to parse monitor IPs: %d", ret);
 		return ret;
@@ -455,8 +455,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_ip:
 		err = ceph_parse_ips(param->string,
 				     param->string + param->size,
-				     &opt->my_addr,
-				     1, NULL);
+				     &opt->my_addr, 1, NULL, ',');
 		if (err) {
 			error_plog(&log, "Failed to parse ip: %d", err);
 			return err;

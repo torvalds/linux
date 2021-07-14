@@ -272,7 +272,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 		dout("server path '%s'\n", fsopt->server_path);
 
 	ret = ceph_parse_mon_ips(param->string, dev_name_end - dev_name,
-				 pctx->copts, fc->log.log);
+				 pctx->copts, fc->log.log, ',');
 	if (ret)
 		return ret;
 
