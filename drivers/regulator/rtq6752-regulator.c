@@ -19,7 +19,7 @@ enum {
 #define RTQ6752_REG_PAVDD	0x00
 #define RTQ6752_REG_NAVDD	0x01
 #define RTQ6752_REG_PAVDDONDLY	0x07
-#define RTQ6752_REG_PAVDDSSTIME	0x07
+#define RTQ6752_REG_PAVDDSSTIME	0x08
 #define RTQ6752_REG_NAVDDONDLY	0x0D
 #define RTQ6752_REG_NAVDDSSTIME	0x0E
 #define RTQ6752_REG_OPTION1	0x12
@@ -280,6 +280,6 @@ static struct i2c_driver rtq6752_driver = {
 };
 module_i2c_driver(rtq6752_driver);
 
-MODULE_AUTHOR("ChiYuan Hwang <cy_huang@richtek.com>");
+MODULE_AUTHOR("ChiYuan Huang <cy_huang@richtek.com>");
 MODULE_DESCRIPTION("Richtek RTQ6752 Regulator Driver");
 MODULE_LICENSE("GPL v2");
