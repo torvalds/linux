@@ -1177,6 +1177,7 @@ int snd_compress_new(struct snd_card *card, int device,
 	compr->card = card;
 	compr->device = device;
 	compr->direction = dirn;
+	mutex_init(&compr->lock);
 
 	snd_compress_set_id(compr, id);
 
