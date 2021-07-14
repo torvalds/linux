@@ -196,9 +196,8 @@ alternative_else_nop_endif
 alternative_if_not ARM64_MTE
 	b	1f
 alternative_else_nop_endif
-	ldr_l	\tmp, gcr_kernel_excl
-
-	mte_set_gcr \tmp, \tmp2
+	mov	\tmp, KERNEL_GCR_EL1
+	msr_s	SYS_GCR_EL1, \tmp
 1:
 #endif
 	.endm
