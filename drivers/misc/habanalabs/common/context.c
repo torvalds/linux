@@ -185,9 +185,6 @@ void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	if (kref_put(&ctx->refcount, hl_ctx_do_release) == 1)
 		return;
-
-	dev_warn(hdev->dev,
-		"user process released device but its command submissions are still executing\n");
 }
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
