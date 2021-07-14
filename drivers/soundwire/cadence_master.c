@@ -450,6 +450,40 @@ static int cdns_parity_error_injection(void *data, u64 value)
 DEFINE_DEBUGFS_ATTRIBUTE(cdns_parity_error_fops, NULL,
 			 cdns_parity_error_injection, "%llu\n");
 
+static int cdns_set_pdi_loopback_source(void *data, u64 value)
+{
+	struct sdw_cdns *cdns = data;
+	unsigned int pdi_out_num = cdns->pcm.num_bd + cdns->pcm.num_out;
+
+	if (value > pdi_out_num)
+		return -EINVAL;
+
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	cdns->pdi_loopback_source = value;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(cdns_pdi_loopback_source_fops, NULL, cdns_set_pdi_loopback_source, "%llu\n");
+
+static int cdns_set_pdi_loopback_target(void *data, u64 value)
+{
+	struct sdw_cdns *cdns = data;
+	unsigned int pdi_in_num = cdns->pcm.num_bd + cdns->pcm.num_in;
+
+	if (value > pdi_in_num)
+		return -EINVAL;
+
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	cdns->pdi_loopback_target = value;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(cdns_pdi_loopback_target_fops, NULL, cdns_set_pdi_loopback_target, "%llu\n");
+
 /**
  * sdw_cdns_debugfs_init() - Cadence debugfs init
  * @cdns: Cadence instance
@@ -464,6 +498,16 @@ void sdw_cdns_debugfs_init(struct sdw_cdns *cdns, struct dentry *root)
 
 	debugfs_create_file("cdns-parity-error-injection", 0200, root, cdns,
 			    &cdns_parity_error_fops);
+
+	cdns->pdi_loopback_source = -1;
+	cdns->pdi_loopback_target = -1;
+
+	debugfs_create_file("cdns-pdi-loopback-source", 0200, root, cdns,
+			    &cdns_pdi_loopback_source_fops);
+
+	debugfs_create_file("cdns-pdi-loopback-target", 0200, root, cdns,
+			    &cdns_pdi_loopback_target_fops);
+
 }
 EXPORT_SYMBOL_GPL(sdw_cdns_debugfs_init);
 

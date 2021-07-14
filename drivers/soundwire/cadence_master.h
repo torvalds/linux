@@ -129,6 +129,9 @@ struct sdw_cdns {
 	struct sdw_cdns_streams pcm;
 	struct sdw_cdns_streams pdm;
 
+	int pdi_loopback_source;
+	int pdi_loopback_target;
+
 	void __iomem *registers;
 
 	bool link_up;
