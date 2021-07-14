@@ -133,6 +133,9 @@ static int sdw_program_slave_port_params(struct sdw_bus *bus,
 	int ret;
 	u8 wbuf;
 
+	if (s_rt->slave->is_mockup_device)
+		return 0;
+
 	dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave,
 					  s_rt->direction,
 					  t_params->port_num);
