@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include "imx6q-dhcom-som.dtsi"
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Freescale i.MX6 Quad DHCOM Premium Developer Kit (2)";
@@ -54,6 +55,80 @@
 			lcd_display_out: endpoint {
 				remote-endpoint = <&lcd_panel_in>;
 			};
+		};
+	};
+
+	gpio-keys {
+		#size-cells = <0>;
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keys_pdk2>;
+
+		button-0 {
+			label = "TA1-GPIO-A";
+			linux,code = <KEY_A>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		button-1 {
+			label = "TA2-GPIO-B";
+			linux,code = <KEY_B>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		button-2 {
+			label = "TA3-GPIO-C";
+			linux,code = <KEY_C>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		button-3 {
+			label = "TA4-GPIO-D";
+			linux,code = <KEY_D>;
+			gpios = <&gpio6 3 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+	};
+
+	led {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds_pdk2>;
+
+		/*
+		 * Disable led-5, because GPIO E is
+		 * already used as touch interrupt.
+		 */
+		led-5 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>; /* GPIO E */
+			default-state = "off";
+			status = "disabled";
+		};
+
+		led-6 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 20 GPIO_ACTIVE_HIGH>; /* GPIO F */
+			default-state = "off";
+		};
+
+		led-7 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>; /* GPIO H */
+			default-state = "off";
+		};
+
+		led-8 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* GPIO I */
+			default-state = "off";
 		};
 	};
 
@@ -237,6 +312,24 @@
 			MX6QDL_PAD_NANDF_CS1__GPIO6_IO14	0x120b0
 		>;
 	};
+
+	pinctrl_keys_pdk2: keys-pdk2-grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x120b0 /* TA1 */
+			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x120b0 /* TA2 */
+			MX6QDL_PAD_GPIO_5__GPIO1_IO05		0x120b0 /* TA3 */
+			MX6QDL_PAD_CSI0_DAT17__GPIO6_IO03	0x120b0 /* TA4 */
+		>;
+	};
+
+	pinctrl_leds_pdk2: leds-pdk2-grp {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20		0x120b0 /* led6 */
+			MX6QDL_PAD_KEY_ROW0__GPIO4_IO07		0x120b0 /* led7 */
+			MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x120b0 /* led8 */
+		>;
+	};
+
 };
 
 &ipu1_di0_disp0 {
