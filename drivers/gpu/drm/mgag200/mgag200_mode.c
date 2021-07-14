@@ -208,18 +208,17 @@ static int mgag200_compute_pixpll_values_g200se(struct mga_device *mdev, long cl
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
-	unsigned int p, m, n;
+	unsigned int p, m, n, s;
 	unsigned int computed;
 	unsigned int fvv;
 	unsigned int i;
 
-	if (unique_rev_id <= 0x03) {
+	m = n = p = s = 0;
 
-		m = n = p = 0;
+	if (unique_rev_id <= 0x03) {
 		vcomax = 320000;
 		vcomin = 160000;
 		pllreffreq = 25000;
-
 		delta = 0xffffffff;
 		permitteddelta = clock * 5 / 1000;
 
@@ -247,9 +246,6 @@ static int mgag200_compute_pixpll_values_g200se(struct mga_device *mdev, long cl
 			}
 		}
 	} else {
-
-
-		m = n = p = 0;
 		vcomax        = 1600000;
 		vcomin        = 800000;
 		pllreffreq    = 25000;
@@ -310,7 +306,7 @@ static int mgag200_compute_pixpll_values_g200se(struct mga_device *mdev, long cl
 	pixpllc->m = m;
 	pixpllc->n = n;
 	pixpllc->p = p;
-	pixpllc->s = 0;
+	pixpllc->s = s;
 
 	return 0;
 }
@@ -344,10 +340,10 @@ static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long cl
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn, testp2;
-	unsigned int p, m, n;
+	unsigned int p, m, n, s;
 	unsigned int computed;
 
-	m = n = p = 0;
+	m = n = p = s = 0;
 
 	delta = 0xffffffff;
 
@@ -421,7 +417,7 @@ static int mgag200_compute_pixpll_values_g200wb(struct mga_device *mdev, long cl
 	pixpllc->m = m;
 	pixpllc->n = n;
 	pixpllc->p = p;
-	pixpllc->s = 0;
+	pixpllc->s = s;
 
 	return 0;
 }
@@ -542,10 +538,10 @@ static int mgag200_compute_pixpll_values_g200ev(struct mga_device *mdev, long cl
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
-	unsigned int p, m, n;
+	unsigned int p, m, n, s;
 	unsigned int computed;
 
-	m = n = p = 0;
+	m = n = p = s = 0;
 	vcomax = 550000;
 	vcomin = 150000;
 	pllreffreq = 50000;
@@ -579,7 +575,7 @@ static int mgag200_compute_pixpll_values_g200ev(struct mga_device *mdev, long cl
 	pixpllc->m = m;
 	pixpllc->n = n;
 	pixpllc->p = p;
-	pixpllc->s = 0;
+	pixpllc->s = s;
 
 	return 0;
 }
@@ -652,10 +648,10 @@ static int mgag200_compute_pixpll_values_g200eh(struct mga_device *mdev, long cl
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
-	unsigned int p, m, n;
+	unsigned int p, m, n, s;
 	unsigned int computed;
 
-	m = n = p = 0;
+	m = n = p = s = 0;
 
 	if (mdev->type == G200_EH3) {
 		vcomax = 3000000;
@@ -727,7 +723,7 @@ static int mgag200_compute_pixpll_values_g200eh(struct mga_device *mdev, long cl
 	pixpllc->m = m;
 	pixpllc->n = n;
 	pixpllc->p = p;
-	pixpllc->s = 0;
+	pixpllc->s = s;
 
 	return 0;
 }
@@ -801,10 +797,10 @@ static int mgag200_compute_pixpll_values_g200er(struct mga_device *mdev, long cl
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
 	int testr, testn, testm, testo;
-	unsigned int p, m, n;
+	unsigned int p, m, n, s;
 	unsigned int computed, vco;
 
-	m = n = p = 0;
+	m = n = p = s = 0;
 	vcomax = 1488000;
 	vcomin = 1056000;
 	pllreffreq = 48000;
@@ -846,7 +842,7 @@ static int mgag200_compute_pixpll_values_g200er(struct mga_device *mdev, long cl
 	pixpllc->m = m;
 	pixpllc->n = n;
 	pixpllc->p = p;
-	pixpllc->s = 0;
+	pixpllc->s = s;
 
 	return 0;
 }
