@@ -126,6 +126,9 @@
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
+struct mga_device;
+struct mgag200_pll;
+
 /*
  * Stores parameters for programming the PLLs
  *
@@ -141,6 +144,17 @@ struct mgag200_pll_values {
 	unsigned int n;
 	unsigned int p;
 	unsigned int s;
+};
+
+struct mgag200_pll_funcs {
+	int (*compute)(struct mgag200_pll *pll, long clock, struct mgag200_pll_values *pllc);
+	void (*update)(struct mgag200_pll *pll, const struct mgag200_pll_values *pllc);
+};
+
+struct mgag200_pll {
+	struct mga_device *mdev;
+
+	const struct mgag200_pll_funcs *funcs;
 };
 
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
@@ -213,8 +227,8 @@ struct mga_device {
 		} g200se;
 	} model;
 
-
 	struct mga_connector connector;
+	struct mgag200_pll pixpll;
 	struct drm_simple_display_pipe display_pipe;
 };
 
@@ -232,5 +246,8 @@ void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
 				/* mgag200_mm.c */
 int mgag200_mm_init(struct mga_device *mdev);
+
+				/* mgag200_pll.c */
+int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev);
 
 #endif				/* __MGAG200_DRV_H__ */
