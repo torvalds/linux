@@ -71,6 +71,7 @@
 #include <trace/hooks/usb.h>
 #include <trace/hooks/ipv6.h>
 #include <trace/hooks/sound.h>
+#include <trace/hooks/snd_compr.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -360,3 +361,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_usb_dev_suspend);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_usb_dev_resume);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipv6_gen_linklocal_addr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sound_usb_support_cpu_suspend);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_snd_compr_use_pause_in_drain);
