@@ -263,6 +263,8 @@ static int sdw_mockup_sdw_probe(struct sdw_slave *slave,
 	dev_set_drvdata(dev, sdw_mockup);
 	sdw_mockup->slave = slave;
 
+	slave->is_mockup_device = true;
+
 	ret =  devm_snd_soc_register_component(dev,
 					       &snd_soc_sdw_mockup_component,
 					       sdw_mockup_dai,
