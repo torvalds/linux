@@ -88,6 +88,7 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	struct evsel *evsel;
 	struct event_name tmp;
 	struct evlist *evlist = evlist__new_default();
+	char *unit = strdup("KRAVA");
 
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
@@ -98,7 +99,7 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 
 	perf_evlist__id_add(&evlist->core, &evsel->core, 0, 0, 123);
 
-	evsel->unit = strdup("KRAVA");
+	evsel->unit = unit;
 
 	TEST_ASSERT_VAL("failed to synthesize attr update unit",
 			!perf_event__synthesize_event_update_unit(NULL, evsel, process_event_unit));
@@ -118,6 +119,7 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to synthesize attr update cpus",
 			!perf_event__synthesize_event_update_cpus(&tmp.tool, evsel, process_event_cpus));
 
+	free(unit);
 	evlist__delete(evlist);
 	return 0;
 }
