@@ -1159,6 +1159,7 @@ struct fw_load_mgr {
  * @init_cpu_scrambler_dram: Enable CPU specific DRAM scrambling
  * @state_dump_init: initialize constants required for state dump
  * @get_sob_addr: get SOB base address offset.
+ * @set_pci_memory_regions: setting properties of PCI memory regions
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1287,6 +1288,7 @@ struct hl_asic_funcs {
 	void (*init_cpu_scrambler_dram)(struct hl_device *hdev);
 	void (*state_dump_init)(struct hl_device *hdev);
 	u32 (*get_sob_addr)(struct hl_device *hdev, u32 sob_id);
+	void (*set_pci_memory_regions)(struct hl_device *hdev);
 };
 
 

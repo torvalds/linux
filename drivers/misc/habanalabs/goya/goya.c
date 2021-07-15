@@ -962,7 +962,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	hdev->allow_external_soft_reset = true;
 	hdev->supports_wait_for_multi_cs = false;
 
-	goya_set_pci_memory_regions(hdev);
+	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
 	return 0;
 
@@ -5669,7 +5669,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.init_firmware_loader = goya_init_firmware_loader,
 	.init_cpu_scrambler_dram = goya_cpu_init_scrambler_dram,
 	.state_dump_init = goya_state_dump_init,
-	.get_sob_addr = &goya_get_sob_addr
+	.get_sob_addr = &goya_get_sob_addr,
+	.set_pci_memory_regions = goya_set_pci_memory_regions,
 };
 
 /*
