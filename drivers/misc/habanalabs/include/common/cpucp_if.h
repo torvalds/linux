@@ -700,6 +700,15 @@ struct cpucp_mac_addr {
 	__u8 mac_addr[ETH_ALEN];
 };
 
+enum cpucp_serdes_type {
+	TYPE_1_SERDES_TYPE,
+	TYPE_2_SERDES_TYPE,
+	HLS1_SERDES_TYPE,
+	HLS1H_SERDES_TYPE,
+	UNKNOWN_SERDES_TYPE,
+	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
+};
+
 struct cpucp_nic_info {
 	struct cpucp_mac_addr mac_addrs[CPUCP_MAX_NICS];
 	__le64 link_mask[CPUCP_NIC_MASK_ARR_LEN];
@@ -708,6 +717,8 @@ struct cpucp_nic_info {
 	__le64 link_ext_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
+	__le16 serdes_type; /* enum cpucp_serdes_type */
+	__u8 reserved[6];
 };
 
 #endif /* CPUCP_IF_H */

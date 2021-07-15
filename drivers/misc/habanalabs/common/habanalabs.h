@@ -489,6 +489,8 @@ struct hl_hints_range {
  *                                       reserved for the user
  * @first_available_cq: first available CQ for the user.
  * @user_interrupt_count: number of user interrupts.
+ * @server_type: Server type that the ASIC is currently installed in.
+ *               The value is according to enum hl_server_type in uapi file.
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  * @fw_security_enabled: true if security measures are enabled in firmware,
@@ -570,6 +572,7 @@ struct asic_fixed_properties {
 	u16				first_available_user_msix_interrupt;
 	u16				first_available_cq[HL_MAX_DCORES];
 	u16				user_interrupt_count;
+	u16				server_type;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_enabled;

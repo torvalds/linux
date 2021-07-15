@@ -469,6 +469,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->hard_reset_done_by_fw = false;
 	prop->gic_interrupts_enable = true;
 
+	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
+
 	return 0;
 }
 

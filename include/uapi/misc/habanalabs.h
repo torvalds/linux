@@ -279,6 +279,14 @@ enum hl_device_status {
 	HL_DEVICE_STATUS_NEEDS_RESET
 };
 
+enum hl_server_type {
+	HL_SERVER_TYPE_UNKNOWN = 0,
+	HL_SERVER_GAUDI_HLS1 = 1,
+	HL_SERVER_GAUDI_HLS1H = 2,
+	HL_SERVER_GAUDI_TYPE1 = 3,
+	HL_SERVER_GAUDI_TYPE2 = 4
+};
+
 /* Opcode for management ioctl
  *
  * HW_IP_INFO            - Receive information about different IP blocks in the
@@ -337,17 +345,49 @@ enum hl_device_status {
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
 
+/**
+ * struct hl_info_hw_ip_info - hardware information on various IPs in the ASIC
+ * @sram_base_address: The first SRAM physical base address that is free to be
+ *                     used by the user.
+ * @dram_base_address: The first DRAM virtual or physical base address that is
+ *                     free to be used by the user.
+ * @dram_size: The DRAM size that is available to the user.
+ * @sram_size: The SRAM size that is available to the user.
+ * @num_of_events: The number of events that can be received from the f/w. This
+ *                 is needed so the user can what is the size of the h/w events
+ *                 array he needs to pass to the kernel when he wants to fetch
+ *                 the event counters.
+ * @device_id: PCI device ID of the ASIC.
+ * @module_id: Module ID of the ASIC for mezzanine cards in servers
+ *             (From OCP spec).
+ * @first_available_interrupt_id: The first available interrupt ID for the user
+ *                                to be used when it works with user interrupts.
+ * @server_type: Server type that the Gaudi ASIC is currently installed in.
+ *               The value is according to enum hl_server_type
+ * @cpld_version: CPLD version on the board.
+ * @psoc_pci_pll_nr: PCI PLL NR value. Needed by the profiler in some ASICs.
+ * @psoc_pci_pll_nf: PCI PLL NF value. Needed by the profiler in some ASICs.
+ * @psoc_pci_pll_od: PCI PLL OD value. Needed by the profiler in some ASICs.
+ * @psoc_pci_pll_div_factor: PCI PLL DIV factor value. Needed by the profiler
+ *                           in some ASICs.
+ * @tpc_enabled_mask: Bit-mask that represents which TPCs are enabled. Relevant
+ *                    for Goya/Gaudi only.
+ * @dram_enabled: Whether the DRAM is enabled.
+ * @cpucp_version: The CPUCP f/w version.
+ * @card_name: The card name as passed by the f/w.
+ * @dram_page_size: The DRAM physical page size.
+ */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
 	__u64 dram_base_address;
 	__u64 dram_size;
 	__u32 sram_size;
 	__u32 num_of_events;
-	__u32 device_id; /* PCI Device ID */
-	__u32 module_id; /* For mezzanine cards in servers (From OCP spec.) */
+	__u32 device_id;
+	__u32 module_id;
 	__u32 reserved;
 	__u16 first_available_interrupt_id;
-	__u16 reserved2;
+	__u16 server_type;
 	__u32 cpld_version;
 	__u32 psoc_pci_pll_nr;
 	__u32 psoc_pci_pll_nf;
@@ -358,7 +398,7 @@ struct hl_info_hw_ip_info {
 	__u8 pad[2];
 	__u8 cpucp_version[HL_INFO_VERSION_MAX_LEN];
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
-	__u64 reserved3;
+	__u64 reserved2;
 	__u64 dram_page_size;
 };
 
