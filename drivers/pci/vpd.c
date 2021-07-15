@@ -72,11 +72,11 @@ EXPORT_SYMBOL(pci_write_vpd);
  */
 static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 {
-	size_t off = 0;
-	unsigned char header[1+2];	/* 1 byte tag, 2 bytes length */
+	size_t off = 0, size;
+	unsigned char tag, header[1+2];	/* 1 byte tag, 2 bytes length */
 
 	while (off < old_size && pci_read_vpd(dev, off, 1, header) == 1) {
-		unsigned char tag;
+		size = 0;
 
 		if (off == 0 && (header[0] == 0x00 || header[0] == 0xff))
 			goto error;
@@ -94,8 +94,11 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 						 off + 1);
 					return 0;
 				}
-				off += PCI_VPD_LRDT_TAG_SIZE +
-					pci_vpd_lrdt_size(header);
+				size = pci_vpd_lrdt_size(header);
+				if (off + size > PCI_VPD_MAX_SIZE)
+					goto error;
+
+				off += PCI_VPD_LRDT_TAG_SIZE + size;
 			} else {
 				pci_warn(dev, "invalid large VPD tag %02x at offset %zu\n",
 					 tag, off);
@@ -103,9 +106,12 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 			}
 		} else {
 			/* Short Resource Data Type Tag */
-			off += PCI_VPD_SRDT_TAG_SIZE +
-				pci_vpd_srdt_size(header);
 			tag = pci_vpd_srdt_tag(header);
+			size = pci_vpd_srdt_size(header);
+			if (off + size > PCI_VPD_MAX_SIZE)
+				goto error;
+
+			off += PCI_VPD_SRDT_TAG_SIZE + size;
 			if (tag == PCI_VPD_STIN_END)	/* End tag descriptor */
 				return off;
 		}
@@ -113,8 +119,8 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 	return 0;
 
 error:
-	pci_info(dev, "invalid VPD tag %#04x at offset %zu%s\n",
-		 header[0], off, off == 0 ?
+	pci_info(dev, "invalid VPD tag %#04x (size %zu) at offset %zu%s\n",
+		 header[0], size, off, off == 0 ?
 		 "; assume missing optional EEPROM" : "");
 	return 0;
 }
