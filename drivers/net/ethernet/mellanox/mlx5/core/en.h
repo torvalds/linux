@@ -922,7 +922,7 @@ void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr);
 int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr);
-int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val);
+int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val, bool rx_filter);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);
