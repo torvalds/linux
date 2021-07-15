@@ -56,6 +56,8 @@ struct idxd_device_driver {
 	struct device_driver drv;
 };
 
+extern struct idxd_device_driver dsa_drv;
+
 struct idxd_irq_entry {
 	struct idxd_device *idxd;
 	int id;

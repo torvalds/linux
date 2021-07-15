@@ -79,22 +79,11 @@ static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
 	}
 }
 
-static struct idxd_device_driver dsa_drv = {
+struct idxd_device_driver dsa_drv = {
 	.name = "dsa",
 	.probe = idxd_dsa_drv_probe,
 	.remove = idxd_dsa_drv_remove,
 };
-
-/* IDXD generic driver setup */
-int idxd_register_driver(void)
-{
-	return idxd_driver_register(&dsa_drv);
-}
-
-void idxd_unregister_driver(void)
-{
-	idxd_driver_unregister(&dsa_drv);
-}
 
 /* IDXD engine attributes */
 static ssize_t engine_group_id_show(struct device *dev,
