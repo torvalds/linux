@@ -4041,6 +4041,47 @@ static int usb_set_lpm_timeout(struct usb_device *udev,
 }
 
 /*
+ * Don't allow device intiated U1/U2 if the system exit latency + one bus
+ * interval is greater than the minimum service interval of any active
+ * periodic endpoint. See USB 3.2 section 9.4.9
+ */
+static bool usb_device_may_initiate_lpm(struct usb_device *udev,
+					enum usb3_link_state state)
+{
+	unsigned int sel;		/* us */
+	int i, j;
+
+	if (state == USB3_LPM_U1)
+		sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
+	else if (state == USB3_LPM_U2)
+		sel = DIV_ROUND_UP(udev->u2_params.sel, 1000);
+	else
+		return false;
+
+	for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf;
+		struct usb_endpoint_descriptor *desc;
+		unsigned int interval;
+
+		intf = udev->actconfig->interface[i];
+		if (!intf)
+			continue;
+
+		for (j = 0; j < intf->cur_altsetting->desc.bNumEndpoints; j++) {
+			desc = &intf->cur_altsetting->endpoint[j].desc;
+
+			if (usb_endpoint_xfer_int(desc) ||
+			    usb_endpoint_xfer_isoc(desc)) {
+				interval = (1 << (desc->bInterval - 1)) * 125;
+				if (sel + 125 > interval)
+					return false;
+			}
+		}
+	}
+	return true;
+}
+
+/*
  * Enable the hub-initiated U1/U2 idle timeouts, and enable device-initiated
  * U1/U2 entry.
  *
@@ -4112,20 +4153,23 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 	 * U1/U2_ENABLE
 	 */
 	if (udev->actconfig &&
-	    usb_set_device_initiated_lpm(udev, state, true) == 0) {
-		if (state == USB3_LPM_U1)
-			udev->usb3_lpm_u1_enabled = 1;
-		else if (state == USB3_LPM_U2)
-			udev->usb3_lpm_u2_enabled = 1;
-	} else {
-		/* Don't request U1/U2 entry if the device
-		 * cannot transition to U1/U2.
-		 */
-		usb_set_lpm_timeout(udev, state, 0);
-		hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state);
+	    usb_device_may_initiate_lpm(udev, state)) {
+		if (usb_set_device_initiated_lpm(udev, state, true)) {
+			/*
+			 * Request to enable device initiated U1/U2 failed,
+			 * better to turn off lpm in this case.
+			 */
+			usb_set_lpm_timeout(udev, state, 0);
+			hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state);
+			return;
+		}
 	}
-}
 
+	if (state == USB3_LPM_U1)
+		udev->usb3_lpm_u1_enabled = 1;
+	else if (state == USB3_LPM_U2)
+		udev->usb3_lpm_u2_enabled = 1;
+}
 /*
  * Disable the hub-initiated U1/U2 idle timeouts, and disable device-initiated
  * U1/U2 entry.
