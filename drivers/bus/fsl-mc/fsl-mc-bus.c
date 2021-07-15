@@ -1207,6 +1207,16 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 
 	bus_unregister_notifier(&fsl_mc_bus_type, &fsl_mc_nb);
 
+	if (mc->fsl_mc_regs) {
+		/*
+		 * Pause the MC firmware so that it doesn't crash in certain
+		 * scenarios, such as kexec.
+		 */
+		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) |
+		       (GCR1_P1_STOP | GCR1_P2_STOP),
+		       mc->fsl_mc_regs + FSL_MC_GCR1);
+	}
+
 	return 0;
 }
 
