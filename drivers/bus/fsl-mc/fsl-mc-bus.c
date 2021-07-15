@@ -1089,17 +1089,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	if (mc->fsl_mc_regs) {
-		/*
-		 * Some bootloaders pause the MC firmware before booting the
-		 * kernel so that MC will not cause faults as soon as the
-		 * SMMU probes due to the fact that there's no configuration
-		 * in place for MC.
-		 * At this point MC should have all its SMMU setup done so make
-		 * sure it is resumed.
-		 */
-		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) & (~GCR1_P1_STOP),
-		       mc->fsl_mc_regs + FSL_MC_GCR1);
-
 		if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
 			mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
 			/*
@@ -1113,11 +1102,24 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 			error = acpi_dma_configure_id(&pdev->dev,
 						      DEV_DMA_COHERENT,
 						      &mc_stream_id);
+			if (error == -EPROBE_DEFER)
+				return error;
 			if (error)
 				dev_warn(&pdev->dev,
 					 "failed to configure dma: %d.\n",
 					 error);
 		}
+
+		/*
+		 * Some bootloaders pause the MC firmware before booting the
+		 * kernel so that MC will not cause faults as soon as the
+		 * SMMU probes due to the fact that there's no configuration
+		 * in place for MC.
+		 * At this point MC should have all its SMMU setup done so make
+		 * sure it is resumed.
+		 */
+		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) & (~GCR1_P1_STOP),
+		       mc->fsl_mc_regs + FSL_MC_GCR1);
 	}
 
 	/*
