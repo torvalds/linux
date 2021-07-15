@@ -863,17 +863,16 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 }
 
 static __be32 process_op(int nop, struct svc_rqst *rqstp,
-		struct xdr_stream *xdr_in, void *argp,
-		struct xdr_stream *xdr_out, void *resp,
-		struct cb_process_state *cps)
+			 struct cb_process_state *cps)
 {
+	struct xdr_stream *xdr_out = &rqstp->rq_res_stream;
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr;
 	__be32 status;
 	long maxlen;
 	__be32 res;
 
-	status = decode_op_hdr(xdr_in, &op_nr);
+	status = decode_op_hdr(&rqstp->rq_arg_stream, &op_nr);
 	if (unlikely(status))
 		return status;
 
@@ -903,9 +902,11 @@ static __be32 process_op(int nop, struct svc_rqst *rqstp,
 
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
-		status = op->decode_args(rqstp, xdr_in, argp);
+		status = op->decode_args(rqstp, &rqstp->rq_arg_stream,
+					 rqstp->rq_argp);
 		if (likely(status == 0))
-			status = op->process_op(argp, resp, cps);
+			status = op->process_op(rqstp->rq_argp, rqstp->rq_resp,
+						cps);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
 
@@ -914,7 +915,7 @@ encode_hdr:
 	if (unlikely(res))
 		return res;
 	if (op->encode_res != NULL && status == 0)
-		status = op->encode_res(rqstp, xdr_out, resp);
+		status = op->encode_res(rqstp, xdr_out, rqstp->rq_resp);
 	return status;
 }
 
@@ -959,9 +960,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 		return rpc_system_err;
 	}
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(nops, rqstp, &rqstp->rq_arg_stream,
-				    rqstp->rq_argp, &rqstp->rq_res_stream,
-				    rqstp->rq_resp, &cps);
+		status = process_op(nops, rqstp, &cps);
 		nops++;
 	}
 
