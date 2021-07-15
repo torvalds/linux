@@ -329,6 +329,7 @@ int snd_device_get_state(struct snd_card *card, void *device_data);
 void snd_dma_program(unsigned long dma, unsigned long addr, unsigned int size, unsigned short mode);
 void snd_dma_disable(unsigned long dma);
 unsigned int snd_dma_pointer(unsigned long dma, unsigned int size);
+int snd_devm_request_dma(struct device *dev, int dma, const char *name);
 #endif
 
 /* misc.c */
