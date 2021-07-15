@@ -1041,7 +1041,7 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate_default);
 
 static int
-v4l2_subdev_link_validate_get_format(struct media_pad *pad,
+v4l2_subdev_link_validate_get_format(struct media_pad *pad, u32 stream,
 				     struct v4l2_subdev_format *fmt)
 {
 	if (is_media_entity_v4l2_subdev(pad->entity)) {
@@ -1050,7 +1050,11 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt->pad = pad->index;
-		return v4l2_subdev_call_state_active(sd, pad, get_fmt, fmt);
+		fmt->stream = stream;
+
+		return v4l2_subdev_call(sd, pad, get_fmt,
+					v4l2_subdev_get_locked_active_state(sd),
+					fmt);
 	}
 
 	WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
@@ -1060,31 +1064,172 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 	return -EINVAL;
 }
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+
+static void __v4l2_link_validate_get_streams(struct media_pad *pad,
+					     u64 *streams_mask)
+{
+	struct v4l2_subdev_route *route;
+	struct v4l2_subdev_state *state;
+	struct v4l2_subdev *subdev;
+
+	subdev = media_entity_to_v4l2_subdev(pad->entity);
+
+	*streams_mask = 0;
+
+	state = v4l2_subdev_get_locked_active_state(subdev);
+	if (WARN_ON(!state))
+		return;
+
+	for_each_active_route(&state->routing, route) {
+		u32 route_pad;
+		u32 route_stream;
+
+		if (pad->flags & MEDIA_PAD_FL_SOURCE) {
+			route_pad = route->source_pad;
+			route_stream = route->source_stream;
+		} else {
+			route_pad = route->sink_pad;
+			route_stream = route->sink_stream;
+		}
+
+		if (route_pad != pad->index)
+			continue;
+
+		*streams_mask |= BIT_ULL(route_stream);
+	}
+}
+
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+
+static void v4l2_link_validate_get_streams(struct media_pad *pad,
+					   u64 *streams_mask)
+{
+	struct v4l2_subdev *subdev = media_entity_to_v4l2_subdev(pad->entity);
+
+	if (!(subdev->flags & V4L2_SUBDEV_FL_STREAMS)) {
+		/* Non-streams subdevs have an implicit stream 0 */
+		*streams_mask = BIT_ULL(0);
+		return;
+	}
+
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+	__v4l2_link_validate_get_streams(pad, streams_mask);
+#else
+	/* This shouldn't happen */
+	*streams_mask = 0;
+#endif
+}
+
+static int v4l2_subdev_link_validate_locked(struct media_link *link)
+{
+	struct v4l2_subdev *sink_subdev =
+		media_entity_to_v4l2_subdev(link->sink->entity);
+	struct device *dev = sink_subdev->entity.graph_obj.mdev->dev;
+	u64 source_streams_mask;
+	u64 sink_streams_mask;
+	u64 dangling_sink_streams;
+	u32 stream;
+	int ret;
+
+	dev_dbg(dev, "validating link \"%s\":%u -> \"%s\":%u\n",
+		link->source->entity->name, link->source->index,
+		link->sink->entity->name, link->sink->index);
+
+	v4l2_link_validate_get_streams(link->source, &source_streams_mask);
+	v4l2_link_validate_get_streams(link->sink, &sink_streams_mask);
+
+	/*
+	 * It is ok to have more source streams than sink streams as extra
+	 * source streams can just be ignored by the receiver, but having extra
+	 * sink streams is an error as streams must have a source.
+	 */
+	dangling_sink_streams = (source_streams_mask ^ sink_streams_mask) &
+				sink_streams_mask;
+	if (dangling_sink_streams) {
+		dev_err(dev, "Dangling sink streams: mask %#llx\n",
+			dangling_sink_streams);
+		return -EINVAL;
+	}
+
+	/* Validate source and sink stream formats */
+
+	for (stream = 0; stream < sizeof(sink_streams_mask) * 8; ++stream) {
+		struct v4l2_subdev_format sink_fmt, source_fmt;
+
+		if (!(sink_streams_mask & BIT_ULL(stream)))
+			continue;
+
+		dev_dbg(dev, "validating stream \"%s\":%u:%u -> \"%s\":%u:%u\n",
+			link->source->entity->name, link->source->index, stream,
+			link->sink->entity->name, link->sink->index, stream);
+
+		ret = v4l2_subdev_link_validate_get_format(link->source, stream,
+							   &source_fmt);
+		if (ret < 0) {
+			dev_dbg(dev,
+				"Failed to get format for \"%s\":%u:%u (but that's ok)\n",
+				link->source->entity->name, link->source->index,
+				stream);
+			continue;
+		}
+
+		ret = v4l2_subdev_link_validate_get_format(link->sink, stream,
+							   &sink_fmt);
+		if (ret < 0) {
+			dev_dbg(dev,
+				"Failed to get format for \"%s\":%u:%u (but that's ok)\n",
+				link->sink->entity->name, link->sink->index,
+				stream);
+			continue;
+		}
+
+		/* TODO: add stream number to link_validate() */
+		ret = v4l2_subdev_call(sink_subdev, pad, link_validate, link,
+				       &source_fmt, &sink_fmt);
+		if (!ret)
+			continue;
+
+		if (ret != -ENOIOCTLCMD)
+			return ret;
+
+		ret = v4l2_subdev_link_validate_default(sink_subdev, link,
+							&source_fmt, &sink_fmt);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int v4l2_subdev_link_validate(struct media_link *link)
 {
-	struct v4l2_subdev *sink;
-	struct v4l2_subdev_format sink_fmt, source_fmt;
-	int rval;
+	struct v4l2_subdev *source_sd, *sink_sd;
+	struct v4l2_subdev_state *source_state, *sink_state;
+	int ret;
 
-	rval = v4l2_subdev_link_validate_get_format(
-		link->source, &source_fmt);
-	if (rval < 0)
-		return 0;
+	sink_sd = media_entity_to_v4l2_subdev(link->sink->entity);
+	source_sd = media_entity_to_v4l2_subdev(link->source->entity);
 
-	rval = v4l2_subdev_link_validate_get_format(
-		link->sink, &sink_fmt);
-	if (rval < 0)
-		return 0;
+	sink_state = v4l2_subdev_get_unlocked_active_state(sink_sd);
+	source_state = v4l2_subdev_get_unlocked_active_state(source_sd);
 
-	sink = media_entity_to_v4l2_subdev(link->sink->entity);
+	if (sink_state)
+		v4l2_subdev_lock_state(sink_state);
 
-	rval = v4l2_subdev_call(sink, pad, link_validate, link,
-				&source_fmt, &sink_fmt);
-	if (rval != -ENOIOCTLCMD)
-		return rval;
+	if (source_state)
+		v4l2_subdev_lock_state(source_state);
 
-	return v4l2_subdev_link_validate_default(
-		sink, link, &source_fmt, &sink_fmt);
+	ret = v4l2_subdev_link_validate_locked(link);
+
+	if (sink_state)
+		v4l2_subdev_unlock_state(sink_state);
+
+	if (source_state)
+		v4l2_subdev_unlock_state(source_state);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
 
