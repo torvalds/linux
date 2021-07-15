@@ -83,27 +83,16 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 
 		if (header[0] & PCI_VPD_LRDT) {
 			/* Large Resource Data Type Tag */
-			tag = pci_vpd_lrdt_tag(header);
-			/* Only read length from known tag items */
-			if ((tag == PCI_VPD_LTIN_ID_STRING) ||
-			    (tag == PCI_VPD_LTIN_RO_DATA) ||
-			    (tag == PCI_VPD_LTIN_RW_DATA)) {
-				if (pci_read_vpd(dev, off+1, 2,
-						 &header[1]) != 2) {
-					pci_warn(dev, "failed VPD read at offset %zu\n",
-						 off + 1);
-					return 0;
-				}
-				size = pci_vpd_lrdt_size(header);
-				if (off + size > PCI_VPD_MAX_SIZE)
-					goto error;
-
-				off += PCI_VPD_LRDT_TAG_SIZE + size;
-			} else {
-				pci_warn(dev, "invalid large VPD tag %02x at offset %zu\n",
-					 tag, off);
+			if (pci_read_vpd(dev, off + 1, 2, &header[1]) != 2) {
+				pci_warn(dev, "failed VPD read at offset %zu\n",
+					 off + 1);
 				return 0;
 			}
+			size = pci_vpd_lrdt_size(header);
+			if (off + size > PCI_VPD_MAX_SIZE)
+				goto error;
+
+			off += PCI_VPD_LRDT_TAG_SIZE + size;
 		} else {
 			/* Short Resource Data Type Tag */
 			tag = pci_vpd_srdt_tag(header);
