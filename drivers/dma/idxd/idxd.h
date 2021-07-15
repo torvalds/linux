@@ -60,6 +60,7 @@ struct idxd_device_driver {
 extern struct idxd_device_driver dsa_drv;
 extern struct idxd_device_driver idxd_drv;
 extern struct idxd_device_driver idxd_dmaengine_drv;
+extern struct idxd_device_driver idxd_user_drv;
 
 struct idxd_irq_entry {
 	struct idxd_device *idxd;

@@ -848,6 +848,10 @@ static int __init idxd_init_module(void)
 	if (err < 0)
 		goto err_idxd_dmaengine_driver_register;
 
+	err = idxd_driver_register(&idxd_user_drv);
+	if (err < 0)
+		goto err_idxd_user_driver_register;
+
 	err = idxd_driver_register(&dsa_drv);
 	if (err < 0)
 		goto err_dsa_driver_register;
@@ -867,6 +871,8 @@ err_pci_register:
 err_cdev_register:
 	idxd_driver_unregister(&dsa_drv);
 err_dsa_driver_register:
+	idxd_driver_unregister(&idxd_user_drv);
+err_idxd_user_driver_register:
 	idxd_driver_unregister(&idxd_dmaengine_drv);
 err_idxd_dmaengine_driver_register:
 	idxd_driver_unregister(&idxd_drv);
@@ -878,6 +884,7 @@ module_init(idxd_init_module);
 
 static void __exit idxd_exit_module(void)
 {
+	idxd_driver_unregister(&idxd_user_drv);
 	idxd_driver_unregister(&idxd_dmaengine_drv);
 	idxd_driver_unregister(&idxd_drv);
 	idxd_driver_unregister(&dsa_drv);

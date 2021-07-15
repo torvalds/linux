@@ -1201,19 +1201,8 @@ int __drv_enable_wq(struct idxd_wq *wq)
 	}
 
 	wq->client_count = 0;
-
-	if (is_idxd_wq_cdev(wq)) {
-		rc = idxd_wq_add_cdev(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "wq %d cdev creation failed\n", wq->id);
-			goto err_client;
-		}
-	}
-
 	return 0;
 
-err_client:
-	idxd_wq_unmap_portal(wq);
 err_map_portal:
 	rc = idxd_wq_disable(wq, false);
 	if (rc < 0)
@@ -1238,9 +1227,6 @@ void __drv_disable_wq(struct idxd_wq *wq)
 	struct device *dev = &idxd->pdev->dev;
 
 	lockdep_assert_held(&wq->wq_lock);
-
-	if (is_idxd_wq_cdev(wq))
-		idxd_wq_del_cdev(wq);
 
 	if (idxd_wq_refcount(wq))
 		dev_warn(dev, "Clients has claim on wq %d: %d\n",
