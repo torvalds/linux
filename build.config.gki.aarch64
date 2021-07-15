@@ -23,6 +23,7 @@ android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_xiaomi
 android/abi_gki_aarch64_fips140
 android/abi_gki_aarch64_vivo
+android/abi_gki_aarch64_oplus
 "
 
 FILES="${FILES}
