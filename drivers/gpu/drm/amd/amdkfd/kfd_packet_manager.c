@@ -278,6 +278,7 @@ void pm_uninit(struct packet_manager *pm, bool hanging)
 {
 	mutex_destroy(&pm->lock);
 	kernel_queue_uninit(pm->priv_queue, hanging);
+	pm->priv_queue = NULL;
 }
 
 int pm_send_set_resources(struct packet_manager *pm,
