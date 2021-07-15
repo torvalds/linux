@@ -173,7 +173,7 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
 		return -ENOMEM;
 
 	memcpy(&new->data[0], value, map->value_size);
-	check_and_init_map_lock(map, new->data);
+	check_and_init_map_value(map, new->data);
 
 	new = xchg(&storage->buf, new);
 	kfree_rcu(new, rcu);
@@ -509,7 +509,7 @@ struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 						    map->numa_node);
 		if (!storage->buf)
 			goto enomem;
-		check_and_init_map_lock(map, storage->buf->data);
+		check_and_init_map_value(map, storage->buf->data);
 	} else {
 		storage->percpu_buf = bpf_map_alloc_percpu(map, size, 8, gfp);
 		if (!storage->percpu_buf)
