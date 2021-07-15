@@ -3598,17 +3598,6 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	intel_encoders_enable(state, crtc);
 }
 
-static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	intel_de_write(dev_priv, FP0(crtc->pipe),
-		       crtc_state->dpll_hw_state.fp0);
-	intel_de_write(dev_priv, FP1(crtc->pipe),
-		       crtc_state->dpll_hw_state.fp1);
-}
-
 static void i9xx_crtc_enable(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc)
 {
@@ -3619,8 +3608,6 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
 		return;
-
-	i9xx_set_pll_dividers(new_crtc_state);
 
 	if (intel_crtc_has_dp_encoder(new_crtc_state))
 		intel_dp_set_m_n(new_crtc_state, M1_N1);

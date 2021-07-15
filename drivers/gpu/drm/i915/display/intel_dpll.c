@@ -1406,6 +1406,9 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 	if (i9xx_has_pps(dev_priv))
 		assert_panel_unlocked(dev_priv, pipe);
 
+	intel_de_write(dev_priv, FP0(pipe), crtc_state->dpll_hw_state.fp0);
+	intel_de_write(dev_priv, FP1(pipe), crtc_state->dpll_hw_state.fp1);
+
 	/*
 	 * Apparently we need to have VGA mode enabled prior to changing
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
