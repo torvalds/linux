@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/resource.h>
 #include <linux/regulator/consumer.h>
+#include <linux/android_kabi.h>
 
 #define AMBA_NR_IRQS	9
 #define AMBA_CID	0xb105f00d
@@ -71,6 +72,8 @@ struct amba_device {
 	struct amba_cs_uci_id	uci;
 	unsigned int		irq[AMBA_NR_IRQS];
 	char			*driver_override;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct amba_driver {
@@ -79,6 +82,8 @@ struct amba_driver {
 	void			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	const struct amba_id	*id_table;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /*

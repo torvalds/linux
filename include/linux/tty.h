@@ -14,6 +14,7 @@
 #include <uapi/linux/tty.h>
 #include <linux/rwsem.h>
 #include <linux/llist.h>
+#include <linux/android_kabi.h>
 
 
 /*
@@ -218,6 +219,8 @@ struct tty_port_operations {
 	int (*activate)(struct tty_port *port, struct tty_struct *tty);
 	/* Called on the final put of a port */
 	void (*destruct)(struct tty_port *port);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tty_port_client_operations {
@@ -252,6 +255,8 @@ struct tty_port {
 						   set to size of fifo */
 	struct kref		kref;		/* Ref counter */
 	void 			*client_data;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* tty_port::iflags bits -- use atomic bit ops */
@@ -345,6 +350,9 @@ struct tty_struct {
 	/* If the tty has a pending do_SAK, queue it here - akpm */
 	struct work_struct SAK_work;
 	struct tty_port *port;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 } __randomize_layout;
 
 /* Each of a tty's open files has private_data pointing to tty_file_private */

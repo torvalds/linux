@@ -16,6 +16,8 @@
 #include <linux/memblock.h>
 #include <linux/page_owner.h>
 #include <linux/swap.h>
+#include <linux/mm.h>
+#include <linux/security.h>
 
 struct ads_entry {
 	char *name;
@@ -58,6 +60,13 @@ static const struct ads_entry ads_entries[ADS_END] = {
 #endif
 #ifdef CONFIG_SWAP
 	ADS_ENTRY(ADS_NR_SWAP_PAGES, &nr_swap_pages),
+#endif
+#ifdef CONFIG_MMU
+	ADS_ENTRY(ADS_MMAP_MIN_ADDR, &mmap_min_addr),
+#endif
+	ADS_ENTRY(ADS_STACK_GUARD_GAP, &stack_guard_gap),
+#ifdef CONFIG_SYSCTL
+	ADS_ENTRY(ADS_SYSCTL_LEGACY_VA_LAYOUT, &sysctl_legacy_va_layout),
 #endif
 };
 

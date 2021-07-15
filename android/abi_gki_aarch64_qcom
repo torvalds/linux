@@ -1052,6 +1052,20 @@
   i2c_register_driver
   i2c_transfer
   i2c_transfer_buffer_flags
+  i3c_generic_ibi_alloc_pool
+  i3c_generic_ibi_free_pool
+  i3c_generic_ibi_get_free_slot
+  i3c_generic_ibi_recycle_slot
+  i3c_master_add_i3c_dev_locked
+  i3c_master_disec_locked
+  i3c_master_do_daa
+  i3c_master_enec_locked
+  i3c_master_entdaa_locked
+  i3c_master_get_free_addr
+  i3c_master_queue_ibi
+  i3c_master_register
+  i3c_master_set_info
+  i3c_master_unregister
   icc_disable
   icc_enable
   icc_get
@@ -1069,6 +1083,7 @@
   ida_free
   idr_alloc
   idr_alloc_cyclic
+  idr_alloc_u32
   idr_destroy
   idr_find
   idr_for_each
@@ -2923,6 +2938,7 @@
   vmalloc_to_pfn
   vmap
   vmemdup_user
+  vm_event_states
   vmf_insert_mixed
   vmf_insert_pfn
   vm_get_page_prot

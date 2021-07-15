@@ -85,7 +85,7 @@ extern bool shmem_huge_enabled(struct vm_area_struct *vma);
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
 extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 						pgoff_t start, pgoff_t end);
-extern void shmem_mark_page_lazyfree(struct page *page);
+extern void shmem_mark_page_lazyfree(struct page *page, bool tail);
 
 /* Flag allocation requirements to shmem_getpage */
 enum sgp_type {

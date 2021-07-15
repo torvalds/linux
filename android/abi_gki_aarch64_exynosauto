@@ -120,6 +120,7 @@
   dma_buf_unmap_attachment
   dma_buf_vmap
   dma_buf_vunmap
+  dmaengine_unmap_put
   dma_fence_add_callback
   dma_fence_context_alloc
   dma_fence_default_wait
@@ -338,6 +339,7 @@
   of_property_read_string
   of_property_read_string_helper
   of_property_read_u32_index
+  of_property_read_variable_u16_array
   of_property_read_variable_u32_array
   of_property_read_variable_u8_array
   of_prop_next_string
@@ -348,6 +350,7 @@
   panic_notifier_list
   param_ops_bool
   param_ops_int
+  param_ops_string
   param_ops_uint
   PDE_DATA
   __per_cpu_offset
@@ -358,7 +361,6 @@
   pinctrl_lookup_state
   pinctrl_select_state
   platform_bus_type
-  platform_device_unregister
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
@@ -563,6 +565,7 @@
   wait_for_completion_timeout
   __wake_up
   wake_up_process
+  wakeup_source_register
   wakeup_source_unregister
   __warn_printk
   work_busy
@@ -597,6 +600,20 @@
 # required by cmupmucal.ko
   debugfs_create_x32
   kernel_kobj
+
+# required by dmatest.ko
+  dmaengine_get_unmap_data
+  __dma_request_channel
+  dma_sync_wait
+  kthread_should_stop
+  param_get_bool
+  param_get_string
+  param_set_bool
+  param_set_copystring
+  prandom_bytes
+  set_freezable
+  set_user_nice
+  strim
 
 # required by dss.ko
   android_debug_symbol
@@ -657,6 +674,7 @@
   platform_device_alloc
   platform_device_del
   platform_device_put
+  platform_device_unregister
   platform_get_irq_byname_optional
   __pm_relax
   pm_runtime_allow
@@ -723,16 +741,20 @@
   __drm_atomic_helper_plane_destroy_state
   __drm_atomic_helper_plane_duplicate_state
   __drm_atomic_helper_plane_reset
+  __drm_atomic_helper_private_obj_duplicate_state
   drm_atomic_helper_set_config
   drm_atomic_helper_shutdown
   drm_atomic_helper_update_plane
   drm_atomic_helper_wait_for_vblanks
   drm_atomic_normalize_zpos
+  drm_atomic_private_obj_init
   drm_bridge_attach
   drm_compat_ioctl
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
+  drm_connector_set_path_property
+  drm_connector_set_tile_property
   drm_connector_unregister
   drm_crtc_arm_vblank_event
   drm_crtc_cleanup
@@ -758,7 +780,9 @@
   drm_dp_aux_register
   drm_dp_aux_unregister
   drm_dp_bw_code_to_link_rate
+  drm_dp_calc_pbn_mode
   drm_dp_channel_eq_ok
+  drm_dp_check_act_status
   drm_dp_clock_recovery_ok
   drm_dp_downstream_debug
   drm_dp_dpcd_read
@@ -766,11 +790,23 @@
   drm_dp_dpcd_write
   drm_dp_dsc_sink_line_buf_depth
   drm_dp_dsc_sink_max_slice_count
+  drm_dp_find_vcpi_slots
   drm_dp_get_adjust_request_pre_emphasis
   drm_dp_get_adjust_request_voltage
   drm_dp_link_train_channel_eq_delay
   drm_dp_link_train_clock_recovery_delay
+  drm_dp_mst_allocate_vcpi
+  drm_dp_mst_deallocate_vcpi
+  drm_dp_mst_detect_port
   drm_dp_mst_dump_topology
+  drm_dp_mst_get_port_malloc
+  drm_dp_mst_hpd_irq
+  drm_dp_mst_put_port_malloc
+  drm_dp_mst_reset_vcpi_slots
+  drm_dp_mst_topology_mgr_init
+  drm_dp_mst_topology_mgr_set_mst
+  drm_dp_update_payload_part1
+  drm_dp_update_payload_part2
   drm_dsc_compute_rc_parameters
   drm_dsc_pps_payload_pack
   drm_encoder_cleanup
@@ -798,6 +834,7 @@
   drm_helper_connector_dpms
   drm_helper_hpd_irq_event
   drm_helper_mode_fill_fb_struct
+  drm_helper_probe_detect
   drm_ioctl
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
@@ -831,9 +868,11 @@
   kstrtobool
   mipi_dsi_host_register
   mipi_dsi_host_unregister
+  mutex_is_locked
   of_drm_find_bridge
   of_drm_find_panel
   of_graph_get_endpoint_by_regs
+  of_graph_get_endpoint_count
   of_graph_get_next_endpoint
   of_graph_get_port_by_id
   of_graph_get_remote_port
@@ -841,9 +880,7 @@
   of_graph_parse_endpoint
   of_phandle_iterator_init
   of_phandle_iterator_next
-  platform_find_device_by_driver
   seq_hex_dump
-  strnstr
 
 # required by exynos_mfc.ko
   iommu_dma_reserve_iova
@@ -856,6 +893,13 @@
   _raw_read_unlock_irqrestore
   _raw_write_lock_irqsave
   _raw_write_unlock_irqrestore
+
+# required by exynos_thermal.ko
+  of_thermal_get_ntrips
+  of_thermal_is_trip_valid
+  thermal_zone_device_update
+  thermal_zone_of_sensor_register
+  thermal_zone_of_sensor_unregister
 
 # required by exynos_tty.ko
   dma_get_slave_caps
@@ -900,10 +944,6 @@
 
 # required by i2c-exynosauto.ko
   i2c_del_adapter
-
-# required by lt8912.ko
-  drm_mode_duplicate
-  of_get_drm_display_mode
 
 # required by mali_kbase.ko
   anon_inode_getfd
@@ -1065,7 +1105,6 @@
   dma_async_device_register
   dma_async_device_unregister
   dma_async_tx_descriptor_init
-  dmaengine_unmap_put
   dma_get_slave_channel
   dma_map_resource
   dma_unmap_resource
@@ -1125,7 +1164,6 @@
   kthread_flush_work
   kthread_flush_worker
   ktime_get_with_offset
-  param_ops_string
   phy_configure
   pm_relax
   pm_stay_awake
@@ -1371,23 +1409,17 @@
 
 # required by ufs-exynosauto-core.ko
   blk_ksm_init_passthrough
-  of_property_read_variable_u16_array
   __traceiter_android_vh_ufs_fill_prdt
   __tracepoint_android_vh_ufs_fill_prdt
-  ufshcd_alloc_host
   ufshcd_config_pwr_mode
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
-  ufshcd_init
   ufshcd_link_recovery
   ufshcd_pltfrm_init
   ufshcd_remove
   ufshcd_shutdown
   ufshcd_system_resume
   ufshcd_system_suspend
-
-# required by vbpipe-module.ko
-  wakeup_source_register
 
 # required by vbufq-be-module.ko
   drain_workqueue

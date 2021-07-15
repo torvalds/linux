@@ -1,12 +1,17 @@
 [abi_symbol_list]
+# commonly used symbols
+  module_layout
+  __put_task_struct
 
 # required by fips140.ko
   add_random_ready_callback
   aead_register_instance
+  arm64_const_caps_ready
   bcmp
   cancel_work_sync
   __cfi_slowpath
   cpu_have_feature
+  cpu_hwcap_keys
   crypto_aead_decrypt
   crypto_aead_encrypt
   crypto_aead_setauthsize
@@ -16,11 +21,14 @@
   crypto_alg_list
   crypto_alg_mod_lookup
   crypto_alg_sem
+  crypto_alloc_aead
   crypto_alloc_base
   crypto_alloc_rng
   crypto_alloc_shash
+  crypto_alloc_skcipher
   crypto_attr_alg_name
   crypto_check_attr_type
+  crypto_cipher_decrypt_one
   crypto_cipher_encrypt_one
   crypto_cipher_setkey
   crypto_destroy_tfm
@@ -43,6 +51,7 @@
   crypto_remove_final
   crypto_remove_spawns
   crypto_req_done
+  crypto_rng_reset
   crypto_shash_alg_has_setkey
   crypto_shash_digest
   crypto_shash_final
@@ -77,6 +86,7 @@
   kmalloc_caches
   kmalloc_order_trace
   kmem_cache_alloc_trace
+  kmemdup
   __list_add_valid
   __list_del_entry_valid
   memcpy
@@ -89,6 +99,7 @@
   preempt_schedule_notrace
   printk
   queue_work_on
+  refcount_warn_saturate
   scatterwalk_ffwd
   scatterwalk_map_and_copy
   sg_init_one

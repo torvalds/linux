@@ -228,7 +228,7 @@ $(obj)/lib-crypto-%-fips.o: $(srctree)/lib/crypto/%.c FORCE
 $(obj)/crypto-fips.a: $(addprefix $(obj)/,$(crypto-fips-objs)) FORCE
 	$(call if_changed,ar_and_symver)
 
-fips140-objs		:= fips140-module.o crypto-fips.a
+fips140-objs		:= fips140-module.o fips140-selftests.o crypto-fips.a
 obj-m			+= fips140.o
 
 CFLAGS_fips140-module.o += $(FIPS140_CFLAGS)

@@ -18,6 +18,7 @@
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
+#include <linux/android_kabi.h>
 #include <net/cfg80211.h>
 #include <net/codel.h>
 #include <net/ieee80211_radiotap.h>
@@ -701,6 +702,8 @@ struct ieee80211_bss_conf {
 	u32 unsol_bcast_probe_resp_interval;
 	bool s1g;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -1097,6 +1100,9 @@ struct ieee80211_tx_info {
 			void *rate_driver_data[
 				IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE / sizeof(void *)];
 		};
+
+		ANDROID_KABI_RESERVE(1);
+
 		void *driver_data[
 			IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *)];
 	};
@@ -1583,6 +1589,8 @@ struct ieee80211_conf {
 	struct cfg80211_chan_def chandef;
 	bool radar_enabled;
 	enum ieee80211_smps_mode smps_mode;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -1726,6 +1734,8 @@ struct ieee80211_vif {
 	bool rx_mcast_action_reg;
 
 	bool txqs_stopped[IEEE80211_NUM_ACS];
+
+	ANDROID_KABI_RESERVE(1);
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2111,6 +2121,8 @@ struct ieee80211_sta {
 	struct ieee80211_sta_txpwr txpwr;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
+
+	ANDROID_KABI_RESERVE(1);
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2606,6 +2618,8 @@ struct ieee80211_hw {
 	u8 tx_sk_pacing_shift;
 	u8 weight_multiplier;
 	u32 max_mtu;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -4192,6 +4206,11 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif);
 	void (*sta_set_4addr)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta, bool enabled);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /**
@@ -6161,6 +6180,11 @@ struct rate_control_ops {
 				struct dentry *dir);
 
 	u32 (*get_expected_throughput)(void *priv_sta);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 static inline int rate_supported(struct ieee80211_sta *sta,

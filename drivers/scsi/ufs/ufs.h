@@ -13,6 +13,7 @@
 
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 #include <uapi/scsi/scsi_bsg_ufs.h>
 
 #define GENERAL_UPIU_REQUEST_SIZE (sizeof(struct utp_upiu_req))
@@ -594,6 +595,7 @@ struct ufs_dev_info {
 	u8 b_presrv_uspc_en;
 	/* UFS HPB related flag */
 	bool	hpb_enabled;
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**

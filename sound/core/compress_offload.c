@@ -33,6 +33,10 @@
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
 
+#ifndef __GENKSYMS__
+#include <trace/hooks/snd_compr.h>
+#endif
+
 /* struct snd_compr_codec_caps overflows the ioctl bit size for some
  * architectures, so we need to disable the relevant ioctls.
  */
@@ -708,6 +712,20 @@ snd_compr_tstamp(struct snd_compr_stream *stream, unsigned long arg)
 static int snd_compr_pause(struct snd_compr_stream *stream)
 {
 	int retval;
+	bool use_pause_in_drain = false;
+	bool leave_draining_state = false;
+
+	trace_android_vh_snd_compr_use_pause_in_drain(&use_pause_in_drain,
+				&leave_draining_state);
+
+	if (use_pause_in_drain && stream->runtime->state == SNDRV_PCM_STATE_DRAINING) {
+		retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_PUSH);
+		if (!retval && leave_draining_state) {
+			stream->runtime->state = SNDRV_PCM_STATE_PAUSED;
+			wake_up(&stream->runtime->sleep);
+		}
+		return retval;
+	}
 
 	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING)
 		return -EPERM;
@@ -720,6 +738,14 @@ static int snd_compr_pause(struct snd_compr_stream *stream)
 static int snd_compr_resume(struct snd_compr_stream *stream)
 {
 	int retval;
+	bool use_pause_in_drain = false;
+	bool leave_draining_state = false;
+
+	trace_android_vh_snd_compr_use_pause_in_drain(&use_pause_in_drain,
+				&leave_draining_state);
+
+	if (use_pause_in_drain && stream->runtime->state == SNDRV_PCM_STATE_DRAINING)
+		return stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_RELEASE);
 
 	if (stream->runtime->state != SNDRV_PCM_STATE_PAUSED)
 		return -EPERM;

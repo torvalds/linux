@@ -30,6 +30,13 @@ enum android_debug_symbol {
 #ifdef CONFIG_SWAP
 	ADS_NR_SWAP_PAGES,
 #endif
+#ifdef CONFIG_MMU
+	ADS_MMAP_MIN_ADDR,
+#endif
+	ADS_STACK_GUARD_GAP,
+#ifdef CONFIG_SYSCTL
+	ADS_SYSCTL_LEGACY_VA_LAYOUT,
+#endif
 	ADS_END
 };
 

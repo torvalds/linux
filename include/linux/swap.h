@@ -342,19 +342,9 @@ extern void lru_add_page_tail(struct page *page, struct page *page_tail,
 			 struct lruvec *lruvec, struct list_head *head);
 extern void mark_page_accessed(struct page *);
 
-extern atomic_t lru_disable_count;
-
-static inline bool lru_cache_disabled(void)
-{
-	return atomic_read(&lru_disable_count);
-}
-
-static inline void lru_cache_enable(void)
-{
-	atomic_dec(&lru_disable_count);
-}
-
+extern bool lru_cache_disabled(void);
 extern void lru_cache_disable(void);
+extern void lru_cache_enable(void);
 extern void lru_add_drain(void);
 extern void lru_add_drain_cpu(int cpu);
 extern void lru_add_drain_cpu_zone(struct zone *zone);
@@ -363,7 +353,7 @@ extern void rotate_reclaimable_page(struct page *page);
 extern void deactivate_file_page(struct page *page);
 extern void deactivate_page(struct page *page);
 extern void mark_page_lazyfree(struct page *page);
-extern void mark_page_lazyfree_movetail(struct page *page);
+extern void mark_page_lazyfree_movetail(struct page *page, bool tail);
 extern void swap_setup(void);
 
 extern void __lru_cache_add_inactive_or_unevictable(struct page *page,

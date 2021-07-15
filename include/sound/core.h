@@ -14,6 +14,7 @@
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/stringify.h>
 #include <linux/printk.h>
+#include <linux/android_kabi.h>
 
 /* number of supported soundcards */
 #ifdef CONFIG_SND_DYNAMIC_MINORS
@@ -61,6 +62,8 @@ struct snd_device_ops {
 	int (*dev_free)(struct snd_device *dev);
 	int (*dev_register)(struct snd_device *dev);
 	int (*dev_disconnect)(struct snd_device *dev);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct snd_device {
@@ -70,6 +73,8 @@ struct snd_device {
 	enum snd_device_type type;	/* device type */
 	void *device_data;		/* device structure */
 	const struct snd_device_ops *ops;	/* operations */
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #define snd_device(n) list_entry(n, struct snd_device, list)
@@ -132,6 +137,9 @@ struct snd_card {
 	struct snd_mixer_oss *mixer_oss;
 	int mixer_oss_change_count;
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
@@ -167,6 +175,8 @@ struct snd_minor {
 	void *private_data;		/* private data for f_ops->open */
 	struct device *dev;		/* device for sysfs */
 	struct snd_card *card_ptr;	/* assigned card instance */
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* return a device pointer linked to each sound device as a parent */

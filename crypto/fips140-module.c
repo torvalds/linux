@@ -3,15 +3,16 @@
  * Copyright 2021 Google LLC
  * Author: Ard Biesheuvel <ardb@google.com>
  *
- * This file is the core of the fips140.ko, which carries a number of crypto
- * algorithms and chaining mode templates that are also built into vmlinux.
- * This modules performs a load time integrity check, as mandated by FIPS 140,
- * and replaces registered crypto algorithms that appear on the FIPS 140 list
- * with ones provided by this module. This meets the FIPS 140 requirements for
- * a cryptographic software module.
+ * This file is the core of fips140.ko, which contains various crypto algorithms
+ * that are also built into vmlinux.  At load time, this module overrides the
+ * built-in implementations of these algorithms with its implementations.  It
+ * also runs self-tests on these algorithms and verifies the integrity of its
+ * code and data.  If either of these steps fails, the kernel will panic.
+ *
+ * This module is intended to be loaded at early boot time in order to meet
+ * FIPS 140 and NIAP FPT_TST_EXT.1 requirements.  It shouldn't be used if you
+ * don't need to meet these requirements.
  */
-
-#define pr_fmt(fmt) "fips140: " fmt
 
 #include <linux/ctype.h>
 #include <linux/module.h>
@@ -23,7 +24,17 @@
 #include <crypto/rng.h>
 #include <trace/hooks/fips140.h>
 
+#include "fips140-module.h"
 #include "internal.h"
+
+/*
+ * This option allows deliberately failing the self-tests for a particular
+ * algorithm.  This is for FIPS lab testing only.
+ */
+#ifdef CONFIG_CRYPTO_FIPS140_MOD_ERROR_INJECTION
+char *fips140_broken_alg;
+module_param_named(broken_alg, fips140_broken_alg, charp, 0);
+#endif
 
 /*
  * FIPS 140-2 prefers the use of HMAC with a public key over a plain hash.
@@ -52,6 +63,12 @@ const u32 *__initcall_start = &__initcall_start_marker;
 const u8 *__text_start = &__fips140_text_start;
 const u8 *__rodata_start = &__fips140_rodata_start;
 
+/*
+ * The list of the crypto API algorithms (by cra_name) that will be unregistered
+ * by this module, in preparation for the module registering its own
+ * implementation(s) of them.  When adding a new algorithm here, make sure to
+ * consider whether it needs a self-test added to fips140_selftests[] as well.
+ */
 static const char * const fips140_algorithms[] __initconst = {
 	"aes",
 
@@ -566,13 +583,16 @@ fips140_init(void)
 	 */
 	synchronize_rcu_tasks();
 
-	/* insert self tests here */
+	if (!fips140_run_selftests())
+		goto panic;
 
 	/*
 	 * It may seem backward to perform the integrity check last, but this
 	 * is intentional: the check itself uses hmac(sha256) which is one of
 	 * the algorithms that are replaced with versions from this module, and
-	 * the integrity check must use the replacement version.
+	 * the integrity check must use the replacement version.  Also, to be
+	 * ready for FIPS 140-3, the integrity check algorithm must have already
+	 * been self-tested.
 	 */
 
 	if (!check_fips140_module_hmac()) {
