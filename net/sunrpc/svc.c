@@ -1328,10 +1328,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	 */
 	auth_res = svc_authenticate(rqstp);
 	/* Also give the program a chance to reject this call: */
-	if (auth_res == SVC_OK && progp) {
-		rqstp->rq_auth_stat = rpc_autherr_badcred;
+	if (auth_res == SVC_OK && progp)
 		auth_res = progp->pg_authenticate(rqstp);
-	}
 	if (auth_res != SVC_OK)
 		trace_svc_authenticate(rqstp, auth_res);
 	switch (auth_res) {
