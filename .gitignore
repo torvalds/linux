@@ -25,6 +25,7 @@
 *.gz
 *.i
 *.ko
+*.lds
 *.lex.c
 *.ll
 *.lst
