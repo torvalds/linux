@@ -1389,7 +1389,7 @@ int kfd_debugfs_hang_hws(struct kfd_dev *dev)
 		return -EINVAL;
 	}
 
-	r = pm_debugfs_hang_hws(&dev->dqm->packets);
+	r = pm_debugfs_hang_hws(&dev->dqm->packet_mgr);
 	if (!r)
 		r = dqm_debugfs_execute_queues(dev->dqm);
 
