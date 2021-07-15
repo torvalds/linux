@@ -778,10 +778,10 @@ static u32 pnv_dpll_compute_fp(const struct dpll *dpll)
 	return (1 << dpll->n) << 16 | dpll->m2;
 }
 
-static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
-				     struct intel_crtc_state *crtc_state,
+static void i9xx_update_pll_dividers(struct intel_crtc_state *crtc_state,
 				     const struct dpll *reduced_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	u32 fp, fp2 = 0;
@@ -806,15 +806,15 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 	}
 }
 
-static void i9xx_compute_dpll(struct intel_crtc *crtc,
-			      struct intel_crtc_state *crtc_state,
+static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 			      const struct dpll *reduced_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
 
-	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
+	i9xx_update_pll_dividers(crtc_state, reduced_clock);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
@@ -879,16 +879,15 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 	}
 }
 
-static void i8xx_compute_dpll(struct intel_crtc *crtc,
-			      struct intel_crtc_state *crtc_state,
+static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
 			      const struct dpll *reduced_clock)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
 
-	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
+	i9xx_update_pll_dividers(crtc_state, reduced_clock);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
@@ -929,9 +928,9 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.dpll = dpll;
 }
 
-static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->uapi.state);
@@ -958,10 +957,10 @@ static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
 	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
 }
 
-static void ilk_update_pll_dividers(struct intel_crtc *crtc,
-				    struct intel_crtc_state *crtc_state,
+static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
 				    const struct dpll *reduced_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	u32 fp, fp2 = 0;
@@ -995,15 +994,15 @@ static void ilk_update_pll_dividers(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.fp1 = reduced_clock ? fp2 : fp;
 }
 
-static void ilk_compute_dpll(struct intel_crtc *crtc,
-			     struct intel_crtc_state *crtc_state,
+static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 			     const struct dpll *reduced_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
 
-	ilk_update_pll_dividers(crtc, crtc_state, reduced_clock);
+	ilk_update_pll_dividers(crtc_state, reduced_clock);
 
 	dpll = 0;
 
@@ -1071,9 +1070,9 @@ static void ilk_compute_dpll(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.dpll = dpll;
 }
 
-static int ilk_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int ilk_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->uapi.state);
@@ -1118,7 +1117,7 @@ static int ilk_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	ilk_compute_dpll(crtc, crtc_state, NULL);
+	ilk_compute_dpll(crtc_state, NULL);
 
 	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -1130,9 +1129,10 @@ static int ilk_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
-void vlv_compute_dpll(struct intel_crtc *crtc,
-		      struct intel_crtc_state *pipe_config)
+void vlv_compute_dpll(struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+
 	pipe_config->dpll_hw_state.dpll = DPLL_INTEGRATED_REF_CLK_VLV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 	if (crtc->pipe != PIPE_A)
@@ -1147,9 +1147,10 @@ void vlv_compute_dpll(struct intel_crtc *crtc,
 		(pipe_config->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
-void chv_compute_dpll(struct intel_crtc *crtc,
-		      struct intel_crtc_state *pipe_config)
+void chv_compute_dpll(struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+
 	pipe_config->dpll_hw_state.dpll = DPLL_SSC_REF_CLK_CHV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 	if (crtc->pipe != PIPE_A)
@@ -1163,8 +1164,7 @@ void chv_compute_dpll(struct intel_crtc *crtc,
 		(pipe_config->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
-static int chv_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int chv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
 	int refclk = 100000;
 	const struct intel_limit *limit = &intel_limits_chv;
@@ -1180,13 +1180,12 @@ static int chv_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	chv_compute_dpll(crtc, crtc_state);
+	chv_compute_dpll(crtc_state);
 
 	return 0;
 }
 
-static int vlv_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int vlv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
 	int refclk = 100000;
 	const struct intel_limit *limit = &intel_limits_vlv;
@@ -1202,14 +1201,14 @@ static int vlv_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	vlv_compute_dpll(crtc, crtc_state);
+	vlv_compute_dpll(crtc_state);
 
 	return 0;
 }
 
-static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int g4x_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_limit *limit;
 	int refclk = 96000;
@@ -1247,16 +1246,15 @@ static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	i9xx_compute_dpll(crtc, crtc_state, NULL);
+	i9xx_compute_dpll(crtc_state, NULL);
 
 	return 0;
 }
 
-static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static int pnv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_limit *limit;
 	int refclk = 96000;
 
@@ -1284,16 +1282,15 @@ static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	i9xx_compute_dpll(crtc, crtc_state, NULL);
+	i9xx_compute_dpll(crtc_state, NULL);
 
 	return 0;
 }
 
-static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
-				   struct intel_crtc_state *crtc_state)
+static int i9xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_limit *limit;
 	int refclk = 96000;
 
@@ -1321,16 +1318,15 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	i9xx_compute_dpll(crtc, crtc_state, NULL);
+	i9xx_compute_dpll(crtc_state, NULL);
 
 	return 0;
 }
 
-static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
-				   struct intel_crtc_state *crtc_state)
+static int i8xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_limit *limit;
 	int refclk = 48000;
 
@@ -1360,7 +1356,7 @@ static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	i8xx_compute_dpll(crtc, crtc_state, NULL);
+	i8xx_compute_dpll(crtc_state, NULL);
 
 	return 0;
 }
@@ -1394,9 +1390,9 @@ static bool i9xx_has_pps(struct drm_i915_private *dev_priv)
 	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
 }
 
-void i9xx_enable_pll(struct intel_crtc *crtc,
-		     const struct intel_crtc_state *crtc_state)
+void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = crtc_state->dpll_hw_state.dpll;
@@ -1469,9 +1465,9 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
 	vlv_dpio_write(dev_priv, pipe, VLV_REF_DW13, reg_val);
 }
 
-static void _vlv_enable_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_state *pipe_config)
+static void _vlv_enable_pll(const struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -1483,9 +1479,9 @@ static void _vlv_enable_pll(struct intel_crtc *crtc,
 		drm_err(&dev_priv->drm, "DPLL %d failed to lock\n", pipe);
 }
 
-void vlv_enable_pll(struct intel_crtc *crtc,
-		    const struct intel_crtc_state *pipe_config)
+void vlv_enable_pll(const struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -1495,7 +1491,7 @@ void vlv_enable_pll(struct intel_crtc *crtc,
 	assert_panel_unlocked(dev_priv, pipe);
 
 	if (pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE)
-		_vlv_enable_pll(crtc, pipe_config);
+		_vlv_enable_pll(pipe_config);
 
 	intel_de_write(dev_priv, DPLL_MD(pipe),
 		       pipe_config->dpll_hw_state.dpll_md);
@@ -1503,9 +1499,9 @@ void vlv_enable_pll(struct intel_crtc *crtc,
 }
 
 
-static void _chv_enable_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_state *pipe_config)
+static void _chv_enable_pll(const struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
@@ -1533,9 +1529,9 @@ static void _chv_enable_pll(struct intel_crtc *crtc,
 		drm_err(&dev_priv->drm, "PLL %d failed to lock\n", pipe);
 }
 
-void chv_enable_pll(struct intel_crtc *crtc,
-		    const struct intel_crtc_state *pipe_config)
+void chv_enable_pll(const struct intel_crtc_state *pipe_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -1545,7 +1541,7 @@ void chv_enable_pll(struct intel_crtc *crtc,
 	assert_panel_unlocked(dev_priv, pipe);
 
 	if (pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE)
-		_chv_enable_pll(crtc, pipe_config);
+		_chv_enable_pll(pipe_config);
 
 	if (pipe != PIPE_A) {
 		/*
@@ -1574,11 +1570,10 @@ void chv_enable_pll(struct intel_crtc *crtc,
 	}
 }
 
-void vlv_prepare_pll(struct intel_crtc *crtc,
-		     const struct intel_crtc_state *pipe_config)
+void vlv_prepare_pll(const struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
@@ -1673,11 +1668,10 @@ void vlv_prepare_pll(struct intel_crtc *crtc,
 	vlv_dpio_put(dev_priv);
 }
 
-void chv_prepare_pll(struct intel_crtc *crtc,
-		     const struct intel_crtc_state *pipe_config)
+void chv_prepare_pll(const struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 loopfilter, tribuf_calcntr;
@@ -1804,13 +1798,13 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 	pipe_config->output_types = BIT(INTEL_OUTPUT_EDP);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		chv_compute_dpll(crtc, pipe_config);
-		chv_prepare_pll(crtc, pipe_config);
-		chv_enable_pll(crtc, pipe_config);
+		chv_compute_dpll(pipe_config);
+		chv_prepare_pll(pipe_config);
+		chv_enable_pll(pipe_config);
 	} else {
-		vlv_compute_dpll(crtc, pipe_config);
-		vlv_prepare_pll(crtc, pipe_config);
-		vlv_enable_pll(crtc, pipe_config);
+		vlv_compute_dpll(pipe_config);
+		vlv_prepare_pll(pipe_config);
+		vlv_enable_pll(pipe_config);
 	}
 
 	kfree(pipe_config);

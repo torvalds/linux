@@ -3577,11 +3577,11 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	intel_encoders_pre_pll_enable(state, crtc);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		chv_prepare_pll(crtc, new_crtc_state);
-		chv_enable_pll(crtc, new_crtc_state);
+		chv_prepare_pll(new_crtc_state);
+		chv_enable_pll(new_crtc_state);
 	} else {
-		vlv_prepare_pll(crtc, new_crtc_state);
-		vlv_enable_pll(crtc, new_crtc_state);
+		vlv_prepare_pll(new_crtc_state);
+		vlv_enable_pll(new_crtc_state);
 	}
 
 	intel_encoders_pre_enable(state, crtc);
@@ -3640,7 +3640,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_pre_enable(state, crtc);
 
-	i9xx_enable_pll(crtc, new_crtc_state);
+	i9xx_enable_pll(new_crtc_state);
 
 	i9xx_pfit_enable(new_crtc_state);
 
@@ -6906,7 +6906,7 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	    dev_priv->display.crtc_compute_clock &&
 	    !crtc_state->bigjoiner_slave &&
 	    !drm_WARN_ON(&dev_priv->drm, crtc_state->shared_dpll)) {
-		ret = dev_priv->display.crtc_compute_clock(crtc, crtc_state);
+		ret = dev_priv->display.crtc_compute_clock(crtc_state);
 		if (ret)
 			return ret;
 	}
