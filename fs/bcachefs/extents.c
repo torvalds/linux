@@ -191,9 +191,10 @@ void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
-	pr_buf(out, "seq %llx written %u min_key ",
+	pr_buf(out, "seq %llx written %u min_key %s",
 	       le64_to_cpu(bp.v->seq),
-	       le16_to_cpu(bp.v->sectors_written));
+	       le16_to_cpu(bp.v->sectors_written),
+	       BTREE_PTR_RANGE_UPDATED(bp.v) ? "R " : "");
 
 	bch2_bpos_to_text(out, bp.v->min_key);
 	pr_buf(out, " ");
