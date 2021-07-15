@@ -530,9 +530,12 @@ static const struct u32_fract adc5_prescale_ratios[] = {
 	{ .numerator = 10, .denominator = 81 },
 	{ .numerator =  1, .denominator = 10 },
 	{ .numerator =  1, .denominator = 16 },
+	{ .numerator = 40, .denominator = 41 },		/* PM7_SMB_TEMP */
 	/* Prescale ratios for current channels below */
 	{ .numerator = 32, .denominator = 100 },	/* IIN_FB, IIN_SMB */
 	{ .numerator = 16, .denominator = 100 },	/* ICHG_SMB */
+	{ .numerator = 1280, .denominator = 4100 },	/* IIN_SMB_new */
+	{ .numerator = 640, .denominator = 4100 },	/* ICHG_SMB_new */
 	{ .numerator = 1000, .denominator = 305185 },	/* ICHG_FB */
 	{ .numerator = 1000, .denominator = 610370 },	/* ICHG_FB_2X */
 };
