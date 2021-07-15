@@ -1206,6 +1206,11 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void fsl_mc_bus_shutdown(struct platform_device *pdev)
+{
+	fsl_mc_bus_remove(pdev);
+}
+
 static const struct of_device_id fsl_mc_bus_match_table[] = {
 	{.compatible = "fsl,qoriq-mc",},
 	{},
@@ -1228,6 +1233,7 @@ static struct platform_driver fsl_mc_bus_driver = {
 		   },
 	.probe = fsl_mc_bus_probe,
 	.remove = fsl_mc_bus_remove,
+	.shutdown = fsl_mc_bus_shutdown,
 };
 
 static int __init fsl_mc_bus_driver_init(void)
