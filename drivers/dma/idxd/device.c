@@ -1349,3 +1349,16 @@ void idxd_device_drv_remove(struct idxd_dev *idxd_dev)
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		idxd_device_reset(idxd);
 }
+
+static enum idxd_dev_type dev_types[] = {
+	IDXD_DEV_DSA,
+	IDXD_DEV_IAX,
+	IDXD_DEV_NONE,
+};
+
+struct idxd_device_driver idxd_drv = {
+	.type = dev_types,
+	.probe = idxd_device_drv_probe,
+	.remove = idxd_device_drv_remove,
+	.name = "idxd",
+};

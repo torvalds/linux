@@ -840,6 +840,10 @@ static int __init idxd_init_module(void)
 	if (err < 0)
 		return err;
 
+	err = idxd_driver_register(&idxd_drv);
+	if (err < 0)
+		goto err_idxd_driver_register;
+
 	err = idxd_driver_register(&dsa_drv);
 	if (err < 0)
 		goto err_dsa_driver_register;
@@ -859,6 +863,8 @@ err_pci_register:
 err_cdev_register:
 	idxd_driver_unregister(&dsa_drv);
 err_dsa_driver_register:
+	idxd_driver_unregister(&idxd_drv);
+err_idxd_driver_register:
 	idxd_unregister_bus_type();
 	return err;
 }
@@ -866,6 +872,7 @@ module_init(idxd_init_module);
 
 static void __exit idxd_exit_module(void)
 {
+	idxd_driver_unregister(&idxd_drv);
 	idxd_driver_unregister(&dsa_drv);
 	pci_unregister_driver(&idxd_pci_driver);
 	idxd_cdev_remove();

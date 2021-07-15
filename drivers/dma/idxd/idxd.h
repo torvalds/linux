@@ -58,6 +58,7 @@ struct idxd_device_driver {
 };
 
 extern struct idxd_device_driver dsa_drv;
+extern struct idxd_device_driver idxd_drv;
 
 struct idxd_irq_entry {
 	struct idxd_device *idxd;
@@ -501,6 +502,8 @@ void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
 void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
 
 /* device control */
+int idxd_register_idxd_drv(void);
+void idxd_unregister_idxd_drv(void);
 int idxd_device_drv_probe(struct idxd_dev *idxd_dev);
 void idxd_device_drv_remove(struct idxd_dev *idxd_dev);
 int drv_enable_wq(struct idxd_wq *wq);
