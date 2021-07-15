@@ -935,7 +935,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 		stat_data->kvm = kvm;
 		stat_data->desc = pdesc;
 		stat_data->kind = KVM_STAT_VCPU;
-		kvm->debugfs_stat_data[i] = stat_data;
+		kvm->debugfs_stat_data[i + kvm_vm_stats_header.num_desc] = stat_data;
 		debugfs_create_file(pdesc->name, kvm_stats_debugfs_mode(pdesc),
 				    kvm->debugfs_dentry, stat_data,
 				    &stat_fops_per_vm);
