@@ -2462,7 +2462,7 @@ static int snd_vt1724_create(struct snd_card *card,
 			     struct pci_dev *pci,
 			     const char *modelname)
 {
-	struct snd_ice1712 *ice;
+	struct snd_ice1712 *ice = card->private_data;
 	int err;
 
 	/* enable PCI device */
