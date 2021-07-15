@@ -268,6 +268,9 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int err = 0;
 
+	if (IS_DGFX(to_i915(dev)))
+		return -ENODEV;
+
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, args->handle);
 	if (!obj) {
@@ -302,6 +305,9 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
 	int ret = 0;
+
+	if (IS_DGFX(i915))
+		return -ENODEV;
 
 	switch (args->caching) {
 	case I915_CACHING_NONE:

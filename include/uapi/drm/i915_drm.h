@@ -1395,6 +1395,35 @@ struct drm_i915_gem_busy {
  * ppGTT support, or if the object is used for scanout). Note that this might
  * require unbinding the object from the GTT first, if its current caching value
  * doesn't match.
+ *
+ * Note that this all changes on discrete platforms, starting from DG1, the
+ * set/get caching is no longer supported, and is now rejected.  Instead the CPU
+ * caching attributes(WB vs WC) will become an immutable creation time property
+ * for the object, along with the GTT caching level. For now we don't expose any
+ * new uAPI for this, instead on DG1 this is all implicit, although this largely
+ * shouldn't matter since DG1 is coherent by default(without any way of
+ * controlling it).
+ *
+ * Implicit caching rules, starting from DG1:
+ *
+ *     - If any of the object placements (see &drm_i915_gem_create_ext_memory_regions)
+ *       contain I915_MEMORY_CLASS_DEVICE then the object will be allocated and
+ *       mapped as write-combined only.
+ *
+ *     - Everything else is always allocated and mapped as write-back, with the
+ *       guarantee that everything is also coherent with the GPU.
+ *
+ * Note that this is likely to change in the future again, where we might need
+ * more flexibility on future devices, so making this all explicit as part of a
+ * new &drm_i915_gem_create_ext extension is probable.
+ *
+ * Side note: Part of the reason for this is that changing the at-allocation-time CPU
+ * caching attributes for the pages might be required(and is expensive) if we
+ * need to then CPU map the pages later with different caching attributes. This
+ * inconsistent caching behaviour, while supported on x86, is not universally
+ * supported on other architectures. So for simplicity we opt for setting
+ * everything at creation time, whilst also making it immutable, on discrete
+ * platforms.
  */
 struct drm_i915_gem_caching {
 	/**
