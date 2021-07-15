@@ -34,6 +34,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */  
 
 #ifndef __COMMON_H__
@@ -99,7 +101,9 @@
 #define ETH_CORE_DUMP_OFFSET6     (0x1140 / 4)
 #define ETH_CORE_DUMP_OFFSET6_END (0x1174 / 4)
 
-#ifdef CONFIG_DEBUG_FS
+#define CONFIG_DEBUG_FS_TC956X
+
+#ifdef CONFIG_DEBUG_FS_TC956X
 
 #ifdef TC956X
 int tc956xmac_init(void);
@@ -1287,7 +1291,11 @@ enum dma_irq_status {
 	handle_rx = 0x4,
 	handle_tx = 0x8,
 };
-
+enum SGMII_2P5G_SUPPORT {
+	SGMII_2P5G_DISABLED = 0, /* For SGMII Speed 1G */
+	SGMII_2P5G_ENABLED = 1, /* For SGMII Speed 2.5G */
+	SGMII_DISABLED = 3, /* For other interfaces (USXGMII/RGMII) */
+};
 /* EEE and LPI defines */
 #define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 0)
 #define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 1)

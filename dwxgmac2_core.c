@@ -34,6 +34,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */
  
 #include <linux/bitrev.h>
@@ -68,8 +70,7 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 			tx |= hw->link.xgmii.speed10000;
 			break;
 		case SPEED_2500:
-			if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
-				tx |= hw->link.speed2500;
+			tx |= hw->link.speed2500;
 			break;
 		case SPEED_1000:
 		default:
@@ -82,8 +83,7 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 		tx |= hw->link.speed1000;
 	else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
 		tx |= hw->link.speed2500;
-	else if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
-		(priv->plat->interface == PHY_INTERFACE_MODE_10GKR))
+	else if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII)
 		tx |= hw->link.xgmii.speed10000;
 #endif
 	writel(tx, ioaddr + XGMAC_TX_CONFIG);

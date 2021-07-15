@@ -33,6 +33,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */
 
 #ifndef __TC956x_IPA_INTF_H
@@ -370,7 +372,7 @@ int stop_channel(struct net_device *ndev, struct channel_info *channel);
 /*!
  * \brief This API will print EMAC-IPA offload DMA channel stats
  *
- * \details This function will read and prints DMA Descriptor stats
+ * \details This function will read and prints DMA Descriptor stats 
  * used by IPA.
  *
  * \param[i] ndev : TC956x netdev data structure.
@@ -379,7 +381,9 @@ int stop_channel(struct net_device *ndev, struct channel_info *channel);
  *           -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
  *
  */
-int read_ipa_desc_stats(struct net_device *ndev);
+int read_ipa_desc_stats(struct file *file, char __user *user_buf,
+							 size_t count, loff_t *ppos);
+
 
 #endif /* __TC956x_IPA_INTF_H */
 

@@ -30,6 +30,8 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */
 
 #include "tc956xmac_inc.h"
@@ -330,6 +332,8 @@ static void dwxgmac2_get_addr(struct tc956xmac_priv *priv,
 static void dwxgmac2_set_addr(struct tc956xmac_priv *priv,
 				struct dma_desc *p, dma_addr_t addr)
 {
+	u64 target_addrs;
+	
 	//printk("%s, buff addr = 0x%llx\n",__func__, addr);
 	p->des0 = cpu_to_le32(lower_32_bits(addr));
 #ifdef TC956X
@@ -341,6 +345,13 @@ static void dwxgmac2_set_addr(struct tc956xmac_priv *priv,
 #endif
 
 	//printk(" pdes0 = 0x%x. pdes1 = 0x%x\n", p->des0, p->des1);
+	target_addrs = (u64)(TC956X_HOST_PHYSICAL_ADRS_MASK | (upper_32_bits(addr) & 0xF));
+		  
+	target_addrs = (u64)lower_32_bits(target_addrs) << 32;
+	target_addrs |= cpu_to_le32(lower_32_bits(addr));
+
+	if (target_addrs < 0x1000000000 || target_addrs > 0x1FFFFFFFFF) 
+		printk("Address out of range. Trsl Addr = 0x%llx, eMAC target addr = 0x%llx\n", (u64)addr, target_addrs);
 }
 
 static void dwxgmac2_clear(struct tc956xmac_priv *priv, struct dma_desc *p)

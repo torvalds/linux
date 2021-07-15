@@ -34,6 +34,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */
 
 #ifndef __TC956XMAC_H__
@@ -81,7 +83,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-01"
+#define DRV_MODULE_VERSION	"V_01-00-02"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -180,9 +182,15 @@
 #define TC956X_M3_DBG_VER_START			0x4F900
 
 #define ENABLE_USXGMII_INTERFACE	0
-#define ENABLE_XFI_INTERFACE		1 /* XFI/SFI, this is same as USXGMII, except XPCS autoneg disabled */
-#define ENABLE_RGMII_INTERFACE		2
-#define ENABLE_SGMII_INTERFACE		3
+#define ENABLE_RGMII_INTERFACE		1
+#define ENABLE_SGMII_INTERFACE		2
+
+/* Only SGMII and USXGMII allowed for Port0 */
+#define PORT0_INTERFACE		ENABLE_USXGMII_INTERFACE
+//#define PORT0_INTERFACE		ENABLE_SGMII_INTERFACE
+#define PORT1_INTERFACE		ENABLE_RGMII_INTERFACE
+
+#define INTERFACE_SELECTED(p) (((p) == RM_PF0_ID) ? (PORT0_INTERFACE) : (PORT1_INTERFACE))
 
 #define MTL_FPE_AFSZ_64	0
 #define MTL_FPE_AFSZ_128	1
@@ -206,7 +214,6 @@ struct tc956xmac_resources {
 	int irq;
 #ifdef TC956X
 	unsigned int port_num;
-	unsigned int port_interface; /* Kernel module parameter variable for interface */
 #endif
 };
 
@@ -443,7 +450,7 @@ struct tc956xmac_priv {
 #endif
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS_TC956X
 	struct dentry *dbgfs_dir;
 #endif
 
@@ -482,8 +489,7 @@ struct tc956xmac_priv {
 	u32 port_num;
 	u32 mac_loopback_mode;
 	u32 phy_loopback_mode;
-	bool is_sgmii_2p5g; /* For 2.5G SGMI, XPCS doesn't support AN. This flag is to identify 2.5G Speed for SGMII interface. */
-	u32 port_interface; /* Kernel module parameter variable for interface */
+	enum SGMII_2P5G_SUPPORT is_sgmii_2p5g; /* For 2.5G SGMI, XPCS doesn't support AN. This flag is to identify 2.5G Speed for SGMII interface. */
 #endif
 
 	/* set to 1 when ptp offload is enabled, else 0. */

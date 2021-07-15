@@ -34,6 +34,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
+ *  VERSION     : 01-00-02
  */
 
 #include <linux/etherdevice.h>
@@ -861,11 +863,13 @@ tc956xmac_ethtool_set_link_ksettings(struct net_device *dev,
 
 		return 0;
 	}
-	/* Temporary fix (phy dependent code): In case of AQR phy, auto negotiation OFF is not supported, return error for it */
+#ifdef TC956X_USXGMII_XFI_MODE
+	/* In case of AQR phy, auto negotiation OFF is not supported, return error for it */
 	if (priv->port_num == RM_PF0_ID) {
 		if (cmd->base.autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
 	}
+#endif
 	if (!dev->phydev)
 		return -ENODEV;
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);

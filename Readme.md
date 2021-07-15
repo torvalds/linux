@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 05 Jul 2021
+Release Date: 15 Jul 2021
 
-Release Version: V_01-00-01 : Limited-tested version
+Release Version: V_01-00-02 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -40,6 +40,12 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 5. API to print IPA DMA channel statistics supported
 6. Correction of print statement about selection of C45 PHY for Port0 interface
 
+## TC956X_Host_Driver_20210705_V_01-00-02:
+
+1. XFI interface supported through compile time macro.
+2. Removed module parameters for selection of Port0 and Port1 interface
+3. Debugfs support for IPA statistics
+
 # Note:
 
 1. Use below commands to advertise with Autonegotiation ON for speeds 10Gbps, 5Gbps, 2.5Gbps, 1Gbps, 100Mbps and 10Mbps as ethtool speed command does not support.
@@ -56,17 +62,8 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
     ethtool -s <interface> advertise 0x002 autoneg on --> changes the advertisement 10Mbps
 
-2. Use the below command to insert the kernel module with specific modes for interfaces:
-	
-    #insmod tc956x_pcie_eth.ko tc956x_port0_interface=x tc956x_port1_interface=y
-
-       argument info:
-	     tc956x_port0_interface: For PORT0 interface mode setting
-	     tc956x_port1_interface: For PORT1 interface mode setting
-	     x = [0: USXGMII, 1: XFI (default), 2: RGMII (unsupported), 3: SGMII]
-	     y = [0: USXGMII (unsupported), 1: XFI (unsupported), 2: RGMII, 3: SGMII(default)]
-  
-    If invalid and unsupported modes are passed as kernel module parameter, the default interface mode will be selected.
+2. To select XFI interface, enable macro "#define TC956X_USXGMII_XFI_MODE" in tc956xmac_inc.h.
+   If undefined, USXGMII interface will be selected. By default this macro is defined.
 
 3. Regarding the performance, use the below command to increase the dynamic byte queue limit
 
