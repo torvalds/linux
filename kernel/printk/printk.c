@@ -1940,6 +1940,76 @@ static void call_console_drivers(const char *ext_text, size_t ext_len,
 	}
 }
 
+/*
+ * Recursion is tracked separately on each CPU. If NMIs are supported, an
+ * additional NMI context per CPU is also separately tracked. Until per-CPU
+ * is available, a separate "early tracking" is performed.
+ */
+static DEFINE_PER_CPU(u8, printk_count);
+static u8 printk_count_early;
+#ifdef CONFIG_HAVE_NMI
+static DEFINE_PER_CPU(u8, printk_count_nmi);
+static u8 printk_count_nmi_early;
+#endif
+
+/*
+ * Recursion is limited to keep the output sane. printk() should not require
+ * more than 1 level of recursion (allowing, for example, printk() to trigger
+ * a WARN), but a higher value is used in case some printk-internal errors
+ * exist, such as the ringbuffer validation checks failing.
+ */
+#define PRINTK_MAX_RECURSION 3
+
+/*
+ * Return a pointer to the dedicated counter for the CPU+context of the
+ * caller.
+ */
+static u8 *__printk_recursion_counter(void)
+{
+#ifdef CONFIG_HAVE_NMI
+	if (in_nmi()) {
+		if (printk_percpu_data_ready())
+			return this_cpu_ptr(&printk_count_nmi);
+		return &printk_count_nmi_early;
+	}
+#endif
+	if (printk_percpu_data_ready())
+		return this_cpu_ptr(&printk_count);
+	return &printk_count_early;
+}
+
+/*
+ * Enter recursion tracking. Interrupts are disabled to simplify tracking.
+ * The caller must check the boolean return value to see if the recursion is
+ * allowed. On failure, interrupts are not disabled.
+ *
+ * @recursion_ptr must be a variable of type (u8 *) and is the same variable
+ * that is passed to printk_exit_irqrestore().
+ */
+#define printk_enter_irqsave(recursion_ptr, flags)	\
+({							\
+	bool success = true;				\
+							\
+	typecheck(u8 *, recursion_ptr);			\
+	local_irq_save(flags);				\
+	(recursion_ptr) = __printk_recursion_counter();	\
+	if (*(recursion_ptr) > PRINTK_MAX_RECURSION) {	\
+		local_irq_restore(flags);		\
+		success = false;			\
+	} else {					\
+		(*(recursion_ptr))++;			\
+	}						\
+	success;					\
+})
+
+/* Exit recursion tracking, restoring interrupts. */
+#define printk_exit_irqrestore(recursion_ptr, flags)	\
+	do {						\
+		typecheck(u8 *, recursion_ptr);		\
+		(*(recursion_ptr))--;			\
+		local_irq_restore(flags);		\
+	} while (0)
+
 int printk_delay_msec __read_mostly;
 
 static inline void printk_delay(void)
@@ -2040,11 +2110,14 @@ int vprintk_store(int facility, int level,
 	struct prb_reserved_entry e;
 	enum log_flags lflags = 0;
 	struct printk_record r;
+	unsigned long irqflags;
 	u16 trunc_msg_len = 0;
 	char prefix_buf[8];
+	u8 *recursion_ptr;
 	u16 reserve_size;
 	va_list args2;
 	u16 text_len;
+	int ret = 0;
 	u64 ts_nsec;
 
 	/*
@@ -2054,6 +2127,9 @@ int vprintk_store(int facility, int level,
 	 * timestamp with respect to the caller.
 	 */
 	ts_nsec = local_clock();
+
+	if (!printk_enter_irqsave(recursion_ptr, irqflags))
+		return 0;
 
 	/*
 	 * The sprintf needs to come first since the syslog prefix might be
@@ -2092,7 +2168,8 @@ int vprintk_store(int facility, int level,
 				prb_commit(&e);
 			}
 
-			return text_len;
+			ret = text_len;
+			goto out;
 		}
 	}
 
@@ -2108,7 +2185,7 @@ int vprintk_store(int facility, int level,
 
 		prb_rec_init_wr(&r, reserve_size + trunc_msg_len);
 		if (!prb_reserve(&e, prb, &r))
-			return 0;
+			goto out;
 	}
 
 	/* fill message */
@@ -2130,7 +2207,10 @@ int vprintk_store(int facility, int level,
 	else
 		prb_final_commit(&e);
 
-	return (text_len + trunc_msg_len);
+	ret = text_len + trunc_msg_len;
+out:
+	printk_exit_irqrestore(recursion_ptr, irqflags);
+	return ret;
 }
 
 asmlinkage int vprintk_emit(int facility, int level,
