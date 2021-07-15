@@ -8,16 +8,14 @@
  * This file contains the s390 architecture specific module code.
  */
 
-struct mod_arch_syminfo
-{
+struct mod_arch_syminfo {
 	unsigned long got_offset;
 	unsigned long plt_offset;
 	int got_initialized;
 	int plt_initialized;
 };
 
-struct mod_arch_specific
-{
+struct mod_arch_specific {
 	/* Starting offset of got in the module core memory. */
 	unsigned long got_offset;
 	/* Starting offset of plt in the module core memory. */
