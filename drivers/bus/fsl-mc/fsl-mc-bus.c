@@ -63,6 +63,7 @@ struct fsl_mc_addr_translation_range {
 
 #define FSL_MC_GCR1	0x0
 #define GCR1_P1_STOP	BIT(31)
+#define GCR1_P2_STOP	BIT(30)
 
 #define FSL_MC_FAPR	0x28
 #define MC_FAPR_PL	BIT(18)
@@ -1118,7 +1119,8 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		 * At this point MC should have all its SMMU setup done so make
 		 * sure it is resumed.
 		 */
-		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) & (~GCR1_P1_STOP),
+		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) &
+			     (~(GCR1_P1_STOP | GCR1_P2_STOP)),
 		       mc->fsl_mc_regs + FSL_MC_GCR1);
 	}
 
