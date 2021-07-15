@@ -738,7 +738,7 @@ static void binder_transaction_priority(struct task_struct *task,
 	t->saved_priority.sched_policy = task->policy;
 	t->saved_priority.prio = task->normal_prio;
 
-	trace_android_vh_binder_transaction_priority_skip(task, &skip);
+	trace_android_vh_binder_priority_skip(task, &skip);
 	if (skip)
 		return;
 
