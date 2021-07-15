@@ -1283,7 +1283,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	struct svc_process_info process;
 	__be32			*statp;
 	u32			prog, vers;
-	__be32			auth_stat, rpc_stat;
+	__be32			rpc_stat;
 	int			auth_res;
 	__be32			*reply_statp;
 
@@ -1326,14 +1326,14 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	 * We do this before anything else in order to get a decent
 	 * auth verifier.
 	 */
-	auth_res = svc_authenticate(rqstp, &auth_stat);
+	auth_res = svc_authenticate(rqstp);
 	/* Also give the program a chance to reject this call: */
 	if (auth_res == SVC_OK && progp) {
-		auth_stat = rpc_autherr_badcred;
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		auth_res = progp->pg_authenticate(rqstp);
 	}
 	if (auth_res != SVC_OK)
-		trace_svc_authenticate(rqstp, auth_res, auth_stat);
+		trace_svc_authenticate(rqstp, auth_res);
 	switch (auth_res) {
 	case SVC_OK:
 		break;
@@ -1392,8 +1392,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 			goto release_dropit;
 		if (*statp == rpc_garbage_args)
 			goto err_garbage;
-		auth_stat = svc_get_autherr(rqstp, statp);
-		if (auth_stat != rpc_auth_ok)
+		rqstp->rq_auth_stat = svc_get_autherr(rqstp, statp);
+		if (rqstp->rq_auth_stat != rpc_auth_ok)
 			goto err_release_bad_auth;
 	} else {
 		dprintk("svc: calling dispatcher\n");
@@ -1450,13 +1450,14 @@ err_release_bad_auth:
 	if (procp->pc_release)
 		procp->pc_release(rqstp);
 err_bad_auth:
-	dprintk("svc: authentication failed (%d)\n", ntohl(auth_stat));
+	dprintk("svc: authentication failed (%d)\n",
+		be32_to_cpu(rqstp->rq_auth_stat));
 	serv->sv_stats->rpcbadauth++;
 	/* Restore write pointer to location of accept status: */
 	xdr_ressize_check(rqstp, reply_statp);
 	svc_putnl(resv, 1);	/* REJECT */
 	svc_putnl(resv, 1);	/* AUTH_ERROR */
-	svc_putnl(resv, ntohl(auth_stat));	/* status */
+	svc_putu32(resv, rqstp->rq_auth_stat);	/* status */
 	goto sendit;
 
 err_bad_prog:

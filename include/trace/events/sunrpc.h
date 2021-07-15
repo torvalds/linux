@@ -1582,9 +1582,9 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 		{ SVC_COMPLETE,	"SVC_COMPLETE" })
 
 TRACE_EVENT(svc_authenticate,
-	TP_PROTO(const struct svc_rqst *rqst, int auth_res, __be32 auth_stat),
+	TP_PROTO(const struct svc_rqst *rqst, int auth_res),
 
-	TP_ARGS(rqst, auth_res, auth_stat),
+	TP_ARGS(rqst, auth_res),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
@@ -1595,7 +1595,7 @@ TRACE_EVENT(svc_authenticate,
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->svc_status = auth_res;
-		__entry->auth_stat = be32_to_cpu(auth_stat);
+		__entry->auth_stat = be32_to_cpu(rqst->rq_auth_stat);
 	),
 
 	TP_printk("xid=0x%08x auth_res=%s auth_stat=%s",

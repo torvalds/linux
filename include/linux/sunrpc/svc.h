@@ -282,6 +282,7 @@ struct svc_rqst {
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
 	void *			rq_auth_data;	/* flavor-specific data */
+	__be32			rq_auth_stat;	/* authentication status */
 	int			rq_auth_slack;	/* extra space xdr code
 						 * should leave in head
 						 * for krb5i, krb5p.

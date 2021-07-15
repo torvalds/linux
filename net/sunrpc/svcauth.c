@@ -59,12 +59,12 @@ svc_put_auth_ops(struct auth_ops *aops)
 }
 
 int
-svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
+svc_authenticate(struct svc_rqst *rqstp)
 {
 	rpc_authflavor_t	flavor;
 	struct auth_ops		*aops;
 
-	*authp = rpc_auth_ok;
+	rqstp->rq_auth_stat = rpc_auth_ok;
 
 	flavor = svc_getnl(&rqstp->rq_arg.head[0]);
 
@@ -72,7 +72,7 @@ svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 
 	aops = svc_get_auth_ops(flavor);
 	if (aops == NULL) {
-		*authp = rpc_autherr_badcred;
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
 
@@ -80,7 +80,7 @@ svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 	init_svc_cred(&rqstp->rq_cred);
 
 	rqstp->rq_authop = aops;
-	return aops->accept(rqstp, authp);
+	return aops->accept(rqstp);
 }
 EXPORT_SYMBOL_GPL(svc_authenticate);
 
