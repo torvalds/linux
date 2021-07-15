@@ -1159,6 +1159,7 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 				       nfp_ct_map_params);
 		nfp_fl_ct_clean_flow_entry(ct_map_ent->ct_entry);
 		kfree(ct_map_ent);
+		break;
 	default:
 		break;
 	}
