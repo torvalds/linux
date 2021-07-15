@@ -4701,6 +4701,15 @@ out:
 	return err;
 }
 
+static void trace__exit(struct trace *trace)
+{
+	strlist__delete(trace->ev_qualifier);
+	free(trace->ev_qualifier_ids.entries);
+	free(trace->syscalls.table);
+	syscalltbl__delete(trace->sctbl);
+	zfree(&trace->perfconfig_events);
+}
+
 int cmd_trace(int argc, const char **argv)
 {
 	const char *trace_usage[] = {
@@ -5135,6 +5144,6 @@ out_close:
 	if (output_name != NULL)
 		fclose(trace.output);
 out:
-	zfree(&trace.perfconfig_events);
+	trace__exit(&trace);
 	return err;
 }
