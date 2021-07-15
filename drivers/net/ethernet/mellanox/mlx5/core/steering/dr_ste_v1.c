@@ -89,6 +89,7 @@ enum dr_ste_v1_action_id {
 	DR_STE_V1_ACTION_ID_QUEUE_ID_SEL		= 0x0d,
 	DR_STE_V1_ACTION_ID_ACCELERATED_LIST		= 0x0e,
 	DR_STE_V1_ACTION_ID_MODIFY_LIST			= 0x0f,
+	DR_STE_V1_ACTION_ID_ASO				= 0x12,
 	DR_STE_V1_ACTION_ID_TRAILER			= 0x13,
 	DR_STE_V1_ACTION_ID_COUNTER_ID			= 0x14,
 	DR_STE_V1_ACTION_ID_MAX				= 0x21,
@@ -127,6 +128,10 @@ enum {
 	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_1_1		= 0x8f,
 	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_0		= 0x90,
 	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_0_1		= 0x91,
+};
+
+enum dr_ste_v1_aso_ctx_type {
+	DR_STE_V1_ASO_CTX_TYPE_POLICERS = 0x2,
 };
 
 static const struct mlx5dr_ste_action_modify_field dr_ste_v1_action_modify_field_arr[] = {
@@ -494,6 +499,27 @@ static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
+static void dr_ste_v1_set_aso_flow_meter(u8 *d_action,
+					 u32 object_id,
+					 u32 offset,
+					 u8 dest_reg_id,
+					 u8 init_color)
+{
+	MLX5_SET(ste_double_action_aso_v1, d_action, action_id,
+		 DR_STE_V1_ACTION_ID_ASO);
+	MLX5_SET(ste_double_action_aso_v1, d_action, aso_context_number,
+		 object_id + (offset / MLX5DR_ASO_FLOW_METER_NUM_PER_OBJ));
+	/* Convert reg_c index to HW 64bit index */
+	MLX5_SET(ste_double_action_aso_v1, d_action, dest_reg_id,
+		 (dest_reg_id - 1) / 2);
+	MLX5_SET(ste_double_action_aso_v1, d_action, aso_context_type,
+		 DR_STE_V1_ASO_CTX_TYPE_POLICERS);
+	MLX5_SET(ste_double_action_aso_v1, d_action, flow_meter.line_id,
+		 offset % MLX5DR_ASO_FLOW_METER_NUM_PER_OBJ);
+	MLX5_SET(ste_double_action_aso_v1, d_action, flow_meter.initial_color,
+		 init_color);
+}
+
 static void dr_ste_v1_arr_init_next_match(u8 **last_ste,
 					  u32 *added_stes,
 					  u16 gvmi)
@@ -627,6 +653,21 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 					 attr->reformat.size);
 		action_sz -= DR_STE_ACTION_SINGLE_SZ;
 		action += DR_STE_ACTION_SINGLE_SZ;
+	}
+
+	if (action_type_set[DR_ACTION_TYP_ASO_FLOW_METER]) {
+		if (action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_aso_flow_meter(action,
+					     attr->aso_flow_meter.obj_id,
+					     attr->aso_flow_meter.offset,
+					     attr->aso_flow_meter.dest_reg_id,
+					     attr->aso_flow_meter.init_color);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
@@ -800,6 +841,21 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 					 attr->reformat.size);
 		action_sz -= DR_STE_ACTION_SINGLE_SZ;
 		action += DR_STE_ACTION_SINGLE_SZ;
+	}
+
+	if (action_type_set[DR_ACTION_TYP_ASO_FLOW_METER]) {
+		if (action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_aso_flow_meter(action,
+					     attr->aso_flow_meter.obj_id,
+					     attr->aso_flow_meter.offset,
+					     attr->aso_flow_meter.dest_reg_id,
+					     attr->aso_flow_meter.init_color);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
