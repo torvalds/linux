@@ -77,15 +77,17 @@
 	};
 
 	soc {
-		bus@50000000 {
-			flash@0 {
+		bus@c4000000 {
+			flash@0,0 {
 				compatible = "intel,ixp4xx-flash", "cfi-flash";
 				bank-width = <2>;
+				/* Enable writes on the expansion bus */
+				intel,ixp4xx-eb-write-enable = <1>;
 				/*
 				 * 32 MB of Flash in 0x20000 byte blocks
-				 * mapped in at CS0.
+				 * mapped in at CS0 and CS1
 				 */
-				reg = <0x00000000 0x2000000>;
+				reg = <0 0x00000000 0x2000000>;
 
 				partitions {
 					compatible = "redboot-fis";

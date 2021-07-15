@@ -96,16 +96,16 @@
 	};
 
 	soc {
-		bus@50000000 {
+		bus@c4000000 {
 			/* The first 16MB region at CS0 on the expansion bus */
-			flash@0 {
+			flash@0,0 {
 				compatible = "intel,ixp4xx-flash", "cfi-flash";
 				bank-width = <2>;
 				/*
 				 * 8 MB of Flash in 0x20000 byte blocks
 				 * mapped in at CS0.
 				 */
-				reg = <0x00000000 0x800000>;
+				reg = <0 0x00000000 0x800000>;
 
 				partitions {
 					compatible = "redboot-fis";

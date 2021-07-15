@@ -29,14 +29,14 @@
 	};
 
 	soc {
-		bus@50000000 {
-			flash@0 {
+		bus@c4000000 {
+			flash@0,0 {
 				compatible = "intel,ixp4xx-flash", "cfi-flash";
 				bank-width = <2>;
 				/*
 				 * 16 MB of Flash
 				 */
-				reg = <0x00000000 0x1000000>;
+				reg = <0 0x00000000 0x1000000>;
 
 				partitions {
 					compatible = "fixed-partitions";
