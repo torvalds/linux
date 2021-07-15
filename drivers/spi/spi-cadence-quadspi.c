@@ -307,11 +307,13 @@ static unsigned int cqspi_calc_rdreg(struct cqspi_flash_pdata *f_pdata)
 
 static unsigned int cqspi_calc_dummy(const struct spi_mem_op *op, bool dtr)
 {
-	unsigned int dummy_clk;
+	unsigned int dummy_clk = 0;
 
-	dummy_clk = op->dummy.nbytes * (8 / op->dummy.buswidth);
-	if (dtr)
-		dummy_clk /= 2;
+	if (op->dummy.buswidth && op->dummy.nbytes) {
+		dummy_clk = op->dummy.nbytes * (8 / op->dummy.buswidth);
+		if (dtr)
+			dummy_clk /= 2;
+	}
 
 	return dummy_clk;
 }
