@@ -109,7 +109,6 @@ static int snd_vx222_free(struct vx_core *chip)
 	if (vx->port[0])
 		pci_release_regions(vx->pci);
 	pci_disable_device(vx->pci);
-	kfree(chip);
 	return 0;
 }
 
