@@ -25,4 +25,28 @@ struct mlx5_lag_port_sel {
 	struct mlx5_lag_ttc inner;
 };
 
+#ifdef CONFIG_MLX5_ESWITCH
+
+int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 port1, u8 port2);
+void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev);
+int mlx5_lag_port_sel_create(struct mlx5_lag *ldev,
+			     enum netdev_lag_hash hash_type, u8 port1,
+			     u8 port2);
+
+#else /* CONFIG_MLX5_ESWITCH */
+static inline int mlx5_lag_port_sel_create(struct mlx5_lag *ldev,
+					   enum netdev_lag_hash hash_type,
+					   u8 port1, u8 port2)
+{
+	return 0;
+}
+
+static inline int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 port1,
+					   u8 port2)
+{
+	return 0;
+}
+
+static inline void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev) {}
+#endif /* CONFIG_MLX5_ESWITCH */
 #endif /* __MLX5_LAG_FS_H__ */

@@ -511,3 +511,101 @@ static int mlx5_lag_create_inner_ttc_table(struct mlx5_lag *ldev)
 
 	return 0;
 }
+
+int mlx5_lag_port_sel_create(struct mlx5_lag *ldev,
+			     enum netdev_lag_hash hash_type, u8 port1, u8 port2)
+{
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	int err;
+
+	set_tt_map(port_sel, hash_type);
+	err = mlx5_lag_create_definers(ldev, hash_type, port1, port2);
+	if (err)
+		return err;
+
+	if (port_sel->tunnel) {
+		err = mlx5_lag_create_inner_ttc_table(ldev);
+		if (err)
+			goto destroy_definers;
+	}
+
+	err = mlx5_lag_create_ttc_table(ldev);
+	if (err)
+		goto destroy_inner;
+
+	return 0;
+
+destroy_inner:
+	if (port_sel->tunnel)
+		mlx5_destroy_ttc_table(port_sel->inner.ttc);
+destroy_definers:
+	mlx5_lag_destroy_definers(ldev);
+	return err;
+}
+
+static int
+mlx5_lag_modify_definers_destinations(struct mlx5_lag *ldev,
+				      struct mlx5_lag_definer **definers,
+				      u8 port1, u8 port2)
+{
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	struct mlx5_flow_destination dest = {};
+	int err;
+	int tt;
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_UPLINK;
+	dest.vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
+
+	for_each_set_bit(tt, port_sel->tt_map, MLX5_NUM_TT) {
+		struct mlx5_flow_handle **rules = definers[tt]->rules;
+
+		if (ldev->v2p_map[MLX5_LAG_P1] != port1) {
+			dest.vport.vhca_id =
+				MLX5_CAP_GEN(ldev->pf[port1 - 1].dev, vhca_id);
+			err = mlx5_modify_rule_destination(rules[MLX5_LAG_P1],
+							   &dest, NULL);
+			if (err)
+				return err;
+		}
+
+		if (ldev->v2p_map[MLX5_LAG_P2] != port2) {
+			dest.vport.vhca_id =
+				MLX5_CAP_GEN(ldev->pf[port2 - 1].dev, vhca_id);
+			err = mlx5_modify_rule_destination(rules[MLX5_LAG_P2],
+							   &dest, NULL);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+int mlx5_lag_port_sel_modify(struct mlx5_lag *ldev, u8 port1, u8 port2)
+{
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	int err;
+
+	err = mlx5_lag_modify_definers_destinations(ldev,
+						    port_sel->outer.definers,
+						    port1, port2);
+	if (err)
+		return err;
+
+	if (!port_sel->tunnel)
+		return 0;
+
+	return mlx5_lag_modify_definers_destinations(ldev,
+						     port_sel->inner.definers,
+						     port1, port2);
+}
+
+void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev)
+{
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+
+	mlx5_destroy_ttc_table(port_sel->outer.ttc);
+	if (port_sel->tunnel)
+		mlx5_destroy_ttc_table(port_sel->inner.ttc);
+	mlx5_lag_destroy_definers(ldev);
+}
