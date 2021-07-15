@@ -25,14 +25,13 @@ void chv_compute_dpll(struct intel_crtc_state *crtc_state);
 int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     const struct dpll *dpll);
 void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe);
-void i9xx_enable_pll(const struct intel_crtc_state *crtc_state);
-void vlv_enable_pll(const struct intel_crtc_state *crtc_state);
+
 void chv_enable_pll(const struct intel_crtc_state *crtc_state);
-void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
 void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
+void vlv_enable_pll(const struct intel_crtc_state *crtc_state);
+void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
+void i9xx_enable_pll(const struct intel_crtc_state *crtc_state);
 void i9xx_disable_pll(const struct intel_crtc_state *crtc_state);
-void vlv_prepare_pll(const struct intel_crtc_state *crtc_state);
-void chv_prepare_pll(const struct intel_crtc_state *crtc_state);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock);
 int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);

@@ -3576,13 +3576,10 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
-	if (IS_CHERRYVIEW(dev_priv)) {
-		chv_prepare_pll(new_crtc_state);
+	if (IS_CHERRYVIEW(dev_priv))
 		chv_enable_pll(new_crtc_state);
-	} else {
-		vlv_prepare_pll(new_crtc_state);
+	else
 		vlv_enable_pll(new_crtc_state);
-	}
 
 	intel_encoders_pre_enable(state, crtc);
 

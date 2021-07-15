@@ -1467,112 +1467,7 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
 	vlv_dpio_write(dev_priv, pipe, VLV_REF_DW13, reg_val);
 }
 
-static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	intel_de_write(dev_priv, DPLL(pipe), crtc_state->dpll_hw_state.dpll);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
-	udelay(150);
-
-	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
-		drm_err(&dev_priv->drm, "DPLL %d failed to lock\n", pipe);
-}
-
-void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
-
-	/* PLL is protected by panel, make sure we can write it */
-	assert_panel_unlocked(dev_priv, pipe);
-
-	if (crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE)
-		_vlv_enable_pll(crtc_state);
-
-	intel_de_write(dev_priv, DPLL_MD(pipe),
-		       crtc_state->dpll_hw_state.dpll_md);
-	intel_de_posting_read(dev_priv, DPLL_MD(pipe));
-}
-
-
-static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	u32 tmp;
-
-	vlv_dpio_get(dev_priv);
-
-	/* Enable back the 10bit clock to display controller */
-	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
-	tmp |= DPIO_DCLKP_EN;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
-
-	vlv_dpio_put(dev_priv);
-
-	/*
-	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
-	 */
-	udelay(1);
-
-	/* Enable PLL */
-	intel_de_write(dev_priv, DPLL(pipe), crtc_state->dpll_hw_state.dpll);
-
-	/* Check PLL is locked */
-	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
-		drm_err(&dev_priv->drm, "PLL %d failed to lock\n", pipe);
-}
-
-void chv_enable_pll(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
-
-	/* PLL is protected by panel, make sure we can write it */
-	assert_panel_unlocked(dev_priv, pipe);
-
-	if (crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE)
-		_chv_enable_pll(crtc_state);
-
-	if (pipe != PIPE_A) {
-		/*
-		 * WaPixelRepeatModeFixForC0:chv
-		 *
-		 * DPLLCMD is AWOL. Use chicken bits to propagate
-		 * the value from DPLLBMD to either pipe B or C.
-		 */
-		intel_de_write(dev_priv, CBR4_VLV, CBR_DPLLBMD_PIPE(pipe));
-		intel_de_write(dev_priv, DPLL_MD(PIPE_B),
-			       crtc_state->dpll_hw_state.dpll_md);
-		intel_de_write(dev_priv, CBR4_VLV, 0);
-		dev_priv->chv_dpll_md[pipe] = crtc_state->dpll_hw_state.dpll_md;
-
-		/*
-		 * DPLLB VGA mode also seems to cause problems.
-		 * We should always have it disabled.
-		 */
-		drm_WARN_ON(&dev_priv->drm,
-			    (intel_de_read(dev_priv, DPLL(PIPE_B)) &
-			     DPLL_VGA_MODE_DIS) == 0);
-	} else {
-		intel_de_write(dev_priv, DPLL_MD(pipe),
-			       crtc_state->dpll_hw_state.dpll_md);
-		intel_de_posting_read(dev_priv, DPLL_MD(pipe));
-	}
-}
-
-void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
+static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1580,15 +1475,6 @@ void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	u32 mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 coreclk, reg_val;
-
-	/* Enable Refclk */
-	intel_de_write(dev_priv, DPLL(pipe),
-		       crtc_state->dpll_hw_state.dpll &
-		       ~(DPLL_VCO_ENABLE | DPLL_EXT_BUFFER_ENABLE_VLV));
-
-	/* No need to actually set up the DPLL with DSI */
-	if ((crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
-		return;
 
 	vlv_dpio_get(dev_priv);
 
@@ -1671,7 +1557,47 @@ void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	vlv_dpio_put(dev_priv);
 }
 
-void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
+static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_de_write(dev_priv, DPLL(pipe), crtc_state->dpll_hw_state.dpll);
+	intel_de_posting_read(dev_priv, DPLL(pipe));
+	udelay(150);
+
+	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
+		drm_err(&dev_priv->drm, "DPLL %d failed to lock\n", pipe);
+}
+
+void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+
+	/* PLL is protected by panel, make sure we can write it */
+	assert_panel_unlocked(dev_priv, pipe);
+
+	/* Enable Refclk */
+	intel_de_write(dev_priv, DPLL(pipe),
+		       crtc_state->dpll_hw_state.dpll &
+		       ~(DPLL_VCO_ENABLE | DPLL_EXT_BUFFER_ENABLE_VLV));
+
+	if (crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) {
+		vlv_prepare_pll(crtc_state);
+		_vlv_enable_pll(crtc_state);
+	}
+
+	intel_de_write(dev_priv, DPLL_MD(pipe),
+		       crtc_state->dpll_hw_state.dpll_md);
+	intel_de_posting_read(dev_priv, DPLL_MD(pipe));
+}
+
+static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1681,14 +1607,6 @@ void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
 	u32 dpio_val;
 	int vco;
-
-	/* Enable Refclk and SSC */
-	intel_de_write(dev_priv, DPLL(pipe),
-		       crtc_state->dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
-
-	/* No need to actually set up the DPLL with DSI */
-	if ((crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
-		return;
 
 	bestn = crtc_state->dpll.n;
 	bestm2_frac = crtc_state->dpll.m2 & 0x3fffff;
@@ -1775,6 +1693,83 @@ void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	vlv_dpio_put(dev_priv);
 }
 
+static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	enum dpio_channel port = vlv_pipe_to_channel(pipe);
+	u32 tmp;
+
+	vlv_dpio_get(dev_priv);
+
+	/* Enable back the 10bit clock to display controller */
+	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
+	tmp |= DPIO_DCLKP_EN;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
+
+	vlv_dpio_put(dev_priv);
+
+	/*
+	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
+	 */
+	udelay(1);
+
+	/* Enable PLL */
+	intel_de_write(dev_priv, DPLL(pipe), crtc_state->dpll_hw_state.dpll);
+
+	/* Check PLL is locked */
+	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
+		drm_err(&dev_priv->drm, "PLL %d failed to lock\n", pipe);
+}
+
+void chv_enable_pll(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+
+	/* PLL is protected by panel, make sure we can write it */
+	assert_panel_unlocked(dev_priv, pipe);
+
+	/* Enable Refclk and SSC */
+	intel_de_write(dev_priv, DPLL(pipe),
+		       crtc_state->dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
+
+	if (crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) {
+		chv_prepare_pll(crtc_state);
+		_chv_enable_pll(crtc_state);
+	}
+
+	if (pipe != PIPE_A) {
+		/*
+		 * WaPixelRepeatModeFixForC0:chv
+		 *
+		 * DPLLCMD is AWOL. Use chicken bits to propagate
+		 * the value from DPLLBMD to either pipe B or C.
+		 */
+		intel_de_write(dev_priv, CBR4_VLV, CBR_DPLLBMD_PIPE(pipe));
+		intel_de_write(dev_priv, DPLL_MD(PIPE_B),
+			       crtc_state->dpll_hw_state.dpll_md);
+		intel_de_write(dev_priv, CBR4_VLV, 0);
+		dev_priv->chv_dpll_md[pipe] = crtc_state->dpll_hw_state.dpll_md;
+
+		/*
+		 * DPLLB VGA mode also seems to cause problems.
+		 * We should always have it disabled.
+		 */
+		drm_WARN_ON(&dev_priv->drm,
+			    (intel_de_read(dev_priv, DPLL(PIPE_B)) &
+			     DPLL_VGA_MODE_DIS) == 0);
+	} else {
+		intel_de_write(dev_priv, DPLL_MD(pipe),
+			       crtc_state->dpll_hw_state.dpll_md);
+		intel_de_posting_read(dev_priv, DPLL_MD(pipe));
+	}
+}
+
 /**
  * vlv_force_pll_on - forcibly enable just the PLL
  * @dev_priv: i915 private structure
@@ -1802,11 +1797,9 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		chv_compute_dpll(crtc_state);
-		chv_prepare_pll(crtc_state);
 		chv_enable_pll(crtc_state);
 	} else {
 		vlv_compute_dpll(crtc_state);
-		vlv_prepare_pll(crtc_state);
 		vlv_enable_pll(crtc_state);
 	}
 
