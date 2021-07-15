@@ -22,17 +22,9 @@ static int idxd_config_bus_match(struct device *dev,
 	int matched = 0;
 
 	if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
-
-		if (idxd->state != IDXD_DEV_CONF_READY)
-			return 0;
 		matched = 1;
 	} else if (is_idxd_wq_dev(dev)) {
 		struct idxd_wq *wq = confdev_to_wq(dev);
-		struct idxd_device *idxd = wq->idxd;
-
-		if (idxd->state < IDXD_DEV_CONF_READY)
-			return 0;
 
 		if (wq->state != IDXD_WQ_DISABLED) {
 			dev_dbg(dev, "%s not disabled\n", dev_name(dev));
@@ -178,11 +170,6 @@ static int idxd_config_bus_probe(struct device *dev)
 
 	if (is_idxd_dev(dev)) {
 		struct idxd_device *idxd = confdev_to_idxd(dev);
-
-		if (idxd->state != IDXD_DEV_CONF_READY) {
-			dev_warn(dev, "Device not ready for config\n");
-			return -EBUSY;
-		}
 
 		if (!try_module_get(THIS_MODULE))
 			return -ENXIO;
@@ -1430,7 +1417,6 @@ static ssize_t state_show(struct device *dev,
 
 	switch (idxd->state) {
 	case IDXD_DEV_DISABLED:
-	case IDXD_DEV_CONF_READY:
 		return sysfs_emit(buf, "disabled\n");
 	case IDXD_DEV_ENABLED:
 		return sysfs_emit(buf, "enabled\n");

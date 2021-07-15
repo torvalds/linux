@@ -576,7 +576,7 @@ int idxd_device_disable(struct idxd_device *idxd)
 
 	spin_lock_irqsave(&idxd->dev_lock, flags);
 	idxd_device_clear_state(idxd);
-	idxd->state = IDXD_DEV_CONF_READY;
+	idxd->state = IDXD_DEV_DISABLED;
 	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 	return 0;
 }
@@ -588,7 +588,7 @@ void idxd_device_reset(struct idxd_device *idxd)
 	idxd_cmd_exec(idxd, IDXD_CMD_RESET_DEVICE, 0, NULL);
 	spin_lock_irqsave(&idxd->dev_lock, flags);
 	idxd_device_clear_state(idxd);
-	idxd->state = IDXD_DEV_CONF_READY;
+	idxd->state = IDXD_DEV_DISABLED;
 	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 }
 

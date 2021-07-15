@@ -210,7 +210,6 @@ struct idxd_hw {
 enum idxd_device_state {
 	IDXD_DEV_HALTED = -1,
 	IDXD_DEV_DISABLED = 0,
-	IDXD_DEV_CONF_READY,
 	IDXD_DEV_ENABLED,
 };
 
