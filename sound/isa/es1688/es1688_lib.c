@@ -580,13 +580,6 @@ static int snd_es1688_free(struct snd_es1688 *chip)
 {
 	if (chip->hardware != ES1688_HW_UNDEF)
 		snd_es1688_init(chip, 0);
-	release_and_free_resource(chip->res_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *) chip);
-	if (chip->dma8 >= 0) {
-		disable_dma(chip->dma8);
-		free_dma(chip->dma8);
-	}
 	return 0;
 }
 
@@ -624,26 +617,25 @@ int snd_es1688_create(struct snd_card *card,
 	chip->dma8 = -1;
 	chip->hardware = ES1688_HW_UNDEF;
 	
-	chip->res_port = request_region(port + 4, 12, "ES1688");
-	if (chip->res_port == NULL) {
+	if (!devm_request_region(card->dev, port + 4, 12, "ES1688")) {
 		snd_printk(KERN_ERR "es1688: can't grab port 0x%lx\n", port + 4);
-		err = -EBUSY;
-		goto exit;
+		return -EBUSY;
 	}
 
-	err = request_irq(irq, snd_es1688_interrupt, 0, "ES1688", (void *) chip);
+	err = devm_request_irq(card->dev, irq, snd_es1688_interrupt, 0,
+			       "ES1688", (void *) chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "es1688: can't grab IRQ %d\n", irq);
-		goto exit;
+		return err;
 	}
 
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
-	err = request_dma(dma8, "ES1688");
+	err = snd_devm_request_dma(card->dev, dma8, "ES1688");
 
 	if (err < 0) {
 		snd_printk(KERN_ERR "es1688: can't grab DMA8 %d\n", dma8);
-		goto exit;
+		return err;
 	}
 	chip->dma8 = dma8;
 
@@ -659,17 +651,14 @@ int snd_es1688_create(struct snd_card *card,
 
 	err = snd_es1688_probe(chip);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	err = snd_es1688_init(chip, 1);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	/* Register device */
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-exit:
-	if (err)
-		snd_es1688_free(chip);
 	return err;
 }
 
