@@ -1394,30 +1394,30 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = crtc_state->dpll_hw_state.dpll;
+	enum pipe pipe = crtc->pipe;
 	int i;
 
 	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
-		assert_panel_unlocked(dev_priv, crtc->pipe);
+		assert_panel_unlocked(dev_priv, pipe);
 
 	/*
 	 * Apparently we need to have VGA mode enabled prior to changing
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
 	 * dividers, even though the register value does change.
 	 */
-	intel_de_write(dev_priv, reg, dpll & ~DPLL_VGA_MODE_DIS);
-	intel_de_write(dev_priv, reg, dpll);
+	intel_de_write(dev_priv, DPLL(pipe), dpll & ~DPLL_VGA_MODE_DIS);
+	intel_de_write(dev_priv, DPLL(pipe), dpll);
 
 	/* Wait for the clocks to stabilize. */
-	intel_de_posting_read(dev_priv, reg);
+	intel_de_posting_read(dev_priv, DPLL(pipe));
 	udelay(150);
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		intel_de_write(dev_priv, DPLL_MD(crtc->pipe),
+		intel_de_write(dev_priv, DPLL_MD(pipe),
 			       crtc_state->dpll_hw_state.dpll_md);
 	} else {
 		/* The pixel multiplier can only be updated once the
@@ -1425,13 +1425,13 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 		 *
 		 * So write it again.
 		 */
-		intel_de_write(dev_priv, reg, dpll);
+		intel_de_write(dev_priv, DPLL(pipe), dpll);
 	}
 
 	/* We do this three times for luck */
 	for (i = 0; i < 3; i++) {
-		intel_de_write(dev_priv, reg, dpll);
-		intel_de_posting_read(dev_priv, reg);
+		intel_de_write(dev_priv, DPLL(pipe), dpll);
+		intel_de_posting_read(dev_priv, DPLL(pipe));
 		udelay(150); /* wait for warmup */
 	}
 }
