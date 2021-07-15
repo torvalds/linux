@@ -98,24 +98,18 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 				}
 				off += PCI_VPD_LRDT_TAG_SIZE +
 					pci_vpd_lrdt_size(header);
+			} else {
+				pci_warn(dev, "invalid large VPD tag %02x at offset %zu\n",
+					 tag, off);
+				return 0;
 			}
 		} else {
 			/* Short Resource Data Type Tag */
 			off += PCI_VPD_SRDT_TAG_SIZE +
 				pci_vpd_srdt_size(header);
 			tag = pci_vpd_srdt_tag(header);
-		}
-
-		if (tag == PCI_VPD_STIN_END)	/* End tag descriptor */
-			return off;
-
-		if ((tag != PCI_VPD_LTIN_ID_STRING) &&
-		    (tag != PCI_VPD_LTIN_RO_DATA) &&
-		    (tag != PCI_VPD_LTIN_RW_DATA)) {
-			pci_warn(dev, "invalid %s VPD tag %02x at offset %zu",
-				 (header[0] & PCI_VPD_LRDT) ? "large" : "short",
-				 tag, off);
-			return 0;
+			if (tag == PCI_VPD_STIN_END)	/* End tag descriptor */
+				return off;
 		}
 	}
 	return 0;
