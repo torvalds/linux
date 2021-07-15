@@ -2,6 +2,10 @@
 include ../../scripts/Makefile.include
 include ../../scripts/utilities.mak
 
+ARTICLES =
+# with their own formatting rules.
+SP_ARTICLES =
+
 MAN1_TXT= \
 	$(filter-out $(addsuffix .txt, $(ARTICLES) $(SP_ARTICLES)), \
 		$(wildcard perf-*.txt)) \
@@ -15,13 +19,6 @@ _MAN_HTML=$(patsubst %.txt,%.html,$(MAN_TXT))
 
 MAN_XML=$(addprefix $(OUTPUT),$(_MAN_XML))
 MAN_HTML=$(addprefix $(OUTPUT),$(_MAN_HTML))
-
-ARTICLES =
-# with their own formatting rules.
-SP_ARTICLES =
-API_DOCS = $(patsubst %.txt,%,$(filter-out technical/api-index-skel.txt technical/api-index.txt, $(wildcard technical/api-*.txt)))
-SP_ARTICLES += $(API_DOCS)
-SP_ARTICLES += technical/api-index
 
 _DOC_HTML = $(_MAN_HTML)
 _DOC_HTML+=$(patsubst %,%.html,$(ARTICLES) $(SP_ARTICLES))
