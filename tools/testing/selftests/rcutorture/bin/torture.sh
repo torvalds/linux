@@ -434,7 +434,12 @@ then
 	batchno=1
 	if test -s $T/xz-todo
 	then
-		echo Size before compressing: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
+		for i in `cat $T/xz-todo`
+		do
+			find $i -name 'vmlinux*' -print
+		done | wc -l | awk '{ print $1 }' > $T/xz-todo-count
+		n2compress="`cat $T/xz-todo-count`"
+		echo Size before compressing $n2compress files: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
 		for i in `cat $T/xz-todo`
 		do
 			echo Compressing vmlinux files in ${i}: `date` >> "$tdir/log-xz" 2>&1
@@ -456,7 +461,7 @@ then
 			echo Waiting for final batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
 		fi
 		wait
-		echo Size after compressing: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
+		echo Size after compressing $n2compress files: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
 		echo Total duration `get_starttime_duration $starttime`. | tee -a $T/log
 	else
 		echo No compression needed: `date` >> "$tdir/log-xz" 2>&1
