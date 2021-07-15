@@ -51,6 +51,7 @@ enum idxd_type {
 
 struct idxd_device_driver {
 	const char *name;
+	enum idxd_dev_type *type;
 	int (*probe)(struct idxd_dev *idxd_dev);
 	void (*remove)(struct idxd_dev *idxd_dev);
 	struct device_driver drv;

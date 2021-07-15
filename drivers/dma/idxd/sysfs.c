@@ -19,9 +19,18 @@ static char *idxd_wq_type_names[] = {
 static int idxd_config_bus_match(struct device *dev,
 				 struct device_driver *drv)
 {
+	struct idxd_device_driver *idxd_drv =
+		container_of(drv, struct idxd_device_driver, drv);
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+	int i = 0;
 
-	return (is_idxd_dev(idxd_dev) || is_idxd_wq_dev(idxd_dev));
+	while (idxd_drv->type[i] != IDXD_DEV_NONE) {
+		if (idxd_dev->type == idxd_drv->type[i])
+			return 1;
+		i++;
+	}
+
+	return 0;
 }
 
 static int idxd_config_bus_probe(struct device *dev)
@@ -79,10 +88,15 @@ static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
 	}
 }
 
+static enum idxd_dev_type dev_types[] = {
+	IDXD_DEV_NONE,
+};
+
 struct idxd_device_driver dsa_drv = {
 	.name = "dsa",
 	.probe = idxd_dsa_drv_probe,
 	.remove = idxd_dsa_drv_remove,
+	.type = dev_types,
 };
 
 /* IDXD engine attributes */
