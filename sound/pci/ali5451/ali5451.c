@@ -2026,7 +2026,7 @@ static int snd_ali_create(struct snd_card *card,
 			  int pcm_streams,
 			  int spdif_support)
 {
-	struct snd_ali *codec;
+	struct snd_ali *codec = card->private_data;
 	int i, err;
 	unsigned short cmdw;
 
