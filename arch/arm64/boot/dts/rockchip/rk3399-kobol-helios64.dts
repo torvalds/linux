@@ -43,6 +43,10 @@
 		vin-supply = <&vcc3v3_sys_s3>;
 	};
 
+	chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+
 	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
