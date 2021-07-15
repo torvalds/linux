@@ -4659,6 +4659,9 @@ do_concat:
 		err = parse_events_option(&o, lists[0], 0);
 	}
 out:
+	free(strace_groups_dir);
+	free(lists[0]);
+	free(lists[1]);
 	if (sep)
 		*sep = ',';
 
