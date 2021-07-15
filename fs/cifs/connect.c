@@ -1295,6 +1295,9 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 		return;
 	}
 
+	/* srv_count can never go negative */
+	WARN_ON(server->srv_count < 0);
+
 	put_net(cifs_net_ns(server));
 
 	list_del_init(&server->tcp_ses_list);
@@ -1653,6 +1656,9 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 		return;
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
+
+	/* ses_count can never go negative */
+	WARN_ON(ses->ses_count < 0);
 
 	spin_lock(&GlobalMid_Lock);
 	if (ses->status == CifsGood)
@@ -2020,6 +2026,9 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
+
+	/* tc_count can never go negative */
+	WARN_ON(tcon->tc_count < 0);
 
 	if (tcon->use_witness) {
 		int rc;
