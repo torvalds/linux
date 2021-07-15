@@ -104,6 +104,7 @@ struct hantro_h264_dec_hw_ctx {
 /**
  * struct hantro_hevc_dec_ctrls
  * @decode_params: Decode params
+ * @scaling:	Scaling matrix
  * @sps:	SPS info
  * @pps:	PPS info
  * @hevc_hdr_skip_length: the number of data (in bits) to skip in the
@@ -112,6 +113,7 @@ struct hantro_h264_dec_hw_ctx {
  */
 struct hantro_hevc_dec_ctrls {
 	const struct v4l2_ctrl_hevc_decode_params *decode_params;
+	const struct v4l2_ctrl_hevc_scaling_matrix *scaling;
 	const struct v4l2_ctrl_hevc_sps *sps;
 	const struct v4l2_ctrl_hevc_pps *pps;
 	u32 hevc_hdr_skip_length;
@@ -124,6 +126,7 @@ struct hantro_hevc_dec_ctrls {
  * @tile_sao:		Tile SAO buffer
  * @tile_bsd:		Tile BSD control buffer
  * @ref_bufs:		Internal reference buffers
+ * @scaling_lists:	Scaling lists buffer
  * @ref_bufs_poc:	Internal reference buffers picture order count
  * @ref_bufs_used:	Bitfield of used reference buffers
  * @ctrls:		V4L2 controls attached to a run
@@ -135,6 +138,7 @@ struct hantro_hevc_dec_hw_ctx {
 	struct hantro_aux_buf tile_sao;
 	struct hantro_aux_buf tile_bsd;
 	struct hantro_aux_buf ref_bufs[NUM_REF_PICTURES];
+	struct hantro_aux_buf scaling_lists;
 	int ref_bufs_poc[NUM_REF_PICTURES];
 	u32 ref_bufs_used;
 	struct hantro_hevc_dec_ctrls ctrls;
