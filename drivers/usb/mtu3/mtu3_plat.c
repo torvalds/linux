@@ -45,6 +45,29 @@ int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 	return 0;
 }
 
+static int wait_for_ip_sleep(struct ssusb_mtk *ssusb)
+{
+	bool sleep_check = true;
+	u32 value;
+	int ret;
+
+	if (!ssusb->is_host)
+		sleep_check = ssusb_gadget_ip_sleep_check(ssusb);
+
+	if (!sleep_check)
+		return 0;
+
+	/* wait for ip enter sleep mode */
+	ret = readl_poll_timeout(ssusb->ippc_base + U3D_SSUSB_IP_PW_STS1, value,
+				 (value & SSUSB_IP_SLEEP_STS), 100, 100000);
+	if (ret) {
+		dev_err(ssusb->dev, "ip sleep failed!!!\n");
+		ret = -EBUSY;
+	}
+
+	return ret;
+}
+
 static int ssusb_phy_init(struct ssusb_mtk *ssusb)
 {
 	int i;
@@ -421,6 +444,28 @@ static int mtu3_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int resume_ip_and_ports(struct ssusb_mtk *ssusb, pm_message_t msg)
+{
+	switch (ssusb->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		ssusb_gadget_resume(ssusb, msg);
+		break;
+	case USB_DR_MODE_HOST:
+		ssusb_host_resume(ssusb, false);
+		break;
+	case USB_DR_MODE_OTG:
+		ssusb_host_resume(ssusb, !ssusb->is_host);
+		if (!ssusb->is_host)
+			ssusb_gadget_resume(ssusb, msg);
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mtu3_suspend_common(struct device *dev, pm_message_t msg)
 {
 	struct ssusb_mtk *ssusb = dev_get_drvdata(dev);
@@ -432,26 +477,36 @@ static int mtu3_suspend_common(struct device *dev, pm_message_t msg)
 	case USB_DR_MODE_PERIPHERAL:
 		ret = ssusb_gadget_suspend(ssusb, msg);
 		if (ret)
-			return ret;
+			goto err;
 
 		break;
 	case USB_DR_MODE_HOST:
 		ssusb_host_suspend(ssusb);
 		break;
 	case USB_DR_MODE_OTG:
-		if (!ssusb->is_host)
-			return 0;
-
+		if (!ssusb->is_host) {
+			ret = ssusb_gadget_suspend(ssusb, msg);
+			if (ret)
+				goto err;
+		}
 		ssusb_host_suspend(ssusb);
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	ret = wait_for_ip_sleep(ssusb);
+	if (ret)
+		goto sleep_err;
+
 	ssusb_phy_power_off(ssusb);
 	clk_bulk_disable_unprepare(BULK_CLKS_CNT, ssusb->clks);
 	ssusb_wakeup_set(ssusb, true);
 
-	return 0;
+sleep_err:
+	resume_ip_and_ports(ssusb, msg);
+err:
+	return ret;
 }
 
 static int mtu3_resume_common(struct device *dev, pm_message_t msg)
@@ -470,24 +525,7 @@ static int mtu3_resume_common(struct device *dev, pm_message_t msg)
 	if (ret)
 		goto phy_err;
 
-	switch (ssusb->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-		ssusb_gadget_resume(ssusb, msg);
-		break;
-	case USB_DR_MODE_HOST:
-		ssusb_host_resume(ssusb, false);
-		break;
-	case USB_DR_MODE_OTG:
-		if (!ssusb->is_host)
-			return 0;
-
-		ssusb_host_resume(ssusb, true);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return resume_ip_and_ports(ssusb, msg);
 
 phy_err:
 	clk_bulk_disable_unprepare(BULK_CLKS_CNT, ssusb->clks);

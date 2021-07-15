@@ -9,7 +9,6 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -1008,12 +1007,25 @@ void ssusb_gadget_exit(struct ssusb_mtk *ssusb)
 	mtu3_hw_exit(mtu);
 }
 
+bool ssusb_gadget_ip_sleep_check(struct ssusb_mtk *ssusb)
+{
+	struct mtu3 *mtu = ssusb->u3d;
+
+	/* host only, should wait for ip sleep */
+	if (!mtu)
+		return true;
+
+	/* device is started and pullup D+, ip can sleep */
+	if (mtu->is_active && mtu->softconnect)
+		return true;
+
+	/* ip can't sleep if not pullup D+ when support device mode */
+	return false;
+}
+
 int ssusb_gadget_suspend(struct ssusb_mtk *ssusb, pm_message_t msg)
 {
 	struct mtu3 *mtu = ssusb->u3d;
-	void __iomem *ibase = mtu->ippc_base;
-	u32 value;
-	int ret = 0;
 
 	if (!mtu->gadget_driver)
 		return 0;
@@ -1024,17 +1036,7 @@ int ssusb_gadget_suspend(struct ssusb_mtk *ssusb, pm_message_t msg)
 	mtu3_dev_suspend(mtu);
 	synchronize_irq(mtu->irq);
 
-	/* wait for ip to sleep */
-	if (mtu->is_active && mtu->softconnect) {
-		ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS1,
-				value, (value & SSUSB_IP_SLEEP_STS), 100, 100000);
-		if (ret) {
-			dev_err(mtu->dev, "ip sleep failed!!!\n");
-			ret = -EBUSY;
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 int ssusb_gadget_resume(struct ssusb_mtk *ssusb, pm_message_t msg)
