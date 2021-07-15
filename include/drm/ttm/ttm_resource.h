@@ -161,6 +161,7 @@ struct ttm_bus_placement {
  * @mem_type: Resource type of the allocation.
  * @placement: Placement flags.
  * @bus: Placement on io bus accessible to the CPU
+ * @bo: weak reference to the BO, protected by ttm_device::lru_lock
  *
  * Structure indicating the placement and space resources used by a
  * buffer object.
@@ -171,6 +172,7 @@ struct ttm_resource {
 	uint32_t mem_type;
 	uint32_t placement;
 	struct ttm_bus_placement bus;
+	struct ttm_buffer_object *bo;
 };
 
 /**
@@ -271,6 +273,8 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res);
 bool ttm_resource_compat(struct ttm_resource *res,
 			 struct ttm_placement *placement);
+void ttm_resource_set_bo(struct ttm_resource *res,
+			 struct ttm_buffer_object *bo);
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       struct ttm_device *bdev,

@@ -49,6 +49,7 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	res->bus.offset = 0;
 	res->bus.is_iomem = false;
 	res->bus.caching = ttm_cached;
+	res->bo = bo;
 }
 EXPORT_SYMBOL(ttm_resource_init);
 
@@ -138,6 +139,14 @@ bool ttm_resource_compat(struct ttm_resource *res,
 	return false;
 }
 EXPORT_SYMBOL(ttm_resource_compat);
+
+void ttm_resource_set_bo(struct ttm_resource *res,
+			 struct ttm_buffer_object *bo)
+{
+	spin_lock(&bo->bdev->lru_lock);
+	res->bo = bo;
+	spin_unlock(&bo->bdev->lru_lock);
+}
 
 /**
  * ttm_resource_manager_init
