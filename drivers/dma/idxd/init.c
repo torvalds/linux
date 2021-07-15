@@ -26,6 +26,7 @@
 MODULE_VERSION(IDXD_DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
+MODULE_IMPORT_NS(IDXD);
 
 static bool sva = true;
 module_param(sva, bool, 0644);
@@ -836,10 +837,6 @@ static int __init idxd_init_module(void)
 
 	perfmon_init();
 
-	err = idxd_register_bus_type();
-	if (err < 0)
-		return err;
-
 	err = idxd_driver_register(&idxd_drv);
 	if (err < 0)
 		goto err_idxd_driver_register;
@@ -877,7 +874,6 @@ err_idxd_user_driver_register:
 err_idxd_dmaengine_driver_register:
 	idxd_driver_unregister(&idxd_drv);
 err_idxd_driver_register:
-	idxd_unregister_bus_type();
 	return err;
 }
 module_init(idxd_init_module);
@@ -890,30 +886,6 @@ static void __exit idxd_exit_module(void)
 	idxd_driver_unregister(&dsa_drv);
 	pci_unregister_driver(&idxd_pci_driver);
 	idxd_cdev_remove();
-	idxd_unregister_bus_type();
 	perfmon_exit();
 }
 module_exit(idxd_exit_module);
-
-int __idxd_driver_register(struct idxd_device_driver *idxd_drv, struct module *owner,
-			   const char *mod_name)
-{
-	struct device_driver *drv = &idxd_drv->drv;
-
-	if (!idxd_drv->type) {
-		pr_debug("driver type not set (%ps)\n", __builtin_return_address(0));
-		return -EINVAL;
-	}
-
-	drv->name = idxd_drv->name;
-	drv->bus = &dsa_bus_type;
-	drv->owner = owner;
-	drv->mod_name = mod_name;
-
-	return driver_register(drv);
-}
-
-void idxd_driver_unregister(struct idxd_device_driver *idxd_drv)
-{
-	driver_unregister(&idxd_drv->drv);
-}

@@ -277,6 +277,10 @@ config INTEL_IDMA64
 	  Enable DMA support for Intel Low Power Subsystem such as found on
 	  Intel Skylake PCH.
 
+config INTEL_IDXD_BUS
+	tristate
+	default INTEL_IDXD
+
 config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
 	depends on PCI && X86_64 && !UML
