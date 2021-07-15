@@ -155,6 +155,9 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 
 	/* power on and enable all u2 ports */
 	for (i = 0; i < num_u2p; i++) {
+		if ((0x1 << i) & ssusb->u2p_dis_msk)
+			continue;
+
 		value = mtu3_readl(ibase, SSUSB_U2_CTRL(i));
 		value &= ~(SSUSB_U2_PORT_PDN | SSUSB_U2_PORT_DIS);
 		value |= SSUSB_U2_PORT_HOST_SEL;
@@ -188,8 +191,11 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 		mtu3_writel(ibase, SSUSB_U3_CTRL(i), value);
 	}
 
-	/* power down and disable all u2 ports */
+	/* power down and disable u2 ports except skipped ones */
 	for (i = 0; i < num_u2p; i++) {
+		if ((0x1 << i) & ssusb->u2p_dis_msk)
+			continue;
+
 		value = mtu3_readl(ibase, SSUSB_U2_CTRL(i));
 		value |= SSUSB_U2_PORT_PDN;
 		value |= suspend ? 0 : SSUSB_U2_PORT_DIS;

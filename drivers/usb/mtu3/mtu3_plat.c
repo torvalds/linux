@@ -225,6 +225,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	/* optional property, ignore the error if it does not exist */
 	of_property_read_u32(node, "mediatek,u3p-dis-msk",
 			     &ssusb->u3p_dis_msk);
+	of_property_read_u32(node, "mediatek,u2p-dis-msk",
+			     &ssusb->u2p_dis_msk);
 
 	otg_sx->vbus = devm_regulator_get(dev, "vbus");
 	if (IS_ERR(otg_sx->vbus)) {
@@ -241,6 +243,9 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		of_property_read_bool(node, "enable-manual-drd");
 	otg_sx->role_sw_used = of_property_read_bool(node, "usb-role-switch");
 
+	/* can't disable port0 when use dual-role mode */
+	ssusb->u2p_dis_msk &= ~0x1;
+
 	if (otg_sx->role_sw_used || otg_sx->manual_drd_enabled)
 		goto out;
 
@@ -253,9 +258,11 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	}
 
 out:
-	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, u3p_dis_msk: %x, drd: %s\n",
-		ssusb->dr_mode, otg_sx->is_u3_drd, ssusb->u3p_dis_msk,
+	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, drd: %s\n",
+		 ssusb->dr_mode, otg_sx->is_u3_drd,
 		otg_sx->manual_drd_enabled ? "manual" : "auto");
+	dev_info(dev, "u2p_dis_msk: %x, u3p_dis_msk: %x\n",
+		 ssusb->u2p_dis_msk, ssusb->u3p_dis_msk);
 
 	return 0;
 }
