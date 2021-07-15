@@ -1290,3 +1290,40 @@ void drv_disable_wq(struct idxd_wq *wq)
 	__drv_disable_wq(wq);
 	mutex_unlock(&wq->wq_lock);
 }
+
+int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
+{
+	struct idxd_device *idxd = idxd_dev_to_idxd(idxd_dev);
+	unsigned long flags;
+	int rc = 0;
+
+	/*
+	 * Device should be in disabled state for the idxd_drv to load. If it's in
+	 * enabled state, then the device was altered outside of driver's control.
+	 * If the state is in halted state, then we don't want to proceed.
+	 */
+	if (idxd->state != IDXD_DEV_DISABLED)
+		return -ENXIO;
+
+	/* Device configuration */
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		rc = idxd_device_config(idxd);
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	if (rc < 0)
+		return -ENXIO;
+
+	/* Start device */
+	rc = idxd_device_enable(idxd);
+	if (rc < 0)
+		return rc;
+
+	/* Setup DMA device without channels */
+	rc = idxd_register_dma_device(idxd);
+	if (rc < 0) {
+		idxd_device_disable(idxd);
+		return rc;
+	}
+
+	return 0;
+}
