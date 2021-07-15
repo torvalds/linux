@@ -103,7 +103,7 @@ static ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->signature);
+	return sysfs_emit(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->signature);
 }
 
 static ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
@@ -113,7 +113,7 @@ static ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%d\n", h->length);
+	return sysfs_emit(str, "%d\n", h->length);
 }
 
 static ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
@@ -123,7 +123,7 @@ static ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%d\n", h->revision);
+	return sysfs_emit(str, "%d\n", h->revision);
 }
 
 static ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
@@ -133,7 +133,7 @@ static ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_OEM_ID_SIZE, h->oem_id);
+	return sysfs_emit(str, "%.*s\n", ACPI_OEM_ID_SIZE, h->oem_id);
 }
 
 static ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
@@ -143,7 +143,7 @@ static ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_OEM_TABLE_ID_SIZE, h->oem_table_id);
+	return sysfs_emit(str, "%.*s\n", ACPI_OEM_TABLE_ID_SIZE, h->oem_table_id);
 }
 
 static ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
@@ -153,7 +153,7 @@ static ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%d\n", h->oem_revision);
+	return sysfs_emit(str, "%d\n", h->oem_revision);
 }
 
 static ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg,
@@ -164,7 +164,7 @@ static ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg,
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->asl_compiler_id);
+	return sysfs_emit(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->asl_compiler_id);
 }
 
 static ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
@@ -175,7 +175,7 @@ static ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%d\n", h->asl_compiler_revision);
+	return sysfs_emit(str, "%d\n", h->asl_compiler_revision);
 }
 
 CONFIGFS_ATTR_RO(acpi_table_, signature);
