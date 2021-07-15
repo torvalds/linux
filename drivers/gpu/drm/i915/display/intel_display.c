@@ -6319,7 +6319,6 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe = crtc->pipe;
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 	u32 fp;
 	struct dpll clock;
@@ -6369,11 +6368,13 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		else
 			port_clock = i9xx_calc_dpll_params(refclk, &clock);
 	} else {
-		u32 lvds = IS_I830(dev_priv) ? 0 : intel_de_read(dev_priv,
-								 LVDS);
-		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
+		enum pipe lvds_pipe;
 
-		if (is_lvds) {
+		if (IS_I85X(dev_priv) &&
+		    intel_lvds_port_enabled(dev_priv, LVDS, &lvds_pipe) &&
+		    lvds_pipe == crtc->pipe) {
+			u32 lvds = intel_de_read(dev_priv, LVDS);
+
 			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 				       DPLL_FPA01_P1_POST_DIV_SHIFT);
 
