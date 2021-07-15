@@ -149,18 +149,6 @@ static inline __printf(1, 2) __cold
 void early_printk(const char *s, ...) { }
 #endif
 
-#ifdef CONFIG_PRINTK_NMI
-extern void printk_nmi_enter(void);
-extern void printk_nmi_exit(void);
-extern void printk_nmi_direct_enter(void);
-extern void printk_nmi_direct_exit(void);
-#else
-static inline void printk_nmi_enter(void) { }
-static inline void printk_nmi_exit(void) { }
-static inline void printk_nmi_direct_enter(void) { }
-static inline void printk_nmi_direct_exit(void) { }
-#endif /* PRINTK_NMI */
-
 struct dev_printk_info;
 
 #ifdef CONFIG_PRINTK
@@ -179,6 +167,16 @@ int printk(const char *fmt, ...);
  * Special printk facility for scheduler/timekeeping use only, _DO_NOT_USE_ !
  */
 __printf(1, 2) __cold int printk_deferred(const char *fmt, ...);
+
+extern void __printk_safe_enter(void);
+extern void __printk_safe_exit(void);
+/*
+ * The printk_deferred_enter/exit macros are available only as a hack for
+ * some code paths that need to defer all printk console printing. Interrupts
+ * must be disabled for the deferred duration.
+ */
+#define printk_deferred_enter __printk_safe_enter
+#define printk_deferred_exit __printk_safe_exit
 
 /*
  * Please don't use printk_ratelimit(), because it shares ratelimiting state
@@ -224,6 +222,15 @@ int printk_deferred(const char *s, ...)
 {
 	return 0;
 }
+
+static inline void printk_deferred_enter(void)
+{
+}
+
+static inline void printk_deferred_exit(void)
+{
+}
+
 static inline int printk_ratelimit(void)
 {
 	return 0;
