@@ -451,15 +451,6 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & DPLL_VCO_ENABLE;
 }
 
-static void ibx_pch_dpll_prepare(struct drm_i915_private *dev_priv,
-				 struct intel_shared_dpll *pll)
-{
-	const enum intel_dpll_id id = pll->info->id;
-
-	intel_de_write(dev_priv, PCH_FP0(id), pll->state.hw_state.fp0);
-	intel_de_write(dev_priv, PCH_FP1(id), pll->state.hw_state.fp1);
-}
-
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
@@ -480,6 +471,9 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 
 	/* PCH refclock must be enabled first */
 	ibx_assert_pch_refclk_enabled(dev_priv);
+
+	intel_de_write(dev_priv, PCH_FP0(id), pll->state.hw_state.fp0);
+	intel_de_write(dev_priv, PCH_FP1(id), pll->state.hw_state.fp1);
 
 	intel_de_write(dev_priv, PCH_DPLL(id), pll->state.hw_state.dpll);
 
@@ -558,7 +552,6 @@ static void ibx_dump_hw_state(struct drm_i915_private *dev_priv,
 }
 
 static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
-	.prepare = ibx_pch_dpll_prepare,
 	.enable = ibx_pch_dpll_enable,
 	.disable = ibx_pch_dpll_disable,
 	.get_hw_state = ibx_pch_dpll_get_hw_state,
