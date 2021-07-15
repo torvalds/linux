@@ -33,7 +33,7 @@ struct probe_trace_point {
 	char		*module;	/* Module name */
 	unsigned long	offset;		/* Offset from symbol */
 	unsigned long	ref_ctr_offset;	/* SDT reference counter offset */
-	unsigned long	address;	/* Actual address of the trace point */
+	u64		address;	/* Actual address of the trace point */
 	bool		retprobe;	/* Return probe flag */
 };
 
@@ -70,7 +70,7 @@ struct perf_probe_point {
 	bool		retprobe;	/* Return probe flag */
 	char		*lazy_line;	/* Lazy matching pattern */
 	unsigned long	offset;		/* Offset from function entry */
-	unsigned long	abs_address;	/* Absolute address of the point */
+	u64		abs_address;	/* Absolute address of the point */
 };
 
 /* Perf probe probing argument field chain */
