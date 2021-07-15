@@ -311,9 +311,7 @@ struct bus_type dsa_bus_type = {
 };
 
 static struct idxd_device_driver dsa_drv = {
-	.drv = {
-		.name = "dsa",
-	},
+	.name = "dsa",
 };
 
 /* IDXD generic driver setup */

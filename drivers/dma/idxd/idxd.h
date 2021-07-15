@@ -34,6 +34,7 @@ enum idxd_type {
 #define IDXD_PMU_EVENT_MAX	64
 
 struct idxd_device_driver {
+	const char *name;
 	struct device_driver drv;
 };
 
