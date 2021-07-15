@@ -82,8 +82,16 @@ struct mt7921_fw_region {
 #define FW_START_OVERRIDE		BIT(0)
 #define FW_START_WORKING_PDA_CR4	BIT(2)
 
+#define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
 #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
 #define PATCH_SEC_TYPE_INFO		0x2
+
+#define PATCH_SEC_ENC_TYPE_MASK		GENMASK(31, 24)
+#define PATCH_SEC_ENC_TYPE_PLAIN		0x00
+#define PATCH_SEC_ENC_TYPE_AES			0x01
+#define PATCH_SEC_ENC_TYPE_SCRAMBLE		0x02
+#define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
+#define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
 
 #define to_wcid_lo(id)			FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)			FIELD_GET(GENMASK(9, 8), (u16)id)
@@ -742,6 +750,46 @@ static int mt7921_driver_own(struct mt7921_dev *dev)
 	return 0;
 }
 
+static u32 mt7921_get_data_mode(struct mt7921_dev *dev, u32 info)
+{
+	u32 mode = DL_MODE_NEED_RSP;
+
+	if (info == PATCH_SEC_NOT_SUPPORT)
+		return mode;
+
+	switch (FIELD_GET(PATCH_SEC_ENC_TYPE_MASK, info)) {
+	case PATCH_SEC_ENC_TYPE_PLAIN:
+		break;
+	case PATCH_SEC_ENC_TYPE_AES:
+		mode |= DL_MODE_ENCRYPT;
+		mode |= FIELD_PREP(DL_MODE_KEY_IDX,
+				(info & PATCH_SEC_ENC_AES_KEY_MASK)) & DL_MODE_KEY_IDX;
+		mode |= DL_MODE_RESET_SEC_IV;
+		break;
+	case PATCH_SEC_ENC_TYPE_SCRAMBLE:
+		mode |= DL_MODE_ENCRYPT;
+		mode |= DL_CONFIG_ENCRY_MODE_SEL;
+		mode |= DL_MODE_RESET_SEC_IV;
+		break;
+	default:
+		dev_err(dev->mt76.dev, "Encryption type not support!\n");
+	}
+
+	return mode;
+}
+
+static char *mt7921_patch_name(struct mt7921_dev *dev)
+{
+	char *ret;
+
+	if (is_mt7922(&dev->mt76))
+		ret = MT7922_ROM_PATCH;
+	else
+		ret = MT7921_ROM_PATCH;
+
+	return ret;
+}
+
 static int mt7921_load_patch(struct mt7921_dev *dev)
 {
 	const struct mt7921_patch_hdr *hdr;
@@ -759,7 +807,7 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 		return -EAGAIN;
 	}
 
-	ret = request_firmware(&fw, MT7921_ROM_PATCH, dev->mt76.dev);
+	ret = request_firmware(&fw, mt7921_patch_name(dev), dev->mt76.dev);
 	if (ret)
 		goto out;
 
@@ -777,7 +825,8 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
 		struct mt7921_patch_sec *sec;
 		const u8 *dl;
-		u32 len, addr;
+		u32 len, addr, mode;
+		u32 sec_info = 0;
 
 		sec = (struct mt7921_patch_sec *)(fw->data + sizeof(*hdr) +
 						  i * sizeof(*sec));
@@ -790,9 +839,11 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 		addr = be32_to_cpu(sec->info.addr);
 		len = be32_to_cpu(sec->info.len);
 		dl = fw->data + be32_to_cpu(sec->offs);
+		sec_info = be32_to_cpu(sec->info.sec_key_idx);
+		mode = mt7921_get_data_mode(dev, sec_info);
 
 		ret = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    DL_MODE_NEED_RSP);
+						    mode);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Download request failed\n");
 			goto out;
@@ -889,13 +940,25 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 	return mt76_connac_mcu_start_firmware(&dev->mt76, override, option);
 }
 
+static char *mt7921_ram_name(struct mt7921_dev *dev)
+{
+	char *ret;
+
+	if (is_mt7922(&dev->mt76))
+		ret = MT7922_FIRMWARE_WM;
+	else
+		ret = MT7921_FIRMWARE_WM;
+
+	return ret;
+}
+
 static int mt7921_load_ram(struct mt7921_dev *dev)
 {
 	const struct mt7921_fw_trailer *hdr;
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, MT7921_FIRMWARE_WM, dev->mt76.dev);
+	ret = request_firmware(&fw, mt7921_ram_name(dev), dev->mt76.dev);
 	if (ret)
 		return ret;
 
