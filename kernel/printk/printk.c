@@ -1480,12 +1480,14 @@ static u64 find_first_fitting_seq(u64 start_seq, u64 max_seq, size_t size,
 	return seq;
 }
 
+/* The caller is responsible for making sure @size is greater than 0. */
 static int syslog_print(char __user *buf, int size)
 {
 	struct printk_info info;
 	struct printk_record r;
 	char *text;
 	int len = 0;
+	u64 seq;
 
 	text = kmalloc(CONSOLE_LOG_MAX, GFP_KERNEL);
 	if (!text)
@@ -1493,15 +1495,35 @@ static int syslog_print(char __user *buf, int size)
 
 	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
 
-	while (size > 0) {
+	mutex_lock(&syslog_lock);
+
+	/*
+	 * Wait for the @syslog_seq record to be available. @syslog_seq may
+	 * change while waiting.
+	 */
+	do {
+		seq = syslog_seq;
+
+		mutex_unlock(&syslog_lock);
+		len = wait_event_interruptible(log_wait, prb_read_valid(prb, seq, NULL));
+		mutex_lock(&syslog_lock);
+
+		if (len)
+			goto out;
+	} while (syslog_seq != seq);
+
+	/*
+	 * Copy records that fit into the buffer. The above cycle makes sure
+	 * that the first record is always available.
+	 */
+	do {
 		size_t n;
 		size_t skip;
+		int err;
 
-		mutex_lock(&syslog_lock);
-		if (!prb_read_valid(prb, syslog_seq, &r)) {
-			mutex_unlock(&syslog_lock);
+		if (!prb_read_valid(prb, syslog_seq, &r))
 			break;
-		}
+
 		if (r.info->seq != syslog_seq) {
 			/* message is gone, move to next valid one */
 			syslog_seq = r.info->seq;
@@ -1528,12 +1550,15 @@ static int syslog_print(char __user *buf, int size)
 			syslog_partial += n;
 		} else
 			n = 0;
-		mutex_unlock(&syslog_lock);
 
 		if (!n)
 			break;
 
-		if (copy_to_user(buf, text + skip, n)) {
+		mutex_unlock(&syslog_lock);
+		err = copy_to_user(buf, text + skip, n);
+		mutex_lock(&syslog_lock);
+
+		if (err) {
 			if (!len)
 				len = -EFAULT;
 			break;
@@ -1542,8 +1567,9 @@ static int syslog_print(char __user *buf, int size)
 		len += n;
 		size -= n;
 		buf += n;
-	}
-
+	} while (size);
+out:
+	mutex_unlock(&syslog_lock);
 	kfree(text);
 	return len;
 }
@@ -1614,7 +1640,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 	bool clear = false;
 	static int saved_console_loglevel = LOGLEVEL_DEFAULT;
 	int error;
-	u64 seq;
 
 	error = check_syslog_permissions(type, source);
 	if (error)
@@ -1632,15 +1657,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 			return 0;
 		if (!access_ok(buf, len))
 			return -EFAULT;
-
-		/* Get a consistent copy of @syslog_seq. */
-		mutex_lock(&syslog_lock);
-		seq = syslog_seq;
-		mutex_unlock(&syslog_lock);
-
-		error = wait_event_interruptible(log_wait, prb_read_valid(prb, seq, NULL));
-		if (error)
-			return error;
 		error = syslog_print(buf, len);
 		break;
 	/* Read/clear last kernel messages */
@@ -1707,6 +1723,7 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		} else {
 			bool time = syslog_partial ? syslog_time : printk_time;
 			unsigned int line_count;
+			u64 seq;
 
 			prb_for_each_info(syslog_seq, prb, seq, &info,
 					  &line_count) {
