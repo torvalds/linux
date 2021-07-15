@@ -309,7 +309,7 @@ int pnv_calc_dpll_params(int refclk, struct dpll *clock)
 	return clock->dot;
 }
 
-static u32 i9xx_dpll_compute_m(struct dpll *dpll)
+static u32 i9xx_dpll_compute_m(const struct dpll *dpll)
 {
 	return 5 * (dpll->m1 + 2) + (dpll->m2 + 2);
 }
@@ -428,7 +428,8 @@ i9xx_select_p2_div(const struct intel_limit *limit,
 static bool
 i9xx_find_best_dpll(const struct intel_limit *limit,
 		    struct intel_crtc_state *crtc_state,
-		    int target, int refclk, struct dpll *match_clock,
+		    int target, int refclk,
+		    const struct dpll *match_clock,
 		    struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->uapi.crtc->dev;
@@ -486,7 +487,8 @@ i9xx_find_best_dpll(const struct intel_limit *limit,
 static bool
 pnv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, struct dpll *match_clock,
+		   int target, int refclk,
+		   const struct dpll *match_clock,
 		   struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->uapi.crtc->dev;
@@ -542,7 +544,8 @@ pnv_find_best_dpll(const struct intel_limit *limit,
 static bool
 g4x_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, struct dpll *match_clock,
+		   int target, int refclk,
+		   const struct dpll *match_clock,
 		   struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->uapi.crtc->dev;
@@ -636,7 +639,8 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 static bool
 vlv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, struct dpll *match_clock,
+		   int target, int refclk,
+		   const struct dpll *match_clock,
 		   struct dpll *best_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -696,7 +700,8 @@ vlv_find_best_dpll(const struct intel_limit *limit,
 static bool
 chv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, struct dpll *match_clock,
+		   int target, int refclk,
+		   const struct dpll *match_clock,
 		   struct dpll *best_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -763,24 +768,30 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 				  NULL, best_clock);
 }
 
-static u32 pnv_dpll_compute_fp(struct dpll *dpll)
+u32 i9xx_dpll_compute_fp(const struct dpll *dpll)
+{
+	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
+}
+
+static u32 pnv_dpll_compute_fp(const struct dpll *dpll)
 {
 	return (1 << dpll->n) << 16 | dpll->m2;
 }
 
 static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 				     struct intel_crtc_state *crtc_state,
-				     struct dpll *reduced_clock)
+				     const struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct dpll *clock = &crtc_state->dpll;
 	u32 fp, fp2 = 0;
 
 	if (IS_PINEVIEW(dev_priv)) {
-		fp = pnv_dpll_compute_fp(&crtc_state->dpll);
+		fp = pnv_dpll_compute_fp(clock);
 		if (reduced_clock)
 			fp2 = pnv_dpll_compute_fp(reduced_clock);
 	} else {
-		fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
+		fp = i9xx_dpll_compute_fp(clock);
 		if (reduced_clock)
 			fp2 = i9xx_dpll_compute_fp(reduced_clock);
 	}
@@ -797,11 +808,11 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 
 static void i9xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      struct dpll *reduced_clock)
+			      const struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
-	struct dpll *clock = &crtc_state->dpll;
 
 	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
 
@@ -870,12 +881,12 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 
 static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      struct dpll *reduced_clock)
+			      const struct dpll *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
-	struct dpll *clock = &crtc_state->dpll;
 
 	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
 
@@ -942,17 +953,17 @@ static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
-static bool ilk_needs_fb_cb_tune(struct dpll *dpll, int factor)
+static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
 {
 	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
 }
 
-
 static void ilk_update_pll_dividers(struct intel_crtc *crtc,
 				    struct intel_crtc_state *crtc_state,
-				    struct dpll *reduced_clock)
+				    const struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct dpll *clock = &crtc_state->dpll;
 	u32 fp, fp2 = 0;
 	int factor;
 
@@ -968,9 +979,9 @@ static void ilk_update_pll_dividers(struct intel_crtc *crtc,
 		factor = 20;
 	}
 
-	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
+	fp = i9xx_dpll_compute_fp(clock);
 
-	if (ilk_needs_fb_cb_tune(&crtc_state->dpll, factor))
+	if (ilk_needs_fb_cb_tune(clock, factor))
 		fp |= FP_CB_TUNE;
 
 	if (reduced_clock) {
@@ -986,9 +997,10 @@ static void ilk_update_pll_dividers(struct intel_crtc *crtc,
 
 static void ilk_compute_dpll(struct intel_crtc *crtc,
 			     struct intel_crtc_state *crtc_state,
-			     struct dpll *reduced_clock)
+			     const struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct dpll *clock = &crtc_state->dpll;
 	u32 dpll;
 
 	ilk_update_pll_dividers(crtc, crtc_state, reduced_clock);
@@ -1029,11 +1041,11 @@ static void ilk_compute_dpll(struct intel_crtc *crtc,
 		dpll |= DPLL_SDVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
-	dpll |= (1 << (crtc_state->dpll.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	/* also FPA1 */
-	dpll |= (1 << (crtc_state->dpll.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 
-	switch (crtc_state->dpll.p2) {
+	switch (clock->p2) {
 	case 5:
 		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
 		break;

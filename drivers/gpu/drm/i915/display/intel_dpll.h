@@ -18,6 +18,7 @@ void intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv);
 int vlv_calc_dpll_params(int refclk, struct dpll *clock);
 int pnv_calc_dpll_params(int refclk, struct dpll *clock);
 int i9xx_calc_dpll_params(int refclk, struct dpll *clock);
+u32 i9xx_dpll_compute_fp(const struct dpll *dpll);
 void vlv_compute_dpll(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void chv_compute_dpll(struct intel_crtc *crtc,
