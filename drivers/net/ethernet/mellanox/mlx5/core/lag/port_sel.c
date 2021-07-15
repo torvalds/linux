@@ -5,6 +5,8 @@
 #include "lag.h"
 
 enum {
+	MLX5_LAG_FT_LEVEL_TTC,
+	MLX5_LAG_FT_LEVEL_INNER_TTC,
 	MLX5_LAG_FT_LEVEL_DEFINER,
 };
 
@@ -419,4 +421,93 @@ static void set_tt_map(struct mlx5_lag_port_sel *port_sel,
 		set_bit(MLX5_TT_ANY, port_sel->tt_map);
 		break;
 	}
+}
+
+#define SET_IGNORE_DESTS_BITS(tt_map, dests)				\
+	do {								\
+		int idx;						\
+									\
+		for_each_clear_bit(idx, tt_map, MLX5_NUM_TT)		\
+			set_bit(idx, dests);				\
+	} while (0)
+
+static void mlx5_lag_set_inner_ttc_params(struct mlx5_lag *ldev,
+					  struct ttc_params *ttc_params)
+{
+	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	struct mlx5_flow_table_attr *ft_attr;
+	int tt;
+
+	ttc_params->ns = mlx5_get_flow_namespace(dev,
+						 MLX5_FLOW_NAMESPACE_PORT_SEL);
+	ft_attr = &ttc_params->ft_attr;
+	ft_attr->level = MLX5_LAG_FT_LEVEL_INNER_TTC;
+
+	for_each_set_bit(tt, port_sel->tt_map, MLX5_NUM_TT) {
+		ttc_params->dests[tt].type =
+			MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		ttc_params->dests[tt].ft = port_sel->inner.definers[tt]->ft;
+	}
+	SET_IGNORE_DESTS_BITS(port_sel->tt_map, ttc_params->ignore_dests);
+}
+
+static void mlx5_lag_set_outer_ttc_params(struct mlx5_lag *ldev,
+					  struct ttc_params *ttc_params)
+{
+	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	struct mlx5_flow_table_attr *ft_attr;
+	int tt;
+
+	ttc_params->ns = mlx5_get_flow_namespace(dev,
+						 MLX5_FLOW_NAMESPACE_PORT_SEL);
+	ft_attr = &ttc_params->ft_attr;
+	ft_attr->level = MLX5_LAG_FT_LEVEL_TTC;
+
+	for_each_set_bit(tt, port_sel->tt_map, MLX5_NUM_TT) {
+		ttc_params->dests[tt].type =
+			MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		ttc_params->dests[tt].ft = port_sel->outer.definers[tt]->ft;
+	}
+	SET_IGNORE_DESTS_BITS(port_sel->tt_map, ttc_params->ignore_dests);
+
+	ttc_params->inner_ttc = port_sel->tunnel;
+	if (!port_sel->tunnel)
+		return;
+
+	for (tt = 0; tt < MLX5_NUM_TUNNEL_TT; tt++) {
+		ttc_params->tunnel_dests[tt].type =
+			MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		ttc_params->tunnel_dests[tt].ft =
+			mlx5_get_ttc_flow_table(port_sel->inner.ttc);
+	}
+}
+
+static int mlx5_lag_create_ttc_table(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	struct ttc_params ttc_params = {};
+
+	mlx5_lag_set_outer_ttc_params(ldev, &ttc_params);
+	port_sel->outer.ttc = mlx5_create_ttc_table(dev, &ttc_params);
+	if (IS_ERR(port_sel->outer.ttc))
+		return PTR_ERR(port_sel->outer.ttc);
+
+	return 0;
+}
+
+static int mlx5_lag_create_inner_ttc_table(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
+	struct ttc_params ttc_params = {};
+
+	mlx5_lag_set_inner_ttc_params(ldev, &ttc_params);
+	port_sel->inner.ttc = mlx5_create_ttc_table(dev, &ttc_params);
+	if (IS_ERR(port_sel->inner.ttc))
+		return PTR_ERR(port_sel->inner.ttc);
+
+	return 0;
 }

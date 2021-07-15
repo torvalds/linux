@@ -14,6 +14,7 @@ struct mlx5_lag_definer {
 };
 
 struct mlx5_lag_ttc {
+	struct mlx5_ttc_table *ttc;
 	struct mlx5_lag_definer *definers[MLX5_NUM_TT];
 };
 
