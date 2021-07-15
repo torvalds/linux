@@ -17,8 +17,24 @@
 
 extern struct kmem_cache *idxd_desc_pool;
 
-struct idxd_device;
 struct idxd_wq;
+struct idxd_dev;
+
+enum idxd_dev_type {
+	IDXD_DEV_NONE = -1,
+	IDXD_DEV_DSA = 0,
+	IDXD_DEV_IAX,
+	IDXD_DEV_WQ,
+	IDXD_DEV_GROUP,
+	IDXD_DEV_ENGINE,
+	IDXD_DEV_CDEV,
+	IDXD_DEV_MAX_TYPE,
+};
+
+struct idxd_dev {
+	struct device conf_dev;
+	enum idxd_dev_type type;
+};
 
 #define IDXD_REG_TIMEOUT	50
 #define IDXD_DRAIN_TIMEOUT	5000
@@ -52,7 +68,7 @@ struct idxd_irq_entry {
 };
 
 struct idxd_group {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_device *idxd;
 	struct grpcfg grpcfg;
 	int id;
@@ -111,7 +127,7 @@ enum idxd_wq_type {
 struct idxd_cdev {
 	struct idxd_wq *wq;
 	struct cdev cdev;
-	struct device dev;
+	struct idxd_dev idxd_dev;
 	int minor;
 };
 
@@ -139,7 +155,7 @@ struct idxd_wq {
 	void __iomem *portal;
 	struct percpu_ref wq_active;
 	struct completion wq_dead;
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_cdev *idxd_cdev;
 	struct wait_queue_head err_queue;
 	struct idxd_device *idxd;
@@ -174,7 +190,7 @@ struct idxd_wq {
 };
 
 struct idxd_engine {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	int id;
 	struct idxd_group *group;
 	struct idxd_device *idxd;
@@ -218,7 +234,7 @@ struct idxd_driver_data {
 };
 
 struct idxd_device {
-	struct device conf_dev;
+	struct idxd_dev idxd_dev;
 	struct idxd_driver_data *data;
 	struct list_head list;
 	struct idxd_hw hw;
@@ -301,8 +317,58 @@ enum idxd_completion_status {
 	IDXD_COMP_DESC_ABORT = 0xff,
 };
 
-#define confdev_to_idxd(dev) container_of(dev, struct idxd_device, conf_dev)
-#define confdev_to_wq(dev) container_of(dev, struct idxd_wq, conf_dev)
+#define idxd_confdev(idxd) &idxd->idxd_dev.conf_dev
+#define wq_confdev(wq) &wq->idxd_dev.conf_dev
+#define engine_confdev(engine) &engine->idxd_dev.conf_dev
+#define group_confdev(group) &group->idxd_dev.conf_dev
+#define cdev_dev(cdev) &cdev->idxd_dev.conf_dev
+
+#define confdev_to_idxd_dev(dev) container_of(dev, struct idxd_dev, conf_dev)
+
+static inline struct idxd_device *confdev_to_idxd(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_device, idxd_dev);
+}
+
+static inline struct idxd_wq *confdev_to_wq(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_wq, idxd_dev);
+}
+
+static inline struct idxd_engine *confdev_to_engine(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_engine, idxd_dev);
+}
+
+static inline struct idxd_group *confdev_to_group(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_group, idxd_dev);
+}
+
+static inline struct idxd_cdev *dev_to_cdev(struct device *dev)
+{
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return container_of(idxd_dev, struct idxd_cdev, idxd_dev);
+}
+
+static inline void idxd_dev_set_type(struct idxd_dev *idev, int type)
+{
+	if (type >= IDXD_DEV_MAX_TYPE) {
+		idev->type = IDXD_DEV_NONE;
+		return;
+	}
+
+	idev->type = type;
+}
 
 extern struct bus_type dsa_bus_type;
 extern struct bus_type iax_bus_type;

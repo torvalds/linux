@@ -41,7 +41,7 @@ struct idxd_user_context {
 
 static void idxd_cdev_dev_release(struct device *dev)
 {
-	struct idxd_cdev *idxd_cdev = container_of(dev, struct idxd_cdev, dev);
+	struct idxd_cdev *idxd_cdev = dev_to_cdev(dev);
 	struct idxd_cdev_context *cdev_ctx;
 	struct idxd_wq *wq = idxd_cdev->wq;
 
@@ -256,9 +256,10 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 	if (!idxd_cdev)
 		return -ENOMEM;
 
+	idxd_cdev->idxd_dev.type = IDXD_DEV_CDEV;
 	idxd_cdev->wq = wq;
 	cdev = &idxd_cdev->cdev;
-	dev = &idxd_cdev->dev;
+	dev = cdev_dev(idxd_cdev);
 	cdev_ctx = &ictx[wq->idxd->data->type];
 	minor = ida_simple_get(&cdev_ctx->minor_ida, 0, MINORMASK, GFP_KERNEL);
 	if (minor < 0) {
@@ -268,7 +269,7 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 	idxd_cdev->minor = minor;
 
 	device_initialize(dev);
-	dev->parent = &wq->conf_dev;
+	dev->parent = wq_confdev(wq);
 	dev->bus = &dsa_bus_type;
 	dev->type = &idxd_cdev_device_type;
 	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), minor);
@@ -299,8 +300,8 @@ void idxd_wq_del_cdev(struct idxd_wq *wq)
 
 	idxd_cdev = wq->idxd_cdev;
 	wq->idxd_cdev = NULL;
-	cdev_device_del(&idxd_cdev->cdev, &idxd_cdev->dev);
-	put_device(&idxd_cdev->dev);
+	cdev_device_del(&idxd_cdev->cdev, cdev_dev(idxd_cdev));
+	put_device(cdev_dev(idxd_cdev));
 }
 
 int idxd_cdev_register(void)

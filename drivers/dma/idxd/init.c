@@ -200,6 +200,7 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
 	struct idxd_wq *wq;
+	struct device *conf_dev;
 	int i, rc;
 
 	idxd->wqs = kcalloc_node(idxd->max_wqs, sizeof(struct idxd_wq *),
@@ -214,15 +215,17 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 			goto err;
 		}
 
+		idxd_dev_set_type(&wq->idxd_dev, IDXD_DEV_WQ);
+		conf_dev = wq_confdev(wq);
 		wq->id = i;
 		wq->idxd = idxd;
-		device_initialize(&wq->conf_dev);
-		wq->conf_dev.parent = &idxd->conf_dev;
-		wq->conf_dev.bus = &dsa_bus_type;
-		wq->conf_dev.type = &idxd_wq_device_type;
-		rc = dev_set_name(&wq->conf_dev, "wq%d.%d", idxd->id, wq->id);
+		device_initialize(wq_confdev(wq));
+		conf_dev->parent = idxd_confdev(idxd);
+		conf_dev->bus = &dsa_bus_type;
+		conf_dev->type = &idxd_wq_device_type;
+		rc = dev_set_name(conf_dev, "wq%d.%d", idxd->id, wq->id);
 		if (rc < 0) {
-			put_device(&wq->conf_dev);
+			put_device(conf_dev);
 			goto err;
 		}
 
@@ -233,7 +236,7 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 		wq->max_batch_size = idxd->max_batch_size;
 		wq->wqcfg = kzalloc_node(idxd->wqcfg_size, GFP_KERNEL, dev_to_node(dev));
 		if (!wq->wqcfg) {
-			put_device(&wq->conf_dev);
+			put_device(conf_dev);
 			rc = -ENOMEM;
 			goto err;
 		}
@@ -243,8 +246,11 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 	return 0;
 
  err:
-	while (--i >= 0)
-		put_device(&idxd->wqs[i]->conf_dev);
+	while (--i >= 0) {
+		wq = idxd->wqs[i];
+		conf_dev = wq_confdev(wq);
+		put_device(conf_dev);
+	}
 	return rc;
 }
 
@@ -252,6 +258,7 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 {
 	struct idxd_engine *engine;
 	struct device *dev = &idxd->pdev->dev;
+	struct device *conf_dev;
 	int i, rc;
 
 	idxd->engines = kcalloc_node(idxd->max_engines, sizeof(struct idxd_engine *),
@@ -266,15 +273,17 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 			goto err;
 		}
 
+		idxd_dev_set_type(&engine->idxd_dev, IDXD_DEV_ENGINE);
+		conf_dev = engine_confdev(engine);
 		engine->id = i;
 		engine->idxd = idxd;
-		device_initialize(&engine->conf_dev);
-		engine->conf_dev.parent = &idxd->conf_dev;
-		engine->conf_dev.bus = &dsa_bus_type;
-		engine->conf_dev.type = &idxd_engine_device_type;
-		rc = dev_set_name(&engine->conf_dev, "engine%d.%d", idxd->id, engine->id);
+		device_initialize(conf_dev);
+		conf_dev->parent = idxd_confdev(idxd);
+		conf_dev->bus = &dsa_bus_type;
+		conf_dev->type = &idxd_engine_device_type;
+		rc = dev_set_name(conf_dev, "engine%d.%d", idxd->id, engine->id);
 		if (rc < 0) {
-			put_device(&engine->conf_dev);
+			put_device(conf_dev);
 			goto err;
 		}
 
@@ -284,14 +293,18 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 	return 0;
 
  err:
-	while (--i >= 0)
-		put_device(&idxd->engines[i]->conf_dev);
+	while (--i >= 0) {
+		engine = idxd->engines[i];
+		conf_dev = engine_confdev(engine);
+		put_device(conf_dev);
+	}
 	return rc;
 }
 
 static int idxd_setup_groups(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
+	struct device *conf_dev;
 	struct idxd_group *group;
 	int i, rc;
 
@@ -307,15 +320,17 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 			goto err;
 		}
 
+		idxd_dev_set_type(&group->idxd_dev, IDXD_DEV_GROUP);
+		conf_dev = group_confdev(group);
 		group->id = i;
 		group->idxd = idxd;
-		device_initialize(&group->conf_dev);
-		group->conf_dev.parent = &idxd->conf_dev;
-		group->conf_dev.bus = &dsa_bus_type;
-		group->conf_dev.type = &idxd_group_device_type;
-		rc = dev_set_name(&group->conf_dev, "group%d.%d", idxd->id, group->id);
+		device_initialize(conf_dev);
+		conf_dev->parent = idxd_confdev(idxd);
+		conf_dev->bus = &dsa_bus_type;
+		conf_dev->type = &idxd_group_device_type;
+		rc = dev_set_name(conf_dev, "group%d.%d", idxd->id, group->id);
 		if (rc < 0) {
-			put_device(&group->conf_dev);
+			put_device(conf_dev);
 			goto err;
 		}
 
@@ -327,8 +342,10 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 	return 0;
 
  err:
-	while (--i >= 0)
-		put_device(&idxd->groups[i]->conf_dev);
+	while (--i >= 0) {
+		group = idxd->groups[i];
+		put_device(group_confdev(group));
+	}
 	return rc;
 }
 
@@ -337,11 +354,11 @@ static void idxd_cleanup_internals(struct idxd_device *idxd)
 	int i;
 
 	for (i = 0; i < idxd->max_groups; i++)
-		put_device(&idxd->groups[i]->conf_dev);
+		put_device(group_confdev(idxd->groups[i]));
 	for (i = 0; i < idxd->max_engines; i++)
-		put_device(&idxd->engines[i]->conf_dev);
+		put_device(engine_confdev(idxd->engines[i]));
 	for (i = 0; i < idxd->max_wqs; i++)
-		put_device(&idxd->wqs[i]->conf_dev);
+		put_device(wq_confdev(idxd->wqs[i]));
 	destroy_workqueue(idxd->wq);
 }
 
@@ -381,13 +398,13 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 
  err_wkq_create:
 	for (i = 0; i < idxd->max_groups; i++)
-		put_device(&idxd->groups[i]->conf_dev);
+		put_device(group_confdev(idxd->groups[i]));
  err_group:
 	for (i = 0; i < idxd->max_engines; i++)
-		put_device(&idxd->engines[i]->conf_dev);
+		put_device(engine_confdev(idxd->engines[i]));
  err_engine:
 	for (i = 0; i < idxd->max_wqs; i++)
-		put_device(&idxd->wqs[i]->conf_dev);
+		put_device(wq_confdev(idxd->wqs[i]));
  err_wqs:
 	kfree(idxd->int_handles);
 	return rc;
@@ -469,6 +486,7 @@ static void idxd_read_caps(struct idxd_device *idxd)
 static struct idxd_device *idxd_alloc(struct pci_dev *pdev, struct idxd_driver_data *data)
 {
 	struct device *dev = &pdev->dev;
+	struct device *conf_dev;
 	struct idxd_device *idxd;
 	int rc;
 
@@ -476,19 +494,21 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev, struct idxd_driver_d
 	if (!idxd)
 		return NULL;
 
+	conf_dev = idxd_confdev(idxd);
 	idxd->pdev = pdev;
 	idxd->data = data;
+	idxd_dev_set_type(&idxd->idxd_dev, idxd->data->type);
 	idxd->id = ida_alloc(&idxd_ida, GFP_KERNEL);
 	if (idxd->id < 0)
 		return NULL;
 
-	device_initialize(&idxd->conf_dev);
-	idxd->conf_dev.parent = dev;
-	idxd->conf_dev.bus = &dsa_bus_type;
-	idxd->conf_dev.type = idxd->data->dev_type;
-	rc = dev_set_name(&idxd->conf_dev, "%s%d", idxd->data->name_prefix, idxd->id);
+	device_initialize(conf_dev);
+	conf_dev->parent = dev;
+	conf_dev->bus = &dsa_bus_type;
+	conf_dev->type = idxd->data->dev_type;
+	rc = dev_set_name(conf_dev, "%s%d", idxd->data->name_prefix, idxd->id);
 	if (rc < 0) {
-		put_device(&idxd->conf_dev);
+		put_device(conf_dev);
 		return NULL;
 	}
 
@@ -674,7 +694,7 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  err:
 	pci_iounmap(pdev, idxd->reg_base);
  err_iomap:
-	put_device(&idxd->conf_dev);
+	put_device(idxd_confdev(idxd));
  err_idxd_alloc:
 	pci_disable_device(pdev);
 	return rc;
@@ -787,7 +807,7 @@ static void idxd_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	destroy_workqueue(idxd->wq);
 	perfmon_pmu_remove(idxd);
-	device_unregister(&idxd->conf_dev);
+	device_unregister(idxd_confdev(idxd));
 }
 
 static struct pci_driver idxd_pci_driver = {
