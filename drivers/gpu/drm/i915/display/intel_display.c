@@ -2921,9 +2921,6 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	if (new_crtc_state->has_pch_encoder)
-		intel_prepare_shared_dpll(new_crtc_state);
-
 	if (intel_crtc_has_dp_encoder(new_crtc_state))
 		intel_dp_set_m_n(new_crtc_state, M1_N1);
 
