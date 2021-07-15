@@ -247,7 +247,7 @@ bool ksmbd_conn_alive(struct ksmbd_conn *conn)
 
 	/*
 	 * Stop current session if the time that get last request from client
-	 * is bigger than deadtime user configured and openning file count is
+	 * is bigger than deadtime user configured and opening file count is
 	 * zero.
 	 */
 	if (server_conf.deadtime > 0 &&
