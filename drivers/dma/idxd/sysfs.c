@@ -313,21 +313,18 @@ struct bus_type dsa_bus_type = {
 static struct idxd_device_driver dsa_drv = {
 	.drv = {
 		.name = "dsa",
-		.bus = &dsa_bus_type,
-		.owner = THIS_MODULE,
-		.mod_name = KBUILD_MODNAME,
 	},
 };
 
 /* IDXD generic driver setup */
 int idxd_register_driver(void)
 {
-	return driver_register(&dsa_drv.drv);
+	return idxd_driver_register(&dsa_drv);
 }
 
 void idxd_unregister_driver(void)
 {
-	driver_unregister(&dsa_drv.drv);
+	idxd_driver_unregister(&dsa_drv);
 }
 
 /* IDXD engine attributes */

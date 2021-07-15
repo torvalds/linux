@@ -402,6 +402,13 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 	return wq->client_count;
 };
 
+int __must_check __idxd_driver_register(struct idxd_device_driver *idxd_drv,
+					struct module *module, const char *mod_name);
+#define idxd_driver_register(driver) \
+	__idxd_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
+
+void idxd_driver_unregister(struct idxd_device_driver *idxd_drv);
+
 int idxd_register_bus_type(void);
 void idxd_unregister_bus_type(void);
 int idxd_register_devices(struct idxd_device *idxd);
