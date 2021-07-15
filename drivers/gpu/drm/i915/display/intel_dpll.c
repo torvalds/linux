@@ -954,7 +954,7 @@ static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 
 static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
 {
-	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
+	return dpll->m < factor * dpll->n;
 }
 
 static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
@@ -983,7 +983,7 @@ static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
 		fp |= FP_CB_TUNE;
 
 	fp2 = i9xx_dpll_compute_fp(reduced_clock);
-	if (reduced_clock->m < factor * reduced_clock->n)
+	if (ilk_needs_fb_cb_tune(reduced_clock, factor))
 		fp2 |= FP_CB_TUNE;
 
 	crtc_state->dpll_hw_state.fp0 = fp;
