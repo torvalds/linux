@@ -1622,7 +1622,9 @@ inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 {
 	struct bpos pos = bkey_start_pos(&iter->k);
-	bool ret = bpos_cmp(pos, POS_MIN) != 0;
+	bool ret = (iter->flags & BTREE_ITER_ALL_SNAPSHOTS
+		    ? bpos_cmp(pos, POS_MIN)
+		    : bkey_cmp(pos, POS_MIN)) != 0;
 
 	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		pos = bkey_predecessor(iter, pos);
