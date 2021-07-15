@@ -45,7 +45,7 @@ static void hdcp2_message_init(struct mod_hdcp *hdcp,
 	in->process.msg3_desc.msg_size = 0;
 }
 
-static enum mod_hdcp_status mod_hdcp_remove_display_from_topology_v2(
+static enum mod_hdcp_status remove_display_from_topology_v2(
 		struct mod_hdcp *hdcp, uint8_t index)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
@@ -81,7 +81,7 @@ static enum mod_hdcp_status mod_hdcp_remove_display_from_topology_v2(
 	return status;
 }
 
-static enum mod_hdcp_status mod_hdcp_remove_display_from_topology_v3(
+static enum mod_hdcp_status remove_display_from_topology_v3(
 		struct mod_hdcp *hdcp, uint8_t index)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
@@ -107,7 +107,7 @@ static enum mod_hdcp_status mod_hdcp_remove_display_from_topology_v3(
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
 	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
-		status = mod_hdcp_remove_display_from_topology_v2(hdcp, index);
+		status = remove_display_from_topology_v2(hdcp, index);
 		if (status != MOD_HDCP_STATUS_SUCCESS)
 			display->state = MOD_HDCP_DISPLAY_INACTIVE;
 	} else {
@@ -120,20 +120,7 @@ static enum mod_hdcp_status mod_hdcp_remove_display_from_topology_v3(
 	return status;
 }
 
-enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
-		struct mod_hdcp *hdcp, uint8_t index)
-{
-	enum mod_hdcp_status status = MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
-
-	if (hdcp->config.psp.caps.dtm_v3_supported)
-		status = mod_hdcp_remove_display_from_topology_v3(hdcp, index);
-	else
-		status = mod_hdcp_remove_display_from_topology_v2(hdcp, index);
-
-	return status;
-}
-
-static enum mod_hdcp_status mod_hdcp_add_display_to_topology_v2(
+static enum mod_hdcp_status add_display_to_topology_v2(
 		struct mod_hdcp *hdcp, struct mod_hdcp_display *display)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
@@ -180,7 +167,7 @@ static enum mod_hdcp_status mod_hdcp_add_display_to_topology_v2(
 	return status;
 }
 
-static enum mod_hdcp_status mod_hdcp_add_display_to_topology_v3(
+static enum mod_hdcp_status add_display_to_topology_v3(
 		struct mod_hdcp *hdcp, struct mod_hdcp_display *display)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
@@ -220,7 +207,7 @@ static enum mod_hdcp_status mod_hdcp_add_display_to_topology_v3(
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
 	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
-		status = mod_hdcp_add_display_to_topology_v2(hdcp, display);
+		status = add_display_to_topology_v2(hdcp, display);
 		if (status != MOD_HDCP_STATUS_SUCCESS)
 			display->state = MOD_HDCP_DISPLAY_INACTIVE;
 	} else {
@@ -232,15 +219,28 @@ static enum mod_hdcp_status mod_hdcp_add_display_to_topology_v3(
 	return status;
 }
 
+enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
+		struct mod_hdcp *hdcp, uint8_t index)
+{
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
+
+	if (hdcp->config.psp.caps.dtm_v3_supported)
+		status = remove_display_from_topology_v3(hdcp, index);
+	else
+		status = remove_display_from_topology_v2(hdcp, index);
+
+	return status;
+}
+
 enum mod_hdcp_status mod_hdcp_add_display_to_topology(struct mod_hdcp *hdcp,
 					       struct mod_hdcp_display *display)
 {
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (hdcp->config.psp.caps.dtm_v3_supported)
-		status = mod_hdcp_add_display_to_topology_v3(hdcp, display);
+		status = add_display_to_topology_v3(hdcp, display);
 	else
-		status = mod_hdcp_add_display_to_topology_v2(hdcp, display);
+		status = add_display_to_topology_v2(hdcp, display);
 
 	return status;
 }
@@ -1020,15 +1020,4 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 
 	mutex_unlock(&psp->hdcp_context.mutex);
 	return status;
-}
-
-bool mod_hdcp_is_link_encryption_enabled(struct mod_hdcp *hdcp)
-{
-	/* unsupported */
-	return true;
-}
-
-void mod_hdcp_save_current_encryption_states(struct mod_hdcp *hdcp)
-{
-	/* unsupported */
 }

@@ -123,7 +123,6 @@ enum mod_hdcp_display_state {
 
 struct mod_hdcp_psp_caps {
 	uint8_t dtm_v3_supported;
-	uint8_t opm_state_query_supported;
 };
 
 enum mod_hdcp_display_disable_option {
