@@ -490,6 +490,9 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	u32 write_domain = args->write_domain;
 	int err;
 
+	if (IS_DGFX(to_i915(dev)))
+		return -ENODEV;
+
 	/* Only handle setting domains to types used by the CPU. */
 	if ((write_domain | read_domains) & I915_GEM_GPU_DOMAINS)
 		return -EINVAL;
