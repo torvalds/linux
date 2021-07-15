@@ -34,6 +34,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	int ret;
 
 	bkey_cookie_init(&k.k_i);
+	k.k.p.snapshot = U32_MAX;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
@@ -79,29 +80,27 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	int ret;
 
 	bkey_cookie_init(&k.k_i);
+	k.k.p.snapshot = U32_MAX;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs, k.k.p,
 				   BTREE_ITER_INTENT);
 
-	ret = bch2_btree_iter_traverse(iter);
-	if (ret) {
-		bch_err(c, "lookup error in test_delete_written: %i", ret);
-		goto err;
-	}
-
 	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		bch2_btree_iter_traverse(iter) ?:
 		bch2_trans_update(&trans, iter, &k.k_i, 0));
 	if (ret) {
 		bch_err(c, "update error in test_delete_written: %i", ret);
 		goto err;
 	}
 
+	bch2_trans_unlock(&trans);
 	bch2_journal_flush_all_pins(&c->journal);
 
 	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-			 bch2_btree_delete_at(&trans, iter, 0));
+		bch2_btree_iter_traverse(iter) ?:
+		bch2_btree_delete_at(&trans, iter, 0));
 	if (ret) {
 		bch_err(c, "delete error in test_delete_written: %i", ret);
 		goto err;
@@ -131,6 +130,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 
 		bkey_cookie_init(&k.k_i);
 		k.k.p.offset = i;
+		k.k.p.snapshot = U32_MAX;
 
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
@@ -185,6 +185,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 
 		bkey_cookie_init(&k.k_i);
 		k.k.p.offset = i + 8;
+		k.k.p.snapshot = U32_MAX;
 		k.k.size = 8;
 
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
@@ -240,6 +241,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 
 		bkey_cookie_init(&k.k_i);
 		k.k.p.offset = i * 2;
+		k.k.p.snapshot = U32_MAX;
 
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
@@ -303,6 +305,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 		bkey_cookie_init(&k.k_i);
 		k.k.p.offset = i + 16;
+		k.k.p.snapshot = U32_MAX;
 		k.k.size = 8;
 
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
@@ -410,6 +413,7 @@ static int insert_test_extent(struct bch_fs *c,
 
 	bkey_cookie_init(&k.k_i);
 	k.k_i.k.p.offset = end;
+	k.k_i.k.p.snapshot = U32_MAX;
 	k.k_i.k.size = end - start;
 	k.k_i.k.version.lo = test_version++;
 
