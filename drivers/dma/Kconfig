@@ -295,6 +295,23 @@ config INTEL_IDXD
 
 	  If unsure, say N.
 
+config INTEL_IDXD_COMPAT
+	bool "Legacy behavior for idxd driver"
+	depends on PCI && X86_64
+	select INTEL_IDXD_BUS
+	help
+	  Compatible driver to support old /sys/bus/dsa/drivers/dsa behavior.
+	  The old behavior performed driver bind/unbind for device and wq
+	  devices all under the dsa driver. The compat driver will emulate
+	  the legacy behavior in order to allow existing support apps (i.e.
+	  accel-config) to continue function. It is expected that accel-config
+	  v3.2 and earlier will need the compat mode. A distro with later
+	  accel-config version can disable this compat config.
+
+	  Say Y if you have old applications that require such behavior.
+
+	  If unsure, say N.
+
 # Config symbol that collects all the dependencies that's necessary to
 # support shared virtual memory for the devices supported by idxd.
 config INTEL_IDXD_SVM

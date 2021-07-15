@@ -1318,3 +1318,4 @@ struct idxd_device_driver idxd_drv = {
 	.remove = idxd_device_drv_remove,
 	.name = "idxd",
 };
+EXPORT_SYMBOL_GPL(idxd_drv);

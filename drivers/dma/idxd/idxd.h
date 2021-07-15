@@ -416,9 +416,14 @@ static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
 	return false;
 }
 
-static inline bool is_idxd_wq_cdev(struct idxd_wq *wq)
+static inline bool is_idxd_wq_user(struct idxd_wq *wq)
 {
 	return wq->type == IDXD_WQT_USER;
+}
+
+static inline bool is_idxd_wq_kernel(struct idxd_wq *wq)
+{
+	return wq->type == IDXD_WQT_KERNEL;
 }
 
 static inline bool wq_dedicated(struct idxd_wq *wq)
@@ -483,6 +488,9 @@ int __must_check __idxd_driver_register(struct idxd_device_driver *idxd_drv,
 	__idxd_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
 
 void idxd_driver_unregister(struct idxd_device_driver *idxd_drv);
+
+#define module_idxd_driver(__idxd_driver) \
+	module_driver(__idxd_driver, idxd_driver_register, idxd_driver_unregister)
 
 int idxd_register_bus_type(void);
 void idxd_unregister_bus_type(void);

@@ -339,3 +339,4 @@ struct idxd_device_driver idxd_dmaengine_drv = {
 	.name = "dmaengine",
 	.type = dev_types,
 };
+EXPORT_SYMBOL_GPL(idxd_dmaengine_drv);

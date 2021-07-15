@@ -16,46 +16,6 @@ static char *idxd_wq_type_names[] = {
 	[IDXD_WQT_USER]		= "user",
 };
 
-static int idxd_dsa_drv_probe(struct idxd_dev *idxd_dev)
-{
-	if (is_idxd_dev(idxd_dev))
-		return idxd_device_drv_probe(idxd_dev);
-
-	if (is_idxd_wq_dev(idxd_dev)) {
-		struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
-
-		return drv_enable_wq(wq);
-	}
-
-	return -ENODEV;
-}
-
-static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
-{
-	if (is_idxd_dev(idxd_dev)) {
-		idxd_device_drv_remove(idxd_dev);
-		return;
-	}
-
-	if (is_idxd_wq_dev(idxd_dev)) {
-		struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
-
-		drv_disable_wq(wq);
-		return;
-	}
-}
-
-static enum idxd_dev_type dev_types[] = {
-	IDXD_DEV_NONE,
-};
-
-struct idxd_device_driver dsa_drv = {
-	.name = "dsa",
-	.probe = idxd_dsa_drv_probe,
-	.remove = idxd_dsa_drv_remove,
-	.type = dev_types,
-};
-
 /* IDXD engine attributes */
 static ssize_t engine_group_id_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)

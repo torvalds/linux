@@ -356,6 +356,7 @@ struct idxd_device_driver idxd_user_drv = {
 	.name = "user",
 	.type = dev_types,
 };
+EXPORT_SYMBOL_GPL(idxd_user_drv);
 
 int idxd_cdev_register(void)
 {

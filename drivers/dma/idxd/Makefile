@@ -7,3 +7,6 @@ idxd-$(CONFIG_INTEL_IDXD_PERFMON) += perfmon.o
 
 obj-$(CONFIG_INTEL_IDXD_BUS) += idxd_bus.o
 idxd_bus-y := bus.o
+
+obj-$(CONFIG_INTEL_IDXD_COMPAT) += idxd_compat.o
+idxd_compat-y := compat.o
