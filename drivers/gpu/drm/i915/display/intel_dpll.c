@@ -948,12 +948,12 @@ static bool ilk_needs_fb_cb_tune(struct dpll *dpll, int factor)
 }
 
 
-static void ilk_compute_dpll(struct intel_crtc *crtc,
-			     struct intel_crtc_state *crtc_state,
-			     struct dpll *reduced_clock)
+static void ilk_update_pll_dividers(struct intel_crtc *crtc,
+				    struct intel_crtc_state *crtc_state,
+				    struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dpll, fp, fp2;
+	u32 fp, fp2 = 0;
 	int factor;
 
 	/* Enable autotuning of the PLL clock (if permissible) */
@@ -978,9 +978,20 @@ static void ilk_compute_dpll(struct intel_crtc *crtc,
 
 		if (reduced_clock->m < factor * reduced_clock->n)
 			fp2 |= FP_CB_TUNE;
-	} else {
-		fp2 = fp;
 	}
+
+	crtc_state->dpll_hw_state.fp0 = fp;
+	crtc_state->dpll_hw_state.fp1 = reduced_clock ? fp2 : fp;
+}
+
+static void ilk_compute_dpll(struct intel_crtc *crtc,
+			     struct intel_crtc_state *crtc_state,
+			     struct dpll *reduced_clock)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 dpll;
+
+	ilk_update_pll_dividers(crtc, crtc_state, reduced_clock);
 
 	dpll = 0;
 
@@ -1046,8 +1057,6 @@ static void ilk_compute_dpll(struct intel_crtc *crtc,
 	dpll |= DPLL_VCO_ENABLE;
 
 	crtc_state->dpll_hw_state.dpll = dpll;
-	crtc_state->dpll_hw_state.fp0 = fp;
-	crtc_state->dpll_hw_state.fp1 = fp2;
 }
 
 static int ilk_crtc_compute_clock(struct intel_crtc *crtc,
