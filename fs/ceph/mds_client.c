@@ -4456,7 +4456,7 @@ bool check_session_state(struct ceph_mds_session *s)
 		break;
 	case CEPH_MDS_SESSION_CLOSING:
 		/* Should never reach this when we're unmounting */
-		WARN_ON_ONCE(true);
+		WARN_ON_ONCE(s->s_ttl);
 		fallthrough;
 	case CEPH_MDS_SESSION_NEW:
 	case CEPH_MDS_SESSION_RESTARTING:
