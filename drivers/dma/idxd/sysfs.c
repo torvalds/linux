@@ -19,69 +19,80 @@ static char *idxd_wq_type_names[] = {
 static int idxd_config_bus_match(struct device *dev,
 				 struct device_driver *drv)
 {
-	int matched = 0;
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 
-	if (is_idxd_dev(dev)) {
-		matched = 1;
-	} else if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
-
-		if (wq->state != IDXD_WQ_DISABLED) {
-			dev_dbg(dev, "%s not disabled\n", dev_name(dev));
-			return 0;
-		}
-		matched = 1;
-	}
-
-	if (matched)
-		dev_dbg(dev, "%s matched\n", dev_name(dev));
-
-	return matched;
+	return (is_idxd_dev(idxd_dev) || is_idxd_wq_dev(idxd_dev));
 }
 
 static int idxd_config_bus_probe(struct device *dev)
 {
-	int rc = 0;
+	struct idxd_device_driver *idxd_drv =
+		container_of(dev->driver, struct idxd_device_driver, drv);
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	return idxd_drv->probe(idxd_dev);
+}
+
+static int idxd_config_bus_remove(struct device *dev)
+{
+	struct idxd_device_driver *idxd_drv =
+		container_of(dev->driver, struct idxd_device_driver, drv);
+	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
+
+	idxd_drv->remove(idxd_dev);
+	return 0;
+}
+
+struct bus_type dsa_bus_type = {
+	.name = "dsa",
+	.match = idxd_config_bus_match,
+	.probe = idxd_config_bus_probe,
+	.remove = idxd_config_bus_remove,
+};
+
+static int idxd_dsa_drv_probe(struct idxd_dev *idxd_dev)
+{
+	struct device *dev = &idxd_dev->conf_dev;
 	unsigned long flags;
+	int rc;
 
-	dev_dbg(dev, "%s called\n", __func__);
+	if (is_idxd_dev(idxd_dev)) {
+		struct idxd_device *idxd = idxd_dev_to_idxd(idxd_dev);
 
-	if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
-
-		if (!try_module_get(THIS_MODULE))
+		if (idxd->state != IDXD_DEV_DISABLED)
 			return -ENXIO;
 
-		/* Perform IDXD configuration and enabling */
+		/* Device configuration */
 		spin_lock_irqsave(&idxd->dev_lock, flags);
 		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 			rc = idxd_device_config(idxd);
 		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		if (rc < 0) {
-			module_put(THIS_MODULE);
-			dev_warn(dev, "Device config failed: %d\n", rc);
+			dev_dbg(dev, "Device config failed: %d\n", rc);
 			return rc;
 		}
 
-		/* start device */
+		/* Start device */
 		rc = idxd_device_enable(idxd);
 		if (rc < 0) {
-			module_put(THIS_MODULE);
 			dev_warn(dev, "Device enable failed: %d\n", rc);
 			return rc;
 		}
 
-		dev_info(dev, "Device %s enabled\n", dev_name(dev));
-
+		/* Setup DMA device without channels */
 		rc = idxd_register_dma_device(idxd);
 		if (rc < 0) {
-			module_put(THIS_MODULE);
 			dev_dbg(dev, "Failed to register dmaengine device\n");
+			idxd_device_disable(idxd);
 			return rc;
 		}
+
+		dev_info(dev, "Device %s enabled\n", dev_name(dev));
 		return 0;
-	} else if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
+	}
+
+	if (is_idxd_wq_dev(idxd_dev)) {
+		struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
 
 		return drv_enable_wq(wq);
 	}
@@ -89,21 +100,14 @@ static int idxd_config_bus_probe(struct device *dev)
 	return -ENODEV;
 }
 
-static int idxd_config_bus_remove(struct device *dev)
+static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
 {
-	dev_dbg(dev, "%s called for %s\n", __func__, dev_name(dev));
+	struct device *dev = &idxd_dev->conf_dev;
 
-	/* disable workqueue here */
-	if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
-
-		drv_disable_wq(wq);
-	} else if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
+	if (is_idxd_dev(idxd_dev)) {
+		struct idxd_device *idxd = idxd_dev_to_idxd(idxd_dev);
 		int i;
 
-		dev_dbg(dev, "%s removing dev %s\n", __func__,
-			dev_name(idxd_confdev(idxd)));
 		for (i = 0; i < idxd->max_wqs; i++) {
 			struct idxd_wq *wq = idxd->wqs[i];
 
@@ -118,23 +122,21 @@ static int idxd_config_bus_remove(struct device *dev)
 		idxd_device_disable(idxd);
 		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 			idxd_device_reset(idxd);
-		module_put(THIS_MODULE);
-
-		dev_info(dev, "Device %s disabled\n", dev_name(dev));
+		return;
 	}
 
-	return 0;
-}
+	if (is_idxd_wq_dev(idxd_dev)) {
+		struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
 
-struct bus_type dsa_bus_type = {
-	.name = "dsa",
-	.match = idxd_config_bus_match,
-	.probe = idxd_config_bus_probe,
-	.remove = idxd_config_bus_remove,
-};
+		drv_disable_wq(wq);
+		return;
+	}
+}
 
 static struct idxd_device_driver dsa_drv = {
 	.name = "dsa",
+	.probe = idxd_dsa_drv_probe,
+	.remove = idxd_dsa_drv_remove,
 };
 
 /* IDXD generic driver setup */

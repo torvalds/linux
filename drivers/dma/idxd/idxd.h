@@ -51,6 +51,8 @@ enum idxd_type {
 
 struct idxd_device_driver {
 	const char *name;
+	int (*probe)(struct idxd_dev *idxd_dev);
+	void (*remove)(struct idxd_dev *idxd_dev);
 	struct device_driver drv;
 };
 
@@ -323,19 +325,21 @@ enum idxd_completion_status {
 #define cdev_dev(cdev) &cdev->idxd_dev.conf_dev
 
 #define confdev_to_idxd_dev(dev) container_of(dev, struct idxd_dev, conf_dev)
+#define idxd_dev_to_idxd(idxd_dev) container_of(idxd_dev, struct idxd_device, idxd_dev)
+#define idxd_dev_to_wq(idxd_dev) container_of(idxd_dev, struct idxd_wq, idxd_dev)
 
 static inline struct idxd_device *confdev_to_idxd(struct device *dev)
 {
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 
-	return container_of(idxd_dev, struct idxd_device, idxd_dev);
+	return idxd_dev_to_idxd(idxd_dev);
 }
 
 static inline struct idxd_wq *confdev_to_wq(struct device *dev)
 {
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 
-	return container_of(idxd_dev, struct idxd_wq, idxd_dev);
+	return idxd_dev_to_wq(idxd_dev);
 }
 
 static inline struct idxd_engine *confdev_to_engine(struct device *dev)
@@ -379,24 +383,24 @@ extern struct device_type idxd_wq_device_type;
 extern struct device_type idxd_engine_device_type;
 extern struct device_type idxd_group_device_type;
 
-static inline bool is_dsa_dev(struct device *dev)
+static inline bool is_dsa_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &dsa_device_type;
+	return idxd_dev->type == IDXD_DEV_DSA;
 }
 
-static inline bool is_iax_dev(struct device *dev)
+static inline bool is_iax_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &iax_device_type;
+	return idxd_dev->type == IDXD_DEV_IAX;
 }
 
-static inline bool is_idxd_dev(struct device *dev)
+static inline bool is_idxd_dev(struct idxd_dev *idxd_dev)
 {
-	return is_dsa_dev(dev) || is_iax_dev(dev);
+	return is_dsa_dev(idxd_dev) || is_iax_dev(idxd_dev);
 }
 
-static inline bool is_idxd_wq_dev(struct device *dev)
+static inline bool is_idxd_wq_dev(struct idxd_dev *idxd_dev)
 {
-	return dev->type == &idxd_wq_device_type;
+	return idxd_dev->type == IDXD_DEV_WQ;
 }
 
 static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
