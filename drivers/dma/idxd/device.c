@@ -1130,7 +1130,7 @@ int idxd_device_load_config(struct idxd_device *idxd)
 	return 0;
 }
 
-static int __drv_enable_wq(struct idxd_wq *wq)
+int __drv_enable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
@@ -1178,12 +1178,7 @@ static int __drv_enable_wq(struct idxd_wq *wq)
 		}
 	}
 
-	rc = idxd_wq_alloc_resources(wq);
-	if (rc < 0) {
-		dev_dbg(dev, "wq resource alloc failed\n");
-		goto err;
-	}
-
+	rc = 0;
 	spin_lock_irqsave(&idxd->dev_lock, flags);
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		rc = idxd_device_config(idxd);
@@ -1207,21 +1202,7 @@ static int __drv_enable_wq(struct idxd_wq *wq)
 
 	wq->client_count = 0;
 
-	if (wq->type == IDXD_WQT_KERNEL) {
-		rc = idxd_wq_init_percpu_ref(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "wq %d percpu_ref setup failed\n", wq->id);
-			goto err_cpu_ref;
-		}
-	}
-
-	if (is_idxd_wq_dmaengine(wq)) {
-		rc = idxd_register_dma_channel(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "wq %d DMA channel register failed\n", wq->id);
-			goto err_client;
-		}
-	} else if (is_idxd_wq_cdev(wq)) {
+	if (is_idxd_wq_cdev(wq)) {
 		rc = idxd_wq_add_cdev(wq);
 		if (rc < 0) {
 			dev_dbg(dev, "wq %d cdev creation failed\n", wq->id);
@@ -1229,12 +1210,9 @@ static int __drv_enable_wq(struct idxd_wq *wq)
 		}
 	}
 
-	dev_info(dev, "wq %s enabled\n", dev_name(wq_confdev(wq)));
 	return 0;
 
 err_client:
-	idxd_wq_quiesce(wq);
-err_cpu_ref:
 	idxd_wq_unmap_portal(wq);
 err_map_portal:
 	rc = idxd_wq_disable(wq, false);
@@ -1254,19 +1232,14 @@ int drv_enable_wq(struct idxd_wq *wq)
 	return rc;
 }
 
-static void __drv_disable_wq(struct idxd_wq *wq)
+void __drv_disable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 
 	lockdep_assert_held(&wq->wq_lock);
 
-	if (wq->type == IDXD_WQT_KERNEL)
-		idxd_wq_quiesce(wq);
-
-	if (is_idxd_wq_dmaengine(wq))
-		idxd_unregister_dma_channel(wq);
-	else if (is_idxd_wq_cdev(wq))
+	if (is_idxd_wq_cdev(wq))
 		idxd_wq_del_cdev(wq);
 
 	if (idxd_wq_refcount(wq))
@@ -1278,10 +1251,7 @@ static void __drv_disable_wq(struct idxd_wq *wq)
 	idxd_wq_drain(wq);
 	idxd_wq_reset(wq);
 
-	idxd_wq_free_resources(wq);
 	wq->client_count = 0;
-
-	dev_info(dev, "wq %s disabled\n", dev_name(wq_confdev(wq)));
 }
 
 void drv_disable_wq(struct idxd_wq *wq)
