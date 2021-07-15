@@ -3103,6 +3103,21 @@ static struct evsel *evsel__new_pgfault(u64 config)
 	return evsel;
 }
 
+static void evlist__free_syscall_tp_fields(struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		struct evsel_trace *et = evsel->priv;
+
+		if (!et || !evsel->tp_format || strcmp(evsel->tp_format->system, "syscalls"))
+			continue;
+
+		free(et->fmt);
+		free(et);
+	}
+}
+
 static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
 {
 	const u32 type = event->header.type;
@@ -4138,7 +4153,7 @@ out_disable:
 
 out_delete_evlist:
 	trace__symbols__exit(trace);
-
+	evlist__free_syscall_tp_fields(evlist);
 	evlist__delete(evlist);
 	cgroup__put(trace->cgroup);
 	trace->evlist = NULL;
