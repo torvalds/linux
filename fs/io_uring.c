@@ -2087,7 +2087,6 @@ static void __io_req_task_submit(struct io_kiocb *req)
 		__io_req_task_cancel(req, -EFAULT);
 	mutex_unlock(&ctx->uring_lock);
 
-	ctx->flags &= ~IORING_SETUP_R_DISABLED;
 	if (ctx->flags & IORING_SETUP_SQPOLL)
 		io_sq_thread_drop_mm();
 }
@@ -7992,6 +7991,7 @@ static void io_sq_offload_start(struct io_ring_ctx *ctx)
 {
 	struct io_sq_data *sqd = ctx->sq_data;
 
+	ctx->flags &= ~IORING_SETUP_R_DISABLED;
 	if ((ctx->flags & IORING_SETUP_SQPOLL) && sqd->thread)
 		wake_up_process(sqd->thread);
 }
