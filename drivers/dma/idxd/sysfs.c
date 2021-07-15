@@ -39,128 +39,6 @@ static int idxd_config_bus_match(struct device *dev,
 	return matched;
 }
 
-static int enable_wq(struct idxd_wq *wq)
-{
-	struct idxd_device *idxd = wq->idxd;
-	struct device *dev = &idxd->pdev->dev;
-	unsigned long flags;
-	int rc;
-
-	mutex_lock(&wq->wq_lock);
-
-	if (idxd->state != IDXD_DEV_ENABLED) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "Enabling while device not enabled.\n");
-		return -EPERM;
-	}
-
-	if (wq->state != IDXD_WQ_DISABLED) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "WQ %d already enabled.\n", wq->id);
-		return -EBUSY;
-	}
-
-	if (!wq->group) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "WQ not attached to group.\n");
-		return -EINVAL;
-	}
-
-	if (strlen(wq->name) == 0) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "WQ name not set.\n");
-		return -EINVAL;
-	}
-
-	/* Shared WQ checks */
-	if (wq_shared(wq)) {
-		if (!device_swq_supported(idxd)) {
-			dev_warn(dev, "PASID not enabled and shared WQ.\n");
-			mutex_unlock(&wq->wq_lock);
-			return -ENXIO;
-		}
-		/*
-		 * Shared wq with the threshold set to 0 means the user
-		 * did not set the threshold or transitioned from a
-		 * dedicated wq but did not set threshold. A value
-		 * of 0 would effectively disable the shared wq. The
-		 * driver does not allow a value of 0 to be set for
-		 * threshold via sysfs.
-		 */
-		if (wq->threshold == 0) {
-			dev_warn(dev, "Shared WQ and threshold 0.\n");
-			mutex_unlock(&wq->wq_lock);
-			return -EINVAL;
-		}
-	}
-
-	rc = idxd_wq_alloc_resources(wq);
-	if (rc < 0) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "WQ resource alloc failed\n");
-		return rc;
-	}
-
-	spin_lock_irqsave(&idxd->dev_lock, flags);
-	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
-		rc = idxd_device_config(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
-	if (rc < 0) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "Writing WQ %d config failed: %d\n", wq->id, rc);
-		return rc;
-	}
-
-	rc = idxd_wq_enable(wq);
-	if (rc < 0) {
-		mutex_unlock(&wq->wq_lock);
-		dev_warn(dev, "WQ %d enabling failed: %d\n", wq->id, rc);
-		return rc;
-	}
-
-	rc = idxd_wq_map_portal(wq);
-	if (rc < 0) {
-		dev_warn(dev, "wq portal mapping failed: %d\n", rc);
-		rc = idxd_wq_disable(wq, false);
-		if (rc < 0)
-			dev_warn(dev, "IDXD wq disable failed\n");
-		mutex_unlock(&wq->wq_lock);
-		return rc;
-	}
-
-	wq->client_count = 0;
-
-	if (wq->type == IDXD_WQT_KERNEL) {
-		rc = idxd_wq_init_percpu_ref(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "percpu_ref setup failed\n");
-			mutex_unlock(&wq->wq_lock);
-			return rc;
-		}
-	}
-
-	if (is_idxd_wq_dmaengine(wq)) {
-		rc = idxd_register_dma_channel(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "DMA channel register failed\n");
-			mutex_unlock(&wq->wq_lock);
-			return rc;
-		}
-	} else if (is_idxd_wq_cdev(wq)) {
-		rc = idxd_wq_add_cdev(wq);
-		if (rc < 0) {
-			dev_dbg(dev, "Cdev creation failed\n");
-			mutex_unlock(&wq->wq_lock);
-			return rc;
-		}
-	}
-
-	mutex_unlock(&wq->wq_lock);
-	dev_info(dev, "wq %s enabled\n", dev_name(wq_confdev(wq)));
-
-	return 0;
-}
-
 static int idxd_config_bus_probe(struct device *dev)
 {
 	int rc = 0;
@@ -205,7 +83,7 @@ static int idxd_config_bus_probe(struct device *dev)
 	} else if (is_idxd_wq_dev(dev)) {
 		struct idxd_wq *wq = confdev_to_wq(dev);
 
-		return enable_wq(wq);
+		return drv_enable_wq(wq);
 	}
 
 	return -ENODEV;

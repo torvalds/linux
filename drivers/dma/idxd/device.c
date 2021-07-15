@@ -1129,3 +1129,127 @@ int idxd_device_load_config(struct idxd_device *idxd)
 
 	return 0;
 }
+
+static int __drv_enable_wq(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	unsigned long flags;
+	int rc = -ENXIO;
+
+	lockdep_assert_held(&wq->wq_lock);
+
+	if (idxd->state != IDXD_DEV_ENABLED)
+		goto err;
+
+	if (wq->state != IDXD_WQ_DISABLED) {
+		dev_dbg(dev, "wq %d already enabled.\n", wq->id);
+		rc = -EBUSY;
+		goto err;
+	}
+
+	if (!wq->group) {
+		dev_dbg(dev, "wq %d not attached to group.\n", wq->id);
+		goto err;
+	}
+
+	if (strlen(wq->name) == 0) {
+		dev_dbg(dev, "wq %d name not set.\n", wq->id);
+		goto err;
+	}
+
+	/* Shared WQ checks */
+	if (wq_shared(wq)) {
+		if (!device_swq_supported(idxd)) {
+			dev_dbg(dev, "PASID not enabled and shared wq.\n");
+			goto err;
+		}
+		/*
+		 * Shared wq with the threshold set to 0 means the user
+		 * did not set the threshold or transitioned from a
+		 * dedicated wq but did not set threshold. A value
+		 * of 0 would effectively disable the shared wq. The
+		 * driver does not allow a value of 0 to be set for
+		 * threshold via sysfs.
+		 */
+		if (wq->threshold == 0) {
+			dev_dbg(dev, "Shared wq and threshold 0.\n");
+			goto err;
+		}
+	}
+
+	rc = idxd_wq_alloc_resources(wq);
+	if (rc < 0) {
+		dev_dbg(dev, "wq resource alloc failed\n");
+		goto err;
+	}
+
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		rc = idxd_device_config(idxd);
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	if (rc < 0) {
+		dev_dbg(dev, "Writing wq %d config failed: %d\n", wq->id, rc);
+		goto err;
+	}
+
+	rc = idxd_wq_enable(wq);
+	if (rc < 0) {
+		dev_dbg(dev, "wq %d enabling failed: %d\n", wq->id, rc);
+		goto err;
+	}
+
+	rc = idxd_wq_map_portal(wq);
+	if (rc < 0) {
+		dev_dbg(dev, "wq %d portal mapping failed: %d\n", wq->id, rc);
+		goto err_map_portal;
+	}
+
+	wq->client_count = 0;
+
+	if (wq->type == IDXD_WQT_KERNEL) {
+		rc = idxd_wq_init_percpu_ref(wq);
+		if (rc < 0) {
+			dev_dbg(dev, "wq %d percpu_ref setup failed\n", wq->id);
+			goto err_cpu_ref;
+		}
+	}
+
+	if (is_idxd_wq_dmaengine(wq)) {
+		rc = idxd_register_dma_channel(wq);
+		if (rc < 0) {
+			dev_dbg(dev, "wq %d DMA channel register failed\n", wq->id);
+			goto err_client;
+		}
+	} else if (is_idxd_wq_cdev(wq)) {
+		rc = idxd_wq_add_cdev(wq);
+		if (rc < 0) {
+			dev_dbg(dev, "wq %d cdev creation failed\n", wq->id);
+			goto err_client;
+		}
+	}
+
+	dev_info(dev, "wq %s enabled\n", dev_name(wq_confdev(wq)));
+	return 0;
+
+err_client:
+	idxd_wq_quiesce(wq);
+err_cpu_ref:
+	idxd_wq_unmap_portal(wq);
+err_map_portal:
+	rc = idxd_wq_disable(wq, false);
+	if (rc < 0)
+		dev_dbg(dev, "wq %s disable failed\n", dev_name(wq_confdev(wq)));
+err:
+	return rc;
+}
+
+int drv_enable_wq(struct idxd_wq *wq)
+{
+	int rc;
+
+	mutex_lock(&wq->wq_lock);
+	rc = __drv_enable_wq(wq);
+	mutex_unlock(&wq->wq_lock);
+	return rc;
+}
