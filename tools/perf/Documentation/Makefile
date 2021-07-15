@@ -237,24 +237,6 @@ $(OUTPUT)doc.dep : $(wildcard *.txt) build-docdep.perl
 
 -include $(OUTPUT)doc.dep
 
-_cmds_txt = cmds-ancillaryinterrogators.txt \
-	cmds-ancillarymanipulators.txt \
-	cmds-mainporcelain.txt \
-	cmds-plumbinginterrogators.txt \
-	cmds-plumbingmanipulators.txt \
-	cmds-synchingrepositories.txt \
-	cmds-synchelpers.txt \
-	cmds-purehelpers.txt \
-	cmds-foreignscminterface.txt
-cmds_txt=$(addprefix $(OUTPUT),$(_cmds_txt))
-
-$(cmds_txt): $(OUTPUT)cmd-list.made
-
-$(OUTPUT)cmd-list.made: cmd-list.perl ../command-list.txt $(MAN1_TXT)
-	$(QUIET_GEN)$(RM) $@ && \
-	$(PERL_PATH) ./cmd-list.perl ../command-list.txt $(QUIET_STDERR) && \
-	date >$@
-
 CLEAN_FILES =									\
 	$(MAN_XML) $(addsuffix +,$(MAN_XML))					\
 	$(MAN_HTML) $(addsuffix +,$(MAN_HTML))					\
@@ -262,8 +244,7 @@ CLEAN_FILES =									\
 	$(OUTPUT)*.texi $(OUTPUT)*.texi+ $(OUTPUT)*.texi++			\
 	$(OUTPUT)perf.info $(OUTPUT)perfman.info				\
 	$(OUTPUT)howto-index.txt $(OUTPUT)howto/*.html $(OUTPUT)doc.dep		\
-	$(OUTPUT)technical/api-*.html $(OUTPUT)technical/api-index.txt		\
-	$(cmds_txt) $(OUTPUT)*.made
+	$(OUTPUT)technical/api-*.html $(OUTPUT)technical/api-index.txt
 clean:
 	$(call QUIET_CLEAN, Documentation) $(RM) $(CLEAN_FILES)
 
