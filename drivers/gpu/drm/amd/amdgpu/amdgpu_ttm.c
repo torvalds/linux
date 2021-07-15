@@ -2145,7 +2145,6 @@ static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 		return -ENXIO;
 
 	while (size) {
-		unsigned long flags;
 		uint32_t value;
 
 		if (*pos >= adev->gmc.mc_vram_size)
@@ -2155,11 +2154,7 @@ static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 		if (r)
 			return r;
 
-		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
-		WREG32_NO_KIQ(mmMM_INDEX_HI, *pos >> 31);
-		WREG32_NO_KIQ(mmMM_DATA, value);
-		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+		amdgpu_device_mm_access(adev, *pos, &value, 4, true);
 
 		result += 4;
 		buf += 4;
