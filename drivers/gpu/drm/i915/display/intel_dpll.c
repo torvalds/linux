@@ -1780,6 +1780,7 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 	pipe_config->cpu_transcoder = (enum transcoder)pipe;
 	pipe_config->pixel_multiplier = 1;
 	pipe_config->dpll = *dpll;
+	pipe_config->output_types = BIT(INTEL_OUTPUT_EDP);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		chv_compute_dpll(crtc, pipe_config);
