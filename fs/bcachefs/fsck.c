@@ -267,11 +267,11 @@ static struct inode_walker inode_walker_init(void)
 	};
 }
 
-static int walk_inode(struct btree_trans *trans,
-		      struct inode_walker *w, u64 inum)
+static int __walk_inode(struct btree_trans *trans,
+			struct inode_walker *w, u64 inum)
 {
 	if (inum != w->cur_inum) {
-		int ret = lookup_inode(trans, inum, &w->inode, &w->snapshot);
+		int ret = __lookup_inode(trans, inum, &w->inode, &w->snapshot);
 
 		if (ret && ret != -ENOENT)
 			return ret;
@@ -284,6 +284,12 @@ static int walk_inode(struct btree_trans *trans,
 	}
 
 	return 0;
+}
+
+static int walk_inode(struct btree_trans *trans,
+		      struct inode_walker *w, u64 inum)
+{
+	return lockrestart_do(trans, __walk_inode(trans, w, inum));
 }
 
 static int hash_redo_key(struct btree_trans *trans,
@@ -704,6 +710,177 @@ fsck_err:
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
+static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
+			struct bch_hash_info *hash_info,
+			struct inode_walker *w, unsigned *nr_subdirs)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c k;
+	struct bkey_s_c_dirent d;
+	struct bch_inode_unpacked target;
+	u32 target_snapshot;
+	bool have_target;
+	bool backpointer_exists = true;
+	u64 d_inum;
+	char buf[200];
+	int ret;
+
+	k = bch2_btree_iter_peek(iter);
+	if (!k.k)
+		return 1;
+
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (w->have_inode &&
+	    w->cur_inum != k.k->p.inode &&
+	    fsck_err_on(w->inode.bi_nlink != *nr_subdirs, c,
+			"directory %llu with wrong i_nlink: got %u, should be %u",
+			w->inode.bi_inum, w->inode.bi_nlink, *nr_subdirs)) {
+		w->inode.bi_nlink = *nr_subdirs;
+		ret = write_inode(trans, &w->inode, w->snapshot);
+		return ret ?: -EINTR;
+	}
+
+	ret = __walk_inode(trans, w, k.k->p.inode);
+	if (ret)
+		return ret;
+
+	if (w->first_this_inode)
+		*nr_subdirs = 0;
+
+	if (fsck_err_on(!w->have_inode, c,
+			"dirent in nonexisting directory:\n%s",
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf)) ||
+	    fsck_err_on(!S_ISDIR(w->inode.bi_mode), c,
+			"dirent in non directory inode type %u:\n%s",
+			mode_to_type(w->inode.bi_mode),
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf)))
+		return __bch2_trans_do(trans, NULL, NULL, 0,
+				bch2_btree_delete_at(trans, iter, 0));
+
+	if (!w->have_inode)
+		return 0;
+
+	if (w->first_this_inode)
+		*hash_info = bch2_hash_info_init(c, &w->inode);
+
+	ret = hash_check_key(trans, bch2_dirent_hash_desc,
+			     hash_info, iter, k);
+	if (ret < 0)
+		return ret;
+	if (ret) /* dirent has been deleted */
+		return 0;
+
+	if (k.k->type != KEY_TYPE_dirent)
+		return 0;
+
+	d = bkey_s_c_to_dirent(k);
+	d_inum = le64_to_cpu(d.v->d_inum);
+
+	ret = __lookup_inode(trans, d_inum, &target, &target_snapshot);
+	if (ret && ret != -ENOENT)
+		return ret;
+
+	have_target = !ret;
+	ret = 0;
+
+	if (fsck_err_on(!have_target, c,
+			"dirent points to missing inode:\n%s",
+			(bch2_bkey_val_to_text(&PBUF(buf), c,
+					       k), buf)))
+		return remove_dirent(trans, d.k->p);
+
+	if (!have_target)
+		return 0;
+
+	if (!target.bi_dir &&
+	    !target.bi_dir_offset) {
+		target.bi_dir		= k.k->p.inode;
+		target.bi_dir_offset	= k.k->p.offset;
+
+		ret = __write_inode(trans, &target, target_snapshot) ?:
+			bch2_trans_commit(trans, NULL, NULL,
+					  BTREE_INSERT_NOFAIL|
+					  BTREE_INSERT_LAZY_RW|
+					  BTREE_INSERT_NOUNLOCK);
+		if (ret)
+			return ret;
+		return -EINTR;
+	}
+
+	if (!inode_backpointer_matches(d, &target)) {
+		ret = inode_backpointer_exists(trans, &target);
+		if (ret < 0)
+			return ret;
+
+		backpointer_exists = ret;
+		ret = 0;
+
+		if (fsck_err_on(S_ISDIR(target.bi_mode) &&
+				backpointer_exists, c,
+				"directory %llu with multiple links",
+				target.bi_inum))
+			return remove_dirent(trans, d.k->p);
+
+		if (fsck_err_on(backpointer_exists &&
+				!target.bi_nlink, c,
+				"inode %llu has multiple links but i_nlink 0",
+				d_inum)) {
+			target.bi_nlink++;
+			target.bi_flags &= ~BCH_INODE_UNLINKED;
+
+			ret = write_inode(trans, &target, target_snapshot);
+			return ret ?: -EINTR;
+		}
+
+		if (fsck_err_on(!backpointer_exists, c,
+				"inode %llu has wrong backpointer:\n"
+				"got       %llu:%llu\n"
+				"should be %llu:%llu",
+				d_inum,
+				target.bi_dir,
+				target.bi_dir_offset,
+				k.k->p.inode,
+				k.k->p.offset)) {
+			target.bi_dir		= k.k->p.inode;
+			target.bi_dir_offset	= k.k->p.offset;
+
+			ret = write_inode(trans, &target, target_snapshot);
+			return ret ?: -EINTR;
+		}
+	}
+
+	if (fsck_err_on(d.v->d_type != mode_to_type(target.bi_mode), c,
+			"incorrect d_type: should be %u:\n%s",
+			mode_to_type(target.bi_mode),
+			(bch2_bkey_val_to_text(&PBUF(buf), c,
+					       k), buf))) {
+		struct bkey_i_dirent *n;
+
+		n = kmalloc(bkey_bytes(d.k), GFP_KERNEL);
+		if (!n)
+			return -ENOMEM;
+
+		bkey_reassemble(&n->k_i, d.s_c);
+		n->v.d_type = mode_to_type(target.bi_mode);
+
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL|
+				      BTREE_INSERT_LAZY_RW,
+			bch2_btree_iter_traverse(iter) ?:
+			bch2_trans_update(trans, iter, &n->k_i, 0));
+		kfree(n);
+		return ret ?: -EINTR;
+	}
+
+	*nr_subdirs += d.v->d_type == DT_DIR;
+	return 0;
+fsck_err:
+	return ret;
+}
+
 /*
  * Walk dirents: verify that they all have a corresponding S_ISDIR inode,
  * validate d_type
@@ -715,8 +892,6 @@ static int check_dirents(struct bch_fs *c)
 	struct bch_hash_info hash_info;
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	struct bkey_s_c k;
-	char buf[200];
 	unsigned nr_subdirs = 0;
 	int ret = 0;
 
@@ -728,186 +903,22 @@ static int check_dirents(struct bch_fs *c)
 				   POS(BCACHEFS_ROOT_INO, 0),
 				   BTREE_ITER_INTENT|
 				   BTREE_ITER_PREFETCH);
-retry:
-	while ((k = bch2_btree_iter_peek(iter)).k &&
-	       !(ret = bkey_err(k))) {
-		struct bkey_s_c_dirent d;
-		struct bch_inode_unpacked target;
-		u32 target_snapshot;
-		bool have_target;
-		bool backpointer_exists = true;
-		u64 d_inum;
 
-		if (w.have_inode &&
-		    w.cur_inum != k.k->p.inode &&
-		    fsck_err_on(w.inode.bi_nlink != nr_subdirs, c,
-				"directory %llu with wrong i_nlink: got %u, should be %u",
-				w.inode.bi_inum, w.inode.bi_nlink, nr_subdirs)) {
-			w.inode.bi_nlink = nr_subdirs;
-			ret = write_inode(&trans, &w.inode, w.snapshot);
-			if (ret)
-				break;
+	while (1) {
+		ret = lockrestart_do(&trans,
+				check_dirent(&trans, iter, &hash_info, &w, &nr_subdirs));
+		if (ret == 1) {
+			/* at end */
+			ret = 0;
+			break;
 		}
-
-		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
 
-		if (w.first_this_inode)
-			nr_subdirs = 0;
-
-		if (fsck_err_on(!w.have_inode, c,
-				"dirent in nonexisting directory:\n%s",
-				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf)) ||
-		    fsck_err_on(!S_ISDIR(w.inode.bi_mode), c,
-				"dirent in non directory inode type %u:\n%s",
-				mode_to_type(w.inode.bi_mode),
-				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf))) {
-			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-					bch2_btree_delete_at(&trans, iter, 0));
-			if (ret)
-				goto err;
-			goto next;
-		}
-
-		if (!w.have_inode)
-			goto next;
-
-		if (w.first_this_inode)
-			hash_info = bch2_hash_info_init(c, &w.inode);
-
-		ret = hash_check_key(&trans, bch2_dirent_hash_desc,
-				     &hash_info, iter, k);
-		if (ret > 0) {
-			ret = 0;
-			goto next;
-		}
-		if (ret)
-			goto fsck_err;
-
-		if (k.k->type != KEY_TYPE_dirent)
-			goto next;
-
-		d = bkey_s_c_to_dirent(k);
-		d_inum = le64_to_cpu(d.v->d_inum);
-
-		ret = lookup_inode(&trans, d_inum, &target, &target_snapshot);
-		if (ret && ret != -ENOENT)
-			break;
-
-		have_target = !ret;
-		ret = 0;
-
-		if (fsck_err_on(!have_target, c,
-				"dirent points to missing inode:\n%s",
-				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf))) {
-			ret = remove_dirent(&trans, d.k->p);
-			if (ret)
-				goto err;
-			goto next;
-		}
-
-		if (!have_target)
-			goto next;
-
-		if (!target.bi_dir &&
-		    !target.bi_dir_offset) {
-			target.bi_dir		= k.k->p.inode;
-			target.bi_dir_offset	= k.k->p.offset;
-
-			ret = write_inode(&trans, &target, target_snapshot);
-			if (ret)
-				goto err;
-		}
-
-		if (!inode_backpointer_matches(d, &target)) {
-			ret = inode_backpointer_exists(&trans, &target);
-			if (ret < 0)
-				goto err;
-
-			backpointer_exists = ret;
-			ret = 0;
-
-			if (fsck_err_on(S_ISDIR(target.bi_mode) &&
-					backpointer_exists, c,
-					"directory %llu with multiple links",
-					target.bi_inum)) {
-				ret = remove_dirent(&trans, d.k->p);
-				if (ret)
-					goto err;
-				continue;
-			}
-
-			if (fsck_err_on(backpointer_exists &&
-					!target.bi_nlink, c,
-					"inode %llu has multiple links but i_nlink 0",
-					d_inum)) {
-				target.bi_nlink++;
-				target.bi_flags &= ~BCH_INODE_UNLINKED;
-
-				ret = write_inode(&trans, &target, target_snapshot);
-				if (ret)
-					goto err;
-			}
-
-			if (fsck_err_on(!backpointer_exists, c,
-					"inode %llu has wrong backpointer:\n"
-					"got       %llu:%llu\n"
-					"should be %llu:%llu",
-					d_inum,
-					target.bi_dir,
-					target.bi_dir_offset,
-					k.k->p.inode,
-					k.k->p.offset)) {
-				target.bi_dir		= k.k->p.inode;
-				target.bi_dir_offset	= k.k->p.offset;
-
-				ret = write_inode(&trans, &target, target_snapshot);
-				if (ret)
-					goto err;
-			}
-		}
-
-		if (fsck_err_on(d.v->d_type != mode_to_type(target.bi_mode), c,
-				"incorrect d_type: should be %u:\n%s",
-				mode_to_type(target.bi_mode),
-				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf))) {
-			struct bkey_i_dirent *n;
-
-			n = kmalloc(bkey_bytes(d.k), GFP_KERNEL);
-			if (!n) {
-				ret = -ENOMEM;
-				goto err;
-			}
-
-			bkey_reassemble(&n->k_i, d.s_c);
-			n->v.d_type = mode_to_type(target.bi_mode);
-
-			ret = __bch2_trans_do(&trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL|
-					      BTREE_INSERT_LAZY_RW,
-				bch2_btree_iter_traverse(iter) ?:
-				bch2_trans_update(&trans, iter, &n->k_i, 0));
-			kfree(n);
-			if (ret)
-				goto err;
-
-		}
-
-		nr_subdirs += d.v->d_type == DT_DIR;
-next:
 		bch2_btree_iter_advance(iter);
 	}
-err:
-fsck_err:
-	if (ret == -EINTR)
-		goto retry;
-
 	bch2_trans_iter_put(&trans, iter);
+
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
