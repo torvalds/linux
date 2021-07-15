@@ -1163,22 +1163,6 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...) {}
 #endif
 
-__be32
-svc_return_autherr(struct svc_rqst *rqstp, __be32 auth_err)
-{
-	set_bit(RQ_AUTHERR, &rqstp->rq_flags);
-	return auth_err;
-}
-EXPORT_SYMBOL_GPL(svc_return_autherr);
-
-static __be32
-svc_get_autherr(struct svc_rqst *rqstp, __be32 *statp)
-{
-	if (test_and_clear_bit(RQ_AUTHERR, &rqstp->rq_flags))
-		return *statp;
-	return rpc_auth_ok;
-}
-
 static int
 svc_generic_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
@@ -1202,7 +1186,7 @@ svc_generic_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	    test_bit(RQ_DROPME, &rqstp->rq_flags))
 		return 0;
 
-	if (test_bit(RQ_AUTHERR, &rqstp->rq_flags))
+	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		return 1;
 
 	if (*statp != rpc_success)
@@ -1390,14 +1374,14 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 			goto release_dropit;
 		if (*statp == rpc_garbage_args)
 			goto err_garbage;
-		rqstp->rq_auth_stat = svc_get_autherr(rqstp, statp);
-		if (rqstp->rq_auth_stat != rpc_auth_ok)
-			goto err_release_bad_auth;
 	} else {
 		dprintk("svc: calling dispatcher\n");
 		if (!process.dispatch(rqstp, statp))
 			goto release_dropit; /* Release reply info */
 	}
+
+	if (rqstp->rq_auth_stat != rpc_auth_ok)
+		goto err_release_bad_auth;
 
 	/* Check RPC status result */
 	if (*statp != rpc_success)
