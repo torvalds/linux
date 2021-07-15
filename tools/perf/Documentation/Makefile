@@ -173,7 +173,7 @@ ifneq ($(V),1)
 endif
 endif
 
-all: html man
+all: html man info
 
 html: $(DOC_HTML)
 
