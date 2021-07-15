@@ -538,7 +538,7 @@ static void omap_8250_pm(struct uart_port *port, unsigned int state,
 static void omap_serial_fill_features_erratas(struct uart_8250_port *up,
 					      struct omap8250_priv *priv)
 {
-	const struct soc_device_attribute k3_soc_devices[] = {
+	static const struct soc_device_attribute k3_soc_devices[] = {
 		{ .family = "AM65X",  },
 		{ .family = "J721E", .revision = "SR1.0" },
 		{ /* sentinel */ }
