@@ -89,42 +89,6 @@ static int idxd_config_bus_probe(struct device *dev)
 	return -ENODEV;
 }
 
-static void disable_wq(struct idxd_wq *wq)
-{
-	struct idxd_device *idxd = wq->idxd;
-	struct device *dev = &idxd->pdev->dev;
-
-	mutex_lock(&wq->wq_lock);
-	dev_dbg(dev, "%s removing WQ %s\n", __func__, dev_name(wq_confdev(wq)));
-	if (wq->state == IDXD_WQ_DISABLED) {
-		mutex_unlock(&wq->wq_lock);
-		return;
-	}
-
-	if (wq->type == IDXD_WQT_KERNEL)
-		idxd_wq_quiesce(wq);
-
-	if (is_idxd_wq_dmaengine(wq))
-		idxd_unregister_dma_channel(wq);
-	else if (is_idxd_wq_cdev(wq))
-		idxd_wq_del_cdev(wq);
-
-	if (idxd_wq_refcount(wq))
-		dev_warn(dev, "Clients has claim on wq %d: %d\n",
-			 wq->id, idxd_wq_refcount(wq));
-
-	idxd_wq_unmap_portal(wq);
-
-	idxd_wq_drain(wq);
-	idxd_wq_reset(wq);
-
-	idxd_wq_free_resources(wq);
-	wq->client_count = 0;
-	mutex_unlock(&wq->wq_lock);
-
-	dev_info(dev, "wq %s disabled\n", dev_name(wq_confdev(wq)));
-}
-
 static int idxd_config_bus_remove(struct device *dev)
 {
 	dev_dbg(dev, "%s called for %s\n", __func__, dev_name(dev));
@@ -133,7 +97,7 @@ static int idxd_config_bus_remove(struct device *dev)
 	if (is_idxd_wq_dev(dev)) {
 		struct idxd_wq *wq = confdev_to_wq(dev);
 
-		disable_wq(wq);
+		drv_disable_wq(wq);
 	} else if (is_idxd_dev(dev)) {
 		struct idxd_device *idxd = confdev_to_idxd(dev);
 		int i;

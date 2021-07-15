@@ -1253,3 +1253,40 @@ int drv_enable_wq(struct idxd_wq *wq)
 	mutex_unlock(&wq->wq_lock);
 	return rc;
 }
+
+static void __drv_disable_wq(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+
+	lockdep_assert_held(&wq->wq_lock);
+
+	if (wq->type == IDXD_WQT_KERNEL)
+		idxd_wq_quiesce(wq);
+
+	if (is_idxd_wq_dmaengine(wq))
+		idxd_unregister_dma_channel(wq);
+	else if (is_idxd_wq_cdev(wq))
+		idxd_wq_del_cdev(wq);
+
+	if (idxd_wq_refcount(wq))
+		dev_warn(dev, "Clients has claim on wq %d: %d\n",
+			 wq->id, idxd_wq_refcount(wq));
+
+	idxd_wq_unmap_portal(wq);
+
+	idxd_wq_drain(wq);
+	idxd_wq_reset(wq);
+
+	idxd_wq_free_resources(wq);
+	wq->client_count = 0;
+
+	dev_info(dev, "wq %s disabled\n", dev_name(wq_confdev(wq)));
+}
+
+void drv_disable_wq(struct idxd_wq *wq)
+{
+	mutex_lock(&wq->wq_lock);
+	__drv_disable_wq(wq);
+	mutex_unlock(&wq->wq_lock);
+}
