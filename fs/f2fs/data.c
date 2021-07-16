@@ -3553,7 +3553,7 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (f2fs_force_buffered_io(inode, iocb, iter))
 		return 0;
 
-	do_opu = allow_outplace_dio(inode, iocb, iter);
+	do_opu = rw == WRITE && f2fs_lfs_mode(sbi);
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
 

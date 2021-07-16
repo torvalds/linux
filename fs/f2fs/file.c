@@ -4292,7 +4292,7 @@ static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			 * back to buffered IO.
 			 */
 			if (!f2fs_force_buffered_io(inode, iocb, from) &&
-					allow_outplace_dio(inode, iocb, from))
+					f2fs_lfs_mode(F2FS_I_SB(inode)))
 				goto write;
 		}
 		preallocated = true;
