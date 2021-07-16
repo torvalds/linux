@@ -1864,11 +1864,9 @@ static int dlm_listen_for_all(void)
 	log_print("Using %s for communications",
 		  dlm_proto_ops->name);
 
-	if (dlm_proto_ops->listen_validate) {
-		result = dlm_proto_ops->listen_validate();
-		if (result < 0)
-			return result;
-	}
+	result = dlm_proto_ops->listen_validate();
+	if (result < 0)
+		return result;
 
 	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
 				  SOCK_STREAM, dlm_proto_ops->proto, &sock);
@@ -1945,6 +1943,17 @@ static const struct dlm_proto_ops dlm_tcp_ops = {
 	.eof_condition = tcp_eof_condition,
 };
 
+static int dlm_sctp_listen_validate(void)
+{
+	if (!IS_ENABLED(CONFIG_IP_SCTP)) {
+		log_print("SCTP is not enabled by this kernel");
+		return -EOPNOTSUPP;
+	}
+
+	request_module("sctp");
+	return 0;
+}
+
 static int dlm_sctp_bind_listen(struct socket *sock)
 {
 	return sctp_bind_addrs(sock, dlm_config.ci_tcp_port);
@@ -1960,6 +1969,7 @@ static void dlm_sctp_sockopts(struct socket *sock)
 static const struct dlm_proto_ops dlm_sctp_ops = {
 	.name = "SCTP",
 	.proto = IPPROTO_SCTP,
+	.listen_validate = dlm_sctp_listen_validate,
 	.listen_sockopts = dlm_sctp_sockopts,
 	.listen_bind = dlm_sctp_bind_listen,
 	.connect_action = sctp_connect_to_sock,
