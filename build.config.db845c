@@ -9,10 +9,12 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 
 MAKE_GOALS="${MAKE_GOALS}
 qcom/sdm845-db845c.dtb
+qcom/qrb5165-rb5.dtb
 Image.gz
 "
 
 FILES="${FILES}
 arch/arm64/boot/Image.gz
 arch/arm64/boot/dts/qcom/sdm845-db845c.dtb
+arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb
 "
