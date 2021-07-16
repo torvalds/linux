@@ -127,10 +127,9 @@ struct pca955x_led {
 	struct pca955x	*pca955x;
 	struct led_classdev	led_cdev;
 	int			led_num;	/* 0 .. 15 potentially */
-	char			name[32];
 	u32			type;
 	int			default_state;
-	const char		*default_trigger;
+	struct fwnode_handle	*fwnode;
 };
 
 struct pca955x_platform_data {
@@ -439,7 +438,6 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 		return ERR_PTR(-ENOMEM);
 
 	device_for_each_child_node(&client->dev, child) {
-		const char *name;
 		const char *state;
 		u32 reg;
 		int res;
@@ -448,17 +446,10 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 		if ((res != 0) || (reg >= chip->bits))
 			continue;
 
-		res = fwnode_property_read_string(child, "label", &name);
-		if ((res != 0) && is_of_node(child))
-			name = to_of_node(child)->name;
-
 		led = &pdata->leds[reg];
-		snprintf(led->name, sizeof(led->name), "%s", name);
-
 		led->type = PCA955X_TYPE_LED;
+		led->fwnode = child;
 		fwnode_property_read_u32(child, "type", &led->type);
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->default_trigger);
 
 		if (!fwnode_property_read_string(child, "default-state",
 						 &state)) {
@@ -495,11 +486,14 @@ static int pca955x_probe(struct i2c_client *client,
 	struct pca955x_led *pca955x_led;
 	struct pca955x_chipdef *chip;
 	struct led_classdev *led;
+	struct led_init_data init_data;
 	struct i2c_adapter *adapter;
 	int i, err;
 	struct pca955x_platform_data *pdata;
 	int ngpios = 0;
+	bool set_default_label = false;
 	bool keep_pwm = false;
+	char default_label[8];
 
 	chip = &pca955x_chipdefs[id->driver_data];
 	adapter = client->adapter;
@@ -547,6 +541,9 @@ static int pca955x_probe(struct i2c_client *client,
 	pca955x->client = client;
 	pca955x->chipdef = chip;
 
+	init_data.devname_mandatory = false;
+	init_data.devicename = "pca955x";
+
 	for (i = 0; i < chip->bits; i++) {
 		pca955x_led = &pca955x->leds[i];
 		pca955x_led->led_num = i;
@@ -560,23 +557,7 @@ static int pca955x_probe(struct i2c_client *client,
 			ngpios++;
 			break;
 		case PCA955X_TYPE_LED:
-			/*
-			 * Platform data can specify LED names and
-			 * default triggers
-			 */
-			if (pdata->leds[i].name[0] == '\0')
-				snprintf(pdata->leds[i].name,
-					 sizeof(pdata->leds[i].name), "%d", i);
-
-			snprintf(pca955x_led->name, sizeof(pca955x_led->name),
-				 "pca955x:%s", pdata->leds[i].name);
-
 			led = &pca955x_led->led_cdev;
-			if (pdata->leds[i].default_trigger)
-				led->default_trigger =
-					pdata->leds[i].default_trigger;
-
-			led->name = pca955x_led->name;
 			led->brightness_set_blocking = pca955x_led_set;
 			led->brightness_get = pca955x_led_get;
 
@@ -592,7 +573,28 @@ static int pca955x_probe(struct i2c_client *client,
 					return err;
 			}
 
-			err = devm_led_classdev_register(&client->dev, led);
+			init_data.fwnode = pdata->leds[i].fwnode;
+
+			if (is_of_node(init_data.fwnode)) {
+				if (to_of_node(init_data.fwnode)->name[0] ==
+				    '\0')
+					set_default_label = true;
+				else
+					set_default_label = false;
+			} else {
+				set_default_label = true;
+			}
+
+			if (set_default_label) {
+				snprintf(default_label, sizeof(default_label),
+					 "%d", i);
+				init_data.default_label = default_label;
+			} else {
+				init_data.default_label = NULL;
+			}
+
+			err = devm_led_classdev_register_ext(&client->dev, led,
+							     &init_data);
 			if (err)
 				return err;
 
