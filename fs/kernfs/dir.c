@@ -1100,7 +1100,6 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 					struct dentry *dentry,
 					unsigned int flags)
 {
-	struct dentry *ret;
 	struct kernfs_node *parent = dir->i_private;
 	struct kernfs_node *kn;
 	struct inode *inode = NULL;
@@ -1120,11 +1119,10 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	/* Needed only for negative dentry validation */
 	if (!inode)
 		kernfs_set_rev(parent, dentry);
-	/* instantiate and hash (possibly negative) dentry */
-	ret = d_splice_alias(inode, dentry);
 	up_read(&kernfs_rwsem);
 
-	return ret;
+	/* instantiate and hash (possibly negative) dentry */
+	return d_splice_alias(inode, dentry);
 }
 
 static int kernfs_iop_mkdir(struct user_namespace *mnt_userns,
