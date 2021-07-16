@@ -620,6 +620,47 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_dev_put(drm_dev);
 }
 
+static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+						    struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->cancel_pending_vblank)
+		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
+}
+
+static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, dev)
+		crtc->primary->fb = NULL;
+
+	return 0;
+}
+
+static void rockchip_drm_postclose(struct drm_device *dev,
+				   struct drm_file *file_priv)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+}
+
+static void rockchip_drm_lastclose(struct drm_device *dev)
+{
+#if 0 /* todo */
+	struct rockchip_drm_private *priv = dev->dev_private;
+
+	if (!priv->logo)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
+#endif
+}
+
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CREATE, rockchip_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
@@ -753,7 +794,9 @@ static struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj,
 
 static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-	.lastclose		= drm_fb_helper_lastclose,
+	.postclose		= rockchip_drm_postclose,
+	.lastclose		= rockchip_drm_lastclose,
+	.open			= rockchip_drm_open,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,
