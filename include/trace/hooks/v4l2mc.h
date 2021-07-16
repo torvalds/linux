@@ -16,6 +16,11 @@ DECLARE_HOOK(android_vh_media_device_setup_link,
 	TP_PROTO(struct media_link *link, struct media_link_desc *linkd, int *ret),
 	TP_ARGS(link, linkd, ret));
 
+DECLARE_RESTRICTED_HOOK(android_rvh_media_device_setup_link,
+	TP_PROTO(struct media_link *link,
+	struct media_link_desc *linkd, int *ret),
+	TP_ARGS(link, linkd, ret), 1);
+
 #endif /* _TRACE_HOOK_V4L2MC_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
