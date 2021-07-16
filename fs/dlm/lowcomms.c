@@ -175,6 +175,22 @@ static void sctp_connect_to_sock(struct connection *con);
 static void tcp_connect_to_sock(struct connection *con);
 static void dlm_tcp_shutdown(struct connection *con);
 
+/* need to held writequeue_lock */
+static struct writequeue_entry *con_next_wq(struct connection *con)
+{
+	struct writequeue_entry *e;
+
+	if (list_empty(&con->writequeue))
+		return NULL;
+
+	e = list_first_entry(&con->writequeue, struct writequeue_entry,
+			     list);
+	if (e->len == 0)
+		return NULL;
+
+	return e;
+}
+
 static struct connection *__find_con(int nodeid, int r)
 {
 	struct connection *con;
@@ -1646,10 +1662,9 @@ int dlm_lowcomms_resend_msg(struct dlm_msg *msg)
 /* Send a message */
 static void send_to_sock(struct connection *con)
 {
-	int ret = 0;
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
-	int len, offset;
+	int len, offset, ret;
 	int count = 0;
 
 	mutex_lock(&con->sock_mutex);
@@ -1658,7 +1673,8 @@ static void send_to_sock(struct connection *con)
 
 	spin_lock(&con->writequeue_lock);
 	for (;;) {
-		if (list_empty(&con->writequeue))
+		e = con_next_wq(con);
+		if (!e)
 			break;
 
 		e = list_first_entry(&con->writequeue, struct writequeue_entry, list);
@@ -1667,25 +1683,22 @@ static void send_to_sock(struct connection *con)
 		BUG_ON(len == 0 && e->users == 0);
 		spin_unlock(&con->writequeue_lock);
 
-		ret = 0;
-		if (len) {
-			ret = kernel_sendpage(con->sock, e->page, offset, len,
-					      msg_flags);
-			if (ret == -EAGAIN || ret == 0) {
-				if (ret == -EAGAIN &&
-				    test_bit(SOCKWQ_ASYNC_NOSPACE, &con->sock->flags) &&
-				    !test_and_set_bit(CF_APP_LIMITED, &con->flags)) {
-					/* Notify TCP that we're limited by the
-					 * application window size.
-					 */
-					set_bit(SOCK_NOSPACE, &con->sock->flags);
-					con->sock->sk->sk_write_pending++;
-				}
-				cond_resched();
-				goto out;
-			} else if (ret < 0)
-				goto out;
-		}
+		ret = kernel_sendpage(con->sock, e->page, offset, len,
+				      msg_flags);
+		if (ret == -EAGAIN || ret == 0) {
+			if (ret == -EAGAIN &&
+			    test_bit(SOCKWQ_ASYNC_NOSPACE, &con->sock->flags) &&
+			    !test_and_set_bit(CF_APP_LIMITED, &con->flags)) {
+				/* Notify TCP that we're limited by the
+				 * application window size.
+				 */
+				set_bit(SOCK_NOSPACE, &con->sock->flags);
+				con->sock->sk->sk_write_pending++;
+			}
+			cond_resched();
+			goto out;
+		} else if (ret < 0)
+			goto out;
 
 		/* Don't starve people filling buffers */
 		if (++count >= MAX_SEND_MSG_COUNT) {
