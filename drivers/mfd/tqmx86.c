@@ -147,7 +147,7 @@ static const char *tqmx86_board_id_to_name(u8 board_id)
 	}
 }
 
-static int tqmx86_board_id_to_clk_rate(u8 board_id)
+static int tqmx86_board_id_to_clk_rate(struct device *dev, u8 board_id)
 {
 	switch (board_id) {
 	case TQMX86_REG_BOARD_ID_50UC:
@@ -168,7 +168,9 @@ static int tqmx86_board_id_to_clk_rate(u8 board_id)
 	case TQMX86_REG_BOARD_ID_E38C:
 		return 33000;
 	default:
-		return 0;
+		dev_warn(dev, "unknown board %d, assuming 24MHz LPC clock\n",
+			 board_id);
+		return 24000;
 	}
 }
 
@@ -229,7 +231,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 		tqmx_gpio_resources[0].flags = 0;
 	}
 
-	ocores_platform_data.clock_khz = tqmx86_board_id_to_clk_rate(board_id);
+	ocores_platform_data.clock_khz = tqmx86_board_id_to_clk_rate(dev, board_id);
 
 	if (i2c_det == TQMX86_REG_I2C_DETECT_SOFT) {
 		err = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
