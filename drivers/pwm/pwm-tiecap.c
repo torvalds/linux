@@ -189,16 +189,13 @@ static int ecap_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	if (state->period != pwm->state.period ||
-	    state->duty_cycle != pwm->state.duty_cycle) {
-		if (state->period > NSEC_PER_SEC)
-			return -ERANGE;
+	if (state->period > NSEC_PER_SEC)
+		return -ERANGE;
 
-		err = ecap_pwm_config(chip, pwm, state->duty_cycle,
-				      state->period, enabled);
-		if (err)
-			return err;
-	}
+	err = ecap_pwm_config(chip, pwm, state->duty_cycle,
+			      state->period, enabled);
+	if (err)
+		return err;
 
 	if (!enabled)
 		return ecap_pwm_enable(chip, pwm);
