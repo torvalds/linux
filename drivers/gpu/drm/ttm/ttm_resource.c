@@ -30,12 +30,116 @@
 #include <drm/ttm/ttm_bo_driver.h>
 
 /**
+ * ttm_lru_bulk_move_init - initialize a bulk move structure
+ * @bulk: the structure to init
+ *
+ * For now just memset the structure to zero.
+ */
+void ttm_lru_bulk_move_init(struct ttm_lru_bulk_move *bulk)
+{
+	memset(bulk, 0, sizeof(*bulk));
+}
+EXPORT_SYMBOL(ttm_lru_bulk_move_init);
+
+/**
+ * ttm_lru_bulk_move_tail - bulk move range of resources to the LRU tail.
+ *
+ * @bulk: bulk move structure
+ *
+ * Bulk move BOs to the LRU tail, only valid to use when driver makes sure that
+ * resource order never changes. Should be called with &ttm_device.lru_lock held.
+ */
+void ttm_lru_bulk_move_tail(struct ttm_lru_bulk_move *bulk)
+{
+	unsigned i;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->tt[i];
+		struct ttm_resource_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		lockdep_assert_held(&pos->first->bo->bdev->lru_lock);
+		dma_resv_assert_held(pos->first->bo->base.resv);
+		dma_resv_assert_held(pos->last->bo->base.resv);
+
+		man = ttm_manager_type(pos->first->bo->bdev, TTM_PL_TT);
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->vram[i];
+		struct ttm_resource_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		lockdep_assert_held(&pos->first->bo->bdev->lru_lock);
+		dma_resv_assert_held(pos->first->bo->base.resv);
+		dma_resv_assert_held(pos->last->bo->base.resv);
+
+		man = ttm_manager_type(pos->first->bo->bdev, TTM_PL_VRAM);
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+}
+EXPORT_SYMBOL(ttm_lru_bulk_move_tail);
+
+/* Record a resource position in a bulk move structure */
+static void ttm_lru_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
+				      struct ttm_resource *res)
+{
+	if (!pos->first)
+		pos->first = res;
+	pos->last = res;
+}
+
+/* Move a resource to the LRU tail and track the bulk position */
+void ttm_resource_move_to_lru_tail(struct ttm_resource *res,
+				   struct ttm_lru_bulk_move *bulk)
+{
+	struct ttm_buffer_object *bo = res->bo;
+	struct ttm_device *bdev = bo->bdev;
+	struct ttm_resource_manager *man;
+
+	lockdep_assert_held(&bo->bdev->lru_lock);
+
+	if (bo->pin_count) {
+		list_move_tail(&res->lru, &bdev->pinned);
+		if (bdev->funcs->del_from_lru_notify)
+			bdev->funcs->del_from_lru_notify(res->bo);
+		return;
+	}
+
+	man = ttm_manager_type(bdev, res->mem_type);
+	list_move_tail(&res->lru, &man->lru[bo->priority]);
+
+	if (bdev->funcs->del_from_lru_notify)
+		bdev->funcs->del_from_lru_notify(bo);
+
+	if (!bulk)
+		return;
+
+	switch (res->mem_type) {
+	case TTM_PL_TT:
+		ttm_lru_bulk_move_set_pos(&bulk->tt[bo->priority], res);
+		break;
+
+	case TTM_PL_VRAM:
+		ttm_lru_bulk_move_set_pos(&bulk->vram[bo->priority], res);
+		break;
+	}
+}
+
+/**
  * ttm_resource_init - resource object constructure
  * @bo: buffer object this resources is allocated for
  * @place: placement of the resource
  * @res: the resource object to inistilize
  *
- * Initialize a new resource object. Counterpart of &ttm_resource_fini.
+ * Initialize a new resource object. Counterpart of ttm_resource_fini().
  */
 void ttm_resource_init(struct ttm_buffer_object *bo,
                        const struct ttm_place *place,
@@ -52,10 +156,12 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	res->bus.is_iomem = false;
 	res->bus.caching = ttm_cached;
 	res->bo = bo;
+	INIT_LIST_HEAD(&res->lru);
 
 	man = ttm_manager_type(bo->bdev, place->mem_type);
 	spin_lock(&bo->bdev->lru_lock);
-	man->usage += bo->base.size;
+	man->usage += res->num_pages << PAGE_SHIFT;
+	ttm_resource_move_to_lru_tail(res, NULL);
 	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_init);
@@ -66,15 +172,21 @@ EXPORT_SYMBOL(ttm_resource_init);
  * @res: the resource to clean up
  *
  * Should be used by resource manager backends to clean up the TTM resource
- * objects before freeing the underlying structure. Counterpart of
- * &ttm_resource_init
+ * objects before freeing the underlying structure. Makes sure the resource is
+ * removed from the LRU before destruction.
+ * Counterpart of ttm_resource_init().
  */
 void ttm_resource_fini(struct ttm_resource_manager *man,
 		       struct ttm_resource *res)
 {
-	spin_lock(&man->bdev->lru_lock);
-	man->usage -= res->bo->base.size;
-	spin_unlock(&man->bdev->lru_lock);
+	struct ttm_device *bdev = man->bdev;
+
+	spin_lock(&bdev->lru_lock);
+	list_del_init(&res->lru);
+	if (res->bo && bdev->funcs->del_from_lru_notify)
+		bdev->funcs->del_from_lru_notify(res->bo);
+	man->usage -= res->num_pages << PAGE_SHIFT;
+	spin_unlock(&bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_fini);
 
