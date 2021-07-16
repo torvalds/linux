@@ -155,7 +155,7 @@ static const struct pinctrl_pin_desc imx8dxl_pinctrl_pads[] = {
 };
 
 
-static struct imx_pinctrl_soc_info imx8dxl_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx8dxl_pinctrl_info = {
 	.pins = imx8dxl_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx8dxl_pinctrl_pads),
 	.flags = IMX_USE_SCU,
