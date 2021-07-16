@@ -88,6 +88,7 @@ struct monitor_dev_info {
 	struct freq_qos_request min_sta_freq_req;
 	struct freq_qos_request max_sta_freq_req;
 	struct dev_pm_qos_request dev_max_freq_req;
+	struct regulator *early_reg;
 	struct regulator **regulators;
 	struct clk *clk;
 	unsigned long low_limit;
@@ -99,6 +100,7 @@ struct monitor_dev_info {
 	unsigned int reboot_freq;
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
+	unsigned int early_min_volt;
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;

@@ -18,6 +18,9 @@
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/coupler.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -29,6 +32,7 @@
 
 #include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 #include "../../opp/opp.h"
+#include "../../regulator/internal.h"
 #include "../../thermal/thermal_core.h"
 
 #define CPU_REBOOT_FREQ		816000 /* kHz */
@@ -652,26 +656,26 @@ static int monitor_device_parse_status_config(struct device_node *np,
 	return ret;
 }
 
+static int monitor_device_parse_early_min_volt(struct device_node *np,
+					       struct monitor_dev_info *info)
+{
+	return of_property_read_u32(np, "rockchip,early-min-microvolt",
+				    &info->early_min_volt);
+}
+
 static int monitor_device_parse_dt(struct device *dev,
 				   struct monitor_dev_info *info)
 {
 	struct device_node *np;
-	int ret = 0;
-	bool is_wide_temp_en = false;
-	bool is_status_limit_en = false;
+	int ret;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np)
 		return -EINVAL;
 
-	if (!monitor_device_parse_wide_temp_config(np, info))
-		is_wide_temp_en = true;
-	if (!monitor_device_parse_status_config(np, info))
-		is_status_limit_en = true;
-	if (is_wide_temp_en || is_status_limit_en)
-		ret = 0;
-	else
-		ret = -EINVAL;
+	ret = monitor_device_parse_wide_temp_config(np, info);
+	ret &= monitor_device_parse_status_config(np, info);
+	ret &= monitor_device_parse_early_min_volt(np, info);
 
 	of_node_put(np);
 
@@ -905,6 +909,9 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 {
 	int ret, temp;
 
+	if (!info->opp_table)
+		return;
+
 	/*
 	 * set the init state to low temperature that the voltage will be enough
 	 * when cpu up at low temperature.
@@ -919,7 +926,7 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 	if (ret || temp == THERMAL_TEMP_INVALID) {
 		dev_err(info->dev,
 			"failed to read out thermal zone (%d)\n", ret);
-		goto out;
+		return;
 	}
 
 	if (temp > info->high_temp) {
@@ -932,10 +939,19 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 			rockchip_adjust_low_temp_opp_volt(info, false);
 		info->is_low_temp = false;
 	}
+}
 
-out:
-	if (info->is_low_temp)
-		rockchip_monitor_check_rate_volt(info);
+static void
+rockchip_system_monitor_early_regulator_init(struct monitor_dev_info *info)
+{
+	struct regulator *reg = info->early_reg;
+	struct regulator_dev *rdev;
+
+	if (!info->early_min_volt || !reg)
+		return;
+	rdev = reg->rdev;
+	reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt;
+	reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
 }
 
 static int
@@ -998,10 +1014,22 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 	return 0;
 }
 
+static const char *get_rdev_name(struct regulator_dev *rdev)
+{
+	if (rdev->constraints && rdev->constraints->name)
+		return rdev->constraints->name;
+	else if (rdev->desc->name)
+		return rdev->desc->name;
+	else
+		return "";
+}
+
 static int rockchip_system_monitor_parse_supplies(struct device *dev,
 						  struct monitor_dev_info *info)
 {
 	struct opp_table *opp_table;
+	struct regulator_dev *rdev;
+	struct regulator *reg;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (IS_ERR(opp_table))
@@ -1009,8 +1037,13 @@ static int rockchip_system_monitor_parse_supplies(struct device *dev,
 
 	if (opp_table->clk)
 		info->clk = opp_table->clk;
-	if (opp_table->regulators)
+	if (opp_table->regulators) {
 		info->regulators = opp_table->regulators;
+		rdev = opp_table->regulators[0]->rdev;
+		reg = regulator_get(NULL, get_rdev_name(rdev));
+		if (!IS_ERR_OR_NULL(reg))
+			info->early_reg = reg;
+	}
 
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -1115,25 +1148,24 @@ rockchip_system_monitor_register(struct device *dev,
 	info->devp = devp;
 
 	mutex_init(&info->volt_adjust_mutex);
+
 	rockchip_system_monitor_parse_supplies(dev, info);
-	rockchip_monitor_check_rate_volt(info);
+	if (monitor_device_parse_dt(dev, info)) {
+		rockchip_monitor_check_rate_volt(info);
+		kfree(info);
+		return ERR_PTR(-EINVAL);
+	}
 
-	if (monitor_device_parse_dt(dev, info))
-		goto free_info;
-
+	rockchip_system_monitor_early_regulator_init(info);
 	rockchip_system_monitor_wide_temp_init(info);
-	if (rockchip_system_monitor_freq_qos_requset(info))
-		goto free_info;
+	rockchip_monitor_check_rate_volt(info);
+	rockchip_system_monitor_freq_qos_requset(info);
 
 	down_write(&mdev_list_sem);
 	list_add(&info->node, &monitor_dev_list);
 	up_write(&mdev_list_sem);
 
 	return info;
-
-free_info:
-	kfree(info);
-	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL(rockchip_system_monitor_register);
 
@@ -1462,6 +1494,32 @@ static struct notifier_block rockchip_monitor_ebc_nb = {
 	.notifier_call = rockchip_eink_devfs_notifier,
 };
 
+static void system_monitor_early_min_volt_function(struct work_struct *work)
+{
+	struct monitor_dev_info *info;
+	struct regulator_dev *rdev;
+	int min_uV, max_uV;
+	int ret;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (!info->early_min_volt || !info->early_reg)
+			continue;
+		rdev = info->early_reg->rdev;
+		min_uV = rdev->constraints->min_uV;
+		max_uV = rdev->constraints->max_uV;
+		ret = regulator_set_voltage(info->early_reg, min_uV, max_uV);
+		if (ret)
+			dev_err(&rdev->dev,
+				"%s: failed to set volt\n", __func__);
+		regulator_put(info->early_reg);
+	}
+	up_read(&mdev_list_sem);
+}
+
+static DECLARE_DELAYED_WORK(system_monitor_early_min_volt_work,
+			    system_monitor_early_min_volt_function);
+
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1503,6 +1561,9 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register fb nb\n");
 
 	ebc_register_notifier(&rockchip_monitor_ebc_nb);
+
+	schedule_delayed_work(&system_monitor_early_min_volt_work,
+			      msecs_to_jiffies(30000));
 
 	dev_info(dev, "system monitor probe\n");
 
