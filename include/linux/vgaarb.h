@@ -122,18 +122,6 @@ static inline void vga_set_default_device(struct pci_dev *pdev) { }
 static inline int vga_remove_vgacon(struct pci_dev *pdev) { return 0; }
 #endif
 
-/*
- * Architectures should define this if they have several
- * independent PCI domains that can afford concurrent VGA
- * decoding
- */
-#ifndef __ARCH_HAS_VGA_CONFLICT
-static inline int vga_conflicts(struct pci_dev *p1, struct pci_dev *p2)
-{
-       return 1;
-}
-#endif
-
 #if defined(CONFIG_VGA_ARB)
 int vga_client_register(struct pci_dev *pdev, void *cookie,
 			void (*irq_set_state)(void *cookie, bool state),

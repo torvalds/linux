@@ -284,12 +284,6 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		if (vgadev == conflict)
 			continue;
 
-		/* Check if the architecture allows a conflict between those
-		 * 2 devices or if they are on separate domains
-		 */
-		if (!vga_conflicts(vgadev->pdev, conflict->pdev))
-			continue;
-
 		/* We have a possible conflict. before we go further, we must
 		 * check if we sit on the same bus as the conflicting device.
 		 * if we don't, then we must tie both IO and MEM resources
