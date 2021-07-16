@@ -84,9 +84,6 @@ struct connection {
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	atomic_t writequeue_cnt;
-	void (*connect_action) (struct connection *);	/* What to do to connect */
-	void (*shutdown_action)(struct connection *con); /* What to do to shutdown */
-	bool (*eof_condition)(struct connection *con); /* What to do to eof check */
 	int retries;
 #define MAX_CONNECT_RETRIES 3
 	struct hlist_node list;
@@ -145,6 +142,15 @@ struct dlm_node_addr {
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
 
+struct dlm_proto_ops {
+	/* What to do to connect */
+	void (*connect_action)(struct connection *con);
+	/* What to do to shutdown */
+	void (*shutdown_action)(struct connection *con);
+	/* What to do to eof check */
+	bool (*eof_condition)(struct connection *con);
+};
+
 static struct listen_sock_callbacks {
 	void (*sk_error_report)(struct sock *);
 	void (*sk_data_ready)(struct sock *);
@@ -168,12 +174,13 @@ static struct hlist_head connection_hash[CONN_HASH_SIZE];
 static DEFINE_SPINLOCK(connections_lock);
 DEFINE_STATIC_SRCU(connections_srcu);
 
+static const struct dlm_proto_ops *dlm_proto_ops;
+
 static void process_recv_sockets(struct work_struct *work);
 static void process_send_sockets(struct work_struct *work);
 
 static void sctp_connect_to_sock(struct connection *con);
 static void tcp_connect_to_sock(struct connection *con);
-static void dlm_tcp_shutdown(struct connection *con);
 
 /* need to held writequeue_lock */
 static struct writequeue_entry *con_next_wq(struct connection *con)
@@ -223,20 +230,6 @@ static int dlm_con_init(struct connection *con, int nodeid)
 	INIT_WORK(&con->swork, process_send_sockets);
 	INIT_WORK(&con->rwork, process_recv_sockets);
 	init_waitqueue_head(&con->shutdown_wait);
-
-	switch (dlm_config.ci_protocol) {
-	case DLM_PROTO_TCP:
-		con->connect_action = tcp_connect_to_sock;
-		con->shutdown_action = dlm_tcp_shutdown;
-		con->eof_condition = tcp_eof_condition;
-		break;
-	case DLM_PROTO_SCTP:
-		con->connect_action = sctp_connect_to_sock;
-		break;
-	default:
-		kfree(con->rx_buf);
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -962,7 +955,8 @@ out_close:
 		log_print("connection %p got EOF from %d",
 			  con, con->nodeid);
 
-		if (con->eof_condition && con->eof_condition(con)) {
+		if (dlm_proto_ops->eof_condition &&
+		    dlm_proto_ops->eof_condition(con)) {
 			set_bit(CF_EOF, &con->flags);
 			mutex_unlock(&con->sock_mutex);
 		} else {
@@ -1813,7 +1807,7 @@ static void process_send_sockets(struct work_struct *work)
 	if (con->sock == NULL) { /* not mutex protected so check it inside too */
 		if (test_and_clear_bit(CF_DELAY_CONNECT, &con->flags))
 			msleep(1000);
-		con->connect_action(con);
+		dlm_proto_ops->connect_action(con);
 	}
 	if (!list_empty(&con->writequeue))
 		send_to_sock(con);
@@ -1853,8 +1847,8 @@ static int work_start(void)
 
 static void shutdown_conn(struct connection *con)
 {
-	if (con->shutdown_action)
-		con->shutdown_action(con);
+	if (dlm_proto_ops->shutdown_action)
+		dlm_proto_ops->shutdown_action(con);
 }
 
 void dlm_lowcomms_shutdown(void)
@@ -1961,7 +1955,19 @@ void dlm_lowcomms_stop(void)
 	srcu_read_unlock(&connections_srcu, idx);
 	work_stop();
 	deinit_local();
+
+	dlm_proto_ops = NULL;
 }
+
+static const struct dlm_proto_ops dlm_tcp_ops = {
+	.connect_action = tcp_connect_to_sock,
+	.shutdown_action = dlm_tcp_shutdown,
+	.eof_condition = tcp_eof_condition,
+};
+
+static const struct dlm_proto_ops dlm_sctp_ops = {
+	.connect_action = sctp_connect_to_sock,
+};
 
 int dlm_lowcomms_start(void)
 {
@@ -1989,9 +1995,11 @@ int dlm_lowcomms_start(void)
 	/* Start listening */
 	switch (dlm_config.ci_protocol) {
 	case DLM_PROTO_TCP:
+		dlm_proto_ops = &dlm_tcp_ops;
 		error = tcp_listen_for_all();
 		break;
 	case DLM_PROTO_SCTP:
+		dlm_proto_ops = &dlm_sctp_ops;
 		error = sctp_listen_for_all(&listen_con);
 		break;
 	default:
