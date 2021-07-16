@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2020, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2021, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -81,6 +81,8 @@
 	#define VMXNET3_RSS
 #endif
 
+#define VMXNET3_REV_6		5	/* Vmxnet3 Rev. 6 */
+#define VMXNET3_REV_5		4	/* Vmxnet3 Rev. 5 */
 #define VMXNET3_REV_4		3	/* Vmxnet3 Rev. 4 */
 #define VMXNET3_REV_3		2	/* Vmxnet3 Rev. 3 */
 #define VMXNET3_REV_2		1	/* Vmxnet3 Rev. 2 */
@@ -421,6 +423,10 @@ struct vmxnet3_adapter {
 	(adapter->version >= VMXNET3_REV_3 + 1)
 #define VMXNET3_VERSION_GE_4(adapter) \
 	(adapter->version >= VMXNET3_REV_4 + 1)
+#define VMXNET3_VERSION_GE_5(adapter) \
+	(adapter->version >= VMXNET3_REV_5 + 1)
+#define VMXNET3_VERSION_GE_6(adapter) \
+	(adapter->version >= VMXNET3_REV_6 + 1)
 
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
