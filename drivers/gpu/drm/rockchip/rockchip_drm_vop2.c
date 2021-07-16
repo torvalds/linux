@@ -540,6 +540,7 @@ struct vop2 {
 	struct drm_property *vp_id_prop;
 	struct drm_property *aclk_prop;
 	struct drm_property *bg_prop;
+	struct drm_property *line_flag_prop;
 	struct drm_prop_enum_list *plane_name_list;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
@@ -3506,6 +3507,49 @@ static void vop2_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
+static int vop2_crtc_enable_line_flag_event(struct drm_crtc *crtc, uint32_t line)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	unsigned long flags;
+
+	if (WARN_ON(!vop2->is_enabled))
+		return -EPERM;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	VOP_INTR_SET(vop2, intr, line_flag_num[1], line);
+
+	VOP_INTR_SET_TYPE(vop2, intr, clear, LINE_FLAG1_INTR, 1);
+	VOP_INTR_SET_TYPE(vop2, intr, enable, LINE_FLAG1_INTR, 1);
+
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	return 0;
+}
+
+static void vop2_crtc_disable_line_flag_event(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	unsigned long flags;
+
+	if (WARN_ON(!vop2->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	VOP_INTR_SET_TYPE(vop2, intr, enable, LINE_FLAG1_INTR, 0);
+
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
 static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5177,6 +5221,11 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
 
+	if (vcstate->line_flag)
+		vop2_crtc_enable_line_flag_event(crtc, vcstate->line_flag);
+	else
+		vop2_crtc_disable_line_flag_event(crtc);
+
 	spin_lock_irqsave(&vop2->irq_lock, flags);
 	vop2_wb_commit(crtc);
 	vop2_cfg_done(crtc);
@@ -5386,6 +5435,11 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == vop2->line_flag_prop) {
+		*val = vcstate->line_flag;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
 	return -EINVAL;
@@ -5425,6 +5479,11 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 
 	if (property == vop2->bg_prop) {
 		vcstate->background = val;
+		return 0;
+	}
+
+	if (property == vop2->line_flag_prop) {
+		vcstate->line_flag = val;
 		return 0;
 	}
 
@@ -5474,6 +5533,33 @@ static void vop2_handle_vblank(struct vop2 *vop2, struct drm_crtc *crtc)
 
 	if (test_and_clear_bit(VOP_PENDING_FB_UNREF, &vp->pending))
 		drm_flip_work_commit(&vp->fb_unref_work, system_unbound_wq);
+}
+
+static void vop2_handle_vcnt(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct rockchip_drm_vcnt *vcnt;
+	struct drm_pending_vblank_event *e;
+	struct timespec64 now;
+	unsigned long irqflags;
+	int pipe;
+
+	now = ktime_to_timespec64(ktime_get());
+
+	spin_lock_irqsave(&dev->event_lock, irqflags);
+	pipe = drm_crtc_index(crtc);
+	vcnt = &priv->vcnt[pipe];
+	vcnt->sequence++;
+	if (vcnt->event) {
+		e = vcnt->event;
+		e->event.vbl.tv_sec = now.tv_sec;
+		e->event.vbl.tv_usec = now.tv_nsec / NSEC_PER_USEC;
+		e->event.vbl.sequence = vcnt->sequence;
+		drm_send_event_locked(dev, &e->base);
+		vcnt->event = NULL;
+	}
+	spin_unlock_irqrestore(&dev->event_lock, irqflags);
 }
 
 static u32 vop2_read_and_clear_active_vp_irqs(struct vop2 *vop2, int vp_id)
@@ -5602,6 +5688,12 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		if (active_irqs & LINE_FLAG_INTR) {
 			complete(&vp->line_flag_completion);
 			active_irqs &= ~LINE_FLAG_INTR;
+			ret = IRQ_HANDLED;
+		}
+
+		if (active_irqs & LINE_FLAG1_INTR) {
+			vop2_handle_vcnt(crtc);
+			active_irqs &= ~LINE_FLAG1_INTR;
 			ret = IRQ_HANDLED;
 		}
 
@@ -6026,6 +6118,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
 		drm_object_attach_property(&crtc->base, vop2->aclk_prop, 0);
 		drm_object_attach_property(&crtc->base, vop2->bg_prop, 0);
+		drm_object_attach_property(&crtc->base, vop2->line_flag_prop, 0);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
@@ -6204,7 +6297,10 @@ static int vop2_win_init(struct vop2 *vop2)
 	vop2->aclk_prop = drm_property_create_range(vop2->drm_dev, 0, "ACLK", 0, UINT_MAX);
 	vop2->bg_prop = drm_property_create_range(vop2->drm_dev, 0, "BACKGROUND", 0, UINT_MAX);
 
-	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop || !vop2->bg_prop) {
+	vop2->line_flag_prop = drm_property_create_range(vop2->drm_dev, 0, "LINE_FLAG1", 0, UINT_MAX);
+
+	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop || !vop2->bg_prop ||
+	    !vop2->line_flag_prop) {
 		DRM_DEV_ERROR(vop2->dev, "failed to create soc_id/vp_id/aclk property\n");
 		return -ENOMEM;
 	}

@@ -101,6 +101,7 @@ struct rockchip_crtc_state {
 	int color_space;
 	int eotf;
 	u32 background;
+	u32 line_flag;
 	u8 mode_update;
 	struct rockchip_hdr_state hdr;
 };
