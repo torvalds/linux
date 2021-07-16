@@ -81,8 +81,6 @@
  * +---------------------------------------------------------+
  */
 
-static int rkisp_rdbk_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg);
-
 struct backup_reg {
 	const u32 base;
 	const u32 shd;
@@ -666,7 +664,7 @@ end:
 		rkisp_trigger_read_back(isp, times, mode, false);
 }
 
-static int rkisp_rdbk_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg)
+int rkisp_rdbk_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg)
 {
 	struct kfifo *fifo = &dev->rdbk_kfifo;
 	struct isp2x_csi_trigger *trigger = NULL;
