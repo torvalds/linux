@@ -306,6 +306,95 @@ drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
 
+/**
+ * drm_gem_fb_begin_cpu_access - prepares GEM buffer objects for CPU access
+ * @fb: the framebuffer
+ * @dir: access mode
+ *
+ * Prepares a framebuffer's GEM buffer objects for CPU access. This function
+ * must be called before accessing the BO data within the kernel. For imported
+ * BOs, the function calls dma_buf_begin_cpu_access().
+ *
+ * See drm_gem_fb_end_cpu_access() for signalling the end of CPU access.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drm_gem_fb_begin_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir)
+{
+	struct dma_buf_attachment *import_attach;
+	struct drm_gem_object *obj;
+	size_t i;
+	int ret, ret2;
+
+	for (i = 0; i < ARRAY_SIZE(fb->obj); ++i) {
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj)
+			continue;
+		import_attach = obj->import_attach;
+		if (!import_attach)
+			continue;
+		ret = dma_buf_begin_cpu_access(import_attach->dmabuf, dir);
+		if (ret)
+			goto err_dma_buf_end_cpu_access;
+	}
+
+	return 0;
+
+err_dma_buf_end_cpu_access:
+	while (i) {
+		--i;
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj)
+			continue;
+		import_attach = obj->import_attach;
+		if (!import_attach)
+			continue;
+		ret2 = dma_buf_end_cpu_access(import_attach->dmabuf, dir);
+		if (ret2) {
+			drm_err(fb->dev,
+				"dma_buf_end_cpu_access() failed during error handling: %d\n",
+				ret2);
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_fb_begin_cpu_access);
+
+/**
+ * drm_gem_fb_end_cpu_access - signals end of CPU access to GEM buffer objects
+ * @fb: the framebuffer
+ * @dir: access mode
+ *
+ * Signals the end of CPU access to the given framebuffer's GEM buffer objects. This
+ * function must be paired with a corresponding call to drm_gem_fb_begin_cpu_access().
+ * For imported BOs, the function calls dma_buf_end_cpu_access().
+ *
+ * See also drm_gem_fb_begin_cpu_access().
+ */
+void drm_gem_fb_end_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir)
+{
+	size_t i = ARRAY_SIZE(fb->obj);
+	struct dma_buf_attachment *import_attach;
+	struct drm_gem_object *obj;
+	int ret;
+
+	while (i) {
+		--i;
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj)
+			continue;
+		import_attach = obj->import_attach;
+		if (!import_attach)
+			continue;
+		ret = dma_buf_end_cpu_access(import_attach->dmabuf, dir);
+		if (ret)
+			drm_err(fb->dev, "dma_buf_end_cpu_access() failed: %d\n", ret);
+	}
+}
+EXPORT_SYMBOL(drm_gem_fb_end_cpu_access);
+
 static __u32 drm_gem_afbc_get_bpp(struct drm_device *dev,
 				  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
