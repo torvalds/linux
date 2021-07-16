@@ -1091,9 +1091,8 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	struct device *dev = &pdev->dev;
 	u32 regloc_size, regblocks;
 	void __iomem *base;
-	int regloc, i;
-	struct cxl_register_map *map, *n;
-	LIST_HEAD(register_maps);
+	int regloc, i, n_maps;
+	struct cxl_register_map *map, maps[CXL_REGLOC_RBI_TYPES];
 	int ret = 0;
 
 	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
@@ -1112,7 +1111,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
 	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
 
-	for (i = 0; i < regblocks; i++, regloc += 8) {
+	for (i = 0, n_maps = 0; i < regblocks; i++, regloc += 8) {
 		u32 reg_lo, reg_hi;
 		u8 reg_type;
 		u64 offset;
@@ -1131,20 +1130,11 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		if (reg_type > CXL_REGLOC_RBI_MEMDEV)
 			continue;
 
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
-		if (!map) {
-			ret = -ENOMEM;
-			goto free_maps;
-		}
-
-		list_add(&map->list, &register_maps);
-
 		base = cxl_mem_map_regblock(cxlm, bar, offset);
-		if (!base) {
-			ret = -ENOMEM;
-			goto free_maps;
-		}
+		if (!base)
+			return -ENOMEM;
 
+		map = &maps[n_maps];
 		map->barno = bar;
 		map->block_offset = offset;
 		map->reg_type = reg_type;
@@ -1155,21 +1145,17 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		cxl_mem_unmap_regblock(cxlm, base);
 
 		if (ret)
-			goto free_maps;
+			return ret;
+
+		n_maps++;
 	}
 
 	pci_release_mem_regions(pdev);
 
-	list_for_each_entry(map, &register_maps, list) {
-		ret = cxl_map_regs(cxlm, map);
+	for (i = 0; i < n_maps; i++) {
+		ret = cxl_map_regs(cxlm, &maps[i]);
 		if (ret)
-			goto free_maps;
-	}
-
-free_maps:
-	list_for_each_entry_safe(map, n, &register_maps, list) {
-		list_del(&map->list);
-		kfree(map);
+			break;
 	}
 
 	return ret;
