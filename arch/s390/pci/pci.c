@@ -113,13 +113,16 @@ int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, ZPCI_MOD_FC_REG_IOAT);
 	struct zpci_fib fib = {0};
-	u8 status;
+	u8 cc, status;
 
 	WARN_ON_ONCE(iota & 0x3fff);
 	fib.pba = base;
 	fib.pal = limit;
 	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
-	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc)
+		zpci_dbg(3, "reg ioat fid:%x, cc:%d, status:%d\n", zdev->fid, cc, status);
+	return cc;
 }
 
 /* Modify PCI: Unregister I/O address translation parameters */
@@ -130,9 +133,9 @@ int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
 	u8 cc, status;
 
 	cc = zpci_mod_fc(req, &fib, &status);
-	if (cc == 3) /* Function already gone. */
-		cc = 0;
-	return cc ? -EIO : 0;
+	if (cc)
+		zpci_dbg(3, "unreg ioat fid:%x, cc:%d, status:%d\n", zdev->fid, cc, status);
+	return cc;
 }
 
 /* Modify PCI: Set PCI function measurement parameters */
@@ -654,24 +657,12 @@ void zpci_free_domain(int domain)
 int zpci_enable_device(struct zpci_dev *zdev)
 {
 	u32 fh = zdev->fh;
-	int rc;
+	int rc = 0;
 
-	if (clp_enable_fh(zdev, &fh, ZPCI_NR_DMA_SPACES)) {
+	if (clp_enable_fh(zdev, &fh, ZPCI_NR_DMA_SPACES))
 		rc = -EIO;
-		goto out;
-	}
-	zdev->fh = fh;
-
-	rc = zpci_dma_init_device(zdev);
-	if (rc)
-		goto out_dma;
-
-	return 0;
-
-out_dma:
-	clp_disable_fh(zdev, &fh);
-out:
-	zdev->fh = fh;
+	else
+		zdev->fh = fh;
 	return rc;
 }
 
@@ -680,9 +671,6 @@ int zpci_disable_device(struct zpci_dev *zdev)
 	u32 fh = zdev->fh;
 	int cc, rc = 0;
 
-	zpci_dma_exit_device(zdev);
-	if (!zdev_enabled(zdev))
-		return 0;
 	cc = clp_disable_fh(zdev, &fh);
 	if (!cc) {
 		zdev->fh = fh;
@@ -808,6 +796,11 @@ int zpci_deconfigure_device(struct zpci_dev *zdev)
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
 
+	if (zdev->dma_table) {
+		rc = zpci_dma_exit_device(zdev);
+		if (rc)
+			return rc;
+	}
 	if (zdev_enabled(zdev)) {
 		rc = zpci_disable_device(zdev);
 		if (rc)
@@ -831,6 +824,8 @@ void zpci_release_device(struct kref *kref)
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
 
+	if (zdev->dma_table)
+		zpci_dma_exit_device(zdev);
 	if (zdev_enabled(zdev))
 		zpci_disable_device(zdev);
 

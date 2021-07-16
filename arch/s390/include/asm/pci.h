@@ -272,6 +272,8 @@ struct zpci_dev *get_zdev_by_fid(u32);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
+int zpci_dma_init_device(struct zpci_dev *zdev);
+int zpci_dma_exit_device(struct zpci_dev *zdev);
 
 /* IRQ */
 int __init zpci_irq_init(void);
