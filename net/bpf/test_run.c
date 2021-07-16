@@ -15,6 +15,7 @@
 #include <linux/error-injection.h>
 #include <linux/smp.h>
 #include <linux/sock_diag.h>
+#include <net/xdp.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/bpf_test_run.h>
@@ -687,6 +688,64 @@ out:
 	return ret;
 }
 
+static int xdp_convert_md_to_buff(struct xdp_md *xdp_md, struct xdp_buff *xdp)
+{
+	unsigned int ingress_ifindex, rx_queue_index;
+	struct netdev_rx_queue *rxqueue;
+	struct net_device *device;
+
+	if (!xdp_md)
+		return 0;
+
+	if (xdp_md->egress_ifindex != 0)
+		return -EINVAL;
+
+	ingress_ifindex = xdp_md->ingress_ifindex;
+	rx_queue_index = xdp_md->rx_queue_index;
+
+	if (!ingress_ifindex && rx_queue_index)
+		return -EINVAL;
+
+	if (ingress_ifindex) {
+		device = dev_get_by_index(current->nsproxy->net_ns,
+					  ingress_ifindex);
+		if (!device)
+			return -ENODEV;
+
+		if (rx_queue_index >= device->real_num_rx_queues)
+			goto free_dev;
+
+		rxqueue = __netif_get_rx_queue(device, rx_queue_index);
+
+		if (!xdp_rxq_info_is_reg(&rxqueue->xdp_rxq))
+			goto free_dev;
+
+		xdp->rxq = &rxqueue->xdp_rxq;
+		/* The device is now tracked in the xdp->rxq for later
+		 * dev_put()
+		 */
+	}
+
+	xdp->data = xdp->data_meta + xdp_md->data;
+	return 0;
+
+free_dev:
+	dev_put(device);
+	return -EINVAL;
+}
+
+static void xdp_convert_buff_to_md(struct xdp_buff *xdp, struct xdp_md *xdp_md)
+{
+	if (!xdp_md)
+		return;
+
+	xdp_md->data = xdp->data - xdp->data_meta;
+	xdp_md->data_end = xdp->data_end - xdp->data_meta;
+
+	if (xdp_md->ingress_ifindex)
+		dev_put(xdp->rxq->dev);
+}
+
 int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr)
 {
@@ -697,35 +756,69 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 	struct netdev_rx_queue *rxqueue;
 	struct xdp_buff xdp = {};
 	u32 retval, duration;
+	struct xdp_md *ctx;
 	u32 max_data_sz;
 	void *data;
-	int ret;
+	int ret = -EINVAL;
 
-	if (kattr->test.ctx_in || kattr->test.ctx_out)
-		return -EINVAL;
+	ctx = bpf_ctx_init(kattr, sizeof(struct xdp_md));
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	if (ctx) {
+		/* There can't be user provided data before the meta data */
+		if (ctx->data_meta || ctx->data_end != size ||
+		    ctx->data > ctx->data_end ||
+		    unlikely(xdp_metalen_invalid(ctx->data)))
+			goto free_ctx;
+		/* Meta data is allocated from the headroom */
+		headroom -= ctx->data;
+	}
 
 	/* XDP have extra tailroom as (most) drivers use full page */
 	max_data_sz = 4096 - headroom - tailroom;
 
 	data = bpf_test_init(kattr, max_data_sz, headroom, tailroom);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	if (IS_ERR(data)) {
+		ret = PTR_ERR(data);
+		goto free_ctx;
+	}
 
 	rxqueue = __netif_get_rx_queue(current->nsproxy->net_ns->loopback_dev, 0);
 	xdp_init_buff(&xdp, headroom + max_data_sz + tailroom,
 		      &rxqueue->xdp_rxq);
 	xdp_prepare_buff(&xdp, data, headroom, size, true);
 
+	ret = xdp_convert_md_to_buff(ctx, &xdp);
+	if (ret)
+		goto free_data;
+
 	bpf_prog_change_xdp(NULL, prog);
 	ret = bpf_test_run(prog, &xdp, repeat, &retval, &duration, true);
+	/* We convert the xdp_buff back to an xdp_md before checking the return
+	 * code so the reference count of any held netdevice will be decremented
+	 * even if the test run failed.
+	 */
+	xdp_convert_buff_to_md(&xdp, ctx);
 	if (ret)
 		goto out;
-	if (xdp.data != data + headroom || xdp.data_end != xdp.data + size)
-		size = xdp.data_end - xdp.data;
-	ret = bpf_test_finish(kattr, uattr, xdp.data, size, retval, duration);
+
+	if (xdp.data_meta != data + headroom ||
+	    xdp.data_end != xdp.data_meta + size)
+		size = xdp.data_end - xdp.data_meta;
+
+	ret = bpf_test_finish(kattr, uattr, xdp.data_meta, size, retval,
+			      duration);
+	if (!ret)
+		ret = bpf_ctx_finish(kattr, uattr, ctx,
+				     sizeof(struct xdp_md));
+
 out:
 	bpf_prog_change_xdp(prog, NULL);
+free_data:
 	kfree(data);
+free_ctx:
+	kfree(ctx);
 	return ret;
 }
 
