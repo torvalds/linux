@@ -80,6 +80,9 @@ MODULE_FIRMWARE("amdgpu/beige_goby_ta.bin");
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
 
+/* Read USB-PD from LFB */
+#define GFX_CMD_USB_PD_USE_LFB 0x480
+
 static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -753,44 +756,26 @@ static void psp_v11_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
 }
 
-static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, dma_addr_t dma_addr)
+static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, uint64_t fw_pri_mc_addr)
 {
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t reg_status;
 	int ret, i = 0;
 
-	/* Write lower 32-bit address of the PD Controller FW */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, lower_32_bits(dma_addr));
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			     0x80000000, 0x80000000, false);
-	if (ret)
-		return ret;
-
-	/* Fireup interrupt so PSP can pick up the lower address */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x800000);
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			     0x80000000, 0x80000000, false);
-	if (ret)
-		return ret;
-
-	reg_status = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35);
-
-	if ((reg_status & 0xFFFF) != 0) {
-		DRM_ERROR("Lower address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = %02x...\n",
-				reg_status & 0xFFFF);
-		return -EIO;
-	}
-
-	/* Write upper 32-bit address of the PD Controller FW */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, upper_32_bits(dma_addr));
+	/*
+	 * LFB address which is aligned to 1MB address and has to be
+	 * right-shifted by 20 so that LFB address can be passed on a 32-bit C2P
+	 * register
+	 */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, (fw_pri_mc_addr >> 20));
 
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 			     0x80000000, 0x80000000, false);
 	if (ret)
 		return ret;
 
-	/* Fireup interrupt so PSP can pick up the upper address */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x4000000);
+	/* Fireup interrupt so PSP can pick up the address */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, (GFX_CMD_USB_PD_USE_LFB << 16));
 
 	/* FW load takes very long time */
 	do {
@@ -806,7 +791,7 @@ static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, dma_addr_t dma_add
 done:
 
 	if ((reg_status & 0xFFFF) != 0) {
-		DRM_ERROR("Upper address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = x%04x\n",
+		DRM_ERROR("Address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = 0x%04x\n",
 				reg_status & 0xFFFF);
 		return -EIO;
 	}

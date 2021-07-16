@@ -106,7 +106,7 @@ struct psp_funcs
 	int (*mem_training)(struct psp_context *psp, uint32_t ops);
 	uint32_t (*ring_get_wptr)(struct psp_context *psp);
 	void (*ring_set_wptr)(struct psp_context *psp, uint32_t value);
-	int (*load_usbc_pd_fw)(struct psp_context *psp, dma_addr_t dma_addr);
+	int (*load_usbc_pd_fw)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*read_usbc_pd_fw)(struct psp_context *psp, uint32_t *fw_ver);
 };
 
@@ -414,9 +414,9 @@ struct amdgpu_psp_funcs {
 #define psp_ring_get_wptr(psp) (psp)->funcs->ring_get_wptr((psp))
 #define psp_ring_set_wptr(psp, value) (psp)->funcs->ring_set_wptr((psp), (value))
 
-#define psp_load_usbc_pd_fw(psp, dma_addr) \
+#define psp_load_usbc_pd_fw(psp, fw_pri_mc_addr) \
 	((psp)->funcs->load_usbc_pd_fw ? \
-	(psp)->funcs->load_usbc_pd_fw((psp), (dma_addr)) : -EINVAL)
+	(psp)->funcs->load_usbc_pd_fw((psp), (fw_pri_mc_addr)) : -EINVAL)
 
 #define psp_read_usbc_pd_fw(psp, fw_ver) \
 	((psp)->funcs->read_usbc_pd_fw ? \

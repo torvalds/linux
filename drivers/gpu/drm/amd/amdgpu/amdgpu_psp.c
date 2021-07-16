@@ -24,7 +24,6 @@
  */
 
 #include <linux/firmware.h>
-#include <linux/dma-mapping.h>
 #include <drm/drm_drv.h>
 
 #include "amdgpu.h"
@@ -3273,11 +3272,12 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	void *cpu_addr;
-	dma_addr_t dma_addr;
 	int ret, idx;
 	char fw_name[100];
 	const struct firmware *usbc_pd_fw;
+	struct amdgpu_bo *fw_buf_bo = NULL;
+	uint64_t fw_pri_mc_addr;
+	void *fw_pri_cpu_addr;
 
 	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
 		DRM_INFO("PSP block is not ready yet.");
@@ -3292,31 +3292,24 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 	if (ret)
 		goto fail;
 
-	/* We need contiguous physical mem to place the FW  for psp to access */
-	cpu_addr = dma_alloc_coherent(adev->dev, usbc_pd_fw->size, &dma_addr, GFP_KERNEL);
-
-	ret = dma_mapping_error(adev->dev, dma_addr);
+	/* LFB address which is aligned to 1MB boundary per PSP request */
+	ret = amdgpu_bo_create_kernel(adev, usbc_pd_fw->size, 0x100000,
+						AMDGPU_GEM_DOMAIN_VRAM,
+						&fw_buf_bo,
+						&fw_pri_mc_addr,
+						&fw_pri_cpu_addr);
 	if (ret)
 		goto rel_buf;
 
-	memcpy_toio(cpu_addr, usbc_pd_fw->data, usbc_pd_fw->size);
-
-	/*
-	 * x86 specific workaround.
-	 * Without it the buffer is invisible in PSP.
-	 *
-	 * TODO Remove once PSP starts snooping CPU cache
-	 */
-#ifdef CONFIG_X86
-	clflush_cache_range(cpu_addr, (usbc_pd_fw->size & ~(L1_CACHE_BYTES - 1)));
-#endif
+	memcpy_toio(fw_pri_cpu_addr, usbc_pd_fw->data, usbc_pd_fw->size);
 
 	mutex_lock(&adev->psp.mutex);
-	ret = psp_load_usbc_pd_fw(&adev->psp, dma_addr);
+	ret = psp_load_usbc_pd_fw(&adev->psp, fw_pri_mc_addr);
 	mutex_unlock(&adev->psp.mutex);
 
+	amdgpu_bo_free_kernel(&fw_buf_bo, &fw_pri_mc_addr, &fw_pri_cpu_addr);
+
 rel_buf:
-	dma_free_coherent(adev->dev, usbc_pd_fw->size, cpu_addr, dma_addr);
 	release_firmware(usbc_pd_fw);
 fail:
 	if (ret) {
