@@ -3804,7 +3804,7 @@ static void android_rvh_flush_task(void *unused, struct task_struct *p)
 	walt_task_dead(p);
 }
 
-static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_struct *p, int flags)
+static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_struct *p)
 {
 	u64 wallclock = walt_ktime_get_ns();
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -3844,7 +3844,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	trace_sched_enq_deq_task(p, 1, cpumask_bits(&p->cpus_mask)[0], is_mvp(wts));
 }
 
-static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p, int flags)
+static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -4160,8 +4160,8 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_account_irq(android_rvh_account_irq, NULL);
 	register_trace_android_rvh_flush_task(android_rvh_flush_task, NULL);
 	register_trace_android_rvh_update_misfit_status(android_rvh_update_misfit_status, NULL);
-	register_trace_android_rvh_enqueue_task(android_rvh_enqueue_task, NULL);
-	register_trace_android_rvh_dequeue_task(android_rvh_dequeue_task, NULL);
+	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
+	register_trace_android_rvh_after_dequeue_task(android_rvh_dequeue_task, NULL);
 	register_trace_android_rvh_try_to_wake_up(android_rvh_try_to_wake_up, NULL);
 	register_trace_android_rvh_try_to_wake_up_success(android_rvh_try_to_wake_up_success, NULL);
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
