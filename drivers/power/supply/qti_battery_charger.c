@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/pm_wakeup.h>
 #include <linux/power_supply.h>
+#include <linux/reboot.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/soc/qcom/battery_charger.h>
 
@@ -225,9 +226,11 @@ struct battery_chg_dev {
 	const char			*wls_fw_name;
 	int				curr_thermal_level;
 	int				num_thermal_levels;
+	int				shutdown_volt_mv;
 	atomic_t			state;
 	struct work_struct		subsys_up_work;
 	struct work_struct		usb_type_work;
+	struct work_struct		battery_check_work;
 	int				fake_soc;
 	bool				block_tx;
 	bool				ship_mode_en;
@@ -680,6 +683,60 @@ static void battery_chg_update_usb_type_work(struct work_struct *work)
 	}
 }
 
+static void battery_chg_check_status_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev,
+					battery_check_work);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_STATUS);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_STATUS, rc=%d\n", rc);
+		return;
+	}
+
+	if (pst->prop[BATT_STATUS] == POWER_SUPPLY_STATUS_CHARGING) {
+		pr_debug("Battery is charging\n");
+		return;
+	}
+
+	rc = read_property_id(bcdev, pst, BATT_CAPACITY);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_CAPACITY, rc=%d\n", rc);
+		return;
+	}
+
+	if (DIV_ROUND_CLOSEST(pst->prop[BATT_CAPACITY], 100) > 0) {
+		pr_debug("Battery SOC is > 0\n");
+		return;
+	}
+
+	/*
+	 * If we are here, then battery is not charging and SOC is 0.
+	 * Check the battery voltage and if it's lower than shutdown voltage,
+	 * then initiate an emergency shutdown.
+	 */
+
+	rc = read_property_id(bcdev, pst, BATT_VOLT_NOW);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_VOLT_NOW, rc=%d\n", rc);
+		return;
+	}
+
+	if (pst->prop[BATT_VOLT_NOW] / 1000 > bcdev->shutdown_volt_mv) {
+		pr_debug("Battery voltage is > %d mV\n",
+			bcdev->shutdown_volt_mv);
+		return;
+	}
+
+	pr_emerg("Initiating a shutdown in 100 ms\n");
+	msleep(100);
+	pr_emerg("Attempting kernel_power_off: Battery voltage low\n");
+	kernel_power_off();
+}
+
 static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 				size_t len)
 {
@@ -697,6 +754,8 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 	case BC_BATTERY_STATUS_GET:
 	case BC_GENERIC_NOTIFY:
 		pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+		if (bcdev->shutdown_volt_mv > 0)
+			schedule_work(&bcdev->battery_check_work);
 		break;
 	case BC_USB_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_USB];
@@ -1799,6 +1858,9 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	of_property_read_string(node, "qcom,wireless-fw-name",
 				&bcdev->wls_fw_name);
 
+	of_property_read_u32(node, "qcom,shutdown-voltage",
+				&bcdev->shutdown_volt_mv);
+
 	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
 						sizeof(u32));
 	if (rc <= 0)
@@ -1933,6 +1995,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	init_completion(&bcdev->fw_update_ack);
 	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
 	INIT_WORK(&bcdev->usb_type_work, battery_chg_update_usb_type_work);
+	INIT_WORK(&bcdev->battery_check_work, battery_chg_check_status_work);
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
 
