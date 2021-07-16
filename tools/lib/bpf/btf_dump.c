@@ -2009,8 +2009,8 @@ static int btf_dump_type_data_check_overflow(struct btf_dump *d,
 	__s64 size = btf__resolve_size(d->btf, id);
 
 	if (size < 0 || size >= INT_MAX) {
-		pr_warn("unexpected size [%lld] for id [%u]\n",
-			size, id);
+		pr_warn("unexpected size [%zu] for id [%u]\n",
+			(size_t)size, id);
 		return -EINVAL;
 	}
 
