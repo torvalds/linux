@@ -2238,6 +2238,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 			     const void *data, size_t data_sz,
 			     const struct btf_dump_type_data_opts *opts)
 {
+	struct btf_dump_data typed_dump = {};
 	const struct btf_type *t;
 	int ret;
 
@@ -2248,12 +2249,10 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 	if (!t)
 		return libbpf_err(-ENOENT);
 
-	d->typed_dump = calloc(1, sizeof(struct btf_dump_data));
-	if (!d->typed_dump)
-		return libbpf_err(-ENOMEM);
-
+	d->typed_dump = &typed_dump;
 	d->typed_dump->data_end = data + data_sz;
 	d->typed_dump->indent_lvl = OPTS_GET(opts, indent_level, 0);
+
 	/* default indent string is a tab */
 	if (!opts->indent_str)
 		d->typed_dump->indent_str[0] = '\t';
@@ -2267,7 +2266,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 
 	ret = btf_dump_dump_type_data(d, NULL, t, id, data, 0, 0);
 
-	free(d->typed_dump);
+	d->typed_dump = NULL;
 
 	return libbpf_err(ret);
 }
