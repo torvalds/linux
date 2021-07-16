@@ -1580,6 +1580,7 @@ config SND_SOC_WCD938X
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
 	select SND_SOC_WCD938X
+	select SND_SOC_WCD_MBHC
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	help
