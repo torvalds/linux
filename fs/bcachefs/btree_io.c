@@ -651,7 +651,8 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 
 static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 struct btree *b, struct bset *i,
-			 unsigned sectors, int write, bool have_retry)
+			 unsigned offset, unsigned sectors,
+			 int write, bool have_retry)
 {
 	unsigned version = le16_to_cpu(i->version);
 	const char *err;
@@ -689,18 +690,23 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		     BTREE_ERR_FATAL, c, ca, b, i,
 		     "BSET_SEPARATE_WHITEOUTS no longer supported");
 
-	if (btree_err_on(b->written + sectors > c->opts.btree_node_size,
+	if (btree_err_on(offset + sectors > c->opts.btree_node_size,
 			 BTREE_ERR_FIXABLE, c, ca, b, i,
 			 "bset past end of btree node")) {
 		i->u64s = 0;
 		return 0;
 	}
 
-	btree_err_on(b->written && !i->u64s,
+	btree_err_on(offset && !i->u64s,
 		     BTREE_ERR_FIXABLE, c, ca, b, i,
 		     "empty bset");
 
-	if (!b->written) {
+	btree_err_on(BSET_OFFSET(i) &&
+		     BSET_OFFSET(i) != offset,
+		     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+		     "bset at wrong sector offset");
+
+	if (!offset) {
 		struct btree_node *bn =
 			container_of(i, struct btree_node, keys);
 		/* These indicate that we read the wrong btree node: */
@@ -954,7 +960,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		b->version_ondisk = min(b->version_ondisk,
 					le16_to_cpu(i->version));
 
-		ret = validate_bset(c, ca, b, i, sectors,
+		ret = validate_bset(c, ca, b, i, b->written, sectors,
 				    READ, have_retry);
 		if (ret)
 			goto fsck_err;
@@ -1713,7 +1719,7 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 		return -1;
 
 	ret = validate_bset_keys(c, b, i, &whiteout_u64s, WRITE, false) ?:
-		validate_bset(c, NULL, b, i, sectors, WRITE, false);
+		validate_bset(c, NULL, b, i, b->written, sectors, WRITE, false);
 	if (ret) {
 		bch2_inconsistent_error(c);
 		dump_stack();
@@ -1876,6 +1882,7 @@ do_write:
 	i->version = c->sb.version < bcachefs_metadata_version_new_versioning
 		? cpu_to_le16(BCH_BSET_VERSION_OLD)
 		: cpu_to_le16(c->sb.version);
+	SET_BSET_OFFSET(i, b->written);
 	SET_BSET_CSUM_TYPE(i, bch2_meta_checksum_type(c));
 
 	if (bch2_csum_type_is_encryption(BSET_CSUM_TYPE(i)))

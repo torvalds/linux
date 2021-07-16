@@ -1749,6 +1749,9 @@ LE32_BITMASK(BSET_BIG_ENDIAN,	struct bset, flags, 4, 5);
 LE32_BITMASK(BSET_SEPARATE_WHITEOUTS,
 				struct bset, flags, 5, 6);
 
+/* Sector offset within the btree node: */
+LE32_BITMASK(BSET_OFFSET,	struct bset, flags, 16, 32);
+
 struct btree_node {
 	struct bch_csum		csum;
 	__le64			magic;
