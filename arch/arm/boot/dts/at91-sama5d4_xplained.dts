@@ -38,16 +38,6 @@
 				status = "okay";
 			};
 
-			spi0: spi@f8010000 {
-				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
-				status = "okay";
-				m25p80@0 {
-					compatible = "atmel,at25df321a";
-					spi-max-frequency = <50000000>;
-					reg = <0>;
-				};
-			};
-
 			i2c0: i2c@f8014000 {
 				i2c-digital-filter;
 				status = "okay";
