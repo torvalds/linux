@@ -10346,19 +10346,25 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	return pfd;
 }
 
-struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
-					    bool retprobe,
-					    const char *func_name)
+struct bpf_program_attach_kprobe_opts {
+	bool retprobe;
+	unsigned long offset;
+};
+
+static struct bpf_link*
+bpf_program__attach_kprobe_opts(struct bpf_program *prog,
+				const char *func_name,
+				struct bpf_program_attach_kprobe_opts *opts)
 {
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	int pfd, err;
 
-	pfd = perf_event_open_probe(false /* uprobe */, retprobe, func_name,
-				    0 /* offset */, -1 /* pid */);
+	pfd = perf_event_open_probe(false /* uprobe */, opts->retprobe, func_name,
+				    opts->offset, -1 /* pid */);
 	if (pfd < 0) {
 		pr_warn("prog '%s': failed to create %s '%s' perf event: %s\n",
-			prog->name, retprobe ? "kretprobe" : "kprobe", func_name,
+			prog->name, opts->retprobe ? "kretprobe" : "kprobe", func_name,
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(pfd);
 	}
@@ -10367,23 +10373,53 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 	if (err) {
 		close(pfd);
 		pr_warn("prog '%s': failed to attach to %s '%s': %s\n",
-			prog->name, retprobe ? "kretprobe" : "kprobe", func_name,
+			prog->name, opts->retprobe ? "kretprobe" : "kprobe", func_name,
 			libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(err);
 	}
 	return link;
 }
 
+struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
+					    bool retprobe,
+					    const char *func_name)
+{
+	struct bpf_program_attach_kprobe_opts opts = {
+		.retprobe = retprobe,
+	};
+
+	return bpf_program__attach_kprobe_opts(prog, func_name, &opts);
+}
+
 static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 				      struct bpf_program *prog)
 {
+	struct bpf_program_attach_kprobe_opts opts;
+	unsigned long offset = 0;
+	struct bpf_link *link;
 	const char *func_name;
-	bool retprobe;
+	char *func;
+	int n, err;
 
 	func_name = prog->sec_name + sec->len;
-	retprobe = strcmp(sec->sec, "kretprobe/") == 0;
+	opts.retprobe = strcmp(sec->sec, "kretprobe/") == 0;
 
-	return bpf_program__attach_kprobe(prog, retprobe, func_name);
+	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%lx", &func, &offset);
+	if (n < 1) {
+		err = -EINVAL;
+		pr_warn("kprobe name is invalid: %s\n", func_name);
+		return libbpf_err_ptr(err);
+	}
+	if (opts.retprobe && offset != 0) {
+		err = -EINVAL;
+		pr_warn("kretprobes do not support offset specification\n");
+		return libbpf_err_ptr(err);
+	}
+
+	opts.offset = offset;
+	link = bpf_program__attach_kprobe_opts(prog, func, &opts);
+	free(func);
+	return link;
 }
 
 struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
