@@ -233,6 +233,57 @@ static int pca955x_read_ls(struct i2c_client *client, int n, u8 *val)
 	return 0;
 }
 
+static int pca955x_read_pwm(struct i2c_client *client, int n, u8 *val)
+{
+	struct pca955x *pca955x = i2c_get_clientdata(client);
+	u8 cmd = pca95xx_num_input_regs(pca955x->chipdef->bits) + 1 + (2 * n);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(client, cmd);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: reg 0x%x, err %d\n",
+			__func__, n, ret);
+		return ret;
+	}
+	*val = (u8)ret;
+	return 0;
+}
+
+static enum led_brightness pca955x_led_get(struct led_classdev *led_cdev)
+{
+	struct pca955x_led *pca955x_led = container_of(led_cdev,
+						       struct pca955x_led,
+						       led_cdev);
+	struct pca955x *pca955x = pca955x_led->pca955x;
+	u8 ls, pwm;
+	int ret;
+
+	ret = pca955x_read_ls(pca955x->client, pca955x_led->led_num / 4, &ls);
+	if (ret)
+		return ret;
+
+	ls = (ls >> ((pca955x_led->led_num % 4) << 1)) & 0x3;
+	switch (ls) {
+	case PCA955X_LS_LED_ON:
+		ret = LED_FULL;
+		break;
+	case PCA955X_LS_LED_OFF:
+		ret = LED_OFF;
+		break;
+	case PCA955X_LS_BLINK0:
+		ret = LED_HALF;
+		break;
+	case PCA955X_LS_BLINK1:
+		ret = pca955x_read_pwm(pca955x->client, 1, &pwm);
+		if (ret)
+			return ret;
+		ret = 255 - pwm;
+		break;
+	}
+
+	return ret;
+}
+
 static int pca955x_led_set(struct led_classdev *led_cdev,
 			    enum led_brightness value)
 {
@@ -512,6 +563,7 @@ static int pca955x_probe(struct i2c_client *client,
 
 			led->name = pca955x_led->name;
 			led->brightness_set_blocking = pca955x_led_set;
+			led->brightness_get = pca955x_led_get;
 
 			err = devm_led_classdev_register(&client->dev, led);
 			if (err)
