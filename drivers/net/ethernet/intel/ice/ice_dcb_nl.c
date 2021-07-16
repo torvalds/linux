@@ -710,6 +710,9 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	if (!(pf->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
 
+	if (!ice_is_feature_supported(pf, ICE_F_DSCP))
+		return -EOPNOTSUPP;
+
 	if (app->protocol >= ICE_DSCP_NUM_VAL) {
 		netdev_err(netdev, "DSCP value 0x%04X out of range\n",
 			   app->protocol);
@@ -861,8 +864,9 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 		new_cfg->app[j].priority = old_cfg->app[j + 1].priority;
 	}
 
-	/* if not a DSCP APP TLV, then we are done */
-	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP) {
+	/* if not a DSCP APP TLV or DSCP is not supported, we are done */
+	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP ||
+	    !ice_is_feature_supported(pf, ICE_F_DSCP)) {
 		ret = ICE_DCB_HW_CHG;
 		goto delapp_out;
 	}
