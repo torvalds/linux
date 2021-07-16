@@ -795,6 +795,7 @@ struct Vmxnet3_DriverShared {
 	((vfTable[vid >> 5] & (1 << (vid & 31))) != 0)
 
 #define VMXNET3_MAX_MTU     9000
+#define VMXNET3_V6_MAX_MTU  9190
 #define VMXNET3_MIN_MTU     60
 
 #define VMXNET3_LINK_UP         (10000 << 16 | 1)    /* 10 Gbps, up */
