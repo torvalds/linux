@@ -72,8 +72,7 @@ struct vga_device {
 	unsigned int io_norm_cnt;	/* normal IO count */
 	unsigned int mem_norm_cnt;	/* normal MEM count */
 	bool bridge_has_one_vga;
-	void *cookie;
-	unsigned int (*set_vga_decode)(void *cookie, bool decode);
+	unsigned int (*set_decode)(struct pci_dev *pdev, bool decode);
 };
 
 static LIST_HEAD(vga_list);
@@ -806,7 +805,7 @@ static void __vga_set_legacy_decoding(struct pci_dev *pdev,
 		goto bail;
 
 	/* don't let userspace futz with kernel driver decodes */
-	if (userspace && vgadev->set_vga_decode)
+	if (userspace && vgadev->set_decode)
 		goto bail;
 
 	/* update the device decodes + counter */
@@ -840,12 +839,11 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
 /**
  * vga_client_register - register or unregister a VGA arbitration client
  * @pdev: pci device of the VGA client
- * @cookie: client cookie to be used in callbacks
- * @set_vga_decode: vga decode change callback
+ * @set_decode: vga decode change callback
  *
  * Clients have two callback mechanisms they can use.
  *
- * @set_vga_decode callback: If a client can disable its GPU VGA resource, it
+ * @set_decode callback: If a client can disable its GPU VGA resource, it
  * will get a callback from this to set the encode/decode state.
  *
  * Rationale: we cannot disable VGA decode resources unconditionally some single
@@ -862,9 +860,8 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
  *
  * Returns: 0 on success, -1 on failure
  */
-int vga_client_register(struct pci_dev *pdev, void *cookie,
-			unsigned int (*set_vga_decode)(void *cookie,
-						       bool decode))
+int vga_client_register(struct pci_dev *pdev,
+		unsigned int (*set_decode)(struct pci_dev *pdev, bool decode))
 {
 	int ret = -ENODEV;
 	struct vga_device *vgadev;
@@ -875,8 +872,7 @@ int vga_client_register(struct pci_dev *pdev, void *cookie,
 	if (!vgadev)
 		goto bail;
 
-	vgadev->set_vga_decode = set_vga_decode;
-	vgadev->cookie = cookie;
+	vgadev->set_decode = set_decode;
 	ret = 0;
 
 bail:
@@ -1386,9 +1382,9 @@ static void vga_arbiter_notify_clients(void)
 			new_state = false;
 		else
 			new_state = true;
-		if (vgadev->set_vga_decode) {
-			new_decodes = vgadev->set_vga_decode(vgadev->cookie,
-							     new_state);
+		if (vgadev->set_decode) {
+			new_decodes = vgadev->set_decode(vgadev->pdev,
+							 new_state);
 			vga_update_device_decodes(vgadev, new_decodes);
 		}
 	}

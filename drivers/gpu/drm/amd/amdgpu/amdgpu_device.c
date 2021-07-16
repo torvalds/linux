@@ -1266,15 +1266,16 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 /**
  * amdgpu_device_vga_set_decode - enable/disable vga decode
  *
- * @cookie: amdgpu_device pointer
+ * @pdev: PCI device pointer
  * @state: enable/disable vga decode
  *
  * Enable/disable vga decode (all asics).
  * Returns VGA resource flags.
  */
-static unsigned int amdgpu_device_vga_set_decode(void *cookie, bool state)
+static unsigned int amdgpu_device_vga_set_decode(struct pci_dev *pdev,
+		bool state)
 {
-	struct amdgpu_device *adev = cookie;
+	struct amdgpu_device *adev = drm_to_adev(pci_get_drvdata(pdev));
 	amdgpu_asic_set_vga_state(adev, state);
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
@@ -3679,7 +3680,7 @@ fence_driver_init:
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
-		vga_client_register(adev->pdev, adev, amdgpu_device_vga_set_decode);
+		vga_client_register(adev->pdev, amdgpu_device_vga_set_decode);
 
 	if (amdgpu_device_supports_px(ddev)) {
 		px = true;

@@ -119,10 +119,9 @@ static bool vfio_pci_is_denylisted(struct pci_dev *pdev)
  * has no way to get to it and routing can be disabled externally at the
  * bridge.
  */
-static unsigned int vfio_pci_set_vga_decode(void *opaque, bool single_vga)
+static unsigned int vfio_pci_set_decode(struct pci_dev *pdev, bool single_vga)
 {
-	struct vfio_pci_device *vdev = opaque;
-	struct pci_dev *tmp = NULL, *pdev = vdev->pdev;
+	struct pci_dev *tmp = NULL;
 	unsigned char max_busnr;
 	unsigned int decodes;
 
@@ -1951,10 +1950,10 @@ static int vfio_pci_vga_init(struct vfio_pci_device *vdev)
 	if (!vfio_pci_is_vga(pdev))
 		return 0;
 
-	ret = vga_client_register(pdev, vdev, vfio_pci_set_vga_decode);
+	ret = vga_client_register(pdev, vfio_pci_set_decode);
 	if (ret)
 		return ret;
-	vga_set_legacy_decoding(pdev, vfio_pci_set_vga_decode(vdev, false));
+	vga_set_legacy_decoding(pdev, vfio_pci_set_decode(pdev, false));
 	return 0;
 }
 
