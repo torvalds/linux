@@ -160,6 +160,7 @@ struct ice_meta_sect {
 #define ICE_SID_CDID_KEY_BUILDER_RSS	47
 #define ICE_SID_CDID_REDIR_RSS		48
 
+#define ICE_SID_RXPARSER_MARKER_PTYPE	55
 #define ICE_SID_RXPARSER_BOOST_TCAM	56
 #define ICE_SID_TXPARSER_BOOST_TCAM	66
 
@@ -328,6 +329,25 @@ struct ice_boost_tcam_section {
 	struct_size((struct ice_boost_tcam_section *)0, tcam, 1) - \
 	sizeof(struct ice_boost_tcam_entry), \
 	sizeof(struct ice_boost_tcam_entry))
+
+/* package Marker Ptype TCAM entry */
+struct ice_marker_ptype_tcam_entry {
+#define ICE_MARKER_PTYPE_TCAM_ADDR_MAX	1024
+	__le16 addr;
+	__le16 ptype;
+	u8 keys[20];
+};
+
+struct ice_marker_ptype_tcam_section {
+	__le16 count;
+	__le16 reserved;
+	struct ice_marker_ptype_tcam_entry tcam[];
+};
+
+#define ICE_MAX_MARKER_PTYPE_TCAMS_IN_BUF	\
+	ICE_MAX_ENTRIES_IN_BUF(struct_size((struct ice_marker_ptype_tcam_section *)0, tcam, 1) - \
+	sizeof(struct ice_marker_ptype_tcam_entry), \
+	sizeof(struct ice_marker_ptype_tcam_entry))
 
 struct ice_xlt1_section {
 	__le16 count;

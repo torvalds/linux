@@ -40,6 +40,10 @@ int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
 int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
 			      unsigned int idx, struct udp_tunnel_info *ti);
 
+/* Rx parser PTYPE functions */
+bool ice_hw_ptype_ena(struct ice_hw *hw, u16 ptype);
+
+/* XLT2/VSI group functions */
 enum ice_status
 ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	     const struct ice_ptype_attributes *attr, u16 attr_cnt,

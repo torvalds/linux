@@ -314,6 +314,78 @@ ice_pkg_enum_entry(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
 }
 
 /**
+ * ice_hw_ptype_ena - check if the PTYPE is enabled or not
+ * @hw: pointer to the HW structure
+ * @ptype: the hardware PTYPE
+ */
+bool ice_hw_ptype_ena(struct ice_hw *hw, u16 ptype)
+{
+	return ptype < ICE_FLOW_PTYPE_MAX &&
+	       test_bit(ptype, hw->hw_ptype);
+}
+
+/**
+ * ice_marker_ptype_tcam_handler
+ * @sect_type: section type
+ * @section: pointer to section
+ * @index: index of the Marker PType TCAM entry to be returned
+ * @offset: pointer to receive absolute offset, always 0 for ptype TCAM sections
+ *
+ * This is a callback function that can be passed to ice_pkg_enum_entry.
+ * Handles enumeration of individual Marker PType TCAM entries.
+ */
+static void *
+ice_marker_ptype_tcam_handler(u32 sect_type, void *section, u32 index,
+			      u32 *offset)
+{
+	struct ice_marker_ptype_tcam_section *marker_ptype;
+
+	if (sect_type != ICE_SID_RXPARSER_MARKER_PTYPE)
+		return NULL;
+
+	if (index > ICE_MAX_MARKER_PTYPE_TCAMS_IN_BUF)
+		return NULL;
+
+	if (offset)
+		*offset = 0;
+
+	marker_ptype = section;
+	if (index >= le16_to_cpu(marker_ptype->count))
+		return NULL;
+
+	return marker_ptype->tcam + index;
+}
+
+/**
+ * ice_fill_hw_ptype - fill the enabled PTYPE bit information
+ * @hw: pointer to the HW structure
+ */
+static void ice_fill_hw_ptype(struct ice_hw *hw)
+{
+	struct ice_marker_ptype_tcam_entry *tcam;
+	struct ice_seg *seg = hw->seg;
+	struct ice_pkg_enum state;
+
+	bitmap_zero(hw->hw_ptype, ICE_FLOW_PTYPE_MAX);
+	if (!seg)
+		return;
+
+	memset(&state, 0, sizeof(state));
+
+	do {
+		tcam = ice_pkg_enum_entry(seg, &state,
+					  ICE_SID_RXPARSER_MARKER_PTYPE, NULL,
+					  ice_marker_ptype_tcam_handler);
+		if (tcam &&
+		    le16_to_cpu(tcam->addr) < ICE_MARKER_PTYPE_TCAM_ADDR_MAX &&
+		    le16_to_cpu(tcam->ptype) < ICE_FLOW_PTYPE_MAX)
+			set_bit(le16_to_cpu(tcam->ptype), hw->hw_ptype);
+
+		seg = NULL;
+	} while (tcam);
+}
+
+/**
  * ice_boost_tcam_handler
  * @sect_type: section type
  * @section: pointer to section
@@ -1488,6 +1560,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 		 */
 		ice_init_pkg_regs(hw);
 		ice_fill_blk_tbls(hw);
+		ice_fill_hw_ptype(hw);
 		ice_get_prof_index_max(hw);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT, "package load failed, %d\n",
