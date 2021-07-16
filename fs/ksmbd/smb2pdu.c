@@ -1338,8 +1338,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	user = session_user(conn, req);
 	if (!user) {
 		ksmbd_debug(SMB, "Unknown user name or an error\n");
-		rsp->hdr.Status = STATUS_LOGON_FAILURE;
-		return -EINVAL;
+		return -EPERM;
 	}
 
 	/* Check for previous session */
@@ -1363,8 +1362,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	if (user_guest(sess->user)) {
 		if (conn->sign) {
 			ksmbd_debug(SMB, "Guest login not allowed when signing enabled\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return -EACCES;
+			return -EPERM;
 		}
 
 		rsp->SessionFlags = SMB2_SESSION_FLAG_IS_GUEST_LE;
@@ -1377,8 +1375,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 		if (rc) {
 			set_user_flag(sess->user, KSMBD_USER_FLAG_BAD_PASSWORD);
 			ksmbd_debug(SMB, "authentication failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return -EINVAL;
+			return -EPERM;
 		}
 
 		/*
@@ -1403,8 +1400,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 			if (rc) {
 				ksmbd_debug(SMB,
 					    "SMB3 encryption key generation failed\n");
-				rsp->hdr.Status = STATUS_LOGON_FAILURE;
-				return rc;
+				return -EINVAL;
 			}
 			sess->enc = true;
 			rsp->SessionFlags = SMB2_SESSION_FLAG_ENCRYPT_DATA_LE;
@@ -1434,16 +1430,14 @@ binding_session:
 		rc = conn->ops->generate_signingkey(sess, conn);
 		if (rc) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return rc;
+			return -EINVAL;
 		}
 	}
 
 	if (conn->dialect > SMB20_PROT_ID) {
 		if (!ksmbd_conn_lookup_dialect(conn)) {
 			pr_err("fail to verify the dialect\n");
-			rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
-			return -EPERM;
+			return -ENOENT;
 		}
 	}
 	return 0;
@@ -1483,8 +1477,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 					 out_blob, &out_len);
 	if (retval) {
 		ksmbd_debug(SMB, "krb5 authentication failed\n");
-		rsp->hdr.Status = STATUS_LOGON_FAILURE;
-		return retval;
+		return -EINVAL;
 	}
 	rsp->SecurityBufferLength = cpu_to_le16(out_len);
 	inc_rfc1001_len(rsp, out_len - 1);
@@ -1499,8 +1492,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 		if (retval) {
 			ksmbd_debug(SMB,
 				    "SMB3 encryption key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return retval;
+			return -EINVAL;
 		}
 		sess->enc = true;
 		rsp->SessionFlags = SMB2_SESSION_FLAG_ENCRYPT_DATA_LE;
@@ -1524,16 +1516,14 @@ static int krb5_authenticate(struct ksmbd_work *work)
 		retval = conn->ops->generate_signingkey(sess, conn);
 		if (retval) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return retval;
+			return -EINVAL;
 		}
 	}
 
 	if (conn->dialect > SMB20_PROT_ID) {
 		if (!ksmbd_conn_lookup_dialect(conn)) {
 			pr_err("fail to verify the dialect\n");
-			rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
-			return -EPERM;
+			return -ENOENT;
 		}
 	}
 	return 0;
@@ -1709,6 +1699,8 @@ out_err:
 		rsp->hdr.Status = STATUS_REQUEST_NOT_ACCEPTED;
 	else if (rc == -EFAULT)
 		rsp->hdr.Status = STATUS_NETWORK_SESSION_EXPIRED;
+	else if (rc == -ENOMEM)
+		rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
 	else if (rc)
 		rsp->hdr.Status = STATUS_LOGON_FAILURE;
 
