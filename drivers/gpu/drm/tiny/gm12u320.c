@@ -3,7 +3,6 @@
  * Copyright 2019 Hans de Goede <hdegoede@redhat.com>
  */
 
-#include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 
@@ -268,13 +267,10 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 	y2 = gm12u320->fb_update.rect.y2;
 	vaddr = gm12u320->fb_update.src_map.vaddr; /* TODO: Use mapping abstraction properly */
 
-	if (fb->obj[0]->import_attach) {
-		ret = dma_buf_begin_cpu_access(
-			fb->obj[0]->import_attach->dmabuf, DMA_FROM_DEVICE);
-		if (ret) {
-			GM12U320_ERR("dma_buf_begin_cpu_access err: %d\n", ret);
-			goto put_fb;
-		}
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret) {
+		GM12U320_ERR("drm_gem_fb_begin_cpu_access err: %d\n", ret);
+		goto put_fb;
 	}
 
 	src = vaddr + y1 * fb->pitches[0] + x1 * 4;
@@ -311,12 +307,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 		src += fb->pitches[0];
 	}
 
-	if (fb->obj[0]->import_attach) {
-		ret = dma_buf_end_cpu_access(fb->obj[0]->import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
-		if (ret)
-			GM12U320_ERR("dma_buf_end_cpu_access err: %d\n", ret);
-	}
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 put_fb:
 	drm_framebuffer_put(fb);
 	gm12u320->fb_update.fb = NULL;
