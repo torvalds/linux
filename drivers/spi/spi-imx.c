@@ -1038,12 +1038,8 @@ static void spi_imx_set_burst_len(struct spi_imx_data *spi_imx, int n_bits)
 
 static void spi_imx_push(struct spi_imx_data *spi_imx)
 {
-	unsigned int burst_len, fifo_words;
+	unsigned int burst_len;
 
-	if (spi_imx->dynamic_burst)
-		fifo_words = 4;
-	else
-		fifo_words = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 	/*
 	 * Reload the FIFO when the remaining bytes to be transferred in the
 	 * current burst is 0. This only applies when bits_per_word is a
@@ -1062,7 +1058,7 @@ static void spi_imx_push(struct spi_imx_data *spi_imx)
 
 			spi_imx->remainder = burst_len;
 		} else {
-			spi_imx->remainder = fifo_words;
+			spi_imx->remainder = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 		}
 	}
 
@@ -1070,8 +1066,7 @@ static void spi_imx_push(struct spi_imx_data *spi_imx)
 		if (!spi_imx->count)
 			break;
 		if (spi_imx->dynamic_burst &&
-		    spi_imx->txfifo >= DIV_ROUND_UP(spi_imx->remainder,
-						     fifo_words))
+		    spi_imx->txfifo >= DIV_ROUND_UP(spi_imx->remainder, 4))
 			break;
 		spi_imx->tx(spi_imx);
 		spi_imx->txfifo++;
