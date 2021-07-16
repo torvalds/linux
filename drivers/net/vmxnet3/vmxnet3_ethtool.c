@@ -787,6 +787,10 @@ vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
+		if (VMXNET3_VERSION_GE_6(adapter) &&
+		    (rss_fields & VMXNET3_RSS_FIELDS_ESPIP6))
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		fallthrough;
 	case SCTP_V6_FLOW:
 	case IPV6_FLOW:
 		info->data |= RXH_IP_SRC | RXH_IP_DST;
@@ -871,6 +875,22 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 	case ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case AH_ESP_V6_FLOW:
+		if (!VMXNET3_VERSION_GE_6(adapter))
+			return -EOPNOTSUPP;
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			rss_fields &= ~VMXNET3_RSS_FIELDS_ESPIP6;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			rss_fields |= VMXNET3_RSS_FIELDS_ESPIP6;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	case SCTP_V4_FLOW:
 	case SCTP_V6_FLOW:
 		if (!(nfc->data & RXH_IP_SRC) ||
