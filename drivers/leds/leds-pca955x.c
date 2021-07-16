@@ -479,8 +479,7 @@ static const struct of_device_id of_pca955x_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_pca955x_match);
 
-static int pca955x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pca955x_probe(struct i2c_client *client)
 {
 	struct pca955x *pca955x;
 	struct pca955x_led *pca955x_led;
@@ -494,8 +493,24 @@ static int pca955x_probe(struct i2c_client *client,
 	bool set_default_label = false;
 	bool keep_pwm = false;
 	char default_label[8];
+	enum pca955x_type chip_type;
+	const void *md = device_get_match_data(&client->dev);
 
-	chip = &pca955x_chipdefs[id->driver_data];
+	if (md) {
+		chip_type = (enum pca955x_type)md;
+	} else {
+		const struct i2c_device_id *id = i2c_match_id(pca955x_id,
+							      client);
+
+		if (id) {
+			chip_type = (enum pca955x_type)id->driver_data;
+		} else {
+			dev_err(&client->dev, "unknown chip\n");
+			return -ENODEV;
+		}
+	}
+
+	chip = &pca955x_chipdefs[chip_type];
 	adapter = client->adapter;
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
@@ -670,7 +685,7 @@ static struct i2c_driver pca955x_driver = {
 		.name	= "leds-pca955x",
 		.of_match_table = of_pca955x_match,
 	},
-	.probe	= pca955x_probe,
+	.probe_new = pca955x_probe,
 	.id_table = pca955x_id,
 };
 
