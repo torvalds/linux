@@ -722,7 +722,7 @@ void svm_copy_vmrun_state(struct vmcb_save_area *from_save,
 	to_save->cpl = 0;
 }
 
-void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
+void svm_copy_vmloadsave_state(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 {
 	to_vmcb->save.fs = from_vmcb->save.fs;
 	to_vmcb->save.gs = from_vmcb->save.gs;

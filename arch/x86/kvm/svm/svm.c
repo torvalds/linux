@@ -2147,11 +2147,12 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 	ret = kvm_skip_emulated_instruction(vcpu);
 
 	if (vmload) {
-		nested_svm_vmloadsave(vmcb12, svm->vmcb);
+		svm_copy_vmloadsave_state(vmcb12, svm->vmcb);
 		svm->sysenter_eip_hi = 0;
 		svm->sysenter_esp_hi = 0;
-	} else
-		nested_svm_vmloadsave(svm->vmcb, vmcb12);
+	} else {
+		svm_copy_vmloadsave_state(svm->vmcb, vmcb12);
+	}
 
 	kvm_vcpu_unmap(vcpu, &map, true);
 
