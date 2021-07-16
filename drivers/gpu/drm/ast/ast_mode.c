@@ -1298,7 +1298,7 @@ static enum drm_connector_status ast_connector_detect(struct drm_connector
 	int r;
 
 	r = ast_get_modes(connector);
-	if (r < 0)
+	if (r <= 0)
 		return connector_status_disconnected;
 
 	return connector_status_connected;
