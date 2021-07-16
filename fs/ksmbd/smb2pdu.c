@@ -924,7 +924,7 @@ static int decode_compress_ctxt(struct ksmbd_conn *conn,
 	 * Return compression context size in request.
 	 * So need to plus extra number of CompressionAlgorithms size.
 	 */
-	return sizeof(struct smb2_encryption_neg_context) +
+	return sizeof(struct smb2_compression_ctx) +
 		((algo_cnt - 1) * 2);
 }
 
