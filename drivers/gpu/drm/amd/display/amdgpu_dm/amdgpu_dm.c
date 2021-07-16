@@ -1066,19 +1066,15 @@ static void event_mall_stutter(struct work_struct *work)
 
 static struct vblank_workqueue *vblank_create_workqueue(struct amdgpu_device *adev, struct dc *dc)
 {
-
-	int max_caps = dc->caps.max_links;
 	struct vblank_workqueue *vblank_work;
-	int i = 0;
 
-	vblank_work = kcalloc(max_caps, sizeof(*vblank_work), GFP_KERNEL);
+	vblank_work = kzalloc(sizeof(*vblank_work), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(vblank_work)) {
 		kfree(vblank_work);
 		return NULL;
 	}
 
-	for (i = 0; i < max_caps; i++)
-		INIT_WORK(&vblank_work[i].mall_work, event_mall_stutter);
+	INIT_WORK(&vblank_work->mall_work, event_mall_stutter);
 
 	return vblank_work;
 }
