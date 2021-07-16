@@ -129,6 +129,7 @@ struct pca955x_led {
 	int			led_num;	/* 0 .. 15 potentially */
 	char			name[32];
 	u32			type;
+	int			default_state;
 	const char		*default_trigger;
 };
 
@@ -439,6 +440,7 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 
 	device_for_each_child_node(&client->dev, child) {
 		const char *name;
+		const char *state;
 		u32 reg;
 		int res;
 
@@ -457,6 +459,18 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 		fwnode_property_read_u32(child, "type", &led->type);
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led->default_trigger);
+
+		if (!fwnode_property_read_string(child, "default-state",
+						 &state)) {
+			if (!strcmp(state, "keep"))
+				led->default_state = LEDS_GPIO_DEFSTATE_KEEP;
+			else if (!strcmp(state, "on"))
+				led->default_state = LEDS_GPIO_DEFSTATE_ON;
+			else
+				led->default_state = LEDS_GPIO_DEFSTATE_OFF;
+		} else {
+			led->default_state = LEDS_GPIO_DEFSTATE_OFF;
+		}
 	}
 
 	pdata->num_leds = chip->bits;
@@ -485,6 +499,7 @@ static int pca955x_probe(struct i2c_client *client,
 	int i, err;
 	struct pca955x_platform_data *pdata;
 	int ngpios = 0;
+	bool keep_pwm = false;
 
 	chip = &pca955x_chipdefs[id->driver_data];
 	adapter = client->adapter;
@@ -565,14 +580,35 @@ static int pca955x_probe(struct i2c_client *client,
 			led->brightness_set_blocking = pca955x_led_set;
 			led->brightness_get = pca955x_led_get;
 
+			if (pdata->leds[i].default_state ==
+			    LEDS_GPIO_DEFSTATE_OFF) {
+				err = pca955x_led_set(led, LED_OFF);
+				if (err)
+					return err;
+			} else if (pdata->leds[i].default_state ==
+				   LEDS_GPIO_DEFSTATE_ON) {
+				err = pca955x_led_set(led, LED_FULL);
+				if (err)
+					return err;
+			}
+
 			err = devm_led_classdev_register(&client->dev, led);
 			if (err)
 				return err;
 
-			/* Turn off LED */
-			err = pca955x_led_set(led, LED_OFF);
-			if (err)
-				return err;
+			/*
+			 * For default-state == "keep", let the core update the
+			 * brightness from the hardware, then check the
+			 * brightness to see if it's using PWM1. If so, PWM1
+			 * should not be written below.
+			 */
+			if (pdata->leds[i].default_state ==
+			    LEDS_GPIO_DEFSTATE_KEEP) {
+				if (led->brightness != LED_FULL &&
+				    led->brightness != LED_OFF &&
+				    led->brightness != LED_HALF)
+					keep_pwm = true;
+			}
 		}
 	}
 
@@ -581,10 +617,12 @@ static int pca955x_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	/* PWM1 is used for variable brightness, default to OFF */
-	err = pca955x_write_pwm(client, 1, 0);
-	if (err)
-		return err;
+	if (!keep_pwm) {
+		/* PWM1 is used for variable brightness, default to OFF */
+		err = pca955x_write_pwm(client, 1, 0);
+		if (err)
+			return err;
+	}
 
 	/* Set to fast frequency so we do not see flashing */
 	err = pca955x_write_psc(client, 0, 0);
