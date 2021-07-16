@@ -116,4 +116,9 @@ static inline int vga_get_uninterruptible(struct pci_dev *pdev,
        return vga_get(pdev, rsrc, 0);
 }
 
+static inline void vga_client_unregister(struct pci_dev *pdev)
+{
+	vga_client_register(pdev, NULL, NULL, NULL);
+}
+
 #endif /* LINUX_VGA_H */

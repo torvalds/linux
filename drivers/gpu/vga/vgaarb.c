@@ -877,8 +877,7 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
  * This function does not check whether a client for @pdev has been registered
  * already.
  *
- * To unregister just call this function with @irq_set_state and @set_vga_decode
- * both set to NULL for the same @pdev as originally used to register them.
+ * To unregister just call vga_client_unregister().
  *
  * Returns: 0 on success, -1 on failure
  */
