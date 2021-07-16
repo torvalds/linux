@@ -151,6 +151,7 @@ static const struct mtk_disp_aal_data mt8173_aal_driver_data = {
 static const struct of_device_id mtk_disp_aal_driver_dt_match[] = {
 	{ .compatible = "mediatek,mt8173-disp-aal",
 	  .data = &mt8173_aal_driver_data},
+	{ .compatible = "mediatek,mt8183-disp-aal"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_disp_aal_driver_dt_match);
