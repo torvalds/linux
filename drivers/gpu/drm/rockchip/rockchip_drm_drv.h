@@ -192,6 +192,14 @@ void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP)
+int rockchip_drm_get_sub_dev_type(void);
+#else
+static inline int rockchip_drm_get_sub_dev_type(void)
+{
+	return DRM_MODE_CONNECTOR_Unknown;
+}
+#endif
 
 int rockchip_drm_endpoint_is_subdriver(struct device_node *ep);
 uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
