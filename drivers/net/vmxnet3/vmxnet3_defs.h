@@ -344,13 +344,15 @@ struct Vmxnet3_RxCompDescExt {
 #define VMXNET3_TXD_EOP_SIZE 1
 
 /* value of RxCompDesc.rssType */
-enum {
-	VMXNET3_RCD_RSS_TYPE_NONE     = 0,
-	VMXNET3_RCD_RSS_TYPE_IPV4     = 1,
-	VMXNET3_RCD_RSS_TYPE_TCPIPV4  = 2,
-	VMXNET3_RCD_RSS_TYPE_IPV6     = 3,
-	VMXNET3_RCD_RSS_TYPE_TCPIPV6  = 4,
-};
+#define VMXNET3_RCD_RSS_TYPE_NONE     0
+#define VMXNET3_RCD_RSS_TYPE_IPV4     1
+#define VMXNET3_RCD_RSS_TYPE_TCPIPV4  2
+#define VMXNET3_RCD_RSS_TYPE_IPV6     3
+#define VMXNET3_RCD_RSS_TYPE_TCPIPV6  4
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV4  5
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV6  6
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV4  7
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV6  8
 
 
 /* a union for accessing all cmd/completion descriptors */
