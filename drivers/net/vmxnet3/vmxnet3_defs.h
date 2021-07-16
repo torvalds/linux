@@ -98,6 +98,9 @@ enum {
 	VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
 	VMXNET3_CMD_GET_COALESCE,
 	VMXNET3_CMD_GET_RSS_FIELDS,
+	VMXNET3_CMD_GET_RESERVED2,
+	VMXNET3_CMD_GET_RESERVED3,
+	VMXNET3_CMD_GET_MAX_QUEUES_CONF,
 };
 
 /*
@@ -533,6 +536,13 @@ enum vmxnet3_intr_type {
 /* addition 1 for events */
 #define VMXNET3_MAX_INTRS      25
 
+/* Version 6 and later will use below macros */
+#define VMXNET3_EXT_MAX_TX_QUEUES  32
+#define VMXNET3_EXT_MAX_RX_QUEUES  32
+/* addition 1 for events */
+#define VMXNET3_EXT_MAX_INTRS      65
+#define VMXNET3_FIRST_SET_INTRS    64
+
 /* value of intrCtrl */
 #define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
 
@@ -545,6 +555,19 @@ struct Vmxnet3_IntrConf {
 							 * each intr */
 	__le32		intrCtrl;
 	__le32		reserved[2];
+};
+
+struct Vmxnet3_IntrConfExt {
+	u8              autoMask;
+	u8              numIntrs;      /* # of interrupts */
+	u8              eventIntrIdx;
+	u8              reserved;
+	__le32          intrCtrl;
+	__le32          reserved1;
+	u8              modLevels[VMXNET3_EXT_MAX_INTRS]; /* moderation level for
+							   * each intr
+							   */
+	u8              reserved2[3];
 };
 
 /* one bit per VLAN ID, the size is in the units of u32	*/
@@ -719,11 +742,16 @@ struct Vmxnet3_DSDevRead {
 	struct Vmxnet3_VariableLenConfDesc	pluginConfDesc;
 };
 
+struct Vmxnet3_DSDevReadExt {
+	/* read-only region for device, read by dev in response to a SET cmd */
+	struct Vmxnet3_IntrConfExt              intrConfExt;
+};
+
 /* All structures in DriverShared are padded to multiples of 8 bytes */
 struct Vmxnet3_DriverShared {
 	__le32				magic;
 	/* make devRead start at 64bit boundaries */
-	__le32				pad;
+	__le32                          size; /* size of DriverShared */
 	struct Vmxnet3_DSDevRead	devRead;
 	__le32				ecr;
 	__le32				reserved;
@@ -734,6 +762,7 @@ struct Vmxnet3_DriverShared {
 						  * command
 						  */
 	} cu;
+	struct Vmxnet3_DSDevReadExt     devReadExt;
 };
 
 

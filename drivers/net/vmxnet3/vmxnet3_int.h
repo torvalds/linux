@@ -303,15 +303,18 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rq_driver_stats  stats;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
-#define VMXNET3_DEVICE_MAX_TX_QUEUES 8
-#define VMXNET3_DEVICE_MAX_RX_QUEUES 8   /* Keep this value as a power of 2 */
+#define VMXNET3_DEVICE_MAX_TX_QUEUES 32
+#define VMXNET3_DEVICE_MAX_RX_QUEUES 32   /* Keep this value as a power of 2 */
+
+#define VMXNET3_DEVICE_DEFAULT_TX_QUEUES 8
+#define VMXNET3_DEVICE_DEFAULT_RX_QUEUES 8   /* Keep this value as a power of 2 */
 
 /* Should be less than UPT1_RSS_MAX_IND_TABLE_SIZE */
 #define VMXNET3_RSS_IND_TABLE_SIZE (VMXNET3_DEVICE_MAX_RX_QUEUES * 4)
 
 #define VMXNET3_LINUX_MAX_MSIX_VECT     (VMXNET3_DEVICE_MAX_TX_QUEUES + \
 					 VMXNET3_DEVICE_MAX_RX_QUEUES + 1)
-#define VMXNET3_LINUX_MIN_MSIX_VECT     2 /* 1 for tx-rx pair and 1 for event */
+#define VMXNET3_LINUX_MIN_MSIX_VECT     3 /* 1 for tx, 1 for rx pair and 1 for event */
 
 
 struct vmxnet3_intr {
@@ -398,6 +401,7 @@ struct vmxnet3_adapter {
 	dma_addr_t adapter_pa;
 	dma_addr_t pm_conf_pa;
 	dma_addr_t rss_conf_pa;
+	bool   queuesExtEnabled;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
