@@ -271,6 +271,14 @@ static const struct dmi_system_id tqmx86_dmi_table[] __initconst = {
 		},
 		.callback = tqmx86_create_platform_device,
 	},
+	{
+		.ident = "TQMX86",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TQ-Systems"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TQMx"),
+		},
+		.callback = tqmx86_create_platform_device,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(dmi, tqmx86_dmi_table);
