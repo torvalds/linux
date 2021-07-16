@@ -84,6 +84,7 @@ struct connection {
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	atomic_t writequeue_cnt;
+	struct mutex wq_alloc;
 	int retries;
 #define MAX_CONNECT_RETRIES 3
 	struct hlist_node list;
@@ -263,6 +264,8 @@ static struct connection *nodeid2con(int nodeid, gfp_t alloc)
 		kfree(con);
 		return NULL;
 	}
+
+	mutex_init(&con->wq_alloc);
 
 	spin_lock(&connections_lock);
 	/* Because multiple workqueues/threads calls this function it can
@@ -1251,18 +1254,36 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
 {
 	struct writequeue_entry *e;
 	struct dlm_msg *msg;
+	bool sleepable;
 
 	msg = kzalloc(sizeof(*msg), allocation);
 	if (!msg)
 		return NULL;
 
+	/* this mutex is being used as a wait to avoid multiple "fast"
+	 * new writequeue page list entry allocs in new_wq_entry in
+	 * normal operation which is sleepable context. Without it
+	 * we could end in multiple writequeue entries with one
+	 * dlm message because multiple callers were waiting at
+	 * the writequeue_lock in new_wq_entry().
+	 */
+	sleepable = gfpflags_normal_context(allocation);
+	if (sleepable)
+		mutex_lock(&con->wq_alloc);
+
 	kref_init(&msg->ref);
 
 	e = new_wq_entry(con, len, allocation, ppc, cb, mh);
 	if (!e) {
+		if (sleepable)
+			mutex_unlock(&con->wq_alloc);
+
 		kfree(msg);
 		return NULL;
 	}
+
+	if (sleepable)
+		mutex_unlock(&con->wq_alloc);
 
 	msg->ppc = *ppc;
 	msg->len = len;
