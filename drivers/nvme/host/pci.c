@@ -2063,6 +2063,24 @@ static ssize_t cmb_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(cmb);
 
+static ssize_t cmbloc_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%u\n", ndev->cmbloc);
+}
+static DEVICE_ATTR_RO(cmbloc);
+
+static ssize_t cmbsz_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%u\n", ndev->cmbsz);
+}
+static DEVICE_ATTR_RO(cmbsz);
+
 static umode_t nvme_pci_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
@@ -2070,13 +2088,19 @@ static umode_t nvme_pci_attrs_are_visible(struct kobject *kobj,
 		dev_get_drvdata(container_of(kobj, struct device, kobj));
 	struct nvme_dev *dev = to_nvme_dev(ctrl);
 
-	if (a == &dev_attr_cmb.attr && !dev->cmbsz)
-		return 0;
+	if (a == &dev_attr_cmb.attr ||
+	    a == &dev_attr_cmbloc.attr ||
+	    a == &dev_attr_cmbsz.attr) {
+	    	if (!dev->cmbsz)
+			return 0;
+	}
 	return a->mode;
 }
 
 static struct attribute *nvme_pci_attrs[] = {
 	&dev_attr_cmb.attr,
+	&dev_attr_cmbloc.attr,
+	&dev_attr_cmbsz.attr,
 	NULL,
 };
 
