@@ -166,11 +166,10 @@ static inline u8 pca955x_ledsel(u8 oldval, int led_num, int state)
 static int pca955x_write_psc(struct i2c_client *client, int n, u8 val)
 {
 	struct pca955x *pca955x = i2c_get_clientdata(client);
+	u8 cmd = pca95xx_num_input_regs(pca955x->chipdef->bits) + (2 * n);
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client,
-		pca95xx_num_input_regs(pca955x->chipdef->bits) + 2*n,
-		val);
+	ret = i2c_smbus_write_byte_data(client, cmd, val);
 	if (ret < 0)
 		dev_err(&client->dev, "%s: reg 0x%x, val 0x%x, err %d\n",
 			__func__, n, val, ret);
@@ -187,11 +186,10 @@ static int pca955x_write_psc(struct i2c_client *client, int n, u8 val)
 static int pca955x_write_pwm(struct i2c_client *client, int n, u8 val)
 {
 	struct pca955x *pca955x = i2c_get_clientdata(client);
+	u8 cmd = pca95xx_num_input_regs(pca955x->chipdef->bits) + 1 + (2 * n);
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client,
-		pca95xx_num_input_regs(pca955x->chipdef->bits) + 1 + 2*n,
-		val);
+	ret = i2c_smbus_write_byte_data(client, cmd, val);
 	if (ret < 0)
 		dev_err(&client->dev, "%s: reg 0x%x, val 0x%x, err %d\n",
 			__func__, n, val, ret);
@@ -205,11 +203,10 @@ static int pca955x_write_pwm(struct i2c_client *client, int n, u8 val)
 static int pca955x_write_ls(struct i2c_client *client, int n, u8 val)
 {
 	struct pca955x *pca955x = i2c_get_clientdata(client);
+	u8 cmd = pca95xx_num_input_regs(pca955x->chipdef->bits) + 4 + n;
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client,
-		pca95xx_num_input_regs(pca955x->chipdef->bits) + 4 + n,
-		val);
+	ret = i2c_smbus_write_byte_data(client, cmd, val);
 	if (ret < 0)
 		dev_err(&client->dev, "%s: reg 0x%x, val 0x%x, err %d\n",
 			__func__, n, val, ret);
@@ -223,10 +220,10 @@ static int pca955x_write_ls(struct i2c_client *client, int n, u8 val)
 static int pca955x_read_ls(struct i2c_client *client, int n, u8 *val)
 {
 	struct pca955x *pca955x = i2c_get_clientdata(client);
+	u8 cmd = pca95xx_num_input_regs(pca955x->chipdef->bits) + 4 + n;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(client,
-		pca95xx_num_input_regs(pca955x->chipdef->bits) + 4 + n);
+	ret = i2c_smbus_read_byte_data(client, cmd);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reg 0x%x, err %d\n",
 			__func__, n, ret);
@@ -371,6 +368,7 @@ static struct pca955x_platform_data *
 pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 {
 	struct pca955x_platform_data *pdata;
+	struct pca955x_led *led;
 	struct fwnode_handle *child;
 	int count;
 
@@ -401,13 +399,13 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 		if ((res != 0) && is_of_node(child))
 			name = to_of_node(child)->name;
 
-		snprintf(pdata->leds[reg].name, sizeof(pdata->leds[reg].name),
-			 "%s", name);
+		led = &pdata->leds[reg];
+		snprintf(led->name, sizeof(led->name), "%s", name);
 
-		pdata->leds[reg].type = PCA955X_TYPE_LED;
-		fwnode_property_read_u32(child, "type", &pdata->leds[reg].type);
+		led->type = PCA955X_TYPE_LED;
+		fwnode_property_read_u32(child, "type", &led->type);
 		fwnode_property_read_string(child, "linux,default-trigger",
-					&pdata->leds[reg].default_trigger);
+					    &led->default_trigger);
 	}
 
 	pdata->num_leds = chip->bits;
@@ -426,11 +424,12 @@ static const struct of_device_id of_pca955x_match[] = {
 MODULE_DEVICE_TABLE(of, of_pca955x_match);
 
 static int pca955x_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct pca955x *pca955x;
 	struct pca955x_led *pca955x_led;
 	struct pca955x_chipdef *chip;
+	struct led_classdev *led;
 	struct i2c_adapter *adapter;
 	int i, err;
 	struct pca955x_platform_data *pdata;
@@ -449,13 +448,13 @@ static int pca955x_probe(struct i2c_client *client,
 	if ((client->addr & ~((1 << chip->slv_addr_shift) - 1)) !=
 	    chip->slv_addr) {
 		dev_err(&client->dev, "invalid slave address %02x\n",
-				client->addr);
+			client->addr);
 		return -ENODEV;
 	}
 
 	dev_info(&client->dev, "leds-pca955x: Using %s %d-bit LED driver at "
-			"slave address 0x%02x\n",
-			client->name, chip->bits, client->addr);
+		 "slave address 0x%02x\n", client->name, chip->bits,
+		 client->addr);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
@@ -471,8 +470,8 @@ static int pca955x_probe(struct i2c_client *client,
 	if (!pca955x)
 		return -ENOMEM;
 
-	pca955x->leds = devm_kcalloc(&client->dev,
-			chip->bits, sizeof(*pca955x_led), GFP_KERNEL);
+	pca955x->leds = devm_kcalloc(&client->dev, chip->bits,
+				     sizeof(*pca955x_led), GFP_KERNEL);
 	if (!pca955x->leds)
 		return -ENOMEM;
 
@@ -501,27 +500,25 @@ static int pca955x_probe(struct i2c_client *client,
 			 */
 			if (pdata->leds[i].name[0] == '\0')
 				snprintf(pdata->leds[i].name,
-					sizeof(pdata->leds[i].name), "%d", i);
+					 sizeof(pdata->leds[i].name), "%d", i);
 
-			snprintf(pca955x_led->name,
-				sizeof(pca955x_led->name), "pca955x:%s",
-				pdata->leds[i].name);
+			snprintf(pca955x_led->name, sizeof(pca955x_led->name),
+				 "pca955x:%s", pdata->leds[i].name);
 
+			led = &pca955x_led->led_cdev;
 			if (pdata->leds[i].default_trigger)
-				pca955x_led->led_cdev.default_trigger =
+				led->default_trigger =
 					pdata->leds[i].default_trigger;
 
-			pca955x_led->led_cdev.name = pca955x_led->name;
-			pca955x_led->led_cdev.brightness_set_blocking =
-				pca955x_led_set;
+			led->name = pca955x_led->name;
+			led->brightness_set_blocking = pca955x_led_set;
 
-			err = devm_led_classdev_register(&client->dev,
-							&pca955x_led->led_cdev);
+			err = devm_led_classdev_register(&client->dev, led);
 			if (err)
 				return err;
 
 			/* Turn off LED */
-			err = pca955x_led_set(&pca955x_led->led_cdev, LED_OFF);
+			err = pca955x_led_set(led, LED_OFF);
 			if (err)
 				return err;
 		}
