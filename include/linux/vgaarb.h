@@ -33,6 +33,8 @@
 
 #include <video/vga.h>
 
+struct pci_dev;
+
 /* Legacy VGA regions */
 #define VGA_RSRC_NONE	       0x00
 #define VGA_RSRC_LEGACY_IO     0x01
@@ -42,23 +44,47 @@
 #define VGA_RSRC_NORMAL_IO     0x04
 #define VGA_RSRC_NORMAL_MEM    0x08
 
-struct pci_dev;
-
-/* For use by clients */
-
-#if defined(CONFIG_VGA_ARB)
-extern void vga_set_legacy_decoding(struct pci_dev *pdev,
-				    unsigned int decodes);
-#else
+#ifdef CONFIG_VGA_ARB
+void vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes);
+int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible);
+void vga_put(struct pci_dev *pdev, unsigned int rsrc);
+struct pci_dev *vga_default_device(void);
+void vga_set_default_device(struct pci_dev *pdev);
+int vga_remove_vgacon(struct pci_dev *pdev);
+int vga_client_register(struct pci_dev *pdev, void *cookie,
+			void (*irq_set_state)(void *cookie, bool state),
+			unsigned int (*set_vga_decode)(void *cookie, bool state));
+#else /* CONFIG_VGA_ARB */
 static inline void vga_set_legacy_decoding(struct pci_dev *pdev,
-					   unsigned int decodes) { };
-#endif
-
-#if defined(CONFIG_VGA_ARB)
-extern int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible);
-#else
-static inline int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible) { return 0; }
-#endif
+		unsigned int decodes)
+{
+};
+static inline int vga_get(struct pci_dev *pdev, unsigned int rsrc,
+		int interruptible)
+{
+	return 0;
+}
+static inline void vga_put(struct pci_dev *pdev, unsigned int rsrc)
+{
+}
+static inline struct pci_dev *vga_default_device(void)
+{
+	return NULL;
+}
+static inline void vga_set_default_device(struct pci_dev *pdev)
+{
+}
+static inline int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return 0;
+}
+static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
+				      void (*irq_set_state)(void *cookie, bool state),
+				      unsigned int (*set_vga_decode)(void *cookie, bool state))
+{
+	return 0;
+}
+#endif /* CONFIG_VGA_ARB */
 
 /**
  * vga_get_interruptible
@@ -89,37 +115,5 @@ static inline int vga_get_uninterruptible(struct pci_dev *pdev,
 {
        return vga_get(pdev, rsrc, 0);
 }
-
-#if defined(CONFIG_VGA_ARB)
-extern void vga_put(struct pci_dev *pdev, unsigned int rsrc);
-#else
-static inline void vga_put(struct pci_dev *pdev, unsigned int rsrc)
-{
-}
-#endif
-
-
-#ifdef CONFIG_VGA_ARB
-extern struct pci_dev *vga_default_device(void);
-extern void vga_set_default_device(struct pci_dev *pdev);
-extern int vga_remove_vgacon(struct pci_dev *pdev);
-#else
-static inline struct pci_dev *vga_default_device(void) { return NULL; }
-static inline void vga_set_default_device(struct pci_dev *pdev) { }
-static inline int vga_remove_vgacon(struct pci_dev *pdev) { return 0; }
-#endif
-
-#if defined(CONFIG_VGA_ARB)
-int vga_client_register(struct pci_dev *pdev, void *cookie,
-			void (*irq_set_state)(void *cookie, bool state),
-			unsigned int (*set_vga_decode)(void *cookie, bool state));
-#else
-static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
-				      void (*irq_set_state)(void *cookie, bool state),
-				      unsigned int (*set_vga_decode)(void *cookie, bool state))
-{
-	return 0;
-}
-#endif
 
 #endif /* LINUX_VGA_H */
