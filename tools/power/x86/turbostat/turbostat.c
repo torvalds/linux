@@ -752,26 +752,31 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 		if (comma)
 			*comma = '\0';
 
-		if (!strcmp(name_list, "all"))
-			return ~0;
-		if (!strcmp(name_list, "topology"))
-			return BIC_TOPOLOGY;
-		if (!strcmp(name_list, "power"))
-			return BIC_THERMAL_PWR;
-		if (!strcmp(name_list, "idle"))
-			return BIC_IDLE;
-		if (!strcmp(name_list, "frequency"))
-			return BIC_FREQUENCY;
-		if (!strcmp(name_list, "other"))
-			return BIC_OTHER;
-		if (!strcmp(name_list, "all"))
-			return 0;
-
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
 				retval |= (1ULL << i);
 				break;
 			}
+			if (!strcmp(name_list, "all")) {
+				retval |= ~0;
+				break;
+			} else if (!strcmp(name_list, "topology")) {
+				retval |= BIC_TOPOLOGY;
+				break;
+			} else if (!strcmp(name_list, "power")) {
+				retval |= BIC_THERMAL_PWR;
+				break;
+			} else if (!strcmp(name_list, "idle")) {
+				retval |= BIC_IDLE;
+				break;
+			} else if (!strcmp(name_list, "frequency")) {
+				retval |= BIC_FREQUENCY;
+				break;
+			} else if (!strcmp(name_list, "other")) {
+				retval |= BIC_OTHER;
+				break;
+			}
+
 		}
 		if (i == MAX_BIC) {
 			if (mode == SHOW_LIST) {
