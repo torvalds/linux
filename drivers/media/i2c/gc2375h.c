@@ -10,6 +10,7 @@
  * TODO: add OTP function.
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 add function g_mbus_config
+ * V0.0X01.0X06 fix vblank set issue
  */
 
 //#define DEBUG 1
@@ -35,7 +36,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x5)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x6)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -722,8 +723,11 @@ static long gc2375h_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = gc2375h_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -736,12 +740,16 @@ static long gc2375h_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = gc2375h_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = gc2375h_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1251,7 +1259,7 @@ static int gc2375h_set_ctrl(struct v4l2_ctrl *ctrl)
 			 ((ctrl->val) >> 8) & 0x1f);
 		ret |= gc2375h_write_reg(gc2375h->client,
 			 GC2375H_REG_VTS_L,
-			 ((ctrl->val) >> 8) & 0xff);
+			 (ctrl->val & 0xff));
 		break;
 
 	default:
