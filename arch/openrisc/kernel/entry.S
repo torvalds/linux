@@ -326,7 +326,7 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 1:	l.ori   r6,r0,0x0                  // !write access
 2:
 
-	/* call fault.c handler in or32/mm/fault.c */
+	/* call fault.c handler in openrisc/mm/fault.c */
 	l.jal   do_page_fault
 	 l.nop
 	l.j     _ret_from_exception
@@ -348,7 +348,7 @@ EXCEPTION_ENTRY(_insn_page_fault_handler)
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
 	l.ori	r6,r0,0x0		   // !write access
 
-	/* call fault.c handler in or32/mm/fault.c */
+	/* call fault.c handler in openrisc/mm/fault.c */
 	l.jal   do_page_fault
 	 l.nop
 	l.j     _ret_from_exception
