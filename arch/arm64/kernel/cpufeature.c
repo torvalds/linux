@@ -1734,7 +1734,7 @@ static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
 	u64 val = read_sysreg_s(SYS_CLIDR_EL1);
 
 	/* Check that CLIDR_EL1.LOU{U,IS} are both 0 */
-	WARN_ON(val & (7 << 27 | 7 << 21));
+	WARN_ON(CLIDR_LOUU(val) || CLIDR_LOUIS(val));
 }
 
 #ifdef CONFIG_ARM64_PAN
