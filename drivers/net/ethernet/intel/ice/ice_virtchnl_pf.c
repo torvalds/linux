@@ -9,6 +9,7 @@
 #include "ice_flow.h"
 #include "ice_eswitch.h"
 #include "ice_virtchnl_allowlist.h"
+#include "ice_flex_pipe.h"
 
 #define FIELD_SELECTOR(proto_hdr_field) \
 		BIT((proto_hdr_field) & PROTO_HDR_FIELD_MASK)
@@ -18,18 +19,7 @@ struct ice_vc_hdr_match_type {
 	u32 ice_hdr;	/* ice headers (ICE_FLOW_SEG_HDR_XXX) */
 };
 
-static const struct ice_vc_hdr_match_type ice_vc_hdr_list_os[] = {
-	{VIRTCHNL_PROTO_HDR_NONE,	ICE_FLOW_SEG_HDR_NONE},
-	{VIRTCHNL_PROTO_HDR_IPV4,	ICE_FLOW_SEG_HDR_IPV4 |
-					ICE_FLOW_SEG_HDR_IPV_OTHER},
-	{VIRTCHNL_PROTO_HDR_IPV6,	ICE_FLOW_SEG_HDR_IPV6 |
-					ICE_FLOW_SEG_HDR_IPV_OTHER},
-	{VIRTCHNL_PROTO_HDR_TCP,	ICE_FLOW_SEG_HDR_TCP},
-	{VIRTCHNL_PROTO_HDR_UDP,	ICE_FLOW_SEG_HDR_UDP},
-	{VIRTCHNL_PROTO_HDR_SCTP,	ICE_FLOW_SEG_HDR_SCTP},
-};
-
-static const struct ice_vc_hdr_match_type ice_vc_hdr_list_comms[] = {
+static const struct ice_vc_hdr_match_type ice_vc_hdr_list[] = {
 	{VIRTCHNL_PROTO_HDR_NONE,	ICE_FLOW_SEG_HDR_NONE},
 	{VIRTCHNL_PROTO_HDR_ETH,	ICE_FLOW_SEG_HDR_ETH},
 	{VIRTCHNL_PROTO_HDR_S_VLAN,	ICE_FLOW_SEG_HDR_VLAN},
@@ -67,83 +57,7 @@ struct ice_vc_hash_field_match_type {
 };
 
 static const struct
-ice_vc_hash_field_match_type ice_vc_hash_field_list_os[] = {
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_SRC),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA)},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_DST),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA)},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_DST),
-		ICE_FLOW_HASH_IPV4},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA) |
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_DST) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA) |
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_DST) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_PROT),
-		ICE_FLOW_HASH_IPV4 | BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV4, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV4_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_SRC),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_SA)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_DST),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_DA)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_DST),
-		ICE_FLOW_HASH_IPV6},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_SA) |
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_DST) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_DA) |
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_SRC) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_DST) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_PROT),
-		ICE_FLOW_HASH_IPV6 | BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_PROT)},
-	{VIRTCHNL_PROTO_HDR_IPV6, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_IPV6_PROT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_PROT)},
-	{VIRTCHNL_PROTO_HDR_TCP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_TCP_SRC_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_SRC_PORT)},
-	{VIRTCHNL_PROTO_HDR_TCP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_TCP_DST_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_DST_PORT)},
-	{VIRTCHNL_PROTO_HDR_TCP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_TCP_SRC_PORT) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_TCP_DST_PORT),
-		ICE_FLOW_HASH_TCP_PORT},
-	{VIRTCHNL_PROTO_HDR_UDP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_UDP_SRC_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)},
-	{VIRTCHNL_PROTO_HDR_UDP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_UDP_DST_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)},
-	{VIRTCHNL_PROTO_HDR_UDP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_UDP_SRC_PORT) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_UDP_DST_PORT),
-		ICE_FLOW_HASH_UDP_PORT},
-	{VIRTCHNL_PROTO_HDR_SCTP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_SCTP_SRC_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT)},
-	{VIRTCHNL_PROTO_HDR_SCTP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_SCTP_DST_PORT),
-		BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_DST_PORT)},
-	{VIRTCHNL_PROTO_HDR_SCTP,
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_SCTP_SRC_PORT) |
-		FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_SCTP_DST_PORT),
-		ICE_FLOW_HASH_SCTP_PORT},
-};
-
-static const struct
-ice_vc_hash_field_match_type ice_vc_hash_field_list_comms[] = {
+ice_vc_hash_field_match_type ice_vc_hash_field_list[] = {
 	{VIRTCHNL_PROTO_HDR_ETH, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_ETH_SRC),
 		BIT_ULL(ICE_FLOW_FIELD_IDX_ETH_SA)},
 	{VIRTCHNL_PROTO_HDR_ETH, FIELD_SELECTOR(VIRTCHNL_PROTO_HDR_ETH_DST),
@@ -2556,6 +2470,100 @@ static bool ice_vc_isvalid_ring_len(u16 ring_len)
 }
 
 /**
+ * ice_vc_validate_pattern
+ * @vf: pointer to the VF info
+ * @proto: virtchnl protocol headers
+ *
+ * validate the pattern is supported or not.
+ *
+ * Return: true on success, false on error.
+ */
+bool
+ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto)
+{
+	bool is_ipv4 = false;
+	bool is_ipv6 = false;
+	bool is_udp = false;
+	u16 ptype = -1;
+	int i = 0;
+
+	while (i < proto->count &&
+	       proto->proto_hdr[i].type != VIRTCHNL_PROTO_HDR_NONE) {
+		switch (proto->proto_hdr[i].type) {
+		case VIRTCHNL_PROTO_HDR_ETH:
+			ptype = ICE_PTYPE_MAC_PAY;
+			break;
+		case VIRTCHNL_PROTO_HDR_IPV4:
+			ptype = ICE_PTYPE_IPV4_PAY;
+			is_ipv4 = true;
+			break;
+		case VIRTCHNL_PROTO_HDR_IPV6:
+			ptype = ICE_PTYPE_IPV6_PAY;
+			is_ipv6 = true;
+			break;
+		case VIRTCHNL_PROTO_HDR_UDP:
+			if (is_ipv4)
+				ptype = ICE_PTYPE_IPV4_UDP_PAY;
+			else if (is_ipv6)
+				ptype = ICE_PTYPE_IPV6_UDP_PAY;
+			is_udp = true;
+			break;
+		case VIRTCHNL_PROTO_HDR_TCP:
+			if (is_ipv4)
+				ptype = ICE_PTYPE_IPV4_TCP_PAY;
+			else if (is_ipv6)
+				ptype = ICE_PTYPE_IPV6_TCP_PAY;
+			break;
+		case VIRTCHNL_PROTO_HDR_SCTP:
+			if (is_ipv4)
+				ptype = ICE_PTYPE_IPV4_SCTP_PAY;
+			else if (is_ipv6)
+				ptype = ICE_PTYPE_IPV6_SCTP_PAY;
+			break;
+		case VIRTCHNL_PROTO_HDR_GTPU_IP:
+		case VIRTCHNL_PROTO_HDR_GTPU_EH:
+			if (is_ipv4)
+				ptype = ICE_MAC_IPV4_GTPU;
+			else if (is_ipv6)
+				ptype = ICE_MAC_IPV6_GTPU;
+			goto out;
+		case VIRTCHNL_PROTO_HDR_L2TPV3:
+			if (is_ipv4)
+				ptype = ICE_MAC_IPV4_L2TPV3;
+			else if (is_ipv6)
+				ptype = ICE_MAC_IPV6_L2TPV3;
+			goto out;
+		case VIRTCHNL_PROTO_HDR_ESP:
+			if (is_ipv4)
+				ptype = is_udp ? ICE_MAC_IPV4_NAT_T_ESP :
+						ICE_MAC_IPV4_ESP;
+			else if (is_ipv6)
+				ptype = is_udp ? ICE_MAC_IPV6_NAT_T_ESP :
+						ICE_MAC_IPV6_ESP;
+			goto out;
+		case VIRTCHNL_PROTO_HDR_AH:
+			if (is_ipv4)
+				ptype = ICE_MAC_IPV4_AH;
+			else if (is_ipv6)
+				ptype = ICE_MAC_IPV6_AH;
+			goto out;
+		case VIRTCHNL_PROTO_HDR_PFCP:
+			if (is_ipv4)
+				ptype = ICE_MAC_IPV4_PFCP_SESSION;
+			else if (is_ipv6)
+				ptype = ICE_MAC_IPV6_PFCP_SESSION;
+			goto out;
+		default:
+			break;
+		}
+		i++;
+	}
+
+out:
+	return ice_hw_ptype_ena(&vf->pf->hw, ptype);
+}
+
+/**
  * ice_vc_parse_rss_cfg - parses hash fields and headers from
  * a specific virtchnl RSS cfg
  * @hw: pointer to the hardware
@@ -2578,18 +2586,10 @@ ice_vc_parse_rss_cfg(struct ice_hw *hw, struct virtchnl_rss_cfg *rss_cfg,
 	const struct ice_vc_hdr_match_type *hdr_list;
 	int i, hf_list_len, hdr_list_len;
 
-	if (!strncmp(hw->active_pkg_name, "ICE COMMS Package",
-		     sizeof(hw->active_pkg_name))) {
-		hf_list = ice_vc_hash_field_list_comms;
-		hf_list_len = ARRAY_SIZE(ice_vc_hash_field_list_comms);
-		hdr_list = ice_vc_hdr_list_comms;
-		hdr_list_len = ARRAY_SIZE(ice_vc_hdr_list_comms);
-	} else {
-		hf_list = ice_vc_hash_field_list_os;
-		hf_list_len = ARRAY_SIZE(ice_vc_hash_field_list_os);
-		hdr_list = ice_vc_hdr_list_os;
-		hdr_list_len = ARRAY_SIZE(ice_vc_hdr_list_os);
-	}
+	hf_list = ice_vc_hash_field_list;
+	hf_list_len = ARRAY_SIZE(ice_vc_hash_field_list);
+	hdr_list = ice_vc_hdr_list;
+	hdr_list_len = ARRAY_SIZE(ice_vc_hdr_list);
 
 	for (i = 0; i < rss_cfg->proto_hdrs.count; i++) {
 		struct virtchnl_proto_hdr *proto_hdr =
@@ -2687,6 +2687,11 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 
 	vsi = ice_get_vf_vsi(vf);
 	if (!vsi) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
+	}
+
+	if (!ice_vc_validate_pattern(vf, &rss_cfg->proto_hdrs)) {
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto error_param;
 	}
