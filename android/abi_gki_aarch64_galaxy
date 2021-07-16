@@ -22,6 +22,7 @@ __bitmap_or
 __bitmap_set
 __bitmap_weight
 __bitmap_xor
+__blk_mq_debugfs_rq_show
 __blk_mq_end_request
 __blk_rq_map_sg
 __blkdev_issue_discard
@@ -117,7 +118,9 @@ __kfifo_free
 __kfifo_in
 __kfifo_init
 __kfifo_out
+__kfifo_out_peek
 __kfifo_to_user
+__kfree_skb
 __kmalloc
 __kthread_init_worker
 __list_add_valid
@@ -229,6 +232,8 @@ __traceiter_gpu_mem_total
 __traceiter_sched_util_est_se_tp
 __traceiter_xdp_exception
 __tracepoint_android_rvh_account_irq
+__tracepoint_android_rvh_arm64_serror_panic
+__tracepoint_android_rvh_bad_mode
 __tracepoint_android_rvh_build_perf_domains
 __tracepoint_android_rvh_can_migrate_task
 __tracepoint_android_rvh_check_preempt_wakeup
@@ -238,6 +243,12 @@ __tracepoint_android_rvh_cpu_cgroup_online
 __tracepoint_android_rvh_cpu_overutilized
 __tracepoint_android_rvh_cpufreq_transition
 __tracepoint_android_rvh_dequeue_task
+__tracepoint_android_rvh_dequeue_task_idle
+__tracepoint_android_rvh_die_kernel_fault
+__tracepoint_android_rvh_do_mem_abort
+__tracepoint_android_rvh_do_sea
+__tracepoint_android_rvh_do_sp_pc_abort
+__tracepoint_android_rvh_do_undefinstr
 __tracepoint_android_rvh_enqueue_task
 __tracepoint_android_rvh_find_busiest_queue
 __tracepoint_android_rvh_find_energy_efficient_cpu
@@ -252,6 +263,7 @@ __tracepoint_android_rvh_place_entity
 __tracepoint_android_rvh_preempt_disable
 __tracepoint_android_rvh_preempt_enable
 __tracepoint_android_rvh_replace_next_task_fair
+__tracepoint_android_rvh_report_bug
 __tracepoint_android_rvh_report_bug
 __tracepoint_android_rvh_resume_cpus
 __tracepoint_android_rvh_sched_balance_rt
@@ -307,16 +319,28 @@ __tracepoint_android_vh_ftrace_size_check
 __tracepoint_android_vh_iommu_setup_dma_ops
 __tracepoint_android_vh_ipi_stop
 __tracepoint_android_vh_jiffies_update
+__tracepoint_android_vh_kfree_skb
 __tracepoint_android_vh_logbuf
+__tracepoint_android_vh_meminfo_proc_show
+__tracepoint_android_vh_mutex_wait_finish
+__tracepoint_android_vh_mutex_wait_start
 __tracepoint_android_vh_pagecache_get_page
 __tracepoint_android_vh_printk_hotplug
+__tracepoint_android_vh_ptype_head
 __tracepoint_android_vh_rmqueue
+__tracepoint_android_vh_rwsem_read_wait_finish
+__tracepoint_android_vh_rwsem_read_wait_start
+__tracepoint_android_vh_rwsem_write_wait_finish
+__tracepoint_android_vh_rwsem_write_wait_start
+__tracepoint_android_vh_sched_show_task
 __tracepoint_android_vh_scheduler_tick
 __tracepoint_android_vh_show_max_freq
 __tracepoint_android_vh_show_resume_epoch_val
 __tracepoint_android_vh_show_suspend_epoch_val
 __tracepoint_android_vh_timer_calc_index
 __tracepoint_android_vh_timerfd_create
+__tracepoint_android_vh_try_to_freeze_todo
+__tracepoint_android_vh_try_to_freeze_todo_unfrozen
 __tracepoint_android_vh_typec_store_partner_src_caps
 __tracepoint_android_vh_typec_tcpci_override_toggling
 __tracepoint_android_vh_typec_tcpm_adj_current_limit
@@ -330,6 +354,8 @@ __tracepoint_android_vh_ufs_send_tm_command
 __tracepoint_android_vh_ufs_send_uic_command
 __tracepoint_android_vh_ufs_update_sdev
 __tracepoint_android_vh_ufs_update_sysfs
+__tracepoint_android_vh_watchdog_timer_softlockup
+__tracepoint_android_vh_wq_lockup_pool
 __tracepoint_binder_transaction_received
 __tracepoint_clock_set_rate
 __tracepoint_cpu_frequency
@@ -389,6 +415,7 @@ _copy_from_iter
 _copy_from_iter_full
 _copy_to_iter
 _ctype
+_dev_alert
 _dev_crit
 _dev_emerg
 _dev_err
@@ -550,6 +577,8 @@ blk_mq_requeue_request
 blk_mq_rq_cpu
 blk_mq_run_hw_queues
 blk_mq_sched_request_inserted
+blk_mq_sched_try_insert_merge
+blk_mq_sched_try_merge
 blk_mq_start_request
 blk_mq_start_stopped_hw_queues
 blk_mq_stop_hw_queue
@@ -625,6 +654,7 @@ bpf_trace_run7
 bpf_trace_run8
 bpf_trace_run9
 bpf_warn_invalid_xdp_action
+bsearch
 bt_err
 build_skb
 bus_find_device
@@ -672,6 +702,7 @@ class_find_device
 class_for_each_device
 class_interface_unregister
 class_unregister
+cleancache_register_ops
 cleanup_srcu_struct
 clear_page
 clk_bulk_disable
@@ -756,6 +787,7 @@ console_unlock
 consume_skb
 contig_page_data
 copy_from_kernel_nofault
+copy_page
 cpu_all_bits
 cpu_bit_bitmap
 cpu_hwcap_keys
@@ -1006,6 +1038,7 @@ device_link_add
 device_link_del
 device_match_fwnode
 device_match_name
+device_match_of_node
 device_property_present
 device_property_read_string
 device_property_read_string_array
@@ -1255,6 +1288,7 @@ downgrade_write
 dput
 drain_workqueue
 driver_create_file
+driver_find
 driver_find_device
 driver_register
 driver_remove_file
@@ -1658,7 +1692,15 @@ edac_device_handle_ue_count
 efi
 efi_tpm_final_log_size
 elevator_alloc
+elv_bio_merge_ok
+elv_rb_add
+elv_rb_del
+elv_rb_find
+elv_rb_former_request
+elv_rb_latter_request
 elv_register
+elv_rqhash_add
+elv_rqhash_del
 elv_unregister
 emergency_restart
 enable_irq
@@ -1779,8 +1821,10 @@ get_cpu_iowait_time_us
 get_device
 get_device_system_crosststamp
 get_governor_parent_kobj
+get_mm_exe_file
 get_next_ino
 get_option
+get_options
 get_pid_task
 get_random_bytes
 get_random_bytes_arch
@@ -3005,6 +3049,7 @@ register_kprobe
 register_kretprobe
 register_memory_notifier
 register_module_notifier
+register_net_sysctl
 register_netdev
 register_netdevice
 register_netdevice_notifier
@@ -3056,6 +3101,7 @@ regulator_enable
 regulator_enable_regmap
 regulator_force_disable
 regulator_get
+regulator_get_current_limit
 regulator_get_drvdata
 regulator_get_mode
 regulator_get_optional
@@ -3111,6 +3157,7 @@ rfkill_destroy
 rfkill_find_type
 rfkill_init_sw_state
 rfkill_register
+rfkill_set_sw_state
 rfkill_unregister
 rhashtable_destroy
 rhashtable_init
@@ -3348,6 +3395,7 @@ skb_copy
 skb_copy_bits
 skb_copy_datagram_iter
 skb_copy_expand
+skb_copy_ubufs
 skb_dequeue
 skb_dequeue_tail
 skb_ensure_writable
@@ -3373,7 +3421,10 @@ smp_call_function
 smp_call_function_any
 smp_call_function_many
 smp_call_function_single
+smp_call_function_single_async
 smp_call_on_cpu
+smpboot_register_percpu_thread
+smpboot_unregister_percpu_thread
 snd_card_disconnect
 snd_card_free
 snd_card_new
@@ -3439,6 +3490,7 @@ snd_pcm_std_chmaps
 snd_pcm_stream_lock
 snd_pcm_stream_unlock
 snd_pcm_stream_unlock_irqrestore
+snd_soc_add_card_controls
 snd_soc_add_component_controls
 snd_soc_add_dai_controls
 snd_soc_bytes_info_ext
@@ -3544,6 +3596,7 @@ soc_device_unregister
 sock_alloc_send_skb
 sock_create_kern
 sock_gettstamp
+sock_i_uid
 sock_init_data
 sock_no_accept
 sock_no_listen
