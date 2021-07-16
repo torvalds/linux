@@ -28,6 +28,7 @@
 #include <linux/marvell_phy.h>
 #include <linux/phy.h>
 #include <linux/sfp.h>
+#include <linux/netdevice.h>
 
 #define MV_PHY_ALASKA_NBT_QUIRK_MASK	0xfffffffe
 #define MV_PHY_ALASKA_NBT_QUIRK_REV	(MARVELL_PHY_ID_88X3310 | 0xa)
@@ -104,6 +105,16 @@ enum {
 	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_NO_SGMII_AN	= 0x5,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH	= 0x6,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_USXGMII			= 0x7,
+	MV_V2_PORT_INTR_STS     = 0xf040,
+	MV_V2_PORT_INTR_MASK    = 0xf043,
+	MV_V2_PORT_INTR_STS_WOL_EN      = BIT(8),
+	MV_V2_MAGIC_PKT_WORD0   = 0xf06b,
+	MV_V2_MAGIC_PKT_WORD1   = 0xf06c,
+	MV_V2_MAGIC_PKT_WORD2   = 0xf06d,
+	/* Wake on LAN registers */
+	MV_V2_WOL_CTRL          = 0xf06e,
+	MV_V2_WOL_CTRL_CLEAR_STS        = BIT(15),
+	MV_V2_WOL_CTRL_MAGIC_PKT_EN     = BIT(0),
 	/* Temperature control/read registers (88X3310 only) */
 	MV_V2_TEMP_CTRL		= 0xf08a,
 	MV_V2_TEMP_CTRL_MASK	= 0xc000,
@@ -1020,6 +1031,80 @@ static int mv2111_match_phy_device(struct phy_device *phydev)
 	return mv211x_match_phy_device(phydev, false);
 }
 
+static void mv3110_get_wol(struct phy_device *phydev,
+			   struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	wol->supported = WAKE_MAGIC;
+	wol->wolopts = 0;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MV_V2_WOL_CTRL);
+	if (ret < 0)
+		return;
+
+	if (ret & MV_V2_WOL_CTRL_MAGIC_PKT_EN)
+		wol->wolopts |= WAKE_MAGIC;
+}
+
+static int mv3110_set_wol(struct phy_device *phydev,
+			  struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		/* Enable the WOL interrupt */
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2,
+				       MV_V2_PORT_INTR_MASK,
+				       MV_V2_PORT_INTR_STS_WOL_EN);
+		if (ret < 0)
+			return ret;
+
+		/* Store the device address for the magic packet */
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    MV_V2_MAGIC_PKT_WORD2,
+				    ((phydev->attached_dev->dev_addr[5] << 8) |
+				    phydev->attached_dev->dev_addr[4]));
+		if (ret < 0)
+			return ret;
+
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    MV_V2_MAGIC_PKT_WORD1,
+				    ((phydev->attached_dev->dev_addr[3] << 8) |
+				    phydev->attached_dev->dev_addr[2]));
+		if (ret < 0)
+			return ret;
+
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    MV_V2_MAGIC_PKT_WORD0,
+				    ((phydev->attached_dev->dev_addr[1] << 8) |
+				    phydev->attached_dev->dev_addr[0]));
+		if (ret < 0)
+			return ret;
+
+		/* Clear WOL status and enable magic packet matching */
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2,
+				       MV_V2_WOL_CTRL,
+				       MV_V2_WOL_CTRL_MAGIC_PKT_EN |
+				       MV_V2_WOL_CTRL_CLEAR_STS);
+		if (ret < 0)
+			return ret;
+	} else {
+		/* Disable magic packet matching & reset WOL status bit */
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+				     MV_V2_WOL_CTRL,
+				     MV_V2_WOL_CTRL_MAGIC_PKT_EN,
+				     MV_V2_WOL_CTRL_CLEAR_STS);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Reset the clear WOL status bit as it does not self-clear */
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
+				  MV_V2_WOL_CTRL,
+				  MV_V2_WOL_CTRL_CLEAR_STS);
+}
+
 static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= MARVELL_PHY_ID_88X3310,
@@ -1039,6 +1124,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.set_tunable	= mv3310_set_tunable,
 		.remove		= mv3310_remove,
 		.set_loopback	= genphy_c45_loopback,
+		.get_wol	= mv3110_get_wol,
+		.set_wol	= mv3110_set_wol,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88X3310,
@@ -1076,6 +1163,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.set_tunable	= mv3310_set_tunable,
 		.remove		= mv3310_remove,
 		.set_loopback	= genphy_c45_loopback,
+		.get_wol	= mv3110_get_wol,
+		.set_wol	= mv3110_set_wol,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
