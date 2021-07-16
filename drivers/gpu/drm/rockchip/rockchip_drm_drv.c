@@ -661,6 +661,57 @@ static void rockchip_drm_lastclose(struct drm_device *dev)
 #endif
 }
 
+static struct drm_pending_vblank_event *
+rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, struct drm_file *file_priv)
+{
+	struct drm_pending_vblank_event *e;
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e)
+		return NULL;
+
+	e->pipe = drm_crtc_index(crtc);
+	e->event.base.type = DRM_EVENT_ROCKCHIP_CRTC_VCNT;
+	e->event.base.length = sizeof(e->event.vbl);
+	e->event.vbl.crtc_id = crtc->base.id;
+	/* store crtc pipe id */
+	e->event.vbl.user_data = e->pipe;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	drm_event_reserve_init_locked(dev, file_priv, &e->base, &e->event.base);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return e;
+}
+
+static int rockchip_drm_get_vcnt_event_ioctl(struct drm_device *dev, void *data,
+					     struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = dev->dev_private;
+	union drm_wait_vblank *vblwait = data;
+	struct drm_pending_vblank_event *e;
+	struct drm_crtc *crtc;
+	unsigned int flags, pipe;
+
+	flags = vblwait->request.type & (_DRM_VBLANK_FLAGS_MASK | _DRM_ROCKCHIP_VCNT_EVENT);
+	pipe = (vblwait->request.type & _DRM_VBLANK_HIGH_CRTC_MASK);
+	if (pipe)
+		pipe = pipe >> _DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else
+		pipe = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+
+	if (flags & _DRM_ROCKCHIP_VCNT_EVENT) {
+		e = rockchip_drm_add_vcnt_event(crtc, file_priv);
+		priv->vcnt[pipe].event = e;
+	}
+
+	return 0;
+}
+
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CREATE, rockchip_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
@@ -669,6 +720,8 @@ static const struct drm_ioctl_desc rockchip_ioctls[] = {
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_GET_PHYS, rockchip_gem_get_phys_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ROCKCHIP_GET_VCNT_EVENT, rockchip_drm_get_vcnt_event_ioctl,
+			  DRM_UNLOCKED),
 };
 
 static const struct file_operations rockchip_drm_driver_fops = {

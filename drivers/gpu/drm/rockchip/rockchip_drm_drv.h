@@ -108,6 +108,12 @@ struct rockchip_crtc_state {
 #define to_rockchip_crtc_state(s) \
 		container_of(s, struct rockchip_crtc_state, base)
 
+struct rockchip_drm_vcnt {
+	struct drm_pending_vblank_event *event;
+	__u32 sequence;
+	int pipe;
+};
+
 struct rockchip_logo {
 	dma_addr_t dma_addr;
 	void *kvaddr;
@@ -174,6 +180,7 @@ struct rockchip_drm_private {
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 
+	struct rockchip_drm_vcnt vcnt[ROCKCHIP_MAX_CRTC];
 	dma_addr_t cubic_lut_dma_addr;
 	void *cubic_lut_kvaddr;
 	struct loader_cubic_lut cubic_lut[ROCKCHIP_MAX_CRTC];

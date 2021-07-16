@@ -16,6 +16,14 @@
 #define _UAPI_ROCKCHIP_DRM_H
 
 #include <drm/drm.h>
+#include <drm/drm_file.h>
+
+/*
+ * Send vcnt event instead of blocking,
+ * like _DRM_VBLANK_EVENT
+ */
+#define _DRM_ROCKCHIP_VCNT_EVENT 0x80000000
+#define DRM_EVENT_ROCKCHIP_CRTC_VCNT   0xf
 
 /* memory type definitions. */
 enum drm_rockchip_gem_mem_type {
@@ -90,11 +98,16 @@ enum rockchip_cabc_mode {
 	ROCKCHIP_DRM_CABC_MODE_USERSPACE,
 };
 
+struct drm_rockchip_vcnt_event {
+	struct drm_pending_event	base;
+};
+
 #define DRM_ROCKCHIP_GEM_CREATE		0x00
 #define DRM_ROCKCHIP_GEM_MAP_OFFSET	0x01
 #define DRM_ROCKCHIP_GEM_CPU_ACQUIRE	0x02
 #define DRM_ROCKCHIP_GEM_CPU_RELEASE	0x03
 #define DRM_ROCKCHIP_GEM_GET_PHYS	0x04
+#define DRM_ROCKCHIP_GET_VCNT_EVENT	0x05
 
 #define DRM_IOCTL_ROCKCHIP_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_ROCKCHIP_GEM_CREATE, struct drm_rockchip_gem_create)
@@ -110,4 +123,8 @@ enum rockchip_cabc_mode {
 
 #define DRM_IOCTL_ROCKCHIP_GEM_GET_PHYS		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_ROCKCHIP_GEM_GET_PHYS, struct drm_rockchip_gem_phys)
+
+#define DRM_IOCTL_ROCKCHIP_GET_VCNT_EVENT	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GET_VCNT_EVENT, union drm_wait_vblank)
+
 #endif /* _UAPI_ROCKCHIP_DRM_H */
