@@ -1118,14 +1118,6 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		u64 offset;
 		u8 bar;
 
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
-		if (!map) {
-			ret = -ENOMEM;
-			goto free_maps;
-		}
-
-		list_add(&map->list, &register_maps);
-
 		pci_read_config_dword(pdev, regloc, &reg_lo);
 		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
 
@@ -1134,6 +1126,18 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 
 		dev_dbg(dev, "Found register block in bar %u @ 0x%llx of type %u\n",
 			bar, offset, reg_type);
+
+		/* Ignore unknown register block types */
+		if (reg_type > CXL_REGLOC_RBI_MEMDEV)
+			continue;
+
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (!map) {
+			ret = -ENOMEM;
+			goto free_maps;
+		}
+
+		list_add(&map->list, &register_maps);
 
 		base = cxl_mem_map_regblock(cxlm, bar, offset);
 		if (!base) {
