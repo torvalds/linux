@@ -81,6 +81,25 @@ static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
 	return d_inode(dentry)->i_private;
 }
 
+static inline void kernfs_set_rev(struct kernfs_node *parent,
+				  struct dentry *dentry)
+{
+	dentry->d_time = parent->dir.rev;
+}
+
+static inline void kernfs_inc_rev(struct kernfs_node *parent)
+{
+	parent->dir.rev++;
+}
+
+static inline bool kernfs_dir_changed(struct kernfs_node *parent,
+				      struct dentry *dentry)
+{
+	if (parent->dir.rev != dentry->d_time)
+		return true;
+	return false;
+}
+
 extern const struct super_operations kernfs_sops;
 extern struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
 
