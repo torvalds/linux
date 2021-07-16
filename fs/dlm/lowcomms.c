@@ -480,8 +480,7 @@ static void lowcomms_error_report(struct sock *sk)
 		goto out;
 
 	orig_report = listen_sock.sk_error_report;
-	if (con->sock == NULL ||
-	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr) < 0) {
+	if (kernel_getpeername(sk->sk_socket, (struct sockaddr *)&saddr) < 0) {
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "sending to node %d, port %d, "
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
