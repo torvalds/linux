@@ -1268,6 +1268,16 @@ cifs_find_tcp_session(struct smb3_fs_context *ctx)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		/*
+		 * DFS failover implementation in cifs_reconnect() requires unique tcp sessions for
+		 * DFS connections to do failover properly, so avoid sharing them with regular
+		 * shares or even links that may connect to same server but having completely
+		 * different failover targets.
+		 */
+		if (server->is_dfs_conn)
+			continue;
+#endif
 		/*
 		 * Skip ses channels since they're only handled in lower layers
 		 * (e.g. cifs_send_recv).
@@ -2968,6 +2978,23 @@ static int mount_setup_tlink(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
+static int mount_get_dfs_conns(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_sb,
+			       unsigned int *xid, struct TCP_Server_Info **nserver,
+			       struct cifs_ses **nses, struct cifs_tcon **ntcon)
+{
+	int rc;
+
+	ctx->nosharesock = true;
+	rc = mount_get_conns(ctx, cifs_sb, xid, nserver, nses, ntcon);
+	if (*nserver) {
+		cifs_dbg(FYI, "%s: marking tcp session as a dfs connection\n", __func__);
+		spin_lock(&cifs_tcp_ses_lock);
+		(*nserver)->is_dfs_conn = true;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+	return rc;
+}
+
 /*
  * cifs_build_path_to_root returns full path to root when we do not have an
  * existing connection (tcon)
@@ -3163,7 +3190,7 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
 			 tmp_ctx.prepath);
 
 		mount_put_conns(cifs_sb, *xid, *server, *ses, *tcon);
-		rc = mount_get_conns(&tmp_ctx, cifs_sb, xid, server, ses, tcon);
+		rc = mount_get_dfs_conns(&tmp_ctx, cifs_sb, xid, server, ses, tcon);
 		if (!rc || (*server && *ses)) {
 			/*
 			 * We were able to connect to new target server. Update current context with
@@ -3462,7 +3489,12 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			goto error;
 	}
 
-	ctx->nosharesock = true;
+	mount_put_conns(cifs_sb, xid, server, ses, tcon);
+	/*
+	 * Ignore error check here because we may failover to other targets from cached a
+	 * referral.
+	 */
+	(void)mount_get_dfs_conns(ctx, cifs_sb, &xid, &server, &ses, &tcon);
 
 	/* Get path of DFS root */
 	ref_path = build_unc_path_to_root(ctx, cifs_sb, false);
@@ -3491,7 +3523,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 		/* Connect to new DFS target only if we were redirected */
 		if (oldmnt != cifs_sb->ctx->mount_options) {
 			mount_put_conns(cifs_sb, xid, server, ses, tcon);
-			rc = mount_get_conns(ctx, cifs_sb, &xid, &server, &ses, &tcon);
+			rc = mount_get_dfs_conns(ctx, cifs_sb, &xid, &server, &ses, &tcon);
 		}
 		if (rc && !server && !ses) {
 			/* Failed to connect. Try to connect to other targets in the referral. */
