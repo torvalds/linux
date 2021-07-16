@@ -72,9 +72,7 @@ struct vga_device {
 	unsigned int io_norm_cnt;	/* normal IO count */
 	unsigned int mem_norm_cnt;	/* normal MEM count */
 	bool bridge_has_one_vga;
-	/* allow IRQ enable/disable hook */
 	void *cookie;
-	void (*irq_set_state)(void *cookie, bool enable);
 	unsigned int (*set_vga_decode)(void *cookie, bool decode);
 };
 
@@ -218,13 +216,6 @@ int vga_remove_vgacon(struct pci_dev *pdev)
 #endif
 EXPORT_SYMBOL(vga_remove_vgacon);
 
-static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
-{
-	if (vgadev->irq_set_state)
-		vgadev->irq_set_state(vgadev->cookie, state);
-}
-
-
 /* If we don't ever use VGA arb we should avoid
    turning off anything anywhere due to old X servers getting
    confused about the boot device not being VGA */
@@ -325,10 +316,8 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 			if ((match & conflict->decodes) & VGA_RSRC_LEGACY_IO)
 				pci_bits |= PCI_COMMAND_IO;
 
-			if (pci_bits) {
-				vga_irq_set_state(conflict, false);
+			if (pci_bits)
 				flags |= PCI_VGA_STATE_CHANGE_DECODES;
-			}
 		}
 
 		if (change_bridge)
@@ -364,9 +353,6 @@ enable_them:
 		flags |= PCI_VGA_STATE_CHANGE_BRIDGE;
 
 	pci_set_vga_state(vgadev->pdev, true, pci_bits, flags);
-
-	if (!vgadev->bridge_has_one_vga)
-		vga_irq_set_state(vgadev, true);
 
 	vgadev->owns |= wants;
 lock_them:
@@ -855,14 +841,9 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
  * vga_client_register - register or unregister a VGA arbitration client
  * @pdev: pci device of the VGA client
  * @cookie: client cookie to be used in callbacks
- * @irq_set_state: irq state change callback
  * @set_vga_decode: vga decode change callback
  *
  * Clients have two callback mechanisms they can use.
- *
- * @irq_set_state callback: If a client can't disable its GPUs VGA
- * resources, then we need to be able to ask it to turn off its irqs when we
- * turn off its mem and io decoding.
  *
  * @set_vga_decode callback: If a client can disable its GPU VGA resource, it
  * will get a callback from this to set the encode/decode state.
@@ -882,7 +863,6 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
  * Returns: 0 on success, -1 on failure
  */
 int vga_client_register(struct pci_dev *pdev, void *cookie,
-			void (*irq_set_state)(void *cookie, bool state),
 			unsigned int (*set_vga_decode)(void *cookie,
 						       bool decode))
 {
@@ -895,7 +875,6 @@ int vga_client_register(struct pci_dev *pdev, void *cookie,
 	if (!vgadev)
 		goto bail;
 
-	vgadev->irq_set_state = irq_set_state;
 	vgadev->set_vga_decode = set_vga_decode;
 	vgadev->cookie = cookie;
 	ret = 0;

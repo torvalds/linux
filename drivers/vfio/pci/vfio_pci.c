@@ -1951,7 +1951,7 @@ static int vfio_pci_vga_init(struct vfio_pci_device *vdev)
 	if (!vfio_pci_is_vga(pdev))
 		return 0;
 
-	ret = vga_client_register(pdev, vdev, NULL, vfio_pci_set_vga_decode);
+	ret = vga_client_register(pdev, vdev, vfio_pci_set_vga_decode);
 	if (ret)
 		return ret;
 	vga_set_legacy_decoding(pdev, vfio_pci_set_vga_decode(vdev, false));

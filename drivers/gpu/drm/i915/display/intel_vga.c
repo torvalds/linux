@@ -147,7 +147,7 @@ int intel_vga_register(struct drm_i915_private *i915)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(pdev, i915, NULL, intel_vga_set_decode);
+	ret = vga_client_register(pdev, i915, intel_vga_set_decode);
 	if (ret && ret != -ENODEV)
 		return ret;
 
