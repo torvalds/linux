@@ -1360,7 +1360,6 @@ static int wcd938x_io_init(struct wcd938x_priv *wcd938x)
 
 static int wcd938x_sdw_connect_port(struct wcd938x_sdw_ch_info *ch_info,
 				    struct sdw_port_config *port_config,
-				    u32 mstr_port_num,
 				    u8 enable)
 {
 	u8 ch_mask, port_num;
@@ -1380,14 +1379,12 @@ static int wcd938x_sdw_connect_port(struct wcd938x_sdw_ch_info *ch_info,
 
 static int wcd938x_connect_port(struct wcd938x_sdw_priv *wcd, u8 ch_id, u8 enable)
 {
-	u8 port_num, mstr_port_num;
+	u8 port_num;
 
 	port_num = wcd->ch_info[ch_id].port_num;
-	mstr_port_num = wcd->port_map[port_num - 1];
 
 	return wcd938x_sdw_connect_port(&wcd->ch_info[ch_id],
 					&wcd->port_config[port_num],
-					mstr_port_num,
 					enable);
 }
 
