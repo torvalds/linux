@@ -190,6 +190,7 @@
   cpufreq_this_cpu_can_update
   cpufreq_unregister_driver
   cpufreq_unregister_governor
+  cpufreq_update_util_data
   cpu_hotplug_disable
   cpu_hotplug_enable
   __cpuhp_remove_state
@@ -382,7 +383,6 @@
   devm_phy_create
   devm_phy_get
   devm_pinctrl_get
-  devm_pinctrl_put
   devm_pinctrl_register_and_init
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
@@ -410,7 +410,6 @@
   devm_thermal_zone_of_sensor_register
   devm_watchdog_register_device
   _dev_notice
-  dev_pm_domain_attach_by_id
   dev_pm_domain_attach_by_name
   dev_pm_domain_detach
   dev_pm_genpd_add_notifier
@@ -514,7 +513,6 @@
   down_write
   d_path
   dput
-  drain_workqueue
   driver_create_file
   driver_remove_file
   driver_unregister
@@ -699,20 +697,11 @@
   fsg_common_set_sysfs
   fsg_config_from_params
   fsync_bdev
-  fwnode_device_is_available
-  fwnode_get_name
-  fwnode_graph_get_next_endpoint
-  fwnode_graph_get_port_parent
-  fwnode_graph_get_remote_endpoint
-  fwnode_graph_get_remote_port_parent
-  fwnode_graph_parse_endpoint
   fwnode_handle_get
   fwnode_handle_put
-  fwnode_property_get_reference_args
   fwnode_property_present
   fwnode_property_read_string
   fwnode_property_read_u32_array
-  fwnode_property_read_u64_array
   gcd
   generic_file_llseek
   generic_handle_irq
@@ -806,6 +795,7 @@
   i2c_smbus_read_i2c_block_data
   i2c_smbus_write_byte_data
   i2c_smbus_write_i2c_block_data
+  i2c_smbus_write_word_data
   i2c_transfer
   i2c_transfer_buffer_flags
   i2c_unregister_device
@@ -961,7 +951,6 @@
   kobject_uevent
   kobject_uevent_env
   krealloc
-  kset_find_obj
   kstrdup
   kstrdup_const
   kstrndup
@@ -1053,16 +1042,9 @@
   media_devnode_create
   media_devnode_remove
   media_entity_pads_init
-  media_entity_remote_pad
   media_entity_remove_links
-  __media_entity_setup_link
-  media_graph_walk_next
-  media_graph_walk_start
   media_pipeline_start
   media_pipeline_stop
-  media_request_get_by_fd
-  media_request_object_complete
-  media_request_put
   memblock_end_of_DRAM
   memchr
   memcmp
@@ -1341,7 +1323,6 @@
   platform_device_unregister
   __platform_driver_register
   platform_driver_unregister
-  platform_find_device_by_driver
   platform_get_irq
   platform_get_irq_byname
   platform_get_irq_byname_optional
@@ -1404,7 +1385,6 @@
   __put_net
   __put_page
   put_pid
-  put_task_stack
   __put_task_struct
   put_unused_fd
   put_vaddr_frames
@@ -1496,6 +1476,7 @@
   regulator_enable_regmap
   regulator_get
   regulator_get_current_limit_regmap
+  regulator_get_mode
   regulator_get_optional
   regulator_get_voltage
   regulator_get_voltage_sel_regmap
@@ -1550,12 +1531,12 @@
   __rht_bucket_nested
   rht_bucket_nested
   rht_bucket_nested_insert
+  root_task_group
   round_jiffies
   round_jiffies_relative
   round_jiffies_up
   rpmsg_create_ept
   rpmsg_destroy_ept
-  rpmsg_find_device
   rpmsg_register_device
   rpmsg_send
   rpmsg_trysend
@@ -1563,14 +1544,9 @@
   rproc_add
   rproc_add_subdev
   rproc_alloc
-  rproc_boot
   rproc_del
   rproc_free
-  rproc_get_by_phandle
-  rproc_put
   rproc_remove_subdev
-  rproc_report_crash
-  rproc_shutdown
   rps_needed
   rtc_ktime_to_tm
   rtc_nvmem_register
@@ -1593,7 +1569,6 @@
   sched_uclamp_used
   schedule
   schedule_timeout
-  schedutil_cpu_util
   scmi_driver_register
   scmi_driver_unregister
   scmi_protocol_register
@@ -1842,6 +1817,7 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_rvh_after_enqueue_task
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_dequeue_task_fair
@@ -1853,10 +1829,12 @@
   __traceiter_android_rvh_prepare_prio_fork
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_sched_newidle_balance
+  __traceiter_android_rvh_sched_rebalance_domains
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_user_nice
   __traceiter_android_rvh_tick_entry
+  __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_vh_alter_futex_plist_add
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
@@ -1864,18 +1842,14 @@
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_transaction_init
   __traceiter_android_vh_cgroup_set_task
-  __traceiter_android_vh_clear_mask_adjust
-  __traceiter_android_vh_clear_reserved_fmt_fields
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_em_cpu_energy
   __traceiter_android_vh_exit_creds
-  __traceiter_android_vh_fill_ext_fmtdesc
   __traceiter_android_vh_finish_update_load_avg_se
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
   __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_logbuf
-  __traceiter_android_vh_media_device_setup_link
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_revert_creds
@@ -1896,15 +1870,13 @@
   __traceiter_android_vh_set_module_permit_before_init
   __traceiter_android_vh_set_wake_flags
   __traceiter_android_vh_syscall_prctl_finished
-  __traceiter_android_vh_v4l2subdev_set_fmt
-  __traceiter_android_vh_v4l2subdev_set_frame_interval
-  __traceiter_android_vh_v4l2subdev_set_selection
   __traceiter_cpu_frequency
   __traceiter_pelt_se_tp
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
   __traceiter_sched_update_nr_running_tp
+  __tracepoint_android_rvh_after_enqueue_task
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_dequeue_task_fair
@@ -1916,10 +1888,12 @@
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_sched_newidle_balance
+  __tracepoint_android_rvh_sched_rebalance_domains
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_rvh_tick_entry
+  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
@@ -1927,18 +1901,14 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_transaction_init
   __tracepoint_android_vh_cgroup_set_task
-  __tracepoint_android_vh_clear_mask_adjust
-  __tracepoint_android_vh_clear_reserved_fmt_fields
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_em_cpu_energy
   __tracepoint_android_vh_exit_creds
-  __tracepoint_android_vh_fill_ext_fmtdesc
   __tracepoint_android_vh_finish_update_load_avg_se
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
   __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_logbuf
-  __tracepoint_android_vh_media_device_setup_link
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_revert_creds
@@ -1959,9 +1929,6 @@
   __tracepoint_android_vh_set_module_permit_before_init
   __tracepoint_android_vh_set_wake_flags
   __tracepoint_android_vh_syscall_prctl_finished
-  __tracepoint_android_vh_v4l2subdev_set_fmt
-  __tracepoint_android_vh_v4l2subdev_set_frame_interval
-  __tracepoint_android_vh_v4l2subdev_set_selection
   __tracepoint_cpu_frequency
   __tracepoint_pelt_se_tp
   tracepoint_probe_register
@@ -2137,30 +2104,20 @@
   usleep_range
   uuid_null
   v4l2_async_notifier_add_fwnode_subdev
-  v4l2_async_notifier_add_subdev
-  v4l2_async_notifier_cleanup
   v4l2_async_notifier_init
   v4l2_async_notifier_register
   v4l2_async_notifier_unregister
   v4l2_async_register_subdev
-  v4l2_async_subdev_notifier_register
   v4l2_async_unregister_subdev
   v4l2_compat_ioctl32
-  v4l2_ctrl_find
-  v4l2_ctrl_g_ctrl
-  v4l2_ctrl_g_ctrl_int64
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
   v4l2_ctrl_handler_setup
-  __v4l2_ctrl_modify_range
   v4l2_ctrl_new_custom
   v4l2_ctrl_new_std
   v4l2_ctrl_new_std_menu
-  v4l2_ctrl_new_std_menu_items
   v4l2_ctrl_request_complete
-  v4l2_ctrl_request_setup
   __v4l2_ctrl_s_ctrl
-  v4l2_ctrl_subdev_subscribe_event
   v4l2_ctrl_subscribe_event
   v4l2_device_register
   v4l2_device_register_subdev
@@ -2178,8 +2135,6 @@
   v4l2_fh_init
   v4l2_fh_is_singular
   v4l2_fh_open
-  __v4l2_find_nearest_size
-  v4l2_format_info
   v4l2_i2c_subdev_init
   v4l2_m2m_buf_queue
   v4l2_m2m_buf_remove
@@ -2208,7 +2163,6 @@
   v4l2_m2m_streamoff
   v4l2_m2m_suspend
   v4l2_m2m_try_schedule
-  v4l2_pipeline_link_notify
   v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
   v4l2_subdev_init
@@ -2338,8 +2292,10 @@
   devfreq_unregister_opp_notifier
   dev_get_by_name
   devm_of_pwm_get
+  devm_pinctrl_put
   devm_rc_allocate_device
   devm_rc_register_device
+  dev_pm_domain_attach_by_id
   dev_pm_opp_find_freq_exact
   dev_pm_opp_put_regulators
   dev_pm_opp_set_regulators
@@ -2349,6 +2305,16 @@
   dma_sync_single_for_device
   downgrade_write
   down_read_trylock
+  drain_workqueue
+  fwnode_device_is_available
+  fwnode_get_name
+  fwnode_graph_get_next_endpoint
+  fwnode_graph_get_port_parent
+  fwnode_graph_get_remote_endpoint
+  fwnode_graph_get_remote_port_parent
+  fwnode_graph_parse_endpoint
+  fwnode_property_get_reference_args
+  fwnode_property_read_u64_array
   get_freelist_nr_pages
   get_user_pages_fast
   gpiod_set_raw_value
@@ -2363,9 +2329,17 @@
   jiffies_64_to_clock_t
   __kfifo_init
   kobject_del
+  kset_find_obj
   kstrtobool_from_user
   ktime_get_raw
   led_classdev_unregister
+  media_entity_remote_pad
+  __media_entity_setup_link
+  media_graph_walk_next
+  media_graph_walk_start
+  media_request_get_by_fd
+  media_request_object_complete
+  media_request_put
   memdup_user
   __mmdrop
   module_put
@@ -2378,11 +2352,20 @@
   param_ops_string
   perf_num_counters
   pin_user_pages_remote
+  platform_find_device_by_driver
+  put_task_stack
   rb_prev
   rb_replace_node
   __release_region
   __request_region
+  rpmsg_find_device
+  rproc_boot
+  rproc_get_by_phandle
+  rproc_put
+  rproc_report_crash
+  rproc_shutdown
   __sbitmap_queue_get
+  schedutil_cpu_util
   sdio_claim_host
   sdio_claim_irq
   sdio_disable_func
@@ -2418,13 +2401,27 @@
   system_long_wq
   thermal_zone_device_update
   __traceiter_android_vh_cgroup_attach
+  __traceiter_android_vh_clear_mask_adjust
+  __traceiter_android_vh_clear_reserved_fmt_fields
+  __traceiter_android_vh_fill_ext_fmtdesc
   __traceiter_android_vh_is_fpsimd_save
+  __traceiter_android_vh_media_device_setup_link
+  __traceiter_android_vh_v4l2subdev_set_fmt
+  __traceiter_android_vh_v4l2subdev_set_frame_interval
+  __traceiter_android_vh_v4l2subdev_set_selection
   __traceiter_gpu_mem_total
   __traceiter_task_newtask
   trace_output_call
   __tracepoint_android_vh_cgroup_attach
+  __tracepoint_android_vh_clear_mask_adjust
+  __tracepoint_android_vh_clear_reserved_fmt_fields
+  __tracepoint_android_vh_fill_ext_fmtdesc
   __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_media_device_setup_link
   __tracepoint_android_vh_ufs_update_sdev
+  __tracepoint_android_vh_v4l2subdev_set_fmt
+  __tracepoint_android_vh_v4l2subdev_set_frame_interval
+  __tracepoint_android_vh_v4l2subdev_set_selection
   __tracepoint_gpu_mem_total
   __tracepoint_task_newtask
   trace_print_flags_seq
@@ -2436,11 +2433,24 @@
   unmap_mapping_range
   unpin_user_page
   unregister_syscore_ops
+  v4l2_async_notifier_add_subdev
+  v4l2_async_notifier_cleanup
+  v4l2_async_subdev_notifier_register
+  v4l2_ctrl_find
+  v4l2_ctrl_g_ctrl
+  v4l2_ctrl_g_ctrl_int64
+  __v4l2_ctrl_modify_range
+  v4l2_ctrl_new_std_menu_items
+  v4l2_ctrl_request_setup
+  v4l2_ctrl_subdev_subscribe_event
+  __v4l2_find_nearest_size
+  v4l2_format_info
   v4l2_m2m_buf_copy_metadata
   v4l2_m2m_buf_remove_by_buf
   v4l2_m2m_register_media_controller
   v4l2_m2m_request_queue
   v4l2_m2m_unregister_media_controller
+  v4l2_pipeline_link_notify
   vmf_insert_pfn_prot
   wait_for_completion_killable_timeout
   wireless_send_event
