@@ -705,9 +705,6 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 		return 0;
 
 	bio = bio_alloc(GFP_NOFS, nr_pages);
-	if (!bio)
-		return -ENOMEM;
-
 	bio_set_dev(bio, bdev);
 	bio->bi_iter.bi_sector = zi->i_zsector;
 	bio->bi_write_hint = iocb->ki_hint;
