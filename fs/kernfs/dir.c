@@ -1039,9 +1039,31 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	/* Always perform fresh lookup for negatives */
-	if (d_really_is_negative(dentry))
-		goto out_bad_unlocked;
+	/* Negative hashed dentry? */
+	if (d_really_is_negative(dentry)) {
+		struct kernfs_node *parent;
+
+		/* If the kernfs parent node has changed discard and
+		 * proceed to ->lookup.
+		 */
+		mutex_lock(&kernfs_mutex);
+		spin_lock(&dentry->d_lock);
+		parent = kernfs_dentry_node(dentry->d_parent);
+		if (parent) {
+			if (kernfs_dir_changed(parent, dentry)) {
+				spin_unlock(&dentry->d_lock);
+				mutex_unlock(&kernfs_mutex);
+				return 0;
+			}
+		}
+		spin_unlock(&dentry->d_lock);
+		mutex_unlock(&kernfs_mutex);
+
+		/* The kernfs parent node hasn't changed, leave the
+		 * dentry negative and return success.
+		 */
+		return 1;
+	}
 
 	kn = kernfs_dentry_node(dentry);
 	mutex_lock(&kernfs_mutex);
@@ -1067,7 +1089,6 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	return 1;
 out_bad:
 	mutex_unlock(&kernfs_mutex);
-out_bad_unlocked:
 	return 0;
 }
 
@@ -1082,33 +1103,27 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	struct dentry *ret;
 	struct kernfs_node *parent = dir->i_private;
 	struct kernfs_node *kn;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	const void *ns = NULL;
 
 	mutex_lock(&kernfs_mutex);
-
 	if (kernfs_ns_enabled(parent))
 		ns = kernfs_info(dir->i_sb)->ns;
 
 	kn = kernfs_find_ns(parent, dentry->d_name.name, ns);
-
-	/* no such entry */
-	if (!kn || !kernfs_active(kn)) {
-		ret = NULL;
-		goto out_unlock;
-	}
-
 	/* attach dentry and inode */
-	inode = kernfs_get_inode(dir->i_sb, kn);
-	if (!inode) {
-		ret = ERR_PTR(-ENOMEM);
-		goto out_unlock;
+	if (kn && kernfs_active(kn)) {
+		inode = kernfs_get_inode(dir->i_sb, kn);
+		if (!inode)
+			inode = ERR_PTR(-ENOMEM);
 	}
-
-	/* instantiate and hash dentry */
+	/* Needed only for negative dentry validation */
+	if (!inode)
+		kernfs_set_rev(parent, dentry);
+	/* instantiate and hash (possibly negative) dentry */
 	ret = d_splice_alias(inode, dentry);
- out_unlock:
 	mutex_unlock(&kernfs_mutex);
+
 	return ret;
 }
 
