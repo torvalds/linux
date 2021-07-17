@@ -144,12 +144,12 @@ u8 hal_com_config_channel_plan(
 	return chnlPlan;
 }
 
-bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
+bool HAL_IsLegalChannel(struct adapter *adapter, u32 Channel)
 {
 	bool bLegalChannel = true;
 
 	if ((Channel <= 14) && (Channel >= 1)) {
-		if (is_supported_24g(Adapter->registrypriv.wireless_mode) == false)
+		if (is_supported_24g(adapter->registrypriv.wireless_mode) == false)
 			bLegalChannel = false;
 	} else {
 		bLegalChannel = false;
