@@ -401,7 +401,7 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_U4_WIFI_BW:
-		if (IsLegacyOnly(mlmeext->cur_wireless_mode))
+		if (is_legacy_only(mlmeext->cur_wireless_mode))
 			*pU4Tmp = BTC_WIFI_BW_LEGACY;
 		else if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_20)
 			*pU4Tmp = BTC_WIFI_BW_HT20;
