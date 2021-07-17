@@ -158,15 +158,7 @@ enum network_type {
 
 #define is_supported_24g(net_type) ((net_type) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
 
-#define IsEnableHWCCK(net_type) is_supported_24g(net_type)
-#define IsEnableHWOFDM(NetType) (((NetType) & (WIRELESS_11G|WIRELESS_11_24N)) ? true : false)
-
-#define IsSupportedRxCCK(NetType) IsEnableHWCCK(NetType)
-#define IsSupportedRxOFDM(NetType) IsEnableHWOFDM(NetType)
-#define IsSupportedRxHT(NetType) IsEnableHWOFDM(NetType)
-
 #define IsSupportedTxCCK(NetType) (((NetType) & (WIRELESS_11B)) ? true : false)
-#define IsSupportedTxOFDM(NetType) (((NetType) & (WIRELESS_11G) ? true : false)
 #define is_supported_ht(net_type) (((net_type) & (WIRELESS_11_24N)) ? true : false)
 
 struct ieee_param {
