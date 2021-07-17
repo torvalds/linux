@@ -21,6 +21,7 @@
 #define DDIV_PACK(offset, bitpos, size) \
 		(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
 #define DIVPL2A		DDIV_PACK(CPG_PL2_DDIV, 0, 3)
+#define DIVPL3A		DDIV_PACK(CPG_PL3A_DDIV, 0, 3)
 #define DIVPL3B		DDIV_PACK(CPG_PL3A_DDIV, 4, 3)
 
 /**
@@ -76,26 +77,40 @@ enum clk_types {
  * @id: clock index in array containing all Core and Module Clocks
  * @parent: id of parent clock
  * @off: register offset
- * @onoff: ON/MON bits
- * @reset: reset bits
+ * @bit: ON/MON bit
  */
 struct rzg2l_mod_clk {
 	const char *name;
 	unsigned int id;
 	unsigned int parent;
 	u16 off;
-	u8 onoff;
-	u8 reset;
+	u8 bit;
 };
 
-#define DEF_MOD(_name, _id, _parent, _off, _onoff, _reset)	\
-	[_id] = { \
+#define DEF_MOD(_name, _id, _parent, _off, _bit)	\
+	{ \
 		.name = _name, \
-		.id = MOD_CLK_BASE + _id, \
+		.id = MOD_CLK_BASE + (_id), \
 		.parent = (_parent), \
 		.off = (_off), \
-		.onoff = (_onoff), \
-		.reset = (_reset) \
+		.bit = (_bit), \
+	}
+
+/**
+ * struct rzg2l_reset - Reset definitions
+ *
+ * @off: register offset
+ * @bit: reset bit
+ */
+struct rzg2l_reset {
+	u16 off;
+	u8 bit;
+};
+
+#define DEF_RST(_id, _off, _bit)	\
+	[_id] = { \
+		.off = (_off), \
+		.bit = (_bit) \
 	}
 
 /**
@@ -125,6 +140,10 @@ struct rzg2l_cpg_info {
 	const struct rzg2l_mod_clk *mod_clks;
 	unsigned int num_mod_clks;
 	unsigned int num_hw_mod_clks;
+
+	/* Resets */
+	const struct rzg2l_reset *resets;
+	unsigned int num_resets;
 
 	/* Critical Module Clocks that should not be disabled */
 	const unsigned int *crit_mod_clks;
