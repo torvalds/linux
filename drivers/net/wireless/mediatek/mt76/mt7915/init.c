@@ -42,12 +42,16 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-static ssize_t mt7915_thermal_show_temp(struct device *dev,
+static ssize_t mt7915_thermal_temp_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	struct mt7915_phy *phy = dev_get_drvdata(dev);
+	int i = to_sensor_dev_attr(attr)->index;
 	int temperature;
+
+	if (i)
+		return sprintf(buf, "%u\n", phy->throttle_temp[i - 1] * 1000);
 
 	temperature = mt7915_mcu_get_temperature(phy);
 	if (temperature < 0)
@@ -57,11 +61,34 @@ static ssize_t mt7915_thermal_show_temp(struct device *dev,
 	return sprintf(buf, "%u\n", temperature * 1000);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, 0444, mt7915_thermal_show_temp,
-			  NULL, 0);
+static ssize_t mt7915_thermal_temp_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct mt7915_phy *phy = dev_get_drvdata(dev);
+	int ret, i = to_sensor_dev_attr(attr)->index;
+	long val;
+
+	ret = kstrtol(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&phy->dev->mt76.mutex);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 60, 130);
+	phy->throttle_temp[i - 1] = val;
+	mutex_unlock(&phy->dev->mt76.mutex);
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7915_thermal_temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, mt7915_thermal_temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, mt7915_thermal_temp, 2);
 
 static struct attribute *mt7915_hwmon_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mt7915_hwmon);
@@ -95,6 +122,9 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 
 	if (state > MT7915_THERMAL_THROTTLE_MAX)
 		return -EINVAL;
+
+	if (phy->throttle_temp[0] > phy->throttle_temp[1])
+		return 0;
 
 	if (state == phy->throttle_state)
 		return 0;
@@ -149,6 +179,10 @@ static int mt7915_thermal_init(struct mt7915_phy *phy)
 						       mt7915_hwmon_groups);
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
+
+	/* initialize critical/maximum high temperature */
+	phy->throttle_temp[0] = 110;
+	phy->throttle_temp[1] = 120;
 
 	return 0;
 }

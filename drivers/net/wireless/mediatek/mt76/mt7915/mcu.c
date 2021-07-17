@@ -3544,10 +3544,6 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 	};
 	int level;
 
-#define TRIGGER_TEMPERATURE	122
-#define RESTORE_TEMPERATURE	116
-#define SUSTAIN_PERIOD		10
-
 	if (!state) {
 		req.ctrl.ctrl_id = THERMAL_PROTECT_DISABLE;
 		goto out;
@@ -3560,7 +3556,7 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 		req.ctrl.ctrl_id = THERMAL_PROTECT_DUTY_CONFIG;
 		req.ctrl.duty.duty_level = level;
 		req.ctrl.duty.duty_cycle = state;
-		state = state * 4 / 5;
+		state /= 2;
 
 		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_PROT),
 					&req, sizeof(req.ctrl), false);
@@ -3568,15 +3564,12 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state)
 			return ret;
 	}
 
-	/* currently use fixed values for throttling, and would be better
-	 * to implement thermal zone for dynamic trip in the long run.
-	 */
-
 	/* set high-temperature trigger threshold */
 	req.ctrl.ctrl_id = THERMAL_PROTECT_ENABLE;
-	req.trigger_temp = cpu_to_le32(TRIGGER_TEMPERATURE);
-	req.restore_temp = cpu_to_le32(RESTORE_TEMPERATURE);
-	req.sustain_time = cpu_to_le16(SUSTAIN_PERIOD);
+	/* add a safety margin ~10 */
+	req.restore_temp = cpu_to_le32(phy->throttle_temp[0] - 10);
+	req.trigger_temp = cpu_to_le32(phy->throttle_temp[1]);
+	req.sustain_time = cpu_to_le16(10);
 
 out:
 	req.ctrl.type.protect_type = 1;

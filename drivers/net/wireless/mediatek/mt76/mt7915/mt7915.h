@@ -121,6 +121,7 @@ struct mt7915_phy {
 
 	struct thermal_cooling_device *cdev;
 	u8 throttle_state;
+	u32 throttle_temp[2]; /* 0: critical high, 1: maximum */
 
 	u32 rxfilter;
 	u64 omac_mask;
