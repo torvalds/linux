@@ -700,6 +700,18 @@ static const struct resource axp288_charger_resources[] = {
 	DEFINE_RES_IRQ(AXP288_IRQ_CBTO),
 };
 
+static const char * const axp288_fuel_gauge_suppliers[] = { "axp288_charger" };
+
+static const struct property_entry axp288_fuel_gauge_properties[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", axp288_fuel_gauge_suppliers),
+	{ }
+};
+
+static const struct software_node axp288_fuel_gauge_sw_node = {
+	.name = "axp288_fuel_gauge",
+	.properties = axp288_fuel_gauge_properties,
+};
+
 static const struct mfd_cell axp288_cells[] = {
 	{
 		.name		= "axp288_adc",
@@ -717,6 +729,7 @@ static const struct mfd_cell axp288_cells[] = {
 		.name		= "axp288_fuel_gauge",
 		.num_resources	= ARRAY_SIZE(axp288_fuel_gauge_resources),
 		.resources	= axp288_fuel_gauge_resources,
+		.swnode		= &axp288_fuel_gauge_sw_node,
 	}, {
 		.name		= "axp221-pek",
 		.num_resources	= ARRAY_SIZE(axp288_power_button_resources),
