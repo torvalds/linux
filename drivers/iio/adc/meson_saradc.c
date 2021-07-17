@@ -497,8 +497,8 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 	if (priv->param->has_bl30_integration) {
 		/* prevent BL30 from using the SAR ADC while we are using it */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY);
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY,
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
 
 		/*
 		 * wait until BL30 releases it's lock (so we can use the SAR
@@ -525,7 +525,7 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 	if (priv->param->has_bl30_integration)
 		/* allow BL30 to use the SAR ADC again */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
 
 	mutex_unlock(&indio_dev->mlock);
 }
@@ -791,7 +791,7 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	 * on the vendor driver), which we don't support at the moment.
 	 */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG0,
-			MESON_SAR_ADC_REG0_ADC_TEMP_SEN_SEL, 0);
+			   MESON_SAR_ADC_REG0_ADC_TEMP_SEN_SEL, 0);
 
 	/* disable all channels by default */
 	regmap_write(priv->regmap, MESON_SAR_ADC_CHAN_LIST, 0x0);
