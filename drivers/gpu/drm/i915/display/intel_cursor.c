@@ -629,12 +629,16 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 
 	/*
 	 * When crtc is inactive or there is a modeset pending,
-	 * wait for it to complete in the slowpath
+	 * wait for it to complete in the slowpath.
+	 * PSR2 selective fetch also requires the slow path as
+	 * PSR2 plane and transcoder registers can only be updated during
+	 * vblank.
 	 *
 	 * FIXME bigjoiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner)
+	    crtc_state->update_pipe || crtc_state->bigjoiner ||
+	    crtc_state->enable_psr2_sel_fetch)
 		goto slow;
 
 	/*
