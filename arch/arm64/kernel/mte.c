@@ -193,18 +193,6 @@ void mte_check_tfsr_el1(void)
 }
 #endif
 
-static void update_gcr_el1_excl(u64 excl)
-{
-
-	/*
-	 * Note that the mask controlled by the user via prctl() is an
-	 * include while GCR_EL1 accepts an exclude mask.
-	 * No need for ISB since this only affects EL0 currently, implicit
-	 * with ERET.
-	 */
-	sysreg_clear_set_s(SYS_GCR_EL1, SYS_GCR_EL1_EXCL_MASK, excl);
-}
-
 static void set_gcr_el1_excl(u64 excl)
 {
 	current->thread.gcr_user_excl = excl;
@@ -265,7 +253,8 @@ void mte_suspend_exit(void)
 	if (!system_supports_mte())
 		return;
 
-	update_gcr_el1_excl(gcr_kernel_excl);
+	sysreg_clear_set_s(SYS_GCR_EL1, SYS_GCR_EL1_EXCL_MASK, gcr_kernel_excl);
+	isb();
 }
 
 long set_mte_ctrl(struct task_struct *task, unsigned long arg)
