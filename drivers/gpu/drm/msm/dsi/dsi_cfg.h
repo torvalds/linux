@@ -48,7 +48,7 @@ struct msm_dsi_host_cfg_ops {
 	void* (*tx_buf_get)(struct msm_dsi_host *msm_host);
 	void (*tx_buf_put)(struct msm_dsi_host *msm_host);
 	int (*dma_base_get)(struct msm_dsi_host *msm_host, uint64_t *iova);
-	int (*calc_clk_rate)(struct msm_dsi_host *msm_host, bool is_dual_dsi);
+	int (*calc_clk_rate)(struct msm_dsi_host *msm_host, bool is_bonded_dsi);
 };
 
 struct msm_dsi_cfg_handler {

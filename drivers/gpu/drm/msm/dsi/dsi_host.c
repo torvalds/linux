@@ -673,7 +673,7 @@ void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
 	clk_disable_unprepare(msm_host->byte_clk);
 }
 
-static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u32 pclk_rate;
@@ -681,22 +681,22 @@ static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	pclk_rate = mode->clock * 1000;
 
 	/*
-	 * For dual DSI mode, the current DRM mode has the complete width of the
+	 * For bonded DSI mode, the current DRM mode has the complete width of the
 	 * panel. Since, the complete panel is driven by two DSI controllers,
 	 * the clock rates have to be split between the two dsi controllers.
 	 * Adjust the byte and pixel clock rates for each dsi host accordingly.
 	 */
-	if (is_dual_dsi)
+	if (is_bonded_dsi)
 		pclk_rate /= 2;
 
 	return pclk_rate;
 }
 
-static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	u8 lanes = msm_host->lanes;
 	u32 bpp = dsi_get_bpp(msm_host->format);
-	u32 pclk_rate = dsi_get_pclk_rate(msm_host, is_dual_dsi);
+	u32 pclk_rate = dsi_get_pclk_rate(msm_host, is_bonded_dsi);
 	u64 pclk_bpp = (u64)pclk_rate * bpp;
 
 	if (lanes == 0) {
@@ -718,28 +718,28 @@ static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 
 }
 
-int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	if (!msm_host->mode) {
 		pr_err("%s: mode not set\n", __func__);
 		return -EINVAL;
 	}
 
-	dsi_calc_pclk(msm_host, is_dual_dsi);
+	dsi_calc_pclk(msm_host, is_bonded_dsi);
 	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
 	return 0;
 }
 
-int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	u32 bpp = dsi_get_bpp(msm_host->format);
 	u64 pclk_bpp;
 	unsigned int esc_mhz, esc_div;
 	unsigned long byte_mhz;
 
-	dsi_calc_pclk(msm_host, is_dual_dsi);
+	dsi_calc_pclk(msm_host, is_bonded_dsi);
 
-	pclk_bpp = (u64)dsi_get_pclk_rate(msm_host, is_dual_dsi) * bpp;
+	pclk_bpp = (u64)dsi_get_pclk_rate(msm_host, is_bonded_dsi) * bpp;
 	do_div(pclk_bpp, 8);
 	msm_host->src_clk_rate = pclk_bpp;
 
@@ -939,7 +939,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		dsi_write(msm_host, REG_DSI_CPHY_MODE_CTRL, BIT(0));
 }
 
-static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u32 hs_start = 0, vs_start = 0; /* take sync start as 0 */
@@ -957,13 +957,13 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	DBG("");
 
 	/*
-	 * For dual DSI mode, the current DRM mode has
+	 * For bonded DSI mode, the current DRM mode has
 	 * the complete width of the panel. Since, the complete
 	 * panel is driven by two DSI controllers, the horizontal
 	 * timings have to be split between the two dsi controllers.
 	 * Adjust the DSI host timing values accordingly.
 	 */
-	if (is_dual_dsi) {
+	if (is_bonded_dsi) {
 		h_total /= 2;
 		hs_end /= 2;
 		ha_start /= 2;
@@ -2288,13 +2288,13 @@ void msm_dsi_host_reset_phy(struct mipi_dsi_host *host)
 
 void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
 			struct msm_dsi_phy_clk_request *clk_req,
-			bool is_dual_dsi)
+			bool is_bonded_dsi)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
 
-	ret = cfg_hnd->ops->calc_clk_rate(msm_host, is_dual_dsi);
+	ret = cfg_hnd->ops->calc_clk_rate(msm_host, is_bonded_dsi);
 	if (ret) {
 		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
 		return;
@@ -2364,7 +2364,7 @@ static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
 
 int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 			struct msm_dsi_phy_shared_timings *phy_shared_timings,
-			bool is_dual_dsi)
+			bool is_bonded_dsi)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
@@ -2402,7 +2402,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 		goto fail_disable_clk;
 	}
 
-	dsi_timing_setup(msm_host, is_dual_dsi);
+	dsi_timing_setup(msm_host, is_bonded_dsi);
 	dsi_sw_reset(msm_host);
 	dsi_ctrl_config(msm_host, true, phy_shared_timings);
 
