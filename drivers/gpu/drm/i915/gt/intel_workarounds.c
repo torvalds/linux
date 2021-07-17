@@ -965,6 +965,12 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
+
+	/*
+	 * This is not a documented workaround, but rather an optimization
+	 * to reduce sampler power.
+	 */
+	wa_write_clr(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
 }
 
 /*
@@ -998,6 +1004,9 @@ gen12_gt_workarounds_init(struct drm_i915_private *i915,
 
 	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
 	wa_14011060649(i915, wal);
+
+	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
+	wa_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
 }
 
 static void
