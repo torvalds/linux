@@ -12,6 +12,8 @@ import sys
 import os
 import time
 
+assert sys.version_info >= (3, 7), "Python version is too old"
+
 from collections import namedtuple
 from enum import Enum, auto
 
