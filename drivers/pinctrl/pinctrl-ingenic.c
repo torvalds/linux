@@ -4149,6 +4149,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	void __iomem *base;
 	const struct ingenic_chip_info *chip_info;
 	struct device_node *node;
+	struct regmap_config regmap_config;
 	unsigned int i;
 	int err;
 
@@ -4166,8 +4167,10 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	jzpc->map = devm_regmap_init_mmio(dev, base,
-			&ingenic_pinctrl_regmap_config);
+	regmap_config = ingenic_pinctrl_regmap_config;
+	regmap_config.max_register = chip_info->num_chips * chip_info->reg_offset;
+
+	jzpc->map = devm_regmap_init_mmio(dev, base, &regmap_config);
 	if (IS_ERR(jzpc->map)) {
 		dev_err(dev, "Failed to create regmap\n");
 		return PTR_ERR(jzpc->map);
