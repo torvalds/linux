@@ -218,6 +218,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *sdev)
 	struct device *dev = &sdev->dev;
 	struct device_node *np = dev->of_node;
 	struct hi6421_spmi_pmic *ddata;
+	struct platform_device *pdev;
 	unsigned int virq;
 	int ret, i;
 
@@ -233,20 +234,13 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *sdev)
 
 	ddata->dev = dev;
 
-	ddata->gpio = of_get_gpio(np, 0);
-	if (ddata->gpio < 0)
-		return ddata->gpio;
+	pdev = container_of(dev, struct platform_device, dev);
 
-	if (!gpio_is_valid(ddata->gpio))
-		return -EINVAL;
-
-	ret = devm_gpio_request_one(dev, ddata->gpio, GPIOF_IN, "pmic");
-	if (ret < 0) {
-		dev_err(dev, "Failed to request gpio%d\n", ddata->gpio);
-		return ret;
+	ddata->irq = platform_get_irq(pdev, 0);
+	if (ddata->irq < 0) {
+		dev_err(dev, "Error %d when getting IRQs\n", ddata->irq);
+		return ddata->irq;
 	}
-
-	ddata->irq = gpio_to_irq(ddata->gpio);
 
 	hi6421_spmi_pmic_irq_init(ddata);
 
