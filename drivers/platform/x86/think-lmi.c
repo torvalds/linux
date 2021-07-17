@@ -723,8 +723,8 @@ static int tlmi_sysfs_init(void)
 
 		/* Build attribute */
 		tlmi_priv.setting[i]->kobj.kset = tlmi_priv.attribute_kset;
-		ret = kobject_init_and_add(&tlmi_priv.setting[i]->kobj, &tlmi_attr_setting_ktype,
-				NULL, "%s", tlmi_priv.setting[i]->display_name);
+		ret = kobject_add(&tlmi_priv.setting[i]->kobj, NULL,
+				  "%s", tlmi_priv.setting[i]->display_name);
 		if (ret)
 			goto fail_create_attr;
 
@@ -745,8 +745,7 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 	}
 	tlmi_priv.pwd_admin->kobj.kset = tlmi_priv.authentication_kset;
-	ret = kobject_init_and_add(&tlmi_priv.pwd_admin->kobj, &tlmi_pwd_setting_ktype,
-			NULL, "%s", "Admin");
+	ret = kobject_add(&tlmi_priv.pwd_admin->kobj, NULL, "%s", "Admin");
 	if (ret)
 		goto fail_create_attr;
 
@@ -755,8 +754,7 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 
 	tlmi_priv.pwd_power->kobj.kset = tlmi_priv.authentication_kset;
-	ret = kobject_init_and_add(&tlmi_priv.pwd_power->kobj, &tlmi_pwd_setting_ktype,
-			NULL, "%s", "System");
+	ret = kobject_add(&tlmi_priv.pwd_power->kobj, NULL, "%s", "System");
 	if (ret)
 		goto fail_create_attr;
 
@@ -836,6 +834,7 @@ static int tlmi_analyze(void)
 				pr_info("Error retrieving possible values for %d : %s\n",
 						i, setting->display_name);
 		}
+		kobject_init(&setting->kobj, &tlmi_attr_setting_ktype);
 		tlmi_priv.setting[i] = setting;
 		tlmi_priv.settings_count++;
 		kfree(item);
@@ -862,6 +861,8 @@ static int tlmi_analyze(void)
 	if (pwdcfg.password_state & TLMI_PAP_PWD)
 		tlmi_priv.pwd_admin->valid = true;
 
+	kobject_init(&tlmi_priv.pwd_admin->kobj, &tlmi_pwd_setting_ktype);
+
 	tlmi_priv.pwd_power = kzalloc(sizeof(struct tlmi_pwd_setting), GFP_KERNEL);
 	if (!tlmi_priv.pwd_power) {
 		ret = -ENOMEM;
@@ -876,6 +877,8 @@ static int tlmi_analyze(void)
 
 	if (pwdcfg.password_state & TLMI_POP_PWD)
 		tlmi_priv.pwd_power->valid = true;
+
+	kobject_init(&tlmi_priv.pwd_power->kobj, &tlmi_pwd_setting_ktype);
 
 	return 0;
 
