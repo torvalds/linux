@@ -1104,6 +1104,14 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.resolution = 12,
 };
 
+static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
+	.has_bl30_integration = false,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
+	.resolution = 12,
+};
+
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
 	.param = &meson_sar_adc_meson8_param,
 	.name = "meson-meson8-saradc",
@@ -1140,7 +1148,7 @@ static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_g12a_data = {
-	.param = &meson_sar_adc_gxl_param,
+	.param = &meson_sar_adc_g12a_param,
 	.name = "meson-g12a-saradc",
 };
 
