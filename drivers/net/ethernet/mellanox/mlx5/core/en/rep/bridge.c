@@ -41,46 +41,88 @@ static bool mlx5_esw_bridge_dev_same_hw(struct net_device *dev, struct mlx5_eswi
 	return system_guid == esw_system_guid;
 }
 
-static int mlx5_esw_bridge_vport_num_vhca_id_get(struct net_device *dev, struct mlx5_eswitch *esw,
-						 u16 *vport_num, u16 *esw_owner_vhca_id)
+static struct net_device *
+mlx5_esw_bridge_lag_rep_get(struct net_device *dev, struct mlx5_eswitch *esw)
+{
+	struct net_device *lower;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(dev, lower, iter) {
+		struct mlx5_core_dev *mdev;
+		struct mlx5e_priv *priv;
+
+		if (!mlx5e_eswitch_rep(lower))
+			continue;
+
+		priv = netdev_priv(lower);
+		mdev = priv->mdev;
+		if (mlx5_lag_is_shared_fdb(mdev) && mlx5_esw_bridge_dev_same_esw(lower, esw))
+			return lower;
+	}
+
+	return NULL;
+}
+
+static struct net_device *
+mlx5_esw_bridge_rep_vport_num_vhca_id_get(struct net_device *dev, struct mlx5_eswitch *esw,
+					  u16 *vport_num, u16 *esw_owner_vhca_id)
 {
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *priv;
 
-	if (!mlx5e_eswitch_rep(dev) || !mlx5_esw_bridge_dev_same_hw(dev, esw))
-		return -ENODEV;
+	if (netif_is_lag_master(dev))
+		dev = mlx5_esw_bridge_lag_rep_get(dev, esw);
+
+	if (!dev || !mlx5e_eswitch_rep(dev) || !mlx5_esw_bridge_dev_same_hw(dev, esw))
+		return NULL;
 
 	priv = netdev_priv(dev);
 	rpriv = priv->ppriv;
 	*vport_num = rpriv->rep->vport;
 	*esw_owner_vhca_id = MLX5_CAP_GEN(priv->mdev, vhca_id);
-	return 0;
+	return dev;
 }
 
-static int
+static struct net_device *
 mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(struct net_device *dev, struct mlx5_eswitch *esw,
 						u16 *vport_num, u16 *esw_owner_vhca_id)
 {
 	struct net_device *lower_dev;
 	struct list_head *iter;
 
-	if (mlx5e_eswitch_rep(dev))
-		return mlx5_esw_bridge_vport_num_vhca_id_get(dev, esw, vport_num,
-							     esw_owner_vhca_id);
+	if (netif_is_lag_master(dev) || mlx5e_eswitch_rep(dev))
+		return mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, esw, vport_num,
+								 esw_owner_vhca_id);
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		int err;
+		struct net_device *rep;
 
 		if (netif_is_bridge_master(lower_dev))
 			continue;
 
-		err = mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(lower_dev, esw, vport_num,
+		rep = mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(lower_dev, esw, vport_num,
 								      esw_owner_vhca_id);
-		if (!err)
-			return 0;
+		if (rep)
+			return rep;
 	}
 
-	return -ENODEV;
+	return NULL;
+}
+
+static bool mlx5_esw_bridge_is_local(struct net_device *dev, struct net_device *rep,
+				     struct mlx5_eswitch *esw)
+{
+	struct mlx5_core_dev *mdev;
+	struct mlx5e_priv *priv;
+
+	if (!mlx5_esw_bridge_dev_same_esw(rep, esw))
+		return false;
+
+	priv = netdev_priv(rep);
+	mdev = priv->mdev;
+	if (netif_is_lag_master(dev))
+		return mlx5_lag_is_shared_fdb(mdev) && mlx5_lag_is_master(mdev);
+	return true;
 }
 
 static int mlx5_esw_bridge_port_changeupper(struct notifier_block *nb, void *ptr)
@@ -90,8 +132,8 @@ static int mlx5_esw_bridge_port_changeupper(struct notifier_block *nb, void *ptr
 								    netdev_nb);
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct netdev_notifier_changeupper_info *info = ptr;
+	struct net_device *upper = info->upper_dev, *rep;
 	struct mlx5_eswitch *esw = br_offloads->esw;
-	struct net_device *upper = info->upper_dev;
 	u16 vport_num, esw_owner_vhca_id;
 	struct netlink_ext_ack *extack;
 	int ifindex = upper->ifindex;
@@ -100,20 +142,19 @@ static int mlx5_esw_bridge_port_changeupper(struct notifier_block *nb, void *ptr
 	if (!netif_is_bridge_master(upper))
 		return 0;
 
-	err = mlx5_esw_bridge_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
-						    &esw_owner_vhca_id);
-	if (err)
+	rep = mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, esw, &vport_num, &esw_owner_vhca_id);
+	if (!rep)
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
 
-	if (mlx5_esw_bridge_dev_same_esw(dev, esw))
+	if (mlx5_esw_bridge_is_local(dev, rep, esw))
 		err = info->linking ?
 			mlx5_esw_bridge_vport_link(ifindex, vport_num, esw_owner_vhca_id,
 						   br_offloads, extack) :
 			mlx5_esw_bridge_vport_unlink(ifindex, vport_num, esw_owner_vhca_id,
 						     br_offloads, extack);
-	else if (mlx5_esw_bridge_dev_same_hw(dev, esw))
+	else if (mlx5_esw_bridge_dev_same_hw(rep, esw))
 		err = info->linking ?
 			mlx5_esw_bridge_vport_peer_link(ifindex, vport_num, esw_owner_vhca_id,
 							br_offloads, extack) :
@@ -151,9 +192,8 @@ mlx5_esw_bridge_port_obj_add(struct net_device *dev,
 	u16 vport_num, esw_owner_vhca_id;
 	int err;
 
-	err = mlx5_esw_bridge_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
-						    &esw_owner_vhca_id);
-	if (err)
+	if (!mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
+						       &esw_owner_vhca_id))
 		return 0;
 
 	port_obj_info->handled = true;
@@ -178,11 +218,9 @@ mlx5_esw_bridge_port_obj_del(struct net_device *dev,
 	const struct switchdev_obj *obj = port_obj_info->obj;
 	const struct switchdev_obj_port_vlan *vlan;
 	u16 vport_num, esw_owner_vhca_id;
-	int err;
 
-	err = mlx5_esw_bridge_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
-						    &esw_owner_vhca_id);
-	if (err)
+	if (!mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
+						       &esw_owner_vhca_id))
 		return 0;
 
 	port_obj_info->handled = true;
@@ -208,9 +246,8 @@ mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 	u16 vport_num, esw_owner_vhca_id;
 	int err;
 
-	err = mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
-							      &esw_owner_vhca_id);
-	if (err)
+	if (!mlx5_esw_bridge_lower_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
+							     &esw_owner_vhca_id))
 		return 0;
 
 	port_attr_info->handled = true;
@@ -283,13 +320,11 @@ static void mlx5_esw_bridge_switchdev_fdb_event_work(struct work_struct *work)
 		fdb_work->br_offloads;
 	struct net_device *dev = fdb_work->dev;
 	u16 vport_num, esw_owner_vhca_id;
-	int err;
 
 	rtnl_lock();
 
-	err = mlx5_esw_bridge_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
-						    &esw_owner_vhca_id);
-	if (err)
+	if (!mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, br_offloads->esw, &vport_num,
+						       &esw_owner_vhca_id))
 		goto out;
 
 	if (fdb_work->add)
@@ -343,8 +378,10 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 	struct switchdev_notifier_fdb_info *fdb_info;
 	struct mlx5_bridge_switchdev_fdb_work *work;
+	struct mlx5_eswitch *esw = br_offloads->esw;
 	struct switchdev_notifier_info *info = ptr;
-	struct net_device *upper;
+	u16 vport_num, esw_owner_vhca_id;
+	struct net_device *upper, *rep;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET) {
 		int err = mlx5_esw_bridge_port_obj_attr_set(dev, ptr, br_offloads);
@@ -358,13 +395,25 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 	if (!netif_is_bridge_master(upper))
 		return NOTIFY_DONE;
 
-	if (!mlx5e_eswitch_rep(dev))
+	rep = mlx5_esw_bridge_rep_vport_num_vhca_id_get(dev, esw, &vport_num, &esw_owner_vhca_id);
+	if (!rep)
 		return NOTIFY_DONE;
 
 	switch (event) {
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE:
+		/* only handle the event on native eswtich of representor */
+		if (!mlx5_esw_bridge_is_local(dev, rep, esw))
+			break;
+
+		fdb_info = container_of(info,
+					struct switchdev_notifier_fdb_info,
+					info);
+		mlx5_esw_bridge_fdb_update_used(dev, vport_num, esw_owner_vhca_id, br_offloads,
+						fdb_info);
+		break;
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
-		/* only handle the event when source is on another eswitch */
-		if (mlx5_esw_bridge_dev_same_esw(dev, br_offloads->esw))
+		/* only handle the event on peers */
+		if (mlx5_esw_bridge_is_local(dev, rep, esw))
 			break;
 		fallthrough;
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
