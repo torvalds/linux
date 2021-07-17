@@ -2100,7 +2100,58 @@ void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char 
 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
 }
 
+static u8 rtw_get_chan_type(struct adapter *adapter)
+{
+	struct mlme_ext_priv *mlme_ext = &adapter->mlmeextpriv;
 
+	switch (mlme_ext->cur_bwmode) {
+	case CHANNEL_WIDTH_20:
+		if (IsSupportedHT(adapter->registrypriv.wireless_mode))
+			return NL80211_CHAN_HT20;
+		else
+			return NL80211_CHAN_NO_HT;
+	case CHANNEL_WIDTH_40:
+		if (mlme_ext->cur_ch_offset == HAL_PRIME_CHNL_OFFSET_UPPER)
+			return NL80211_CHAN_HT40PLUS;
+		else
+			return NL80211_CHAN_HT40MINUS;
+	default:
+		return NL80211_CHAN_HT20;
+	}
+
+	return NL80211_CHAN_HT20;
+}
+
+static int cfg80211_rtw_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+				    struct cfg80211_chan_def *chandef)
+{
+	struct adapter *adapter = wiphy_to_adapter(wiphy);
+	struct registry_priv *registrypriv = &adapter->registrypriv;
+	enum nl80211_channel_type chan_type;
+	struct ieee80211_channel *chan = NULL;
+	int channel;
+	int freq;
+
+	if (!adapter->rtw_wdev)
+		return -ENODEV;
+
+	channel = rtw_get_oper_ch(adapter);
+	if (!channel)
+		return -ENODATA;
+
+	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
+
+	chan = ieee80211_get_channel(adapter->rtw_wdev->wiphy, freq);
+
+	if (registrypriv->ht_enable) {
+		chan_type = rtw_get_chan_type(adapter);
+		cfg80211_chandef_create(chandef, chan, chan_type);
+	} else {
+		cfg80211_chandef_create(chandef, chan, NL80211_CHAN_NO_HT);
+	}
+
+	return 0;
+}
 
 static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -2838,7 +2889,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.set_pmksa = cfg80211_rtw_set_pmksa,
 	.del_pmksa = cfg80211_rtw_del_pmksa,
 	.flush_pmksa = cfg80211_rtw_flush_pmksa,
-
+	.get_channel = cfg80211_rtw_get_channel,
 	.add_virtual_intf = cfg80211_rtw_add_virtual_intf,
 	.del_virtual_intf = cfg80211_rtw_del_virtual_intf,
 
