@@ -1654,6 +1654,11 @@ static int btf_dump_base_type_check_zero(struct btf_dump *d,
 	return 0;
 }
 
+static bool ptr_is_aligned(const void *data, int data_sz)
+{
+	return ((uintptr_t)data) % data_sz == 0;
+}
+
 static int btf_dump_int_data(struct btf_dump *d,
 			     const struct btf_type *t,
 			     __u32 type_id,
@@ -1672,7 +1677,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 	/* handle packed int data - accesses of integers not aligned on
 	 * int boundaries can cause problems on some platforms.
 	 */
-	if (((uintptr_t)data) % sz)
+	if (!ptr_is_aligned(data, sz))
 		return btf_dump_bitfield_data(d, t, data, 0, 0);
 
 	switch (sz) {
@@ -1739,7 +1744,7 @@ static int btf_dump_float_data(struct btf_dump *d,
 	int sz = t->size;
 
 	/* handle unaligned data; copy to local union */
-	if (((uintptr_t)data) % sz) {
+	if (!ptr_is_aligned(data, sz)) {
 		memcpy(&fl, data, sz);
 		flp = &fl;
 	}
@@ -1892,12 +1897,27 @@ static int btf_dump_struct_data(struct btf_dump *d,
 	return err;
 }
 
+union ptr_data {
+	unsigned int p;
+	unsigned long long lp;
+};
+
 static int btf_dump_ptr_data(struct btf_dump *d,
 			      const struct btf_type *t,
 			      __u32 id,
 			      const void *data)
 {
-	btf_dump_type_values(d, "%p", *(void **)data);
+	if (ptr_is_aligned(data, d->ptr_sz) && d->ptr_sz == sizeof(void *)) {
+		btf_dump_type_values(d, "%p", *(void **)data);
+	} else {
+		union ptr_data pt;
+
+		memcpy(&pt, data, d->ptr_sz);
+		if (d->ptr_sz == 4)
+			btf_dump_type_values(d, "0x%x", pt.p);
+		else
+			btf_dump_type_values(d, "0x%llx", pt.lp);
+	}
 	return 0;
 }
 
@@ -1910,7 +1930,7 @@ static int btf_dump_get_enum_value(struct btf_dump *d,
 	int sz = t->size;
 
 	/* handle unaligned enum value */
-	if (((uintptr_t)data) % sz) {
+	if (!ptr_is_aligned(data, sz)) {
 		*value = (__s64)btf_dump_bitfield_get_data(d, t, data, 0, 0);
 		return 0;
 	}
@@ -1989,8 +2009,8 @@ static int btf_dump_type_data_check_overflow(struct btf_dump *d,
 	__s64 size = btf__resolve_size(d->btf, id);
 
 	if (size < 0 || size >= INT_MAX) {
-		pr_warn("unexpected size [%lld] for id [%u]\n",
-			size, id);
+		pr_warn("unexpected size [%zu] for id [%u]\n",
+			(size_t)size, id);
 		return -EINVAL;
 	}
 
@@ -2218,6 +2238,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 			     const void *data, size_t data_sz,
 			     const struct btf_dump_type_data_opts *opts)
 {
+	struct btf_dump_data typed_dump = {};
 	const struct btf_type *t;
 	int ret;
 
@@ -2228,12 +2249,10 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 	if (!t)
 		return libbpf_err(-ENOENT);
 
-	d->typed_dump = calloc(1, sizeof(struct btf_dump_data));
-	if (!d->typed_dump)
-		return libbpf_err(-ENOMEM);
-
+	d->typed_dump = &typed_dump;
 	d->typed_dump->data_end = data + data_sz;
 	d->typed_dump->indent_lvl = OPTS_GET(opts, indent_level, 0);
+
 	/* default indent string is a tab */
 	if (!opts->indent_str)
 		d->typed_dump->indent_str[0] = '\t';
@@ -2247,7 +2266,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 
 	ret = btf_dump_dump_type_data(d, NULL, t, id, data, 0, 0);
 
-	free(d->typed_dump);
+	d->typed_dump = NULL;
 
 	return libbpf_err(ret);
 }
