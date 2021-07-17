@@ -517,7 +517,7 @@ static void cfl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	/* WaDisableBankHangMode:icl */
+	/* Wa_1406697149 (WaDisableBankHangMode:icl) */
 	wa_write(wal,
 		 GEN8_L3CNTLREG,
 		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
@@ -1587,11 +1587,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     _3D_CHICKEN3,
 			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
 
-		/* WaPipelineFlushCoherentLines:icl */
-		wa_write_or(wal,
-			    GEN8_L3SQCREG4,
-			    GEN8_LQSC_FLUSH_COHERENT_LINES);
-
 		/*
 		 * Wa_1405543622:icl
 		 * Formerly known as WaGAPZPriorityScheme
@@ -1620,13 +1615,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN8_L3SQCREG4,
 			    GEN11_LQSC_CLEAN_EVICT_DISABLE);
-
-		/* WaForwardProgressSoftReset:icl */
-		wa_write_or(wal,
-			    GEN10_SCRATCH_LNCF2,
-			    PMFLUSHDONE_LNICRSDROP |
-			    PMFLUSH_GAPL3UNBLOCK |
-			    PMFLUSHDONE_LNEBLK);
 
 		/* Wa_1606682166:icl */
 		wa_write_or(wal,
