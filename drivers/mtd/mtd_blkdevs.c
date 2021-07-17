@@ -561,8 +561,8 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	list_for_each_entry_safe(dev, next, &tr->devs, list)
 		tr->remove_dev(dev);
 
-	unregister_blkdev(tr->major, tr->name);
 	mutex_unlock(&mtd_table_mutex);
+	unregister_blkdev(tr->major, tr->name);
 
 	BUG_ON(!list_empty(&tr->devs));
 	return 0;
