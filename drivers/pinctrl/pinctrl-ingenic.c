@@ -3830,17 +3830,17 @@ static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 {
 	if (jzpc->info->version >= ID_X2000) {
 		switch (bias) {
-		case PIN_CONFIG_BIAS_PULL_UP:
+		case GPIO_PULL_UP:
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPD, false);
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPU, true);
 			break;
 
-		case PIN_CONFIG_BIAS_PULL_DOWN:
+		case GPIO_PULL_DOWN:
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPU, false);
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPD, true);
 			break;
 
-		case PIN_CONFIG_BIAS_DISABLE:
+		case GPIO_PULL_DIS:
 		default:
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPU, false);
 			ingenic_config_pin(jzpc, pin, X2000_GPIO_PEPD, false);
