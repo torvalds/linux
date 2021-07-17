@@ -63,7 +63,7 @@ examples:
   - |
 
     pmic: pmic@0 {
-      compatible = "hisilicon,hi6421-spmi";
+      compatible = "hisilicon,hi6421v600-spmi";
       reg = <0 0>;
 
       #interrupt-cells = <2>;
