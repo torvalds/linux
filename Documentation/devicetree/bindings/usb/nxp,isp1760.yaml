@@ -25,14 +25,12 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 2
     items:
       - description: Host controller interrupt
       - description: Device controller interrupt in isp1761
 
   interrupt-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: host
       - const: peripheral
