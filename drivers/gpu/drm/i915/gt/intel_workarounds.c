@@ -838,21 +838,10 @@ skl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaInPlaceDecompressionHang:skl */
-	if (IS_SKL_GT_STEP(i915, STEP_H0, STEP_FOREVER))
+	if (IS_SKL_GT_STEP(i915, STEP_A0, STEP_H0 - 1))
 		wa_write_or(wal,
 			    GEN9_GAMT_ECO_REG_RW_IA,
 			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-}
-
-static void
-bxt_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
-{
-	gen9_gt_workarounds_init(i915, wal);
-
-	/* WaInPlaceDecompressionHang:bxt */
-	wa_write_or(wal,
-		    GEN9_GAMT_ECO_REG_RW_IA,
-		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
 static void
@@ -941,11 +930,6 @@ static void
 icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	icl_wa_init_mcr(i915, wal);
-
-	/* WaInPlaceDecompressionHang:icl */
-	wa_write_or(wal,
-		    GEN9_GAMT_ECO_REG_RW_IA,
-		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 
 	/* WaModifyGamTlbPartitioning:icl */
 	wa_write_clr_set(wal,
@@ -1081,7 +1065,7 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	else if (IS_KABYLAKE(i915))
 		kbl_gt_workarounds_init(i915, wal);
 	else if (IS_BROXTON(i915))
-		bxt_gt_workarounds_init(i915, wal);
+		gen9_gt_workarounds_init(i915, wal);
 	else if (IS_SKYLAKE(i915))
 		skl_gt_workarounds_init(i915, wal);
 	else if (IS_HASWELL(i915))
