@@ -17,11 +17,22 @@
 #define IGC_WUC_PME_EN	0x00000002 /* PME Enable */
 
 /* Wake Up Filter Control */
-#define IGC_WUFC_LNKC	0x00000001 /* Link Status Change Wakeup Enable */
-#define IGC_WUFC_MAG	0x00000002 /* Magic Packet Wakeup Enable */
-#define IGC_WUFC_EX	0x00000004 /* Directed Exact Wakeup Enable */
-#define IGC_WUFC_MC	0x00000008 /* Directed Multicast Wakeup Enable */
-#define IGC_WUFC_BC	0x00000010 /* Broadcast Wakeup Enable */
+#define IGC_WUFC_LNKC		0x00000001 /* Link Status Change Wakeup Enable */
+#define IGC_WUFC_MAG		0x00000002 /* Magic Packet Wakeup Enable */
+#define IGC_WUFC_EX		0x00000004 /* Directed Exact Wakeup Enable */
+#define IGC_WUFC_MC		0x00000008 /* Directed Multicast Wakeup Enable */
+#define IGC_WUFC_BC		0x00000010 /* Broadcast Wakeup Enable */
+#define IGC_WUFC_FLEX_HQ	BIT(14)	   /* Flex Filters Host Queuing */
+#define IGC_WUFC_FLX0		BIT(16)	   /* Flexible Filter 0 Enable */
+#define IGC_WUFC_FLX1		BIT(17)	   /* Flexible Filter 1 Enable */
+#define IGC_WUFC_FLX2		BIT(18)	   /* Flexible Filter 2 Enable */
+#define IGC_WUFC_FLX3		BIT(19)	   /* Flexible Filter 3 Enable */
+#define IGC_WUFC_FLX4		BIT(20)	   /* Flexible Filter 4 Enable */
+#define IGC_WUFC_FLX5		BIT(21)	   /* Flexible Filter 5 Enable */
+#define IGC_WUFC_FLX6		BIT(22)	   /* Flexible Filter 6 Enable */
+#define IGC_WUFC_FLX7		BIT(23)	   /* Flexible Filter 7 Enable */
+
+#define IGC_WUFC_FILTER_MASK GENMASK(23, 14)
 
 #define IGC_CTRL_ADVD3WUC	0x00100000  /* D3 WUC */
 
@@ -45,6 +56,37 @@
 
 /* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
 #define IGC_WUPM_BYTES	128
+
+/* Wakeup Filter Control Extended */
+#define IGC_WUFC_EXT_FLX8	BIT(8)	/* Flexible Filter 8 Enable */
+#define IGC_WUFC_EXT_FLX9	BIT(9)	/* Flexible Filter 9 Enable */
+#define IGC_WUFC_EXT_FLX10	BIT(10)	/* Flexible Filter 10 Enable */
+#define IGC_WUFC_EXT_FLX11	BIT(11)	/* Flexible Filter 11 Enable */
+#define IGC_WUFC_EXT_FLX12	BIT(12)	/* Flexible Filter 12 Enable */
+#define IGC_WUFC_EXT_FLX13	BIT(13)	/* Flexible Filter 13 Enable */
+#define IGC_WUFC_EXT_FLX14	BIT(14)	/* Flexible Filter 14 Enable */
+#define IGC_WUFC_EXT_FLX15	BIT(15)	/* Flexible Filter 15 Enable */
+#define IGC_WUFC_EXT_FLX16	BIT(16)	/* Flexible Filter 16 Enable */
+#define IGC_WUFC_EXT_FLX17	BIT(17)	/* Flexible Filter 17 Enable */
+#define IGC_WUFC_EXT_FLX18	BIT(18)	/* Flexible Filter 18 Enable */
+#define IGC_WUFC_EXT_FLX19	BIT(19)	/* Flexible Filter 19 Enable */
+#define IGC_WUFC_EXT_FLX20	BIT(20)	/* Flexible Filter 20 Enable */
+#define IGC_WUFC_EXT_FLX21	BIT(21)	/* Flexible Filter 21 Enable */
+#define IGC_WUFC_EXT_FLX22	BIT(22)	/* Flexible Filter 22 Enable */
+#define IGC_WUFC_EXT_FLX23	BIT(23)	/* Flexible Filter 23 Enable */
+#define IGC_WUFC_EXT_FLX24	BIT(24)	/* Flexible Filter 24 Enable */
+#define IGC_WUFC_EXT_FLX25	BIT(25)	/* Flexible Filter 25 Enable */
+#define IGC_WUFC_EXT_FLX26	BIT(26)	/* Flexible Filter 26 Enable */
+#define IGC_WUFC_EXT_FLX27	BIT(27)	/* Flexible Filter 27 Enable */
+#define IGC_WUFC_EXT_FLX28	BIT(28)	/* Flexible Filter 28 Enable */
+#define IGC_WUFC_EXT_FLX29	BIT(29)	/* Flexible Filter 29 Enable */
+#define IGC_WUFC_EXT_FLX30	BIT(30)	/* Flexible Filter 30 Enable */
+#define IGC_WUFC_EXT_FLX31	BIT(31)	/* Flexible Filter 31 Enable */
+
+#define IGC_WUFC_EXT_FILTER_MASK GENMASK(31, 8)
+
+/* Physical Func Reset Done Indication */
+#define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT		10
@@ -101,6 +143,16 @@
 
 #define IGC_CTRL_SDP0_DIR	0x00400000  /* SDP0 Data direction */
 #define IGC_CTRL_SDP1_DIR	0x00800000  /* SDP1 Data direction */
+
+/* LED Control */
+#define IGC_LEDCTL_LED0_MODE_SHIFT	0
+#define IGC_LEDCTL_LED0_MODE_MASK	GENMASK(3, 0)
+#define IGC_LEDCTL_LED1_MODE_SHIFT	8
+#define IGC_LEDCTL_LED1_MODE_MASK	GENMASK(11, 8)
+#define IGC_LEDCTL_LED2_MODE_SHIFT	16
+#define IGC_LEDCTL_LED2_MODE_MASK	GENMASK(19, 16)
+
+#define IGC_CONNSW_AUTOSENSE_EN		0x1
 
 /* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
 #define MAX_JUMBO_FRAME_SIZE	0x2600
