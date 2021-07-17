@@ -866,7 +866,7 @@ static int tlmi_analyze(void)
 	tlmi_priv.pwd_power = kzalloc(sizeof(struct tlmi_pwd_setting), GFP_KERNEL);
 	if (!tlmi_priv.pwd_power) {
 		ret = -ENOMEM;
-		goto fail_clear_attr;
+		goto fail_free_pwd_admin;
 	}
 	strscpy(tlmi_priv.pwd_power->kbdlang, "us", TLMI_LANG_MAXLEN);
 	tlmi_priv.pwd_power->encoding = TLMI_ENCODING_ASCII;
@@ -882,9 +882,15 @@ static int tlmi_analyze(void)
 
 	return 0;
 
+fail_free_pwd_admin:
+	kfree(tlmi_priv.pwd_admin);
 fail_clear_attr:
-	for (i = 0; i < TLMI_SETTINGS_COUNT; ++i)
-		kfree(tlmi_priv.setting[i]);
+	for (i = 0; i < TLMI_SETTINGS_COUNT; ++i) {
+		if (tlmi_priv.setting[i]) {
+			kfree(tlmi_priv.setting[i]->possible_values);
+			kfree(tlmi_priv.setting[i]);
+		}
+	}
 	return ret;
 }
 
