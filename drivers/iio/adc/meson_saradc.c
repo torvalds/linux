@@ -347,7 +347,7 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int regval, fifo_chan, fifo_val, count;
 
-	if(!wait_for_completion_timeout(&priv->done,
+	if (!wait_for_completion_timeout(&priv->done,
 				msecs_to_jiffies(MESON_SAR_ADC_TIMEOUT)))
 		return -ETIMEDOUT;
 
