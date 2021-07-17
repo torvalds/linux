@@ -548,7 +548,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val |= intel_psr2_get_tp_time(intel_dp);
 
 	/* Wa_22012278275:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_D1)) {
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_E0)) {
 		static const u8 map[] = {
 			2, /* 5 lines */
 			1, /* 6 lines */
@@ -595,7 +595,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		/* Wa_1408330847 */
-		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK);
@@ -735,7 +735,7 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 		return;
 
 	/* Wa_16011303918:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 		return;
 
 	/*
@@ -782,7 +782,7 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	}
 
 	/* Wa_14010254185 Wa_14010103792 */
-	if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B1)) {
+	if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 sel fetch not enabled, missing the implementation of WAs\n");
 		return false;
@@ -945,7 +945,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	/* Wa_2209313811 */
 	if (!crtc_state->enable_psr2_sel_fetch &&
-	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B1)) {
+	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0)) {
 		drm_dbg_kms(&dev_priv->drm, "PSR2 HW tracking is not supported this Display stepping\n");
 		return false;
 	}
@@ -972,7 +972,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	/* Wa_16011303918:adl-p */
 	if (crtc_state->vrr.enable &&
-	    IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0)) {
+	    IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not enabled, not compatible with HW stepping + VRR\n");
 		return false;
@@ -1166,7 +1166,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 			     IGNORE_PSR2_HW_TRACKING : 0);
 
 	/* Wa_16011168373:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) &&
 	    intel_dp->psr.psr2_enabled)
 		intel_de_rmw(dev_priv,
 			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
@@ -1346,12 +1346,12 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* Wa_1408330847 */
 	if (intel_dp->psr.psr2_sel_fetch_enabled &&
-	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
 
 	/* Wa_16011168373:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) &&
 	    intel_dp->psr.psr2_enabled)
 		intel_de_rmw(dev_priv,
 			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
