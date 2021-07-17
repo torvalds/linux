@@ -2106,7 +2106,7 @@ static u8 rtw_get_chan_type(struct adapter *adapter)
 
 	switch (mlme_ext->cur_bwmode) {
 	case CHANNEL_WIDTH_20:
-		if (IsSupportedHT(adapter->registrypriv.wireless_mode))
+		if (is_supported_ht(adapter->registrypriv.wireless_mode))
 			return NL80211_CHAN_HT20;
 		else
 			return NL80211_CHAN_NO_HT;
