@@ -1661,7 +1661,7 @@ void update_wireless_mode(struct adapter *padapter)
 
 void update_sta_basic_rate(struct sta_info *psta, u8 wireless_mode)
 {
-	if (IsSupportedTxCCK(wireless_mode)) {
+	if (is_supported_tx_cck(wireless_mode)) {
 		/*  Only B, B/G, and B/G/N AP could use CCK rate */
 		memcpy(psta->bssrateset, rtw_basic_rate_cck, 4);
 		psta->bssratelen = 4;

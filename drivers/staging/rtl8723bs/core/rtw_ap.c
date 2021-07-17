@@ -402,7 +402,7 @@ void update_bmc_sta(struct adapter *padapter)
 						      supportRateNum,
 						      pcur_network->Configuration.DSConfig
 		);
-		if (IsSupportedTxCCK(network_type)) {
+		if (is_supported_tx_cck(network_type)) {
 			network_type = WIRELESS_11B;
 		} else if (network_type == WIRELESS_INVALID) { /*  error handling */
 
