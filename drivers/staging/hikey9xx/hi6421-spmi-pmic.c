@@ -213,9 +213,9 @@ static const struct regmap_config regmap_config = {
 	.fast_io	= true
 };
 
-static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
+static int hi6421_spmi_pmic_probe(struct spmi_device *sdev)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = &sdev->dev;
 	struct device_node *np = dev->of_node;
 	struct hi6421_spmi_pmic *ddata;
 	unsigned int virq;
@@ -225,7 +225,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	ddata->regmap = devm_regmap_init_spmi_ext(pdev, &regmap_config);
+	ddata->regmap = devm_regmap_init_spmi_ext(sdev, &regmap_config);
 	if (IS_ERR(ddata->regmap))
 		return PTR_ERR(ddata->regmap);
 
@@ -281,9 +281,9 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 		return ret;
 	}
 
-	dev_set_drvdata(&pdev->dev, ddata);
+	dev_set_drvdata(&sdev->dev, ddata);
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&sdev->dev, PLATFORM_DEVID_NONE,
 				   hi6421v600_devs, ARRAY_SIZE(hi6421v600_devs),
 				   NULL, 0, NULL);
 	if (ret < 0)
