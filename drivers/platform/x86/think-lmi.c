@@ -672,6 +672,7 @@ static void tlmi_release_attr(void)
 			kobject_put(&tlmi_priv.setting[i]->kobj);
 		}
 	}
+	sysfs_remove_file(&tlmi_priv.attribute_kset->kobj, &pending_reboot.attr);
 	kset_unregister(tlmi_priv.attribute_kset);
 
 	/* Authentication structures */
@@ -680,7 +681,6 @@ static void tlmi_release_attr(void)
 	sysfs_remove_group(&tlmi_priv.pwd_power->kobj, &auth_attr_group);
 	kobject_put(&tlmi_priv.pwd_power->kobj);
 	kset_unregister(tlmi_priv.authentication_kset);
-	sysfs_remove_file(&tlmi_priv.class_dev->kobj, &pending_reboot.attr);
 }
 
 static int tlmi_sysfs_init(void)
@@ -733,6 +733,10 @@ static int tlmi_sysfs_init(void)
 			goto fail_create_attr;
 	}
 
+	ret = sysfs_create_file(&tlmi_priv.attribute_kset->kobj, &pending_reboot.attr);
+	if (ret)
+		goto fail_create_attr;
+
 	/* Create authentication entries */
 	tlmi_priv.authentication_kset = kset_create_and_add("authentication", NULL,
 								&tlmi_priv.class_dev->kobj);
@@ -757,11 +761,6 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 
 	ret = sysfs_create_group(&tlmi_priv.pwd_power->kobj, &auth_attr_group);
-	if (ret)
-		goto fail_create_attr;
-
-	/* Create global sysfs files */
-	ret = sysfs_create_file(&tlmi_priv.class_dev->kobj, &pending_reboot.attr);
 	if (ret)
 		goto fail_create_attr;
 
