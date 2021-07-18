@@ -354,6 +354,24 @@ static void trace_osnoise_sample(struct osnoise_sample *sample)
 /*
  * Print the timerlat header info.
  */
+#ifdef CONFIG_PREEMPT_RT
+static void print_timerlat_headers(struct seq_file *s)
+{
+	seq_puts(s, "#                                _-------=> irqs-off\n");
+	seq_puts(s, "#                               / _------=> need-resched\n");
+	seq_puts(s, "#                              | / _-----=> need-resched-lazy\n");
+	seq_puts(s, "#                              || / _----=> hardirq/softirq\n");
+	seq_puts(s, "#                              ||| / _---=> preempt-depth\n");
+	seq_puts(s, "#                              |||| / _--=> preempt-lazy-depth\n");
+	seq_puts(s, "#                              ||||| / _-=> migrate-disable\n");
+	seq_puts(s, "#                              |||||| /\n");
+	seq_puts(s, "#                              |||||||             ACTIVATION\n");
+	seq_puts(s, "#           TASK-PID      CPU# |||||||   TIMESTAMP    ID     ");
+	seq_puts(s, "       CONTEXT                LATENCY\n");
+	seq_puts(s, "#              | |         |   |||||||      |         |      ");
+	seq_puts(s, "            |                       |\n");
+}
+#else /* CONFIG_PREEMPT_RT */
 static void print_timerlat_headers(struct seq_file *s)
 {
 	seq_puts(s, "#                                _-----=> irqs-off\n");
@@ -367,6 +385,7 @@ static void print_timerlat_headers(struct seq_file *s)
 	seq_puts(s, "#              | |         |   ||||      |         |      ");
 	seq_puts(s, "            |                       |\n");
 }
+#endif /* CONFIG_PREEMPT_RT */
 
 /*
  * Record an timerlat_sample into the tracer buffer.
