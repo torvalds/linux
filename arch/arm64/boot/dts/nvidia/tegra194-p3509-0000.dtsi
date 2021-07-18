@@ -1950,7 +1950,7 @@
 			    "p2u-5", "p2u-6", "p2u-7";
 	};
 
-	pcie_ep@141a0000 {
+	pcie-ep@141a0000 {
 		status = "disabled";
 
 		vddio-pex-ctl-supply = <&vdd_1v8ao>;
