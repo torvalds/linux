@@ -995,10 +995,11 @@ void rtw_hal_read_chip_info(struct adapter *Adapter)
 	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(Adapter);
 	u8 eeValue = usb_read8(Adapter, REG_9346CR);
 
-	eeprom->EepromOrEfuse = (eeValue & BOOT_FROM_EEPROM) ? true : false;
 	eeprom->bautoload_fail_flag = (eeValue & EEPROM_EN) ? false : true;
 
-	Hal_InitPGData88E(Adapter);
+	if (eeValue & BOOT_FROM_EEPROM)
+		EFUSE_ShadowMapUpdate(Adapter);
+
 	readAdapterInfo_8188EU(Adapter);
 }
 

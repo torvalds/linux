@@ -131,8 +131,6 @@ enum hardware_type {
 
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 
-#define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
-
 void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level);
 u32 rtl8188eu_hal_deinit(struct adapter *Adapter);
 u32 rtl8188eu_hal_init(struct adapter *Adapter);
