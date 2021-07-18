@@ -16,18 +16,8 @@
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
-enum{
-		VOLTAGE_V25						= 0x03,
-		LDOE25_SHIFT						= 28,
-	};
-
-/*
- * When we want to enable write operation, we should change to pwr on state.
- * When we stop write, we should switch to 500k mode and disable LDO 2.5V.
- */
-static void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
+static void efuse_power_switch(struct adapter *pAdapter, u8 pwrstate)
 {
-	u8 tempval;
 	u16 tmpv16;
 
 	if (pwrstate) {
@@ -52,22 +42,8 @@ static void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 			tmpv16 |= (LOADER_CLK_EN | ANA8M);
 			usb_write16(pAdapter, REG_SYS_CLKR, tmpv16);
 		}
-
-		if (write) {
-			/*  Enable LDO 2.5V before read/write action */
-			tempval = usb_read8(pAdapter, EFUSE_TEST + 3);
-			tempval &= 0x0F;
-			tempval |= (VOLTAGE_V25 << 4);
-			usb_write8(pAdapter, EFUSE_TEST + 3, (tempval | 0x80));
-		}
 	} else {
 		usb_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
-
-		if (write) {
-			/*  Disable LDO 2.5V after read/write action */
-			tempval = usb_read8(pAdapter, EFUSE_TEST + 3);
-			usb_write8(pAdapter, EFUSE_TEST + 3, (tempval & 0x7F));
-		}
 	}
 }
 
@@ -857,11 +833,9 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 /* Read All Efuse content */
 static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse)
 {
-	efuse_power_switch(pAdapter, false, true);
-
+	efuse_power_switch(pAdapter, true);
 	efuse_ReadEFuse(pAdapter, 0, EFUSE_MAP_LEN_88E, Efuse);
-
-	efuse_power_switch(pAdapter, false, false);
+	efuse_power_switch(pAdapter, false);
 }
 
 /* Transfer current EFUSE content to shadow init and modify map. */
