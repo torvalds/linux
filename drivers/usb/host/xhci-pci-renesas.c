@@ -595,7 +595,7 @@ int renesas_xhci_check_request_fw(struct pci_dev *pdev,
 
 	err = renesas_fw_check_running(pdev);
 	/* Continue ahead, if the firmware is already running. */
-	if (err == 0)
+	if (!err)
 		return 0;
 
 	if (err != 1)
