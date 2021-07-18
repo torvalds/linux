@@ -385,22 +385,6 @@ int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
 	return 0;
 }
 
-void bnxt_ptp_start(struct bnxt *bp)
-{
-	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-
-	if (!ptp)
-		return;
-
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		spin_lock_bh(&ptp->ptp_lock);
-		ptp->current_time = bnxt_refclk_read(bp, NULL);
-		WRITE_ONCE(ptp->old_time, ptp->current_time);
-		spin_unlock_bh(&ptp->ptp_lock);
-		ptp_schedule_worker(ptp->ptp_clock, 0);
-	}
-}
-
 static const struct ptp_clock_info bnxt_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "bnxt clock",
@@ -450,7 +434,13 @@ int bnxt_ptp_init(struct bnxt *bp)
 		bnxt_unmap_ptp_regs(bp);
 		return err;
 	}
-
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		spin_lock_bh(&ptp->ptp_lock);
+		ptp->current_time = bnxt_refclk_read(bp, NULL);
+		WRITE_ONCE(ptp->old_time, ptp->current_time);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp_schedule_worker(ptp->ptp_clock, 0);
+	}
 	return 0;
 }
 
