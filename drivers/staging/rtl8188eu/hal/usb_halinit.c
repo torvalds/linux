@@ -1002,11 +1002,6 @@ void rtw_hal_read_chip_info(struct adapter *Adapter)
 	readAdapterInfo_8188EU(Adapter);
 }
 
-#define GPIO_DEBUG_PORT_NUM 0
-static void rtl8192cu_trigger_gpio_0(struct adapter *adapt)
-{
-}
-
 static void ResumeTxBeacon(struct adapter *adapt)
 {
 	struct hal_data_8188e *haldata = adapt->HalData;
@@ -1549,9 +1544,6 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 				ODM_Write_DIG(podmpriv, rx_gain);
 			}
 		}
-		break;
-	case HW_VAR_TRIGGER_GPIO_0:
-		rtl8192cu_trigger_gpio_0(Adapter);
 		break;
 	case HW_VAR_RPT_TIMER_SETTING:
 		{
