@@ -25,8 +25,6 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, struct wl_pwr_cfg pwrseqcm
 		pwrcfgcmd = pwrseqcmd[aryidx];
 
 		switch (GET_PWR_CFG_CMD(pwrcfgcmd)) {
-		case PWR_CMD_READ:
-			break;
 		case PWR_CMD_WRITE:
 			offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
 

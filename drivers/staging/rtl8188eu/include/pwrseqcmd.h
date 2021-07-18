@@ -10,7 +10,6 @@
 #include <drv_types.h>
 
 /* The value of cmd: 4 bits */
-#define PWR_CMD_READ		0x00
 #define PWR_CMD_WRITE		0x01
 #define PWR_CMD_POLLING		0x02
 #define PWR_CMD_DELAY		0x03
