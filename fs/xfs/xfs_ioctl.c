@@ -1065,7 +1065,24 @@ xfs_fill_fsxattr(
 
 	fileattr_fill_xflags(fa, xfs_ip2xflags(ip));
 
-	fa->fsx_extsize = XFS_FSB_TO_B(mp, ip->i_extsize);
+	if (ip->i_diflags & XFS_DIFLAG_EXTSIZE) {
+		fa->fsx_extsize = XFS_FSB_TO_B(mp, ip->i_extsize);
+	} else if (ip->i_diflags & XFS_DIFLAG_EXTSZINHERIT) {
+		/*
+		 * Don't let a misaligned extent size hint on a directory
+		 * escape to userspace if it won't pass the setattr checks
+		 * later.
+		 */
+		if ((ip->i_diflags & XFS_DIFLAG_RTINHERIT) &&
+		    ip->i_extsize % mp->m_sb.sb_rextsize > 0) {
+			fa->fsx_xflags &= ~(FS_XFLAG_EXTSIZE |
+					    FS_XFLAG_EXTSZINHERIT);
+			fa->fsx_extsize = 0;
+		} else {
+			fa->fsx_extsize = XFS_FSB_TO_B(mp, ip->i_extsize);
+		}
+	}
+
 	if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
 		fa->fsx_cowextsize = XFS_FSB_TO_B(mp, ip->i_cowextsize);
 	fa->fsx_projid = ip->i_projid;
@@ -1292,10 +1309,10 @@ xfs_ioctl_setattr_check_extsize(
 	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
 
 	/*
-	 * Inode verifiers on older kernels don't check that the extent size
-	 * hint is an integer multiple of the rt extent size on a directory
-	 * with both rtinherit and extszinherit flags set.  Don't let sysadmins
-	 * misconfigure directories.
+	 * Inode verifiers do not check that the extent size hint is an integer
+	 * multiple of the rt extent size on a directory with both rtinherit
+	 * and extszinherit flags set.  Don't let sysadmins misconfigure
+	 * directories.
 	 */
 	if ((new_diflags & XFS_DIFLAG_RTINHERIT) &&
 	    (new_diflags & XFS_DIFLAG_EXTSZINHERIT)) {
