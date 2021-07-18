@@ -931,7 +931,7 @@ struct pci_mem_region {
 	u64 region_base;
 	u64 region_size;
 	u64 bar_size;
-	u32 offset_in_bar;
+	u64 offset_in_bar;
 	u8 bar_id;
 	u8 used;
 };
