@@ -197,7 +197,7 @@ Tegra194 RC mode:
 Tegra194 EP mode:
 -----------------
 
-	pcie_ep@141a0000 {
+	pcie-ep@141a0000 {
 		compatible = "nvidia,tegra194-pcie-ep", "snps,dw-pcie-ep";
 		power-domains = <&bpmp TEGRA194_POWER_DOMAIN_PCIEX8A>;
 		reg = <0x00 0x141a0000 0x0 0x00020000   /* appl registers (128K)      */
