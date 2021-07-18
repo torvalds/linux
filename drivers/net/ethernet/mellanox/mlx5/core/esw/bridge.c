@@ -912,7 +912,6 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 	struct mlx5_esw_bridge_fdb_entry *entry;
 	struct mlx5_flow_handle *handle;
 	struct mlx5_fc *counter;
-	struct mlx5e_priv *priv;
 	int err;
 
 	if (bridge->flags & MLX5_ESW_BRIDGE_VLAN_FILTERING_FLAG && vid) {
@@ -921,7 +920,6 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 			return ERR_CAST(vlan);
 	}
 
-	priv = netdev_priv(dev);
 	entry = kvzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
@@ -934,7 +932,7 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 	if (added_by_user)
 		entry->flags |= MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER;
 
-	counter = mlx5_fc_create(priv->mdev, true);
+	counter = mlx5_fc_create(esw->dev, true);
 	if (IS_ERR(counter)) {
 		err = PTR_ERR(counter);
 		goto err_ingress_fc_create;
@@ -994,7 +992,7 @@ err_egress_flow_create:
 err_ingress_filter_flow_create:
 	mlx5_del_flow_rules(entry->ingress_handle);
 err_ingress_flow_create:
-	mlx5_fc_destroy(priv->mdev, entry->ingress_counter);
+	mlx5_fc_destroy(esw->dev, entry->ingress_counter);
 err_ingress_fc_create:
 	kvfree(entry);
 	return ERR_PTR(err);
