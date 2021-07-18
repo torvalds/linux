@@ -253,9 +253,39 @@ static struct osnoise_data {
  */
 static bool osnoise_busy;
 
+#ifdef CONFIG_PREEMPT_RT
 /*
  * Print the osnoise header info.
  */
+static void print_osnoise_headers(struct seq_file *s)
+{
+	if (osnoise_data.tainted)
+		seq_puts(s, "# osnoise is tainted!\n");
+
+	seq_puts(s, "#                                _-------=> irqs-off\n");
+	seq_puts(s, "#                               / _------=> need-resched\n");
+	seq_puts(s, "#                              | / _-----=> need-resched-lazy\n");
+	seq_puts(s, "#                              || / _----=> hardirq/softirq\n");
+	seq_puts(s, "#                              ||| / _---=> preempt-depth\n");
+	seq_puts(s, "#                              |||| / _--=> preempt-lazy-depth\n");
+	seq_puts(s, "#                              ||||| / _-=> migrate-disable\n");
+
+	seq_puts(s, "#                              |||||| /          ");
+	seq_puts(s, "                                     MAX\n");
+
+	seq_puts(s, "#                              ||||| /                         ");
+	seq_puts(s, "                    SINGLE      Interference counters:\n");
+
+	seq_puts(s, "#                              |||||||               RUNTIME   ");
+	seq_puts(s, "   NOISE  %% OF CPU  NOISE    +-----------------------------+\n");
+
+	seq_puts(s, "#           TASK-PID      CPU# |||||||   TIMESTAMP    IN US    ");
+	seq_puts(s, "   IN US  AVAILABLE  IN US     HW    NMI    IRQ   SIRQ THREAD\n");
+
+	seq_puts(s, "#              | |         |   |||||||      |           |      ");
+	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
+}
+#else /* CONFIG_PREEMPT_RT */
 static void print_osnoise_headers(struct seq_file *s)
 {
 	if (osnoise_data.tainted)
@@ -279,6 +309,7 @@ static void print_osnoise_headers(struct seq_file *s)
 	seq_puts(s, "#              | |         |   ||||      |           |      ");
 	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
 }
+#endif /* CONFIG_PREEMPT_RT */
 
 /*
  * osnoise_taint - report an osnoise error.
