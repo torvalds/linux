@@ -11480,6 +11480,10 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->fw_reset_timestamp = jiffies;
 		rtnl_lock();
+		if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
+			rtnl_unlock();
+			goto fw_reset_abort;
+		}
 		bnxt_fw_reset_close(bp);
 		if (bp->fw_cap & BNXT_FW_CAP_ERR_RECOVER_RELOAD) {
 			bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW_DOWN;
