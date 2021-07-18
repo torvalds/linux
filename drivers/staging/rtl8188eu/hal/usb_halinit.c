@@ -990,23 +990,16 @@ static void readAdapterInfo_8188EU(struct adapter *adapt)
 	Hal_ReadThermalMeter_88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 }
 
-static void _ReadPROMContent(struct adapter *Adapter)
+void rtw_hal_read_chip_info(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(Adapter);
-	u8 eeValue;
+	u8 eeValue = usb_read8(Adapter, REG_9346CR);
 
-	/* check system boot selection */
-	eeValue = usb_read8(Adapter, REG_9346CR);
-	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM) ? true : false;
-	eeprom->bautoload_fail_flag	= (eeValue & EEPROM_EN) ? false : true;
+	eeprom->EepromOrEfuse = (eeValue & BOOT_FROM_EEPROM) ? true : false;
+	eeprom->bautoload_fail_flag = (eeValue & EEPROM_EN) ? false : true;
 
 	Hal_InitPGData88E(Adapter);
 	readAdapterInfo_8188EU(Adapter);
-}
-
-void rtw_hal_read_chip_info(struct adapter *Adapter)
-{
-	_ReadPROMContent(Adapter);
 }
 
 #define GPIO_DEBUG_PORT_NUM 0
