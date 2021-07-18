@@ -33,7 +33,6 @@ enum pwrseq_cmd_delat_unit {
 
 struct wl_pwr_cfg {
 	u16 offset;
-	u8 cut_msk;
 	u8 cmd:4;
 	u8 msk;
 	u8 value;
