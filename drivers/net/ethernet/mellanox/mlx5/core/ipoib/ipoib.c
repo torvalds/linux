@@ -314,7 +314,6 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
-	struct ttc_params ttc_params = {};
 	int err;
 
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
@@ -330,8 +329,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
-	mlx5e_set_ttc_params(priv, &ttc_params, true);
-	err = mlx5_create_ttc_table(priv->mdev, &ttc_params, &priv->fs.ttc);
+	err = mlx5e_create_ttc_table(priv);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);
@@ -348,7 +346,7 @@ err_destroy_arfs_tables:
 
 static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
-	mlx5_destroy_ttc_table(&priv->fs.ttc);
+	mlx5e_destroy_ttc_table(priv);
 	mlx5e_arfs_destroy_tables(priv);
 }
 

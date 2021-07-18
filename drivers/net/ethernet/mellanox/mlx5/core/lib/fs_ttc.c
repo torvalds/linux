@@ -25,6 +25,20 @@
 					 MLX5_INNER_TTC_GROUP2_SIZE +\
 					 MLX5_INNER_TTC_GROUP3_SIZE)
 
+/* L3/L4 traffic type classifier */
+struct mlx5_ttc_table {
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+	struct mlx5_ttc_rule rules[MLX5_NUM_TT];
+	struct mlx5_flow_handle *tunnel_rules[MLX5_NUM_TUNNEL_TT];
+};
+
+struct mlx5_flow_table *mlx5_get_ttc_flow_table(struct mlx5_ttc_table *ttc)
+{
+	return ttc->t;
+}
+
 static void mlx5_cleanup_ttc_rules(struct mlx5_ttc_table *ttc)
 {
 	int i;
@@ -473,19 +487,23 @@ err:
 	return err;
 }
 
-int mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
-				struct ttc_params *params,
-				struct mlx5_ttc_table *ttc)
+struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
+						   struct ttc_params *params)
 {
+	struct mlx5_ttc_table *ttc;
 	int err;
+
+	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	if (!ttc)
+		return ERR_PTR(-ENOMEM);
 
 	WARN_ON_ONCE(params->ft_attr.max_fte);
 	params->ft_attr.max_fte = MLX5_INNER_TTC_TABLE_SIZE;
 	ttc->t = mlx5_create_flow_table(params->ns, &params->ft_attr);
 	if (IS_ERR(ttc->t)) {
 		err = PTR_ERR(ttc->t);
-		ttc->t = NULL;
-		return err;
+		kvfree(ttc);
+		return ERR_PTR(err);
 	}
 
 	err = mlx5_create_inner_ttc_table_groups(ttc);
@@ -496,11 +514,11 @@ int mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
 	if (err)
 		goto destroy_ft;
 
-	return 0;
+	return ttc;
 
 destroy_ft:
 	mlx5_destroy_ttc_table(ttc);
-	return err;
+	return ERR_PTR(err);
 }
 
 void mlx5_destroy_ttc_table(struct mlx5_ttc_table *ttc)
@@ -514,32 +532,31 @@ void mlx5_destroy_ttc_table(struct mlx5_ttc_table *ttc)
 		ttc->g[i] = NULL;
 	}
 
-	ttc->num_groups = 0;
 	kfree(ttc->g);
 	mlx5_destroy_flow_table(ttc->t);
-	ttc->t = NULL;
+	kvfree(ttc);
 }
 
-void mlx5_destroy_inner_ttc_table(struct mlx5_ttc_table *ttc)
-{
-	mlx5_destroy_ttc_table(ttc);
-}
-
-int mlx5_create_ttc_table(struct mlx5_core_dev *dev, struct ttc_params *params,
-			  struct mlx5_ttc_table *ttc)
+struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
+					     struct ttc_params *params)
 {
 	bool match_ipv_outer =
 		MLX5_CAP_FLOWTABLE_NIC_RX(dev,
 					  ft_field_support.outer_ip_version);
+	struct mlx5_ttc_table *ttc;
 	int err;
+
+	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	if (!ttc)
+		return ERR_PTR(-ENOMEM);
 
 	WARN_ON_ONCE(params->ft_attr.max_fte);
 	params->ft_attr.max_fte = MLX5_TTC_TABLE_SIZE;
 	ttc->t = mlx5_create_flow_table(params->ns, &params->ft_attr);
 	if (IS_ERR(ttc->t)) {
 		err = PTR_ERR(ttc->t);
-		ttc->t = NULL;
-		return err;
+		kvfree(ttc);
+		return ERR_PTR(err);
 	}
 
 	err = mlx5_create_ttc_table_groups(ttc, match_ipv_outer);
@@ -550,10 +567,11 @@ int mlx5_create_ttc_table(struct mlx5_core_dev *dev, struct ttc_params *params,
 	if (err)
 		goto destroy_ft;
 
-	return 0;
+	return ttc;
+
 destroy_ft:
 	mlx5_destroy_ttc_table(ttc);
-	return err;
+	return ERR_PTR(err);
 }
 
 int mlx5_ttc_fwd_dest(struct mlx5_ttc_table *ttc, enum mlx5_traffic_types type,

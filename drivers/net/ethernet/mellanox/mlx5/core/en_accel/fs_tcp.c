@@ -161,7 +161,7 @@ static int accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv,
 	fs_tcp = priv->fs.accel_tcp;
 	accel_fs_t = &fs_tcp->tables[type];
 
-	dest = mlx5_ttc_get_default_dest(&priv->fs.ttc, fs_accel2tt(type));
+	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, fs_accel2tt(type));
 	rule = mlx5_add_flow_rules(accel_fs_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -307,7 +307,7 @@ static int accel_fs_tcp_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++) {
 		/* Modify ttc rules destination to point back to the indir TIRs */
-		err = mlx5_ttc_fwd_default_dest(&priv->fs.ttc, fs_accel2tt(i));
+		err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, fs_accel2tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -329,7 +329,7 @@ static int accel_fs_tcp_enable(struct mlx5e_priv *priv)
 		dest.ft = priv->fs.accel_tcp->tables[i].t;
 
 		/* Modify ttc rules destination to point on the accel_fs FTs */
-		err = mlx5_ttc_fwd_dest(&priv->fs.ttc, fs_accel2tt(i), &dest);
+		err = mlx5_ttc_fwd_dest(priv->fs.ttc, fs_accel2tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",

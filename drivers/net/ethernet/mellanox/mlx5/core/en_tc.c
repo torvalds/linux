@@ -345,7 +345,7 @@ struct mlx5e_hairpin {
 	int num_channels;
 	struct mlx5e_rqt indir_rqt;
 	struct mlx5e_tir indir_tir[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5_ttc_table ttc;
+	struct mlx5_ttc_table *ttc;
 };
 
 struct mlx5e_hairpin_entry {
@@ -624,12 +624,15 @@ static int mlx5e_hairpin_rss_init(struct mlx5e_hairpin *hp)
 		goto err_create_indirect_tirs;
 
 	mlx5e_hairpin_set_ttc_params(hp, &ttc_params);
-	err = mlx5_create_ttc_table(priv->mdev, &ttc_params, &hp->ttc);
-	if (err)
+	hp->ttc = mlx5_create_ttc_table(priv->mdev, &ttc_params);
+	if (IS_ERR(hp->ttc)) {
+		err = PTR_ERR(hp->ttc);
 		goto err_create_ttc_table;
+	}
 
 	netdev_dbg(priv->netdev, "add hairpin: using %d channels rss ttc table id %x\n",
-		   hp->num_channels, hp->ttc.t->id);
+		   hp->num_channels,
+		   mlx5_get_ttc_flow_table(priv->fs.ttc)->id);
 
 	return 0;
 
@@ -643,7 +646,7 @@ err_create_indirect_tirs:
 
 static void mlx5e_hairpin_rss_cleanup(struct mlx5e_hairpin *hp)
 {
-	mlx5_destroy_ttc_table(&hp->ttc);
+	mlx5_destroy_ttc_table(hp->ttc);
 	mlx5e_hairpin_destroy_indirect_tirs(hp);
 	mlx5e_rqt_destroy(&hp->indir_rqt);
 }
@@ -887,7 +890,8 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 attach_flow:
 	if (hpe->hp->num_channels > 1) {
 		flow_flag_set(flow, HAIRPIN_RSS);
-		flow->attr->nic_attr->hairpin_ft = hpe->hp->ttc.t;
+		flow->attr->nic_attr->hairpin_ft =
+			mlx5_get_ttc_flow_table(hpe->hp->ttc);
 	} else {
 		flow->attr->nic_attr->hairpin_tirn = mlx5e_tir_get_tirn(&hpe->hp->direct_tir);
 	}

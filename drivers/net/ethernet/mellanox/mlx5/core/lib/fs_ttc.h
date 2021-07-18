@@ -37,14 +37,7 @@ struct mlx5_ttc_rule {
 	struct mlx5_flow_destination default_dest;
 };
 
-/* L3/L4 traffic type classifier */
-struct mlx5_ttc_table {
-	int num_groups;
-	struct mlx5_flow_table *t;
-	struct mlx5_flow_group **g;
-	struct mlx5_ttc_rule rules[MLX5_NUM_TT];
-	struct mlx5_flow_handle *tunnel_rules[MLX5_NUM_TUNNEL_TT];
-};
+struct mlx5_ttc_table;
 
 struct ttc_params {
 	struct mlx5_flow_namespace *ns;
@@ -54,14 +47,14 @@ struct ttc_params {
 	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
 };
 
-int mlx5_create_ttc_table(struct mlx5_core_dev *dev, struct ttc_params *params,
-			  struct mlx5_ttc_table *ttc);
+struct mlx5_flow_table *mlx5_get_ttc_flow_table(struct mlx5_ttc_table *ttc);
+
+struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
+					     struct ttc_params *params);
 void mlx5_destroy_ttc_table(struct mlx5_ttc_table *ttc);
 
-int mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
-				struct ttc_params *params,
-				struct mlx5_ttc_table *ttc);
-void mlx5_destroy_inner_ttc_table(struct mlx5_ttc_table *ttc);
+struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
+						   struct ttc_params *params);
 
 int mlx5_ttc_fwd_dest(struct mlx5_ttc_table *ttc, enum mlx5_traffic_types type,
 		      struct mlx5_flow_destination *new_dest);

@@ -124,7 +124,7 @@ static int fs_udp_add_default_rule(struct mlx5e_priv *priv, enum fs_udp_type typ
 	fs_udp = priv->fs.udp;
 	fs_udp_t = &fs_udp->tables[type];
 
-	dest = mlx5_ttc_get_default_dest(&priv->fs.ttc, fs_udp2tt(type));
+	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, fs_udp2tt(type));
 	rule = mlx5_add_flow_rules(fs_udp_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -259,7 +259,7 @@ static int fs_udp_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < FS_UDP_NUM_TYPES; i++) {
 		/* Modify ttc rules destination to point back to the indir TIRs */
-		err = mlx5_ttc_fwd_default_dest(&priv->fs.ttc, fs_udp2tt(i));
+		err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, fs_udp2tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -281,8 +281,7 @@ static int fs_udp_enable(struct mlx5e_priv *priv)
 		dest.ft = priv->fs.udp->tables[i].t;
 
 		/* Modify ttc rules destination to point on the accel_fs FTs */
-		err = mlx5_ttc_fwd_dest(&priv->fs.ttc, fs_udp2tt(i),
-					&dest);
+		err = mlx5_ttc_fwd_dest(priv->fs.ttc, fs_udp2tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
@@ -402,7 +401,7 @@ static int fs_any_add_default_rule(struct mlx5e_priv *priv)
 	fs_any = priv->fs.any;
 	fs_any_t = &fs_any->table;
 
-	dest = mlx5_ttc_get_default_dest(&priv->fs.ttc, MLX5_TT_ANY);
+	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, MLX5_TT_ANY);
 	rule = mlx5_add_flow_rules(fs_any_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -515,7 +514,7 @@ static int fs_any_disable(struct mlx5e_priv *priv)
 	int err;
 
 	/* Modify ttc rules destination to point back to the indir TIRs */
-	err = mlx5_ttc_fwd_default_dest(&priv->fs.ttc, MLX5_TT_ANY);
+	err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, MLX5_TT_ANY);
 	if (err) {
 		netdev_err(priv->netdev,
 			   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -534,7 +533,7 @@ static int fs_any_enable(struct mlx5e_priv *priv)
 	dest.ft = priv->fs.any->table.t;
 
 	/* Modify ttc rules destination to point on the accel_fs FTs */
-	err = mlx5_ttc_fwd_dest(&priv->fs.ttc, MLX5_TT_ANY, &dest);
+	err = mlx5_ttc_fwd_dest(priv->fs.ttc, MLX5_TT_ANY, &dest);
 	if (err) {
 		netdev_err(priv->netdev,
 			   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",

@@ -169,8 +169,8 @@ struct mlx5e_flow_steering {
 	struct mlx5e_promisc_table      promisc;
 	struct mlx5e_vlan_table         *vlan;
 	struct mlx5e_l2_table           l2;
-	struct mlx5_ttc_table           ttc;
-	struct mlx5_ttc_table           inner_ttc;
+	struct mlx5_ttc_table           *ttc;
+	struct mlx5_ttc_table           *inner_ttc;
 #ifdef CONFIG_MLX5_EN_ARFS
 	struct mlx5e_arfs_tables       *arfs;
 #endif
@@ -184,6 +184,9 @@ struct mlx5e_flow_steering {
 
 void mlx5e_set_ttc_params(struct mlx5e_priv *priv,
 			  struct ttc_params *ttc_params, bool tunnel);
+
+void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv);
+int mlx5e_create_ttc_table(struct mlx5e_priv *priv);
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 

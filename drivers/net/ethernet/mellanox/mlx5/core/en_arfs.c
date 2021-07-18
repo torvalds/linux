@@ -120,7 +120,7 @@ static int arfs_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < ARFS_NUM_TYPES; i++) {
 		/* Modify ttc rules destination back to their default */
-		err = mlx5_ttc_fwd_default_dest(&priv->fs.ttc, arfs_get_tt(i));
+		err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, arfs_get_tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -149,7 +149,7 @@ int mlx5e_arfs_enable(struct mlx5e_priv *priv)
 	for (i = 0; i < ARFS_NUM_TYPES; i++) {
 		dest.ft = priv->fs.arfs->arfs_tables[i].ft.t;
 		/* Modify ttc rules destination to point on the aRFS FTs */
-		err = mlx5_ttc_fwd_dest(&priv->fs.ttc, arfs_get_tt(i), &dest);
+		err = mlx5_ttc_fwd_dest(priv->fs.ttc, arfs_get_tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] dest to arfs, failed err(%d)\n",
