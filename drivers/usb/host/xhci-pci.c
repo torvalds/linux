@@ -449,8 +449,6 @@ static void xhci_pci_remove(struct pci_dev *dev)
 	struct xhci_hcd *xhci;
 
 	xhci = hcd_to_xhci(pci_get_drvdata(dev));
-	if (xhci->quirks & XHCI_RENESAS_FW_QUIRK)
-		renesas_xhci_pci_exit(dev);
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 

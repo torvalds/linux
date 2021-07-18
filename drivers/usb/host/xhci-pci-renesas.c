@@ -620,9 +620,4 @@ exit:
 }
 EXPORT_SYMBOL_GPL(renesas_xhci_check_request_fw);
 
-void renesas_xhci_pci_exit(struct pci_dev *dev)
-{
-}
-EXPORT_SYMBOL_GPL(renesas_xhci_pci_exit);
-
 MODULE_LICENSE("GPL v2");
