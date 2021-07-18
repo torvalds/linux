@@ -1075,9 +1075,13 @@ diff_osn_sample_stats(struct osnoise_variables *osn_var, struct osnoise_sample *
 /*
  * osnoise_stop_tracing - Stop tracing and the tracer.
  */
-static void osnoise_stop_tracing(void)
+static __always_inline void osnoise_stop_tracing(void)
 {
 	struct trace_array *tr = osnoise_trace;
+
+	trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_,
+			"stop tracing hit on cpu %d\n", smp_processor_id());
+
 	tracer_tracing_off(tr);
 }
 
