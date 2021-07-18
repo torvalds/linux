@@ -41,12 +41,10 @@ struct wl_pwr_cfg {
 };
 
 #define GET_PWR_CFG_OFFSET(__PWR_CMD)		__PWR_CMD.offset
-#define GET_PWR_CFG_CUT_MASK(__PWR_CMD)		__PWR_CMD.cut_msk
 #define GET_PWR_CFG_CMD(__PWR_CMD)		__PWR_CMD.cmd
 #define GET_PWR_CFG_MASK(__PWR_CMD)		__PWR_CMD.msk
 #define GET_PWR_CFG_VALUE(__PWR_CMD)		__PWR_CMD.value
 
-u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
-			    struct wl_pwr_cfg pwrcfgCmd[]);
+u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, struct wl_pwr_cfg pwrcfgCmd[]);
 
 #endif
