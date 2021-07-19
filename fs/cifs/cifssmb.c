@@ -199,7 +199,8 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	spin_lock(&ses->chan_lock);
 	if (!cifs_chan_needs_reconnect(ses, server)) {
 		spin_unlock(&ses->chan_lock);
-		/* this just means that we only need to tcon */
+
+		/* this means that we only need to tree connect */
 		if (tcon->need_reconnect)
 			goto skip_sess_setup;
 
@@ -209,9 +210,9 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	}
 	spin_unlock(&ses->chan_lock);
 
-	rc = cifs_negotiate_protocol(0, ses);
+	rc = cifs_negotiate_protocol(0, ses, server);
 	if (!rc)
-		rc = cifs_setup_session(0, ses, nls_codepage);
+		rc = cifs_setup_session(0, ses, server, nls_codepage);
 
 	/* do we need to reconnect tcon? */
 	if (rc || !tcon->need_reconnect) {
@@ -503,14 +504,15 @@ should_set_ext_sec_flag(enum securityEnum sectype)
 }
 
 int
-CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
+CIFSSMBNegotiate(const unsigned int xid,
+		 struct cifs_ses *ses,
+		 struct TCP_Server_Info *server)
 {
 	NEGOTIATE_REQ *pSMB;
 	NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
 	int i;
-	struct TCP_Server_Info *server = ses->server;
 	u16 count;
 
 	if (!server) {
