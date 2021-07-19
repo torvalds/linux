@@ -2979,7 +2979,7 @@ static void br_multicast_add_router(struct net_bridge_mcast *brmctx,
 	 * IPv4 or IPv6 multicast router.
 	 */
 	if (br_multicast_no_router_otherpf(pmctx, rlist)) {
-		br_rtr_notify(pmctx->port->br->dev, pmctx->port, RTM_NEWMDB);
+		br_rtr_notify(pmctx->port->br->dev, pmctx, RTM_NEWMDB);
 		br_port_mc_router_state_change(pmctx->port, true);
 	}
 }
@@ -4078,7 +4078,7 @@ br_multicast_rport_del_notify(struct net_bridge_mcast_port *pmctx, bool deleted)
 		return;
 #endif
 
-	br_rtr_notify(pmctx->port->br->dev, pmctx->port, RTM_DELMDB);
+	br_rtr_notify(pmctx->port->br->dev, pmctx, RTM_DELMDB);
 	br_port_mc_router_state_change(pmctx->port, false);
 
 	/* don't allow timer refresh */
