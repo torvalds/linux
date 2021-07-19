@@ -780,7 +780,7 @@ int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 		struct net_device *dst_dev;
 
 		dst_dev = dst ? dst->dev : br->dev;
-		if (dst_dev != br_dev && dst_dev != dev)
+		if (dst_dev && dst_dev != dev)
 			continue;
 
 		err = br_fdb_replay_one(nb, fdb, dst_dev, action, ctx);
