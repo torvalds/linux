@@ -909,6 +909,7 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on);
 void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on);
 int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
 				      struct netlink_ext_ack *extack);
+bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan, bool on);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
@@ -1281,6 +1282,12 @@ static inline int br_multicast_toggle_vlan_snooping(struct net_bridge *br,
 						    struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan,
+						   bool on)
+{
+	return false;
 }
 #endif
 

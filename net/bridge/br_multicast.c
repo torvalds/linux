@@ -3988,6 +3988,22 @@ int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
 	return 0;
 }
 
+bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan, bool on)
+{
+	ASSERT_RTNL();
+
+	/* BR_VLFLAG_GLOBAL_MCAST_ENABLED relies on eventual consistency and
+	 * requires only RTNL to change
+	 */
+	if (on == !!(vlan->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED))
+		return false;
+
+	vlan->priv_flags ^= BR_VLFLAG_GLOBAL_MCAST_ENABLED;
+	br_multicast_toggle_vlan(vlan, on);
+
+	return true;
+}
+
 void br_multicast_stop(struct net_bridge *br)
 {
 	ASSERT_RTNL();
