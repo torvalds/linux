@@ -259,17 +259,17 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 
 int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled)
 {
-	int rc, port;
+	int err, port;
 
 	ASSERT_RTNL();
 
 	for (port = 0; port < ctx->ds->num_ports; port++) {
-		rc = dsa_8021q_setup_port(ctx, port, enabled);
-		if (rc < 0) {
+		err = dsa_8021q_setup_port(ctx, port, enabled);
+		if (err < 0) {
 			dev_err(ctx->ds->dev,
 				"Failed to setup VLAN tagging for port %d: %d\n",
-				port, rc);
-			return rc;
+				port, err);
+			return err;
 		}
 	}
 
@@ -357,20 +357,20 @@ int dsa_8021q_crosschip_bridge_join(struct dsa_8021q_context *ctx, int port,
 	 * probably use dsa_towards_port.
 	 */
 	int other_upstream = dsa_upstream_port(other_ctx->ds, other_port);
-	int rc;
+	int err;
 
-	rc = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_port);
-	if (rc)
-		return rc;
+	err = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_port);
+	if (err)
+		return err;
 
-	rc = dsa_8021q_crosschip_link_apply(ctx, port, other_ctx,
-					    other_port, true);
-	if (rc)
-		return rc;
+	err = dsa_8021q_crosschip_link_apply(ctx, port, other_ctx,
+					     other_port, true);
+	if (err)
+		return err;
 
-	rc = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_upstream);
-	if (rc)
-		return rc;
+	err = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_upstream);
+	if (err)
+		return err;
 
 	return dsa_8021q_crosschip_link_apply(ctx, port, other_ctx,
 					      other_upstream, true);
@@ -391,18 +391,18 @@ int dsa_8021q_crosschip_bridge_leave(struct dsa_8021q_context *ctx, int port,
 			struct dsa_8021q_context *other_ctx = c->other_ctx;
 			int other_port = c->other_port;
 			bool keep;
-			int rc;
+			int err;
 
 			dsa_8021q_crosschip_link_del(ctx, c, &keep);
 			if (keep)
 				continue;
 
-			rc = dsa_8021q_crosschip_link_apply(ctx, port,
-							    other_ctx,
-							    other_port,
-							    false);
-			if (rc)
-				return rc;
+			err = dsa_8021q_crosschip_link_apply(ctx, port,
+							     other_ctx,
+							     other_port,
+							     false);
+			if (err)
+				return err;
 		}
 	}
 
