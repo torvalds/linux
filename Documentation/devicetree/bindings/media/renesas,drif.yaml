@@ -96,7 +96,7 @@ properties:
       Indicates that the channel acts as primary among the bonded channels.
 
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
     description:
       Child port node corresponding to the data input. The port node must
