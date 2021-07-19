@@ -82,11 +82,11 @@ properties:
     maxItems: 5
     contains:
       enum:
-      - ipg
-      - ahb
-      - ptp
-      - enet_clk_ref
-      - enet_out
+        - ipg
+        - ahb
+        - ptp
+        - enet_clk_ref
+        - enet_out
 
   phy-mode: true
 
