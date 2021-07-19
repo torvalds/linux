@@ -45,6 +45,18 @@ properties:
   resets:
     maxItems: 1
 
+  dmas:
+    minItems: 1
+    maxItems: 2
+
+  dma-names:
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+      - items:
+          - const: rt
+
   '#sound-dai-cells':
     const: 0
 
@@ -81,5 +93,8 @@ examples:
             clock-names = "ssi", "ssi_sfr", "audio_clk1", "audio_clk2";
             power-domains = <&cpg>;
             resets = <&cpg R9A07G044_SSI0_RST_M2_REG>;
+            dmas = <&dmac 0x255>,
+                   <&dmac 0x256>;
+            dma-names = "tx", "rx";
             #sound-dai-cells = <0>;
     };
