@@ -1061,6 +1061,7 @@ TRACE_EVENT(xprt_retransmit,
 		__field(u32, xid)
 		__field(int, ntrans)
 		__field(int, version)
+		__field(unsigned long, timeout)
 		__string(progname,
 			 rqst->rq_task->tk_client->cl_program->name)
 		__string(procname, rpc_proc_name(rqst->rq_task))
@@ -1074,6 +1075,7 @@ TRACE_EVENT(xprt_retransmit,
 			task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->ntrans = rqst->rq_ntrans;
+		__entry->timeout = task->tk_timeout;
 		__assign_str(progname,
 			     task->tk_client->cl_program->name);
 		__entry->version = task->tk_client->cl_vers;
@@ -1081,10 +1083,10 @@ TRACE_EVENT(xprt_retransmit,
 	),
 
 	TP_printk(
-		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d",
+		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d timeout=%lu",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__get_str(progname), __entry->version, __get_str(procname),
-		__entry->ntrans
+		__entry->ntrans, __entry->timeout
 	)
 );
 
