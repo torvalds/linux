@@ -31,6 +31,13 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
+	/*
+	 * Discard .note.gnu.property sections which are unused and have
+	 * different alignment requirement from vDSO note sections.
+	 */
+	/DISCARD/	: {
+		*(.note.GNU-stack .note.gnu.property)
+	}
 	.note		: { *(.note.*) }		:text	:note
 
 	. = ALIGN(16);
@@ -48,7 +55,6 @@ SECTIONS
 	PROVIDE(end = .);
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
 		*(.eh_frame .eh_frame_hdr)

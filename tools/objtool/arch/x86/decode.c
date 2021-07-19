@@ -11,22 +11,16 @@
 #include "../../../arch/x86/lib/inat.c"
 #include "../../../arch/x86/lib/insn.c"
 
+#define CONFIG_64BIT 1
+#include <asm/nops.h>
+
 #include <asm/orc_types.h>
 #include <objtool/check.h>
 #include <objtool/elf.h>
 #include <objtool/arch.h>
 #include <objtool/warn.h>
-
-static unsigned char op_to_cfi_reg[][2] = {
-	{CFI_AX, CFI_R8},
-	{CFI_CX, CFI_R9},
-	{CFI_DX, CFI_R10},
-	{CFI_BX, CFI_R11},
-	{CFI_SP, CFI_R12},
-	{CFI_BP, CFI_R13},
-	{CFI_SI, CFI_R14},
-	{CFI_DI, CFI_R15},
-};
+#include <objtool/endianness.h>
+#include <arch/elf.h>
 
 static int is_x86_64(const struct elf *elf)
 {
@@ -83,6 +77,31 @@ unsigned long arch_jump_destination(struct instruction *insn)
 		return -1; \
 	else for (list_add_tail(&op->list, ops_list); op; op = NULL)
 
+/*
+ * Helpers to decode ModRM/SIB:
+ *
+ * r/m| AX  CX  DX  BX |  SP |  BP |  SI  DI |
+ *    | R8  R9 R10 R11 | R12 | R13 | R14 R15 |
+ * Mod+----------------+-----+-----+---------+
+ * 00 |    [r/m]       |[SIB]|[IP+]|  [r/m]  |
+ * 01 |  [r/m + d8]    |[S+d]|   [r/m + d8]  |
+ * 10 |  [r/m + d32]   |[S+D]|   [r/m + d32] |
+ * 11 |                   r/ m               |
+ */
+
+#define mod_is_mem()	(modrm_mod != 3)
+#define mod_is_reg()	(modrm_mod == 3)
+
+#define is_RIP()   ((modrm_rm & 7) == CFI_BP && modrm_mod == 0)
+#define have_SIB() ((modrm_rm & 7) == CFI_SP && mod_is_mem())
+
+#define rm_is(reg) (have_SIB() ? \
+		    sib_base == (reg) && sib_index == CFI_SP : \
+		    modrm_rm == (reg))
+
+#define rm_is_mem(reg)	(mod_is_mem() && !is_RIP() && rm_is(reg))
+#define rm_is_reg(reg)	(mod_is_reg() && modrm_rm == (reg))
+
 int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
@@ -90,21 +109,22 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    struct list_head *ops_list)
 {
 	struct insn insn;
-	int x86_64, sign;
-	unsigned char op1, op2, rex = 0, rex_b = 0, rex_r = 0, rex_w = 0,
-		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
-		      modrm_reg = 0, sib = 0;
+	int x86_64, ret;
+	unsigned char op1, op2,
+		      rex = 0, rex_b = 0, rex_r = 0, rex_w = 0, rex_x = 0,
+		      modrm = 0, modrm_mod = 0, modrm_rm = 0, modrm_reg = 0,
+		      sib = 0, /* sib_scale = 0, */ sib_index = 0, sib_base = 0;
 	struct stack_op *op = NULL;
 	struct symbol *sym;
+	u64 imm;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
 		return -1;
 
-	insn_init(&insn, sec->data->d_buf + offset, maxlen, x86_64);
-	insn_get_length(&insn);
-
-	if (!insn_complete(&insn)) {
+	ret = insn_decode(&insn, sec->data->d_buf + offset, maxlen,
+			  x86_64 ? INSN_MODE_64 : INSN_MODE_32);
+	if (ret < 0) {
 		WARN("can't decode instruction at %s:0x%lx", sec->name, offset);
 		return -1;
 	}
@@ -129,23 +149,27 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 	if (insn.modrm.nbytes) {
 		modrm = insn.modrm.bytes[0];
 		modrm_mod = X86_MODRM_MOD(modrm);
-		modrm_reg = X86_MODRM_REG(modrm);
-		modrm_rm = X86_MODRM_RM(modrm);
+		modrm_reg = X86_MODRM_REG(modrm) + 8*rex_r;
+		modrm_rm  = X86_MODRM_RM(modrm)  + 8*rex_b;
 	}
 
-	if (insn.sib.nbytes)
+	if (insn.sib.nbytes) {
 		sib = insn.sib.bytes[0];
+		/* sib_scale = X86_SIB_SCALE(sib); */
+		sib_index = X86_SIB_INDEX(sib) + 8*rex_x;
+		sib_base  = X86_SIB_BASE(sib)  + 8*rex_b;
+	}
 
 	switch (op1) {
 
 	case 0x1:
 	case 0x29:
-		if (rex_w && !rex_b && modrm_mod == 3 && modrm_rm == 4) {
+		if (rex_w && rm_is_reg(CFI_SP)) {
 
 			/* add/sub reg, %rsp */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_ADD;
-				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->src.reg = modrm_reg;
 				op->dest.type = OP_DEST_REG;
 				op->dest.reg = CFI_SP;
 			}
@@ -157,7 +181,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		/* push reg */
 		ADD_OP(op) {
 			op->src.type = OP_SRC_REG;
-			op->src.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
+			op->src.reg = (op1 & 0x7) + 8*rex_b;
 			op->dest.type = OP_DEST_PUSH;
 		}
 
@@ -169,7 +193,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		ADD_OP(op) {
 			op->src.type = OP_SRC_POP;
 			op->dest.type = OP_DEST_REG;
-			op->dest.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
+			op->dest.reg = (op1 & 0x7) + 8*rex_b;
 		}
 
 		break;
@@ -187,12 +211,54 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		*type = INSN_JUMP_CONDITIONAL;
 		break;
 
-	case 0x81:
-	case 0x83:
-		if (rex != 0x48)
+	case 0x80 ... 0x83:
+		/*
+		 * 1000 00sw : mod OP r/m : immediate
+		 *
+		 * s - sign extend immediate
+		 * w - imm8 / imm32
+		 *
+		 * OP: 000 ADD    100 AND
+		 *     001 OR     101 SUB
+		 *     010 ADC    110 XOR
+		 *     011 SBB    111 CMP
+		 */
+
+		/* 64bit only */
+		if (!rex_w)
 			break;
 
-		if (modrm == 0xe4) {
+		/* %rsp target only */
+		if (!rm_is_reg(CFI_SP))
+			break;
+
+		imm = insn.immediate.value;
+		if (op1 & 2) { /* sign extend */
+			if (op1 & 1) { /* imm32 */
+				imm <<= 32;
+				imm = (s64)imm >> 32;
+			} else { /* imm8 */
+				imm <<= 56;
+				imm = (s64)imm >> 56;
+			}
+		}
+
+		switch (modrm_reg & 7) {
+		case 5:
+			imm = -imm;
+			/* fallthrough */
+		case 0:
+			/* add/sub imm, %rsp */
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_SP;
+				op->src.offset = imm;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
+			break;
+
+		case 4:
 			/* and imm, %rsp */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_AND;
@@ -202,53 +268,48 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->dest.reg = CFI_SP;
 			}
 			break;
-		}
 
-		if (modrm == 0xc4)
-			sign = 1;
-		else if (modrm == 0xec)
-			sign = -1;
-		else
+		default:
+			/* WARN ? */
 			break;
-
-		/* add/sub imm, %rsp */
-		ADD_OP(op) {
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = insn.immediate.value * sign;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
 		}
+
 		break;
 
 	case 0x89:
-		if (rex_w && !rex_r && modrm_reg == 4) {
+		if (!rex_w)
+			break;
 
-			if (modrm_mod == 3) {
+		if (modrm_reg == CFI_SP) {
+
+			if (mod_is_reg()) {
 				/* mov %rsp, reg */
 				ADD_OP(op) {
 					op->src.type = OP_SRC_REG;
 					op->src.reg = CFI_SP;
 					op->dest.type = OP_DEST_REG;
-					op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+					op->dest.reg = modrm_rm;
 				}
 				break;
 
 			} else {
-				/* skip nontrivial SIB */
-				if (modrm_rm == 4 && !(sib == 0x24 && rex_b == rex_x))
+				/* skip RIP relative displacement */
+				if (is_RIP())
 					break;
 
-				/* skip RIP relative displacement */
-				if (modrm_rm == 5 && modrm_mod == 0)
-					break;
+				/* skip nontrivial SIB */
+				if (have_SIB()) {
+					modrm_rm = sib_base;
+					if (sib_index != CFI_SP)
+						break;
+				}
 
 				/* mov %rsp, disp(%reg) */
 				ADD_OP(op) {
 					op->src.type = OP_SRC_REG;
 					op->src.reg = CFI_SP;
 					op->dest.type = OP_DEST_REG_INDIRECT;
-					op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+					op->dest.reg = modrm_rm;
 					op->dest.offset = insn.displacement.value;
 				}
 				break;
@@ -257,12 +318,12 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			break;
 		}
 
-		if (rex_w && !rex_b && modrm_mod == 3 && modrm_rm == 4) {
+		if (rm_is_reg(CFI_SP)) {
 
 			/* mov reg, %rsp */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_REG;
-				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->src.reg = modrm_reg;
 				op->dest.type = OP_DEST_REG;
 				op->dest.reg = CFI_SP;
 			}
@@ -271,13 +332,15 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 
 		/* fallthrough */
 	case 0x88:
-		if (!rex_b &&
-		    (modrm_mod == 1 || modrm_mod == 2) && modrm_rm == 5) {
+		if (!rex_w)
+			break;
+
+		if (rm_is_mem(CFI_BP)) {
 
 			/* mov reg, disp(%rbp) */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_REG;
-				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->src.reg = modrm_reg;
 				op->dest.type = OP_DEST_REG_INDIRECT;
 				op->dest.reg = CFI_BP;
 				op->dest.offset = insn.displacement.value;
@@ -285,12 +348,12 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			break;
 		}
 
-		if (rex_w && !rex_b && modrm_rm == 4 && sib == 0x24) {
+		if (rm_is_mem(CFI_SP)) {
 
 			/* mov reg, disp(%rsp) */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_REG;
-				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->src.reg = modrm_reg;
 				op->dest.type = OP_DEST_REG_INDIRECT;
 				op->dest.reg = CFI_SP;
 				op->dest.offset = insn.displacement.value;
@@ -301,7 +364,10 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		break;
 
 	case 0x8b:
-		if (rex_w && !rex_b && modrm_mod == 1 && modrm_rm == 5) {
+		if (!rex_w)
+			break;
+
+		if (rm_is_mem(CFI_BP)) {
 
 			/* mov disp(%rbp), reg */
 			ADD_OP(op) {
@@ -309,11 +375,12 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->src.reg = CFI_BP;
 				op->src.offset = insn.displacement.value;
 				op->dest.type = OP_DEST_REG;
-				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.reg = modrm_reg;
 			}
+			break;
+		}
 
-		} else if (rex_w && !rex_b && sib == 0x24 &&
-			   modrm_mod != 3 && modrm_rm == 4) {
+		if (rm_is_mem(CFI_SP)) {
 
 			/* mov disp(%rsp), reg */
 			ADD_OP(op) {
@@ -321,75 +388,48 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->src.reg = CFI_SP;
 				op->src.offset = insn.displacement.value;
 				op->dest.type = OP_DEST_REG;
-				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.reg = modrm_reg;
 			}
+			break;
 		}
 
 		break;
 
 	case 0x8d:
-		if (sib == 0x24 && rex_w && !rex_b && !rex_x) {
-
-			ADD_OP(op) {
-				if (!insn.displacement.value) {
-					/* lea (%rsp), reg */
-					op->src.type = OP_SRC_REG;
-				} else {
-					/* lea disp(%rsp), reg */
-					op->src.type = OP_SRC_ADD;
-					op->src.offset = insn.displacement.value;
-				}
-				op->src.reg = CFI_SP;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			}
-
-		} else if (rex == 0x48 && modrm == 0x65) {
-
-			/* lea disp(%rbp), %rsp */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_BP;
-				op->src.offset = insn.displacement.value;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
-
-		} else if (rex == 0x49 && modrm == 0x62 &&
-			   insn.displacement.value == -8) {
-
-			/*
-			 * lea -0x8(%r10), %rsp
-			 *
-			 * Restoring rsp back to its original value after a
-			 * stack realignment.
-			 */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_R10;
-				op->src.offset = -8;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
-
-		} else if (rex == 0x49 && modrm == 0x65 &&
-			   insn.displacement.value == -16) {
-
-			/*
-			 * lea -0x10(%r13), %rsp
-			 *
-			 * Restoring rsp back to its original value after a
-			 * stack realignment.
-			 */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_R13;
-				op->src.offset = -16;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
+		if (mod_is_reg()) {
+			WARN("invalid LEA encoding at %s:0x%lx", sec->name, offset);
+			break;
 		}
 
+		/* skip non 64bit ops */
+		if (!rex_w)
+			break;
+
+		/* skip RIP relative displacement */
+		if (is_RIP())
+			break;
+
+		/* skip nontrivial SIB */
+		if (have_SIB()) {
+			modrm_rm = sib_base;
+			if (sib_index != CFI_SP)
+				break;
+		}
+
+		/* lea disp(%src), %dst */
+		ADD_OP(op) {
+			op->src.offset = insn.displacement.value;
+			if (!op->src.offset) {
+				/* lea (%src), %dst */
+				op->src.type = OP_SRC_REG;
+			} else {
+				/* lea disp(%src), %dst */
+				op->src.type = OP_SRC_ADD;
+			}
+			op->src.reg = modrm_rm;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = modrm_reg;
+		}
 		break;
 
 	case 0x8f:
@@ -476,9 +516,17 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		 * mov bp, sp
 		 * pop bp
 		 */
-		ADD_OP(op)
-			op->dest.type = OP_DEST_LEAVE;
-
+		ADD_OP(op) {
+			op->src.type = OP_SRC_REG;
+			op->src.reg = CFI_BP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_SP;
+		}
+		ADD_OP(op) {
+			op->src.type = OP_SRC_POP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_BP;
+		}
 		break;
 
 	case 0xe3:
@@ -596,11 +644,11 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state)
 const char *arch_nop_insn(int len)
 {
 	static const char nops[5][5] = {
-		/* 1 */ { 0x90 },
-		/* 2 */ { 0x66, 0x90 },
-		/* 3 */ { 0x0f, 0x1f, 0x00 },
-		/* 4 */ { 0x0f, 0x1f, 0x40, 0x00 },
-		/* 5 */ { 0x0f, 0x1f, 0x44, 0x00, 0x00 },
+		{ BYTES_NOP1 },
+		{ BYTES_NOP2 },
+		{ BYTES_NOP3 },
+		{ BYTES_NOP4 },
+		{ BYTES_NOP5 },
 	};
 
 	if (len < 1 || len > 5) {
@@ -609,6 +657,126 @@ const char *arch_nop_insn(int len)
 	}
 
 	return nops[len-1];
+}
+
+/* asm/alternative.h ? */
+
+#define ALTINSTR_FLAG_INV	(1 << 15)
+#define ALT_NOT(feat)		((feat) | ALTINSTR_FLAG_INV)
+
+struct alt_instr {
+	s32 instr_offset;	/* original instruction */
+	s32 repl_offset;	/* offset to replacement instruction */
+	u16 cpuid;		/* cpuid bit set for replacement */
+	u8  instrlen;		/* length of original instruction */
+	u8  replacementlen;	/* length of new instruction */
+} __packed;
+
+static int elf_add_alternative(struct elf *elf,
+			       struct instruction *orig, struct symbol *sym,
+			       int cpuid, u8 orig_len, u8 repl_len)
+{
+	const int size = sizeof(struct alt_instr);
+	struct alt_instr *alt;
+	struct section *sec;
+	Elf_Scn *s;
+
+	sec = find_section_by_name(elf, ".altinstructions");
+	if (!sec) {
+		sec = elf_create_section(elf, ".altinstructions",
+					 SHF_WRITE, size, 0);
+
+		if (!sec) {
+			WARN_ELF("elf_create_section");
+			return -1;
+		}
+	}
+
+	s = elf_getscn(elf->elf, sec->idx);
+	if (!s) {
+		WARN_ELF("elf_getscn");
+		return -1;
+	}
+
+	sec->data = elf_newdata(s);
+	if (!sec->data) {
+		WARN_ELF("elf_newdata");
+		return -1;
+	}
+
+	sec->data->d_size = size;
+	sec->data->d_align = 1;
+
+	alt = sec->data->d_buf = malloc(size);
+	if (!sec->data->d_buf) {
+		perror("malloc");
+		return -1;
+	}
+	memset(sec->data->d_buf, 0, size);
+
+	if (elf_add_reloc_to_insn(elf, sec, sec->sh.sh_size,
+				  R_X86_64_PC32, orig->sec, orig->offset)) {
+		WARN("elf_create_reloc: alt_instr::instr_offset");
+		return -1;
+	}
+
+	if (elf_add_reloc(elf, sec, sec->sh.sh_size + 4,
+			  R_X86_64_PC32, sym, 0)) {
+		WARN("elf_create_reloc: alt_instr::repl_offset");
+		return -1;
+	}
+
+	alt->cpuid = bswap_if_needed(cpuid);
+	alt->instrlen = orig_len;
+	alt->replacementlen = repl_len;
+
+	sec->sh.sh_size += size;
+	sec->changed = true;
+
+	return 0;
+}
+
+#define X86_FEATURE_RETPOLINE                ( 7*32+12)
+
+int arch_rewrite_retpolines(struct objtool_file *file)
+{
+	struct instruction *insn;
+	struct reloc *reloc;
+	struct symbol *sym;
+	char name[32] = "";
+
+	list_for_each_entry(insn, &file->retpoline_call_list, call_node) {
+
+		if (insn->type != INSN_JUMP_DYNAMIC &&
+		    insn->type != INSN_CALL_DYNAMIC)
+			continue;
+
+		if (!strcmp(insn->sec->name, ".text.__x86.indirect_thunk"))
+			continue;
+
+		reloc = insn->reloc;
+
+		sprintf(name, "__x86_indirect_alt_%s_%s",
+			insn->type == INSN_JUMP_DYNAMIC ? "jmp" : "call",
+			reloc->sym->name + 21);
+
+		sym = find_symbol_by_name(file->elf, name);
+		if (!sym) {
+			sym = elf_create_undef_symbol(file->elf, name);
+			if (!sym) {
+				WARN("elf_create_undef_symbol");
+				return -1;
+			}
+		}
+
+		if (elf_add_alternative(file->elf, insn, sym,
+					ALT_NOT(X86_FEATURE_RETPOLINE), 5, 5)) {
+			WARN("elf_add_alternative");
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
@@ -645,4 +813,9 @@ int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
 	}
 
 	return 0;
+}
+
+bool arch_is_retpoline(struct symbol *sym)
+{
+	return !strncmp(sym->name, "__x86_indirect_", 15);
 }

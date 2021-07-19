@@ -2248,7 +2248,7 @@ int fc_slave_alloc(struct scsi_device *sdev)
 EXPORT_SYMBOL(fc_slave_alloc);
 
 /**
- * fc_fcp_destory() - Tear down the FCP layer for a given local port
+ * fc_fcp_destroy() - Tear down the FCP layer for a given local port
  * @lport: The local port that no longer needs the FCP layer
  */
 void fc_fcp_destroy(struct fc_lport *lport)

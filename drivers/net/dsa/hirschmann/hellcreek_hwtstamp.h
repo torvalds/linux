@@ -44,8 +44,8 @@ int hellcreek_port_hwtstamp_get(struct dsa_switch *ds, int port,
 
 bool hellcreek_port_rxtstamp(struct dsa_switch *ds, int port,
 			     struct sk_buff *clone, unsigned int type);
-bool hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone, unsigned int type);
+void hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
+			     struct sk_buff *skb);
 
 int hellcreek_get_ts_info(struct dsa_switch *ds, int port,
 			  struct ethtool_ts_info *info);

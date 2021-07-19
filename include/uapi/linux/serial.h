@@ -52,11 +52,11 @@ struct serial_struct {
 #define PORT_16450	2
 #define PORT_16550	3
 #define PORT_16550A	4
-#define PORT_CIRRUS     5	/* usurped by cyclades.c */
+#define PORT_CIRRUS     5
 #define PORT_16650	6
 #define PORT_16650V2	7
 #define PORT_16750	8
-#define PORT_STARTECH	9	/* usurped by cyclades.c */
+#define PORT_STARTECH	9
 #define PORT_16C950	10	/* Oxford Semiconductor */
 #define PORT_16654	11
 #define PORT_16850	12

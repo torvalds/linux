@@ -114,11 +114,11 @@ static inline void fadd(u64 *out, const u64 *f1, const u64 *f2)
 	);
 }
 
-/* Computes the field substraction of two field elements */
+/* Computes the field subtraction of two field elements */
 static inline void fsub(u64 *out, const u64 *f1, const u64 *f2)
 {
 	asm volatile(
-		/* Compute the raw substraction of f1-f2 */
+		/* Compute the raw subtraction of f1-f2 */
 		"  movq 0(%1), %%r8;"
 		"  subq 0(%2), %%r8;"
 		"  movq 8(%1), %%r9;"
@@ -135,7 +135,7 @@ static inline void fsub(u64 *out, const u64 *f1, const u64 *f2)
 		"  mov $38, %%rcx;"
 		"  cmovc %%rcx, %%rax;"
 
-		/* Step 2: Substract carry*38 from the original difference */
+		/* Step 2: Subtract carry*38 from the original difference */
 		"  sub %%rax, %%r8;"
 		"  sbb $0, %%r9;"
 		"  sbb $0, %%r10;"

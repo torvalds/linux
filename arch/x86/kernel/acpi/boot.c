@@ -830,7 +830,7 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
 /**
- * acpi_ioapic_registered - Check whether IOAPIC assoicatied with @gsi_base
+ * acpi_ioapic_registered - Check whether IOAPIC associated with @gsi_base
  *			    has been registered
  * @handle:	ACPI handle of the IOAPIC device
  * @gsi_base:	GSI base associated with the IOAPIC
@@ -1656,7 +1656,7 @@ static int __init parse_acpi(char *arg)
 	else if (strcmp(arg, "noirq") == 0) {
 		acpi_noirq_set();
 	}
-	/* "acpi=copy_dsdt" copys DSDT */
+	/* "acpi=copy_dsdt" copies DSDT */
 	else if (strcmp(arg, "copy_dsdt") == 0) {
 		acpi_gbl_copy_dsdt_locally = 1;
 	}

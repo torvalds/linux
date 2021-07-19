@@ -1,26 +1,29 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
-Support for Intel Camera Imaging ISP subsystem.
-Copyright (c) 2010 - 2015, Intel Corporation.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms and conditions of the GNU General Public License,
-version 2, as published by the Free Software Foundation.
-
-This program is distributed in the hope it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-*/
+/*
+ * Support for Intel Camera Imaging ISP subsystem.
+ * Copyright (c) 2010 - 2015, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ */
 
 #ifndef _ISP_TYPES_H_
 #define _ISP_TYPES_H_
 
-/* Workaround: hivecc complains about "tag "sh_css_3a_output" already declared"
-   without this extra decl. */
+/*
+ * Workaround: hivecc complains about "tag "sh_css_3a_output" already declared"
+ * without this extra decl.
+ */
 struct ia_css_3a_output;
 
-/* Input stream formats, these correspond to the MIPI formats and the way
+/*
+ * Input stream formats, these correspond to the MIPI formats and the way
  * the CSS receiver sends these to the input formatter.
  * The bit depth of each pixel element is stored in the global variable
  * isp_bits_per_pixel.
@@ -37,8 +40,10 @@ enum sh_stream_format {
 };
 
 struct s_isp_frames {
-	/* global variables that are written to by either the SP or the host,
-	   every ISP binary needs these. */
+	/*
+	 * Global variables that are written to by either the SP or the host,
+	 * every ISP binary needs these.
+	 */
 	/* output frame */
 	char *xmem_base_addr_y;
 	char *xmem_base_addr_uv;

@@ -23,6 +23,8 @@ properties:
         items:
           - enum:
               - ti,am654-evm
+              - siemens,iot2050-basic
+              - siemens,iot2050-advanced
           - const: ti,am654
 
       - description: K3 J721E SoC
@@ -32,6 +34,13 @@ properties:
       - description: K3 J7200 SoC
         items:
           - const: ti,j7200
+
+      - description: K3 AM642 SoC
+        items:
+          - enum:
+              - ti,am642-evm
+              - ti,am642-sk
+          - const: ti,am642
 
 additionalProperties: true
 

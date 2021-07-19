@@ -334,7 +334,7 @@ static void it821x_passthru_set_dmamode(struct ata_port *ap, struct ata_device *
 }
 
 /**
- *	it821x_passthru_dma_start	-	DMA start callback
+ *	it821x_passthru_bmdma_start	-	DMA start callback
  *	@qc: Command in progress
  *
  *	Usually drivers set the DMA timing at the point the set_dmamode call
@@ -357,7 +357,7 @@ static void it821x_passthru_bmdma_start(struct ata_queued_cmd *qc)
 }
 
 /**
- *	it821x_passthru_dma_stop	-	DMA stop callback
+ *	it821x_passthru_bmdma_stop	-	DMA stop callback
  *	@qc: ATA command
  *
  *	We loaded new timings in dma_start, as a result we need to restore

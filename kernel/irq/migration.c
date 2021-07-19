@@ -7,7 +7,7 @@
 
 /**
  * irq_fixup_move_pending - Cleanup irq move pending from a dying CPU
- * @desc:		Interrupt descpriptor to clean up
+ * @desc:		Interrupt descriptor to clean up
  * @force_clear:	If set clear the move pending bit unconditionally.
  *			If not set, clear it only when the dying CPU is the
  *			last one in the pending mask.

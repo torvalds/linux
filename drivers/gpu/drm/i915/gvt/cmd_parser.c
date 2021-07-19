@@ -948,11 +948,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 
 	/* below are all lri handlers */
 	vreg = &vgpu_vreg(s->vgpu, offset);
-	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
-		gvt_vgpu_err("%s access to non-render register (%x)\n",
-				cmd, offset);
-		return -EBADRQC;
-	}
 
 	if (is_cmd_update_pdps(offset, s) &&
 	    cmd_pdp_mmio_update_handler(s, offset, index))

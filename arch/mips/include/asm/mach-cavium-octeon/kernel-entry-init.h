@@ -157,4 +157,12 @@ octeon_main_processor:
 	.macro	smp_slave_setup
 	.endm
 
+#define USE_KEXEC_SMP_WAIT_FINAL
+	.macro  kexec_smp_wait_final
+	.set push
+	.set noreorder
+	synci		0($0)
+	.set pop
+	.endm
+
 #endif /* __ASM_MACH_CAVIUM_OCTEON_KERNEL_ENTRY_H */

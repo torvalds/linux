@@ -44,6 +44,28 @@
 	};
 };
 
+&enet {
+	nvmem-cells = <&base_mac_addr>;
+	nvmem-cell-names = "mac-address";
+};
+
+&usb_phy {
+	brcm,ioc = <1>;
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
 &ports {
 	port@0 {
 		label = "lan2";
@@ -65,6 +87,7 @@
 	port@7 {
 		label = "sw";
 		reg = <7>;
+		phy-mode = "rgmii";
 
 		fixed-link {
 			speed = <1000>;
@@ -105,13 +128,32 @@
 	#size-cells = <0>;
 
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "brcm,bcm4908-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
 		partition@0 {
+			compatible = "nvmem-cells";
 			label = "cferom";
 			reg = <0x0 0x100000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x100000>;
+
+			base_mac_addr: mac@106a0 {
+				reg = <0x106a0 0x6>;
+			};
+		};
+
+		partition@100000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x100000 0x5700000>;
+		};
+
+		partition@5800000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x5800000 0x5700000>;
 		};
 	};
 };

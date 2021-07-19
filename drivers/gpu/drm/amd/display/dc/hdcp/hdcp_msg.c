@@ -39,7 +39,7 @@
 #define HDCP14_KSV_SIZE 5
 #define HDCP14_MAX_KSV_FIFO_SIZE 127*HDCP14_KSV_SIZE
 
-static const bool hdcp_cmd_is_read[] = {
+static const bool hdcp_cmd_is_read[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_READ_BKSV] = true,
 	[HDCP_MESSAGE_ID_READ_RI_R0] = true,
 	[HDCP_MESSAGE_ID_READ_PJ] = true,
@@ -75,7 +75,7 @@ static const bool hdcp_cmd_is_read[] = {
 	[HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE] = false
 };
 
-static const uint8_t hdcp_i2c_offsets[] = {
+static const uint8_t hdcp_i2c_offsets[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_READ_BKSV] = 0x0,
 	[HDCP_MESSAGE_ID_READ_RI_R0] = 0x8,
 	[HDCP_MESSAGE_ID_READ_PJ] = 0xA,
@@ -106,7 +106,8 @@ static const uint8_t hdcp_i2c_offsets[] = {
 	[HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK] = 0x60,
 	[HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE] = 0x60,
 	[HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY] = 0x80,
-	[HDCP_MESSAGE_ID_READ_RXSTATUS] = 0x70
+	[HDCP_MESSAGE_ID_READ_RXSTATUS] = 0x70,
+	[HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE] = 0x0,
 };
 
 struct protection_properties {
@@ -184,7 +185,7 @@ static const struct protection_properties hdmi_14_protection = {
 	.process_transaction = hdmi_14_process_transaction
 };
 
-static const uint32_t hdcp_dpcd_addrs[] = {
+static const uint32_t hdcp_dpcd_addrs[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_READ_BKSV] = 0x68000,
 	[HDCP_MESSAGE_ID_READ_RI_R0] = 0x68005,
 	[HDCP_MESSAGE_ID_READ_PJ] = 0xFFFFFFFF,

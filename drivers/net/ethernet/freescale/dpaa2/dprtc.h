@@ -13,9 +13,6 @@
 
 struct fsl_mc_io;
 
-/**
- * Number of irq's
- */
 #define DPRTC_MAX_IRQ_NUM	1
 #define DPRTC_IRQ_INDEX		0
 

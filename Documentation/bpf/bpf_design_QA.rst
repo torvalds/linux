@@ -258,3 +258,18 @@ Q: Can BPF functionality such as new program or map types, new
 helpers, etc be added out of kernel module code?
 
 A: NO.
+
+Q: Directly calling kernel function is an ABI?
+----------------------------------------------
+Q: Some kernel functions (e.g. tcp_slow_start) can be called
+by BPF programs.  Do these kernel functions become an ABI?
+
+A: NO.
+
+The kernel function protos will change and the bpf programs will be
+rejected by the verifier.  Also, for example, some of the bpf-callable
+kernel functions have already been used by other kernel tcp
+cc (congestion-control) implementations.  If any of these kernel
+functions has changed, both the in-tree and out-of-tree kernel tcp cc
+implementations have to be changed.  The same goes for the bpf
+programs and they have to be adjusted accordingly.

@@ -45,7 +45,7 @@ overlay devices.
 
 .. c:type:: v4l2_cropcap
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_cropcap
     :header-rows:  0
@@ -96,7 +96,7 @@ overlay devices.
 
 .. _v4l2-rect-crop:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_rect
     :header-rows:  0

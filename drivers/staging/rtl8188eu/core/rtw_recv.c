@@ -1029,8 +1029,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	int ret = _SUCCESS;
 
 	bretry = GetRetry(ptr);
-	pda = get_da(ptr);
-	psa = get_sa(ptr);
+	pda = ieee80211_get_DA((struct ieee80211_hdr *)ptr);
+	psa = ieee80211_get_SA((struct ieee80211_hdr *)ptr);
 	pbssid = get_hdr_bssid(ptr);
 
 	if (!pbssid) {
@@ -1962,27 +1962,18 @@ exit:
 	return ret;
 }
 
-s32 rtw_recv_entry(struct recv_frame *precvframe)
+int rtw_recv_entry(struct recv_frame *precvframe)
 {
-	struct adapter *padapter;
-	struct recv_priv *precvpriv;
-	s32 ret = _SUCCESS;
-
-	padapter = precvframe->adapter;
-
-	precvpriv = &padapter->recvpriv;
+	struct adapter *padapter = precvframe->adapter;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
+	int ret;
 
 	ret = recv_func(padapter, precvframe);
-	if (ret == _FAIL) {
+	if (ret == _SUCCESS)
+		precvpriv->rx_pkts++;
+	else
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("%s: recv_func return fail!!!\n", __func__));
-		goto _recv_entry_drop;
-	}
 
-	precvpriv->rx_pkts++;
-
-	return ret;
-
-_recv_entry_drop:
 	return ret;
 }
 

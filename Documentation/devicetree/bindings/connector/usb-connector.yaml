@@ -149,6 +149,17 @@ properties:
     maxItems: 6
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
+  sink-vdos-v1:
+    description: An array of u32 with each entry, a Vendor Defined Message Object (VDO),
+      providing additional information corresponding to the product, the detailed bit
+      definitions and the order of each VDO can be found in
+      "USB Power Delivery Specification Revision 2.0, Version 1.3" chapter 6.4.4.3.1 Discover
+      Identity. User can specify the VDO array via VDO_IDH/_CERT/_PRODUCT/_CABLE/_AMA defined in
+      dt-bindings/usb/pd.h.
+    minItems: 3
+    maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't
       offer the power, Capability Mismatch is set. Required for power sink and
@@ -196,6 +207,20 @@ properties:
       "3" refers to 3.0A@5V.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 3]
+
+  slow-charger-loop:
+    description: Allows PMIC charger loops which are slow(i.e. cannot meet the 15ms deadline) to
+      still comply to pSnkStby i.e Maximum power that can be consumed by sink while in Sink Standby
+      state as defined in 7.4.2 Sink Electrical Parameters of USB Power Delivery Specification
+      Revision 3.0, Version 1.2. When the property is set, the port requests pSnkStby(2.5W -
+      5V@500mA) upon entering SNK_DISCOVERY(instead of 3A or the 1.5A, Rp current advertised, during
+      SNK_DISCOVERY) and the actual currrent limit after reception of PS_Ready for PD link or during
+      SNK_READY for non-pd link.
+    type: boolean
+
+dependencies:
+  sink-vdos-v1: [ 'sink-vdos' ]
+  sink-vdos: [ 'sink-vdos-v1' ]
 
 required:
   - compatible

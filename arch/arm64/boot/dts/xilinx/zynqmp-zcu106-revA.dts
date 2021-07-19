@@ -581,25 +581,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
-			si5328: clock-generator@69 {/* SI5328 - u20 */
-				reg = <0x69>;
-				/*
-				 * Chip has interrupt present connected to PL
-				 * interrupt-parent = <&>;
-				 * interrupts = <>;
-				 */
-				#address-cells = <1>;
-				#size-cells = <0>;
-				#clock-cells = <1>;
-				clocks = <&refhdmi>;
-				clock-names = "xtal";
-				clock-output-names = "si5328";
-
-				si5328_clk: clk0@0 {
-					reg = <0>;
-					clock-frequency = <27000000>;
-				};
-			};
+			/* SI5328 - u20 */
 		};
 		i2c@5 {
 			#address-cells = <1>;

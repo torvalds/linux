@@ -26,13 +26,6 @@
 		};
 	};
 
-	pmu {
-		compatible = "arm,cortex-a9-pmu";
-		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-		ti,hwmods = "debugss";
-	};
-
 	thermal-zones {
 		#include "omap4-cpu-thermal.dtsi"
 	};
@@ -126,6 +119,12 @@
 		 <0x0002a000 0x0002a000 0x00002000>,
 		 <0x0002c000 0x0002c000 0x00004000>,
 		 <0x00030000 0x00030000 0x00010000>;
+};
+
+&pmu {
+	compatible = "arm,cortex-a9-pmu";
+	interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 /include/ "omap446x-clocks.dtsi"

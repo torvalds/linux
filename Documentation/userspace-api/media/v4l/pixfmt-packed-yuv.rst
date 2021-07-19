@@ -36,10 +36,10 @@ Cb\ :sub:`5-0` Cr\ :sub:`4-0`], and stored in memory in two bytes,
 .. raw:: latex
 
     \begingroup
-    \tiny
+    \scriptsize
     \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{2.5cm}|p{0.69cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|
+.. tabularcolumns:: |p{3.5cm}|p{0.96cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|p{0.52cm}|
 
 .. flat-table:: Packed YUV 4:4:4 Image Formats (less than 8bpc)
     :header-rows:  2
@@ -220,6 +220,16 @@ the second byte and Y'\ :sub:`7-0` in the third byte.
       - Y'\ :sub:`7-0`
       - X\ :sub:`7-0`
 
+    * .. _V4L2-PIX-FMT-YUV24:
+
+      - ``V4L2_PIX_FMT_YUV24``
+      - 'YUV3'
+
+      - Y'\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Cr\ :sub:`7-0`
+      - -\
+
 .. note::
 
     - The alpha component is expected to contain a meaningful value that can be
@@ -233,6 +243,12 @@ the second byte and Y'\ :sub:`7-0` in the third byte.
 
 These formats, commonly referred to as YUYV or YUY2, subsample the chroma
 components horizontally by 2, storing 2 pixels in 4 bytes.
+
+.. raw:: latex
+
+    \footnotesize
+
+.. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
 
 .. flat-table:: Packed YUV 4:2:2 Formats
     :header-rows: 1
@@ -301,6 +317,10 @@ components horizontally by 2, storing 2 pixels in 4 bytes.
       - Y'\ :sub:`3`
       - Cb\ :sub:`2`
 
+.. raw:: latex
+
+    \normalsize
+
 **Color Sample Location:**
 Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`
 horizontally.
@@ -311,6 +331,12 @@ horizontally.
 
 This format subsamples the chroma components horizontally by 4, storing 8
 pixels in 12 bytes.
+
+.. raw:: latex
+
+    \scriptsize
+
+.. tabularcolumns:: |p{2.9cm}|p{0.8cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|
 
 .. flat-table:: Packed YUV 4:1:1 Formats
     :header-rows: 1
@@ -348,11 +374,15 @@ pixels in 12 bytes.
       - Y'\ :sub:`6`
       - Y'\ :sub:`7`
 
+.. raw:: latex
+
+    \normalsize
+
 .. note::
 
     Do not confuse ``V4L2_PIX_FMT_Y41P`` with
     :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>`. Y41P is derived from
-    "YUV 4:1:1 *packed*", while YUV411P stands for "YUV 4:1:1 *planar*".
+    "YUV 4:1:1 **packed**", while YUV411P stands for "YUV 4:1:1 **planar**".
 
 **Color Sample Location:**
 Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`

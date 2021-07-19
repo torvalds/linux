@@ -109,7 +109,8 @@ struct snd_dice {
 	struct fw_iso_resources rx_resources[MAX_STREAMS];
 	struct amdtp_stream tx_stream[MAX_STREAMS];
 	struct amdtp_stream rx_stream[MAX_STREAMS];
-	bool global_enabled;
+	bool global_enabled:1;
+	bool disable_double_pcm_frames:1;
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
 

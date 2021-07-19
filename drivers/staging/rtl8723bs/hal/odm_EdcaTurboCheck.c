@@ -31,7 +31,7 @@ static u32 edca_setting_DL[HT_IOT_PEER_MAX] = {
 
 void ODM_EdcaTurboInit(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct adapter *Adapter = pDM_Odm->Adapter;
 
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
@@ -58,7 +58,7 @@ void odm_EdcaTurboCheck(void *pDM_VOID)
 	 *  operate at the same time. In stage2/3, we need to prove universal
 	 *  interface and merge all HW dynamic mechanism.
 	 */
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
 		     ("odm_EdcaTurboCheck ========================>\n"));
@@ -73,7 +73,7 @@ void odm_EdcaTurboCheck(void *pDM_VOID)
 
 void odm_EdcaTurboCheckCE(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(Adapter);
 	struct recv_priv *precvpriv = &(Adapter->recvpriv);

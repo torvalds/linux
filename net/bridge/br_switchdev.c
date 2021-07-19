@@ -107,48 +107,28 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 	return 0;
 }
 
-static void
-br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
-				u16 vid, struct net_device *dev,
-				bool added_by_user, bool offloaded)
-{
-	struct switchdev_notifier_fdb_info info;
-	unsigned long notifier_type;
-
-	info.addr = mac;
-	info.vid = vid;
-	info.added_by_user = added_by_user;
-	info.offloaded = offloaded;
-	notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_DEVICE : SWITCHDEV_FDB_DEL_TO_DEVICE;
-	call_switchdev_notifiers(notifier_type, dev, &info.info, NULL);
-}
-
 void
 br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 {
+	struct switchdev_notifier_fdb_info info = {
+		.addr = fdb->key.addr.addr,
+		.vid = fdb->key.vlan_id,
+		.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags),
+		.is_local = test_bit(BR_FDB_LOCAL, &fdb->flags),
+		.offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags),
+	};
+
 	if (!fdb->dst)
-		return;
-	if (test_bit(BR_FDB_LOCAL, &fdb->flags))
 		return;
 
 	switch (type) {
 	case RTM_DELNEIGH:
-		br_switchdev_fdb_call_notifiers(false, fdb->key.addr.addr,
-						fdb->key.vlan_id,
-						fdb->dst->dev,
-						test_bit(BR_FDB_ADDED_BY_USER,
-							 &fdb->flags),
-						test_bit(BR_FDB_OFFLOADED,
-							 &fdb->flags));
+		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_DEVICE,
+					 fdb->dst->dev, &info.info, NULL);
 		break;
 	case RTM_NEWNEIGH:
-		br_switchdev_fdb_call_notifiers(true, fdb->key.addr.addr,
-						fdb->key.vlan_id,
-						fdb->dst->dev,
-						test_bit(BR_FDB_ADDED_BY_USER,
-							 &fdb->flags),
-						test_bit(BR_FDB_OFFLOADED,
-							 &fdb->flags));
+		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_DEVICE,
+					 fdb->dst->dev, &info.info, NULL);
 		break;
 	}
 }

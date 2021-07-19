@@ -22,6 +22,7 @@
  */
 #include "umc_v6_1.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_umc.h"
 #include "amdgpu.h"
 
 #include "rsmu/rsmu_0_0_2_offset.h"
@@ -464,9 +465,10 @@ static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 		umc_v6_1_enable_umc_index_mode(adev);
 }
 
-const struct amdgpu_umc_funcs umc_v6_1_funcs = {
+const struct amdgpu_umc_ras_funcs umc_v6_1_ras_funcs = {
 	.err_cnt_init = umc_v6_1_err_cnt_init,
 	.ras_late_init = amdgpu_umc_ras_late_init,
+	.ras_fini = amdgpu_umc_ras_fini,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
 };

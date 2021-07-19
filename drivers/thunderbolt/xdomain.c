@@ -12,17 +12,19 @@
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/prandom.h>
 #include <linux/utsname.h>
 #include <linux/uuid.h>
 #include <linux/workqueue.h>
 
 #include "tb.h"
 
-#define XDOMAIN_DEFAULT_TIMEOUT			5000 /* ms */
+#define XDOMAIN_DEFAULT_TIMEOUT			1000 /* ms */
 #define XDOMAIN_UUID_RETRIES			10
-#define XDOMAIN_PROPERTIES_RETRIES		60
+#define XDOMAIN_PROPERTIES_RETRIES		10
 #define XDOMAIN_PROPERTIES_CHANGED_RETRIES	10
 #define XDOMAIN_BONDING_WAIT			100  /* ms */
+#define XDOMAIN_DEFAULT_MAX_HOPID		15
 
 struct xdomain_request_work {
 	struct work_struct work;
@@ -34,13 +36,15 @@ static bool tb_xdomain_enabled = true;
 module_param_named(xdomain, tb_xdomain_enabled, bool, 0444);
 MODULE_PARM_DESC(xdomain, "allow XDomain protocol (default: true)");
 
-/* Serializes access to the properties and protocol handlers below */
+/*
+ * Serializes access to the properties and protocol handlers below. If
+ * you need to take both this lock and the struct tb_xdomain lock, take
+ * this one first.
+ */
 static DEFINE_MUTEX(xdomain_lock);
 
 /* Properties exposed to the remote domains */
 static struct tb_property_dir *xdomain_property_dir;
-static u32 *xdomain_property_block;
-static u32 xdomain_property_block_len;
 static u32 xdomain_property_block_gen;
 
 /* Additional protocol handlers */
@@ -385,8 +389,7 @@ err:
 }
 
 static int tb_xdp_properties_response(struct tb *tb, struct tb_ctl *ctl,
-	u64 route, u8 sequence, const uuid_t *src_uuid,
-	const struct tb_xdp_properties *req)
+	struct tb_xdomain *xd, u8 sequence, const struct tb_xdp_properties *req)
 {
 	struct tb_xdp_properties_response *res;
 	size_t total_size;
@@ -398,39 +401,39 @@ static int tb_xdp_properties_response(struct tb *tb, struct tb_ctl *ctl,
 	 * protocol supports forwarding, though which we might add
 	 * support later on.
 	 */
-	if (!uuid_equal(src_uuid, &req->dst_uuid)) {
-		tb_xdp_error_response(ctl, route, sequence,
+	if (!uuid_equal(xd->local_uuid, &req->dst_uuid)) {
+		tb_xdp_error_response(ctl, xd->route, sequence,
 				      ERROR_UNKNOWN_DOMAIN);
 		return 0;
 	}
 
-	mutex_lock(&xdomain_lock);
+	mutex_lock(&xd->lock);
 
-	if (req->offset >= xdomain_property_block_len) {
-		mutex_unlock(&xdomain_lock);
+	if (req->offset >= xd->local_property_block_len) {
+		mutex_unlock(&xd->lock);
 		return -EINVAL;
 	}
 
-	len = xdomain_property_block_len - req->offset;
+	len = xd->local_property_block_len - req->offset;
 	len = min_t(u16, len, TB_XDP_PROPERTIES_MAX_DATA_LENGTH);
 	total_size = sizeof(*res) + len * 4;
 
 	res = kzalloc(total_size, GFP_KERNEL);
 	if (!res) {
-		mutex_unlock(&xdomain_lock);
+		mutex_unlock(&xd->lock);
 		return -ENOMEM;
 	}
 
-	tb_xdp_fill_header(&res->hdr, route, sequence, PROPERTIES_RESPONSE,
+	tb_xdp_fill_header(&res->hdr, xd->route, sequence, PROPERTIES_RESPONSE,
 			   total_size);
-	res->generation = xdomain_property_block_gen;
-	res->data_length = xdomain_property_block_len;
+	res->generation = xd->local_property_block_gen;
+	res->data_length = xd->local_property_block_len;
 	res->offset = req->offset;
-	uuid_copy(&res->src_uuid, src_uuid);
+	uuid_copy(&res->src_uuid, xd->local_uuid);
 	uuid_copy(&res->dst_uuid, &req->src_uuid);
-	memcpy(res->data, &xdomain_property_block[req->offset], len * 4);
+	memcpy(res->data, &xd->local_property_block[req->offset], len * 4);
 
-	mutex_unlock(&xdomain_lock);
+	mutex_unlock(&xd->lock);
 
 	ret = __tb_xdomain_response(ctl, res, total_size,
 				    TB_CFG_PKG_XDOMAIN_RESP);
@@ -512,52 +515,63 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler)
 }
 EXPORT_SYMBOL_GPL(tb_unregister_protocol_handler);
 
-static int rebuild_property_block(void)
+static void update_property_block(struct tb_xdomain *xd)
 {
-	u32 *block, len;
-	int ret;
-
-	ret = tb_property_format_dir(xdomain_property_dir, NULL, 0);
-	if (ret < 0)
-		return ret;
-
-	len = ret;
-
-	block = kcalloc(len, sizeof(u32), GFP_KERNEL);
-	if (!block)
-		return -ENOMEM;
-
-	ret = tb_property_format_dir(xdomain_property_dir, block, len);
-	if (ret) {
-		kfree(block);
-		return ret;
-	}
-
-	kfree(xdomain_property_block);
-	xdomain_property_block = block;
-	xdomain_property_block_len = len;
-	xdomain_property_block_gen++;
-
-	return 0;
-}
-
-static void finalize_property_block(void)
-{
-	const struct tb_property *nodename;
-
-	/*
-	 * On first XDomain connection we set up the the system
-	 * nodename. This delayed here because userspace may not have it
-	 * set when the driver is first probed.
-	 */
 	mutex_lock(&xdomain_lock);
-	nodename = tb_property_find(xdomain_property_dir, "deviceid",
-				    TB_PROPERTY_TYPE_TEXT);
-	if (!nodename) {
-		tb_property_add_text(xdomain_property_dir, "deviceid",
-				     utsname()->nodename);
-		rebuild_property_block();
+	mutex_lock(&xd->lock);
+	/*
+	 * If the local property block is not up-to-date, rebuild it now
+	 * based on the global property template.
+	 */
+	if (!xd->local_property_block ||
+	    xd->local_property_block_gen < xdomain_property_block_gen) {
+		struct tb_property_dir *dir;
+		int ret, block_len;
+		u32 *block;
+
+		dir = tb_property_copy_dir(xdomain_property_dir);
+		if (!dir) {
+			dev_warn(&xd->dev, "failed to copy properties\n");
+			goto out_unlock;
+		}
+
+		/* Fill in non-static properties now */
+		tb_property_add_text(dir, "deviceid", utsname()->nodename);
+		tb_property_add_immediate(dir, "maxhopid", xd->local_max_hopid);
+
+		ret = tb_property_format_dir(dir, NULL, 0);
+		if (ret < 0) {
+			dev_warn(&xd->dev, "local property block creation failed\n");
+			tb_property_free_dir(dir);
+			goto out_unlock;
+		}
+
+		block_len = ret;
+		block = kcalloc(block_len, sizeof(*block), GFP_KERNEL);
+		if (!block) {
+			tb_property_free_dir(dir);
+			goto out_unlock;
+		}
+
+		ret = tb_property_format_dir(dir, block, block_len);
+		if (ret) {
+			dev_warn(&xd->dev, "property block generation failed\n");
+			tb_property_free_dir(dir);
+			kfree(block);
+			goto out_unlock;
+		}
+
+		tb_property_free_dir(dir);
+		/* Release the previous block */
+		kfree(xd->local_property_block);
+		/* Assign new one */
+		xd->local_property_block = block;
+		xd->local_property_block_len = block_len;
+		xd->local_property_block_gen = xdomain_property_block_gen;
 	}
+
+out_unlock:
+	mutex_unlock(&xd->lock);
 	mutex_unlock(&xdomain_lock);
 }
 
@@ -568,6 +582,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 	const struct tb_xdomain_header *xhdr = &pkg->xd_hdr;
 	struct tb *tb = xw->tb;
 	struct tb_ctl *ctl = tb->ctl;
+	struct tb_xdomain *xd;
 	const uuid_t *uuid;
 	int ret = 0;
 	u32 sequence;
@@ -589,17 +604,21 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		goto out;
 	}
 
-	finalize_property_block();
+	tb_dbg(tb, "%llx: received XDomain request %#x\n", route, pkg->type);
+
+	xd = tb_xdomain_find_by_route_locked(tb, route);
+	if (xd)
+		update_property_block(xd);
 
 	switch (pkg->type) {
 	case PROPERTIES_REQUEST:
-		ret = tb_xdp_properties_response(tb, ctl, route, sequence, uuid,
-			(const struct tb_xdp_properties *)pkg);
+		if (xd) {
+			ret = tb_xdp_properties_response(tb, ctl, xd, sequence,
+				(const struct tb_xdp_properties *)pkg);
+		}
 		break;
 
-	case PROPERTIES_CHANGED_REQUEST: {
-		struct tb_xdomain *xd;
-
+	case PROPERTIES_CHANGED_REQUEST:
 		ret = tb_xdp_properties_changed_response(ctl, route, sequence);
 
 		/*
@@ -607,17 +626,11 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		 * the xdomain related to this connection as well in
 		 * case there is a change in services it offers.
 		 */
-		xd = tb_xdomain_find_by_route_locked(tb, route);
-		if (xd) {
-			if (device_is_registered(&xd->dev)) {
-				queue_delayed_work(tb->wq, &xd->get_properties_work,
-						   msecs_to_jiffies(50));
-			}
-			tb_xdomain_put(xd);
+		if (xd && device_is_registered(&xd->dev)) {
+			queue_delayed_work(tb->wq, &xd->get_properties_work,
+					   msecs_to_jiffies(50));
 		}
-
 		break;
-	}
 
 	case UUID_REQUEST_OLD:
 	case UUID_REQUEST:
@@ -629,6 +642,8 @@ static void tb_xdp_handle_request(struct work_struct *work)
 				      ERROR_NOT_SUPPORTED);
 		break;
 	}
+
+	tb_xdomain_put(xd);
 
 	if (ret) {
 		tb_warn(tb, "failed to send XDomain response for %#x\n",
@@ -811,7 +826,7 @@ static int remove_missing_service(struct device *dev, void *data)
 	if (!svc)
 		return 0;
 
-	if (!tb_property_find(xd->properties, svc->key,
+	if (!tb_property_find(xd->remote_properties, svc->key,
 			      TB_PROPERTY_TYPE_DIRECTORY))
 		device_unregister(dev);
 
@@ -871,7 +886,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 	device_for_each_child_reverse(&xd->dev, xd, remove_missing_service);
 
 	/* Then re-enumerate properties creating new services as we go */
-	tb_property_for_each(xd->properties, p) {
+	tb_property_for_each(xd->remote_properties, p) {
 		if (p->type != TB_PROPERTY_TYPE_DIRECTORY)
 			continue;
 
@@ -928,6 +943,14 @@ static int populate_properties(struct tb_xdomain *xd,
 		return -EINVAL;
 	xd->vendor = p->value.immediate;
 
+	p = tb_property_find(dir, "maxhopid", TB_PROPERTY_TYPE_VALUE);
+	/*
+	 * USB4 inter-domain spec suggests using 15 as HopID if the
+	 * other end does not announce it in a property. This is for
+	 * TBT3 compatibility.
+	 */
+	xd->remote_max_hopid = p ? p->value.immediate : XDOMAIN_DEFAULT_MAX_HOPID;
+
 	kfree(xd->device_name);
 	xd->device_name = NULL;
 	kfree(xd->vendor_name);
@@ -942,19 +965,6 @@ static int populate_properties(struct tb_xdomain *xd,
 		xd->vendor_name = kstrdup(p->value.text, GFP_KERNEL);
 
 	return 0;
-}
-
-/* Called with @xd->lock held */
-static void tb_xdomain_restore_paths(struct tb_xdomain *xd)
-{
-	if (!xd->resume)
-		return;
-
-	xd->resume = false;
-	if (xd->transmit_path) {
-		dev_dbg(&xd->dev, "re-establishing DMA path\n");
-		tb_domain_approve_xdomain_paths(xd->tb, xd);
-	}
 }
 
 static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
@@ -1002,9 +1012,12 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 	uuid_t uuid;
 	int ret;
 
+	dev_dbg(&xd->dev, "requesting remote UUID\n");
+
 	ret = tb_xdp_uuid_request(tb->ctl, xd->route, xd->uuid_retries, &uuid);
 	if (ret < 0) {
 		if (xd->uuid_retries-- > 0) {
+			dev_dbg(&xd->dev, "failed to request UUID, retrying\n");
 			queue_delayed_work(xd->tb->wq, &xd->get_uuid_work,
 					   msecs_to_jiffies(100));
 		} else {
@@ -1012,6 +1025,8 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 		}
 		return;
 	}
+
+	dev_dbg(&xd->dev, "got remote UUID %pUb\n", &uuid);
 
 	if (uuid_equal(&uuid, xd->local_uuid))
 		dev_dbg(&xd->dev, "intra-domain loop detected\n");
@@ -1052,11 +1067,15 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	u32 gen = 0;
 	int ret;
 
+	dev_dbg(&xd->dev, "requesting remote properties\n");
+
 	ret = tb_xdp_properties_request(tb->ctl, xd->route, xd->local_uuid,
 					xd->remote_uuid, xd->properties_retries,
 					&block, &gen);
 	if (ret < 0) {
 		if (xd->properties_retries-- > 0) {
+			dev_dbg(&xd->dev,
+				"failed to request remote properties, retrying\n");
 			queue_delayed_work(xd->tb->wq, &xd->get_properties_work,
 					   msecs_to_jiffies(1000));
 		} else {
@@ -1073,16 +1092,8 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	mutex_lock(&xd->lock);
 
 	/* Only accept newer generation properties */
-	if (xd->properties && gen <= xd->property_block_gen) {
-		/*
-		 * On resume it is likely that the properties block is
-		 * not changed (unless the other end added or removed
-		 * services). However, we need to make sure the existing
-		 * DMA paths are restored properly.
-		 */
-		tb_xdomain_restore_paths(xd);
+	if (xd->remote_properties && gen <= xd->remote_property_block_gen)
 		goto err_free_block;
-	}
 
 	dir = tb_property_parse_dir(block, ret);
 	if (!dir) {
@@ -1097,17 +1108,15 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	}
 
 	/* Release the existing one */
-	if (xd->properties) {
-		tb_property_free_dir(xd->properties);
+	if (xd->remote_properties) {
+		tb_property_free_dir(xd->remote_properties);
 		update = true;
 	}
 
-	xd->properties = dir;
-	xd->property_block_gen = gen;
+	xd->remote_properties = dir;
+	xd->remote_property_block_gen = gen;
 
 	tb_xdomain_update_link_attributes(xd);
-
-	tb_xdomain_restore_paths(xd);
 
 	mutex_unlock(&xd->lock);
 
@@ -1123,6 +1132,11 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 			dev_err(&xd->dev, "failed to add XDomain device\n");
 			return;
 		}
+		dev_info(&xd->dev, "new host found, vendor=%#x device=%#x\n",
+			 xd->vendor, xd->device);
+		if (xd->vendor_name && xd->device_name)
+			dev_info(&xd->dev, "%s %s\n", xd->vendor_name,
+				 xd->device_name);
 	} else {
 		kobject_uevent(&xd->dev.kobj, KOBJ_CHANGE);
 	}
@@ -1143,13 +1157,19 @@ static void tb_xdomain_properties_changed(struct work_struct *work)
 					     properties_changed_work.work);
 	int ret;
 
+	dev_dbg(&xd->dev, "sending properties changed notification\n");
+
 	ret = tb_xdp_properties_changed_request(xd->tb->ctl, xd->route,
 				xd->properties_changed_retries, xd->local_uuid);
 	if (ret) {
-		if (xd->properties_changed_retries-- > 0)
+		if (xd->properties_changed_retries-- > 0) {
+			dev_dbg(&xd->dev,
+				"failed to send properties changed notification, retrying\n");
 			queue_delayed_work(xd->tb->wq,
 					   &xd->properties_changed_work,
 					   msecs_to_jiffies(1000));
+		}
+		dev_err(&xd->dev, "failed to send properties changed notification\n");
 		return;
 	}
 
@@ -1179,6 +1199,15 @@ device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return ret;
 }
 static DEVICE_ATTR_RO(device_name);
+
+static ssize_t maxhopid_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
+
+	return sprintf(buf, "%d\n", xd->remote_max_hopid);
+}
+static DEVICE_ATTR_RO(maxhopid);
 
 static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -1238,6 +1267,7 @@ static DEVICE_ATTR(tx_lanes, 0444, lanes_show, NULL);
 static struct attribute *xdomain_attrs[] = {
 	&dev_attr_device.attr,
 	&dev_attr_device_name.attr,
+	&dev_attr_maxhopid.attr,
 	&dev_attr_rx_lanes.attr,
 	&dev_attr_rx_speed.attr,
 	&dev_attr_tx_lanes.attr,
@@ -1263,7 +1293,10 @@ static void tb_xdomain_release(struct device *dev)
 
 	put_device(xd->dev.parent);
 
-	tb_property_free_dir(xd->properties);
+	kfree(xd->local_property_block);
+	tb_property_free_dir(xd->remote_properties);
+	ida_destroy(&xd->out_hopids);
+	ida_destroy(&xd->in_hopids);
 	ida_destroy(&xd->service_ids);
 
 	kfree(xd->local_uuid);
@@ -1310,15 +1343,7 @@ static int __maybe_unused tb_xdomain_suspend(struct device *dev)
 
 static int __maybe_unused tb_xdomain_resume(struct device *dev)
 {
-	struct tb_xdomain *xd = tb_to_xdomain(dev);
-
-	/*
-	 * Ask tb_xdomain_get_properties() restore any existing DMA
-	 * paths after properties are re-read.
-	 */
-	xd->resume = true;
-	start_handshake(xd);
-
+	start_handshake(tb_to_xdomain(dev));
 	return 0;
 }
 
@@ -1363,7 +1388,10 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 
 	xd->tb = tb;
 	xd->route = route;
+	xd->local_max_hopid = down->config.max_in_hop_id;
 	ida_init(&xd->service_ids);
+	ida_init(&xd->in_hopids);
+	ida_init(&xd->out_hopids);
 	mutex_init(&xd->lock);
 	INIT_DELAYED_WORK(&xd->get_uuid_work, tb_xdomain_get_uuid);
 	INIT_DELAYED_WORK(&xd->get_properties_work, tb_xdomain_get_properties);
@@ -1389,6 +1417,10 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 	xd->dev.type = &tb_xdomain_type;
 	xd->dev.groups = xdomain_attr_groups;
 	dev_set_name(&xd->dev, "%u-%llx", tb->index, route);
+
+	dev_dbg(&xd->dev, "local UUID %pUb\n", local_uuid);
+	if (remote_uuid)
+		dev_dbg(&xd->dev, "remote UUID %pUb\n", remote_uuid);
 
 	/*
 	 * This keeps the DMA powered on as long as we have active
@@ -1452,10 +1484,12 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	pm_runtime_put_noidle(&xd->dev);
 	pm_runtime_set_suspended(&xd->dev);
 
-	if (!device_is_registered(&xd->dev))
+	if (!device_is_registered(&xd->dev)) {
 		put_device(&xd->dev);
-	else
+	} else {
+		dev_info(&xd->dev, "host disconnected\n");
 		device_unregister(&xd->dev);
+	}
 }
 
 /**
@@ -1523,73 +1557,118 @@ void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd)
 EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_disable);
 
 /**
+ * tb_xdomain_alloc_in_hopid() - Allocate input HopID for tunneling
+ * @xd: XDomain connection
+ * @hopid: Preferred HopID or %-1 for next available
+ *
+ * Returns allocated HopID or negative errno. Specifically returns
+ * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * guaranteed to be within range supported by the input lane adapter.
+ * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ */
+int tb_xdomain_alloc_in_hopid(struct tb_xdomain *xd, int hopid)
+{
+	if (hopid < 0)
+		hopid = TB_PATH_MIN_HOPID;
+	if (hopid < TB_PATH_MIN_HOPID || hopid > xd->local_max_hopid)
+		return -EINVAL;
+
+	return ida_alloc_range(&xd->in_hopids, hopid, xd->local_max_hopid,
+			       GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_alloc_in_hopid);
+
+/**
+ * tb_xdomain_alloc_out_hopid() - Allocate output HopID for tunneling
+ * @xd: XDomain connection
+ * @hopid: Preferred HopID or %-1 for next available
+ *
+ * Returns allocated HopID or negative errno. Specifically returns
+ * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * guaranteed to be within range supported by the output lane adapter.
+ * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ */
+int tb_xdomain_alloc_out_hopid(struct tb_xdomain *xd, int hopid)
+{
+	if (hopid < 0)
+		hopid = TB_PATH_MIN_HOPID;
+	if (hopid < TB_PATH_MIN_HOPID || hopid > xd->remote_max_hopid)
+		return -EINVAL;
+
+	return ida_alloc_range(&xd->out_hopids, hopid, xd->remote_max_hopid,
+			       GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_alloc_out_hopid);
+
+/**
+ * tb_xdomain_release_in_hopid() - Release input HopID
+ * @xd: XDomain connection
+ * @hopid: HopID to release
+ */
+void tb_xdomain_release_in_hopid(struct tb_xdomain *xd, int hopid)
+{
+	ida_free(&xd->in_hopids, hopid);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_release_in_hopid);
+
+/**
+ * tb_xdomain_release_out_hopid() - Release output HopID
+ * @xd: XDomain connection
+ * @hopid: HopID to release
+ */
+void tb_xdomain_release_out_hopid(struct tb_xdomain *xd, int hopid)
+{
+	ida_free(&xd->out_hopids, hopid);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_release_out_hopid);
+
+/**
  * tb_xdomain_enable_paths() - Enable DMA paths for XDomain connection
  * @xd: XDomain connection
- * @transmit_path: HopID of the transmit path the other end is using to
- *		   send packets
- * @transmit_ring: DMA ring used to receive packets from the other end
- * @receive_path: HopID of the receive path the other end is using to
- *		  receive packets
- * @receive_ring: DMA ring used to send packets to the other end
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * The function enables DMA paths accordingly so that after successful
  * return the caller can send and receive packets using high-speed DMA
- * path.
+ * path. If a transmit or receive path is not needed, pass %-1 for those
+ * parameters.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
-			    u16 transmit_ring, u16 receive_path,
-			    u16 receive_ring)
+int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
+			    int transmit_ring, int receive_path,
+			    int receive_ring)
 {
-	int ret;
-
-	mutex_lock(&xd->lock);
-
-	if (xd->transmit_path) {
-		ret = xd->transmit_path == transmit_path ? 0 : -EBUSY;
-		goto exit_unlock;
-	}
-
-	xd->transmit_path = transmit_path;
-	xd->transmit_ring = transmit_ring;
-	xd->receive_path = receive_path;
-	xd->receive_ring = receive_ring;
-
-	ret = tb_domain_approve_xdomain_paths(xd->tb, xd);
-
-exit_unlock:
-	mutex_unlock(&xd->lock);
-
-	return ret;
+	return tb_domain_approve_xdomain_paths(xd->tb, xd, transmit_path,
+					       transmit_ring, receive_path,
+					       receive_ring);
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
 
 /**
  * tb_xdomain_disable_paths() - Disable DMA paths for XDomain connection
  * @xd: XDomain connection
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * This does the opposite of tb_xdomain_enable_paths(). After call to
- * this the caller is not expected to use the rings anymore.
+ * this the caller is not expected to use the rings anymore. Passing %-1
+ * as path/ring parameter means don't care. Normally the callers should
+ * pass the same values here as they do when paths are enabled.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_xdomain_disable_paths(struct tb_xdomain *xd)
+int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
+			     int transmit_ring, int receive_path,
+			     int receive_ring)
 {
-	int ret = 0;
-
-	mutex_lock(&xd->lock);
-	if (xd->transmit_path) {
-		xd->transmit_path = 0;
-		xd->transmit_ring = 0;
-		xd->receive_path = 0;
-		xd->receive_ring = 0;
-
-		ret = tb_domain_disconnect_xdomain_paths(xd->tb, xd);
-	}
-	mutex_unlock(&xd->lock);
-
-	return ret;
+	return tb_domain_disconnect_xdomain_paths(xd->tb, xd, transmit_path,
+						  transmit_ring, receive_path,
+						  receive_ring);
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_disable_paths);
 
@@ -1826,11 +1905,7 @@ int tb_register_property_dir(const char *key, struct tb_property_dir *dir)
 	if (ret)
 		goto err_unlock;
 
-	ret = rebuild_property_block();
-	if (ret) {
-		remove_directory(key, dir);
-		goto err_unlock;
-	}
+	xdomain_property_block_gen++;
 
 	mutex_unlock(&xdomain_lock);
 	update_all_xdomains();
@@ -1856,7 +1931,7 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir)
 
 	mutex_lock(&xdomain_lock);
 	if (remove_directory(key, dir))
-		ret = rebuild_property_block();
+		xdomain_property_block_gen++;
 	mutex_unlock(&xdomain_lock);
 
 	if (!ret)
@@ -1875,7 +1950,8 @@ int tb_xdomain_init(void)
 	 * directories. Those will be added by service drivers
 	 * themselves when they are loaded.
 	 *
-	 * We also add node name later when first connection is made.
+	 * Rest of the properties are filled dynamically based on these
+	 * when the P2P connection is made.
 	 */
 	tb_property_add_immediate(xdomain_property_dir, "vendorid",
 				  PCI_VENDOR_ID_INTEL);
@@ -1883,11 +1959,11 @@ int tb_xdomain_init(void)
 	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
+	xdomain_property_block_gen = prandom_u32();
 	return 0;
 }
 
 void tb_xdomain_exit(void)
 {
-	kfree(xdomain_property_block);
 	tb_property_free_dir(xdomain_property_dir);
 }

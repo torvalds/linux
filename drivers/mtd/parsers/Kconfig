@@ -67,6 +67,25 @@ config MTD_OF_PARTS
 	  flash memory node, as described in
 	  Documentation/devicetree/bindings/mtd/partition.txt.
 
+config MTD_OF_PARTS_BCM4908
+	bool "BCM4908 partitioning support"
+	depends on MTD_OF_PARTS && (ARCH_BCM4908 || COMPILE_TEST)
+	default ARCH_BCM4908
+	help
+	  This provides partitions parser for BCM4908 family devices
+	  that can have multiple "firmware" partitions. It takes care of
+	  finding currently used one and backup ones.
+
+config MTD_OF_PARTS_LINKSYS_NS
+	bool "Linksys Northstar partitioning support"
+	depends on MTD_OF_PARTS && (ARCH_BCM_5301X || ARCH_BCM4908 || COMPILE_TEST)
+	default ARCH_BCM_5301X
+	help
+	  This provides partitions parser for Linksys devices based on Broadcom
+	  Northstar architecture. Linksys commonly uses fixed flash layout with
+	  two "firmware" partitions. Currently used firmware has to be detected
+	  using CFE environment variable.
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
@@ -162,9 +181,8 @@ config MTD_REDBOOT_PARTS_READONLY
 endif # MTD_REDBOOT_PARTS
 
 config MTD_QCOMSMEM_PARTS
-	tristate "Qualcomm SMEM NAND flash partition parser"
-	depends on MTD_NAND_QCOM || COMPILE_TEST
+	tristate "Qualcomm SMEM flash partition parser"
 	depends on QCOM_SMEM
 	help
 	  This provides support for parsing partitions from Shared Memory (SMEM)
-	  for NAND flash on Qualcomm platforms.
+	  for NAND and SPI flash on Qualcomm platforms.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -104,7 +104,7 @@
 #define CRYPTO4XX_PRNG_LFSR_L			0x00070030
 #define CRYPTO4XX_PRNG_LFSR_H			0x00070034
 
-/**
+/*
  * Initialize CRYPTO ENGINE registers, and memory bases.
  */
 #define PPC4XX_PDR_POLL				0x3ff
@@ -123,7 +123,7 @@
 #define PPC4XX_INT_TIMEOUT_CNT			0
 #define PPC4XX_INT_TIMEOUT_CNT_REVB		0x3FF
 #define PPC4XX_INT_CFG				1
-/**
+/*
  * all follow define are ad hoc
  */
 #define PPC4XX_RING_RETRY			100
@@ -131,7 +131,7 @@
 #define PPC4XX_SDR_SIZE				PPC4XX_NUM_SD
 #define PPC4XX_GDR_SIZE				PPC4XX_NUM_GD
 
-/**
+/*
   * Generic Security Association (SA) with all possible fields. These will
  * never likely used except for reference purpose. These structure format
  * can be not changed as the hardware expects them to be layout as defined.

@@ -581,8 +581,7 @@ void ice_free_cpu_rx_rmap(struct ice_vsi *vsi)
 		return;
 
 	netdev = vsi->netdev;
-	if (!netdev || !netdev->rx_cpu_rmap ||
-	    netdev->reg_state != NETREG_REGISTERED)
+	if (!netdev || !netdev->rx_cpu_rmap)
 		return;
 
 	free_irq_cpu_rmap(netdev->rx_cpu_rmap);
@@ -604,8 +603,7 @@ int ice_set_cpu_rx_rmap(struct ice_vsi *vsi)
 
 	pf = vsi->back;
 	netdev = vsi->netdev;
-	if (!pf || !netdev || !vsi->num_q_vectors ||
-	    vsi->netdev->reg_state != NETREG_REGISTERED)
+	if (!pf || !netdev || !vsi->num_q_vectors)
 		return -EINVAL;
 
 	netdev_dbg(netdev, "Setup CPU RMAP: vsi type 0x%x, ifname %s, q_vectors %d\n",

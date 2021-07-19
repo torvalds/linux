@@ -155,7 +155,7 @@ struct media_link {
  *	uniquely identified by the pad number.
  * @PAD_SIGNAL_ANALOG:
  *	The pad contains an analog signal. It can be Radio Frequency,
- *	Intermediate Frequency, a baseband signal or sub-cariers.
+ *	Intermediate Frequency, a baseband signal or sub-carriers.
  *	Tuner inputs, IF-PLL demodulators, composite and s-video signals
  *	should use it.
  * @PAD_SIGNAL_DV:
@@ -885,6 +885,11 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @mdev: Pointer to the &media_device that contains the object
+ *
+ * The caller is required to hold the media_device graph_mutex during the graph
+ * walk until the graph state is released.
+ *
+ * Returns zero on success or a negative error code otherwise.
  */
 __must_check int media_graph_walk_init(
 	struct media_graph *graph, struct media_device *mdev);

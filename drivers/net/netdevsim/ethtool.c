@@ -77,6 +77,34 @@ static int nsim_set_ringparam(struct net_device *dev,
 	return 0;
 }
 
+static int
+nsim_get_fecparam(struct net_device *dev, struct ethtool_fecparam *fecparam)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	if (ns->ethtool.get_err)
+		return -ns->ethtool.get_err;
+	memcpy(fecparam, &ns->ethtool.fec, sizeof(ns->ethtool.fec));
+	return 0;
+}
+
+static int
+nsim_set_fecparam(struct net_device *dev, struct ethtool_fecparam *fecparam)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+	u32 fec;
+
+	if (ns->ethtool.set_err)
+		return -ns->ethtool.set_err;
+	memcpy(&ns->ethtool.fec, fecparam, sizeof(ns->ethtool.fec));
+	fec = fecparam->fec;
+	if (fec == ETHTOOL_FEC_AUTO)
+		fec |= ETHTOOL_FEC_OFF;
+	fec |= ETHTOOL_FEC_NONE;
+	ns->ethtool.fec.active_fec = 1 << (fls(fec) - 1);
+	return 0;
+}
+
 static const struct ethtool_ops nsim_ethtool_ops = {
 	.supported_coalesce_params	= ETHTOOL_COALESCE_ALL_PARAMS,
 	.get_pause_stats	        = nsim_get_pause_stats,
@@ -86,6 +114,8 @@ static const struct ethtool_ops nsim_ethtool_ops = {
 	.get_coalesce			= nsim_get_coalesce,
 	.get_ringparam			= nsim_get_ringparam,
 	.set_ringparam			= nsim_set_ringparam,
+	.get_fecparam			= nsim_get_fecparam,
+	.set_fecparam			= nsim_set_fecparam,
 };
 
 static void nsim_ethtool_ring_init(struct netdevsim *ns)
@@ -104,7 +134,13 @@ void nsim_ethtool_init(struct netdevsim *ns)
 
 	nsim_ethtool_ring_init(ns);
 
+	ns->ethtool.fec.fec = ETHTOOL_FEC_NONE;
+	ns->ethtool.fec.active_fec = ETHTOOL_FEC_NONE;
+
 	ethtool = debugfs_create_dir("ethtool", ns->nsim_dev_port->ddir);
+
+	debugfs_create_u32("get_err", 0600, ethtool, &ns->ethtool.get_err);
+	debugfs_create_u32("set_err", 0600, ethtool, &ns->ethtool.set_err);
 
 	dir = debugfs_create_dir("pause", ethtool);
 	debugfs_create_bool("report_stats_rx", 0600, dir,

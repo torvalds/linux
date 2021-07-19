@@ -68,6 +68,7 @@
 			opp-microvolt = <1000000 1000000 1300000>;
 			opp-hz = /bits/ 64 <216000000>;
 			opp-supported-hw = <0x000F>;
+			opp-suspend;
 		};
 
 		opp@300000000 {

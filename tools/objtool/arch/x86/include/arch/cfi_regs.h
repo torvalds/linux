@@ -4,13 +4,13 @@
 #define _OBJTOOL_CFI_REGS_H
 
 #define CFI_AX			0
-#define CFI_DX			1
-#define CFI_CX			2
+#define CFI_CX			1
+#define CFI_DX			2
 #define CFI_BX			3
-#define CFI_SI			4
-#define CFI_DI			5
-#define CFI_BP			6
-#define CFI_SP			7
+#define CFI_SP			4
+#define CFI_BP			5
+#define CFI_SI			6
+#define CFI_DI			7
 #define CFI_R8			8
 #define CFI_R9			9
 #define CFI_R10			10

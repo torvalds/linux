@@ -9,11 +9,17 @@
 
 #include <linux/pci.h>
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
+long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
+								bool curr)
 {
 	struct cpucp_packet pkt;
+	u32 used_pll_idx;
 	u64 result;
 	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -23,7 +29,7 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 	else
 		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET <<
 						CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32(pll_index);
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						0, &result);
@@ -31,23 +37,29 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to get frequency of PLL %d, error %d\n",
-			pll_index, rc);
+			used_pll_idx, rc);
 		return rc;
 	}
 
 	return (long) result;
 }
 
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
+void hl_set_frequency(struct hl_device *hdev, u32 pll_index,
+								u64 freq)
 {
 	struct cpucp_packet pkt;
+	u32 used_pll_idx;
 	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return;
 
 	memset(&pkt, 0, sizeof(pkt));
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET <<
 					CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32(pll_index);
+	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
 	pkt.value = cpu_to_le64(freq);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -56,7 +68,7 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 	if (rc)
 		dev_err(hdev->dev,
 			"Failed to set frequency to PLL %d, error %d\n",
-			pll_index, rc);
+			used_pll_idx, rc);
 }
 
 u64 hl_get_max_power(struct hl_device *hdev)
@@ -203,7 +215,7 @@ static ssize_t soft_reset_store(struct device *dev,
 
 	dev_warn(hdev->dev, "Soft-Reset requested through sysfs\n");
 
-	hl_device_reset(hdev, false, false);
+	hl_device_reset(hdev, 0);
 
 out:
 	return count;
@@ -226,7 +238,7 @@ static ssize_t hard_reset_store(struct device *dev,
 
 	dev_warn(hdev->dev, "Hard-Reset requested through sysfs\n");
 
-	hl_device_reset(hdev, true, false);
+	hl_device_reset(hdev, HL_RESET_HARD);
 
 out:
 	return count;
@@ -244,6 +256,9 @@ static ssize_t device_type_show(struct device *dev,
 		break;
 	case ASIC_GAUDI:
 		str = "GAUDI";
+		break;
+	case ASIC_GAUDI_SEC:
+		str = "GAUDI SEC";
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
@@ -344,7 +359,7 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *attr, char *buf, loff_t offset,
 			size_t max_size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	char *data;
 	int rc;

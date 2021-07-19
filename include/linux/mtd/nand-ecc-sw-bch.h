@@ -16,7 +16,6 @@
  * @req_ctx: Save request context and tweak the original request to fit the
  *           engine needs
  * @code_size: Number of bytes needed to store a code (one code per step)
- * @nsteps: Number of steps
  * @calc_buf: Buffer to use when calculating ECC bytes
  * @code_buf: Buffer to use when reading (raw) ECC bytes from the chip
  * @bch: BCH control structure
@@ -26,7 +25,6 @@
 struct nand_ecc_sw_bch_conf {
 	struct nand_ecc_req_tweak_ctx req_ctx;
 	unsigned int code_size;
-	unsigned int nsteps;
 	u8 *calc_buf;
 	u8 *code_buf;
 	struct bch_control *bch;

@@ -192,7 +192,7 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 #ifdef CONFIG_SPARC
 	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
 	if (!dev || num >= dev->archdata.num_irqs)
-		return -ENXIO;
+		goto out_not_found;
 	ret = dev->archdata.irqs[num];
 	goto out;
 #else
@@ -223,10 +223,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 		struct irq_data *irqd;
 
 		irqd = irq_get_irq_data(r->start);
-		if (!irqd) {
-			ret = -ENXIO;
-			goto out;
-		}
+		if (!irqd)
+			goto out_not_found;
 		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 	}
 
@@ -249,8 +247,9 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 			goto out;
 	}
 
-	ret = -ENXIO;
 #endif
+out_not_found:
+	ret = -ENXIO;
 out:
 	WARN(ret == 0, "0 is an invalid IRQ number\n");
 	return ret;

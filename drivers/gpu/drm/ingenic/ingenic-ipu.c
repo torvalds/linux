@@ -23,7 +23,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_property.h>
@@ -282,19 +282,20 @@ static inline bool osd_changed(struct drm_plane_state *state,
 }
 
 static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *oldstate)
+					    struct drm_atomic_state *state)
 {
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state,
+									  plane);
 	const struct drm_format_info *finfo;
 	u32 ctrl, stride = 0, coef_index = 0, format = 0;
 	bool needs_modeset, upscaling_w, upscaling_h;
 	int err;
 
-	if (!state || !state->fb)
+	if (!newstate || !newstate->fb)
 		return;
 
-	finfo = drm_format_info(state->fb->format->format);
+	finfo = drm_format_info(newstate->fb->format->format);
 
 	if (!ipu->clk_enabled) {
 		err = clk_enable(ipu->clk);
@@ -307,7 +308,7 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	/* Reset all the registers if needed */
-	needs_modeset = drm_atomic_crtc_needs_modeset(state->crtc->state);
+	needs_modeset = drm_atomic_crtc_needs_modeset(newstate->crtc->state);
 	if (needs_modeset) {
 		regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_RST);
 
@@ -317,11 +318,13 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	/* New addresses will be committed in vblank handler... */
-	ipu->addr_y = drm_fb_cma_get_gem_addr(state->fb, state, 0);
+	ipu->addr_y = drm_fb_cma_get_gem_addr(newstate->fb, newstate, 0);
 	if (finfo->num_planes > 1)
-		ipu->addr_u = drm_fb_cma_get_gem_addr(state->fb, state, 1);
+		ipu->addr_u = drm_fb_cma_get_gem_addr(newstate->fb, newstate,
+						      1);
 	if (finfo->num_planes > 2)
-		ipu->addr_v = drm_fb_cma_get_gem_addr(state->fb, state, 2);
+		ipu->addr_v = drm_fb_cma_get_gem_addr(newstate->fb, newstate,
+						      2);
 
 	if (!needs_modeset)
 		return;
@@ -338,21 +341,21 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 
 	/* Set the input height/width/strides */
 	if (finfo->num_planes > 2)
-		stride = ((state->src_w >> 16) * finfo->cpp[2] / finfo->hsub)
+		stride = ((newstate->src_w >> 16) * finfo->cpp[2] / finfo->hsub)
 			<< JZ_IPU_UV_STRIDE_V_LSB;
 
 	if (finfo->num_planes > 1)
-		stride |= ((state->src_w >> 16) * finfo->cpp[1] / finfo->hsub)
+		stride |= ((newstate->src_w >> 16) * finfo->cpp[1] / finfo->hsub)
 			<< JZ_IPU_UV_STRIDE_U_LSB;
 
 	regmap_write(ipu->map, JZ_REG_IPU_UV_STRIDE, stride);
 
-	stride = ((state->src_w >> 16) * finfo->cpp[0]) << JZ_IPU_Y_STRIDE_Y_LSB;
+	stride = ((newstate->src_w >> 16) * finfo->cpp[0]) << JZ_IPU_Y_STRIDE_Y_LSB;
 	regmap_write(ipu->map, JZ_REG_IPU_Y_STRIDE, stride);
 
 	regmap_write(ipu->map, JZ_REG_IPU_IN_GS,
 		     (stride << JZ_IPU_IN_GS_W_LSB) |
-		     ((state->src_h >> 16) << JZ_IPU_IN_GS_H_LSB));
+		     ((newstate->src_h >> 16) << JZ_IPU_IN_GS_H_LSB));
 
 	switch (finfo->format) {
 	case DRM_FORMAT_XRGB1555:
@@ -421,9 +424,9 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 
 	/* Set the output height/width/stride */
 	regmap_write(ipu->map, JZ_REG_IPU_OUT_GS,
-		     ((state->crtc_w * 4) << JZ_IPU_OUT_GS_W_LSB)
-		     | state->crtc_h << JZ_IPU_OUT_GS_H_LSB);
-	regmap_write(ipu->map, JZ_REG_IPU_OUT_STRIDE, state->crtc_w * 4);
+		     ((newstate->crtc_w * 4) << JZ_IPU_OUT_GS_W_LSB)
+		     | newstate->crtc_h << JZ_IPU_OUT_GS_H_LSB);
+	regmap_write(ipu->map, JZ_REG_IPU_OUT_STRIDE, newstate->crtc_w * 4);
 
 	if (finfo->is_yuv) {
 		regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_CSC_EN);
@@ -508,55 +511,59 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 			JZ_IPU_CTRL_RUN | JZ_IPU_CTRL_FM_IRQ_EN);
 
 	dev_dbg(ipu->dev, "Scaling %ux%u to %ux%u (%u:%u horiz, %u:%u vert)\n",
-		state->src_w >> 16, state->src_h >> 16,
-		state->crtc_w, state->crtc_h,
+		newstate->src_w >> 16, newstate->src_h >> 16,
+		newstate->crtc_w, newstate->crtc_h,
 		ipu->num_w, ipu->denom_w, ipu->num_h, ipu->denom_h);
 }
 
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
-	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
 	/* Request a full modeset if we are enabling or disabling the IPU. */
-	if (!plane->state->crtc ^ !state->crtc)
+	if (!old_plane_state->crtc ^ !new_plane_state->crtc)
 		crtc_state->mode_changed = true;
 
-	if (!state->crtc ||
+	if (!new_plane_state->crtc ||
 	    !crtc_state->mode.hdisplay || !crtc_state->mode.vdisplay)
 		return 0;
 
 	/* Plane must be fully visible */
-	if (state->crtc_x < 0 || state->crtc_y < 0 ||
-	    state->crtc_x + state->crtc_w > crtc_state->mode.hdisplay ||
-	    state->crtc_y + state->crtc_h > crtc_state->mode.vdisplay)
+	if (new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0 ||
+	    new_plane_state->crtc_x + new_plane_state->crtc_w > crtc_state->mode.hdisplay ||
+	    new_plane_state->crtc_y + new_plane_state->crtc_h > crtc_state->mode.vdisplay)
 		return -EINVAL;
 
 	/* Minimum size is 4x4 */
-	if ((state->src_w >> 16) < 4 || (state->src_h >> 16) < 4)
+	if ((new_plane_state->src_w >> 16) < 4 || (new_plane_state->src_h >> 16) < 4)
 		return -EINVAL;
 
 	/* Input and output lines must have an even number of pixels. */
-	if (((state->src_w >> 16) & 1) || (state->crtc_w & 1))
+	if (((new_plane_state->src_w >> 16) & 1) || (new_plane_state->crtc_w & 1))
 		return -EINVAL;
 
-	if (!osd_changed(state, plane->state))
+	if (!osd_changed(new_plane_state, old_plane_state))
 		return 0;
 
 	crtc_state->mode_changed = true;
 
-	xres = state->src_w >> 16;
-	yres = state->src_h >> 16;
+	xres = new_plane_state->src_w >> 16;
+	yres = new_plane_state->src_h >> 16;
 
 	/*
 	 * Increase the scaled image's theorical width/height until we find a
@@ -568,13 +575,13 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	max_w = crtc_state->mode.hdisplay * 102 / 100;
 	max_h = crtc_state->mode.vdisplay * 102 / 100;
 
-	for (denom_w = xres, num_w = state->crtc_w; num_w <= max_w; num_w++)
+	for (denom_w = xres, num_w = new_plane_state->crtc_w; num_w <= max_w; num_w++)
 		if (!reduce_fraction(&num_w, &denom_w))
 			break;
 	if (num_w > max_w)
 		return -EINVAL;
 
-	for (denom_h = yres, num_h = state->crtc_h; num_h <= max_h; num_h++)
+	for (denom_h = yres, num_h = new_plane_state->crtc_h; num_h <= max_h; num_h++)
 		if (!reduce_fraction(&num_h, &denom_h))
 			break;
 	if (num_h > max_h)
@@ -589,7 +596,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void ingenic_ipu_plane_atomic_disable(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
 
@@ -608,7 +615,7 @@ static const struct drm_plane_helper_funcs ingenic_ipu_plane_helper_funcs = {
 	.atomic_update		= ingenic_ipu_plane_atomic_update,
 	.atomic_check		= ingenic_ipu_plane_atomic_check,
 	.atomic_disable		= ingenic_ipu_plane_atomic_disable,
-	.prepare_fb		= drm_gem_fb_prepare_fb,
+	.prepare_fb		= drm_gem_plane_helper_prepare_fb,
 };
 
 static int

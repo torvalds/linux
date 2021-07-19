@@ -114,11 +114,11 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base++;
 			break;
 		case ATOM_IIO_READ:
-			temp = ctx->card->ioreg_read(ctx->card, CU16(base + 1));
+			temp = ctx->card->reg_read(ctx->card, CU16(base + 1));
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
-			ctx->card->ioreg_write(ctx->card, CU16(base + 1), temp);
+			ctx->card->reg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;
 		case ATOM_IIO_CLEAR:

@@ -31,6 +31,8 @@ struct ia_css_fw {
 	unsigned int bytes; /** length in bytes of firmware data */
 };
 
+struct device;
+
 /* @brief Loads the firmware
  * @param[in]	env		Environment, provides functions to access the
  *				environment in which the CSS code runs. This is

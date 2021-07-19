@@ -524,13 +524,9 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 out_no_mem:
 	for (i = 0; i < t->size; i++) {
 		struct cxgb4_link *link = &t->table[i];
-
-		if (link->tid_map)
-			kvfree(link->tid_map);
+		kvfree(link->tid_map);
 	}
-
-	if (t)
-		kvfree(t);
+	kvfree(t);
 
 	return NULL;
 }

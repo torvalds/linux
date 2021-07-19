@@ -72,6 +72,7 @@ static int wlcore_validate_fw_ver(struct wl1271 *wl)
 	unsigned int *min_ver = (wl->fw_type == WL12XX_FW_TYPE_MULTI) ?
 		wl->min_mr_fw_ver : wl->min_sr_fw_ver;
 	char min_fw_str[32] = "";
+	int off = 0;
 	int i;
 
 	/* the chip must be exactly equal */
@@ -105,13 +106,15 @@ static int wlcore_validate_fw_ver(struct wl1271 *wl)
 	return 0;
 
 fail:
-	for (i = 0; i < NUM_FW_VER; i++)
+	for (i = 0; i < NUM_FW_VER && off < sizeof(min_fw_str); i++)
 		if (min_ver[i] == WLCORE_FW_VER_IGNORE)
-			snprintf(min_fw_str, sizeof(min_fw_str),
-				  "%s*.", min_fw_str);
+			off += snprintf(min_fw_str + off,
+					sizeof(min_fw_str) - off,
+					"*.");
 		else
-			snprintf(min_fw_str, sizeof(min_fw_str),
-				  "%s%u.", min_fw_str, min_ver[i]);
+			off += snprintf(min_fw_str + off,
+					sizeof(min_fw_str) - off,
+					"%u.", min_ver[i]);
 
 	wl1271_error("Your WiFi FW version (%u.%u.%u.%u.%u) is invalid.\n"
 		     "Please use at least FW %s\n"

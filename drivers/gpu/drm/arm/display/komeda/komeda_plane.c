@@ -49,10 +49,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	dflow->rot = drm_rotation_simplify(st->rotation, caps->supported_rots);
 	if (!has_bits(dflow->rot, caps->supported_rots)) {
-		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %s.\n",
-				 dflow->rot,
-				 komeda_get_format_name(caps->fourcc,
-							fb->modifier));
+		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %p4cc with modifier: 0x%llx.\n",
+				 dflow->rot, &caps->fourcc, fb->modifier);
 		return -EINVAL;
 	}
 
@@ -71,20 +69,23 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
  */
 static int
 komeda_plane_atomic_check(struct drm_plane *plane,
-			  struct drm_plane_state *state)
+			  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct komeda_plane *kplane = to_kplane(plane);
-	struct komeda_plane_state *kplane_st = to_kplane_st(state);
+	struct komeda_plane_state *kplane_st = to_kplane_st(new_plane_state);
 	struct komeda_layer *layer = kplane->layer;
 	struct drm_crtc_state *crtc_st;
 	struct komeda_crtc_state *kcrtc_st;
 	struct komeda_data_flow_cfg dflow;
 	int err;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_st = drm_atomic_get_crtc_state(state,
+					    new_plane_state->crtc);
 	if (IS_ERR(crtc_st) || !crtc_st->enable) {
 		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
 		return -EINVAL;
@@ -96,7 +97,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 
 	kcrtc_st = to_kcrtc_st(crtc_st);
 
-	err = komeda_plane_init_data_flow(state, kcrtc_st, &dflow);
+	err = komeda_plane_init_data_flow(new_plane_state, kcrtc_st, &dflow);
 	if (err)
 		return err;
 
@@ -115,7 +116,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
  */
 static void
 komeda_plane_atomic_update(struct drm_plane *plane,
-			   struct drm_plane_state *old_state)
+			   struct drm_atomic_state *state)
 {
 }
 

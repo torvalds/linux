@@ -21,6 +21,8 @@ properties:
       - microchip,ksz8765
       - microchip,ksz8794
       - microchip,ksz8795
+      - microchip,ksz8863
+      - microchip,ksz8873
       - microchip,ksz9477
       - microchip,ksz9897
       - microchip,ksz9896

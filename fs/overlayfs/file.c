@@ -482,112 +482,6 @@ static int ovl_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	return ret;
 }
 
-static long ovl_real_ioctl(struct file *file, unsigned int cmd,
-			   unsigned long arg)
-{
-	struct fd real;
-	long ret;
-
-	ret = ovl_real_fdget(file, &real);
-	if (ret)
-		return ret;
-
-	ret = security_file_ioctl(real.file, cmd, arg);
-	if (!ret) {
-		/*
-		 * Don't override creds, since we currently can't safely check
-		 * permissions before doing so.
-		 */
-		ret = vfs_ioctl(real.file, cmd, arg);
-	}
-
-	fdput(real);
-
-	return ret;
-}
-
-static long ovl_ioctl_set_flags(struct file *file, unsigned int cmd,
-				unsigned long arg)
-{
-	long ret;
-	struct inode *inode = file_inode(file);
-
-	if (!inode_owner_or_capable(&init_user_ns, inode))
-		return -EACCES;
-
-	ret = mnt_want_write_file(file);
-	if (ret)
-		return ret;
-
-	inode_lock(inode);
-
-	/*
-	 * Prevent copy up if immutable and has no CAP_LINUX_IMMUTABLE
-	 * capability.
-	 */
-	ret = -EPERM;
-	if (!ovl_has_upperdata(inode) && IS_IMMUTABLE(inode) &&
-	    !capable(CAP_LINUX_IMMUTABLE))
-		goto unlock;
-
-	ret = ovl_maybe_copy_up(file_dentry(file), O_WRONLY);
-	if (ret)
-		goto unlock;
-
-	ret = ovl_real_ioctl(file, cmd, arg);
-
-	ovl_copyflags(ovl_inode_real(inode), inode);
-unlock:
-	inode_unlock(inode);
-
-	mnt_drop_write_file(file);
-
-	return ret;
-
-}
-
-long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	long ret;
-
-	switch (cmd) {
-	case FS_IOC_GETFLAGS:
-	case FS_IOC_FSGETXATTR:
-		ret = ovl_real_ioctl(file, cmd, arg);
-		break;
-
-	case FS_IOC_FSSETXATTR:
-	case FS_IOC_SETFLAGS:
-		ret = ovl_ioctl_set_flags(file, cmd, arg);
-		break;
-
-	default:
-		ret = -ENOTTY;
-	}
-
-	return ret;
-}
-
-#ifdef CONFIG_COMPAT
-long ovl_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case FS_IOC32_GETFLAGS:
-		cmd = FS_IOC_GETFLAGS;
-		break;
-
-	case FS_IOC32_SETFLAGS:
-		cmd = FS_IOC_SETFLAGS;
-		break;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-
-	return ovl_ioctl(file, cmd, arg);
-}
-#endif
-
 enum ovl_copyop {
 	OVL_COPY,
 	OVL_CLONE,
@@ -677,6 +571,26 @@ static loff_t ovl_remap_file_range(struct file *file_in, loff_t pos_in,
 			    remap_flags, op);
 }
 
+static int ovl_flush(struct file *file, fl_owner_t id)
+{
+	struct fd real;
+	const struct cred *old_cred;
+	int err;
+
+	err = ovl_real_fdget(file, &real);
+	if (err)
+		return err;
+
+	if (real.file->f_op->flush) {
+		old_cred = ovl_override_creds(file_inode(file)->i_sb);
+		err = real.file->f_op->flush(real.file, id);
+		revert_creds(old_cred);
+	}
+	fdput(real);
+
+	return err;
+}
+
 const struct file_operations ovl_file_operations = {
 	.open		= ovl_open,
 	.release	= ovl_release,
@@ -687,10 +601,7 @@ const struct file_operations ovl_file_operations = {
 	.mmap		= ovl_mmap,
 	.fallocate	= ovl_fallocate,
 	.fadvise	= ovl_fadvise,
-	.unlocked_ioctl	= ovl_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ovl_compat_ioctl,
-#endif
+	.flush		= ovl_flush,
 	.splice_read    = generic_file_splice_read,
 	.splice_write   = iter_file_splice_write,
 

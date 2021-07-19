@@ -625,12 +625,11 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *idev,
 	struct iio_trigger *trig;
 	int ret;
 
-	trig = iio_trigger_alloc("%s-dev%d-%s", idev->name,
+	trig = iio_trigger_alloc(idev->dev.parent, "%s-dev%d-%s", idev->name,
 				 idev->id, trigger->name);
 	if (trig == NULL)
 		return NULL;
 
-	trig->dev.parent = idev->dev.parent;
 	iio_trigger_set_drvdata(trig, idev);
 	trig->ops = &at91_adc_trigger_ops;
 

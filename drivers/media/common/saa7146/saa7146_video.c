@@ -247,9 +247,8 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 
 		/* walk all pages, copy all page addresses to ptr1 */
 		for (i = 0; i < length; i++, list++) {
-			for (p = 0; p * 4096 < list->length; p++, ptr1++) {
+			for (p = 0; p * 4096 < sg_dma_len(list); p++, ptr1++)
 				*ptr1 = cpu_to_le32(sg_dma_address(list) - list->offset);
-			}
 		}
 /*
 		ptr1 = pt1->cpu;

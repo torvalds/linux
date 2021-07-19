@@ -2095,7 +2095,7 @@ static struct attribute *msc_output_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group msc_output_group = {
+static const struct attribute_group msc_output_group = {
 	.attrs	= msc_output_attrs,
 };
 

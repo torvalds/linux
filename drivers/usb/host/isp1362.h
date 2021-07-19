@@ -435,7 +435,6 @@ struct isp1362_hcd {
 
 	struct isp1362_platform_data *board;
 
-	struct dentry		*debug_file;
 	unsigned long		stat1, stat2, stat4, stat8, stat16;
 
 	/* HC registers */

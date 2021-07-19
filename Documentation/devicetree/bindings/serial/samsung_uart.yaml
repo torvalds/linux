@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/samsung_uart.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S3C, S5P and Exynos SoC UART Controller
+title: Samsung S3C, S5P, Exynos, and S5L (Apple SoC) SoC UART Controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -19,6 +19,7 @@ properties:
   compatible:
     items:
       - enum:
+          - apple,s5l-uart
           - samsung,s3c2410-uart
           - samsung,s3c2412-uart
           - samsung,s3c2440-uart
@@ -51,6 +52,16 @@ properties:
       - pattern: '^clk_uart_baud[0-3]$'
       - pattern: '^clk_uart_baud[0-3]$'
 
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   interrupts:
     description: RX interrupt and optionally TX interrupt.
     minItems: 1
@@ -68,9 +79,11 @@ required:
   - interrupts
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 allOf:
+  - $ref: /schemas/serial.yaml#
+
   - if:
       properties:
         compatible:
@@ -96,6 +109,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - apple,s5l-uart
               - samsung,exynos4210-uart
     then:
       properties:

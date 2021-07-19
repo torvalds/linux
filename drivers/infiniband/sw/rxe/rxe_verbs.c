@@ -26,7 +26,7 @@ static int rxe_query_device(struct ib_device *dev,
 }
 
 static int rxe_query_port(struct ib_device *dev,
-			  u8 port_num, struct ib_port_attr *attr)
+			  u32 port_num, struct ib_port_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
@@ -54,7 +54,7 @@ static int rxe_query_port(struct ib_device *dev,
 }
 
 static int rxe_query_pkey(struct ib_device *device,
-			  u8 port_num, u16 index, u16 *pkey)
+			  u32 port_num, u16 index, u16 *pkey)
 {
 	if (index > 0)
 		return -EINVAL;
@@ -84,7 +84,7 @@ static int rxe_modify_device(struct ib_device *dev,
 }
 
 static int rxe_modify_port(struct ib_device *dev,
-			   u8 port_num, int mask, struct ib_port_modify *attr)
+			   u32 port_num, int mask, struct ib_port_modify *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
@@ -101,7 +101,7 @@ static int rxe_modify_port(struct ib_device *dev,
 }
 
 static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
-					       u8 port_num)
+					       u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -121,7 +121,7 @@ static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 	rxe_drop_ref(uc);
 }
 
-static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
+static int rxe_port_immutable(struct ib_device *dev, u32 port_num,
 			      struct ib_port_immutable *immutable)
 {
 	int err;
@@ -865,7 +865,7 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_mem *mr;
+	struct rxe_mr *mr;
 
 	mr = rxe_alloc(&rxe->mr_pool);
 	if (!mr)
@@ -873,7 +873,7 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 
 	rxe_add_index(mr);
 	rxe_add_ref(pd);
-	rxe_mem_init_dma(pd, access, mr);
+	rxe_mr_init_dma(pd, access, mr);
 
 	return &mr->ibmr;
 }
@@ -887,7 +887,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_mem *mr;
+	struct rxe_mr *mr;
 
 	mr = rxe_alloc(&rxe->mr_pool);
 	if (!mr) {
@@ -899,8 +899,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 	rxe_add_ref(pd);
 
-	err = rxe_mem_init_user(pd, start, length, iova,
-				access, udata, mr);
+	err = rxe_mr_init_user(pd, start, length, iova, access, udata, mr);
 	if (err)
 		goto err3;
 
@@ -916,9 +915,9 @@ err2:
 
 static int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
-	struct rxe_mem *mr = to_rmr(ibmr);
+	struct rxe_mr *mr = to_rmr(ibmr);
 
-	mr->state = RXE_MEM_STATE_ZOMBIE;
+	mr->state = RXE_MR_STATE_ZOMBIE;
 	rxe_drop_ref(mr_pd(mr));
 	rxe_drop_index(mr);
 	rxe_drop_ref(mr);
@@ -930,7 +929,7 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_mem *mr;
+	struct rxe_mr *mr;
 	int err;
 
 	if (mr_type != IB_MR_TYPE_MEM_REG)
@@ -946,7 +945,7 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 
 	rxe_add_ref(pd);
 
-	err = rxe_mem_init_fast(pd, max_num_sg, mr);
+	err = rxe_mr_init_fast(pd, max_num_sg, mr);
 	if (err)
 		goto err2;
 
@@ -962,7 +961,7 @@ err1:
 
 static int rxe_set_page(struct ib_mr *ibmr, u64 addr)
 {
-	struct rxe_mem *mr = to_rmr(ibmr);
+	struct rxe_mr *mr = to_rmr(ibmr);
 	struct rxe_map *map;
 	struct rxe_phys_buf *buf;
 
@@ -982,7 +981,7 @@ static int rxe_set_page(struct ib_mr *ibmr, u64 addr)
 static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 			 int sg_nents, unsigned int *sg_offset)
 {
-	struct rxe_mem *mr = to_rmr(ibmr);
+	struct rxe_mr *mr = to_rmr(ibmr);
 	int n;
 
 	mr->nbuf = 0;
@@ -1110,6 +1109,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, rxe_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
+	INIT_RDMA_OBJ_SIZE(ib_mw, rxe_mw, ibmw),
 };
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)

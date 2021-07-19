@@ -182,12 +182,6 @@ static int ad799x_update_config(struct ad799x_state *st, u16 config)
 	return 0;
 }
 
-/*
- * ad799x_trigger_handler() bh of trigger launched polling to ring buffer
- *
- * Currently there is no option in this driver to disable the saving of
- * timestamps within the ring.
- **/
 static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;

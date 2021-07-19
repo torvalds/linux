@@ -160,8 +160,10 @@ static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 	usbhs_lock(priv, flags);
 
 	pkt = __usbhsf_pkt_get(pipe);
-	if (!pkt)
+	if (!pkt) {
+		ret = -EINVAL;
 		goto __usbhs_pkt_handler_end;
+	}
 
 	switch (type) {
 	case USBHSF_PKT_PREPARE:

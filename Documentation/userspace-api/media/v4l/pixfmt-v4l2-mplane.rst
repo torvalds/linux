@@ -13,7 +13,7 @@ describing all planes of that format.
 
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{1.4cm}|p{4.0cm}|p{11.9cm}|
 
 .. c:type:: v4l2_plane_pix_format
 
@@ -52,7 +52,7 @@ describing all planes of that format.
 
     \small
 
-.. tabularcolumns:: |p{4.4cm}|p{5.6cm}|p{7.5cm}|
+.. tabularcolumns:: |p{4.4cm}|p{5.6cm}|p{7.3cm}|
 
 .. c:type:: v4l2_pix_format_mplane
 

@@ -11,6 +11,10 @@
 	model = "Firefly ROC-RK3399-PC Mezzanine Board";
 	compatible = "firefly,roc-rk3399-pc-mezzanine", "rockchip,rk3399";
 
+	aliases {
+		mmc2 = &sdio0;
+	};
+
 	/* MP8009 PoE PD */
 	poe_12v: poe-12v {
 		compatible = "regulator-fixed";

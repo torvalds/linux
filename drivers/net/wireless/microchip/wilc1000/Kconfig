@@ -27,6 +27,7 @@ config WILC1000_SPI
 	depends on CFG80211 && INET && SPI
 	select WILC1000
 	select CRC7
+	select CRC_ITU_T
 	help
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 has a Serial Peripheral

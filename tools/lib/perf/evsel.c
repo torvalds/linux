@@ -11,10 +11,12 @@
 #include <stdlib.h>
 #include <internal/xyarray.h>
 #include <internal/cpumap.h>
+#include <internal/mmap.h>
 #include <internal/threadmap.h>
 #include <internal/lib.h>
 #include <linux/string.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
 {
@@ -38,6 +40,7 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 }
 
 #define FD(e, x, y) (*(int *) xyarray__entry(e->fd, x, y))
+#define MMAP(e, x, y) (e->mmap ? ((struct perf_mmap *) xyarray__entry(e->mmap, x, y)) : NULL)
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
@@ -53,6 +56,13 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 	}
 
 	return evsel->fd != NULL ? 0 : -ENOMEM;
+}
+
+static int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	evsel->mmap = xyarray__new(ncpus, nthreads, sizeof(struct perf_mmap));
+
+	return evsel->mmap != NULL ? 0 : -ENOMEM;
 }
 
 static int
@@ -156,6 +166,72 @@ void perf_evsel__close_cpu(struct perf_evsel *evsel, int cpu)
 	perf_evsel__close_fd_cpu(evsel, cpu);
 }
 
+void perf_evsel__munmap(struct perf_evsel *evsel)
+{
+	int cpu, thread;
+
+	if (evsel->fd == NULL || evsel->mmap == NULL)
+		return;
+
+	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
+			int fd = FD(evsel, cpu, thread);
+			struct perf_mmap *map = MMAP(evsel, cpu, thread);
+
+			if (fd < 0)
+				continue;
+
+			perf_mmap__munmap(map);
+		}
+	}
+
+	xyarray__delete(evsel->mmap);
+	evsel->mmap = NULL;
+}
+
+int perf_evsel__mmap(struct perf_evsel *evsel, int pages)
+{
+	int ret, cpu, thread;
+	struct perf_mmap_param mp = {
+		.prot = PROT_READ | PROT_WRITE,
+		.mask = (pages * page_size) - 1,
+	};
+
+	if (evsel->fd == NULL || evsel->mmap)
+		return -EINVAL;
+
+	if (perf_evsel__alloc_mmap(evsel, xyarray__max_x(evsel->fd), xyarray__max_y(evsel->fd)) < 0)
+		return -ENOMEM;
+
+	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
+			int fd = FD(evsel, cpu, thread);
+			struct perf_mmap *map = MMAP(evsel, cpu, thread);
+
+			if (fd < 0)
+				continue;
+
+			perf_mmap__init(map, NULL, false, NULL);
+
+			ret = perf_mmap__mmap(map, &mp, fd, cpu);
+			if (ret) {
+				perf_evsel__munmap(evsel);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+void *perf_evsel__mmap_base(struct perf_evsel *evsel, int cpu, int thread)
+{
+	if (FD(evsel, cpu, thread) < 0 || MMAP(evsel, cpu, thread) == NULL)
+		return NULL;
+
+	return MMAP(evsel, cpu, thread)->base;
+}
+
 int perf_evsel__read_size(struct perf_evsel *evsel)
 {
 	u64 read_format = evsel->attr.read_format;
@@ -190,6 +266,10 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
+
+	if (MMAP(evsel, cpu, thread) &&
+	    !perf_mmap__read_self(MMAP(evsel, cpu, thread), count))
+		return 0;
 
 	if (readn(FD(evsel, cpu, thread), count->values, size) <= 0)
 		return -errno;

@@ -1171,14 +1171,9 @@ static int anysee_ci_write_attribute_mem(struct dvb_ca_en50221 *ci, int slot,
 	int addr, u8 val)
 {
 	struct dvb_usb_device *d = ci->data;
-	int ret;
 	u8 buf[] = {CMD_CI, 0x03, 0x40 | addr >> 8, addr & 0xff, 0x00, 1, val};
 
-	ret = anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
 static int anysee_ci_read_cam_control(struct dvb_ca_en50221 *ci, int slot,
@@ -1200,14 +1195,9 @@ static int anysee_ci_write_cam_control(struct dvb_ca_en50221 *ci, int slot,
 	u8 addr, u8 val)
 {
 	struct dvb_usb_device *d = ci->data;
-	int ret;
 	u8 buf[] = {CMD_CI, 0x05, 0x40, addr, 0x00, 1, val};
 
-	ret = anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
 static int anysee_ci_slot_reset(struct dvb_ca_en50221 *ci, int slot)
@@ -1252,13 +1242,8 @@ static int anysee_ci_slot_shutdown(struct dvb_ca_en50221 *ci, int slot)
 static int anysee_ci_slot_ts_enable(struct dvb_ca_en50221 *ci, int slot)
 {
 	struct dvb_usb_device *d = ci->data;
-	int ret;
 
-	ret = anysee_wr_reg_mask(d, REG_IOD, (0 << 1), 0x02);
-	if (ret)
-		return ret;
-
-	return 0;
+	return anysee_wr_reg_mask(d, REG_IOD, (0 << 1), 0x02);
 }
 
 static int anysee_ci_poll_slot_status(struct dvb_ca_en50221 *ci, int slot,

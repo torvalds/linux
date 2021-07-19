@@ -15,20 +15,20 @@
 #define	BT_INFO_8723B_1ANT_B_CONNECTION		BIT0
 
 #define	BT_INFO_8723B_1ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
-		(((_BT_INFO_EXT_&BIT0)) ? true : false)
+		(((_BT_INFO_EXT_ & BIT0)) ? true : false)
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723B_1ANT 2
 
 #define  BT_8723B_1ANT_WIFI_NOISY_THRESH 30   /* max: 255 */
 
-typedef enum _BT_INFO_SRC_8723B_1ANT {
+enum {
 	BT_INFO_SRC_8723B_1ANT_WIFI_FW			= 0x0,
 	BT_INFO_SRC_8723B_1ANT_BT_RSP				= 0x1,
 	BT_INFO_SRC_8723B_1ANT_BT_ACTIVE_SEND		= 0x2,
 	BT_INFO_SRC_8723B_1ANT_MAX
-} BT_INFO_SRC_8723B_1ANT, *PBT_INFO_SRC_8723B_1ANT;
+};
 
-typedef enum _BT_8723B_1ANT_BT_STATUS {
+enum {
 	BT_8723B_1ANT_BT_STATUS_NON_CONNECTED_IDLE	= 0x0,
 	BT_8723B_1ANT_BT_STATUS_CONNECTED_IDLE		= 0x1,
 	BT_8723B_1ANT_BT_STATUS_INQ_PAGE				= 0x2,
@@ -36,9 +36,9 @@ typedef enum _BT_8723B_1ANT_BT_STATUS {
 	BT_8723B_1ANT_BT_STATUS_SCO_BUSY				= 0x4,
 	BT_8723B_1ANT_BT_STATUS_ACL_SCO_BUSY			= 0x5,
 	BT_8723B_1ANT_BT_STATUS_MAX
-} BT_8723B_1ANT_BT_STATUS, *PBT_8723B_1ANT_BT_STATUS;
+};
 
-typedef enum _BT_8723B_1ANT_WIFI_STATUS {
+enum {
 	BT_8723B_1ANT_WIFI_STATUS_NON_CONNECTED_IDLE           = 0x0,
 	BT_8723B_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN = 0x1,
 	BT_8723B_1ANT_WIFI_STATUS_CONNECTED_SCAN               = 0x2,
@@ -46,9 +46,9 @@ typedef enum _BT_8723B_1ANT_WIFI_STATUS {
 	BT_8723B_1ANT_WIFI_STATUS_CONNECTED_IDLE               = 0x4,
 	BT_8723B_1ANT_WIFI_STATUS_CONNECTED_BUSY               = 0x5,
 	BT_8723B_1ANT_WIFI_STATUS_MAX
-} BT_8723B_1ANT_WIFI_STATUS, *PBT_8723B_1ANT_WIFI_STATUS;
+};
 
-typedef enum _BT_8723B_1ANT_COEX_ALGO {
+enum {
 	BT_8723B_1ANT_COEX_ALGO_UNDEFINED		= 0x0,
 	BT_8723B_1ANT_COEX_ALGO_SCO				= 0x1,
 	BT_8723B_1ANT_COEX_ALGO_HID				= 0x2,
@@ -61,9 +61,9 @@ typedef enum _BT_8723B_1ANT_COEX_ALGO {
 	BT_8723B_1ANT_COEX_ALGO_HID_A2DP_PANEDR	= 0x9,
 	BT_8723B_1ANT_COEX_ALGO_HID_A2DP		= 0xa,
 	BT_8723B_1ANT_COEX_ALGO_MAX				= 0xb,
-} BT_8723B_1ANT_COEX_ALGO, *PBT_8723B_1ANT_COEX_ALGO;
+};
 
-typedef struct _COEX_DM_8723B_1ANT {
+struct coex_dm_8723b_1ant {
 	/*  fw mechanism */
 	bool bCurIgnoreWlanAct;
 	bool bPreIgnoreWlanAct;
@@ -116,9 +116,9 @@ typedef struct _COEX_DM_8723B_1ANT {
 	u32 nArpCnt;
 
 	u8 errorCondition;
-} COEX_DM_8723B_1ANT, *PCOEX_DM_8723B_1ANT;
+};
 
-typedef struct _COEX_STA_8723B_1ANT {
+struct coex_sta_8723b_1ant {
 	bool bBtLinkExist;
 	bool bScoExist;
 	bool bA2dpExist;
@@ -162,24 +162,24 @@ typedef struct _COEX_STA_8723B_1ANT {
 	u8 nCoexTableType;
 
 	bool bForceLpsOn;
-} COEX_STA_8723B_1ANT, *PCOEX_STA_8723B_1ANT;
+};
 
 /*  */
 /*  The following is interface which will notify coex module. */
 /*  */
-void EXhalbtc8723b1ant_PowerOnSetting(PBTC_COEXIST pBtCoexist);
-void EXhalbtc8723b1ant_InitHwConfig(PBTC_COEXIST pBtCoexist, bool bWifiOnly);
-void EXhalbtc8723b1ant_InitCoexDm(PBTC_COEXIST pBtCoexist);
-void EXhalbtc8723b1ant_IpsNotify(PBTC_COEXIST pBtCoexist, u8 type);
-void EXhalbtc8723b1ant_LpsNotify(PBTC_COEXIST pBtCoexist, u8 type);
-void EXhalbtc8723b1ant_ScanNotify(PBTC_COEXIST pBtCoexist, u8 type);
-void EXhalbtc8723b1ant_ConnectNotify(PBTC_COEXIST pBtCoexist, u8 type);
-void EXhalbtc8723b1ant_MediaStatusNotify(PBTC_COEXIST pBtCoexist, u8 type);
-void EXhalbtc8723b1ant_SpecialPacketNotify(PBTC_COEXIST pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_PowerOnSetting(struct btc_coexist *pBtCoexist);
+void EXhalbtc8723b1ant_InitHwConfig(struct btc_coexist *pBtCoexist, bool bWifiOnly);
+void EXhalbtc8723b1ant_InitCoexDm(struct btc_coexist *pBtCoexist);
+void EXhalbtc8723b1ant_IpsNotify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_LpsNotify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_ScanNotify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_ConnectNotify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_MediaStatusNotify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b1ant_SpecialPacketNotify(struct btc_coexist *pBtCoexist, u8 type);
 void EXhalbtc8723b1ant_BtInfoNotify(
-	PBTC_COEXIST pBtCoexist, u8 *tmpBuf, u8 length
+	struct btc_coexist *pBtCoexist, u8 *tmpBuf, u8 length
 );
-void EXhalbtc8723b1ant_HaltNotify(PBTC_COEXIST pBtCoexist);
-void EXhalbtc8723b1ant_PnpNotify(PBTC_COEXIST pBtCoexist, u8 pnpState);
-void EXhalbtc8723b1ant_Periodical(PBTC_COEXIST pBtCoexist);
-void EXhalbtc8723b1ant_DisplayCoexInfo(PBTC_COEXIST pBtCoexist);
+void EXhalbtc8723b1ant_HaltNotify(struct btc_coexist *pBtCoexist);
+void EXhalbtc8723b1ant_PnpNotify(struct btc_coexist *pBtCoexist, u8 pnpState);
+void EXhalbtc8723b1ant_Periodical(struct btc_coexist *pBtCoexist);
+void EXhalbtc8723b1ant_DisplayCoexInfo(struct btc_coexist *pBtCoexist);

@@ -73,3 +73,4 @@ module_i2c_driver(pm6764tr_driver);
 MODULE_AUTHOR("Charles Hsu");
 MODULE_DESCRIPTION("PMBus driver for  ST PM6764TR");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

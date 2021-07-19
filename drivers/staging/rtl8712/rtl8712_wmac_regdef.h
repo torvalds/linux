@@ -32,6 +32,5 @@
 #define AMPDU_MIN_SPACE			(RTL8712_WMAC_ + 0x37)
 #define	TXOP_STALL_CTRL			(RTL8712_WMAC_ + 0x38)
 
-
 #endif /*__RTL8712_WMAC_REGDEF_H__*/
 

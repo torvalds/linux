@@ -1202,7 +1202,7 @@ void hns_mac_get_regs(struct hns_mac_cb *mac_cb, void *data)
 
 void hns_set_led_opt(struct hns_mac_cb *mac_cb)
 {
-	int nic_data = 0;
+	int nic_data;
 	int txpkts, rxpkts;
 
 	txpkts = mac_cb->txpkt_for_led - mac_cb->hw_stats.tx_good_pkts;

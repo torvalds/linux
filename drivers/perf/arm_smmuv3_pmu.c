@@ -506,30 +506,24 @@ static ssize_t smmu_pmu_event_show(struct device *dev,
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
 
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-#define SMMU_EVENT_ATTR(name, config) \
-	PMU_EVENT_ATTR(name, smmu_event_attr_##name, \
-		       config, smmu_pmu_event_show)
-SMMU_EVENT_ATTR(cycles, 0);
-SMMU_EVENT_ATTR(transaction, 1);
-SMMU_EVENT_ATTR(tlb_miss, 2);
-SMMU_EVENT_ATTR(config_cache_miss, 3);
-SMMU_EVENT_ATTR(trans_table_walk_access, 4);
-SMMU_EVENT_ATTR(config_struct_access, 5);
-SMMU_EVENT_ATTR(pcie_ats_trans_rq, 6);
-SMMU_EVENT_ATTR(pcie_ats_trans_passed, 7);
+#define SMMU_EVENT_ATTR(name, config)					\
+	(&((struct perf_pmu_events_attr) {				\
+		.attr = __ATTR(name, 0444, smmu_pmu_event_show, NULL),	\
+		.id = config,						\
+	}).attr.attr)
 
 static struct attribute *smmu_pmu_events[] = {
-	&smmu_event_attr_cycles.attr.attr,
-	&smmu_event_attr_transaction.attr.attr,
-	&smmu_event_attr_tlb_miss.attr.attr,
-	&smmu_event_attr_config_cache_miss.attr.attr,
-	&smmu_event_attr_trans_table_walk_access.attr.attr,
-	&smmu_event_attr_config_struct_access.attr.attr,
-	&smmu_event_attr_pcie_ats_trans_rq.attr.attr,
-	&smmu_event_attr_pcie_ats_trans_passed.attr.attr,
+	SMMU_EVENT_ATTR(cycles, 0),
+	SMMU_EVENT_ATTR(transaction, 1),
+	SMMU_EVENT_ATTR(tlb_miss, 2),
+	SMMU_EVENT_ATTR(config_cache_miss, 3),
+	SMMU_EVENT_ATTR(trans_table_walk_access, 4),
+	SMMU_EVENT_ATTR(config_struct_access, 5),
+	SMMU_EVENT_ATTR(pcie_ats_trans_rq, 6),
+	SMMU_EVENT_ATTR(pcie_ats_trans_passed, 7),
 	NULL
 };
 
@@ -560,7 +554,7 @@ static ssize_t smmu_pmu_identifier_attr_show(struct device *dev,
 {
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(dev_get_drvdata(dev));
 
-	return snprintf(page, PAGE_SIZE, "0x%08x\n", smmu_pmu->iidr);
+	return sysfs_emit(page, "0x%08x\n", smmu_pmu->iidr);
 }
 
 static umode_t smmu_pmu_identifier_attr_visible(struct kobject *kobj,

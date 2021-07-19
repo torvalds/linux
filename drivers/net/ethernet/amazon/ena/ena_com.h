@@ -124,7 +124,7 @@ struct ena_com_io_cq {
 
 	/* holds the number of cdesc of the current packet */
 	u16 cur_rx_pkt_cdesc_count;
-	/* save the firt cdesc idx of the current packet */
+	/* save the first cdesc idx of the current packet */
 	u16 cur_rx_pkt_cdesc_start_idx;
 
 	u16 q_depth;

@@ -96,7 +96,6 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	int ret;
 	struct iio_dev *indio_dev;
 	struct ssp_sensor_data *spd;
-	struct iio_buffer *buffer;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*spd));
 	if (!indio_dev)
@@ -109,18 +108,15 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 
 	indio_dev->name = ssp_gyro_name;
 	indio_dev->info = &ssp_gyro_iio_info;
-	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = ssp_gyro_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ssp_gyro_channels);
 	indio_dev->available_scan_masks = ssp_gyro_scan_mask;
 
-	buffer = devm_iio_kfifo_allocate(&pdev->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	indio_dev->setup_ops = &ssp_gyro_buffer_ops;
+	ret = devm_iio_kfifo_buffer_setup(&pdev->dev, indio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &ssp_gyro_buffer_ops);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, indio_dev);
 

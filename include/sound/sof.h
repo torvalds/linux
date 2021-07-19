@@ -100,8 +100,6 @@ struct sof_dev_desc {
 	const struct snd_sof_dsp_ops *ops;
 };
 
-int sof_nocodec_setup(struct device *dev, const struct snd_sof_dsp_ops *ops,
-		      int (*pcm_dai_link_fixup)(struct snd_soc_pcm_runtime *rtd,
-						struct snd_pcm_hw_params *params));
+int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);
 
 #endif

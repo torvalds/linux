@@ -39,7 +39,5 @@ extern void mantis_dma_start(struct mantis_pci *mantis);
 extern void mantis_dma_stop(struct mantis_pci *mantis);
 extern int mantis_i2c_init(struct mantis_pci *mantis);
 extern int mantis_i2c_exit(struct mantis_pci *mantis);
-extern int mantis_core_init(struct mantis_pci *mantis);
-extern int mantis_core_exit(struct mantis_pci *mantis);
 
 #endif /* __MANTIS_CORE_H */

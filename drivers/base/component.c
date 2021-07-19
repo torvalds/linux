@@ -65,7 +65,6 @@ struct master {
 	const struct component_master_ops *ops;
 	struct device *dev;
 	struct component_match *match;
-	struct dentry *dentry;
 };
 
 struct component {
@@ -125,15 +124,13 @@ core_initcall(component_debug_init);
 
 static void component_master_debugfs_add(struct master *m)
 {
-	m->dentry = debugfs_create_file(dev_name(m->dev), 0444,
-					component_debugfs_dir,
-					m, &component_devices_fops);
+	debugfs_create_file(dev_name(m->dev), 0444, component_debugfs_dir, m,
+			    &component_devices_fops);
 }
 
 static void component_master_debugfs_del(struct master *m)
 {
-	debugfs_remove(m->dentry);
-	m->dentry = NULL;
+	debugfs_remove(debugfs_lookup(dev_name(m->dev), component_debugfs_dir));
 }
 
 #else

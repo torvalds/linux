@@ -142,8 +142,9 @@ config AD5696_I2C
 	select AD5686
 	help
 	  Say yes here to build support for Analog Devices AD5311R, AD5338R,
-	  AD5671R, AD5675R, AD5691R, AD5692R, AD5693, AD5693R, AD5694, AD5694R,
-	  AD5695R, AD5696, and AD5696R Digital to Analog converters.
+	  AD5671R, AD5673R, AD5675R, AD5677R, AD5691R, AD5692R, AD5693, AD5693R,
+	  AD5694, AD5694R, AD5695R, AD5696, and AD5696R Digital to Analog
+	  converters.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad5696.

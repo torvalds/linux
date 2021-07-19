@@ -245,11 +245,11 @@ static const char *rcu_torture_writer_state_getname(void)
 	return rcu_torture_writer_state_names[i];
 }
 
-#if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU)
-#define rcu_can_boost() 1
-#else /* #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
-#define rcu_can_boost() 0
-#endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
+#if defined(CONFIG_RCU_BOOST) && defined(CONFIG_PREEMPT_RT)
+# define rcu_can_boost() 1
+#else
+# define rcu_can_boost() 0
+#endif
 
 #ifdef CONFIG_RCU_TRACE
 static u64 notrace rcu_trace_clock_local(void)
@@ -494,6 +494,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
 	.get_gp_state	= get_state_synchronize_rcu,
+	.start_gp_poll	= start_poll_synchronize_rcu,
+	.poll_gp_state	= poll_state_synchronize_rcu,
 	.cond_sync	= cond_synchronize_rcu,
 	.call		= call_rcu,
 	.cb_barrier	= rcu_barrier,
@@ -923,9 +925,13 @@ static void rcu_torture_enable_rt_throttle(void)
 
 static bool rcu_torture_boost_failed(unsigned long start, unsigned long end)
 {
+	static int dbg_done;
+
 	if (end - start > test_boost_duration * HZ - HZ / 2) {
 		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
 		n_rcu_torture_boost_failure++;
+		if (!xchg(&dbg_done, 1) && cur_ops->gp_kthread_dbg)
+			cur_ops->gp_kthread_dbg();
 
 		return true; /* failed */
 	}
@@ -948,8 +954,8 @@ static int rcu_torture_boost(void *arg)
 	init_rcu_head_on_stack(&rbi.rcu);
 	/* Each pass through the following loop does one boost-test cycle. */
 	do {
-		/* Track if the test failed already in this test interval? */
-		bool failed = false;
+		bool failed = false; // Test failed already in this test interval
+		bool firsttime = true;
 
 		/* Increment n_rcu_torture_boosts once per boost-test */
 		while (!kthread_should_stop()) {
@@ -975,18 +981,17 @@ static int rcu_torture_boost(void *arg)
 
 		/* Do one boost-test interval. */
 		endtime = oldstarttime + test_boost_duration * HZ;
-		call_rcu_time = jiffies;
 		while (time_before(jiffies, endtime)) {
 			/* If we don't have a callback in flight, post one. */
 			if (!smp_load_acquire(&rbi.inflight)) {
 				/* RCU core before ->inflight = 1. */
 				smp_store_release(&rbi.inflight, 1);
-				call_rcu(&rbi.rcu, rcu_torture_boost_cb);
+				cur_ops->call(&rbi.rcu, rcu_torture_boost_cb);
 				/* Check if the boost test failed */
-				failed = failed ||
-					 rcu_torture_boost_failed(call_rcu_time,
-								 jiffies);
+				if (!firsttime && !failed)
+					failed = rcu_torture_boost_failed(call_rcu_time, jiffies);
 				call_rcu_time = jiffies;
+				firsttime = false;
 			}
 			if (stutter_wait("rcu_torture_boost"))
 				sched_set_fifo_low(current);
@@ -999,7 +1004,7 @@ static int rcu_torture_boost(void *arg)
 		 * this case the boost check would never happen in the above
 		 * loop so do another one here.
 		 */
-		if (!failed && smp_load_acquire(&rbi.inflight))
+		if (!firsttime && !failed && smp_load_acquire(&rbi.inflight))
 			rcu_torture_boost_failed(call_rcu_time, jiffies);
 
 		/*
@@ -1024,6 +1029,9 @@ static int rcu_torture_boost(void *arg)
 checkwait:	if (stutter_wait("rcu_torture_boost"))
 			sched_set_fifo_low(current);
 	} while (!torture_must_stop());
+
+	while (smp_load_acquire(&rbi.inflight))
+		schedule_timeout_uninterruptible(1); // rcu_barrier() deadlocks.
 
 	/* Clean up and exit. */
 	while (!kthread_should_stop() || smp_load_acquire(&rbi.inflight)) {
@@ -1223,14 +1231,6 @@ rcu_torture_writer(void *arg)
 				WARN_ON_ONCE(1);
 				break;
 			}
-			if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
-				WARN_ONCE(rcu_torture_writer_state != RTWS_DEF_FREE &&
-					  !cur_ops->poll_gp_state(cookie),
-					  "%s: Cookie check 2 failed %s(%d) %lu->%lu\n",
-					  __func__,
-					  rcu_torture_writer_state_getname(),
-					  rcu_torture_writer_state,
-					  cookie, cur_ops->get_gp_state());
 		}
 		WRITE_ONCE(rcu_torture_current_version,
 			   rcu_torture_current_version + 1);
@@ -1589,7 +1589,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	preempt_enable();
 	if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
 		WARN_ONCE(cur_ops->poll_gp_state(cookie),
-			  "%s: Cookie check 3 failed %s(%d) %lu->%lu\n",
+			  "%s: Cookie check 2 failed %s(%d) %lu->%lu\n",
 			  __func__,
 			  rcu_torture_writer_state_getname(),
 			  rcu_torture_writer_state,
@@ -1797,7 +1797,7 @@ rcu_torture_stats_print(void)
 		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
 		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
 		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
-		WARN_ON_ONCE(n_rcu_torture_boost_failure); // RCU boost failed
+		WARN_ON_ONCE(n_rcu_torture_boost_failure); // boost failed (TIMER_SOFTIRQ RT prio?)
 		WARN_ON_ONCE(i > 1); // Too-short grace period
 	}
 	pr_cont("Reader Pipe: ");
@@ -1861,6 +1861,45 @@ rcu_torture_stats(void *arg)
 		torture_shutdown_absorb("rcu_torture_stats");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("rcu_torture_stats");
+
+	{
+		struct rcu_head *rhp;
+		struct kmem_cache *kcp;
+		static int z;
+
+		kcp = kmem_cache_create("rcuscale", 136, 8, SLAB_STORE_USER, NULL);
+		rhp = kmem_cache_alloc(kcp, GFP_KERNEL);
+		pr_alert("mem_dump_obj() slab test: rcu_torture_stats = %px, &rhp = %px, rhp = %px, &z = %px\n", stats_task, &rhp, rhp, &z);
+		pr_alert("mem_dump_obj(ZERO_SIZE_PTR):");
+		mem_dump_obj(ZERO_SIZE_PTR);
+		pr_alert("mem_dump_obj(NULL):");
+		mem_dump_obj(NULL);
+		pr_alert("mem_dump_obj(%px):", &rhp);
+		mem_dump_obj(&rhp);
+		pr_alert("mem_dump_obj(%px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(%px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		pr_alert("mem_dump_obj(%px):", &z);
+		mem_dump_obj(&z);
+		kmem_cache_free(kcp, rhp);
+		kmem_cache_destroy(kcp);
+		rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+		pr_alert("mem_dump_obj() kmalloc test: rcu_torture_stats = %px, &rhp = %px, rhp = %px\n", stats_task, &rhp, rhp);
+		pr_alert("mem_dump_obj(kmalloc %px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(kmalloc %px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		kfree(rhp);
+		rhp = vmalloc(4096);
+		pr_alert("mem_dump_obj() vmalloc test: rcu_torture_stats = %px, &rhp = %px, rhp = %px\n", stats_task, &rhp, rhp);
+		pr_alert("mem_dump_obj(vmalloc %px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(vmalloc %px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		vfree(rhp);
+	}
+
 	return 0;
 }
 
@@ -1971,8 +2010,8 @@ static int rcu_torture_stall(void *args)
 			local_irq_disable();
 		else if (!stall_cpu_block)
 			preempt_disable();
-		pr_alert("rcu_torture_stall start on CPU %d.\n",
-			 raw_smp_processor_id());
+		pr_alert("%s start on CPU %d.\n",
+			  __func__, raw_smp_processor_id());
 		while (ULONG_CMP_LT((unsigned long)ktime_get_seconds(),
 				    stop_at))
 			if (stall_cpu_block)
@@ -1983,7 +2022,7 @@ static int rcu_torture_stall(void *args)
 			preempt_enable();
 		cur_ops->readunlock(idx);
 	}
-	pr_alert("rcu_torture_stall end.\n");
+	pr_alert("%s end.\n", __func__);
 	torture_shutdown_absorb("rcu_torture_stall");
 	while (!kthread_should_stop())
 		schedule_timeout_interruptible(10 * HZ);
@@ -2594,6 +2633,8 @@ static bool rcu_torture_can_boost(void)
 	int prio;
 
 	if (!(test_boost == 1 && cur_ops->can_boost) && test_boost != 2)
+		return false;
+	if (!cur_ops->call)
 		return false;
 
 	prio = rcu_get_gp_kthreads_prio();

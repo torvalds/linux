@@ -275,6 +275,8 @@ SND_SOC_DAILINK_DEF(rt5682,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC5682:00", "rt5682-aif1")));
 SND_SOC_DAILINK_DEF(max,
 	DAILINK_COMP_ARRAY(COMP_CODEC("MX98357A:00", "HiFi")));
+SND_SOC_DAILINK_DEF(rt1015p,
+	DAILINK_COMP_ARRAY(COMP_CODEC("RTL1015:00", "HiFi")));
 SND_SOC_DAILINK_DEF(rt1015,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1015:00", "rt1015-aif"),
 			COMP_CODEC("i2c-10EC1015:01", "rt1015-aif")));
@@ -419,6 +421,43 @@ static struct snd_soc_card acp3x_1015 = {
 	.num_controls = ARRAY_SIZE(acp3x_mc_1015_controls),
 };
 
+static const struct snd_soc_dapm_widget acp3x_1015p_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0,
+			 &acp3x_dmic_mux_control),
+	SND_SOC_DAPM_SPK("Speakers", NULL),
+};
+
+static const struct snd_soc_dapm_route acp3x_1015p_route[] = {
+	{"Headphone Jack", NULL, "HPOL"},
+	{"Headphone Jack", NULL, "HPOR"},
+	{"IN1P", NULL, "Headset Mic"},
+	{"Dmic Mux", "Front Mic", "DMIC"},
+	{"Dmic Mux", "Rear Mic", "DMIC"},
+	/* speaker */
+	{ "Speakers", NULL, "Speaker" },
+};
+
+static const struct snd_kcontrol_new acp3x_mc_1015p_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Speakers"),
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
+
+static struct snd_soc_card acp3x_1015p = {
+	.name = "acp3xalc56821015p",
+	.owner = THIS_MODULE,
+	.dai_link = acp3x_dai,
+	.num_links = ARRAY_SIZE(acp3x_dai),
+	.dapm_widgets = acp3x_1015p_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp3x_1015p_widgets),
+	.dapm_routes = acp3x_1015p_route,
+	.num_dapm_routes = ARRAY_SIZE(acp3x_1015p_route),
+	.controls = acp3x_mc_1015p_controls,
+	.num_controls = ARRAY_SIZE(acp3x_mc_1015p_controls),
+};
+
 void *soc_is_rltk_max(struct device *dev)
 {
 	const struct acpi_device_id *match;
@@ -435,6 +474,9 @@ static void card_spk_dai_link_present(struct snd_soc_dai_link *links,
 	if (!strcmp(card_name, "acp3xalc56821015")) {
 		links[1].codecs = rt1015;
 		links[1].num_codecs = ARRAY_SIZE(rt1015);
+	} else if (!strcmp(card_name, "acp3xalc56821015p")) {
+		links[1].codecs = rt1015p;
+		links[1].num_codecs = ARRAY_SIZE(rt1015p);
 	} else {
 		links[1].codecs = max;
 		links[1].num_codecs = ARRAY_SIZE(max);
@@ -486,6 +528,7 @@ static int acp3x_probe(struct platform_device *pdev)
 static const struct acpi_device_id acp3x_audio_acpi_match[] = {
 	{ "AMDI5682", (unsigned long)&acp3x_5682},
 	{ "AMDI1015", (unsigned long)&acp3x_1015},
+	{ "10021015", (unsigned long)&acp3x_1015p},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, acp3x_audio_acpi_match);
@@ -503,5 +546,6 @@ module_platform_driver(acp3x_audio);
 
 MODULE_AUTHOR("akshu.agrawal@amd.com");
 MODULE_AUTHOR("Vishnuvardhanrao.Ravulapati@amd.com");
-MODULE_DESCRIPTION("ALC5682 ALC1015 & MAX98357 audio support");
+MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
+MODULE_DESCRIPTION("ALC5682 ALC1015, ALC1015P & MAX98357 audio support");
 MODULE_LICENSE("GPL v2");

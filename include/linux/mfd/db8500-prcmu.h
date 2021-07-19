@@ -720,7 +720,7 @@ static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val)
 
 static inline bool db8500_prcmu_is_ac_wake_requested(void)
 {
-	return 0;
+	return false;
 }
 
 static inline int db8500_prcmu_set_arm_opp(u8 opp)

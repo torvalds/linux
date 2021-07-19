@@ -86,7 +86,7 @@ static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void ux500_cpu_die(unsigned int cpu)
+static void ux500_cpu_die(unsigned int cpu)
 {
 	wfi();
 }

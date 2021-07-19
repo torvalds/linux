@@ -7,7 +7,7 @@
 #include "vchiq_core.h"
 
 struct vchiq_debugfs_node {
-    struct dentry *dentry;
+	struct dentry *dentry;
 };
 
 void vchiq_debugfs_init(void);

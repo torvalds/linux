@@ -277,6 +277,16 @@ struct tb_drom_entry_port {
 	u8 unknown4:2;
 } __packed;
 
+/* USB4 product descriptor */
+struct tb_drom_entry_desc {
+	struct tb_drom_entry_header header;
+	u16 bcdUSBSpec;
+	u16 idVendor;
+	u16 idProduct;
+	u16 bcdProductFWRevision;
+	u32 TID;
+	u8 productHWRevision;
+};
 
 /**
  * tb_drom_read_uid_only() - Read UID directly from DROM
@@ -329,6 +339,16 @@ static int tb_drom_parse_entry_generic(struct tb_switch *sw,
 		if (!sw->device_name)
 			return -ENOMEM;
 		break;
+	case 9: {
+		const struct tb_drom_entry_desc *desc =
+			(const struct tb_drom_entry_desc *)entry;
+
+		if (!sw->vendor && !sw->device) {
+			sw->vendor = desc->idVendor;
+			sw->device = desc->idProduct;
+		}
+		break;
+	}
 	}
 
 	return 0;
@@ -521,6 +541,51 @@ static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
 	return tb_eeprom_read_n(sw, offset, val, count);
 }
 
+static int tb_drom_parse(struct tb_switch *sw)
+{
+	const struct tb_drom_header *header =
+		(const struct tb_drom_header *)sw->drom;
+	u32 crc;
+
+	crc = tb_crc8((u8 *) &header->uid, 8);
+	if (crc != header->uid_crc8) {
+		tb_sw_warn(sw,
+			"DROM UID CRC8 mismatch (expected: %#x, got: %#x), aborting\n",
+			header->uid_crc8, crc);
+		return -EINVAL;
+	}
+	if (!sw->uid)
+		sw->uid = header->uid;
+	sw->vendor = header->vendor_id;
+	sw->device = header->model_id;
+
+	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
+	if (crc != header->data_crc32) {
+		tb_sw_warn(sw,
+			"DROM data CRC32 mismatch (expected: %#x, got: %#x), continuing\n",
+			header->data_crc32, crc);
+	}
+
+	return tb_drom_parse_entries(sw);
+}
+
+static int usb4_drom_parse(struct tb_switch *sw)
+{
+	const struct tb_drom_header *header =
+		(const struct tb_drom_header *)sw->drom;
+	u32 crc;
+
+	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
+	if (crc != header->data_crc32) {
+		tb_sw_warn(sw,
+			   "DROM data CRC32 mismatch (expected: %#x, got: %#x), aborting\n",
+			   header->data_crc32, crc);
+		return -EINVAL;
+	}
+
+	return tb_drom_parse_entries(sw);
+}
+
 /**
  * tb_drom_read() - Copy DROM to sw->drom and parse it
  * @sw: Router whose DROM to read and parse
@@ -534,7 +599,6 @@ static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
 int tb_drom_read(struct tb_switch *sw)
 {
 	u16 size;
-	u32 crc;
 	struct tb_drom_header *header;
 	int res, retries = 1;
 
@@ -599,31 +663,21 @@ parse:
 		goto err;
 	}
 
-	crc = tb_crc8((u8 *) &header->uid, 8);
-	if (crc != header->uid_crc8) {
-		tb_sw_warn(sw,
-			"drom uid crc8 mismatch (expected: %#x, got: %#x), aborting\n",
-			header->uid_crc8, crc);
-		goto err;
-	}
-	if (!sw->uid)
-		sw->uid = header->uid;
-	sw->vendor = header->vendor_id;
-	sw->device = header->model_id;
-	tb_check_quirks(sw);
+	tb_sw_dbg(sw, "DROM version: %d\n", header->device_rom_revision);
 
-	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
-	if (crc != header->data_crc32) {
-		tb_sw_warn(sw,
-			"drom data crc32 mismatch (expected: %#x, got: %#x), continuing\n",
-			header->data_crc32, crc);
+	switch (header->device_rom_revision) {
+	case 3:
+		res = usb4_drom_parse(sw);
+		break;
+	default:
+		tb_sw_warn(sw, "DROM device_rom_revision %#x unknown\n",
+			   header->device_rom_revision);
+		fallthrough;
+	case 1:
+		res = tb_drom_parse(sw);
+		break;
 	}
 
-	if (header->device_rom_revision > 2)
-		tb_sw_warn(sw, "drom device_rom_revision %#x unknown\n",
-			header->device_rom_revision);
-
-	res = tb_drom_parse_entries(sw);
 	/* If the DROM parsing fails, wait a moment and retry once */
 	if (res == -EILSEQ && retries--) {
 		tb_sw_warn(sw, "parsing DROM failed, retrying\n");
@@ -633,10 +687,11 @@ parse:
 			goto parse;
 	}
 
-	return res;
+	if (!res)
+		return 0;
+
 err:
 	kfree(sw->drom);
 	sw->drom = NULL;
 	return -EIO;
-
 }

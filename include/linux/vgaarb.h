@@ -112,7 +112,9 @@ static inline int vga_get_uninterruptible(struct pci_dev *pdev,
 #if defined(CONFIG_VGA_ARB)
 extern void vga_put(struct pci_dev *pdev, unsigned int rsrc);
 #else
-#define vga_put(pdev, rsrc)
+static inline void vga_put(struct pci_dev *pdev, unsigned int rsrc)
+{
+}
 #endif
 
 

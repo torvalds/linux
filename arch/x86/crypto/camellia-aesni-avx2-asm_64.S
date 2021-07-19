@@ -990,6 +990,7 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	 *	%rdx: src (32 blocks)
 	 */
 	FRAME_BEGIN
+	subq $(16 * 32), %rsp;
 
 	vzeroupper;
 
@@ -1002,7 +1003,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 		     %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		     %ymm15, %rdx, (key_table)(CTX, %r8, 8));
 
-	movq %rsp, %r10;
 	cmpq %rsi, %rdx;
 	je .Lcbc_dec_use_stack;
 
@@ -1015,7 +1015,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	 * dst still in-use (because dst == src), so use stack for temporary
 	 * storage.
 	 */
-	subq $(16 * 32), %rsp;
 	movq %rsp, %rax;
 
 .Lcbc_dec_continue:
@@ -1025,7 +1024,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	vpxor %ymm7, %ymm7, %ymm7;
 	vinserti128 $1, (%rdx), %ymm7, %ymm7;
 	vpxor (%rax), %ymm7, %ymm7;
-	movq %r10, %rsp;
 	vpxor (0 * 32 + 16)(%rdx), %ymm6, %ymm6;
 	vpxor (1 * 32 + 16)(%rdx), %ymm5, %ymm5;
 	vpxor (2 * 32 + 16)(%rdx), %ymm4, %ymm4;
@@ -1047,6 +1045,7 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 
 	vzeroupper;
 
+	addq $(16 * 32), %rsp;
 	FRAME_END
 	ret;
 SYM_FUNC_END(camellia_cbc_dec_32way)

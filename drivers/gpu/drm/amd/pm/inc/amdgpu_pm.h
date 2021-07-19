@@ -84,6 +84,6 @@ int amdgpu_pm_virt_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev);
 void amdgpu_pm_virt_sysfs_fini(struct amdgpu_device *adev);
 
-int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
+void amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 
 #endif

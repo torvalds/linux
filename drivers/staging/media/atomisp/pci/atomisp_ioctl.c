@@ -843,7 +843,7 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_try_fmt(vdev, f, NULL);
+	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
@@ -948,10 +948,8 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		dev_dbg(isp->dev, "allocating %d dis buffers\n", count);
 		while (count--) {
 			dis_buf = kzalloc(sizeof(struct atomisp_dis_buf), GFP_KERNEL);
-			if (!dis_buf) {
-				kfree(s3a_buf);
+			if (!dis_buf)
 				goto error;
-			}
 			if (atomisp_css_allocate_stat_buffers(
 				asd, stream_id, NULL, dis_buf, NULL)) {
 				kfree(dis_buf);
@@ -2013,7 +2011,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 	if (first_streamoff) {
 		css_pipe_id = atomisp_get_css_pipe_id(asd);
-		ret = atomisp_css_stop(asd, css_pipe_id, false);
+		atomisp_css_stop(asd, css_pipe_id, false);
 	}
 	/* cancel work queue*/
 	if (asd->video_out_capture.users) {

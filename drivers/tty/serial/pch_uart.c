@@ -236,7 +236,6 @@ struct eg20t_port {
 	void				*rx_buf_virt;
 	dma_addr_t			rx_buf_dma;
 
-	struct dentry	*debugfs;
 #define IRQ_NAME_SIZE 17
 	char				irq_name[IRQ_NAME_SIZE];
 
@@ -291,8 +290,6 @@ static const int trigger_level_256[4] = { 1, 64, 128, 224 };
 static const int trigger_level_64[4] = { 1, 16, 32, 56 };
 static const int trigger_level_16[4] = { 1, 4, 8, 14 };
 static const int trigger_level_1[4] = { 1, 1, 1, 1 };
-
-#ifdef CONFIG_DEBUG_FS
 
 #define PCH_REGS_BUFSIZE	1024
 
@@ -353,7 +350,6 @@ static const struct file_operations port_regs_ops = {
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
-#endif	/* CONFIG_DEBUG_FS */
 
 static const struct dmi_system_id pch_uart_dmi_table[] = {
 	{
@@ -1735,9 +1731,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize;
 	int port_type;
 	struct pch_uart_driver_data *board;
-#ifdef CONFIG_DEBUG_FS
-	char name[32];	/* for debugfs file name */
-#endif
+	char name[32];
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1813,11 +1807,9 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	if (ret < 0)
 		goto init_port_hal_free;
 
-#ifdef CONFIG_DEBUG_FS
-	snprintf(name, sizeof(name), "uart%d_regs", board->line_no);
-	priv->debugfs = debugfs_create_file(name, S_IFREG | S_IRUGO,
-				NULL, priv, &port_regs_ops);
-#endif
+	snprintf(name, sizeof(name), "uart%d_regs", priv->port.line);
+	debugfs_create_file(name, S_IFREG | S_IRUGO, NULL, priv,
+			    &port_regs_ops);
 
 	return priv;
 
@@ -1835,10 +1827,10 @@ init_port_alloc_err:
 
 static void pch_uart_exit_port(struct eg20t_port *priv)
 {
+	char name[32];
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove(priv->debugfs);
-#endif
+	snprintf(name, sizeof(name), "uart%d_regs", priv->port.line);
+	debugfs_remove(debugfs_lookup(name, NULL));
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	free_page((unsigned long)priv->rxbuf.buf);
 }

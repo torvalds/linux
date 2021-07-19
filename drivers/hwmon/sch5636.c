@@ -160,7 +160,7 @@ static int reg_to_rpm(u16 reg)
 static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
+	return sysfs_emit(buf, "%s\n", DEVNAME);
 }
 
 static ssize_t in_value_show(struct device *dev,
@@ -176,7 +176,7 @@ static ssize_t in_value_show(struct device *dev,
 	val = DIV_ROUND_CLOSEST(
 		data->in[attr->index] * SCH5636_REG_IN_FACTORS[attr->index],
 		255);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t in_label_show(struct device *dev,
@@ -184,8 +184,8 @@ static ssize_t in_label_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			SCH5636_IN_LABELS[attr->index]);
+	return sysfs_emit(buf, "%s\n",
+			  SCH5636_IN_LABELS[attr->index]);
 }
 
 static ssize_t temp_value_show(struct device *dev,
@@ -199,7 +199,7 @@ static ssize_t temp_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_val[attr->index] - 64) * 1000;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_fault_show(struct device *dev,
@@ -213,7 +213,7 @@ static ssize_t temp_fault_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_ctrl[attr->index] & SCH5636_TEMP_WORKING) ? 0 : 1;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_alarm_show(struct device *dev,
@@ -227,7 +227,7 @@ static ssize_t temp_alarm_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_ctrl[attr->index] & SCH5636_TEMP_ALARM) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_value_show(struct device *dev,
@@ -244,7 +244,7 @@ static ssize_t fan_value_show(struct device *dev,
 	if (val < 0)
 		return val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_fault_show(struct device *dev,
@@ -258,7 +258,7 @@ static ssize_t fan_fault_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_NOT_PRESENT) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_alarm_show(struct device *dev,
@@ -272,7 +272,7 @@ static ssize_t fan_alarm_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_ALARM) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static struct sensor_device_attribute sch5636_attr[] = {

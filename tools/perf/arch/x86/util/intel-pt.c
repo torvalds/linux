@@ -776,6 +776,12 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		}
 	}
 
+	if (!opts->auxtrace_snapshot_mode && !opts->auxtrace_sample_mode) {
+		u32 aux_watermark = opts->auxtrace_mmap_pages * page_size / 4;
+
+		intel_pt_evsel->core.attr.aux_watermark = aux_watermark;
+	}
+
 	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
 			     "tsc", &tsc_bit);
 

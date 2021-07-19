@@ -334,8 +334,7 @@ static int pt1_sync(struct pt1 *pt1)
 static u64 pt1_identify(struct pt1 *pt1)
 {
 	int i;
-	u64 id;
-	id = 0;
+	u64 id = 0;
 	for (i = 0; i < 57; i++) {
 		id |= (u64)(pt1_read_reg(pt1, 0) >> 30 & 1) << i;
 		pt1_write_reg(pt1, 0, 0x00000008);
@@ -1122,8 +1121,7 @@ static int pt1_i2c_end(struct pt1 *pt1, int addr)
 
 static void pt1_i2c_begin(struct pt1 *pt1, int *addrp)
 {
-	int addr;
-	addr = 0;
+	int addr = 0;
 
 	pt1_i2c_emit(pt1, addr,     0, 0, 1, 1, addr /* itself */);
 	addr = addr + 1;

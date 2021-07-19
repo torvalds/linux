@@ -96,7 +96,7 @@ static int pic32_rng_probe(struct platform_device *pdev)
 	priv->rng.name = pdev->name;
 	priv->rng.read = pic32_rng_read;
 
-	ret = hwrng_register(&priv->rng);
+	ret = devm_hwrng_register(&pdev->dev, &priv->rng);
 	if (ret)
 		goto err_register;
 
@@ -113,7 +113,6 @@ static int pic32_rng_remove(struct platform_device *pdev)
 {
 	struct pic32_rng *rng = platform_get_drvdata(pdev);
 
-	hwrng_unregister(&rng->rng);
 	writel(0, rng->base + RNGCON);
 	clk_disable_unprepare(rng->clk);
 	return 0;

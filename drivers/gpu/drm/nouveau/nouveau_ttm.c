@@ -154,7 +154,7 @@ error_unlock:
 	return ret;
 }
 
-static struct vm_operations_struct nouveau_ttm_vm_ops = {
+static const struct vm_operations_struct nouveau_ttm_vm_ops = {
 	.fault = nouveau_ttm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close,
@@ -321,13 +321,13 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
-	need_swiotlb = !!swiotlb_nr_tbl();
+	need_swiotlb = is_swiotlb_active();
 #endif
 
-	ret = ttm_bo_device_init(&drm->ttm.bdev, &nouveau_bo_driver,
-				 drm->dev->dev, dev->anon_inode->i_mapping,
-				 dev->vma_offset_manager, need_swiotlb,
-				 drm->client.mmu.dmabits <= 32);
+	ret = ttm_device_init(&drm->ttm.bdev, &nouveau_bo_driver, drm->dev->dev,
+				  dev->anon_inode->i_mapping,
+				  dev->vma_offset_manager, need_swiotlb,
+				  drm->client.mmu.dmabits <= 32);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;
@@ -377,7 +377,7 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 	nouveau_ttm_fini_vram(drm);
 	nouveau_ttm_fini_gtt(drm);
 
-	ttm_bo_device_release(&drm->ttm.bdev);
+	ttm_device_fini(&drm->ttm.bdev);
 
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;

@@ -152,9 +152,6 @@ extern struct ccw_device *get_ccwdev_by_busid(struct ccw_driver *cdrv,
  * when new devices for its type pop up */
 extern int  ccw_driver_register   (struct ccw_driver *driver);
 extern void ccw_driver_unregister (struct ccw_driver *driver);
-
-struct ccw1;
-
 extern int ccw_device_set_options_mask(struct ccw_device *, unsigned long);
 extern int ccw_device_set_options(struct ccw_device *, unsigned long);
 extern void ccw_device_clear_options(struct ccw_device *, unsigned long);

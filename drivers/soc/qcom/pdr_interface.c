@@ -153,7 +153,7 @@ static int pdr_register_listener(struct pdr_handle *pdr,
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
 		pr_err("PDR: %s register listener failed: 0x%x\n",
 		       pds->service_path, resp.resp.error);
-		return ret;
+		return -EREMOTEIO;
 	}
 
 	pds->state = resp.curr_state;

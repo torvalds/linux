@@ -94,7 +94,7 @@ inclusive.
 
 See also the examples in :ref:`control`.
 
-.. tabularcolumns:: |p{1.2cm}|p{3.6cm}|p{12.7cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.6cm}|p{12.5cm}|
 
 .. _v4l2-queryctrl:
 
@@ -172,7 +172,7 @@ See also the examples in :ref:`control`.
 	zero.
 
 
-.. tabularcolumns:: |p{1.2cm}|p{5.0cm}|p{11.3cm}|
+.. tabularcolumns:: |p{1.2cm}|p{5.5cm}|p{10.6cm}|
 
 .. _v4l2-query-ext-ctrl:
 
@@ -272,7 +272,7 @@ See also the examples in :ref:`control`.
 	the array to zero.
 
 
-.. tabularcolumns:: |p{1.2cm}|p{1.0cm}|p{1.7cm}|p{13.0cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.1cm}|
 
 .. _v4l2-querymenu:
 
@@ -306,10 +306,13 @@ See also the examples in :ref:`control`.
       - Reserved for future extensions. Drivers must set the array to
 	zero.
 
-
-.. tabularcolumns:: |p{5.8cm}|p{1.4cm}|p{1.0cm}|p{1.4cm}|p{6.9cm}|
-
 .. c:type:: v4l2_ctrl_type
+
+.. raw:: latex
+
+   \footnotesize
+
+.. tabularcolumns:: |p{6.5cm}|p{1.5cm}|p{1.1cm}|p{1.5cm}|p{6.8cm}|
 
 .. cssclass:: longtable
 
@@ -486,12 +489,22 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_hevc_slice_params`, containing HEVC
 	slice parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_VP8_FRAME``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_vp8_frame`, containing VP8
+	frame parameters for stateless video decoders.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. raw:: latex
 
-.. _control-flags:
+   \normalsize
+
+.. tabularcolumns:: |p{7.3cm}|p{1.8cm}|p{8.2cm}|
 
 .. cssclass:: longtable
+
+.. _control-flags:
 
 .. flat-table:: Control Flags
     :header-rows:  0

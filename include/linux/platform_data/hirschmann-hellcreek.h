@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 struct hellcreek_platform_data {
+	const char *name;	/* Switch name */
 	int num_ports;		/* Amount of switch ports */
 	int is_100_mbits;	/* Is it configured to 100 or 1000 mbit/s */
 	int qbv_support;	/* Qbv support on front TSN ports */

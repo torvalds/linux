@@ -125,17 +125,17 @@ static inline bool xfs_log_dinode_has_bigtime(const struct xfs_log_dinode *ld)
 static inline xfs_timestamp_t
 xfs_log_dinode_to_disk_ts(
 	struct xfs_log_dinode		*from,
-	const xfs_ictimestamp_t		its)
+	const xfs_log_timestamp_t	its)
 {
 	struct xfs_legacy_timestamp	*lts;
-	struct xfs_legacy_ictimestamp	*lits;
+	struct xfs_log_legacy_timestamp	*lits;
 	xfs_timestamp_t			ts;
 
 	if (xfs_log_dinode_has_bigtime(from))
 		return cpu_to_be64(its);
 
 	lts = (struct xfs_legacy_timestamp *)&ts;
-	lits = (struct xfs_legacy_ictimestamp *)&its;
+	lits = (struct xfs_log_legacy_timestamp *)&its;
 	lts->t_sec = cpu_to_be32(lits->t_sec);
 	lts->t_nsec = cpu_to_be32(lits->t_nsec);
 

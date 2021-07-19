@@ -861,8 +861,8 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	 * of heavy DIO or ordered reservations, preemptive flushing will just
 	 * waste time and cause us to slow down.
 	 */
-	ordered = percpu_counter_sum_positive(&fs_info->ordered_bytes);
-	delalloc = percpu_counter_sum_positive(&fs_info->delalloc_bytes);
+	ordered = percpu_counter_read_positive(&fs_info->ordered_bytes);
+	delalloc = percpu_counter_read_positive(&fs_info->delalloc_bytes);
 	if (ordered >= delalloc)
 		used += fs_info->delayed_refs_rsv.reserved +
 			fs_info->delayed_block_rsv.reserved;

@@ -181,7 +181,7 @@ config SERIAL_NONSTANDARD
 	help
 	  Say Y here if you have any non-standard serial boards -- boards
 	  which aren't supported using the standard "dumb" serial driver.
-	  This includes intelligent serial boards such as Cyclades,
+	  This includes intelligent serial boards such as
 	  Digiboards, etc. These are usually used for systems that need many
 	  serial ports because they serve many terminals or dial-in
 	  connections.
@@ -191,50 +191,6 @@ config SERIAL_NONSTANDARD
 	  the questions about non-standard serial boards.
 
 	  Most people can say N here.
-
-config ROCKETPORT
-	tristate "Comtrol RocketPort support"
-	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
-	help
-	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
-	  These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
-	  modems.  For information about the RocketPort/RocketModem  boards
-	  and this driver read <file:Documentation/driver-api/serial/rocket.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rocket.
-
-	  If you want to compile this driver into the kernel, say Y here.  If
-	  you don't have a Comtrol RocketPort/RocketModem card installed, say N.
-
-config CYCLADES
-	tristate "Cyclades async mux support"
-	depends on SERIAL_NONSTANDARD && (PCI || ISA)
-	select FW_LOADER
-	help
-	  This driver supports Cyclades Z and Y multiserial boards.
-	  You would need something like this to connect more than two modems to
-	  your Linux box, for instance in order to become a dial-in server.
-
-	  For information about the Cyclades-Z card, read
-	  <file:Documentation/driver-api/serial/cyclades_z.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cyclades.
-
-	  If you haven't heard about it, it's safe to say N.
-
-config CYZ_INTR
-	bool "Cyclades-Z interrupt mode operation"
-	depends on CYCLADES && PCI
-	help
-	  The Cyclades-Z family of multiport cards allows 2 (two) driver op
-	  modes: polling and interrupt. In polling mode, the driver will check
-	  the status of the Cyclades-Z ports every certain amount of time
-	  (which is called polling cycle and is configurable). In interrupt
-	  mode, it will use an interrupt line (IRQ) in order to check the
-	  status of the Cyclades-Z ports. The default op mode is polling. If
-	  unsure, say N.
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
@@ -266,16 +222,6 @@ config SYNCLINK_GT
 	  Support for SyncLink GT and SyncLink AC families of
 	  synchronous and asynchronous serial adapters
 	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
-
-config ISI
-	tristate "Multi-Tech multiport card support"
-	depends on SERIAL_NONSTANDARD && PCI
-	select FW_LOADER
-	help
-	  This is a driver for the Multi-Tech cards which provide several
-	  serial ports.  The driver is experimental and can currently only be
-	  built as a module. The module will be called isicom.
-	  If you want to do that, choose M here.
 
 config N_HDLC
 	tristate "HDLC line discipline support"
@@ -414,36 +360,6 @@ config NULL_TTY
 	  TTY, or boot the kernel with console=ttynull.
 
 	  If unsure, say N.
-
-config TRACE_ROUTER
-	tristate "Trace data router for MIPI P1149.7 cJTAG standard"
-	depends on TRACE_SINK
-	help
-	  The trace router uses the Linux tty line discipline framework to
-	  route trace data coming from a tty port (say UART for example) to
-	  the trace sink line discipline driver and to another tty port (say
-	  USB). This is part of a solution for the MIPI P1149.7, compact JTAG,
-	  standard, which is for debugging mobile devices. The PTI driver in
-	  drivers/misc/pti.c defines the majority of this MIPI solution.
-
-	  You should select this driver if the target kernel is meant for
-	  a mobile device containing a modem.  Then you will need to select
-	  "Trace data sink for MIPI P1149.7 cJTAG standard" line discipline
-	  driver.
-
-config TRACE_SINK
-	tristate "Trace data sink for MIPI P1149.7 cJTAG standard"
-	help
-	  The trace sink uses the Linux line discipline framework to receive
-	  trace data coming from the trace router line discipline driver
-	  to a user-defined tty port target, like USB.
-	  This is to provide a way to extract modem trace data on
-	  devices that do not have a PTI HW module, or just need modem
-	  trace data to come out of a different HW output port.
-	  This is part of a solution for the P1149.7, compact JTAG, standard.
-
-	  If you select this option, you need to select
-	  "Trace data router for MIPI P1149.7 cJTAG standard".
 
 config VCC
 	tristate "Sun Virtual Console Concentrator"

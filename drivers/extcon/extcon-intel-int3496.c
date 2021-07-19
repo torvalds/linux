@@ -11,6 +11,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/devm-helpers.h>
 #include <linux/extcon-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
@@ -101,7 +102,9 @@ static int int3496_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->dev = dev;
-	INIT_DELAYED_WORK(&data->work, int3496_do_usb_id);
+	ret = devm_delayed_work_autocancel(dev, &data->work, int3496_do_usb_id);
+	if (ret)
+		return ret;
 
 	data->gpio_usb_id = devm_gpiod_get(dev, "id", GPIOD_IN);
 	if (IS_ERR(data->gpio_usb_id)) {
@@ -155,16 +158,6 @@ static int int3496_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int int3496_remove(struct platform_device *pdev)
-{
-	struct int3496_data *data = platform_get_drvdata(pdev);
-
-	devm_free_irq(&pdev->dev, data->usb_id_irq, data);
-	cancel_delayed_work_sync(&data->work);
-
-	return 0;
-}
-
 static const struct acpi_device_id int3496_acpi_match[] = {
 	{ "INT3496" },
 	{ }
@@ -177,7 +170,6 @@ static struct platform_driver int3496_driver = {
 		.acpi_match_table = int3496_acpi_match,
 	},
 	.probe = int3496_probe,
-	.remove = int3496_remove,
 };
 
 module_platform_driver(int3496_driver);

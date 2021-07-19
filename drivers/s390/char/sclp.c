@@ -37,10 +37,10 @@ static sccb_mask_t sclp_receive_mask;
 static sccb_mask_t sclp_send_mask;
 
 /* List of registered event listeners and senders. */
-static struct list_head sclp_reg_list;
+static LIST_HEAD(sclp_reg_list);
 
 /* List of queued requests. */
-static struct list_head sclp_req_queue;
+static LIST_HEAD(sclp_req_queue);
 
 /* Data for read and and init requests. */
 static struct sclp_req sclp_read_req;
@@ -1178,8 +1178,6 @@ sclp_init(void)
 	sclp_init_sccb = (void *) __get_free_page(GFP_ATOMIC | GFP_DMA);
 	BUG_ON(!sclp_read_sccb || !sclp_init_sccb);
 	/* Set up variables */
-	INIT_LIST_HEAD(&sclp_req_queue);
-	INIT_LIST_HEAD(&sclp_reg_list);
 	list_add(&sclp_state_change_event.list, &sclp_reg_list);
 	timer_setup(&sclp_request_timer, NULL, 0);
 	timer_setup(&sclp_queue_timer, sclp_req_queue_timeout, 0);

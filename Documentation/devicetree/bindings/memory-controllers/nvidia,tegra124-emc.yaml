@@ -37,9 +37,10 @@ properties:
     description:
       phandle of the memory controller node
 
-  core-supply:
+  power-domains:
+    maxItems: 1
     description:
-      Phandle of voltage regulator of the SoC "core" power domain.
+      Phandle of the SoC "core" power domain.
 
   operating-points-v2:
     description:
@@ -370,7 +371,7 @@ examples:
 
         nvidia,memory-controller = <&mc>;
         operating-points-v2 = <&dvfs_opp_table>;
-        core-supply = <&vdd_core>;
+        power-domains = <&domain>;
 
         #interconnect-cells = <0>;
 

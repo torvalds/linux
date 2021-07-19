@@ -116,11 +116,11 @@
 		};
 	};
 
-	mcu-navss {
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>;
 		dma-coherent;
 		dma-ranges;
 
@@ -307,5 +307,14 @@
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
 		};
+	};
+
+	mcu_rti1: watchdog@40610000 {
+		compatible = "ti,j7-rti-wdt";
+		reg = <0x0 0x40610000 0x0 0x100>;
+		clocks = <&k3_clks 135 0>;
+		power-domains = <&k3_pds 135 TI_SCI_PD_SHARED>;
+		assigned-clocks = <&k3_clks 135 0>;
+		assigned-clock-parents = <&k3_clks 135 4>;
 	};
 };

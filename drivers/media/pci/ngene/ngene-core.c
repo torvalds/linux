@@ -763,23 +763,22 @@ static void free_ringbuffer(struct ngene *dev, struct SRingBufferDescriptor *rb)
 
 	for (j = 0; j < rb->NumBuffers; j++, Cur = Cur->Next) {
 		if (Cur->Buffer1)
-			pci_free_consistent(dev->pci_dev,
-					    rb->Buffer1Length,
-					    Cur->Buffer1,
-					    Cur->scList1->Address);
+			dma_free_coherent(&dev->pci_dev->dev,
+					  rb->Buffer1Length, Cur->Buffer1,
+					  Cur->scList1->Address);
 
 		if (Cur->Buffer2)
-			pci_free_consistent(dev->pci_dev,
-					    rb->Buffer2Length,
-					    Cur->Buffer2,
-					    Cur->scList2->Address);
+			dma_free_coherent(&dev->pci_dev->dev,
+					  rb->Buffer2Length, Cur->Buffer2,
+					  Cur->scList2->Address);
 	}
 
 	if (rb->SCListMem)
-		pci_free_consistent(dev->pci_dev, rb->SCListMemSize,
-				    rb->SCListMem, rb->PASCListMem);
+		dma_free_coherent(&dev->pci_dev->dev, rb->SCListMemSize,
+				  rb->SCListMem, rb->PASCListMem);
 
-	pci_free_consistent(dev->pci_dev, rb->MemSize, rb->Head, rb->PAHead);
+	dma_free_coherent(&dev->pci_dev->dev, rb->MemSize, rb->Head,
+			  rb->PAHead);
 }
 
 static void free_idlebuffer(struct ngene *dev,
@@ -813,15 +812,13 @@ static void free_common_buffers(struct ngene *dev)
 	}
 
 	if (dev->OverflowBuffer)
-		pci_free_consistent(dev->pci_dev,
-				    OVERFLOW_BUFFER_SIZE,
-				    dev->OverflowBuffer, dev->PAOverflowBuffer);
+		dma_free_coherent(&dev->pci_dev->dev, OVERFLOW_BUFFER_SIZE,
+				  dev->OverflowBuffer, dev->PAOverflowBuffer);
 
 	if (dev->FWInterfaceBuffer)
-		pci_free_consistent(dev->pci_dev,
-				    4096,
-				    dev->FWInterfaceBuffer,
-				    dev->PAFWInterfaceBuffer);
+		dma_free_coherent(&dev->pci_dev->dev, 4096,
+				  dev->FWInterfaceBuffer,
+				  dev->PAFWInterfaceBuffer);
 }
 
 /****************************************************************************/
@@ -848,7 +845,7 @@ static int create_ring_buffer(struct pci_dev *pci_dev,
 	if (MemSize < 4096)
 		MemSize = 4096;
 
-	Head = pci_alloc_consistent(pci_dev, MemSize, &tmp);
+	Head = dma_alloc_coherent(&pci_dev->dev, MemSize, &tmp, GFP_KERNEL);
 	PARingBufferHead = tmp;
 
 	if (!Head)
@@ -899,7 +896,8 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 	if (SCListMemSize < 4096)
 		SCListMemSize = 4096;
 
-	SCListMem = pci_alloc_consistent(pci_dev, SCListMemSize, &tmp);
+	SCListMem = dma_alloc_coherent(&pci_dev->dev, SCListMemSize, &tmp,
+				       GFP_KERNEL);
 
 	PASCListMem = tmp;
 	if (SCListMem == NULL)
@@ -918,8 +916,8 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 	for (i = 0; i < pRingBuffer->NumBuffers; i += 1, Cur = Cur->Next) {
 		u64 PABuffer;
 
-		void *Buffer = pci_alloc_consistent(pci_dev, Buffer1Length,
-						    &tmp);
+		void *Buffer = dma_alloc_coherent(&pci_dev->dev,
+						  Buffer1Length, &tmp, GFP_KERNEL);
 		PABuffer = tmp;
 
 		if (Buffer == NULL)
@@ -951,7 +949,8 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 		if (!Buffer2Length)
 			continue;
 
-		Buffer = pci_alloc_consistent(pci_dev, Buffer2Length, &tmp);
+		Buffer = dma_alloc_coherent(&pci_dev->dev, Buffer2Length,
+					    &tmp, GFP_KERNEL);
 		PABuffer = tmp;
 
 		if (Buffer == NULL)
@@ -1040,17 +1039,18 @@ static int AllocCommonBuffers(struct ngene *dev)
 {
 	int status = 0, i;
 
-	dev->FWInterfaceBuffer = pci_alloc_consistent(dev->pci_dev, 4096,
-						     &dev->PAFWInterfaceBuffer);
+	dev->FWInterfaceBuffer = dma_alloc_coherent(&dev->pci_dev->dev, 4096,
+						    &dev->PAFWInterfaceBuffer,
+						    GFP_KERNEL);
 	if (!dev->FWInterfaceBuffer)
 		return -ENOMEM;
 	dev->hosttongene = dev->FWInterfaceBuffer;
 	dev->ngenetohost = dev->FWInterfaceBuffer + 256;
 	dev->EventBuffer = dev->FWInterfaceBuffer + 512;
 
-	dev->OverflowBuffer = pci_zalloc_consistent(dev->pci_dev,
-						    OVERFLOW_BUFFER_SIZE,
-						    &dev->PAOverflowBuffer);
+	dev->OverflowBuffer = dma_alloc_coherent(&dev->pci_dev->dev,
+						 OVERFLOW_BUFFER_SIZE,
+						 &dev->PAOverflowBuffer, GFP_KERNEL);
 	if (!dev->OverflowBuffer)
 		return -ENOMEM;
 

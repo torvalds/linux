@@ -4,7 +4,7 @@
 
    1 char	Memory devices
 		  1 = /dev/mem		Physical memory access
-		  2 = /dev/kmem		Kernel virtual memory access
+		  2 = /dev/kmem		OBSOLETE - replaced by /proc/kcore
 		  3 = /dev/null		Null device
 		  4 = /dev/port		I/O port access
 		  5 = /dev/zero		Null byte source
@@ -289,7 +289,7 @@
 		152 = /dev/kpoll	Kernel Poll Driver
 		153 = /dev/mergemem	Memory merge device
 		154 = /dev/pmu		Macintosh PowerBook power manager
-		155 = /dev/isictl	MultiTech ISICom serial control
+		155 =
 		156 = /dev/lcd		Front panel LCD display
 		157 = /dev/ac		Applicom Intl Profibus card
 		158 = /dev/nwbutton	Netwinder external button
@@ -477,11 +477,6 @@
   18 block	Sanyo CD-ROM
 		  0 = /dev/sjcd		Sanyo CD-ROM
 
-  19 char	Cyclades serial card
-		  0 = /dev/ttyC0	First Cyclades port
-		    ...
-		 31 = /dev/ttyC31	32nd Cyclades port
-
   19 block	"Double" compressed disk
 		  0 = /dev/double0	First compressed disk
 		    ...
@@ -492,11 +487,6 @@
 
 		See the Double documentation for the meaning of the
 		mirror devices.
-
-  20 char	Cyclades serial card - alternate devices
-		  0 = /dev/cub0		Callout device for ttyC0
-		    ...
-		 31 = /dev/cub31	Callout device for ttyC31
 
   20 block	Hitachi CD-ROM (under development)
 		  0 = /dev/hitcd	Hitachi CD-ROM

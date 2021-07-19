@@ -147,6 +147,8 @@ bool dm_helpers_dp_write_dsc_enable(
 bool dm_helpers_is_dp_sink_present(
 		struct dc_link *link);
 
+void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream);
+
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,
 		struct dc_link *link,
@@ -155,5 +157,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
+
+bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable);
 
 #endif /* __DM_HELPERS__ */

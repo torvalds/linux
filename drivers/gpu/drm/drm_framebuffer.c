@@ -177,11 +177,8 @@ static int framebuffer_check(struct drm_device *dev,
 
 	/* check if the format is supported at all */
 	if (!__drm_format_info(r->pixel_format)) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("bad framebuffer format %s\n",
-			      drm_get_format_name(r->pixel_format,
-						  &format_name));
+		DRM_DEBUG_KMS("bad framebuffer format %p4cc\n",
+			      &r->pixel_format);
 		return -EINVAL;
 	}
 
@@ -1160,14 +1157,12 @@ EXPORT_SYMBOL(drm_framebuffer_plane_height);
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb)
 {
-	struct drm_format_name_buf format_name;
 	unsigned int i;
 
 	drm_printf_indent(p, indent, "allocated by = %s\n", fb->comm);
 	drm_printf_indent(p, indent, "refcount=%u\n",
 			  drm_framebuffer_read_refcount(fb));
-	drm_printf_indent(p, indent, "format=%s\n",
-			  drm_get_format_name(fb->format->format, &format_name));
+	drm_printf_indent(p, indent, "format=%p4cc\n", &fb->format->format);
 	drm_printf_indent(p, indent, "modifier=0x%llx\n", fb->modifier);
 	drm_printf_indent(p, indent, "size=%ux%u\n", fb->width, fb->height);
 	drm_printf_indent(p, indent, "layers:\n");

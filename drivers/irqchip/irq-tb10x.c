@@ -60,6 +60,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	case IRQ_TYPE_NONE:
 		flow_type = IRQ_TYPE_LEVEL_LOW;
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		mod ^= im;
 		pol ^= im;

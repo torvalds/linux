@@ -177,7 +177,7 @@ static int scd30_serdev_command(struct scd30_state *state, enum scd30_cmd cmd, u
 static int scd30_serdev_receive_buf(struct serdev_device *serdev,
 				    const unsigned char *buf, size_t size)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(&serdev->dev);
+	struct iio_dev *indio_dev = serdev_device_get_drvdata(serdev);
 	struct scd30_serdev_priv *priv;
 	struct scd30_state *state;
 	int num;

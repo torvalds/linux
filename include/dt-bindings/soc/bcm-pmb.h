@@ -7,5 +7,6 @@
 #define BCM_PMB_PCIE1				0x02
 #define BCM_PMB_PCIE2				0x03
 #define BCM_PMB_HOST_USB			0x04
+#define BCM_PMB_SATA				0x05
 
 #endif

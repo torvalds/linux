@@ -25,5 +25,6 @@
 #define __JPEG_V2_5_H__
 
 extern const struct amdgpu_ip_block_version jpeg_v2_5_ip_block;
+extern const struct amdgpu_ip_block_version jpeg_v2_6_ip_block;
 
 #endif /* __JPEG_V2_5_H__ */

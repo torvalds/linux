@@ -103,7 +103,7 @@ static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 
 /* returns general purpose PMC with the specified MSR. Note that it can be
  * used for both PERFCTRn and EVNTSELn; that is why it accepts base as a
- * paramenter to tell them apart.
+ * parameter to tell them apart.
  */
 static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 					 u32 base)

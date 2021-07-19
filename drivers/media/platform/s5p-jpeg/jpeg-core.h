@@ -111,12 +111,12 @@ enum s5p_jpeg_ctx_state {
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
+ * @irq_ret:		JPEG IP irq result value
  * @clocks:		JPEG IP clock(s)
  * @dev:		JPEG IP struct device
  * @variant:		driver variant to be used
- * @irq_status		interrupt flags set during single encode/decode
-			operation
-
+ * @irq_status:		interrupt flags set during single encode/decode
+ *			operation
  */
 struct s5p_jpeg {
 	struct mutex		lock;
@@ -149,12 +149,14 @@ struct s5p_jpeg_variant {
 };
 
 /**
- * struct jpeg_fmt - driver's internal color format data
+ * struct s5p_jpeg_fmt - driver's internal color format data
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
+ * @memplanes:	number of memory planes (1 for packed formats)
  * @h_align:	horizontal alignment order (align to 2^h_align)
  * @v_align:	vertical alignment order (align to 2^v_align)
+ * @subsampling:subsampling of a raw format or a JPEG
  * @flags:	flags describing format applicability
  */
 struct s5p_jpeg_fmt {
@@ -169,7 +171,7 @@ struct s5p_jpeg_fmt {
 };
 
 /**
- * s5p_jpeg_marker - collection of markers from jpeg header
+ * struct s5p_jpeg_marker - collection of markers from jpeg header
  * @marker:	markers' positions relative to the buffer beginning
  * @len:	markers' payload lengths (without length field)
  * @n:		number of markers in collection
@@ -181,7 +183,7 @@ struct s5p_jpeg_marker {
 };
 
 /**
- * s5p_jpeg_q_data - parameters of one queue
+ * struct s5p_jpeg_q_data - parameters of one queue
  * @fmt:	driver-specific format of this queue
  * @w:		image width
  * @h:		image height
@@ -205,7 +207,7 @@ struct s5p_jpeg_q_data {
 };
 
 /**
- * s5p_jpeg_ctx - the device context data
+ * struct s5p_jpeg_ctx - the device context data
  * @jpeg:		JPEG IP device for this context
  * @mode:		compression (encode) operation or decompression (decode)
  * @compr_quality:	destination image quality in compression (encode) mode
@@ -239,7 +241,7 @@ struct s5p_jpeg_ctx {
 };
 
 /**
- * s5p_jpeg_buffer - description of memory containing input JPEG data
+ * struct s5p_jpeg_buffer - description of memory containing input JPEG data
  * @size:	buffer size
  * @curr:	current position in the buffer
  * @data:	pointer to the data

@@ -574,11 +574,6 @@ struct dm_table *dm_swap_table(struct mapped_device *md,
  */
 void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm);
 
-/*
- * A wrapper around vmalloc.
- */
-void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
-
 /*-----------------------------------------------------------------
  * Macros.
  *---------------------------------------------------------------*/

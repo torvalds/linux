@@ -836,8 +836,8 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 
 	if (si_code == SEGV_PKUERR)
 		force_sig_pkuerr((void __user *)address, pkey);
-
-	force_sig_fault(SIGSEGV, si_code, (void __user *)address);
+	else
+		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 
 	local_irq_disable();
 }
@@ -1497,7 +1497,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	 * userspace task is trying to access some valid (from guest's point of
 	 * view) memory which is not currently mapped by the host (e.g. the
 	 * memory is swapped out). Note, the corresponding "page ready" event
-	 * which is injected when the memory becomes available, is delived via
+	 * which is injected when the memory becomes available, is delivered via
 	 * an interrupt mechanism and not a #PF exception
 	 * (see arch/x86/kernel/kvm.c: sysvec_kvm_asyncpf_interrupt()).
 	 *
@@ -1523,7 +1523,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	 *
 	 * In case the fault hit a RCU idle region the conditional entry
 	 * code reenabled RCU to avoid subsequent wreckage which helps
-	 * debugability.
+	 * debuggability.
 	 */
 	state = irqentry_enter(regs);
 

@@ -1126,8 +1126,7 @@ int may_linkat(struct user_namespace *mnt_userns, struct path *link)
  *			  should be allowed, or not, on files that already
  *			  exist.
  * @mnt_userns:	user namespace of the mount the inode was found from
- * @dir_mode: mode bits of directory
- * @dir_uid: owner of directory
+ * @nd: nameidata pathwalk data
  * @inode: the inode of the file to open
  *
  * Block an O_CREAT open of a FIFO (or a regular file) when:
@@ -2825,16 +2824,14 @@ static int may_delete(struct user_namespace *mnt_userns, struct inode *dir,
 static inline int may_create(struct user_namespace *mnt_userns,
 			     struct inode *dir, struct dentry *child)
 {
-	struct user_namespace *s_user_ns;
 	audit_inode_child(dir, child, AUDIT_TYPE_CHILD_CREATE);
 	if (child->d_inode)
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
-	s_user_ns = dir->i_sb->s_user_ns;
-	if (!kuid_has_mapping(s_user_ns, fsuid_into_mnt(mnt_userns)) ||
-	    !kgid_has_mapping(s_user_ns, fsgid_into_mnt(mnt_userns)))
+	if (!fsuidgid_has_mapping(dir->i_sb, mnt_userns))
 		return -EOVERFLOW;
+
 	return inode_permission(mnt_userns, dir, MAY_WRITE | MAY_EXEC);
 }
 
@@ -3036,14 +3033,11 @@ static int may_o_create(struct user_namespace *mnt_userns,
 			const struct path *dir, struct dentry *dentry,
 			umode_t mode)
 {
-	struct user_namespace *s_user_ns;
 	int error = security_path_mknod(dir, dentry, mode, 0);
 	if (error)
 		return error;
 
-	s_user_ns = dir->dentry->d_sb->s_user_ns;
-	if (!kuid_has_mapping(s_user_ns, fsuid_into_mnt(mnt_userns)) ||
-	    !kgid_has_mapping(s_user_ns, fsgid_into_mnt(mnt_userns)))
+	if (!fsuidgid_has_mapping(dir->dentry->d_sb, mnt_userns))
 		return -EOVERFLOW;
 
 	error = inode_permission(mnt_userns, dir->dentry->d_inode,
@@ -3383,7 +3377,7 @@ static int do_open(struct nameidata *nd,
  * @mnt_userns:	user namespace of the mount the inode was found from
  * @dentry:	pointer to dentry of the base directory
  * @mode:	mode of the new tmpfile
- * @open_flags:	flags
+ * @open_flag:	flags
  *
  * Create a temporary file.
  *
@@ -4408,14 +4402,7 @@ SYSCALL_DEFINE2(link, const char __user *, oldname, const char __user *, newname
 
 /**
  * vfs_rename - rename a filesystem object
- * @old_mnt_userns:	old user namespace of the mount the inode was found from
- * @old_dir:		parent of source
- * @old_dentry:		source
- * @new_mnt_userns:	new user namespace of the mount the inode was found from
- * @new_dir:		parent of destination
- * @new_dentry:		destination
- * @delegated_inode:	returns an inode needing a delegation break
- * @flags:		rename flags
+ * @rd:		pointer to &struct renamedata info
  *
  * The caller must hold multiple mutexes--see lock_rename()).
  *

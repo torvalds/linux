@@ -18,10 +18,10 @@ int mt2701_afe_enable_clock(struct mtk_base_afe *afe);
 int mt2701_afe_disable_clock(struct mtk_base_afe *afe);
 
 int mt2701_afe_enable_i2s(struct mtk_base_afe *afe,
-			  struct mt2701_i2s_path *path,
+			  struct mt2701_i2s_path *i2s_path,
 			  int dir);
 void mt2701_afe_disable_i2s(struct mtk_base_afe *afe,
-			    struct mt2701_i2s_path *path,
+			    struct mt2701_i2s_path *i2s_path,
 			    int dir);
 int mt2701_afe_enable_mclk(struct mtk_base_afe *afe, int id);
 void mt2701_afe_disable_mclk(struct mtk_base_afe *afe, int id);

@@ -629,19 +629,11 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
 				first_entry && cs_needs_timeout(cs)) {
 		cs->tdr_active = true;
-		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
+		schedule_delayed_work(&cs->work_tdr, cs->timeout_jiffies);
 
 	}
 
 	spin_unlock(&hdev->cs_mirror_lock);
-
-	if (!hdev->cs_active_cnt++) {
-		struct hl_device_idle_busy_ts *ts;
-
-		ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx];
-		ts->busy_to_idle_ts = ktime_set(0, 0);
-		ts->idle_to_busy_ts = ktime_get();
-	}
 
 	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
 		switch (job->queue_type) {

@@ -68,31 +68,6 @@ static void rds_ib_set_flow_control(struct rds_connection *conn, u32 credits)
 }
 
 /*
- * Tune RNR behavior. Without flow control, we use a rather
- * low timeout, but not the absolute minimum - this should
- * be tunable.
- *
- * We already set the RNR retry count to 7 (which is the
- * smallest infinite number :-) above.
- * If flow control is off, we want to change this back to 0
- * so that we learn quickly when our credit accounting is
- * buggy.
- *
- * Caller passes in a qp_attr pointer - don't waste stack spacv
- * by allocation this twice.
- */
-static void
-rds_ib_tune_rnr(struct rds_ib_connection *ic, struct ib_qp_attr *attr)
-{
-	int ret;
-
-	attr->min_rnr_timer = IB_RNR_TIMER_000_32;
-	ret = ib_modify_qp(ic->i_cm_id->qp, attr, IB_QP_MIN_RNR_TIMER);
-	if (ret)
-		printk(KERN_NOTICE "ib_modify_qp(IB_QP_MIN_RNR_TIMER): err=%d\n", -ret);
-}
-
-/*
  * Connection established.
  * We get here for both outgoing and incoming connection.
  */
@@ -100,7 +75,6 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	const union rds_ib_conn_priv *dp = NULL;
-	struct ib_qp_attr qp_attr;
 	__be64 ack_seq = 0;
 	__be32 credit = 0;
 	u8 major = 0;
@@ -167,14 +141,6 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	/* Post receive buffers - as a side effect, this will update
 	 * the posted credit count. */
 	rds_ib_recv_refill(conn, 1, GFP_KERNEL);
-
-	/* Tune RNR behavior */
-	rds_ib_tune_rnr(ic, &qp_attr);
-
-	qp_attr.qp_state = IB_QPS_RTS;
-	err = ib_modify_qp(ic->i_cm_id->qp, &qp_attr, IB_QP_STATE);
-	if (err)
-		printk(KERN_NOTICE "ib_modify_qp(IB_QP_STATE, RTS): err=%d\n", err);
 
 	/* update ib_device with this local ipaddr */
 	err = rds_ib_update_ipaddr(ic->rds_ibdev, &conn->c_laddr);
@@ -947,6 +913,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 				  event->param.conn.responder_resources,
 				  event->param.conn.initiator_depth, isv6);
 
+	rdma_set_min_rnr_timer(cm_id, IB_RNR_TIMER_000_32);
 	/* rdma_accept() calls rdma_reject() internally if it fails */
 	if (rdma_accept(cm_id, &conn_param))
 		rds_ib_conn_error(conn, "rdma_accept failed\n");

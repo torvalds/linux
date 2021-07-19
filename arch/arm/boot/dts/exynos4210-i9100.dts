@@ -136,7 +136,7 @@
 			compatible = "maxim,max17042";
 
 			interrupt-parent = <&gpx2>;
-			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-0 = <&max17042_fuel_irq>;
 			pinctrl-names = "default";
@@ -144,6 +144,36 @@
 			reg = <0x36>;
 			maxim,over-heat-temp = <700>;
 			maxim,over-volt = <4500>;
+		};
+	};
+
+	i2c_s5k5baf: i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sda-gpios = <&gpc1 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpc1 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+
+		image-sensor@2d {
+			compatible = "samsung,s5k5baf";
+			reg = <0x2d>;
+			vdda-supply = <&cam_io_en_reg>;
+			vddreg-supply = <&vt_core_15v_reg>;
+			vddio-supply = <&vtcam_reg>;
+			clocks = <&camera 0>;
+			clock-names = "mclk";
+			stbyn-gpios = <&gpl2 0 GPIO_ACTIVE_LOW>;
+			rstn-gpios = <&gpl2 1 GPIO_ACTIVE_LOW>;
+			clock-frequency = <24000000>;
+
+			port {
+				s5k5bafx_ep: endpoint {
+					remote-endpoint = <&csis1_ep>;
+					data-lanes = <1>;
+				};
+			};
 		};
 	};
 
@@ -220,7 +250,29 @@
 };
 
 &camera {
+	pinctrl-0 = <&cam_port_a_clk_active>;
+	pinctrl-names = "default";
 	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_CAM0>, <&clock CLK_MOUT_CAM1>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>, <&clock CLK_XUSBXTI>;
+};
+
+&csis_1 {
+	status = "okay";
+	vddcore-supply = <&vusb_reg>;
+	vddio-supply = <&vmipi_reg>;
+	clock-frequency = <160000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@4 {
+		reg = <4>;
+		csis1_ep: endpoint {
+			remote-endpoint = <&s5k5bafx_ep>;
+			data-lanes = <1>;
+			samsung,csis-hs-settle = <6>;
+		};
+	};
 };
 
 &cpu0 {
@@ -383,6 +435,8 @@
 
 		pinctrl-0 = <&max8997_irq>, <&otg_gp>, <&usb_sel>;
 		pinctrl-names = "default";
+
+		charger-supply = <&charger_reg>;
 
 		regulators {
 			vadc_reg: LDO1 {

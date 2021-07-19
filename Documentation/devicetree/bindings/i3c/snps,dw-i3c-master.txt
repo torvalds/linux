@@ -9,19 +9,19 @@ Required properties:
 - reg: Offset and length of I3C master registers
 
 Mandatory properties defined by the generic binding (see
-Documentation/devicetree/bindings/i3c/i3c.txt for more details):
+Documentation/devicetree/bindings/i3c/i3c.yaml for more details):
 
 - #address-cells: shall be set to 3
 - #size-cells: shall be set to 0
 
 Optional properties defined by the generic binding (see
-Documentation/devicetree/bindings/i3c/i3c.txt for more details):
+Documentation/devicetree/bindings/i3c/i3c.yaml for more details):
 
 - i2c-scl-hz
 - i3c-scl-hz
 
 I3C device connected on the bus follow the generic description (see
-Documentation/devicetree/bindings/i3c/i3c.txt for more details).
+Documentation/devicetree/bindings/i3c/i3c.yaml for more details).
 
 Example:
 

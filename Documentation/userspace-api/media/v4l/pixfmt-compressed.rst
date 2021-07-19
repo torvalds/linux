@@ -7,7 +7,13 @@ Compressed Formats
 
 .. _compressed-formats:
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{5.8cm}|p{1.2cm}|p{10.3cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: Compressed Image Formats
     :header-rows:  1
@@ -147,21 +153,16 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_VP8_FRAME``
       - 'VP8F'
-      - VP8 parsed frame, as extracted from the container.
-	This format is adapted for stateless video decoders that implement a
-	VP8 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
+      - VP8 parsed frame, including the frame header, as extracted from the container.
+	This format is adapted for stateless video decoders that implement an
+	VP8 pipeline with the :ref:`stateless_decoder`.
 	Metadata associated with the frame to decode is required to be passed
-	through the ``V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER`` control.
-	See the :ref:`associated Codec Control IDs <v4l2-mpeg-vp8>`.
+	through the ``V4L2_CID_STATELESS_VP8_FRAME`` control.
+	See the :ref:`associated Codec Control IDs <v4l2-codec-stateless-vp8>`.
 	Exactly one output and one capture buffer must be provided for use with
 	this pixel format. The output buffer must contain the appropriate number
 	of macroblocks to decode a full corresponding frame to the matching
 	capture buffer.
-
-	.. note::
-
-	   This format is not yet part of the public kernel API and it
-	   is expected to change.
 
     * .. _V4L2-PIX-FMT-VP9:
 
@@ -220,3 +221,7 @@ Compressed Formats
         Metadata associated with the frame to decode is required to be passed
         through the ``V4L2_CID_STATELESS_FWHT_PARAMS`` control.
 	See the :ref:`associated Codec Control ID <codec-stateless-fwht>`.
+
+.. raw:: latex
+
+    \normalsize

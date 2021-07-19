@@ -8,6 +8,12 @@
 	model = "A95X Z2";
 	compatible = "zkmagic,a95x-z2", "rockchip,rk3318";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdio;
+		mmc2 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:1500000n8";
 	};
@@ -353,6 +359,11 @@
 };
 
 &usb20_otg {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbdrd3 {
 	dr_mode = "host";
 	status = "okay";
 };

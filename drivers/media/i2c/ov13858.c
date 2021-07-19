@@ -1738,7 +1738,7 @@ static int ov13858_probe(struct i2c_client *client,
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&ov13858->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov13858->sd);
 	if (ret < 0)
 		goto error_media_entity;
 

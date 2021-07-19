@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -14,7 +14,7 @@
 
 #define AES_IV_SIZE				16
 
-/**
+/*
  * Contents of Dynamic Security Association (SA) with all possible fields
  */
 union dynamic_sa_contents {
@@ -122,7 +122,7 @@ union sa_command_0 {
 #define SA_AES_KEY_LEN_256			4
 
 #define SA_REV2					1
-/**
+/*
  * The follow defines bits sa_command_1
  * In Basic hash mode  this bit define simple hash or hmac.
  * In IPsec mode, this bit define muting control.
@@ -172,7 +172,7 @@ struct dynamic_sa_ctl {
 	union sa_command_1 sa_command_1;
 } __attribute__((packed));
 
-/**
+/*
  * State Record for Security Association (SA)
  */
 struct  sa_state_record {
@@ -184,7 +184,7 @@ struct  sa_state_record {
 	};
 } __attribute__((packed));
 
-/**
+/*
  * Security Association (SA) for AES128
  *
  */
@@ -213,7 +213,7 @@ struct dynamic_sa_aes192 {
 #define SA_AES192_LEN		(sizeof(struct dynamic_sa_aes192)/4)
 #define SA_AES192_CONTENTS	0x3e000062
 
-/**
+/*
  * Security Association (SA) for AES256
  */
 struct dynamic_sa_aes256 {
@@ -228,7 +228,7 @@ struct dynamic_sa_aes256 {
 #define SA_AES256_CONTENTS	0x3e000082
 #define SA_AES_CONTENTS		0x3e000002
 
-/**
+/*
  * Security Association (SA) for AES128 CCM
  */
 struct dynamic_sa_aes128_ccm {
@@ -242,7 +242,7 @@ struct dynamic_sa_aes128_ccm {
 #define SA_AES128_CCM_CONTENTS	0x3e000042
 #define SA_AES_CCM_CONTENTS	0x3e000002
 
-/**
+/*
  * Security Association (SA) for AES128_GCM
  */
 struct dynamic_sa_aes128_gcm {
@@ -258,7 +258,7 @@ struct dynamic_sa_aes128_gcm {
 #define SA_AES128_GCM_CONTENTS	0x3e000442
 #define SA_AES_GCM_CONTENTS	0x3e000402
 
-/**
+/*
  * Security Association (SA) for HASH160: HMAC-SHA1
  */
 struct dynamic_sa_hash160 {

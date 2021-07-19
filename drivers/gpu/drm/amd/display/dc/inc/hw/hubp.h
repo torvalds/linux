@@ -29,6 +29,7 @@
 #include "mem_input.h"
 
 #define OPP_ID_INVALID 0xf
+#define MAX_TTU 0xffffff
 
 
 enum cursor_pitch {

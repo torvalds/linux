@@ -593,6 +593,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 		call->unmarshall = 6;
+		fallthrough;
 
 	case 6:
 		break;

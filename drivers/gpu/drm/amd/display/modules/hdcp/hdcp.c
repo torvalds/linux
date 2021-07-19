@@ -53,7 +53,7 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->displays[i].adjust.disable) {
+				hdcp->displays[i].adjust.disable != MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -74,7 +74,7 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->displays[i].adjust.disable) {
+				hdcp->displays[i].adjust.disable != MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -314,6 +314,9 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
+	/* save current encryption states to restore after next authentication */
+	mod_hdcp_save_current_encryption_states(hdcp);
+
 	/* reset existing authentication status */
 	status = reset_authentication(hdcp, output);
 	if (status != MOD_HDCP_STATUS_SUCCESS)
@@ -359,6 +362,9 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		status = MOD_HDCP_STATUS_SUCCESS;
 		goto out;
 	}
+
+	/* save current encryption states to restore after next authentication */
+	mod_hdcp_save_current_encryption_states(hdcp);
 
 	/* stop current authentication */
 	status = reset_authentication(hdcp, output);

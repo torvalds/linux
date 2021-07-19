@@ -24,7 +24,7 @@ struct p4_event_bind {
 	unsigned int escr_msr[2];		/* ESCR MSR for this event */
 	unsigned int escr_emask;		/* valid ESCR EventMask bits */
 	unsigned int shared;			/* event is shared across threads */
-	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on abscence */
+	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on absence */
 };
 
 struct p4_pebs_bind {
@@ -45,7 +45,7 @@ struct p4_pebs_bind {
  * it's needed for mapping P4_PEBS_CONFIG_METRIC_MASK bits of
  * event configuration to find out which values are to be
  * written into MSR_IA32_PEBS_ENABLE and MSR_P4_PEBS_MATRIX_VERT
- * resgisters
+ * registers
  */
 static struct p4_pebs_bind p4_pebs_bind_map[] = {
 	P4_GEN_PEBS_BIND(1stl_cache_load_miss_retired,	0x0000001, 0x0000001),
@@ -947,7 +947,7 @@ static void p4_pmu_enable_pebs(u64 config)
 	(void)wrmsrl_safe(MSR_P4_PEBS_MATRIX_VERT,	(u64)bind->metric_vert);
 }
 
-static void p4_pmu_enable_event(struct perf_event *event)
+static void __p4_pmu_enable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int thread = p4_ht_config_thread(hwc->config);
@@ -983,6 +983,16 @@ static void p4_pmu_enable_event(struct perf_event *event)
 				(cccr & ~P4_CCCR_RESERVED) | P4_CCCR_ENABLE);
 }
 
+static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(X86_PMC_IDX_MAX)], p4_running);
+
+static void p4_pmu_enable_event(struct perf_event *event)
+{
+	int idx = event->hw.idx;
+
+	__set_bit(idx, per_cpu(p4_running, smp_processor_id()));
+	__p4_pmu_enable_event(event);
+}
+
 static void p4_pmu_enable_all(int added)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -992,7 +1002,7 @@ static void p4_pmu_enable_all(int added)
 		struct perf_event *event = cpuc->events[idx];
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		p4_pmu_enable_event(event);
+		__p4_pmu_enable_event(event);
 	}
 }
 
@@ -1012,7 +1022,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 
 		if (!test_bit(idx, cpuc->active_mask)) {
 			/* catch in-flight IRQs */
-			if (__test_and_clear_bit(idx, cpuc->running))
+			if (__test_and_clear_bit(idx, per_cpu(p4_running, smp_processor_id())))
 				handled++;
 			continue;
 		}
@@ -1313,7 +1323,7 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.get_event_constraints	= x86_get_event_constraints,
 	/*
 	 * IF HT disabled we may need to use all
-	 * ARCH_P4_MAX_CCCR counters simulaneously
+	 * ARCH_P4_MAX_CCCR counters simultaneously
 	 * though leave it restricted at moment assuming
 	 * HT is on
 	 */

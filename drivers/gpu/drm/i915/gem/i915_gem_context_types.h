@@ -154,6 +154,10 @@ struct i915_gem_context {
 	 */
 	atomic_t active_count;
 
+	struct {
+		u64 timeout_us;
+	} watchdog;
+
 	/**
 	 * @hang_timestamp: The last time(s) this context caused a GPU hang
 	 */

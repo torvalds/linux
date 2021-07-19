@@ -2,9 +2,7 @@
 config INFINIBAND_BNXT_RE
 	tristate "Broadcom Netxtreme HCA support"
 	depends on 64BIT
-	depends on ETHERNET && NETDEVICES && PCI && INET && DCB
-	select NET_VENDOR_BROADCOM
-	select BNXT
+	depends on INET && DCB && BNXT
 	help
 	  This driver supports Broadcom NetXtreme-E 10/25/40/50 gigabit
 	  RoCE HCAs.  To compile this driver as a module, choose M here:

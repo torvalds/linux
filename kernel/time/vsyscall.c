@@ -108,7 +108,7 @@ void update_vsyscall(struct timekeeper *tk)
 
 	/*
 	 * If the current clocksource is not VDSO capable, then spare the
-	 * update of the high reolution parts.
+	 * update of the high resolution parts.
 	 */
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);

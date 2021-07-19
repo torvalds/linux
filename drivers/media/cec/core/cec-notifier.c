@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/i2c.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/of_platform.h>
@@ -221,19 +222,29 @@ struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 		dev_err(dev, "Failed to find HDMI node in device tree\n");
 		return ERR_PTR(-ENODEV);
 	}
+
 	hdmi_pdev = of_find_device_by_node(np);
-	of_node_put(np);
-	if (hdmi_pdev) {
+	if (hdmi_pdev)
 		hdmi_dev = &hdmi_pdev->dev;
-		/*
-		 * Note that the device struct is only used as a key into the
-		 * cec_notifiers list, it is never actually accessed.
-		 * So we decrement the reference here so we don't leak
-		 * memory.
-		 */
-		put_device(hdmi_dev);
-		return hdmi_dev;
+#if IS_REACHABLE(CONFIG_I2C)
+	if (!hdmi_dev) {
+		struct i2c_client *hdmi_client = of_find_i2c_device_by_node(np);
+
+		if (hdmi_client)
+			hdmi_dev = &hdmi_client->dev;
 	}
-	return ERR_PTR(-EPROBE_DEFER);
+#endif
+	of_node_put(np);
+	if (!hdmi_dev)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	/*
+	 * Note that the device struct is only used as a key into the
+	 * cec_notifiers list, it is never actually accessed.
+	 * So we decrement the reference here so we don't leak
+	 * memory.
+	 */
+	put_device(hdmi_dev);
+	return hdmi_dev;
 }
 EXPORT_SYMBOL_GPL(cec_notifier_parse_hdmi_phandle);

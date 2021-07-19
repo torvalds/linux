@@ -102,3 +102,18 @@ Example:
 			full-duplex;
 		};
 	};
+
+* Integrated Endpoint Register Block bindings
+
+Optionally, the fsl_enetc driver can probe on the Integrated Endpoint Register
+Block, which preconfigures the FIFO limits for the ENETC ports. This is a node
+with the following properties:
+
+- reg		: Specifies the address in the SoC memory space.
+- compatible	: Must be "fsl,ls1028a-enetc-ierb".
+
+Example:
+	ierb@1f0800000 {
+		compatible = "fsl,ls1028a-enetc-ierb";
+		reg = <0x01 0xf0800000 0x0 0x10000>;
+	};

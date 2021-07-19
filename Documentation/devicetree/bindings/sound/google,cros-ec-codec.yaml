@@ -32,7 +32,7 @@ properties:
           The last one integer is the length of the shared memory.
 
   memory-region:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    maxItems: 1
     description: |
       Shared memory region to EC.  A "shared-dma-pool".
       See ../reserved-memory/reserved-memory.txt for details.

@@ -428,6 +428,16 @@ static inline int adis_initial_startup(struct adis *adis)
 	return ret;
 }
 
+static inline void adis_dev_lock(struct adis *adis)
+{
+	mutex_lock(&adis->state_lock);
+}
+
+static inline void adis_dev_unlock(struct adis *adis)
+{
+	mutex_unlock(&adis->state_lock);
+}
+
 int adis_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, unsigned int error_mask,
 	int *val);

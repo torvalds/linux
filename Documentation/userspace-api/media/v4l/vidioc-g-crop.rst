@@ -71,7 +71,7 @@ When cropping is not supported then no parameters are changed and
 
 .. c:type:: v4l2_crop
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_crop
     :header-rows:  0

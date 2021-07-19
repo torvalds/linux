@@ -81,6 +81,7 @@ static struct workqueue_struct *bnxt_re_wq;
 static void bnxt_re_remove_device(struct bnxt_re_dev *rdev);
 static void bnxt_re_dealloc_driver(struct ib_device *ib_dev);
 static void bnxt_re_stop_irq(void *handle);
+static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev);
 
 static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
 {
@@ -221,6 +222,37 @@ static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
 /* for handling bnxt_en callbacks later */
 static void bnxt_re_stop(void *p)
 {
+	struct bnxt_re_dev *rdev = p;
+	struct bnxt *bp;
+
+	if (!rdev)
+		return;
+	ASSERT_RTNL();
+
+	/* L2 driver invokes this callback during device error/crash or device
+	 * reset. Current RoCE driver doesn't recover the device in case of
+	 * error. Handle the error by dispatching fatal events to all qps
+	 * ie. by calling bnxt_re_dev_stop and release the MSIx vectors as
+	 * L2 driver want to modify the MSIx table.
+	 */
+	bp = netdev_priv(rdev->netdev);
+
+	ibdev_info(&rdev->ibdev, "Handle device stop call from L2 driver");
+	/* Check the current device state from L2 structure and move the
+	 * device to detached state if FW_FATAL_COND is set.
+	 * This prevents more commands to HW during clean-up,
+	 * in case the device is already in error.
+	 */
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+		set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
+
+	bnxt_re_dev_stop(rdev);
+	bnxt_re_stop_irq(rdev);
+	/* Move the device states to detached and  avoid sending any more
+	 * commands to HW
+	 */
+	set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+	set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
 }
 
 static void bnxt_re_start(void *p)
@@ -234,6 +266,8 @@ static void bnxt_re_sriov_config(void *p, int num_vfs)
 	if (!rdev)
 		return;
 
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return;
 	rdev->num_vfs = num_vfs;
 	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
 		bnxt_re_set_resource_limits(rdev);
@@ -427,6 +461,9 @@ static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev,
 	if (!en_dev)
 		return rc;
 
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return 0;
+
 	memset(&fw_msg, 0, sizeof(fw_msg));
 
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_RING_FREE, -1, -1);
@@ -488,6 +525,9 @@ static int bnxt_re_net_stats_ctx_free(struct bnxt_re_dev *rdev,
 
 	if (!en_dev)
 		return rc;
+
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return 0;
 
 	memset(&fw_msg, 0, sizeof(fw_msg));
 
@@ -561,24 +601,12 @@ static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev)
 	return container_of(ibdev, struct bnxt_re_dev, ibdev);
 }
 
-static void bnxt_re_dev_unprobe(struct net_device *netdev,
-				struct bnxt_en_dev *en_dev)
-{
-	dev_put(netdev);
-	module_put(en_dev->pdev->driver->driver.owner);
-}
-
 static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 {
-	struct bnxt *bp = netdev_priv(netdev);
 	struct bnxt_en_dev *en_dev;
 	struct pci_dev *pdev;
 
-	/* Call bnxt_en's RoCE probe via indirect API */
-	if (!bp->ulp_probe)
-		return ERR_PTR(-EINVAL);
-
-	en_dev = bp->ulp_probe(netdev);
+	en_dev = bnxt_ulp_probe(netdev);
 	if (IS_ERR(en_dev))
 		return en_dev;
 
@@ -592,10 +620,6 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 			ROCE_DRV_MODULE_NAME);
 		return ERR_PTR(-ENODEV);
 	}
-
-	/* Bump net device reference count */
-	if (!try_module_get(pdev->driver->driver.owner))
-		return ERR_PTR(-ENODEV);
 
 	dev_hold(netdev);
 
@@ -1523,13 +1547,12 @@ fail:
 
 static void bnxt_re_dev_unreg(struct bnxt_re_dev *rdev)
 {
-	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct net_device *netdev = rdev->netdev;
 
 	bnxt_re_dev_remove(rdev);
 
 	if (netdev)
-		bnxt_re_dev_unprobe(netdev, en_dev);
+		dev_put(netdev);
 }
 
 static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct net_device *netdev)
@@ -1551,7 +1574,7 @@ static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct net_device *netdev)
 	*rdev = bnxt_re_dev_add(netdev, en_dev);
 	if (!*rdev) {
 		rc = -ENOMEM;
-		bnxt_re_dev_unprobe(netdev, en_dev);
+		dev_put(netdev);
 		goto exit;
 	}
 exit:

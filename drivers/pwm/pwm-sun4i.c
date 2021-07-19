@@ -459,7 +459,6 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &sun4i_pwm_ops;
-	pwm->chip.base = -1;
 	pwm->chip.npwm = pwm->data->npwm;
 	pwm->chip.of_xlate = of_pwm_xlate_with_flags;
 	pwm->chip.of_pwm_n_cells = 3;

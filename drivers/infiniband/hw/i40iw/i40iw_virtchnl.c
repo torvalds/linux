@@ -333,7 +333,7 @@ static void pf_cqp_get_hmc_fcn_callback(struct i40iw_sc_dev *dev, void *callback
 }
 
 /**
- * pf_add_hmc_obj - Callback for Add HMC Object
+ * pf_add_hmc_obj_callback - Callback for Add HMC Object
  * @work_vf_dev: pointer to the VF Device
  */
 static void pf_add_hmc_obj_callback(void *work_vf_dev)

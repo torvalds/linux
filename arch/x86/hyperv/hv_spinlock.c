@@ -25,7 +25,6 @@ static void hv_qlock_kick(int cpu)
 
 static void hv_qlock_wait(u8 *byte, u8 val)
 {
-	unsigned long msr_val;
 	unsigned long flags;
 
 	if (in_nmi())
@@ -48,8 +47,13 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	/*
 	 * Only issue the rdmsrl() when the lock state has not changed.
 	 */
-	if (READ_ONCE(*byte) == val)
+	if (READ_ONCE(*byte) == val) {
+		unsigned long msr_val;
+
 		rdmsrl(HV_X64_MSR_GUEST_IDLE, msr_val);
+
+		(void)msr_val;
+	}
 	local_irq_restore(flags);
 }
 

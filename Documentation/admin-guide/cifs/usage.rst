@@ -714,6 +714,7 @@ DebugData		Displays information about active CIFS sessions and
 			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics.
+open_files		List all the open file handles on all active SMB sessions.
 ======================= =======================================================
 
 Configuration pseudo-files:
@@ -794,6 +795,8 @@ LinuxExtensionsEnabled	If set to one then the client will attempt to
 			support and want to map the uid and gid fields
 			to values supplied at mount (rather than the
 			actual values, then set this to zero. (default 1)
+dfscache		List the content of the DFS cache.
+			If set to 0, the client will clear the cache.
 ======================= =======================================================
 
 These experimental features and tracing can be enabled by changing flags in

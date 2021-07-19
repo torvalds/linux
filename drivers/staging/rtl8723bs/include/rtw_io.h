@@ -127,117 +127,6 @@ struct	intf_hdl {
 	struct _io_ops	io_ops;
 };
 
-struct reg_protocol_rd {
-
-#ifdef __LITTLE_ENDIAN
-
-	/* DW1 */
-	u32 	NumOfTrans:4;
-	u32 	Reserved1:4;
-	u32 	Reserved2:24;
-	/* DW2 */
-	u32 	ByteCount:7;
-	u32 	WriteEnable:1;		/* 0:read, 1:write */
-	u32 	FixOrContinuous:1;	/* 0:continuous, 1: Fix */
-	u32 	BurstMode:1;
-	u32 	Byte1Access:1;
-	u32 	Byte2Access:1;
-	u32 	Byte4Access:1;
-	u32 	Reserved3:3;
-	u32 	Reserved4:16;
-	/* DW3 */
-	u32 	BusAddress;
-	/* DW4 */
-	/* u32 	Value; */
-#else
-
-
-/* DW1 */
-	u32 Reserved1  :4;
-	u32 NumOfTrans :4;
-
-	u32 Reserved2  :24;
-
-	/* DW2 */
-	u32 WriteEnable : 1;
-	u32 ByteCount :7;
-
-
-	u32 Reserved3 : 3;
-	u32 Byte4Access : 1;
-
-	u32 Byte2Access : 1;
-	u32 Byte1Access : 1;
-	u32 BurstMode :1;
-	u32 FixOrContinuous : 1;
-
-	u32 Reserved4 : 16;
-
-	/* DW3 */
-	u32 	BusAddress;
-
-	/* DW4 */
-	/* u32 	Value; */
-
-#endif
-
-};
-
-
-struct reg_protocol_wt {
-
-
-#ifdef __LITTLE_ENDIAN
-
-	/* DW1 */
-	u32 	NumOfTrans:4;
-	u32 	Reserved1:4;
-	u32 	Reserved2:24;
-	/* DW2 */
-	u32 	ByteCount:7;
-	u32 	WriteEnable:1;		/* 0:read, 1:write */
-	u32 	FixOrContinuous:1;	/* 0:continuous, 1: Fix */
-	u32 	BurstMode:1;
-	u32 	Byte1Access:1;
-	u32 	Byte2Access:1;
-	u32 	Byte4Access:1;
-	u32 	Reserved3:3;
-	u32 	Reserved4:16;
-	/* DW3 */
-	u32 	BusAddress;
-	/* DW4 */
-	u32 	Value;
-
-#else
-	/* DW1 */
-	u32 Reserved1  :4;
-	u32 NumOfTrans :4;
-
-	u32 Reserved2  :24;
-
-	/* DW2 */
-	u32 WriteEnable : 1;
-	u32 ByteCount :7;
-
-	u32 Reserved3 : 3;
-	u32 Byte4Access : 1;
-
-	u32 Byte2Access : 1;
-	u32 Byte1Access : 1;
-	u32 BurstMode :1;
-	u32 FixOrContinuous : 1;
-
-	u32 Reserved4 : 16;
-
-	/* DW3 */
-	u32 	BusAddress;
-
-	/* DW4 */
-	u32 	Value;
-
-#endif
-
-};
 #define SD_IO_TRY_CNT (8)
 #define MAX_CONTINUAL_IO_ERR SD_IO_TRY_CNT
 
@@ -250,7 +139,7 @@ Below is the data structure used by _io_handler
 */
 
 struct io_queue {
-	_lock	lock;
+	spinlock_t	lock;
 	struct list_head	free_ioreqs;
 	struct list_head		pending;		/* The io_req list that will be served in the single protocol read/write. */
 	struct list_head		processing;

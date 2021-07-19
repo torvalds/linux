@@ -4,6 +4,7 @@
 #include <linux/if_vlan.h>
 #include <linux/netpoll.h>
 #include <linux/export.h>
+#include <net/gro.h>
 #include "vlan.h"
 
 bool vlan_do_receive(struct sk_buff **skbp)
@@ -495,7 +496,10 @@ static struct sk_buff *vlan_gro_receive(struct list_head *head,
 
 	skb_gro_pull(skb, sizeof(*vhdr));
 	skb_gro_postpull_rcsum(skb, vhdr, sizeof(*vhdr));
-	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
+
+	pp = indirect_call_gro_receive_inet(ptype->callbacks.gro_receive,
+					    ipv6_gro_receive, inet_gro_receive,
+					    head, skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -515,7 +519,9 @@ static int vlan_gro_complete(struct sk_buff *skb, int nhoff)
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
 	if (ptype)
-		err = ptype->callbacks.gro_complete(skb, nhoff + sizeof(*vhdr));
+		err = INDIRECT_CALL_INET(ptype->callbacks.gro_complete,
+					 ipv6_gro_complete, inet_gro_complete,
+					 skb, nhoff + sizeof(*vhdr));
 
 	rcu_read_unlock();
 	return err;

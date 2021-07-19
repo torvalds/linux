@@ -115,8 +115,28 @@ config SND_SOC_FSL_AUD2HTX
 config SND_SOC_FSL_UTILS
 	tristate
 
+config SND_SOC_FSL_RPMSG
+	tristate "NXP Audio Base On RPMSG support"
+	depends on COMMON_CLK
+	depends on RPMSG
+	depends on SND_IMX_SOC || SND_IMX_SOC = n
+	select SND_SOC_IMX_RPMSG if SND_IMX_SOC != n
+	help
+	  Say Y if you want to add rpmsg audio support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
 config SND_SOC_IMX_PCM_DMA
 	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_IMX_AUDIO_RPMSG
+	tristate
+	depends on RPMSG
+
+config SND_SOC_IMX_PCM_RPMSG
+	tristate
+	depends on SND_SOC_IMX_AUDIO_RPMSG
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_IMX_AUDMUX
@@ -291,6 +311,8 @@ config SND_SOC_FSL_ASOC_CARD
 	select SND_SOC_FSL_ESAI
 	select SND_SOC_FSL_SAI
 	select SND_SOC_FSL_SSI
+	select SND_SOC_WM8994
+	select MFD_WM8994
 	help
 	 ALSA SoC Audio support with ASRC feature for Freescale SoCs that have
 	 ESAI/SAI/SSI and connect with external CODECs such as WM8962, CS42888,
@@ -317,6 +339,17 @@ config SND_SOC_IMX_HDMI
 	  SII902X.
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  IMX HDMI.
+
+config SND_SOC_IMX_RPMSG
+	tristate "SoC Audio support for i.MX boards with rpmsg"
+	depends on RPMSG
+	select SND_SOC_IMX_PCM_RPMSG
+	select SND_SOC_IMX_AUDIO_RPMSG
+	help
+	  SoC Audio support for i.MX boards with rpmsg.
+	  There should be rpmsg devices defined in other core (M core)
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a rpmsg devices.
 
 endif # SND_IMX_SOC
 

@@ -62,6 +62,11 @@ static const u32 magn_3d_addresses[MAGN_3D_CHANNEL_MAX] = {
 	HID_USAGE_SENSOR_TIME_TIMESTAMP,
 };
 
+static const u32 magn_3d_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_ORIENTATION,
+	HID_USAGE_SENSOR_ORIENT_MAGN_FLUX,
+};
+
 /* Channel definitions */
 static const struct iio_chan_spec magn_3d_channels[] = {
 	{
@@ -448,27 +453,6 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 			&st->rot_attr.scale_pre_decml,
 			&st->rot_attr.scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->magn_flux_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_ORIENTATION,
-			&st->magn_flux_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->magn_flux_attributes.sensitivity.index,
-			st->magn_flux_attributes.sensitivity.report_id);
-	}
-	if (st->magn_flux_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_ORIENT_MAGN_FLUX,
-			&st->magn_flux_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->magn_flux_attributes.sensitivity.index,
-			st->magn_flux_attributes.sensitivity.report_id);
-	}
 	if (st->rot_attributes.sensitivity.index < 0) {
 		sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,
@@ -507,12 +491,16 @@ static int hid_magn_3d_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 				HID_USAGE_SENSOR_COMPASS_3D,
-				&magn_state->magn_flux_attributes);
+				&magn_state->magn_flux_attributes,
+				magn_3d_sensitivity_addresses,
+				ARRAY_SIZE(magn_3d_sensitivity_addresses));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
 		return ret;
 	}
 	magn_state->rot_attributes = magn_state->magn_flux_attributes;
+	/* sensitivity of rot_attribute is not the same as magn_flux_attributes */
+	magn_state->rot_attributes.sensitivity.index = -1;
 
 	ret = magn_3d_parse_report(pdev, hsdev,
 				&channels, &chan_count,

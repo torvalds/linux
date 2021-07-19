@@ -351,7 +351,7 @@ static ssize_t smm665_show_crit_alarm(struct device *dev,
 	if (data->faults & (1 << attr->index))
 		val = 1;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t smm665_show_input(struct device *dev,
@@ -366,7 +366,7 @@ static ssize_t smm665_show_input(struct device *dev,
 		return PTR_ERR(data);
 
 	val = smm665_convert(data->adc[adc], adc);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 #define SMM665_SHOW(what) \

@@ -96,6 +96,12 @@ hardware descriptions such as device tree or ACPI:
   way to pass the charging parameters from hardware descriptions such as the
   device tree.
 
+- gpio-mux: drivers/mux/gpio.c is used for controlling a multiplexer using
+  n GPIO lines such that you can mux in 2^n different devices by activating
+  different GPIO lines. Often the GPIOs are on a SoC and the devices are
+  some SoC-external entities, such as different components on a PCB that
+  can be selectively enabled.
+
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The

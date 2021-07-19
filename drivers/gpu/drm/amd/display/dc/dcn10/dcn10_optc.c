@@ -132,6 +132,22 @@ void optc1_setup_vertical_interrupt2(
 }
 
 /**
+ * Vupdate keepout can be set to a window to block the update lock for that pipe from changing.
+ * Start offset begins with vstartup and goes for x number of clocks,
+ * end offset starts from end of vupdate to x number of clocks.
+ */
+void optc1_set_vupdate_keepout(struct timing_generator *optc,
+			       struct vupdate_keepout_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		  MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, params->start_offset,
+		  MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, params->end_offset,
+		  OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, params->enable);
+}
+
+/**
  * program_timing_generator   used by mode timing set
  * Program CRTC Timing Registers - OTG_H_*, OTG_V_*, Pixel repetition.
  * Including SYNC. Call BIOS command table to program Timings.

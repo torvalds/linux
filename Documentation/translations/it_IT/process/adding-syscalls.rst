@@ -562,7 +562,7 @@ kernel.  Se la nuova funzionalità è utile all'interno del kernel, per esempio
 dev'essere condivisa fra una vecchia e una nuova chiamata di sistema o
 dev'essere utilizzata da una chiamata di sistema e la sua variante compatibile,
 allora dev'essere implementata come una funzione di supporto
-(*helper function*) (per esempio ``kern_xyzzy()``).  Questa funzione potrà
+(*helper function*) (per esempio ``ksys_xyzzy()``).  Questa funzione potrà
 essere chiamata dallo *stub* (``sys_xyzzy()``), dalla variante compatibile
 (``compat_sys_xyzzy()``), e/o da altri parti del kernel.
 

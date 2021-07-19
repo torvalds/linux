@@ -77,36 +77,40 @@ static unsigned int check_pixel_format(struct drm_plane *plane, u32 format)
 }
 
 static int kmb_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_framebuffer *fb;
 	int ret;
 	struct drm_crtc_state *crtc_state;
 	bool can_position;
 
-	fb = state->fb;
-	if (!fb || !state->crtc)
+	fb = new_plane_state->fb;
+	if (!fb || !new_plane_state->crtc)
 		return 0;
 
 	ret = check_pixel_format(plane, fb->format->format);
 	if (ret)
 		return ret;
 
-	if (state->crtc_w > KMB_MAX_WIDTH || state->crtc_h > KMB_MAX_HEIGHT)
+	if (new_plane_state->crtc_w > KMB_MAX_WIDTH || new_plane_state->crtc_h > KMB_MAX_HEIGHT)
 		return -EINVAL;
-	if (state->crtc_w < KMB_MIN_WIDTH || state->crtc_h < KMB_MIN_HEIGHT)
+	if (new_plane_state->crtc_w < KMB_MIN_WIDTH || new_plane_state->crtc_h < KMB_MIN_HEIGHT)
 		return -EINVAL;
 	can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
 	crtc_state =
-		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
-	return drm_atomic_helper_check_plane_state(state, crtc_state,
-						 DRM_PLANE_HELPER_NO_SCALING,
-						 DRM_PLANE_HELPER_NO_SCALING,
-						 can_position, true);
+		drm_atomic_get_existing_crtc_state(state,
+						   new_plane_state->crtc);
+	return drm_atomic_helper_check_plane_state(new_plane_state,
+						   crtc_state,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   can_position, true);
 }
 
 static void kmb_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *state)
+				     struct drm_atomic_state *state)
 {
 	struct kmb_plane *kmb_plane = to_kmb_plane(plane);
 	int plane_id = kmb_plane->id;
@@ -274,8 +278,12 @@ static void config_csc(struct kmb_drm_private *kmb, int plane_id)
 }
 
 static void kmb_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_framebuffer *fb;
 	struct kmb_drm_private *kmb;
 	unsigned int width;
@@ -289,10 +297,10 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	int num_planes;
 	static dma_addr_t addr[MAX_SUB_PLANES];
 
-	if (!plane || !plane->state || !state)
+	if (!plane || !new_plane_state || !old_plane_state)
 		return;
 
-	fb = plane->state->fb;
+	fb = new_plane_state->fb;
 	if (!fb)
 		return;
 	num_planes = fb->format->num_planes;
@@ -309,10 +317,10 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	}
 	spin_unlock_irq(&kmb->irq_lock);
 
-	src_w = (plane->state->src_w >> 16);
-	src_h = plane->state->src_h >> 16;
-	crtc_x = plane->state->crtc_x;
-	crtc_y = plane->state->crtc_y;
+	src_w = (new_plane_state->src_w >> 16);
+	src_h = new_plane_state->src_h >> 16;
+	crtc_x = new_plane_state->crtc_x;
+	crtc_y = new_plane_state->crtc_y;
 
 	drm_dbg(&kmb->drm,
 		"src_w=%d src_h=%d, fb->format->format=0x%x fb->flags=0x%x\n",
@@ -329,7 +337,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	kmb_write_lcd(kmb, LCD_LAYERn_DMA_LINE_WIDTH(plane_id),
 		      (width * fb->format->cpp[0]));
 
-	addr[Y_PLANE] = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
+	addr[Y_PLANE] = drm_fb_cma_get_gem_addr(fb, new_plane_state, 0);
 	kmb_write_lcd(kmb, LCD_LAYERn_DMA_START_ADDR(plane_id),
 		      addr[Y_PLANE] + fb->offsets[0]);
 	val = get_pixel_format(fb->format->format);
@@ -341,7 +349,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 		kmb_write_lcd(kmb, LCD_LAYERn_DMA_CB_LINE_WIDTH(plane_id),
 			      (width * fb->format->cpp[0]));
 
-		addr[U_PLANE] = drm_fb_cma_get_gem_addr(fb, plane->state,
+		addr[U_PLANE] = drm_fb_cma_get_gem_addr(fb, new_plane_state,
 							U_PLANE);
 		/* check if Cb/Cr is swapped*/
 		if (num_planes == 3 && (val & LCD_LAYER_CRCB_ORDER))
@@ -363,7 +371,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 				      ((width) * fb->format->cpp[0]));
 
 			addr[V_PLANE] = drm_fb_cma_get_gem_addr(fb,
-								plane->state,
+								new_plane_state,
 								V_PLANE);
 
 			/* check if Cb/Cr is swapped*/

@@ -48,6 +48,7 @@ static ssize_t amdgpu_rap_debugfs_write(struct file *f, const char __user *buf,
 	struct ta_rap_cmd_output_data *rap_cmd_output;
 	struct drm_device *dev = adev_to_drm(adev);
 	uint32_t op;
+	enum ta_rap_status status;
 	int ret;
 
 	if (*pos || size != 2)
@@ -70,9 +71,8 @@ static ssize_t amdgpu_rap_debugfs_write(struct file *f, const char __user *buf,
 
 	switch (op) {
 	case 2:
-		ret = psp_rap_invoke(&adev->psp, op);
-
-		if (ret == TA_RAP_STATUS__SUCCESS) {
+		ret = psp_rap_invoke(&adev->psp, op, &status);
+		if (!ret && status == TA_RAP_STATUS__SUCCESS) {
 			dev_info(adev->dev, "RAP L0 validate test success.\n");
 		} else {
 			rap_shared_mem = (struct ta_rap_shared_memory *)
@@ -97,6 +97,7 @@ static ssize_t amdgpu_rap_debugfs_write(struct file *f, const char __user *buf,
 	default:
 		dev_info(adev->dev, "Unsupported op id: %d, ", op);
 		dev_info(adev->dev, "Only support op 2(L0 validate test).\n");
+		break;
 	}
 
 	amdgpu_gfx_off_ctrl(adev, true);

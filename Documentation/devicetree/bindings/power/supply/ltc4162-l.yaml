@@ -29,12 +29,10 @@ properties:
     description: I2C address of the charger.
 
   lltc,rsnsb-micro-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Battery sense resistor in microohm.
     minimum: 1000
 
   lltc,rsnsi-micro-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Input current sense resistor in microohm.
     minimum: 1000
 

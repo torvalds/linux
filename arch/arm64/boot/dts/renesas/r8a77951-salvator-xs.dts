@@ -57,29 +57,6 @@
 	status = "okay";
 };
 
-&hdmi0 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-			rcar_dw_hdmi0_out: endpoint {
-				remote-endpoint = <&hdmi0_con>;
-			};
-		};
-		port@2 {
-			reg = <2>;
-			dw_hdmi0_snd_in: endpoint {
-				remote-endpoint = <&rsnd_endpoint1>;
-			};
-		};
-	};
-};
-
-&hdmi0_con {
-	remote-endpoint = <&rcar_dw_hdmi0_out>;
-};
-
 &hdmi1 {
 	status = "okay";
 
@@ -152,19 +129,7 @@
 
 &rcar_sound {
 	ports {
-		/* rsnd_port0 is on salvator-common */
-		rsnd_port1: port@1 {
-			reg = <1>;
-			rsnd_endpoint1: endpoint {
-				remote-endpoint = <&dw_hdmi0_snd_in>;
-
-				dai-format = "i2s";
-				bitclock-master = <&rsnd_endpoint1>;
-				frame-master = <&rsnd_endpoint1>;
-
-				playback = <&ssi2>;
-			};
-		};
+		/* rsnd_port0/1 are described in salvator-common.dtsi */
 		rsnd_port2: port@2 {
 			reg = <2>;
 			rsnd_endpoint2: endpoint {

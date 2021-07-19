@@ -1,31 +1,3 @@
-What:		/sys/bus/thunderbolt/devices/<xdomain>/rx_speed
-Date:		Feb 2021
-KernelVersion:	5.11
-Contact:	Isaac Hazan <isaac.hazan@intel.com>
-Description:	This attribute reports the XDomain RX speed per lane.
-		All RX lanes run at the same speed.
-
-What:		/sys/bus/thunderbolt/devices/<xdomain>/rx_lanes
-Date:		Feb 2021
-KernelVersion:	5.11
-Contact:	Isaac Hazan <isaac.hazan@intel.com>
-Description:	This attribute reports the number of RX lanes the XDomain
-		is using simultaneously through its upstream port.
-
-What:		/sys/bus/thunderbolt/devices/<xdomain>/tx_speed
-Date:		Feb 2021
-KernelVersion:	5.11
-Contact:	Isaac Hazan <isaac.hazan@intel.com>
-Description:	This attribute reports the XDomain TX speed per lane.
-		All TX lanes run at the same speed.
-
-What:		/sys/bus/thunderbolt/devices/<xdomain>/tx_lanes
-Date:		Feb 2021
-KernelVersion:	5.11
-Contact:	Isaac Hazan <isaac.hazan@intel.com>
-Description:	This attribute reports number of TX lanes the XDomain
-		is using simultaneously through its upstream port.
-
 What: /sys/bus/thunderbolt/devices/.../domainX/boot_acl
 Date:		Jun 2018
 KernelVersion:	4.17
@@ -161,6 +133,13 @@ KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains name of this device extracted from
 		the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../maxhopid
+Date:		Jul 2021
+KernelVersion:	5.13
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Only set for XDomains. The maximum HopID the other host
+		supports as its input HopID.
 
 What:		/sys/bus/thunderbolt/devices/.../rx_speed
 Date:		Jan 2020

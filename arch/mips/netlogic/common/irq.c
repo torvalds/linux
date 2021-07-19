@@ -276,10 +276,6 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 #ifdef CONFIG_CPU_XLP
-static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
-	.xlate = irq_domain_xlate_onetwocell,
-};
-
 static int __init xlp_of_pic_init(struct device_node *node,
 					struct device_node *parent)
 {
@@ -324,7 +320,7 @@ static int __init xlp_of_pic_init(struct device_node *node,
 
 	xlp_pic_domain = irq_domain_add_legacy(node, n_picirqs,
 		nlm_irq_to_xirq(socid, PIC_IRQ_BASE), PIC_IRQ_BASE,
-		&xlp_pic_irq_domain_ops, NULL);
+		&irq_domain_simple_ops, NULL);
 	if (xlp_pic_domain == NULL) {
 		pr_err("PIC %pOFn: Creating legacy domain failed!\n", node);
 		return -EINVAL;

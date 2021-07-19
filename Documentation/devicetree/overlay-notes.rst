@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================
-Device Tree Overlay Notes
-=========================
+========================
+Devicetree Overlay Notes
+========================
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
@@ -11,7 +11,7 @@ companion document to Documentation/devicetree/dynamic-resolution-notes.rst[1]
 How overlays work
 -----------------
 
-A Device Tree's overlay purpose is to modify the kernel's live tree, and
+A Devicetree's overlay purpose is to modify the kernel's live tree, and
 have the modification affecting the state of the kernel in a way that
 is reflecting the changes.
 Since the kernel mainly deals with devices, any new device node that result

@@ -701,3 +701,6 @@ config GENERIC_LIB_DEVMEM_IS_ALLOWED
 config PLDMFW
 	bool
 	default n
+
+config ASN1_ENCODER
+       tristate

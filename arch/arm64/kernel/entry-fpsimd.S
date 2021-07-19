@@ -48,6 +48,11 @@ SYM_FUNC_START(sve_get_vl)
 	ret
 SYM_FUNC_END(sve_get_vl)
 
+SYM_FUNC_START(sve_set_vq)
+	sve_load_vq x0, x1, x2
+	ret
+SYM_FUNC_END(sve_set_vq)
+
 /*
  * Load SVE state from FPSIMD state.
  *

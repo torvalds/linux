@@ -32,7 +32,6 @@
 
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
-#include <linux/ptp_classify.h>
 #include <net/geneve.h>
 #include <net/dsfield.h>
 #include "en.h"
@@ -66,24 +65,6 @@ static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb
 	return priv->dcbx_dp.dscp2prio[dscp_cp];
 }
 #endif
-
-static bool mlx5e_use_ptpsq(struct sk_buff *skb)
-{
-	struct flow_keys fk;
-
-	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return false;
-
-	if (fk.basic.n_proto == htons(ETH_P_1588))
-		return true;
-
-	if (fk.basic.n_proto != htons(ETH_P_IP) &&
-	    fk.basic.n_proto != htons(ETH_P_IPV6))
-		return false;
-
-	return (fk.basic.ip_proto == IPPROTO_UDP &&
-		fk.ports.dst == htons(PTP_EV_PORT));
-}
 
 static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
 {
@@ -133,6 +114,8 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
 	num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
 	if (unlikely(dev->real_num_tx_queues > num_tc_x_num_ch)) {
+		struct mlx5e_ptp *ptp_channel;
+
 		/* Order maj_id before defcls - pairs with mlx5e_htb_root_add. */
 		u16 htb_maj_id = smp_load_acquire(&priv->htb.maj_id);
 
@@ -142,10 +125,11 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 				return txq_ix;
 		}
 
-		if (unlikely(priv->channels.port_ptp))
-			if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-			    mlx5e_use_ptpsq(skb))
-				return mlx5e_select_ptpsq(dev, skb);
+		ptp_channel = READ_ONCE(priv->channels.ptp);
+		if (unlikely(ptp_channel &&
+			     test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state) &&
+			     mlx5e_use_ptpsq(skb)))
+			return mlx5e_select_ptpsq(dev, skb);
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
 		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
@@ -576,7 +560,7 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 
 	pi = mlx5e_txqsq_get_next_pi(sq, MLX5E_TX_MPW_MAX_WQEBBS);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	prefetchw(wqe->data);
+	net_prefetchw(wqe->data);
 
 	*session = (struct mlx5e_tx_mpwqe) {
 		.wqe = wqe,

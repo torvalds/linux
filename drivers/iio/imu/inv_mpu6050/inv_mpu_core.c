@@ -731,12 +731,16 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val)
+static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val,
+					int val2)
 {
 	int result, i;
 
+	if (val != 0)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(gyro_scale_6050); ++i) {
-		if (gyro_scale_6050[i] == val) {
+		if (gyro_scale_6050[i] == val2) {
 			result = inv_mpu6050_set_gyro_fsr(st, i);
 			if (result)
 				return result;
@@ -767,13 +771,17 @@ static int inv_write_raw_get_fmt(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
+static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val,
+					 int val2)
 {
 	int result, i;
 	u8 d;
 
+	if (val != 0)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(accel_scale); ++i) {
-		if (accel_scale[i] == val) {
+		if (accel_scale[i] == val2) {
 			d = (i << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 			result = regmap_write(st->map, st->reg->accl_config, d);
 			if (result)
@@ -814,10 +822,10 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			result = inv_mpu6050_write_gyro_scale(st, val2);
+			result = inv_mpu6050_write_gyro_scale(st, val, val2);
 			break;
 		case IIO_ACCEL:
-			result = inv_mpu6050_write_accel_scale(st, val2);
+			result = inv_mpu6050_write_accel_scale(st, val, val2);
 			break;
 		default:
 			result = -EINVAL;
@@ -1458,15 +1466,21 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		st->plat_data = *pdata;
 	}
 
-	desc = irq_get_irq_data(irq);
-	if (!desc) {
-		dev_err(dev, "Could not find IRQ %d\n", irq);
-		return -EINVAL;
+	if (irq > 0) {
+		desc = irq_get_irq_data(irq);
+		if (!desc) {
+			dev_err(dev, "Could not find IRQ %d\n", irq);
+			return -EINVAL;
+		}
+
+		irq_type = irqd_get_trigger_type(desc);
+		if (!irq_type)
+			irq_type = IRQF_TRIGGER_RISING;
+	} else {
+		/* Doesn't really matter, use the default */
+		irq_type = IRQF_TRIGGER_RISING;
 	}
 
-	irq_type = irqd_get_trigger_type(desc);
-	if (!irq_type)
-		irq_type = IRQF_TRIGGER_RISING;
 	if (irq_type & IRQF_TRIGGER_RISING)	// rising or both-edge
 		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
 	else if (irq_type == IRQF_TRIGGER_FALLING)
@@ -1591,20 +1605,26 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	indio_dev->info = &mpu_info;
-	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
-						 iio_pollfunc_store_time,
-						 inv_mpu6050_read_fifo,
-						 NULL);
-	if (result) {
-		dev_err(dev, "configure buffer fail %d\n", result);
-		return result;
-	}
-	result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
-	if (result) {
-		dev_err(dev, "trigger probe fail %d\n", result);
-		return result;
+	if (irq > 0) {
+		/*
+		 * The driver currently only supports buffered capture with its
+		 * own trigger. So no IRQ, no trigger, no buffer
+		 */
+		result = devm_iio_triggered_buffer_setup(dev, indio_dev,
+							 iio_pollfunc_store_time,
+							 inv_mpu6050_read_fifo,
+							 NULL);
+		if (result) {
+			dev_err(dev, "configure buffer fail %d\n", result);
+			return result;
+		}
+
+		result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
+		if (result) {
+			dev_err(dev, "trigger probe fail %d\n", result);
+			return result;
+		}
 	}
 
 	result = devm_iio_device_register(dev, indio_dev);

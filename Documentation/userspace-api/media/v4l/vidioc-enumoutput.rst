@@ -39,7 +39,7 @@ when the index is out of bounds. To enumerate all outputs applications
 shall begin at index zero, incrementing by one until the driver returns
 ``EINVAL``.
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_output
 
@@ -96,7 +96,7 @@ shall begin at index zero, incrementing by one until the driver returns
 	zero.
 
 
-.. tabularcolumns:: |p{7.0cm}|p{1.8cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.5cm}|p{0.6cm}|p{9.2cm}|
 
 .. _output-type:
 
@@ -118,7 +118,7 @@ shall begin at index zero, incrementing by one until the driver returns
       - The video output will be copied to a :ref:`video overlay <overlay>`.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.4cm}|p{2.4cm}|p{8.5cm}|
 
 .. _output-capabilities:
 

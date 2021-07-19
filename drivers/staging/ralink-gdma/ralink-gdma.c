@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2013, Lars-Peter Clausen <lars@metafoo.de>
  *  GDMA4740 DMAC support
  */
 
@@ -788,6 +787,7 @@ static const struct of_device_id gdma_of_match_table[] = {
 	{ .compatible = "ralink,rt3883-gdma", .data = &rt3883_gdma_data },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, gdma_of_match_table);
 
 static int gdma_dma_probe(struct platform_device *pdev)
 {
@@ -833,7 +833,9 @@ static int gdma_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_reset(&pdev->dev);
+	ret = device_reset(&pdev->dev);
+	if (ret)
+		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
 
 	dd = &dma_dev->ddev;
 	dma_cap_set(DMA_MEMCPY, dd->cap_mask);
@@ -911,6 +913,5 @@ static struct platform_driver gdma_dma_driver = {
 };
 module_platform_driver(gdma_dma_driver);
 
-MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Ralink/MTK DMA driver");
 MODULE_LICENSE("GPL v2");

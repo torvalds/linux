@@ -159,7 +159,7 @@ static inline void *phys_to_virt(phys_addr_t address)
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
  * However, we truncate the address to unsigned int to avoid undesirable
- * promitions in legacy drivers.
+ * promotions in legacy drivers.
  */
 static inline unsigned int isa_virt_to_bus(volatile void *address)
 {

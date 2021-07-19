@@ -52,7 +52,7 @@ struct venc_ap_ipi_msg_init {
  *			(struct venc_vp8_vsi/venc_h264_vsi *)
  * @param_id:	parameter id (venc_set_param_type)
  * @data_item:	number of items in the data array
- * @data[8]:	data array to store the set parameters
+ * @data:	data array to store the set parameters
  */
 struct venc_ap_ipi_msg_set_param {
 	uint32_t msg_id;
@@ -92,7 +92,7 @@ struct venc_ap_ipi_msg_enc {
  *
  * @base:	base msg structure
  * @data_item:	number of items in the data array
- * @data[8]:	data array to store the set parameters
+ * @data:	data array to store the set parameters
  */
 struct venc_ap_ipi_msg_enc_ext {
 	struct venc_ap_ipi_msg_enc base;
@@ -158,7 +158,7 @@ struct venc_vpu_ipi_msg_init {
  * @venc_inst:	AP encoder instance (struct venc_vp8_inst/venc_h264_inst *)
  * @param_id:	parameter id (venc_set_param_type)
  * @data_item:	number of items in the data array
- * @data[6]:	data array to store the return result
+ * @data:	data array to store the return result
  */
 struct venc_vpu_ipi_msg_set_param {
 	uint32_t msg_id;
@@ -171,10 +171,10 @@ struct venc_vpu_ipi_msg_set_param {
 
 /**
  * enum venc_ipi_msg_enc_state - Type of encode state
- * VEN_IPI_MSG_ENC_STATE_FRAME:	one frame being encoded
- * VEN_IPI_MSG_ENC_STATE_PART:	bit stream buffer full
- * VEN_IPI_MSG_ENC_STATE_SKIP:	encoded skip frame
- * VEN_IPI_MSG_ENC_STATE_ERROR:	encounter error
+ * @VEN_IPI_MSG_ENC_STATE_FRAME:	one frame being encoded
+ * @VEN_IPI_MSG_ENC_STATE_PART:		bit stream buffer full
+ * @VEN_IPI_MSG_ENC_STATE_SKIP:		encoded skip frame
+ * @VEN_IPI_MSG_ENC_STATE_ERROR:	encounter error
  */
 enum venc_ipi_msg_enc_state {
 	VEN_IPI_MSG_ENC_STATE_FRAME,

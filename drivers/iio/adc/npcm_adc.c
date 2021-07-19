@@ -25,6 +25,15 @@ struct npcm_adc {
 	wait_queue_head_t wq;
 	struct regulator *vref;
 	struct reset_control *reset;
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a event and finally a register
+	 * read, during which userspace could issue another read request.
+	 * This lock protects a read access from ocurring before another one
+	 * has finished.
+	 */
+	struct mutex lock;
 };
 
 /* ADC registers */
@@ -135,9 +144,9 @@ static int npcm_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&info->lock);
 		ret = npcm_adc_read(info, val, chan->channel);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&info->lock);
 		if (ret) {
 			dev_err(info->dev, "NPCM ADC read failed\n");
 			return ret;
@@ -186,6 +195,8 @@ static int npcm_adc_probe(struct platform_device *pdev)
 	if (!indio_dev)
 		return -ENOMEM;
 	info = iio_priv(indio_dev);
+
+	mutex_init(&info->lock);
 
 	info->dev = &pdev->dev;
 

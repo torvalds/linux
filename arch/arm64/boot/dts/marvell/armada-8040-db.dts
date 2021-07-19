@@ -154,8 +154,15 @@
 };
 
 /* CON9 on CP0 expansion */
+&cp0_utmi {
+	status = "okay";
+};
+
 &cp0_usb3_0 {
 	usb-phy = <&cp0_usb3_0_phy>;
+	phys = <&cp0_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -168,8 +175,9 @@
 
 /* CON10 on CP0 expansion */
 &cp0_usb3_1 {
-	phys = <&cp0_comphy4 1>;
-	phy-names = "cp0-usb3h1-comphy";
+	phys = <&cp0_comphy4 1>, <&cp0_utmi1>;
+	phy-names = "usb", "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -306,14 +314,23 @@
 	};
 };
 
+&cp1_utmi {
+	status = "okay";
+};
+
 /* CON9 on CP1 expansion */
 &cp1_usb3_0 {
 	usb-phy = <&cp1_usb3_0_phy>;
+	phys = <&cp1_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
 /* CON10 on CP1 expansion */
 &cp1_usb3_1 {
+	phys = <&cp1_utmi1>;
+	phy-names = "utmi";
 	status = "okay";
 };
 

@@ -37,8 +37,7 @@ static struct spctrl_context_info spctrl_cofig_info[N_SP_ID];
 static bool spctrl_loaded[N_SP_ID] = {0};
 
 /* Load firmware */
-int ia_css_spctrl_load_fw(sp_ID_t sp_id,
-				      ia_css_spctrl_cfg *spctrl_cfg)
+int ia_css_spctrl_load_fw(sp_ID_t sp_id, ia_css_spctrl_cfg *spctrl_cfg)
 {
 	ia_css_ptr code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
@@ -106,8 +105,8 @@ int ia_css_spctrl_load_fw(sp_ID_t sp_id,
 void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 {
 	/* now we program the base address into the icache and
-	* invalidate the cache.
-	*/
+	 * invalidate the cache.
+	 */
 	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG,
 		      (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);

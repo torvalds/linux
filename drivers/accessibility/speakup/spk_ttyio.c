@@ -104,7 +104,6 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 
 static struct tty_ldisc_ops spk_ttyio_ldisc_ops = {
 	.owner          = THIS_MODULE,
-	.magic          = TTY_LDISC_MAGIC,
 	.name           = "speakup_ldisc",
 	.open           = spk_ttyio_ldisc_open,
 	.close          = spk_ttyio_ldisc_close,

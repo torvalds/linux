@@ -26,7 +26,7 @@ int armada_drm_plane_prepare_fb(struct drm_plane *plane,
 void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_plane_state *old_state);
 int armada_drm_plane_atomic_check(struct drm_plane *plane,
-	struct drm_plane_state *state);
+	struct drm_atomic_state *state);
 void armada_plane_reset(struct drm_plane *plane);
 struct drm_plane_state *armada_plane_duplicate_state(struct drm_plane *plane);
 void armada_plane_destroy_state(struct drm_plane *plane,

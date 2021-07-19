@@ -142,6 +142,7 @@
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
+	cd-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -209,6 +210,7 @@
 				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
 				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
 				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+				MX53_PAD_EIM_DA13__GPIO3_13		0xe4
 			>;
 		};
 

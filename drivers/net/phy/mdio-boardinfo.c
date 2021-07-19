@@ -50,7 +50,7 @@ void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus,
 EXPORT_SYMBOL(mdiobus_setup_mdiodev_from_board_info);
 
 /**
- * mdio_register_board_info - register MDIO devices for a given board
+ * mdiobus_register_board_info - register MDIO devices for a given board
  * @info: array of devices descriptors
  * @n: number of descriptors provided
  * Context: can sleep

@@ -15,7 +15,7 @@
 /*
  * We have no docs for the CHT Crystal Cove PMIC. The Asus Zenfone-2 kernel
  * code has 2 Crystal Cove regulator drivers, one calls the PMIC a "Crystal
- * Cove Plus" PMIC and talks about Cherry Trail, so presuambly that one
+ * Cove Plus" PMIC and talks about Cherry Trail, so presumably that one
  * could be used to get register info for the regulators if we need to
  * implement regulator support in the future.
  *

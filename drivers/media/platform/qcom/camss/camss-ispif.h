@@ -63,11 +63,12 @@ struct ispif_device {
 	struct mutex config_lock;
 	unsigned int line_num;
 	struct ispif_line *line;
+	struct camss *camss;
 };
 
 struct resources_ispif;
 
-int msm_ispif_subdev_init(struct ispif_device *ispif,
+int msm_ispif_subdev_init(struct camss *camss,
 			  const struct resources_ispif *res);
 
 int msm_ispif_register_entities(struct ispif_device *ispif,

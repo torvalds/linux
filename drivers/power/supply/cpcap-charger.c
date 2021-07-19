@@ -318,7 +318,7 @@ static int cpcap_charger_current_to_regval(int microamp)
 		return CPCAP_REG_CRM_ICHRG(0x0);
 	if (miliamp < 177)
 		return CPCAP_REG_CRM_ICHRG(0x1);
-	if (miliamp > 1596)
+	if (miliamp >= 1596)
 		return CPCAP_REG_CRM_ICHRG(0xe);
 
 	res = microamp / 88666;
@@ -465,7 +465,7 @@ static bool cpcap_charger_vbus_valid(struct cpcap_charger_ddata *ddata)
 
 	error = iio_read_channel_processed(channel, &value);
 	if (error >= 0)
-		return value > 3900 ? true : false;
+		return value > 3900;
 
 	dev_err(ddata->dev, "error reading VBUS: %i\n", error);
 
@@ -667,6 +667,9 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 		return;
 	}
+
+	/* Delay for 80ms to avoid vbus bouncing when usb cable is plugged in */
+	usleep_range(80000, 120000);
 
 	/* Throttle chrgcurr2 interrupt for charger done and retry */
 	switch (ddata->status) {

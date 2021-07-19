@@ -97,6 +97,9 @@ struct sbiret sbi_ecall(int ext, int fid, unsigned long arg0,
 
 void sbi_console_putchar(int ch);
 int sbi_console_getchar(void);
+long sbi_get_mvendorid(void);
+long sbi_get_marchid(void);
+long sbi_get_mimpid(void);
 void sbi_set_timer(uint64_t stime_value);
 void sbi_shutdown(void);
 void sbi_clear_ipi(void);

@@ -43,6 +43,16 @@ unsigned int cal_debug;
 module_param_named(debug, cal_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
+#ifdef CONFIG_VIDEO_TI_CAL_MC
+#define CAL_MC_API_DEFAULT 1
+#else
+#define CAL_MC_API_DEFAULT 0
+#endif
+
+bool cal_mc_api = CAL_MC_API_DEFAULT;
+module_param_named(mc_api, cal_mc_api, bool, 0444);
+MODULE_PARM_DESC(mc_api, "activates the MC API");
+
 /* ------------------------------------------------------------------
  *	Format Handling
  * ------------------------------------------------------------------
@@ -660,13 +670,17 @@ static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct cal_dev *cal = container_of(notifier, struct cal_dev, notifier);
 	unsigned int i;
+	int ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
 		if (cal->ctx[i])
 			cal_ctx_v4l2_register(cal->ctx[i]);
 	}
 
-	return 0;
+	if (cal_mc_api)
+		ret = v4l2_device_register_subdev_nodes(&cal->v4l2_dev);
+
+	return ret;
 }
 
 static const struct v4l2_async_notifier_operations cal_async_notifier_ops = {

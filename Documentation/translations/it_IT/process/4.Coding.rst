@@ -264,11 +264,10 @@ La maggior parte di queste opzioni possono essere attivate per qualsiasi
 kernel utilizzato per lo sviluppo o a scopo di test.  In particolare dovreste
 attivare:
 
- - ENABLE_MUST_CHECK e FRAME_WARN per ottenere degli
-   avvertimenti dedicati a problemi come l'uso di interfacce deprecate o
-   l'ignorare un importante valore di ritorno di una funzione.  Il risultato
-   generato da questi avvertimenti può risultare verboso, ma non bisogna
-   preoccuparsi per gli avvertimenti provenienti da altre parti del kernel.
+ - FRAME_WARN per ottenere degli avvertimenti su stack frame più
+   grandi di un dato valore.  Il risultato generato da questi
+   avvertimenti può risultare verboso, ma non bisogna preoccuparsi per
+   gli avvertimenti provenienti da altre parti del kernel.
 
  - DEBUG_OBJECTS aggiungerà un codice per tracciare il ciclo di vita di
    diversi oggetti creati dal kernel e avvisa quando qualcosa viene eseguito

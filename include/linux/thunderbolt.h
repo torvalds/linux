@@ -146,6 +146,7 @@ struct tb_property_dir *tb_property_parse_dir(const u32 *block,
 					      size_t block_len);
 ssize_t tb_property_format_dir(const struct tb_property_dir *dir, u32 *block,
 			       size_t block_len);
+struct tb_property_dir *tb_property_copy_dir(const struct tb_property_dir *dir);
 struct tb_property_dir *tb_property_create_dir(const uuid_t *uuid);
 void tb_property_free_dir(struct tb_property_dir *dir);
 int tb_property_add_immediate(struct tb_property_dir *parent, const char *key,
@@ -179,23 +180,24 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @route: Route string the other domain can be reached
  * @vendor: Vendor ID of the remote domain
  * @device: Device ID of the demote domain
+ * @local_max_hopid: Maximum input HopID of this host
+ * @remote_max_hopid: Maximum input HopID of the remote host
  * @lock: Lock to serialize access to the following fields of this structure
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the link (1 or 2)
  * @is_unplugged: The XDomain is unplugged
- * @resume: The XDomain is being resumed
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
  *		queried first
- * @transmit_path: HopID which the remote end expects us to transmit
- * @transmit_ring: Local ring (hop) where outgoing packets are pushed
- * @receive_path: HopID which we expect the remote end to transmit
- * @receive_ring: Local ring (hop) where incoming packets arrive
  * @service_ids: Used to generate IDs for the services
- * @properties: Properties exported by the remote domain
- * @property_block_gen: Generation of @properties
- * @properties_lock: Lock protecting @properties.
+ * @in_hopids: Input HopIDs for DMA tunneling
+ * @out_hopids; Output HopIDs for DMA tunneling
+ * @local_property_block: Local block of properties
+ * @local_property_block_gen: Generation of @local_property_block
+ * @local_property_block_len: Length of the @local_property_block in dwords
+ * @remote_properties: Properties exported by the remote domain
+ * @remote_property_block_gen: Generation of @remote_properties
  * @get_uuid_work: Work used to retrieve @remote_uuid
  * @uuid_retries: Number of times left @remote_uuid is requested before
  *		  giving up
@@ -225,21 +227,23 @@ struct tb_xdomain {
 	u64 route;
 	u16 vendor;
 	u16 device;
+	unsigned int local_max_hopid;
+	unsigned int remote_max_hopid;
 	struct mutex lock;
 	const char *vendor_name;
 	const char *device_name;
 	unsigned int link_speed;
 	unsigned int link_width;
 	bool is_unplugged;
-	bool resume;
 	bool needs_uuid;
-	u16 transmit_path;
-	u16 transmit_ring;
-	u16 receive_path;
-	u16 receive_ring;
 	struct ida service_ids;
-	struct tb_property_dir *properties;
-	u32 property_block_gen;
+	struct ida in_hopids;
+	struct ida out_hopids;
+	u32 *local_property_block;
+	u32 local_property_block_gen;
+	u32 local_property_block_len;
+	struct tb_property_dir *remote_properties;
+	u32 remote_property_block_gen;
 	struct delayed_work get_uuid_work;
 	int uuid_retries;
 	struct delayed_work get_properties_work;
@@ -252,10 +256,22 @@ struct tb_xdomain {
 
 int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd);
 void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd);
-int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
-			    u16 transmit_ring, u16 receive_path,
-			    u16 receive_ring);
-int tb_xdomain_disable_paths(struct tb_xdomain *xd);
+int tb_xdomain_alloc_in_hopid(struct tb_xdomain *xd, int hopid);
+void tb_xdomain_release_in_hopid(struct tb_xdomain *xd, int hopid);
+int tb_xdomain_alloc_out_hopid(struct tb_xdomain *xd, int hopid);
+void tb_xdomain_release_out_hopid(struct tb_xdomain *xd, int hopid);
+int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
+			    int transmit_ring, int receive_path,
+			    int receive_ring);
+int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
+			     int transmit_ring, int receive_path,
+			     int receive_ring);
+
+static inline int tb_xdomain_disable_all_paths(struct tb_xdomain *xd)
+{
+	return tb_xdomain_disable_paths(xd, -1, -1, -1, -1);
+}
+
 struct tb_xdomain *tb_xdomain_find_by_uuid(struct tb *tb, const uuid_t *uuid);
 struct tb_xdomain *tb_xdomain_find_by_route(struct tb *tb, u64 route);
 

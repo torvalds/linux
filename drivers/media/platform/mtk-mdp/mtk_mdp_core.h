@@ -52,8 +52,8 @@ struct mtk_mdp_pix_align {
  * @depth: per plane driver's private 'number of bits per pixel'
  * @row_depth: per plane driver's private 'number of bits per pixel per row'
  * @flags: flags indicating which operation mode format applies to
-	   MTK_MDP_FMT_FLAG_OUTPUT is used in OUTPUT stream
-	   MTK_MDP_FMT_FLAG_CAPTURE is used in CAPTURE stream
+ *	   MTK_MDP_FMT_FLAG_OUTPUT is used in OUTPUT stream
+ *	   MTK_MDP_FMT_FLAG_CAPTURE is used in CAPTURE stream
  * @align: pointer to a pixel alignment struct, NULL if using default value
  */
 struct mtk_mdp_fmt {
@@ -168,14 +168,14 @@ struct mtk_mdp_dev {
 };
 
 /**
- * mtk_mdp_ctx - the device context data
+ * struct mtk_mdp_ctx - the device context data
  * @list:		link to ctx_list of mtk_mdp_dev
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @id:			index of the context that this structure describes
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
-			Protected by slock
+ *			Protected by slock
  * @rotation:		rotates the image by specified angle
  * @hflip:		mirror the picture horizontally
  * @vflip:		mirror the picture vertically
@@ -183,7 +183,7 @@ struct mtk_mdp_dev {
  * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
  * @ctrl_handler:	v4l2 controls handler
- * @ctrls		image processor control set
+ * @ctrls:		image processor control set
  * @ctrls_rdy:		true if the control handler is initialized
  * @colorspace:		enum v4l2_colorspace; supplemental to pixelformat
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding

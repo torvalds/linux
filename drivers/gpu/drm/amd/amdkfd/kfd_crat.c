@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
+#include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
@@ -665,6 +666,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
 		break;
@@ -1112,6 +1114,8 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)kdev->kgd;
+
 	*avail_size -= sizeof(struct crat_subtype_iolink);
 	if (*avail_size < 0)
 		return -ENOMEM;
@@ -1128,7 +1132,18 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	/* Fill in IOLINK subtype.
 	 * TODO: Fill-in other fields of iolink subtype
 	 */
-	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		/*
+		 * with host gpu xgmi link, host can access gpu memory whether
+		 * or not pcie bar type is large, so always create bidirectional
+		 * io link.
+		 */
+		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
+		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
+	} else {
+		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
+	}
+
 	sub_type_hdr->proximity_domain_from = proximity_domain;
 #ifdef CONFIG_NUMA
 	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)

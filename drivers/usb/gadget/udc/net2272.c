@@ -539,7 +539,6 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 	int count;
 	int tmp;
 	int cleanup = 0;
-	int status = -1;
 
 	dev_vdbg(ep->dev->dev, "read_fifo %s actual %d len %d\n",
 		ep->ep.name, req->req.actual, req->req.length);
@@ -591,6 +590,8 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 			}
 
 			if (!list_empty(&ep->queue)) {
+				int status;
+
 				req = list_entry(ep->queue.next,
 					struct net2272_request, queue);
 				status = net2272_kick_dma(ep, req);

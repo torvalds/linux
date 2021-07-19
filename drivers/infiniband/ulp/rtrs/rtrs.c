@@ -218,14 +218,14 @@ static int create_cq(struct rtrs_con *con, int cq_vector, u16 cq_size,
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	cq = ib_alloc_cq(cm_id->device, con, cq_size,
-			 cq_vector, poll_ctx);
+	cq = ib_cq_pool_get(cm_id->device, cq_size, cq_vector, poll_ctx);
 	if (IS_ERR(cq)) {
 		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
 		return PTR_ERR(cq);
 	}
 	con->cq = cq;
+	con->cq_size = cq_size;
 
 	return 0;
 }
@@ -273,7 +273,7 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		ib_free_cq(con->cq);
+		ib_cq_pool_put(con->cq, con->cq_size);
 		con->cq = NULL;
 		return err;
 	}
@@ -290,7 +290,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		con->qp = NULL;
 	}
 	if (con->cq) {
-		ib_free_cq(con->cq);
+		ib_cq_pool_put(con->cq, con->cq_size);
 		con->cq = NULL;
 	}
 }
@@ -337,6 +337,9 @@ static void hb_work(struct work_struct *work)
 		schedule_hb(sess);
 		return;
 	}
+
+	sess->hb_last_sent = ktime_get();
+
 	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
 					     0, NULL);
@@ -462,6 +465,30 @@ int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 	return scnprintf(buf, len, "<invalid address family>");
 }
 EXPORT_SYMBOL(sockaddr_to_str);
+
+/**
+ * rtrs_addr_to_str() - convert rtrs_addr to a string "src@dst"
+ * @addr:	the rtrs_addr structure to be converted
+ * @buf:	string containing source and destination addr of a path
+ *		separated by '@' I.e. "ip:1.1.1.1@ip:1.1.1.2"
+ *		"ip:1.1.1.1@ip:1.1.1.2".
+ * @len:	string length
+ *
+ * The return value is the number of characters written into buf not
+ * including the trailing '\0'.
+ */
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len)
+{
+	int cnt;
+
+	cnt = sockaddr_to_str((struct sockaddr *)addr->src,
+			      buf, len);
+	cnt += scnprintf(buf + cnt, len - cnt, "@");
+	sockaddr_to_str((struct sockaddr *)addr->dst,
+			buf + cnt, len - cnt);
+	return cnt;
+}
+EXPORT_SYMBOL(rtrs_addr_to_str);
 
 /**
  * rtrs_addr_to_sockaddr() - convert path string "src,dst" or "src@dst"

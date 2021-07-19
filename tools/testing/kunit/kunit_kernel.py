@@ -132,6 +132,8 @@ class LinuxSourceTree(object):
 			return
 
 		if kunitconfig_path:
+			if os.path.isdir(kunitconfig_path):
+				kunitconfig_path = os.path.join(kunitconfig_path, KUNITCONFIG_PATH)
 			if not os.path.exists(kunitconfig_path):
 				raise ConfigError(f'Specified kunitconfig ({kunitconfig_path}) does not exist')
 		else:

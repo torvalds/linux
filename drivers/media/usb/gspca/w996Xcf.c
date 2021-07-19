@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
- *
+/*
  * GSPCA sub driver for W996[78]CF JPEG USB Dual Mode Camera Chip.
  *
  * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>

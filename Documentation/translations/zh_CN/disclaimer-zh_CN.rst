@@ -6,4 +6,4 @@
 
 .. note::
      如果您发现本文档与原始文件有任何不同或者有翻译问题，请联系该文件的译者，
-     或者请求时奎亮的帮助：<alex.shi@linux.alibaba.com>。
+     或者请求时奎亮的帮助：<alexs@kernel.org>。

@@ -1350,8 +1350,8 @@ int netcp_txpipe_open(struct netcp_tx_pipe *tx_pipe)
 	tx_pipe->dma_queue = knav_queue_open(name, tx_pipe->dma_queue_id,
 					     KNAV_QUEUE_SHARED);
 	if (IS_ERR(tx_pipe->dma_queue)) {
-		dev_err(dev, "Could not open DMA queue for channel \"%s\": %d\n",
-			name, ret);
+		dev_err(dev, "Could not open DMA queue for channel \"%s\": %pe\n",
+			name, tx_pipe->dma_queue);
 		ret = PTR_ERR(tx_pipe->dma_queue);
 		goto err;
 	}
@@ -1966,7 +1966,6 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	struct resource res;
 	void __iomem *efuse = NULL;
 	u32 efuse_mac = 0;
-	const void *mac_addr;
 	u8 efuse_mac_addr[6];
 	u32 temp[2];
 	int ret = 0;
@@ -2036,10 +2035,8 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		mac_addr = of_get_mac_address(node_interface);
-		if (!IS_ERR(mac_addr))
-			ether_addr_copy(ndev->dev_addr, mac_addr);
-		else
+		ret = of_get_mac_address(node_interface, ndev->dev_addr);
+		if (ret)
 			eth_random_addr(ndev->dev_addr);
 	}
 

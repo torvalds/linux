@@ -47,7 +47,6 @@ examples:
 
             spi-max-frequency = <3125000>;
             spi-3wire;
-            spi-cs-high;
 
             reset-gpios = <&gpe 2 GPIO_ACTIVE_LOW>;
 

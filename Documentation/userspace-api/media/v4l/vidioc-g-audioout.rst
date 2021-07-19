@@ -58,7 +58,7 @@ as ``VIDIOC_G_AUDOUT`` does.
 
 .. c:type:: v4l2_audioout
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_audioout
     :header-rows:  0

@@ -96,8 +96,8 @@
 #define MT_WF_MIB_BASE(_band)		((_band) ? 0xa4800 : 0x24800)
 #define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE(_band) + (ofs))
 
-#define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x014)
-#define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(15, 0)
+#define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x698)
+#define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(31, 16)
 
 #define MT_MIB_SDR9(_band)		MT_WF_MIB(_band, 0x02c)
 #define MT_MIB_SDR9_BUSY_MASK		GENMASK(23, 0)
@@ -121,16 +121,21 @@
 #define MT_MIB_RTS_RETRIES_COUNT_MASK	GENMASK(31, 16)
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
-#define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(_band, 0x104 + ((n) << 4))
-#define MT_MIB_BA_MISS_COUNT_MASK	GENMASK(15, 0)
-#define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
+#define MT_MIB_MB_BSDR0(_band)		MT_WF_MIB(_band, 0x688)
+#define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
+#define MT_MIB_MB_BSDR1(_band)		MT_WF_MIB(_band, 0x690)
+#define MT_MIB_RTS_FAIL_COUNT_MASK	GENMASK(15, 0)
+#define MT_MIB_MB_BSDR2(_band)		MT_WF_MIB(_band, 0x518)
+#define MT_MIB_BA_FAIL_COUNT_MASK	GENMASK(15, 0)
+#define MT_MIB_MB_BSDR3(_band)		MT_WF_MIB(_band, 0x520)
+#define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(15, 0)
 
 #define MT_MIB_MB_SDR2(_band, n)	MT_WF_MIB(_band, 0x108 + ((n) << 4))
 #define MT_MIB_FRAME_RETRIES_COUNT_MASK	GENMASK(15, 0)
 
-#define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(_band, 0x0a8 + ((n) << 2))
-#define MT_TX_AGG_CNT2(_band, n)	MT_WF_MIB(_band, 0x164 + ((n) << 2))
-#define MT_MIB_ARNG(_band, n)		MT_WF_MIB(_band, 0x4b8 + ((n) << 2))
+#define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(_band, 0x7dc + ((n) << 2))
+#define MT_TX_AGG_CNT2(_band, n)	MT_WF_MIB(_band, 0x7ec + ((n) << 2))
+#define MT_MIB_ARNG(_band, n)		MT_WF_MIB(_band, 0x0b0 + ((n) << 2))
 #define MT_MIB_ARNCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(7, 0))
 
 #define MT_WTBLON_TOP_BASE		0x34000
@@ -246,13 +251,16 @@
 #define MT_WFDMA0_BUSY_ENA_TX_FIFO1	BIT(1)
 #define MT_WFDMA0_BUSY_ENA_RX_FIFO	BIT(2)
 
-#define MT_MCU_CMD                     MT_WFDMA0(0x1f0)
-#define MT_MCU_CMD_STOP_DMA_FW_RELOAD  BIT(1)
-#define MT_MCU_CMD_STOP_DMA            BIT(2)
-#define MT_MCU_CMD_RESET_DONE          BIT(3)
-#define MT_MCU_CMD_RECOVERY_DONE       BIT(4)
-#define MT_MCU_CMD_NORMAL_STATE	       BIT(5)
-#define MT_MCU_CMD_ERROR_MASK          GENMASK(5, 1)
+#define MT_MCU_CMD			MT_WFDMA0(0x1f0)
+#define MT_MCU_CMD_WAKE_RX_PCIE		BIT(0)
+#define MT_MCU_CMD_STOP_DMA_FW_RELOAD	BIT(1)
+#define MT_MCU_CMD_STOP_DMA		BIT(2)
+#define MT_MCU_CMD_RESET_DONE		BIT(3)
+#define MT_MCU_CMD_RECOVERY_DONE	BIT(4)
+#define MT_MCU_CMD_NORMAL_STATE		BIT(5)
+#define MT_MCU_CMD_ERROR_MASK		GENMASK(5, 1)
+
+#define MT_MCU2HOST_SW_INT_ENA		MT_WFDMA0(0x1f4)
 
 #define MT_WFDMA0_HOST_INT_STA		MT_WFDMA0(0x200)
 #define HOST_RX_DONE_INT_STS0		BIT(0)	/* Rx mcu */
@@ -357,11 +365,11 @@
 #define MT_INFRA_CFG_BASE		0xfe000
 #define MT_INFRA(ofs)			(MT_INFRA_CFG_BASE + (ofs))
 
-#define MT_HIF_REMAP_L1			MT_INFRA(0x260)
+#define MT_HIF_REMAP_L1			MT_INFRA(0x24c)
 #define MT_HIF_REMAP_L1_MASK		GENMASK(15, 0)
 #define MT_HIF_REMAP_L1_OFFSET		GENMASK(15, 0)
 #define MT_HIF_REMAP_L1_BASE		GENMASK(31, 16)
-#define MT_HIF_REMAP_BASE_L1		0xe0000
+#define MT_HIF_REMAP_BASE_L1		0x40000
 
 #define MT_SWDEF_BASE			0x41f200
 #define MT_SWDEF(ofs)			(MT_SWDEF_BASE + (ofs))
@@ -380,11 +388,17 @@
 #define MT_TOP_MISC			MT_TOP(0xf0)
 #define MT_TOP_MISC_FW_STATE		GENMASK(2, 0)
 
+#define MT_MCU_WPDMA0_BASE		0x54000000
+#define MT_MCU_WPDMA0(ofs)		(MT_MCU_WPDMA0_BASE + (ofs))
+
+#define MT_WFDMA_DUMMY_CR		MT_MCU_WPDMA0(0x120)
+#define MT_WFDMA_NEED_REINIT		BIT(1)
+
 #define MT_HW_BOUND			0x70010020
 #define MT_HW_CHIPID			0x70010200
 #define MT_HW_REV			0x70010204
 
-#define MT_PCIE_MAC_BASE		0x74030000
+#define MT_PCIE_MAC_BASE		0x10000
 #define MT_PCIE_MAC(ofs)		(MT_PCIE_MAC_BASE + (ofs))
 #define MT_PCIE_MAC_INT_ENABLE		MT_PCIE_MAC(0x188)
 
@@ -412,6 +426,10 @@
 #define PCIE_LPCR_HOST_OWN_SYNC		BIT(2)
 #define PCIE_LPCR_HOST_CLR_OWN		BIT(1)
 #define PCIE_LPCR_HOST_SET_OWN		BIT(0)
+
+#define MT_WFSYS_SW_RST_B		0x18000140
+#define WFSYS_SW_RST_B			BIT(0)
+#define WFSYS_SW_INIT_DONE		BIT(4)
 
 #define MT_CONN_ON_MISC			0x7c0600f0
 #define MT_TOP_MISC2_FW_N9_RDY		GENMASK(1, 0)

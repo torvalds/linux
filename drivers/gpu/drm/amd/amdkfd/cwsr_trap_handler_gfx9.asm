@@ -21,8 +21,23 @@
  */
 
 /* To compile this assembly code:
- * PROJECT=greenland ./sp3 cwsr_trap_handler_gfx9.asm -hex tmp.hex
+ *
+ * gfx9:
+ *   cpp -DASIC_FAMILY=CHIP_VEGAM cwsr_trap_handler_gfx9.asm -P -o gfx9.sp3
+ *   sp3 gfx9.sp3 -hex gfx9.hex
+ *
+ * arcturus:
+ *   cpp -DASIC_FAMILY=CHIP_ARCTURUS cwsr_trap_handler_gfx9.asm -P -o arcturus.sp3
+ *   sp3 arcturus.sp3 -hex arcturus.hex
+ *
+ * aldebaran:
+ *   cpp -DASIC_FAMILY=CHIP_ALDEBARAN cwsr_trap_handler_gfx9.asm -P -o aldebaran.sp3
+ *   sp3 aldebaran.sp3 -hex aldebaran.hex
  */
+
+#define CHIP_VEGAM 18
+#define CHIP_ARCTURUS 23
+#define CHIP_ALDEBARAN 25
 
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
@@ -44,10 +59,17 @@ var SQ_WAVE_STATUS_ALLOW_REPLAY_MASK    = 0x400000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
-var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT	= 8
 var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE	= 6
-var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT	= 24
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE	= 3			//FIXME	 sq.blk still has 4 bits at this time while SQ programming guide has 3 bits
+var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT	= 24
+
+#if ASIC_FAMILY >= CHIP_ALDEBARAN
+var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT	= 6
+var SQ_WAVE_GPR_ALLOC_ACCV_OFFSET_SHIFT	= 12
+var SQ_WAVE_GPR_ALLOC_ACCV_OFFSET_SIZE	= 6
+#else
+var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT	= 8
+#endif
 
 var SQ_WAVE_TRAPSTS_SAVECTX_MASK    =	0x400
 var SQ_WAVE_TRAPSTS_EXCE_MASK	    =	0x1FF			// Exception mask
@@ -134,7 +156,7 @@ var s_restore_spi_init_lo		    =	exec_lo
 var s_restore_spi_init_hi		    =	exec_hi
 
 var s_restore_mem_offset	=   ttmp12
-var s_restore_accvgpr_offset	=   ttmp13
+var s_restore_tmp2		=   ttmp13
 var s_restore_alloc_size	=   ttmp3
 var s_restore_tmp		=   ttmp2
 var s_restore_mem_offset_save	=   s_restore_tmp	//no conflict
@@ -466,12 +488,7 @@ if SAVE_AFTER_XNACK_ERROR
 L_SAVE_FIRST_VGPRS_WITH_TCP:
 end
 
-	buffer_store_dword v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
-	buffer_store_dword v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256
-	buffer_store_dword v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256*2
-	buffer_store_dword v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256*3
-
-
+    write_4vgprs_to_mem(s_save_buf_rsrc0, s_save_mem_offset)
 
     /*		save LDS	*/
     //////////////////////////////
@@ -565,11 +582,8 @@ L_SAVE_LDS_DONE:
     s_mov_b32	    exec_lo, 0xFFFFFFFF						    //need every thread from now on
     s_mov_b32	    exec_hi, 0xFFFFFFFF
 
-    s_getreg_b32    s_save_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)		    //vpgr_size
-    s_add_u32	    s_save_alloc_size, s_save_alloc_size, 1
-    s_lshl_b32	    s_save_alloc_size, s_save_alloc_size, 2			    //Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)	  //FIXME for GFX, zero is possible
-    s_lshl_b32	    s_save_buf_rsrc2,  s_save_alloc_size, 8			    //NUM_RECORDS in bytes (64 threads*4)
-	s_mov_b32	s_save_buf_rsrc2,  0x1000000				    //NUM_RECORDS in bytes
+    get_num_arch_vgprs(s_save_alloc_size)
+    s_mov_b32	    s_save_buf_rsrc2,  0x1000000				    //NUM_RECORDS in bytes
 
 
     // VGPR store using dw burst
@@ -602,10 +616,7 @@ end
     v_mov_b32	    v2, v2		//v0 = v[0+m0]
     v_mov_b32	    v3, v3		//v0 = v[0+m0]
 
-	buffer_store_dword v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
-	buffer_store_dword v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256
-	buffer_store_dword v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256*2
-	buffer_store_dword v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256*3
+    write_4vgprs_to_mem(s_save_buf_rsrc0, s_save_mem_offset)
 
     s_add_u32	    m0, m0, 4							    //next vgpr index
     s_add_u32	    s_save_mem_offset, s_save_mem_offset, 256*4			    //every buffer_store_dword does 256 bytes
@@ -615,8 +626,17 @@ end
 
 L_SAVE_VGPR_END:
 
-if ASIC_TARGET_ARCTURUS
+#if ASIC_FAMILY >= CHIP_ARCTURUS
     // Save ACC VGPRs
+
+#if ASIC_FAMILY >= CHIP_ALDEBARAN
+    // ACC VGPR count may differ from ARCH VGPR count.
+    get_num_acc_vgprs(s_save_alloc_size, s_save_tmp)
+    s_and_b32       s_save_alloc_size, s_save_alloc_size, s_save_alloc_size
+    s_cbranch_scc0  L_SAVE_ACCVGPR_END
+    s_add_u32	    s_save_alloc_size, s_save_alloc_size, 0x1000		    //add 0x1000 since we compare m0 against it later
+#endif
+
     s_mov_b32 m0, 0x0 //VGPR initial index value =0
     s_set_gpr_idx_on m0, 0x1 //M0[7:0] = M0[7:0] and M0[15:12] = 0x1
 
@@ -644,10 +664,7 @@ L_SAVE_ACCVGPR_LOOP:
         v_accvgpr_read v[vgpr], acc[vgpr]  // v[N] = acc[N+m0]
     end
 
-    buffer_store_dword v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
-    buffer_store_dword v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256
-    buffer_store_dword v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*2
-    buffer_store_dword v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*3
+    write_4vgprs_to_mem(s_save_buf_rsrc0, s_save_mem_offset)
 
     s_add_u32 m0, m0, 4
     s_add_u32 s_save_mem_offset, s_save_mem_offset, 256*4
@@ -656,7 +673,7 @@ L_SAVE_ACCVGPR_LOOP:
     s_set_gpr_idx_off
 
 L_SAVE_ACCVGPR_END:
-end
+#endif
 
     s_branch	L_END_PGM
 
@@ -724,53 +741,23 @@ L_RESTORE:
     /*		restore VGPRs	    */
     //////////////////////////////
   L_RESTORE_VGPR:
-	// VGPR SR memory offset : 0
-    s_mov_b32	    s_restore_mem_offset, 0x0
     s_mov_b32	    exec_lo, 0xFFFFFFFF							    //need every thread from now on   //be consistent with SAVE although can be moved ahead
     s_mov_b32	    exec_hi, 0xFFFFFFFF
+    s_mov_b32	    s_restore_buf_rsrc2,  0x1000000					    //NUM_RECORDS in bytes
 
-    s_getreg_b32    s_restore_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)	//vpgr_size
-    s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 1
-    s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 2			    //Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
-    s_lshl_b32	    s_restore_buf_rsrc2,  s_restore_alloc_size, 8			    //NUM_RECORDS in bytes (64 threads*4)
-
-if ASIC_TARGET_ARCTURUS
-    s_mov_b32	    s_restore_accvgpr_offset, s_restore_buf_rsrc2                           //ACC VGPRs at end of VGPRs
-end
-
-	s_mov_b32	s_restore_buf_rsrc2,  0x1000000					    //NUM_RECORDS in bytes
-
-    // VGPR load using dw burst
-    s_mov_b32	    s_restore_mem_offset_save, s_restore_mem_offset	// restore start with v1, v0 will be the last
-    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*4
-if ASIC_TARGET_ARCTURUS
-    s_mov_b32	    s_restore_accvgpr_offset_save, s_restore_accvgpr_offset
-    s_add_u32	    s_restore_accvgpr_offset, s_restore_accvgpr_offset, 256*4
-end
-    s_mov_b32	    m0, 4				//VGPR initial index value = 1
-    s_set_gpr_idx_on  m0, 0x8			    //M0[7:0] = M0[7:0] and M0[15:12] = 0x8
+    // Save ARCH VGPRs 4-N, then all ACC VGPRs, then ARCH VGPRs 0-3.
+    get_num_arch_vgprs(s_restore_alloc_size)
     s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 0x8000			    //add 0x8000 since we compare m0 against it later
 
+    // ARCH VGPRs at offset: 0
+    s_mov_b32	    s_restore_mem_offset, 0x0
+    s_mov_b32	    s_restore_mem_offset_save, s_restore_mem_offset	// restore start with v1, v0 will be the last
+    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*4
+    s_mov_b32	    m0, 4				//VGPR initial index value = 1
+    s_set_gpr_idx_on	m0, 0x8								    //M0[7:0] = M0[7:0] and M0[15:12] = 0x8
+
   L_RESTORE_VGPR_LOOP:
-
-if ASIC_TARGET_ARCTURUS
-	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1
-	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256*3
-	s_add_u32 s_restore_accvgpr_offset, s_restore_accvgpr_offset, 256*4
-	s_waitcnt vmcnt(0)
-
-	for var vgpr = 0; vgpr < 4; ++ vgpr
-		v_accvgpr_write acc[vgpr], v[vgpr]
-	end
-end
-
-	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1
-	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256*3
-    s_waitcnt	    vmcnt(0)								    //ensure data ready
+    read_4vgprs_from_mem(s_restore_buf_rsrc0, s_restore_mem_offset)
     v_mov_b32	    v0, v0								    //v[0+m0] = v0
     v_mov_b32	    v1, v1
     v_mov_b32	    v2, v2
@@ -779,24 +766,38 @@ end
     s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*4				//every buffer_load_dword does 256 bytes
     s_cmp_lt_u32    m0, s_restore_alloc_size						    //scc = (m0 < s_restore_alloc_size) ? 1 : 0
     s_cbranch_scc1  L_RESTORE_VGPR_LOOP							    //VGPR restore (except v0) is complete?
+
+#if ASIC_FAMILY >= CHIP_ALDEBARAN
+    // ACC VGPR count may differ from ARCH VGPR count.
+    get_num_acc_vgprs(s_restore_alloc_size, s_restore_tmp2)
+    s_and_b32       s_restore_alloc_size, s_restore_alloc_size, s_restore_alloc_size
+    s_cbranch_scc0  L_RESTORE_ACCVGPR_END
+    s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 0x8000			    //add 0x8000 since we compare m0 against it later
+#endif
+
+#if ASIC_FAMILY >= CHIP_ARCTURUS
+    // ACC VGPRs at offset: size(ARCH VGPRs)
+    s_mov_b32	    m0, 0
+    s_set_gpr_idx_on	m0, 0x8								    //M0[7:0] = M0[7:0] and M0[15:12] = 0x8
+
+  L_RESTORE_ACCVGPR_LOOP:
+    read_4vgprs_from_mem(s_restore_buf_rsrc0, s_restore_mem_offset)
+
+    for var vgpr = 0; vgpr < 4; ++ vgpr
+        v_accvgpr_write acc[vgpr], v[vgpr]
+    end
+
+    s_add_u32	    m0, m0, 4								    //next vgpr index
+    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*4			    //every buffer_load_dword does 256 bytes
+    s_cmp_lt_u32    m0, s_restore_alloc_size						    //scc = (m0 < s_restore_alloc_size) ? 1 : 0
+    s_cbranch_scc1  L_RESTORE_ACCVGPR_LOOP						    //VGPR restore (except v0) is complete?
+  L_RESTORE_ACCVGPR_END:
+#endif
+
     s_set_gpr_idx_off
-											    /* VGPR restore on v0 */
-if ASIC_TARGET_ARCTURUS
-	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1
-	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256*3
-	s_waitcnt vmcnt(0)
 
-	for var vgpr = 0; vgpr < 4; ++ vgpr
-		v_accvgpr_write acc[vgpr], v[vgpr]
-	end
-end
-
-	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save    slc:1 glc:1
-	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save    slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save    slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save    slc:1 glc:1 offset:256*3
+    // Restore VGPRs 0-3 last, no longer needed.
+    read_4vgprs_from_mem(s_restore_buf_rsrc0, s_restore_mem_offset_save)
 
     /*		restore SGPRs	    */
     //////////////////////////////
@@ -974,6 +975,21 @@ function check_if_tcp_store_ok
 L_TCP_STORE_CHECK_DONE:
 end
 
+function write_4vgprs_to_mem(s_rsrc, s_mem_offset)
+	buffer_store_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
+	buffer_store_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256
+	buffer_store_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*2
+	buffer_store_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*3
+end
+
+function read_4vgprs_from_mem(s_rsrc, s_mem_offset)
+	buffer_load_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
+	buffer_load_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256
+	buffer_load_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*2
+	buffer_load_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*3
+	s_waitcnt vmcnt(0)
+end
+
 function write_vgpr_to_mem_with_sqc(v, s_rsrc, s_mem_offset)
 	s_mov_b32 s4, 0
 
@@ -1008,9 +1024,9 @@ function get_vgpr_size_bytes(s_vgpr_size_byte)
     s_add_u32	   s_vgpr_size_byte, s_vgpr_size_byte, 1
     s_lshl_b32	   s_vgpr_size_byte, s_vgpr_size_byte, (2+8) //Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4	(non-zero value)   //FIXME for GFX, zero is possible
 
-if ASIC_TARGET_ARCTURUS
+#if ASIC_FAMILY >= CHIP_ARCTURUS
     s_lshl_b32     s_vgpr_size_byte, s_vgpr_size_byte, 1  // Double size for ACC VGPRs
-end
+#endif
 end
 
 function get_sgpr_size_bytes(s_sgpr_size_byte)
@@ -1022,6 +1038,32 @@ end
 function get_hwreg_size_bytes
     return 128 //HWREG size 128 bytes
 end
+
+function get_num_arch_vgprs(s_num_arch_vgprs)
+#if ASIC_FAMILY >= CHIP_ALDEBARAN
+    // VGPR count includes ACC VGPRs, use ACC VGPR offset for ARCH VGPR count.
+    s_getreg_b32    s_num_arch_vgprs, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_ACCV_OFFSET_SHIFT,SQ_WAVE_GPR_ALLOC_ACCV_OFFSET_SIZE)
+#else
+    s_getreg_b32    s_num_arch_vgprs, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
+#endif
+
+    // Number of VGPRs = (vgpr_size + 1) * 4
+    s_add_u32	    s_num_arch_vgprs, s_num_arch_vgprs, 1
+    s_lshl_b32	    s_num_arch_vgprs, s_num_arch_vgprs, 2
+end
+
+#if ASIC_FAMILY >= CHIP_ALDEBARAN
+function get_num_acc_vgprs(s_num_acc_vgprs, s_tmp)
+    // VGPR count = (GPR_ALLOC.VGPR_SIZE + 1) * 8
+    s_getreg_b32    s_num_acc_vgprs, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
+    s_add_u32	    s_num_acc_vgprs, s_num_acc_vgprs, 1
+    s_lshl_b32	    s_num_acc_vgprs, s_num_acc_vgprs, 3
+
+    // ACC VGPR count = VGPR count - ARCH VGPR count.
+    get_num_arch_vgprs(s_tmp)
+    s_sub_u32	    s_num_acc_vgprs, s_num_acc_vgprs, s_tmp
+end
+#endif
 
 function ack_sqc_store_workaround
     if ACK_SQC_STORE

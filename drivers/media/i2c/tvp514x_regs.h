@@ -261,9 +261,9 @@
 #define TOK_SKIP                        (3)     /* token to skip a register */
 /**
  * struct tvp514x_reg - Structure for TVP5146/47 register initialization values
- * @token - Token: TOK_WRITE, TOK_TERM etc..
- * @reg - Register offset
- * @val - Register Value for TOK_WRITE or delay in ms for TOK_DELAY
+ * @token: Token: TOK_WRITE, TOK_TERM etc..
+ * @reg: Register offset
+ * @val: Register Value for TOK_WRITE or delay in ms for TOK_DELAY
  */
 struct tvp514x_reg {
 	u8 token;

@@ -22,7 +22,7 @@
 
 AMD_SWSMU_PATH = ../pm/swsmu
 
-SWSMU_LIBS = smu11 smu12
+SWSMU_LIBS = smu11 smu12 smu13
 
 AMD_SWSMU = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/pm/swsmu/,$(SWSMU_LIBS)))
 

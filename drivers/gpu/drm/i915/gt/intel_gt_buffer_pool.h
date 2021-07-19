@@ -18,10 +18,15 @@ struct intel_gt_buffer_pool_node *
 intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size,
 			 enum i915_map_type type);
 
+void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_node *node);
+
 static inline int
 intel_gt_buffer_pool_mark_active(struct intel_gt_buffer_pool_node *node,
 				 struct i915_request *rq)
 {
+	/* did we call mark_used? */
+	GEM_WARN_ON(!node->pinned);
+
 	return i915_active_add_request(&node->active, rq);
 }
 

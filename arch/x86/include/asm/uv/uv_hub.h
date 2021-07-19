@@ -353,7 +353,7 @@ union uvh_apicid {
  *
  * Note there are NO leds on a UV system.  This register is only
  * used by the system controller to monitor system-wide operation.
- * There are 64 regs per node.  With Nahelem cpus (2 cores per node,
+ * There are 64 regs per node.  With Nehalem cpus (2 cores per node,
  * 8 cpus per core, 2 threads per cpu) there are 32 cpu threads on
  * a node.
  *

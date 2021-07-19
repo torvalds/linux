@@ -495,6 +495,16 @@
 			groups = "watchdog";
 		};
 	};
+
+	wmac_pins: wmac-pins {
+		mux {
+			function = "antsel";
+			groups = "antsel0", "antsel1", "antsel2", "antsel3",
+				 "antsel4", "antsel5", "antsel6", "antsel7",
+				 "antsel8", "antsel9", "antsel12", "antsel13",
+				 "antsel14", "antsel15", "antsel16", "antsel17";
+		};
+	};
 };
 
 &pwm {
@@ -559,5 +569,7 @@
 };
 
 &wmac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wmac_pins>;
 	status = "okay";
 };

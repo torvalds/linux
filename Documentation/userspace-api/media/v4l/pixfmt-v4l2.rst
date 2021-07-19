@@ -4,7 +4,7 @@
 Single-planar format structure
 ******************************
 
-.. tabularcolumns:: |p{4.0cm}|p{2.5cm}|p{11.0cm}|
+.. tabularcolumns:: |p{4.0cm}|p{2.6cm}|p{10.7cm}|
 
 .. c:type:: v4l2_pix_format
 
@@ -205,7 +205,7 @@ Single-planar format structure
 	the flag V4L2_FMT_FLAG_CSC_XFER_FUNC in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.8cm}|p{2.3cm}|p{8.2cm}|
 
 .. _format-flags:
 

@@ -9,7 +9,7 @@
     |       alpha: | TODO |
     |         arc: | TODO |
     |         arm: | TODO |
-    |       arm64: | TODO |
+    |       arm64: | N/A  |
     |        csky: | TODO |
     |       h8300: |  ..  |
     |     hexagon: | TODO |

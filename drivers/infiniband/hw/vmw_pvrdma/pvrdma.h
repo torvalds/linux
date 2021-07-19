@@ -344,11 +344,6 @@ static inline enum ib_port_state pvrdma_port_state_to_ib(
 	return (enum ib_port_state)state;
 }
 
-static inline int ib_port_cap_flags_to_pvrdma(int flags)
-{
-	return flags & PVRDMA_MASK(PVRDMA_PORT_CAP_FLAGS_MAX);
-}
-
 static inline int pvrdma_port_cap_flags_to_ib(int flags)
 {
 	return flags;
@@ -408,11 +403,6 @@ static inline int pvrdma_access_flags_to_ib(int flags)
 static inline enum pvrdma_qp_type ib_qp_type_to_pvrdma(enum ib_qp_type type)
 {
 	return (enum pvrdma_qp_type)type;
-}
-
-static inline enum ib_qp_type pvrdma_qp_type_to_ib(enum pvrdma_qp_type type)
-{
-	return (enum ib_qp_type)type;
 }
 
 static inline enum pvrdma_qp_state ib_qp_state_to_pvrdma(enum ib_qp_state state)

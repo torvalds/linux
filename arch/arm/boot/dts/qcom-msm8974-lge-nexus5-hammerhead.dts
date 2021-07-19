@@ -529,6 +529,10 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mpu6515_pin>;
 
+			mount-matrix = "0", "-1", "0",
+				       "-1", "0", "0",
+				       "0", "0", "1";
+
 			i2c-gate {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -575,7 +579,7 @@
 			maxim,rcomp = /bits/ 8 <0x4d>;
 
 			interrupt-parent = <&msmgpio>;
-			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&fuelgauge_pin>;

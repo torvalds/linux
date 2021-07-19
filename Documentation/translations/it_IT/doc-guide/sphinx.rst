@@ -330,17 +330,17 @@ la lista di celle che compongono la *riga* stessa. Fanno eccezione i *commenti*
         - head col 3
         - head col 4
 
-      * - column 1
+      * - row 1
         - field 1.1
         - field 1.2 with autospan
 
-      * - column 2
+      * - row 2
         - field 2.1
         - :rspan:`1` :cspan:`1` field 2.2 - 3.3
 
       * .. _`it last row`:
 
-        - column 3
+        - row 3
 
 Che verrà rappresentata nel seguente modo:
 
@@ -352,37 +352,46 @@ Che verrà rappresentata nel seguente modo:
         - head col 3
         - head col 4
 
-      * - column 1
+      * - row 1
         - field 1.1
         - field 1.2 with autospan
 
-      * - column 2
+      * - row 2
         - field 2.1
         - :rspan:`1` :cspan:`1` field 2.2 - 3.3
 
       * .. _`it last row`:
 
-        - column 3
+        - row 3
 
 Riferimenti incrociati
 ----------------------
 
-Per fare dei riferimenti incrociati da una pagina ad un'altra
-specificando il percorso a partire dalla cartella *Documentation*.
-Per esempio, se volete aggiungere un riferimento a questa pagina
-(l'estensione .rst è opzionale)::
+Aggiungere un riferimento incrociato da una pagina della
+documentazione ad un'altra può essere fatto scrivendo il percorso al
+file corrispondende, non serve alcuna sintassi speciale. Si possono
+usare sia percorsi assoluti che relativi. Quelli assoluti iniziano con
+"documentation/". Per esempio, potete fare riferimento a questo
+documento in uno dei seguenti modi (da notare che l'estensione
+``.rst`` è necessaria)::
 
-    See Documentation/translations/it_IT/doc-guide/sphinx.rst.
+    Vedere Documentation/doc-guide/sphinx.rst. Questo funziona sempre
+    Guardate pshinx.rst, che si trova nella stessa cartella.
+    Leggete ../sphinx.rst, che si trova nella cartella precedente.
 
-Se preferite usare un percorso relative allora vi serve la direttiva
-Sphinx ``doc``.  Per esempio, se volete aggiungere un riferimento a
-questa pagina dalla stessa cartella::
+Se volete che il collegamento abbia un testo diverso rispetto al
+titolo del documento, allora dovrete usare la direttiva Sphinx
+``doc``. Per esempio::
 
-    See :doc:`sphinx`.
+    Vedere :doc:`il mio testo per il collegamento <sphinx>`.
 
-Per maggiori informazioni su come aggiungere riferimenti incrociati a
-commenti kernel-doc di funzioni o tipi, leggete
-Documentation/translations/it_IT/doc-guide/sphinx.rst.
+Nella maggioranza dei casi si consiglia il primo metodo perché è più
+pulito ed adatto a chi legge dai sorgenti. Se incontrare un ``:doc:``
+che non da alcun valore, sentitevi liberi di convertirlo in un
+percorso al documento.
+
+Per informazioni riguardo ai riferimenti incrociati ai commenti
+kernel-doc per funzioni o tipi, consultate
 
 .. _it_sphinx_kfigure:
 
@@ -391,7 +400,7 @@ Figure ed immagini
 
 Se volete aggiungere un'immagine, utilizzate le direttive ``kernel-figure``
 e ``kernel-image``. Per esempio, per inserire una figura di un'immagine in
-formato SVG::
+formato SVG (:ref:`it_svg_image_example`)::
 
     .. kernel-figure::  ../../../doc-guide/svg_image.svg
        :alt:    una semplice immagine SVG

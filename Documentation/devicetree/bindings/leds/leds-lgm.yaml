@@ -14,6 +14,17 @@ properties:
   compatible:
     const: intel,lgm-ssoled
 
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: sso
+      - const: fpid
+
   gpio-controller: true
 
   '#gpio-cells':
@@ -36,8 +47,15 @@ properties:
 
     additionalProperties: false
 
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
     patternProperties:
-      "^led@[0-23]$":
+      "^led@[0-2]$":
         type: object
 
         properties:
@@ -81,7 +99,7 @@ examples:
     #include <dt-bindings/leds/common.h>
 
     ssogpio: ssogpio@e0d40000 {
-      compatible = "intel,sso-led";
+      compatible = "intel,lgm-ssoled";
       reg = <0xE0D40000 0x2E4>;
       gpio-controller;
       #gpio-cells = <2>;
@@ -103,8 +121,8 @@ examples:
           led-gpio = <&ssogpio 0 0>;
         };
 
-        led@23 {
-          reg = <23>;
+        led@2 {
+          reg = <2>;
           function = LED_FUNCTION_POWER;
           color = <LED_COLOR_ID_GREEN>;
           led-gpio = <&ssogpio 23 0>;

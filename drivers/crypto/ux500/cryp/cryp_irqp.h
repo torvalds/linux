@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/**
+/*
  * Copyright (C) ST-Ericsson SA 2010
  * Author: Shujuan Chen <shujuan.chen@stericsson.com> for ST-Ericsson.
  * Author: Jonas Linde <jonas.linde@stericsson.com> for ST-Ericsson.
@@ -13,7 +13,7 @@
 
 #include "cryp_irq.h"
 
-/**
+/*
  *
  * CRYP Registers - Offset mapping
  *     +-----------------+

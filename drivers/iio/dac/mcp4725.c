@@ -167,7 +167,7 @@ static ssize_t mcp4725_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct mcp4725_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->powerdown);
+	return sysfs_emit(buf, "%d\n", data->powerdown);
 }
 
 static ssize_t mcp4725_write_powerdown(struct iio_dev *indio_dev,

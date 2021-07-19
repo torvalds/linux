@@ -13,7 +13,8 @@ config CPU_FREQ
 	  clock speed, you need to either enable a dynamic cpufreq governor
 	  (see below) after boot, or use a userspace tool.
 
-	  For details, take a look at <file:Documentation/cpu-freq>.
+	  For details, take a look at
+	  <file:Documentation/admin-guide/pm/cpufreq.rst>.
 
 	  If in doubt, say N.
 
@@ -140,8 +141,6 @@ config CPU_FREQ_GOV_USERSPACE
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_userspace.
 
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-
 	  If in doubt, say Y.
 
 config CPU_FREQ_GOV_ONDEMAND
@@ -158,7 +157,8 @@ config CPU_FREQ_GOV_ONDEMAND
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_ondemand.
 
-	  For details, take a look at linux/Documentation/cpu-freq.
+	  For details, take a look at
+	  <file:Documentation/admin-guide/pm/cpufreq.rst>.
 
 	  If in doubt, say N.
 
@@ -182,7 +182,8 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_conservative.
 
-	  For details, take a look at linux/Documentation/cpu-freq.
+	  For details, take a look at
+	  <file:Documentation/admin-guide/pm/cpufreq.rst>.
 
 	  If in doubt, say N.
 
@@ -246,8 +247,6 @@ config IA64_ACPI_CPUFREQ
 	This driver adds a CPUFreq driver which utilizes the ACPI
 	Processor Performance States.
 
-	For details, take a look at <file:Documentation/cpu-freq/>.
-
 	If in doubt, say N.
 endif
 
@@ -271,8 +270,6 @@ config LOONGSON2_CPUFREQ
 
 	  Loongson2F and it's successors support this feature.
 
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-
 	  If in doubt, say N.
 
 config LOONGSON1_CPUFREQ
@@ -281,8 +278,6 @@ config LOONGSON1_CPUFREQ
 	help
 	  This option adds a CPUFreq driver for loongson1 processors which
 	  support software configurable cpu frequency.
-
-	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  If in doubt, say N.
 endif
@@ -293,16 +288,12 @@ config SPARC_US3_CPUFREQ
 	help
 	  This adds the CPUFreq driver for UltraSPARC-III processors.
 
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
 	  If in doubt, say N.
 
 config SPARC_US2E_CPUFREQ
 	tristate "UltraSPARC-IIe CPU Frequency driver"
 	help
 	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
 endif
@@ -317,8 +308,6 @@ config SH_CPU_FREQ
 	  harmless for CPUs that don't support rate rounding. The driver
 	  will also generate a notice in the boot log before disabling
 	  itself if the CPU in question is not capable of rate rounding.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If unsure, say N.
 endif

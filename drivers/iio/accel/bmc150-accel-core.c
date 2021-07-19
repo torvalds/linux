@@ -443,26 +443,32 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 					  struct iio_mount_matrix *orientation)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct acpi_device *adev = ACPI_COMPANION(dev);
+	char *name, *alt_name, *label, *str;
 	union acpi_object *obj, *elements;
-	char *name, *alt_name, *str;
 	acpi_status status;
 	int i, j, val[3];
 
 	if (!adev || !acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
 		return false;
 
-	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0)
+	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
 		alt_name = "ROMK";
-	else
+		label = "accel-base";
+	} else {
 		alt_name = "ROMS";
+		label = "accel-display";
+	}
 
-	if (acpi_has_method(adev->handle, "ROTM"))
+	if (acpi_has_method(adev->handle, "ROTM")) {
 		name = "ROTM";
-	else if (acpi_has_method(adev->handle, alt_name))
+	} else if (acpi_has_method(adev->handle, alt_name)) {
 		name = alt_name;
-	else
+		indio_dev->label = label;
+	} else {
 		return false;
+	}
 
 	status = acpi_evaluate_object(adev->handle, name, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -1472,7 +1478,6 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 			break;
 		}
 
-		t->indio_trig->dev.parent = dev;
 		t->indio_trig->ops = &bmc150_accel_trigger_ops;
 		t->intr = bmc150_accel_triggers[i].intr;
 		t->data = data;

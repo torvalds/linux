@@ -114,8 +114,7 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 		return;
 
 	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
-		adev->vm_manager.vram_base_offset;
+	value = amdgpu_gmc_vram_mc2pa(adev, adev->vram_scratch.gpu_addr);
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 		     (u32)(value >> 12));
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
@@ -776,10 +775,14 @@ static void mmhub_v1_0_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
+const struct amdgpu_mmhub_ras_funcs mmhub_v1_0_ras_funcs = {
 	.ras_late_init = amdgpu_mmhub_ras_late_init,
+	.ras_fini = amdgpu_mmhub_ras_fini,
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v1_0_reset_ras_error_count,
+};
+
+const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
 	.get_fb_location = mmhub_v1_0_get_fb_location,
 	.init = mmhub_v1_0_init,
 	.gart_enable = mmhub_v1_0_gart_enable,

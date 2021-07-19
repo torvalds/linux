@@ -738,7 +738,6 @@ void enc1_stream_encoder_update_dp_info_packets(
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
 
-
 	/* This bit is the master enable bit.
 	 * When enabling secondary stream engine,
 	 * this master bit must also be set.
