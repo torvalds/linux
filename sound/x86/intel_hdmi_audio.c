@@ -1657,11 +1657,6 @@ static void hdmi_lpe_audio_free(struct snd_card *card)
 
 		cancel_work_sync(&ctx->hdmi_audio_wq);
 	}
-
-	if (card_ctx->mmio_start)
-		iounmap(card_ctx->mmio_start);
-	if (card_ctx->irq >= 0)
-		free_irq(card_ctx->irq, card_ctx);
 }
 
 /*
@@ -1699,8 +1694,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	}
 
 	/* create a card instance with ALSA framework */
-	ret = snd_card_new(&pdev->dev, hdmi_card_index, hdmi_card_id,
-			   THIS_MODULE, sizeof(*card_ctx), &card);
+	ret = snd_devm_card_new(&pdev->dev, hdmi_card_index, hdmi_card_id,
+				THIS_MODULE, sizeof(*card_ctx), &card);
 	if (ret)
 		return ret;
 
@@ -1736,20 +1731,20 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		__func__, (unsigned int)res_mmio->start,
 		(unsigned int)res_mmio->end);
 
-	card_ctx->mmio_start = ioremap(res_mmio->start,
-					       (size_t)(resource_size(res_mmio)));
+	card_ctx->mmio_start =
+		devm_ioremap(&pdev->dev, res_mmio->start,
+			     (size_t)(resource_size(res_mmio)));
 	if (!card_ctx->mmio_start) {
 		dev_err(&pdev->dev, "Could not get ioremap\n");
-		ret = -EACCES;
-		goto err;
+		return -EACCES;
 	}
 
 	/* setup interrupt handler */
-	ret = request_irq(irq, display_pipe_interrupt_handler, 0,
-			  pdev->name, card_ctx);
+	ret = devm_request_irq(&pdev->dev, irq, display_pipe_interrupt_handler,
+			       0, pdev->name, card_ctx);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto err;
+		return ret;
 	}
 
 	card_ctx->irq = irq;
@@ -1769,7 +1764,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		ret = snd_pcm_new(card, INTEL_HAD, port, MAX_PB_STREAMS,
 				  MAX_CAP_STREAMS, &pcm);
 		if (ret)
-			goto err;
+			return ret;
 
 		/* setup private data which can be retrieved when required */
 		pcm->private_data = ctx;
@@ -1790,31 +1785,29 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 			struct snd_kcontrol *kctl;
 
 			kctl = snd_ctl_new1(&had_controls[i], ctx);
-			if (!kctl) {
-				ret = -ENOMEM;
-				goto err;
-			}
+			if (!kctl)
+				return -ENOMEM;
 
 			kctl->id.device = pcm->device;
 
 			ret = snd_ctl_add(card, kctl);
 			if (ret < 0)
-				goto err;
+				return ret;
 		}
 
 		/* Register channel map controls */
 		ret = had_register_chmap_ctls(ctx, pcm);
 		if (ret < 0)
-			goto err;
+			return ret;
 
 		ret = had_create_jack(ctx, pcm);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	ret = snd_card_register(card);
 	if (ret)
-		goto err;
+		return ret;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
 	pdata->notify_audio_lpe = notify_audio_lpe;
@@ -1831,23 +1824,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-err:
-	snd_card_free(card);
-	return ret;
-}
-
-/*
- * hdmi_lpe_audio_remove - stop bridge with i915
- *
- * This function is called when the platform device is destroyed.
- */
-static int hdmi_lpe_audio_remove(struct platform_device *pdev)
-{
-	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
-
-	snd_card_free(card_ctx->card);
-	return 0;
 }
 
 static const struct dev_pm_ops hdmi_lpe_audio_pm = {
@@ -1860,7 +1836,6 @@ static struct platform_driver hdmi_lpe_audio_driver = {
 		.pm = &hdmi_lpe_audio_pm,
 	},
 	.probe          = hdmi_lpe_audio_probe,
-	.remove		= hdmi_lpe_audio_remove,
 };
 
 module_platform_driver(hdmi_lpe_audio_driver);

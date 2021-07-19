@@ -78,7 +78,7 @@ int pcspkr_input_init(struct input_dev **rdev, struct device *dev)
 {
 	int err;
 
-	struct input_dev *input_dev = input_allocate_device();
+	struct input_dev *input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -95,19 +95,9 @@ int pcspkr_input_init(struct input_dev **rdev, struct device *dev)
 	input_dev->event = pcspkr_input_event;
 
 	err = input_register_device(input_dev);
-	if (err) {
-		input_free_device(input_dev);
+	if (err)
 		return err;
-	}
 
 	*rdev = input_dev;
-	return 0;
-}
-
-int pcspkr_input_remove(struct input_dev *dev)
-{
-	pcspkr_stop_sound();
-	input_unregister_device(dev);	/* this also does kfree() */
-
 	return 0;
 }

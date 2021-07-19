@@ -18,7 +18,6 @@
 
 struct snd_es1688 {
 	unsigned long port;		/* port of ESS chip */
-	struct resource *res_port;
 	unsigned long mpu_port;		/* MPU-401 port of ESS chip */
 	int irq;			/* IRQ number of ESS chip */
 	int mpu_irq;			/* MPU IRQ */
