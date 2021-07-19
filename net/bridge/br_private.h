@@ -93,6 +93,7 @@ struct bridge_mcast_stats {
 struct net_bridge_mcast_port {
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct net_bridge_port		*port;
+	struct net_bridge_vlan		*vlan;
 
 	struct bridge_mcast_own_query	ip4_own_query;
 	struct timer_list		ip4_mc_router_timer;
@@ -110,6 +111,7 @@ struct net_bridge_mcast_port {
 struct net_bridge_mcast {
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct net_bridge		*br;
+	struct net_bridge_vlan		*vlan;
 
 	u32				multicast_last_member_count;
 	u32				multicast_startup_query_count;
@@ -165,6 +167,9 @@ enum {
  * @refcnt: if MASTER flag set, this is bumped for each port referencing it
  * @brvlan: if MASTER flag unset, this points to the global per-VLAN context
  *          for this VLAN entry
+ * @br_mcast_ctx: if MASTER flag set, this is the global vlan multicast context
+ * @port_mcast_ctx: if MASTER flag unset, this is the per-port/vlan multicast
+ *                  context
  * @vlist: sorted list of VLAN entries
  * @rcu: used for entry destruction
  *
@@ -191,6 +196,11 @@ struct net_bridge_vlan {
 	};
 
 	struct br_tunnel_info		tinfo;
+
+	union {
+		struct net_bridge_mcast		br_mcast_ctx;
+		struct net_bridge_mcast_port	port_mcast_ctx;
+	};
 
 	struct list_head		vlist;
 
@@ -883,6 +893,14 @@ struct net_bridge_group_src *
 br_multicast_find_group_src(struct net_bridge_port_group *pg, struct br_ip *ip);
 void br_multicast_del_group_src(struct net_bridge_group_src *src,
 				bool fastleave);
+void br_multicast_ctx_init(struct net_bridge *br,
+			   struct net_bridge_vlan *vlan,
+			   struct net_bridge_mcast *brmctx);
+void br_multicast_ctx_deinit(struct net_bridge_mcast *brmctx);
+void br_multicast_port_ctx_init(struct net_bridge_port *port,
+				struct net_bridge_vlan *vlan,
+				struct net_bridge_mcast_port *pmctx);
+void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
@@ -1156,6 +1174,26 @@ static inline void br_multicast_uninit_stats(struct net_bridge *br)
 static inline int br_multicast_igmp_type(const struct sk_buff *skb)
 {
 	return 0;
+}
+
+static inline void br_multicast_ctx_init(struct net_bridge *br,
+					 struct net_bridge_vlan *vlan,
+					 struct net_bridge_mcast *brmctx)
+{
+}
+
+static inline void br_multicast_ctx_deinit(struct net_bridge_mcast *brmctx)
+{
+}
+
+static inline void br_multicast_port_ctx_init(struct net_bridge_port *port,
+					      struct net_bridge_vlan *vlan,
+					      struct net_bridge_mcast_port *pmctx)
+{
+}
+
+static inline void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx)
+{
 }
 #endif
 
