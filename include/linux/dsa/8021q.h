@@ -32,8 +32,6 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto);
 
 void dsa_tag_8021q_unregister(struct dsa_switch *ds);
 
-int dsa_8021q_setup(struct dsa_switch *ds, bool enabled);
-
 int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
 				    struct dsa_switch *other_ds,
 				    int other_port);

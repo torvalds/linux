@@ -424,18 +424,12 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		return err;
 
-	err = dsa_8021q_setup(ds, true);
+	err = felix_setup_mmio_filtering(felix);
 	if (err)
 		goto out_tag_8021q_unregister;
 
-	err = felix_setup_mmio_filtering(felix);
-	if (err)
-		goto out_teardown_dsa_8021q;
-
 	return 0;
 
-out_teardown_dsa_8021q:
-	dsa_8021q_setup(ds, false);
 out_tag_8021q_unregister:
 	dsa_tag_8021q_unregister(ds);
 	return err;
@@ -451,10 +445,6 @@ static void felix_teardown_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		dev_err(ds->dev, "felix_teardown_mmio_filtering returned %d",
 			err);
-
-	err = dsa_8021q_setup(ds, false);
-	if (err)
-		dev_err(ds->dev, "dsa_8021q_setup returned %d", err);
 
 	dsa_tag_8021q_unregister(ds);
 

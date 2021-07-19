@@ -257,7 +257,7 @@ static int dsa_8021q_setup_port(struct dsa_switch *ds, int port, bool enabled)
 	return err;
 }
 
-int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
+static int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
 {
 	int err, port;
 
@@ -275,7 +275,6 @@ int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_setup);
 
 static int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
 					  struct dsa_switch *other_ds,
@@ -427,7 +426,7 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto)
 
 	ds->tag_8021q_ctx = ctx;
 
-	return 0;
+	return dsa_8021q_setup(ds, true);
 }
 EXPORT_SYMBOL_GPL(dsa_tag_8021q_register);
 
@@ -435,6 +434,12 @@ void dsa_tag_8021q_unregister(struct dsa_switch *ds)
 {
 	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_8021q_crosschip_link *c, *n;
+	int err;
+
+	err = dsa_8021q_setup(ds, false);
+	if (err)
+		dev_err(ds->dev, "failed to tear down tag_8021q VLANs: %pe\n",
+			ERR_PTR(err));
 
 	list_for_each_entry_safe(c, n, &ctx->crosschip_links, list) {
 		list_del(&c->list);

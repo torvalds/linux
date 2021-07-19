@@ -2045,19 +2045,6 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 	}
 }
 
-static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
-{
-	int rc;
-
-	rc = dsa_8021q_setup(ds, enabled);
-	if (rc)
-		return rc;
-
-	dev_info(ds->dev, "%s switch tagging\n",
-		 enabled ? "Enabled" : "Disabled");
-	return 0;
-}
-
 static enum dsa_tag_protocol
 sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 			 enum dsa_tag_protocol mp)
@@ -2635,12 +2622,8 @@ static int sja1105_setup(struct dsa_switch *ds)
 	if (rc < 0)
 		goto out_static_config_free;
 
-	/* The DSA/switchdev model brings up switch ports in standalone mode by
-	 * default, and that means vlan_filtering is 0 since they're not under
-	 * a bridge, so it's safe to set up switch tagging at this time.
-	 */
 	rtnl_lock();
-	rc = sja1105_setup_8021q_tagging(ds, true);
+	rc = dsa_tag_8021q_register(ds, htons(ETH_P_8021Q));
 	rtnl_unlock();
 	if (rc)
 		goto out_devlink_teardown;
@@ -2664,6 +2647,10 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_bridge_vlan *v, *n;
 	int port;
+
+	rtnl_lock();
+	dsa_tag_8021q_unregister(ds);
+	rtnl_unlock();
 
 	for (port = 0; port < ds->num_ports; port++) {
 		struct sja1105_port *sp = &priv->ports[port];
@@ -3293,10 +3280,6 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->mgmt_lock);
 
-	rc = dsa_tag_8021q_register(ds, htons(ETH_P_8021Q));
-	if (rc)
-		return rc;
-
 	INIT_LIST_HEAD(&priv->bridge_vlans);
 	INIT_LIST_HEAD(&priv->dsa_8021q_vlans);
 
@@ -3305,7 +3288,7 @@ static int sja1105_probe(struct spi_device *spi)
 
 	rc = dsa_register_switch(priv->ds);
 	if (rc)
-		goto out_tag_8021q_unregister;
+		return rc;
 
 	if (IS_ENABLED(CONFIG_NET_SCH_CBS)) {
 		priv->cbs = devm_kcalloc(dev, priv->info->num_cbs_shapers,
@@ -3358,8 +3341,6 @@ out_destroy_workers:
 
 out_unregister_switch:
 	dsa_unregister_switch(ds);
-out_tag_8021q_unregister:
-	dsa_tag_8021q_unregister(ds);
 
 	return rc;
 }
@@ -3370,7 +3351,6 @@ static int sja1105_remove(struct spi_device *spi)
 	struct dsa_switch *ds = priv->ds;
 
 	dsa_unregister_switch(ds);
-	dsa_tag_8021q_unregister(ds);
 
 	return 0;
 }
