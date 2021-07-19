@@ -13,7 +13,6 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
-#include <linux/leds.h>
 
 #include "igc_hw.h"
 
@@ -240,16 +239,7 @@ struct igc_adapter {
 		struct timespec64 start;
 		struct timespec64 period;
 	} perout[IGC_N_PEROUT];
-
-	/* LEDs */
-	struct mutex led_mutex;
-	struct led_classdev led0;
-	struct led_classdev led1;
-	struct led_classdev led2;
 };
-
-#define led_to_igc(ldev, led)                          \
-	container_of(ldev, struct igc_adapter, led)
 
 void igc_up(struct igc_adapter *adapter);
 void igc_down(struct igc_adapter *adapter);

@@ -6130,134 +6130,6 @@ err_inval:
 	return -EINVAL;
 }
 
-static void igc_select_led(struct igc_adapter *adapter, int led,
-			   u32 *mask, u32 *shift)
-{
-	switch (led) {
-	case 0:
-		*mask  = IGC_LEDCTL_LED0_MODE_MASK;
-		*shift = IGC_LEDCTL_LED0_MODE_SHIFT;
-		break;
-	case 1:
-		*mask  = IGC_LEDCTL_LED1_MODE_MASK;
-		*shift = IGC_LEDCTL_LED1_MODE_SHIFT;
-		break;
-	case 2:
-		*mask  = IGC_LEDCTL_LED2_MODE_MASK;
-		*shift = IGC_LEDCTL_LED2_MODE_SHIFT;
-		break;
-	default:
-		*mask = *shift = 0;
-		dev_err(&adapter->pdev->dev, "Unknown led %d selected!", led);
-	}
-}
-
-static void igc_led_set(struct igc_adapter *adapter, int led, u16 brightness)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u32 shift, mask, ledctl;
-
-	igc_select_led(adapter, led, &mask, &shift);
-
-	mutex_lock(&adapter->led_mutex);
-	ledctl = rd32(IGC_LEDCTL);
-	ledctl &= ~mask;
-	ledctl |= brightness << shift;
-	wr32(IGC_LEDCTL, ledctl);
-	mutex_unlock(&adapter->led_mutex);
-}
-
-static enum led_brightness igc_led_get(struct igc_adapter *adapter, int led)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u32 shift, mask, ledctl;
-
-	igc_select_led(adapter, led, &mask, &shift);
-
-	mutex_lock(&adapter->led_mutex);
-	ledctl = rd32(IGC_LEDCTL);
-	mutex_unlock(&adapter->led_mutex);
-
-	return (ledctl & mask) >> shift;
-}
-
-static void igc_led0_set(struct led_classdev *ldev, enum led_brightness b)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led0);
-
-	igc_led_set(adapter, 0, b);
-}
-
-static enum led_brightness igc_led0_get(struct led_classdev *ldev)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led0);
-
-	return igc_led_get(adapter, 0);
-}
-
-static void igc_led1_set(struct led_classdev *ldev, enum led_brightness b)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led1);
-
-	igc_led_set(adapter, 1, b);
-}
-
-static enum led_brightness igc_led1_get(struct led_classdev *ldev)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led1);
-
-	return igc_led_get(adapter, 1);
-}
-
-static void igc_led2_set(struct led_classdev *ldev, enum led_brightness b)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led2);
-
-	igc_led_set(adapter, 2, b);
-}
-
-static enum led_brightness igc_led2_get(struct led_classdev *ldev)
-{
-	struct igc_adapter *adapter = led_to_igc(ldev, led2);
-
-	return igc_led_get(adapter, 2);
-}
-
-static int igc_led_setup(struct igc_adapter *adapter)
-{
-	/* Setup */
-	mutex_init(&adapter->led_mutex);
-
-	adapter->led0.name	     = "igc_led0";
-	adapter->led0.max_brightness = 15;
-	adapter->led0.brightness_set = igc_led0_set;
-	adapter->led0.brightness_get = igc_led0_get;
-
-	adapter->led1.name	     = "igc_led1";
-	adapter->led1.max_brightness = 15;
-	adapter->led1.brightness_set = igc_led1_set;
-	adapter->led1.brightness_get = igc_led1_get;
-
-	adapter->led2.name	     = "igc_led2";
-	adapter->led2.max_brightness = 15;
-	adapter->led2.brightness_set = igc_led2_set;
-	adapter->led2.brightness_get = igc_led2_get;
-
-	/* Register leds */
-	led_classdev_register(&adapter->pdev->dev, &adapter->led0);
-	led_classdev_register(&adapter->pdev->dev, &adapter->led1);
-	led_classdev_register(&adapter->pdev->dev, &adapter->led2);
-
-	return 0;
-}
-
-static void igc_led_destroy(struct igc_adapter *adapter)
-{
-	led_classdev_unregister(&adapter->led0);
-	led_classdev_unregister(&adapter->led1);
-	led_classdev_unregister(&adapter->led2);
-}
-
 /**
  * igc_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -6485,8 +6357,6 @@ static int igc_probe(struct pci_dev *pdev,
 
 	pm_runtime_put_noidle(&pdev->dev);
 
-	igc_led_setup(adapter);
-
 	return 0;
 
 err_register:
@@ -6527,8 +6397,6 @@ static void igc_remove(struct pci_dev *pdev)
 	igc_flush_nfc_rules(adapter);
 
 	igc_ptp_stop(adapter);
-
-	igc_led_destroy(adapter);
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
