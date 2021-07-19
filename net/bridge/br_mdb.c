@@ -16,13 +16,13 @@
 
 #include "br_private.h"
 
-static bool br_rports_have_mc_router(struct net_bridge *br)
+static bool br_rports_have_mc_router(struct net_bridge_mcast *brmctx)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	return !hlist_empty(&br->ip4_mc_router_list) ||
-	       !hlist_empty(&br->ip6_mc_router_list);
+	return !hlist_empty(&brmctx->ip4_mc_router_list) ||
+	       !hlist_empty(&brmctx->ip6_mc_router_list);
 #else
-	return !hlist_empty(&br->ip4_mc_router_list);
+	return !hlist_empty(&brmctx->ip4_mc_router_list);
 #endif
 }
 
@@ -54,10 +54,10 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	struct nlattr *nest, *port_nest;
 	struct net_bridge_port *p;
 
-	if (!br->multicast_router)
+	if (!br->multicast_ctx.multicast_router)
 		return 0;
 
-	if (!br_rports_have_mc_router(br))
+	if (!br_rports_have_mc_router(&br->multicast_ctx))
 		return 0;
 
 	nest = nla_nest_start_noflag(skb, MDBA_ROUTER);
@@ -240,7 +240,7 @@ static int __mdb_fill_info(struct sk_buff *skb,
 
 	switch (mp->addr.proto) {
 	case htons(ETH_P_IP):
-		dump_srcs_mode = !!(mp->br->multicast_igmp_version == 3);
+		dump_srcs_mode = !!(mp->br->multicast_ctx.multicast_igmp_version == 3);
 		if (mp->addr.src.ip4) {
 			if (nla_put_in_addr(skb, MDBA_MDB_EATTR_SOURCE,
 					    mp->addr.src.ip4))
@@ -250,7 +250,7 @@ static int __mdb_fill_info(struct sk_buff *skb,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
-		dump_srcs_mode = !!(mp->br->multicast_mld_version == 2);
+		dump_srcs_mode = !!(mp->br->multicast_ctx.multicast_mld_version == 2);
 		if (!ipv6_addr_any(&mp->addr.src.ip6)) {
 			if (nla_put_in6_addr(skb, MDBA_MDB_EATTR_SOURCE,
 					     &mp->addr.src.ip6))
@@ -483,7 +483,7 @@ static size_t rtnl_mdb_nlmsg_size(struct net_bridge_port_group *pg)
 		/* MDBA_MDB_EATTR_SOURCE */
 		if (pg->key.addr.src.ip4)
 			nlmsg_size += nla_total_size(sizeof(__be32));
-		if (pg->key.port->br->multicast_igmp_version == 2)
+		if (pg->key.port->br->multicast_ctx.multicast_igmp_version == 2)
 			goto out;
 		addr_size = sizeof(__be32);
 		break;
@@ -492,7 +492,7 @@ static size_t rtnl_mdb_nlmsg_size(struct net_bridge_port_group *pg)
 		/* MDBA_MDB_EATTR_SOURCE */
 		if (!ipv6_addr_any(&pg->key.addr.src.ip6))
 			nlmsg_size += nla_total_size(sizeof(struct in6_addr));
-		if (pg->key.port->br->multicast_mld_version == 1)
+		if (pg->key.port->br->multicast_ctx.multicast_mld_version == 1)
 			goto out;
 		addr_size = sizeof(struct in6_addr);
 		break;
@@ -1084,7 +1084,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	}
 	rcu_assign_pointer(*pp, p);
 	if (entry->state == MDB_TEMPORARY)
-		mod_timer(&p->timer, now + br->multicast_membership_interval);
+		mod_timer(&p->timer,
+			  now + br->multicast_ctx.multicast_membership_interval);
 	br_mdb_notify(br->dev, mp, p, RTM_NEWMDB);
 	/* if we are adding a new EXCLUDE port group (*,G) it needs to be also
 	 * added to all S,G entries for proper replication, if we are adding
