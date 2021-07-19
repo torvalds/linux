@@ -1995,8 +1995,6 @@ static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 					 int other_port, struct net_device *br)
 {
 	struct dsa_switch *other_ds = dsa_switch_find(tree_index, sw_index);
-	struct sja1105_private *other_priv = other_ds->priv;
-	struct sja1105_private *priv = ds->priv;
 	int port, rc;
 
 	if (other_ds->ops != &sja1105_switch_ops)
@@ -2008,17 +2006,13 @@ static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 		if (dsa_to_port(ds, port)->bridge_dev != br)
 			continue;
 
-		rc = dsa_8021q_crosschip_bridge_join(priv->dsa_8021q_ctx,
-						     port,
-						     other_priv->dsa_8021q_ctx,
+		rc = dsa_8021q_crosschip_bridge_join(ds, port, other_ds,
 						     other_port);
 		if (rc)
 			return rc;
 
-		rc = dsa_8021q_crosschip_bridge_join(other_priv->dsa_8021q_ctx,
-						     other_port,
-						     priv->dsa_8021q_ctx,
-						     port);
+		rc = dsa_8021q_crosschip_bridge_join(other_ds, other_port,
+						     ds, port);
 		if (rc)
 			return rc;
 	}
@@ -2032,8 +2026,6 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 					   struct net_device *br)
 {
 	struct dsa_switch *other_ds = dsa_switch_find(tree_index, sw_index);
-	struct sja1105_private *other_priv = other_ds->priv;
-	struct sja1105_private *priv = ds->priv;
 	int port;
 
 	if (other_ds->ops != &sja1105_switch_ops)
@@ -2045,22 +2037,19 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 		if (dsa_to_port(ds, port)->bridge_dev != br)
 			continue;
 
-		dsa_8021q_crosschip_bridge_leave(priv->dsa_8021q_ctx, port,
-						 other_priv->dsa_8021q_ctx,
+		dsa_8021q_crosschip_bridge_leave(ds, port, other_ds,
 						 other_port);
 
-		dsa_8021q_crosschip_bridge_leave(other_priv->dsa_8021q_ctx,
-						 other_port,
-						 priv->dsa_8021q_ctx, port);
+		dsa_8021q_crosschip_bridge_leave(other_ds, other_port,
+						 ds, port);
 	}
 }
 
 static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 {
-	struct sja1105_private *priv = ds->priv;
 	int rc;
 
-	rc = dsa_8021q_setup(priv->dsa_8021q_ctx, enabled);
+	rc = dsa_8021q_setup(ds, enabled);
 	if (rc)
 		return rc;
 
@@ -2233,6 +2222,7 @@ static int sja1105_build_vlan_table(struct sja1105_private *priv, bool notify);
 
 static int sja1105_notify_crosschip_switches(struct sja1105_private *priv)
 {
+	struct dsa_8021q_context *ctx = priv->ds->tag_8021q_ctx;
 	struct sja1105_crosschip_switch *s, *pos;
 	struct list_head crosschip_switches;
 	struct dsa_8021q_crosschip_link *c;
@@ -2240,7 +2230,7 @@ static int sja1105_notify_crosschip_switches(struct sja1105_private *priv)
 
 	INIT_LIST_HEAD(&crosschip_switches);
 
-	list_for_each_entry(c, &priv->dsa_8021q_ctx->crosschip_links, list) {
+	list_for_each_entry(c, &ctx->crosschip_links, list) {
 		bool already_added = false;
 
 		list_for_each_entry(s, &crosschip_switches, list) {
@@ -3306,10 +3296,10 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->mgmt_lock);
 
-	priv->dsa_8021q_ctx = dsa_tag_8021q_register(ds, &sja1105_dsa_8021q_ops,
-						     htons(ETH_P_8021Q));
-	if (!priv->dsa_8021q_ctx)
-		return -ENOMEM;
+	rc = dsa_tag_8021q_register(ds, &sja1105_dsa_8021q_ops,
+				    htons(ETH_P_8021Q));
+	if (rc)
+		return rc;
 
 	INIT_LIST_HEAD(&priv->bridge_vlans);
 	INIT_LIST_HEAD(&priv->dsa_8021q_vlans);
@@ -3373,7 +3363,7 @@ out_destroy_workers:
 out_unregister_switch:
 	dsa_unregister_switch(ds);
 out_tag_8021q_unregister:
-	dsa_tag_8021q_unregister(priv->dsa_8021q_ctx);
+	dsa_tag_8021q_unregister(ds);
 
 	return rc;
 }
@@ -3384,7 +3374,7 @@ static int sja1105_remove(struct spi_device *spi)
 	struct dsa_switch *ds = priv->ds;
 
 	dsa_unregister_switch(ds);
-	dsa_tag_8021q_unregister(priv->dsa_8021q_ctx);
+	dsa_tag_8021q_unregister(ds);
 
 	return 0;
 }

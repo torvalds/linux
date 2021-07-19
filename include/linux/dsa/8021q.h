@@ -34,20 +34,20 @@ struct dsa_8021q_context {
 	__be16 proto;
 };
 
-struct dsa_8021q_context *dsa_tag_8021q_register(struct dsa_switch *ds,
-						 const struct dsa_8021q_ops *ops,
-						 __be16 proto);
+int dsa_tag_8021q_register(struct dsa_switch *ds,
+			   const struct dsa_8021q_ops *ops,
+			   __be16 proto);
 
-void dsa_tag_8021q_unregister(struct dsa_8021q_context *ctx);
+void dsa_tag_8021q_unregister(struct dsa_switch *ds);
 
-int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled);
+int dsa_8021q_setup(struct dsa_switch *ds, bool enabled);
 
-int dsa_8021q_crosschip_bridge_join(struct dsa_8021q_context *ctx, int port,
-				    struct dsa_8021q_context *other_ctx,
+int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
+				    struct dsa_switch *other_ds,
 				    int other_port);
 
-int dsa_8021q_crosschip_bridge_leave(struct dsa_8021q_context *ctx, int port,
-				     struct dsa_8021q_context *other_ctx,
+int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
+				     struct dsa_switch *other_ds,
 				     int other_port);
 
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,

@@ -113,10 +113,11 @@ EXPORT_SYMBOL_GPL(vid_is_dsa_8021q);
  * user explicitly configured this @vid through the bridge core, then the @vid
  * is installed again, but this time with the flags from the bridge layer.
  */
-static int dsa_8021q_vid_apply(struct dsa_8021q_context *ctx, int port, u16 vid,
+static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
 			       u16 flags, bool enabled)
 {
-	struct dsa_port *dp = dsa_to_port(ctx->ds, port);
+	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (enabled)
 		return ctx->ops->vlan_add(ctx->ds, dp->index, vid, flags);
@@ -176,29 +177,29 @@ static int dsa_8021q_vid_apply(struct dsa_8021q_context *ctx, int port, u16 vid,
  * +-+-----+-+-----+-+-----+-+-----+-+    +-+-----+-+-----+-+-----+-+-----+-+
  *   swp0    swp1    swp2    swp3           swp0    swp1    swp2    swp3
  */
-static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
-				bool enabled)
+static int dsa_8021q_setup_port(struct dsa_switch *ds, int port, bool enabled)
 {
-	int upstream = dsa_upstream_port(ctx->ds, port);
-	u16 rx_vid = dsa_8021q_rx_vid(ctx->ds, port);
-	u16 tx_vid = dsa_8021q_tx_vid(ctx->ds, port);
+	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
+	int upstream = dsa_upstream_port(ds, port);
+	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+	u16 tx_vid = dsa_8021q_tx_vid(ds, port);
 	struct net_device *master;
 	int i, err;
 
 	/* The CPU port is implicitly configured by
 	 * configuring the front-panel ports
 	 */
-	if (!dsa_is_user_port(ctx->ds, port))
+	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	master = dsa_to_port(ctx->ds, port)->cpu_dp->master;
+	master = dsa_to_port(ds, port)->cpu_dp->master;
 
 	/* Add this user port's RX VID to the membership list of all others
 	 * (including itself). This is so that bridging will not be hindered.
 	 * L2 forwarding rules still take precedence when there are no VLAN
 	 * restrictions, so there are no concerns about leaking traffic.
 	 */
-	for (i = 0; i < ctx->ds->num_ports; i++) {
+	for (i = 0; i < ds->num_ports; i++) {
 		u16 flags;
 
 		if (i == upstream)
@@ -211,9 +212,9 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 			/* The RX VID is a regular VLAN on all others */
 			flags = BRIDGE_VLAN_INFO_UNTAGGED;
 
-		err = dsa_8021q_vid_apply(ctx, i, rx_vid, flags, enabled);
+		err = dsa_8021q_vid_apply(ds, i, rx_vid, flags, enabled);
 		if (err) {
-			dev_err(ctx->ds->dev,
+			dev_err(ds->dev,
 				"Failed to apply RX VID %d to port %d: %pe\n",
 				rx_vid, port, ERR_PTR(err));
 			return err;
@@ -223,9 +224,9 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 	/* CPU port needs to see this port's RX VID
 	 * as tagged egress.
 	 */
-	err = dsa_8021q_vid_apply(ctx, upstream, rx_vid, 0, enabled);
+	err = dsa_8021q_vid_apply(ds, upstream, rx_vid, 0, enabled);
 	if (err) {
-		dev_err(ctx->ds->dev,
+		dev_err(ds->dev,
 			"Failed to apply RX VID %d to port %d: %pe\n",
 			rx_vid, port, ERR_PTR(err));
 		return err;
@@ -238,17 +239,17 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 		vlan_vid_del(master, ctx->proto, rx_vid);
 
 	/* Finally apply the TX VID on this port and on the CPU port */
-	err = dsa_8021q_vid_apply(ctx, port, tx_vid, BRIDGE_VLAN_INFO_UNTAGGED,
+	err = dsa_8021q_vid_apply(ds, port, tx_vid, BRIDGE_VLAN_INFO_UNTAGGED,
 				  enabled);
 	if (err) {
-		dev_err(ctx->ds->dev,
+		dev_err(ds->dev,
 			"Failed to apply TX VID %d on port %d: %pe\n",
 			tx_vid, port, ERR_PTR(err));
 		return err;
 	}
-	err = dsa_8021q_vid_apply(ctx, upstream, tx_vid, 0, enabled);
+	err = dsa_8021q_vid_apply(ds, upstream, tx_vid, 0, enabled);
 	if (err) {
-		dev_err(ctx->ds->dev,
+		dev_err(ds->dev,
 			"Failed to apply TX VID %d on port %d: %pe\n",
 			tx_vid, upstream, ERR_PTR(err));
 		return err;
@@ -257,16 +258,16 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 	return err;
 }
 
-int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled)
+int dsa_8021q_setup(struct dsa_switch *ds, bool enabled)
 {
 	int err, port;
 
 	ASSERT_RTNL();
 
-	for (port = 0; port < ctx->ds->num_ports; port++) {
-		err = dsa_8021q_setup_port(ctx, port, enabled);
+	for (port = 0; port < ds->num_ports; port++) {
+		err = dsa_8021q_setup_port(ds, port, enabled);
 		if (err < 0) {
-			dev_err(ctx->ds->dev,
+			dev_err(ds->dev,
 				"Failed to setup VLAN tagging for port %d: %pe\n",
 				port, ERR_PTR(err));
 			return err;
@@ -277,24 +278,25 @@ int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled)
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_setup);
 
-static int dsa_8021q_crosschip_link_apply(struct dsa_8021q_context *ctx,
-					  int port,
-					  struct dsa_8021q_context *other_ctx,
+static int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
+					  struct dsa_switch *other_ds,
 					  int other_port, bool enabled)
 {
-	u16 rx_vid = dsa_8021q_rx_vid(ctx->ds, port);
+	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
 
 	/* @rx_vid of local @ds port @port goes to @other_port of
 	 * @other_ds
 	 */
-	return dsa_8021q_vid_apply(other_ctx, other_port, rx_vid,
+	return dsa_8021q_vid_apply(other_ds, other_port, rx_vid,
 				   BRIDGE_VLAN_INFO_UNTAGGED, enabled);
 }
 
-static int dsa_8021q_crosschip_link_add(struct dsa_8021q_context *ctx, int port,
-					struct dsa_8021q_context *other_ctx,
+static int dsa_8021q_crosschip_link_add(struct dsa_switch *ds, int port,
+					struct dsa_switch *other_ds,
 					int other_port)
 {
+	struct dsa_8021q_context *other_ctx = other_ds->tag_8021q_ctx;
+	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_8021q_crosschip_link *c;
 
 	list_for_each_entry(c, &ctx->crosschip_links, list) {
@@ -305,9 +307,9 @@ static int dsa_8021q_crosschip_link_add(struct dsa_8021q_context *ctx, int port,
 		}
 	}
 
-	dev_dbg(ctx->ds->dev,
+	dev_dbg(ds->dev,
 		"adding crosschip link from port %d to %s port %d\n",
-		port, dev_name(other_ctx->ds->dev), other_port);
+		port, dev_name(other_ds->dev), other_port);
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -323,7 +325,7 @@ static int dsa_8021q_crosschip_link_add(struct dsa_8021q_context *ctx, int port,
 	return 0;
 }
 
-static void dsa_8021q_crosschip_link_del(struct dsa_8021q_context *ctx,
+static void dsa_8021q_crosschip_link_del(struct dsa_switch *ds,
 					 struct dsa_8021q_crosschip_link *c,
 					 bool *keep)
 {
@@ -332,7 +334,7 @@ static void dsa_8021q_crosschip_link_del(struct dsa_8021q_context *ctx,
 	if (*keep)
 		return;
 
-	dev_dbg(ctx->ds->dev,
+	dev_dbg(ds->dev,
 		"deleting crosschip link from port %d to %s port %d\n",
 		c->port, dev_name(c->other_ctx->ds->dev), c->other_port);
 
@@ -347,8 +349,8 @@ static void dsa_8021q_crosschip_link_del(struct dsa_8021q_context *ctx,
  * or untagged: it doesn't matter, since it should never egress a frame having
  * our @rx_vid.
  */
-int dsa_8021q_crosschip_bridge_join(struct dsa_8021q_context *ctx, int port,
-				    struct dsa_8021q_context *other_ctx,
+int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
+				    struct dsa_switch *other_ds,
 				    int other_port)
 {
 	/* @other_upstream is how @other_ds reaches us. If we are part
@@ -356,49 +358,50 @@ int dsa_8021q_crosschip_bridge_join(struct dsa_8021q_context *ctx, int port,
 	 * our CPU ports. If we're part of the same tree though, we should
 	 * probably use dsa_towards_port.
 	 */
-	int other_upstream = dsa_upstream_port(other_ctx->ds, other_port);
+	int other_upstream = dsa_upstream_port(other_ds, other_port);
 	int err;
 
-	err = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_port);
+	err = dsa_8021q_crosschip_link_add(ds, port, other_ds, other_port);
 	if (err)
 		return err;
 
-	err = dsa_8021q_crosschip_link_apply(ctx, port, other_ctx,
+	err = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
 					     other_port, true);
 	if (err)
 		return err;
 
-	err = dsa_8021q_crosschip_link_add(ctx, port, other_ctx, other_upstream);
+	err = dsa_8021q_crosschip_link_add(ds, port, other_ds, other_upstream);
 	if (err)
 		return err;
 
-	return dsa_8021q_crosschip_link_apply(ctx, port, other_ctx,
+	return dsa_8021q_crosschip_link_apply(ds, port, other_ds,
 					      other_upstream, true);
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_join);
 
-int dsa_8021q_crosschip_bridge_leave(struct dsa_8021q_context *ctx, int port,
-				     struct dsa_8021q_context *other_ctx,
+int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
+				     struct dsa_switch *other_ds,
 				     int other_port)
 {
-	int other_upstream = dsa_upstream_port(other_ctx->ds, other_port);
+	struct dsa_8021q_context *other_ctx = other_ds->tag_8021q_ctx;
+	int other_upstream = dsa_upstream_port(other_ds, other_port);
+	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_8021q_crosschip_link *c, *n;
 
 	list_for_each_entry_safe(c, n, &ctx->crosschip_links, list) {
 		if (c->port == port && c->other_ctx == other_ctx &&
 		    (c->other_port == other_port ||
 		     c->other_port == other_upstream)) {
-			struct dsa_8021q_context *other_ctx = c->other_ctx;
 			int other_port = c->other_port;
 			bool keep;
 			int err;
 
-			dsa_8021q_crosschip_link_del(ctx, c, &keep);
+			dsa_8021q_crosschip_link_del(ds, c, &keep);
 			if (keep)
 				continue;
 
-			err = dsa_8021q_crosschip_link_apply(ctx, port,
-							     other_ctx,
+			err = dsa_8021q_crosschip_link_apply(ds, port,
+							     other_ds,
 							     other_port,
 							     false);
 			if (err)
@@ -410,15 +413,15 @@ int dsa_8021q_crosschip_bridge_leave(struct dsa_8021q_context *ctx, int port,
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_leave);
 
-struct dsa_8021q_context *dsa_tag_8021q_register(struct dsa_switch *ds,
-						 const struct dsa_8021q_ops *ops,
-						 __be16 proto)
+int dsa_tag_8021q_register(struct dsa_switch *ds,
+			   const struct dsa_8021q_ops *ops,
+			   __be16 proto)
 {
 	struct dsa_8021q_context *ctx;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return NULL;
+		return -ENOMEM;
 
 	ctx->ops = ops;
 	ctx->proto = proto;
@@ -426,18 +429,23 @@ struct dsa_8021q_context *dsa_tag_8021q_register(struct dsa_switch *ds,
 
 	INIT_LIST_HEAD(&ctx->crosschip_links);
 
-	return ctx;
+	ds->tag_8021q_ctx = ctx;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dsa_tag_8021q_register);
 
-void dsa_tag_8021q_unregister(struct dsa_8021q_context *ctx)
+void dsa_tag_8021q_unregister(struct dsa_switch *ds)
 {
+	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_8021q_crosschip_link *c, *n;
 
 	list_for_each_entry_safe(c, n, &ctx->crosschip_links, list) {
 		list_del(&c->list);
 		kfree(c);
 	}
+
+	ds->tag_8021q_ctx = NULL;
 
 	kfree(ctx);
 }

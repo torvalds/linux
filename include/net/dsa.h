@@ -352,6 +352,9 @@ struct dsa_switch {
 	unsigned int ageing_time_min;
 	unsigned int ageing_time_max;
 
+	/* Storage for drivers using tag_8021q */
+	struct dsa_8021q_context *tag_8021q_ctx;
+
 	/* devlink used to represent this switch device */
 	struct devlink		*devlink;
 
