@@ -373,7 +373,6 @@ static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
 		reg = __vcpu_sys_reg(vcpu, PMOVSSET_EL0);
 		reg &= __vcpu_sys_reg(vcpu, PMCNTENSET_EL0);
 		reg &= __vcpu_sys_reg(vcpu, PMINTENSET_EL1);
-		reg &= kvm_pmu_valid_counter_mask(vcpu);
 	}
 
 	return reg;
@@ -569,7 +568,7 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 
 	if (val & ARMV8_PMU_PMCR_E) {
 		kvm_pmu_enable_counter_mask(vcpu,
-		       __vcpu_sys_reg(vcpu, PMCNTENSET_EL0) & mask);
+		       __vcpu_sys_reg(vcpu, PMCNTENSET_EL0));
 	} else {
 		kvm_pmu_disable_counter_mask(vcpu, mask);
 	}

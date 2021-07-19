@@ -880,7 +880,7 @@ static bool access_pmcnten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			kvm_pmu_disable_counter_mask(vcpu, val);
 		}
 	} else {
-		p->regval = __vcpu_sys_reg(vcpu, PMCNTENSET_EL0) & mask;
+		p->regval = __vcpu_sys_reg(vcpu, PMCNTENSET_EL0);
 	}
 
 	return true;
@@ -904,7 +904,7 @@ static bool access_pminten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			/* accessing PMINTENCLR_EL1 */
 			__vcpu_sys_reg(vcpu, PMINTENSET_EL1) &= ~val;
 	} else {
-		p->regval = __vcpu_sys_reg(vcpu, PMINTENSET_EL1) & mask;
+		p->regval = __vcpu_sys_reg(vcpu, PMINTENSET_EL1);
 	}
 
 	return true;
@@ -926,7 +926,7 @@ static bool access_pmovs(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			/* accessing PMOVSCLR_EL0 */
 			__vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= ~(p->regval & mask);
 	} else {
-		p->regval = __vcpu_sys_reg(vcpu, PMOVSSET_EL0) & mask;
+		p->regval = __vcpu_sys_reg(vcpu, PMOVSSET_EL0);
 	}
 
 	return true;
