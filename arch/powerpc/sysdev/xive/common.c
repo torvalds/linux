@@ -1149,7 +1149,8 @@ static int __init xive_request_ipi(void)
 		snprintf(xid->name, sizeof(xid->name), "IPI-%d", node);
 
 		ret = request_irq(xid->irq, xive_muxed_ipi_action,
-				  IRQF_PERCPU | IRQF_NO_THREAD, xid->name, NULL);
+				  IRQF_NO_DEBUG | IRQF_PERCPU | IRQF_NO_THREAD,
+				  xid->name, NULL);
 
 		WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
 	}
