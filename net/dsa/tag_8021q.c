@@ -410,6 +410,39 @@ int dsa_8021q_crosschip_bridge_leave(struct dsa_8021q_context *ctx, int port,
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_leave);
 
+struct dsa_8021q_context *dsa_tag_8021q_register(struct dsa_switch *ds,
+						 const struct dsa_8021q_ops *ops,
+						 __be16 proto)
+{
+	struct dsa_8021q_context *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	ctx->ops = ops;
+	ctx->proto = proto;
+	ctx->ds = ds;
+
+	INIT_LIST_HEAD(&ctx->crosschip_links);
+
+	return ctx;
+}
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_register);
+
+void dsa_tag_8021q_unregister(struct dsa_8021q_context *ctx)
+{
+	struct dsa_8021q_crosschip_link *c, *n;
+
+	list_for_each_entry_safe(c, n, &ctx->crosschip_links, list) {
+		list_del(&c->list);
+		kfree(c);
+	}
+
+	kfree(ctx);
+}
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_unregister);
+
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci)
 {

@@ -425,14 +425,10 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
 	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_BC);
 
-	felix->dsa_8021q_ctx = kzalloc(sizeof(*felix->dsa_8021q_ctx),
-				       GFP_KERNEL);
+	felix->dsa_8021q_ctx = dsa_tag_8021q_register(ds, &felix_tag_8021q_ops,
+						      htons(ETH_P_8021AD));
 	if (!felix->dsa_8021q_ctx)
 		return -ENOMEM;
-
-	felix->dsa_8021q_ctx->ops = &felix_tag_8021q_ops;
-	felix->dsa_8021q_ctx->proto = htons(ETH_P_8021AD);
-	felix->dsa_8021q_ctx->ds = ds;
 
 	err = dsa_8021q_setup(felix->dsa_8021q_ctx, true);
 	if (err)
@@ -447,7 +443,7 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 out_teardown_dsa_8021q:
 	dsa_8021q_setup(felix->dsa_8021q_ctx, false);
 out_free_dsa_8021_ctx:
-	kfree(felix->dsa_8021q_ctx);
+	dsa_tag_8021q_unregister(felix->dsa_8021q_ctx);
 	return err;
 }
 
@@ -466,7 +462,7 @@ static void felix_teardown_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		dev_err(ds->dev, "dsa_8021q_setup returned %d", err);
 
-	kfree(felix->dsa_8021q_ctx);
+	dsa_tag_8021q_unregister(felix->dsa_8021q_ctx);
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_unused_port(ds, port))

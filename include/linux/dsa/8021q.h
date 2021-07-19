@@ -34,6 +34,12 @@ struct dsa_8021q_context {
 	__be16 proto;
 };
 
+struct dsa_8021q_context *dsa_tag_8021q_register(struct dsa_switch *ds,
+						 const struct dsa_8021q_ops *ops,
+						 __be16 proto);
+
+void dsa_tag_8021q_unregister(struct dsa_8021q_context *ctx);
+
 int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled);
 
 int dsa_8021q_crosschip_bridge_join(struct dsa_8021q_context *ctx, int port,

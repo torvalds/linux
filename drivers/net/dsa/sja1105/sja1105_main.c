@@ -3306,16 +3306,11 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->mgmt_lock);
 
-	priv->dsa_8021q_ctx = devm_kzalloc(dev, sizeof(*priv->dsa_8021q_ctx),
-					   GFP_KERNEL);
+	priv->dsa_8021q_ctx = dsa_tag_8021q_register(ds, &sja1105_dsa_8021q_ops,
+						     htons(ETH_P_8021Q));
 	if (!priv->dsa_8021q_ctx)
 		return -ENOMEM;
 
-	priv->dsa_8021q_ctx->ops = &sja1105_dsa_8021q_ops;
-	priv->dsa_8021q_ctx->proto = htons(ETH_P_8021Q);
-	priv->dsa_8021q_ctx->ds = ds;
-
-	INIT_LIST_HEAD(&priv->dsa_8021q_ctx->crosschip_links);
 	INIT_LIST_HEAD(&priv->bridge_vlans);
 	INIT_LIST_HEAD(&priv->dsa_8021q_vlans);
 
@@ -3324,7 +3319,7 @@ static int sja1105_probe(struct spi_device *spi)
 
 	rc = dsa_register_switch(priv->ds);
 	if (rc)
-		return rc;
+		goto out_tag_8021q_unregister;
 
 	if (IS_ENABLED(CONFIG_NET_SCH_CBS)) {
 		priv->cbs = devm_kcalloc(dev, priv->info->num_cbs_shapers,
@@ -3377,6 +3372,8 @@ out_destroy_workers:
 
 out_unregister_switch:
 	dsa_unregister_switch(ds);
+out_tag_8021q_unregister:
+	dsa_tag_8021q_unregister(priv->dsa_8021q_ctx);
 
 	return rc;
 }
@@ -3384,8 +3381,11 @@ out_unregister_switch:
 static int sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
+	struct dsa_switch *ds = priv->ds;
 
-	dsa_unregister_switch(priv->ds);
+	dsa_unregister_switch(ds);
+	dsa_tag_8021q_unregister(priv->dsa_8021q_ctx);
+
 	return 0;
 }
 
