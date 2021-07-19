@@ -1153,12 +1153,16 @@ out_sockmap:
 }
 
 #define MAPINMAP_PROG "./test_map_in_map.o"
+#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.o"
 static void test_map_in_map(void)
 {
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	int mim_fd, fd, err;
 	int pos = 0;
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	__u32 id = 0;
 
 	obj = bpf_object__open(MAPINMAP_PROG);
 
@@ -1228,11 +1232,68 @@ static void test_map_in_map(void)
 	}
 
 	close(fd);
+	fd = -1;
 	bpf_object__close(obj);
+
+	/* Test that failing bpf_object__create_map() destroys the inner map */
+	obj = bpf_object__open(MAPINMAP_INVALID_PROG);
+	err = libbpf_get_error(obj);
+	if (err) {
+		printf("Failed to load %s program: %d %d",
+		       MAPINMAP_INVALID_PROG, err, errno);
+		goto out_map_in_map;
+	}
+
+	map = bpf_object__find_map_by_name(obj, "mim");
+	if (!map) {
+		printf("Failed to load array of maps from test prog\n");
+		goto out_map_in_map;
+	}
+
+	err = bpf_object__load(obj);
+	if (!err) {
+		printf("Loading obj supposed to fail\n");
+		goto out_map_in_map;
+	}
+
+	/* Iterate over all maps to check whether the internal map
+	 * ("mim.internal") has been destroyed.
+	 */
+	while (true) {
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT)
+				break;
+			printf("Failed to get next map: %d", errno);
+			goto out_map_in_map;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			printf("Failed to get map by id %u: %d", id, errno);
+			goto out_map_in_map;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			printf("Failed to get map info by fd %d: %d", fd,
+			       errno);
+			goto out_map_in_map;
+		}
+
+		if (!strcmp(info.name, "mim.inner")) {
+			printf("Inner map mim.inner was not destroyed\n");
+			goto out_map_in_map;
+		}
+	}
+
 	return;
 
 out_map_in_map:
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 	exit(1);
 }
 
