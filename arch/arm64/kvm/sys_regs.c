@@ -603,6 +603,41 @@ static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 	return REG_HIDDEN;
 }
 
+static void reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	u64 n, mask = BIT(ARMV8_PMU_CYCLE_IDX);
+
+	/* No PMU available, any PMU reg may UNDEF... */
+	if (!kvm_arm_support_pmu_v3())
+		return;
+
+	n = read_sysreg(pmcr_el0) >> ARMV8_PMU_PMCR_N_SHIFT;
+	n &= ARMV8_PMU_PMCR_N_MASK;
+	if (n)
+		mask |= GENMASK(n - 1, 0);
+
+	reset_unknown(vcpu, r);
+	__vcpu_sys_reg(vcpu, r->reg) &= mask;
+}
+
+static void reset_pmevcntr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	reset_unknown(vcpu, r);
+	__vcpu_sys_reg(vcpu, r->reg) &= GENMASK(31, 0);
+}
+
+static void reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	reset_unknown(vcpu, r);
+	__vcpu_sys_reg(vcpu, r->reg) &= ARMV8_PMU_EVTYPE_MASK;
+}
+
+static void reset_pmselr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	reset_unknown(vcpu, r);
+	__vcpu_sys_reg(vcpu, r->reg) &= ARMV8_PMU_COUNTER_MASK;
+}
+
 static void reset_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 pmcr, val;
@@ -944,16 +979,18 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	  trap_wcr, reset_wcr, 0, 0,  get_wcr, set_wcr }
 
 #define PMU_SYS_REG(r)						\
-	SYS_DESC(r), .reset = reset_unknown, .visibility = pmu_visibility
+	SYS_DESC(r), .reset = reset_pmu_reg, .visibility = pmu_visibility
 
 /* Macro to expand the PMEVCNTRn_EL0 register */
 #define PMU_PMEVCNTR_EL0(n)						\
 	{ PMU_SYS_REG(SYS_PMEVCNTRn_EL0(n)),				\
+	  .reset = reset_pmevcntr,					\
 	  .access = access_pmu_evcntr, .reg = (PMEVCNTR0_EL0 + n), }
 
 /* Macro to expand the PMEVTYPERn_EL0 register */
 #define PMU_PMEVTYPER_EL0(n)						\
 	{ PMU_SYS_REG(SYS_PMEVTYPERn_EL0(n)),				\
+	  .reset = reset_pmevtyper,					\
 	  .access = access_pmu_evtyper, .reg = (PMEVTYPER0_EL0 + n), }
 
 static bool undef_access(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
@@ -1595,13 +1632,13 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(SYS_PMSWINC_EL0),
 	  .access = access_pmswinc, .reg = PMSWINC_EL0 },
 	{ PMU_SYS_REG(SYS_PMSELR_EL0),
-	  .access = access_pmselr, .reg = PMSELR_EL0 },
+	  .access = access_pmselr, .reset = reset_pmselr, .reg = PMSELR_EL0 },
 	{ PMU_SYS_REG(SYS_PMCEID0_EL0),
 	  .access = access_pmceid, .reset = NULL },
 	{ PMU_SYS_REG(SYS_PMCEID1_EL0),
 	  .access = access_pmceid, .reset = NULL },
 	{ PMU_SYS_REG(SYS_PMCCNTR_EL0),
-	  .access = access_pmu_evcntr, .reg = PMCCNTR_EL0 },
+	  .access = access_pmu_evcntr, .reset = reset_unknown, .reg = PMCCNTR_EL0 },
 	{ PMU_SYS_REG(SYS_PMXEVTYPER_EL0),
 	  .access = access_pmu_evtyper, .reset = NULL },
 	{ PMU_SYS_REG(SYS_PMXEVCNTR_EL0),
