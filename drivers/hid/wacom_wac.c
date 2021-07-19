@@ -1987,14 +1987,17 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->numbered_buttons++;
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
-	case WACOM_HID_WD_TOUCHONOFF:
 	case WACOM_HID_WD_MUTE_DEVICE:
+		/* softkey touch switch */
+		wacom_wac->is_soft_touch_switch = true;
+		fallthrough;
+	case WACOM_HID_WD_TOUCHONOFF:
 		/*
-		 * This usage, which is used to mute touch events, comes
-		 * from the pad packet, but is reported on the touch
+		 * These two usages, which are used to mute touch events, come
+		 * from the pad packet, but are reported on the touch
 		 * interface. Because the touch interface may not have
 		 * been created yet, we cannot call wacom_map_usage(). In
-		 * order to process this usage when we receive it, we set
+		 * order to process the usages when we receive them, we set
 		 * the usage type and code directly.
 		 */
 		wacom_wac->has_mute_touch_switch = true;
@@ -3835,6 +3838,7 @@ int wacom_setup_touch_input_capabilities(struct input_dev *input_dev,
 			input_dev->evbit[0] |= BIT_MASK(EV_SW);
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
 			wacom_wac->has_mute_touch_switch = true;
+			wacom_wac->is_soft_touch_switch = true;
 		}
 		fallthrough;
 
