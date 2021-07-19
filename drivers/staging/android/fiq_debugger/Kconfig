@@ -66,6 +66,7 @@ config FIQ_WATCHDOG
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
+	depends on ARCH_ROCKCHIP
 	default n
 	help
 	  Normal kernel printk will write out to UART by "kconsole" kthread
