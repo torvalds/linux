@@ -258,7 +258,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	       SMB2_CLIENT_GUID_SIZE);
 	ctx.use_client_guid = true;
 
-	chan_server = cifs_get_tcp_session(&ctx);
+	chan_server = cifs_get_tcp_session(&ctx, ses->server);
 
 	mutex_lock(&ses->session_mutex);
 	spin_lock(&ses->chan_lock);
@@ -271,10 +271,6 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		goto out;
 	}
 	spin_unlock(&ses->chan_lock);
-
-	spin_lock(&cifs_tcp_ses_lock);
-	chan->server->is_channel = true;
-	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * We need to allocate the server crypto now as we will need

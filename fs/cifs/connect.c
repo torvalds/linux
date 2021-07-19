@@ -173,6 +173,7 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	struct cifs_tcon *tcon;
 	struct mid_q_entry *mid, *nmid;
 	struct list_head retry_list;
+	struct TCP_Server_Info *pserver;
 
 	server->maxBuf = 0;
 	server->max_read = 0;
@@ -184,8 +185,12 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	 * are not used until reconnected.
 	 */
 	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n", __func__);
+
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		ses->need_reconnect = true;
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list)
 			tcon->need_reconnect = true;
@@ -1338,7 +1343,7 @@ cifs_find_tcp_session(struct smb3_fs_context *ctx)
 		 * Skip ses channels since they're only handled in lower layers
 		 * (e.g. cifs_send_recv).
 		 */
-		if (server->is_channel || !match_server(server, ctx))
+		if (CIFS_SERVER_IS_CHAN(server) || !match_server(server, ctx))
 			continue;
 
 		++server->srv_count;
@@ -1368,6 +1373,10 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
+
+	/* For secondary channels, we pick up ref-count on the primary server */
+	if (CIFS_SERVER_IS_CHAN(server))
+		cifs_put_tcp_session(server->primary_server, from_reconnect);
 
 	cancel_delayed_work_sync(&server->echo);
 	cancel_delayed_work_sync(&server->resolve);
@@ -1401,7 +1410,8 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 }
 
 struct TCP_Server_Info *
-cifs_get_tcp_session(struct smb3_fs_context *ctx)
+cifs_get_tcp_session(struct smb3_fs_context *ctx,
+		     struct TCP_Server_Info *primary_server)
 {
 	struct TCP_Server_Info *tcp_ses = NULL;
 	int rc;
@@ -1438,6 +1448,10 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 	tcp_ses->in_flight = 0;
 	tcp_ses->max_in_flight = 0;
 	tcp_ses->credits = 1;
+	if (primary_server) {
+		++primary_server->srv_count;
+		tcp_ses->primary_server = primary_server;
+	}
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
@@ -1559,6 +1573,8 @@ out_err_crypto_release:
 
 out_err:
 	if (tcp_ses) {
+		if (CIFS_SERVER_IS_CHAN(tcp_ses))
+			cifs_put_tcp_session(tcp_ses->primary_server, false);
 		kfree(tcp_ses->hostname);
 		if (tcp_ses->ssocket)
 			sock_release(tcp_ses->ssocket);
@@ -2960,7 +2976,7 @@ static int mount_get_conns(struct mount_ctx *mnt_ctx)
 	xid = get_xid();
 
 	/* get a reference to a tcp session */
-	server = cifs_get_tcp_session(ctx);
+	server = cifs_get_tcp_session(ctx, NULL);
 	if (IS_ERR(server)) {
 		rc = PTR_ERR(server);
 		server = NULL;

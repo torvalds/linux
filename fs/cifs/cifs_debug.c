@@ -271,7 +271,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	c = 0;
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		if (server->is_channel)
+		/* channel info will be printed as a part of sessions below */
+		if (CIFS_SERVER_IS_CHAN(server))
 			continue;
 
 		c++;

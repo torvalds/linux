@@ -257,7 +257,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	/*
 	 * If we are reconnecting an extra channel, bind
 	 */
-	if (server->is_channel) {
+	if (CIFS_SERVER_IS_CHAN(server)) {
 		ses->binding = true;
 		ses->binding_chan = cifs_ses_find_chan(ses, server);
 	}

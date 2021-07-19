@@ -690,7 +690,15 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
-	bool is_channel; /* if a session channel */
+
+	/*
+	 * If this is a session channel,
+	 * primary_server holds the ref-counted
+	 * pointer to primary channel connection for the session.
+	 */
+#define CIFS_SERVER_IS_CHAN(server)	(!!(server)->primary_server)
+	struct TCP_Server_Info *primary_server;
+
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
