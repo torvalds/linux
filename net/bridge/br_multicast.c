@@ -309,7 +309,9 @@ void br_multicast_star_g_handle_mode(struct net_bridge_port_group *pg,
 	mp = br_mdb_ip_get(br, &pg->key.addr);
 	if (!mp)
 		return;
-	pmctx = &pg->key.port->multicast_ctx;
+	pmctx = br_multicast_pg_to_port_ctx(pg);
+	if (!pmctx)
+		return;
 
 	memset(&sg_ip, 0, sizeof(sg_ip));
 	sg_ip = pg->key.addr;
@@ -435,7 +437,6 @@ void br_multicast_sg_add_exclude_ports(struct net_bridge_mdb_entry *star_mp,
 	br_multicast_sg_host_state(star_mp, sg);
 	memset(&sg_key, 0, sizeof(sg_key));
 	sg_key.addr = sg->key.addr;
-	brmctx = &br->multicast_ctx;
 	/* we need to add all exclude ports to the S,G */
 	for (pg = mlock_dereference(star_mp->ports, br);
 	     pg;
@@ -449,7 +450,11 @@ void br_multicast_sg_add_exclude_ports(struct net_bridge_mdb_entry *star_mp,
 		if (br_sg_port_find(br, &sg_key))
 			continue;
 
-		pmctx = &pg->key.port->multicast_ctx;
+		pmctx = br_multicast_pg_to_port_ctx(pg);
+		if (!pmctx)
+			continue;
+		brmctx = br_multicast_port_ctx_get_global(pmctx);
+
 		src_pg = __br_multicast_add_group(brmctx, pmctx,
 						  &sg->key.addr,
 						  sg->eth_addr,
@@ -473,7 +478,9 @@ static void br_multicast_fwd_src_add(struct net_bridge_group_src *src)
 		return;
 
 	memset(&sg_ip, 0, sizeof(sg_ip));
-	pmctx = &src->pg->key.port->multicast_ctx;
+	pmctx = br_multicast_pg_to_port_ctx(src->pg);
+	if (!pmctx)
+		return;
 	brmctx = br_multicast_port_ctx_get_global(pmctx);
 	sg_ip = src->pg->key.addr;
 	sg_ip.src = src->addr.src;
@@ -1696,8 +1703,10 @@ static void br_multicast_port_group_rexmit(struct timer_list *t)
 	    !br_opt_get(br, BROPT_MULTICAST_QUERIER))
 		goto out;
 
-	brmctx = &br->multicast_ctx;
-	pmctx = &pg->key.port->multicast_ctx;
+	pmctx = br_multicast_pg_to_port_ctx(pg);
+	if (!pmctx)
+		goto out;
+	brmctx = br_multicast_port_ctx_get_global(pmctx);
 	if (pg->key.addr.proto == htons(ETH_P_IP))
 		other_query = &brmctx->ip4_other_query;
 #if IS_ENABLED(CONFIG_IPV6)
