@@ -1996,7 +1996,7 @@ static int __cmd_record(int argc, const char **argv)
 		return -1;
 	}
 
-	session = perf_session__new(data, false, NULL);
+	session = perf_session__new(data, NULL);
 	if (IS_ERR(session)) {
 		pr_err("Perf session creation failed\n");
 		return PTR_ERR(session);
@@ -2168,7 +2168,7 @@ static int __cmd_report(int argc, const char **argv)
 	perf_stat.data.path = input_name;
 	perf_stat.data.mode = PERF_DATA_MODE_READ;
 
-	session = perf_session__new(&perf_stat.data, false, &perf_stat.tool);
+	session = perf_session__new(&perf_stat.data, &perf_stat.tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 

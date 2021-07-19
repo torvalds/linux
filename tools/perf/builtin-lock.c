@@ -868,7 +868,7 @@ static int __cmd_report(bool display_info)
 		.force = force,
 	};
 
-	session = perf_session__new(&data, false, &eops);
+	session = perf_session__new(&data, &eops);
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
 		return PTR_ERR(session);
