@@ -667,17 +667,15 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	hdev->event_queue.check_eqe_index = false;
 
 	/* Read FW application security bits again */
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid) {
-		hdev->asic_prop.fw_app_cpu_boot_dev_sts0 =
-						RREG32(sts_boot_dev_sts0_reg);
-		if (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+	if (prop->fw_cpu_boot_dev_sts0_valid) {
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(sts_boot_dev_sts0_reg);
+		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_EQ_INDEX_EN)
 			hdev->event_queue.check_eqe_index = true;
 	}
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts1_valid)
-		hdev->asic_prop.fw_app_cpu_boot_dev_sts1 =
-						RREG32(sts_boot_dev_sts1_reg);
+	if (prop->fw_cpu_boot_dev_sts1_valid)
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
 
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
@@ -1012,6 +1010,11 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
+
+		/* Must clear this register in order to prevent preboot
+		 * from reading WFE after reboot
+		 */
+		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_NA);
 	}
 
 	hdev->device_cpu_is_halted = true;
@@ -1242,11 +1245,6 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 *               b. Check whether hard reset is done by boot cpu
 	 * 3. FW application - a. Fetch fw application security status
 	 *                     b. Check whether hard reset is done by fw app
-	 *
-	 * Preboot:
-	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED). If set, then-
-	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
-	 * If set, then mark GIC controller to be disabled.
 	 */
 	prop->hard_reset_done_by_fw =
 		!!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
@@ -2126,8 +2124,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 
 	/* Read FW application security bits */
 	if (prop->fw_cpu_boot_dev_sts0_valid) {
-		prop->fw_app_cpu_boot_dev_sts0 =
-				RREG32(cpu_boot_dev_sts0_reg);
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
 
 		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
@@ -2147,8 +2144,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 	}
 
 	if (prop->fw_cpu_boot_dev_sts1_valid) {
-		prop->fw_app_cpu_boot_dev_sts1 =
-				RREG32(cpu_boot_dev_sts1_reg);
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(cpu_boot_dev_sts1_reg);
 
 		dev_dbg(hdev->dev,
 			"Firmware application CPU status1 %#x\n",
