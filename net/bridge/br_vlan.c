@@ -481,7 +481,8 @@ out:
 static bool __allowed_ingress(const struct net_bridge *br,
 			      struct net_bridge_vlan_group *vg,
 			      struct sk_buff *skb, u16 *vid,
-			      u8 *state)
+			      u8 *state,
+			      struct net_bridge_vlan **vlan)
 {
 	struct pcpu_sw_netstats *stats;
 	struct net_bridge_vlan *v;
@@ -546,8 +547,9 @@ static bool __allowed_ingress(const struct net_bridge *br,
 			 */
 			skb->vlan_tci |= pvid;
 
-		/* if stats are disabled we can avoid the lookup */
-		if (!br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
+		/* if snooping and stats are disabled we can avoid the lookup */
+		if (!br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED) &&
+		    !br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 			if (*state == BR_STATE_FORWARDING) {
 				*state = br_vlan_get_pvid_state(vg);
 				return br_vlan_state_allowed(*state, true);
@@ -574,6 +576,8 @@ static bool __allowed_ingress(const struct net_bridge *br,
 		u64_stats_update_end(&stats->syncp);
 	}
 
+	*vlan = v;
+
 	return true;
 
 drop:
@@ -583,17 +587,19 @@ drop:
 
 bool br_allowed_ingress(const struct net_bridge *br,
 			struct net_bridge_vlan_group *vg, struct sk_buff *skb,
-			u16 *vid, u8 *state)
+			u16 *vid, u8 *state,
+			struct net_bridge_vlan **vlan)
 {
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
+	*vlan = NULL;
 	if (!br_opt_get(br, BROPT_VLAN_ENABLED)) {
 		BR_INPUT_SKB_CB(skb)->vlan_filtered = false;
 		return true;
 	}
 
-	return __allowed_ingress(br, vg, skb, vid, state);
+	return __allowed_ingress(br, vg, skb, vid, state, vlan);
 }
 
 /* Called under RCU. */
@@ -834,6 +840,10 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val,
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
+	if (!val && br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+		br_info(br, "vlan filtering disabled, automatically disabling multicast vlan snooping\n");
+		br_multicast_toggle_vlan_snooping(br, false, NULL);
+	}
 
 	return 0;
 }

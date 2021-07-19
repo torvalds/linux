@@ -1797,9 +1797,9 @@ void br_multicast_enable_port(struct net_bridge_port *port)
 {
 	struct net_bridge *br = port->br;
 
-	spin_lock(&br->multicast_lock);
+	spin_lock_bh(&br->multicast_lock);
 	__br_multicast_enable_port_ctx(&port->multicast_ctx);
-	spin_unlock(&br->multicast_lock);
+	spin_unlock_bh(&br->multicast_lock);
 }
 
 static void __br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
@@ -1827,9 +1827,9 @@ static void __br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
 
 void br_multicast_disable_port(struct net_bridge_port *port)
 {
-	spin_lock(&port->br->multicast_lock);
+	spin_lock_bh(&port->br->multicast_lock);
 	__br_multicast_disable_port_ctx(&port->multicast_ctx);
-	spin_unlock(&port->br->multicast_lock);
+	spin_unlock_bh(&port->br->multicast_lock);
 }
 
 static int __grp_src_delete_marked(struct net_bridge_port_group *pg)
@@ -3510,8 +3510,9 @@ static int br_multicast_ipv6_rcv(struct net_bridge_mcast *brmctx,
 }
 #endif
 
-int br_multicast_rcv(struct net_bridge_mcast *brmctx,
-		     struct net_bridge_mcast_port *pmctx,
+int br_multicast_rcv(struct net_bridge_mcast **brmctx,
+		     struct net_bridge_mcast_port **pmctx,
+		     struct net_bridge_vlan *vlan,
 		     struct sk_buff *skb, u16 vid)
 {
 	int ret = 0;
@@ -3519,16 +3520,36 @@ int br_multicast_rcv(struct net_bridge_mcast *brmctx,
 	BR_INPUT_SKB_CB(skb)->igmp = 0;
 	BR_INPUT_SKB_CB(skb)->mrouters_only = 0;
 
-	if (!br_opt_get(brmctx->br, BROPT_MULTICAST_ENABLED))
+	if (!br_opt_get((*brmctx)->br, BROPT_MULTICAST_ENABLED))
 		return 0;
+
+	if (br_opt_get((*brmctx)->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED) && vlan) {
+		const struct net_bridge_vlan *masterv;
+
+		/* the vlan has the master flag set only when transmitting
+		 * through the bridge device
+		 */
+		if (br_vlan_is_master(vlan)) {
+			masterv = vlan;
+			*brmctx = &vlan->br_mcast_ctx;
+			*pmctx = NULL;
+		} else {
+			masterv = vlan->brvlan;
+			*brmctx = &vlan->brvlan->br_mcast_ctx;
+			*pmctx = &vlan->port_mcast_ctx;
+		}
+
+		if (!(masterv->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED))
+			return 0;
+	}
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		ret = br_multicast_ipv4_rcv(brmctx, pmctx, skb, vid);
+		ret = br_multicast_ipv4_rcv(*brmctx, *pmctx, skb, vid);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
-		ret = br_multicast_ipv6_rcv(brmctx, pmctx, skb, vid);
+		ret = br_multicast_ipv6_rcv(*brmctx, *pmctx, skb, vid);
 		break;
 #endif
 	}
@@ -3727,20 +3748,22 @@ static void __br_multicast_open(struct net_bridge_mcast *brmctx)
 
 void br_multicast_open(struct net_bridge *br)
 {
-	struct net_bridge_vlan_group *vg;
-	struct net_bridge_vlan *vlan;
-
 	ASSERT_RTNL();
 
-	vg = br_vlan_group(br);
-	if (vg) {
-		list_for_each_entry(vlan, &vg->vlan_list, vlist) {
-			struct net_bridge_mcast *brmctx;
+	if (br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+		struct net_bridge_vlan_group *vg;
+		struct net_bridge_vlan *vlan;
 
-			brmctx = &vlan->br_mcast_ctx;
-			if (br_vlan_is_brentry(vlan) &&
-			    !br_multicast_ctx_vlan_disabled(brmctx))
-				__br_multicast_open(&vlan->br_mcast_ctx);
+		vg = br_vlan_group(br);
+		if (vg) {
+			list_for_each_entry(vlan, &vg->vlan_list, vlist) {
+				struct net_bridge_mcast *brmctx;
+
+				brmctx = &vlan->br_mcast_ctx;
+				if (br_vlan_is_brentry(vlan) &&
+				    !br_multicast_ctx_vlan_disabled(brmctx))
+					__br_multicast_open(&vlan->br_mcast_ctx);
+			}
 		}
 	}
 
@@ -3804,22 +3827,80 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 	}
 }
 
-void br_multicast_stop(struct net_bridge *br)
+void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
+{
+	struct net_bridge_port *p;
+
+	if (WARN_ON_ONCE(!br_vlan_is_master(vlan)))
+		return;
+
+	list_for_each_entry(p, &vlan->br->port_list, list) {
+		struct net_bridge_vlan *vport;
+
+		vport = br_vlan_find(nbp_vlan_group(p), vlan->vid);
+		if (!vport)
+			continue;
+		br_multicast_toggle_one_vlan(vport, on);
+	}
+}
+
+int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
+				      struct netlink_ext_ack *extack)
 {
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *vlan;
+	struct net_bridge_port *p;
 
-	ASSERT_RTNL();
+	if (br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED) == on)
+		return 0;
+
+	if (on && !br_opt_get(br, BROPT_VLAN_ENABLED)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot enable multicast vlan snooping with vlan filtering disabled");
+		return -EINVAL;
+	}
 
 	vg = br_vlan_group(br);
-	if (vg) {
-		list_for_each_entry(vlan, &vg->vlan_list, vlist) {
-			struct net_bridge_mcast *brmctx;
+	if (!vg)
+		return 0;
 
-			brmctx = &vlan->br_mcast_ctx;
-			if (br_vlan_is_brentry(vlan) &&
-			    !br_multicast_ctx_vlan_disabled(brmctx))
-				__br_multicast_stop(&vlan->br_mcast_ctx);
+	br_opt_toggle(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED, on);
+
+	/* disable/enable non-vlan mcast contexts based on vlan snooping */
+	if (on)
+		__br_multicast_stop(&br->multicast_ctx);
+	else
+		__br_multicast_open(&br->multicast_ctx);
+	list_for_each_entry(p, &br->port_list, list) {
+		if (on)
+			br_multicast_disable_port(p);
+		else
+			br_multicast_enable_port(p);
+	}
+
+	list_for_each_entry(vlan, &vg->vlan_list, vlist)
+		br_multicast_toggle_vlan(vlan, on);
+
+	return 0;
+}
+
+void br_multicast_stop(struct net_bridge *br)
+{
+	ASSERT_RTNL();
+
+	if (br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+		struct net_bridge_vlan_group *vg;
+		struct net_bridge_vlan *vlan;
+
+		vg = br_vlan_group(br);
+		if (vg) {
+			list_for_each_entry(vlan, &vg->vlan_list, vlist) {
+				struct net_bridge_mcast *brmctx;
+
+				brmctx = &vlan->br_mcast_ctx;
+				if (br_vlan_is_brentry(vlan) &&
+				    !br_multicast_ctx_vlan_disabled(brmctx))
+					__br_multicast_stop(&vlan->br_mcast_ctx);
+			}
 		}
 	}
 

@@ -720,12 +720,14 @@ struct br_mcast_stats {
 
 /* bridge boolean options
  * BR_BOOLOPT_NO_LL_LEARN - disable learning from link-local packets
+ * BR_BOOLOPT_MCAST_VLAN_SNOOPING - control vlan multicast snooping
  *
  * IMPORTANT: if adding a new option do not forget to handle
  *            it in br_boolopt_toggle/get and bridge sysfs
  */
 enum br_boolopt_id {
 	BR_BOOLOPT_NO_LL_LEARN,
+	BR_BOOLOPT_MCAST_VLAN_SNOOPING,
 	BR_BOOLOPT_MAX
 };
 

@@ -73,6 +73,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	struct net_bridge_mdb_entry *mdst;
 	bool local_rcv, mcast_hit = false;
 	struct net_bridge_mcast *brmctx;
+	struct net_bridge_vlan *vlan;
 	struct net_bridge *br;
 	u16 vid = 0;
 	u8 state;
@@ -84,7 +85,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	pmctx = &p->multicast_ctx;
 	state = p->state;
 	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid,
-				&state))
+				&state, &vlan))
 		goto out;
 
 	nbp_switchdev_frame_mark(p, skb);
@@ -102,7 +103,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			local_rcv = true;
 		} else {
 			pkt_type = BR_PKT_MULTICAST;
-			if (br_multicast_rcv(brmctx, pmctx, skb, vid))
+			if (br_multicast_rcv(&brmctx, &pmctx, vlan, skb, vid))
 				goto drop;
 		}
 	}
