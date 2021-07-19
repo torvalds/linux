@@ -40,7 +40,7 @@ if COMMON_CLK
 
 config COMMON_CLK_PROCFS
 	bool "Common Clock PROCFS interface"
-	depends on COMMON_CLK && PROC_FS
+	depends on COMMON_CLK && PROC_FS && ARCH_ROCKCHIP
 	default n
 	help
 	  Turns on the PROCFS interface for clock.
