@@ -73,6 +73,16 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	struct list_head *tmp;
 	struct list_head *tmp1;
 
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->ses->status != CifsGood ||
+	    tcon->tidStatus != CifsNeedReconnect) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return;
+	}
+	tcon->tidStatus = CifsInFilesInvalidate;
+	spin_unlock(&cifs_tcp_ses_lock);
+
 	/* list all files open on tree connection and mark them invalid */
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_safe(tmp, tmp1, &tcon->openFileList) {
@@ -88,6 +98,11 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	close_cached_dir_lease_locked(&tcon->crfid);
 	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
 	mutex_unlock(&tcon->crfid.fid_mutex);
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->tidStatus == CifsInFilesInvalidate)
+		tcon->tidStatus = CifsNeedTcon;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -183,12 +198,6 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	nls_codepage = load_nls_default();
 
 	/*
-	 * need to prevent multiple threads trying to simultaneously
-	 * reconnect the same SMB session
-	 */
-	mutex_lock(&ses->session_mutex);
-
-	/*
 	 * Recheck after acquire mutex. If another thread is negotiating
 	 * and the server never sends an answer the socket will be closed
 	 * and tcpStatus set to reconnect.
@@ -197,7 +206,6 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	if (server->tcpStatus == CifsNeedReconnect) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		rc = -EHOSTDOWN;
-		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -215,11 +223,11 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 			goto skip_sess_setup;
 
 		rc = -EHOSTDOWN;
-		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
 	spin_unlock(&ses->chan_lock);
 
+	mutex_lock(&ses->session_mutex);
 	rc = cifs_negotiate_protocol(0, ses, server);
 	if (!rc)
 		rc = cifs_setup_session(0, ses, server, nls_codepage);

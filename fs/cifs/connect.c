@@ -208,10 +208,13 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 		if (!mark_smb_session && !CIFS_ALL_CHANS_NEED_RECONNECT(ses))
 			goto next_session;
 
+		ses->status = CifsNeedReconnect;
 		num_sessions++;
 
-		list_for_each_entry(tcon, &ses->tcon_list, tcon_list)
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			tcon->need_reconnect = true;
+			tcon->tidStatus = CifsNeedReconnect;
+		}
 		if (ses->tcon_ipc)
 			ses->tcon_ipc->need_reconnect = true;
 
@@ -2035,12 +2038,12 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 		cifs_dbg(FYI, "Existing smb sess found (status=%d)\n",
 			 ses->status);
 
-		mutex_lock(&ses->session_mutex);
 		spin_lock(&ses->chan_lock);
 		if (cifs_chan_needs_reconnect(ses, server)) {
 			spin_unlock(&ses->chan_lock);
 			cifs_dbg(FYI, "Session needs reconnect\n");
 
+			mutex_lock(&ses->session_mutex);
 			rc = cifs_negotiate_protocol(xid, ses, server);
 			if (rc) {
 				mutex_unlock(&ses->session_mutex);
@@ -2059,10 +2062,11 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 				free_xid(xid);
 				return ERR_PTR(rc);
 			}
+			mutex_unlock(&ses->session_mutex);
+
 			spin_lock(&ses->chan_lock);
 		}
 		spin_unlock(&ses->chan_lock);
-		mutex_unlock(&ses->session_mutex);
 
 		/* existing SMB ses has a server reference already */
 		cifs_put_tcp_session(server, 0);
@@ -2112,7 +2116,6 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 
 	ses->sectype = ctx->sectype;
 	ses->sign = ctx->sign;
-	mutex_lock(&ses->session_mutex);
 
 	/* add server as first channel */
 	spin_lock(&ses->chan_lock);
@@ -2122,15 +2125,16 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	ses->chans_need_reconnect = 1;
 	spin_unlock(&ses->chan_lock);
 
+	mutex_lock(&ses->session_mutex);
 	rc = cifs_negotiate_protocol(xid, ses, server);
 	if (!rc)
 		rc = cifs_setup_session(xid, ses, server, ctx->local_nls);
+	mutex_unlock(&ses->session_mutex);
 
 	/* each channel uses a different signing key */
 	memcpy(ses->chans[0].signkey, ses->smb3signingkey,
 	       sizeof(ses->smb3signingkey));
 
-	mutex_unlock(&ses->session_mutex);
 	if (rc)
 		goto get_ses_fail;
 
@@ -2347,10 +2351,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 		}
 	}
 
-	/*
-	 * BB Do we need to wrap session_mutex around this TCon call and Unix
-	 * SetFS as we do on SessSetup and reconnect?
-	 */
 	xid = get_xid();
 	rc = ses->server->ops->tree_connect(xid, ses, ctx->UNC, tcon,
 					    ctx->local_nls);
@@ -3870,14 +3870,20 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 		return -ENOSYS;
 
 	/* only send once per connect */
-	if (!server->ops->need_neg(server))
+	spin_lock(&cifs_tcp_ses_lock);
+	if (!server->ops->need_neg(server) ||
+	    server->tcpStatus != CifsNeedNegotiate) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
+	}
+	server->tcpStatus = CifsInNegotiate;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	rc = server->ops->negotiate(xid, ses, server);
 	if (rc == 0) {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (server->tcpStatus == CifsNeedNegotiate)
-			server->tcpStatus = CifsGood;
+		if (server->tcpStatus == CifsInNegotiate)
+			server->tcpStatus = CifsNeedSessSetup;
 		else
 			rc = -EHOSTDOWN;
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -3893,6 +3899,15 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 {
 	int rc = -ENOSYS;
 	bool is_binding = false;
+
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (server->tcpStatus != CifsNeedSessSetup) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	ses->status = CifsInSessSetup;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	spin_lock(&ses->chan_lock);
 	is_binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
@@ -4264,6 +4279,17 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	struct dfs_cache_tgt_iterator *tit;
 	bool target_match;
 
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->ses->status != CifsGood ||
+	    (tcon->tidStatus != CifsNew &&
+	    tcon->tidStatus != CifsNeedTcon)) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	tcon->tidStatus = CifsInTcon;
+	spin_unlock(&cifs_tcp_ses_lock);
+
 	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
 
 	tit = dfs_cache_get_tgt_iterator(tl);
@@ -4421,6 +4447,17 @@ out:
 int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const struct nls_table *nlsc)
 {
 	const struct smb_version_operations *ops = tcon->ses->server->ops;
+
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->ses->status != CifsGood ||
+	    (tcon->tidStatus != CifsNew &&
+	    tcon->tidStatus != CifsNeedTcon)) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	tcon->tidStatus = CifsInTcon;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	return ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
 }
