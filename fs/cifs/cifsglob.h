@@ -973,6 +973,8 @@ struct cifs_ses {
 	((1UL << (ses)->chan_count) - 1)
 #define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
 	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
 #define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
 	test_bit((index), &(ses)->chans_need_reconnect)
 
