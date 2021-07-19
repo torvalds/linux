@@ -694,6 +694,11 @@ EXPORT_SYMBOL(serio_reconnect);
  */
 void __serio_register_port(struct serio *serio, struct module *owner)
 {
+	if (!serio->write) {
+		pr_err("%s: refusing to register %s without write method\n",
+		       __func__, serio->name);
+		return;
+	}
 	serio_init_port(serio);
 	serio_queue_event(serio, owner, SERIO_REGISTER_PORT);
 }

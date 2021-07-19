@@ -121,10 +121,7 @@ void serio_unregister_driver(struct serio_driver *drv);
 
 static inline int serio_write(struct serio *serio, unsigned char data)
 {
-	if (serio->write)
-		return serio->write(serio, data);
-	else
-		return -1;
+	return serio->write(serio, data);
 }
 
 static inline void serio_drv_write_wakeup(struct serio *serio)

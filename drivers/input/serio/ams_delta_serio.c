@@ -89,6 +89,11 @@ static irqreturn_t ams_delta_serio_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int ams_delta_serio_write(struct serio *serio, u8 data)
+{
+	return -EINVAL;
+}
+
 static int ams_delta_serio_open(struct serio *serio)
 {
 	struct ams_delta_serio *priv = serio->port_data;
@@ -157,6 +162,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	priv->serio = serio;
 
 	serio->id.type = SERIO_8042;
+	serio->write = ams_delta_serio_write;
 	serio->open = ams_delta_serio_open;
 	serio->close = ams_delta_serio_close;
 	strlcpy(serio->name, "AMS DELTA keyboard adapter", sizeof(serio->name));
