@@ -214,7 +214,7 @@ static void __fwd_add_star_excl(struct net_bridge_mcast_port *pmctx,
 	struct net_bridge_mcast *brmctx;
 
 	memset(&sg_key, 0, sizeof(sg_key));
-	brmctx = &pg->key.port->br->multicast_ctx;
+	brmctx = br_multicast_port_ctx_get_global(pmctx);
 	sg_key.port = pg->key.port;
 	sg_key.addr = *sg_ip;
 	if (br_sg_port_find(brmctx->br, &sg_key))
@@ -275,6 +275,7 @@ void br_multicast_star_g_handle_mode(struct net_bridge_port_group *pg,
 
 	memset(&sg_ip, 0, sizeof(sg_ip));
 	sg_ip = pg->key.addr;
+
 	for (pg_lst = mlock_dereference(mp->ports, br);
 	     pg_lst;
 	     pg_lst = mlock_dereference(pg_lst->next, br)) {
@@ -435,7 +436,7 @@ static void br_multicast_fwd_src_add(struct net_bridge_group_src *src)
 
 	memset(&sg_ip, 0, sizeof(sg_ip));
 	pmctx = &src->pg->key.port->multicast_ctx;
-	brmctx = &src->br->multicast_ctx;
+	brmctx = br_multicast_port_ctx_get_global(pmctx);
 	sg_ip = src->pg->key.addr;
 	sg_ip.src = src->addr.src;
 
@@ -1775,9 +1776,11 @@ static void br_multicast_enable(struct bridge_mcast_own_query *query)
 static void __br_multicast_enable_port_ctx(struct net_bridge_mcast_port *pmctx)
 {
 	struct net_bridge *br = pmctx->port->br;
-	struct net_bridge_mcast *brmctx = &pmctx->port->br->multicast_ctx;
+	struct net_bridge_mcast *brmctx;
 
-	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED) || !netif_running(br->dev))
+	brmctx = br_multicast_port_ctx_get_global(pmctx);
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED) ||
+	    !netif_running(br->dev))
 		return;
 
 	br_multicast_enable(&pmctx->ip4_own_query);
@@ -1799,18 +1802,17 @@ void br_multicast_enable_port(struct net_bridge_port *port)
 	spin_unlock(&br->multicast_lock);
 }
 
-void br_multicast_disable_port(struct net_bridge_port *port)
+static void __br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
 {
-	struct net_bridge_mcast_port *pmctx = &port->multicast_ctx;
-	struct net_bridge *br = port->br;
 	struct net_bridge_port_group *pg;
 	struct hlist_node *n;
 	bool del = false;
 
-	spin_lock(&br->multicast_lock);
-	hlist_for_each_entry_safe(pg, n, &port->mglist, mglist)
-		if (!(pg->flags & MDB_PG_FLAGS_PERMANENT))
-			br_multicast_find_del_pg(br, pg);
+	hlist_for_each_entry_safe(pg, n, &pmctx->port->mglist, mglist)
+		if (!(pg->flags & MDB_PG_FLAGS_PERMANENT) &&
+		    (!br_multicast_port_ctx_is_vlan(pmctx) ||
+		     pg->key.addr.vid == pmctx->vlan->vid))
+			br_multicast_find_del_pg(pmctx->port->br, pg);
 
 	del |= br_ip4_multicast_rport_del(pmctx);
 	del_timer(&pmctx->ip4_mc_router_timer);
@@ -1821,7 +1823,13 @@ void br_multicast_disable_port(struct net_bridge_port *port)
 	del_timer(&pmctx->ip6_own_query.timer);
 #endif
 	br_multicast_rport_del_notify(pmctx, del);
-	spin_unlock(&br->multicast_lock);
+}
+
+void br_multicast_disable_port(struct net_bridge_port *port)
+{
+	spin_lock(&port->br->multicast_lock);
+	__br_multicast_disable_port_ctx(&port->multicast_ctx);
+	spin_unlock(&port->br->multicast_lock);
 }
 
 static int __grp_src_delete_marked(struct net_bridge_port_group *pg)
@@ -3698,8 +3706,8 @@ void br_multicast_leave_snoopers(struct net_bridge *br)
 	br_ip6_multicast_leave_snoopers(br);
 }
 
-static void __br_multicast_open(struct net_bridge *br,
-				struct bridge_mcast_own_query *query)
+static void __br_multicast_open_query(struct net_bridge *br,
+				      struct bridge_mcast_own_query *query)
 {
 	query->startup_sent = 0;
 
@@ -3709,12 +3717,34 @@ static void __br_multicast_open(struct net_bridge *br,
 	mod_timer(&query->timer, jiffies);
 }
 
+static void __br_multicast_open(struct net_bridge_mcast *brmctx)
+{
+	__br_multicast_open_query(brmctx->br, &brmctx->ip4_own_query);
+#if IS_ENABLED(CONFIG_IPV6)
+	__br_multicast_open_query(brmctx->br, &brmctx->ip6_own_query);
+#endif
+}
+
 void br_multicast_open(struct net_bridge *br)
 {
-	__br_multicast_open(br, &br->multicast_ctx.ip4_own_query);
-#if IS_ENABLED(CONFIG_IPV6)
-	__br_multicast_open(br, &br->multicast_ctx.ip6_own_query);
-#endif
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *vlan;
+
+	ASSERT_RTNL();
+
+	vg = br_vlan_group(br);
+	if (vg) {
+		list_for_each_entry(vlan, &vg->vlan_list, vlist) {
+			struct net_bridge_mcast *brmctx;
+
+			brmctx = &vlan->br_mcast_ctx;
+			if (br_vlan_is_brentry(vlan) &&
+			    !br_multicast_ctx_vlan_disabled(brmctx))
+				__br_multicast_open(&vlan->br_mcast_ctx);
+		}
+	}
+
+	__br_multicast_open(&br->multicast_ctx);
 }
 
 static void __br_multicast_stop(struct net_bridge_mcast *brmctx)
@@ -3729,8 +3759,70 @@ static void __br_multicast_stop(struct net_bridge_mcast *brmctx)
 #endif
 }
 
+void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
+{
+	struct net_bridge *br;
+
+	/* it's okay to check for the flag without the multicast lock because it
+	 * can only change under RTNL -> multicast_lock, we need the latter to
+	 * sync with timers and packets
+	 */
+	if (on == !!(vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED))
+		return;
+
+	if (br_vlan_is_master(vlan)) {
+		br = vlan->br;
+
+		if (!br_vlan_is_brentry(vlan) ||
+		    (on &&
+		     br_multicast_ctx_vlan_global_disabled(&vlan->br_mcast_ctx)))
+			return;
+
+		spin_lock_bh(&br->multicast_lock);
+		vlan->priv_flags ^= BR_VLFLAG_MCAST_ENABLED;
+		spin_unlock_bh(&br->multicast_lock);
+
+		if (on)
+			__br_multicast_open(&vlan->br_mcast_ctx);
+		else
+			__br_multicast_stop(&vlan->br_mcast_ctx);
+	} else {
+		struct net_bridge_mcast *brmctx;
+
+		brmctx = br_multicast_port_ctx_get_global(&vlan->port_mcast_ctx);
+		if (on && br_multicast_ctx_vlan_global_disabled(brmctx))
+			return;
+
+		br = vlan->port->br;
+		spin_lock_bh(&br->multicast_lock);
+		vlan->priv_flags ^= BR_VLFLAG_MCAST_ENABLED;
+		if (on)
+			__br_multicast_enable_port_ctx(&vlan->port_mcast_ctx);
+		else
+			__br_multicast_disable_port_ctx(&vlan->port_mcast_ctx);
+		spin_unlock_bh(&br->multicast_lock);
+	}
+}
+
 void br_multicast_stop(struct net_bridge *br)
 {
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *vlan;
+
+	ASSERT_RTNL();
+
+	vg = br_vlan_group(br);
+	if (vg) {
+		list_for_each_entry(vlan, &vg->vlan_list, vlist) {
+			struct net_bridge_mcast *brmctx;
+
+			brmctx = &vlan->br_mcast_ctx;
+			if (br_vlan_is_brentry(vlan) &&
+			    !br_multicast_ctx_vlan_disabled(brmctx))
+				__br_multicast_stop(&vlan->br_mcast_ctx);
+		}
+	}
+
 	__br_multicast_stop(&br->multicast_ctx);
 }
 
@@ -3876,7 +3968,7 @@ static void br_multicast_start_querier(struct net_bridge_mcast *brmctx,
 {
 	struct net_bridge_port *port;
 
-	__br_multicast_open(brmctx->br, query);
+	__br_multicast_open_query(brmctx->br, query);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &brmctx->br->port_list, list) {

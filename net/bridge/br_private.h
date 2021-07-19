@@ -151,6 +151,8 @@ struct br_tunnel_info {
 enum {
 	BR_VLFLAG_PER_PORT_STATS = BIT(0),
 	BR_VLFLAG_ADDED_BY_SWITCHDEV = BIT(1),
+	BR_VLFLAG_MCAST_ENABLED = BIT(2),
+	BR_VLFLAG_GLOBAL_MCAST_ENABLED = BIT(3),
 };
 
 /**
@@ -901,6 +903,7 @@ void br_multicast_port_ctx_init(struct net_bridge_port *port,
 				struct net_bridge_vlan *vlan,
 				struct net_bridge_mcast_port *pmctx);
 void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx);
+void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
@@ -1062,6 +1065,48 @@ static inline unsigned long br_multicast_gmi(const struct net_bridge_mcast *brmc
 	return 2 * brmctx->multicast_query_interval +
 	       brmctx->multicast_query_response_interval;
 }
+
+static inline bool
+br_multicast_ctx_is_vlan(const struct net_bridge_mcast *brmctx)
+{
+	return !!brmctx->vlan;
+}
+
+static inline bool
+br_multicast_port_ctx_is_vlan(const struct net_bridge_mcast_port *pmctx)
+{
+	return !!pmctx->vlan;
+}
+
+static inline struct net_bridge_mcast *
+br_multicast_port_ctx_get_global(const struct net_bridge_mcast_port *pmctx)
+{
+	if (!br_multicast_port_ctx_is_vlan(pmctx))
+		return &pmctx->port->br->multicast_ctx;
+	else
+		return &pmctx->vlan->brvlan->br_mcast_ctx;
+}
+
+static inline bool
+br_multicast_ctx_vlan_global_disabled(const struct net_bridge_mcast *brmctx)
+{
+	return br_multicast_ctx_is_vlan(brmctx) &&
+	       !(brmctx->vlan->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED);
+}
+
+static inline bool
+br_multicast_ctx_vlan_disabled(const struct net_bridge_mcast *brmctx)
+{
+	return br_multicast_ctx_is_vlan(brmctx) &&
+	       !(brmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED);
+}
+
+static inline bool
+br_multicast_port_ctx_vlan_disabled(const struct net_bridge_mcast_port *pmctx)
+{
+	return br_multicast_port_ctx_is_vlan(pmctx) &&
+	       !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED);
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge_mcast *brmctx,
 				   struct net_bridge_mcast_port *pmctx,
@@ -1193,6 +1238,11 @@ static inline void br_multicast_port_ctx_init(struct net_bridge_port *port,
 }
 
 static inline void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx)
+{
+}
+
+static inline void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan,
+						bool on)
 {
 }
 #endif
