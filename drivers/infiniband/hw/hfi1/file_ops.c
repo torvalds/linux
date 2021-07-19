@@ -194,7 +194,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase1))
 		return -EINVAL;
 
-	if (!atomic_inc_not_zero(&dd->user_refcount))
+	if (!refcount_inc_not_zero(&dd->user_refcount))
 		return -ENXIO;
 
 	/* The real work is performed later in assign_ctxt() */
@@ -213,7 +213,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 nomem:
 	kfree(fd);
 	fp->private_data = NULL;
-	if (atomic_dec_and_test(&dd->user_refcount))
+	if (refcount_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
 	return -ENOMEM;
 }
@@ -711,7 +711,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	deallocate_ctxt(uctxt);
 done:
 
-	if (atomic_dec_and_test(&dd->user_refcount))
+	if (refcount_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
 
 	cleanup_srcu_struct(&fdata->pq_srcu);

@@ -48,6 +48,7 @@
  *
  */
 
+#include <linux/refcount.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -1384,7 +1385,7 @@ struct hfi1_devdata {
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
 	/* Keeps track of user space clients */
-	atomic_t user_refcount;
+	refcount_t user_refcount;
 	/* Used to wait for outstanding user space clients before dev removal */
 	struct completion user_comp;
 

@@ -1747,7 +1747,7 @@ static void wait_for_clients(struct hfi1_devdata *dd)
 	 * Remove the device init value and complete the device if there is
 	 * no clients or wait for active clients to finish.
 	 */
-	if (atomic_dec_and_test(&dd->user_refcount))
+	if (refcount_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
 
 	wait_for_completion(&dd->user_comp);

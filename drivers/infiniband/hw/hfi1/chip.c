@@ -15336,7 +15336,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	init_completion(&dd->user_comp);
 
 	/* The user refcount starts with one to inidicate an active device */
-	atomic_set(&dd->user_refcount, 1);
+	refcount_set(&dd->user_refcount, 1);
 
 	goto bail;
 
