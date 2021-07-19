@@ -821,9 +821,9 @@
 			eqos: ethernet@30bf0000 {
 				compatible = "nxp,imx8mp-dwmac-eqos", "snps,dwmac-5.10a";
 				reg = <0x30bf0000 0x10000>;
-				interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "eth_wake_irq", "macirq";
+				interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_wake_irq";
 				clocks = <&clk IMX8MP_CLK_ENET_QOS_ROOT>,
 					 <&clk IMX8MP_CLK_QOS_ENET_ROOT>,
 					 <&clk IMX8MP_CLK_ENET_QOS_TIMER>,
