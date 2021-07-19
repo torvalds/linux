@@ -83,6 +83,20 @@
 			no-loopback-test;
 		};
 
+		uart1: serial@c8001000 {
+			compatible = "intel,xscale-uart";
+			reg = <0xc8001000 0x1000>;
+			/*
+			 * The reg-offset and reg-shift is a side effect
+			 * of running the platform in big endian mode.
+			 */
+			reg-offset = <3>;
+			reg-shift = <2>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <14745600>;
+			no-loopback-test;
+		};
+
 		gpio0: gpio@c8004000 {
 			compatible = "intel,ixp4xx-gpio";
 			reg = <0xc8004000 0x1000>;
