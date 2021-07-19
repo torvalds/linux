@@ -207,6 +207,12 @@ config MARVELL_88X2222_PHY
 	  Support for the Marvell 88X2222 Dual-port Multi-speed Ethernet
 	  Transceiver.
 
+config MAXLINEAR_GPHY
+	tristate "Maxlinear Ethernet PHYs"
+	help
+	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,
+	  GPY241, GPY245 PHYs.
+
 config MEDIATEK_GE_PHY
 	tristate "MediaTek Gigabit Ethernet PHYs"
 	help
