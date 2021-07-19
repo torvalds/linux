@@ -386,6 +386,12 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 			      const struct dsa_device_ops *tag_ops,
 			      const struct dsa_device_ops *old_tag_ops);
 
+/* tag_8021q.c */
+int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
+			      struct dsa_notifier_bridge_info *info);
+int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
+			       struct dsa_notifier_bridge_info *info);
+
 extern struct list_head dsa_tree_list;
 
 #endif
