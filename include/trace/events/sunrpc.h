@@ -299,6 +299,7 @@ TRACE_EVENT(rpc_request,
 	__print_flags(flags, "|",					\
 		{ RPC_TASK_ASYNC, "ASYNC" },				\
 		{ RPC_TASK_SWAPPER, "SWAPPER" },			\
+		{ RPC_TASK_MOVEABLE, "MOVEABLE" },			\
 		{ RPC_TASK_NULLCREDS, "NULLCREDS" },			\
 		{ RPC_CALL_MAJORSEEN, "MAJORSEEN" },			\
 		{ RPC_TASK_ROOTCREDS, "ROOTCREDS" },			\
@@ -931,6 +932,8 @@ TRACE_EVENT(rpc_socket_nospace,
 		{ (1UL << XPRT_BOUND),		"BOUND"},		\
 		{ (1UL << XPRT_BINDING),	"BINDING"},		\
 		{ (1UL << XPRT_CLOSING),	"CLOSING"},		\
+		{ (1UL << XPRT_OFFLINE),	"OFFLINE"},		\
+		{ (1UL << XPRT_REMOVE),		"REMOVE"},		\
 		{ (1UL << XPRT_CONGESTED),	"CONGESTED"},		\
 		{ (1UL << XPRT_CWND_WAIT),	"CWND_WAIT"},		\
 		{ (1UL << XPRT_WRITE_SPACE),	"WRITE_SPACE"})
