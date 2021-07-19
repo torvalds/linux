@@ -2543,11 +2543,6 @@ static int sja1105_dsa_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	return sja1105_build_vlan_table(priv, true);
 }
 
-static const struct dsa_8021q_ops sja1105_dsa_8021q_ops = {
-	.vlan_add	= sja1105_dsa_8021q_vlan_add,
-	.vlan_del	= sja1105_dsa_8021q_vlan_del,
-};
-
 /* The programming model for the SJA1105 switch is "all-at-once" via static
  * configuration tables. Some of these can be dynamically modified at runtime,
  * but not the xMII mode parameters table.
@@ -3153,6 +3148,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.crosschip_bridge_join	= sja1105_crosschip_bridge_join,
 	.crosschip_bridge_leave	= sja1105_crosschip_bridge_leave,
 	.devlink_info_get	= sja1105_devlink_info_get,
+	.tag_8021q_vlan_add	= sja1105_dsa_8021q_vlan_add,
+	.tag_8021q_vlan_del	= sja1105_dsa_8021q_vlan_del,
 };
 
 static const struct of_device_id sja1105_dt_ids[];
@@ -3296,8 +3293,7 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->mgmt_lock);
 
-	rc = dsa_tag_8021q_register(ds, &sja1105_dsa_8021q_ops,
-				    htons(ETH_P_8021Q));
+	rc = dsa_tag_8021q_register(ds, htons(ETH_P_8021Q));
 	if (rc)
 		return rc;
 

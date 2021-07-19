@@ -116,13 +116,12 @@ EXPORT_SYMBOL_GPL(vid_is_dsa_8021q);
 static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
 			       u16 flags, bool enabled)
 {
-	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (enabled)
-		return ctx->ops->vlan_add(ctx->ds, dp->index, vid, flags);
+		return ds->ops->tag_8021q_vlan_add(ds, dp->index, vid, flags);
 
-	return ctx->ops->vlan_del(ctx->ds, dp->index, vid);
+	return ds->ops->tag_8021q_vlan_del(ds, dp->index, vid);
 }
 
 /* RX VLAN tagging (left) and TX VLAN tagging (right) setup shown for a single
@@ -413,9 +412,7 @@ int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_leave);
 
-int dsa_tag_8021q_register(struct dsa_switch *ds,
-			   const struct dsa_8021q_ops *ops,
-			   __be16 proto)
+int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto)
 {
 	struct dsa_8021q_context *ctx;
 
@@ -423,7 +420,6 @@ int dsa_tag_8021q_register(struct dsa_switch *ds,
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->ops = ops;
 	ctx->proto = proto;
 	ctx->ds = ds;
 

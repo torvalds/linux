@@ -231,11 +231,6 @@ static int felix_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	return 0;
 }
 
-static const struct dsa_8021q_ops felix_tag_8021q_ops = {
-	.vlan_add	= felix_tag_8021q_vlan_add,
-	.vlan_del	= felix_tag_8021q_vlan_del,
-};
-
 /* Alternatively to using the NPI functionality, that same hardware MAC
  * connected internally to the enetc or fman DSA master can be configured to
  * use the software-defined tag_8021q frame format. As far as the hardware is
@@ -425,8 +420,7 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
 	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_BC);
 
-	err = dsa_tag_8021q_register(ds, &felix_tag_8021q_ops,
-				     htons(ETH_P_8021AD));
+	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
 	if (err)
 		return err;
 
@@ -1675,6 +1669,8 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_mrp_del			= felix_mrp_del,
 	.port_mrp_add_ring_role		= felix_mrp_add_ring_role,
 	.port_mrp_del_ring_role		= felix_mrp_del_ring_role,
+	.tag_8021q_vlan_add		= felix_tag_8021q_vlan_add,
+	.tag_8021q_vlan_del		= felix_tag_8021q_vlan_del,
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)

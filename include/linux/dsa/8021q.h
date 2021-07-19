@@ -21,22 +21,14 @@ struct dsa_8021q_crosschip_link {
 	refcount_t refcount;
 };
 
-struct dsa_8021q_ops {
-	int (*vlan_add)(struct dsa_switch *ds, int port, u16 vid, u16 flags);
-	int (*vlan_del)(struct dsa_switch *ds, int port, u16 vid);
-};
-
 struct dsa_8021q_context {
-	const struct dsa_8021q_ops *ops;
 	struct dsa_switch *ds;
 	struct list_head crosschip_links;
 	/* EtherType of RX VID, used for filtering on master interface */
 	__be16 proto;
 };
 
-int dsa_tag_8021q_register(struct dsa_switch *ds,
-			   const struct dsa_8021q_ops *ops,
-			   __be16 proto);
+int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto);
 
 void dsa_tag_8021q_unregister(struct dsa_switch *ds);
 
