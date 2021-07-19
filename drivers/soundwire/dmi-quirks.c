@@ -16,11 +16,11 @@ struct adr_remap {
 };
 
 /*
- * HP Spectre 360 Convertible devices do not expose the correct _ADR
- * in the DSDT.
+ * Some TigerLake devices based on an initial Intel BIOS do not expose
+ * the correct _ADR in the DSDT.
  * Remap the bad _ADR values to the ones reported by hardware
  */
-static const struct adr_remap hp_spectre_360[] = {
+static const struct adr_remap intel_tgl_bios[] = {
 	{
 		0x000010025D070100ull,
 		0x000020025D071100ull
@@ -61,7 +61,15 @@ static const struct dmi_system_id adr_remap_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x360 Convertible"),
 		},
-		.driver_data = (void *)hp_spectre_360,
+		.driver_data = (void *)intel_tgl_bios,
+	},
+	{
+		/* quirk used for NUC15 'Bishop County' LAPBC510 and LAPBC710 skews */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel(R) Client Systems"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LAPBC"),
+		},
+		.driver_data = (void *)intel_tgl_bios,
 	},
 	{
 		.matches = {
