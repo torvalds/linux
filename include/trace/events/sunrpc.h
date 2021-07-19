@@ -1063,8 +1063,7 @@ TRACE_EVENT(xprt_retransmit,
 		__field(int, version)
 		__string(progname,
 			 rqst->rq_task->tk_client->cl_program->name)
-		__string(procedure,
-			 rqst->rq_task->tk_msg.rpc_proc->p_name)
+		__string(procname, rpc_proc_name(rqst->rq_task))
 	),
 
 	TP_fast_assign(
@@ -1078,14 +1077,15 @@ TRACE_EVENT(xprt_retransmit,
 		__assign_str(progname,
 			     task->tk_client->cl_program->name);
 		__entry->version = task->tk_client->cl_vers;
-		__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
+		__assign_str(procname, rpc_proc_name(task));
 	),
 
 	TP_printk(
 		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__get_str(progname), __entry->version, __get_str(procedure),
-		__entry->ntrans)
+		__get_str(progname), __entry->version, __get_str(procname),
+		__entry->ntrans
+	)
 );
 
 TRACE_EVENT(xprt_ping,
