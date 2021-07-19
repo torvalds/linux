@@ -1113,6 +1113,24 @@ br_multicast_port_ctx_vlan_disabled(const struct net_bridge_mcast_port *pmctx)
 	return br_multicast_port_ctx_is_vlan(pmctx) &&
 	       !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED);
 }
+
+static inline bool
+br_multicast_port_ctx_state_disabled(const struct net_bridge_mcast_port *pmctx)
+{
+	return pmctx->port->state == BR_STATE_DISABLED ||
+	       (br_multicast_port_ctx_is_vlan(pmctx) &&
+		(br_multicast_port_ctx_vlan_disabled(pmctx) ||
+		 pmctx->vlan->state == BR_STATE_DISABLED));
+}
+
+static inline bool
+br_multicast_port_ctx_state_stopped(const struct net_bridge_mcast_port *pmctx)
+{
+	return br_multicast_port_ctx_state_disabled(pmctx) ||
+	       pmctx->port->state == BR_STATE_BLOCKING ||
+	       (br_multicast_port_ctx_is_vlan(pmctx) &&
+		pmctx->vlan->state == BR_STATE_BLOCKING);
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge_mcast **brmctx,
 				   struct net_bridge_mcast_port **pmctx,
