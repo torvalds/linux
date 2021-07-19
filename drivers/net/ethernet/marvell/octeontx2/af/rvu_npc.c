@@ -468,6 +468,8 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 {
 	int bank = npc_get_bank(mcam, index);
 	int kw = 0, actbank, actindex;
+	u8 tx_intf_mask = ~intf & 0x3;
+	u8 tx_intf = intf;
 	u64 cam0, cam1;
 
 	actbank = bank; /* Save bank id, to set action later on */
@@ -488,12 +490,21 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	 */
 	for (; bank < (actbank + mcam->banks_per_entry); bank++, kw = kw + 2) {
 		/* Interface should be set in all banks */
+		if (is_npc_intf_tx(intf)) {
+			/* Last bit must be set and rest don't care
+			 * for TX interfaces
+			 */
+			tx_intf_mask = 0x1;
+			tx_intf = intf & tx_intf_mask;
+			tx_intf_mask = ~tx_intf & tx_intf_mask;
+		}
+
 		rvu_write64(rvu, blkaddr,
 			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 1),
-			    intf);
+			    tx_intf);
 		rvu_write64(rvu, blkaddr,
 			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 0),
-			    ~intf & 0x3);
+			    tx_intf_mask);
 
 		/* Set the match key */
 		npc_get_keyword(entry, kw, &cam0, &cam1);

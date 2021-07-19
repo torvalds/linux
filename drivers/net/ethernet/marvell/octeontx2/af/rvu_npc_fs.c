@@ -949,9 +949,16 @@ static void npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_tx_action action;
+	u64 mask = ~0ULL;
+
+	/* If AF is installing then do not care about
+	 * PF_FUNC in Send Descriptor
+	 */
+	if (is_pffunc_af(req->hdr.pcifunc))
+		mask = 0;
 
 	npc_update_entry(rvu, NPC_PF_FUNC, entry, (__force u16)htons(target),
-			 0, ~0ULL, 0, NIX_INTF_TX);
+			 0, mask, 0, NIX_INTF_TX);
 
 	*(u64 *)&action = 0x00;
 	action.op = req->op;
