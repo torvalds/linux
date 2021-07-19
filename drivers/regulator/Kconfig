@@ -1044,7 +1044,7 @@ config REGULATOR_RT6160
 	help
 	  This adds support for voltage regulator in Richtek RT6160.
 	  This device automatically change voltage output mode from
-	  Buck or Boost. The mode transistion depend on the input source voltage.
+	  Buck or Boost. The mode transition depend on the input source voltage.
 	  The wide output range is from 2025mV to 5200mV and can be used on most
 	  common application scenario.
 
@@ -1053,7 +1053,7 @@ config REGULATOR_RT6245
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  This adds supprot for Richtek RT6245 voltage regulator.
+	  This adds support for Richtek RT6245 voltage regulator.
 	  It can support up to 14A output current and adjustable output voltage
 	  from 0.4375V to 1.3875V, per step 12.5mV.
 
