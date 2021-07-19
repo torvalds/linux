@@ -214,8 +214,8 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 		err = dsa_8021q_vid_apply(ctx, i, rx_vid, flags, enabled);
 		if (err) {
 			dev_err(ctx->ds->dev,
-				"Failed to apply RX VID %d to port %d: %d\n",
-				rx_vid, port, err);
+				"Failed to apply RX VID %d to port %d: %pe\n",
+				rx_vid, port, ERR_PTR(err));
 			return err;
 		}
 	}
@@ -226,8 +226,8 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 	err = dsa_8021q_vid_apply(ctx, upstream, rx_vid, 0, enabled);
 	if (err) {
 		dev_err(ctx->ds->dev,
-			"Failed to apply RX VID %d to port %d: %d\n",
-			rx_vid, port, err);
+			"Failed to apply RX VID %d to port %d: %pe\n",
+			rx_vid, port, ERR_PTR(err));
 		return err;
 	}
 
@@ -242,15 +242,15 @@ static int dsa_8021q_setup_port(struct dsa_8021q_context *ctx, int port,
 				  enabled);
 	if (err) {
 		dev_err(ctx->ds->dev,
-			"Failed to apply TX VID %d on port %d: %d\n",
-			tx_vid, port, err);
+			"Failed to apply TX VID %d on port %d: %pe\n",
+			tx_vid, port, ERR_PTR(err));
 		return err;
 	}
 	err = dsa_8021q_vid_apply(ctx, upstream, tx_vid, 0, enabled);
 	if (err) {
 		dev_err(ctx->ds->dev,
-			"Failed to apply TX VID %d on port %d: %d\n",
-			tx_vid, upstream, err);
+			"Failed to apply TX VID %d on port %d: %pe\n",
+			tx_vid, upstream, ERR_PTR(err));
 		return err;
 	}
 
@@ -267,8 +267,8 @@ int dsa_8021q_setup(struct dsa_8021q_context *ctx, bool enabled)
 		err = dsa_8021q_setup_port(ctx, port, enabled);
 		if (err < 0) {
 			dev_err(ctx->ds->dev,
-				"Failed to setup VLAN tagging for port %d: %d\n",
-				port, err);
+				"Failed to setup VLAN tagging for port %d: %pe\n",
+				port, ERR_PTR(err));
 			return err;
 		}
 	}
