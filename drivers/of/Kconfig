@@ -14,7 +14,7 @@ if OF
 
 config DTC_SYMBOLS
 	bool "Enable dtc generation of symbols for overlays support"
-	depends on DTC
+	depends on DTC && ARCH_ROCKCHIP
 	help
 	  Set DTC_FLAGS += -@
 	  Android OS must enable this option.
