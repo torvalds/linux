@@ -192,6 +192,44 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge_mcast *brmctx,
 	return br_mdb_ip_get_rcu(br, &ip);
 }
 
+/* IMPORTANT: this function must be used only when the contexts cannot be
+ * passed down (e.g. timer) and must be used for read-only purposes because
+ * the vlan snooping option can change, so it can return any context
+ * (non-vlan or vlan). Its initial intended purpose is to read timer values
+ * from the *current* context based on the option. At worst that could lead
+ * to inconsistent timers when the contexts are changed, i.e. src timer
+ * which needs to re-arm with a specific delay taken from the old context
+ */
+static struct net_bridge_mcast_port *
+br_multicast_pg_to_port_ctx(const struct net_bridge_port_group *pg)
+{
+	struct net_bridge_mcast_port *pmctx = &pg->key.port->multicast_ctx;
+	struct net_bridge_vlan *vlan;
+
+	lockdep_assert_held_once(&pg->key.port->br->multicast_lock);
+
+	/* if vlan snooping is disabled use the port's multicast context */
+	if (!pg->key.addr.vid ||
+	    !br_opt_get(pg->key.port->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED))
+		goto out;
+
+	/* locking is tricky here, due to different rules for multicast and
+	 * vlans we need to take rcu to find the vlan and make sure it has
+	 * the BR_VLFLAG_MCAST_ENABLED flag set, it can only change under
+	 * multicast_lock which must be already held here, so the vlan's pmctx
+	 * can safely be used on return
+	 */
+	rcu_read_lock();
+	vlan = br_vlan_find(nbp_vlan_group(pg->key.port), pg->key.addr.vid);
+	if (vlan && !br_multicast_port_ctx_vlan_disabled(&vlan->port_mcast_ctx))
+		pmctx = &vlan->port_mcast_ctx;
+	else
+		pmctx = NULL;
+	rcu_read_unlock();
+out:
+	return pmctx;
+}
+
 static bool br_port_group_equal(struct net_bridge_port_group *p,
 				struct net_bridge_port *port,
 				const unsigned char *src)
