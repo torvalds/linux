@@ -232,8 +232,15 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		retries = server->nr_targets;
 	}
 
-	if (!tcon->ses->need_reconnect && !tcon->need_reconnect)
+	spin_lock(&ses->chan_lock);
+	if (!cifs_chan_needs_reconnect(ses, server) && !tcon->need_reconnect) {
+		spin_unlock(&ses->chan_lock);
 		return 0;
+	}
+	cifs_dbg(FYI, "sess reconnect mask: 0x%lx, tcon reconnect: %d",
+		 tcon->ses->chans_need_reconnect,
+		 tcon->need_reconnect);
+	spin_unlock(&ses->chan_lock);
 
 	nls_codepage = load_nls_default();
 
@@ -262,8 +269,26 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		ses->binding_chan = cifs_ses_find_chan(ses, server);
 	}
 
+	/*
+	 * need to prevent multiple threads trying to simultaneously
+	 * reconnect the same SMB session
+	 */
+	spin_lock(&ses->chan_lock);
+	if (!cifs_chan_needs_reconnect(ses, server)) {
+		spin_unlock(&ses->chan_lock);
+
+		/* this just means that we only need to tcon */
+		if (tcon->need_reconnect)
+			goto skip_sess_setup;
+
+		rc = -EHOSTDOWN;
+		mutex_unlock(&ses->session_mutex);
+		goto out;
+	}
+	spin_unlock(&ses->chan_lock);
+
 	rc = cifs_negotiate_protocol(0, tcon->ses);
-	if (!rc && tcon->ses->need_reconnect) {
+	if (!rc) {
 		rc = cifs_setup_session(0, tcon->ses, nls_codepage);
 		if ((rc == -EACCES) && !tcon->retry) {
 			rc = -EHOSTDOWN;
@@ -284,6 +309,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		goto out;
 	}
 
+skip_sess_setup:
 	cifs_mark_open_files_invalid(tcon);
 	if (tcon->use_persistent)
 		tcon->need_reopen_files = true;
@@ -1359,13 +1385,19 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
+
+	spin_lock(&ses->chan_lock);
+	if (ses->binding)
+		cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
+	else
+		cifs_chan_clear_need_reconnect(ses, ses->server);
+	spin_unlock(&ses->chan_lock);
+
 	/* keep existing ses state if binding */
-	if (!ses->binding) {
-		spin_lock(&GlobalMid_Lock);
+	spin_lock(&GlobalMid_Lock);
+	if (!ses->binding)
 		ses->status = CifsGood;
-		ses->need_reconnect = false;
-		spin_unlock(&GlobalMid_Lock);
-	}
+	spin_unlock(&GlobalMid_Lock);
 
 	return rc;
 }
@@ -1704,8 +1736,12 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 		return -EIO;
 
 	/* no need to send SMB logoff if uid already closed due to reconnect */
-	if (ses->need_reconnect)
+	spin_lock(&ses->chan_lock);
+	if (CIFS_ALL_CHANS_NEED_RECONNECT(ses)) {
+		spin_unlock(&ses->chan_lock);
 		goto smb2_session_already_dead;
+	}
+	spin_unlock(&ses->chan_lock);
 
 	rc = smb2_plain_req_init(SMB2_LOGOFF, NULL, ses->server,
 				 (void **) &req, &total_len);
@@ -1913,8 +1949,13 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	if (!ses || !(ses->server))
 		return -EIO;
 
-	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
+	spin_lock(&ses->chan_lock);
+	if ((tcon->need_reconnect) ||
+	    (CIFS_ALL_CHANS_NEED_RECONNECT(tcon->ses))) {
+		spin_unlock(&ses->chan_lock);
 		return 0;
+	}
+	spin_unlock(&ses->chan_lock);
 
 	close_cached_dir_lease(&tcon->crfid);
 

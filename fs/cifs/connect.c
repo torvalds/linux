@@ -191,11 +191,23 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
-		ses->need_reconnect = true;
+		spin_lock(&ses->chan_lock);
+		if (cifs_chan_needs_reconnect(ses, server))
+			goto next_session;
+
+		cifs_chan_set_need_reconnect(ses, server);
+
+		/* If all channels need reconnect, then tcon needs reconnect */
+		if (!CIFS_ALL_CHANS_NEED_RECONNECT(ses))
+			goto next_session;
+
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list)
 			tcon->need_reconnect = true;
 		if (ses->tcon_ipc)
 			ses->tcon_ipc->need_reconnect = true;
+
+next_session:
+		spin_unlock(&ses->chan_lock);
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
@@ -1988,7 +2000,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 			 ses->status);
 
 		mutex_lock(&ses->session_mutex);
-		if (ses->need_reconnect) {
+		spin_lock(&ses->chan_lock);
+		if (cifs_chan_needs_reconnect(ses, server)) {
+			spin_unlock(&ses->chan_lock);
 			cifs_dbg(FYI, "Session needs reconnect\n");
 
 			rc = cifs_negotiate_protocol(xid, ses);
@@ -2009,7 +2023,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 				free_xid(xid);
 				return ERR_PTR(rc);
 			}
+			spin_lock(&ses->chan_lock);
 		}
+		spin_unlock(&ses->chan_lock);
 		mutex_unlock(&ses->session_mutex);
 
 		/* existing SMB ses has a server reference already */
@@ -2067,6 +2083,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	ses->chans[0].server = server;
 	ses->chan_count = 1;
 	ses->chan_max = ctx->multichannel ? ctx->max_channels:1;
+	ses->chans_need_reconnect = 1;
 	spin_unlock(&ses->chan_lock);
 
 	rc = cifs_negotiate_protocol(xid, ses);
@@ -2081,7 +2098,11 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	if (rc)
 		goto get_ses_fail;
 
-	/* success, put it on the list and add it as first channel */
+	/*
+	 * success, put it on the list and add it as first channel
+	 * note: the session becomes active soon after this. So you'll
+	 * need to lock before changing something in the session.
+	 */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -2161,6 +2182,9 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	/* tc_count can never go negative */
 	WARN_ON(tcon->tc_count < 0);
 
+	list_del_init(&tcon->tcon_list);
+	spin_unlock(&cifs_tcp_ses_lock);
+
 	if (tcon->use_witness) {
 		int rc;
 
@@ -2170,9 +2194,6 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 					__func__, rc);
 		}
 	}
-
-	list_del_init(&tcon->tcon_list);
-	spin_unlock(&cifs_tcp_ses_lock);
 
 	xid = get_xid();
 	if (ses->server->ops->tree_disconnect)

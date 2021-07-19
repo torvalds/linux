@@ -939,7 +939,6 @@ struct cifs_ses {
 	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	enum securityEnum sectype; /* what security flavor was specified? */
 	bool sign;		/* is signing required? */
-	bool need_reconnect:1; /* connection reset, uid now invalid */
 	bool domainAuto:1;
 	bool binding:1; /* are we binding the session? */
 	__u16 session_flags;
@@ -969,11 +968,25 @@ struct cifs_ses {
 	spinlock_t chan_lock;
 	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
+#define CIFS_ALL_CHANNELS_SET(ses)	\
+	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
+	test_bit((index), &(ses)->chans_need_reconnect)
+
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+
+	/*
+	 * chans_need_reconnect is a bitmap indicating which of the channels
+	 * under this smb session needs to be reconnected.
+	 * If not multichannel session, only one bit will be used.
+	 */
+	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
 };
 
