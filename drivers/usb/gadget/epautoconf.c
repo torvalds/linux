@@ -67,7 +67,7 @@ struct usb_ep *usb_ep_autoconfig_ss(
 )
 {
 	struct usb_ep	*ep;
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	u8 type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 #endif
 
@@ -113,7 +113,7 @@ found_ep:
 	ep->desc = NULL;
 	ep->comp_desc = NULL;
 	ep->claimed = true;
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	ep->transfer_type = type;
 	if (gadget_is_superspeed(gadget) && ep_comp) {
 		switch (type) {
