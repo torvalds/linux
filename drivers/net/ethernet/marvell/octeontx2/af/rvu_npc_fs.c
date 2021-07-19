@@ -910,9 +910,14 @@ static void rvu_mcam_add_counter_to_rule(struct rvu *rvu, u16 pcifunc,
 
 static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct mcam_entry *entry,
-				struct npc_install_flow_req *req, u16 target)
+				struct npc_install_flow_req *req,
+				u16 target, bool pf_set_vfs_mac)
 {
+	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct nix_rx_action action;
+
+	if (rswitch->mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && pf_set_vfs_mac)
+		req->chan_mask = 0x0; /* Do not care channel */
 
 	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
 			 0, NIX_INTF_RX);
@@ -1007,7 +1012,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			req->intf);
 
 	if (is_npc_intf_rx(req->intf))
-		npc_update_rx_entry(rvu, pfvf, entry, req, target);
+		npc_update_rx_entry(rvu, pfvf, entry, req, target, pf_set_vfs_mac);
 	else
 		npc_update_tx_entry(rvu, pfvf, entry, req, target);
 

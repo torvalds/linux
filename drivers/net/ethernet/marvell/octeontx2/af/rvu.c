@@ -1314,7 +1314,7 @@ int rvu_mbox_handler_detach_resources(struct rvu *rvu,
 	return rvu_detach_rsrcs(rvu, detach, detach->hdr.pcifunc);
 }
 
-static int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
+int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int blkaddr = BLKADDR_NIX0, vf;
@@ -3006,6 +3006,8 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Initialize debugfs */
 	rvu_dbg_init(rvu);
+
+	mutex_init(&rvu->rswitch.switch_lock);
 
 	return 0;
 err_dl:
