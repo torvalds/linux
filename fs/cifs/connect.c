@@ -1943,16 +1943,18 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 			 ses->status);
 
 		mutex_lock(&ses->session_mutex);
-		rc = cifs_negotiate_protocol(xid, ses);
-		if (rc) {
-			mutex_unlock(&ses->session_mutex);
-			/* problem -- put our ses reference */
-			cifs_put_smb_ses(ses);
-			free_xid(xid);
-			return ERR_PTR(rc);
-		}
 		if (ses->need_reconnect) {
 			cifs_dbg(FYI, "Session needs reconnect\n");
+
+			rc = cifs_negotiate_protocol(xid, ses);
+			if (rc) {
+				mutex_unlock(&ses->session_mutex);
+				/* problem -- put our ses reference */
+				cifs_put_smb_ses(ses);
+				free_xid(xid);
+				return ERR_PTR(rc);
+			}
+
 			rc = cifs_setup_session(xid, ses,
 						ctx->local_nls);
 			if (rc) {
