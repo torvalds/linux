@@ -55,13 +55,13 @@ struct decomp {
 struct perf_tool;
 
 struct perf_session *__perf_session__new(struct perf_data *data,
-					 bool repipe,
+					 bool repipe, int repipe_fd,
 					 struct perf_tool *tool);
 
 static inline struct perf_session *perf_session__new(struct perf_data *data,
 						     struct perf_tool *tool)
 {
-	return __perf_session__new(data, false, tool);
+	return __perf_session__new(data, false, -1, tool);
 }
 
 void perf_session__delete(struct perf_session *session);
