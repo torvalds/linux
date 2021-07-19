@@ -824,6 +824,13 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	return 0;
 }
 
+static inline bool touch_is_muted(struct wacom_wac *wacom_wac)
+{
+	return wacom_wac->probe_complete &&
+	       wacom_wac->shared->has_mute_touch_switch &&
+	       !wacom_wac->shared->is_touch_on;
+}
+
 static inline bool report_touch_events(struct wacom_wac *wacom)
 {
 	return (touch_arbitration ? !wacom->shared->stylus_in_proximity : 1);
@@ -1525,11 +1532,8 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	int byte_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
 	int y_offset = 2;
 
-	if (wacom->shared->has_mute_touch_switch &&
-	    !wacom->shared->is_touch_on) {
-		if (!wacom->shared->touch_down)
-			return 0;
-	}
+	if (touch_is_muted(wacom) && !wacom->shared->touch_down)
+		return 0;
 
 	if (wacom->features.type == WACOM_27QHDT) {
 		current_num_contacts = data[63];
@@ -2536,8 +2540,7 @@ static void wacom_wac_finger_slot(struct wacom_wac *wacom_wac,
 	bool prox = hid_data->tipswitch &&
 		    report_touch_events(wacom_wac);
 
-	if (wacom_wac->shared->has_mute_touch_switch &&
-	    !wacom_wac->shared->is_touch_on) {
+	if (touch_is_muted(wacom_wac)) {
 		if (!wacom_wac->shared->touch_down)
 			return;
 		prox = false;
@@ -2593,10 +2596,7 @@ static void wacom_wac_finger_event(struct hid_device *hdev,
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 	struct wacom_features *features = &wacom->wacom_wac.features;
 
-	/* don't process touch events when touch is off */
-	if (wacom_wac->probe_complete &&
-	    !wacom_wac->shared->is_touch_on &&
-	    !wacom_wac->shared->touch_down)
+	if (touch_is_muted(wacom_wac) && !wacom_wac->shared->touch_down)
 		return;
 
 	if (wacom_wac->is_invalid_bt_frame)
@@ -2648,10 +2648,7 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 	struct hid_data* hid_data = &wacom_wac->hid_data;
 	int i;
 
-	/* don't process touch events when touch is off */
-	if (wacom_wac->probe_complete &&
-	    !wacom_wac->shared->is_touch_on &&
-	    !wacom_wac->shared->touch_down)
+	if (touch_is_muted(wacom_wac) && !wacom_wac->shared->touch_down)
 		return;
 
 	wacom_wac->is_invalid_bt_frame = false;
