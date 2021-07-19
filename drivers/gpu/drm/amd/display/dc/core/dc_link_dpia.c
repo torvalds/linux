@@ -202,30 +202,34 @@ static uint8_t dpia_build_set_config_data(enum dpia_set_config_type type,
 }
 
 /* Convert DC training pattern to DPIA training stage. */
-static enum dpia_set_config_ts convert_trng_ptn_to_trng_stg(enum dc_dp_training_pattern tps)
+static enum dc_status convert_trng_ptn_to_trng_stg(enum dc_dp_training_pattern tps, enum dpia_set_config_ts *ts)
 {
-	enum dpia_set_config_ts ts;
+	enum dc_status status = DC_OK;
 
 	switch (tps) {
 	case DP_TRAINING_PATTERN_SEQUENCE_1:
-		ts = DPIA_TS_TPS1;
+		*ts = DPIA_TS_TPS1;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_2:
-		ts = DPIA_TS_TPS2;
+		*ts = DPIA_TS_TPS2;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_3:
-		ts = DPIA_TS_TPS3;
+		*ts = DPIA_TS_TPS3;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_4:
-		ts = DPIA_TS_TPS4;
+		*ts = DPIA_TS_TPS4;
 		break;
-	default:
-		ts = DPIA_TS_DPRX_DONE;
-		ASSERT(false); /* TPS not supported by helper function. */
+	case DP_TRAINING_PATTERN_VIDEOIDLE:
+		*ts = DPIA_TS_DPRX_DONE;
+		break;
+	default: /* TPS not supported by helper function. */
+		ASSERT(false);
+		*ts = DPIA_TS_DPRX_DONE;
+		status = DC_UNSUPPORTED_VALUE;
 		break;
 	}
 
-	return ts;
+	return status;
 }
 
 /* Write training pattern to DPCD. */
@@ -336,10 +340,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 		/* DPOA-to-x */
 		/* Instruct DPOA to transmit TPS1 then update DPCD. */
 		if (retry_count == 0) {
-			ts = convert_trng_ptn_to_trng_stg(lt_settings->pattern_for_cr);
-			status = core_link_send_set_config(link,
-					DPIA_SET_CFG_SET_TRAINING,
-					ts);
+			status = convert_trng_ptn_to_trng_stg(lt_settings->pattern_for_cr, &ts);
 			if (status != DC_OK) {
 				result = LINK_TRAINING_ABORT;
 				break;
@@ -421,13 +422,14 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	if (link->is_hpd_pending)
 		result = LINK_TRAINING_ABORT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n"
-		" -hop(%d)\n - result(%d)\n - retries(%d)\n",
+	DC_LOG_HW_LINK_TRAINING(
+		"%s\n DPIA(%d) clock recovery\n -hop(%d)\n - result(%d)\n - retries(%d)\n - status(%d)\n",
 		__func__,
 		link->link_id.enum_id - ENUM_ID_1,
 		hop,
 		result,
-		retry_count);
+		retry_count,
+		status);
 
 	return result;
 }
@@ -631,7 +633,11 @@ static enum link_training_result dpia_training_eq_non_transparent(
 
 		/* Instruct DPOA to transmit TPSn then update DPCD. */
 		if (retries_eq == 0) {
-			ts = convert_trng_ptn_to_trng_stg(tr_pattern);
+			status = convert_trng_ptn_to_trng_stg(tr_pattern, &ts);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
 			status = core_link_send_set_config(link,
 					DPIA_SET_CFG_SET_TRAINING,
 					ts);
@@ -712,13 +718,14 @@ static enum link_training_result dpia_training_eq_non_transparent(
 	if (link->is_hpd_pending)
 		result = LINK_TRAINING_ABORT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n"
-		" - hop(%d)\n - result(%d)\n - retries(%d)\n",
+	DC_LOG_HW_LINK_TRAINING(
+		"%s\n DPIA(%d) equalization\n - hop(%d)\n - result(%d)\n - retries(%d)\n - status(%d)\n",
 		__func__,
 		link->link_id.enum_id - ENUM_ID_1,
 		hop,
 		result,
-		retries_eq);
+		retries_eq,
+		status);
 
 	return result;
 }
