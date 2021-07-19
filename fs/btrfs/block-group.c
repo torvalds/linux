@@ -2105,11 +2105,22 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 		bg->used = em->len;
 		bg->flags = map->type;
 		ret = btrfs_add_block_group_cache(fs_info, bg);
+		/*
+		 * We may have some valid block group cache added already, in
+		 * that case we skip to the next one.
+		 */
+		if (ret == -EEXIST) {
+			ret = 0;
+			btrfs_put_block_group(bg);
+			continue;
+		}
+
 		if (ret) {
 			btrfs_remove_free_space_cache(bg);
 			btrfs_put_block_group(bg);
 			break;
 		}
+
 		btrfs_update_space_info(fs_info, bg->flags, em->len, em->len,
 					0, 0, &space_info);
 		bg->space_info = space_info;
@@ -2212,6 +2223,14 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	ret = check_chunk_block_group_mappings(info);
 error:
 	btrfs_free_path(path);
+	/*
+	 * We've hit some error while reading the extent tree, and have
+	 * rescue=ibadroots mount option.
+	 * Try to fill the tree using dummy block groups so that the user can
+	 * continue to mount and grab their data.
+	 */
+	if (ret && btrfs_test_opt(info, IGNOREBADROOTS))
+		ret = fill_dummy_bgs(info);
 	return ret;
 }
 
