@@ -173,8 +173,8 @@ static const struct amdgpu_video_codec_info yc_video_codecs_decode_array[] = {
 };
 
 static const struct amdgpu_video_codecs yc_video_codecs_decode = {
-	.codec_count = ARRAY_SIZE(bg_video_codecs_decode_array),
-	.codec_array = bg_video_codecs_decode_array,
+	.codec_count = ARRAY_SIZE(yc_video_codecs_decode_array),
+	.codec_array = yc_video_codecs_decode_array,
 };
 
 static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
