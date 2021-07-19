@@ -98,6 +98,7 @@ struct hclgevf_mbx_resp_status {
 	u32 origin_mbx_msg;
 	bool received_resp;
 	int resp_status;
+	u16 match_id;
 	u8 additional_info[HCLGE_MBX_MAX_RESP_DATA_SIZE];
 };
 
