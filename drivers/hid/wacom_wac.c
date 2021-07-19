@@ -2584,6 +2584,12 @@ static void wacom_wac_finger_event(struct hid_device *hdev,
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 	struct wacom_features *features = &wacom->wacom_wac.features;
 
+	/* don't process touch events when touch is off */
+	if (wacom_wac->probe_complete &&
+	    !wacom_wac->shared->is_touch_on &&
+	    !wacom_wac->shared->touch_down)
+		return;
+
 	if (wacom_wac->is_invalid_bt_frame)
 		return;
 
@@ -2632,6 +2638,12 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct hid_data* hid_data = &wacom_wac->hid_data;
 	int i;
+
+	/* don't process touch events when touch is off */
+	if (wacom_wac->probe_complete &&
+	    !wacom_wac->shared->is_touch_on &&
+	    !wacom_wac->shared->touch_down)
+		return;
 
 	wacom_wac->is_invalid_bt_frame = false;
 

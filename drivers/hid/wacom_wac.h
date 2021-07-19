@@ -337,6 +337,7 @@ struct wacom_wac {
 	int tool[2];
 	int id[2];
 	__u64 serial[2];
+	bool probe_complete;
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;
