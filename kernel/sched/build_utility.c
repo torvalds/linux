@@ -9,13 +9,52 @@
  *   coalescing source files to amortize header inclusion
  *   cost. )
  */
+#include <linux/sched/clock.h>
+#include <linux/sched/cputime.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/isolation.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/rseq_api.h>
+#include <linux/sched/task_stack.h>
+
+#include <linux/cpufreq.h>
+#include <linux/cpumask_api.h>
+#include <linux/cpuset.h>
+#include <linux/ctype.h>
+#include <linux/debugfs.h>
+#include <linux/energy_model.h>
+#include <linux/hashtable_api.h>
+#include <linux/irq.h>
+#include <linux/kobject_api.h>
+#include <linux/membarrier.h>
+#include <linux/mempolicy.h>
+#include <linux/nmi.h>
+#include <linux/nospec.h>
+#include <linux/proc_fs.h>
+#include <linux/psi.h>
+#include <linux/psi.h>
+#include <linux/ptrace_api.h>
+#include <linux/sched_clock.h>
+#include <linux/security.h>
+#include <linux/spinlock_api.h>
+#include <linux/swait_api.h>
+#include <linux/timex.h>
+#include <linux/utsname.h>
+#include <linux/wait_api.h>
+#include <linux/workqueue_api.h>
+
+#ifdef CONFIG_PARAVIRT
+# include <asm/paravirt.h>
+#endif
+
+#include <uapi/linux/prctl.h>
+#include <uapi/linux/sched/types.h>
 
 #include "sched.h"
 #include "sched-pelt.h"
 #include "stats.h"
 #include "autogroup.h"
-
-#include <linux/sched_clock.h>
 
 #include "clock.c"
 
