@@ -2147,11 +2147,11 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 	ret = kvm_skip_emulated_instruction(vcpu);
 
 	if (vmload) {
-		svm_copy_vmloadsave_state(vmcb12, svm->vmcb);
+		svm_copy_vmloadsave_state(svm->vmcb, vmcb12);
 		svm->sysenter_eip_hi = 0;
 		svm->sysenter_esp_hi = 0;
 	} else {
-		svm_copy_vmloadsave_state(svm->vmcb, vmcb12);
+		svm_copy_vmloadsave_state(vmcb12, svm->vmcb);
 	}
 
 	kvm_vcpu_unmap(vcpu, &map, true);
@@ -4345,8 +4345,8 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 
 		BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
 
-		svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
-				     map_save.hva + 0x400);
+		svm_copy_vmrun_state(map_save.hva + 0x400,
+				     &svm->vmcb01.ptr->save);
 
 		kvm_vcpu_unmap(vcpu, &map_save, true);
 	}
@@ -4394,8 +4394,8 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 					 &map_save) == -EINVAL)
 				return 1;
 
-			svm_copy_vmrun_state(map_save.hva + 0x400,
-					     &svm->vmcb01.ptr->save);
+			svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
+					     map_save.hva + 0x400);
 
 			kvm_vcpu_unmap(vcpu, &map_save, true);
 		}
