@@ -11,7 +11,6 @@
 struct dsa_switch;
 struct sk_buff;
 struct net_device;
-struct packet_type;
 struct dsa_8021q_context;
 
 struct dsa_8021q_crosschip_link {
