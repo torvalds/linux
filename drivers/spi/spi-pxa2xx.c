@@ -722,11 +722,8 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 static void handle_bad_msg(struct driver_data *drv_data)
 {
+	int_stop_and_reset(drv_data);
 	pxa2xx_spi_off(drv_data);
-	clear_SSCR1_bits(drv_data, drv_data->int_cr1);
-	if (!pxa25x_ssp_comp(drv_data))
-		pxa2xx_spi_write(drv_data, SSTO, 0);
-	write_SSSR_CS(drv_data, drv_data->clear_sr);
 
 	dev_err(drv_data->ssp->dev, "bad message state in interrupt handler\n");
 }
@@ -1154,13 +1151,10 @@ static void pxa2xx_spi_handle_err(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
+	int_stop_and_reset(drv_data);
+
 	/* Disable the SSP */
 	pxa2xx_spi_off(drv_data);
-	/* Clear and disable interrupts and service requests */
-	write_SSSR_CS(drv_data, drv_data->clear_sr);
-	clear_SSCR1_bits(drv_data, drv_data->int_cr1 | drv_data->dma_cr1);
-	if (!pxa25x_ssp_comp(drv_data))
-		pxa2xx_spi_write(drv_data, SSTO, 0);
 
 	/*
 	 * Stop the DMA if running. Note DMA callback handler may have unset
