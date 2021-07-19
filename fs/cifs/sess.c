@@ -347,6 +347,11 @@ out:
 		/* we rely on all bits beyond chan_count to be clear */
 		cifs_chan_clear_need_reconnect(ses, chan->server);
 		ses->chan_count--;
+		/*
+		 * chan_count should never reach 0 as at least the primary
+		 * channel is always allocated
+		 */
+		WARN_ON(ses->chan_count < 1);
 		spin_unlock(&ses->chan_lock);
 	}
 
