@@ -162,6 +162,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	if (smb2_command == SMB2_TREE_CONNECT || smb2_command == SMB2_IOCTL)
 		return 0;
 
+	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->tidStatus == CifsExiting) {
 		/*
 		 * only tree disconnect, open, and write,
@@ -171,11 +172,13 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		if ((smb2_command != SMB2_WRITE) &&
 		   (smb2_command != SMB2_CREATE) &&
 		   (smb2_command != SMB2_TREE_DISCONNECT)) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_dbg(FYI, "can not send cmd %d while umounting\n",
 				 smb2_command);
 			return -ENODEV;
 		}
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 	if ((!tcon->ses) || (tcon->ses->status == CifsExiting) ||
 	    (!tcon->ses->server) || !server)
 		return -EIO;
@@ -214,8 +217,12 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		}
 
 		/* are we still trying to reconnect? */
-		if (server->tcpStatus != CifsNeedReconnect)
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus != CifsNeedReconnect) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			break;
+		}
+		spin_unlock(&cifs_tcp_ses_lock);
 
 		if (retries && --retries)
 			continue;
@@ -255,11 +262,14 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	 * and the server never sends an answer the socket will be closed
 	 * and tcpStatus set to reconnect.
 	 */
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		rc = -EHOSTDOWN;
 		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * need to prevent multiple threads trying to simultaneously
@@ -1386,9 +1396,9 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	spin_unlock(&ses->chan_lock);
 
 	/* Even if one channel is active, session is in good state */
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	ses->status = CifsGood;
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	return rc;
 }
@@ -1917,7 +1927,9 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	tcon->share_flags = le32_to_cpu(rsp->ShareFlags);
 	tcon->capabilities = rsp->Capabilities; /* we keep caps little endian */
 	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
+	spin_lock(&cifs_tcp_ses_lock);
 	tcon->tidStatus = CifsGood;
+	spin_unlock(&cifs_tcp_ses_lock);
 	tcon->need_reconnect = false;
 	tcon->tid = le32_to_cpu(rsp->hdr.Id.SyncId.TreeId);
 	strlcpy(tcon->treeName, tree, sizeof(tcon->treeName));
@@ -3854,11 +3866,14 @@ SMB2_echo(struct TCP_Server_Info *server)
 
 	cifs_dbg(FYI, "In echo request\n");
 
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedNegotiate) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		/* No need to send echo on newly established connections */
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		return rc;
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	rc = smb2_plain_req_init(SMB2_ECHO, NULL, server,
 				 (void **)&req, &total_len);

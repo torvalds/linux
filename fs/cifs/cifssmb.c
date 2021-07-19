@@ -120,15 +120,18 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * only tree disconnect, open, and write, (and ulogoff which does not
 	 * have tcon) are allowed as we start force umount
 	 */
+	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->tidStatus == CifsExiting) {
 		if (smb_command != SMB_COM_WRITE_ANDX &&
 		    smb_command != SMB_COM_OPEN_ANDX &&
 		    smb_command != SMB_COM_TREE_DISCONNECT) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_dbg(FYI, "can not send cmd %d while umounting\n",
 				 smb_command);
 			return -ENODEV;
 		}
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	retries = server->nr_targets;
 
@@ -148,8 +151,12 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		}
 
 		/* are we still trying to reconnect? */
-		if (server->tcpStatus != CifsNeedReconnect)
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus != CifsNeedReconnect) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			break;
+		}
+		spin_unlock(&cifs_tcp_ses_lock);
 
 		if (retries && --retries)
 			continue;
@@ -186,11 +193,14 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * and the server never sends an answer the socket will be closed
 	 * and tcpStatus set to reconnect.
 	 */
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		rc = -EHOSTDOWN;
 		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * need to prevent multiple threads trying to simultaneously
