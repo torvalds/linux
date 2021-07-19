@@ -913,11 +913,9 @@ static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_rx_action action;
-	u64 chan_mask;
 
-	chan_mask = req->chan_mask ? req->chan_mask : ~0ULL;
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, chan_mask, 0,
-			 NIX_INTF_RX);
+	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
+			 0, NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
 	action.pf_func = target;
@@ -1171,7 +1169,9 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	if (err)
 		return err;
 
-	if (npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
+	/* Skip channel validation if AF is installing */
+	if (!is_pffunc_af(req->hdr.pcifunc) &&
+	    npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, target);
@@ -1187,6 +1187,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 		eth_broadcast_addr((u8 *)&req->mask.dmac);
 	}
 
+	/* Proceed if NIXLF is attached or not for TX rules */
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
 	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
 		return -EINVAL;
