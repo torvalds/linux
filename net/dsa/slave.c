@@ -2438,7 +2438,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 			 * On the other hand, FDB entries for local termination
 			 * should always be installed.
 			 */
-			if (!fdb_info->added_by_user && !fdb_info->is_local &&
+			if (switchdev_fdb_is_dynamically_learned(fdb_info) &&
 			    !dp->ds->assisted_learning_on_cpu_port)
 				return NOTIFY_DONE;
 

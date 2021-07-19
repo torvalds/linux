@@ -238,6 +238,12 @@ switchdev_notifier_info_to_extack(const struct switchdev_notifier_info *info)
 	return info->extack;
 }
 
+static inline bool
+switchdev_fdb_is_dynamically_learned(const struct switchdev_notifier_fdb_info *fdb_info)
+{
+	return !fdb_info->added_by_user && !fdb_info->is_local;
+}
+
 #ifdef CONFIG_NET_SWITCHDEV
 
 void switchdev_deferred_process(void);
