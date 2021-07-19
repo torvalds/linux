@@ -11,19 +11,17 @@
 struct dsa_switch;
 struct sk_buff;
 struct net_device;
-struct dsa_8021q_context;
 
-struct dsa_8021q_crosschip_link {
+struct dsa_tag_8021q_vlan {
 	struct list_head list;
 	int port;
-	struct dsa_8021q_context *other_ctx;
-	int other_port;
+	u16 vid;
 	refcount_t refcount;
 };
 
 struct dsa_8021q_context {
 	struct dsa_switch *ds;
-	struct list_head crosschip_links;
+	struct list_head vlans;
 	/* EtherType of RX VID, used for filtering on master interface */
 	__be16 proto;
 };
@@ -31,14 +29,6 @@ struct dsa_8021q_context {
 int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto);
 
 void dsa_tag_8021q_unregister(struct dsa_switch *ds);
-
-int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
-				    struct dsa_switch *other_ds,
-				    int other_port);
-
-int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
-				     struct dsa_switch *other_ds,
-				     int other_port);
 
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci);

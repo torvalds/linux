@@ -734,6 +734,12 @@ static int dsa_switch_event(struct notifier_block *nb,
 	case DSA_NOTIFIER_MRP_DEL_RING_ROLE:
 		err = dsa_switch_mrp_del_ring_role(ds, info);
 		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_ADD:
+		err = dsa_switch_tag_8021q_vlan_add(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_DEL:
+		err = dsa_switch_tag_8021q_vlan_del(ds, info);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;

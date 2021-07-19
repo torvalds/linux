@@ -39,6 +39,8 @@ enum {
 	DSA_NOTIFIER_MRP_DEL,
 	DSA_NOTIFIER_MRP_ADD_RING_ROLE,
 	DSA_NOTIFIER_MRP_DEL_RING_ROLE,
+	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
+	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -111,6 +113,14 @@ struct dsa_notifier_mrp_ring_role_info {
 	const struct switchdev_obj_ring_role_mrp *mrp;
 	int sw_index;
 	int port;
+};
+
+/* DSA_NOTIFIER_TAG_8021Q_VLAN_* */
+struct dsa_notifier_tag_8021q_vlan_info {
+	int tree_index;
+	int sw_index;
+	int port;
+	u16 vid;
 };
 
 struct dsa_switchdev_event_work {
@@ -253,6 +263,8 @@ int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr);
 void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr);
+int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid);
+void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid);
 extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 
 static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
@@ -391,6 +403,10 @@ int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
 			      struct dsa_notifier_bridge_info *info);
 int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 			       struct dsa_notifier_bridge_info *info);
+int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
+				  struct dsa_notifier_tag_8021q_vlan_info *info);
+int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
+				  struct dsa_notifier_tag_8021q_vlan_info *info);
 
 extern struct list_head dsa_tree_list;
 
