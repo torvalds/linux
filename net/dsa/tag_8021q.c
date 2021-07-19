@@ -473,5 +473,3 @@ void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id)
 	skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_rcv);
-
-MODULE_LICENSE("GPL v2");
