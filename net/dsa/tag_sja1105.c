@@ -358,20 +358,6 @@ static struct sk_buff
 	return skb;
 }
 
-static void sja1105_decode_subvlan(struct sk_buff *skb, u16 subvlan)
-{
-	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-	struct sja1105_port *sp = dp->priv;
-	u16 vid = sp->subvlan_map[subvlan];
-	u16 vlan_tci;
-
-	if (vid == VLAN_N_VID)
-		return;
-
-	vlan_tci = (skb->priority << VLAN_PRIO_SHIFT) | vid;
-	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
-}
-
 static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
 {
 	u16 tpid = ntohs(eth_hdr(skb)->h_proto);
@@ -389,8 +375,8 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
-	int source_port, switch_id, subvlan = 0;
 	struct sja1105_meta meta = {0};
+	int source_port, switch_id;
 	struct ethhdr *hdr;
 	bool is_link_local;
 	bool is_meta;
@@ -403,7 +389,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		dsa_8021q_rcv(skb, &source_port, &switch_id, &subvlan);
+		dsa_8021q_rcv(skb, &source_port, &switch_id);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -427,9 +413,6 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
 	}
-
-	if (subvlan)
-		sja1105_decode_subvlan(skb, subvlan);
 
 	return sja1105_rcv_meta_state_machine(skb, &meta, is_link_local,
 					      is_meta);
@@ -538,7 +521,7 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
-	int source_port = -1, switch_id = -1, subvlan = 0;
+	int source_port = -1, switch_id = -1;
 
 	skb->offload_fwd_mark = 1;
 
@@ -551,7 +534,7 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 
 	/* Packets with in-band control extensions might still have RX VLANs */
 	if (likely(sja1105_skb_has_tag_8021q(skb)))
-		dsa_8021q_rcv(skb, &source_port, &switch_id, &subvlan);
+		dsa_8021q_rcv(skb, &source_port, &switch_id);
 
 	skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
 	if (!skb->dev) {
@@ -560,9 +543,6 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 			    source_port, switch_id);
 		return NULL;
 	}
-
-	if (subvlan)
-		sja1105_decode_subvlan(skb, subvlan);
 
 	return skb;
 }
