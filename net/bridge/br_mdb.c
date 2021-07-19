@@ -29,16 +29,16 @@ static bool br_rports_have_mc_router(struct net_bridge *br)
 static bool
 br_ip4_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 {
-	*timer = br_timer_value(&port->ip4_mc_router_timer);
-	return !hlist_unhashed(&port->ip4_rlist);
+	*timer = br_timer_value(&port->multicast_ctx.ip4_mc_router_timer);
+	return !hlist_unhashed(&port->multicast_ctx.ip4_rlist);
 }
 
 static bool
 br_ip6_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	*timer = br_timer_value(&port->ip6_mc_router_timer);
-	return !hlist_unhashed(&port->ip6_rlist);
+	*timer = br_timer_value(&port->multicast_ctx.ip6_mc_router_timer);
+	return !hlist_unhashed(&port->multicast_ctx.ip6_rlist);
 #else
 	*timer = 0;
 	return false;
@@ -79,7 +79,7 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 		    nla_put_u32(skb, MDBA_ROUTER_PATTR_TIMER,
 				max(ip4_timer, ip6_timer)) ||
 		    nla_put_u8(skb, MDBA_ROUTER_PATTR_TYPE,
-			       p->multicast_router) ||
+			       p->multicast_ctx.multicast_router) ||
 		    (have_ip4_mc_rtr &&
 		     nla_put_u32(skb, MDBA_ROUTER_PATTR_INET_TIMER,
 				 ip4_timer)) ||
