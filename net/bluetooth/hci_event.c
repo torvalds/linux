@@ -4360,12 +4360,12 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 
 	bt_dev_dbg(hdev, "SCO connected with air mode: %02x", ev->air_mode);
 
-	switch (conn->setting & SCO_AIRMODE_MASK) {
-	case SCO_AIRMODE_CVSD:
+	switch (ev->air_mode) {
+	case 0x02:
 		if (hdev->notify)
 			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_CVSD);
 		break;
-	case SCO_AIRMODE_TRANSP:
+	case 0x03:
 		if (hdev->notify)
 			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_TRANSP);
 		break;

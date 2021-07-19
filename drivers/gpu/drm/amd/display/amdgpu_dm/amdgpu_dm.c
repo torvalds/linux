@@ -3702,6 +3702,23 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	     scaling_info->src_rect.y != 0))
 		return -EINVAL;
 
+	/*
+	 * For reasons we don't (yet) fully understand a non-zero
+	 * src_y coordinate into an NV12 buffer can cause a
+	 * system hang. To avoid hangs (and maybe be overly cautious)
+	 * let's reject both non-zero src_x and src_y.
+	 *
+	 * We currently know of only one use-case to reproduce a
+	 * scenario with non-zero src_x and src_y for NV12, which
+	 * is to gesture the YouTube Android app into full screen
+	 * on ChromeOS.
+	 */
+	if (state->fb &&
+	    state->fb->format->format == DRM_FORMAT_NV12 &&
+	    (scaling_info->src_rect.x != 0 ||
+	     scaling_info->src_rect.y != 0))
+		return -EINVAL;
+
 	scaling_info->src_rect.width = state->src_w >> 16;
 	if (scaling_info->src_rect.width == 0)
 		return -EINVAL;
@@ -8291,7 +8308,8 @@ skip_modeset:
 	BUG_ON(dm_new_crtc_state->stream == NULL);
 
 	/* Scaling or underscan settings */
-	if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state))
+	if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state) ||
+				drm_atomic_crtc_needs_modeset(new_crtc_state))
 		update_stream_scaling_settings(
 			&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
 
@@ -8743,6 +8761,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		    !new_crtc_state->color_mgmt_changed &&
 		    old_crtc_state->vrr_enabled == new_crtc_state->vrr_enabled)
 			continue;
+
+		ret = amdgpu_dm_verify_lut_sizes(new_crtc_state);
+		if (ret)
+			goto fail;
 
 		if (!new_crtc_state->enable)
 			continue;

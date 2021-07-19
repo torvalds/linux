@@ -127,9 +127,9 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
  */
 static int kmmpd(void *data)
 {
-	struct super_block *sb = ((struct mmpd_data *) data)->sb;
-	struct buffer_head *bh = ((struct mmpd_data *) data)->bh;
+	struct super_block *sb = (struct super_block *) data;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+	struct buffer_head *bh = EXT4_SB(sb)->s_mmp_bh;
 	struct mmp_struct *mmp;
 	ext4_fsblk_t mmp_block;
 	u32 seq = 0;
@@ -245,10 +245,16 @@ static int kmmpd(void *data)
 	retval = write_mmp_block(sb, bh);
 
 exit_thread:
-	EXT4_SB(sb)->s_mmp_tsk = NULL;
-	kfree(data);
-	brelse(bh);
 	return retval;
+}
+
+void ext4_stop_mmpd(struct ext4_sb_info *sbi)
+{
+	if (sbi->s_mmp_tsk) {
+		kthread_stop(sbi->s_mmp_tsk);
+		brelse(sbi->s_mmp_bh);
+		sbi->s_mmp_tsk = NULL;
+	}
 }
 
 /*
@@ -275,7 +281,6 @@ int ext4_multi_mount_protect(struct super_block *sb,
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 	struct buffer_head *bh = NULL;
 	struct mmp_struct *mmp = NULL;
-	struct mmpd_data *mmpd_data;
 	u32 seq;
 	unsigned int mmp_check_interval = le16_to_cpu(es->s_mmp_update_interval);
 	unsigned int wait_time = 0;
@@ -364,24 +369,17 @@ skip:
 		goto failed;
 	}
 
-	mmpd_data = kmalloc(sizeof(*mmpd_data), GFP_KERNEL);
-	if (!mmpd_data) {
-		ext4_warning(sb, "not enough memory for mmpd_data");
-		goto failed;
-	}
-	mmpd_data->sb = sb;
-	mmpd_data->bh = bh;
+	EXT4_SB(sb)->s_mmp_bh = bh;
 
 	/*
 	 * Start a kernel thread to update the MMP block periodically.
 	 */
-	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, mmpd_data, "kmmpd-%.*s",
+	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, sb, "kmmpd-%.*s",
 					     (int)sizeof(mmp->mmp_bdevname),
 					     bdevname(bh->b_bdev,
 						      mmp->mmp_bdevname));
 	if (IS_ERR(EXT4_SB(sb)->s_mmp_tsk)) {
 		EXT4_SB(sb)->s_mmp_tsk = NULL;
-		kfree(mmpd_data);
 		ext4_warning(sb, "Unable to create kmmpd thread for %s.",
 			     sb->s_id);
 		goto failed;

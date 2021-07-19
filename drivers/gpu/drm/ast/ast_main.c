@@ -98,7 +98,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
 		/* Double check it's actually working */
 		data = ast_read32(ast, 0xf004);
-		if (data != 0xFFFFFFFF) {
+		if ((data != 0xFFFFFFFF) && (data != 0x00)) {
 			/* P2A works, grab silicon revision */
 			ast->config_mode = ast_use_p2a;
 
@@ -406,7 +406,6 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 		return ast;
 	dev = &ast->base;
 
-	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
 	ast->regs = pcim_iomap(pdev, 1, 0);
@@ -445,6 +444,14 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 	ret = ast_mm_init(ast);
 	if (ret)
 		return ERR_PTR(ret);
+
+	/* map reserved buffer */
+	ast->dp501_fw_buf = NULL;
+	if (dev->vram_mm->vram_size < pci_resource_len(pdev, 0)) {
+		ast->dp501_fw_buf = pci_iomap_range(pdev, 0, dev->vram_mm->vram_size, 0);
+		if (!ast->dp501_fw_buf)
+			drm_info(dev, "failed to map reserved buffer!\n");
+	}
 
 	ret = ast_mode_config_init(ast);
 	if (ret)
