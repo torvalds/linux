@@ -1092,7 +1092,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	 * a new INCLUDE port (S,G) then all of *,G EXCLUDE ports need to be
 	 * added to it for proper replication
 	 */
-	if (br_multicast_should_handle_mode(br, group.proto)) {
+	if (br_multicast_should_handle_mode(&br->multicast_ctx, group.proto)) {
 		switch (filter_mode) {
 		case MCAST_EXCLUDE:
 			br_multicast_star_g_handle_mode(p, MCAST_EXCLUDE);

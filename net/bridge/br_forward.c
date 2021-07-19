@@ -267,20 +267,19 @@ static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
 /* called with rcu_read_lock */
 void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 			struct sk_buff *skb,
+			struct net_bridge_mcast *brmctx,
 			bool local_rcv, bool local_orig)
 {
-	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
 	bool allow_mode_include = true;
 	struct hlist_node *rp;
 
-	rp = br_multicast_get_first_rport_node(br, skb);
+	rp = br_multicast_get_first_rport_node(brmctx, skb);
 
 	if (mdst) {
 		p = rcu_dereference(mdst->ports);
-		if (br_multicast_should_handle_mode(br, mdst->addr.proto) &&
+		if (br_multicast_should_handle_mode(brmctx, mdst->addr.proto) &&
 		    br_multicast_is_star_g(&mdst->addr))
 			allow_mode_include = false;
 	} else {
