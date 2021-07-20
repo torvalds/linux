@@ -558,10 +558,10 @@ acpi_parse_nmi_src(union acpi_subtable_headers * header, const unsigned long end
  * If a PIC-mode SCI is not recognized or gives spurious IRQ7's
  * it may require Edge Trigger -- use "acpi_sci=edge"
  *
- * Port 0x4d0-4d1 are ECLR1 and ECLR2, the Edge/Level Control Registers
+ * Port 0x4d0-4d1 are ELCR1 and ELCR2, the Edge/Level Control Registers
  * for the 8259 PIC.  bit[n] = 1 means irq[n] is Level, otherwise Edge.
- * ECLR1 is IRQs 0-7 (IRQ 0, 1, 2 must be 0)
- * ECLR2 is IRQs 8-15 (IRQ 8, 13 must be 0)
+ * ELCR1 is IRQs 0-7 (IRQ 0, 1, 2 must be 0)
+ * ELCR2 is IRQs 8-15 (IRQ 8, 13 must be 0)
  */
 
 void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
