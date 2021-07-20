@@ -32,6 +32,10 @@ static bool sva = true;
 module_param(sva, bool, 0644);
 MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
 
+bool tc_override;
+module_param(tc_override, bool, 0644);
+MODULE_PARM_DESC(tc_override, "Override traffic class defaults");
+
 #define DRV_NAME "idxd"
 
 bool support_enqcmd;
@@ -336,8 +340,13 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 		}
 
 		idxd->groups[i] = group;
-		group->tc_a = -1;
-		group->tc_b = -1;
+		if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override) {
+			group->tc_a = 1;
+			group->tc_b = 1;
+		} else {
+			group->tc_a = -1;
+			group->tc_b = -1;
+		}
 	}
 
 	return 0;

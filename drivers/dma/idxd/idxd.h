@@ -16,6 +16,7 @@
 #define IDXD_DRIVER_VERSION	"1.00"
 
 extern struct kmem_cache *idxd_desc_pool;
+extern bool tc_override;
 
 struct idxd_wq;
 struct idxd_dev;

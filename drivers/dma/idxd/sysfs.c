@@ -327,6 +327,9 @@ static ssize_t group_traffic_class_a_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
+	if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override)
+		return -EPERM;
+
 	if (val < 0 || val > 7)
 		return -EINVAL;
 
@@ -364,6 +367,9 @@ static ssize_t group_traffic_class_b_store(struct device *dev,
 		return -EPERM;
 
 	if (idxd->state == IDXD_DEV_ENABLED)
+		return -EPERM;
+
+	if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override)
 		return -EPERM;
 
 	if (val < 0 || val > 7)
