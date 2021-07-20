@@ -377,6 +377,7 @@ struct ath11k_sta {
 #endif
 
 	bool use_4addr_set;
+	u16 tcl_metadata;
 };
 
 #define ATH11K_MIN_5G_FREQ 4150

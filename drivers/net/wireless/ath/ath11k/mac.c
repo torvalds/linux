@@ -4356,6 +4356,7 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct ath11k_sta *arsta = NULL;
 	u32 info_flags = info->flags;
 	bool is_prb_rsp;
 	int ret;
@@ -4381,7 +4382,10 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 		return;
 	}
 
-	ret = ath11k_dp_tx(ar, arvif, skb);
+	if (control->sta)
+		arsta = (struct ath11k_sta *)control->sta->drv_priv;
+
+	ret = ath11k_dp_tx(ar, arvif, arsta, skb);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to transmit frame %d\n", ret);
 		ieee80211_free_txskb(ar->hw, skb);
