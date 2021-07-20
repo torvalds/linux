@@ -6269,6 +6269,15 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 		if (!mvpp2_port_supports_rgmii(port))
 			goto empty_set;
 		break;
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		/* When in 802.3z mode, we must have AN enabled:
+		 * Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
+		 * When <PortType> = 1 (1000BASE-X) this field must be set to 1.
+		 */
+		if (!phylink_test(state->advertising, Autoneg))
+			goto empty_set;
+		break;
 	default:
 		break;
 	}
