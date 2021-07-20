@@ -168,6 +168,12 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 		goto bail;
 	}
 
+	if (!kvmppc_xive_check_save_restore(vcpu)) {
+		pr_err("inconsistent save-restore setup for VCPU %d\n", server_num);
+		rc = -EIO;
+		goto bail;
+	}
+
 	/*
 	 * Enable the VP first as the single escalation mode will
 	 * affect escalation interrupts numbering
@@ -1113,6 +1119,9 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 
 	if (xive_native_has_single_escalation())
 		xive->flags |= KVMPPC_XIVE_FLAG_SINGLE_ESCALATION;
+
+	if (xive_native_has_save_restore())
+		xive->flags |= KVMPPC_XIVE_FLAG_SAVE_RESTORE;
 
 	xive->ops = &kvmppc_xive_native_ops;
 

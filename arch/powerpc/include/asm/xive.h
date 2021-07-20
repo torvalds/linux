@@ -126,6 +126,7 @@ int xive_native_enable_vp(u32 vp_id, bool single_escalation);
 int xive_native_disable_vp(u32 vp_id);
 int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
 bool xive_native_has_single_escalation(void);
+bool xive_native_has_save_restore(void);
 
 int xive_native_get_queue_info(u32 vp_id, uint32_t prio,
 			       u64 *out_qpage,
