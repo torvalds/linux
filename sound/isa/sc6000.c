@@ -531,7 +531,7 @@ static int snd_sc6000_match(struct device *devptr, unsigned int dev)
 
 static void snd_sc6000_free(struct snd_card *card)
 {
-	char __iomem *vport = card->private_data;
+	char __iomem *vport = (char __force __iomem *)card->private_data;
 
 	if (vport)
 		sc6000_setup_board(vport, 0);
@@ -582,7 +582,7 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 			   "I/O port cannot be iomapped.\n");
 		return -EBUSY;
 	}
-	card->private_data = vport;
+	card->private_data = (void __force *)vport;
 
 	/* to make it marked as used */
 	if (!devm_request_region(devptr, mss_port[dev], 4, DRV_NAME)) {

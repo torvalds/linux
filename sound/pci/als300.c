@@ -702,6 +702,7 @@ static int snd_als300_probe(struct pci_dev *pci,
 				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
 	chip_type = pci_id->driver_data;
 
