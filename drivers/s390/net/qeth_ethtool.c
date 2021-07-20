@@ -469,10 +469,3 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.set_per_queue_coalesce = qeth_set_per_queue_coalesce,
 	.get_link_ksettings = qeth_get_link_ksettings,
 };
-
-const struct ethtool_ops qeth_osn_ethtool_ops = {
-	.get_strings = qeth_get_strings,
-	.get_ethtool_stats = qeth_get_ethtool_stats,
-	.get_sset_count = qeth_get_sset_count,
-	.get_drvinfo = qeth_get_drvinfo,
-};
