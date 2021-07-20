@@ -226,8 +226,6 @@ static void veth_get_channels(struct net_device *dev,
 	channels->rx_count = dev->real_num_rx_queues;
 	channels->max_tx = dev->real_num_tx_queues;
 	channels->max_rx = dev->real_num_rx_queues;
-	channels->combined_count = min(dev->real_num_rx_queues, dev->real_num_tx_queues);
-	channels->max_combined = min(dev->real_num_rx_queues, dev->real_num_tx_queues);
 }
 
 static const struct ethtool_ops veth_ethtool_ops = {
