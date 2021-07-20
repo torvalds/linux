@@ -532,10 +532,10 @@ static int __switchdev_handle_fdb_del_to_device(struct net_device *dev,
 		if (netif_is_bridge_master(lower_dev))
 			continue;
 
-		err = switchdev_handle_fdb_del_to_device(lower_dev, fdb_info,
-							 check_cb,
-							 foreign_dev_check_cb,
-							 del_cb, lag_del_cb);
+		err = __switchdev_handle_fdb_del_to_device(lower_dev, orig_dev,
+							   fdb_info, check_cb,
+							   foreign_dev_check_cb,
+							   del_cb, lag_del_cb);
 		if (err && err != -EOPNOTSUPP)
 			return err;
 	}
