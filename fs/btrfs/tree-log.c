@@ -3039,8 +3039,6 @@ static inline void btrfs_remove_all_log_ctxs(struct btrfs_root *root,
 		list_del_init(&ctx->list);
 		ctx->log_ret = error;
 	}
-
-	INIT_LIST_HEAD(&root->log_ctxs[index]);
 }
 
 /*
