@@ -377,7 +377,7 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 	if (!rd_buf)
 		return -EINVAL;
 
-	snprintf(rd_buf, rd_buf_size, "  %d  %d  %d  ",
+	snprintf(rd_buf, rd_buf_size, "  %d  %d  %d\n",
 			link->cur_lane_setting.VOLTAGE_SWING,
 			link->cur_lane_setting.PRE_EMPHASIS,
 			link->cur_lane_setting.POST_CURSOR2);
