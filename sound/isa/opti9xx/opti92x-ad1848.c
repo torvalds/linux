@@ -1096,9 +1096,10 @@ static int snd_opti9xx_pnp_probe(struct pnp_card_link *pcard,
 	if (error)
 		return error;
 	error = snd_opti9xx_read_check(card, chip);
-	if (error)
+	if (error) {
 		snd_printk(KERN_ERR "OPTI chip not found\n");
 		return error;
+	}
 	error = snd_opti9xx_probe(card);
 	if (error < 0)
 		return error;
