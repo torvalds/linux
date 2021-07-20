@@ -35,7 +35,7 @@ ENTRY(__asm_copy_from_user)
 	/*
 	 * Use byte copy only if too small.
 	 */
-	li	a3, 8*SZREG /* size must be larger than size in word_copy */
+	li	a3, 9*SZREG /* size must be larger than size in word_copy */
 	bltu	a2, a3, .Lbyte_copy_tail
 
 	/*
@@ -75,7 +75,7 @@ ENTRY(__asm_copy_from_user)
 	 * a3 - a1 & mask:(SZREG-1)
 	 * t0 - end of aligned dst
 	 */
-	addi	t0, t0, -(8*SZREG-1) /* not to over run */
+	addi	t0, t0, -(8*SZREG) /* not to over run */
 2:
 	fixup REG_L   a4,        0(a1), 10f
 	fixup REG_L   a5,    SZREG(a1), 10f
@@ -97,7 +97,7 @@ ENTRY(__asm_copy_from_user)
 	addi	a1, a1, 8*SZREG
 	bltu	a0, t0, 2b
 
-	addi	t0, t0, 8*SZREG-1 /* revert to original value */
+	addi	t0, t0, 8*SZREG /* revert to original value */
 	j	.Lbyte_copy_tail
 
 .Lshift_copy:
