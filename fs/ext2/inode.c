@@ -855,8 +855,14 @@ const struct iomap_ops ext2_iomap_ops = {
 int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len)
 {
-	return generic_block_fiemap(inode, fieinfo, start, len,
-				    ext2_get_block);
+	int ret;
+
+	inode_lock(inode);
+	len = min_t(u64, len, i_size_read(inode));
+	ret = iomap_fiemap(inode, fieinfo, start, len, &ext2_iomap_ops);
+	inode_unlock(inode);
+
+	return ret;
 }
 
 static int ext2_writepage(struct page *page, struct writeback_control *wbc)
