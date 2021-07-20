@@ -860,6 +860,8 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 	if (replace) {
 		list_del_init(&shkey->key_list);
 		sctp_auth_shkey_release(shkey);
+		if (asoc && asoc->active_key_id == auth_key->sca_keynumber)
+			sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL);
 	}
 	list_add(&cur_key->key_list, sh_keys);
 
