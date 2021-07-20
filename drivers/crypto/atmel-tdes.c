@@ -682,6 +682,9 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct atmel_tdes_reqctx *rctx = skcipher_request_ctx(req);
 	struct device *dev = ctx->dd->dev;
 
+	if (!req->cryptlen)
+		return 0;
+
 	switch (mode & TDES_FLAGS_OPMODE_MASK) {
 	case TDES_FLAGS_CFB8:
 		if (!IS_ALIGNED(req->cryptlen, CFB8_BLOCK_SIZE)) {
