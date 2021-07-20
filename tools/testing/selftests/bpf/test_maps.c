@@ -764,8 +764,8 @@ static void test_sockmap(unsigned int tasks, void *data)
 	udp = socket(AF_INET, SOCK_DGRAM, 0);
 	i = 0;
 	err = bpf_map_update_elem(fd, &i, &udp, BPF_ANY);
-	if (!err) {
-		printf("Failed socket SOCK_DGRAM allowed '%i:%i'\n",
+	if (err) {
+		printf("Failed socket update SOCK_DGRAM '%i:%i'\n",
 		       i, udp);
 		goto out_sockmap;
 	}
