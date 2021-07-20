@@ -5329,6 +5329,10 @@ int amdgpu_device_baco_exit(struct drm_device *dev)
 	    adev->nbio.funcs->enable_doorbell_interrupt)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 
+	if (amdgpu_passthrough(adev) &&
+	    adev->nbio.funcs->clear_doorbell_interrupt)
+		adev->nbio.funcs->clear_doorbell_interrupt(adev);
+
 	return 0;
 }
 
