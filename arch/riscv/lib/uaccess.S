@@ -125,7 +125,7 @@ ENTRY(__asm_copy_from_user)
 	 * t3 - prev shift
 	 * t4 - current shift
 	 */
-	slli	t3, a3, LGREG
+	slli	t3, a3, 3 /* converting bytes in a3 to bits */
 	li	a5, SZREG*8
 	sub	t4, a5, t3
 
