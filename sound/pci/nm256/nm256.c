@@ -1478,7 +1478,8 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 	chip->buffer_addr = pci_resource_start(pci, 0);
 	chip->cport_addr = pci_resource_start(pci, 1);
 
-	if (pci_request_regions(pci, card->driver))
+	err = pci_request_regions(pci, card->driver);
+	if (err < 0)
 		return err;
 
 	/* Init the memory port info.  */
