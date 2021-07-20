@@ -87,16 +87,18 @@ properties:
       - const: ipa-setup-ready
 
   interconnects:
+    minItems: 2
     items:
-      - description: Interconnect path between IPA and main memory
-      - description: Interconnect path between IPA and internal memory
-      - description: Interconnect path between IPA and the AP subsystem
+      - description: Path leading to system memory
+      - description: Path between the AP and IPA config space
+      - description: Path leading to internal memory
 
   interconnect-names:
+    minItems: 2
     items:
       - const: memory
-      - const: imem
       - const: config
+      - const: imem
 
   qcom,smem-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -207,11 +209,11 @@ examples:
 
                 interconnects =
                         <&rsc_hlos MASTER_IPA &rsc_hlos SLAVE_EBI1>,
-                        <&rsc_hlos MASTER_IPA &rsc_hlos SLAVE_IMEM>,
-                        <&rsc_hlos MASTER_APPSS_PROC &rsc_hlos SLAVE_IPA_CFG>;
+                        <&rsc_hlos MASTER_APPSS_PROC &rsc_hlos SLAVE_IPA_CFG>,
+                        <&rsc_hlos MASTER_IPA &rsc_hlos SLAVE_IMEM>;
                 interconnect-names = "memory",
-                                     "imem",
-                                     "config";
+                                     "config",
+                                     "imem";
 
                 qcom,smem-states = <&ipa_smp2p_out 0>,
                                    <&ipa_smp2p_out 1>;
