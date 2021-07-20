@@ -146,7 +146,7 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	if (!percpu_ref_tryget_live(&wq->wq_active))
 		return -ENXIO;
 
-	portal = wq->portal;
+	portal = idxd_wq_portal_addr(wq);
 
 	/*
 	 * The wmb() flushes writes to coherent DMA data before

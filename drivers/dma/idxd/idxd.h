@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/perf_event.h>
+#include <uapi/linux/idxd.h>
 #include "registers.h"
 
 #define IDXD_DRIVER_VERSION	"1.00"
@@ -162,6 +163,7 @@ struct idxd_dma_chan {
 
 struct idxd_wq {
 	void __iomem *portal;
+	u32 portal_offset;
 	struct percpu_ref wq_active;
 	struct completion wq_dead;
 	struct idxd_dev idxd_dev;
@@ -466,6 +468,24 @@ static inline int idxd_get_wq_portal_full_offset(int wq_id,
 						 enum idxd_portal_prot prot)
 {
 	return ((wq_id * 4) << PAGE_SHIFT) + idxd_get_wq_portal_offset(prot);
+}
+
+#define IDXD_PORTAL_MASK	(PAGE_SIZE - 1)
+
+/*
+ * Even though this function can be accessed by multiple threads, it is safe to use.
+ * At worst the address gets used more than once before it gets incremented. We don't
+ * hit a threshold until iops becomes many million times a second. So the occasional
+ * reuse of the same address is tolerable compare to using an atomic variable. This is
+ * safe on a system that has atomic load/store for 32bit integers. Given that this is an
+ * Intel iEP device, that should not be a problem.
+ */
+static inline void __iomem *idxd_wq_portal_addr(struct idxd_wq *wq)
+{
+	int ofs = wq->portal_offset;
+
+	wq->portal_offset = (ofs + sizeof(struct dsa_raw_desc)) & IDXD_PORTAL_MASK;
+	return wq->portal + ofs;
 }
 
 static inline void idxd_wq_get(struct idxd_wq *wq)

@@ -320,6 +320,7 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq)
 
 	devm_iounmap(dev, wq->portal);
 	wq->portal = NULL;
+	wq->portal_offset = 0;
 }
 
 void idxd_wqs_unmap_portal(struct idxd_device *idxd)
