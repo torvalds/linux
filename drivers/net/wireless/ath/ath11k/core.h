@@ -362,6 +362,7 @@ struct ath11k_sta {
 	enum hal_pn_type pn_type;
 
 	struct work_struct update_wk;
+	struct work_struct set_4addr_wk;
 	struct rate_info txrate;
 	struct rate_info last_txrate;
 	u64 rx_duration;
@@ -374,6 +375,8 @@ struct ath11k_sta {
 	/* protected by conf_mutex */
 	bool aggr_mode;
 #endif
+
+	bool use_4addr_set;
 };
 
 #define ATH11K_MIN_5G_FREQ 4150

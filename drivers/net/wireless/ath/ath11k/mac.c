@@ -3155,6 +3155,31 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static void ath11k_sta_set_4addr_wk(struct work_struct *wk)
+{
+	struct ath11k *ar;
+	struct ath11k_vif *arvif;
+	struct ath11k_sta *arsta;
+	struct ieee80211_sta *sta;
+	int ret = 0;
+
+	arsta = container_of(wk, struct ath11k_sta, set_4addr_wk);
+	sta = container_of((void *)arsta, struct ieee80211_sta, drv_priv);
+	arvif = arsta->arvif;
+	ar = arvif->ar;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "setting USE_4ADDR for peer %pM\n", sta->addr);
+
+	ret = ath11k_wmi_set_peer_param(ar, sta->addr,
+					arvif->vdev_id,
+					WMI_PEER_USE_4ADDR, 1);
+
+	if (ret)
+		ath11k_warn(ar->ab, "failed to set peer %pM 4addr capability: %d\n",
+			    sta->addr, ret);
+}
+
 static int ath11k_mac_inc_num_stations(struct ath11k_vif *arvif,
 				       struct ieee80211_sta *sta)
 {
@@ -3234,11 +3259,13 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 	}
 
 	if (ieee80211_vif_is_mesh(vif)) {
+		ath11k_dbg(ab, ATH11K_DBG_MAC,
+			   "setting USE_4ADDR for mesh STA %pM\n", sta->addr);
 		ret = ath11k_wmi_set_peer_param(ar, sta->addr,
 						arvif->vdev_id,
 						WMI_PEER_USE_4ADDR, 1);
 		if (ret) {
-			ath11k_warn(ab, "failed to STA %pM 4addr capability: %d\n",
+			ath11k_warn(ab, "failed to set mesh STA %pM 4addr capability: %d\n",
 				    sta->addr, ret);
 			goto free_tx_stats;
 		}
@@ -3291,8 +3318,10 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 
 	/* cancel must be done outside the mutex to avoid deadlock */
 	if ((old_state == IEEE80211_STA_NONE &&
-	     new_state == IEEE80211_STA_NOTEXIST))
+	     new_state == IEEE80211_STA_NOTEXIST)) {
 		cancel_work_sync(&arsta->update_wk);
+		cancel_work_sync(&arsta->set_4addr_wk);
+	}
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -3301,6 +3330,7 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		memset(arsta, 0, sizeof(*arsta));
 		arsta->arvif = arvif;
 		INIT_WORK(&arsta->update_wk, ath11k_sta_rc_update_wk);
+		INIT_WORK(&arsta->set_4addr_wk, ath11k_sta_set_4addr_wk);
 
 		ret = ath11k_mac_station_add(ar, vif, sta);
 		if (ret)
@@ -3393,6 +3423,19 @@ static int ath11k_mac_op_sta_set_txpwr(struct ieee80211_hw *hw,
 out:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
+}
+
+static void ath11k_mac_op_sta_set_4addr(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_sta *sta, bool enabled)
+{
+	struct ath11k *ar = hw->priv;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+
+	if (enabled && !arsta->use_4addr_set) {
+		ieee80211_queue_work(ar->hw, &arsta->set_4addr_wk);
+		arsta->use_4addr_set = true;
+	}
 }
 
 static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
@@ -6180,6 +6223,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.cancel_hw_scan                 = ath11k_mac_op_cancel_hw_scan,
 	.set_key                        = ath11k_mac_op_set_key,
 	.sta_state                      = ath11k_mac_op_sta_state,
+	.sta_set_4addr                  = ath11k_mac_op_sta_set_4addr,
 	.sta_set_txpwr			= ath11k_mac_op_sta_set_txpwr,
 	.sta_rc_update			= ath11k_mac_op_sta_rc_update,
 	.conf_tx                        = ath11k_mac_op_conf_tx,
