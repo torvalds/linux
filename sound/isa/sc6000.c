@@ -552,7 +552,7 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 
 
 	err = snd_devm_card_new(devptr, index[dev], id[dev], THIS_MODULE,
-				sizeof(vport), &card);
+				sizeof(*vport), &card);
 	if (err < 0)
 		return err;
 
