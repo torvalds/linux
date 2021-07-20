@@ -703,7 +703,7 @@ static int at803x_get_features(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!at803x_match_phy_id(phydev, ATH8031_PHY_ID))
+	if (phydev->drv->phy_id != ATH8031_PHY_ID)
 		return 0;
 
 	/* AR8031/AR8033 have different status registers
