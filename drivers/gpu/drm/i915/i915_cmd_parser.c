@@ -1416,9 +1416,7 @@ static unsigned long *alloc_whitelist(u32 batch_length)
  * @batch_offset: byte offset in the batch at which execution starts
  * @batch_length: length of the commands in batch_obj
  * @shadow: validated copy of the batch buffer in question
- * @jump_whitelist: buffer preallocated with intel_engine_cmd_parser_alloc_jump_whitelist()
- * @shadow_map: mapping to @shadow vma
- * @batch_map: mapping to @batch vma
+ * @trampoline: true if we need to trampoline into privileged execution
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
