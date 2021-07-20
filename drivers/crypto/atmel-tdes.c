@@ -196,23 +196,15 @@ static void atmel_tdes_write_n(struct atmel_tdes_dev *dd, u32 offset,
 		atmel_tdes_write(dd, offset, *value);
 }
 
-static struct atmel_tdes_dev *atmel_tdes_find_dev(struct atmel_tdes_ctx *ctx)
+static struct atmel_tdes_dev *atmel_tdes_dev_alloc(void)
 {
-	struct atmel_tdes_dev *tdes_dd = NULL;
-	struct atmel_tdes_dev *tmp;
+	struct atmel_tdes_dev *tdes_dd;
 
 	spin_lock_bh(&atmel_tdes.lock);
-	if (!ctx->dd) {
-		list_for_each_entry(tmp, &atmel_tdes.dev_list, list) {
-			tdes_dd = tmp;
-			break;
-		}
-		ctx->dd = tdes_dd;
-	} else {
-		tdes_dd = ctx->dd;
-	}
+	/* One TDES IP per SoC. */
+	tdes_dd = list_first_entry_or_null(&atmel_tdes.dev_list,
+					   struct atmel_tdes_dev, list);
 	spin_unlock_bh(&atmel_tdes.lock);
-
 	return tdes_dd;
 }
 
@@ -646,7 +638,6 @@ static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
 	rctx->mode &= TDES_FLAGS_MODE_MASK;
 	dd->flags = (dd->flags & ~TDES_FLAGS_MODE_MASK) | rctx->mode;
 	dd->ctx = ctx;
-	ctx->dd = dd;
 
 	err = atmel_tdes_write_ctrl(dd);
 	if (!err)
@@ -897,13 +888,12 @@ static int atmel_tdes_ofb_decrypt(struct skcipher_request *req)
 static int atmel_tdes_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct atmel_tdes_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct atmel_tdes_dev *dd;
+
+	ctx->dd = atmel_tdes_dev_alloc();
+	if (!ctx->dd)
+		return -ENODEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_tdes_reqctx));
-
-	dd = atmel_tdes_find_dev(ctx);
-	if (!dd)
-		return -ENODEV;
 
 	return 0;
 }
