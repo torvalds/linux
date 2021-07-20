@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/acpi.h>
 
+#include <asm/i8259.h>
 #include <asm/pc-conf-reg.h>
 #include <asm/pci_x86.h>
 
@@ -158,7 +159,7 @@ static void __init pirq_peer_trick(void)
 void elcr_set_level_irq(unsigned int irq)
 {
 	unsigned char mask = 1 << (irq & 7);
-	unsigned int port = 0x4d0 + (irq >> 3);
+	unsigned int port = PIC_ELCR1 + (irq >> 3);
 	unsigned char val;
 	static u16 elcr_irq_mask;
 

@@ -570,7 +570,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	unsigned int old, new;
 
 	/* Real old ELCR mask */
-	old = inb(0x4d0) | (inb(0x4d1) << 8);
+	old = inb(PIC_ELCR1) | (inb(PIC_ELCR2) << 8);
 
 	/*
 	 * If we use ACPI to set PCI IRQs, then we should clear ELCR
@@ -596,8 +596,8 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 		return;
 
 	pr_warn("setting ELCR to %04x (from %04x)\n", new, old);
-	outb(new, 0x4d0);
-	outb(new >> 8, 0x4d1);
+	outb(new, PIC_ELCR1);
+	outb(new >> 8, PIC_ELCR2);
 }
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irqp)
