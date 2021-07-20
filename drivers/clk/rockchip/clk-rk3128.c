@@ -136,7 +136,6 @@ static const struct rockchip_cpuclk_reg_data rk3128_cpuclk_data = {
 PNAME(mux_pll_p)		= { "clk_24m", "xin24m" };
 
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_div2_ddr" };
-PNAME(mux_armclk_p)		= { "apll_core", "gpll_div2_core" };
 PNAME(mux_usb480m_p)		= { "usb480m_phy", "xin24m" };
 PNAME(mux_aclk_cpu_src_p)	= { "cpll", "gpll", "gpll_div2", "gpll_div3" };
 
@@ -592,6 +591,7 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk **clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -606,6 +606,7 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 		iounmap(reg_base);
 		return ERR_PTR(-ENOMEM);
 	}
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3128_pll_clks,
 				   ARRAY_SIZE(rk3128_pll_clks),
@@ -614,7 +615,7 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 				  ARRAY_SIZE(common_clk_branches));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+			2, clks[PLL_APLL], clks[PLL_GPLL_DIV2],
 			&rk3128_cpuclk_data, rk3128_cpuclk_rates,
 			ARRAY_SIZE(rk3128_cpuclk_rates));
 

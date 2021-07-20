@@ -198,7 +198,6 @@ PNAME(mux_clk_npu_p)			= { "clk_npu_div", "clk_npu_np5" };
 
 #ifndef CONFIG_ROCKCHIP_LOW_PERFORMANCE
 PNAME(mux_gpll_usb480m_cpll_xin24m_p)	= { "gpll", "usb480m", "cpll", "xin24m" };
-PNAME(mux_armclk_p)			= { "gpll", "cpll", "apll" };
 PNAME(mux_gpll_cpll_dpll_p)		= { "gpll", "cpll", "dummy_dpll" };
 PNAME(mux_gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(mux_gpll_cpll_usb480m_xin24m_p)	= { "gpll", "cpll", "usb480m", "xin24m" };
@@ -210,7 +209,6 @@ PNAME(mux_gpll_cpll_hpll_p)		= { "gpll", "cpll", "hpll" };
 PNAME(mux_gpll_cpll_apll_hpll_p)	= { "gpll", "cpll", "dummy_apll", "hpll" };
 #else
 PNAME(mux_gpll_usb480m_cpll_xin24m_p)	= { "gpll", "usb480m", "dummy_cpll", "xin24m" };
-PNAME(mux_armclk_p)			= { "gpll", "dummy_cpll", "apll" };
 PNAME(mux_gpll_cpll_dpll_p)		= { "gpll", "dummy_cpll", "dummy_dpll" };
 PNAME(mux_gpll_cpll_p)			= { "gpll", "dummy_cpll" };
 PNAME(mux_gpll_cpll_usb480m_xin24m_p)	= { "gpll", "dummy_cpll", "usb480m", "xin24m" };
@@ -1450,6 +1448,7 @@ static struct notifier_block rv1126_clk_panic_block = {
 	.notifier_call = rv1126_clk_panic,
 };
 
+static struct rockchip_clk_provider *pmucru_ctx;
 static void __init rv1126_pmu_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1480,6 +1479,8 @@ static void __init rv1126_pmu_clk_init(struct device_node *np)
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	pmucru_ctx = ctx;
 }
 
 CLK_OF_DECLARE(rv1126_cru_pmu, "rockchip,rv1126-pmucru", rv1126_pmu_clk_init);
@@ -1488,6 +1489,7 @@ static void __init rv1126_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk **cru_clks, **pmucru_clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -1503,13 +1505,15 @@ static void __init rv1126_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	cru_clks = ctx->clk_data.clks;
+	pmucru_clks = pmucru_ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rv1126_pll_clks,
 				   ARRAY_SIZE(rv1126_pll_clks),
 				   RV1126_GRF_SOC_STATUS0);
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+				     3, cru_clks[PLL_APLL], pmucru_clks[PLL_GPLL],
 				     &rv1126_cpuclk_data, rv1126_cpuclk_rates,
 				     ARRAY_SIZE(rv1126_cpuclk_rates));
 

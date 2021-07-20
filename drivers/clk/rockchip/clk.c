@@ -709,15 +709,17 @@ EXPORT_SYMBOL_GPL(rockchip_clk_register_branches);
 
 void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
 				  unsigned int lookup_id,
-				  const char *name, const char *const *parent_names,
+				  const char *name,
 				  u8 num_parents,
+				  struct clk *parent, struct clk *alt_parent,
 				  const struct rockchip_cpuclk_reg_data *reg_data,
 				  const struct rockchip_cpuclk_rate_table *rates,
 				  int nrates)
 {
 	struct clk *clk;
 
-	clk = rockchip_clk_register_cpuclk(name, parent_names, num_parents,
+	clk = rockchip_clk_register_cpuclk(name, num_parents,
+		parent, alt_parent,
 					   reg_data, rates, nrates,
 					   ctx->reg_base, &ctx->lock);
 	if (IS_ERR(clk)) {

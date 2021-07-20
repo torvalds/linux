@@ -837,6 +837,7 @@ static void __init rk3328_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk **clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -850,6 +851,7 @@ static void __init rk3328_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3328_pll_clks,
 				   ARRAY_SIZE(rk3328_pll_clks),
@@ -858,7 +860,7 @@ static void __init rk3328_clk_init(struct device_node *np)
 				       ARRAY_SIZE(rk3328_clk_branches));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+				     4, clks[PLL_APLL], clks[PLL_GPLL],
 				     &rk3328_cpuclk_data, rk3328_cpuclk_rates,
 				     ARRAY_SIZE(rk3328_cpuclk_rates));
 

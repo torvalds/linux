@@ -67,6 +67,7 @@
 #define ACLK_PERI		204
 #define ACLK_VEPU		205
 #define ACLK_VDPU		206
+#define ACLK_CPU_PRE		207
 
 /* pclk gates */
 #define PCLK_GRF		320

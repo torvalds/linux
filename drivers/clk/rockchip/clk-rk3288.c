@@ -198,7 +198,6 @@ static const struct rockchip_cpuclk_reg_data rk3288_cpuclk_data = {
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
-PNAME(mux_armclk_p)		= { "apll_core", "gpll_core" };
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
 PNAME(mux_aclk_cpu_src_p)	= { "cpll_aclk_cpu", "gpll_aclk_cpu" };
 
@@ -933,6 +932,7 @@ static void __init rk3288_common_init(struct device_node *np,
 				      enum rk3288_variant soc)
 {
 	struct rockchip_clk_provider *ctx;
+	struct clk **clks;
 
 	rk3288_cru_base = of_iomap(np, 0);
 	if (!rk3288_cru_base) {
@@ -946,6 +946,7 @@ static void __init rk3288_common_init(struct device_node *np,
 		iounmap(rk3288_cru_base);
 		return;
 	}
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3288_pll_clks,
 				   ARRAY_SIZE(rk3288_pll_clks),
@@ -961,7 +962,7 @@ static void __init rk3288_common_init(struct device_node *np,
 					       ARRAY_SIZE(rk3288_hclkvio_branch));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+			2, clks[PLL_APLL], clks[PLL_GPLL],
 			&rk3288_cpuclk_data, rk3288_cpuclk_rates,
 			ARRAY_SIZE(rk3288_cpuclk_rates));
 

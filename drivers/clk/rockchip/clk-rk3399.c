@@ -133,14 +133,6 @@ static struct rockchip_pll_rate_table rk3399_vpll_rates[] = {
 /* CRU parents */
 PNAME(mux_pll_p)				= { "xin24m", "xin32k" };
 
-PNAME(mux_armclkl_p)				= { "clk_core_l_lpll_src",
-						    "clk_core_l_bpll_src",
-						    "clk_core_l_dpll_src",
-						    "clk_core_l_gpll_src" };
-PNAME(mux_armclkb_p)				= { "clk_core_b_lpll_src",
-						    "clk_core_b_bpll_src",
-						    "clk_core_b_dpll_src",
-						    "clk_core_b_gpll_src" };
 PNAME(mux_ddrclk_p)				= { "clk_ddrc_lpll_src",
 						    "clk_ddrc_bpll_src",
 						    "clk_ddrc_dpll_src",
@@ -1629,6 +1621,7 @@ static void __init rk3399_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk **clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -1644,6 +1637,7 @@ static void __init rk3399_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3399_pll_clks,
 				   ARRAY_SIZE(rk3399_pll_clks), -1);
@@ -1652,12 +1646,12 @@ static void __init rk3399_clk_init(struct device_node *np)
 				  ARRAY_SIZE(rk3399_clk_branches));
 
 	rockchip_clk_register_armclk(ctx, ARMCLKL, "armclkl",
-			mux_armclkl_p, ARRAY_SIZE(mux_armclkl_p),
+			4, clks[PLL_APLLL], clks[PLL_GPLL],
 			&rk3399_cpuclkl_data, rk3399_cpuclkl_rates,
 			ARRAY_SIZE(rk3399_cpuclkl_rates));
 
 	rockchip_clk_register_armclk(ctx, ARMCLKB, "armclkb",
-			mux_armclkb_p, ARRAY_SIZE(mux_armclkb_p),
+			4, clks[PLL_APLLB], clks[PLL_GPLL],
 			&rk3399_cpuclkb_data, rk3399_cpuclkb_rates,
 			ARRAY_SIZE(rk3399_cpuclkb_rates));
 

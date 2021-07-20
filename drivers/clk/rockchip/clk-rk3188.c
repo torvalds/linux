@@ -202,7 +202,6 @@ static const struct rockchip_cpuclk_reg_data rk3188_cpuclk_data = {
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
-PNAME(mux_armclk_p)		= { "apll", "gpll_armclk" };
 PNAME(mux_ddrphy_p)		= { "dpll", "gpll_ddr" };
 PNAME(mux_pll_src_gpll_cpll_p)	= { "gpll", "cpll" };
 PNAME(mux_pll_src_cpll_gpll_p)	= { "cpll", "gpll" };
@@ -684,7 +683,7 @@ static struct rockchip_clk_branch rk3188_clk_branches[] __initdata = {
 			div_rk3188_aclk_core_t, RK2928_CLKGATE_CON(0), 7, GFLAGS),
 
 	/* do not source aclk_cpu_pre from the apll, to keep complexity down */
-	COMPOSITE_NOGATE(0, "aclk_cpu_pre", mux_aclk_cpu_p, CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE_NOGATE(ACLK_CPU_PRE, "aclk_cpu_pre", mux_aclk_cpu_p, CLK_SET_RATE_NO_REPARENT,
 			RK2928_CLKSEL_CON(0), 5, 1, MFLAGS, 0, 5, DFLAGS),
 	DIV(0, "pclk_cpu_pre", "aclk_cpu_pre", 0,
 			RK2928_CLKSEL_CON(1), 12, 2, DFLAGS | CLK_DIVIDER_POWER_OF_TWO),
@@ -783,10 +782,12 @@ static struct rockchip_clk_provider *__init rk3188_common_clk_init(struct device
 static void __init rk3066a_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
+	struct clk **clks;
 
 	ctx = rk3188_common_clk_init(np);
 	if (IS_ERR(ctx))
 		return;
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3066_pll_clks,
 				   ARRAY_SIZE(rk3066_pll_clks),
@@ -794,7 +795,7 @@ static void __init rk3066a_clk_init(struct device_node *np)
 	rockchip_clk_register_branches(ctx, rk3066a_clk_branches,
 				  ARRAY_SIZE(rk3066a_clk_branches));
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+			2, clks[PLL_APLL], clks[PLL_GPLL],
 			&rk3066_cpuclk_data, rk3066_cpuclk_rates,
 			ARRAY_SIZE(rk3066_cpuclk_rates));
 	rockchip_clk_of_add_provider(np, ctx);
@@ -804,13 +805,14 @@ CLK_OF_DECLARE(rk3066a_cru, "rockchip,rk3066a-cru", rk3066a_clk_init);
 static void __init rk3188a_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
-	struct clk *clk1, *clk2;
+	struct clk **clks;
 	unsigned long rate;
 	int ret;
 
 	ctx = rk3188_common_clk_init(np);
 	if (IS_ERR(ctx))
 		return;
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3188_pll_clks,
 				   ARRAY_SIZE(rk3188_pll_clks),
@@ -818,22 +820,20 @@ static void __init rk3188a_clk_init(struct device_node *np)
 	rockchip_clk_register_branches(ctx, rk3188_clk_branches,
 				  ARRAY_SIZE(rk3188_clk_branches));
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-				  mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+				  2, clks[PLL_APLL], clks[PLL_GPLL],
 				  &rk3188_cpuclk_data, rk3188_cpuclk_rates,
 				  ARRAY_SIZE(rk3188_cpuclk_rates));
 
 	/* reparent aclk_cpu_pre from apll */
-	clk1 = __clk_lookup("aclk_cpu_pre");
-	clk2 = __clk_lookup("gpll");
-	if (clk1 && clk2) {
-		rate = clk_get_rate(clk1);
+	if (clks[ACLK_CPU_PRE] && clks[PLL_GPLL]) {
+		rate = clk_get_rate(clks[ACLK_CPU_PRE]);
 
-		ret = clk_set_parent(clk1, clk2);
+		ret = clk_set_parent(clks[ACLK_CPU_PRE], clks[PLL_GPLL]);
 		if (ret < 0)
 			pr_warn("%s: could not reparent aclk_cpu_pre to gpll\n",
 				__func__);
 
-		clk_set_rate(clk1, rate);
+		clk_set_rate(clks[ACLK_CPU_PRE], rate);
 	} else {
 		pr_warn("%s: missing clocks to reparent aclk_cpu_pre to gpll\n",
 			__func__);
