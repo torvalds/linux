@@ -1314,7 +1314,7 @@ int rvu_mbox_handler_detach_resources(struct rvu *rvu,
 	return rvu_detach_rsrcs(rvu, detach, detach->hdr.pcifunc);
 }
 
-static int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
+int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int blkaddr = BLKADDR_NIX0, vf;
@@ -2859,6 +2859,12 @@ static int rvu_enable_sriov(struct rvu *rvu)
 	if (!vfs)
 		return 0;
 
+	/* LBK channel number 63 is used for switching packets between
+	 * CGX mapped VFs. Hence limit LBK pairs till 62 only.
+	 */
+	if (vfs > 62)
+		vfs = 62;
+
 	/* Save VFs number for reference in VF interrupts handlers.
 	 * Since interrupts might start arriving during SRIOV enablement
 	 * ordinary API cannot be used to get number of enabled VFs.
@@ -3000,6 +3006,8 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Initialize debugfs */
 	rvu_dbg_init(rvu);
+
+	mutex_init(&rvu->rswitch.switch_lock);
 
 	return 0;
 err_dl:
