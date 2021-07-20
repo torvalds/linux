@@ -190,7 +190,6 @@
   cpufreq_this_cpu_can_update
   cpufreq_unregister_driver
   cpufreq_unregister_governor
-  cpufreq_update_util_data
   cpu_hotplug_disable
   cpu_hotplug_enable
   __cpuhp_remove_state
@@ -730,6 +729,7 @@
   get_cpu_iowait_time_us
   get_device
   get_each_dmabuf
+  get_freelist_nr_pages
   __get_free_pages
   get_governor_parent_kobj
   get_kernel_pages
@@ -1817,7 +1817,6 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  __traceiter_android_rvh_after_enqueue_task
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_dequeue_task_fair
@@ -1829,7 +1828,6 @@
   __traceiter_android_rvh_prepare_prio_fork
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_sched_newidle_balance
-  __traceiter_android_rvh_sched_rebalance_domains
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_user_nice
@@ -1848,7 +1846,6 @@
   __traceiter_android_vh_finish_update_load_avg_se
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
-  __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_prepare_update_load_avg_se
@@ -1876,7 +1873,7 @@
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
   __traceiter_sched_update_nr_running_tp
-  __tracepoint_android_rvh_after_enqueue_task
+  __traceiter_xhci_urb_giveback
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_dequeue_task_fair
@@ -1888,7 +1885,6 @@
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_sched_newidle_balance
-  __tracepoint_android_rvh_sched_rebalance_domains
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_user_nice
@@ -1907,7 +1903,6 @@
   __tracepoint_android_vh_finish_update_load_avg_se
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
-  __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_prepare_update_load_avg_se
@@ -1938,6 +1933,7 @@
   __tracepoint_rwmmio_write
   __tracepoint_sched_update_nr_running_tp
   tracepoint_srcu
+  __tracepoint_xhci_urb_giveback
   trace_print_array_seq
   trace_print_symbols_seq
   __trace_puts
@@ -2283,6 +2279,7 @@
   class_create_file_ns
   class_remove_file_ns
   clear_page
+  cpufreq_update_util_data
   cpu_pm_register_notifier
   cpu_pm_unregister_notifier
   debug_locks_off
@@ -2315,7 +2312,6 @@
   fwnode_graph_parse_endpoint
   fwnode_property_get_reference_args
   fwnode_property_read_u64_array
-  get_freelist_nr_pages
   get_user_pages_fast
   gpiod_set_raw_value
   hci_alloc_dev
@@ -2400,10 +2396,13 @@
   syscore_suspend
   system_long_wq
   thermal_zone_device_update
+  __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_sched_rebalance_domains
   __traceiter_android_vh_cgroup_attach
   __traceiter_android_vh_clear_mask_adjust
   __traceiter_android_vh_clear_reserved_fmt_fields
   __traceiter_android_vh_fill_ext_fmtdesc
+  __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_media_device_setup_link
   __traceiter_android_vh_v4l2subdev_set_fmt
@@ -2412,10 +2411,13 @@
   __traceiter_gpu_mem_total
   __traceiter_task_newtask
   trace_output_call
+  __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_sched_rebalance_domains
   __tracepoint_android_vh_cgroup_attach
   __tracepoint_android_vh_clear_mask_adjust
   __tracepoint_android_vh_clear_reserved_fmt_fields
   __tracepoint_android_vh_fill_ext_fmtdesc
+  __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_media_device_setup_link
   __tracepoint_android_vh_ufs_update_sdev
