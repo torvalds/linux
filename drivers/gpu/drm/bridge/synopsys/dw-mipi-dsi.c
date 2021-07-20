@@ -1241,6 +1241,12 @@ void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi)
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_unbind);
 
+struct drm_connector *dw_mipi_dsi_get_connector(struct dw_mipi_dsi *dsi)
+{
+	return drm_panel_bridge_connector(dsi->panel_bridge);
+}
+EXPORT_SYMBOL_GPL(dw_mipi_dsi_get_connector);
+
 MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
 MODULE_AUTHOR("Philippe Cornu <philippe.cornu@st.com>");
 MODULE_DESCRIPTION("DW MIPI DSI host controller driver");
