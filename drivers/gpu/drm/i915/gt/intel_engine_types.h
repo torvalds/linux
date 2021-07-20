@@ -34,10 +34,6 @@
 #define VCS0_HW		1
 #define BCS0_HW		2
 #define VECS0_HW	3
-#define VCS1_HW		4
-#define VCS2_HW		6
-#define VCS3_HW		7
-#define VECS1_HW	12
 
 /* Gen11+ HW Engine class + instance */
 #define RENDER_CLASS		0

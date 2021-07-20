@@ -80,7 +80,6 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VCS1] = {
-		.hw_id = VCS1_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_bases = {
@@ -89,7 +88,6 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VCS2] = {
-		.hw_id = VCS2_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
 		.mmio_bases = {
@@ -97,7 +95,6 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VCS3] = {
-		.hw_id = VCS3_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
 		.mmio_bases = {
@@ -114,7 +111,6 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VECS1] = {
-		.hw_id = VECS1_HW,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
 		.mmio_bases = {
