@@ -444,6 +444,50 @@ static int pirq_piix_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 }
 
 /*
+ *	PIRQ routing for the 82426EX ISA Bridge (IB) ASIC used with the
+ *	Intel 82420EX PCIset.
+ *
+ *	There are only two PIRQ Route Control registers, available in the
+ *	combined 82425EX/82426EX PCI configuration space, at 0x66 and 0x67
+ *	for the PIRQ0# and PIRQ1# lines respectively.  The semantics is
+ *	the same as with the PIIX router.
+ *
+ *	References:
+ *
+ *	"82420EX PCIset Data Sheet, 82425EX PCI System Controller (PSC)
+ *	and 82426EX ISA Bridge (IB)", Intel Corporation, Order Number:
+ *	290488-004, December 1995
+ */
+
+#define PCI_I82426EX_PIRQ_ROUTE_CONTROL	0x66u
+
+static int pirq_ib_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	int reg;
+	u8 x;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 2)
+		reg += PCI_I82426EX_PIRQ_ROUTE_CONTROL - 1;
+
+	pci_read_config_byte(router, reg, &x);
+	return (x < 16) ? x : 0;
+}
+
+static int pirq_ib_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
+		       int irq)
+{
+	int reg;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 2)
+		reg += PCI_I82426EX_PIRQ_ROUTE_CONTROL - 1;
+
+	pci_write_config_byte(router, reg, irq);
+	return 1;
+}
+
+/*
  * The VIA pirq rules are nibble-based, like ALI,
  * but without the ugly irq number munging.
  * However, PIRQD is in the upper instead of lower 4 bits.
@@ -804,6 +848,11 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		r->name = "PIIX/ICH";
 		r->get = pirq_piix_get;
 		r->set = pirq_piix_set;
+		return 1;
+	case PCI_DEVICE_ID_INTEL_82425:
+		r->name = "PSC/IB";
+		r->get = pirq_ib_get;
+		r->set = pirq_ib_set;
 		return 1;
 	}
 
