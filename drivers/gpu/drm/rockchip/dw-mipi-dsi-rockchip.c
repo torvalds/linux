@@ -262,6 +262,7 @@ struct dw_mipi_dsi_rockchip {
 	const struct rockchip_dw_dsi_chip_data *cdata;
 	struct dw_mipi_dsi_plat_data pdata;
 	int devcnt;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 struct dphy_pll_parameter_map {
@@ -948,6 +949,12 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return ret;
 	}
 
+	dsi->sub_dev.connector = dw_mipi_dsi_get_connector(dsi->dmd);
+	if (dsi->sub_dev.connector) {
+		dsi->sub_dev.of_node = dev->of_node;
+		rockchip_drm_register_sub_dev(&dsi->sub_dev);
+	}
+
 	return 0;
 }
 
@@ -959,6 +966,9 @@ static void dw_mipi_dsi_rockchip_unbind(struct device *dev,
 
 	if (dsi->is_slave)
 		return;
+
+	if (dsi->sub_dev.connector)
+		rockchip_drm_unregister_sub_dev(&dsi->sub_dev);
 
 	dw_mipi_dsi_unbind(dsi->dmd);
 
