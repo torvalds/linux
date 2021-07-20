@@ -358,6 +358,74 @@ static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 }
 
 /*
+ *	PIRQ routing for the 82374EB/82374SB EISA System Component (ESC)
+ *	ASIC used with the Intel 82420 and 82430 PCIsets.  The ESC is not
+ *	decoded in the PCI configuration space, so we identify it by the
+ *	accompanying 82375EB/82375SB PCI-EISA Bridge (PCEB) ASIC.
+ *
+ *	There are four PIRQ Route Control registers, available in the
+ *	port I/O space accessible indirectly via the index/data register
+ *	pair at 0x22/0x23, located at indices 0x60/0x61/0x62/0x63 for the
+ *	PIRQ0/1/2/3# lines respectively.  The semantics is the same as
+ *	with the PIIX router.
+ *
+ *	Accesses to the port I/O space concerned here need to be unlocked
+ *	by writing the value of 0x0f to the ESC ID Register at index 0x02
+ *	beforehand.  Any other value written to said register prevents
+ *	further accesses from reaching the register file, except for the
+ *	ESC ID Register being written with 0x0f again.
+ *
+ *	References:
+ *
+ *	"82374EB/82374SB EISA System Component (ESC)", Intel Corporation,
+ *	Order Number: 290476-004, March 1996
+ *
+ *	"82375EB/82375SB PCI-EISA Bridge (PCEB)", Intel Corporation, Order
+ *	Number: 290477-004, March 1996
+ */
+
+#define PC_CONF_I82374_ESC_ID			0x02u
+#define PC_CONF_I82374_PIRQ_ROUTE_CONTROL	0x60u
+
+#define PC_CONF_I82374_ESC_ID_KEY		0x0fu
+
+static int pirq_esc_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	unsigned long flags;
+	int reg;
+	u8 x;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 4)
+		reg += PC_CONF_I82374_PIRQ_ROUTE_CONTROL - 1;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, PC_CONF_I82374_ESC_ID_KEY);
+	x = pc_conf_get(reg);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return (x < 16) ? x : 0;
+}
+
+static int pirq_esc_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
+		       int irq)
+{
+	unsigned long flags;
+	int reg;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 4)
+		reg += PC_CONF_I82374_PIRQ_ROUTE_CONTROL - 1;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, PC_CONF_I82374_ESC_ID_KEY);
+	pc_conf_set(reg, irq);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return 1;
+}
+
+/*
  * The Intel PIIX4 pirq rules are fairly simple: "pirq" is
  * just a pointer to the config space.
  */
@@ -687,6 +755,11 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		return 0;
 
 	switch (device) {
+	case PCI_DEVICE_ID_INTEL_82375:
+		r->name = "PCEB/ESC";
+		r->get = pirq_esc_get;
+		r->set = pirq_esc_set;
+		return 1;
 	case PCI_DEVICE_ID_INTEL_82371FB_0:
 	case PCI_DEVICE_ID_INTEL_82371SB_0:
 	case PCI_DEVICE_ID_INTEL_82371AB_0:
