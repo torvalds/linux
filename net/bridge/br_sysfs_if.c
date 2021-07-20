@@ -244,7 +244,7 @@ BRPORT_ATTR_FLAG(isolated, BR_ISOLATED);
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->multicast_router);
+	return sprintf(buf, "%d\n", p->multicast_ctx.multicast_router);
 }
 
 static int store_multicast_router(struct net_bridge_port *p,

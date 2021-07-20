@@ -287,7 +287,7 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, IFLA_BRPORT_MULTICAST_ROUTER,
-		       p->multicast_router) ||
+		       p->multicast_ctx.multicast_router) ||
 	    nla_put_u32(skb, IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT,
 			p->multicast_eht_hosts_limit) ||
 	    nla_put_u32(skb, IFLA_BRPORT_MCAST_EHT_HOSTS_CNT,
@@ -1324,49 +1324,49 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_MCAST_LAST_MEMBER_CNT]) {
 		u32 val = nla_get_u32(data[IFLA_BR_MCAST_LAST_MEMBER_CNT]);
 
-		br->multicast_last_member_count = val;
+		br->multicast_ctx.multicast_last_member_count = val;
 	}
 
 	if (data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]) {
 		u32 val = nla_get_u32(data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]);
 
-		br->multicast_startup_query_count = val;
+		br->multicast_ctx.multicast_startup_query_count = val;
 	}
 
 	if (data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]);
 
-		br->multicast_last_member_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_last_member_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_MEMBERSHIP_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_MEMBERSHIP_INTVL]);
 
-		br->multicast_membership_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_membership_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_QUERIER_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERIER_INTVL]);
 
-		br->multicast_querier_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_querier_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_QUERY_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERY_INTVL]);
 
-		br->multicast_query_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_query_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL]);
 
-		br->multicast_query_response_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_query_response_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_STARTUP_QUERY_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_STARTUP_QUERY_INTVL]);
 
-		br->multicast_startup_query_interval = clock_t_to_jiffies(val);
+		br->multicast_ctx.multicast_startup_query_interval = clock_t_to_jiffies(val);
 	}
 
 	if (data[IFLA_BR_MCAST_STATS_ENABLED]) {
@@ -1566,7 +1566,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
+	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER,
+		       br->multicast_ctx.multicast_router) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING,
 		       br_opt_get(br, BROPT_MULTICAST_ENABLED)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
@@ -1578,38 +1579,38 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY, RHT_ELASTICITY) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
-			br->multicast_last_member_count) ||
+			br->multicast_ctx.multicast_last_member_count) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
-			br->multicast_startup_query_count) ||
+			br->multicast_ctx.multicast_startup_query_count) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_IGMP_VERSION,
-		       br->multicast_igmp_version))
+		       br->multicast_ctx.multicast_igmp_version))
 		return -EMSGSIZE;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (nla_put_u8(skb, IFLA_BR_MCAST_MLD_VERSION,
-		       br->multicast_mld_version))
+		       br->multicast_ctx.multicast_mld_version))
 		return -EMSGSIZE;
 #endif
-	clockval = jiffies_to_clock_t(br->multicast_last_member_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_last_member_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_LAST_MEMBER_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = jiffies_to_clock_t(br->multicast_membership_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_membership_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_MEMBERSHIP_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = jiffies_to_clock_t(br->multicast_querier_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_querier_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERIER_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = jiffies_to_clock_t(br->multicast_query_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_query_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERY_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = jiffies_to_clock_t(br->multicast_query_response_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_query_response_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERY_RESPONSE_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = jiffies_to_clock_t(br->multicast_startup_query_interval);
+	clockval = jiffies_to_clock_t(br->multicast_ctx.multicast_startup_query_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_STARTUP_QUERY_INTVL, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;

@@ -214,9 +214,14 @@ static struct notifier_block br_switchdev_notifier = {
 int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
 		      struct netlink_ext_ack *extack)
 {
+	int err = 0;
+
 	switch (opt) {
 	case BR_BOOLOPT_NO_LL_LEARN:
 		br_opt_toggle(br, BROPT_NO_LL_LEARN, on);
+		break;
+	case BR_BOOLOPT_MCAST_VLAN_SNOOPING:
+		err = br_multicast_toggle_vlan_snooping(br, on, extack);
 		break;
 	default:
 		/* shouldn't be called with unsupported options */
@@ -224,7 +229,7 @@ int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
 		break;
 	}
 
-	return 0;
+	return err;
 }
 
 int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
@@ -232,6 +237,8 @@ int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
 	switch (opt) {
 	case BR_BOOLOPT_NO_LL_LEARN:
 		return br_opt_get(br, BROPT_NO_LL_LEARN);
+	case BR_BOOLOPT_MCAST_VLAN_SNOOPING:
+		return br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED);
 	default:
 		/* shouldn't be called with unsupported options */
 		WARN_ON(1);

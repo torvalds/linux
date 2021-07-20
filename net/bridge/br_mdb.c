@@ -16,29 +16,29 @@
 
 #include "br_private.h"
 
-static bool br_rports_have_mc_router(struct net_bridge *br)
+static bool br_rports_have_mc_router(struct net_bridge_mcast *brmctx)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	return !hlist_empty(&br->ip4_mc_router_list) ||
-	       !hlist_empty(&br->ip6_mc_router_list);
+	return !hlist_empty(&brmctx->ip4_mc_router_list) ||
+	       !hlist_empty(&brmctx->ip6_mc_router_list);
 #else
-	return !hlist_empty(&br->ip4_mc_router_list);
+	return !hlist_empty(&brmctx->ip4_mc_router_list);
 #endif
 }
 
 static bool
 br_ip4_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 {
-	*timer = br_timer_value(&port->ip4_mc_router_timer);
-	return !hlist_unhashed(&port->ip4_rlist);
+	*timer = br_timer_value(&port->multicast_ctx.ip4_mc_router_timer);
+	return !hlist_unhashed(&port->multicast_ctx.ip4_rlist);
 }
 
 static bool
 br_ip6_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	*timer = br_timer_value(&port->ip6_mc_router_timer);
-	return !hlist_unhashed(&port->ip6_rlist);
+	*timer = br_timer_value(&port->multicast_ctx.ip6_mc_router_timer);
+	return !hlist_unhashed(&port->multicast_ctx.ip6_rlist);
 #else
 	*timer = 0;
 	return false;
@@ -54,10 +54,10 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	struct nlattr *nest, *port_nest;
 	struct net_bridge_port *p;
 
-	if (!br->multicast_router)
+	if (!br->multicast_ctx.multicast_router)
 		return 0;
 
-	if (!br_rports_have_mc_router(br))
+	if (!br_rports_have_mc_router(&br->multicast_ctx))
 		return 0;
 
 	nest = nla_nest_start_noflag(skb, MDBA_ROUTER);
@@ -79,7 +79,7 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 		    nla_put_u32(skb, MDBA_ROUTER_PATTR_TIMER,
 				max(ip4_timer, ip6_timer)) ||
 		    nla_put_u8(skb, MDBA_ROUTER_PATTR_TYPE,
-			       p->multicast_router) ||
+			       p->multicast_ctx.multicast_router) ||
 		    (have_ip4_mc_rtr &&
 		     nla_put_u32(skb, MDBA_ROUTER_PATTR_INET_TIMER,
 				 ip4_timer)) ||
@@ -240,7 +240,7 @@ static int __mdb_fill_info(struct sk_buff *skb,
 
 	switch (mp->addr.proto) {
 	case htons(ETH_P_IP):
-		dump_srcs_mode = !!(mp->br->multicast_igmp_version == 3);
+		dump_srcs_mode = !!(mp->br->multicast_ctx.multicast_igmp_version == 3);
 		if (mp->addr.src.ip4) {
 			if (nla_put_in_addr(skb, MDBA_MDB_EATTR_SOURCE,
 					    mp->addr.src.ip4))
@@ -250,7 +250,7 @@ static int __mdb_fill_info(struct sk_buff *skb,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
-		dump_srcs_mode = !!(mp->br->multicast_mld_version == 2);
+		dump_srcs_mode = !!(mp->br->multicast_ctx.multicast_mld_version == 2);
 		if (!ipv6_addr_any(&mp->addr.src.ip6)) {
 			if (nla_put_in6_addr(skb, MDBA_MDB_EATTR_SOURCE,
 					     &mp->addr.src.ip6))
@@ -483,7 +483,7 @@ static size_t rtnl_mdb_nlmsg_size(struct net_bridge_port_group *pg)
 		/* MDBA_MDB_EATTR_SOURCE */
 		if (pg->key.addr.src.ip4)
 			nlmsg_size += nla_total_size(sizeof(__be32));
-		if (pg->key.port->br->multicast_igmp_version == 2)
+		if (pg->key.port->br->multicast_ctx.multicast_igmp_version == 2)
 			goto out;
 		addr_size = sizeof(__be32);
 		break;
@@ -492,7 +492,7 @@ static size_t rtnl_mdb_nlmsg_size(struct net_bridge_port_group *pg)
 		/* MDBA_MDB_EATTR_SOURCE */
 		if (!ipv6_addr_any(&pg->key.addr.src.ip6))
 			nlmsg_size += nla_total_size(sizeof(struct in6_addr));
-		if (pg->key.port->br->multicast_mld_version == 1)
+		if (pg->key.port->br->multicast_ctx.multicast_mld_version == 1)
 			goto out;
 		addr_size = sizeof(struct in6_addr);
 		break;
@@ -781,12 +781,12 @@ errout:
 
 static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
 				   struct net_device *dev,
-				   int ifindex, u32 pid,
+				   int ifindex, u16 vid, u32 pid,
 				   u32 seq, int type, unsigned int flags)
 {
+	struct nlattr *nest, *port_nest;
 	struct br_port_msg *bpm;
 	struct nlmsghdr *nlh;
-	struct nlattr *nest;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), 0);
 	if (!nlh)
@@ -800,8 +800,18 @@ static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
 	if (!nest)
 		goto cancel;
 
-	if (nla_put_u32(skb, MDBA_ROUTER_PORT, ifindex))
+	port_nest = nla_nest_start_noflag(skb, MDBA_ROUTER_PORT);
+	if (!port_nest)
 		goto end;
+	if (nla_put_nohdr(skb, sizeof(u32), &ifindex)) {
+		nla_nest_cancel(skb, port_nest);
+		goto end;
+	}
+	if (vid && nla_put_u16(skb, MDBA_ROUTER_PATTR_VID, vid)) {
+		nla_nest_cancel(skb, port_nest);
+		goto end;
+	}
+	nla_nest_end(skb, port_nest);
 
 	nla_nest_end(skb, nest);
 	nlmsg_end(skb, nlh);
@@ -817,23 +827,28 @@ cancel:
 static inline size_t rtnl_rtr_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct br_port_msg))
-		+ nla_total_size(sizeof(__u32));
+		+ nla_total_size(sizeof(__u32))
+		+ nla_total_size(sizeof(u16));
 }
 
-void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
+void br_rtr_notify(struct net_device *dev, struct net_bridge_mcast_port *pmctx,
 		   int type)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 	int ifindex;
+	u16 vid;
 
-	ifindex = port ? port->dev->ifindex : 0;
+	ifindex = pmctx ? pmctx->port->dev->ifindex : 0;
+	vid = pmctx && br_multicast_port_ctx_is_vlan(pmctx) ? pmctx->vlan->vid :
+							      0;
 	skb = nlmsg_new(rtnl_rtr_nlmsg_size(), GFP_ATOMIC);
 	if (!skb)
 		goto errout;
 
-	err = nlmsg_populate_rtr_fill(skb, dev, ifindex, 0, 0, type, NTF_SELF);
+	err = nlmsg_populate_rtr_fill(skb, dev, ifindex, vid, 0, 0, type,
+				      NTF_SELF);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto errout;
@@ -1084,14 +1099,15 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	}
 	rcu_assign_pointer(*pp, p);
 	if (entry->state == MDB_TEMPORARY)
-		mod_timer(&p->timer, now + br->multicast_membership_interval);
+		mod_timer(&p->timer,
+			  now + br->multicast_ctx.multicast_membership_interval);
 	br_mdb_notify(br->dev, mp, p, RTM_NEWMDB);
 	/* if we are adding a new EXCLUDE port group (*,G) it needs to be also
 	 * added to all S,G entries for proper replication, if we are adding
 	 * a new INCLUDE port (S,G) then all of *,G EXCLUDE ports need to be
 	 * added to it for proper replication
 	 */
-	if (br_multicast_should_handle_mode(br, group.proto)) {
+	if (br_multicast_should_handle_mode(&br->multicast_ctx, group.proto)) {
 		switch (filter_mode) {
 		case MCAST_EXCLUDE:
 			br_multicast_star_g_handle_mode(p, MCAST_EXCLUDE);
