@@ -942,10 +942,11 @@ static void phylink_phy_change(struct phy_device *phydev, bool up)
 
 	phylink_run_resolve(pl);
 
-	phylink_dbg(pl, "phy link %s %s/%s/%s\n", up ? "up" : "down",
+	phylink_dbg(pl, "phy link %s %s/%s/%s/%s\n", up ? "up" : "down",
 		    phy_modes(phydev->interface),
 		    phy_speed_to_str(phydev->speed),
-		    phy_duplex_to_str(phydev->duplex));
+		    phy_duplex_to_str(phydev->duplex),
+		    phylink_pause_to_str(pl->phy_state.pause));
 }
 
 static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
