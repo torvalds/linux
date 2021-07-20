@@ -42,7 +42,7 @@
 
 #define MAX_MMIO_BASES 3
 struct engine_info {
-	unsigned int hw_id;
+	u8 gen6_hw_id;
 	u8 class;
 	u8 instance;
 	/* mmio bases table *must* be sorted in reverse graphics_ver order */
@@ -54,7 +54,7 @@ struct engine_info {
 
 static const struct engine_info intel_engines[] = {
 	[RCS0] = {
-		.hw_id = RCS0_HW,
+		.gen6_hw_id = RCS0_HW,
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -62,7 +62,7 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[BCS0] = {
-		.hw_id = BCS0_HW,
+		.gen6_hw_id = BCS0_HW,
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -70,7 +70,7 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VCS0] = {
-		.hw_id = VCS0_HW,
+		.gen6_hw_id = VCS0_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -102,7 +102,7 @@ static const struct engine_info intel_engines[] = {
 		},
 	},
 	[VECS0] = {
-		.hw_id = VECS0_HW,
+		.gen6_hw_id = VECS0_HW,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -290,7 +290,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->hw_id = info->hw_id;
+	engine->gen6_hw_id = info->gen6_hw_id;
 	guc_class = engine_class_to_guc_class(info->class);
 	engine->guc_id = MAKE_GUC_ID(guc_class, info->instance);
 	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);

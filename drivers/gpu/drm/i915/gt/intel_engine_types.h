@@ -264,11 +264,11 @@ struct intel_engine_cs {
 	enum intel_engine_id id;
 	enum intel_engine_id legacy_idx;
 
-	unsigned int hw_id;
 	unsigned int guc_id;
 
 	intel_engine_mask_t mask;
 
+	u8 gen6_hw_id;
 	u8 class;
 	u8 instance;
 
