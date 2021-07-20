@@ -132,7 +132,7 @@ static int i2c_hid_of_goodix_probe(struct i2c_client *client,
 	 */
 	mutex_lock(&ihid_goodix->regulator_mutex);
 	ihid_goodix->nb.notifier_call = ihid_goodix_vdd_notify;
-	ret = regulator_register_notifier(ihid_goodix->vdd, &ihid_goodix->nb);
+	ret = devm_regulator_register_notifier(ihid_goodix->vdd, &ihid_goodix->nb);
 	if (ret) {
 		mutex_unlock(&ihid_goodix->regulator_mutex);
 		return dev_err_probe(&client->dev, ret,
