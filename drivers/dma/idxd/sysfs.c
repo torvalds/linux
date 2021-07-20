@@ -1217,7 +1217,16 @@ static ssize_t cmd_status_show(struct device *dev,
 
 	return sysfs_emit(buf, "%#x\n", idxd->cmd_status);
 }
-static DEVICE_ATTR_RO(cmd_status);
+
+static ssize_t cmd_status_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	idxd->cmd_status = 0;
+	return count;
+}
+static DEVICE_ATTR_RW(cmd_status);
 
 static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_version.attr,

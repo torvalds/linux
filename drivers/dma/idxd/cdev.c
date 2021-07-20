@@ -320,9 +320,12 @@ static int idxd_user_drv_probe(struct idxd_dev *idxd_dev)
 		goto err;
 
 	rc = idxd_wq_add_cdev(wq);
-	if (rc < 0)
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_CDEV_ERR;
 		goto err_cdev;
+	}
 
+	idxd->cmd_status = 0;
 	mutex_unlock(&wq->wq_lock);
 	return 0;
 

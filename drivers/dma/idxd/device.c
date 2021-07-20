@@ -840,6 +840,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg->wq_size = wq->size;
 
 	if (wq->size == 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_NO_SIZE;
 		dev_warn(dev, "Incorrect work queue size: 0\n");
 		return -EINVAL;
 	}
@@ -975,6 +976,7 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 			continue;
 
 		if (wq_shared(wq) && !device_swq_supported(idxd)) {
+			idxd->cmd_status = IDXD_SCMD_WQ_NO_SWQ_SUPPORT;
 			dev_warn(dev, "No shared wq support but configured.\n");
 			return -EINVAL;
 		}
@@ -983,8 +985,10 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 		configured++;
 	}
 
-	if (configured == 0)
+	if (configured == 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_NONE_CONFIGURED;
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1140,21 +1144,26 @@ int __drv_enable_wq(struct idxd_wq *wq)
 
 	lockdep_assert_held(&wq->wq_lock);
 
-	if (idxd->state != IDXD_DEV_ENABLED)
+	if (idxd->state != IDXD_DEV_ENABLED) {
+		idxd->cmd_status = IDXD_SCMD_DEV_NOT_ENABLED;
 		goto err;
+	}
 
 	if (wq->state != IDXD_WQ_DISABLED) {
 		dev_dbg(dev, "wq %d already enabled.\n", wq->id);
+		idxd->cmd_status = IDXD_SCMD_WQ_ENABLED;
 		rc = -EBUSY;
 		goto err;
 	}
 
 	if (!wq->group) {
 		dev_dbg(dev, "wq %d not attached to group.\n", wq->id);
+		idxd->cmd_status = IDXD_SCMD_WQ_NO_GRP;
 		goto err;
 	}
 
 	if (strlen(wq->name) == 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_NO_NAME;
 		dev_dbg(dev, "wq %d name not set.\n", wq->id);
 		goto err;
 	}
@@ -1162,6 +1171,7 @@ int __drv_enable_wq(struct idxd_wq *wq)
 	/* Shared WQ checks */
 	if (wq_shared(wq)) {
 		if (!device_swq_supported(idxd)) {
+			idxd->cmd_status = IDXD_SCMD_WQ_NO_SVM;
 			dev_dbg(dev, "PASID not enabled and shared wq.\n");
 			goto err;
 		}
@@ -1174,6 +1184,7 @@ int __drv_enable_wq(struct idxd_wq *wq)
 		 * threshold via sysfs.
 		 */
 		if (wq->threshold == 0) {
+			idxd->cmd_status = IDXD_SCMD_WQ_NO_THRESH;
 			dev_dbg(dev, "Shared wq and threshold 0.\n");
 			goto err;
 		}
@@ -1197,6 +1208,7 @@ int __drv_enable_wq(struct idxd_wq *wq)
 
 	rc = idxd_wq_map_portal(wq);
 	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_PORTAL_ERR;
 		dev_dbg(dev, "wq %d portal mapping failed: %d\n", wq->id, rc);
 		goto err_map_portal;
 	}
@@ -1259,8 +1271,10 @@ int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
 	 * enabled state, then the device was altered outside of driver's control.
 	 * If the state is in halted state, then we don't want to proceed.
 	 */
-	if (idxd->state != IDXD_DEV_DISABLED)
+	if (idxd->state != IDXD_DEV_DISABLED) {
+		idxd->cmd_status = IDXD_SCMD_DEV_ENABLED;
 		return -ENXIO;
+	}
 
 	/* Device configuration */
 	spin_lock_irqsave(&idxd->dev_lock, flags);
@@ -1279,9 +1293,11 @@ int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
 	rc = idxd_register_dma_device(idxd);
 	if (rc < 0) {
 		idxd_device_disable(idxd);
+		idxd->cmd_status = IDXD_SCMD_DEV_DMA_ERR;
 		return rc;
 	}
 
+	idxd->cmd_status = 0;
 	return 0;
 }
 

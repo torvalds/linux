@@ -284,22 +284,26 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 
 	rc = idxd_wq_alloc_resources(wq);
 	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_RES_ALLOC_ERR;
 		dev_dbg(dev, "WQ resource alloc failed\n");
 		goto err_res_alloc;
 	}
 
 	rc = idxd_wq_init_percpu_ref(wq);
 	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_PERCPU_ERR;
 		dev_dbg(dev, "percpu_ref setup failed\n");
 		goto err_ref;
 	}
 
 	rc = idxd_register_dma_channel(wq);
 	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_DMA_CHAN_ERR;
 		dev_dbg(dev, "Failed to register dma channel\n");
 		goto err_dma;
 	}
 
+	idxd->cmd_status = 0;
 	mutex_unlock(&wq->wq_lock);
 	return 0;
 
