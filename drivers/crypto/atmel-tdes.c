@@ -312,7 +312,7 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 		if (count != dd->dma_size) {
 			err = -EINVAL;
-			pr_err("not all data converted: %zu\n", count);
+			dev_dbg(dd->dev, "not all data converted: %zu\n", count);
 		}
 	}
 
@@ -329,24 +329,24 @@ static int atmel_tdes_buff_init(struct atmel_tdes_dev *dd)
 	dd->buflen &= ~(DES_BLOCK_SIZE - 1);
 
 	if (!dd->buf_in || !dd->buf_out) {
-		dev_err(dd->dev, "unable to alloc pages.\n");
+		dev_dbg(dd->dev, "unable to alloc pages.\n");
 		goto err_alloc;
 	}
 
 	/* MAP here */
 	dd->dma_addr_in = dma_map_single(dd->dev, dd->buf_in,
 					dd->buflen, DMA_TO_DEVICE);
-	if (dma_mapping_error(dd->dev, dd->dma_addr_in)) {
-		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
-		err = -EINVAL;
+	err = dma_mapping_error(dd->dev, dd->dma_addr_in);
+	if (err) {
+		dev_dbg(dd->dev, "dma %zd bytes error\n", dd->buflen);
 		goto err_map_in;
 	}
 
 	dd->dma_addr_out = dma_map_single(dd->dev, dd->buf_out,
 					dd->buflen, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dd->dev, dd->dma_addr_out)) {
-		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
-		err = -EINVAL;
+	err = dma_mapping_error(dd->dev, dd->dma_addr_out);
+	if (err) {
+		dev_dbg(dd->dev, "dma %zd bytes error\n", dd->buflen);
 		goto err_map_out;
 	}
 
@@ -359,8 +359,6 @@ err_map_in:
 err_alloc:
 	free_page((unsigned long)dd->buf_out);
 	free_page((unsigned long)dd->buf_in);
-	if (err)
-		pr_err("error: %d\n", err);
 	return err;
 }
 
@@ -512,14 +510,14 @@ static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 
 		err = dma_map_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
+			dev_dbg(dd->dev, "dma_map_sg() error\n");
 			return -EINVAL;
 		}
 
 		err = dma_map_sg(dd->dev, dd->out_sg, 1,
 				DMA_FROM_DEVICE);
 		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
+			dev_dbg(dd->dev, "dma_map_sg() error\n");
 			dma_unmap_sg(dd->dev, dd->in_sg, 1,
 				DMA_TO_DEVICE);
 			return -EINVAL;
@@ -670,7 +668,7 @@ static int atmel_tdes_crypt_dma_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 			if (count != dd->dma_size) {
 				err = -EINVAL;
-				pr_err("not all data converted: %zu\n", count);
+				dev_dbg(dd->dev, "not all data converted: %zu\n", count);
 			}
 		}
 	}
@@ -682,11 +680,12 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct atmel_tdes_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	struct atmel_tdes_reqctx *rctx = skcipher_request_ctx(req);
+	struct device *dev = ctx->dd->dev;
 
 	switch (mode & TDES_FLAGS_OPMODE_MASK) {
 	case TDES_FLAGS_CFB8:
 		if (!IS_ALIGNED(req->cryptlen, CFB8_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB8 blocks\n");
+			dev_dbg(dev, "request size is not exact amount of CFB8 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB8_BLOCK_SIZE;
@@ -694,7 +693,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 
 	case TDES_FLAGS_CFB16:
 		if (!IS_ALIGNED(req->cryptlen, CFB16_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB16 blocks\n");
+			dev_dbg(dev, "request size is not exact amount of CFB16 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB16_BLOCK_SIZE;
@@ -702,7 +701,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 
 	case TDES_FLAGS_CFB32:
 		if (!IS_ALIGNED(req->cryptlen, CFB32_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB32 blocks\n");
+			dev_dbg(dev, "request size is not exact amount of CFB32 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB32_BLOCK_SIZE;
@@ -710,7 +709,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 
 	default:
 		if (!IS_ALIGNED(req->cryptlen, DES_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of DES blocks\n");
+			dev_dbg(dev, "request size is not exact amount of DES blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = DES_BLOCK_SIZE;
