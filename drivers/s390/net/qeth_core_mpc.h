@@ -905,9 +905,9 @@ extern const unsigned char ULP_ENABLE[];
 		(PDU_ENCAPSULATION(buffer) + 0x17)
 #define QETH_ULP_ENABLE_RESP_LINK_TYPE(buffer) \
 		(PDU_ENCAPSULATION(buffer) + 0x2b)
-/* Layer 2 definitions */
-#define QETH_PROT_LAYER2 0x08
-#define QETH_PROT_TCPIP  0x03
+
+#define QETH_MPC_PROT_L2	0x08
+#define QETH_MPC_PROT_L3	0x03
 #define QETH_ULP_ENABLE_PROT_TYPE(buffer) (buffer + 0x50)
 #define QETH_IPA_CMD_PROT_TYPE(buffer) (buffer + 0x19)
 

@@ -2422,7 +2422,7 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 
 static u8 qeth_mpc_select_prot_type(struct qeth_card *card)
 {
-	return IS_LAYER2(card) ? QETH_PROT_LAYER2 : QETH_PROT_TCPIP;
+	return IS_LAYER2(card) ? QETH_MPC_PROT_L2 : QETH_MPC_PROT_L3;
 }
 
 static int qeth_ulp_enable(struct qeth_card *card)
