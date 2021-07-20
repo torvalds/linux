@@ -2166,8 +2166,9 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 		return -ENODATA;
 	}
 	case BTF_KIND_ENUM:
-		if (btf_dump_get_enum_value(d, t, data, id, &value))
-			return 0;
+		err = btf_dump_get_enum_value(d, t, data, id, &value);
+		if (err)
+			return err;
 		if (value == 0)
 			return -ENODATA;
 		return 0;
