@@ -648,7 +648,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		if (skb->dev)
 			byte--;
 
-		raw32 = dev_net(skb->dev)->ipv6.sysctl.ioam6_id;
+		raw32 = dev_net(skb_dst(skb)->dev)->ipv6.sysctl.ioam6_id;
 
 		*(__be32 *)data = cpu_to_be32((byte << 24) | raw32);
 		data += sizeof(__be32);
@@ -675,24 +675,31 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 
 	/* timestamp seconds */
 	if (trace->type.bit2) {
-		if (!skb->tstamp)
-			__net_timestamp(skb);
+		if (!skb->dev) {
+			*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		} else {
+			if (!skb->tstamp)
+				__net_timestamp(skb);
 
-		skb_get_new_timestamp(skb, &ts);
-
-		*(__be32 *)data = cpu_to_be32((u32)ts.tv_sec);
+			skb_get_new_timestamp(skb, &ts);
+			*(__be32 *)data = cpu_to_be32((u32)ts.tv_sec);
+		}
 		data += sizeof(__be32);
 	}
 
 	/* timestamp subseconds */
 	if (trace->type.bit3) {
-		if (!skb->tstamp)
-			__net_timestamp(skb);
+		if (!skb->dev) {
+			*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		} else {
+			if (!skb->tstamp)
+				__net_timestamp(skb);
 
-		if (!trace->type.bit2)
-			skb_get_new_timestamp(skb, &ts);
+			if (!trace->type.bit2)
+				skb_get_new_timestamp(skb, &ts);
 
-		*(__be32 *)data = cpu_to_be32((u32)ts.tv_usec);
+			*(__be32 *)data = cpu_to_be32((u32)ts.tv_usec);
+		}
 		data += sizeof(__be32);
 	}
 
@@ -726,7 +733,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		if (skb->dev)
 			byte--;
 
-		raw64 = dev_net(skb->dev)->ipv6.sysctl.ioam6_id_wide;
+		raw64 = dev_net(skb_dst(skb)->dev)->ipv6.sysctl.ioam6_id_wide;
 
 		*(__be64 *)data = cpu_to_be64(((u64)byte << 56) | raw64);
 		data += sizeof(__be64);
@@ -874,10 +881,20 @@ int __init ioam6_init(void)
 	if (err)
 		goto out_unregister_pernet_subsys;
 
+#ifdef CONFIG_IPV6_IOAM6_LWTUNNEL
+	err = ioam6_iptunnel_init();
+	if (err)
+		goto out_unregister_genl;
+#endif
+
 	pr_info("In-situ OAM (IOAM) with IPv6\n");
 
 out:
 	return err;
+#ifdef CONFIG_IPV6_IOAM6_LWTUNNEL
+out_unregister_genl:
+	genl_unregister_family(&ioam6_genl_family);
+#endif
 out_unregister_pernet_subsys:
 	unregister_pernet_subsys(&ioam6_net_ops);
 	goto out;
@@ -885,6 +902,9 @@ out_unregister_pernet_subsys:
 
 void ioam6_exit(void)
 {
+#ifdef CONFIG_IPV6_IOAM6_LWTUNNEL
+	ioam6_iptunnel_exit();
+#endif
 	genl_unregister_family(&ioam6_genl_family);
 	unregister_pernet_subsys(&ioam6_net_ops);
 }
