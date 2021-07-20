@@ -531,10 +531,10 @@ static int snd_sc6000_match(struct device *devptr, unsigned int dev)
 
 static void snd_sc6000_free(struct snd_card *card)
 {
-	char __iomem **vport = card->private_data;
+	char __iomem *vport = card->private_data;
 
-	if (*vport)
-		sc6000_setup_board(*vport, 0);
+	if (vport)
+		sc6000_setup_board(vport, 0);
 }
 
 static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
@@ -547,16 +547,14 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	struct snd_card *card;
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
-	char __iomem **vport;
+	char __iomem *vport;
 	char __iomem *vmss_port;
 
-
 	err = snd_devm_card_new(devptr, index[dev], id[dev], THIS_MODULE,
-				sizeof(*vport), &card);
+				0, &card);
 	if (err < 0)
 		return err;
 
-	vport = card->private_data;
 	if (xirq == SNDRV_AUTO_IRQ) {
 		xirq = snd_legacy_find_free_irq(possible_irqs);
 		if (xirq < 0) {
@@ -578,12 +576,13 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 			   "I/O port region is already in use.\n");
 		return -EBUSY;
 	}
-	*vport = devm_ioport_map(devptr, port[dev], 0x10);
-	if (*vport == NULL) {
+	vport = devm_ioport_map(devptr, port[dev], 0x10);
+	if (!vport) {
 		snd_printk(KERN_ERR PFX
 			   "I/O port cannot be iomapped.\n");
 		return -EBUSY;
 	}
+	card->private_data = vport;
 
 	/* to make it marked as used */
 	if (!devm_request_region(devptr, mss_port[dev], 4, DRV_NAME)) {
@@ -602,7 +601,7 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		   port[dev], xirq, xdma,
 		   mpu_irq[dev] == SNDRV_AUTO_IRQ ? 0 : mpu_irq[dev]);
 
-	err = sc6000_init_board(*vport, vmss_port, dev);
+	err = sc6000_init_board(vport, vmss_port, dev);
 	if (err < 0)
 		return err;
 	card->private_free = snd_sc6000_free;
