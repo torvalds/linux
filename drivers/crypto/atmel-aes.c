@@ -420,24 +420,15 @@ static inline size_t atmel_aes_padlen(size_t len, size_t block_size)
 	return len ? block_size - len : 0;
 }
 
-static struct atmel_aes_dev *atmel_aes_find_dev(struct atmel_aes_base_ctx *ctx)
+static struct atmel_aes_dev *atmel_aes_dev_alloc(struct atmel_aes_base_ctx *ctx)
 {
-	struct atmel_aes_dev *aes_dd = NULL;
-	struct atmel_aes_dev *tmp;
+	struct atmel_aes_dev *aes_dd;
 
 	spin_lock_bh(&atmel_aes.lock);
-	if (!ctx->dd) {
-		list_for_each_entry(tmp, &atmel_aes.dev_list, list) {
-			aes_dd = tmp;
-			break;
-		}
-		ctx->dd = aes_dd;
-	} else {
-		aes_dd = ctx->dd;
-	}
-
+	/* One AES IP per SoC. */
+	aes_dd = list_first_entry_or_null(&atmel_aes.dev_list,
+					  struct atmel_aes_dev, list);
 	spin_unlock_bh(&atmel_aes.lock);
-
 	return aes_dd;
 }
 
@@ -969,7 +960,6 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	ctx = crypto_tfm_ctx(areq->tfm);
 
 	dd->areq = areq;
-	dd->ctx = ctx;
 	start_async = (areq != new_areq);
 	dd->is_async = start_async;
 
@@ -1106,7 +1096,6 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct atmel_aes_base_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	struct atmel_aes_reqctx *rctx;
-	struct atmel_aes_dev *dd;
 	u32 opmode = mode & AES_FLAGS_OPMODE_MASK;
 
 	if (opmode == AES_FLAGS_XTS) {
@@ -1152,10 +1141,6 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	}
 	ctx->is_aead = false;
 
-	dd = atmel_aes_find_dev(ctx);
-	if (!dd)
-		return -ENODEV;
-
 	rctx = skcipher_request_ctx(req);
 	rctx->mode = mode;
 
@@ -1169,7 +1154,7 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 						 ivsize, 0);
 	}
 
-	return atmel_aes_handle_queue(dd, &req->base);
+	return atmel_aes_handle_queue(ctx->dd, &req->base);
 }
 
 static int atmel_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -1281,8 +1266,15 @@ static int atmel_aes_ctr_decrypt(struct skcipher_request *req)
 static int atmel_aes_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct atmel_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct atmel_aes_dev *dd;
+
+	dd = atmel_aes_dev_alloc(&ctx->base);
+	if (!dd)
+		return -ENODEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
+	ctx->base.dd = dd;
+	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_start;
 
 	return 0;
@@ -1291,8 +1283,15 @@ static int atmel_aes_init_tfm(struct crypto_skcipher *tfm)
 static int atmel_aes_ctr_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct atmel_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct atmel_aes_dev *dd;
+
+	dd = atmel_aes_dev_alloc(&ctx->base);
+	if (!dd)
+		return -ENODEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
+	ctx->base.dd = dd;
+	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_ctr_start;
 
 	return 0;
@@ -1730,20 +1729,15 @@ static int atmel_aes_gcm_crypt(struct aead_request *req,
 {
 	struct atmel_aes_base_ctx *ctx;
 	struct atmel_aes_reqctx *rctx;
-	struct atmel_aes_dev *dd;
 
 	ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	ctx->block_size = AES_BLOCK_SIZE;
 	ctx->is_aead = true;
 
-	dd = atmel_aes_find_dev(ctx);
-	if (!dd)
-		return -ENODEV;
-
 	rctx = aead_request_ctx(req);
 	rctx->mode = AES_FLAGS_GCM | mode;
 
-	return atmel_aes_handle_queue(dd, &req->base);
+	return atmel_aes_handle_queue(ctx->dd, &req->base);
 }
 
 static int atmel_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
@@ -1781,8 +1775,15 @@ static int atmel_aes_gcm_decrypt(struct aead_request *req)
 static int atmel_aes_gcm_init(struct crypto_aead *tfm)
 {
 	struct atmel_aes_gcm_ctx *ctx = crypto_aead_ctx(tfm);
+	struct atmel_aes_dev *dd;
+
+	dd = atmel_aes_dev_alloc(&ctx->base);
+	if (!dd)
+		return -ENODEV;
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
+	ctx->base.dd = dd;
+	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_gcm_start;
 
 	return 0;
@@ -1915,7 +1916,12 @@ static int atmel_aes_xts_decrypt(struct skcipher_request *req)
 static int atmel_aes_xts_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct atmel_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct atmel_aes_dev *dd;
 	const char *tfm_name = crypto_tfm_alg_name(&tfm->base);
+
+	dd = atmel_aes_dev_alloc(&ctx->base);
+	if (!dd)
+		return -ENODEV;
 
 	ctx->fallback_tfm = crypto_alloc_skcipher(tfm_name, 0,
 						  CRYPTO_ALG_NEED_FALLBACK);
@@ -1924,6 +1930,8 @@ static int atmel_aes_xts_init_tfm(struct crypto_skcipher *tfm)
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx) +
 				    crypto_skcipher_reqsize(ctx->fallback_tfm));
+	ctx->base.dd = dd;
+	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_xts_start;
 
 	return 0;
@@ -2137,6 +2145,11 @@ static int atmel_aes_authenc_init_tfm(struct crypto_aead *tfm,
 {
 	struct atmel_aes_authenc_ctx *ctx = crypto_aead_ctx(tfm);
 	unsigned int auth_reqsize = atmel_sha_authenc_get_reqsize();
+	struct atmel_aes_dev *dd;
+
+	dd = atmel_aes_dev_alloc(&ctx->base);
+	if (!dd)
+		return -ENODEV;
 
 	ctx->auth = atmel_sha_authenc_spawn(auth_mode);
 	if (IS_ERR(ctx->auth))
@@ -2144,6 +2157,8 @@ static int atmel_aes_authenc_init_tfm(struct crypto_aead *tfm,
 
 	crypto_aead_set_reqsize(tfm, (sizeof(struct atmel_aes_authenc_reqctx) +
 				      auth_reqsize));
+	ctx->base.dd = dd;
+	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_authenc_start;
 
 	return 0;
@@ -2189,7 +2204,6 @@ static int atmel_aes_authenc_crypt(struct aead_request *req,
 	struct atmel_aes_base_ctx *ctx = crypto_aead_ctx(tfm);
 	u32 authsize = crypto_aead_authsize(tfm);
 	bool enc = (mode & AES_FLAGS_ENCRYPT);
-	struct atmel_aes_dev *dd;
 
 	/* Compute text length. */
 	if (!enc && req->cryptlen < authsize)
@@ -2208,11 +2222,7 @@ static int atmel_aes_authenc_crypt(struct aead_request *req,
 	ctx->block_size = AES_BLOCK_SIZE;
 	ctx->is_aead = true;
 
-	dd = atmel_aes_find_dev(ctx);
-	if (!dd)
-		return -ENODEV;
-
-	return atmel_aes_handle_queue(dd, &req->base);
+	return atmel_aes_handle_queue(ctx->dd, &req->base);
 }
 
 static int atmel_aes_authenc_cbc_aes_encrypt(struct aead_request *req)
