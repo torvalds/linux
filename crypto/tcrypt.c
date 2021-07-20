@@ -77,7 +77,7 @@ static const char *check[] = {
 	NULL
 };
 
-static const int block_sizes[] = { 16, 64, 256, 1024, 1420, 4096, 0 };
+static const int block_sizes[] = { 16, 64, 128, 256, 1024, 1420, 4096, 0 };
 static const int aead_sizes[] = { 16, 64, 256, 512, 1024, 1420, 4096, 8192, 0 };
 
 #define XBUFSIZE 8
@@ -2031,6 +2031,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 	case 191:
 		ret += tcrypt_test("ecb(sm4)");
 		ret += tcrypt_test("cbc(sm4)");
+		ret += tcrypt_test("cfb(sm4)");
 		ret += tcrypt_test("ctr(sm4)");
 		break;
 	case 200:
@@ -2288,6 +2289,10 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_cipher_speed("cbc(sm4)", ENCRYPT, sec, NULL, 0,
 				speed_template_16);
 		test_cipher_speed("cbc(sm4)", DECRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_cipher_speed("cfb(sm4)", ENCRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_cipher_speed("cfb(sm4)", DECRYPT, sec, NULL, 0,
 				speed_template_16);
 		test_cipher_speed("ctr(sm4)", ENCRYPT, sec, NULL, 0,
 				speed_template_16);
@@ -2755,6 +2760,25 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				   speed_template_8_32);
 		test_acipher_speed("ctr(blowfish)", DECRYPT, sec, NULL, 0,
 				   speed_template_8_32);
+		break;
+
+	case 518:
+		test_acipher_speed("ecb(sm4)", ENCRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("ecb(sm4)", DECRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("cbc(sm4)", ENCRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("cbc(sm4)", DECRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("cfb(sm4)", ENCRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("cfb(sm4)", DECRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("ctr(sm4)", ENCRYPT, sec, NULL, 0,
+				speed_template_16);
+		test_acipher_speed("ctr(sm4)", DECRYPT, sec, NULL, 0,
+				speed_template_16);
 		break;
 
 	case 600:
