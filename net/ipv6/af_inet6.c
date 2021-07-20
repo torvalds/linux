@@ -62,6 +62,7 @@
 #include <net/rpl.h>
 #include <net/compat.h>
 #include <net/xfrm.h>
+#include <net/ioam6.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -961,6 +962,9 @@ static int __net_init inet6_net_init(struct net *net)
 	net->ipv6.sysctl.fib_notify_on_flag_change = 0;
 	atomic_set(&net->ipv6.fib6_sernum, 1);
 
+	net->ipv6.sysctl.ioam6_id = IOAM6_DEFAULT_ID;
+	net->ipv6.sysctl.ioam6_id_wide = IOAM6_DEFAULT_ID_WIDE;
+
 	err = ipv6_init_mibs(net);
 	if (err)
 		return err;
@@ -1191,6 +1195,10 @@ static int __init inet6_init(void)
 	if (err)
 		goto rpl_fail;
 
+	err = ioam6_init();
+	if (err)
+		goto ioam6_fail;
+
 	err = igmp6_late_init();
 	if (err)
 		goto igmp6_late_err;
@@ -1213,6 +1221,8 @@ sysctl_fail:
 	igmp6_late_cleanup();
 #endif
 igmp6_late_err:
+	ioam6_exit();
+ioam6_fail:
 	rpl_exit();
 rpl_fail:
 	seg6_exit();
