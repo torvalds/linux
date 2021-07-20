@@ -760,6 +760,9 @@ enum amd_hw_ip_block_type {
 
 #define HWIP_MAX_INSTANCE	10
 
+#define HW_ID_MAX		300
+#define IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))
+
 struct amd_powerplay {
 	void *pp_handle;
 	const struct amd_pm_funcs *pp_funcs;
@@ -1090,6 +1093,7 @@ struct amdgpu_device {
 	struct pci_saved_state          *pci_state;
 
 	struct amdgpu_reset_control     *reset_cntl;
+	uint32_t                        ip_versions[HW_ID_MAX];
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
