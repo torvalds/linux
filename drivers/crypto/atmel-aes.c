@@ -1091,6 +1091,9 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct atmel_aes_dev *dd;
 	u32 opmode = mode & AES_FLAGS_OPMODE_MASK;
 
+	if (opmode == AES_FLAGS_XTS && req->cryptlen < XTS_BLOCK_SIZE)
+		return -EINVAL;
+
 	if ((opmode == AES_FLAGS_ECB || opmode == AES_FLAGS_CBC) &&
 	    !IS_ALIGNED(req->cryptlen, crypto_skcipher_blocksize(skcipher)))
 		return -EINVAL;
