@@ -2426,7 +2426,7 @@ static void fec_work_event(struct rkispp_device *dev,
 				complete(&monitor->fec.cmpl);
 		}
 
-		if (stream->is_reg_withstream)
+		if (rkispp_is_reg_withstream_global())
 			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_FEC)) {
 			u32 offset, size;
@@ -2661,7 +2661,7 @@ static void nr_work_event(struct rkispp_device *dev,
 				complete(&monitor->nr.cmpl);
 		}
 
-		if (stream->is_reg_withstream)
+		if (rkispp_is_reg_withstream_global())
 			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_NR)) {
 			u32 offset, size;
@@ -2959,7 +2959,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 				complete(&monitor->tnr.cmpl);
 		}
 
-		if (stream->is_reg_withstream)
+		if (rkispp_is_reg_withstream_global())
 			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_TNR)) {
 			u32 offset, size;
