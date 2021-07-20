@@ -4,6 +4,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <linux/delay.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include "dev.h"
 #include "regs.h"
 

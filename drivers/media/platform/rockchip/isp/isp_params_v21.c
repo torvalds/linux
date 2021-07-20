@@ -6,6 +6,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP params */
 #include <linux/rk-preisp.h>
+#include <linux/slab.h>
 #include "dev.h"
 #include "regs.h"
 #include "regs_v2x.h"

@@ -7,6 +7,7 @@
 #include <media/videobuf2-vmalloc.h>   /* for ISP params */
 #include <linux/delay.h>
 #include <linux/rk-preisp.h>
+#include <linux/slab.h>
 #include "dev.h"
 #include "regs.h"
 #include "regs_v2x.h"
