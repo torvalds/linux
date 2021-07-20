@@ -363,9 +363,9 @@ static int xive_check_provisioning(struct kvm *kvm, u8 prio)
 		if (!vcpu->arch.xive_vcpu)
 			continue;
 		rc = xive_provision_queue(vcpu, prio);
-		if (rc == 0 && !xive->single_escalation)
+		if (rc == 0 && !kvmppc_xive_has_single_escalation(xive))
 			kvmppc_xive_attach_escalation(vcpu, prio,
-						      xive->single_escalation);
+						      kvmppc_xive_has_single_escalation(xive));
 		if (rc)
 			return rc;
 	}
@@ -1199,7 +1199,7 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	/* Free escalations */
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		if (xc->esc_virq[i]) {
-			if (xc->xive->single_escalation)
+			if (kvmppc_xive_has_single_escalation(xc->xive))
 				xive_cleanup_single_escalation(vcpu, xc,
 							xc->esc_virq[i]);
 			free_irq(xc->esc_virq[i], vcpu);
@@ -1340,7 +1340,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	 * Enable the VP first as the single escalation mode will
 	 * affect escalation interrupts numbering
 	 */
-	r = xive_native_enable_vp(xc->vp_id, xive->single_escalation);
+	r = xive_native_enable_vp(xc->vp_id, kvmppc_xive_has_single_escalation(xive));
 	if (r) {
 		pr_err("Failed to enable VP in OPAL, err %d\n", r);
 		goto bail;
@@ -1357,15 +1357,15 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		struct xive_q *q = &xc->queues[i];
 
 		/* Single escalation, no queue 7 */
-		if (i == 7 && xive->single_escalation)
+		if (i == 7 && kvmppc_xive_has_single_escalation(xive))
 			break;
 
 		/* Is queue already enabled ? Provision it */
 		if (xive->qmap & (1 << i)) {
 			r = xive_provision_queue(vcpu, i);
-			if (r == 0 && !xive->single_escalation)
+			if (r == 0 && !kvmppc_xive_has_single_escalation(xive))
 				kvmppc_xive_attach_escalation(
-					vcpu, i, xive->single_escalation);
+					vcpu, i, kvmppc_xive_has_single_escalation(xive));
 			if (r)
 				goto bail;
 		} else {
@@ -1380,7 +1380,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	}
 
 	/* If not done above, attach priority 0 escalation */
-	r = kvmppc_xive_attach_escalation(vcpu, 0, xive->single_escalation);
+	r = kvmppc_xive_attach_escalation(vcpu, 0, kvmppc_xive_has_single_escalation(xive));
 	if (r)
 		goto bail;
 
@@ -2135,7 +2135,8 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	 */
 	xive->nr_servers = KVM_MAX_VCPUS;
 
-	xive->single_escalation = xive_native_has_single_escalation();
+	if (xive_native_has_single_escalation())
+		xive->flags |= KVMPPC_XIVE_FLAG_SINGLE_ESCALATION;
 
 	kvm->arch.xive = xive;
 	return 0;
