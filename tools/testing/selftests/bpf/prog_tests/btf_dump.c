@@ -327,6 +327,14 @@ static int btf_dump_data(struct btf *btf, struct btf_dump *d,
 static void test_btf_dump_int_data(struct btf *btf, struct btf_dump *d,
 				   char *str)
 {
+#ifdef __SIZEOF_INT128__
+	__int128 i = 0xffffffffffffffff;
+
+	/* this dance is required because we cannot directly initialize
+	 * a 128-bit value to anything larger than a 64-bit value.
+	 */
+	i = (i << 64) | (i - 1);
+#endif
 	/* simple int */
 	TEST_BTF_DUMP_DATA_C(btf, d, NULL, str, int, BTF_F_COMPACT, 1234);
 	TEST_BTF_DUMP_DATA(btf, d, NULL, str, int, BTF_F_COMPACT | BTF_F_NONAME,
@@ -348,6 +356,15 @@ static void test_btf_dump_int_data(struct btf *btf, struct btf_dump *d,
 	TEST_BTF_DUMP_DATA(btf, d, NULL, str, int, 0, "(int)-4567", -4567);
 
 	TEST_BTF_DUMP_DATA_OVER(btf, d, NULL, str, int, sizeof(int)-1, "", 1);
+
+#ifdef __SIZEOF_INT128__
+	TEST_BTF_DUMP_DATA(btf, d, NULL, str, __int128, BTF_F_COMPACT,
+			   "(__int128)0xffffffffffffffff",
+			   0xffffffffffffffff);
+	ASSERT_OK(btf_dump_data(btf, d, "__int128", NULL, 0, &i, 16, str,
+				"(__int128)0xfffffffffffffffffffffffffffffffe"),
+		  "dump __int128");
+#endif
 }
 
 static void test_btf_dump_float_data(struct btf *btf, struct btf_dump *d,
