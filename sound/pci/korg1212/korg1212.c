@@ -2256,15 +2256,17 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
         korg1212->AdatTimeCodePhy = korg1212->sharedBufferPhy +
 		offsetof(struct KorgSharedBuffer, AdatTimeCode);
 
-	korg1212->dma_dsp = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
-						 dsp_code->size);
-	if (!korg1212->dma_dsp)
-		return -ENOMEM;
-
 	err = request_firmware(&dsp_code, "korg/k1212.dsp", &pci->dev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "firmware not available\n");
 		return err;
+	}
+
+	korg1212->dma_dsp = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
+						 dsp_code->size);
+	if (!korg1212->dma_dsp) {
+		release_firmware(dsp_code);
+		return -ENOMEM;
 	}
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: DSP Code area = 0x%p (0x%08x) %d bytes [%s]\n",
