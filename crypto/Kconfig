@@ -1547,6 +1547,7 @@ config CRYPTO_SERPENT_AVX2_X86_64
 config CRYPTO_SM4
 	tristate "SM4 cipher algorithm"
 	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_SM4
 	help
 	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
 
