@@ -521,7 +521,9 @@ static int venc_s_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	return ret;
 }
 
-static long venc_command(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long venc_ioctl(struct v4l2_subdev *sd,
+			unsigned int cmd,
+			void *arg)
 {
 	u32 val;
 
@@ -540,7 +542,7 @@ static long venc_command(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 static const struct v4l2_subdev_core_ops venc_core_ops = {
-	.command      = venc_command,
+	.ioctl      = venc_ioctl,
 };
 
 static const struct v4l2_subdev_video_ops venc_video_ops = {

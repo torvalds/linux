@@ -47,7 +47,7 @@ static int venc_is_second_field(struct vpbe_display *disp_dev)
 
 	ret = v4l2_subdev_call(vpbe_dev->venc,
 			       core,
-			       command,
+			       ioctl,
 			       VENC_GET_FLD,
 			       &val);
 	if (ret < 0) {
