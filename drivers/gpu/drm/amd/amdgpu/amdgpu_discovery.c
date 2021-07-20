@@ -336,8 +336,9 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 							hw_id_names[le16_to_cpu(ip->hw_id)]);
 					adev->reg_offset[hw_ip][ip->number_instance] =
 						ip->base_address;
+					adev->ip_versions[hw_ip] =
+						IP_VERSION(ip->major, ip->minor, ip->revision);
 				}
-
 			}
 
 next_ip:
