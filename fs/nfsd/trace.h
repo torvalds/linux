@@ -368,35 +368,6 @@ DEFINE_EVENT(nfsd_net_class, nfsd_##name, \
 DEFINE_NET_EVENT(grace_start);
 DEFINE_NET_EVENT(grace_complete);
 
-DECLARE_EVENT_CLASS(nfsd_clid_class,
-	TP_PROTO(const struct nfsd_net *nn,
-		 unsigned int namelen,
-		 const unsigned char *namedata),
-	TP_ARGS(nn, namelen, namedata),
-	TP_STRUCT__entry(
-		__field(unsigned long long, boot_time)
-		__field(unsigned int, namelen)
-		__dynamic_array(unsigned char,  name, namelen)
-	),
-	TP_fast_assign(
-		__entry->boot_time = nn->boot_time;
-		__entry->namelen = namelen;
-		memcpy(__get_dynamic_array(name), namedata, namelen);
-	),
-	TP_printk("boot_time=%16llx nfs4_clientid=%.*s",
-		__entry->boot_time, __entry->namelen, __get_str(name))
-)
-
-#define DEFINE_CLID_EVENT(name) \
-DEFINE_EVENT(nfsd_clid_class, nfsd_clid_##name, \
-	TP_PROTO(const struct nfsd_net *nn, \
-		 unsigned int namelen, \
-		 const unsigned char *namedata), \
-	TP_ARGS(nn, namelen, namedata))
-
-DEFINE_CLID_EVENT(find);
-DEFINE_CLID_EVENT(reclaim);
-
 TRACE_EVENT(nfsd_clid_inuse_err,
 	TP_PROTO(const struct nfs4_client *clp),
 	TP_ARGS(clp),

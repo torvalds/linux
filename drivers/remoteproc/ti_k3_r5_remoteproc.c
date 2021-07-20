@@ -1202,9 +1202,9 @@ static int k3_r5_core_of_init(struct platform_device *pdev)
 
 	core->tsp = k3_r5_core_of_get_tsp(dev, core->ti_sci);
 	if (IS_ERR(core->tsp)) {
+		ret = PTR_ERR(core->tsp);
 		dev_err(dev, "failed to construct ti-sci proc control, ret = %d\n",
 			ret);
-		ret = PTR_ERR(core->tsp);
 		goto err;
 	}
 

@@ -118,7 +118,6 @@
 	max-speed = <100>;
 	phy-handle = <&phy0>;
 	st,eth-ref-clk-sel;
-	phy-reset-gpios = <&gpioh 3 GPIO_ACTIVE_LOW>;
 
 	mdio0 {
 		#address-cells = <1>;
@@ -127,6 +126,15 @@
 
 		phy0: ethernet-phy@1 {
 			reg = <1>;
+			/* LAN8710Ai */
+			compatible = "ethernet-phy-id0007.c0f0",
+				     "ethernet-phy-ieee802.3-c22";
+			clocks = <&rcc ETHCK_K>;
+			reset-gpios = <&gpioh 3 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <500>;
+			reset-deassert-us = <500>;
+			interrupt-parent = <&gpioi>;
+			interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
