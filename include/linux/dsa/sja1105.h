@@ -59,7 +59,6 @@ struct sja1105_skb_cb {
 	((struct sja1105_skb_cb *)((skb)->cb))
 
 struct sja1105_port {
-	u16 subvlan_map[DSA_8021Q_N_SUBVLAN];
 	struct kthread_worker *xmit_worker;
 	struct kthread_work xmit_work;
 	struct sk_buff_head xmit_queue;

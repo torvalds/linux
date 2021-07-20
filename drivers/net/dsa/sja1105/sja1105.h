@@ -234,19 +234,13 @@ struct sja1105_bridge_vlan {
 	bool untagged;
 };
 
-enum sja1105_vlan_state {
-	SJA1105_VLAN_UNAWARE,
-	SJA1105_VLAN_BEST_EFFORT,
-	SJA1105_VLAN_FILTERING_FULL,
-};
-
 struct sja1105_private {
 	struct sja1105_static_config static_config;
 	bool rgmii_rx_delay[SJA1105_MAX_NUM_PORTS];
 	bool rgmii_tx_delay[SJA1105_MAX_NUM_PORTS];
 	phy_interface_t phy_mode[SJA1105_MAX_NUM_PORTS];
 	bool fixed_link[SJA1105_MAX_NUM_PORTS];
-	bool best_effort_vlan_filtering;
+	bool vlan_aware;
 	unsigned long learn_ena;
 	unsigned long ucast_egress_floods;
 	unsigned long bcast_egress_floods;
@@ -263,8 +257,6 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
-	struct dsa_8021q_context *dsa_8021q_ctx;
-	enum sja1105_vlan_state vlan_state;
 	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
 	struct mii_bus *mdio_base_t1;
@@ -311,10 +303,6 @@ int sja1110_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val);
 /* From sja1105_devlink.c */
 int sja1105_devlink_setup(struct dsa_switch *ds);
 void sja1105_devlink_teardown(struct dsa_switch *ds);
-int sja1105_devlink_param_get(struct dsa_switch *ds, u32 id,
-			      struct devlink_param_gset_ctx *ctx);
-int sja1105_devlink_param_set(struct dsa_switch *ds, u32 id,
-			      struct devlink_param_gset_ctx *ctx);
 int sja1105_devlink_info_get(struct dsa_switch *ds,
 			     struct devlink_info_req *req,
 			     struct netlink_ext_ack *extack);

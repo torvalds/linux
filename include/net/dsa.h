@@ -352,6 +352,9 @@ struct dsa_switch {
 	unsigned int ageing_time_min;
 	unsigned int ageing_time_max;
 
+	/* Storage for drivers using tag_8021q */
+	struct dsa_8021q_context *tag_8021q_ctx;
+
 	/* devlink used to represent this switch device */
 	struct devlink		*devlink;
 
@@ -869,6 +872,13 @@ struct dsa_switch_ops {
 					  const struct switchdev_obj_ring_role_mrp *mrp);
 	int	(*port_mrp_del_ring_role)(struct dsa_switch *ds, int port,
 					  const struct switchdev_obj_ring_role_mrp *mrp);
+
+	/*
+	 * tag_8021q operations
+	 */
+	int	(*tag_8021q_vlan_add)(struct dsa_switch *ds, int port, u16 vid,
+				      u16 flags);
+	int	(*tag_8021q_vlan_del)(struct dsa_switch *ds, int port, u16 vid);
 };
 
 #define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\

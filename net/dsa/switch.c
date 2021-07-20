@@ -90,18 +90,25 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 				  struct dsa_notifier_bridge_info *info)
 {
 	struct dsa_switch_tree *dst = ds->dst;
+	int err;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_join)
-		return ds->ops->port_bridge_join(ds, info->port, info->br);
+	    ds->ops->port_bridge_join) {
+		err = ds->ops->port_bridge_join(ds, info->port, info->br);
+		if (err)
+			return err;
+	}
 
 	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_join)
-		return ds->ops->crosschip_bridge_join(ds, info->tree_index,
-						      info->sw_index,
-						      info->port, info->br);
+	    ds->ops->crosschip_bridge_join) {
+		err = ds->ops->crosschip_bridge_join(ds, info->tree_index,
+						     info->sw_index,
+						     info->port, info->br);
+		if (err)
+			return err;
+	}
 
-	return 0;
+	return dsa_tag_8021q_bridge_join(ds, info);
 }
 
 static int dsa_switch_bridge_leave(struct dsa_switch *ds,
@@ -151,7 +158,8 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 		if (err && err != EOPNOTSUPP)
 			return err;
 	}
-	return 0;
+
+	return dsa_tag_8021q_bridge_leave(ds, info);
 }
 
 /* Matches for all upstream-facing ports (the CPU port and all upstream-facing
@@ -725,6 +733,12 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_MRP_DEL_RING_ROLE:
 		err = dsa_switch_mrp_del_ring_role(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_ADD:
+		err = dsa_switch_tag_8021q_vlan_add(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_DEL:
+		err = dsa_switch_tag_8021q_vlan_del(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

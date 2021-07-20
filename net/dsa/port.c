@@ -1217,3 +1217,31 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 	if (err)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_HSR_LEAVE\n");
 }
+
+int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid)
+{
+	struct dsa_notifier_tag_8021q_vlan_info info = {
+		.tree_index = dp->ds->dst->index,
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.vid = vid,
+	};
+
+	return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+}
+
+void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
+{
+	struct dsa_notifier_tag_8021q_vlan_info info = {
+		.tree_index = dp->ds->dst->index,
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.vid = vid,
+	};
+	int err;
+
+	err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+	if (err)
+		pr_err("DSA: failed to notify tag_8021q VLAN deletion: %pe\n",
+		       ERR_PTR(err));
+}
