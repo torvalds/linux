@@ -197,7 +197,7 @@ static struct rockchip_pll_clock px30_pll_clks[] __initdata = {
 		     0, PX30_PLL_CON(16),
 		     PX30_MODE_CON, 2, 2, 0, px30_pll_rates),
 	[npll] = PLL(pll_rk3328, PLL_NPLL, "npll", mux_pll_p,
-		     0, PX30_PLL_CON(24),
+		     CLK_IS_CRITICAL, PX30_PLL_CON(24),
 		     PX30_MODE_CON, 6, 4, 0, px30_pll_rates),
 };
 
@@ -312,7 +312,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(0, "aclk_gpu", "clk_gpu", CLK_IGNORE_UNUSED,
 			PX30_CLKSEL_CON(1), 13, 2, DFLAGS,
 			PX30_CLKGATE_CON(17), 10, GFLAGS),
-	GATE(0, "aclk_gpu_niu", "aclk_gpu", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_gpu_niu", "aclk_gpu", CLK_IS_CRITICAL,
 			PX30_CLKGATE_CON(0), 11, GFLAGS),
 	GATE(0, "aclk_gpu_prf", "aclk_gpu", CLK_IGNORE_UNUSED,
 			PX30_CLKGATE_CON(17), 8, GFLAGS),
@@ -448,13 +448,13 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 7
 	 */
 
-	COMPOSITE_NODIV(ACLK_PERI_SRC, "aclk_peri_src", mux_gpll_cpll_p, 0,
+	COMPOSITE_NODIV(ACLK_PERI_SRC, "aclk_peri_src", mux_gpll_cpll_p, CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(14), 15, 1, MFLAGS,
 			PX30_CLKGATE_CON(5), 7, GFLAGS),
-	COMPOSITE_NOMUX(ACLK_PERI_PRE, "aclk_peri_pre", "aclk_peri_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(ACLK_PERI_PRE, "aclk_peri_pre", "aclk_peri_src", CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(14), 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(5), 8, GFLAGS),
-	DIV(HCLK_PERI_PRE, "hclk_peri_pre", "aclk_peri_src", CLK_IGNORE_UNUSED,
+	DIV(HCLK_PERI_PRE, "hclk_peri_pre", "aclk_peri_src", CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(14), 8, 5, DFLAGS),
 
 	/* PD_MMC_NAND */
@@ -531,7 +531,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(6), 15, GFLAGS),
 
 	/* PD_USB */
-	GATE(HCLK_USB, "hclk_usb", "hclk_peri_pre", 0,
+	GATE(HCLK_USB, "hclk_usb", "hclk_peri_pre", CLK_IS_CRITICAL,
 			PX30_CLKGATE_CON(7), 2, GFLAGS),
 	GATE(SCLK_OTG_ADP, "clk_otg_adp", "clk_rtc32k_pmu", 0,
 			PX30_CLKGATE_CON(7), 3, GFLAGS),
@@ -566,19 +566,19 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	 */
 
 	/* PD_BUS */
-	COMPOSITE_NODIV(ACLK_BUS_SRC, "aclk_bus_src", mux_gpll_cpll_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NODIV(ACLK_BUS_SRC, "aclk_bus_src", mux_gpll_cpll_p, CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(23), 15, 1, MFLAGS,
 			PX30_CLKGATE_CON(8), 6, GFLAGS),
-	COMPOSITE_NOMUX(HCLK_BUS_PRE, "hclk_bus_pre", "aclk_bus_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(HCLK_BUS_PRE, "hclk_bus_pre", "aclk_bus_src", CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(24), 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(8), 8, GFLAGS),
-	COMPOSITE_NOMUX(ACLK_BUS_PRE, "aclk_bus_pre", "aclk_bus_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(ACLK_BUS_PRE, "aclk_bus_pre", "aclk_bus_src", CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(23), 8, 5, DFLAGS,
 			PX30_CLKGATE_CON(8), 7, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_BUS_PRE, "pclk_bus_pre", "aclk_bus_pre", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(PCLK_BUS_PRE, "pclk_bus_pre", "aclk_bus_pre", CLK_IS_CRITICAL,
 			PX30_CLKSEL_CON(24), 8, 2, DFLAGS,
 			PX30_CLKGATE_CON(8), 9, GFLAGS),
-	GATE(0, "pclk_top_pre", "pclk_bus_pre", CLK_IGNORE_UNUSED,
+	GATE(0, "pclk_top_pre", "pclk_bus_pre", CLK_IS_CRITICAL,
 			PX30_CLKGATE_CON(8), 10, GFLAGS),
 
 	COMPOSITE(0, "clk_pdm_src", mux_gpll_xin24m_npll_p, 0,
@@ -676,7 +676,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKSEL_CON(39), 0,
 			PX30_CLKGATE_CON(11), 2, GFLAGS,
 			&px30_uart2_fracmux, PX30_FRAC_MAX_PRATE),
-	GATE(SCLK_UART2, "clk_uart2", "clk_uart2_mux", CLK_SET_RATE_PARENT,
+	GATE(SCLK_UART2, "clk_uart2", "clk_uart2_mux", CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			PX30_CLKGATE_CON(11), 3, GFLAGS),
 
 	COMPOSITE(0, "clk_uart3_src", mux_uart_src_p, 0,
@@ -795,29 +795,29 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(0, "pclk_ddrphy", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 3, GFLAGS),
 	GATE(PCLK_MIPIDSIPHY, "pclk_mipidsiphy", "pclk_top_pre", 0, PX30_CLKGATE_CON(16), 4, GFLAGS),
 	GATE(PCLK_MIPICSIPHY, "pclk_mipicsiphy", "pclk_top_pre", 0, PX30_CLKGATE_CON(16), 5, GFLAGS),
-	GATE(PCLK_USB_GRF, "pclk_usb_grf", "pclk_top_pre", 0, PX30_CLKGATE_CON(16), 6, GFLAGS),
+	GATE(PCLK_USB_GRF, "pclk_usb_grf", "pclk_top_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(16), 6, GFLAGS),
 	GATE(0, "pclk_cpu_hoost", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 7, GFLAGS),
 
 	/* PD_VI */
-	GATE(0, "aclk_vi_niu", "aclk_vi_pre", 0, PX30_CLKGATE_CON(4), 15, GFLAGS),
+	GATE(0, "aclk_vi_niu", "aclk_vi_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(4), 15, GFLAGS),
 	GATE(ACLK_CIF, "aclk_cif", "aclk_vi_pre", 0, PX30_CLKGATE_CON(5), 1, GFLAGS),
 	GATE(ACLK_ISP, "aclk_isp", "aclk_vi_pre", 0, PX30_CLKGATE_CON(5), 3, GFLAGS),
-	GATE(0, "hclk_vi_niu", "hclk_vi_pre", 0, PX30_CLKGATE_CON(5), 0, GFLAGS),
+	GATE(0, "hclk_vi_niu", "hclk_vi_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(5), 0, GFLAGS),
 	GATE(HCLK_CIF, "hclk_cif", "hclk_vi_pre", 0, PX30_CLKGATE_CON(5), 2, GFLAGS),
 	GATE(HCLK_ISP, "hclk_isp", "hclk_vi_pre", 0, PX30_CLKGATE_CON(5), 4, GFLAGS),
 
 	/* PD_VO */
-	GATE(0, "aclk_vo_niu", "aclk_vo_pre", 0, PX30_CLKGATE_CON(3), 0, GFLAGS),
+	GATE(0, "aclk_vo_niu", "aclk_vo_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(3), 0, GFLAGS),
 	GATE(ACLK_VOPB, "aclk_vopb", "aclk_vo_pre", 0, PX30_CLKGATE_CON(3), 3, GFLAGS),
 	GATE(ACLK_RGA, "aclk_rga", "aclk_vo_pre", 0, PX30_CLKGATE_CON(3), 7, GFLAGS),
 	GATE(ACLK_VOPL, "aclk_vopl", "aclk_vo_pre", 0, PX30_CLKGATE_CON(3), 5, GFLAGS),
 
-	GATE(0, "hclk_vo_niu", "hclk_vo_pre", 0, PX30_CLKGATE_CON(3), 1, GFLAGS),
+	GATE(0, "hclk_vo_niu", "hclk_vo_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(3), 1, GFLAGS),
 	GATE(HCLK_VOPB, "hclk_vopb", "hclk_vo_pre", 0, PX30_CLKGATE_CON(3), 4, GFLAGS),
 	GATE(HCLK_RGA, "hclk_rga", "hclk_vo_pre", 0, PX30_CLKGATE_CON(3), 8, GFLAGS),
 	GATE(HCLK_VOPL, "hclk_vopl", "hclk_vo_pre", 0, PX30_CLKGATE_CON(3), 6, GFLAGS),
 
-	GATE(0, "pclk_vo_niu", "pclk_vo_pre", 0, PX30_CLKGATE_CON(3), 2, GFLAGS),
+	GATE(0, "pclk_vo_niu", "pclk_vo_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(3), 2, GFLAGS),
 	GATE(PCLK_MIPI_DSI, "pclk_mipi_dsi", "pclk_vo_pre", 0, PX30_CLKGATE_CON(3), 9, GFLAGS),
 
 	/* PD_BUS */
@@ -839,7 +839,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(0, "pclk_bus_niu", "pclk_bus_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(13), 10, GFLAGS),
 	GATE(PCLK_DCF, "pclk_dcf", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 0, GFLAGS),
 	GATE(PCLK_UART1, "pclk_uart1", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 5, GFLAGS),
-	GATE(PCLK_UART2, "pclk_uart2", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 6, GFLAGS),
+	GATE(PCLK_UART2, "pclk_uart2", "pclk_bus_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(14), 6, GFLAGS),
 	GATE(PCLK_UART3, "pclk_uart3", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 7, GFLAGS),
 	GATE(PCLK_UART4, "pclk_uart4", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 8, GFLAGS),
 	GATE(PCLK_UART5, "pclk_uart5", "pclk_bus_pre", 0, PX30_CLKGATE_CON(14), 9, GFLAGS),
@@ -880,7 +880,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_sdmmc_pre", 0, PX30_CLKGATE_CON(7), 1, GFLAGS),
 
 	/* PD_PERI */
-	GATE(0, "aclk_peri_niu", "aclk_peri_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(5), 9, GFLAGS),
+	GATE(0, "aclk_peri_niu", "aclk_peri_pre", CLK_IS_CRITICAL, PX30_CLKGATE_CON(5), 9, GFLAGS),
 
 	/* PD_MMC_NAND */
 	GATE(HCLK_NANDC, "hclk_nandc", "hclk_mmc_nand", 0, PX30_CLKGATE_CON(5), 15, GFLAGS),
@@ -890,7 +890,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(HCLK_SFC, "hclk_sfc", "hclk_mmc_nand", 0, PX30_CLKGATE_CON(6), 11, GFLAGS),
 
 	/* PD_USB */
-	GATE(0, "hclk_usb_niu", "hclk_usb", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(7), 4, GFLAGS),
+	GATE(0, "hclk_usb_niu", "hclk_usb", CLK_IS_CRITICAL, PX30_CLKGATE_CON(7), 4, GFLAGS),
 	GATE(HCLK_OTG, "hclk_otg", "hclk_usb", 0, PX30_CLKGATE_CON(7), 5, GFLAGS),
 	GATE(HCLK_HOST, "hclk_host", "hclk_usb", 0, PX30_CLKGATE_CON(7), 6, GFLAGS),
 	GATE(HCLK_HOST_ARB, "hclk_host_arb", "hclk_usb", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(7), 8, GFLAGS),
@@ -955,7 +955,7 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	GATE(SCLK_PVTM_PMU, "clk_pvtm_pmu", "xin24m", 0,
 			PX30_PMU_CLKGATE_CON(1), 4, GFLAGS),
 
-	COMPOSITE_NOMUX(PCLK_PMU_PRE, "pclk_pmu_pre", "gpll", 0,
+	COMPOSITE_NOMUX(PCLK_PMU_PRE, "pclk_pmu_pre", "gpll", CLK_IS_CRITICAL,
 			PX30_PMU_CLKSEL_CON(0), 0, 5, DFLAGS,
 			PX30_PMU_CLKGATE_CON(0), 0, GFLAGS),
 
@@ -982,28 +982,6 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	GATE(PCLK_GPIO0_PMU, "pclk_gpio0_pmu", "pclk_pmu_pre", 0, PX30_PMU_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(PCLK_UART0_PMU, "pclk_uart0_pmu", "pclk_pmu_pre", 0, PX30_PMU_CLKGATE_CON(0), 7, GFLAGS),
 	GATE(0, "pclk_cru_pmu", "pclk_pmu_pre", CLK_IGNORE_UNUSED, PX30_PMU_CLKGATE_CON(0), 8, GFLAGS),
-};
-
-static const char *const px30_cru_critical_clocks[] __initconst = {
-	"aclk_bus_pre",
-	"pclk_bus_pre",
-	"hclk_bus_pre",
-	"aclk_peri_pre",
-	"hclk_peri_pre",
-	"aclk_gpu_niu",
-	"pclk_top_pre",
-	"pclk_pmu_pre",
-	"hclk_usb_niu",
-	"pclk_vo_niu",
-	"aclk_vo_niu",
-	"hclk_vo_niu",
-	"aclk_vi_niu",
-	"hclk_vi_niu",
-	"pll_npll",
-	"usb480m",
-	"clk_uart2",
-	"pclk_uart2",
-	"pclk_usb_grf",
 };
 
 static void __init px30_clk_init(struct device_node *np)
@@ -1040,9 +1018,6 @@ static void __init px30_clk_init(struct device_node *np)
 				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
 				     &px30_cpuclk_data, px30_cpuclk_rates,
 				     ARRAY_SIZE(px30_cpuclk_rates));
-
-	rockchip_clk_protect_critical(px30_cru_critical_clocks,
-				      ARRAY_SIZE(px30_cru_critical_clocks));
 
 	rockchip_register_softrst(np, 12, reg_base + PX30_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);

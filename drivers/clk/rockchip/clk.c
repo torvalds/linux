@@ -730,21 +730,6 @@ void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_register_armclk);
 
-void rockchip_clk_protect_critical(const char *const clocks[],
-				   int nclocks)
-{
-	int i;
-
-	/* Protect the clocks that needs to stay on */
-	for (i = 0; i < nclocks; i++) {
-		struct clk *clk = __clk_lookup(clocks[i]);
-
-		if (clk)
-			clk_prepare_enable(clk);
-	}
-}
-EXPORT_SYMBOL_GPL(rockchip_clk_protect_critical);
-
 void (*rk_dump_cru)(void);
 EXPORT_SYMBOL(rk_dump_cru);
 

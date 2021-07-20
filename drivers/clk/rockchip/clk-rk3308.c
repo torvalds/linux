@@ -323,18 +323,18 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 3
 	 */
 
-	COMPOSITE_NODIV(ACLK_BUS_SRC, "clk_bus_src", mux_dpll_vpll0_vpll1_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NODIV(ACLK_BUS_SRC, "clk_bus_src", mux_dpll_vpll0_vpll1_p, CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(5), 6, 2, MFLAGS,
 			RK3308_CLKGATE_CON(1), 0, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_BUS, "pclk_bus", "clk_bus_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(PCLK_BUS, "pclk_bus", "clk_bus_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(6), 8, 5, DFLAGS,
 			RK3308_CLKGATE_CON(1), 3, GFLAGS),
 	GATE(PCLK_DDR, "pclk_ddr", "pclk_bus", CLK_IGNORE_UNUSED,
 			RK3308_CLKGATE_CON(4), 15, GFLAGS),
-	COMPOSITE_NOMUX(HCLK_BUS, "hclk_bus", "clk_bus_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(HCLK_BUS, "hclk_bus", "clk_bus_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(6), 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(1), 2, GFLAGS),
-	COMPOSITE_NOMUX(ACLK_BUS, "aclk_bus", "clk_bus_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(ACLK_BUS, "aclk_bus", "clk_bus_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(5), 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(1), 1, GFLAGS),
 
@@ -472,16 +472,16 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 4
 	 */
 
-	COMPOSITE_NODIV(ACLK_PERI_SRC, "clk_peri_src", mux_dpll_vpll0_vpll1_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NODIV(ACLK_PERI_SRC, "clk_peri_src", mux_dpll_vpll0_vpll1_p, CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(36), 6, 2, MFLAGS,
 			RK3308_CLKGATE_CON(8), 0, GFLAGS),
-	COMPOSITE_NOMUX(ACLK_PERI, "aclk_peri", "clk_peri_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(ACLK_PERI, "aclk_peri", "clk_peri_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(36), 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(8), 1, GFLAGS),
-	COMPOSITE_NOMUX(HCLK_PERI, "hclk_peri", "clk_peri_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(HCLK_PERI, "hclk_peri", "clk_peri_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(37), 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(8), 2, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_PERI, "pclk_peri", "clk_peri_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(PCLK_PERI, "pclk_peri", "clk_peri_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(37), 8, 5, DFLAGS,
 			RK3308_CLKGATE_CON(8), 3, GFLAGS),
 
@@ -572,10 +572,10 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(0, "clk_ddr_msch_peribus", "clk_ddrphy1x_out", CLK_IGNORE_UNUSED,
 			RK3308_CLKGATE_CON(4), 13, GFLAGS),
 
-	COMPOSITE(SCLK_DDRCLK, "clk_ddrphy4x_src", mux_dpll_vpll0_vpll1_p, CLK_IGNORE_UNUSED,
+	COMPOSITE(SCLK_DDRCLK, "clk_ddrphy4x_src", mux_dpll_vpll0_vpll1_p, CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(1), 6, 2, MFLAGS, 0, 3, DFLAGS,
 			RK3308_CLKGATE_CON(0), 10, GFLAGS),
-	GATE(0, "clk_ddrphy4x", "clk_ddrphy4x_src", CLK_IGNORE_UNUSED,
+	GATE(0, "clk_ddrphy4x", "clk_ddrphy4x_src", CLK_IS_CRITICAL,
 			RK3308_CLKGATE_CON(0), 11, GFLAGS),
 	FACTOR_GATE(0, "clk_ddr_stdby_div4", "clk_ddrphy4x", CLK_IGNORE_UNUSED, 1, 4,
 			RK3308_CLKGATE_CON(0), 13, GFLAGS),
@@ -629,13 +629,13 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 7
 	 */
 
-	COMPOSITE_NODIV(0, "clk_audio_src", mux_vpll0_vpll1_xin24m_p, 0,
+	COMPOSITE_NODIV(0, "clk_audio_src", mux_vpll0_vpll1_xin24m_p, CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(45), 6, 2, MFLAGS,
 			RK3308_CLKGATE_CON(10), 0, GFLAGS),
-	COMPOSITE_NOMUX(HCLK_AUDIO, "hclk_audio", "clk_audio_src", 0,
+	COMPOSITE_NOMUX(HCLK_AUDIO, "hclk_audio", "clk_audio_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(45), 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(10), 1, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_AUDIO, "pclk_audio", "clk_audio_src", 0,
+	COMPOSITE_NOMUX(PCLK_AUDIO, "pclk_audio", "clk_audio_src", CLK_IS_CRITICAL,
 			RK3308_CLKSEL_CON(45), 8, 5, DFLAGS,
 			RK3308_CLKGATE_CON(10), 2, GFLAGS),
 
@@ -912,18 +912,6 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(PCLK_OWIRE, "pclk_owire", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 15, GFLAGS),
 };
 
-static const char *const rk3308_critical_clocks[] __initconst = {
-	"aclk_bus",
-	"hclk_bus",
-	"pclk_bus",
-	"aclk_peri",
-	"hclk_peri",
-	"pclk_peri",
-	"hclk_audio",
-	"pclk_audio",
-	"sclk_ddrc",
-};
-
 static void __init rk3308_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -947,8 +935,6 @@ static void __init rk3308_clk_init(struct device_node *np)
 				   RK3308_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rk3308_clk_branches,
 				       ARRAY_SIZE(rk3308_clk_branches));
-	rockchip_clk_protect_critical(rk3308_critical_clocks,
-				      ARRAY_SIZE(rk3308_critical_clocks));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
