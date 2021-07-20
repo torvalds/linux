@@ -246,12 +246,18 @@ static bool hw_support_mmap(struct snd_pcm_substream *substream)
 	if (!(substream->runtime->hw.info & SNDRV_PCM_INFO_MMAP))
 		return false;
 
-	if (substream->ops->mmap ||
-	    (substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_DEV &&
-	     substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_DEV_UC))
+	if (substream->ops->mmap)
 		return true;
 
-	return dma_can_mmap(substream->dma_buffer.dev.dev);
+	switch (substream->dma_buffer.dev.type) {
+	case SNDRV_DMA_TYPE_UNKNOWN:
+		return false;
+	case SNDRV_DMA_TYPE_CONTINUOUS:
+	case SNDRV_DMA_TYPE_VMALLOC:
+		return true;
+	default:
+		return dma_can_mmap(substream->dma_buffer.dev.dev);
+	}
 }
 
 static int constrain_mask_params(struct snd_pcm_substream *substream,
@@ -3669,6 +3675,8 @@ static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	if (substream->ops->page)
 		page = substream->ops->page(substream, offset);
+	else if (!snd_pcm_get_dma_buf(substream))
+		page = virt_to_page(runtime->dma_area + offset);
 	else
 		page = snd_sgbuf_get_page(snd_pcm_get_dma_buf(substream), offset);
 	if (!page)
