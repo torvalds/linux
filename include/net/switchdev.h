@@ -406,7 +406,7 @@ switchdev_handle_fdb_del_to_device(struct net_device *dev,
 			      const struct switchdev_notifier_fdb_info *fdb_info),
 		int (*lag_del_cb)(struct net_device *dev,
 				  const struct net_device *orig_dev, const void *ctx,
-				  const struct switchdev_notifier_fdb_info *fdb_info));
+				  const struct switchdev_notifier_fdb_info *fdb_info))
 {
 	return 0;
 }
