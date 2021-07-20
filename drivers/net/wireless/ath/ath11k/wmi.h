@@ -2244,6 +2244,8 @@ struct wmi_init_cmd {
 	u32 num_host_mem_chunks;
 } __packed;
 
+#define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64 BIT(5)
+
 struct wmi_resource_config {
 	u32 tlv_header;
 	u32 num_vdevs;
