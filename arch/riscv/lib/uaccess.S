@@ -30,7 +30,6 @@ ENTRY(__asm_copy_from_user)
 	 * t0 - end of uncopied dst
 	 */
 	add	t0, a0, a2
-	bgtu	a0, t0, 5f
 
 	/*
 	 * Use byte copy only if too small.
