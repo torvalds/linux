@@ -1094,6 +1094,13 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	if (opmode == AES_FLAGS_XTS && req->cryptlen < XTS_BLOCK_SIZE)
 		return -EINVAL;
 
+	/*
+	 * ECB, CBC, CFB, OFB or CTR mode require the plaintext and ciphertext
+	 * to have a positve integer length.
+	 */
+	if (!req->cryptlen && opmode != AES_FLAGS_XTS)
+		return 0;
+
 	if ((opmode == AES_FLAGS_ECB || opmode == AES_FLAGS_CBC) &&
 	    !IS_ALIGNED(req->cryptlen, crypto_skcipher_blocksize(skcipher)))
 		return -EINVAL;
