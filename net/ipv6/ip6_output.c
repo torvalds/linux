@@ -607,7 +607,7 @@ int ip6_forward(struct sk_buff *skb)
 		}
 	}
 
-	mtu = ip6_dst_mtu_forward(dst);
+	mtu = ip6_dst_mtu_maybe_forward(dst, true);
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 

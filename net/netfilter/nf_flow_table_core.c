@@ -99,7 +99,7 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 		flow_tuple->mtu = ip_dst_mtu_maybe_forward(dst, true);
 		break;
 	case NFPROTO_IPV6:
-		flow_tuple->mtu = ip6_dst_mtu_forward(dst);
+		flow_tuple->mtu = ip6_dst_mtu_maybe_forward(dst, true);
 		break;
 	}
 
