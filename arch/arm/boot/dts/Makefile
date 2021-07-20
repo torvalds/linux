@@ -244,7 +244,8 @@ dtb-$(CONFIG_ARCH_IXP4XX) += \
 	intel-ixp42x-welltech-epbx100.dtb \
 	intel-ixp42x-iomega-nas100d.dtb \
 	intel-ixp42x-dlink-dsm-g600.dtb \
-	intel-ixp43x-gateworks-gw2358.dtb
+	intel-ixp43x-gateworks-gw2358.dtb \
+	intel-ixp42x-netgear-wg302v2.dtb
 dtb-$(CONFIG_ARCH_KEYSTONE) += \
 	keystone-k2hk-evm.dtb \
 	keystone-k2l-evm.dtb \
