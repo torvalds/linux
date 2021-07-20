@@ -238,6 +238,12 @@ switchdev_notifier_info_to_extack(const struct switchdev_notifier_info *info)
 	return info->extack;
 }
 
+static inline bool
+switchdev_fdb_is_dynamically_learned(const struct switchdev_notifier_fdb_info *fdb_info)
+{
+	return !fdb_info->added_by_user && !fdb_info->is_local;
+}
+
 #ifdef CONFIG_NET_SWITCHDEV
 
 void switchdev_deferred_process(void);
@@ -265,6 +271,30 @@ int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
 void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 struct net_device *group_dev,
 				 bool joining);
+
+int switchdev_handle_fdb_add_to_device(struct net_device *dev,
+		const struct switchdev_notifier_fdb_info *fdb_info,
+		bool (*check_cb)(const struct net_device *dev),
+		bool (*foreign_dev_check_cb)(const struct net_device *dev,
+					     const struct net_device *foreign_dev),
+		int (*add_cb)(struct net_device *dev,
+			      const struct net_device *orig_dev, const void *ctx,
+			      const struct switchdev_notifier_fdb_info *fdb_info),
+		int (*lag_add_cb)(struct net_device *dev,
+				  const struct net_device *orig_dev, const void *ctx,
+				  const struct switchdev_notifier_fdb_info *fdb_info));
+
+int switchdev_handle_fdb_del_to_device(struct net_device *dev,
+		const struct switchdev_notifier_fdb_info *fdb_info,
+		bool (*check_cb)(const struct net_device *dev),
+		bool (*foreign_dev_check_cb)(const struct net_device *dev,
+					     const struct net_device *foreign_dev),
+		int (*del_cb)(struct net_device *dev,
+			      const struct net_device *orig_dev, const void *ctx,
+			      const struct switchdev_notifier_fdb_info *fdb_info),
+		int (*lag_del_cb)(struct net_device *dev,
+				  const struct net_device *orig_dev, const void *ctx,
+				  const struct switchdev_notifier_fdb_info *fdb_info));
 
 int switchdev_handle_port_obj_add(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
@@ -347,6 +377,38 @@ call_switchdev_blocking_notifiers(unsigned long val,
 				  struct netlink_ext_ack *extack)
 {
 	return NOTIFY_DONE;
+}
+
+static inline int
+switchdev_handle_fdb_add_to_device(struct net_device *dev,
+		const struct switchdev_notifier_fdb_info *fdb_info,
+		bool (*check_cb)(const struct net_device *dev),
+		bool (*foreign_dev_check_cb)(const struct net_device *dev,
+					     const struct net_device *foreign_dev),
+		int (*add_cb)(struct net_device *dev,
+			      const struct net_device *orig_dev, const void *ctx,
+			      const struct switchdev_notifier_fdb_info *fdb_info),
+		int (*lag_add_cb)(struct net_device *dev,
+				  const struct net_device *orig_dev, const void *ctx,
+				  const struct switchdev_notifier_fdb_info *fdb_info))
+{
+	return 0;
+}
+
+static inline int
+switchdev_handle_fdb_del_to_device(struct net_device *dev,
+		const struct switchdev_notifier_fdb_info *fdb_info,
+		bool (*check_cb)(const struct net_device *dev),
+		bool (*foreign_dev_check_cb)(const struct net_device *dev,
+					     const struct net_device *foreign_dev),
+		int (*del_cb)(struct net_device *dev,
+			      const struct net_device *orig_dev, const void *ctx,
+			      const struct switchdev_notifier_fdb_info *fdb_info),
+		int (*lag_del_cb)(struct net_device *dev,
+				  const struct net_device *orig_dev, const void *ctx,
+				  const struct switchdev_notifier_fdb_info *fdb_info));
+{
+	return 0;
 }
 
 static inline int
