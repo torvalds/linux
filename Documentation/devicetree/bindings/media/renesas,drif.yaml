@@ -242,7 +242,6 @@ examples:
                     power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
                     resets = <&cpg 513>;
                     renesas,bonding = <&drif11>;
-                    status = "disabled";
             };
 
             drif11: rif@e6f70000 {
