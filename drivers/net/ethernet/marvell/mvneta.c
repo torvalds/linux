@@ -3832,12 +3832,20 @@ static void mvneta_validate(struct phylink_config *config,
 	struct mvneta_port *pp = netdev_priv(ndev);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	/* We only support QSGMII, SGMII, 802.3z and RGMII modes */
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
-	    state->interface != PHY_INTERFACE_MODE_SGMII &&
-	    !phy_interface_mode_is_8023z(state->interface) &&
-	    !phy_interface_mode_is_rgmii(state->interface)) {
+	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
+	 * When in 802.3z mode, we must have AN enabled:
+	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
+	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
+	 */
+	if (phy_interface_mode_is_8023z(state->interface)) {
+		if (!phylink_test(state->advertising, Autoneg)) {
+			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+			return;
+		}
+	} else if (state->interface != PHY_INTERFACE_MODE_NA &&
+		   state->interface != PHY_INTERFACE_MODE_QSGMII &&
+		   state->interface != PHY_INTERFACE_MODE_SGMII &&
+		   !phy_interface_mode_is_rgmii(state->interface)) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 		return;
 	}
