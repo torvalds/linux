@@ -166,6 +166,28 @@ mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
 }
 
 static int
+mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct {
+		__le32 cmd;
+		u8 op_mode;
+	} __packed req = {
+		.cmd = cpu_to_le32(MURU_SET_ARB_OP_MODE),
+	};
+
+	if (!enable)
+		req.op_mode = TAM_ARB_OP_MODE_NORMAL;
+	else if (mu)
+		req.op_mode = TAM_ARB_OP_MODE_TEST;
+	else
+		req.op_mode = TAM_ARB_OP_MODE_FORCE_SU;
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MURU_CTRL), &req,
+				 sizeof(req), false);
+}
+
+static int
 mt7915_tm_set_wmm_qid(struct mt7915_dev *dev, u8 qid, u8 aifs, u8 cw_min,
 		      u16 cw_max, u16 txop)
 {
@@ -397,6 +419,10 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
 	mt7915_tm_set_trx(phy, TM_MAC_TXRX, !en);
 
 	mt7915_mcu_add_bss_info(phy, phy->monitor_vif, en);
+	mt7915_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
+
+	if (!en)
+		mt7915_tm_set_tam_arb(phy, en, 0);
 }
 
 static void
@@ -437,6 +463,9 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 			phy->test.spe_idx = spe_idx_map[tx_ant];
 		}
 	}
+
+	mt7915_tm_set_tam_arb(phy, en,
+			      td->tx_rate_mode == MT76_TM_TX_MODE_HE_MU);
 
 	/* if all three params are set, duty_cycle will be ignored */
 	if (duty_cycle && tx_time && !ipg) {
