@@ -123,7 +123,7 @@ enum ab8500_chargalg_states {
 	STATE_WD_EXPIRED,
 };
 
-static const char *states[] = {
+static const char * const states[] = {
 	"HANDHELD_INIT",
 	"HANDHELD",
 	"CHG_NOT_OK_INIT",
@@ -274,8 +274,8 @@ static enum power_supply_property ab8500_chargalg_props[] = {
 
 struct ab8500_chargalg_sysfs_entry {
 	struct attribute attr;
-	ssize_t (*show)(struct ab8500_chargalg *, char *);
-	ssize_t (*store)(struct ab8500_chargalg *, const char *, size_t);
+	ssize_t (*show)(struct ab8500_chargalg *di, char *buf);
+	ssize_t (*store)(struct ab8500_chargalg *di, const char *buf, size_t length);
 };
 
 /**
@@ -526,8 +526,7 @@ static int ab8500_chargalg_kick_watchdog(struct ab8500_chargalg *di)
 			di->usb_chg->ops.kick_wd(di->usb_chg);
 
 		return di->ac_chg->ops.kick_wd(di->ac_chg);
-	}
-	else if (di->usb_chg && di->usb_chg->ops.kick_wd &&
+	} else if (di->usb_chg && di->usb_chg->ops.kick_wd &&
 			di->chg_info.online_chg & USB_CHG)
 		return di->usb_chg->ops.kick_wd(di->usb_chg);
 
@@ -750,8 +749,8 @@ static void ab8500_chargalg_check_temp(struct ab8500_chargalg *di)
 			di->t_hyst_norm = 0;
 			di->t_hyst_lowhigh = di->bm->temp_hysteresis;
 		} else {
-		/* Within hysteresis */
-		dev_dbg(di->dev, "Within hysteresis limit temp: %d "
+			/* Within hysteresis */
+			dev_dbg(di->dev, "Within hysteresis limit temp: %d "
 				"hyst_lowhigh %d, hyst normal %d\n",
 				di->batt_data.temp, di->t_hyst_lowhigh,
 				di->t_hyst_norm);
@@ -867,7 +866,7 @@ static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 
 	di->ccm.wait_cnt = 0;
 
-	if ((di->batt_data.inst_curr > di->ccm.original_iset)) {
+	if (di->batt_data.inst_curr > di->ccm.original_iset) {
 		dev_dbg(di->dev, " Maximization Ibat (%dmA) too high"
 			" (limit %dmA) (current iset: %dmA)!\n",
 			di->batt_data.inst_curr, di->ccm.original_iset,
@@ -1544,8 +1543,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 
 	case STATE_WAIT_FOR_RECHARGE:
 		if (di->batt_data.percent <=
-		    di->bm->bat_type[di->bm->batt_id].
-		    recharge_cap)
+		    di->bm->bat_type[di->bm->batt_id].recharge_cap)
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 
@@ -1675,8 +1673,6 @@ static void ab8500_chargalg_wd_work(struct work_struct *work)
 	struct ab8500_chargalg *di = container_of(work,
 		struct ab8500_chargalg, chargalg_wd_work.work);
 
-	dev_dbg(di->dev, "ab8500_chargalg_wd_work\n");
-
 	ret = ab8500_chargalg_kick_watchdog(di);
 	if (ret < 0)
 		dev_err(di->dev, "failed to kick watchdog\n");
@@ -1753,7 +1749,7 @@ static ssize_t ab8500_chargalg_curr_step_show(struct ab8500_chargalg *di,
 static ssize_t ab8500_chargalg_curr_step_store(struct ab8500_chargalg *di,
 					       const char *buf, size_t length)
 {
-	long int param;
+	long param;
 	int ret;
 
 	ret = kstrtol(buf, 10, &param);
@@ -1786,7 +1782,7 @@ static ssize_t ab8500_chargalg_en_show(struct ab8500_chargalg *di,
 static ssize_t ab8500_chargalg_en_store(struct ab8500_chargalg *di,
 	const char *buf, size_t length)
 {
-	long int param;
+	long param;
 	int ac_usb;
 	int ret;
 
