@@ -1552,30 +1552,25 @@ static int btf_dump_unsupported_data(struct btf_dump *d,
 	return -ENOTSUP;
 }
 
-static void btf_dump_int128(struct btf_dump *d,
-			    const struct btf_type *t,
-			    const void *data)
-{
-	__int128 num = *(__int128 *)data;
-
-	if ((num >> 64) == 0)
-		btf_dump_type_values(d, "0x%llx", (long long)num);
-	else
-		btf_dump_type_values(d, "0x%llx%016llx", (long long)num >> 32,
-				     (long long)num);
-}
-
-static unsigned __int128 btf_dump_bitfield_get_data(struct btf_dump *d,
-						    const struct btf_type *t,
-						    const void *data,
-						    __u8 bits_offset,
-						    __u8 bit_sz)
+static int btf_dump_get_bitfield_value(struct btf_dump *d,
+				       const struct btf_type *t,
+				       const void *data,
+				       __u8 bits_offset,
+				       __u8 bit_sz,
+				       __u64 *value)
 {
 	__u16 left_shift_bits, right_shift_bits;
 	__u8 nr_copy_bits, nr_copy_bytes;
-	unsigned __int128 num = 0, ret;
 	const __u8 *bytes = data;
+	int sz = t->size;
+	__u64 num = 0;
 	int i;
+
+	/* Maximum supported bitfield size is 64 bits */
+	if (sz > 8) {
+		pr_warn("unexpected bitfield size %d\n", sz);
+		return -EINVAL;
+	}
 
 	/* Bitfield value retrieval is done in two steps; first relevant bytes are
 	 * stored in num, then we left/right shift num to eliminate irrelevant bits.
@@ -1591,12 +1586,12 @@ static unsigned __int128 btf_dump_bitfield_get_data(struct btf_dump *d,
 #else
 # error "Unrecognized __BYTE_ORDER__"
 #endif
-	left_shift_bits = 128 - nr_copy_bits;
-	right_shift_bits = 128 - bit_sz;
+	left_shift_bits = 64 - nr_copy_bits;
+	right_shift_bits = 64 - bit_sz;
 
-	ret = (num << left_shift_bits) >> right_shift_bits;
+	*value = (num << left_shift_bits) >> right_shift_bits;
 
-	return ret;
+	return 0;
 }
 
 static int btf_dump_bitfield_check_zero(struct btf_dump *d,
@@ -1605,9 +1600,12 @@ static int btf_dump_bitfield_check_zero(struct btf_dump *d,
 					__u8 bits_offset,
 					__u8 bit_sz)
 {
-	__int128 check_num;
+	__u64 check_num;
+	int err;
 
-	check_num = btf_dump_bitfield_get_data(d, t, data, bits_offset, bit_sz);
+	err = btf_dump_get_bitfield_value(d, t, data, bits_offset, bit_sz, &check_num);
+	if (err)
+		return err;
 	if (check_num == 0)
 		return -ENODATA;
 	return 0;
@@ -1619,10 +1617,14 @@ static int btf_dump_bitfield_data(struct btf_dump *d,
 				  __u8 bits_offset,
 				  __u8 bit_sz)
 {
-	unsigned __int128 print_num;
+	__u64 print_num;
+	int err;
 
-	print_num = btf_dump_bitfield_get_data(d, t, data, bits_offset, bit_sz);
-	btf_dump_int128(d, t, &print_num);
+	err = btf_dump_get_bitfield_value(d, t, data, bits_offset, bit_sz, &print_num);
+	if (err)
+		return err;
+
+	btf_dump_type_values(d, "0x%llx", (unsigned long long)print_num);
 
 	return 0;
 }
@@ -1681,9 +1683,29 @@ static int btf_dump_int_data(struct btf_dump *d,
 		return btf_dump_bitfield_data(d, t, data, 0, 0);
 
 	switch (sz) {
-	case 16:
-		btf_dump_int128(d, t, data);
+	case 16: {
+		const __u64 *ints = data;
+		__u64 lsi, msi;
+
+		/* avoid use of __int128 as some 32-bit platforms do not
+		 * support it.
+		 */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		lsi = ints[0];
+		msi = ints[1];
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		lsi = ints[1];
+		msi = ints[0];
+#else
+# error "Unrecognized __BYTE_ORDER__"
+#endif
+		if (msi == 0)
+			btf_dump_type_values(d, "0x%llx", (unsigned long long)lsi);
+		else
+			btf_dump_type_values(d, "0x%llx%016llx", (unsigned long long)msi,
+					     (unsigned long long)lsi);
 		break;
+	}
 	case 8:
 		if (sign)
 			btf_dump_type_values(d, "%lld", *(long long *)data);
@@ -1931,9 +1953,16 @@ static int btf_dump_get_enum_value(struct btf_dump *d,
 
 	/* handle unaligned enum value */
 	if (!ptr_is_aligned(data, sz)) {
-		*value = (__s64)btf_dump_bitfield_get_data(d, t, data, 0, 0);
+		__u64 val;
+		int err;
+
+		err = btf_dump_get_bitfield_value(d, t, data, 0, 0, &val);
+		if (err)
+			return err;
+		*value = (__s64)val;
 		return 0;
 	}
+
 	switch (t->size) {
 	case 8:
 		*value = *(__s64 *)data;
@@ -2209,10 +2238,13 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 	case BTF_KIND_ENUM:
 		/* handle bitfield and int enum values */
 		if (bit_sz) {
-			unsigned __int128 print_num;
+			__u64 print_num;
 			__s64 enum_val;
 
-			print_num = btf_dump_bitfield_get_data(d, t, data, bits_offset, bit_sz);
+			err = btf_dump_get_bitfield_value(d, t, data, bits_offset, bit_sz,
+							  &print_num);
+			if (err)
+				break;
 			enum_val = (__s64)print_num;
 			err = btf_dump_enum_data(d, t, id, &enum_val);
 		} else
