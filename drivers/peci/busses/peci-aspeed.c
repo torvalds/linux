@@ -249,14 +249,27 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 	 * peci fsm hang in an unstable state.
 	 */
 	if (err <= 0) {
+		dev_err(priv->dev,
+			"PECI register dump:\n%08x\t%08x\t%08x\t%08x\n%08x\t%08x\t%08x\t%08x\n",
+			readl(priv->base + ASPEED_PECI_CTRL),
+			readl(priv->base + ASPEED_PECI_TIMING_NEGOTIATION),
+			readl(priv->base + ASPEED_PECI_CMD),
+			readl(priv->base + ASPEED_PECI_RW_LENGTH),
+			readl(priv->base + ASPEED_PECI_EXP_FCS),
+			readl(priv->base + ASPEED_PECI_CAP_FCS),
+			readl(priv->base + ASPEED_PECI_INT_CTRL),
+			readl(priv->base + ASPEED_PECI_INT_STS));
 		reset_control_assert(priv->rst);
 		reset_control_deassert(priv->rst);
 		aspeed_peci_init_ctrl(priv);
 		if (err == 0) {
+			dev_err(priv->dev,
+				"Timeout: wait completion interrupt\n");
 			ret = -ETIMEDOUT;
 			goto err_irqrestore;
 		}
 		ret = (int)err; /* -ERESTARTSYS */
+		dev_err(priv->dev, "System termination\n");
 		goto err_irqrestore;
 	}
 	if (priv->status != ASPEED_PECI_INT_CMD_DONE) {
