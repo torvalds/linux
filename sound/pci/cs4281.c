@@ -1288,7 +1288,7 @@ static int snd_cs4281_create(struct snd_card *card,
 			     struct pci_dev *pci,
 			     int dual_codec)
 {
-	struct cs4281 *chip;
+	struct cs4281 *chip = card->private_data;
 	int err;
 
 	err = pcim_enable_device(pci);
