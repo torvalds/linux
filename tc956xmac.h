@@ -36,6 +36,9 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  20 Jul 2021 : 1. Version update
+ 		  2. Default Port1 interface selected as SGMII
+ *  VERSION     : 01-00-03
  */
 
 #ifndef __TC956XMAC_H__
@@ -83,7 +86,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-02"
+#define DRV_MODULE_VERSION	"V_01-00-03"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -166,7 +169,7 @@
 #define SYSTCIK_SRAM_OFFSET		0x4F83C
 
 /* Tx Timer count SRAM  address  DMEM addrs 0x2000F844, Check this value for any change */
-#define TX_TIMER_SRAM_OFFSET_0		0x4F844
+#define TX_TIMER_SRAM_OFFSET_0		0x4F844 
 
 /* Tx Timer count SRAM  address  DMEM addrs 0x2000F848, Check this value for any change */
 #define TX_TIMER_SRAM_OFFSET_1		0x4F848
@@ -188,7 +191,7 @@
 /* Only SGMII and USXGMII allowed for Port0 */
 #define PORT0_INTERFACE		ENABLE_USXGMII_INTERFACE
 //#define PORT0_INTERFACE		ENABLE_SGMII_INTERFACE
-#define PORT1_INTERFACE		ENABLE_RGMII_INTERFACE
+#define PORT1_INTERFACE		ENABLE_SGMII_INTERFACE
 
 #define INTERFACE_SELECTED(p) (((p) == RM_PF0_ID) ? (PORT0_INTERFACE) : (PORT1_INTERFACE))
 
@@ -450,7 +453,7 @@ struct tc956xmac_priv {
 #endif
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-#ifdef CONFIG_DEBUG_FS_TC956X
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
 #endif
 

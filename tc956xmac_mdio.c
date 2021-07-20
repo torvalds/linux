@@ -34,6 +34,8 @@
  *  05 Jul 2021 : 1. Used Systick handler instead of Driver kernel timer to process transmitted Tx descriptors.
  *                2. XFI interface support and module parameters for selection of Port0 and Port1 interface
  *  VERSION     : 01-00-01
+ *  20 Jul 2021 : 1. MAX C22 address changed to 3. Print not corrected for C45 PHY selection
+ *  VERSION     : 01-00-03
  */
 
 #include <linux/gpio/consumer.h>
@@ -65,7 +67,7 @@
 #define MII_XGMAC_WRITE			(1 << MII_XGMAC_CMD_SHIFT)
 #define MII_XGMAC_READ			(3 << MII_XGMAC_CMD_SHIFT)
 #define MII_XGMAC_BUSY			BIT(22)
-#define MII_XGMAC_MAX_C22ADDR		31
+#define MII_XGMAC_MAX_C22ADDR		3
 #define MII_XGMAC_C22P_MASK		GENMASK(MII_XGMAC_MAX_C22ADDR, 0)
 #define MII_XGMAC_PA_SHIFT		16
 #define MII_XGMAC_DA_SHIFT		21
@@ -92,8 +94,13 @@ static int tc956xmac_xgmac2_c22_format(struct tc956xmac_priv *priv, int phyaddr,
 {
 	u32 tmp;
 
+	/* HW does not support C22 addr >= 4 */
+	//if (phyaddr > MII_XGMAC_MAX_C22ADDR)
+		//return -ENODEV;
+
 	/* Set port as Clause 22 */
 	tmp = readl(priv->ioaddr + XGMAC_MDIO_C22P);
+	//tmp &= ~MII_XGMAC_C22P_MASK;
 	tmp |= BIT(phyaddr);
 	writel(tmp, priv->ioaddr + XGMAC_MDIO_C22P);
 
@@ -491,14 +498,11 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 		phy_reg_read = tc956xmac_xgmac2_mdio_read(new_bus, addr, MII_BMSR);
 #endif
 
-		if (phy_reg_read != -EBUSY) {
+		if (phy_reg_read != -EBUSY && phy_reg_read != -ENODEV) {
 			if (phy_reg_read != 0x0000 && phy_reg_read != 0xffff) {
-				if (priv->plat->c45_needed == true)
-					NMSGPR_ALERT(priv->device,
-					    "TC956X: Phy detected C45 at ID/ADDR %d\n", addr);
-				else 
-					NMSGPR_ALERT(priv->device,
+				NMSGPR_ALERT(priv->device,
 					    "TC956X: Phy detected C22 at ID/ADDR %d\n", addr);
+
 #else
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 

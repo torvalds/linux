@@ -33,6 +33,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  20 Jul 2021 : 1. IPA statistics print function removed
+ *  VERSION     : 01-00-03
  */
 
 #include <linux/dma-mapping.h>
@@ -1452,78 +1454,5 @@ int stop_channel(struct net_device *ndev, struct channel_info *channel)
 }
 EXPORT_SYMBOL_GPL(stop_channel);
 
-/*!
- * \brief This API will print EMAC-IPA offload DMA channel stats
- *
- * \details This function will read and prints DMA Descriptor stats 
- * used by IPA.
- *
- * \param[in] ndev : TC956x netdev data structure.
- *
- * \return : Return 0 on success, -ve value on error
- *           -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
- */
-int read_ipa_desc_stats(struct file *file, char __user *user_buf,
-							size_t count, loff_t *ppos)
-{
-	unsigned int buf_len = 4000;
-	unsigned int len = 0;
-	int chno = 0;
-	char *buf;
-	ssize_t ret_cnt;
-	struct tc956xmac_priv *priv = file->private_data;
-	
-	if (!priv) {
-		printk(KERN_ERR "%s: Error priv is null\n", __func__);
-		return count;
-	}
-	
-	buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	len += scnprintf(buf + len, buf_len - len,
-					 "\n************* READ IPA DESC STATS *************\n");
 
-	/* TX DMA Descriptors Status for all channels */
-	for(chno = 0; chno < priv->plat->tx_queues_to_use; chno++) {
 
-		if (priv->plat->tx_dma_ch_owner[chno] != USE_IN_OFFLOADER)
-			continue;
-		
-		len += scnprintf(buf + len, buf_len - len, "txch_status[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_control[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_list_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_list_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_ring_len[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL2(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_curr_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_curr_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_tail[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_TAIL_LPTR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_buf_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_desc_buf_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "txch_dma_interrupt_en[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(chno)));
-	}
-
-	/* RX DMA Descriptors Status for all channels */
-	for(chno = 0; chno < TC956XMAC_CH_MAX; chno++) {
-
-		if (priv->plat->rx_dma_ch_owner[chno] != USE_IN_OFFLOADER)
-			continue;
-
-		len += scnprintf(buf + len, buf_len - len, "rxch_status[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_control[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_list_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_list_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_ring_len[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL2(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_curr_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_curr_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_tail[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_TAIL_LPTR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_buf_haddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_HADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_desc_buf_laddr[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_LADDR(chno)));
-		len += scnprintf(buf + len, buf_len - len, "rxch_dma_interrupt_en[%d] : 0x%08x\n", chno, readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(chno)));
-	}
-	
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-    return ret_cnt;
-}
-EXPORT_SYMBOL_GPL(read_ipa_desc_stats);

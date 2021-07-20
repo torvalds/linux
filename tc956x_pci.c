@@ -36,6 +36,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  20 Jul 2021 : Version update
+ *  VERSION     : 01-00-03
  */
 
 #include <linux/clk-provider.h>
@@ -64,7 +66,7 @@ static unsigned int tc956x_speed = 3;
 #endif
 
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 2};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 3};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,

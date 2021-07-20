@@ -32,6 +32,8 @@
  *  VERSION     : 01-00
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  20 Jul 2021 : 1. Debug prints removed
+ *  VERSION     : 01-00-03
  */
 
 #include <linux/iopoll.h>
@@ -90,7 +92,6 @@ static void dwxgmac2_dma_init_rx_chan(struct tc956xmac_priv *priv,
 	u32 rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 	u32 value;
 
-	u64 target_addrs;
 	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 	value &= ~XGMAC_RxPBL;
 	value |= (rxpbl << XGMAC_RxPBL_SHIFT) & XGMAC_RxPBL;
@@ -110,13 +111,6 @@ static void dwxgmac2_dma_init_rx_chan(struct tc956xmac_priv *priv,
 		writel(upper_32_bits(phy), ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(chan));
 #endif
 	writel(lower_32_bits(phy), ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(chan));
-	target_addrs = (u64)(TC956X_HOST_PHYSICAL_ADRS_MASK | (upper_32_bits(phy) & 0xF));
-		  
-	target_addrs = (u64)lower_32_bits(target_addrs) << 32;
-	target_addrs |= cpu_to_le32(lower_32_bits(phy));
-
-	if (target_addrs < 0x1000000000 || target_addrs > 0x1FFFFFFFFF) 
-		printk("Address out of range. Trsl Addr = 0x%llx, eMAC target addr = 0x%llx\n", (u64)phy, target_addrs);
 }
 
 static void dwxgmac2_dma_init_tx_chan(struct tc956xmac_priv *priv,
@@ -126,7 +120,6 @@ static void dwxgmac2_dma_init_tx_chan(struct tc956xmac_priv *priv,
 {
 	u32 txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
 	u32 value;
-	u64 target_addrs;
 
 	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 	value &= ~XGMAC_TxPBL;
@@ -144,13 +137,6 @@ static void dwxgmac2_dma_init_tx_chan(struct tc956xmac_priv *priv,
 			XGMAC_DMA_CH_TxDESC_HADDR(chan));
 #endif
 	writel(lower_32_bits(phy), ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(chan));
-	target_addrs = (u64)(TC956X_HOST_PHYSICAL_ADRS_MASK | (upper_32_bits(phy) & 0xF));
-		  
-	target_addrs = (u64)lower_32_bits(target_addrs) << 32;
-	target_addrs |= cpu_to_le32(lower_32_bits(phy));
-
-	if (target_addrs < 0x1000000000 || target_addrs > 0x1FFFFFFFFF) 
-		printk("Address out of range. Trsl Addr = 0x%llx, eMAC target addr = 0x%llx\n", (u64)phy, target_addrs);
 }
 
 static void dwxgmac2_dma_axi(struct tc956xmac_priv *priv, void __iomem *ioaddr,

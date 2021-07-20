@@ -36,6 +36,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  20 Jul 2021 : CONFIG_DEBUG_FS_TC956X removed and renamed as CONFIG_DEBUG_FS
+ *  VERSION     : 01-00-03
  */  
 
 #ifndef __COMMON_H__
@@ -70,7 +72,7 @@
 #define DWXGMAC_CORE_3_01	0x30
 
 //#define DISABLE_EMAC_PORT1
-//#define DUMP_REGISTER
+
 /* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT.
  * Please also define/undefine same macro in tc956xmac_ioctl.h, if changing in this file
  */
@@ -101,9 +103,7 @@
 #define ETH_CORE_DUMP_OFFSET6     (0x1140 / 4)
 #define ETH_CORE_DUMP_OFFSET6_END (0x1174 / 4)
 
-#define CONFIG_DEBUG_FS_TC956X
-
-#ifdef CONFIG_DEBUG_FS_TC956X
+#ifdef CONFIG_DEBUG_FS
 
 #ifdef TC956X
 int tc956xmac_init(void);
@@ -915,6 +915,7 @@ enum packets_types {
 #define MSI_INT_TX_CH0		3
 #define MSI_INT_RX_CH0		11
 #define MSI_INT_EXT_PHY		20
+
 #ifdef TC956X_SW_MSI
 #define MSI_INT_SW_MSI		24
 #endif

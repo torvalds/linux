@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 15 Jul 2021
+Release Date: 20 Jul 2021
 
-Release Version: V_01-00-02 : Limited-tested version
+Release Version: V_01-00-03 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -45,6 +45,11 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 1. XFI interface supported through compile time macro.
 2. Removed module parameters for selection of Port0 and Port1 interface
 3. Debugfs support for IPA statistics
+
+## TC956X_Host_Driver_20210720_V_01-00-03:
+
+1. Debugfs not supported for IPA statistics
+2. Default Port1 interface selected as SGMII
 
 # Note:
 

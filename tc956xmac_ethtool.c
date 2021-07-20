@@ -863,13 +863,12 @@ tc956xmac_ethtool_set_link_ksettings(struct net_device *dev,
 
 		return 0;
 	}
-#ifdef TC956X_USXGMII_XFI_MODE
-	/* In case of AQR phy, auto negotiation OFF is not supported, return error for it */
+	/* Return if Autonegotiation disabled */
 	if (priv->port_num == RM_PF0_ID) {
 		if (cmd->base.autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
 	}
-#endif
+
 	if (!dev->phydev)
 		return -ENODEV;
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
