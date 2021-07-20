@@ -98,6 +98,7 @@ struct hclgevf_mbx_resp_status {
 	u32 origin_mbx_msg;
 	bool received_resp;
 	int resp_status;
+	u16 match_id;
 	u8 additional_info[HCLGE_MBX_MAX_RESP_DATA_SIZE];
 };
 
@@ -143,7 +144,8 @@ struct hclge_mbx_vf_to_pf_cmd {
 	u8 mbx_need_resp;
 	u8 rsv1[1];
 	u8 msg_len;
-	u8 rsv2[3];
+	u8 rsv2;
+	u16 match_id;
 	struct hclge_vf_to_pf_msg msg;
 };
 
@@ -153,7 +155,8 @@ struct hclge_mbx_pf_to_vf_cmd {
 	u8 dest_vfid;
 	u8 rsv[3];
 	u8 msg_len;
-	u8 rsv1[3];
+	u8 rsv1;
+	u16 match_id;
 	struct hclge_pf_to_vf_msg msg;
 };
 
