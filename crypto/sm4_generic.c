@@ -17,45 +17,42 @@
 #include <asm/unaligned.h>
 
 /**
- * crypto_sm4_set_key - Set the SM4 key.
+ * sm4_setkey - Set the SM4 key.
  * @tfm:	The %crypto_tfm that is used in the context.
  * @in_key:	The input key.
  * @key_len:	The size of the key.
  *
  * This function uses sm4_expandkey() to expand the key.
- * &crypto_sm4_ctx _must_ be the private data embedded in @tfm which is
+ * &sm4_ctx _must_ be the private data embedded in @tfm which is
  * retrieved with crypto_tfm_ctx().
  *
  * Return: 0 on success; -EINVAL on failure (only happens for bad key lengths)
  */
-int crypto_sm4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+static int sm4_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
-	struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	return sm4_expandkey(ctx, in_key, key_len);
 }
-EXPORT_SYMBOL_GPL(crypto_sm4_set_key);
 
 /* encrypt a block of text */
 
-void crypto_sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+	const struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_crypt_block(ctx->rkey_enc, out, in);
 }
-EXPORT_SYMBOL_GPL(crypto_sm4_encrypt);
 
 /* decrypt a block of text */
 
-void crypto_sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+	const struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_crypt_block(ctx->rkey_dec, out, in);
 }
-EXPORT_SYMBOL_GPL(crypto_sm4_decrypt);
 
 static struct crypto_alg sm4_alg = {
 	.cra_name		=	"sm4",
@@ -63,15 +60,15 @@ static struct crypto_alg sm4_alg = {
 	.cra_priority		=	100,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	SM4_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct crypto_sm4_ctx),
+	.cra_ctxsize		=	sizeof(struct sm4_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_u			=	{
 		.cipher = {
 			.cia_min_keysize	=	SM4_KEY_SIZE,
 			.cia_max_keysize	=	SM4_KEY_SIZE,
-			.cia_setkey		=	crypto_sm4_set_key,
-			.cia_encrypt		=	crypto_sm4_encrypt,
-			.cia_decrypt		=	crypto_sm4_decrypt
+			.cia_setkey		=	sm4_setkey,
+			.cia_encrypt		=	sm4_encrypt,
+			.cia_decrypt		=	sm4_decrypt
 		}
 	}
 };

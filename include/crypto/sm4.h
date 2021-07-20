@@ -16,7 +16,7 @@
 #define SM4_BLOCK_SIZE	16
 #define SM4_RKEY_WORDS	32
 
-struct crypto_sm4_ctx {
+struct sm4_ctx {
 	u32 rkey_enc[SM4_RKEY_WORDS];
 	u32 rkey_dec[SM4_RKEY_WORDS];
 };
@@ -30,7 +30,7 @@ struct crypto_sm4_ctx {
  * Returns 0 on success. The function fails only if an invalid key size (or
  * pointer) is supplied.
  */
-int sm4_expandkey(struct crypto_sm4_ctx *ctx, const u8 *in_key,
+int sm4_expandkey(struct sm4_ctx *ctx, const u8 *in_key,
 			  unsigned int key_len);
 
 /**
@@ -40,10 +40,5 @@ int sm4_expandkey(struct crypto_sm4_ctx *ctx, const u8 *in_key,
  * @in: 	Buffer containing the input data
  */
 void sm4_crypt_block(const u32 *rk, u8 *out, const u8 *in);
-
-int crypto_sm4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len);
-void crypto_sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
-void crypto_sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
 
 #endif

@@ -108,7 +108,7 @@ static inline u32 sm4_round(u32 x0, u32 x1, u32 x2, u32 x3, u32 rk)
  * Returns 0 on success. The function fails only if an invalid key size (or
  * pointer) is supplied.
  */
-int sm4_expandkey(struct crypto_sm4_ctx *ctx, const u8 *in_key,
+int sm4_expandkey(struct sm4_ctx *ctx, const u8 *in_key,
 			  unsigned int key_len)
 {
 	u32 rk[4];
