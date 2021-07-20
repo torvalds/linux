@@ -991,7 +991,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "ofb(des)",
 	.base.cra_driver_name	= "atmel-ofb-des",
-	.base.cra_blocksize	= DES_BLOCK_SIZE,
+	.base.cra_blocksize	= 1,
 	.base.cra_alignmask	= 0x7,
 
 	.min_keysize		= DES_KEY_SIZE,
