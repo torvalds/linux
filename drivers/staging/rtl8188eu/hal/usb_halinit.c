@@ -684,7 +684,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
 
-	rtl88eu_phy_mac_config(Adapter);
+	phy_mac_config(Adapter);
 
 	rtl88eu_phy_bb_config(Adapter);
 

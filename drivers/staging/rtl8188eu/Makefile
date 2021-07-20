@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 r8188eu-y :=				\
+		core/mac_cfg.o		\
 		core/rtw_ap.o		\
 		core/rtw_cmd.o		\
 		core/rtw_efuse.o	\
@@ -18,7 +19,6 @@ r8188eu-y :=				\
 		core/rtw_wlan_util.o	\
 		core/rtw_xmit.o		\
 		hal/fw.o	\
-		hal/mac_cfg.o \
 		hal/bb_cfg.o \
 		hal/rf_cfg.o \
 		hal/pwrseqcmd.o \

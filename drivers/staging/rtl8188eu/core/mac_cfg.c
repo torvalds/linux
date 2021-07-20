@@ -10,7 +10,7 @@
 
 /* MAC_REG.TXT */
 
-static u32 array_MAC_REG_8188E[] = {
+static u32 array_MAC_REG[] = {
 		0x026, 0x00000041,
 		0x027, 0x00000035,
 		0x428, 0x0000000A,
@@ -103,14 +103,14 @@ static u32 array_MAC_REG_8188E[] = {
 		0x70B, 0x00000087,
 };
 
-bool rtl88eu_phy_mac_config(struct adapter *adapt)
+bool phy_mac_config(struct adapter *adapt)
 {
 	u32 i;
 	u32 arraylength;
 	u32 *ptrarray;
 
-	arraylength = ARRAY_SIZE(array_MAC_REG_8188E);
-	ptrarray = array_MAC_REG_8188E;
+	arraylength = ARRAY_SIZE(array_MAC_REG);
+	ptrarray = array_MAC_REG;
 
 	for (i = 0; i < arraylength; i += 2)
 		usb_write8(adapt, ptrarray[i], (u8)ptrarray[i + 1]);
