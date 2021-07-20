@@ -1089,6 +1089,11 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct atmel_aes_base_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	struct atmel_aes_reqctx *rctx;
 	struct atmel_aes_dev *dd;
+	u32 opmode = mode & AES_FLAGS_OPMODE_MASK;
+
+	if ((opmode == AES_FLAGS_ECB || opmode == AES_FLAGS_CBC) &&
+	    !IS_ALIGNED(req->cryptlen, crypto_skcipher_blocksize(skcipher)))
+		return -EINVAL;
 
 	switch (mode & AES_FLAGS_OPMODE_MASK) {
 	case AES_FLAGS_CFB8:
@@ -1120,7 +1125,7 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	rctx = skcipher_request_ctx(req);
 	rctx->mode = mode;
 
-	if ((mode & AES_FLAGS_OPMODE_MASK) != AES_FLAGS_ECB &&
+	if (opmode != AES_FLAGS_ECB &&
 	    !(mode & AES_FLAGS_ENCRYPT) && req->src == req->dst) {
 		unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
 
