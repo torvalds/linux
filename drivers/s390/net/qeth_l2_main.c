@@ -2056,10 +2056,12 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	qeth_l2_vnicc_set_defaults(card);
 	mutex_init(&card->sbp_lock);
 
-	if (gdev->dev.type == &qeth_generic_devtype) {
+	if (gdev->dev.type) {
 		rc = device_add_groups(&gdev->dev, qeth_l2_attr_groups);
 		if (rc)
 			return rc;
+	} else {
+		gdev->dev.type = &qeth_l2_devtype;
 	}
 
 	INIT_WORK(&card->rx_mode_work, qeth_l2_rx_mode_work);
@@ -2070,8 +2072,9 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
-	if (gdev->dev.type == &qeth_generic_devtype)
+	if (gdev->dev.type != &qeth_l2_devtype)
 		device_remove_groups(&gdev->dev, qeth_l2_attr_groups);
+
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
@@ -2191,7 +2194,6 @@ static int qeth_l2_control_event(struct qeth_card *card,
 }
 
 const struct qeth_discipline qeth_l2_discipline = {
-	.devtype = &qeth_l2_devtype,
 	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,

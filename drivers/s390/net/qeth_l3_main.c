@@ -1939,12 +1939,14 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	if (!card->cmd_wq)
 		return -ENOMEM;
 
-	if (gdev->dev.type == &qeth_generic_devtype) {
+	if (gdev->dev.type) {
 		rc = device_add_groups(&gdev->dev, qeth_l3_attr_groups);
 		if (rc) {
 			destroy_workqueue(card->cmd_wq);
 			return rc;
 		}
+	} else {
+		gdev->dev.type = &qeth_l3_devtype;
 	}
 
 	INIT_WORK(&card->rx_mode_work, qeth_l3_rx_mode_work);
@@ -1955,7 +1957,7 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
-	if (cgdev->dev.type == &qeth_generic_devtype)
+	if (cgdev->dev.type != &qeth_l3_devtype)
 		device_remove_groups(&cgdev->dev, qeth_l3_attr_groups);
 
 	qeth_set_allowed_threads(card, 0, 1);
@@ -2064,7 +2066,6 @@ static int qeth_l3_control_event(struct qeth_card *card,
 }
 
 const struct qeth_discipline qeth_l3_discipline = {
-	.devtype = &qeth_l3_devtype,
 	.setup = qeth_l3_probe_device,
 	.remove = qeth_l3_remove_device,
 	.set_online = qeth_l3_set_online,
