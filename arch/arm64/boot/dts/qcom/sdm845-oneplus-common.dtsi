@@ -69,7 +69,7 @@
 		};
 		rmtfs_upper_guard: memory@f5d01000 {
 			no-map;
-			reg = <0 0xf5d01000 0 0x2000>;
+			reg = <0 0xf5d01000 0 0x1000>;
 		};
 
 		/*
@@ -78,7 +78,7 @@
 		 */
 		removed_region: memory@88f00000 {
 			no-map;
-			reg = <0 0x88f00000 0 0x200000>;
+			reg = <0 0x88f00000 0 0x1c00000>;
 		};
 
 		ramoops: ramoops@ac300000 {
