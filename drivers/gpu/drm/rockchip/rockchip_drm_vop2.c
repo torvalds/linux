@@ -1300,6 +1300,17 @@ static bool vop2_win_uv_swap(uint32_t format)
 	}
 }
 
+static bool vop2_win_dither_up(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_RGB565:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 {
 	/*
@@ -3046,6 +3057,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t stride;
 	uint32_t transform_offset;
 	struct drm_format_name_buf format_name;
+	bool dither_up;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	bool AFBC_flag = false;
@@ -3240,6 +3252,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	VOP_WIN_SET(vop2, win, y2r_en, vpstate->y2r_en);
 	VOP_WIN_SET(vop2, win, r2y_en, vpstate->r2y_en);
 	VOP_WIN_SET(vop2, win, csc_mode, vpstate->csc_mode);
+
+	dither_up = vop2_win_dither_up(fb->format->format);
+	VOP_WIN_SET(vop2, win, dither_up, dither_up);
 
 	VOP_WIN_SET(vop2, win, enable, 1);
 	if (vop2_cluster_window(win)) {
