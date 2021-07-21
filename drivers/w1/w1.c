@@ -491,7 +491,7 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 	struct w1_master *md = dev_to_w1_master(dev);
 	struct w1_reg_num rn;
 	struct w1_slave *sl;
-	ssize_t result = count;
+	ssize_t result;
 
 	if (w1_atoreg_num(dev, buf, count, &rn))
 		return -EINVAL;
