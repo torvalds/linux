@@ -156,6 +156,7 @@ enum {
 	MLX5_REG_MIRC		 = 0x9162,
 	MLX5_REG_SBCAM		 = 0xB01F,
 	MLX5_REG_RESOURCE_DUMP   = 0xC000,
+	MLX5_REG_DTOR            = 0xC00E,
 };
 
 enum mlx5_qpts_trust_state {
