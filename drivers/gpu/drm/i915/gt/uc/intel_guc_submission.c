@@ -344,6 +344,7 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 
 	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
 	if (!enabled && !err) {
+		trace_intel_context_sched_enable(ce);
 		atomic_inc(&guc->outstanding_submission_g2h);
 		set_context_enabled(ce);
 	} else if (!enabled) {
@@ -815,6 +816,8 @@ static int register_context(struct intel_context *ce)
 	u32 offset = intel_guc_ggtt_offset(guc, guc->lrc_desc_pool) +
 		ce->guc_id * sizeof(struct guc_lrc_desc);
 
+	trace_intel_context_register(ce);
+
 	return __guc_action_register_context(guc, ce->guc_id, offset);
 }
 
@@ -834,6 +837,8 @@ static int __guc_action_deregister_context(struct intel_guc *guc,
 static int deregister_context(struct intel_context *ce, u32 guc_id)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
+
+	trace_intel_context_deregister(ce);
 
 	return __guc_action_deregister_context(guc, guc_id);
 }
@@ -908,6 +913,7 @@ static int guc_lrc_desc_pin(struct intel_context *ce)
 	 * registering this context.
 	 */
 	if (context_registered) {
+		trace_intel_context_steal_guc_id(ce);
 		set_context_wait_for_deregister_to_register(ce);
 		intel_context_get(ce);
 
@@ -971,6 +977,7 @@ static void __guc_context_sched_disable(struct intel_guc *guc,
 
 	GEM_BUG_ON(guc_id == GUC_INVALID_LRC_ID);
 
+	trace_intel_context_sched_disable(ce);
 	intel_context_get(ce);
 
 	guc_submission_send_busy_loop(guc, action, ARRAY_SIZE(action),
@@ -1132,6 +1139,9 @@ static void __guc_signal_context_fence(struct intel_context *ce)
 	struct i915_request *rq;
 
 	lockdep_assert_held(&ce->guc_state.lock);
+
+	if (!list_empty(&ce->guc_state.fences))
+		trace_intel_context_fence_release(ce);
 
 	list_for_each_entry(rq, &ce->guc_state.fences, guc_fence_link)
 		i915_sw_fence_complete(&rq->submit);
@@ -1538,6 +1548,8 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 	if (unlikely(!ce))
 		return -EPROTO;
 
+	trace_intel_context_deregister_done(ce);
+
 	if (context_wait_for_deregister_to_register(ce)) {
 		struct intel_runtime_pm *runtime_pm =
 			&ce->engine->gt->i915->runtime_pm;
@@ -1588,6 +1600,8 @@ int intel_guc_sched_done_process_msg(struct intel_guc *guc,
 			ce->guc_state.sched_state, desc_idx);
 		return -EPROTO;
 	}
+
+	trace_intel_context_sched_done(ce);
 
 	if (context_pending_enable(ce)) {
 		clr_context_pending_enable(ce);
