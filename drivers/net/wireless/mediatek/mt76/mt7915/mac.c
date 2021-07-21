@@ -904,16 +904,18 @@ mt7915_mac_write_txwi_8023(struct mt7915_dev *dev, __le32 *txwi,
 
 static void
 mt7915_mac_write_txwi_80211(struct mt7915_dev *dev, __le32 *txwi,
-			    struct sk_buff *skb, struct ieee80211_key_conf *key)
+			    struct sk_buff *skb, struct ieee80211_key_conf *key,
+			    bool *mcast)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	__le16 fc = hdr->frame_control;
 	u8 fc_type, fc_stype;
 	u32 val;
+
+	*mcast = is_multicast_ether_addr(hdr->addr1);
 
 	if (ieee80211_is_action(fc) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
@@ -940,15 +942,15 @@ mt7915_mac_write_txwi_80211(struct mt7915_dev *dev, __le32 *txwi,
 
 	val = FIELD_PREP(MT_TXD2_FRAME_TYPE, fc_type) |
 	      FIELD_PREP(MT_TXD2_SUB_TYPE, fc_stype) |
-	      FIELD_PREP(MT_TXD2_MULTICAST, multicast);
+	      FIELD_PREP(MT_TXD2_MULTICAST, *mcast);
 
-	if (key && multicast && ieee80211_is_robust_mgmt_frame(skb) &&
+	if (key && *mcast && ieee80211_is_robust_mgmt_frame(skb) &&
 	    key->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
 		val |= MT_TXD2_BIP;
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_PROTECT_FRAME);
 	}
 
-	if (!ieee80211_is_data(fc) || multicast ||
+	if (!ieee80211_is_data(fc) || *mcast ||
 	    info->flags & IEEE80211_TX_CTL_USE_MINRATE)
 		val |= MT_TXD2_FIX_RATE;
 
@@ -989,6 +991,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	bool ext_phy = info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
+	bool mcast = false;
 	u16 tx_count = 15;
 	u32 val;
 
@@ -1051,15 +1054,22 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	if (is_8023)
 		mt7915_mac_write_txwi_8023(dev, txwi, skb, wcid);
 	else
-		mt7915_mac_write_txwi_80211(dev, txwi, skb, key);
+		mt7915_mac_write_txwi_80211(dev, txwi, skb, key, &mcast);
 
 	if (txwi[2] & cpu_to_le32(MT_TXD2_FIX_RATE)) {
+		u8 band = mphy->chandef.chan->band;
+		int rateidx, mcast_rate = vif->bss_conf.mcast_rate[band];
 		u16 rate, mode;
 
 		/* hardware won't add HTC for mgmt/ctrl frame */
 		txwi[2] |= cpu_to_le32(MT_TXD2_HTC_VLD);
 
-		rate = mt76_default_basic_rate(mphy, vif);
+		if (mcast && mcast_rate > 0)
+			rateidx = mcast_rate - 1;
+		else
+			rateidx = ffs(vif->bss_conf.basic_rates) - 1;
+
+		rate = mt76_calculate_default_rate(mphy, rateidx);
 		mode = rate >> 8;
 		rate &= GENMASK(7, 0);
 		rate |= FIELD_PREP(MT_TX_RATE_MODE, mode);

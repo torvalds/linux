@@ -1352,16 +1352,20 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 }
 EXPORT_SYMBOL_GPL(mt76_init_queue);
 
-u16 mt76_default_basic_rate(struct mt76_phy *phy, struct ieee80211_vif *vif)
+u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx)
 {
-	int i = ffs(vif->bss_conf.basic_rates) - 1, offset = 0;
+	int offset = 0;
 	struct ieee80211_rate *rate;
 
 	if (phy->chandef.chan->band == NL80211_BAND_5GHZ)
 		offset = 4;
 
-	rate = &mt76_rates[offset + i];
+	/* pick the lowest rate for hidden nodes */
+	if (rateidx < 0)
+		rateidx = 0;
+
+	rate = &mt76_rates[offset + rateidx];
 
 	return rate->hw_value;
 }
-EXPORT_SYMBOL_GPL(mt76_default_basic_rate);
+EXPORT_SYMBOL_GPL(mt76_calculate_default_rate);
