@@ -659,9 +659,10 @@ int zpci_enable_device(struct zpci_dev *zdev)
 {
 	int rc;
 
-	rc = clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES);
-	if (rc)
+	if (clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES)) {
+		rc = -EIO;
 		goto out;
+	}
 
 	rc = zpci_dma_init_device(zdev);
 	if (rc)
@@ -684,7 +685,7 @@ int zpci_disable_device(struct zpci_dev *zdev)
 	 * The zPCI function may already be disabled by the platform, this is
 	 * detected in clp_disable_fh() which becomes a no-op.
 	 */
-	return clp_disable_fh(zdev);
+	return clp_disable_fh(zdev) ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(zpci_disable_device);
 
