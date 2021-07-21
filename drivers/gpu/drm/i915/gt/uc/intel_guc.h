@@ -7,6 +7,7 @@
 #define _INTEL_GUC_H_
 
 #include <linux/xarray.h>
+#include <linux/delay.h>
 
 #include "intel_uncore.h"
 #include "intel_guc_fw.h"
@@ -43,6 +44,14 @@ struct intel_guc {
 		void (*enable)(struct intel_guc *guc);
 		void (*disable)(struct intel_guc *guc);
 	} interrupts;
+
+	/*
+	 * contexts_lock protects the pool of free guc ids and a linked list of
+	 * guc ids available to be stolen
+	 */
+	spinlock_t contexts_lock;
+	struct ida guc_ids;
+	struct list_head guc_id_list;
 
 	bool submission_selected;
 
@@ -99,6 +108,41 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 {
 	return intel_guc_ct_send(&guc->ct, action, len,
 				 response_buf, response_buf_size, 0);
+}
+
+static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
+					   const u32 *action,
+					   u32 len,
+					   bool loop)
+{
+	int err;
+	unsigned int sleep_period_ms = 1;
+	bool not_atomic = !in_atomic() && !irqs_disabled();
+
+	/*
+	 * FIXME: Have caller pass in if we are in an atomic context to avoid
+	 * using in_atomic(). It is likely safe here as we check for irqs
+	 * disabled which basically all the spin locks in the i915 do but
+	 * regardless this should be cleaned up.
+	 */
+
+	/* No sleeping with spin locks, just busy loop */
+	might_sleep_if(loop && not_atomic);
+
+retry:
+	err = intel_guc_send_nb(guc, action, len);
+	if (unlikely(err == -EBUSY && loop)) {
+		if (likely(not_atomic)) {
+			if (msleep_interruptible(sleep_period_ms))
+				return -EINTR;
+			sleep_period_ms = sleep_period_ms << 1;
+		} else {
+			cpu_relax();
+		}
+		goto retry;
+	}
+
+	return err;
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
@@ -201,6 +245,9 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine);
+
+int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
+					  const u32 *msg, u32 len);
 
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 

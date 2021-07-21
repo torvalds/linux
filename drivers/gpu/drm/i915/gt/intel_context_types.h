@@ -96,6 +96,7 @@ struct intel_context {
 #define CONTEXT_BANNED			6
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	7
 #define CONTEXT_NOPREEMPT		8
+#define CONTEXT_LRCA_DIRTY		9
 
 	struct {
 		u64 timeout_us;
@@ -138,14 +139,29 @@ struct intel_context {
 
 	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
 
+	struct {
+		/** lock: protects everything in guc_state */
+		spinlock_t lock;
+		/**
+		 * sched_state: scheduling state of this context using GuC
+		 * submission
+		 */
+		u8 sched_state;
+	} guc_state;
+
 	/* GuC scheduling state flags that do not require a lock. */
 	atomic_t guc_sched_state_no_lock;
 
-	/*
-	 * GuC LRC descriptor ID - Not assigned in this patch but future patches
-	 * in the series will.
-	 */
+	/* GuC LRC descriptor ID */
 	u16 guc_id;
+
+	/* GuC LRC descriptor reference count */
+	atomic_t guc_id_ref;
+
+	/*
+	 * GuC ID link - in list when unpinned but guc_id still valid in GuC
+	 */
+	struct list_head guc_id_link;
 };
 
 #endif /* __INTEL_CONTEXT_TYPES__ */

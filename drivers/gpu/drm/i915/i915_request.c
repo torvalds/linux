@@ -407,6 +407,7 @@ bool i915_request_retire(struct i915_request *rq)
 	 */
 	if (!list_empty(&rq->sched.link))
 		remove_from_engine(rq);
+	atomic_dec(&rq->context->guc_id_ref);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 
 	__list_del_entry(&rq->link); /* poison neither prev/next (RCU walks) */

@@ -4142,6 +4142,7 @@ enum {
 	FAULT_AND_CONTINUE /* Unsupported */
 };
 
+#define CTX_GTT_ADDRESS_MASK GENMASK(31, 12)
 #define GEN8_CTX_VALID (1 << 0)
 #define GEN8_CTX_FORCE_PD_RESTORE (1 << 1)
 #define GEN8_CTX_FORCE_RESTORE (1 << 2)

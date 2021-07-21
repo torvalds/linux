@@ -384,6 +384,11 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	mutex_init(&ce->pin_mutex);
 
+	spin_lock_init(&ce->guc_state.lock);
+
+	ce->guc_id = GUC_INVALID_LRC_ID;
+	INIT_LIST_HEAD(&ce->guc_id_link);
+
 	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire, 0);
 }
