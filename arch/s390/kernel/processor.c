@@ -141,6 +141,8 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	};
 	int i, cpu;
 
+	BUILD_BUG_ON(ARRAY_SIZE(hwcap_str) != HWCAP_NR_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(int_hwcap_str) != HWCAP_INT_NR_MAX);
 	seq_printf(m, "vendor_id       : IBM/S390\n"
 		   "# processors    : %i\n"
 		   "bogomips per cpu: %lu.%02lu\n",

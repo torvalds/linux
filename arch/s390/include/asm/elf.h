@@ -114,6 +114,7 @@ enum {
 	HWCAP_NR_VXRS_PDE2	= 19,
 	HWCAP_NR_NNPA		= 20,
 	HWCAP_NR_PCI_MIO	= 21,
+	HWCAP_NR_MAX
 };
 
 /* Bits present in AT_HWCAP. */
@@ -142,6 +143,7 @@ enum {
 
 enum {
 	HWCAP_INT_NR_SIE	= 0,
+	HWCAP_INT_NR_MAX
 };
 
 /* Internal bits, not exposed via elf */
