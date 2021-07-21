@@ -62,7 +62,6 @@ struct cs_etm_auxtrace {
 	u64 instructions_sample_period;
 	u64 instructions_id;
 	u64 **metadata;
-	u64 kernel_start;
 	unsigned int pmu_type;
 };
 
@@ -691,7 +690,7 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
 
 	machine = etmq->etm->machine;
 
-	if (address >= etmq->etm->kernel_start) {
+	if (address >= machine__kernel_start(machine)) {
 		if (machine__is_host(machine))
 			return PERF_RECORD_MISC_KERNEL;
 		else
@@ -900,9 +899,6 @@ static int cs_etm__setup_queues(struct cs_etm_auxtrace *etm)
 {
 	unsigned int i;
 	int ret;
-
-	if (!etm->kernel_start)
-		etm->kernel_start = machine__kernel_start(etm->machine);
 
 	for (i = 0; i < etm->queues.nr_queues; i++) {
 		ret = cs_etm__setup_queue(etm, &etm->queues.queue_array[i], i);
