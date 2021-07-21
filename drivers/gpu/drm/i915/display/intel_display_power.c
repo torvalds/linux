@@ -5814,6 +5814,10 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	unsigned long abox_mask = INTEL_INFO(dev_priv)->abox_mask;
 	int config, i;
 
+	/* BW_BUDDY registers are not used on dgpu's beyond DG1 */
+	if (IS_DGFX(dev_priv) && !IS_DG1(dev_priv))
+		return;
+
 	if (IS_ALDERLAKE_S(dev_priv) ||
 	    IS_DG1_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
 	    IS_RKL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
