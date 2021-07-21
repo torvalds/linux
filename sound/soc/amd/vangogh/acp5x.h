@@ -33,6 +33,10 @@
 #define ACP5x_I2S_MODE 1
 #define ACP5x_RES 4
 
+struct i2s_dev_data {
+	void __iomem *acp5x_base;
+};
+
 /* common header file uses exact offset rather than relative
  * offset which requires subtraction logic from base_addr
  * for accessing ACP5x MMIO space registers
