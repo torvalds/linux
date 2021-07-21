@@ -24,8 +24,7 @@
  */
 static inline void __set_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___set_bit_uses_plain_access))
-		instrument_write(addr + BIT_WORD(nr), sizeof(long));
+	instrument_write(addr + BIT_WORD(nr), sizeof(long));
 	arch___set_bit(nr, addr);
 }
 
@@ -40,8 +39,7 @@ static inline void __set_bit(long nr, volatile unsigned long *addr)
  */
 static inline void __clear_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___clear_bit_uses_plain_access))
-		instrument_write(addr + BIT_WORD(nr), sizeof(long));
+	instrument_write(addr + BIT_WORD(nr), sizeof(long));
 	arch___clear_bit(nr, addr);
 }
 
@@ -56,8 +54,7 @@ static inline void __clear_bit(long nr, volatile unsigned long *addr)
  */
 static inline void __change_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___change_bit_uses_plain_access))
-		instrument_write(addr + BIT_WORD(nr), sizeof(long));
+	instrument_write(addr + BIT_WORD(nr), sizeof(long));
 	arch___change_bit(nr, addr);
 }
 
@@ -95,8 +92,7 @@ static inline void __instrument_read_write_bitop(long nr, volatile unsigned long
  */
 static inline bool __test_and_set_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___test_and_set_bit_uses_plain_access))
-		__instrument_read_write_bitop(nr, addr);
+	__instrument_read_write_bitop(nr, addr);
 	return arch___test_and_set_bit(nr, addr);
 }
 
@@ -110,8 +106,7 @@ static inline bool __test_and_set_bit(long nr, volatile unsigned long *addr)
  */
 static inline bool __test_and_clear_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___test_and_clear_bit_uses_plain_access))
-		__instrument_read_write_bitop(nr, addr);
+	__instrument_read_write_bitop(nr, addr);
 	return arch___test_and_clear_bit(nr, addr);
 }
 
@@ -125,8 +120,7 @@ static inline bool __test_and_clear_bit(long nr, volatile unsigned long *addr)
  */
 static inline bool __test_and_change_bit(long nr, volatile unsigned long *addr)
 {
-	if (!__is_defined(arch___test_and_change_bit_uses_plain_access))
-		__instrument_read_write_bitop(nr, addr);
+	__instrument_read_write_bitop(nr, addr);
 	return arch___test_and_change_bit(nr, addr);
 }
 
@@ -137,8 +131,7 @@ static inline bool __test_and_change_bit(long nr, volatile unsigned long *addr)
  */
 static inline bool test_bit(long nr, const volatile unsigned long *addr)
 {
-	if (!__is_defined(arch_test_bit_uses_plain_access))
-		instrument_atomic_read(addr + BIT_WORD(nr), sizeof(long));
+	instrument_atomic_read(addr + BIT_WORD(nr), sizeof(long));
 	return arch_test_bit(nr, addr);
 }
 

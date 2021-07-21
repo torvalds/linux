@@ -21,7 +21,7 @@ arch___set_bit(int nr, volatile unsigned long *addr)
 
 	*p  |= mask;
 }
-#define arch___set_bit_uses_plain_access
+#define __set_bit arch___set_bit
 
 static __always_inline void
 arch___clear_bit(int nr, volatile unsigned long *addr)
@@ -31,7 +31,7 @@ arch___clear_bit(int nr, volatile unsigned long *addr)
 
 	*p &= ~mask;
 }
-#define arch___clear_bit_uses_plain_access
+#define __clear_bit arch___clear_bit
 
 /**
  * arch___change_bit - Toggle a bit in memory
@@ -50,7 +50,7 @@ void arch___change_bit(int nr, volatile unsigned long *addr)
 
 	*p ^= mask;
 }
-#define arch___change_bit_uses_plain_access
+#define __change_bit arch___change_bit
 
 /**
  * arch___test_and_set_bit - Set a bit and return its old value
@@ -71,7 +71,7 @@ arch___test_and_set_bit(int nr, volatile unsigned long *addr)
 	*p = old | mask;
 	return (old & mask) != 0;
 }
-#define arch___test_and_set_bit_uses_plain_access
+#define __test_and_set_bit arch___test_and_set_bit
 
 /**
  * arch___test_and_clear_bit - Clear a bit and return its old value
@@ -92,7 +92,7 @@ arch___test_and_clear_bit(int nr, volatile unsigned long *addr)
 	*p = old & ~mask;
 	return (old & mask) != 0;
 }
-#define arch___test_and_clear_bit_uses_plain_access
+#define __test_and_clear_bit arch___test_and_clear_bit
 
 /* WARNING: non atomic and it can be reordered! */
 static __always_inline int
@@ -105,7 +105,7 @@ arch___test_and_change_bit(int nr, volatile unsigned long *addr)
 	*p = old ^ mask;
 	return (old & mask) != 0;
 }
-#define arch___test_and_change_bit_uses_plain_access
+#define __test_and_change_bit arch___test_and_change_bit
 
 /**
  * arch_test_bit - Determine whether a bit is set
@@ -117,8 +117,6 @@ arch_test_bit(int nr, const volatile unsigned long *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
-#define arch_test_bit_uses_plain_access
-
-#include <asm-generic/bitops/instrumented-non-atomic.h>
+#define test_bit arch_test_bit
 
 #endif /* _ASM_GENERIC_BITOPS_NON_ATOMIC_H_ */
