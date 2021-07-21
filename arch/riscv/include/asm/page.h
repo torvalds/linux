@@ -122,7 +122,7 @@ extern struct kernel_mapping kernel_map;
 #define linear_mapping_va_to_pa(x)	((unsigned long)(x) - kernel_map.va_pa_offset)
 #define kernel_mapping_va_to_pa(y) ({						\
 	unsigned long _y = y;							\
-	(_y < kernel_map.virt_addr + XIP_OFFSET) ?					\
+	(IS_ENABLED(CONFIG_XIP_KERNEL) && _y < kernel_map.virt_addr + XIP_OFFSET) ?	\
 		((unsigned long)(_y) - kernel_map.va_kernel_xip_pa_offset) :		\
 		((unsigned long)(_y) - kernel_map.va_kernel_pa_offset - XIP_OFFSET);	\
 	})
