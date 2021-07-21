@@ -727,7 +727,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 	k = bch2_btree_iter_peek(iter);
 	if (!k.k)
-		return 1;
+		return 0;
 
 	ret = bkey_err(k);
 	if (ret)
@@ -904,19 +904,12 @@ static int check_dirents(struct bch_fs *c)
 				   BTREE_ITER_INTENT|
 				   BTREE_ITER_PREFETCH);
 
-	while (1) {
+	do {
 		ret = lockrestart_do(&trans,
 				check_dirent(&trans, iter, &hash_info, &w, &nr_subdirs));
-		if (ret == 1) {
-			/* at end */
-			ret = 0;
-			break;
-		}
 		if (ret)
 			break;
-
-		bch2_btree_iter_advance(iter);
-	}
+	} while (bch2_btree_iter_advance(iter));
 	bch2_trans_iter_put(&trans, iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
