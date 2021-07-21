@@ -132,22 +132,20 @@ struct extended_sensor {
 static int occ_poll(struct occ *occ)
 {
 	int rc;
-	u16 checksum = occ->poll_cmd_data + occ->seq_no + 1;
-	u8 cmd[8];
+	u8 cmd[7];
 	struct occ_poll_response_header *header;
 
 	/* big endian */
-	cmd[0] = occ->seq_no++;		/* sequence number */
+	cmd[0] = 0;			/* sequence number */
 	cmd[1] = 0;			/* cmd type */
 	cmd[2] = 0;			/* data length msb */
 	cmd[3] = 1;			/* data length lsb */
 	cmd[4] = occ->poll_cmd_data;	/* data */
-	cmd[5] = checksum >> 8;		/* checksum msb */
-	cmd[6] = checksum & 0xFF;	/* checksum lsb */
-	cmd[7] = 0;
+	cmd[5] = 0;			/* checksum msb */
+	cmd[6] = 0;			/* checksum lsb */
 
 	/* mutex should already be locked if necessary */
-	rc = occ->send_cmd(occ, cmd);
+	rc = occ->send_cmd(occ, cmd, sizeof(cmd));
 	if (rc) {
 		occ->last_error = rc;
 		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
@@ -184,25 +182,23 @@ static int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 {
 	int rc;
 	u8 cmd[8];
-	u16 checksum = 0x24;
 	__be16 user_power_cap_be = cpu_to_be16(user_power_cap);
 
-	cmd[0] = 0;
-	cmd[1] = 0x22;
-	cmd[2] = 0;
-	cmd[3] = 2;
+	cmd[0] = 0;	/* sequence number */
+	cmd[1] = 0x22;	/* cmd type */
+	cmd[2] = 0;	/* data length msb */
+	cmd[3] = 2;	/* data length lsb */
 
 	memcpy(&cmd[4], &user_power_cap_be, 2);
 
-	checksum += cmd[4] + cmd[5];
-	cmd[6] = checksum >> 8;
-	cmd[7] = checksum & 0xFF;
+	cmd[6] = 0;	/* checksum msb */
+	cmd[7] = 0;	/* checksum lsb */
 
 	rc = mutex_lock_interruptible(&occ->lock);
 	if (rc)
 		return rc;
 
-	rc = occ->send_cmd(occ, cmd);
+	rc = occ->send_cmd(occ, cmd, sizeof(cmd));
 
 	mutex_unlock(&occ->lock);
 
@@ -1144,8 +1140,6 @@ int occ_setup(struct occ *occ, const char *name)
 {
 	int rc;
 
-	/* start with 1 to avoid false match with zero-initialized SRAM buffer */
-	occ->seq_no = 1;
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
 
