@@ -2052,20 +2052,16 @@ static int dsa_slave_prechangeupper(struct net_device *dev,
 				    struct netdev_notifier_changeupper_info *info)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	struct netlink_ext_ack *extack;
-	int err = 0;
-
-	extack = netdev_notifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
-		err = dsa_port_pre_bridge_leave(dp, info->upper_dev, extack);
+		dsa_port_pre_bridge_leave(dp, info->upper_dev);
 	else if (netif_is_lag_master(info->upper_dev) && !info->linking)
-		err = dsa_port_pre_lag_leave(dp, info->upper_dev, extack);
+		dsa_port_pre_lag_leave(dp, info->upper_dev);
 	/* dsa_port_pre_hsr_leave is not yet necessary since hsr cannot be
 	 * meaningfully enslaved to a bridge yet
 	 */
 
-	return notifier_from_errno(err);
+	return NOTIFY_DONE;
 }
 
 static int

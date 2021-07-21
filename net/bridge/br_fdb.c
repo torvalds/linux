@@ -795,7 +795,6 @@ int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(br_fdb_replay);
 
 static void fdb_notify(struct net_bridge *br,
 		       const struct net_bridge_fdb_entry *fdb, int type,

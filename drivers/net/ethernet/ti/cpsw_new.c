@@ -1517,7 +1517,8 @@ static int cpsw_netdevice_port_link(struct net_device *ndev,
 			return -EOPNOTSUPP;
 	}
 
-	err = switchdev_bridge_port_offload(ndev, ndev, extack);
+	err = switchdev_bridge_port_offload(ndev, ndev, NULL, NULL, NULL,
+					    extack);
 	if (err)
 		return err;
 
@@ -1533,7 +1534,7 @@ static void cpsw_netdevice_port_unlink(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
 
-	switchdev_bridge_port_unoffload(ndev);
+	switchdev_bridge_port_unoffload(ndev, NULL, NULL, NULL);
 
 	cpsw->br_members &= ~BIT(priv->emac_port);
 
