@@ -1006,6 +1006,22 @@ static const struct intel_device_info xehpsdv_info = {
 	.require_force_probe = 1,
 };
 
+__maybe_unused
+static const struct intel_device_info dg2_info = {
+	XE_HP_FEATURES,
+	XE_HPM_FEATURES,
+	XE_LPD_FEATURES,
+	DGFX_FEATURES,
+	.graphics_rel = 55,
+	.media_rel = 55,
+	PLATFORM(INTEL_DG2),
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) |
+		BIT(VECS0) | BIT(VECS1) |
+		BIT(VCS0) | BIT(VCS2),
+	.require_force_probe = 1,
+};
+
 #undef PLATFORM
 
 /*

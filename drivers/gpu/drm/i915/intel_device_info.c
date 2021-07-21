@@ -69,6 +69,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(ALDERLAKE_S),
 	PLATFORM_NAME(ALDERLAKE_P),
 	PLATFORM_NAME(XEHPSDV),
+	PLATFORM_NAME(DG2),
 };
 #undef PLATFORM_NAME
 
