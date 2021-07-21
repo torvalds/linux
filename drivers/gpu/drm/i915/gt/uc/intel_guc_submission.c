@@ -935,6 +935,30 @@ static const struct intel_context_ops guc_context_ops = {
 	.destroy = guc_context_destroy,
 };
 
+static void __guc_signal_context_fence(struct intel_context *ce)
+{
+	struct i915_request *rq;
+
+	lockdep_assert_held(&ce->guc_state.lock);
+
+	list_for_each_entry(rq, &ce->guc_state.fences, guc_fence_link)
+		i915_sw_fence_complete(&rq->submit);
+
+	INIT_LIST_HEAD(&ce->guc_state.fences);
+}
+
+static void guc_signal_context_fence(struct intel_context *ce)
+{
+	unsigned long flags;
+
+	GEM_BUG_ON(!context_wait_for_deregister_to_register(ce));
+
+	spin_lock_irqsave(&ce->guc_state.lock, flags);
+	clr_context_wait_for_deregister_to_register(ce);
+	__guc_signal_context_fence(ce);
+	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
+}
+
 static bool context_needs_register(struct intel_context *ce, bool new_guc_id)
 {
 	return new_guc_id || test_bit(CONTEXT_LRCA_DIRTY, &ce->flags) ||
@@ -945,6 +969,7 @@ static int guc_request_alloc(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
 	struct intel_guc *guc = ce_to_guc(ce);
+	unsigned long flags;
 	int ret;
 
 	GEM_BUG_ON(!intel_context_is_pinned(rq->context));
@@ -989,7 +1014,7 @@ static int guc_request_alloc(struct i915_request *rq)
 	 * increment (in pin_guc_id) is needed to seal a race with unpin_guc_id.
 	 */
 	if (atomic_add_unless(&ce->guc_id_ref, 1, 0))
-		return 0;
+		goto out;
 
 	ret = pin_guc_id(guc, ce);	/* returns 1 if new guc_id assigned */
 	if (unlikely(ret < 0))
@@ -1004,6 +1029,28 @@ static int guc_request_alloc(struct i915_request *rq)
 	}
 
 	clear_bit(CONTEXT_LRCA_DIRTY, &ce->flags);
+
+out:
+	/*
+	 * We block all requests on this context if a G2H is pending for a
+	 * context deregistration as the GuC will fail a context registration
+	 * while this G2H is pending. Once a G2H returns, the fence is released
+	 * that is blocking these requests (see guc_signal_context_fence).
+	 *
+	 * We can safely check the below field outside of the lock as it isn't
+	 * possible for this field to transition from being clear to set but
+	 * converse is possible, hence the need for the check within the lock.
+	 */
+	if (likely(!context_wait_for_deregister_to_register(ce)))
+		return 0;
+
+	spin_lock_irqsave(&ce->guc_state.lock, flags);
+	if (context_wait_for_deregister_to_register(ce)) {
+		i915_sw_fence_await(&rq->submit);
+
+		list_add_tail(&rq->guc_fence_link, &ce->guc_state.fences);
+	}
+	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 
 	return 0;
 }
@@ -1301,7 +1348,7 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 		 */
 		with_intel_runtime_pm(runtime_pm, wakeref)
 			register_context(ce);
-		clr_context_wait_for_deregister_to_register(ce);
+		guc_signal_context_fence(ce);
 		intel_context_put(ce);
 	} else if (context_destroyed(ce)) {
 		/* Context has been destroyed */

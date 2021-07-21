@@ -147,6 +147,11 @@ struct intel_context {
 		 * submission
 		 */
 		u8 sched_state;
+		/*
+		 * fences: maintains of list of requests that have a submit
+		 * fence related to GuC submission
+		 */
+		struct list_head fences;
 	} guc_state;
 
 	/* GuC scheduling state flags that do not require a lock. */
