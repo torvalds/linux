@@ -44,15 +44,6 @@
 #define STARTUP_NORMAL_OFFSET	0x10000
 #define STARTUP_KDUMP_OFFSET	0x10010
 
-/* Offsets to parameters in kernel/head.S  */
-
-#define IPL_DEVICE	0x10400
-#define INITRD_START	0x10408
-#define INITRD_SIZE	0x10410
-#define OLDMEM_BASE	0x10418
-#define OLDMEM_SIZE	0x10420
-#define COMMAND_LINE	0x10480
-
 #ifndef __ASSEMBLY__
 
 #include <asm/lowcore.h>
