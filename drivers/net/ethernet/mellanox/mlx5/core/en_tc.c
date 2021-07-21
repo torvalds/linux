@@ -41,7 +41,6 @@
 #include <linux/completion.h>
 #include <linux/if_macvlan.h>
 #include <net/tc_act/tc_pedit.h>
-#include <net/tc_act/tc_csum.h>
 #include <net/psample.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
@@ -3008,35 +3007,6 @@ out_dealloc_parsed_actions:
 	return err;
 }
 
-static bool csum_offload_supported(struct mlx5e_priv *priv,
-				   u32 action,
-				   u32 update_flags,
-				   struct netlink_ext_ack *extack)
-{
-	u32 prot_flags = TCA_CSUM_UPDATE_FLAG_IPV4HDR | TCA_CSUM_UPDATE_FLAG_TCP |
-			 TCA_CSUM_UPDATE_FLAG_UDP;
-
-	/*  The HW recalcs checksums only if re-writing headers */
-	if (!(action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "TC csum action is only offloaded with pedit");
-		netdev_warn(priv->netdev,
-			    "TC csum action is only offloaded with pedit\n");
-		return false;
-	}
-
-	if (update_flags & ~prot_flags) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "can't offload TC csum action for some header/s");
-		netdev_warn(priv->netdev,
-			    "can't offload TC csum action for some header/s - flags %#x\n",
-			    update_flags);
-		return false;
-	}
-
-	return true;
-}
-
 struct ip_ttl_word {
 	__u8	ttl;
 	__u8	protocol;
@@ -3457,13 +3427,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 				return err;
 
 			break;
-		case FLOW_ACTION_CSUM:
-			if (csum_offload_supported(priv, attr->action,
-						   act->csum_flags,
-						   extack))
-				break;
-
-			return -EOPNOTSUPP;
 		case FLOW_ACTION_REDIRECT: {
 			struct net_device *peer_dev = act->dev;
 
@@ -3894,12 +3857,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				esw_attr->split_count = esw_attr->out_count;
 			}
 			break;
-		case FLOW_ACTION_CSUM:
-			if (csum_offload_supported(priv, attr->action,
-						   act->csum_flags, extack))
-				break;
-
-			return -EOPNOTSUPP;
 		case FLOW_ACTION_REDIRECT_INGRESS: {
 			struct net_device *out_dev;
 

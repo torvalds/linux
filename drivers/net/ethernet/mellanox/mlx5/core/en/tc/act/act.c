@@ -20,6 +20,9 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_VLAN_MANGLE, */
 	&mlx5e_tc_act_tun_encap,
 	&mlx5e_tc_act_tun_decap,
+	NULL, /* FLOW_ACTION_MANGLE, */
+	NULL, /* FLOW_ACTION_ADD, */
+	&mlx5e_tc_act_csum,
 };
 
 /* Must be aligned with enum flow_action_id. */
@@ -39,7 +42,7 @@ static struct mlx5e_tc_act *tc_acts_nic[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_TUNNEL_DECAP, */
 	NULL, /* FLOW_ACTION_MANGLE, */
 	NULL, /* FLOW_ACTION_ADD, */
-	NULL, /* FLOW_ACTION_CSUM, */
+	&mlx5e_tc_act_csum,
 	&mlx5e_tc_act_mark,
 };
 
