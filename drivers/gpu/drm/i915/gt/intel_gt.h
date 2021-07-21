@@ -48,6 +48,8 @@ void intel_gt_driver_release(struct intel_gt *gt);
 
 void intel_gt_driver_late_release(struct intel_gt *gt);
 
+int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout);
+
 void intel_gt_check_and_clear_faults(struct intel_gt *gt);
 void intel_gt_clear_error_registers(struct intel_gt *gt,
 				    intel_engine_mask_t engine_mask);

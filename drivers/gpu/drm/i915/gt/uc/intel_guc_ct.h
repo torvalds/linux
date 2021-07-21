@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/ktime.h>
+#include <linux/wait.h>
 
 #include "intel_guc_fwif.h"
 
@@ -67,6 +68,9 @@ struct intel_guc_ct {
 	} ctbs;
 
 	struct tasklet_struct receive_tasklet;
+
+	/** @wq: wait queue for g2h chanenl */
+	wait_queue_head_t wq;
 
 	struct {
 		u16 last_fence; /* last fence used to send request */

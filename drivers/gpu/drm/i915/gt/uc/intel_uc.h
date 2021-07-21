@@ -81,6 +81,11 @@ uc_state_checkers(guc, guc_submission);
 #undef uc_state_checkers
 #undef __uc_state_checker
 
+static inline int intel_uc_wait_for_idle(struct intel_uc *uc, long timeout)
+{
+	return intel_guc_wait_for_idle(&uc->guc, timeout);
+}
+
 #define intel_uc_ops_function(_NAME, _OPS, _TYPE, _RET) \
 static inline _TYPE intel_uc_##_NAME(struct intel_uc *uc) \
 { \

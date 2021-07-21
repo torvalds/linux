@@ -585,6 +585,25 @@ static void __intel_gt_disable(struct intel_gt *gt)
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
 }
 
+int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
+{
+	long remaining_timeout;
+
+	/* If the device is asleep, we have no requests outstanding */
+	if (!intel_gt_pm_is_awake(gt))
+		return 0;
+
+	while ((timeout = intel_gt_retire_requests_timeout(gt, timeout,
+							   &remaining_timeout)) > 0) {
+		cond_resched();
+		if (signal_pending(current))
+			return -EINTR;
+	}
+
+	return timeout ? timeout : intel_uc_wait_for_idle(&gt->uc,
+							  remaining_timeout);
+}
+
 int intel_gt_init(struct intel_gt *gt)
 {
 	int err;

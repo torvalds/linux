@@ -39,6 +39,8 @@ struct intel_guc {
 	spinlock_t irq_lock;
 	unsigned int msg_enabled_mask;
 
+	atomic_t outstanding_submission_g2h;
+
 	struct {
 		void (*reset)(struct intel_guc *guc);
 		void (*enable)(struct intel_guc *guc);
@@ -244,6 +246,8 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 	guc->msg_enabled_mask &= ~mask;
 	spin_unlock_irq(&guc->irq_lock);
 }
+
+int intel_guc_wait_for_idle(struct intel_guc *guc, long timeout);
 
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine);
