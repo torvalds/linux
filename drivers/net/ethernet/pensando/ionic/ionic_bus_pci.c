@@ -373,9 +373,6 @@ static void ionic_remove(struct pci_dev *pdev)
 {
 	struct ionic *ionic = pci_get_drvdata(pdev);
 
-	if (!ionic)
-		return;
-
 	del_timer_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
