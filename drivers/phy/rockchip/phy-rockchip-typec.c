@@ -51,6 +51,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/usb/typec_mux.h>
 
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
@@ -414,6 +415,7 @@ struct rockchip_typec_phy {
 	struct device *dev;
 	void __iomem *base;
 	struct extcon_dev *extcon;
+	struct typec_switch *sw;
 	struct regmap *grf_regs;
 	struct clk *clk_core;
 	struct clk *clk_ref;
@@ -1380,6 +1382,48 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	return mode;
 }
 
+static int tcphy_orien_sw_set(struct typec_switch *sw,
+			      enum typec_orientation orien)
+{
+	struct rockchip_typec_phy *tcphy = typec_switch_get_drvdata(sw);
+
+	mutex_lock(&tcphy->lock);
+
+	if (orien == TYPEC_ORIENTATION_NONE)
+		goto unlock_ret;
+
+	tcphy->flip = (orien == TYPEC_ORIENTATION_REVERSE) ? true : false;
+
+unlock_ret:
+	mutex_unlock(&tcphy->lock);
+	return 0;
+}
+
+static int tcphy_setup_orien_switch(struct rockchip_typec_phy *tcphy)
+{
+	struct typec_switch_desc sw_desc = { };
+
+	sw_desc.drvdata = tcphy;
+	sw_desc.fwnode = dev_fwnode(tcphy->dev);
+	sw_desc.set = tcphy_orien_sw_set;
+
+	tcphy->sw = typec_switch_register(tcphy->dev, &sw_desc);
+	if (IS_ERR(tcphy->sw)) {
+		dev_err(tcphy->dev, "Error register typec orientation switch: %ld\n",
+			PTR_ERR(tcphy->sw));
+		return PTR_ERR(tcphy->sw);
+	}
+
+	return 0;
+}
+
+static void udphy_orien_switch_unregister(void *data)
+{
+	struct rockchip_typec_phy *tcphy = data;
+
+	typec_switch_unregister(tcphy->sw);
+}
+
 static int _rockchip_usb3_phy_power_on(struct rockchip_typec_phy *tcphy)
 {
 	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
@@ -1415,7 +1459,6 @@ static int _rockchip_usb3_phy_power_on(struct rockchip_typec_phy *tcphy)
 		regmap_read(tcphy->grf_regs, reg->offset, &val);
 		if (!(val & BIT(reg->enable_bit))) {
 			tcphy->mode |= new_mode & (MODE_DFP_USB | MODE_UFP_USB);
-
 			/* enable usb3 host */
 			tcphy_cfg_usb3_to_usb2_only(tcphy, false);
 			goto unlock_ret;
@@ -1702,6 +1745,15 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(tcphy->extcon)) {
 		if (PTR_ERR(tcphy->extcon) == -ENODEV) {
 			tcphy->extcon = NULL;
+			if (device_property_present(dev, "orientation-switch")) {
+				ret = tcphy_setup_orien_switch(tcphy);
+				if (ret)
+					return ret;
+				ret = devm_add_action_or_reset(dev, udphy_orien_switch_unregister,
+							       tcphy);
+				if (ret)
+					return ret;
+			}
 		} else {
 			if (PTR_ERR(tcphy->extcon) != -EPROBE_DEFER)
 				dev_err(dev, "Invalid or missing extcon\n");
