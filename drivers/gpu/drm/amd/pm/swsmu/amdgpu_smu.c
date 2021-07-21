@@ -417,6 +417,15 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 		}
 	}
 
+	/* Restore user customized OD settings */
+	if (smu->user_dpm_profile.user_od) {
+		if (smu->ppt_funcs->restore_user_od_settings) {
+			ret = smu->ppt_funcs->restore_user_od_settings(smu);
+			if (ret)
+				dev_err(smu->adev->dev, "Failed to upload customized OD settings\n");
+		}
+	}
+
 	/* Disable restore flag */
 	smu->user_dpm_profile.flags &= ~SMU_DPM_USER_PROFILE_RESTORE;
 }

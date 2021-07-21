@@ -303,5 +303,7 @@ void smu_v11_0_interrupt_work(struct smu_context *smu);
 
 int smu_v11_0_set_light_sbr(struct smu_context *smu, bool enable);
 
+int smu_v11_0_restore_user_od_settings(struct smu_context *smu);
+
 #endif
 #endif

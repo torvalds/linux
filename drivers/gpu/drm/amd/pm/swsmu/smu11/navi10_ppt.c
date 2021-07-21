@@ -2294,41 +2294,52 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 		(OverDriveTable_t *)smu->smu_table.overdrive_table;
 	OverDriveTable_t *boot_od_table =
 		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
+	OverDriveTable_t *user_od_table =
+		(OverDriveTable_t *)smu->smu_table.user_overdrive_table;
 	int ret = 0;
 
-	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
+	/*
+	 * For S3/S4/Runpm resume, no need to setup those overdrive tables again as
+	 *   - either they already have the default OD settings got during cold bootup
+	 *   - or they have some user customized OD settings which cannot be overwritten
+	 */
+	if (smu->adev->in_suspend)
+		return 0;
+
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)boot_od_table, false);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
 		return ret;
 	}
 
-	if (!od_table->GfxclkVolt1) {
+	if (!boot_od_table->GfxclkVolt1) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt1,
-								od_table->GfxclkFreq1);
+								&boot_od_table->GfxclkVolt1,
+								boot_od_table->GfxclkFreq1);
 		if (ret)
 			return ret;
 	}
 
-	if (!od_table->GfxclkVolt2) {
+	if (!boot_od_table->GfxclkVolt2) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt2,
-								od_table->GfxclkFreq2);
+								&boot_od_table->GfxclkVolt2,
+								boot_od_table->GfxclkFreq2);
 		if (ret)
 			return ret;
 	}
 
-	if (!od_table->GfxclkVolt3) {
+	if (!boot_od_table->GfxclkVolt3) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt3,
-								od_table->GfxclkFreq3);
+								&boot_od_table->GfxclkVolt3,
+								boot_od_table->GfxclkFreq3);
 		if (ret)
 			return ret;
 	}
 
-	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
+	navi10_dump_od_table(smu, boot_od_table);
 
-	navi10_dump_od_table(smu, od_table);
+	memcpy(od_table, boot_od_table, sizeof(OverDriveTable_t));
+	memcpy(user_od_table, boot_od_table, sizeof(OverDriveTable_t));
 
 	return 0;
 }
@@ -2429,11 +2440,20 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
-		navi10_dump_od_table(smu, od_table);
-		ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
-		if (ret) {
-			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
-			return ret;
+		if (memcmp(od_table, table_context->user_overdrive_table, sizeof(OverDriveTable_t))) {
+			navi10_dump_od_table(smu, od_table);
+			ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
+			if (ret) {
+				dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
+				return ret;
+			}
+			memcpy(table_context->user_overdrive_table, od_table, sizeof(OverDriveTable_t));
+			smu->user_dpm_profile.user_od = true;
+
+			if (!memcmp(table_context->user_overdrive_table,
+				    table_context->boot_overdrive_table,
+				    sizeof(OverDriveTable_t)))
+				smu->user_dpm_profile.user_od = false;
 		}
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
@@ -3262,6 +3282,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
+	.restore_user_od_settings = smu_v11_0_restore_user_od_settings,
 	.run_btc = navi10_run_btc,
 	.set_power_source = smu_v11_0_set_power_source,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,

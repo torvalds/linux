@@ -425,10 +425,20 @@ int smu_v11_0_init_smc_tables(struct smu_context *smu)
 			ret = -ENOMEM;
 			goto err3_out;
 		}
+
+		smu_table->user_overdrive_table =
+			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
+		if (!smu_table->user_overdrive_table) {
+			ret = -ENOMEM;
+			goto err4_out;
+		}
+
 	}
 
 	return 0;
 
+err4_out:
+	kfree(smu_table->boot_overdrive_table);
 err3_out:
 	kfree(smu_table->overdrive_table);
 err2_out:
@@ -445,12 +455,14 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
 	kfree(smu_table->gpu_metrics_table);
+	kfree(smu_table->user_overdrive_table);
 	kfree(smu_table->boot_overdrive_table);
 	kfree(smu_table->overdrive_table);
 	kfree(smu_table->max_sustainable_clocks);
 	kfree(smu_table->driver_pptable);
 	kfree(smu_table->clocks_table);
 	smu_table->gpu_metrics_table = NULL;
+	smu_table->user_overdrive_table = NULL;
 	smu_table->boot_overdrive_table = NULL;
 	smu_table->overdrive_table = NULL;
 	smu_table->max_sustainable_clocks = NULL;
@@ -2101,6 +2113,19 @@ int smu_v11_0_deep_sleep_control(struct smu_context *smu,
 			return ret;
 		}
 	}
+
+	return ret;
+}
+
+int smu_v11_0_restore_user_od_settings(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	void *user_od_table = table_context->user_overdrive_table;
+	int ret = 0;
+
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)user_od_table, true);
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 
 	return ret;
 }
