@@ -454,11 +454,12 @@ static void tcp_sndbuf_expand(struct sock *sk)
  */
 
 /* Slow part of check#2. */
-static int __tcp_grow_window(const struct sock *sk, const struct sk_buff *skb)
+static int __tcp_grow_window(const struct sock *sk, const struct sk_buff *skb,
+			     unsigned int skbtruesize)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	/* Optimize this! */
-	int truesize = tcp_win_from_space(sk, skb->truesize) >> 1;
+	int truesize = tcp_win_from_space(sk, skbtruesize) >> 1;
 	int window = tcp_win_from_space(sk, sock_net(sk)->ipv4.sysctl_tcp_rmem[2]) >> 1;
 
 	while (tp->rcv_ssthresh <= window) {
@@ -471,7 +472,27 @@ static int __tcp_grow_window(const struct sock *sk, const struct sk_buff *skb)
 	return 0;
 }
 
-static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb)
+/* Even if skb appears to have a bad len/truesize ratio, TCP coalescing
+ * can play nice with us, as sk_buff and skb->head might be either
+ * freed or shared with up to MAX_SKB_FRAGS segments.
+ * Only give a boost to drivers using page frag(s) to hold the frame(s),
+ * and if no payload was pulled in skb->head before reaching us.
+ */
+static u32 truesize_adjust(bool adjust, const struct sk_buff *skb)
+{
+	u32 truesize = skb->truesize;
+
+	if (adjust && !skb_headlen(skb)) {
+		truesize -= SKB_TRUESIZE(skb_end_offset(skb));
+		/* paranoid check, some drivers might be buggy */
+		if (unlikely((int)truesize < (int)skb->len))
+			truesize = skb->truesize;
+	}
+	return truesize;
+}
+
+static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb,
+			    bool adjust)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int room;
@@ -480,15 +501,16 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb)
 
 	/* Check #1 */
 	if (room > 0 && !tcp_under_memory_pressure(sk)) {
+		unsigned int truesize = truesize_adjust(adjust, skb);
 		int incr;
 
 		/* Check #2. Increase window, if skb with such overhead
 		 * will fit to rcvbuf in future.
 		 */
-		if (tcp_win_from_space(sk, skb->truesize) <= skb->len)
+		if (tcp_win_from_space(sk, truesize) <= skb->len)
 			incr = 2 * tp->advmss;
 		else
-			incr = __tcp_grow_window(sk, skb);
+			incr = __tcp_grow_window(sk, skb, truesize);
 
 		if (incr) {
 			incr = max_t(int, incr, 2 * skb->len);
@@ -782,7 +804,7 @@ static void tcp_event_data_recv(struct sock *sk, struct sk_buff *skb)
 	tcp_ecn_check_ce(sk, skb);
 
 	if (skb->len >= 128)
-		tcp_grow_window(sk, skb);
+		tcp_grow_window(sk, skb, true);
 }
 
 /* Called to compute a smoothed rtt estimate. The data fed to this
@@ -4761,7 +4783,7 @@ coalesce_done:
 		 * and trigger fast retransmit.
 		 */
 		if (tcp_is_sack(tp))
-			tcp_grow_window(sk, skb);
+			tcp_grow_window(sk, skb, true);
 		kfree_skb_partial(skb, fragstolen);
 		skb = NULL;
 		goto add_sack;
@@ -4849,7 +4871,7 @@ end:
 		 * and trigger fast retransmit.
 		 */
 		if (tcp_is_sack(tp))
-			tcp_grow_window(sk, skb);
+			tcp_grow_window(sk, skb, false);
 		skb_condense(skb);
 		skb_set_owner_r(skb, sk);
 	}
