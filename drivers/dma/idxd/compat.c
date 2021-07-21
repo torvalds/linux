@@ -34,7 +34,7 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t cou
 {
 	struct bus_type *bus = drv->bus;
 	struct device *dev;
-	struct device_driver *alt_drv;
+	struct device_driver *alt_drv = NULL;
 	int rc = -ENODEV;
 	struct idxd_dev *idxd_dev;
 
