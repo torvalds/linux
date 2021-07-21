@@ -5022,34 +5022,20 @@ static size_t bpf_core_essential_name_len(const char *name)
 	return n;
 }
 
-struct core_cand
-{
-	const struct btf *btf;
-	const struct btf_type *t;
-	const char *name;
-	__u32 id;
-};
-
-/* dynamically sized list of type IDs and its associated struct btf */
-struct core_cand_list {
-	struct core_cand *cands;
-	int len;
-};
-
-static void bpf_core_free_cands(struct core_cand_list *cands)
+static void bpf_core_free_cands(struct bpf_core_cand_list *cands)
 {
 	free(cands->cands);
 	free(cands);
 }
 
-static int bpf_core_add_cands(struct core_cand *local_cand,
+static int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 			      size_t local_essent_len,
 			      const struct btf *targ_btf,
 			      const char *targ_btf_name,
 			      int targ_start_id,
-			      struct core_cand_list *cands)
+			      struct bpf_core_cand_list *cands)
 {
-	struct core_cand *new_cands, *cand;
+	struct bpf_core_cand *new_cands, *cand;
 	const struct btf_type *t;
 	const char *targ_name;
 	size_t targ_essent_len;
@@ -5185,11 +5171,11 @@ err_out:
 	return 0;
 }
 
-static struct core_cand_list *
+static struct bpf_core_cand_list *
 bpf_core_find_cands(struct bpf_object *obj, const struct btf *local_btf, __u32 local_type_id)
 {
-	struct core_cand local_cand = {};
-	struct core_cand_list *cands;
+	struct bpf_core_cand local_cand = {};
+	struct bpf_core_cand_list *cands;
 	const struct btf *main_btf;
 	size_t local_essent_len;
 	int err, i;
@@ -6218,7 +6204,7 @@ static int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn
 				    const struct bpf_core_relo *relo,
 				    int relo_idx,
 				    const struct btf *local_btf,
-				    struct core_cand_list *cands)
+				    struct bpf_core_cand_list *cands)
 {
 	struct bpf_core_spec local_spec, cand_spec, targ_spec = {};
 	struct bpf_core_relo_res cand_res, targ_res;
@@ -6372,7 +6358,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 			       struct hashmap *cand_cache)
 {
 	const void *type_key = u32_as_hash_key(relo->type_id);
-	struct core_cand_list *cands = NULL;
+	struct bpf_core_cand_list *cands = NULL;
 	const char *prog_name = prog->name;
 	const struct btf_type *local_type;
 	const char *local_name;
