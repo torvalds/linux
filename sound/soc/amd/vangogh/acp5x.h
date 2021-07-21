@@ -74,9 +74,20 @@
 #define I2S_MASTER_MODE_ENABLE 1
 #define I2S_MASTER_MODE_DISABLE 0
 
+#define SLOT_WIDTH_8 8
+#define SLOT_WIDTH_16 16
+#define SLOT_WIDTH_24 24
+#define SLOT_WIDTH_32 32
+#define TDM_ENABLE 1
+#define TDM_DISABLE 0
+#define ACP5x_ITER_IRER_SAMP_LEN_MASK	0x38
+
 struct i2s_dev_data {
+	bool tdm_mode;
 	bool master_mode;
 	unsigned int i2s_irq;
+	u16 i2s_instance;
+	u32 tdm_fmt;
 	void __iomem *acp5x_base;
 	struct snd_pcm_substream *play_stream;
 	struct snd_pcm_substream *capture_stream;
@@ -107,6 +118,17 @@ union acp_dma_count {
 struct acp5x_platform_info {
 	u16 play_i2s_instance;
 	u16 cap_i2s_instance;
+};
+
+union acp_i2stdm_mstrclkgen {
+	struct {
+		u32 i2stdm_master_mode : 1;
+		u32 i2stdm_format_mode : 1;
+		u32 i2stdm_lrclk_div_val : 9;
+		u32 i2stdm_bclk_div_val : 11;
+		u32:10;
+	} bitfields, bits;
+	u32  u32_all;
 };
 
 /* common header file uses exact offset rather than relative
