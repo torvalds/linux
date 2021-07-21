@@ -30,7 +30,7 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_QUEUE, */
 	NULL, /* FLOW_ACTION_SAMPLE, */
 	NULL, /* FLOW_ACTION_POLICE, */
-	NULL, /* FLOW_ACTION_CT, */
+	&mlx5e_tc_act_ct,
 	NULL, /* FLOW_ACTION_CT_METADATA, */
 	&mlx5e_tc_act_mpls_push,
 	&mlx5e_tc_act_mpls_pop,
@@ -55,6 +55,13 @@ static struct mlx5e_tc_act *tc_acts_nic[NUM_FLOW_ACTIONS] = {
 	&mlx5e_tc_act_pedit,
 	&mlx5e_tc_act_csum,
 	&mlx5e_tc_act_mark,
+	NULL, /* FLOW_ACTION_PTYPE, */
+	NULL, /* FLOW_ACTION_PRIORITY, */
+	NULL, /* FLOW_ACTION_WAKE, */
+	NULL, /* FLOW_ACTION_QUEUE, */
+	NULL, /* FLOW_ACTION_SAMPLE, */
+	NULL, /* FLOW_ACTION_POLICE, */
+	&mlx5e_tc_act_ct,
 };
 
 /**

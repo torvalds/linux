@@ -3219,24 +3219,11 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
+	parse_state->ct_priv = get_ct_priv(priv);
 	ns_type = mlx5e_get_flow_namespace(flow);
 	hdrs = parse_state->hdrs;
 
 	flow_action_for_each(i, act, flow_action) {
-		switch (act->id) {
-		case FLOW_ACTION_CT:
-			err = mlx5_tc_ct_parse_action(get_ct_priv(priv), attr,
-						      &parse_attr->mod_hdr_acts,
-						      act, extack);
-			if (err)
-				return err;
-
-			flow_flag_set(flow, CT);
-			break;
-		default:
-			break;
-		}
-
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
 		if (!tc_act) {
 			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
@@ -3377,6 +3364,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
+	parse_state->ct_priv = get_ct_priv(priv);
 	ns_type = mlx5e_get_flow_namespace(flow);
 	hdrs = parse_state->hdrs;
 
@@ -3435,20 +3423,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			break;
 		}
-		case FLOW_ACTION_CT:
-			if (flow_flag_test(flow, SAMPLE)) {
-				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
-				return -EOPNOTSUPP;
-			}
-			err = mlx5_tc_ct_parse_action(get_ct_priv(priv), attr,
-						      &parse_attr->mod_hdr_acts,
-						      act, extack);
-			if (err)
-				return err;
-
-			flow_flag_set(flow, CT);
-			esw_attr->split_count = esw_attr->out_count;
-			break;
 		case FLOW_ACTION_SAMPLE:
 			if (flow_flag_test(flow, CT)) {
 				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
