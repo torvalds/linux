@@ -484,8 +484,7 @@ static int gen11_get_dram_info(struct drm_i915_private *i915)
 
 static int gen12_get_dram_info(struct drm_i915_private *i915)
 {
-	/* Always needed for GEN12+ */
-	i915->dram_info.wm_lv_0_adjust_needed = true;
+	i915->dram_info.wm_lv_0_adjust_needed = false;
 
 	return icl_pcode_read_mem_global_info(i915);
 }

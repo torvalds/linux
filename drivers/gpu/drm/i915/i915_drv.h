@@ -270,8 +270,10 @@ struct drm_i915_display_funcs {
 	int (*bw_calc_min_cdclk)(struct intel_atomic_state *state);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv,
 			     enum i9xx_plane_id i9xx_plane);
-	int (*compute_pipe_wm)(struct intel_crtc_state *crtc_state);
-	int (*compute_intermediate_wm)(struct intel_crtc_state *crtc_state);
+	int (*compute_pipe_wm)(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc);
+	int (*compute_intermediate_wm)(struct intel_atomic_state *state,
+				       struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc);
 	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
@@ -346,13 +348,14 @@ struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
-	unsigned threshold;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 	struct intel_crtc *crtc;
 
 	struct drm_mm_node compressed_fb;
-	struct drm_mm_node *compressed_llb;
+	struct drm_mm_node compressed_llb;
+
+	u8 limit;
 
 	bool false_color;
 
@@ -467,6 +470,7 @@ struct i915_drrs {
 #define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
 #define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
+#define QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK (1<<8)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -1236,21 +1240,6 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
 
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
-
-/*
- * Deprecated: this will be replaced by individual IP checks:
- * GRAPHICS_VER(), MEDIA_VER() and DISPLAY_VER()
- */
-#define INTEL_GEN(dev_priv)		GRAPHICS_VER(dev_priv)
-/*
- * Deprecated: use IS_GRAPHICS_VER(), IS_MEDIA_VER() and IS_DISPLAY_VER() as
- * appropriate.
- */
-#define IS_GEN_RANGE(dev_priv, s, e)	IS_GRAPHICS_VER(dev_priv, (s), (e))
-/*
- * Deprecated: use GRAPHICS_VER(), MEDIA_VER() and DISPLAY_VER() as appropriate.
- */
-#define IS_GEN(dev_priv, n)		(GRAPHICS_VER(dev_priv) == (n))
 
 #define GRAPHICS_VER(i915)		(INTEL_INFO(i915)->graphics_ver)
 #define IS_GRAPHICS_VER(i915, from, until) \

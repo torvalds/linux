@@ -3031,9 +3031,6 @@ void intel_read_dp_sdp(struct intel_encoder *encoder,
 		       struct intel_crtc_state *crtc_state,
 		       unsigned int type)
 {
-	if (encoder->type != INTEL_OUTPUT_DDI)
-		return;
-
 	switch (type) {
 	case DP_SDP_VSC:
 		intel_read_dp_vsc_sdp(encoder, crtc_state,
@@ -4741,7 +4738,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 				    int refresh_rate)
 {
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
 
 	if (refresh_rate <= 0) {
@@ -4755,7 +4752,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (!intel_crtc) {
+	if (!crtc) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "DRRS: intel_crtc not initialized\n");
 		return;
@@ -5238,7 +5235,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_connector->panel.backlight.power = intel_pps_backlight_power;
+	if (!(dev_priv->quirks & QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
+		intel_connector->panel.backlight.power = intel_pps_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
 	if (fixed_mode) {

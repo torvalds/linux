@@ -48,6 +48,7 @@
 
 struct drm_printer;
 struct __intel_global_objs_state;
+struct intel_ddi_buf_trans;
 
 /*
  * Display related stuff
@@ -263,6 +264,9 @@ struct intel_encoder {
 	 * Returns whether the port clock is enabled or not.
 	 */
 	bool (*is_clock_enabled)(struct intel_encoder *encoder);
+	const struct intel_ddi_buf_trans *(*get_buf_trans)(struct intel_encoder *encoder,
+							   const struct intel_crtc_state *crtc_state,
+							   int *n_entries);
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -1040,7 +1044,9 @@ struct intel_crtc_state {
 	bool has_psr;
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
+	bool req_psr2_sdp_prior_scanline;
 	u32 dc3co_exitline;
+	u16 su_y_granularity;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -1493,12 +1499,14 @@ struct intel_psr {
 	bool colorimetry_support;
 	bool psr2_enabled;
 	bool psr2_sel_fetch_enabled;
+	bool req_psr2_sdp_prior_scanline;
 	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 	bool sink_not_reliable;
 	bool irq_aux_error;
-	u16 su_x_granularity;
+	u16 su_w_granularity;
+	u16 su_y_granularity;
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;

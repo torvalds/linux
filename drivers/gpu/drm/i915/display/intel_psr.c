@@ -265,32 +265,44 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 	return val;
 }
 
-static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
+static void intel_dp_get_su_granularity(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	u16 val;
 	ssize_t r;
+	u16 w;
+	u8 y;
 
-	/*
-	 * Returning the default X granularity if granularity not required or
-	 * if DPCD read fails
-	 */
-	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED))
-		return 4;
+	/* If sink don't have specific granularity requirements set legacy ones */
+	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED)) {
+		/* As PSR2 HW sends full lines, we do not care about x granularity */
+		w = 4;
+		y = 4;
+		goto exit;
+	}
 
-	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &w, 2);
 	if (r != 2)
 		drm_dbg_kms(&i915->drm,
 			    "Unable to read DP_PSR2_SU_X_GRANULARITY\n");
-
 	/*
 	 * Spec says that if the value read is 0 the default granularity should
 	 * be used instead.
 	 */
-	if (r != 2 || val == 0)
-		val = 4;
+	if (r != 2 || w == 0)
+		w = 4;
 
-	return val;
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_Y_GRANULARITY, &y, 1);
+	if (r != 1) {
+		drm_dbg_kms(&i915->drm,
+			    "Unable to read DP_PSR2_SU_Y_GRANULARITY\n");
+		y = 4;
+	}
+	if (y == 0)
+		y = 1;
+
+exit:
+	intel_dp->psr.su_w_granularity = w;
+	intel_dp->psr.su_y_granularity = y;
 }
 
 void intel_psr_init_dpcd(struct intel_dp *intel_dp)
@@ -346,8 +358,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		if (intel_dp->psr.sink_psr2_support) {
 			intel_dp->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
-			intel_dp->psr.su_x_granularity =
-				intel_dp_get_su_x_granulartiy(intel_dp);
+			intel_dp_get_su_granularity(intel_dp);
 		}
 	}
 }
@@ -406,6 +417,9 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 		if (DISPLAY_VER(dev_priv) >= 8)
 			dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	}
+
+	if (intel_dp->psr.req_psr2_sdp_prior_scanline)
+		dpcd_val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
@@ -531,7 +545,34 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val |= EDP_PSR2_FRAME_BEFORE_SU(intel_dp->psr.sink_sync_latency + 1);
 	val |= intel_psr2_get_tp_time(intel_dp);
 
-	if (DISPLAY_VER(dev_priv) >= 12) {
+	/* Wa_22012278275:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_D1)) {
+		static const u8 map[] = {
+			2, /* 5 lines */
+			1, /* 6 lines */
+			0, /* 7 lines */
+			3, /* 8 lines */
+			6, /* 9 lines */
+			5, /* 10 lines */
+			4, /* 11 lines */
+			7, /* 12 lines */
+		};
+		/*
+		 * Still using the default IO_BUFFER_WAKE and FAST_WAKE, see
+		 * comments bellow for more information
+		 */
+		u32 tmp, lines = 7;
+
+		val |= TGL_EDP_PSR2_BLOCK_COUNT_NUM_2;
+
+		tmp = map[lines - TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES];
+		tmp = tmp << TGL_EDP_PSR2_IO_BUFFER_WAKE_SHIFT;
+		val |= tmp;
+
+		tmp = map[lines - TGL_EDP_PSR2_FAST_WAKE_MIN_LINES];
+		tmp = tmp << TGL_EDP_PSR2_FAST_WAKE_MIN_SHIFT;
+		val |= tmp;
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		/*
 		 * TODO: 7 lines of IO_BUFFER_WAKE and FAST_WAKE are default
 		 * values from BSpec. In order to setting an optimal power
@@ -546,6 +587,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_IO_BUFFER_WAKE(7);
 		val |= EDP_PSR2_FAST_WAKE(7);
 	}
+
+	if (intel_dp->psr.req_psr2_sdp_prior_scanline)
+		val |= EDP_PSR2_SU_SDP_SCANLINE;
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		/* WA 1408330847 */
@@ -689,6 +733,10 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
 		return;
 
+	/* Wa_16011303918:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+		return;
+
 	/*
 	 * DC3CO Exit time 200us B.Spec 49196
 	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
@@ -740,6 +788,63 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	}
 
 	return crtc_state->enable_psr2_sel_fetch = true;
+}
+
+static bool psr2_granularity_check(struct intel_dp *intel_dp,
+				   struct intel_crtc_state *crtc_state)
+{
+	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
+	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
+	u16 y_granularity = 0;
+
+	/* PSR2 HW only send full lines so we only need to validate the width */
+	if (crtc_hdisplay % intel_dp->psr.su_w_granularity)
+		return false;
+
+	if (crtc_vdisplay % intel_dp->psr.su_y_granularity)
+		return false;
+
+	/* HW tracking is only aligned to 4 lines */
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return intel_dp->psr.su_y_granularity == 4;
+
+	/*
+	 * For SW tracking we can adjust the y to match sink requirement if
+	 * multiple of 4
+	 */
+	if (intel_dp->psr.su_y_granularity <= 2)
+		y_granularity = 4;
+	else if ((intel_dp->psr.su_y_granularity % 4) == 0)
+		y_granularity = intel_dp->psr.su_y_granularity;
+
+	if (y_granularity == 0 || crtc_vdisplay % y_granularity)
+		return false;
+
+	crtc_state->su_y_granularity = y_granularity;
+	return true;
+}
+
+static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_dp,
+							struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode = &crtc_state->uapi.adjusted_mode;
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 hblank_total, hblank_ns, req_ns;
+
+	hblank_total = adjusted_mode->crtc_hblank_end - adjusted_mode->crtc_hblank_start;
+	hblank_ns = div_u64(1000000ULL * hblank_total, adjusted_mode->crtc_clock);
+
+	/* From spec: (72 / number of lanes) * 1000 / symbol clock frequency MHz */
+	req_ns = (72 / crtc_state->lane_count) * 1000 / (crtc_state->port_clock / 1000);
+
+	if ((hblank_ns - req_ns) > 100)
+		return true;
+
+	if (DISPLAY_VER(dev_priv) < 13 || intel_dp->edp_dpcd[0] < DP_EDP_14b)
+		return false;
+
+	crtc_state->req_psr2_sdp_prior_scanline = true;
+	return true;
 }
 
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
@@ -824,19 +929,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/*
-	 * HW sends SU blocks of size four scan lines, which means the starting
-	 * X coordinate and Y granularity requirements will always be met. We
-	 * only need to validate the SU block width is a multiple of
-	 * x granularity.
-	 */
-	if (crtc_hdisplay % intel_dp->psr.su_x_granularity) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
-			    crtc_hdisplay, intel_dp->psr.su_x_granularity);
-		return false;
-	}
-
 	if (HAS_PSR2_SEL_FETCH(dev_priv)) {
 		if (!intel_psr2_sel_fetch_config_valid(intel_dp, crtc_state) &&
 		    !HAS_PSR_HW_TRACKING(dev_priv)) {
@@ -853,12 +945,31 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	if (!psr2_granularity_check(intel_dp, crtc_state)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 not enabled, SU granularity not compatible\n");
+		return false;
+	}
+
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			    crtc_hdisplay, crtc_vdisplay,
 			    psr_max_h, psr_max_v);
+		return false;
+	}
+
+	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, PSR2 SDP indication do not fit in hblank\n");
+		return false;
+	}
+
+	/* Wa_16011303918:adlp */
+	if (crtc_state->vrr.enable &&
+	    IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, not compatible with HW stepping + VRR\n");
 		return false;
 	}
 
@@ -1048,6 +1159,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
 			     IGNORE_PSR2_HW_TRACKING : 0);
+
+	/* Wa_16011168373:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	    intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv,
+			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+			     TRANS_SET_CONTEXT_LATENCY_MASK,
+			     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -1101,6 +1220,8 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_dp->psr.dc3co_exit_delay = val;
 	intel_dp->psr.dc3co_exitline = crtc_state->dc3co_exitline;
 	intel_dp->psr.psr2_sel_fetch_enabled = crtc_state->enable_psr2_sel_fetch;
+	intel_dp->psr.req_psr2_sdp_prior_scanline =
+		crtc_state->req_psr2_sdp_prior_scanline;
 
 	if (!psr_interrupt_error_check(intel_dp))
 		return;
@@ -1224,6 +1345,13 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
+
+	/* Wa_16011168373:adlp */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) &&
+	    intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv,
+			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+			     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
@@ -1432,6 +1560,16 @@ static void clip_area_update(struct drm_rect *overlap_damage_area,
 		overlap_damage_area->y2 = damage_area->y2;
 }
 
+static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *crtc_state,
+						struct drm_rect *pipe_clip)
+{
+	const u16 y_alignment = crtc_state->su_y_granularity;
+
+	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
+	if (pipe_clip->y2 % y_alignment)
+		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
+}
+
 int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
@@ -1540,10 +1678,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if (full_update)
 		goto skip_sel_fetch_set_loop;
 
-	/* It must be aligned to 4 lines */
-	pipe_clip.y1 -= pipe_clip.y1 % 4;
-	if (pipe_clip.y2 % 4)
-		pipe_clip.y2 = ((pipe_clip.y2 / 4) + 1) * 4;
+	intel_psr2_sel_fetch_pipe_alignment(crtc_state, &pipe_clip);
 
 	/*
 	 * Now that we have the pipe damaged area check if it intersect with

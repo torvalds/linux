@@ -13,6 +13,8 @@ struct intel_digital_port;
 struct intel_encoder;
 
 bool intel_tc_port_connected(struct intel_encoder *encoder);
+void intel_tc_port_disconnect_phy(struct intel_digital_port *dig_port);
+
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port);
 u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port);
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port);

@@ -2880,14 +2880,14 @@ static bool gen11_dsi_configure_te(struct intel_crtc *intel_crtc,
 	return true;
 }
 
-int bdw_enable_vblank(struct drm_crtc *crtc)
+int bdw_enable_vblank(struct drm_crtc *_crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	unsigned long irqflags;
 
-	if (gen11_dsi_configure_te(intel_crtc, true))
+	if (gen11_dsi_configure_te(crtc, true))
 		return 0;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -2898,7 +2898,7 @@ int bdw_enable_vblank(struct drm_crtc *crtc)
 	 * PSR is active as no frames are generated, so check only for PSR.
 	 */
 	if (HAS_PSR(dev_priv))
-		drm_crtc_vblank_restore(crtc);
+		drm_crtc_vblank_restore(&crtc->base);
 
 	return 0;
 }
@@ -2952,14 +2952,14 @@ void ilk_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-void bdw_disable_vblank(struct drm_crtc *crtc)
+void bdw_disable_vblank(struct drm_crtc *_crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	unsigned long irqflags;
 
-	if (gen11_dsi_configure_te(intel_crtc, false))
+	if (gen11_dsi_configure_te(crtc, false))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);

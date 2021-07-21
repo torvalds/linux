@@ -544,6 +544,11 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 	seq_printf(m, "fw loaded: %s\n", yesno(intel_dmc_has_payload(dev_priv)));
 	seq_printf(m, "path: %s\n", dmc->fw_path);
+	seq_printf(m, "Pipe A fw support: %s\n",
+		   yesno(GRAPHICS_VER(dev_priv) >= 12));
+	seq_printf(m, "Pipe A fw loaded: %s\n", yesno(dmc->dmc_info[DMC_FW_PIPEA].payload));
+	seq_printf(m, "Pipe B fw support: %s\n", yesno(IS_ALDERLAKE_P(dev_priv)));
+	seq_printf(m, "Pipe B fw loaded: %s\n", yesno(dmc->dmc_info[DMC_FW_PIPEB].payload));
 
 	if (!intel_dmc_has_payload(dev_priv))
 		goto out;
@@ -582,7 +587,7 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 out:
 	seq_printf(m, "program base: 0x%08x\n",
-		   intel_de_read(dev_priv, DMC_PROGRAM(0)));
+		   intel_de_read(dev_priv, DMC_PROGRAM(dmc->dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)));
 	seq_printf(m, "ssp base: 0x%08x\n",
 		   intel_de_read(dev_priv, DMC_SSP_BASE));
 	seq_printf(m, "htp: 0x%08x\n", intel_de_read(dev_priv, DMC_HTP_SKL));
@@ -1225,7 +1230,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 
 static void drrs_status_per_crtc(struct seq_file *m,
 				 struct drm_device *dev,
-				 struct intel_crtc *intel_crtc)
+				 struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_drrs *drrs = &dev_priv->drrs;
@@ -1237,7 +1242,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		bool supported = false;
 
-		if (connector->state->crtc != &intel_crtc->base)
+		if (connector->state->crtc != &crtc->base)
 			continue;
 
 		seq_printf(m, "%s:\n", connector->name);
@@ -1252,7 +1257,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 	seq_puts(m, "\n");
 
-	if (to_intel_crtc_state(intel_crtc->base.state)->has_drrs) {
+	if (to_intel_crtc_state(crtc->base.state)->has_drrs) {
 		struct intel_panel *panel;
 
 		mutex_lock(&drrs->mutex);
@@ -1298,16 +1303,16 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc;
 	int active_crtc_cnt = 0;
 
 	drm_modeset_lock_all(dev);
-	for_each_intel_crtc(dev, intel_crtc) {
-		if (intel_crtc->base.state->active) {
+	for_each_intel_crtc(dev, crtc) {
+		if (crtc->base.state->active) {
 			active_crtc_cnt++;
 			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
 
-			drrs_status_per_crtc(m, dev, intel_crtc);
+			drrs_status_per_crtc(m, dev, crtc);
 		}
 	}
 	drm_modeset_unlock_all(dev);
@@ -2064,7 +2069,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			       size_t cnt, loff_t *ppos)
 {
 	struct drm_i915_private *dev_priv = filp->private_data;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc;
 	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 	bool reset;
@@ -2076,15 +2081,15 @@ i915_fifo_underrun_reset_write(struct file *filp,
 	if (!reset)
 		return cnt;
 
-	for_each_intel_crtc(dev, intel_crtc) {
+	for_each_intel_crtc(dev, crtc) {
 		struct drm_crtc_commit *commit;
 		struct intel_crtc_state *crtc_state;
 
-		ret = drm_modeset_lock_single_interruptible(&intel_crtc->base.mutex);
+		ret = drm_modeset_lock_single_interruptible(&crtc->base.mutex);
 		if (ret)
 			return ret;
 
-		crtc_state = to_intel_crtc_state(intel_crtc->base.state);
+		crtc_state = to_intel_crtc_state(crtc->base.state);
 		commit = crtc_state->uapi.commit;
 		if (commit) {
 			ret = wait_for_completion_interruptible(&commit->hw_done);
@@ -2095,12 +2100,12 @@ i915_fifo_underrun_reset_write(struct file *filp,
 		if (!ret && crtc_state->hw.active) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Re-arming FIFO underruns on pipe %c\n",
-				    pipe_name(intel_crtc->pipe));
+				    pipe_name(crtc->pipe));
 
-			intel_crtc_arm_fifo_underrun(intel_crtc, crtc_state);
+			intel_crtc_arm_fifo_underrun(crtc, crtc_state);
 		}
 
-		drm_modeset_unlock(&intel_crtc->base.mutex);
+		drm_modeset_unlock(&crtc->base.mutex);
 
 		if (ret)
 			return ret;
