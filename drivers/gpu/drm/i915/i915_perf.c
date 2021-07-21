@@ -4483,9 +4483,10 @@ static int destroy_config(int id, void *p, void *data)
 	return 0;
 }
 
-void i915_perf_sysctl_register(void)
+int i915_perf_sysctl_register(void)
 {
 	sysctl_header = register_sysctl_table(dev_root);
+	return 0;
 }
 
 void i915_perf_sysctl_unregister(void)

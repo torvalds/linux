@@ -1150,27 +1150,9 @@ static void i915_pci_shutdown(struct pci_dev *pdev)
 	i915_driver_shutdown(i915);
 }
 
-static struct pci_driver i915_pci_driver = {
-	.name = DRIVER_NAME,
-	.id_table = pciidlist,
-	.probe = i915_pci_probe,
-	.remove = i915_pci_remove,
-	.shutdown = i915_pci_shutdown,
-	.driver.pm = &i915_pm_ops,
-};
-
-static int __init i915_init(void)
+static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
-	int err;
-
-	err = i915_globals_init();
-	if (err)
-		return err;
-
-	err = i915_mock_selftests();
-	if (err)
-		return err > 0 ? 0 : err;
 
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
@@ -1187,31 +1169,88 @@ static int __init i915_init(void)
 	if (!use_kms) {
 		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 0;
+		return 1;
 	}
 
-	i915_pmu_init();
+	return 0;
+}
 
-	err = pci_register_driver(&i915_pci_driver);
-	if (err) {
-		i915_pmu_exit();
-		i915_globals_exit();
-		return err;
+static struct pci_driver i915_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+	.probe = i915_pci_probe,
+	.remove = i915_pci_remove,
+	.shutdown = i915_pci_shutdown,
+	.driver.pm = &i915_pm_ops,
+};
+
+static int i915_register_pci_driver(void)
+{
+	return pci_register_driver(&i915_pci_driver);
+}
+
+static void i915_unregister_pci_driver(void)
+{
+	pci_unregister_driver(&i915_pci_driver);
+}
+
+static const struct {
+   int (*init)(void);
+   void (*exit)(void);
+} init_funcs[] = {
+	{ i915_globals_init, i915_globals_exit },
+	{ i915_mock_selftests, NULL },
+	{ i915_check_nomodeset, NULL },
+	{ i915_pmu_init, i915_pmu_exit },
+	{ i915_register_pci_driver, i915_unregister_pci_driver },
+	{ i915_perf_sysctl_register, i915_perf_sysctl_unregister },
+};
+static int init_progress;
+
+static int __init i915_init(void)
+{
+	int err, i;
+
+	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
+		err = init_funcs[i].init();
+		if (err < 0) {
+			while (i--) {
+				if (init_funcs[i].exit)
+					init_funcs[i].exit();
+			}
+			return err;
+		} else if (err > 0) {
+			/*
+			 * Early-exit success is reserved for things which
+			 * don't have an exit() function because we have no
+			 * idea how far they got or how to partially tear
+			 * them down.
+			 */
+			WARN_ON(init_funcs[i].exit);
+
+			/*
+			 * We don't want to advertise devices with an only
+			 * partially initialized driver.
+			 */
+			WARN_ON(i915_pci_driver.driver.owner);
+			break;
+		}
 	}
 
-	i915_perf_sysctl_register();
+	init_progress = i;
+
 	return 0;
 }
 
 static void __exit i915_exit(void)
 {
-	if (!i915_pci_driver.driver.owner)
-		return;
+	int i;
 
-	i915_perf_sysctl_unregister();
-	pci_unregister_driver(&i915_pci_driver);
-	i915_pmu_exit();
-	i915_globals_exit();
+	for (i = init_progress - 1; i >= 0; i--) {
+		GEM_BUG_ON(i >= ARRAY_SIZE(init_funcs));
+		if (init_funcs[i].exit)
+			init_funcs[i].exit();
+	}
 }
 
 module_init(i915_init);
