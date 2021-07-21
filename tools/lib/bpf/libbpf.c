@@ -5972,26 +5972,13 @@ static int insn_bytes_to_bpf_size(__u32 sz)
  * 5. *(T *)(rX + <off>) = rY, where T is one of {u8, u16, u32, u64};
  * 6. *(T *)(rX + <off>) = <imm>, where T is one of {u8, u16, u32, u64}.
  */
-static int bpf_core_patch_insn(struct bpf_program *prog,
-			       const struct bpf_core_relo *relo,
-			       int relo_idx,
-			       const struct bpf_core_relo_res *res)
+static int bpf_core_patch_insn(const char *prog_name, struct bpf_insn *insn,
+			       int insn_idx, const struct bpf_core_relo *relo,
+			       int relo_idx, const struct bpf_core_relo_res *res)
 {
-	const char *prog_name = prog->name;
 	__u32 orig_val, new_val;
-	struct bpf_insn *insn;
-	int insn_idx;
 	__u8 class;
 
-	if (relo->insn_off % BPF_INSN_SZ)
-		return -EINVAL;
-	insn_idx = relo->insn_off / BPF_INSN_SZ;
-	/* adjust insn_idx from section frame of reference to the local
-	 * program's frame of reference; (sub-)program code is not yet
-	 * relocated, so it's enough to just subtract in-section offset
-	 */
-	insn_idx = insn_idx - prog->sec_insn_off;
-	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
 
 	if (res->poison) {
@@ -6077,7 +6064,6 @@ poison:
 
 		if (!is_ldimm64_insn(insn) ||
 		    insn[0].src_reg != 0 || insn[0].off != 0 ||
-		    insn_idx + 1 >= prog->insns_cnt ||
 		    insn[1].code != 0 || insn[1].dst_reg != 0 ||
 		    insn[1].src_reg != 0 || insn[1].off != 0) {
 			pr_warn("prog '%s': relo #%d: insn #%d (LDIMM64) has unexpected form\n",
@@ -6227,19 +6213,17 @@ static void *u32_as_hash_key(__u32 x)
  *    between multiple relocations for the same type ID and is updated as some
  *    of the candidates are pruned due to structural incompatibility.
  */
-static int bpf_core_apply_relo(struct bpf_program *prog,
-			       const struct bpf_core_relo *relo,
-			       int relo_idx,
-			       const struct btf *local_btf,
-			       struct hashmap *cand_cache)
+static int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
+				    int insn_idx,
+				    const struct bpf_core_relo *relo,
+				    int relo_idx,
+				    const struct btf *local_btf,
+				    struct core_cand_list *cands)
 {
 	struct bpf_core_spec local_spec, cand_spec, targ_spec = {};
-	const void *type_key = u32_as_hash_key(relo->type_id);
 	struct bpf_core_relo_res cand_res, targ_res;
 	const struct btf_type *local_type;
 	const char *local_name;
-	struct core_cand_list *cands = NULL;
-	const char *prog_name = prog->name;
 	__u32 local_id;
 	const char *spec_str;
 	int i, j, err;
@@ -6257,12 +6241,6 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	if (str_is_empty(spec_str))
 		return -EINVAL;
 
-	if (prog->obj->gen_loader) {
-		pr_warn("// TODO core_relo: prog %td insn[%d] %s %s kind %d\n",
-			prog - prog->obj->programs, relo->insn_off / 8,
-			local_name, spec_str, relo->kind);
-		return -ENOTSUP;
-	}
 	err = bpf_core_parse_spec(local_btf, local_id, spec_str, relo->kind, &local_spec);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
@@ -6293,20 +6271,6 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 		return -EOPNOTSUPP;
 	}
 
-	if (!hashmap__find(cand_cache, type_key, (void **)&cands)) {
-		cands = bpf_core_find_cands(prog->obj, local_btf, local_id);
-		if (IS_ERR(cands)) {
-			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s %s: %ld\n",
-				prog_name, relo_idx, local_id, btf_kind_str(local_type),
-				local_name, PTR_ERR(cands));
-			return PTR_ERR(cands);
-		}
-		err = hashmap__set(cand_cache, type_key, cands, NULL, NULL);
-		if (err) {
-			bpf_core_free_cands(cands);
-			return err;
-		}
-	}
 
 	for (i = 0, j = 0; i < cands->len; i++) {
 		err = bpf_core_spec_match(&local_spec, cands->cands[i].btf,
@@ -6391,7 +6355,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 
 patch_insn:
 	/* bpf_core_patch_insn() should know how to handle missing targ_spec */
-	err = bpf_core_patch_insn(prog, relo, relo_idx, &targ_res);
+	err = bpf_core_patch_insn(prog_name, insn, insn_idx, relo, relo_idx, &targ_res);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: failed to patch insn #%zu: %d\n",
 			prog_name, relo_idx, relo->insn_off / BPF_INSN_SZ, err);
@@ -6399,6 +6363,67 @@ patch_insn:
 	}
 
 	return 0;
+}
+
+static int bpf_core_apply_relo(struct bpf_program *prog,
+			       const struct bpf_core_relo *relo,
+			       int relo_idx,
+			       const struct btf *local_btf,
+			       struct hashmap *cand_cache)
+{
+	const void *type_key = u32_as_hash_key(relo->type_id);
+	struct core_cand_list *cands = NULL;
+	const char *prog_name = prog->name;
+	const struct btf_type *local_type;
+	const char *local_name;
+	__u32 local_id = relo->type_id;
+	struct bpf_insn *insn;
+	int insn_idx, err;
+
+	if (relo->insn_off % BPF_INSN_SZ)
+		return -EINVAL;
+	insn_idx = relo->insn_off / BPF_INSN_SZ;
+	/* adjust insn_idx from section frame of reference to the local
+	 * program's frame of reference; (sub-)program code is not yet
+	 * relocated, so it's enough to just subtract in-section offset
+	 */
+	insn_idx = insn_idx - prog->sec_insn_off;
+	if (insn_idx > prog->insns_cnt)
+		return -EINVAL;
+	insn = &prog->insns[insn_idx];
+
+	local_type = btf__type_by_id(local_btf, local_id);
+	if (!local_type)
+		return -EINVAL;
+
+	local_name = btf__name_by_offset(local_btf, local_type->name_off);
+	if (!local_name)
+		return -EINVAL;
+
+	if (prog->obj->gen_loader) {
+		pr_warn("// TODO core_relo: prog %td insn[%d] %s kind %d\n",
+			prog - prog->obj->programs, relo->insn_off / 8,
+			local_name, relo->kind);
+		return -ENOTSUP;
+	}
+
+	if (relo->kind != BPF_TYPE_ID_LOCAL &&
+	    !hashmap__find(cand_cache, type_key, (void **)&cands)) {
+		cands = bpf_core_find_cands(prog->obj, local_btf, local_id);
+		if (IS_ERR(cands)) {
+			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s %s: %ld\n",
+				prog_name, relo_idx, local_id, btf_kind_str(local_type),
+				local_name, PTR_ERR(cands));
+			return PTR_ERR(cands);
+		}
+		err = hashmap__set(cand_cache, type_key, cands, NULL, NULL);
+		if (err) {
+			bpf_core_free_cands(cands);
+			return err;
+		}
+	}
+
+	return bpf_core_apply_relo_insn(prog_name, insn, insn_idx, relo, relo_idx, local_btf, cands);
 }
 
 static int
