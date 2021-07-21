@@ -133,7 +133,7 @@ static int nbp_switchdev_hwdom_set(struct net_bridge_port *joining)
 
 	/* joining is yet to be added to the port list. */
 	list_for_each_entry(p, &br->port_list, list) {
-		if (netdev_port_same_parent_id(joining->dev, p->dev)) {
+		if (netdev_phys_item_id_same(&joining->ppid, &p->ppid)) {
 			joining->hwdom = p->hwdom;
 			return 0;
 		}
@@ -162,27 +162,85 @@ static void nbp_switchdev_hwdom_put(struct net_bridge_port *leaving)
 	clear_bit(leaving->hwdom, &br->busy_hwdoms);
 }
 
-int nbp_switchdev_add(struct net_bridge_port *p)
+static int nbp_switchdev_add(struct net_bridge_port *p,
+			     struct netdev_phys_item_id ppid,
+			     struct netlink_ext_ack *extack)
 {
-	struct netdev_phys_item_id ppid = { };
-	int err;
+	if (p->offload_count) {
+		/* Prevent unsupported configurations such as a bridge port
+		 * which is a bonding interface, and the member ports are from
+		 * different hardware switches.
+		 */
+		if (!netdev_phys_item_id_same(&p->ppid, &ppid)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Same bridge port cannot be offloaded by two physical switches");
+			return -EBUSY;
+		}
 
-	ASSERT_RTNL();
+		/* Tolerate drivers that call switchdev_bridge_port_offload()
+		 * more than once for the same bridge port, such as when the
+		 * bridge port is an offloaded bonding/team interface.
+		 */
+		p->offload_count++;
 
-	err = dev_get_port_parent_id(p->dev, &ppid, true);
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			return 0;
-		return err;
+		return 0;
 	}
+
+	p->ppid = ppid;
+	p->offload_count = 1;
 
 	return nbp_switchdev_hwdom_set(p);
 }
 
-void nbp_switchdev_del(struct net_bridge_port *p)
+static void nbp_switchdev_del(struct net_bridge_port *p)
 {
-	ASSERT_RTNL();
+	if (WARN_ON(!p->offload_count))
+		return;
+
+	p->offload_count--;
+
+	if (p->offload_count)
+		return;
 
 	if (p->hwdom)
 		nbp_switchdev_hwdom_put(p);
 }
+
+/* Let the bridge know that this port is offloaded, so that it can assign a
+ * switchdev hardware domain to it.
+ */
+int switchdev_bridge_port_offload(struct net_device *brport_dev,
+				  struct net_device *dev,
+				  struct netlink_ext_ack *extack)
+{
+	struct netdev_phys_item_id ppid;
+	struct net_bridge_port *p;
+	int err;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_rtnl(brport_dev);
+	if (!p)
+		return -ENODEV;
+
+	err = dev_get_port_parent_id(dev, &ppid, false);
+	if (err)
+		return err;
+
+	return nbp_switchdev_add(p, ppid, extack);
+}
+EXPORT_SYMBOL_GPL(switchdev_bridge_port_offload);
+
+void switchdev_bridge_port_unoffload(struct net_device *brport_dev)
+{
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_rtnl(brport_dev);
+	if (!p)
+		return;
+
+	nbp_switchdev_del(p);
+}
+EXPORT_SYMBOL_GPL(switchdev_bridge_port_unoffload);

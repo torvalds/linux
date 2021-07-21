@@ -392,6 +392,8 @@ struct net_bridge_port {
 	 * hardware domain.
 	 */
 	int				hwdom;
+	int				offload_count;
+	struct netdev_phys_item_id	ppid;
 #endif
 	u16				group_fwd_mask;
 	u16				backup_redirected_cnt;
@@ -1857,8 +1859,6 @@ void br_switchdev_fdb_notify(struct net_bridge *br,
 int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
 			       struct netlink_ext_ack *extack);
 int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid);
-int nbp_switchdev_add(struct net_bridge_port *p);
-void nbp_switchdev_del(struct net_bridge_port *p);
 void br_switchdev_init(struct net_bridge *br);
 
 static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
@@ -1904,15 +1904,6 @@ br_switchdev_fdb_notify(struct net_bridge *br,
 }
 
 static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
-{
-}
-
-static inline int nbp_switchdev_add(struct net_bridge_port *p)
-{
-	return 0;
-}
-
-static inline void nbp_switchdev_del(struct net_bridge_port *p)
 {
 }
 
