@@ -1856,6 +1856,9 @@ int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
 
 	ASSERT_RTNL();
 
+	if (!nb)
+		return 0;
+
 	if (!netif_is_bridge_master(br_dev))
 		return -EINVAL;
 

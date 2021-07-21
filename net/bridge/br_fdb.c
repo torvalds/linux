@@ -760,6 +760,9 @@ int br_fdb_replay(const struct net_device *br_dev, const struct net_device *dev,
 	unsigned long action;
 	int err = 0;
 
+	if (!nb)
+		return 0;
+
 	if (!netif_is_bridge_master(br_dev))
 		return -EINVAL;
 
