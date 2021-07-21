@@ -273,6 +273,26 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	return 0;
 }
 
+static void dg2_get_bw_info(struct drm_i915_private *i915)
+{
+	struct intel_bw_info *bi = &i915->max_bw[0];
+
+	/*
+	 * DG2 doesn't have SAGV or QGV points, just a constant max bandwidth
+	 * that doesn't depend on the number of planes enabled.  Create a
+	 * single dummy QGV point to reflect that.  DG2-G10 platforms have a
+	 * constant 50 GB/s bandwidth, whereas DG2-G11 platforms have 38 GB/s.
+	 */
+	bi->num_planes = 1;
+	bi->num_qgv_points = 1;
+	if (IS_DG2_G11(i915))
+		bi->deratedbw[0] = 38000;
+	else
+		bi->deratedbw[0] = 50000;
+
+	i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+}
+
 static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 			       int num_planes, int qgv_point)
 {
@@ -306,7 +326,9 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv))
+	if (IS_DG2(dev_priv))
+		dg2_get_bw_info(dev_priv);
+	else if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv))
 		icl_get_bw_info(dev_priv, &adls_sa_info);
 	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);
