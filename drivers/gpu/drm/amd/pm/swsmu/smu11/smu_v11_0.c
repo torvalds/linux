@@ -266,6 +266,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case CHIP_BEIGE_GOBY:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Beige_Goby;
 		break;
+	case CHIP_CYAN_SKILLFISH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Cyan_Skillfish;
+		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
