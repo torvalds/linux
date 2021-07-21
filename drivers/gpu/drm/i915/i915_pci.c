@@ -963,6 +963,30 @@ static const struct intel_device_info adl_p_info = {
 };
 
 #undef GEN
+
+#define XE_HP_PAGE_SIZES \
+	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		      I915_GTT_PAGE_SIZE_64K | \
+		      I915_GTT_PAGE_SIZE_2M
+
+#define XE_HP_FEATURES \
+	.graphics_ver = 12, \
+	.graphics_rel = 50, \
+	XE_HP_PAGE_SIZES, \
+	.dma_mask_size = 46, \
+	.has_64bit_reloc = 1, \
+	.has_global_mocs = 1, \
+	.has_gt_uc = 1, \
+	.has_llc = 1, \
+	.has_logical_ring_contexts = 1, \
+	.has_logical_ring_elsq = 1, \
+	.has_rc6 = 1, \
+	.has_reset_engine = 1, \
+	.has_rps = 1, \
+	.has_runtime_pm = 1, \
+	.ppgtt_size = 48, \
+	.ppgtt_type = INTEL_PPGTT_FULL
+
 #undef PLATFORM
 
 /*
