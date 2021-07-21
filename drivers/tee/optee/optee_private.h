@@ -7,6 +7,7 @@
 #define OPTEE_PRIVATE_H
 
 #include <linux/arm-smccc.h>
+#include <linux/rhashtable.h>
 #include <linux/semaphore.h>
 #include <linux/tee_drv.h>
 #include <linux/types.h>
@@ -22,6 +23,7 @@
 #define TEEC_ERROR_NOT_SUPPORTED	0xFFFF000A
 #define TEEC_ERROR_COMMUNICATION	0xFFFF000E
 #define TEEC_ERROR_OUT_OF_MEMORY	0xFFFF000C
+#define TEEC_ERROR_BUSY			0xFFFF000D
 #define TEEC_ERROR_SHORT_BUFFER		0xFFFF0010
 
 #define TEEC_ORIGIN_COMMS		0x00000002
@@ -73,17 +75,26 @@ struct optee_supp {
 	struct completion reqs_c;
 };
 
-/**
- * struct optee_smc - SMC ABI specifics
- * @invoke_fn:		function to issue smc or hvc
- * @memremaped_shm	virtual address of memory in shared memory pool
- * @sec_caps:		secure world capabilities defined by
- *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
- */
 struct optee_smc {
 	optee_invoke_fn *invoke_fn;
 	void *memremaped_shm;
 	u32 sec_caps;
+};
+
+/**
+ * struct optee_ffa_data -  FFA communication struct
+ * @ffa_dev		FFA device, contains the destination id, the id of
+ *			OP-TEE in secure world
+ * @ffa_ops		FFA operations
+ * @mutex		Serializes access to @global_ids
+ * @global_ids		FF-A shared memory global handle translation
+ */
+struct optee_ffa {
+	struct ffa_device *ffa_dev;
+	const struct ffa_dev_ops *ffa_ops;
+	/* Serializes access to @global_ids */
+	struct mutex mutex;
+	struct rhashtable global_ids;
 };
 
 struct optee;
@@ -116,11 +127,13 @@ struct optee_ops {
  *			world
  * @teedev:		client device
  * @smc:		specific to SMC ABI
+ * @ffa:		specific to FF-A ABI
  * @call_queue:		queue of threads waiting to call @invoke_fn
  * @wait_queue:		queue of threads from secure world waiting for a
  *			secure world sync object
  * @supp:		supplicant synchronization struct for RPC to supplicant
  * @pool:		shared memory pool
+ * @rpc_arg_count:	If > 0 number of RPC parameters to make room for
  * @scan_bus_done	flag if device registation was already done.
  * @scan_bus_wq		workqueue to scan optee bus and register optee drivers
  * @scan_bus_work	workq to scan optee bus and register optee drivers
@@ -129,11 +142,15 @@ struct optee {
 	struct tee_device *supp_teedev;
 	struct tee_device *teedev;
 	const struct optee_ops *ops;
-	struct optee_smc smc;
+	union {
+		struct optee_smc smc;
+		struct optee_ffa ffa;
+	};
 	struct optee_call_queue call_queue;
 	struct optee_wait_queue wait_queue;
 	struct optee_supp supp;
 	struct tee_shm_pool *pool;
+	unsigned int rpc_arg_count;
 	bool   scan_bus_done;
 	struct workqueue_struct *scan_bus_wq;
 	struct work_struct scan_bus_work;
@@ -266,5 +283,7 @@ static inline void reg_pair_from_64(u32 *reg0, u32 *reg1, u64 val)
 /* Registration of the ABIs */
 int optee_smc_abi_register(void);
 void optee_smc_abi_unregister(void);
+int optee_ffa_abi_register(void);
+void optee_ffa_abi_unregister(void);
 
 #endif /*OPTEE_PRIVATE_H*/

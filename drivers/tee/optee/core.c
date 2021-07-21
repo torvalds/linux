@@ -172,6 +172,9 @@ void optee_remove_common(struct optee *optee)
 	mutex_destroy(&optee->call_queue.mutex);
 }
 
+static int smc_abi_rc;
+static int ffa_abi_rc;
+
 static int optee_core_init(void)
 {
 	/*
@@ -184,13 +187,22 @@ static int optee_core_init(void)
 	if (is_kdump_kernel())
 		return -ENODEV;
 
-	return optee_smc_abi_register();
+	smc_abi_rc = optee_smc_abi_register();
+	ffa_abi_rc = optee_ffa_abi_register();
+
+	/* If both failed there's no point with this module */
+	if (smc_abi_rc && ffa_abi_rc)
+		return smc_abi_rc;
+	return 0;
 }
 module_init(optee_core_init);
 
 static void optee_core_exit(void)
 {
-	optee_smc_abi_unregister();
+	if (!smc_abi_rc)
+		optee_smc_abi_unregister();
+	if (!ffa_abi_rc)
+		optee_ffa_abi_unregister();
 }
 module_exit(optee_core_exit);
 
