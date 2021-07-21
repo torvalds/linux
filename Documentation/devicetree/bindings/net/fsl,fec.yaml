@@ -49,19 +49,21 @@ properties:
     maxItems: 4
 
   interrupt-names:
-    description:
-      Names of the interrupts listed in interrupts property in the same order.
-      The defaults if not specified are
-      __Number of interrupts__   __Default__
-            1                       "int0"
-            2                       "int0", "pps"
-            3                       "int0", "int1", "int2"
-            4                       "int0", "int1", "int2", "pps"
-      The order may be changed as long as they correspond to the interrupts
-      property. Currently, only i.mx7 uses "int1" and "int2". They correspond to
-      tx/rx queues 1 and 2. "int0" will be used for queue 0 and ENET_MII interrupts.
-      For imx6sx, "int0" handles all 3 queues and ENET_MII. "pps" is for the pulse
-      per second interrupt associated with 1588 precision time protocol(PTP).
+    oneOf:
+      - items:
+          - const: int0
+      - items:
+          - const: int0
+          - const: pps
+      - items:
+          - const: int0
+          - const: int1
+          - const: int2
+      - items:
+          - const: int0
+          - const: int1
+          - const: int2
+          - const: pps
 
   clocks:
     minItems: 2
@@ -80,7 +82,7 @@ properties:
   clock-names:
     minItems: 2
     maxItems: 5
-    contains:
+    items:
       enum:
         - ipg
         - ahb
@@ -107,12 +109,14 @@ properties:
     description:
       The property is valid for enet-avb IP, which supports hw multi queues.
       Should specify the tx queue number, otherwise set tx queue number to 1.
+    enum: [1, 2, 3]
 
   fsl,num-rx-queues:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The property is valid for enet-avb IP, which supports hw multi queues.
       Should specify the rx queue number, otherwise set rx queue number to 1.
+    enum: [1, 2, 3]
 
   fsl,magic-packet:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -179,7 +183,7 @@ required:
 # least undocumented properties. However, PHY may have a deprecated option to
 # place PHY OF properties in the MAC node, such as Micrel PHY, and we can find
 # these boards which is based on i.MX6QDL.
-additionalProperties: true
+additionalProperties: false
 
 examples:
   - |
