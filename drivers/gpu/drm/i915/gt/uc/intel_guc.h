@@ -30,6 +30,10 @@ struct intel_guc {
 	struct intel_guc_log log;
 	struct intel_guc_ct ct;
 
+	/* Global engine used to submit requests to GuC */
+	struct i915_sched_engine *sched_engine;
+	struct i915_request *stalled_request;
+
 	/* intel_guc_recv interrupt related state */
 	spinlock_t irq_lock;
 	unsigned int msg_enabled_mask;

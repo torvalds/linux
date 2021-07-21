@@ -137,6 +137,15 @@ struct intel_context {
 	struct intel_sseu sseu;
 
 	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
+
+	/* GuC scheduling state flags that do not require a lock. */
+	atomic_t guc_sched_state_no_lock;
+
+	/*
+	 * GuC LRC descriptor ID - Not assigned in this patch but future patches
+	 * in the series will.
+	 */
+	u16 guc_id;
 };
 
 #endif /* __INTEL_CONTEXT_TYPES__ */
