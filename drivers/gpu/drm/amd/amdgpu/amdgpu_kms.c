@@ -374,8 +374,8 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = adev->sdma.instance[query_fw->index].feature_version;
 		break;
 	case AMDGPU_INFO_FW_SOS:
-		fw_info->ver = adev->psp.sos_fw_version;
-		fw_info->feature = adev->psp.sos_feature_version;
+		fw_info->ver = adev->psp.sos.fw_version;
+		fw_info->feature = adev->psp.sos.feature_version;
 		break;
 	case AMDGPU_INFO_FW_ASD:
 		fw_info->ver = adev->psp.asd_fw_version;
@@ -390,8 +390,8 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_TOC:
-		fw_info->ver = adev->psp.toc_fw_version;
-		fw_info->feature = adev->psp.toc_feature_version;
+		fw_info->ver = adev->psp.toc.fw_version;
+		fw_info->feature = adev->psp.toc.feature_version;
 		break;
 	default:
 		return -EINVAL;

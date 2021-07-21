@@ -516,9 +516,9 @@ static int psp_load_toc(struct psp_context *psp,
 	if (!cmd)
 		return -ENOMEM;
 	/* Copy toc to psp firmware private buffer */
-	psp_copy_fw(psp, psp->toc_start_addr, psp->toc_bin_size);
+	psp_copy_fw(psp, psp->toc.start_addr, psp->toc.size_bytes);
 
-	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc_bin_size);
+	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc.size_bytes);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -548,8 +548,8 @@ static int psp_tmr_init(struct psp_context *psp)
 	/* For ASICs support RLC autoload, psp will parse the toc
 	 * and calculate the total size of TMR needed */
 	if (!amdgpu_sriov_vf(psp->adev) &&
-	    psp->toc_start_addr &&
-	    psp->toc_bin_size &&
+	    psp->toc.start_addr &&
+	    psp->toc.size_bytes &&
 	    psp->fw_pri_buf) {
 		ret = psp_load_toc(psp, &tmr_size);
 		if (ret) {
@@ -728,18 +728,18 @@ static int psp_rl_load(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 	struct psp_gfx_cmd_resp *cmd = psp->cmd;
 
-	if (psp->rl_bin_size == 0)
+	if (!is_psp_fw_valid(psp->rl))
 		return 0;
 
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->rl_start_addr, psp->rl_bin_size);
+	memcpy(psp->fw_pri_buf, psp->rl.start_addr, psp->rl.size_bytes);
 
 	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(psp->fw_pri_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(psp->fw_pri_mc_addr);
-	cmd->cmd.cmd_load_ip_fw.fw_size = psp->rl_bin_size;
+	cmd->cmd.cmd_load_ip_fw.fw_size = psp->rl.size_bytes;
 	cmd->cmd.cmd_load_ip_fw.fw_type = GFX_FW_TYPE_REG_LIST;
 
 	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
@@ -2129,7 +2129,7 @@ static int psp_hw_start(struct psp_context *psp)
 	int ret;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		if (psp->kdb_bin_size &&
+		if ((is_psp_fw_valid(psp->kdb)) &&
 		    (psp->funcs->bootloader_load_kdb != NULL)) {
 			ret = psp_bootloader_load_kdb(psp);
 			if (ret) {
@@ -2138,7 +2138,8 @@ static int psp_hw_start(struct psp_context *psp)
 			}
 		}
 
-		if (psp->spl_bin_size) {
+		if ((is_psp_fw_valid(psp->spl)) &&
+		    (psp->funcs->bootloader_load_spl != NULL)) {
 			ret = psp_bootloader_load_spl(psp);
 			if (ret) {
 				DRM_ERROR("PSP load spl failed!\n");
@@ -2146,16 +2147,22 @@ static int psp_hw_start(struct psp_context *psp)
 			}
 		}
 
-		ret = psp_bootloader_load_sysdrv(psp);
-		if (ret) {
-			DRM_ERROR("PSP load sysdrv failed!\n");
-			return ret;
+		if ((is_psp_fw_valid(psp->sys)) &&
+		    (psp->funcs->bootloader_load_sysdrv != NULL)) {
+			ret = psp_bootloader_load_sysdrv(psp);
+			if (ret) {
+				DRM_ERROR("PSP load sysdrv failed!\n");
+				return ret;
+			}
 		}
 
-		ret = psp_bootloader_load_sos(psp);
-		if (ret) {
-			DRM_ERROR("PSP load sos failed!\n");
-			return ret;
+		if ((is_psp_fw_valid(psp->sos)) &&
+		    (psp->funcs->bootloader_load_sos != NULL)) {
+			ret = psp_bootloader_load_sos(psp);
+			if (ret) {
+				DRM_ERROR("PSP load sos failed!\n");
+				return ret;
+			}
 		}
 	}
 
@@ -2997,10 +3004,10 @@ int psp_init_toc_microcode(struct psp_context *psp,
 		goto out;
 
 	toc_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.toc_fw->data;
-	adev->psp.toc_fw_version = le32_to_cpu(toc_hdr->header.ucode_version);
-	adev->psp.toc_feature_version = le32_to_cpu(toc_hdr->sos.fw_version);
-	adev->psp.toc_bin_size = le32_to_cpu(toc_hdr->header.ucode_size_bytes);
-	adev->psp.toc_start_addr = (uint8_t *)toc_hdr +
+	adev->psp.toc.fw_version = le32_to_cpu(toc_hdr->header.ucode_version);
+	adev->psp.toc.feature_version = le32_to_cpu(toc_hdr->sos.fw_version);
+	adev->psp.toc.size_bytes = le32_to_cpu(toc_hdr->header.ucode_size_bytes);
+	adev->psp.toc.start_addr = (uint8_t *)toc_hdr +
 				le32_to_cpu(toc_hdr->header.ucode_array_offset_bytes);
 	return 0;
 out:
@@ -3021,32 +3028,32 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 
 	if (adev->gmc.xgmi.connected_to_cpu || (adev->asic_type != CHIP_ALDEBARAN)) {
-		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
-		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->sos.fw_version);
+		adev->psp.sos.fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
+		adev->psp.sos.feature_version = le32_to_cpu(sos_hdr->sos.fw_version);
 
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos.offset_bytes);
-		adev->psp.sys_start_addr = ucode_array_start_addr;
+		adev->psp.sys.size_bytes = le32_to_cpu(sos_hdr->sos.offset_bytes);
+		adev->psp.sys.start_addr = ucode_array_start_addr;
 
-		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos.size_bytes);
-		adev->psp.sos_start_addr = ucode_array_start_addr +
+		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr->sos.size_bytes);
+		adev->psp.sos.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr->sos.offset_bytes);
 	} else {
 		/* Load alternate PSP SOS FW */
 		sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
 
-		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
-		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
+		adev->psp.sos.fw_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
+		adev->psp.sos.feature_version = le32_to_cpu(sos_hdr_v1_3->sos_aux.fw_version);
 
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr_v1_3->sys_drv_aux.size_bytes);
-		adev->psp.sys_start_addr = ucode_array_start_addr +
+		adev->psp.sys.size_bytes = le32_to_cpu(sos_hdr_v1_3->sys_drv_aux.size_bytes);
+		adev->psp.sys.start_addr = ucode_array_start_addr +
 			le32_to_cpu(sos_hdr_v1_3->sys_drv_aux.offset_bytes);
 
-		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
-		adev->psp.sos_start_addr = ucode_array_start_addr +
+		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
+		adev->psp.sos.start_addr = ucode_array_start_addr +
 			le32_to_cpu(sos_hdr_v1_3->sos_aux.offset_bytes);
 	}
 
-	if ((adev->psp.sys_bin_size == 0) || (adev->psp.sos_bin_size == 0)) {
+	if ((adev->psp.sys.size_bytes == 0) || (adev->psp.sos.size_bytes == 0)) {
 		dev_warn(adev->dev, "PSP SOS FW not available");
 		return -EINVAL;
 	}
@@ -3093,32 +3100,32 @@ int psp_init_sos_microcode(struct psp_context *psp,
 
 		if (sos_hdr->header.header_version_minor == 1) {
 			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc.size_bytes);
-			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+			adev->psp.toc.size_bytes = le32_to_cpu(sos_hdr_v1_1->toc.size_bytes);
+			adev->psp.toc.start_addr = (uint8_t *)adev->psp.sys.start_addr +
 					le32_to_cpu(sos_hdr_v1_1->toc.offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb.size_bytes);
-			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+			adev->psp.kdb.size_bytes = le32_to_cpu(sos_hdr_v1_1->kdb.size_bytes);
+			adev->psp.kdb.start_addr = (uint8_t *)adev->psp.sys.start_addr +
 					le32_to_cpu(sos_hdr_v1_1->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 2) {
 			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb.size_bytes);
-			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+			adev->psp.kdb.size_bytes = le32_to_cpu(sos_hdr_v1_2->kdb.size_bytes);
+			adev->psp.kdb.start_addr = (uint8_t *)adev->psp.sys.start_addr +
 						    le32_to_cpu(sos_hdr_v1_2->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 3) {
 			sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.toc.size_bytes);
-			adev->psp.toc_start_addr = ucode_array_start_addr +
+			adev->psp.toc.size_bytes = le32_to_cpu(sos_hdr_v1_3->v1_1.toc.size_bytes);
+			adev->psp.toc.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr_v1_3->v1_1.toc.offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.size_bytes);
-			adev->psp.kdb_start_addr = ucode_array_start_addr +
+			adev->psp.kdb.size_bytes = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.size_bytes);
+			adev->psp.kdb.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.offset_bytes);
-			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl.size_bytes);
-			adev->psp.spl_start_addr = ucode_array_start_addr +
+			adev->psp.spl.size_bytes = le32_to_cpu(sos_hdr_v1_3->spl.size_bytes);
+			adev->psp.spl.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr_v1_3->spl.offset_bytes);
-			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl.size_bytes);
-			adev->psp.rl_start_addr = ucode_array_start_addr +
+			adev->psp.rl.size_bytes = le32_to_cpu(sos_hdr_v1_3->rl.size_bytes);
+			adev->psp.rl.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr_v1_3->rl.offset_bytes);
 		}
 		break;
@@ -3361,7 +3368,10 @@ static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,
 		   psp_usbc_pd_fw_sysfs_read,
 		   psp_usbc_pd_fw_sysfs_write);
 
-
+int is_psp_fw_valid(struct psp_bin_desc bin)
+{
+	return bin.size_bytes;
+}
 
 const struct amd_ip_funcs psp_ip_funcs = {
 	.name = "psp",

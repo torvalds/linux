@@ -5397,7 +5397,7 @@ static int gfx_v10_0_parse_rlc_toc(struct amdgpu_device *adev)
 	int ret;
 	RLC_TABLE_OF_CONTENT *rlc_toc;
 
-	ret = amdgpu_bo_create_reserved(adev, adev->psp.toc_bin_size, PAGE_SIZE,
+	ret = amdgpu_bo_create_reserved(adev, adev->psp.toc.size_bytes, PAGE_SIZE,
 					AMDGPU_GEM_DOMAIN_GTT,
 					&adev->gfx.rlc.rlc_toc_bo,
 					&adev->gfx.rlc.rlc_toc_gpu_addr,
@@ -5408,7 +5408,7 @@ static int gfx_v10_0_parse_rlc_toc(struct amdgpu_device *adev)
 	}
 
 	/* Copy toc from psp sos fw to rlc toc buffer */
-	memcpy(adev->gfx.rlc.rlc_toc_buf, adev->psp.toc_start_addr, adev->psp.toc_bin_size);
+	memcpy(adev->gfx.rlc.rlc_toc_buf, adev->psp.toc.start_addr, adev->psp.toc.size_bytes);
 
 	rlc_toc = (RLC_TABLE_OF_CONTENT *)adev->gfx.rlc.rlc_toc_buf;
 	while (rlc_toc && (rlc_toc->id > FIRMWARE_ID_INVALID) &&
