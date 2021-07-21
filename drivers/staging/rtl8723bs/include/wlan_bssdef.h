@@ -32,13 +32,6 @@ enum ndis_802_11_network_type {
 	Ndis802_11NetworkTypeMax    /*  not a real type, defined as an upper bound */
 };
 
-struct ndis_802_11_conf_fh {
-	u32 Length;             /*  Length of structure */
-	u32 HopPattern;         /*  As defined by 802.11, MSB set */
-	u32 HopSet;             /*  to one if non-802.11 */
-	u32 DwellTime;          /*  units are Kusec */
-};
-
 /*
 	FW will only save the channel number in DSConfig.
 	ODI Handler will convert the channel number to freq. number.
@@ -48,7 +41,6 @@ struct ndis_802_11_conf {
 	u32 beacon_period;       /*  units are Kusec */
 	u32 atim_window;         /*  units are Kusec */
 	u32 ds_config;           /*  Frequency, units are kHz */
-	struct ndis_802_11_conf_fh    fh_config;
 };
 
 enum ndis_802_11_network_infrastructure {

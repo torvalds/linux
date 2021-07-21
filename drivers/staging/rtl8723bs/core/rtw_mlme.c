@@ -2154,10 +2154,6 @@ void rtw_init_registrypriv_dev_network(struct adapter *adapter)
 
 	pdev_network->configuration.length = sizeof(struct ndis_802_11_conf);
 	pdev_network->configuration.beacon_period = 100;
-	pdev_network->configuration.fh_config.Length = 0;
-	pdev_network->configuration.fh_config.HopPattern = 0;
-	pdev_network->configuration.fh_config.HopSet = 0;
-	pdev_network->configuration.fh_config.DwellTime = 0;
 }
 
 void rtw_update_registrypriv_dev_network(struct adapter *adapter)
