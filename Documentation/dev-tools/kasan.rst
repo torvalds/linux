@@ -35,7 +35,7 @@ This mode is supported in GCC 10+ and Clang 11+.
 Both software KASAN modes work with SLUB and SLAB memory allocators,
 while the hardware tag-based KASAN currently only supports SLUB.
 
-Currently generic KASAN is supported for the x86_64, arm64, xtensa, s390,
+Currently generic KASAN is supported for the x86_64, arm, arm64, xtensa, s390,
 and riscv architectures, and tag-based KASAN is supported only for arm64.
 
 Usage
