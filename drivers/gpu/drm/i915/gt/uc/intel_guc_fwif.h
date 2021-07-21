@@ -26,9 +26,6 @@
 #define GUC_CLIENT_PRIORITY_NORMAL	3
 #define GUC_CLIENT_PRIORITY_NUM		4
 
-#define GUC_MAX_STAGE_DESCRIPTORS	1024
-#define	GUC_INVALID_STAGE_ID		GUC_MAX_STAGE_DESCRIPTORS
-
 #define GUC_MAX_LRC_DESCRIPTORS		65535
 #define	GUC_INVALID_LRC_ID		GUC_MAX_LRC_DESCRIPTORS
 
@@ -179,68 +176,6 @@ struct guc_process_desc {
 	u32 engine_presence;
 	u32 priority;
 	u32 reserved[30];
-} __packed;
-
-/* engine id and context id is packed into guc_execlist_context.context_id*/
-#define GUC_ELC_CTXID_OFFSET		0
-#define GUC_ELC_ENGINE_OFFSET		29
-
-/* The execlist context including software and HW information */
-struct guc_execlist_context {
-	u32 context_desc;
-	u32 context_id;
-	u32 ring_status;
-	u32 ring_lrca;
-	u32 ring_begin;
-	u32 ring_end;
-	u32 ring_next_free_location;
-	u32 ring_current_tail_pointer_value;
-	u8 engine_state_submit_value;
-	u8 engine_state_wait_value;
-	u16 pagefault_count;
-	u16 engine_submit_queue_count;
-} __packed;
-
-/*
- * This structure describes a stage set arranged for a particular communication
- * between uKernel (GuC) and Driver (KMD). Technically, this is known as a
- * "GuC Context descriptor" in the specs, but we use the term "stage descriptor"
- * to avoid confusion with all the other things already named "context" in the
- * driver. A static pool of these descriptors are stored inside a GEM object
- * (stage_desc_pool) which is held for the entire lifetime of our interaction
- * with the GuC, being allocated before the GuC is loaded with its firmware.
- */
-struct guc_stage_desc {
-	u32 sched_common_area;
-	u32 stage_id;
-	u32 pas_id;
-	u8 engines_used;
-	u64 db_trigger_cpu;
-	u32 db_trigger_uk;
-	u64 db_trigger_phy;
-	u16 db_id;
-
-	struct guc_execlist_context lrc[GUC_MAX_ENGINES_NUM];
-
-	u8 attribute;
-
-	u32 priority;
-
-	u32 wq_sampled_tail_offset;
-	u32 wq_total_submit_enqueues;
-
-	u32 process_desc;
-	u32 wq_addr;
-	u32 wq_size;
-
-	u32 engine_presence;
-
-	u8 engine_suspended;
-
-	u8 reserved0[3];
-	u64 reserved1[1];
-
-	u64 desc_private;
 } __packed;
 
 #define CONTEXT_REGISTRATION_FLAG_KMD	BIT(0)

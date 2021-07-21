@@ -43,8 +43,8 @@ struct intel_guc {
 	struct i915_vma *ads_vma;
 	struct __guc_ads_blob *ads_blob;
 
-	struct i915_vma *stage_desc_pool;
-	void *stage_desc_pool_vaddr;
+	struct i915_vma *lrc_desc_pool;
+	void *lrc_desc_pool_vaddr;
 
 	/* Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];

@@ -65,57 +65,35 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 	return rb_entry(rb, struct i915_priolist, node);
 }
 
-static struct guc_stage_desc *__get_stage_desc(struct intel_guc *guc, u32 id)
+/* Future patches will use this function */
+__maybe_unused
+static struct guc_lrc_desc *__get_lrc_desc(struct intel_guc *guc, u32 index)
 {
-	struct guc_stage_desc *base = guc->stage_desc_pool_vaddr;
+	struct guc_lrc_desc *base = guc->lrc_desc_pool_vaddr;
 
-	return &base[id];
+	GEM_BUG_ON(index >= GUC_MAX_LRC_DESCRIPTORS);
+
+	return &base[index];
 }
 
-static int guc_stage_desc_pool_create(struct intel_guc *guc)
+static int guc_lrc_desc_pool_create(struct intel_guc *guc)
 {
-	u32 size = PAGE_ALIGN(sizeof(struct guc_stage_desc) *
-			      GUC_MAX_STAGE_DESCRIPTORS);
+	u32 size;
+	int ret;
 
-	return intel_guc_allocate_and_map_vma(guc, size, &guc->stage_desc_pool,
-					      &guc->stage_desc_pool_vaddr);
+	size = PAGE_ALIGN(sizeof(struct guc_lrc_desc) *
+			  GUC_MAX_LRC_DESCRIPTORS);
+	ret = intel_guc_allocate_and_map_vma(guc, size, &guc->lrc_desc_pool,
+					     (void **)&guc->lrc_desc_pool_vaddr);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
-static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
+static void guc_lrc_desc_pool_destroy(struct intel_guc *guc)
 {
-	i915_vma_unpin_and_release(&guc->stage_desc_pool, I915_VMA_RELEASE_MAP);
-}
-
-/*
- * Initialise/clear the stage descriptor shared with the GuC firmware.
- *
- * This descriptor tells the GuC where (in GGTT space) to find the important
- * data structures related to work submission (process descriptor, write queue,
- * etc).
- */
-static void guc_stage_desc_init(struct intel_guc *guc)
-{
-	struct guc_stage_desc *desc;
-
-	/* we only use 1 stage desc, so hardcode it to 0 */
-	desc = __get_stage_desc(guc, 0);
-	memset(desc, 0, sizeof(*desc));
-
-	desc->attribute = GUC_STAGE_DESC_ATTR_ACTIVE |
-			  GUC_STAGE_DESC_ATTR_KERNEL;
-
-	desc->stage_id = 0;
-	desc->priority = GUC_CLIENT_PRIORITY_KMD_NORMAL;
-
-	desc->wq_size = GUC_WQ_SIZE;
-}
-
-static void guc_stage_desc_fini(struct intel_guc *guc)
-{
-	struct guc_stage_desc *desc;
-
-	desc = __get_stage_desc(guc, 0);
-	memset(desc, 0, sizeof(*desc));
+	i915_vma_unpin_and_release(&guc->lrc_desc_pool, I915_VMA_RELEASE_MAP);
 }
 
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
@@ -410,26 +388,25 @@ int intel_guc_submission_init(struct intel_guc *guc)
 {
 	int ret;
 
-	if (guc->stage_desc_pool)
+	if (guc->lrc_desc_pool)
 		return 0;
 
-	ret = guc_stage_desc_pool_create(guc);
+	ret = guc_lrc_desc_pool_create(guc);
 	if (ret)
 		return ret;
 	/*
 	 * Keep static analysers happy, let them know that we allocated the
 	 * vma after testing that it didn't exist earlier.
 	 */
-	GEM_BUG_ON(!guc->stage_desc_pool);
+	GEM_BUG_ON(!guc->lrc_desc_pool);
 
 	return 0;
 }
 
 void intel_guc_submission_fini(struct intel_guc *guc)
 {
-	if (guc->stage_desc_pool) {
-		guc_stage_desc_pool_destroy(guc);
-	}
+	if (guc->lrc_desc_pool)
+		guc_lrc_desc_pool_destroy(guc);
 }
 
 static int guc_context_alloc(struct intel_context *ce)
@@ -695,7 +672,6 @@ int intel_guc_submission_setup(struct intel_engine_cs *engine)
 
 void intel_guc_submission_enable(struct intel_guc *guc)
 {
-	guc_stage_desc_init(guc);
 }
 
 void intel_guc_submission_disable(struct intel_guc *guc)
@@ -705,8 +681,6 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 	GEM_BUG_ON(gt->awake); /* GT should be parked first */
 
 	/* Note: By the time we're here, GuC may have already been reset */
-
-	guc_stage_desc_fini(guc);
 }
 
 static bool __guc_submission_selected(struct intel_guc *guc)
