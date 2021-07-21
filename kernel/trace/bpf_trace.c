@@ -965,7 +965,7 @@ BPF_CALL_1(bpf_get_func_ip_kprobe, struct pt_regs *, regs)
 {
 	struct kprobe *kp = kprobe_running();
 
-	return kp ? (u64) kp->addr : 0;
+	return kp ? (uintptr_t)kp->addr : 0;
 }
 
 static const struct bpf_func_proto bpf_get_func_ip_proto_kprobe = {
