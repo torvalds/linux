@@ -113,12 +113,31 @@ static void show_facilities(struct seq_file *m)
 static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
-		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs",
-		"vxe2", "vxp", "sort", "dflt", "vxp2", "nnpa", "pcimio"
+		[HWCAP_NR_ESAN3]	= "esan3",
+		[HWCAP_NR_ZARCH]	= "zarch",
+		[HWCAP_NR_STFLE]	= "stfle",
+		[HWCAP_NR_MSA]		= "msa",
+		[HWCAP_NR_LDISP]	= "ldisp",
+		[HWCAP_NR_EIMM]		= "eimm",
+		[HWCAP_NR_DFP]		= "dfp",
+		[HWCAP_NR_HPAGE]	= "edat",
+		[HWCAP_NR_ETF3EH]	= "etf3eh",
+		[HWCAP_NR_HIGH_GPRS]	= "highgprs",
+		[HWCAP_NR_TE]		= "te",
+		[HWCAP_NR_VXRS]		= "vx",
+		[HWCAP_NR_VXRS_BCD]	= "vxd",
+		[HWCAP_NR_VXRS_EXT]	= "vxe",
+		[HWCAP_NR_GS]		= "gs",
+		[HWCAP_NR_VXRS_EXT2]	= "vxe2",
+		[HWCAP_NR_VXRS_PDE]	= "vxp",
+		[HWCAP_NR_SORT]		= "sort",
+		[HWCAP_NR_DFLT]		= "dflt",
+		[HWCAP_NR_VXRS_PDE2]	= "vxp2",
+		[HWCAP_NR_NNPA]		= "nnpa",
+		[HWCAP_NR_PCI_MIO]	= "pcimio",
 	};
 	static const char * const int_hwcap_str[] = {
-		"sie"
+		[HWCAP_INT_NR_SIE]	= "sie",
 	};
 	int i, cpu;
 
