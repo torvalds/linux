@@ -5383,7 +5383,7 @@ static void tcp_new_space(struct sock *sk)
 		tp->snd_cwnd_stamp = tcp_jiffies32;
 	}
 
-	sk->sk_write_space(sk);
+	INDIRECT_CALL_1(sk->sk_write_space, sk_stream_write_space, sk);
 }
 
 static void tcp_check_space(struct sock *sk)
