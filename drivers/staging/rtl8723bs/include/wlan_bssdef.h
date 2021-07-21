@@ -52,14 +52,14 @@ enum ndis_802_11_network_infrastructure {
 };
 
 struct ndis_802_11_fix_ie {
-	u8  Timestamp[8];
-	u16  BeaconInterval;
-	u16  Capabilities;
+	u8  time_stamp[8];
+	u16  beacon_interval;
+	u16  capabilities;
 };
 
 struct ndis_80211_var_ie {
-	u8  ElementID;
-	u8  Length;
+	u8  element_id;
+	u8  length;
 	u8  data[];
 };
 
