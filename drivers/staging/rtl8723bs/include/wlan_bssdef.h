@@ -194,7 +194,7 @@ struct	wlan_network {
 	int	aid;			/* will only be valid when a BSS is joinned. */
 	int	join_res;
 	struct wlan_bssid_ex	network; /* must be the last item */
-	struct wlan_bcn_info	BcnInfo;
+	struct wlan_bcn_info	bcn_info;
 };
 
 enum {
