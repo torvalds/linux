@@ -607,11 +607,12 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
                                         def.) */
 		/* TODO: test if sharing interrupts works */
 		irq = dev->irq;
-		if (irq == IRQ_NONE) {
+		if (irq == 0)
+			irq = PARPORT_IRQ_NONE;
+		if (irq == PARPORT_IRQ_NONE) {
 			dev_dbg(&dev->dev,
 				"PCI parallel port detected: I/O at %#lx(%#lx)\n",
 				io_lo, io_hi);
-			irq = PARPORT_IRQ_NONE;
 		} else {
 			dev_dbg(&dev->dev,
 				"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
