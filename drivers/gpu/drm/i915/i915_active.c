@@ -1176,18 +1176,12 @@ struct i915_active *i915_active_create(void)
 #include "selftests/i915_active.c"
 #endif
 
-static void i915_global_active_shrink(void)
-{
-	kmem_cache_shrink(global.slab_cache);
-}
-
 static void i915_global_active_exit(void)
 {
 	kmem_cache_destroy(global.slab_cache);
 }
 
 static struct i915_global_active global = { {
-	.shrink = i915_global_active_shrink,
 	.exit = i915_global_active_exit,
 } };
 

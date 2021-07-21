@@ -398,18 +398,12 @@ void intel_context_fini(struct intel_context *ce)
 	i915_active_fini(&ce->active);
 }
 
-static void i915_global_context_shrink(void)
-{
-	kmem_cache_shrink(global.slab_ce);
-}
-
 static void i915_global_context_exit(void)
 {
 	kmem_cache_destroy(global.slab_ce);
 }
 
 static struct i915_global_context global = { {
-	.shrink = i915_global_context_shrink,
 	.exit = i915_global_context_exit,
 } };
 

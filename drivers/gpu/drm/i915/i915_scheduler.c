@@ -475,12 +475,6 @@ i915_sched_engine_create(unsigned int subclass)
 	return sched_engine;
 }
 
-static void i915_global_scheduler_shrink(void)
-{
-	kmem_cache_shrink(global.slab_dependencies);
-	kmem_cache_shrink(global.slab_priorities);
-}
-
 static void i915_global_scheduler_exit(void)
 {
 	kmem_cache_destroy(global.slab_dependencies);
@@ -488,7 +482,6 @@ static void i915_global_scheduler_exit(void)
 }
 
 static struct i915_global_scheduler global = { {
-	.shrink = i915_global_scheduler_shrink,
 	.exit = i915_global_scheduler_exit,
 } };
 

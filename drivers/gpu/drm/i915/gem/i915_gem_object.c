@@ -664,18 +664,12 @@ void i915_gem_init__objects(struct drm_i915_private *i915)
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
-static void i915_global_objects_shrink(void)
-{
-	kmem_cache_shrink(global.slab_objects);
-}
-
 static void i915_global_objects_exit(void)
 {
 	kmem_cache_destroy(global.slab_objects);
 }
 
 static struct i915_global_object global = { {
-	.shrink = i915_global_objects_shrink,
 	.exit = i915_global_objects_exit,
 } };
 

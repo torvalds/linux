@@ -1414,18 +1414,12 @@ void i915_vma_make_purgeable(struct i915_vma *vma)
 #include "selftests/i915_vma.c"
 #endif
 
-static void i915_global_vma_shrink(void)
-{
-	kmem_cache_shrink(global.slab_vmas);
-}
-
 static void i915_global_vma_exit(void)
 {
 	kmem_cache_destroy(global.slab_vmas);
 }
 
 static struct i915_global_vma global = { {
-	.shrink = i915_global_vma_shrink,
 	.exit = i915_global_vma_exit,
 } };
 

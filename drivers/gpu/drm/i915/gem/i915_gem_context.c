@@ -2280,18 +2280,12 @@ i915_gem_engines_iter_next(struct i915_gem_engines_iter *it)
 #include "selftests/i915_gem_context.c"
 #endif
 
-static void i915_global_gem_context_shrink(void)
-{
-	kmem_cache_shrink(global.slab_luts);
-}
-
 static void i915_global_gem_context_exit(void)
 {
 	kmem_cache_destroy(global.slab_luts);
 }
 
 static struct i915_global_gem_context global = { {
-	.shrink = i915_global_gem_context_shrink,
 	.exit = i915_global_gem_context_exit,
 } };
 
