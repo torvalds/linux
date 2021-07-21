@@ -117,83 +117,113 @@ static void mlx5e_rx_res_rss_params_init(struct mlx5e_rx_res *res, unsigned int 
 			mlx5e_rss_get_default_tt_config(tt).rx_hash_fields;
 }
 
-static int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res,
-				 const struct mlx5e_lro_param *init_lro_param)
+static void mlx5e_rx_res_rss_destroy_tir(struct mlx5e_rx_res *res,
+					 enum mlx5_traffic_types tt,
+					 bool inner)
+{
+	struct mlx5e_tir *tir;
+
+	tir = inner ? &res->rss[tt].inner_indir_tir : &res->rss[tt].indir_tir;
+	mlx5e_tir_destroy(tir);
+}
+
+static int mlx5e_rx_res_rss_create_tir(struct mlx5e_rx_res *res,
+				       struct mlx5e_tir_builder *builder,
+				       enum mlx5_traffic_types tt,
+				       const struct mlx5e_lro_param *init_lro_param,
+				       bool inner)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
+	struct mlx5e_rss_params_traffic_type rss_tt;
+	struct mlx5e_tir *tir;
+	u32 rqtn;
+	int err;
+
+	tir = inner ? &res->rss[tt].inner_indir_tir : &res->rss[tt].indir_tir;
+
+	rqtn = mlx5e_rqt_get_rqtn(&res->indir_rqt);
+	mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn,
+				    rqtn, inner_ft_support);
+	mlx5e_tir_builder_build_lro(builder, init_lro_param);
+	rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
+	mlx5e_tir_builder_build_rss(builder, &res->rss_params.hash, &rss_tt, inner);
+
+	err = mlx5e_tir_init(tir, builder, res->mdev, true);
+	if (err) {
+		mlx5_core_warn(res->mdev, "Failed to create %sindirect TIR: err = %d, tt = %d\n",
+			       inner ? "inner " : "", err, tt);
+		return err;
+	}
+
+	return 0;
+}
+
+static int mlx5e_rx_res_rss_create_tirs(struct mlx5e_rx_res *res,
+					const struct mlx5e_lro_param *init_lro_param,
+					bool inner)
+{
 	enum mlx5_traffic_types tt, max_tt;
 	struct mlx5e_tir_builder *builder;
-	u32 indir_rqtn;
 	int err;
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder)
 		return -ENOMEM;
 
-	err = mlx5e_rqt_init_direct(&res->indir_rqt, res->mdev, true, res->drop_rqn);
-	if (err)
-		goto out;
-
-	indir_rqtn = mlx5e_rqt_get_rqtn(&res->indir_rqt);
-
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		struct mlx5e_rss_params_traffic_type rss_tt;
-
-		mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn,
-					    indir_rqtn, inner_ft_support);
-		mlx5e_tir_builder_build_lro(builder, init_lro_param);
-		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
-		mlx5e_tir_builder_build_rss(builder, &res->rss_params.hash, &rss_tt, false);
-
-		err = mlx5e_tir_init(&res->rss[tt].indir_tir, builder, res->mdev, true);
-		if (err) {
-			mlx5_core_warn(res->mdev, "Failed to create an indirect TIR: err = %d, tt = %d\n",
-				       err, tt);
+		err = mlx5e_rx_res_rss_create_tir(res, builder, tt, init_lro_param, inner);
+		if (err)
 			goto err_destroy_tirs;
-		}
 
 		mlx5e_tir_builder_clear(builder);
 	}
-
-	if (!inner_ft_support)
-		goto out;
-
-	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		struct mlx5e_rss_params_traffic_type rss_tt;
-
-		mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn,
-					    indir_rqtn, inner_ft_support);
-		mlx5e_tir_builder_build_lro(builder, init_lro_param);
-		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
-		mlx5e_tir_builder_build_rss(builder, &res->rss_params.hash, &rss_tt, true);
-
-		err = mlx5e_tir_init(&res->rss[tt].inner_indir_tir, builder, res->mdev, true);
-		if (err) {
-			mlx5_core_warn(res->mdev, "Failed to create an inner indirect TIR: err = %d, tt = %d\n",
-				       err, tt);
-			goto err_destroy_inner_tirs;
-		}
-
-		mlx5e_tir_builder_clear(builder);
-	}
-
-	goto out;
-
-err_destroy_inner_tirs:
-	max_tt = tt;
-	for (tt = 0; tt < max_tt; tt++)
-		mlx5e_tir_destroy(&res->rss[tt].inner_indir_tir);
-
-	tt = MLX5E_NUM_INDIR_TIRS;
-err_destroy_tirs:
-	max_tt = tt;
-	for (tt = 0; tt < max_tt; tt++)
-		mlx5e_tir_destroy(&res->rss[tt].indir_tir);
-
-	mlx5e_rqt_destroy(&res->indir_rqt);
 
 out:
 	mlx5e_tir_builder_free(builder);
+	return err;
+
+err_destroy_tirs:
+	max_tt = tt;
+	for (tt = 0; tt < max_tt; tt++)
+		mlx5e_rx_res_rss_destroy_tir(res, tt, inner);
+	goto out;
+}
+
+static void mlx5e_rx_res_rss_destroy_tirs(struct mlx5e_rx_res *res, bool inner)
+{
+	enum mlx5_traffic_types tt;
+
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		mlx5e_rx_res_rss_destroy_tir(res, tt, inner);
+}
+
+static int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res,
+				 const struct mlx5e_lro_param *init_lro_param)
+{
+	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
+	int err;
+
+	err = mlx5e_rqt_init_direct(&res->indir_rqt, res->mdev, true, res->drop_rqn);
+	if (err)
+		return err;
+
+	err = mlx5e_rx_res_rss_create_tirs(res, init_lro_param, false);
+	if (err)
+		goto err_destroy_rqt;
+
+	if (inner_ft_support) {
+		err = mlx5e_rx_res_rss_create_tirs(res, init_lro_param, true);
+		if (err)
+			goto err_destroy_tirs;
+	}
+
+	return 0;
+
+err_destroy_tirs:
+	mlx5e_rx_res_rss_destroy_tirs(res, false);
+
+err_destroy_rqt:
+	mlx5e_rqt_destroy(&res->indir_rqt);
 
 	return err;
 }
@@ -337,14 +367,10 @@ out:
 
 static void mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res)
 {
-	enum mlx5_traffic_types tt;
-
-	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		mlx5e_tir_destroy(&res->rss[tt].indir_tir);
+	mlx5e_rx_res_rss_destroy_tirs(res, false);
 
 	if (res->features & MLX5E_RX_RES_FEATURE_INNER_FT)
-		for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-			mlx5e_tir_destroy(&res->rss[tt].inner_indir_tir);
+		mlx5e_rx_res_rss_destroy_tirs(res, true);
 
 	mlx5e_rqt_destroy(&res->indir_rqt);
 }
