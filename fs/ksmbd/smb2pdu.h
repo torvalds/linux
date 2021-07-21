@@ -268,6 +268,7 @@ struct preauth_integrity_info {
 #define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
 #define SMB2_COMPRESSION_CAPABILITIES		cpu_to_le16(3)
 #define SMB2_NETNAME_NEGOTIATE_CONTEXT_ID	cpu_to_le16(5)
+#define SMB2_SIGNING_CAPABILITIES		cpu_to_le16(8)
 #define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
 
 struct smb2_neg_context {
@@ -330,6 +331,19 @@ struct smb2_netname_neg_context {
 	__le16	DataLength;
 	__le32	Reserved;
 	__le16	NetName[]; /* hostname of target converted to UCS-2 */
+} __packed;
+
+/* Signing algorithms */
+#define SIGNING_ALG_HMAC_SHA256		cpu_to_le16(0)
+#define SIGNING_ALG_AES_CMAC		cpu_to_le16(1)
+#define SIGNING_ALG_AES_GMAC		cpu_to_le16(2)
+
+struct smb2_signing_capabilities {
+	__le16	ContextType; /* 8 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	SigningAlgorithmCount;
+	__le16	SigningAlgorithms[];
 } __packed;
 
 struct smb2_negotiate_rsp {

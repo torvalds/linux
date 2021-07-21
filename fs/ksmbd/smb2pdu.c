@@ -786,6 +786,18 @@ static void build_compression_ctxt(struct smb2_compression_ctx *pneg_ctxt,
 	pneg_ctxt->CompressionAlgorithms[0] = comp_algo;
 }
 
+static void build_sign_cap_ctxt(struct smb2_signing_capabilities *pneg_ctxt,
+				__le16 sign_algo)
+{
+	pneg_ctxt->ContextType = SMB2_SIGNING_CAPABILITIES;
+	pneg_ctxt->DataLength =
+		cpu_to_le16((sizeof(struct smb2_signing_capabilities) + 2)
+			- sizeof(struct smb2_neg_context));
+	pneg_ctxt->Reserved = cpu_to_le32(0);
+	pneg_ctxt->SigningAlgorithmCount = cpu_to_le16(1);
+	pneg_ctxt->SigningAlgorithms[0] = sign_algo;
+}
+
 static void build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_POSIX_EXTENSIONS_AVAILABLE;
@@ -863,6 +875,18 @@ static void assemble_neg_contexts(struct ksmbd_conn *conn,
 		build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
 		ctxt_size += sizeof(struct smb2_posix_neg_context);
+		/* Round to 8 byte boundary */
+		pneg_ctxt += round_up(sizeof(struct smb2_posix_neg_context), 8);
+	}
+
+	if (conn->signing_negotiated) {
+		ctxt_size = round_up(ctxt_size, 8);
+		ksmbd_debug(SMB,
+			    "assemble SMB2_SIGNING_CAPABILITIES context\n");
+		build_sign_cap_ctxt((struct smb2_signing_capabilities *)pneg_ctxt,
+				    conn->signing_algorithm);
+		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
+		ctxt_size += sizeof(struct smb2_signing_capabilities) + 2;
 	}
 
 	inc_rfc1001_len(rsp, ctxt_size);
@@ -917,6 +941,34 @@ static void decode_compress_ctxt(struct ksmbd_conn *conn,
 				 struct smb2_compression_ctx *pneg_ctxt)
 {
 	conn->compress_algorithm = SMB3_COMPRESS_NONE;
+}
+
+static void decode_sign_cap_ctxt(struct ksmbd_conn *conn,
+				 struct smb2_signing_capabilities *pneg_ctxt,
+				 int len_of_ctxts)
+{
+	int sign_algo_cnt = le16_to_cpu(pneg_ctxt->SigningAlgorithmCount);
+	int i, sign_alos_size = sign_algo_cnt * sizeof(__le16);
+
+	conn->signing_negotiated = false;
+
+	if (sizeof(struct smb2_signing_capabilities) + sign_alos_size >
+	    len_of_ctxts) {
+		pr_err("Invalid signing algorithm count(%d)\n", sign_algo_cnt);
+		return;
+	}
+
+	for (i = 0; i < sign_algo_cnt; i++) {
+		if (pneg_ctxt->SigningAlgorithms[i] == SIGNING_ALG_HMAC_SHA256 ||
+		    pneg_ctxt->SigningAlgorithms[i] == SIGNING_ALG_AES_CMAC) {
+			ksmbd_debug(SMB, "Signing Algorithm ID = 0x%x\n",
+				    pneg_ctxt->SigningAlgorithms[i]);
+			conn->signing_negotiated = true;
+			conn->signing_algorithm =
+				pneg_ctxt->SigningAlgorithms[i];
+			break;
+		}
+	}
 }
 
 static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
@@ -987,6 +1039,12 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_POSIX_EXTENSIONS_AVAILABLE context\n");
 			conn->posix_ext_supported = true;
+		} else if (pctx->ContextType == SMB2_SIGNING_CAPABILITIES) {
+			ksmbd_debug(SMB,
+				    "deassemble SMB2_SIGNING_CAPABILITIES context\n");
+			decode_sign_cap_ctxt(conn,
+					     (struct smb2_signing_capabilities *)pctx,
+					     len_of_ctxts);
 		}
 
 		/* offsets must be 8 byte aligned */
