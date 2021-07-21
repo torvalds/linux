@@ -6,6 +6,7 @@
  */
 
 #include "vg_chip_offset_byte.h"
+#include <sound/pcm.h>
 
 #define ACP5x_PHY_BASE_ADDRESS 0x1240000
 #define ACP_DEVICE_ID 0x15E2
@@ -37,6 +38,39 @@
 #define	HS_TX_THRESHOLD 24
 #define	HS_RX_THRESHOLD 23
 
+#define I2S_SP_INSTANCE                 1
+#define I2S_HS_INSTANCE                 2
+
+#define ACP_SRAM_PTE_OFFSET	0x02050000
+#define ACP_SRAM_SP_PB_PTE_OFFSET	0x0
+#define ACP_SRAM_SP_CP_PTE_OFFSET	0x100
+#define ACP_SRAM_HS_PB_PTE_OFFSET	0x200
+#define ACP_SRAM_HS_CP_PTE_OFFSET	0x300
+#define PAGE_SIZE_4K_ENABLE 0x2
+#define I2S_SP_TX_MEM_WINDOW_START	0x4000000
+#define I2S_SP_RX_MEM_WINDOW_START	0x4020000
+#define I2S_HS_TX_MEM_WINDOW_START	0x4040000
+#define I2S_HS_RX_MEM_WINDOW_START	0x4060000
+
+#define SP_PB_FIFO_ADDR_OFFSET		0x500
+#define SP_CAPT_FIFO_ADDR_OFFSET	0x700
+#define HS_PB_FIFO_ADDR_OFFSET		0x900
+#define HS_CAPT_FIFO_ADDR_OFFSET	0xB00
+#define PLAYBACK_MIN_NUM_PERIODS    2
+#define PLAYBACK_MAX_NUM_PERIODS    8
+#define PLAYBACK_MAX_PERIOD_SIZE    8192
+#define PLAYBACK_MIN_PERIOD_SIZE    1024
+#define CAPTURE_MIN_NUM_PERIODS     2
+#define CAPTURE_MAX_NUM_PERIODS     8
+#define CAPTURE_MAX_PERIOD_SIZE     8192
+#define CAPTURE_MIN_PERIOD_SIZE     1024
+
+#define MAX_BUFFER (PLAYBACK_MAX_PERIOD_SIZE * PLAYBACK_MAX_NUM_PERIODS)
+#define MIN_BUFFER MAX_BUFFER
+#define FIFO_SIZE 0x100
+#define DMA_SIZE 0x40
+#define FRM_LEN 0x100
+
 struct i2s_dev_data {
 	unsigned int i2s_irq;
 	void __iomem *acp5x_base;
@@ -44,6 +78,31 @@ struct i2s_dev_data {
 	struct snd_pcm_substream *capture_stream;
 	struct snd_pcm_substream *i2ssp_play_stream;
 	struct snd_pcm_substream *i2ssp_capture_stream;
+};
+
+struct i2s_stream_instance {
+	u16 num_pages;
+	u16 i2s_instance;
+	u16 direction;
+	u16 channels;
+	u32 xfer_resolution;
+	u32 val;
+	dma_addr_t dma_addr;
+	u64 bytescount;
+	void __iomem *acp5x_base;
+};
+
+union acp_dma_count {
+	struct {
+		u32 low;
+		u32 high;
+	} bcount;
+	u64 bytescount;
+};
+
+struct acp5x_platform_info {
+	u16 play_i2s_instance;
+	u16 cap_i2s_instance;
 };
 
 /* common header file uses exact offset rather than relative
@@ -58,4 +117,51 @@ static inline u32 acp_readl(void __iomem *base_addr)
 static inline void acp_writel(u32 val, void __iomem *base_addr)
 {
 	writel(val, base_addr - ACP5x_PHY_BASE_ADDRESS);
+}
+
+static inline u64 acp_get_byte_count(struct i2s_stream_instance *rtd,
+				     int direction)
+{
+	union acp_dma_count byte_count;
+
+	if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (rtd->i2s_instance) {
+		case I2S_HS_INSTANCE:
+			byte_count.bcount.high =
+				acp_readl(rtd->acp5x_base +
+					  ACP_HS_TX_LINEARPOSCNTR_HIGH);
+			byte_count.bcount.low =
+				acp_readl(rtd->acp5x_base +
+					  ACP_HS_TX_LINEARPOSCNTR_LOW);
+			break;
+		case I2S_SP_INSTANCE:
+		default:
+			byte_count.bcount.high =
+				acp_readl(rtd->acp5x_base +
+					  ACP_I2S_TX_LINEARPOSCNTR_HIGH);
+			byte_count.bcount.low =
+				acp_readl(rtd->acp5x_base +
+					  ACP_I2S_TX_LINEARPOSCNTR_LOW);
+		}
+	} else {
+		switch (rtd->i2s_instance) {
+		case I2S_HS_INSTANCE:
+			byte_count.bcount.high =
+				acp_readl(rtd->acp5x_base +
+					  ACP_HS_RX_LINEARPOSCNTR_HIGH);
+			byte_count.bcount.low =
+				acp_readl(rtd->acp5x_base +
+					  ACP_HS_RX_LINEARPOSCNTR_LOW);
+			break;
+		case I2S_SP_INSTANCE:
+		default:
+			byte_count.bcount.high =
+				acp_readl(rtd->acp5x_base +
+					  ACP_I2S_RX_LINEARPOSCNTR_HIGH);
+			byte_count.bcount.low =
+				acp_readl(rtd->acp5x_base +
+					  ACP_I2S_RX_LINEARPOSCNTR_LOW);
+		}
+	}
+	return byte_count.bytescount;
 }
