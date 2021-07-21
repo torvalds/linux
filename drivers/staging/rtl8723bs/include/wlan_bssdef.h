@@ -107,12 +107,6 @@ enum {
 #define NDIS_802_11_AI_RESFI_STATUSCODE        2
 #define NDIS_802_11_AI_RESFI_ASSOCIATIONID     4
 
-struct ndis_801_11_ai_resfi {
-	u16 Capabilities;
-	u16 StatusCode;
-	u16 AssociationId;
-};
-
 /*  Key mapping keys require a BSSID */
 
 struct ndis_802_11_wep {
