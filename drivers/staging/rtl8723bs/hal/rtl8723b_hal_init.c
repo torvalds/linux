@@ -2061,18 +2061,18 @@ s32 rtl8723b_InitLLTTable(struct adapter *padapter)
 	return ret;
 }
 
-static void Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
+static void Hal_GetChnlGroup8723B(u8 channel, u8 *group)
 {
-	if (1  <= Channel && Channel <= 2)
-		*pGroup = 0;
-	else if (3  <= Channel && Channel <= 5)
-		*pGroup = 1;
-	else if (6  <= Channel && Channel <= 8)
-		*pGroup = 2;
-	else if (9  <= Channel && Channel <= 11)
-		*pGroup = 3;
-	else if (12 <= Channel && Channel <= 14)
-		*pGroup = 4;
+	if (1  <= channel && channel <= 2)
+		*group = 0;
+	else if (3  <= channel && channel <= 5)
+		*group = 1;
+	else if (6  <= channel && channel <= 8)
+		*group = 2;
+	else if (9  <= channel && channel <= 11)
+		*group = 3;
+	else if (12 <= channel && channel <= 14)
+		*group = 4;
 }
 
 void Hal_InitPGData(struct adapter *padapter, u8 *PROMContent)
