@@ -1163,6 +1163,7 @@ static void test_map_in_map(void)
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	__u32 id = 0;
+	libbpf_print_fn_t old_print_fn;
 
 	obj = bpf_object__open(MAPINMAP_PROG);
 
@@ -1250,11 +1251,15 @@ static void test_map_in_map(void)
 		goto out_map_in_map;
 	}
 
+	old_print_fn = libbpf_set_print(NULL);
+
 	err = bpf_object__load(obj);
 	if (!err) {
 		printf("Loading obj supposed to fail\n");
 		goto out_map_in_map;
 	}
+
+	libbpf_set_print(old_print_fn);
 
 	/* Iterate over all maps to check whether the internal map
 	 * ("mim.internal") has been destroyed.
