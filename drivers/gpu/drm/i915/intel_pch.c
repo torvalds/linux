@@ -211,6 +211,9 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	if (IS_DG1(dev_priv)) {
 		dev_priv->pch_type = PCH_DG1;
 		return;
+	} else if (IS_DG2(dev_priv)) {
+		dev_priv->pch_type = PCH_DG2;
+		return;
 	}
 
 	/*
