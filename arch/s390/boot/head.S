@@ -31,6 +31,9 @@
 
 #define ARCH_OFFSET	4
 
+#define EP_OFFSET	0x10008
+#define EP_STRING	"S390EP"
+
 __HEAD
 
 #define IPL_BS	0x730
