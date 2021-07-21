@@ -47,7 +47,6 @@ struct i915_buddy_block {
  * i915_buddy_alloc* and i915_buddy_free* should suffice.
  */
 struct i915_buddy_mm {
-	struct kmem_cache *slab_blocks;
 	/* Maintain a free list for each order. */
 	struct list_head *free_list;
 
@@ -129,5 +128,7 @@ int i915_buddy_alloc_range(struct i915_buddy_mm *mm,
 void i915_buddy_free(struct i915_buddy_mm *mm, struct i915_buddy_block *block);
 
 void i915_buddy_free_list(struct i915_buddy_mm *mm, struct list_head *objects);
+
+int i915_global_buddy_init(void);
 
 #endif
