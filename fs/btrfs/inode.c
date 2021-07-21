@@ -8239,8 +8239,8 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 	u64 start_sector;
 	int async_submit = 0;
 	u64 submit_len;
-	int clone_offset = 0;
-	int clone_len;
+	u64 clone_offset = 0;
+	u64 clone_len;
 	u64 logical;
 	int ret;
 	blk_status_t status;
@@ -8288,9 +8288,9 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 			status = errno_to_blk_status(ret);
 			goto out_err_em;
 		}
-		ASSERT(geom.len <= INT_MAX);
 
-		clone_len = min_t(int, submit_len, geom.len);
+		clone_len = min(submit_len, geom.len);
+		ASSERT(clone_len <= UINT_MAX);
 
 		/*
 		 * This will never fail as it's passing GPF_NOFS and
