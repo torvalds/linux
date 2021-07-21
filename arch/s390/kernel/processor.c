@@ -177,30 +177,8 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	}
 }
 
-/*
- * Setup hardware capabilities.
- */
 static int __init setup_hwcaps(void)
 {
-	/*
-	 * The store facility list bits numbers as found in the principles
-	 * of operation are numbered with bit 1UL<<31 as number 0 to
-	 * bit 1UL<<0 as number 31.
-	 *   Bit 0: instructions named N3, "backported" to esa-mode
-	 *   Bit 2: z/Architecture mode is active
-	 *   Bit 7: the store-facility-list-extended facility is installed
-	 *   Bit 17: the message-security assist is installed
-	 *   Bit 19: the long-displacement facility is installed
-	 *   Bit 21: the extended-immediate facility is installed
-	 *   Bit 22: extended-translation facility 3 is installed
-	 *   Bit 30: extended-translation facility 3 enhancement facility
-	 * These get translated to:
-	 *   HWCAP_ESAN3 bit 0, HWCAP_ZARCH bit 1,
-	 *   HWCAP_STFLE bit 2, HWCAP_MSA bit 3,
-	 *   HWCAP_LDISP bit 4, HWCAP_EIMM bit 5 and
-	 *   HWCAP_ETF3EH bit 8 (22 && 30).
-	 */
-
 	/* instructions named N3, "backported" to esa-mode */
 	if (test_facility(0))
 		elf_hwcap |= HWCAP_ESAN3;
@@ -225,47 +203,28 @@ static int __init setup_hwcaps(void)
 	if (test_facility(21))
 		elf_hwcap |= HWCAP_EIMM;
 
+	/* extended-translation facility 3 enhancement */
 	if (test_facility(22) && test_facility(30))
 		elf_hwcap |= HWCAP_ETF3EH;
 
-	/*
-	 * Check for additional facilities with store-facility-list-extended.
-	 * stfle stores doublewords (8 byte) with bit 1ULL<<63 as bit 0
-	 * and 1ULL<<0 as bit 63. Bits 0-31 contain the same information
-	 * as stored by stfl, bits 32-xxx contain additional facilities.
-	 * How many facility words are stored depends on the number of
-	 * doublewords passed to the instruction. The additional facilities
-	 * are:
-	 *   Bit 42: decimal floating point facility is installed
-	 *   Bit 44: perform floating point operation facility is installed
-	 * translated to:
-	 *   HWCAP_DFP bit 6 (42 && 44).
-	 */
+	/* decimal floating point & perform floating point operation */
 	if ((elf_hwcap & (1UL << 2)) && test_facility(42) && test_facility(44))
 		elf_hwcap |= HWCAP_DFP;
 
-	/*
-	 * Huge page support HWCAP_HPAGE is bit 7.
-	 */
+	/* huge page support */
 	if (MACHINE_HAS_EDAT1)
 		elf_hwcap |= HWCAP_HPAGE;
 
-	/*
-	 * 64-bit register support for 31-bit processes
-	 * HWCAP_HIGH_GPRS is bit 9.
-	 */
+	/* 64-bit register support for 31-bit processes */
 	elf_hwcap |= HWCAP_HIGH_GPRS;
 
-	/*
-	 * Transactional execution support HWCAP_TE is bit 10.
-	 */
+	/* transactional execution */
 	if (MACHINE_HAS_TE)
 		elf_hwcap |= HWCAP_TE;
 
 	/*
-	 * Vector extension HWCAP_VXRS is bit 11. The Vector extension
-	 * can be disabled with the "novx" parameter. Use MACHINE_HAS_VX
-	 * instead of facility bit 129.
+	 * Vector extension can be disabled with the "novx" parameter.
+	 * Use MACHINE_HAS_VX instead of facility bit 129.
 	 */
 	if (MACHINE_HAS_VX) {
 		elf_hwcap |= HWCAP_VXRS;
@@ -280,24 +239,24 @@ static int __init setup_hwcaps(void)
 		if (test_facility(192))
 			elf_hwcap |= HWCAP_VXRS_PDE2;
 	}
+
 	if (test_facility(150))
 		elf_hwcap |= HWCAP_SORT;
+
 	if (test_facility(151))
 		elf_hwcap |= HWCAP_DFLT;
+
 	if (test_facility(165))
 		elf_hwcap |= HWCAP_NNPA;
 
-	/*
-	 * Guarded storage support HWCAP_GS is bit 12.
-	 */
+	/* guarded storage */
 	if (MACHINE_HAS_GS)
 		elf_hwcap |= HWCAP_GS;
+
 	if (MACHINE_HAS_PCI_MIO)
 		elf_hwcap |= HWCAP_PCI_MIO;
 
-	/*
-	 * Virtualization support HWCAP_INT_SIE is bit 0.
-	 */
+	/* virtualization support */
 	if (sclp.has_sief2)
 		int_hwcap |= HWCAP_INT_SIE;
 
