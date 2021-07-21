@@ -392,6 +392,10 @@ intel_display_power_put_all_in_set(struct drm_i915_private *i915,
 	intel_display_power_put_mask_in_set(i915, power_domain_set, power_domain_set->mask);
 }
 
+/*
+ * FIXME: We should probably switch this to a 0-based scheme to be consistent
+ * with how we now name/number DBUF_CTL instances.
+ */
 enum dbuf_slice {
 	DBUF_S1,
 	DBUF_S2,
