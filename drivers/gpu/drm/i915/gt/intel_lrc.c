@@ -1101,6 +1101,14 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
  *      bits 55-60:    SW counter
  *      bits 61-63:    engine class
  *
+ * On Xe_HP, the upper dword of the descriptor has a new format:
+ *
+ *      bits 32-37:    virtual function number
+ *      bit 38:        mbz, reserved for use by hardware
+ *      bits 39-54:    SW context ID
+ *      bits 55-57:    reserved
+ *      bits 58-63:    SW counter
+ *
  * engine info, SW context ID and SW counter need to form a unique number
  * (Context ID) per lrc.
  */

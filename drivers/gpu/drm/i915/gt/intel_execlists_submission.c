@@ -153,6 +153,12 @@
 #define GEN12_CSB_CTX_VALID(csb_dw) \
 	(FIELD_GET(GEN12_CSB_SW_CTX_ID_MASK, csb_dw) != GEN12_IDLE_CTX_ID)
 
+#define XEHP_CTX_STATUS_SWITCHED_TO_NEW_QUEUE	BIT(1) /* upper csb dword */
+#define XEHP_CSB_SW_CTX_ID_MASK			GENMASK(31, 10)
+#define XEHP_IDLE_CTX_ID			0xFFFF
+#define XEHP_CSB_CTX_VALID(csb_dw) \
+	(FIELD_GET(XEHP_CSB_SW_CTX_ID_MASK, csb_dw) != XEHP_IDLE_CTX_ID)
+
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 
@@ -478,6 +484,16 @@ __execlists_schedule_in(struct i915_request *rq)
 		/* Use a fixed tag for OA and friends */
 		GEM_BUG_ON(ce->tag <= BITS_PER_LONG);
 		ce->lrc.ccid = ce->tag;
+	} else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+		/* We don't need a strict matching tag, just different values */
+		unsigned int tag = ffs(READ_ONCE(engine->context_tag));
+
+		GEM_BUG_ON(tag == 0 || tag >= BITS_PER_LONG);
+		clear_bit(tag - 1, &engine->context_tag);
+		ce->lrc.ccid = tag << (XEHP_SW_CTX_ID_SHIFT - 32);
+
+		BUILD_BUG_ON(BITS_PER_LONG > GEN12_MAX_CONTEXT_HW_ID);
+
 	} else {
 		/* We don't need a strict matching tag, just different values */
 		unsigned int tag = __ffs(engine->context_tag);
@@ -588,8 +604,14 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		intel_engine_add_retire(engine, ce->timeline);
 
 	ccid = ce->lrc.ccid;
-	ccid >>= GEN11_SW_CTX_ID_SHIFT - 32;
-	ccid &= GEN12_MAX_CONTEXT_HW_ID;
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+		ccid >>= XEHP_SW_CTX_ID_SHIFT - 32;
+		ccid &= XEHP_MAX_CONTEXT_HW_ID;
+	} else {
+		ccid >>= GEN11_SW_CTX_ID_SHIFT - 32;
+		ccid &= GEN12_MAX_CONTEXT_HW_ID;
+	}
+
 	if (ccid < BITS_PER_LONG) {
 		GEM_BUG_ON(ccid == 0);
 		GEM_BUG_ON(test_bit(ccid - 1, &engine->context_tag));
@@ -1648,13 +1670,24 @@ static void invalidate_csb_entries(const u64 *first, const u64 *last)
  *     bits 44-46: reserved
  *     bits 47-57: sw context id of the lrc the GT switched away from
  *     bits 58-63: sw counter of the lrc the GT switched away from
+ *
+ * Xe_HP csb shuffles things around compared to TGL:
+ *
+ *     bits 0-3:   context switch detail (same possible values as TGL)
+ *     bits 4-9:   engine instance
+ *     bits 10-25: sw context id of the lrc the GT switched to
+ *     bits 26-31: sw counter of the lrc the GT switched to
+ *     bit  32:    semaphore wait mode (poll or signal), Only valid when
+ *                 switch detail is set to "wait on semaphore"
+ *     bit  33:    switched to new queue
+ *     bits 34-41: wait detail (for switch detail 1 to 4)
+ *     bits 42-57: sw context id of the lrc the GT switched away from
+ *     bits 58-63: sw counter of the lrc the GT switched away from
  */
-static bool gen12_csb_parse(const u64 csb)
+static inline bool
+__gen12_csb_parse(bool ctx_to_valid, bool ctx_away_valid, bool new_queue,
+		  u8 switch_detail)
 {
-	bool ctx_away_valid = GEN12_CSB_CTX_VALID(upper_32_bits(csb));
-	bool new_queue =
-		lower_32_bits(csb) & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
-
 	/*
 	 * The context switch detail is not guaranteed to be 5 when a preemption
 	 * occurs, so we can't just check for that. The check below works for
@@ -1663,7 +1696,7 @@ static bool gen12_csb_parse(const u64 csb)
 	 * would require some extra handling, but we don't support that.
 	 */
 	if (!ctx_away_valid || new_queue) {
-		GEM_BUG_ON(!GEN12_CSB_CTX_VALID(lower_32_bits(csb)));
+		GEM_BUG_ON(!ctx_to_valid);
 		return true;
 	}
 
@@ -1672,8 +1705,24 @@ static bool gen12_csb_parse(const u64 csb)
 	 * context switch on an unsuccessful wait instruction since we always
 	 * use polling mode.
 	 */
-	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_32_bits(csb)));
+	GEM_BUG_ON(switch_detail);
 	return false;
+}
+
+static bool xehp_csb_parse(const u64 csb)
+{
+	return __gen12_csb_parse(XEHP_CSB_CTX_VALID(lower_32_bits(csb)), /* cxt to */
+				 XEHP_CSB_CTX_VALID(upper_32_bits(csb)), /* cxt away */
+				 upper_32_bits(csb) & XEHP_CTX_STATUS_SWITCHED_TO_NEW_QUEUE,
+				 GEN12_CTX_SWITCH_DETAIL(lower_32_bits(csb)));
+}
+
+static bool gen12_csb_parse(const u64 csb)
+{
+	return __gen12_csb_parse(GEN12_CSB_CTX_VALID(lower_32_bits(csb)), /* cxt to */
+				 GEN12_CSB_CTX_VALID(upper_32_bits(csb)), /* cxt away */
+				 lower_32_bits(csb) & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE,
+				 GEN12_CTX_SWITCH_DETAIL(upper_32_bits(csb)));
 }
 
 static bool gen8_csb_parse(const u64 csb)
@@ -1840,7 +1889,9 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
-		if (GRAPHICS_VER(engine->i915) >= 12)
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+			promote = xehp_csb_parse(csb);
+		else if (GRAPHICS_VER(engine->i915) >= 12)
 			promote = gen12_csb_parse(csb);
 		else
 			promote = gen8_csb_parse(csb);
@@ -3323,7 +3374,8 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 		execlists->csb_size = GEN11_CSB_ENTRIES;
 
 	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
-	if (GRAPHICS_VER(engine->i915) >= 11) {
+	if (GRAPHICS_VER(engine->i915) >= 11 &&
+	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 50)) {
 		execlists->ccid |= engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		execlists->ccid |= engine->class << (GEN11_ENGINE_CLASS_SHIFT - 32);
 	}
