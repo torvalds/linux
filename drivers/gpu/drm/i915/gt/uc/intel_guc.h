@@ -6,6 +6,8 @@
 #ifndef _INTEL_GUC_H_
 #define _INTEL_GUC_H_
 
+#include <linux/xarray.h>
+
 #include "intel_uncore.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_fwif.h"
@@ -45,6 +47,9 @@ struct intel_guc {
 
 	struct i915_vma *lrc_desc_pool;
 	void *lrc_desc_pool_vaddr;
+
+	/* guc_id to intel_context lookup */
+	struct xarray context_lookup;
 
 	/* Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];

@@ -65,8 +65,6 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 	return rb_entry(rb, struct i915_priolist, node);
 }
 
-/* Future patches will use this function */
-__maybe_unused
 static struct guc_lrc_desc *__get_lrc_desc(struct intel_guc *guc, u32 index)
 {
 	struct guc_lrc_desc *base = guc->lrc_desc_pool_vaddr;
@@ -74,6 +72,15 @@ static struct guc_lrc_desc *__get_lrc_desc(struct intel_guc *guc, u32 index)
 	GEM_BUG_ON(index >= GUC_MAX_LRC_DESCRIPTORS);
 
 	return &base[index];
+}
+
+static inline struct intel_context *__get_context(struct intel_guc *guc, u32 id)
+{
+	struct intel_context *ce = xa_load(&guc->context_lookup, id);
+
+	GEM_BUG_ON(id >= GUC_MAX_LRC_DESCRIPTORS);
+
+	return ce;
 }
 
 static int guc_lrc_desc_pool_create(struct intel_guc *guc)
@@ -94,6 +101,25 @@ static int guc_lrc_desc_pool_create(struct intel_guc *guc)
 static void guc_lrc_desc_pool_destroy(struct intel_guc *guc)
 {
 	i915_vma_unpin_and_release(&guc->lrc_desc_pool, I915_VMA_RELEASE_MAP);
+}
+
+static inline void reset_lrc_desc(struct intel_guc *guc, u32 id)
+{
+	struct guc_lrc_desc *desc = __get_lrc_desc(guc, id);
+
+	memset(desc, 0, sizeof(*desc));
+	xa_erase_irq(&guc->context_lookup, id);
+}
+
+static inline bool lrc_desc_registered(struct intel_guc *guc, u32 id)
+{
+	return __get_context(guc, id);
+}
+
+static inline void set_lrc_desc_registered(struct intel_guc *guc, u32 id,
+					   struct intel_context *ce)
+{
+	xa_store_irq(&guc->context_lookup, id, ce, GFP_ATOMIC);
 }
 
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
@@ -399,6 +425,8 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	 * vma after testing that it didn't exist earlier.
 	 */
 	GEM_BUG_ON(!guc->lrc_desc_pool);
+
+	xa_init_flags(&guc->context_lookup, XA_FLAGS_LOCK_IRQ);
 
 	return 0;
 }
