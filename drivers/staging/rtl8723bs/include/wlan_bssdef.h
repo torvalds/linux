@@ -143,10 +143,10 @@ struct ndis_802_11_wep {
 #endif
 
 struct wlan_phy_info {
-	u8 SignalStrength;/* in percentage) */
-	u8 SignalQuality;/* in percentage) */
-	u8 Optimum_antenna;  /* for Antenna diversity */
-	u8 Reserved_0;
+	u8 signal_strength;/* in percentage) */
+	u8 signal_quality;/* in percentage) */
+	u8 optimum_antenna;  /* for Antenna diversity */
+	u8 reserved_0;
 };
 
 struct wlan_bcn_info {

@@ -452,7 +452,7 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 {
 	long rssi_ori = dst->rssi;
 
-	u8 sq_smp = src->phy_info.SignalQuality;
+	u8 sq_smp = src->phy_info.signal_quality;
 
 	u8 ss_final;
 	u8 sq_final;
@@ -470,13 +470,13 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 			rssi_final = rssi_ori;
 	} else {
 		if (sq_smp != 101) { /* from the right channel */
-			ss_final = ((u32)(src->phy_info.SignalStrength)+(u32)(dst->phy_info.SignalStrength)*4)/5;
-			sq_final = ((u32)(src->phy_info.SignalQuality)+(u32)(dst->phy_info.SignalQuality)*4)/5;
+			ss_final = ((u32)(src->phy_info.signal_strength)+(u32)(dst->phy_info.signal_strength)*4)/5;
+			sq_final = ((u32)(src->phy_info.signal_quality)+(u32)(dst->phy_info.signal_quality)*4)/5;
 			rssi_final = (src->rssi+dst->rssi*4)/5;
 		} else {
 			/* bss info not receiving from the right channel, use the original RX signal infos */
-			ss_final = dst->phy_info.SignalStrength;
-			sq_final = dst->phy_info.SignalQuality;
+			ss_final = dst->phy_info.signal_strength;
+			sq_final = dst->phy_info.signal_quality;
 			rssi_final = dst->rssi;
 		}
 
@@ -488,8 +488,8 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		memcpy((u8 *)dst, (u8 *)src, get_wlan_bssid_ex_sz(src));
 	}
 
-	dst->phy_info.SignalStrength = ss_final;
-	dst->phy_info.SignalQuality = sq_final;
+	dst->phy_info.signal_strength = ss_final;
+	dst->phy_info.signal_quality = sq_final;
 	dst->rssi = rssi_final;
 }
 
@@ -568,8 +568,8 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 			pnetwork->join_res = 0;
 
 			/* bss info not receiving from the right channel */
-			if (pnetwork->network.phy_info.SignalQuality == 101)
-				pnetwork->network.phy_info.SignalQuality = 0;
+			if (pnetwork->network.phy_info.signal_quality == 101)
+				pnetwork->network.phy_info.signal_quality = 0;
 		} else {
 			/* Otherwise just pull from the free list */
 
@@ -585,8 +585,8 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 			pnetwork->last_scanned = jiffies;
 
 			/* bss info not receiving from the right channel */
-			if (pnetwork->network.phy_info.SignalQuality == 101)
-				pnetwork->network.phy_info.SignalQuality = 0;
+			if (pnetwork->network.phy_info.signal_quality == 101)
+				pnetwork->network.phy_info.signal_quality = 0;
 
 			list_add_tail(&(pnetwork->list), &(queue->queue));
 
@@ -1120,10 +1120,10 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 
-	padapter->recvpriv.signal_strength = ptarget_wlan->network.phy_info.SignalStrength;
-	padapter->recvpriv.signal_qual = ptarget_wlan->network.phy_info.SignalQuality;
-	/* the ptarget_wlan->network.rssi is raw data, we use ptarget_wlan->network.phy_info.SignalStrength instead (has scaled) */
-	padapter->recvpriv.rssi = translate_percentage_to_dbm(ptarget_wlan->network.phy_info.SignalStrength);
+	padapter->recvpriv.signal_strength = ptarget_wlan->network.phy_info.signal_strength;
+	padapter->recvpriv.signal_qual = ptarget_wlan->network.phy_info.signal_quality;
+	/* the ptarget_wlan->network.rssi is raw data, we use ptarget_wlan->network.phy_info.signal_strength instead (has scaled) */
+	padapter->recvpriv.rssi = translate_percentage_to_dbm(ptarget_wlan->network.phy_info.signal_strength);
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 

@@ -303,8 +303,8 @@ static char *translate_scan(struct adapter *padapter,
 		ss = padapter->recvpriv.signal_strength;
 		sq = padapter->recvpriv.signal_qual;
 	} else {
-		ss = pnetwork->network.phy_info.SignalStrength;
-		sq = pnetwork->network.phy_info.SignalQuality;
+		ss = pnetwork->network.phy_info.signal_strength;
+		sq = pnetwork->network.phy_info.signal_quality;
 	}
 
 
