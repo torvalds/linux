@@ -10431,6 +10431,7 @@ static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 		return libbpf_err_ptr(err);
 	}
 	if (opts.retprobe && offset != 0) {
+		free(func);
 		err = -EINVAL;
 		pr_warn("kretprobes do not support offset specification\n");
 		return libbpf_err_ptr(err);
