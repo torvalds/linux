@@ -17,6 +17,7 @@ void test_get_func_ip_test(void)
 	 */
 #ifndef __x86_64__
 	bpf_program__set_autoload(skel->progs.test6, false);
+	bpf_program__set_autoload(skel->progs.test7, false);
 #endif
 
 	err = get_func_ip_test__load(skel);
@@ -46,6 +47,7 @@ void test_get_func_ip_test(void)
 	ASSERT_EQ(skel->bss->test5_result, 1, "test5_result");
 #ifdef __x86_64__
 	ASSERT_EQ(skel->bss->test6_result, 1, "test6_result");
+	ASSERT_EQ(skel->bss->test7_result, 1, "test7_result");
 #endif
 
 cleanup:

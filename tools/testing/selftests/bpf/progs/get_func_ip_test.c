@@ -11,6 +11,7 @@ extern const void bpf_fentry_test3 __ksym;
 extern const void bpf_fentry_test4 __ksym;
 extern const void bpf_modify_return_test __ksym;
 extern const void bpf_fentry_test6 __ksym;
+extern const void bpf_fentry_test7 __ksym;
 
 __u64 test1_result = 0;
 SEC("fentry/bpf_fentry_test1")
@@ -69,5 +70,15 @@ int test6(struct pt_regs *ctx)
 	__u64 addr = bpf_get_func_ip(ctx);
 
 	test6_result = (const void *) addr == &bpf_fentry_test6 + 5;
+	return 0;
+}
+
+__u64 test7_result = 0;
+SEC("kprobe/bpf_fentry_test7+5")
+int test7(struct pt_regs *ctx)
+{
+	__u64 addr = bpf_get_func_ip(ctx);
+
+	test7_result = (const void *) addr == &bpf_fentry_test7 + 5;
 	return 0;
 }

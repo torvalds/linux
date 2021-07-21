@@ -10424,7 +10424,7 @@ static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 	func_name = prog->sec_name + sec->len;
 	opts.retprobe = strcmp(sec->sec, "kretprobe/") == 0;
 
-	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%lx", &func, &offset);
+	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%li", &func, &offset);
 	if (n < 1) {
 		err = -EINVAL;
 		pr_warn("kprobe name is invalid: %s\n", func_name);
