@@ -2061,7 +2061,7 @@ s32 rtl8723b_InitLLTTable(struct adapter *padapter)
 	return ret;
 }
 
-static void Hal_GetChnlGroup8723B(u8 channel, u8 *group)
+static void hal_get_chnl_group_8723b(u8 channel, u8 *group)
 {
 	if (1  <= channel && channel <= 2)
 		*group = 0;
@@ -2235,7 +2235,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 		for (ch = 0 ; ch < CHANNEL_MAX_NUMBER; ch++) {
 			u8 group = 0;
 
-			Hal_GetChnlGroup8723B(ch+1, &group);
+			hal_get_chnl_group_8723b(ch+1, &group);
 
 			if (ch == 14-1) {
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][5];
