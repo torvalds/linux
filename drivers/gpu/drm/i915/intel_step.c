@@ -210,3 +210,17 @@ void intel_step_init(struct drm_i915_private *i915)
 
 	RUNTIME_INFO(i915)->step = step;
 }
+
+#define STEP_NAME_CASE(name)	\
+	case STEP_##name:	\
+		return #name;
+
+const char *intel_step_name(enum intel_step step)
+{
+	switch (step) {
+	STEP_NAME_LIST(STEP_NAME_CASE);
+
+	default:
+		return "**";
+	}
+}
