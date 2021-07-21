@@ -183,7 +183,6 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 static int __init setup_hwcaps(void)
 {
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
-	struct cpuid cpu_id;
 	int i;
 
 	/*
@@ -278,6 +277,20 @@ static int __init setup_hwcaps(void)
 	if (MACHINE_HAS_PCI_MIO)
 		elf_hwcap |= HWCAP_PCI_MIO;
 
+	/*
+	 * Virtualization support HWCAP_INT_SIE is bit 0.
+	 */
+	if (sclp.has_sief2)
+		int_hwcap |= HWCAP_INT_SIE;
+
+	return 0;
+}
+arch_initcall(setup_hwcaps);
+
+static int __init setup_elf_platform(void)
+{
+	struct cpuid cpu_id;
+
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
@@ -319,16 +332,9 @@ static int __init setup_hwcaps(void)
 		strcpy(elf_platform, "z15");
 		break;
 	}
-
-	/*
-	 * Virtualization support HWCAP_INT_SIE is bit 0.
-	 */
-	if (sclp.has_sief2)
-		int_hwcap |= HWCAP_INT_SIE;
-
 	return 0;
 }
-arch_initcall(setup_hwcaps);
+arch_initcall(setup_elf_platform);
 
 static void show_cpu_topology(struct seq_file *m, unsigned long n)
 {
