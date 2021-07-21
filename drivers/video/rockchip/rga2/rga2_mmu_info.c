@@ -424,12 +424,21 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	spinlock_t * ptl;
 	pte_t * pte;
 	pgd_t * pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	p4d_t * p4d;
+#endif
 	pud_t * pud;
 	pmd_t * pmd;
 
 	status = 0;
 	Address = 0;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_lock(current->mm);
+#else
 	down_read(&current->mm->mmap_sem);
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
 				pageCount, writeFlag ? FOLL_WRITE : 0,
@@ -437,11 +446,15 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
 				pageCount, writeFlag, 0, pages, NULL);
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	result = get_user_pages_remote(current, current->mm,
 				       Memory << PAGE_SHIFT,
 				       pageCount, writeFlag, pages, NULL, NULL);
+#else
+	result = get_user_pages_remote(current->mm, Memory << PAGE_SHIFT,
+				       pageCount, writeFlag, pages, NULL, NULL);
 #endif
+
 	if (result > 0 && result >= pageCount) {
 		/* Fill the page table. */
 		for (i = 0; i < pageCount; i++) {
@@ -451,7 +464,11 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 
 		for (i = 0; i < result; i++)
 			put_page(pages[i]);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		mmap_read_unlock(current->mm);
+#else
 		up_read(&current->mm->mmap_sem);
+#endif
 		return 0;
 	}
 	if (result > 0) {
@@ -473,7 +490,20 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			status = RGA2_OUT_OF_RESOURCES;
 			break;
 		}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		/* In the four-level page table, it will do nothing and return pgd. */
+		p4d = p4d_offset(pgd, (Memory + i) << PAGE_SHIFT);
+		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d))) {
+			pr_err("RGA2 failed to get p4d, result = %d, pageCount = %d\n",
+			       result, pageCount);
+			status = RGA2_OUT_OF_RESOURCES;
+			break;
+		}
+
+		pud = pud_offset(p4d, (Memory + i) << PAGE_SHIFT);
+#else
 		pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
+#endif
 		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
 			pr_err("RGA2 failed to get pud, result = %d, pageCount = %d\n",
 			       result, pageCount);
@@ -505,7 +535,11 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 
 		pte_unmap_unlock(pte, ptl);
 	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_unlock(current->mm);
+#else
 	up_read(&current->mm->mmap_sem);
+#endif
 	return status;
 }
 
