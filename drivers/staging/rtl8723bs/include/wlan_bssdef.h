@@ -107,12 +107,6 @@ enum {
 #define NDIS_802_11_AI_RESFI_STATUSCODE        2
 #define NDIS_802_11_AI_RESFI_ASSOCIATIONID     4
 
-struct ndis_802_11_ai_reqfi {
-	u16 Capabilities;
-	u16 ListenInterval;
-	NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
-};
-
 struct ndis_801_11_ai_resfi {
 	u16 Capabilities;
 	u16 StatusCode;
