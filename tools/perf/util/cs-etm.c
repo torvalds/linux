@@ -809,29 +809,32 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 			       struct auxtrace_queue *queue,
 			       unsigned int queue_nr)
 {
-	int ret = 0;
-	unsigned int cs_queue_nr;
-	u8 trace_chan_id;
-	u64 cs_timestamp;
 	struct cs_etm_queue *etmq = queue->priv;
 
 	if (list_empty(&queue->head) || etmq)
-		goto out;
+		return 0;
 
 	etmq = cs_etm__alloc_queue(etm);
 
-	if (!etmq) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!etmq)
+		return -ENOMEM;
 
 	queue->priv = etmq;
 	etmq->etm = etm;
 	etmq->queue_nr = queue_nr;
 	etmq->offset = 0;
 
-	if (etm->timeless_decoding)
-		goto out;
+	return 0;
+}
+
+static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
+					    struct cs_etm_queue *etmq,
+					    unsigned int queue_nr)
+{
+	int ret = 0;
+	unsigned int cs_queue_nr;
+	u8 trace_chan_id;
+	u64 cs_timestamp;
 
 	/*
 	 * We are under a CPU-wide trace scenario.  As such we need to know
@@ -2218,12 +2221,26 @@ static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
 {
 	int ret = 0;
-	unsigned int cs_queue_nr, queue_nr;
+	unsigned int cs_queue_nr, queue_nr, i;
 	u8 trace_chan_id;
 	u64 cs_timestamp;
 	struct auxtrace_queue *queue;
 	struct cs_etm_queue *etmq;
 	struct cs_etm_traceid_queue *tidq;
+
+	/*
+	 * Pre-populate the heap with one entry from each queue so that we can
+	 * start processing in time order across all queues.
+	 */
+	for (i = 0; i < etm->queues.nr_queues; i++) {
+		etmq = etm->queues.queue_array[i].priv;
+		if (!etmq)
+			continue;
+
+		ret = cs_etm__queue_first_cs_timestamp(etm, etmq, i);
+		if (ret)
+			return ret;
+	}
 
 	while (1) {
 		if (!etm->heap.heap_cnt)
