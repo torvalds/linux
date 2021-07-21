@@ -1019,14 +1019,47 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
+static struct net_bridge_mcast *
+__br_mdb_choose_context(struct net_bridge *br,
+			const struct br_mdb_entry *entry,
+			struct netlink_ext_ack *extack)
+{
+	struct net_bridge_mcast *brmctx = NULL;
+	struct net_bridge_vlan *v;
+
+	if (!br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+		brmctx = &br->multicast_ctx;
+		goto out;
+	}
+
+	if (!entry->vid) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot add an entry without a vlan when vlan snooping is enabled");
+		goto out;
+	}
+
+	v = br_vlan_find(br_vlan_group(br), entry->vid);
+	if (!v) {
+		NL_SET_ERR_MSG_MOD(extack, "Vlan is not configured");
+		goto out;
+	}
+	if (br_multicast_ctx_vlan_global_disabled(&v->br_mcast_ctx)) {
+		NL_SET_ERR_MSG_MOD(extack, "Vlan's multicast processing is disabled");
+		goto out;
+	}
+	brmctx = &v->br_mcast_ctx;
+out:
+	return brmctx;
+}
+
 static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 			    struct br_mdb_entry *entry,
 			    struct nlattr **mdb_attrs,
 			    struct netlink_ext_ack *extack)
 {
 	struct net_bridge_mdb_entry *mp, *star_mp;
-	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
+	struct net_bridge_port_group *p;
+	struct net_bridge_mcast *brmctx;
 	struct br_ip group, star_group;
 	unsigned long now = jiffies;
 	unsigned char flags = 0;
@@ -1034,6 +1067,10 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	int err;
 
 	__mdb_entry_to_br_ip(entry, &group, mdb_attrs);
+
+	brmctx = __br_mdb_choose_context(br, entry, extack);
+	if (!brmctx)
+		return -EINVAL;
 
 	/* host join errors which can happen before creating the group */
 	if (!port) {
@@ -1100,14 +1137,14 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	rcu_assign_pointer(*pp, p);
 	if (entry->state == MDB_TEMPORARY)
 		mod_timer(&p->timer,
-			  now + br->multicast_ctx.multicast_membership_interval);
+			  now + brmctx->multicast_membership_interval);
 	br_mdb_notify(br->dev, mp, p, RTM_NEWMDB);
 	/* if we are adding a new EXCLUDE port group (*,G) it needs to be also
 	 * added to all S,G entries for proper replication, if we are adding
 	 * a new INCLUDE port (S,G) then all of *,G EXCLUDE ports need to be
 	 * added to it for proper replication
 	 */
-	if (br_multicast_should_handle_mode(&br->multicast_ctx, group.proto)) {
+	if (br_multicast_should_handle_mode(brmctx, group.proto)) {
 		switch (filter_mode) {
 		case MCAST_EXCLUDE:
 			br_multicast_star_g_handle_mode(p, MCAST_EXCLUDE);
