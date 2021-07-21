@@ -341,12 +341,10 @@ fill:
 
 	iter->uptodate = BTREE_ITER_NEED_PEEK;
 
-	if (!(iter->flags & BTREE_ITER_INTENT))
-		bch2_btree_iter_downgrade(iter);
-	else if (!iter->locks_want) {
-		if (!__bch2_btree_iter_upgrade(iter, 1))
-			ret = -EINTR;
-	}
+	if ((iter->flags & BTREE_ITER_INTENT) &&
+	    !iter->locks_want &&
+	    __bch2_btree_iter_upgrade(iter, 1))
+		ret = -EINTR;
 
 	return ret;
 err:
