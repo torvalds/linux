@@ -5659,11 +5659,9 @@ static bool try_steal_cookie(int this, int that)
 		if (p->core_occupation > dst->idle->core_occupation)
 			goto next;
 
-		p->on_rq = TASK_ON_RQ_MIGRATING;
 		deactivate_task(src, p, 0);
 		set_task_cpu(p, this);
 		activate_task(dst, p, 0);
-		p->on_rq = TASK_ON_RQ_QUEUED;
 
 		resched_curr(dst);
 
