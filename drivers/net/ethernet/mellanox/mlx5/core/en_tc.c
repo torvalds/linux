@@ -39,7 +39,6 @@
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
 #include <linux/completion.h>
-#include <linux/if_macvlan.h>
 #include <net/psample.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
@@ -1302,8 +1301,6 @@ static void remove_unready_flow(struct mlx5e_tc_flow *flow)
 	mutex_unlock(&uplink_priv->unready_flows_lock);
 }
 
-static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv);
-
 bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_dev)
 {
 	struct mlx5_core_dev *out_mdev, *route_mdev;
@@ -1318,7 +1315,7 @@ bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_
 	    route_mdev->coredev_type != MLX5_COREDEV_VF)
 		return false;
 
-	return same_hw_devs(out_priv, route_priv);
+	return mlx5e_same_hw_devs(out_priv, route_priv);
 }
 
 int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev, u16 *vport)
@@ -3104,7 +3101,7 @@ static bool same_port_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv
 	return priv->mdev == peer_priv->mdev;
 }
 
-static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
+bool mlx5e_same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *fmdev, *pmdev;
 	u64 fsystem_guid, psystem_guid;
@@ -3116,13 +3113,6 @@ static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 	psystem_guid = mlx5_query_nic_system_image_guid(pmdev);
 
 	return (fsystem_guid == psystem_guid);
-}
-
-static bool same_vf_reps(struct mlx5e_priv *priv,
-			 struct net_device *out_dev)
-{
-	return mlx5e_eswitch_vf_rep(priv->netdev) &&
-	       priv->netdev == out_dev;
 }
 
 static int
@@ -3234,24 +3224,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
-		case FLOW_ACTION_REDIRECT: {
-			struct net_device *peer_dev = act->dev;
-
-			if (priv->netdev->netdev_ops == peer_dev->netdev_ops &&
-			    same_hw_devs(priv, netdev_priv(peer_dev))) {
-				parse_attr->mirred_ifindex[0] = peer_dev->ifindex;
-				flow_flag_set(flow, HAIRPIN);
-				attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-						MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			} else {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "device is not on same HW, can't offload");
-				netdev_warn(priv->netdev, "device %s not on same HW, can't offload\n",
-					    peer_dev->name);
-				return -EOPNOTSUPP;
-			}
-			}
-			break;
 		case FLOW_ACTION_CT:
 			err = mlx5_tc_ct_parse_action(get_ct_priv(priv), attr,
 						      &parse_attr->mod_hdr_acts,
@@ -3304,29 +3276,7 @@ static bool is_merged_eswitch_vfs(struct mlx5e_priv *priv,
 	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
 		mlx5e_eswitch_vf_rep(priv->netdev) &&
 		mlx5e_eswitch_vf_rep(peer_netdev) &&
-		same_hw_devs(priv, peer_priv));
-}
-
-static struct net_device *get_fdb_out_dev(struct net_device *uplink_dev,
-					  struct net_device *out_dev)
-{
-	struct net_device *fdb_out_dev = out_dev;
-	struct net_device *uplink_upper;
-
-	rcu_read_lock();
-	uplink_upper = netdev_master_upper_dev_get_rcu(uplink_dev);
-	if (uplink_upper && netif_is_lag_master(uplink_upper) &&
-	    uplink_upper == out_dev) {
-		fdb_out_dev = uplink_dev;
-	} else if (netif_is_lag_master(out_dev)) {
-		fdb_out_dev = bond_option_active_slave_get_rcu(netdev_priv(out_dev));
-		if (fdb_out_dev &&
-		    (!mlx5e_eswitch_rep(fdb_out_dev) ||
-		     !netdev_port_same_parent_id(fdb_out_dev, uplink_dev)))
-			fdb_out_dev = NULL;
-	}
-	rcu_read_unlock();
-	return fdb_out_dev;
+		mlx5e_same_hw_devs(priv, peer_priv));
 }
 
 static bool same_hw_reps(struct mlx5e_priv *priv,
@@ -3338,7 +3288,7 @@ static bool same_hw_reps(struct mlx5e_priv *priv,
 
 	return mlx5e_eswitch_rep(priv->netdev) &&
 	       mlx5e_eswitch_rep(peer_netdev) &&
-	       same_hw_devs(priv, peer_priv);
+	       mlx5e_same_hw_devs(priv, peer_priv);
 }
 
 static bool is_lag_dev(struct mlx5e_priv *priv,
@@ -3360,66 +3310,6 @@ bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 
 	return mlx5e_eswitch_rep(out_dev) &&
 	       same_port_devs(priv, netdev_priv(out_dev));
-}
-
-static bool is_duplicated_output_device(struct net_device *dev,
-					struct net_device *out_dev,
-					int *ifindexes, int if_count,
-					struct netlink_ext_ack *extack)
-{
-	int i;
-
-	for (i = 0; i < if_count; i++) {
-		if (ifindexes[i] == out_dev->ifindex) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "can't duplicate output to same device");
-			netdev_err(dev, "can't duplicate output to same device: %s\n",
-				   out_dev->name);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static int verify_uplink_forwarding(struct mlx5e_priv *priv,
-				    struct mlx5e_tc_flow *flow,
-				    struct net_device *out_dev,
-				    struct netlink_ext_ack *extack)
-{
-	struct mlx5_esw_flow_attr *attr = flow->attr->esw_attr;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5e_rep_priv *rep_priv;
-
-	/* Forwarding non encapsulated traffic between
-	 * uplink ports is allowed only if
-	 * termination_table_raw_traffic cap is set.
-	 *
-	 * Input vport was stored attr->in_rep.
-	 * In LAG case, *priv* is the private data of
-	 * uplink which may be not the input vport.
-	 */
-	rep_priv = mlx5e_rep_to_rep_priv(attr->in_rep);
-
-	if (!(mlx5e_eswitch_uplink_rep(rep_priv->netdev) &&
-	      mlx5e_eswitch_uplink_rep(out_dev)))
-		return 0;
-
-	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev,
-					termination_table_raw_traffic)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "devices are both uplink, can't offload forwarding");
-			pr_err("devices %s %s are both uplink, can't offload forwarding\n",
-			       priv->netdev->name, out_dev->name);
-			return -EOPNOTSUPP;
-	} else if (out_dev != rep_priv->netdev) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "devices are not the same uplink, can't offload forwarding");
-		pr_err("devices %s %s are both uplink but not the same, can't offload forwarding\n",
-		       priv->netdev->name, out_dev->name);
-		return -EOPNOTSUPP;
-	}
-	return 0;
 }
 
 int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
@@ -3469,18 +3359,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5e_sample_attr sample_attr = {};
 	struct mlx5_flow_attr *attr = flow->attr;
-	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
-	bool ft_flow = mlx5e_is_ft_flow(flow);
 	enum mlx5_flow_namespace_type ns_type;
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct pedit_headers_action *hdrs;
 	struct mlx5e_tc_act *tc_act;
-	int err, i, if_count = 0;
 	bool ptype_host = false;
+	int err, i;
 
 	err = flow_action_supported(flow_action, extack);
 	if (err)
@@ -3548,144 +3435,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			break;
 		}
-		case FLOW_ACTION_REDIRECT:
-		case FLOW_ACTION_MIRRED: {
-			struct mlx5e_priv *out_priv;
-			struct net_device *out_dev;
-
-			out_dev = act->dev;
-			if (!out_dev) {
-				/* out_dev is NULL when filters with
-				 * non-existing mirred device are replayed to
-				 * the driver.
-				 */
-				return -EINVAL;
-			}
-
-			if (parse_state->mpls_push && !netif_is_bareudp(out_dev)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "mpls is supported only through a bareudp device");
-				return -EOPNOTSUPP;
-			}
-
-			if (ft_flow && out_dev == priv->netdev) {
-				/* Ignore forward to self rules generated
-				 * by adding both mlx5 devs to the flow table
-				 * block on a normal nft offload setup.
-				 */
-				return -EOPNOTSUPP;
-			}
-
-			if (esw_attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "can't support more output ports, can't offload forwarding");
-				netdev_warn(priv->netdev,
-					    "can't support more than %d output ports, can't offload forwarding\n",
-					    esw_attr->out_count);
-				return -EOPNOTSUPP;
-			}
-
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			if (parse_state->encap) {
-				parse_attr->mirred_ifindex[esw_attr->out_count] =
-					out_dev->ifindex;
-				parse_attr->tun_info[esw_attr->out_count] =
-					mlx5e_dup_tun_info(parse_state->tun_info);
-				if (!parse_attr->tun_info[esw_attr->out_count])
-					return -ENOMEM;
-				parse_state->encap = false;
-				esw_attr->dests[esw_attr->out_count].flags |=
-					MLX5_ESW_DEST_ENCAP;
-				esw_attr->out_count++;
-				/* attr->dests[].rep is resolved when we
-				 * handle encap
-				 */
-			} else if (netdev_port_same_parent_id(priv->netdev, out_dev)) {
-				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-
-				if (is_duplicated_output_device(priv->netdev,
-								out_dev,
-								ifindexes,
-								if_count,
-								extack))
-					return -EOPNOTSUPP;
-
-				ifindexes[if_count] = out_dev->ifindex;
-				if_count++;
-
-				out_dev = get_fdb_out_dev(uplink_dev, out_dev);
-				if (!out_dev)
-					return -ENODEV;
-
-				if (is_vlan_dev(out_dev)) {
-					err = mlx5e_tc_act_vlan_add_push_action(priv, attr,
-										&out_dev,
-										extack);
-					if (err)
-						return err;
-				}
-
-				if (is_vlan_dev(parse_attr->filter_dev)) {
-					err = mlx5e_tc_act_vlan_add_pop_action(priv, attr,
-									       extack);
-					if (err)
-						return err;
-				}
-
-				if (netif_is_macvlan(out_dev))
-					out_dev = macvlan_dev_real_dev(out_dev);
-
-				err = verify_uplink_forwarding(priv, flow, out_dev, extack);
-				if (err)
-					return err;
-
-				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
-					NL_SET_ERR_MSG_MOD(extack,
-							   "devices are not on same switch HW, can't offload forwarding");
-					return -EOPNOTSUPP;
-				}
-
-				if (same_vf_reps(priv, out_dev)) {
-					NL_SET_ERR_MSG_MOD(extack,
-							   "can't forward from a VF to itself");
-					return -EOPNOTSUPP;
-				}
-
-				out_priv = netdev_priv(out_dev);
-				rpriv = out_priv->ppriv;
-				esw_attr->dests[esw_attr->out_count].rep = rpriv->rep;
-				esw_attr->dests[esw_attr->out_count].mdev = out_priv->mdev;
-				esw_attr->out_count++;
-			} else if (netif_is_ovs_master(out_dev)) {
-				err = mlx5e_set_fwd_to_int_port_actions(priv, attr,
-									out_dev->ifindex,
-									MLX5E_TC_INT_PORT_EGRESS,
-									&attr->action,
-									esw_attr->out_count);
-				if (err)
-					return err;
-
-				esw_attr->out_count++;
-			} else if (parse_attr->filter_dev != priv->netdev) {
-				/* All mlx5 devices are called to configure
-				 * high level device filters. Therefore, the
-				 * *attempt* to  install a filter on invalid
-				 * eswitch should not trigger an explicit error
-				 */
-				return -EINVAL;
-			} else {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "devices are not on same switch HW, can't offload forwarding");
-				netdev_warn(priv->netdev,
-					    "devices %s %s not on same switch HW, can't offload forwarding\n",
-					    priv->netdev->name,
-					    out_dev->name);
-				return -EOPNOTSUPP;
-			}
-			}
-			break;
 		case FLOW_ACTION_CT:
 			if (flow_flag_test(flow, SAMPLE)) {
 				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
@@ -4478,7 +4227,7 @@ static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
 	u16 peer_vhca_id;
 	int bkt;
 
-	if (!same_hw_devs(priv, peer_priv))
+	if (!mlx5e_same_hw_devs(priv, peer_priv))
 		return;
 
 	peer_vhca_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
