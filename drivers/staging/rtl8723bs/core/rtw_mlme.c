@@ -377,8 +377,8 @@ int rtw_is_same_ibss(struct adapter *adapter, struct wlan_network *pnetwork)
 
 inline int is_same_ess(struct wlan_bssid_ex *a, struct wlan_bssid_ex *b)
 {
-	return (a->ssid.SsidLength == b->ssid.SsidLength)
-		&&  !memcmp(a->ssid.Ssid, b->ssid.Ssid, a->ssid.SsidLength);
+	return (a->ssid.ssid_length == b->ssid.ssid_length)
+		&&  !memcmp(a->ssid.ssid, b->ssid.ssid, a->ssid.ssid_length);
 }
 
 int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 feature)
@@ -395,10 +395,10 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 fea
 	s_cap = le16_to_cpu(tmps);
 	d_cap = le16_to_cpu(tmpd);
 
-	return (src->ssid.SsidLength == dst->ssid.SsidLength) &&
+	return (src->ssid.ssid_length == dst->ssid.ssid_length) &&
 		/* 	(src->configuration.ds_config == dst->configuration.ds_config) && */
 			((!memcmp(src->mac_address, dst->mac_address, ETH_ALEN))) &&
-			((!memcmp(src->ssid.Ssid, dst->ssid.Ssid, src->ssid.SsidLength))) &&
+			((!memcmp(src->ssid.ssid, dst->ssid.ssid, src->ssid.ssid_length))) &&
 			((s_cap & WLAN_CAPABILITY_IBSS) ==
 			(d_cap & WLAN_CAPABILITY_IBSS)) &&
 			((s_cap & WLAN_CAPABILITY_ESS) ==
@@ -728,8 +728,8 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 	/*  lock pmlmepriv->lock when you accessing network_q */
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) == false) {
-		if (pnetwork->ssid.Ssid[0] == 0)
-			pnetwork->ssid.SsidLength = 0;
+		if (pnetwork->ssid.ssid[0] == 0)
+			pnetwork->ssid.ssid_length = 0;
 		rtw_add_network(adapter, pnetwork);
 	}
 
@@ -1804,9 +1804,9 @@ static int rtw_check_join_candidate(struct mlme_priv *mlme
 	}
 
 	/* check ssid, if needed */
-	if (mlme->assoc_ssid.Ssid[0] && mlme->assoc_ssid.SsidLength) {
-		if (competitor->network.ssid.SsidLength != mlme->assoc_ssid.SsidLength
-			|| memcmp(competitor->network.ssid.Ssid, mlme->assoc_ssid.Ssid, mlme->assoc_ssid.SsidLength)
+	if (mlme->assoc_ssid.ssid[0] && mlme->assoc_ssid.ssid_length) {
+		if (competitor->network.ssid.ssid_length != mlme->assoc_ssid.ssid_length
+			|| memcmp(competitor->network.ssid.ssid, mlme->assoc_ssid.ssid, mlme->assoc_ssid.ssid_length)
 		)
 			goto exit;
 	}

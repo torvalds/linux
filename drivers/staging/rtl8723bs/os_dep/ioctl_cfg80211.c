@@ -266,8 +266,8 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 			if (request->n_ssids == 1 && request->n_channels == 1) /*  it means under processing WPS */
 			{
 				if (ssids[0].ssid_len != 0 &&
-				    (pssid->SsidLength != ssids[0].ssid_len ||
-				     memcmp(pssid->Ssid, ssids[0].ssid, ssids[0].ssid_len)))
+				    (pssid->ssid_length != ssids[0].ssid_len ||
+				     memcmp(pssid->ssid, ssids[0].ssid, ssids[0].ssid_len)))
 				{
 					if (psr)
 						*psr = 0; /* clear sr */
@@ -359,8 +359,8 @@ int rtw_cfg80211_check_bss(struct adapter *padapter)
 
 	notify_channel = ieee80211_get_channel(padapter->rtw_wdev->wiphy, freq);
 	bss = cfg80211_get_bss(padapter->rtw_wdev->wiphy, notify_channel,
-			pnetwork->mac_address, pnetwork->ssid.Ssid,
-			pnetwork->ssid.SsidLength,
+			pnetwork->mac_address, pnetwork->ssid.ssid,
+			pnetwork->ssid.ssid_length,
 			WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 
 	cfg80211_put_bss(padapter->rtw_wdev->wiphy, bss);
@@ -1241,8 +1241,8 @@ void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnet
 	struct wlan_bssid_ex *select_network = &pnetwork->network;
 
 	bss = cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
-		select_network->mac_address, select_network->ssid.Ssid,
-		select_network->ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
+		select_network->mac_address, select_network->ssid.ssid,
+		select_network->ssid.ssid_length, 0/*WLAN_CAPABILITY_ESS*/,
 		0/*WLAN_CAPABILITY_ESS*/);
 
 	if (bss) {
@@ -1398,8 +1398,8 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 
 	/* parsing request ssids, n_ssids */
 	for (i = 0; i < request->n_ssids && i < RTW_SSID_SCAN_AMOUNT; i++) {
-		memcpy(ssid[i].Ssid, ssids[i].ssid, ssids[i].ssid_len);
-		ssid[i].SsidLength = ssids[i].ssid_len;
+		memcpy(ssid[i].ssid, ssids[i].ssid, ssids[i].ssid_len);
+		ssid[i].ssid_length = ssids[i].ssid_len;
 	}
 
 	/* parsing channels, n_channels */
@@ -1730,8 +1730,8 @@ static int cfg80211_rtw_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	memset(&ndis_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	ndis_ssid.SsidLength = params->ssid_len;
-	memcpy(ndis_ssid.Ssid, (u8 *)params->ssid, params->ssid_len);
+	ndis_ssid.ssid_length = params->ssid_len;
+	memcpy(ndis_ssid.ssid, (u8 *)params->ssid, params->ssid_len);
 
 	psecuritypriv->ndisencryptstatus = Ndis802_11EncryptionDisabled;
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
@@ -1822,8 +1822,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	memset(&ndis_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	ndis_ssid.SsidLength = sme->ssid_len;
-	memcpy(ndis_ssid.Ssid, (u8 *)sme->ssid, sme->ssid_len);
+	ndis_ssid.ssid_length = sme->ssid_len;
+	memcpy(ndis_ssid.ssid, (u8 *)sme->ssid, sme->ssid_len);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
 		ret = -EBUSY;
@@ -2466,10 +2466,10 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		struct wlan_bssid_ex *pbss_network = &adapter->mlmepriv.cur_network.network;
 		struct wlan_bssid_ex *pbss_network_ext = &adapter->mlmeextpriv.mlmext_info.network;
 
-		memcpy(pbss_network->ssid.Ssid, (void *)settings->ssid, settings->ssid_len);
-		pbss_network->ssid.SsidLength = settings->ssid_len;
-		memcpy(pbss_network_ext->ssid.Ssid, (void *)settings->ssid, settings->ssid_len);
-		pbss_network_ext->ssid.SsidLength = settings->ssid_len;
+		memcpy(pbss_network->ssid.ssid, (void *)settings->ssid, settings->ssid_len);
+		pbss_network->ssid.ssid_length = settings->ssid_len;
+		memcpy(pbss_network_ext->ssid.ssid, (void *)settings->ssid, settings->ssid_len);
+		pbss_network_ext->ssid.ssid_length = settings->ssid_len;
 	}
 
 	return ret;

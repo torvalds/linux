@@ -1283,13 +1283,13 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		if (ssid_len > NDIS_802_11_LENGTH_SSID)
 			ssid_len = 0;
 	}
-	memcpy(bssid->ssid.Ssid, (p + 2), ssid_len);
-	bssid->ssid.SsidLength = ssid_len;
+	memcpy(bssid->ssid.ssid, (p + 2), ssid_len);
+	bssid->ssid.ssid_length = ssid_len;
 
-	if (memcmp(bssid->ssid.Ssid, cur_network->network.ssid.Ssid, 32) ||
-			bssid->ssid.SsidLength != cur_network->network.ssid.SsidLength)
-		if (bssid->ssid.Ssid[0] != '\0' &&
-		    bssid->ssid.SsidLength != 0) /* not hidden ssid */
+	if (memcmp(bssid->ssid.ssid, cur_network->network.ssid.ssid, 32) ||
+			bssid->ssid.ssid_length != cur_network->network.ssid.ssid_length)
+		if (bssid->ssid.ssid[0] != '\0' &&
+		    bssid->ssid.ssid_length != 0) /* not hidden ssid */
 			goto _mismatch;
 
 	/* check encryption info */

@@ -98,8 +98,8 @@ static char *translate_scan(struct adapter *padapter,
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	iwe.u.data.length = min((u16)pnetwork->network.ssid.SsidLength, (u16)32);
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.Ssid);
+	iwe.u.data.length = min((u16)pnetwork->network.ssid.ssid_length, (u16)32);
+	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.ssid);
 
 	/* parsing HT_CAP_IE */
 	if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
@@ -176,7 +176,7 @@ static char *translate_scan(struct adapter *padapter,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.Ssid);
+	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.ssid);
 
 	/*Add basic and extended rates */
 	max_rate = 0;
@@ -1177,8 +1177,8 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			int len = min((int)req->essid_len, IW_ESSID_MAX_SIZE);
 
-			memcpy(ssid[0].Ssid, req->essid, len);
-			ssid[0].SsidLength = len;
+			memcpy(ssid[0].ssid, req->essid, len);
+			ssid[0].ssid_length = len;
 
 			spin_lock_bh(&pmlmepriv->lock);
 
@@ -1209,8 +1209,8 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 				sec_len = *(pos++); len -= 1;
 
 				if (sec_len > 0 && sec_len <= len) {
-					ssid[ssid_index].SsidLength = sec_len;
-					memcpy(ssid[ssid_index].Ssid, pos, ssid[ssid_index].SsidLength);
+					ssid[ssid_index].ssid_length = sec_len;
+					memcpy(ssid[ssid_index].ssid, pos, ssid[ssid_index].ssid_length);
 					ssid_index++;
 				}
 
@@ -1355,9 +1355,9 @@ static int rtw_wx_set_essid(struct net_device *dev,
 		len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
 
 		memset(&ndis_ssid, 0, sizeof(struct ndis_802_11_ssid));
-		ndis_ssid.SsidLength = len;
-		memcpy(ndis_ssid.Ssid, extra, len);
-		src_ssid = ndis_ssid.Ssid;
+		ndis_ssid.ssid_length = len;
+		memcpy(ndis_ssid.ssid, extra, len);
+		src_ssid = ndis_ssid.ssid;
 
 		spin_lock_bh(&queue->lock);
 		phead = get_list_head(queue);
@@ -1365,10 +1365,10 @@ static int rtw_wx_set_essid(struct net_device *dev,
 			pnetwork = list_entry(pmlmepriv->pscanned,
 					      struct wlan_network, list);
 
-			dst_ssid = pnetwork->network.ssid.Ssid;
+			dst_ssid = pnetwork->network.ssid.ssid;
 
-			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength)) &&
-				(pnetwork->network.ssid.SsidLength == ndis_ssid.SsidLength)) {
+			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.ssid_length)) &&
+				(pnetwork->network.ssid.ssid_length == ndis_ssid.ssid_length)) {
 				if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) {
 					if (pnetwork->network.infrastructure_mode != pmlmepriv->cur_network.network.infrastructure_mode)
 						continue;
@@ -1410,11 +1410,11 @@ static int rtw_wx_get_essid(struct net_device *dev,
 
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) ||
 	      (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
-		len = pcur_bss->ssid.SsidLength;
+		len = pcur_bss->ssid.ssid_length;
 
 		wrqu->essid.length = len;
 
-		memcpy(extra, pcur_bss->ssid.Ssid, len);
+		memcpy(extra, pcur_bss->ssid.ssid, len);
 
 		wrqu->essid.flags = 1;
 	} else {
@@ -3530,10 +3530,10 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 		memcpy(ssid, ssid_ie+2, ssid_len);
 		ssid[ssid_len] = 0x0;
 
-		memcpy(pbss_network->ssid.Ssid, (void *)ssid, ssid_len);
-		pbss_network->ssid.SsidLength = ssid_len;
-		memcpy(pbss_network_ext->ssid.Ssid, (void *)ssid, ssid_len);
-		pbss_network_ext->ssid.SsidLength = ssid_len;
+		memcpy(pbss_network->ssid.ssid, (void *)ssid, ssid_len);
+		pbss_network->ssid.ssid_length = ssid_len;
+		memcpy(pbss_network_ext->ssid.ssid, (void *)ssid, ssid_len);
+		pbss_network_ext->ssid.ssid_length = ssid_len;
 	}
 
 	return ret;

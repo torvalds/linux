@@ -27,7 +27,7 @@ u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 {
 	u8 ret = true;
 
-	if (ssid->SsidLength > 32) {
+	if (ssid->ssid_length > 32) {
 		ret = false;
 		goto exit;
 	}
@@ -207,7 +207,7 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
 
 	netdev_dbg(padapter->pnetdev, "set ssid [%s] fw_state = 0x%08x\n",
-		   ssid->Ssid, get_fwstate(pmlmepriv));
+		   ssid->ssid, get_fwstate(pmlmepriv));
 
 	if (padapter->hw_init_completed == false) {
 		status = _FAIL;
@@ -222,8 +222,8 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 		goto release_mlme_lock;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
-		if ((pmlmepriv->assoc_ssid.SsidLength == ssid->SsidLength) &&
-		    (!memcmp(&pmlmepriv->assoc_ssid.Ssid, ssid->Ssid, ssid->SsidLength))) {
+		if ((pmlmepriv->assoc_ssid.ssid_length == ssid->ssid_length) &&
+		    (!memcmp(&pmlmepriv->assoc_ssid.ssid, ssid->ssid, ssid->ssid_length))) {
 			if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == false)) {
 				if (rtw_is_same_ibss(padapter, pnetwork) == false) {
 					/* if in WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE, create bss or rejoin again */
