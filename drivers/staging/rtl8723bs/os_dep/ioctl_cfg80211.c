@@ -1874,7 +1874,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
+			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, key_material);
 			pwep = rtw_malloc(wep_total_len);
 			if (pwep == NULL) {
 				ret = -ENOMEM;
@@ -1883,8 +1883,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 			memset(pwep, 0, wep_total_len);
 
-			pwep->KeyLength = wep_key_len;
-			pwep->Length = wep_total_len;
+			pwep->key_length = wep_key_len;
+			pwep->length = wep_total_len;
 
 			if (wep_key_len == 13) {
 				padapter->securitypriv.dot11PrivacyAlgrthm = _WEP104_;
@@ -1895,10 +1895,10 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 		}
 
-		pwep->KeyIndex = wep_key_idx;
-		pwep->KeyIndex |= 0x80000000;
+		pwep->key_index = wep_key_idx;
+		pwep->key_index |= 0x80000000;
 
-		memcpy(pwep->KeyMaterial,  (void *)sme->key, pwep->KeyLength);
+		memcpy(pwep->key_material,  (void *)sme->key, pwep->key_length);
 
 		if (rtw_set_802_11_add_wep(padapter, pwep) == (u8)_FAIL)
 			ret = -EOPNOTSUPP;

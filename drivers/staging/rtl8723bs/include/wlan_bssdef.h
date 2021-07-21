@@ -110,10 +110,10 @@ enum {
 /*  Key mapping keys require a BSSID */
 
 struct ndis_802_11_wep {
-	u32 Length;        /*  Length of this structure */
-	u32 KeyIndex;      /*  0 is the per-client key, 1-N are the global keys */
-	u32 KeyLength;     /*  length of key in bytes */
-	u8 KeyMaterial[16];/*  variable length depending on above field */
+	u32 length;        /*  Length of this structure */
+	u32 key_index;      /*  0 is the per-client key, 1-N are the global keys */
+	u32 key_length;     /*  length of key in bytes */
+	u8 key_material[16];/*  variable length depending on above field */
 };
 
 /*  mask for authentication/integrity fields */

@@ -411,15 +411,15 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
+			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, key_material);
 			pwep = kzalloc(wep_total_len, GFP_KERNEL);
 			if (!pwep) {
 				ret = -ENOMEM;
 				goto exit;
 			}
 
-			pwep->KeyLength = wep_key_len;
-			pwep->Length = wep_total_len;
+			pwep->key_length = wep_key_len;
+			pwep->length = wep_total_len;
 
 			if (wep_key_len == 13) {
 				padapter->securitypriv.dot11PrivacyAlgrthm = _WEP104_;
@@ -430,10 +430,10 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			goto exit;
 		}
 
-		pwep->KeyIndex = wep_key_idx;
-		pwep->KeyIndex |= 0x80000000;
+		pwep->key_index = wep_key_idx;
+		pwep->key_index |= 0x80000000;
 
-		memcpy(pwep->KeyMaterial,  param->u.crypt.key, pwep->KeyLength);
+		memcpy(pwep->key_material,  param->u.crypt.key, pwep->key_length);
 
 		if (param->u.crypt.set_tx) {
 			if (rtw_set_802_11_add_wep(padapter, pwep) == (u8)_FAIL)
@@ -447,8 +447,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				goto exit;
 			}
 
-			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
-			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->KeyLength;
+			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->key_material, pwep->key_length);
+			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->key_length;
 			rtw_set_key(padapter, psecuritypriv, wep_key_idx, 0, true);
 		}
 
@@ -1667,15 +1667,15 @@ static int rtw_wx_set_enc(struct net_device *dev,
 		padapter->securitypriv.ndisauthtype = authmode;
 	}
 
-	wep.KeyIndex = key;
+	wep.key_index = key;
 	if (erq->length > 0) {
-		wep.KeyLength = erq->length <= 5 ? 5 : 13;
+		wep.key_length = erq->length <= 5 ? 5 : 13;
 
-		wep.Length = wep.KeyLength + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
+		wep.length = wep.key_length + FIELD_OFFSET(struct ndis_802_11_wep, key_material);
 	} else {
-		wep.KeyLength = 0;
+		wep.key_length = 0;
 
-		if (keyindex_provided == 1) { /*  set key_id only, no given KeyMaterial(erq->length == 0). */
+		if (keyindex_provided == 1) { /*  set key_id only, no given key_material(erq->length == 0). */
 			padapter->securitypriv.dot11PrivacyKeyIndex = key;
 
 			switch (padapter->securitypriv.dot11DefKeylen[key]) {
@@ -1696,9 +1696,9 @@ static int rtw_wx_set_enc(struct net_device *dev,
 
 	}
 
-	wep.KeyIndex |= 0x80000000;
+	wep.key_index |= 0x80000000;
 
-	memcpy(wep.KeyMaterial, keybuf, wep.KeyLength);
+	memcpy(wep.key_material, keybuf, wep.key_length);
 
 	if (rtw_set_802_11_add_wep(padapter, &wep) == false) {
 		if (rf_on == pwrpriv->rf_pwrstate)
@@ -2974,19 +2974,19 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
+			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, key_material);
 			pwep = kzalloc(wep_total_len, GFP_KERNEL);
 			if (!pwep)
 				goto exit;
 
-			pwep->KeyLength = wep_key_len;
-			pwep->Length = wep_total_len;
+			pwep->key_length = wep_key_len;
+			pwep->length = wep_total_len;
 
 		}
 
-		pwep->KeyIndex = wep_key_idx;
+		pwep->key_index = wep_key_idx;
 
-		memcpy(pwep->KeyMaterial,  param->u.crypt.key, pwep->KeyLength);
+		memcpy(pwep->key_material,  param->u.crypt.key, pwep->key_length);
 
 		if (param->u.crypt.set_tx) {
 			psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Auto;
@@ -2994,7 +2994,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
 			psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 
-			if (pwep->KeyLength == 13) {
+			if (pwep->key_length == 13) {
 				psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
 				psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
 			}
@@ -3002,20 +3002,20 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
 
-			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
+			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->key_material, pwep->key_length);
 
-			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->KeyLength;
+			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->key_length;
 
-			rtw_ap_set_wep_key(padapter, pwep->KeyMaterial, pwep->KeyLength, wep_key_idx, 1);
+			rtw_ap_set_wep_key(padapter, pwep->key_material, pwep->key_length, wep_key_idx, 1);
 		} else {
 			/* don't update "psecuritypriv->dot11PrivacyAlgrthm" and */
 			/* psecuritypriv->dot11PrivacyKeyIndex =keyid", but can rtw_set_key to cam */
 
-			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
+			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->key_material, pwep->key_length);
 
-			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->KeyLength;
+			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->key_length;
 
-			rtw_ap_set_wep_key(padapter, pwep->KeyMaterial, pwep->KeyLength, wep_key_idx, 0);
+			rtw_ap_set_wep_key(padapter, pwep->key_material, pwep->key_length, wep_key_idx, 0);
 		}
 
 		goto exit;

@@ -494,14 +494,14 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	u8 ret = _SUCCESS;
 
-	keyid = wep->KeyIndex & 0x3fffffff;
+	keyid = wep->key_index & 0x3fffffff;
 
 	if (keyid >= 4) {
 		ret = false;
 		goto exit;
 	}
 
-	switch (wep->KeyLength) {
+	switch (wep->key_length) {
 	case 5:
 		psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
 		break;
@@ -513,9 +513,9 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 		break;
 	}
 
-	memcpy(&(psecuritypriv->dot11DefKey[keyid].skey[0]), &(wep->KeyMaterial), wep->KeyLength);
+	memcpy(&(psecuritypriv->dot11DefKey[keyid].skey[0]), &(wep->key_material), wep->key_length);
 
-	psecuritypriv->dot11DefKeylen[keyid] = wep->KeyLength;
+	psecuritypriv->dot11DefKeylen[keyid] = wep->key_length;
 
 	psecuritypriv->dot11PrivacyKeyIndex = keyid;
 
