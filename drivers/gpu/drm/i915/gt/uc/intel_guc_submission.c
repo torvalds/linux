@@ -70,6 +70,7 @@
  * possible for some of the bits to changing at the same time though.
  */
 #define SCHED_STATE_NO_LOCK_ENABLED			BIT(0)
+#define SCHED_STATE_NO_LOCK_PENDING_ENABLE		BIT(1)
 static inline bool context_enabled(struct intel_context *ce)
 {
 	return (atomic_read(&ce->guc_sched_state_no_lock) &
@@ -87,6 +88,24 @@ static inline void clr_context_enabled(struct intel_context *ce)
 		   &ce->guc_sched_state_no_lock);
 }
 
+static inline bool context_pending_enable(struct intel_context *ce)
+{
+	return (atomic_read(&ce->guc_sched_state_no_lock) &
+		SCHED_STATE_NO_LOCK_PENDING_ENABLE);
+}
+
+static inline void set_context_pending_enable(struct intel_context *ce)
+{
+	atomic_or(SCHED_STATE_NO_LOCK_PENDING_ENABLE,
+		  &ce->guc_sched_state_no_lock);
+}
+
+static inline void clr_context_pending_enable(struct intel_context *ce)
+{
+	atomic_and((u32)~SCHED_STATE_NO_LOCK_PENDING_ENABLE,
+		   &ce->guc_sched_state_no_lock);
+}
+
 /*
  * Below is a set of functions which control the GuC scheduling state which
  * require a lock, aside from the special case where the functions are called
@@ -95,6 +114,7 @@ static inline void clr_context_enabled(struct intel_context *ce)
  */
 #define SCHED_STATE_WAIT_FOR_DEREGISTER_TO_REGISTER	BIT(0)
 #define SCHED_STATE_DESTROYED				BIT(1)
+#define SCHED_STATE_PENDING_DISABLE			BIT(2)
 static inline void init_sched_state(struct intel_context *ce)
 {
 	/* Only should be called from guc_lrc_desc_pin() */
@@ -136,6 +156,23 @@ set_context_destroyed(struct intel_context *ce)
 {
 	lockdep_assert_held(&ce->guc_state.lock);
 	ce->guc_state.sched_state |= SCHED_STATE_DESTROYED;
+}
+
+static inline bool context_pending_disable(struct intel_context *ce)
+{
+	return ce->guc_state.sched_state & SCHED_STATE_PENDING_DISABLE;
+}
+
+static inline void set_context_pending_disable(struct intel_context *ce)
+{
+	lockdep_assert_held(&ce->guc_state.lock);
+	ce->guc_state.sched_state |= SCHED_STATE_PENDING_DISABLE;
+}
+
+static inline void clr_context_pending_disable(struct intel_context *ce)
+{
+	lockdep_assert_held(&ce->guc_state.lock);
+	ce->guc_state.sched_state &= ~SCHED_STATE_PENDING_DISABLE;
 }
 
 static inline bool context_guc_id_invalid(struct intel_context *ce)
@@ -230,6 +267,8 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 		action[len++] = INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET;
 		action[len++] = ce->guc_id;
 		action[len++] = GUC_CONTEXT_ENABLE;
+		set_context_pending_enable(ce);
+		intel_context_get(ce);
 	} else {
 		action[len++] = INTEL_GUC_ACTION_SCHED_CONTEXT;
 		action[len++] = ce->guc_id;
@@ -237,8 +276,12 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 
 	err = intel_guc_send_nb(guc, action, len);
 
-	if (!enabled && !err)
+	if (!enabled && !err) {
 		set_context_enabled(ce);
+	} else if (!enabled) {
+		clr_context_pending_enable(ce);
+		intel_context_put(ce);
+	}
 
 	return err;
 }
@@ -842,6 +885,62 @@ static void guc_context_post_unpin(struct intel_context *ce)
 	lrc_post_unpin(ce);
 }
 
+static void __guc_context_sched_disable(struct intel_guc *guc,
+					struct intel_context *ce,
+					u16 guc_id)
+{
+	u32 action[] = {
+		INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET,
+		guc_id,	/* ce->guc_id not stable */
+		GUC_CONTEXT_DISABLE
+	};
+
+	GEM_BUG_ON(guc_id == GUC_INVALID_LRC_ID);
+
+	intel_context_get(ce);
+
+	intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action), true);
+}
+
+static u16 prep_context_pending_disable(struct intel_context *ce)
+{
+	lockdep_assert_held(&ce->guc_state.lock);
+
+	set_context_pending_disable(ce);
+	clr_context_enabled(ce);
+
+	return ce->guc_id;
+}
+
+static void guc_context_sched_disable(struct intel_context *ce)
+{
+	struct intel_guc *guc = ce_to_guc(ce);
+	struct intel_runtime_pm *runtime_pm = &ce->engine->gt->i915->runtime_pm;
+	unsigned long flags;
+	u16 guc_id;
+	intel_wakeref_t wakeref;
+
+	if (context_guc_id_invalid(ce) ||
+	    !lrc_desc_registered(guc, ce->guc_id)) {
+		clr_context_enabled(ce);
+		goto unpin;
+	}
+
+	if (!context_enabled(ce))
+		goto unpin;
+
+	spin_lock_irqsave(&ce->guc_state.lock, flags);
+	guc_id = prep_context_pending_disable(ce);
+	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
+
+	with_intel_runtime_pm(runtime_pm, wakeref)
+		__guc_context_sched_disable(guc, ce, guc_id);
+
+	return;
+unpin:
+	intel_context_sched_disable_unpin(ce);
+}
+
 static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
@@ -849,6 +948,7 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 
 	GEM_BUG_ON(!lrc_desc_registered(guc, ce->guc_id));
 	GEM_BUG_ON(ce != __get_context(guc, ce->guc_id));
+	GEM_BUG_ON(context_enabled(ce));
 
 	spin_lock_irqsave(&ce->guc_state.lock, flags);
 	set_context_destroyed(ce);
@@ -930,6 +1030,8 @@ static const struct intel_context_ops guc_context_ops = {
 
 	.enter = intel_context_enter_engine,
 	.exit = intel_context_exit_engine,
+
+	.sched_disable = guc_context_sched_disable,
 
 	.reset = lrc_reset,
 	.destroy = guc_context_destroy,
@@ -1355,6 +1457,48 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 		release_guc_id(guc, ce);
 		lrc_destroy(&ce->ref);
 	}
+
+	return 0;
+}
+
+int intel_guc_sched_done_process_msg(struct intel_guc *guc,
+				     const u32 *msg,
+				     u32 len)
+{
+	struct intel_context *ce;
+	unsigned long flags;
+	u32 desc_idx = msg[0];
+
+	if (unlikely(len < 2)) {
+		drm_err(&guc_to_gt(guc)->i915->drm, "Invalid length %u", len);
+		return -EPROTO;
+	}
+
+	ce = g2h_context_lookup(guc, desc_idx);
+	if (unlikely(!ce))
+		return -EPROTO;
+
+	if (unlikely(context_destroyed(ce) ||
+		     (!context_pending_enable(ce) &&
+		     !context_pending_disable(ce)))) {
+		drm_err(&guc_to_gt(guc)->i915->drm,
+			"Bad context sched_state 0x%x, 0x%x, desc_idx %u",
+			atomic_read(&ce->guc_sched_state_no_lock),
+			ce->guc_state.sched_state, desc_idx);
+		return -EPROTO;
+	}
+
+	if (context_pending_enable(ce)) {
+		clr_context_pending_enable(ce);
+	} else if (context_pending_disable(ce)) {
+		intel_context_sched_disable_unpin(ce);
+
+		spin_lock_irqsave(&ce->guc_state.lock, flags);
+		clr_context_pending_disable(ce);
+		spin_unlock_irqrestore(&ce->guc_state.lock, flags);
+	}
+
+	intel_context_put(ce);
 
 	return 0;
 }
