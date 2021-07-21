@@ -1008,6 +1008,91 @@ err_controls:
 }
 
 /* -----------------------------------------------------------------------------
+ * ISP
+ */
+
+static int rvin_isp_setup_links(struct rvin_dev *vin)
+{
+	unsigned int i;
+	int ret = -EINVAL;
+
+	/* Create all media device links between VINs and ISP's. */
+	mutex_lock(&vin->group->lock);
+	for (i = 0; i < RCAR_VIN_NUM; i++) {
+		struct media_pad *source_pad, *sink_pad;
+		struct media_entity *source, *sink;
+		unsigned int source_slot = i / 8;
+		unsigned int source_idx = i % 8 + 1;
+
+		if (!vin->group->vin[i])
+			continue;
+
+		/* Check that ISP is part of the group. */
+		if (!vin->group->remotes[source_slot].subdev)
+			continue;
+
+		source = &vin->group->remotes[source_slot].subdev->entity;
+		source_pad = &source->pads[source_idx];
+
+		sink = &vin->group->vin[i]->vdev.entity;
+		sink_pad = &sink->pads[0];
+
+		/* Skip if link already exists. */
+		if (media_entity_find_link(source_pad, sink_pad))
+			continue;
+
+		ret = media_create_pad_link(source, source_idx, sink, 0,
+					    MEDIA_LNK_FL_ENABLED |
+					    MEDIA_LNK_FL_IMMUTABLE);
+		if (ret) {
+			vin_err(vin, "Error adding link from %s to %s\n",
+				source->name, sink->name);
+			break;
+		}
+	}
+	mutex_unlock(&vin->group->lock);
+
+	return ret;
+}
+
+static void rvin_isp_cleanup(struct rvin_dev *vin)
+{
+	rvin_group_notifier_cleanup(vin);
+	rvin_group_put(vin);
+	rvin_free_controls(vin);
+}
+
+static int rvin_isp_init(struct rvin_dev *vin)
+{
+	int ret;
+
+	vin->pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vin->vdev.entity, 1, &vin->pad);
+	if (ret)
+		return ret;
+
+	ret = rvin_create_controls(vin, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = rvin_group_get(vin, rvin_isp_setup_links, NULL);
+	if (ret)
+		goto err_controls;
+
+	ret = rvin_group_notifier_init(vin, 2, RVIN_ISP_MAX);
+	if (ret)
+		goto err_group;
+
+	return 0;
+err_group:
+	rvin_group_put(vin);
+err_controls:
+	rvin_free_controls(vin);
+
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
  * Suspend / Resume
  */
 
@@ -1379,6 +1464,15 @@ static const struct rvin_info rcar_info_r8a77995 = {
 	.routes = rcar_info_r8a77995_routes,
 };
 
+static const struct rvin_info rcar_info_r8a779a0 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.use_isp = true,
+	.nv12 = true,
+	.max_width = 4096,
+	.max_height = 4096,
+};
+
 static const struct of_device_id rvin_of_id_table[] = {
 	{
 		.compatible = "renesas,vin-r8a774a1",
@@ -1440,6 +1534,10 @@ static const struct of_device_id rvin_of_id_table[] = {
 		.compatible = "renesas,vin-r8a77995",
 		.data = &rcar_info_r8a77995,
 	},
+	{
+		.compatible = "renesas,vin-r8a779a0",
+		.data = &rcar_info_r8a779a0,
+	},
 	{ /* Sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rvin_of_id_table);
@@ -1488,7 +1586,9 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vin);
 
-	if (vin->info->use_mc)
+	if (vin->info->use_isp)
+		ret = rvin_isp_init(vin);
+	else if (vin->info->use_mc)
 		ret = rvin_csi2_init(vin);
 	else
 		ret = rvin_parallel_init(vin);
@@ -1512,7 +1612,9 @@ static int rcar_vin_remove(struct platform_device *pdev)
 
 	rvin_v4l2_unregister(vin);
 
-	if (vin->info->use_mc)
+	if (vin->info->use_isp)
+		rvin_isp_cleanup(vin);
+	else if (vin->info->use_mc)
 		rvin_csi2_cleanup(vin);
 	else
 		rvin_parallel_cleanup(vin);

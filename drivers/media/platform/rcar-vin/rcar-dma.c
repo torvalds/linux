@@ -783,16 +783,18 @@ static int rvin_setup(struct rvin_dev *vin)
 	/* Always update on field change */
 	vnmc |= VNMC_VUP;
 
-	/* If input and output use the same colorspace, use bypass mode */
-	if (input_is_yuv == output_is_yuv)
-		vnmc |= VNMC_BPS;
+	if (!vin->info->use_isp) {
+		/* If input and output use the same colorspace, use bypass mode */
+		if (input_is_yuv == output_is_yuv)
+			vnmc |= VNMC_BPS;
 
-	if (vin->info->model == RCAR_GEN3) {
-		/* Select between CSI-2 and parallel input */
-		if (vin->is_csi)
-			vnmc &= ~VNMC_DPINE;
-		else
-			vnmc |= VNMC_DPINE;
+		if (vin->info->model == RCAR_GEN3) {
+			/* Select between CSI-2 and parallel input */
+			if (vin->is_csi)
+				vnmc &= ~VNMC_DPINE;
+			else
+				vnmc |= VNMC_DPINE;
+		}
 	}
 
 	/* Progressive or interlaced mode */
