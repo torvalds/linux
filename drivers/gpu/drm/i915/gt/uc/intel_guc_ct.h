@@ -16,6 +16,7 @@
 
 struct i915_vma;
 struct intel_guc;
+struct drm_printer;
 
 /**
  * DOC: Command Transport (CT).
@@ -113,5 +114,7 @@ static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		      u32 *response_buf, u32 response_buf_size, u32 flags);
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct);
+
+void intel_guc_ct_print_info(struct intel_guc_ct *ct, struct drm_printer *p);
 
 #endif /* _INTEL_GUC_CT_H_ */

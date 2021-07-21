@@ -10,6 +10,7 @@
 
 #include "intel_guc.h"
 
+struct drm_printer;
 struct intel_engine_cs;
 
 void intel_guc_submission_init_early(struct intel_guc *guc);
@@ -20,6 +21,10 @@ void intel_guc_submission_fini(struct intel_guc *guc);
 int intel_guc_preempt_work_create(struct intel_guc *guc);
 void intel_guc_preempt_work_destroy(struct intel_guc *guc);
 int intel_guc_submission_setup(struct intel_engine_cs *engine);
+void intel_guc_submission_print_info(struct intel_guc *guc,
+				     struct drm_printer *p);
+void intel_guc_submission_print_context_info(struct intel_guc *guc,
+					     struct drm_printer *p);
 
 static inline bool intel_guc_submission_is_supported(struct intel_guc *guc)
 {
