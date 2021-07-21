@@ -2950,6 +2950,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
 	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
+	bool color_changed = false;
 
 	if (!crtc)
 		return 0;
@@ -2985,12 +2986,11 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 
 		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
 		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
-			dw_hdmi_setup(hdmi, hdmi->curr_conn,
-				      &hdmi->previous_mode);
+			color_changed = true;
 	}
 
 	if (!hdr_metadata_equal(old_state, new_state) ||
-	    dw_hdmi_color_changed(connector)) {
+	    dw_hdmi_color_changed(connector) || color_changed) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
