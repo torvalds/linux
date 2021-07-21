@@ -30,8 +30,6 @@
 unsigned long __read_mostly elf_hwcap;
 char elf_platform[ELF_PLATFORM_SIZE];
 
-unsigned long int_hwcap;
-
 struct cpu_info {
 	unsigned int cpu_mhz_dynamic;
 	unsigned int cpu_mhz_static;
@@ -142,14 +140,11 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 		[HWCAP_NR_VXRS_PDE2]	= "vxp2",
 		[HWCAP_NR_NNPA]		= "nnpa",
 		[HWCAP_NR_PCI_MIO]	= "pcimio",
-	};
-	static const char * const int_hwcap_str[] = {
-		[HWCAP_INT_NR_SIE]	= "sie",
+		[HWCAP_NR_SIE]		= "sie",
 	};
 	int i, cpu;
 
 	BUILD_BUG_ON(ARRAY_SIZE(hwcap_str) != HWCAP_NR_MAX);
-	BUILD_BUG_ON(ARRAY_SIZE(int_hwcap_str) != HWCAP_INT_NR_MAX);
 	seq_printf(m, "vendor_id       : IBM/S390\n"
 		   "# processors    : %i\n"
 		   "bogomips per cpu: %lu.%02lu\n",
@@ -160,9 +155,6 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	for (i = 0; i < ARRAY_SIZE(hwcap_str); i++)
 		if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
 			seq_printf(m, "%s ", hwcap_str[i]);
-	for (i = 0; i < ARRAY_SIZE(int_hwcap_str); i++)
-		if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
-			seq_printf(m, "%s ", int_hwcap_str[i]);
 	seq_puts(m, "\n");
 	show_facilities(m);
 	show_cacheinfo(m);
@@ -257,7 +249,7 @@ static int __init setup_hwcaps(void)
 
 	/* virtualization support */
 	if (sclp.has_sief2)
-		int_hwcap |= HWCAP_INT_SIE;
+		elf_hwcap |= HWCAP_SIE;
 
 	return 0;
 }

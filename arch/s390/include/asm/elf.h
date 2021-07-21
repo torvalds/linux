@@ -114,6 +114,7 @@ enum {
 	HWCAP_NR_VXRS_PDE2	= 19,
 	HWCAP_NR_NNPA		= 20,
 	HWCAP_NR_PCI_MIO	= 21,
+	HWCAP_NR_SIE		= 22,
 	HWCAP_NR_MAX
 };
 
@@ -140,14 +141,7 @@ enum {
 #define HWCAP_VXRS_PDE2		BIT(HWCAP_NR_VXRS_PDE2)
 #define HWCAP_NNPA		BIT(HWCAP_NR_NNPA)
 #define HWCAP_PCI_MIO		BIT(HWCAP_NR_PCI_MIO)
-
-enum {
-	HWCAP_INT_NR_SIE	= 0,
-	HWCAP_INT_NR_MAX
-};
-
-/* Internal bits, not exposed via elf */
-#define HWCAP_INT_SIE		BIT(HWCAP_INT_NR_SIE)
+#define HWCAP_SIE		BIT(HWCAP_NR_SIE)
 
 /*
  * These are used to set parameters in the core dumps.
@@ -242,10 +236,6 @@ struct arch_elf_state {
 
 extern unsigned long elf_hwcap;
 #define ELF_HWCAP (elf_hwcap)
-
-/* Internal hardware capabilities, not exposed via elf */
-
-extern unsigned long int_hwcap;
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
