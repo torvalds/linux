@@ -2,7 +2,7 @@
 # common clock support for ROCKCHIP SoC family.
 
 config COMMON_CLK_ROCKCHIP
-	bool "Rockchip clock controller common support"
+	tristate "Rockchip clock controller common support"
 	depends on ARCH_ROCKCHIP
 	default ARCH_ROCKCHIP
 	help
