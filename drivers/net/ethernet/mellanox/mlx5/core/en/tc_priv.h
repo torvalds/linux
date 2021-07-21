@@ -183,4 +183,8 @@ struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow);
 
 struct mlx5e_tc_int_port_priv *
 mlx5e_get_int_port_priv(struct mlx5e_priv *priv);
+
+void *mlx5e_get_match_headers_value(u32 flags, struct mlx5_flow_spec *spec);
+void *mlx5e_get_match_headers_criteria(u32 flags, struct mlx5_flow_spec *spec);
+
 #endif /* __MLX5_EN_TC_PRIV_H__ */
