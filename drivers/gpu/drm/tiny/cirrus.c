@@ -550,7 +550,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	struct cirrus_device *cirrus;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "cirrusdrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &cirrus_driver);
 	if (ret)
 		return ret;
 

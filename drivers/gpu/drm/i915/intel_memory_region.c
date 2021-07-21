@@ -149,7 +149,6 @@ intel_memory_region_create(struct drm_i915_private *i915,
 
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
-	INIT_LIST_HEAD(&mem->objects.purgeable);
 	INIT_LIST_HEAD(&mem->reserved);
 
 	mutex_init(&mem->mm_lock);

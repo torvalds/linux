@@ -35,6 +35,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_self_refresh_helper.h>
@@ -2403,6 +2404,15 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, new_plane_state);
+			if (ret)
+				goto fail;
+		} else {
+			WARN_ON_ONCE(funcs->cleanup_fb);
+
+			if (!drm_core_check_feature(dev, DRIVER_GEM))
+				continue;
+
+			ret = drm_gem_plane_helper_prepare_fb(plane, new_plane_state);
 			if (ret)
 				goto fail;
 		}

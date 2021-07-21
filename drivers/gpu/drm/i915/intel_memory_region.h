@@ -101,7 +101,6 @@ struct intel_memory_region {
 	struct {
 		struct mutex lock; /* Protects access to objects */
 		struct list_head list;
-		struct list_head purgeable;
 	} objects;
 
 	size_t chunk_size;

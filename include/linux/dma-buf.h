@@ -96,6 +96,12 @@ struct dma_buf_ops {
 	 * This is called automatically for non-dynamic importers from
 	 * dma_buf_attach().
 	 *
+	 * Note that similar to non-dynamic exporters in their @map_dma_buf
+	 * callback the driver must guarantee that the memory is available for
+	 * use and cleared of any old data by the time this function returns.
+	 * Drivers which pipeline their buffer moves internally must wait for
+	 * all moves and clears to complete.
+	 *
 	 * Returns:
 	 *
 	 * 0 on success, negative error code on failure.
@@ -143,6 +149,15 @@ struct dma_buf_ops {
 	 *
 	 * This is always called with the dmabuf->resv object locked when
 	 * the dynamic_mapping flag is true.
+	 *
+	 * Note that for non-dynamic exporters the driver must guarantee that
+	 * that the memory is available for use and cleared of any old data by
+	 * the time this function returns.  Drivers which pipeline their buffer
+	 * moves internally must wait for all moves and clears to complete.
+	 * Dynamic exporters do not need to follow this rule: For non-dynamic
+	 * importers the buffer is already pinned through @pin, which has the
+	 * same requirements. Dynamic importers otoh are required to obey the
+	 * dma_resv fences.
 	 *
 	 * Returns:
 	 *
@@ -274,27 +289,6 @@ struct dma_buf_ops {
 
 /**
  * struct dma_buf - shared buffer object
- * @size: size of the buffer; invariant over the lifetime of the buffer.
- * @file: file pointer used for sharing buffers across, and for refcounting.
- * @attachments: list of dma_buf_attachment that denotes all devices attached,
- *               protected by dma_resv lock.
- * @ops: dma_buf_ops associated with this buffer object.
- * @lock: used internally to serialize list manipulation, attach/detach and
- *        vmap/unmap
- * @vmapping_counter: used internally to refcnt the vmaps
- * @vmap_ptr: the current vmap ptr if vmapping_counter > 0
- * @exp_name: name of the exporter; useful for debugging.
- * @name: userspace-provided name; useful for accounting and debugging,
- *        protected by @resv.
- * @name_lock: spinlock to protect name access
- * @owner: pointer to exporter module; used for refcounting when exporter is a
- *         kernel module.
- * @list_node: node for dma_buf accounting and debugging.
- * @priv: exporter specific private data for this buffer object.
- * @resv: reservation object linked to this dma-buf
- * @poll: for userspace poll support
- * @cb_excl: for userspace poll support
- * @cb_shared: for userspace poll support
  *
  * This represents a shared buffer, created by calling dma_buf_export(). The
  * userspace representation is a normal file descriptor, which can be created by
@@ -306,30 +300,161 @@ struct dma_buf_ops {
  * Device DMA access is handled by the separate &struct dma_buf_attachment.
  */
 struct dma_buf {
+	/**
+	 * @size:
+	 *
+	 * Size of the buffer; invariant over the lifetime of the buffer.
+	 */
 	size_t size;
+
+	/**
+	 * @file:
+	 *
+	 * File pointer used for sharing buffers across, and for refcounting.
+	 * See dma_buf_get() and dma_buf_put().
+	 */
 	struct file *file;
+
+	/**
+	 * @attachments:
+	 *
+	 * List of dma_buf_attachment that denotes all devices attached,
+	 * protected by &dma_resv lock @resv.
+	 */
 	struct list_head attachments;
+
+	/** @ops: dma_buf_ops associated with this buffer object. */
 	const struct dma_buf_ops *ops;
+
+	/**
+	 * @lock:
+	 *
+	 * Used internally to serialize list manipulation, attach/detach and
+	 * vmap/unmap. Note that in many cases this is superseeded by
+	 * dma_resv_lock() on @resv.
+	 */
 	struct mutex lock;
+
+	/**
+	 * @vmapping_counter:
+	 *
+	 * Used internally to refcnt the vmaps returned by dma_buf_vmap().
+	 * Protected by @lock.
+	 */
 	unsigned vmapping_counter;
+
+	/**
+	 * @vmap_ptr:
+	 * The current vmap ptr if @vmapping_counter > 0. Protected by @lock.
+	 */
 	struct dma_buf_map vmap_ptr;
+
+	/**
+	 * @exp_name:
+	 *
+	 * Name of the exporter; useful for debugging. See the
+	 * DMA_BUF_SET_NAME IOCTL.
+	 */
 	const char *exp_name;
+
+	/**
+	 * @name:
+	 *
+	 * Userspace-provided name; useful for accounting and debugging,
+	 * protected by dma_resv_lock() on @resv and @name_lock for read access.
+	 */
 	const char *name;
+
+	/** @name_lock: Spinlock to protect name acces for read access. */
 	spinlock_t name_lock;
+
+	/**
+	 * @owner:
+	 *
+	 * Pointer to exporter module; used for refcounting when exporter is a
+	 * kernel module.
+	 */
 	struct module *owner;
+
+	/** @list_node: node for dma_buf accounting and debugging. */
 	struct list_head list_node;
+
+	/** @priv: exporter specific private data for this buffer object. */
 	void *priv;
+
+	/**
+	 * @resv:
+	 *
+	 * Reservation object linked to this dma-buf.
+	 *
+	 * IMPLICIT SYNCHRONIZATION RULES:
+	 *
+	 * Drivers which support implicit synchronization of buffer access as
+	 * e.g. exposed in `Implicit Fence Poll Support`_ must follow the
+	 * below rules.
+	 *
+	 * - Drivers must add a shared fence through dma_resv_add_shared_fence()
+	 *   for anything the userspace API considers a read access. This highly
+	 *   depends upon the API and window system.
+	 *
+	 * - Similarly drivers must set the exclusive fence through
+	 *   dma_resv_add_excl_fence() for anything the userspace API considers
+	 *   write access.
+	 *
+	 * - Drivers may just always set the exclusive fence, since that only
+	 *   causes unecessarily synchronization, but no correctness issues.
+	 *
+	 * - Some drivers only expose a synchronous userspace API with no
+	 *   pipelining across drivers. These do not set any fences for their
+	 *   access. An example here is v4l.
+	 *
+	 * DYNAMIC IMPORTER RULES:
+	 *
+	 * Dynamic importers, see dma_buf_attachment_is_dynamic(), have
+	 * additional constraints on how they set up fences:
+	 *
+	 * - Dynamic importers must obey the exclusive fence and wait for it to
+	 *   signal before allowing access to the buffer's underlying storage
+	 *   through the device.
+	 *
+	 * - Dynamic importers should set fences for any access that they can't
+	 *   disable immediately from their &dma_buf_attach_ops.move_notify
+	 *   callback.
+	 */
 	struct dma_resv *resv;
 
-	/* poll support */
+	/** @poll: for userspace poll support */
 	wait_queue_head_t poll;
 
+	/** @cb_excl: for userspace poll support */
+	/** @cb_shared: for userspace poll support */
 	struct dma_buf_poll_cb_t {
 		struct dma_fence_cb cb;
 		wait_queue_head_t *poll;
 
 		__poll_t active;
 	} cb_excl, cb_shared;
+#ifdef CONFIG_DMABUF_SYSFS_STATS
+	/**
+	 * @sysfs_entry:
+	 *
+	 * For exposing information about this buffer in sysfs. See also
+	 * `DMA-BUF statistics`_ for the uapi this enables.
+	 */
+	struct dma_buf_sysfs_entry {
+		struct kobject kobj;
+		struct dma_buf *dmabuf;
+
+		/**
+		 * @sysfs_entry.attachment_uid:
+		 *
+		 * This is protected by the dma_resv_lock() on @resv and is
+		 * incremented on each attach.
+		 */
+		unsigned int attachment_uid;
+		struct kset *attach_stats_kset;
+	} *sysfs_entry;
+#endif
 };
 
 /**
@@ -379,6 +504,7 @@ struct dma_buf_attach_ops {
  * @importer_ops: importer operations for this attachment, if provided
  * dma_buf_map/unmap_attachment() must be called with the dma_resv lock held.
  * @importer_priv: importer specific attachment data.
+ * @sysfs_entry: For exposing information about this attachment in sysfs.
  *
  * This structure holds the attachment information between the dma_buf buffer
  * and its user device(s). The list contains one attachment struct per device
@@ -399,6 +525,13 @@ struct dma_buf_attachment {
 	const struct dma_buf_attach_ops *importer_ops;
 	void *importer_priv;
 	void *priv;
+#ifdef CONFIG_DMABUF_SYSFS_STATS
+	/* for sysfs stats */
+	struct dma_buf_attach_sysfs_entry {
+		struct kobject kobj;
+		unsigned int map_counter;
+	} *sysfs_entry;
+#endif
 };
 
 /**

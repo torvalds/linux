@@ -222,36 +222,6 @@ static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 }
 
 
-/**
- * __vmw_piter_non_sg_page: Helper functions to return a pointer
- * to the current page.
- *
- * @viter: Pointer to the iterator
- *
- * These functions return a pointer to the page currently
- * pointed to by @viter. Functions are selected depending on the
- * current mapping mode.
- */
-static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
-{
-	return viter->pages[viter->i];
-}
-
-/**
- * __vmw_piter_phys_addr: Helper functions to return the DMA
- * address of the current page.
- *
- * @viter: Pointer to the iterator
- *
- * These functions return the DMA address of the page currently
- * pointed to by @viter. Functions are selected depending on the
- * current mapping mode.
- */
-static dma_addr_t __vmw_piter_phys_addr(struct vmw_piter *viter)
-{
-	return page_to_phys(viter->pages[viter->i]);
-}
-
 static dma_addr_t __vmw_piter_dma_addr(struct vmw_piter *viter)
 {
 	return viter->addrs[viter->i];
@@ -279,13 +249,8 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 {
 	viter->i = p_offset - 1;
 	viter->num_pages = vsgt->num_pages;
-	viter->page = &__vmw_piter_non_sg_page;
 	viter->pages = vsgt->pages;
 	switch (vsgt->mode) {
-	case vmw_dma_phys:
-		viter->next = &__vmw_piter_non_sg_next;
-		viter->dma_address = &__vmw_piter_phys_addr;
-		break;
 	case vmw_dma_alloc_coherent:
 		viter->next = &__vmw_piter_non_sg_next;
 		viter->dma_address = &__vmw_piter_dma_addr;

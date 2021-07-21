@@ -612,8 +612,7 @@ ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
-	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb,
-	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb,
+	DRM_GEM_VRAM_PLANE_HELPER_FUNCS,
 	.atomic_check = ast_primary_plane_helper_atomic_check,
 	.atomic_update = ast_primary_plane_helper_atomic_update,
 	.atomic_disable = ast_primary_plane_helper_atomic_disable,
@@ -1293,6 +1292,18 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 	return flags;
 }
 
+static enum drm_connector_status ast_connector_detect(struct drm_connector
+						   *connector, bool force)
+{
+	int r;
+
+	r = ast_get_modes(connector);
+	if (r < 0)
+		return connector_status_disconnected;
+
+	return connector_status_connected;
+}
+
 static void ast_connector_destroy(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
@@ -1307,6 +1318,7 @@ static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 
 static const struct drm_connector_funcs ast_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
+	.detect = ast_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = ast_connector_destroy,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -1334,7 +1346,8 @@ static int ast_connector_init(struct drm_device *dev)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+						DRM_CONNECTOR_POLL_DISCONNECT;
 
 	drm_connector_attach_encoder(connector, encoder);
 
@@ -1402,6 +1415,8 @@ int ast_mode_config_init(struct ast_private *ast)
 	ast_connector_init(dev);
 
 	drm_mode_config_reset(dev);
+
+	drm_kms_helper_poll_init(dev);
 
 	return 0;
 }

@@ -166,8 +166,6 @@ struct mga_device {
 
 	enum mga_type			type;
 
-	int bpp_shifts[4];
-
 	int fb_mtrr;
 
 	union {
@@ -190,18 +188,6 @@ struct mga_device {
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
 {
 	return container_of(dev, struct mga_device, base);
-}
-
-static inline enum mga_type
-mgag200_type_from_driver_data(kernel_ulong_t driver_data)
-{
-	return (enum mga_type)(driver_data & MGAG200_TYPE_MASK);
-}
-
-static inline unsigned long
-mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
-{
-	return driver_data & MGAG200_FLAG_MASK;
 }
 
 				/* mgag200_mode.c */

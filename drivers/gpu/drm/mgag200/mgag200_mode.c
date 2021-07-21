@@ -1137,10 +1137,11 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	WREG8(MGA_MISC_OUT, misc);
 }
 
-static u8 mgag200_get_bpp_shift(struct mga_device *mdev,
-				const struct drm_format_info *format)
+static u8 mgag200_get_bpp_shift(const struct drm_format_info *format)
 {
-	return mdev->bpp_shifts[format->cpp[0] - 1];
+	static const u8 bpp_shift[] = {0, 1, 0, 2};
+
+	return bpp_shift[format->cpp[0] - 1];
 }
 
 /*
@@ -1152,7 +1153,7 @@ static u32 mgag200_calculate_offset(struct mga_device *mdev,
 				    const struct drm_framebuffer *fb)
 {
 	u32 offset = fb->pitches[0] / fb->format->cpp[0];
-	u8 bppshift = mgag200_get_bpp_shift(mdev, fb->format);
+	u8 bppshift = mgag200_get_bpp_shift(fb->format);
 
 	if (fb->format->cpp[0] * 8 == 24)
 		offset = (offset * 3) >> (4 - bppshift);
@@ -1189,7 +1190,7 @@ static void mgag200_set_format_regs(struct mga_device *mdev,
 
 	bpp = format->cpp[0] * 8;
 
-	bppshift = mgag200_get_bpp_shift(mdev, format);
+	bppshift = mgag200_get_bpp_shift(format);
 	switch (bpp) {
 	case 24:
 		scale = ((1 << bppshift) * 3) - 1;
@@ -1698,11 +1699,6 @@ int mgag200_modeset_init(struct mga_device *mdev)
 	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
 	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
 	int ret;
-
-	mdev->bpp_shifts[0] = 0;
-	mdev->bpp_shifts[1] = 1;
-	mdev->bpp_shifts[2] = 0;
-	mdev->bpp_shifts[3] = 2;
 
 	mgag200_init_regs(mdev);
 

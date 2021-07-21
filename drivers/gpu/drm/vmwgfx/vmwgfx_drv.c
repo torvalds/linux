@@ -42,7 +42,9 @@
 
 #include "ttm_object.h"
 #include "vmwgfx_binding.h"
+#include "vmwgfx_devcaps.h"
 #include "vmwgfx_drv.h"
+#include "vmwgfx_mksstat.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 
@@ -148,6 +150,14 @@
 #define DRM_IOCTL_VMW_MSG						\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_MSG,			\
 		struct drm_vmw_msg_arg)
+#define DRM_IOCTL_VMW_MKSSTAT_RESET				\
+	DRM_IO(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_RESET)
+#define DRM_IOCTL_VMW_MKSSTAT_ADD				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_ADD,	\
+		struct drm_vmw_mksstat_add_arg)
+#define DRM_IOCTL_VMW_MKSSTAT_REMOVE				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_REMOVE,	\
+		struct drm_vmw_mksstat_remove_arg)
 
 /*
  * The core DRM version of this macro doesn't account for
@@ -244,6 +254,15 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_MSG,
 		      vmw_msg_ioctl,
 		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_RESET,
+		      vmw_mksstat_reset_ioctl,
+		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_ADD,
+		      vmw_mksstat_add_ioctl,
+		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_REMOVE,
+		      vmw_mksstat_remove_ioctl,
+		      DRM_RENDER_ALLOW),
 };
 
 static const struct pci_device_id vmw_pci_id_list[] = {
@@ -254,7 +273,6 @@ static const struct pci_device_id vmw_pci_id_list[] = {
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
 static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
-static int vmw_force_iommu;
 static int vmw_restrict_iommu;
 static int vmw_force_coherent;
 static int vmw_restrict_dma_mask;
@@ -266,8 +284,6 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
 module_param_named(enable_fbdev, enable_fbdev, int, 0600);
-MODULE_PARM_DESC(force_dma_api, "Force using the DMA API for TTM pages");
-module_param_named(force_dma_api, vmw_force_iommu, int, 0600);
 MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
 module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
 MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
@@ -627,7 +643,6 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 {
 	static const char *names[vmw_dma_map_max] = {
-		[vmw_dma_phys] = "Using physical TTM page addresses.",
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
 		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
@@ -661,8 +676,7 @@ static int vmw_dma_masks(struct vmw_private *dev_priv)
 	int ret = 0;
 
 	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
-	if (dev_priv->map_mode != vmw_dma_phys &&
-	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
+	if (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask) {
 		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
 		return dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(44));
 	}
@@ -693,7 +707,7 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 }
 
 static int vmw_setup_pci_resources(struct vmw_private *dev,
-				   unsigned long pci_id)
+				   u32 pci_id)
 {
 	resource_size_t rmmio_start;
 	resource_size_t rmmio_size;
@@ -770,7 +784,7 @@ static int vmw_detect_version(struct vmw_private *dev)
 	svga_id = vmw_read(dev, SVGA_REG_ID);
 	if (svga_id != SVGA_ID_2 && svga_id != SVGA_ID_3) {
 		DRM_ERROR("Unsupported SVGA ID 0x%x on chipset 0x%x\n",
-			  svga_id, dev->vmw_chipset);
+			  svga_id, dev->pci_id);
 		return -ENOSYS;
 	}
 	BUG_ON(vmw_is_svga_v3(dev) && (svga_id != SVGA_ID_3));
@@ -785,7 +799,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	bool refuse_dma = false;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
-	dev_priv->vmw_chipset = pci_id;
 	dev_priv->drm.dev_private = dev_priv;
 
 	mutex_init(&dev_priv->cmdbuf_mutex);
@@ -793,7 +806,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	spin_lock_init(&dev_priv->resource_lock);
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
-	spin_lock_init(&dev_priv->cap_lock);
 	spin_lock_init(&dev_priv->cursor_lock);
 
 	ret = vmw_setup_pci_resources(dev_priv, pci_id);
@@ -879,9 +891,8 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 			mem_size *= 3;
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
-		dev_priv->prim_bb_mem =
-			vmw_read(dev_priv,
-				 SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM);
+		dev_priv->max_primary_mem =
+			vmw_read(dev_priv, SVGA_REG_MAX_PRIMARY_MEM);
 		dev_priv->max_mob_size =
 			vmw_read(dev_priv, SVGA_REG_MOB_MAX_SIZE);
 		dev_priv->stdu_max_width =
@@ -900,7 +911,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	} else {
 		dev_priv->texture_max_width = 8192;
 		dev_priv->texture_max_height = 8192;
-		dev_priv->prim_bb_mem = dev_priv->vram_size;
+		dev_priv->max_primary_mem = dev_priv->vram_size;
 	}
 
 	vmw_print_capabilities(dev_priv->capabilities);
@@ -924,7 +935,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 			 (unsigned)dev_priv->memory_size / 1024);
 	}
 	DRM_INFO("Maximum display memory size is %llu kiB\n",
-		 (uint64_t)dev_priv->prim_bb_mem / 1024);
+		 (uint64_t)dev_priv->max_primary_mem / 1024);
 
 	/* Need mmio memory to check for fifo pitchlock cap. */
 	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) &&
@@ -983,6 +994,12 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		goto out_no_vram;
 	}
 
+	ret = vmw_devcaps_create(dev_priv);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed initializing device caps.\n");
+		goto out_no_vram;
+	}
+
 	/*
 	 * "Guest Memory Regions" is an aperture like feature with
 	 *  one slot per bo. There is an upper limit of the number of
@@ -1009,11 +1026,8 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	}
 
 	if (dev_priv->has_mob && (dev_priv->capabilities & SVGA_CAP_DX)) {
-		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DXCONTEXT);
-		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+		if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_DXCONTEXT))
 			dev_priv->sm_type = VMW_SM_4;
-		spin_unlock(&dev_priv->cap_lock);
 	}
 
 	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
@@ -1021,15 +1035,11 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	/* SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1 support */
 	if (has_sm4_context(dev_priv) &&
 	    (dev_priv->capabilities2 & SVGA_CAP2_DX2)) {
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM41);
-
-		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+		if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM41))
 			dev_priv->sm_type = VMW_SM_4_1;
-
 		if (has_sm4_1_context(dev_priv) &&
-		    (dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
-			vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM5);
-			if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+				(dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
+			if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM5))
 				dev_priv->sm_type = VMW_SM_5;
 		}
 	}
@@ -1074,6 +1084,7 @@ out_no_kms:
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_GMR);
+	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 out_no_vram:
 	ttm_device_fini(&dev_priv->bdev);
@@ -1122,6 +1133,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_release_device_early(dev_priv);
 	if (dev_priv->has_mob)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
+	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 	ttm_device_fini(&dev_priv->bdev);
 	drm_vma_offset_manager_destroy(&dev_priv->vma_manager);
@@ -1136,6 +1148,8 @@ static void vmw_driver_unload(struct drm_device *dev)
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);
+
+	vmw_mksstat_remove_all(dev_priv);
 
 	pci_release_regions(pdev);
 }
@@ -1560,7 +1574,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct vmw_private *vmw;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "svgadrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
 	if (ret)
 		return ret;
 

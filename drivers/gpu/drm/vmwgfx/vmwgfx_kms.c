@@ -1487,7 +1487,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is not present vram size is
 	 * limit on primary bounding box
 	 */
-	if (pixel_mem > dev_priv->prim_bb_mem) {
+	if (pixel_mem > dev_priv->max_primary_mem) {
 		VMW_DEBUG_KMS("Combined output size too large.\n");
 		return -EINVAL;
 	}
@@ -1497,7 +1497,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	    !(dev_priv->capabilities & SVGA_CAP_NO_BB_RESTRICTION)) {
 		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
 
-		if (bb_mem > dev_priv->prim_bb_mem) {
+		if (bb_mem > dev_priv->max_primary_mem) {
 			VMW_DEBUG_KMS("Topology is beyond supported limits.\n");
 			return -EINVAL;
 		}
@@ -1897,7 +1897,7 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 {
 	return ((u64) pitch * (u64) height) < (u64)
 		((dev_priv->active_display_unit == vmw_du_screen_target) ?
-		 dev_priv->prim_bb_mem : dev_priv->vram_size);
+		 dev_priv->max_primary_mem : dev_priv->vram_size);
 }
 
 

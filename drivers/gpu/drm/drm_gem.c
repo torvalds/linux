@@ -1148,15 +1148,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EACCES;
 	}
 
-	if (node->readonly) {
-		if (vma->vm_flags & VM_WRITE) {
-			drm_gem_object_put(obj);
-			return -EINVAL;
-		}
-
-		vma->vm_flags &= ~VM_MAYWRITE;
-	}
-
 	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT,
 			       vma);
 
@@ -1310,6 +1301,9 @@ EXPORT_SYMBOL(drm_gem_unlock_reservations);
  *
  * @fence_array: array of dma_fence * for the job to block on.
  * @fence: the dma_fence to add to the list of dependencies.
+ *
+ * This functions consumes the reference for @fence both on success and error
+ * cases.
  *
  * Returns:
  * 0 on success, or an error on failing to expand the array.
