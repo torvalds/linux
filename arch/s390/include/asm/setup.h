@@ -46,13 +46,12 @@
 
 /* Offsets to parameters in kernel/head.S  */
 
-#define IPL_DEVICE_OFFSET	0x10400
-#define INITRD_START_OFFSET	0x10408
-#define INITRD_SIZE_OFFSET	0x10410
-#define OLDMEM_BASE_OFFSET	0x10418
-#define OLDMEM_SIZE_OFFSET	0x10420
-#define KERNEL_VERSION_OFFSET	0x10428
-#define COMMAND_LINE_OFFSET	0x10480
+#define IPL_DEVICE	0x10400
+#define INITRD_START	0x10408
+#define INITRD_SIZE	0x10410
+#define OLDMEM_BASE	0x10418
+#define OLDMEM_SIZE	0x10420
+#define COMMAND_LINE	0x10480
 
 #ifndef __ASSEMBLY__
 
@@ -170,15 +169,5 @@ static inline u32 gen_lpswe(unsigned long addr)
 	BUILD_BUG_ON(addr > 0xfff);
 	return 0xb2b20000 | addr;
 }
-
-#else /* __ASSEMBLY__ */
-
-#define IPL_DEVICE	(IPL_DEVICE_OFFSET)
-#define INITRD_START	(INITRD_START_OFFSET)
-#define INITRD_SIZE	(INITRD_SIZE_OFFSET)
-#define OLDMEM_BASE	(OLDMEM_BASE_OFFSET)
-#define OLDMEM_SIZE	(OLDMEM_SIZE_OFFSET)
-#define COMMAND_LINE	(COMMAND_LINE_OFFSET)
-
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_SETUP_H */
