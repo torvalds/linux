@@ -372,12 +372,10 @@ struct w83627ehf_data {
 	u8 temp3_val_only:1;
 	u8 have_vid:1;
 
-#ifdef CONFIG_PM
 	/* Remember extra register values over suspend/resume */
 	u8 vbat;
 	u8 fandiv1;
 	u8 fandiv2;
-#endif
 };
 
 struct w83627ehf_sio_data {
@@ -1946,8 +1944,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-#ifdef CONFIG_PM
-static int w83627ehf_suspend(struct device *dev)
+static int __maybe_unused w83627ehf_suspend(struct device *dev)
 {
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
 
@@ -1958,7 +1955,7 @@ static int w83627ehf_suspend(struct device *dev)
 	return 0;
 }
 
-static int w83627ehf_resume(struct device *dev)
+static int __maybe_unused w83627ehf_resume(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	int i;
@@ -2013,22 +2010,12 @@ static int w83627ehf_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
-	.suspend = w83627ehf_suspend,
-	.resume = w83627ehf_resume,
-	.freeze = w83627ehf_suspend,
-	.restore = w83627ehf_resume,
-};
-
-#define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
-#else
-#define W83627EHF_DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(w83627ehf_dev_pm_ops, w83627ehf_suspend, w83627ehf_resume);
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm	= W83627EHF_DEV_PM_OPS,
+		.pm	= &w83627ehf_dev_pm_ops,
 	},
 };
 
