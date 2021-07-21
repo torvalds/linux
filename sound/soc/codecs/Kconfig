@@ -1559,6 +1559,7 @@ config SND_SOC_WCD934X
 config SND_SOC_WCD938X
 	depends on SND_SOC_WCD938X_SDW
 	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
 
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
