@@ -4462,7 +4462,10 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_ALDERLAKE_P(dev_priv))
+	if (IS_DG2(dev_priv))
+		/* No shared DPLLs on DG2; port PLLs are part of the PHY */
+		dpll_mgr = NULL;
+	else if (IS_ALDERLAKE_P(dev_priv))
 		dpll_mgr = &adlp_pll_mgr;
 	else if (IS_ALDERLAKE_S(dev_priv))
 		dpll_mgr = &adls_pll_mgr;
