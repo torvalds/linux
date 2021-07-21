@@ -96,7 +96,6 @@ struct cs_etm_queue {
 /* RB tree for quick conversion between traceID and metadata pointers */
 static struct intlist *traceid_list;
 
-static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid);
@@ -564,7 +563,6 @@ out_free:
 static int cs_etm__flush_events(struct perf_session *session,
 				struct perf_tool *tool)
 {
-	int ret;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
@@ -573,11 +571,6 @@ static int cs_etm__flush_events(struct perf_session *session,
 
 	if (!tool->ordered_events)
 		return -EINVAL;
-
-	ret = cs_etm__update_queues(etm);
-
-	if (ret < 0)
-		return ret;
 
 	if (etm->timeless_decoding)
 		return cs_etm__process_timeless_queues(etm, -1);
@@ -896,30 +889,6 @@ static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
 	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 out:
 	return ret;
-}
-
-static int cs_etm__setup_queues(struct cs_etm_auxtrace *etm)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < etm->queues.nr_queues; i++) {
-		ret = cs_etm__setup_queue(etm, &etm->queues.queue_array[i], i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int cs_etm__update_queues(struct cs_etm_auxtrace *etm)
-{
-	if (etm->queues.new_data) {
-		etm->queues.new_data = false;
-		return cs_etm__setup_queues(etm);
-	}
-
-	return 0;
 }
 
 static inline
@@ -2395,7 +2364,6 @@ static int cs_etm__process_event(struct perf_session *session,
 				 struct perf_sample *sample,
 				 struct perf_tool *tool)
 {
-	int err = 0;
 	u64 sample_kernel_timestamp;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
@@ -2413,12 +2381,6 @@ static int cs_etm__process_event(struct perf_session *session,
 		sample_kernel_timestamp = sample->time;
 	else
 		sample_kernel_timestamp = 0;
-
-	if (sample_kernel_timestamp || etm->timeless_decoding) {
-		err = cs_etm__update_queues(etm);
-		if (err)
-			return err;
-	}
 
 	/*
 	 * Don't wait for cs_etm__flush_events() in per-thread/timeless mode to start the decode. We
@@ -2476,6 +2438,7 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 		int fd = perf_data__fd(session->data);
 		bool is_pipe = perf_data__is_pipe(session->data);
 		int err;
+		int idx = event->auxtrace.idx;
 
 		if (is_pipe)
 			data_offset = 0;
@@ -2487,6 +2450,11 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 
 		err = auxtrace_queues__add_event(&etm->queues, session,
 						 event, data_offset, &buffer);
+		if (err)
+			return err;
+
+		err = cs_etm__setup_queue(etm, &etm->queues.queue_array[idx],
+					  idx);
 		if (err)
 			return err;
 
@@ -2732,6 +2700,7 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 	struct perf_record_auxtrace *auxtrace_event;
 	union perf_event auxtrace_fragment;
 	__u64 aux_offset, aux_size;
+	__u32 idx;
 
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
@@ -2793,8 +2762,13 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 
 		pr_debug3("CS ETM: Queue buffer size: %#"PRI_lx64" offset: %#"PRI_lx64
 			  " tid: %d cpu: %d\n", aux_size, aux_offset, sample->tid, sample->cpu);
-		return auxtrace_queues__add_event(&etm->queues, session, &auxtrace_fragment,
-						  file_offset, NULL);
+		err = auxtrace_queues__add_event(&etm->queues, session, &auxtrace_fragment,
+						 file_offset, NULL);
+		if (err)
+			return err;
+
+		idx = auxtrace_event->idx;
+		return cs_etm__setup_queue(etm, &etm->queues.queue_array[idx], idx);
 	}
 
 	/* Wasn't inside this buffer, but there were no parse errors. 1 == 'not found' */
