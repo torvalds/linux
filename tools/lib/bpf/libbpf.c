@@ -10366,25 +10366,28 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	return pfd;
 }
 
-struct bpf_program_attach_kprobe_opts {
-	bool retprobe;
-	unsigned long offset;
-};
-
-static struct bpf_link*
+struct bpf_link *
 bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 				const char *func_name,
-				struct bpf_program_attach_kprobe_opts *opts)
+				struct bpf_kprobe_opts *opts)
 {
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
+	unsigned long offset;
+	bool retprobe;
 	int pfd, err;
 
-	pfd = perf_event_open_probe(false /* uprobe */, opts->retprobe, func_name,
-				    opts->offset, -1 /* pid */);
+	if (!OPTS_VALID(opts, bpf_kprobe_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	retprobe = OPTS_GET(opts, retprobe, false);
+	offset = OPTS_GET(opts, offset, 0);
+
+	pfd = perf_event_open_probe(false /* uprobe */, retprobe, func_name,
+				    offset, -1 /* pid */);
 	if (pfd < 0) {
 		pr_warn("prog '%s': failed to create %s '%s' perf event: %s\n",
-			prog->name, opts->retprobe ? "kretprobe" : "kprobe", func_name,
+			prog->name, retprobe ? "kretprobe" : "kprobe", func_name,
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(pfd);
 	}
@@ -10393,7 +10396,7 @@ bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 	if (err) {
 		close(pfd);
 		pr_warn("prog '%s': failed to attach to %s '%s': %s\n",
-			prog->name, opts->retprobe ? "kretprobe" : "kprobe", func_name,
+			prog->name, retprobe ? "kretprobe" : "kprobe", func_name,
 			libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(err);
 	}
@@ -10404,9 +10407,9 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 					    bool retprobe,
 					    const char *func_name)
 {
-	struct bpf_program_attach_kprobe_opts opts = {
+	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, opts,
 		.retprobe = retprobe,
-	};
+	);
 
 	return bpf_program__attach_kprobe_opts(prog, func_name, &opts);
 }
@@ -10414,7 +10417,7 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 				      struct bpf_program *prog)
 {
-	struct bpf_program_attach_kprobe_opts opts;
+	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, opts);
 	unsigned long offset = 0;
 	struct bpf_link *link;
 	const char *func_name;

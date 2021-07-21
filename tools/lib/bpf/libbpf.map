@@ -372,6 +372,7 @@ LIBBPF_0.5.0 {
 	global:
 		bpf_map__initial_value;
 		bpf_map_lookup_and_delete_elem_flags;
+		bpf_program__attach_kprobe_opts;
 		bpf_object__gen_loader;
 		btf_dump__dump_type_data;
 		libbpf_set_strict_mode;
