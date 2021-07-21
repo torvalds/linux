@@ -3481,7 +3481,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_act *tc_act;
 	int err, i, if_count = 0;
 	bool ptype_host = false;
-	bool mpls_push = false;
 
 	err = flow_action_supported(flow_action, extack);
 	if (err)
@@ -3504,37 +3503,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			}
 
 			ptype_host = true;
-			break;
-		case FLOW_ACTION_MPLS_PUSH:
-			if (!MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
-							reformat_l2_to_l3_tunnel) ||
-			    act->mpls_push.proto != htons(ETH_P_MPLS_UC)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "mpls push is supported only for mpls_uc protocol");
-				return -EOPNOTSUPP;
-			}
-			mpls_push = true;
-			break;
-		case FLOW_ACTION_MPLS_POP:
-			/* we only support mpls pop if it is the first action
-			 * and the filter net device is bareudp. Subsequent
-			 * actions can be pedit and the last can be mirred
-			 * egress redirect.
-			 */
-			if (i) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "mpls pop supported only as first action");
-				return -EOPNOTSUPP;
-			}
-			if (!netif_is_bareudp(parse_attr->filter_dev)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "mpls pop supported only on bareudp devices");
-				return -EOPNOTSUPP;
-			}
-
-			parse_attr->eth.h_proto = act->mpls_pop.proto;
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-			flow_flag_set(flow, L3_TO_L2_DECAP);
 			break;
 		case FLOW_ACTION_REDIRECT_INGRESS: {
 			struct net_device *out_dev;
@@ -3594,7 +3562,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return -EINVAL;
 			}
 
-			if (mpls_push && !netif_is_bareudp(out_dev)) {
+			if (parse_state->mpls_push && !netif_is_bareudp(out_dev)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "mpls is supported only through a bareudp device");
 				return -EOPNOTSUPP;

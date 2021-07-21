@@ -18,6 +18,7 @@ struct mlx5e_tc_act_parse_state {
 	struct netlink_ext_ack *extack;
 	bool encap;
 	bool decap;
+	bool mpls_push;
 	const struct ip_tunnel_info *tun_info;
 	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 };
@@ -44,6 +45,8 @@ extern struct mlx5e_tc_act mlx5e_tc_act_csum;
 extern struct mlx5e_tc_act mlx5e_tc_act_pedit;
 extern struct mlx5e_tc_act mlx5e_tc_act_vlan;
 extern struct mlx5e_tc_act mlx5e_tc_act_vlan_mangle;
+extern struct mlx5e_tc_act mlx5e_tc_act_mpls_push;
+extern struct mlx5e_tc_act mlx5e_tc_act_mpls_pop;
 
 struct mlx5e_tc_act *
 mlx5e_tc_act_get(enum flow_action_id act_id,
