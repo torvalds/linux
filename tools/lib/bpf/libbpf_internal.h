@@ -425,4 +425,14 @@ static inline void *libbpf_ptr(void *ret)
 	return ret;
 }
 
+static inline bool str_is_empty(const char *s)
+{
+	return !s || !s[0];
+}
+
+static inline bool is_ldimm64_insn(struct bpf_insn *insn)
+{
+	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
+}
+
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

@@ -75,8 +75,7 @@ struct bpf_core_relo {
 	enum bpf_core_relo_kind kind;
 };
 
-struct bpf_core_cand
-{
+struct bpf_core_cand {
 	const struct btf *btf;
 	const struct btf_type *t;
 	const char *name;
@@ -89,4 +88,13 @@ struct bpf_core_cand_list {
 	int len;
 };
 
+int bpf_core_apply_relo_insn(const char *prog_name,
+			     struct bpf_insn *insn, int insn_idx,
+			     const struct bpf_core_relo *relo, int relo_idx,
+			     const struct btf *local_btf,
+			     struct bpf_core_cand_list *cands);
+int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+			      const struct btf *targ_btf, __u32 targ_id);
+
+size_t bpf_core_essential_name_len(const char *name);
 #endif
