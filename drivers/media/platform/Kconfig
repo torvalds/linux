@@ -638,6 +638,7 @@ config VIDEO_RCAR_DRIF
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC
+	select V4L2_ASYNC
 	help
 	  Say Y if you want to enable R-Car Gen3 DRIF support. DRIF is Digital
 	  Radio Interface that interfaces with an RF front end chip. It is a
