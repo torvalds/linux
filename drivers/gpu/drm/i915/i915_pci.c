@@ -987,6 +987,25 @@ static const struct intel_device_info adl_p_info = {
 	.ppgtt_size = 48, \
 	.ppgtt_type = INTEL_PPGTT_FULL
 
+#define XE_HPM_FEATURES \
+	.media_ver = 12, \
+	.media_rel = 50
+
+__maybe_unused
+static const struct intel_device_info xehpsdv_info = {
+	XE_HP_FEATURES,
+	XE_HPM_FEATURES,
+	DGFX_FEATURES,
+	PLATFORM(INTEL_XEHPSDV),
+	.display = { },
+	.pipe_mask = 0,
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) |
+		BIT(VECS0) | BIT(VECS1) |
+		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3),
+	.require_force_probe = 1,
+};
+
 #undef PLATFORM
 
 /*
