@@ -96,10 +96,11 @@ inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 }
 
 static
-inline int intel_guc_send_nb(struct intel_guc *guc, const u32 *action, u32 len)
+inline int intel_guc_send_nb(struct intel_guc *guc, const u32 *action, u32 len,
+			     u32 g2h_len_dw)
 {
 	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0,
-				 INTEL_GUC_CT_SEND_NB);
+				 MAKE_SEND_FLAGS(g2h_len_dw));
 }
 
 static inline int
@@ -113,6 +114,7 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
 					   const u32 *action,
 					   u32 len,
+					   u32 g2h_len_dw,
 					   bool loop)
 {
 	int err;
@@ -130,7 +132,7 @@ static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
 	might_sleep_if(loop && not_atomic);
 
 retry:
-	err = intel_guc_send_nb(guc, action, len);
+	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
 	if (unlikely(err == -EBUSY && loop)) {
 		if (likely(not_atomic)) {
 			if (msleep_interruptible(sleep_period_ms))

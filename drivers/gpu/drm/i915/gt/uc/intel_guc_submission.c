@@ -258,6 +258,7 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	struct intel_context *ce = rq->context;
 	u32 action[3];
 	int len = 0;
+	u32 g2h_len_dw = 0;
 	bool enabled = context_enabled(ce);
 
 	GEM_BUG_ON(!atomic_read(&ce->guc_id_ref));
@@ -269,13 +270,13 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 		action[len++] = GUC_CONTEXT_ENABLE;
 		set_context_pending_enable(ce);
 		intel_context_get(ce);
+		g2h_len_dw = G2H_LEN_DW_SCHED_CONTEXT_MODE_SET;
 	} else {
 		action[len++] = INTEL_GUC_ACTION_SCHED_CONTEXT;
 		action[len++] = ce->guc_id;
 	}
 
-	err = intel_guc_send_nb(guc, action, len);
-
+	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
 	if (!enabled && !err) {
 		set_context_enabled(ce);
 	} else if (!enabled) {
@@ -734,7 +735,7 @@ static int __guc_action_register_context(struct intel_guc *guc,
 		offset,
 	};
 
-	return intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action), true);
+	return intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action), 0, true);
 }
 
 static int register_context(struct intel_context *ce)
@@ -754,7 +755,8 @@ static int __guc_action_deregister_context(struct intel_guc *guc,
 		guc_id,
 	};
 
-	return intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action), true);
+	return intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action),
+					G2H_LEN_DW_DEREGISTER_CONTEXT, true);
 }
 
 static int deregister_context(struct intel_context *ce, u32 guc_id)
@@ -899,7 +901,8 @@ static void __guc_context_sched_disable(struct intel_guc *guc,
 
 	intel_context_get(ce);
 
-	intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action), true);
+	intel_guc_send_busy_loop(guc, action, ARRAY_SIZE(action),
+				 G2H_LEN_DW_SCHED_CONTEXT_MODE_SET, true);
 }
 
 static u16 prep_context_pending_disable(struct intel_context *ce)

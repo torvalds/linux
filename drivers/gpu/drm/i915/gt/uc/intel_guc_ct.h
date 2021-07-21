@@ -33,6 +33,7 @@ struct intel_guc;
  * @desc: pointer to the buffer descriptor
  * @cmds: pointer to the commands buffer
  * @size: size of the commands buffer in dwords
+ * @resv_space: reserved space in buffer in dwords
  * @head: local shadow copy of head in dwords
  * @tail: local shadow copy of tail in dwords
  * @space: local shadow copy of space in dwords
@@ -43,9 +44,10 @@ struct intel_guc_ct_buffer {
 	struct guc_ct_buffer_desc *desc;
 	u32 *cmds;
 	u32 size;
+	u32 resv_space;
 	u32 tail;
 	u32 head;
-	u32 space;
+	atomic_t space;
 	bool broken;
 };
 
@@ -97,6 +99,13 @@ static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 }
 
 #define INTEL_GUC_CT_SEND_NB		BIT(31)
+#define INTEL_GUC_CT_SEND_G2H_DW_SHIFT	0
+#define INTEL_GUC_CT_SEND_G2H_DW_MASK	(0xff << INTEL_GUC_CT_SEND_G2H_DW_SHIFT)
+#define MAKE_SEND_FLAGS(len) ({ \
+	typeof(len) len_ = (len); \
+	GEM_BUG_ON(!FIELD_FIT(INTEL_GUC_CT_SEND_G2H_DW_MASK, len_)); \
+	(FIELD_PREP(INTEL_GUC_CT_SEND_G2H_DW_MASK, len_) | INTEL_GUC_CT_SEND_NB); \
+})
 int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		      u32 *response_buf, u32 response_buf_size, u32 flags);
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct);
