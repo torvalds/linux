@@ -184,8 +184,7 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_ESAN3;
 
 	/* z/Architecture mode active */
-	if (test_facility(2))
-		elf_hwcap |= HWCAP_ZARCH;
+	elf_hwcap |= HWCAP_ZARCH;
 
 	/* store-facility-list-extended */
 	if (test_facility(7))
