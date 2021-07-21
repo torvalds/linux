@@ -971,7 +971,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MN_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_500M>;
-				fsl,usbphy = <&usbphynop1>;
+				phys = <&usbphynop1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				status = "disabled";
 			};
@@ -1039,6 +1039,7 @@
 	};
 
 	usbphynop1: usbphynop1 {
+		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
 		clocks = <&clk IMX8MN_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MN_CLK_USB_PHY_REF>;
