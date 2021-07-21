@@ -594,8 +594,15 @@ static int u32_reader(struct driver_data *drv_data)
 
 static void reset_sccr1(struct driver_data *drv_data)
 {
-	struct chip_data *chip = spi_get_ctldata(drv_data->controller->cur_msg->spi);
-	u32 mask = drv_data->int_cr1 | drv_data->dma_cr1;
+	u32 mask = drv_data->int_cr1 | drv_data->dma_cr1, threshold;
+	struct chip_data *chip;
+
+	if (drv_data->controller->cur_msg) {
+		chip = spi_get_ctldata(drv_data->controller->cur_msg->spi);
+		threshold = chip->threshold;
+	} else {
+		threshold = 0;
+	}
 
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
@@ -609,7 +616,7 @@ static void reset_sccr1(struct driver_data *drv_data)
 		break;
 	}
 
-	pxa2xx_spi_update(drv_data, SSCR1, mask, chip->threshold);
+	pxa2xx_spi_update(drv_data, SSCR1, mask, threshold);
 }
 
 static void int_stop_and_reset(struct driver_data *drv_data)
