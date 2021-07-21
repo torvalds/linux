@@ -2061,56 +2061,18 @@ s32 rtl8723b_InitLLTTable(struct adapter *padapter)
 	return ret;
 }
 
-static bool Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
+static void Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
 {
-	bool bIn24G = true;
-
-	if (Channel <= 14) {
-		bIn24G = true;
-
-		if (1  <= Channel && Channel <= 2)
-			*pGroup = 0;
-		else if (3  <= Channel && Channel <= 5)
-			*pGroup = 1;
-		else if (6  <= Channel && Channel <= 8)
-			*pGroup = 2;
-		else if (9  <= Channel && Channel <= 11)
-			*pGroup = 3;
-		else if (12 <= Channel && Channel <= 14)
-			*pGroup = 4;
-	} else {
-		bIn24G = false;
-
-		if (36   <= Channel && Channel <=  42)
-			*pGroup = 0;
-		else if (44   <= Channel && Channel <=  48)
-			*pGroup = 1;
-		else if (50   <= Channel && Channel <=  58)
-			*pGroup = 2;
-		else if (60   <= Channel && Channel <=  64)
-			*pGroup = 3;
-		else if (100  <= Channel && Channel <= 106)
-			*pGroup = 4;
-		else if (108  <= Channel && Channel <= 114)
-			*pGroup = 5;
-		else if (116  <= Channel && Channel <= 122)
-			*pGroup = 6;
-		else if (124  <= Channel && Channel <= 130)
-			*pGroup = 7;
-		else if (132  <= Channel && Channel <= 138)
-			*pGroup = 8;
-		else if (140  <= Channel && Channel <= 144)
-			*pGroup = 9;
-		else if (149  <= Channel && Channel <= 155)
-			*pGroup = 10;
-		else if (157  <= Channel && Channel <= 161)
-			*pGroup = 11;
-		else if (165  <= Channel && Channel <= 171)
-			*pGroup = 12;
-		else if (173  <= Channel && Channel <= 177)
-			*pGroup = 13;
-	}
-	return bIn24G;
+	if (1  <= Channel && Channel <= 2)
+		*pGroup = 0;
+	else if (3  <= Channel && Channel <= 5)
+		*pGroup = 1;
+	else if (6  <= Channel && Channel <= 8)
+		*pGroup = 2;
+	else if (9  <= Channel && Channel <= 11)
+		*pGroup = 3;
+	else if (12 <= Channel && Channel <= 14)
+		*pGroup = 4;
 }
 
 void Hal_InitPGData(struct adapter *padapter, u8 *PROMContent)
