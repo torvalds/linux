@@ -207,7 +207,7 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_ETF3EH;
 
 	/* decimal floating point & perform floating point operation */
-	if ((elf_hwcap & (1UL << 2)) && test_facility(42) && test_facility(44))
+	if (test_facility(42) && test_facility(44))
 		elf_hwcap |= HWCAP_DFP;
 
 	/* huge page support */
