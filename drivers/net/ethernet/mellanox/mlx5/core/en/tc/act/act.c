@@ -11,6 +11,15 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	&mlx5e_tc_act_drop,
 	&mlx5e_tc_act_trap,
 	&mlx5e_tc_act_goto,
+	NULL, /* FLOW_ACTION_REDIRECT, */
+	NULL, /* FLOW_ACTION_MIRRED, */
+	NULL, /* FLOW_ACTION_REDIRECT_INGRESS, */
+	NULL, /* FLOW_ACTION_MIRRED_INGRESS, */
+	NULL, /* FLOW_ACTION_VLAN_PUSH, */
+	NULL, /* FLOW_ACTION_VLAN_POP, */
+	NULL, /* FLOW_ACTION_VLAN_MANGLE, */
+	&mlx5e_tc_act_tun_encap,
+	&mlx5e_tc_act_tun_decap,
 };
 
 /* Must be aligned with enum flow_action_id. */

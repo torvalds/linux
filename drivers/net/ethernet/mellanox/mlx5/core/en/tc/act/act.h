@@ -14,6 +14,9 @@ struct mlx5e_tc_act_parse_state {
 	unsigned int num_actions;
 	struct mlx5e_tc_flow *flow;
 	struct netlink_ext_ack *extack;
+	bool encap;
+	bool decap;
+	const struct ip_tunnel_info *tun_info;
 };
 
 struct mlx5e_tc_act {
@@ -32,6 +35,8 @@ extern struct mlx5e_tc_act mlx5e_tc_act_trap;
 extern struct mlx5e_tc_act mlx5e_tc_act_accept;
 extern struct mlx5e_tc_act mlx5e_tc_act_mark;
 extern struct mlx5e_tc_act mlx5e_tc_act_goto;
+extern struct mlx5e_tc_act mlx5e_tc_act_tun_encap;
+extern struct mlx5e_tc_act mlx5e_tc_act_tun_decap;
 
 struct mlx5e_tc_act *
 mlx5e_tc_act_get(enum flow_action_id act_id,

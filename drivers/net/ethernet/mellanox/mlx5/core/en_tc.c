@@ -3819,14 +3819,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5e_sample_attr sample_attr = {};
-	const struct ip_tunnel_info *info = NULL;
 	struct mlx5_flow_attr *attr = flow->attr;
 	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	enum mlx5_flow_namespace_type ns_type;
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
-	bool encap = false, decap = false;
 	struct mlx5e_tc_act *tc_act;
 	int err, i, if_count = 0;
 	bool ptype_host = false;
@@ -3985,14 +3983,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			if (encap) {
+			if (parse_state->encap) {
 				parse_attr->mirred_ifindex[esw_attr->out_count] =
 					out_dev->ifindex;
 				parse_attr->tun_info[esw_attr->out_count] =
-					mlx5e_dup_tun_info(info);
+					mlx5e_dup_tun_info(parse_state->tun_info);
 				if (!parse_attr->tun_info[esw_attr->out_count])
 					return -ENOMEM;
-				encap = false;
+				parse_state->encap = false;
 				esw_attr->dests[esw_attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;
 				esw_attr->out_count++;
@@ -4081,17 +4079,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			}
 			}
 			break;
-		case FLOW_ACTION_TUNNEL_ENCAP:
-			info = act->tunnel;
-			if (info) {
-				encap = true;
-			} else {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Zero tunnel attributes is not supported");
-				return -EOPNOTSUPP;
-			}
-
-			break;
 		case FLOW_ACTION_VLAN_PUSH:
 		case FLOW_ACTION_VLAN_POP:
 			if (act->id == FLOW_ACTION_VLAN_PUSH &&
@@ -4120,9 +4107,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return err;
 
 			esw_attr->split_count = esw_attr->out_count;
-			break;
-		case FLOW_ACTION_TUNNEL_DECAP:
-			decap = true;
 			break;
 		case FLOW_ACTION_CT:
 			if (flow_flag_test(flow, SAMPLE)) {
@@ -4194,7 +4178,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
 
-	if (attr->dest_chain && decap) {
+	if (attr->dest_chain && parse_state->decap) {
 		/* It can be supported if we'll create a mapping for
 		 * the tunnel device only (without tunnel), and set
 		 * this tunnel id with this decap flow.
