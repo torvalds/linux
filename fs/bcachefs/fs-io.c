@@ -2296,8 +2296,6 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
 	struct bch_inode_unpacked inode_u;
-	struct btree_trans trans;
-	struct btree_iter *iter;
 	u64 new_i_size = iattr->ia_size;
 	s64 i_sectors_delta = 0;
 	int ret = 0;
@@ -2318,16 +2316,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
-	/*
-	 * fetch current on disk i_size: inode is locked, i_size can only
-	 * increase underneath us:
-	 */
-	bch2_trans_init(&trans, c, 0, 0);
-	iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino, 0);
-	ret = PTR_ERR_OR_ZERO(iter);
-	bch2_trans_iter_put(&trans, iter);
-	bch2_trans_exit(&trans);
-
+	ret = bch2_inode_find_by_inum(c, inode->v.i_ino, &inode_u);
 	if (ret)
 		goto err;
 
