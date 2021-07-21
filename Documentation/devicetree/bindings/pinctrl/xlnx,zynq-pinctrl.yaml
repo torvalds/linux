@@ -156,10 +156,7 @@ patternProperties:
           slew-rate:
             enum: [0, 1]
 
-          io-standard:
-            description:
-              Selects the IO standard for MIO pins, this is driver specific.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+          power-source:
             enum: [1, 2, 3, 4]
 
         oneOf:
@@ -179,6 +176,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/pinctrl/pinctrl-zynq.h>
     pinctrl0: pinctrl@700 {
        compatible = "xlnx,zynq-pinctrl";
        reg = <0x700 0x200>;
@@ -193,7 +191,7 @@ examples:
            conf {
                groups = "uart1_10_grp";
                slew-rate = <0>;
-               io-standard = <1>;
+               power-source = <IO_STANDARD_LVCMOS18>;
            };
 
            conf-rx {
