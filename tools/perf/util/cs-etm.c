@@ -508,14 +508,11 @@ out:
 	return ret;
 }
 
-static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
+static void cs_etm__dump_event(struct cs_etm_queue *etmq,
 			       struct auxtrace_buffer *buffer)
 {
 	int ret;
 	const char *color = PERF_COLOR_BLUE;
-	struct cs_etm_decoder_params d_params;
-	struct cs_etm_trace_params *t_params;
-	struct cs_etm_decoder *decoder;
 	size_t buffer_used = 0;
 
 	fprintf(stdout, "\n");
@@ -523,29 +520,11 @@ static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
 		     ". ... CoreSight ETM Trace data: size %zu bytes\n",
 		     buffer->size);
 
-	/* Use metadata to fill in trace parameters for trace decoder */
-	t_params = zalloc(sizeof(*t_params) * etm->num_cpu);
-
-	if (!t_params)
-		return;
-
-	if (cs_etm__init_trace_params(t_params, etm))
-		goto out_free;
-
-	/* Set decoder parameters to simply print the trace packets */
-	if (cs_etm__init_decoder_params(&d_params, NULL,
-					CS_ETM_OPERATION_PRINT))
-		goto out_free;
-
-	decoder = cs_etm_decoder__new(etm->num_cpu, &d_params, t_params);
-
-	if (!decoder)
-		goto out_free;
 	do {
 		size_t consumed;
 
 		ret = cs_etm_decoder__process_data_block(
-				decoder, buffer->offset,
+				etmq->decoder, buffer->offset,
 				&((u8 *)buffer->data)[buffer_used],
 				buffer->size - buffer_used, &consumed);
 		if (ret)
@@ -554,10 +533,7 @@ static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
 		buffer_used += consumed;
 	} while (buffer_used < buffer->size);
 
-	cs_etm_decoder__free(decoder);
-
-out_free:
-	zfree(&t_params);
+	cs_etm_decoder__reset(etmq->decoder);
 }
 
 static int cs_etm__flush_events(struct perf_session *session,
@@ -769,7 +745,8 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm)
 
 	/* Set decoder parameters to decode trace packets */
 	if (cs_etm__init_decoder_params(&d_params, etmq,
-					CS_ETM_OPERATION_DECODE))
+					dump_trace ? CS_ETM_OPERATION_PRINT :
+						     CS_ETM_OPERATION_DECODE))
 		goto out_free;
 
 	etmq->decoder = cs_etm_decoder__new(etm->num_cpu, &d_params, t_params);
@@ -2422,7 +2399,7 @@ static void dump_queued_data(struct cs_etm_auxtrace *etm,
 	for (i = 0; i < etm->queues.nr_queues; ++i)
 		list_for_each_entry(buf, &etm->queues.queue_array[i].head, list)
 			if (buf->reference == event->reference)
-				cs_etm__dump_event(etm, buf);
+				cs_etm__dump_event(etm->queues.queue_array[i].priv, buf);
 }
 
 static int cs_etm__process_auxtrace_event(struct perf_session *session,
@@ -2460,7 +2437,7 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 
 		if (dump_trace)
 			if (auxtrace_buffer__get_data(buffer, fd)) {
-				cs_etm__dump_event(etm, buffer);
+				cs_etm__dump_event(etm->queues.queue_array[idx].priv, buffer);
 				auxtrace_buffer__put_data(buffer);
 			}
 	} else if (dump_trace)
