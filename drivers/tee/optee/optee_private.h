@@ -12,6 +12,8 @@
 #include <linux/types.h>
 #include "optee_msg.h"
 
+#define DRIVER_NAME "optee"
+
 #define OPTEE_MAX_ARG_SIZE	1024
 
 /* Some Global Platform error codes used in this driver */
@@ -28,6 +30,11 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long,
 				struct arm_smccc_res *);
+
+struct optee_call_waiter {
+	struct list_head list_node;
+	struct completion c;
+};
 
 struct optee_call_queue {
 	/* Serializes access to this struct */
@@ -66,6 +73,19 @@ struct optee_supp {
 	struct completion reqs_c;
 };
 
+/**
+ * struct optee_smc - SMC ABI specifics
+ * @invoke_fn:		function to issue smc or hvc
+ * @memremaped_shm	virtual address of memory in shared memory pool
+ * @sec_caps:		secure world capabilities defined by
+ *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
+ */
+struct optee_smc {
+	optee_invoke_fn *invoke_fn;
+	void *memremaped_shm;
+	u32 sec_caps;
+};
+
 struct optee;
 
 /**
@@ -95,15 +115,12 @@ struct optee_ops {
  * @ops:		internal callbacks for different ways to reach secure
  *			world
  * @teedev:		client device
- * @invoke_fn:		function to issue smc or hvc
+ * @smc:		specific to SMC ABI
  * @call_queue:		queue of threads waiting to call @invoke_fn
  * @wait_queue:		queue of threads from secure world waiting for a
  *			secure world sync object
  * @supp:		supplicant synchronization struct for RPC to supplicant
  * @pool:		shared memory pool
- * @memremaped_shm	virtual address of memory in shared memory pool
- * @sec_caps:		secure world capabilities defined by
- *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
  * @scan_bus_done	flag if device registation was already done.
  * @scan_bus_wq		workqueue to scan optee bus and register optee drivers
  * @scan_bus_work	workq to scan optee bus and register optee drivers
@@ -112,13 +129,11 @@ struct optee {
 	struct tee_device *supp_teedev;
 	struct tee_device *teedev;
 	const struct optee_ops *ops;
-	optee_invoke_fn *invoke_fn;
+	struct optee_smc smc;
 	struct optee_call_queue call_queue;
 	struct optee_wait_queue wait_queue;
 	struct optee_supp supp;
 	struct tee_shm_pool *pool;
-	void *memremaped_shm;
-	u32 sec_caps;
 	bool   scan_bus_done;
 	struct workqueue_struct *scan_bus_wq;
 	struct work_struct scan_bus_work;
@@ -153,10 +168,6 @@ struct optee_call_ctx {
 	size_t num_entries;
 };
 
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
-		      struct optee_call_ctx *call_ctx);
-void optee_rpc_finalize_call(struct optee_call_ctx *call_ctx);
-
 void optee_wait_queue_init(struct optee_wait_queue *wq);
 void optee_wait_queue_exit(struct optee_wait_queue *wq);
 
@@ -174,7 +185,6 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 int optee_supp_send(struct tee_context *ctx, u32 ret, u32 num_params,
 		    struct tee_param *param);
 
-int optee_do_call_with_arg(struct tee_context *ctx, struct tee_shm *arg);
 int optee_open_session(struct tee_context *ctx,
 		       struct tee_ioctl_open_session_arg *arg,
 		       struct tee_param *param);
@@ -184,29 +194,59 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 		      struct tee_param *param);
 int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session);
 
-void optee_enable_shm_cache(struct optee *optee);
-void optee_disable_shm_cache(struct optee *optee);
-void optee_disable_unmapped_shm_cache(struct optee *optee);
-
-int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
-		       struct page **pages, size_t num_pages,
-		       unsigned long start);
-int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm);
-
-int optee_shm_register_supp(struct tee_context *ctx, struct tee_shm *shm,
-			    struct page **pages, size_t num_pages,
-			    unsigned long start);
-int optee_shm_unregister_supp(struct tee_context *ctx, struct tee_shm *shm);
-
-u64 *optee_allocate_pages_list(size_t num_entries);
-void optee_free_pages_list(void *array, size_t num_entries);
-void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
-			   size_t page_offset);
-
 #define PTA_CMD_GET_DEVICES		0x0
 #define PTA_CMD_GET_DEVICES_SUPP	0x1
 int optee_enumerate_devices(u32 func);
 void optee_unregister_devices(void);
+
+int optee_pool_op_alloc_helper(struct tee_shm_pool_mgr *poolm,
+			       struct tee_shm *shm, size_t size,
+			       int (*shm_register)(struct tee_context *ctx,
+						   struct tee_shm *shm,
+						   struct page **pages,
+						   size_t num_pages,
+						   unsigned long start));
+
+
+void optee_remove_common(struct optee *optee);
+int optee_open(struct tee_context *ctx, bool cap_memref_null);
+void optee_release(struct tee_context *ctx);
+void optee_release_supp(struct tee_context *ctx);
+
+static inline void optee_from_msg_param_value(struct tee_param *p, u32 attr,
+					      const struct optee_msg_param *mp)
+{
+	p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT +
+		  attr - OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	p->u.value.a = mp->u.value.a;
+	p->u.value.b = mp->u.value.b;
+	p->u.value.c = mp->u.value.c;
+}
+
+static inline void optee_to_msg_param_value(struct optee_msg_param *mp,
+					    const struct tee_param *p)
+{
+	mp->attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT + p->attr -
+		   TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	mp->u.value.a = p->u.value.a;
+	mp->u.value.b = p->u.value.b;
+	mp->u.value.c = p->u.value.c;
+}
+
+void optee_cq_wait_init(struct optee_call_queue *cq,
+			struct optee_call_waiter *w);
+void optee_cq_wait_for_completion(struct optee_call_queue *cq,
+				  struct optee_call_waiter *w);
+void optee_cq_wait_final(struct optee_call_queue *cq,
+			 struct optee_call_waiter *w);
+int optee_check_mem_type(unsigned long start, size_t num_pages);
+struct tee_shm *optee_get_msg_arg(struct tee_context *ctx, size_t num_params,
+				  struct optee_msg_arg **msg_arg);
+
+struct tee_shm *optee_rpc_cmd_alloc_suppl(struct tee_context *ctx, size_t sz);
+void optee_rpc_cmd_free_suppl(struct tee_context *ctx, struct tee_shm *shm);
+void optee_rpc_cmd(struct tee_context *ctx, struct optee *optee,
+		   struct optee_msg_arg *arg);
 
 /*
  * Small helpers
@@ -222,5 +262,9 @@ static inline void reg_pair_from_64(u32 *reg0, u32 *reg1, u64 val)
 	*reg0 = val >> 32;
 	*reg1 = val;
 }
+
+/* Registration of the ABIs */
+int optee_smc_abi_register(void);
+void optee_smc_abi_unregister(void);
 
 #endif /*OPTEE_PRIVATE_H*/
