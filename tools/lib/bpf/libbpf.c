@@ -5611,7 +5611,7 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 	return 1;
 }
 
-static int bpf_core_calc_field_relo(const struct bpf_program *prog,
+static int bpf_core_calc_field_relo(const char *prog_name,
 				    const struct bpf_core_relo *relo,
 				    const struct bpf_core_spec *spec,
 				    __u32 *val, __u32 *field_sz, __u32 *type_id,
@@ -5655,7 +5655,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 			*val = sz;
 		} else {
 			pr_warn("prog '%s': relo %d at insn #%d can't be applied to array access\n",
-				prog->name, relo->kind, relo->insn_off / 8);
+				prog_name, relo->kind, relo->insn_off / 8);
 			return -EINVAL;
 		}
 		if (validate)
@@ -5677,7 +5677,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 			if (byte_sz >= 8) {
 				/* bitfield can't be read with 64-bit read */
 				pr_warn("prog '%s': relo %d at insn #%d can't be satisfied for bitfield\n",
-					prog->name, relo->kind, relo->insn_off / 8);
+					prog_name, relo->kind, relo->insn_off / 8);
 				return -E2BIG;
 			}
 			byte_sz *= 2;
@@ -5827,7 +5827,7 @@ struct bpf_core_relo_res
  * with each other. Otherwise, libbpf will refuse to proceed due to ambiguity.
  * If instruction has to be poisoned, *poison will be set to true.
  */
-static int bpf_core_calc_relo(const struct bpf_program *prog,
+static int bpf_core_calc_relo(const char *prog_name,
 			      const struct bpf_core_relo *relo,
 			      int relo_idx,
 			      const struct bpf_core_spec *local_spec,
@@ -5845,10 +5845,10 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 	res->orig_type_id = res->new_type_id = 0;
 
 	if (core_relo_is_field_based(relo->kind)) {
-		err = bpf_core_calc_field_relo(prog, relo, local_spec,
+		err = bpf_core_calc_field_relo(prog_name, relo, local_spec,
 					       &res->orig_val, &res->orig_sz,
 					       &res->orig_type_id, &res->validate);
-		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec,
+		err = err ?: bpf_core_calc_field_relo(prog_name, relo, targ_spec,
 						      &res->new_val, &res->new_sz,
 						      &res->new_type_id, NULL);
 		if (err)
@@ -5906,7 +5906,7 @@ done:
 	} else if (err == -EOPNOTSUPP) {
 		/* EOPNOTSUPP means unknown/unsupported relocation */
 		pr_warn("prog '%s': relo #%d: unrecognized CO-RE relocation %s (%d) at insn #%d\n",
-			prog->name, relo_idx, core_relo_kind_str(relo->kind),
+			prog_name, relo_idx, core_relo_kind_str(relo->kind),
 			relo->kind, relo->insn_off / 8);
 	}
 
@@ -5917,11 +5917,11 @@ done:
  * Turn instruction for which CO_RE relocation failed into invalid one with
  * distinct signature.
  */
-static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
+static void bpf_core_poison_insn(const char *prog_name, int relo_idx,
 				 int insn_idx, struct bpf_insn *insn)
 {
 	pr_debug("prog '%s': relo #%d: substituting insn #%d w/ invalid insn\n",
-		 prog->name, relo_idx, insn_idx);
+		 prog_name, relo_idx, insn_idx);
 	insn->code = BPF_JMP | BPF_CALL;
 	insn->dst_reg = 0;
 	insn->src_reg = 0;
@@ -5977,6 +5977,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 			       int relo_idx,
 			       const struct bpf_core_relo_res *res)
 {
+	const char *prog_name = prog->name;
 	__u32 orig_val, new_val;
 	struct bpf_insn *insn;
 	int insn_idx;
@@ -5999,8 +6000,8 @@ poison:
 		 * verifier about "unknown opcode 00"
 		 */
 		if (is_ldimm64_insn(insn))
-			bpf_core_poison_insn(prog, relo_idx, insn_idx + 1, insn + 1);
-		bpf_core_poison_insn(prog, relo_idx, insn_idx, insn);
+			bpf_core_poison_insn(prog_name, relo_idx, insn_idx + 1, insn + 1);
+		bpf_core_poison_insn(prog_name, relo_idx, insn_idx, insn);
 		return 0;
 	}
 
@@ -6014,14 +6015,14 @@ poison:
 			return -EINVAL;
 		if (res->validate && insn->imm != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
-				prog->name, relo_idx,
+				prog_name, relo_idx,
 				insn_idx, insn->imm, orig_val, new_val);
 			return -EINVAL;
 		}
 		orig_val = insn->imm;
 		insn->imm = new_val;
 		pr_debug("prog '%s': relo #%d: patched insn #%d (ALU/ALU64) imm %u -> %u\n",
-			 prog->name, relo_idx, insn_idx,
+			 prog_name, relo_idx, insn_idx,
 			 orig_val, new_val);
 		break;
 	case BPF_LDX:
@@ -6029,25 +6030,25 @@ poison:
 	case BPF_STX:
 		if (res->validate && insn->off != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %u, exp %u -> %u\n",
-				prog->name, relo_idx, insn_idx, insn->off, orig_val, new_val);
+				prog_name, relo_idx, insn_idx, insn->off, orig_val, new_val);
 			return -EINVAL;
 		}
 		if (new_val > SHRT_MAX) {
 			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) value too big: %u\n",
-				prog->name, relo_idx, insn_idx, new_val);
+				prog_name, relo_idx, insn_idx, new_val);
 			return -ERANGE;
 		}
 		if (res->fail_memsz_adjust) {
 			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) accesses field incorrectly. "
 				"Make sure you are accessing pointers, unsigned integers, or fields of matching type and size.\n",
-				prog->name, relo_idx, insn_idx);
+				prog_name, relo_idx, insn_idx);
 			goto poison;
 		}
 
 		orig_val = insn->off;
 		insn->off = new_val;
 		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %u -> %u\n",
-			 prog->name, relo_idx, insn_idx, orig_val, new_val);
+			 prog_name, relo_idx, insn_idx, orig_val, new_val);
 
 		if (res->new_sz != res->orig_sz) {
 			int insn_bytes_sz, insn_bpf_sz;
@@ -6055,20 +6056,20 @@ poison:
 			insn_bytes_sz = insn_bpf_size_to_bytes(insn);
 			if (insn_bytes_sz != res->orig_sz) {
 				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) unexpected mem size: got %d, exp %u\n",
-					prog->name, relo_idx, insn_idx, insn_bytes_sz, res->orig_sz);
+					prog_name, relo_idx, insn_idx, insn_bytes_sz, res->orig_sz);
 				return -EINVAL;
 			}
 
 			insn_bpf_sz = insn_bytes_to_bpf_size(res->new_sz);
 			if (insn_bpf_sz < 0) {
 				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) invalid new mem size: %u\n",
-					prog->name, relo_idx, insn_idx, res->new_sz);
+					prog_name, relo_idx, insn_idx, res->new_sz);
 				return -EINVAL;
 			}
 
 			insn->code = BPF_MODE(insn->code) | insn_bpf_sz | BPF_CLASS(insn->code);
 			pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) mem_sz %u -> %u\n",
-				 prog->name, relo_idx, insn_idx, res->orig_sz, res->new_sz);
+				 prog_name, relo_idx, insn_idx, res->orig_sz, res->new_sz);
 		}
 		break;
 	case BPF_LD: {
@@ -6080,14 +6081,14 @@ poison:
 		    insn[1].code != 0 || insn[1].dst_reg != 0 ||
 		    insn[1].src_reg != 0 || insn[1].off != 0) {
 			pr_warn("prog '%s': relo #%d: insn #%d (LDIMM64) has unexpected form\n",
-				prog->name, relo_idx, insn_idx);
+				prog_name, relo_idx, insn_idx);
 			return -EINVAL;
 		}
 
 		imm = insn[0].imm + ((__u64)insn[1].imm << 32);
 		if (res->validate && imm != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDIMM64) value: got %llu, exp %u -> %u\n",
-				prog->name, relo_idx,
+				prog_name, relo_idx,
 				insn_idx, (unsigned long long)imm,
 				orig_val, new_val);
 			return -EINVAL;
@@ -6096,13 +6097,13 @@ poison:
 		insn[0].imm = new_val;
 		insn[1].imm = 0; /* currently only 32-bit values are supported */
 		pr_debug("prog '%s': relo #%d: patched insn #%d (LDIMM64) imm64 %llu -> %u\n",
-			 prog->name, relo_idx, insn_idx,
+			 prog_name, relo_idx, insn_idx,
 			 (unsigned long long)imm, new_val);
 		break;
 	}
 	default:
 		pr_warn("prog '%s': relo #%d: trying to relocate unrecognized insn #%d, code:0x%x, src:0x%x, dst:0x%x, off:0x%x, imm:0x%x\n",
-			prog->name, relo_idx, insn_idx, insn->code,
+			prog_name, relo_idx, insn_idx, insn->code,
 			insn->src_reg, insn->dst_reg, insn->off, insn->imm);
 		return -EINVAL;
 	}
@@ -6238,6 +6239,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	const struct btf_type *local_type;
 	const char *local_name;
 	struct core_cand_list *cands = NULL;
+	const char *prog_name = prog->name;
 	__u32 local_id;
 	const char *spec_str;
 	int i, j, err;
@@ -6264,13 +6266,13 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	err = bpf_core_parse_spec(local_btf, local_id, spec_str, relo->kind, &local_spec);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
-			prog->name, relo_idx, local_id, btf_kind_str(local_type),
+			prog_name, relo_idx, local_id, btf_kind_str(local_type),
 			str_is_empty(local_name) ? "<anon>" : local_name,
 			spec_str, err);
 		return -EINVAL;
 	}
 
-	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog->name,
+	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog_name,
 		 relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
@@ -6287,7 +6289,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	/* libbpf doesn't support candidate search for anonymous types */
 	if (str_is_empty(spec_str)) {
 		pr_warn("prog '%s': relo #%d: <%s> (%d) relocation doesn't support anonymous types\n",
-			prog->name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
+			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 		return -EOPNOTSUPP;
 	}
 
@@ -6295,7 +6297,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 		cands = bpf_core_find_cands(prog->obj, local_btf, local_id);
 		if (IS_ERR(cands)) {
 			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s %s: %ld\n",
-				prog->name, relo_idx, local_id, btf_kind_str(local_type),
+				prog_name, relo_idx, local_id, btf_kind_str(local_type),
 				local_name, PTR_ERR(cands));
 			return PTR_ERR(cands);
 		}
@@ -6311,13 +6313,13 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 					  cands->cands[i].id, &cand_spec);
 		if (err < 0) {
 			pr_warn("prog '%s': relo #%d: error matching candidate #%d ",
-				prog->name, relo_idx, i);
+				prog_name, relo_idx, i);
 			bpf_core_dump_spec(LIBBPF_WARN, &cand_spec);
 			libbpf_print(LIBBPF_WARN, ": %d\n", err);
 			return err;
 		}
 
-		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog->name,
+		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog_name,
 			 relo_idx, err == 0 ? "non-matching" : "matching", i);
 		bpf_core_dump_spec(LIBBPF_DEBUG, &cand_spec);
 		libbpf_print(LIBBPF_DEBUG, "\n");
@@ -6325,7 +6327,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 		if (err == 0)
 			continue;
 
-		err = bpf_core_calc_relo(prog, relo, relo_idx, &local_spec, &cand_spec, &cand_res);
+		err = bpf_core_calc_relo(prog_name, relo, relo_idx, &local_spec, &cand_spec, &cand_res);
 		if (err)
 			return err;
 
@@ -6337,7 +6339,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 			 * should all resolve to the same bit offset
 			 */
 			pr_warn("prog '%s': relo #%d: field offset ambiguity: %u != %u\n",
-				prog->name, relo_idx, cand_spec.bit_offset,
+				prog_name, relo_idx, cand_spec.bit_offset,
 				targ_spec.bit_offset);
 			return -EINVAL;
 		} else if (cand_res.poison != targ_res.poison || cand_res.new_val != targ_res.new_val) {
@@ -6346,7 +6348,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 			 * proceed due to ambiguity
 			 */
 			pr_warn("prog '%s': relo #%d: relocation decision ambiguity: %s %u != %s %u\n",
-				prog->name, relo_idx,
+				prog_name, relo_idx,
 				cand_res.poison ? "failure" : "success", cand_res.new_val,
 				targ_res.poison ? "failure" : "success", targ_res.new_val);
 			return -EINVAL;
@@ -6379,10 +6381,10 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	 */
 	if (j == 0) {
 		pr_debug("prog '%s': relo #%d: no matching targets found\n",
-			 prog->name, relo_idx);
+			 prog_name, relo_idx);
 
 		/* calculate single target relo result explicitly */
-		err = bpf_core_calc_relo(prog, relo, relo_idx, &local_spec, NULL, &targ_res);
+		err = bpf_core_calc_relo(prog_name, relo, relo_idx, &local_spec, NULL, &targ_res);
 		if (err)
 			return err;
 	}
@@ -6392,7 +6394,7 @@ patch_insn:
 	err = bpf_core_patch_insn(prog, relo, relo_idx, &targ_res);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: failed to patch insn #%zu: %d\n",
-			prog->name, relo_idx, relo->insn_off / BPF_INSN_SZ, err);
+			prog_name, relo_idx, relo->insn_off / BPF_INSN_SZ, err);
 		return -EINVAL;
 	}
 
