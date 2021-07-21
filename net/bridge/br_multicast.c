@@ -1312,7 +1312,8 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 	return p;
 }
 
-void br_multicast_host_join(struct net_bridge_mdb_entry *mp, bool notify)
+void br_multicast_host_join(const struct net_bridge_mcast *brmctx,
+			    struct net_bridge_mdb_entry *mp, bool notify)
 {
 	if (!mp->host_joined) {
 		mp->host_joined = true;
@@ -1325,8 +1326,7 @@ void br_multicast_host_join(struct net_bridge_mdb_entry *mp, bool notify)
 	if (br_group_is_l2(&mp->addr))
 		return;
 
-	mod_timer(&mp->timer,
-		  jiffies + mp->br->multicast_ctx.multicast_membership_interval);
+	mod_timer(&mp->timer, jiffies + brmctx->multicast_membership_interval);
 }
 
 void br_multicast_host_leave(struct net_bridge_mdb_entry *mp, bool notify)
@@ -1363,7 +1363,7 @@ __br_multicast_add_group(struct net_bridge_mcast *brmctx,
 		return ERR_CAST(mp);
 
 	if (!pmctx) {
-		br_multicast_host_join(mp, true);
+		br_multicast_host_join(brmctx, mp, true);
 		goto out;
 	}
 
