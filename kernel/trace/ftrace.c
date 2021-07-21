@@ -5985,7 +5985,8 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		 * infrastructure to do the synchronization, thus we must do it
 		 * ourselves.
 		 */
-		synchronize_rcu_tasks_rude();
+		if (old_hash != EMPTY_HASH)
+			synchronize_rcu_tasks_rude();
 
 		free_ftrace_hash(old_hash);
 	}
