@@ -580,7 +580,7 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 			struct wlan_bssid_ex *cur_network;
 
 			cur_network = &padapter->mlmeextpriv.mlmext_info.network;
-			psta = rtw_get_stainfo(&padapter->stapriv, cur_network->MacAddress);
+			psta = rtw_get_stainfo(&padapter->stapriv, cur_network->mac_address);
 			rtw_hal_update_ra_mask(psta, 0);
 		}
 		break;

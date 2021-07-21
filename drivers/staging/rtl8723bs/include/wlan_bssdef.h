@@ -75,9 +75,9 @@ struct ndis_80211_var_ie {
  * sizeof (NDIS_802_11_MAC_ADDRESS) + 2 +
  * sizeof (struct ndis_802_11_ssid) + sizeof (u32) +
  * sizeof (long) + sizeof (enum ndis_802_11_network_type) +
- * sizeof (struct ndis_802_11_conf) + sizeof (NDIS_802_11_RATES_EX) + IELength
+ * sizeof (struct ndis_802_11_conf) + sizeof (NDIS_802_11_RATES_EX) + ie_length
  *
- * Except for IELength, all other fields are fixed length. Therefore, we can
+ * Except for ie_length, all other fields are fixed length. Therefore, we can
  * define a macro to present the partial sum.
  */
 enum ndis_802_11_authentication_mode {
@@ -174,24 +174,24 @@ struct wlan_bcn_info {
 *   struct wlan_bssid_ex and get_wlan_bssid_ex_sz()
 */
 struct wlan_bssid_ex {
-	u32  Length;
-	NDIS_802_11_MAC_ADDRESS  MacAddress;
+	u32  length;
+	NDIS_802_11_MAC_ADDRESS  mac_address;
 	u8  Reserved[2];/* 0]: IS beacon frame */
-	struct ndis_802_11_ssid  Ssid;
-	u32  Privacy;
-	long  Rssi;/* in dBM, raw data , get from PHY) */
-	enum ndis_802_11_network_type  NetworkTypeInUse;
-	struct ndis_802_11_conf  Configuration;
-	enum ndis_802_11_network_infrastructure  InfrastructureMode;
-	NDIS_802_11_RATES_EX  SupportedRates;
-	struct wlan_phy_info PhyInfo;
-	u32  IELength;
-	u8  IEs[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
+	struct ndis_802_11_ssid  ssid;
+	u32  privacy;
+	long  rssi;/* in dBM, raw data , get from PHY) */
+	enum ndis_802_11_network_type  network_type_in_use;
+	struct ndis_802_11_conf  configuration;
+	enum ndis_802_11_network_infrastructure  infrastructure_mode;
+	NDIS_802_11_RATES_EX  supported_rates;
+	struct wlan_phy_info phy_info;
+	u32  ie_length;
+	u8  ies[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
 } __packed;
 
 static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
-	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->IELength);
+	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->ie_length);
 }
 
 struct	wlan_network {

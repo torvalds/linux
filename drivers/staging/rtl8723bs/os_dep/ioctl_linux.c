@@ -54,9 +54,9 @@ void rtw_indicate_wx_assoc_event(struct adapter *padapter)
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 
 	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)
-		memcpy(wrqu.ap_addr.sa_data, pnetwork->MacAddress, ETH_ALEN);
+		memcpy(wrqu.ap_addr.sa_data, pnetwork->mac_address, ETH_ALEN);
 	else
-		memcpy(wrqu.ap_addr.sa_data, pmlmepriv->cur_network.network.MacAddress, ETH_ALEN);
+		memcpy(wrqu.ap_addr.sa_data, pmlmepriv->cur_network.network.mac_address, ETH_ALEN);
 
 	netdev_dbg(padapter->pnetdev, "assoc success\n");
 }
@@ -92,20 +92,20 @@ static char *translate_scan(struct adapter *padapter,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 
-	memcpy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress, ETH_ALEN);
+	memcpy(iwe.u.ap_addr.sa_data, pnetwork->network.mac_address, ETH_ALEN);
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	iwe.u.data.length = min((u16)pnetwork->network.Ssid.SsidLength, (u16)32);
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.Ssid.Ssid);
+	iwe.u.data.length = min((u16)pnetwork->network.ssid.SsidLength, (u16)32);
+	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.Ssid);
 
 	/* parsing HT_CAP_IE */
 	if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
-		p = rtw_get_ie(&pnetwork->network.IEs[0], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.IELength);
+		p = rtw_get_ie(&pnetwork->network.ies[0], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.ie_length);
 	} else {
-		p = rtw_get_ie(&pnetwork->network.IEs[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.IELength-12);
+		p = rtw_get_ie(&pnetwork->network.ies[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.ie_length-12);
 	}
 	if (p && ht_ielen > 0) {
 		struct ieee80211_ht_cap *pht_capie;
@@ -118,18 +118,18 @@ static char *translate_scan(struct adapter *padapter,
 
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	if (rtw_is_cckratesonly_included((u8 *)&pnetwork->network.SupportedRates)) {
+	if (rtw_is_cckratesonly_included((u8 *)&pnetwork->network.supported_rates)) {
 		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 		snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	} else if (rtw_is_cckrates_included((u8 *)&pnetwork->network.SupportedRates)) {
+	} else if (rtw_is_cckrates_included((u8 *)&pnetwork->network.supported_rates)) {
 		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bg");
 	} else {
-		if (pnetwork->network.Configuration.DSConfig <= 14) {
+		if (pnetwork->network.configuration.DSConfig <= 14) {
 			if (ht_cap)
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11gn");
 			else
@@ -146,7 +146,7 @@ static char *translate_scan(struct adapter *padapter,
 		__le16 le_tmp;
 
 	        iwe.cmd = SIOCGIWMODE;
-		memcpy((u8 *)&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
+		memcpy((u8 *)&le_tmp, rtw_get_capability_from_ie(pnetwork->network.ies), 2);
 		cap = le16_to_cpu(le_tmp);
 	}
 
@@ -159,14 +159,14 @@ static char *translate_scan(struct adapter *padapter,
 		start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_UINT_LEN);
 	}
 
-	if (pnetwork->network.Configuration.DSConfig < 1)
-		pnetwork->network.Configuration.DSConfig = 1;
+	if (pnetwork->network.configuration.DSConfig < 1)
+		pnetwork->network.configuration.DSConfig = 1;
 
 	 /* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = rtw_ch2freq(pnetwork->network.Configuration.DSConfig) * 100000;
+	iwe.u.freq.m = rtw_ch2freq(pnetwork->network.configuration.DSConfig) * 100000;
 	iwe.u.freq.e = 1;
-	iwe.u.freq.i = pnetwork->network.Configuration.DSConfig;
+	iwe.u.freq.i = pnetwork->network.configuration.DSConfig;
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add encryption capability */
@@ -176,7 +176,7 @@ static char *translate_scan(struct adapter *padapter,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.Ssid.Ssid);
+	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.Ssid);
 
 	/*Add basic and extended rates */
 	max_rate = 0;
@@ -185,8 +185,8 @@ static char *translate_scan(struct adapter *padapter,
 		return start;
 	p = custom;
 	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
-	while (pnetwork->network.SupportedRates[i] != 0) {
-		rate = pnetwork->network.SupportedRates[i]&0x7F;
+	while (pnetwork->network.supported_rates[i] != 0) {
+		rate = pnetwork->network.supported_rates[i]&0x7F;
 		if (rate > max_rate)
 			max_rate = rate;
 		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
@@ -216,7 +216,7 @@ static char *translate_scan(struct adapter *padapter,
 		u8 wpa_ie[255], rsn_ie[255];
 		u16 wpa_len = 0, rsn_len = 0;
 		u8 *p;
-		rtw_get_sec_ie(pnetwork->network.IEs, pnetwork->network.IELength, rsn_ie, &rsn_len, wpa_ie, &wpa_len);
+		rtw_get_sec_ie(pnetwork->network.ies, pnetwork->network.ie_length, rsn_ie, &rsn_len, wpa_ie, &wpa_len);
 
 		buf = kzalloc(MAX_WPA_IE_LEN*2, GFP_ATOMIC);
 		if (!buf)
@@ -272,14 +272,14 @@ static char *translate_scan(struct adapter *padapter,
 		uint wps_ielen = 0;
 
 		u8 *ie_ptr;
-		total_ielen = pnetwork->network.IELength - ie_offset;
+		total_ielen = pnetwork->network.ie_length - ie_offset;
 
 		if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
-			ie_ptr = pnetwork->network.IEs;
-			total_ielen = pnetwork->network.IELength;
+			ie_ptr = pnetwork->network.ies;
+			total_ielen = pnetwork->network.ie_length;
 		} else {    /*  Beacon or Probe Respones */
-			ie_ptr = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
-			total_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
+			ie_ptr = pnetwork->network.ies + _FIXED_IE_LENGTH_;
+			total_ielen = pnetwork->network.ie_length - _FIXED_IE_LENGTH_;
 		}
 
 		while (cnt < total_ielen) {
@@ -303,8 +303,8 @@ static char *translate_scan(struct adapter *padapter,
 		ss = padapter->recvpriv.signal_strength;
 		sq = padapter->recvpriv.signal_qual;
 	} else {
-		ss = pnetwork->network.PhyInfo.SignalStrength;
-		sq = pnetwork->network.PhyInfo.SignalQuality;
+		ss = pnetwork->network.phy_info.SignalStrength;
+		sq = pnetwork->network.phy_info.SignalQuality;
 	}
 
 
@@ -683,11 +683,11 @@ static int rtw_wx_get_name(struct net_device *dev,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
 		/* parsing HT_CAP_IE */
-		p = rtw_get_ie(&pcur_bss->IEs[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pcur_bss->IELength-12);
+		p = rtw_get_ie(&pcur_bss->ies[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pcur_bss->ie_length-12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
 
-		prates = &pcur_bss->SupportedRates;
+		prates = &pcur_bss->supported_rates;
 
 		if (rtw_is_cckratesonly_included((u8 *)prates)) {
 			if (ht_cap)
@@ -700,7 +700,7 @@ static int rtw_wx_get_name(struct net_device *dev,
 			else
 				snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11bg");
 		} else {
-			if (pcur_bss->Configuration.DSConfig <= 14) {
+			if (pcur_bss->configuration.DSConfig <= 14) {
 				if (ht_cap)
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11gn");
 				else
@@ -708,7 +708,7 @@ static int rtw_wx_get_name(struct net_device *dev,
 			}
 		}
 	} else {
-		/* prates = &padapter->registrypriv.dev_network.SupportedRates; */
+		/* prates = &padapter->registrypriv.dev_network.supported_rates; */
 		/* snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11g"); */
 		snprintf(wrqu->name, IFNAMSIZ, "unassociated");
 	}
@@ -731,10 +731,10 @@ static int rtw_wx_get_freq(struct net_device *dev,
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
-		/* wrqu->freq.m = ieee80211_wlan_frequencies[pcur_bss->Configuration.DSConfig-1] * 100000; */
-		wrqu->freq.m = rtw_ch2freq(pcur_bss->Configuration.DSConfig) * 100000;
+		/* wrqu->freq.m = ieee80211_wlan_frequencies[pcur_bss->configuration.DSConfig-1] * 100000; */
+		wrqu->freq.m = rtw_ch2freq(pcur_bss->configuration.DSConfig) * 100000;
 		wrqu->freq.e = 1;
-		wrqu->freq.i = pcur_bss->Configuration.DSConfig;
+		wrqu->freq.i = pcur_bss->configuration.DSConfig;
 
 	} else {
 		wrqu->freq.m = rtw_ch2freq(padapter->mlmeextpriv.cur_channel) * 100000;
@@ -1044,12 +1044,12 @@ static int rtw_wx_set_wap(struct net_device *dev,
 		pnetwork = list_entry(pmlmepriv->pscanned,
 				      struct wlan_network, list);
 
-		dst_bssid = pnetwork->network.MacAddress;
+		dst_bssid = pnetwork->network.mac_address;
 
 		src_bssid = temp->sa_data;
 
 		if ((!memcmp(dst_bssid, src_bssid, ETH_ALEN))) {
-			if (!rtw_set_802_11_infrastructure_mode(padapter, pnetwork->network.InfrastructureMode)) {
+			if (!rtw_set_802_11_infrastructure_mode(padapter, pnetwork->network.infrastructure_mode)) {
 				ret = -1;
 				spin_unlock_bh(&queue->lock);
 				goto exit;
@@ -1090,7 +1090,7 @@ static int rtw_wx_get_wap(struct net_device *dev,
 	if  (((check_fwstate(pmlmepriv, _FW_LINKED)) == true) ||
 			((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) == true) ||
 			((check_fwstate(pmlmepriv, WIFI_AP_STATE)) == true)) {
-		memcpy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress, ETH_ALEN);
+		memcpy(wrqu->ap_addr.sa_data, pcur_bss->mac_address, ETH_ALEN);
 	} else {
 		eth_zero_addr(wrqu->ap_addr.sa_data);
 	}
@@ -1290,8 +1290,8 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 		pnetwork = list_entry(plist, struct wlan_network, list);
 
 		/* report network only if the current channel set contains the channel to which this network belongs */
-		if (rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, pnetwork->network.Configuration.DSConfig) >= 0
-			&& true == rtw_validate_ssid(&(pnetwork->network.Ssid))) {
+		if (rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, pnetwork->network.configuration.DSConfig) >= 0
+			&& true == rtw_validate_ssid(&(pnetwork->network.ssid))) {
 
 			ev = translate_scan(padapter, a, pnetwork, ev, stop);
 		}
@@ -1365,16 +1365,16 @@ static int rtw_wx_set_essid(struct net_device *dev,
 			pnetwork = list_entry(pmlmepriv->pscanned,
 					      struct wlan_network, list);
 
-			dst_ssid = pnetwork->network.Ssid.Ssid;
+			dst_ssid = pnetwork->network.ssid.Ssid;
 
 			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength)) &&
-				(pnetwork->network.Ssid.SsidLength == ndis_ssid.SsidLength)) {
+				(pnetwork->network.ssid.SsidLength == ndis_ssid.SsidLength)) {
 				if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) {
-					if (pnetwork->network.InfrastructureMode != pmlmepriv->cur_network.network.InfrastructureMode)
+					if (pnetwork->network.infrastructure_mode != pmlmepriv->cur_network.network.infrastructure_mode)
 						continue;
 				}
 
-				if (rtw_set_802_11_infrastructure_mode(padapter, pnetwork->network.InfrastructureMode) == false) {
+				if (rtw_set_802_11_infrastructure_mode(padapter, pnetwork->network.infrastructure_mode) == false) {
 					ret = -1;
 					spin_unlock_bh(&queue->lock);
 					goto exit;
@@ -1410,11 +1410,11 @@ static int rtw_wx_get_essid(struct net_device *dev,
 
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) ||
 	      (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
-		len = pcur_bss->Ssid.SsidLength;
+		len = pcur_bss->ssid.SsidLength;
 
 		wrqu->essid.length = len;
 
-		memcpy(extra, pcur_bss->Ssid.Ssid, len);
+		memcpy(extra, pcur_bss->ssid.Ssid, len);
 
 		wrqu->essid.flags = 1;
 	} else {
@@ -2229,15 +2229,15 @@ static int rtw_get_ap_info(struct net_device *dev,
 		}
 
 
-		if (!memcmp(bssid, pnetwork->network.MacAddress, ETH_ALEN)) { /* BSSID match, then check if supporting wpa/wpa2 */
+		if (!memcmp(bssid, pnetwork->network.mac_address, ETH_ALEN)) { /* BSSID match, then check if supporting wpa/wpa2 */
 
-			pbuf = rtw_get_wpa_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength-12);
+			pbuf = rtw_get_wpa_ie(&pnetwork->network.ies[12], &wpa_ielen, pnetwork->network.ie_length-12);
 			if (pbuf && (wpa_ielen > 0)) {
 				pdata->flags = 1;
 				break;
 			}
 
-			pbuf = rtw_get_wpa2_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength-12);
+			pbuf = rtw_get_wpa2_ie(&pnetwork->network.ies[12], &wpa_ielen, pnetwork->network.ie_length-12);
 			if (pbuf && (wpa_ielen > 0)) {
 				pdata->flags = 2;
 				break;
@@ -2473,7 +2473,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			}
 			break;
 		case 0x7a:
-			receive_disconnect(padapter, pmlmeinfo->network.MacAddress
+			receive_disconnect(padapter, pmlmeinfo->network.mac_address
 				, WLAN_REASON_EXPIRATION_CHK);
 			break;
 		case 0x7F:
@@ -3530,10 +3530,10 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 		memcpy(ssid, ssid_ie+2, ssid_len);
 		ssid[ssid_len] = 0x0;
 
-		memcpy(pbss_network->Ssid.Ssid, (void *)ssid, ssid_len);
-		pbss_network->Ssid.SsidLength = ssid_len;
-		memcpy(pbss_network_ext->Ssid.Ssid, (void *)ssid, ssid_len);
-		pbss_network_ext->Ssid.SsidLength = ssid_len;
+		memcpy(pbss_network->ssid.Ssid, (void *)ssid, ssid_len);
+		pbss_network->ssid.SsidLength = ssid_len;
+		memcpy(pbss_network_ext->ssid.Ssid, (void *)ssid, ssid_len);
+		pbss_network_ext->ssid.SsidLength = ssid_len;
 	}
 
 	return ret;
