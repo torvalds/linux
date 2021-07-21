@@ -606,7 +606,9 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
                                         "hi" as an offset (see SYBA
                                         def.) */
 		/* TODO: test if sharing interrupts works */
-		irq = dev->irq;
+		irq = pci_irq_vector(dev, 0);
+		if (irq < 0)
+			return irq;
 		if (irq == 0)
 			irq = PARPORT_IRQ_NONE;
 		if (irq == PARPORT_IRQ_NONE) {
