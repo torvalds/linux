@@ -396,7 +396,7 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 fea
 	d_cap = le16_to_cpu(tmpd);
 
 	return (src->ssid.SsidLength == dst->ssid.SsidLength) &&
-		/* 	(src->configuration.DSConfig == dst->configuration.DSConfig) && */
+		/* 	(src->configuration.ds_config == dst->configuration.ds_config) && */
 			((!memcmp(src->mac_address, dst->mac_address, ETH_ALEN))) &&
 			((!memcmp(src->ssid.Ssid, dst->ssid.Ssid, src->ssid.SsidLength))) &&
 			((s_cap & WLAN_CAPABILITY_IBSS) ==
@@ -1148,7 +1148,7 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 	rtw_update_protection(padapter, (cur_network->network.ies) + sizeof(struct ndis_802_11_fix_ie),
 									(cur_network->network.ie_length));
 
-	rtw_update_ht_cap(padapter, cur_network->network.ies, cur_network->network.ie_length, (u8) cur_network->network.configuration.DSConfig);
+	rtw_update_ht_cap(padapter, cur_network->network.ies, cur_network->network.ie_length, (u8) cur_network->network.configuration.ds_config);
 }
 
 /* Notes: the function could be > passive_level (the same context as Rx tasklet) */
@@ -2152,12 +2152,12 @@ void rtw_init_registrypriv_dev_network(struct adapter *adapter)
 
 	memcpy(&pdev_network->ssid, &pregistrypriv->ssid, sizeof(struct ndis_802_11_ssid));
 
-	pdev_network->configuration.Length = sizeof(struct ndis_802_11_conf);
-	pdev_network->configuration.BeaconPeriod = 100;
-	pdev_network->configuration.FHConfig.Length = 0;
-	pdev_network->configuration.FHConfig.HopPattern = 0;
-	pdev_network->configuration.FHConfig.HopSet = 0;
-	pdev_network->configuration.FHConfig.DwellTime = 0;
+	pdev_network->configuration.length = sizeof(struct ndis_802_11_conf);
+	pdev_network->configuration.beacon_period = 100;
+	pdev_network->configuration.fh_config.Length = 0;
+	pdev_network->configuration.fh_config.HopPattern = 0;
+	pdev_network->configuration.fh_config.HopSet = 0;
+	pdev_network->configuration.fh_config.DwellTime = 0;
 }
 
 void rtw_update_registrypriv_dev_network(struct adapter *adapter)
@@ -2189,10 +2189,10 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 		break;
 	}
 
-	pdev_network->configuration.DSConfig = (pregistrypriv->channel);
+	pdev_network->configuration.ds_config = (pregistrypriv->channel);
 
 	if (cur_network->network.infrastructure_mode == Ndis802_11IBSS)
-		pdev_network->configuration.ATIMWindow = (0);
+		pdev_network->configuration.atim_window = (0);
 
 	pdev_network->infrastructure_mode = (cur_network->network.infrastructure_mode);
 

@@ -2237,7 +2237,7 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	pframe = rtw_set_ie(pframe, WLAN_EID_SUPP_RATES, ((rate_len > 8) ? 8 : rate_len), cur_network->supported_rates, &pattrib->pktlen);
 
 	/*  DS parameter set */
-	pframe = rtw_set_ie(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)&(cur_network->configuration.DSConfig), &pattrib->pktlen);
+	pframe = rtw_set_ie(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)&(cur_network->configuration.ds_config), &pattrib->pktlen);
 
 	/* if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) */
 	{
@@ -2440,7 +2440,7 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 		pframe = rtw_set_ie(pframe, WLAN_EID_SUPP_RATES, ((rate_len > 8) ? 8 : rate_len), cur_network->supported_rates, &pattrib->pktlen);
 
 		/*  DS parameter set */
-		pframe = rtw_set_ie(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)&(cur_network->configuration.DSConfig), &pattrib->pktlen);
+		pframe = rtw_set_ie(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)&(cur_network->configuration.ds_config), &pattrib->pktlen);
 
 		if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
 			u8 erpinfo = 0;
@@ -3708,10 +3708,10 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 			p = rtw_get_ie(pbss_network->ies + _FIXED_IE_LENGTH_, WLAN_EID_HT_CAPABILITY, &len, pbss_network->ie_length - _FIXED_IE_LENGTH_);
 			if ((p == NULL) || (len == 0)) {/* non-HT */
 
-				if (pbss_network->configuration.DSConfig <= 0)
+				if (pbss_network->configuration.ds_config <= 0)
 					continue;
 
-				ICS[0][pbss_network->configuration.DSConfig] = 1;
+				ICS[0][pbss_network->configuration.ds_config] = 1;
 
 				if (ICS[0][0] == 0)
 					ICS[0][0] = 1;
@@ -4038,14 +4038,14 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	if (bssid->ie_length < 12)
 		return _FAIL;
 
-	/*  Checking for DSConfig */
+	/*  Checking for ds_config */
 	p = rtw_get_ie(bssid->ies + ie_offset, WLAN_EID_DS_PARAMS, &len, bssid->ie_length - ie_offset);
 
-	bssid->configuration.DSConfig = 0;
-	bssid->configuration.Length = 0;
+	bssid->configuration.ds_config = 0;
+	bssid->configuration.length = 0;
 
 	if (p) {
-		bssid->configuration.DSConfig = *(p + 2);
+		bssid->configuration.ds_config = *(p + 2);
 	} else {
 		/*  In 5G, some ap do not have DSSET IE */
 		/*  checking HT info for channel */
@@ -4053,14 +4053,14 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 		if (p) {
 			struct HT_info_element *HT_info = (struct HT_info_element *)(p + 2);
 
-			bssid->configuration.DSConfig = HT_info->primary_channel;
+			bssid->configuration.ds_config = HT_info->primary_channel;
 		} else { /*  use current channel */
-			bssid->configuration.DSConfig = rtw_get_oper_ch(padapter);
+			bssid->configuration.ds_config = rtw_get_oper_ch(padapter);
 		}
 	}
 
 	memcpy(&le32_tmp, rtw_get_beacon_interval_from_ie(bssid->ies), 2);
-	bssid->configuration.BeaconPeriod = le32_to_cpu(le32_tmp);
+	bssid->configuration.beacon_period = le32_to_cpu(le32_tmp);
 
 	val16 = rtw_get_capability((struct wlan_bssid_ex *)bssid);
 
@@ -4077,7 +4077,7 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	else
 		bssid->privacy = 0;
 
-	bssid->configuration.ATIMWindow = 0;
+	bssid->configuration.atim_window = 0;
 
 	/* 20/40 BSS Coexistence check */
 	if ((pregistrypriv->wifi_spec == 1) && (false == pmlmeinfo->bwmode_updated)) {
@@ -4096,7 +4096,7 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	}
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
-	if (bssid->configuration.DSConfig != rtw_get_oper_ch(padapter))
+	if (bssid->configuration.ds_config != rtw_get_oper_ch(padapter))
 		bssid->phy_info.SignalQuality = 101;
 
 	return _SUCCESS;
@@ -4111,7 +4111,7 @@ void start_create_ibss(struct adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex		*pnetwork = (struct wlan_bssid_ex *)(&(pmlmeinfo->network));
 
-	pmlmeext->cur_channel = (u8)pnetwork->configuration.DSConfig;
+	pmlmeext->cur_channel = (u8)pnetwork->configuration.ds_config;
 	pmlmeinfo->bcn_interval = get_beacon_interval(pnetwork);
 
 	/* update wireless mode */
@@ -4409,7 +4409,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 	}
 
 	/*  If channel is used by AP, set channel scan type to active */
-	channel = bssid->configuration.DSConfig;
+	channel = bssid->configuration.ds_config;
 	chplan_new = pmlmeext->channel_set;
 	i = 0;
 	while ((i < MAX_CHANNEL_NUM) && (chplan_new[i].ChannelNum != 0)) {
@@ -5401,7 +5401,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 	memcpy(pnetwork->ies, ((struct wlan_bssid_ex *)pbuf)->ies, pnetwork->ie_length);
 
-	pmlmeext->cur_channel = (u8)pnetwork->configuration.DSConfig;
+	pmlmeext->cur_channel = (u8)pnetwork->configuration.ds_config;
 	pmlmeinfo->bcn_interval = get_beacon_interval(pnetwork);
 
 	/* Check AP vendor to move rtw_joinbss_cmd() */
@@ -5428,7 +5428,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 			{
 				struct HT_info_element *pht_info = (struct HT_info_element *)(pIE->data);
 
-				if (pnetwork->configuration.DSConfig <= 14) {
+				if (pnetwork->configuration.ds_config <= 14) {
 					if ((pregpriv->bw_mode & 0x0f) > CHANNEL_WIDTH_20)
 						cbw40_enable = 1;
 				}

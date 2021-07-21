@@ -810,7 +810,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 			/* rtw_restructure_ht_ie */
 			rtw_restructure_ht_ie(padapter, &pnetwork->network.ies[12], &psecnetwork->ies[0],
 									pnetwork->network.ie_length-12, &psecnetwork->ie_length,
-									pnetwork->network.configuration.DSConfig);
+									pnetwork->network.configuration.ds_config);
 		}
 	}
 
@@ -2004,8 +2004,8 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 		/*  copy pdev_network information to	pmlmepriv->cur_network */
 		memcpy(&tgt_network->network, pnetwork, (get_wlan_bssid_ex_sz(pnetwork)));
 
-		/*  reset DSConfig */
-		/* tgt_network->network.configuration.DSConfig = (u32)rtw_ch2freq(pnetwork->configuration.DSConfig); */
+		/*  reset ds_config */
+		/* tgt_network->network.configuration.ds_config = (u32)rtw_ch2freq(pnetwork->configuration.ds_config); */
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 

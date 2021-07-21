@@ -44,11 +44,11 @@ struct ndis_802_11_conf_fh {
 	ODI Handler will convert the channel number to freq. number.
 */
 struct ndis_802_11_conf {
-	u32 Length;             /*  Length of structure */
-	u32 BeaconPeriod;       /*  units are Kusec */
-	u32 ATIMWindow;         /*  units are Kusec */
-	u32 DSConfig;           /*  Frequency, units are kHz */
-	struct ndis_802_11_conf_fh    FHConfig;
+	u32 length;             /*  Length of structure */
+	u32 beacon_period;       /*  units are Kusec */
+	u32 atim_window;         /*  units are Kusec */
+	u32 ds_config;           /*  Frequency, units are kHz */
+	struct ndis_802_11_conf_fh    fh_config;
 };
 
 enum ndis_802_11_network_infrastructure {

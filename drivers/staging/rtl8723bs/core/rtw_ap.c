@@ -340,7 +340,7 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 
 	shortGIrate = query_ra_short_GI(psta);
 
-	if (pcur_network->configuration.DSConfig > 14) {
+	if (pcur_network->configuration.ds_config > 14) {
 		sta_band |= WIRELESS_INVALID;
 	} else {
 		if (tx_ra_bitmap & 0xffff000)
@@ -400,13 +400,13 @@ void update_bmc_sta(struct adapter *padapter)
 		supportRateNum = rtw_get_rateset_len((u8 *)&pcur_network->supported_rates);
 		network_type = rtw_check_network_type((u8 *)&pcur_network->supported_rates,
 						      supportRateNum,
-						      pcur_network->configuration.DSConfig
+						      pcur_network->configuration.ds_config
 		);
 		if (is_supported_tx_cck(network_type)) {
 			network_type = WIRELESS_11B;
 		} else if (network_type == WIRELESS_INVALID) { /*  error handling */
 
-			if (pcur_network->configuration.DSConfig > 14)
+			if (pcur_network->configuration.ds_config > 14)
 				network_type = WIRELESS_INVALID;
 			else
 				network_type = WIRELESS_11B;
@@ -656,8 +656,8 @@ void start_bss_network(struct adapter *padapter)
 	struct HT_info_element *pht_info = NULL;
 	u8 cbw40_enable = 0;
 
-	bcn_interval = (u16)pnetwork->configuration.BeaconPeriod;
-	cur_channel = pnetwork->configuration.DSConfig;
+	bcn_interval = (u16)pnetwork->configuration.beacon_period;
+	cur_channel = pnetwork->configuration.ds_config;
 	cur_bwmode = CHANNEL_WIDTH_20;
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
@@ -850,8 +850,8 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	/* beacon interval */
 	p = rtw_get_beacon_interval_from_ie(ie);/* ie + 8;	8: TimeStamp, 2: Beacon Interval 2:Capability */
-	/* pbss_network->configuration.BeaconPeriod = le16_to_cpu(*(unsigned short*)p); */
-	pbss_network->configuration.BeaconPeriod = get_unaligned_le16(p);
+	/* pbss_network->configuration.beacon_period = le16_to_cpu(*(unsigned short*)p); */
+	pbss_network->configuration.beacon_period = get_unaligned_le16(p);
 
 	/* capability */
 	/* cap = *(unsigned short *)rtw_get_capability_from_ie(ie); */
@@ -873,7 +873,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	/* channel */
 	channel = 0;
-	pbss_network->configuration.Length = 0;
+	pbss_network->configuration.length = 0;
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
 		WLAN_EID_DS_PARAMS, &ie_len,
@@ -882,7 +882,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	if (p && ie_len > 0)
 		channel = *(p + 2);
 
-	pbss_network->configuration.DSConfig = channel;
+	pbss_network->configuration.ds_config = channel;
 
 	memset(supportRate, 0, NDIS_802_11_LENGTH_RATES_EX);
 	/*  get supported rates */
