@@ -182,9 +182,6 @@ static void show_cpu_summary(struct seq_file *m, void *v)
  */
 static int __init setup_hwcaps(void)
 {
-	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
-	int i;
-
 	/*
 	 * The store facility list bits numbers as found in the principles
 	 * of operation are numbered with bit 1UL<<31 as number 0 to
@@ -203,9 +200,30 @@ static int __init setup_hwcaps(void)
 	 *   HWCAP_LDISP bit 4, HWCAP_EIMM bit 5 and
 	 *   HWCAP_ETF3EH bit 8 (22 && 30).
 	 */
-	for (i = 0; i < 6; i++)
-		if (test_facility(stfl_bits[i]))
-			elf_hwcap |= 1UL << i;
+
+	/* instructions named N3, "backported" to esa-mode */
+	if (test_facility(0))
+		elf_hwcap |= HWCAP_ESAN3;
+
+	/* z/Architecture mode active */
+	if (test_facility(2))
+		elf_hwcap |= HWCAP_ZARCH;
+
+	/* store-facility-list-extended */
+	if (test_facility(7))
+		elf_hwcap |= HWCAP_STFLE;
+
+	/* message-security assist */
+	if (test_facility(17))
+		elf_hwcap |= HWCAP_MSA;
+
+	/* long-displacement */
+	if (test_facility(19))
+		elf_hwcap |= HWCAP_LDISP;
+
+	/* extended-immediate */
+	if (test_facility(21))
+		elf_hwcap |= HWCAP_EIMM;
 
 	if (test_facility(22) && test_facility(30))
 		elf_hwcap |= HWCAP_ETF3EH;
