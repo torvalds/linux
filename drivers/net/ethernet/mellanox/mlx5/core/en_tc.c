@@ -71,8 +71,6 @@
 #include "lag/lag.h"
 #include "lag/mp.h"
 
-#define nic_chains(priv) ((priv)->fs.tc.chains)
-
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(18)
 
@@ -400,7 +398,7 @@ bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow)
 	return flow_flag_test(flow, ESWITCH);
 }
 
-static bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow)
+bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow)
 {
 	return flow_flag_test(flow, FT);
 }
@@ -938,7 +936,7 @@ mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
 			     struct mlx5_flow_attr *attr)
 {
 	struct mlx5_flow_context *flow_context = &spec->flow_context;
-	struct mlx5_fs_chains *nic_chains = nic_chains(priv);
+	struct mlx5_fs_chains *nic_chains = mlx5e_nic_chains(priv);
 	struct mlx5_nic_flow_attr *nic_attr = attr->nic_attr;
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	struct mlx5_flow_destination dest[2] = {};
@@ -1092,7 +1090,7 @@ void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
 				  struct mlx5_flow_handle *rule,
 				  struct mlx5_flow_attr *attr)
 {
-	struct mlx5_fs_chains *nic_chains = nic_chains(priv);
+	struct mlx5_fs_chains *nic_chains = mlx5e_nic_chains(priv);
 
 	mlx5_del_flow_rules(rule);
 
@@ -1124,7 +1122,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	mutex_lock(&priv->fs.tc.t_lock);
 	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) &&
 	    !IS_ERR_OR_NULL(tc->t)) {
-		mlx5_chains_put_table(nic_chains(priv), 0, 1, MLX5E_TC_FT_LEVEL);
+		mlx5_chains_put_table(mlx5e_nic_chains(priv), 0, 1, MLX5E_TC_FT_LEVEL);
 		priv->fs.tc.t = NULL;
 	}
 	mutex_unlock(&priv->fs.tc.t_lock);
@@ -3357,55 +3355,6 @@ add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 				       extack);
 }
 
-static int validate_goto_chain(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow,
-			       const struct flow_action_entry *act,
-			       struct netlink_ext_ack *extack)
-{
-	bool is_esw = mlx5e_is_eswitch_flow(flow);
-	bool ft_flow = mlx5e_is_ft_flow(flow);
-	u32 dest_chain = act->chain_index;
-	struct mlx5_fs_chains *chains;
-	struct mlx5_eswitch *esw;
-	u32 reformat_and_fwd;
-	u32 max_chain;
-
-	esw = priv->mdev->priv.eswitch;
-	chains = is_esw ? esw_chains(esw) : nic_chains(priv);
-	max_chain = mlx5_chains_get_chain_range(chains);
-	reformat_and_fwd = is_esw ?
-			   MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev, reformat_and_fwd_to_table) :
-			   MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, reformat_and_fwd_to_table);
-
-	if (ft_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
-		return -EOPNOTSUPP;
-	}
-
-	if (!mlx5_chains_backwards_supported(chains) &&
-	    dest_chain <= flow->attr->chain) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Goto lower numbered chain isn't supported");
-		return -EOPNOTSUPP;
-	}
-
-	if (dest_chain > max_chain) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Requested destination chain is out of supported range");
-		return -EOPNOTSUPP;
-	}
-
-	if (flow->attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-				  MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
-	    !reformat_and_fwd) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Goto chain is not allowed if action has reformat or decap");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
 static int
 actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
@@ -3532,15 +3481,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 				return -EOPNOTSUPP;
 			}
 			}
-			break;
-		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, extack);
-			if (err)
-				return err;
-
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			attr->dest_chain = act->chain_index;
 			break;
 		case FLOW_ACTION_CT:
 			err = mlx5_tc_ct_parse_action(get_ct_priv(priv), attr,
@@ -4183,15 +4123,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 		case FLOW_ACTION_TUNNEL_DECAP:
 			decap = true;
-			break;
-		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, extack);
-			if (err)
-				return err;
-
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			attr->dest_chain = act->chain_index;
 			break;
 		case FLOW_ACTION_CT:
 			if (flow_flag_test(flow, SAMPLE)) {

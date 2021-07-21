@@ -31,6 +31,7 @@ extern struct mlx5e_tc_act mlx5e_tc_act_drop;
 extern struct mlx5e_tc_act mlx5e_tc_act_trap;
 extern struct mlx5e_tc_act mlx5e_tc_act_accept;
 extern struct mlx5e_tc_act mlx5e_tc_act_mark;
+extern struct mlx5e_tc_act mlx5e_tc_act_goto;
 
 struct mlx5e_tc_act *
 mlx5e_tc_act_get(enum flow_action_id act_id,
