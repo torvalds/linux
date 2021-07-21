@@ -1,2 +1,15 @@
-# include OWNERS from the authoritative android-mainline branch
-include kernel/common:android-mainline:/OWNERS
+set noparent
+
+# GKI Dr. No Enforcement is active on this branch. Approval of one of the
+# following persons is required following a regular CodeReview+2 vote of a code
+# reviewer.
+#
+# See the GKI release documentation (go/gki-dr-no) for further details.
+
+adelva@google.com
+maennich@google.com
+malchev@google.com
+saravanak@google.com
+smuckle@google.com
+sspatil@google.com
+tkjos@google.com
