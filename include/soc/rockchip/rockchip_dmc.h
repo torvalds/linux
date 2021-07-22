@@ -31,6 +31,32 @@
 #define SCREEN_DUAL_LVDS_10BIT	12
 #define SCREEN_DP		13
 
+#define DMCFREQ_TABLE_END	~1u
+
+struct freq_map_table {
+	unsigned int min;
+	unsigned int max;
+	unsigned long freq;
+};
+
+struct rl_map_table {
+	unsigned int pn; /* panel number */
+	unsigned int rl; /* readlatency */
+};
+
+struct dmcfreq_common_info {
+	struct device *dev;
+	struct devfreq *devfreq;
+	struct freq_map_table *vop_bw_tbl;
+	struct rl_map_table *vop_pn_rl_tbl;
+	struct delayed_work msch_rl_work;
+	unsigned long vop_req_rate;
+	unsigned int read_latency;
+	unsigned int auto_freq_en;
+	bool is_msch_rl_work_started;
+	int (*set_msch_readlatency)(unsigned int rl);
+};
+
 struct dmcfreq_vop_info {
 	unsigned int bw_mbyte;
 	unsigned int plane_num;
@@ -40,10 +66,12 @@ struct dmcfreq_vop_info {
 void rockchip_dmcfreq_lock(void);
 void rockchip_dmcfreq_lock_nested(void);
 void rockchip_dmcfreq_unlock(void);
+int rockchip_dmcfreq_write_trylock(void);
+void rockchip_dmcfreq_write_unlock(void);
 int rockchip_dmcfreq_wait_complete(void);
+int rockchip_dmcfreq_vop_bandwidth_init(struct dmcfreq_common_info *info);
 int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info);
 void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info);
-
 #else
 static inline void rockchip_dmcfreq_lock(void)
 {
@@ -54,6 +82,15 @@ static inline void rockchip_dmcfreq_lock_nested(void)
 }
 
 static inline void rockchip_dmcfreq_unlock(void)
+{
+}
+
+static inline int rockchip_dmcfreq_write_trylock(void)
+{
+	return 0;
+}
+
+static inline void rockchip_dmcfreq_write_unlock(void)
 {
 }
 
@@ -70,6 +107,11 @@ rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info)
 
 static inline void
 rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info)
+{
+}
+
+static inline void
+rockchip_dmcfreq_vop_bandwidth_init(struct dmcfreq_common_info *info)
 {
 }
 #endif

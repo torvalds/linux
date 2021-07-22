@@ -12,7 +12,7 @@ obj-$(CONFIG_ARM_EXYNOS_BUS_DEVFREQ)	+= exynos-bus.o
 obj-$(CONFIG_ARM_IMX_BUS_DEVFREQ)	+= imx-bus.o
 obj-$(CONFIG_ARM_IMX8M_DDRC_DEVFREQ)	+= imx8m-ddrc.o
 obj-$(CONFIG_ARM_ROCKCHIP_BUS_DEVFREQ)	+= rockchip_bus.o
-obj-$(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)	+= rockchip_dmc.o
+obj-$(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)	+= rockchip_dmc.o rockchip_dmc_common.o
 obj-$(CONFIG_ARM_TEGRA_DEVFREQ)		+= tegra30-devfreq.o
 obj-$(CONFIG_ARM_TEGRA20_DEVFREQ)	+= tegra20-devfreq.o
 
