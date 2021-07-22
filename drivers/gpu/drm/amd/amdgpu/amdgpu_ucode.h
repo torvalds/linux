@@ -71,7 +71,7 @@ struct smc_firmware_header_v2_1 {
         uint32_t pptable_entry_offset;
 };
 
-struct psp_fw_bin_desc {
+struct psp_fw_legacy_bin_desc {
 	uint32_t fw_version;
 	uint32_t offset_bytes;
 	uint32_t size_bytes;
@@ -80,30 +80,54 @@ struct psp_fw_bin_desc {
 /* version_major=1, version_minor=0 */
 struct psp_firmware_header_v1_0 {
 	struct common_firmware_header header;
-	struct psp_fw_bin_desc sos;
+	struct psp_fw_legacy_bin_desc sos;
 };
 
 /* version_major=1, version_minor=1 */
 struct psp_firmware_header_v1_1 {
 	struct psp_firmware_header_v1_0 v1_0;
-	struct psp_fw_bin_desc toc;
-	struct psp_fw_bin_desc kdb;
+	struct psp_fw_legacy_bin_desc toc;
+	struct psp_fw_legacy_bin_desc kdb;
 };
 
 /* version_major=1, version_minor=2 */
 struct psp_firmware_header_v1_2 {
 	struct psp_firmware_header_v1_0 v1_0;
-	struct psp_fw_bin_desc res;
-	struct psp_fw_bin_desc kdb;
+	struct psp_fw_legacy_bin_desc res;
+	struct psp_fw_legacy_bin_desc kdb;
 };
 
 /* version_major=1, version_minor=3 */
 struct psp_firmware_header_v1_3 {
 	struct psp_firmware_header_v1_1 v1_1;
-	struct psp_fw_bin_desc spl;
-	struct psp_fw_bin_desc rl;
-	struct psp_fw_bin_desc sys_drv_aux;
-	struct psp_fw_bin_desc sos_aux;
+	struct psp_fw_legacy_bin_desc spl;
+	struct psp_fw_legacy_bin_desc rl;
+	struct psp_fw_legacy_bin_desc sys_drv_aux;
+	struct psp_fw_legacy_bin_desc sos_aux;
+};
+
+struct psp_fw_bin_desc {
+	uint32_t fw_type;
+	uint32_t fw_version;
+	uint32_t offset_bytes;
+	uint32_t size_bytes;
+};
+
+enum psp_fw_type {
+	PSP_FW_TYPE_UNKOWN,
+	PSP_FW_TYPE_PSP_SOS,
+	PSP_FW_TYPE_PSP_SYS_DRV,
+	PSP_FW_TYPE_PSP_KDB,
+	PSP_FW_TYPE_PSP_TOC,
+	PSP_FW_TYPE_PSP_SPL,
+	PSP_FW_TYPE_PSP_RL,
+};
+
+/* version_major=2, version_minor=0 */
+struct psp_firmware_header_v2_0 {
+	struct common_firmware_header header;
+	uint32_t psp_fw_bin_count;
+	struct psp_fw_bin_desc psp_fw_bin[];
 };
 
 /* version_major=1, version_minor=0 */
@@ -138,18 +162,11 @@ enum ta_fw_type {
 	TA_FW_TYPE_MAX_INDEX,
 };
 
-struct ta_fw_bin_desc {
-	uint32_t fw_type;
-	uint32_t fw_version;
-	uint32_t offset_bytes;
-	uint32_t size_bytes;
-};
-
 /* version_major=2, version_minor=0 */
 struct ta_firmware_header_v2_0 {
 	struct common_firmware_header header;
 	uint32_t ta_fw_bin_count;
-	struct ta_fw_bin_desc ta_fw_bin[];
+	struct psp_fw_bin_desc ta_fw_bin[];
 };
 
 /* version_major=1, version_minor=0 */
@@ -312,6 +329,7 @@ union amdgpu_firmware_header {
 	struct psp_firmware_header_v1_0 psp;
 	struct psp_firmware_header_v1_1 psp_v1_1;
 	struct psp_firmware_header_v1_3 psp_v1_3;
+	struct psp_firmware_header_v2_0 psp_v2_0;
 	struct ta_firmware_header_v1_0 ta;
 	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
@@ -326,7 +344,7 @@ union amdgpu_firmware_header {
 	uint8_t raw[0x100];
 };
 
-#define UCODE_MAX_TA_PACKAGING ((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct ta_fw_bin_desc))
+#define UCODE_MAX_PSP_PACKAGING ((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct psp_fw_bin_desc))
 
 /*
  * fw loading support
