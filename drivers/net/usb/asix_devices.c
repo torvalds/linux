@@ -1210,6 +1210,7 @@ static const struct driver_info ax88772b_info = {
 	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.reset = ax88772_reset,
+	.stop = ax88772_stop,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
 	         FLAG_MULTI_PACKET,
 	.rx_fixup = asix_rx_fixup_common,
