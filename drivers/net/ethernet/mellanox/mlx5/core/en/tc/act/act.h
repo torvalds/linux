@@ -4,9 +4,11 @@
 #ifndef __MLX5_EN_TC_ACT_H__
 #define __MLX5_EN_TC_ACT_H__
 
+#include <net/tc_act/tc_pedit.h>
 #include <net/flow_offload.h>
 #include <linux/netlink.h>
 #include "eswitch.h"
+#include "pedit.h"
 
 struct mlx5_flow_attr;
 
@@ -17,6 +19,7 @@ struct mlx5e_tc_act_parse_state {
 	bool encap;
 	bool decap;
 	const struct ip_tunnel_info *tun_info;
+	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 };
 
 struct mlx5e_tc_act {
@@ -38,6 +41,7 @@ extern struct mlx5e_tc_act mlx5e_tc_act_goto;
 extern struct mlx5e_tc_act mlx5e_tc_act_tun_encap;
 extern struct mlx5e_tc_act mlx5e_tc_act_tun_decap;
 extern struct mlx5e_tc_act mlx5e_tc_act_csum;
+extern struct mlx5e_tc_act mlx5e_tc_act_pedit;
 
 struct mlx5e_tc_act *
 mlx5e_tc_act_get(enum flow_action_id act_id,

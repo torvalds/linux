@@ -122,6 +122,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow);
 bool mlx5e_is_offloaded_flow(struct mlx5e_tc_flow *flow);
+int mlx5e_get_flow_namespace(struct mlx5e_tc_flow *flow);
 
 static inline void __flow_flag_set(struct mlx5e_tc_flow *flow, unsigned long flag)
 {
