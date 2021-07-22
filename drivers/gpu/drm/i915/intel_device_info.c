@@ -68,6 +68,8 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(DG1),
 	PLATFORM_NAME(ALDERLAKE_S),
 	PLATFORM_NAME(ALDERLAKE_P),
+	PLATFORM_NAME(XEHPSDV),
+	PLATFORM_NAME(DG2),
 };
 #undef PLATFORM_NAME
 
@@ -96,9 +98,17 @@ static const char *iommu_name(void)
 void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p)
 {
-	drm_printf(p, "graphics_ver: %u\n", info->graphics_ver);
-	drm_printf(p, "media_ver: %u\n", info->media_ver);
-	drm_printf(p, "display_ver: %u\n", info->display.ver);
+	if (info->graphics_rel)
+		drm_printf(p, "graphics version: %u.%02u\n", info->graphics_ver, info->graphics_rel);
+	else
+		drm_printf(p, "graphics version: %u\n", info->graphics_ver);
+
+	if (info->media_rel)
+		drm_printf(p, "media version: %u.%02u\n", info->media_ver, info->media_rel);
+	else
+		drm_printf(p, "media version: %u\n", info->media_ver);
+
+	drm_printf(p, "display version: %u\n", info->display.ver);
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "iommu: %s\n", iommu_name());
 	drm_printf(p, "memory-regions: %x\n", info->memory_regions);

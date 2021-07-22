@@ -88,6 +88,8 @@ enum intel_platform {
 	INTEL_DG1,
 	INTEL_ALDERLAKE_S,
 	INTEL_ALDERLAKE_P,
+	INTEL_XEHPSDV,
+	INTEL_DG2,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -105,6 +107,10 @@ enum intel_platform {
 
 /* CNL/ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
+
+/* DG2 */
+#define INTEL_SUBPLATFORM_G10	0
+#define INTEL_SUBPLATFORM_G11	1
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
@@ -162,7 +168,9 @@ enum intel_ppgtt_type {
 
 struct intel_device_info {
 	u8 graphics_ver;
+	u8 graphics_rel;
 	u8 media_ver;
+	u8 media_rel;
 
 	u8 gt; /* GT number, 0 if undefined */
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
