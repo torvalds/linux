@@ -407,8 +407,102 @@ static int nfp_ct_check_meta(struct nfp_fl_ct_flow_entry *post_ct_entry,
 	return -EINVAL;
 }
 
+static int
+nfp_fl_calc_key_layers_sz(struct nfp_fl_key_ls in_key_ls, uint16_t *map)
+{
+	int key_size;
+
+	/* This field must always be present */
+	key_size = sizeof(struct nfp_flower_meta_tci);
+	map[FLOW_PAY_META_TCI] = 0;
+
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_EXT_META) {
+		map[FLOW_PAY_EXT_META] = key_size;
+		key_size += sizeof(struct nfp_flower_ext_meta);
+	}
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_PORT) {
+		map[FLOW_PAY_INPORT] = key_size;
+		key_size += sizeof(struct nfp_flower_in_port);
+	}
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_MAC) {
+		map[FLOW_PAY_MAC_MPLS] = key_size;
+		key_size += sizeof(struct nfp_flower_mac_mpls);
+	}
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_TP) {
+		map[FLOW_PAY_L4] = key_size;
+		key_size += sizeof(struct nfp_flower_tp_ports);
+	}
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_IPV4) {
+		map[FLOW_PAY_IPV4] = key_size;
+		key_size += sizeof(struct nfp_flower_ipv4);
+	}
+	if (in_key_ls.key_layer & NFP_FLOWER_LAYER_IPV6) {
+		map[FLOW_PAY_IPV6] = key_size;
+		key_size += sizeof(struct nfp_flower_ipv6);
+	}
+
+	if (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_GRE) {
+		map[FLOW_PAY_GRE] = key_size;
+		if (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6)
+			key_size += sizeof(struct nfp_flower_ipv6_gre_tun);
+		else
+			key_size += sizeof(struct nfp_flower_ipv4_gre_tun);
+	}
+
+	if (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_QINQ) {
+		map[FLOW_PAY_QINQ] = key_size;
+		key_size += sizeof(struct nfp_flower_vlan);
+	}
+
+	if ((in_key_ls.key_layer & NFP_FLOWER_LAYER_VXLAN) ||
+	    (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_GENEVE)) {
+		map[FLOW_PAY_UDP_TUN] = key_size;
+		if (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6)
+			key_size += sizeof(struct nfp_flower_ipv6_udp_tun);
+		else
+			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+	}
+
+	if (in_key_ls.key_layer_two & NFP_FLOWER_LAYER2_GENEVE_OP) {
+		map[FLOW_PAY_GENEVE_OPT] = key_size;
+		key_size += sizeof(struct nfp_flower_geneve_options);
+	}
+
+	return key_size;
+}
+
 static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 {
+	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
+	struct nfp_fl_ct_zone_entry *zt = m_entry->zt;
+	struct nfp_fl_key_ls key_layer, tmp_layer;
+	struct nfp_flower_priv *priv = zt->priv;
+	u16 key_map[_FLOW_PAY_LAYERS_MAX];
+
+	struct flow_rule *rules[_CT_TYPE_MAX];
+	int i, err;
+
+	rules[CT_TYPE_PRE_CT] = m_entry->tc_m_parent->pre_ct_parent->rule;
+	rules[CT_TYPE_NFT] = m_entry->nft_parent->rule;
+	rules[CT_TYPE_POST_CT] = m_entry->tc_m_parent->post_ct_parent->rule;
+
+	memset(&key_layer, 0, sizeof(struct nfp_fl_key_ls));
+	memset(&key_map, 0, sizeof(key_map));
+
+	/* Calculate the resultant key layer and size for offload */
+	for (i = 0; i < _CT_TYPE_MAX; i++) {
+		err = nfp_flower_calculate_key_layers(priv->app,
+						      m_entry->netdev,
+						      &tmp_layer, rules[i],
+						      &tun_type, NULL);
+		if (err)
+			return err;
+
+		key_layer.key_layer |= tmp_layer.key_layer;
+		key_layer.key_layer_two |= tmp_layer.key_layer_two;
+	}
+	key_layer.key_size = nfp_fl_calc_key_layers_sz(key_layer, key_map);
+
 	return 0;
 }
 

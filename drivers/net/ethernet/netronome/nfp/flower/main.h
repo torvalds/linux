@@ -551,4 +551,13 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 				 struct nfp_fl_payload *flow);
 int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
 				     struct nfp_fl_payload *flow);
+
+struct nfp_fl_payload *
+nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer);
+int nfp_flower_calculate_key_layers(struct nfp_app *app,
+				    struct net_device *netdev,
+				    struct nfp_fl_key_ls *ret_key_ls,
+				    struct flow_rule *flow,
+				    enum nfp_flower_tun_type *tun_type,
+				    struct netlink_ext_ack *extack);
 #endif

@@ -41,6 +41,8 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IP) | \
 	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
+	 BIT(FLOW_DISSECTOR_KEY_CT) | \
+	 BIT(FLOW_DISSECTOR_KEY_META) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
@@ -232,7 +234,7 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 	return 0;
 }
 
-static int
+int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
 				struct net_device *netdev,
 				struct nfp_fl_key_ls *ret_key_ls,
@@ -538,7 +540,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	return 0;
 }
 
-static struct nfp_fl_payload *
+struct nfp_fl_payload *
 nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 {
 	struct nfp_fl_payload *flow_pay;
