@@ -744,16 +744,6 @@ static inline void ufshcd_utmrl_clear(struct ufs_hba *hba, u32 pos)
 }
 
 /**
- * ufshcd_outstanding_req_clear - Clear a bit in outstanding request field
- * @hba: per adapter instance
- * @tag: position of the bit to be cleared
- */
-static inline void ufshcd_outstanding_req_clear(struct ufs_hba *hba, int tag)
-{
-	clear_bit(tag, &hba->outstanding_reqs);
-}
-
-/**
  * ufshcd_get_lists_status - Check UCRDY, UTRLRDY and UTMRLRDY
  * @reg: Register value of host controller status
  *
@@ -2907,7 +2897,7 @@ static int ufshcd_wait_for_dev_cmd(struct ufs_hba *hba,
 		 * we also need to clear the outstanding_request
 		 * field in hba
 		 */
-		ufshcd_outstanding_req_clear(hba, lrbp->task_tag);
+		clear_bit(lrbp->task_tag, &hba->outstanding_reqs);
 	}
 
 	return err;
