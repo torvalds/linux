@@ -873,8 +873,11 @@ PsxDelete:
 				InformationLevel) - 4;
 	offset = param_offset + params;
 
-	/* Setup pointer to Request Data (inode type) */
-	pRqD = (struct unlink_psx_rq *)(((char *)&pSMB->hdr.Protocol) + offset);
+	/* Setup pointer to Request Data (inode type).
+	 * Note that SMB offsets are from the beginning of SMB which is 4 bytes
+	 * in, after RFC1001 field
+	 */
+	pRqD = (struct unlink_psx_rq *)((char *)(pSMB) + offset + 4);
 	pRqD->type = cpu_to_le16(type);
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
 	pSMB->DataOffset = cpu_to_le16(offset);
