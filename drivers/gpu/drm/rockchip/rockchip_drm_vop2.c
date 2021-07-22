@@ -3959,7 +3959,7 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 				  struct drm_crtc_state *crtc_state,
 				  unsigned int *plane_num_total)
 {
-	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	uint16_t htotal = adjusted_mode->crtc_htotal;
 	uint16_t vdisplay = adjusted_mode->crtc_vdisplay;
 	int clock = adjusted_mode->crtc_clock;
@@ -3970,6 +3970,7 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	uint64_t bandwidth;
 	int8_t cnt = 0, plane_num = 0;
+	int i = 0;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop_dump_list *pos, *n;
 #endif
@@ -3991,8 +3992,10 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	}
 #endif
 
-	drm_atomic_crtc_state_for_each_plane(plane, crtc_state)
-		plane_num++;
+	for_each_new_plane_in_state(state, plane, pstate, i) {
+		if (pstate->crtc == crtc)
+			plane_num++;
+	}
 
 	if (plane_num_total)
 		*plane_num_total += plane_num;
@@ -4000,8 +4003,8 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 				   GFP_KERNEL);
 	if (!pbandwidth)
 		return -ENOMEM;
-	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
-		pstate = drm_atomic_get_new_plane_state(state, plane);
+
+	for_each_new_plane_in_state(state, plane, pstate, i) {
 		if (!pstate || pstate->crtc != crtc || !pstate->fb)
 			continue;
 
