@@ -94,6 +94,9 @@ struct lpfc_sli_intf {
 #define LPFC_SLI_INTF_FAMILY_BE3	0x1
 #define LPFC_SLI_INTF_FAMILY_LNCR_A0	0xa
 #define LPFC_SLI_INTF_FAMILY_LNCR_B0	0xb
+#define LPFC_SLI_INTF_FAMILY_G6		0xc
+#define LPFC_SLI_INTF_FAMILY_G7		0xd
+#define LPFC_SLI_INTF_FAMILY_G7P	0xe
 #define lpfc_sli_intf_slirev_SHIFT		4
 #define lpfc_sli_intf_slirev_MASK		0x0000000F
 #define lpfc_sli_intf_slirev_WORD		word0
@@ -4719,6 +4722,7 @@ union lpfc_wqe128 {
 
 #define MAGIC_NUMBER_G6 0xFEAA0003
 #define MAGIC_NUMBER_G7 0xFEAA0005
+#define MAGIC_NUMBER_G7P 0xFEAA0020
 
 struct lpfc_grp_hdr {
 	uint32_t size;

@@ -5029,12 +5029,8 @@ lpfc_check_pci_resettable(struct lpfc_hba *phba)
 		}
 
 		/* Check for valid Emulex Device ID */
-		switch (ptr->device) {
-		case PCI_DEVICE_ID_LANCER_FC:
-		case PCI_DEVICE_ID_LANCER_G6_FC:
-		case PCI_DEVICE_ID_LANCER_G7_FC:
-			break;
-		default:
+		if (phba->sli_rev != LPFC_SLI_REV4 ||
+		    phba->hba_flag & HBA_FCOE_MODE) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"8347 Incapable PCI reset device: "
 					"0x%04x\n", ptr->device);
