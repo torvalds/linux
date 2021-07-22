@@ -1403,6 +1403,15 @@ static int btree_iter_traverse_one(struct btree_iter *iter,
 	unsigned l, depth_want = iter->level;
 	int ret = 0;
 
+	/*
+	 * Ensure we obey iter->should_be_locked: if it's set, we can't unlock
+	 * and re-traverse the iterator without a transaction restart:
+	 */
+	if (iter->should_be_locked) {
+		ret = bch2_btree_iter_relock(iter, trace_ip) ? 0 : -EINTR;
+		goto out;
+	}
+
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED) {
 		ret = bch2_btree_iter_traverse_cached(iter);
 		goto out;
