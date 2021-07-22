@@ -1243,6 +1243,8 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 
 #define IP_VER(ver, rel)		((ver) << 8 | (rel))
 
+#define IP_VER(ver, rel)		((ver) << 8 | (rel))
+
 #define GRAPHICS_VER(i915)		(INTEL_INFO(i915)->graphics_ver)
 #define GRAPHICS_VER_FULL(i915)		IP_VER(INTEL_INFO(i915)->graphics_ver, \
 					       INTEL_INFO(i915)->graphics_rel)
@@ -1380,6 +1382,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_DG1(dev_priv)        IS_PLATFORM(dev_priv, INTEL_DG1)
 #define IS_ALDERLAKE_S(dev_priv) IS_PLATFORM(dev_priv, INTEL_ALDERLAKE_S)
 #define IS_ALDERLAKE_P(dev_priv) IS_PLATFORM(dev_priv, INTEL_ALDERLAKE_P)
+#define IS_XEHPSDV(dev_priv) IS_PLATFORM(dev_priv, INTEL_XEHPSDV)
+#define IS_DG2(dev_priv)	IS_PLATFORM(dev_priv, INTEL_DG2)
+#define IS_DG2_G10(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G10)
+#define IS_DG2_G11(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G11)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev_priv) \
@@ -1489,6 +1497,31 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ADLP_GT_STEP(__i915, since, until) \
 	(IS_ALDERLAKE_P(__i915) && \
 	 IS_GT_STEP(__i915, since, until))
+
+#define IS_XEHPSDV_GT_STEP(p, since, until) \
+	(IS_XEHPSDV(p) && IS_GT_STEP(__i915, since, until))
+
+/*
+ * DG2 hardware steppings are a bit unusual.  The hardware design was forked
+ * to create two variants (G10 and G11) which have distinct workaround sets.
+ * The G11 fork of the DG2 design resets the GT stepping back to "A0" for its
+ * first iteration, even though it's more similar to a G10 B0 stepping in terms
+ * of functionality and workarounds.  However the display stepping does not
+ * reset in the same manner --- a specific stepping like "B0" has a consistent
+ * meaning regardless of whether it belongs to a G10 or G11 DG2.
+ *
+ * TLDR:  All GT workarounds and stepping-specific logic must be applied in
+ * relation to a specific subplatform (G10 or G11), whereas display workarounds
+ * and stepping-specific logic will be applied with a general DG2-wide stepping
+ * number.
+ */
+#define IS_DG2_GT_STEP(__i915, variant, since, until) \
+	(IS_SUBPLATFORM(__i915, INTEL_DG2, INTEL_SUBPLATFORM_##variant) && \
+	 IS_GT_STEP(__i915, since, until))
+
+#define IS_DG2_DISP_STEP(__i915, since, until) \
+	(IS_DG2(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
 #define IS_LP(dev_priv)		(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(GRAPHICS_VER(dev_priv) == 9 && IS_LP(dev_priv))
