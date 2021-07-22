@@ -63,7 +63,7 @@ int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
 		return list_size;
 	}
 
-	buf = kzalloc(list_size, GFP_KERNEL);
+	buf = kvzalloc(list_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -106,11 +106,12 @@ retry:
 		if (size > value_size) {
 			void *new;
 
-			new = krealloc(value, size, GFP_KERNEL);
+			new = kvmalloc(size, GFP_KERNEL);
 			if (!new) {
 				error = -ENOMEM;
 				break;
 			}
+			kvfree(value);
 			value = new;
 			value_size = size;
 			goto retry;
@@ -125,9 +126,9 @@ retry:
 			error = 0;
 		}
 	}
-	kfree(value);
+	kvfree(value);
 out:
-	kfree(buf);
+	kvfree(buf);
 	return error;
 }
 
