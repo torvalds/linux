@@ -2530,14 +2530,18 @@ static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
+	const char *s;
 
 	if (!info->direct_monitor)
 		return 0;
 
+	s = info->direct_monitor == 1
+	      ? "Direct Monitor Playback Switch"
+	      : "Direct Monitor Playback Enum";
+
 	return scarlett2_add_new_ctl(
 		mixer, &scarlett2_direct_monitor_ctl[info->direct_monitor - 1],
-		0, 1, "Direct Monitor Playback Switch",
-		&private->direct_monitor_ctl);
+		0, 1, s, &private->direct_monitor_ctl);
 }
 
 /*** Speaker Switching Control ***/
