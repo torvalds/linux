@@ -228,7 +228,7 @@ enum {
 };
 
 static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
-	"Mute", "Dim"
+	"Mute Playback Switch", "Dim Playback Switch"
 };
 
 /* Description of each hardware port type:
@@ -3455,7 +3455,7 @@ static int scarlett2_add_msd_ctl(struct usb_mixer_interface *mixer)
 
 	/* Add MSD control */
 	return scarlett2_add_new_ctl(mixer, &scarlett2_msd_ctl,
-				     0, 1, "MSD Mode", NULL);
+				     0, 1, "MSD Mode Switch", NULL);
 }
 
 /*** Cleanup/Suspend Callbacks ***/
