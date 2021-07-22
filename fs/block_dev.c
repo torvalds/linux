@@ -921,21 +921,6 @@ void bdev_add(struct block_device *bdev, dev_t dev)
 	insert_inode_hash(bdev->bd_inode);
 }
 
-/**
- * bdgrab -- Grab a reference to an already referenced block device
- * @bdev:	Block device to grab a reference to.
- *
- * Returns the block_device with an additional reference when successful,
- * or NULL if the inode is already beeing freed.
- */
-struct block_device *bdgrab(struct block_device *bdev)
-{
-	if (!igrab(bdev->bd_inode))
-		return NULL;
-	return bdev;
-}
-EXPORT_SYMBOL(bdgrab);
-
 long nr_blockdev_pages(void)
 {
 	struct inode *inode;
