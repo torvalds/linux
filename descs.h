@@ -31,7 +31,7 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
- */  
+ */
 
 #ifndef __DESCS_H__
 #define __DESCS_H__

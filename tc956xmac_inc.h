@@ -36,6 +36,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  22 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
+ *  VERSION     : 01-00-04
  */
 
 #ifndef __TC956XMAC_PLATFORM_DATA
@@ -49,12 +51,11 @@
 //#define TC956X_IOCTL_REG_RD_WR_ENABLE
 //#define TC956X_WITHOUT_MDIO
 #define TC956X_PCIE_GEN3_SETTING
-//#define TC956X_SGMII_2P5_GBPS_TEST /*Enable this macro to test SGMII 2.5Gbps*/
 //#define TC956X_PCIE_DISABLE_DSP1 /*Enable this macro to disable DSP1 port*/
 //#define TC956X_PCIE_DISABLE_DSP2 /*Enable this macro to disable DSP2 port*/
 
 /* Enable this macro to use Systick timer instead of Kernel timers
- * for handling Tx completion periodically 
+ * for handling Tx completion periodically
  */
 #define TX_COMPLETION_WITHOUT_TIMERS
 #define TC956X_SW_MSI /*Enable this macro to process SW MSI when CM3 Systick Handler sends SW MSI*/
@@ -62,7 +63,6 @@
 
 /* By default macro is defined and code coverage this macro to be disabled */
 #define TC956X_UNSUPPORTED_UNTESTED_FEATURE
-#define TC956X_USXGMII_XFI_MODE	/*Enable this macro to support USXGMII through XFI mode*/
 
 //#define EEPROM_MAC_ADDR
 
@@ -294,5 +294,6 @@ struct plat_tc956xmacenet_data {
 	enum ch_owner tx_dma_ch_owner[MTL_MAX_TX_QUEUES];
 	enum ch_owner rx_dma_ch_owner[MTL_MAX_RX_QUEUES];
 	u32 port_num;
+	u32 port_interface; /* Kernel module parameter variable for interface */
 };
 #endif

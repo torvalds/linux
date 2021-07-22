@@ -30,7 +30,7 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
- */  
+ */
 
 
 #ifndef __TC956XMAC_DWXGMAC2_H__

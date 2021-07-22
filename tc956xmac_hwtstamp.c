@@ -72,7 +72,7 @@ static void config_sub_second_increment(struct tc956xmac_priv *priv,
 		tmp = mul_u32_u32(ns, 1000);
 		temp_quot = div_u64_rem(tmp, 465, &temp_rem);
 		ns = DIV_ROUND_CLOSEST_ULL(tmp - temp_rem, 465);
-		
+
 		subns = DIV_ROUND_CLOSEST_ULL((tmp * 256) - mul_u32_u32(465 * ns, 256), 465);
 	} else {
 		subns = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(subns, 256), 1000);

@@ -139,7 +139,7 @@ struct tc956x_ipa_version get_ipa_intf_version(struct net_device *ndev);
 
 /*!
  * \brief This API will store the client private structure inside TC956x private structure.
- * 	  The API will check for NULL pointers. client_priv == NULL will be considered as a valid argument
+ *	The API will check for NULL pointers. client_priv == NULL will be considered as a valid argument
  *
  * \param[in] ndev : TC956x netdev data structure
  * \param[in]  client_priv : Client private data structure

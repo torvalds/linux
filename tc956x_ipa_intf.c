@@ -276,7 +276,7 @@ static int alloc_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 
 	tx_q = &priv->tx_queue[channel->channel_num];
 
-	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(priv->device, 
+	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(priv->device,
 								channel->desc_size * channel->desc_cnt,
 								&tx_q->dma_tx_phy, flags);
 

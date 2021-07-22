@@ -29,7 +29,7 @@
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
  */
- 
+
 #ifndef __TC956X_PCIE_LOGSTAT_H__
 #define __TC956X_PCIE_LOGSTAT_H__
 

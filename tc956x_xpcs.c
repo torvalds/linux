@@ -33,6 +33,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  22 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
+ *  VERSION     : 01-00-04
  */
 
 #include "common.h"
@@ -99,7 +101,7 @@ int tc956x_xpcs_init(struct tc956xmac_priv *priv, void __iomem *xpcsaddr)
 		reg_value |= XGMAC_SGMII_MODE;/*SGMII PCS MODE*/
 		tc956x_xpcs_write(xpcsaddr, XGMAC_VR_MII_AN_CTRL, reg_value);
 
-		if (priv->is_sgmii_2p5g == SGMII_2P5G_ENABLED) {
+		if (priv->is_sgmii_2p5g == true) {
 			reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1);
 			reg_value &= ~(0x4);
 			/* Enable only if SGMII 2.5G is enabled */
@@ -107,16 +109,19 @@ int tc956x_xpcs_init(struct tc956xmac_priv *priv, void __iomem *xpcsaddr)
 			tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1, reg_value);
 		}
 	}
-
-	if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) {
+	if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
+		(priv->plat->interface == PHY_INTERFACE_MODE_10GKR)) {
 		reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_SR_XS_PCS_CTRL2);
 		reg_value &= XGMAC_PCS_TYPE_SEL;/*PCS_TYPE_SEL as 10GBASE-R PCS */
 		tc956x_xpcs_write(xpcsaddr, XGMAC_SR_XS_PCS_CTRL2, reg_value);
 
 		reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1);
-#ifndef TC956X_USXGMII_XFI_MODE
-		reg_value |= XGMAC_USXG_EN;/*set USXG_EN*/
-#endif		
+		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR) {
+			reg_value &= (~XGMAC_USXG_EN); /*Disable USXG_EN*/
+		} else {
+			reg_value |= XGMAC_USXG_EN; /*set USXG_EN*/
+		}
+
 		tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1, reg_value);
 
 		reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_KR_CTRL);
@@ -141,7 +146,7 @@ int tc956x_xpcs_init(struct tc956xmac_priv *priv, void __iomem *xpcsaddr)
 
 	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_MII_DIG_CTRL1);
 	reg_value &= ~XGMAC_MAC_AUTO_SW_EN;/*MAC_AUTO_SW enable*/
-	if (priv->is_sgmii_2p5g != SGMII_2P5G_ENABLED)
+	if (priv->is_sgmii_2p5g != true)
 		/* Enable only if SGMII 2.5G is not enabled. */
 		reg_value |= XGMAC_MAC_AUTO_SW_EN;
 	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_MII_DIG_CTRL1, reg_value);
@@ -155,17 +160,12 @@ void tc956x_xpcs_ctrl_ane(struct tc956xmac_priv *priv, bool ane)
 
 	reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_MII_CTRL);
 	if (ane) {
-		if (priv->is_sgmii_2p5g == SGMII_2P5G_ENABLED)
-			/* XPCS doesn't support AN for 2.5G SGMII. 
-			Disable AN only if SGMII 2.5G is Enabled. */
-			reg_value &= (~XGMAC_AN_37_ENABLE);
-		else
-			reg_value |= XGMAC_AN_37_ENABLE;
-		
+		reg_value |= XGMAC_AN_37_ENABLE;
+		KPRINT_INFO("%s Enable AN", __func__);
 	} else {
 		reg_value &= (~XGMAC_AN_37_ENABLE);
+		KPRINT_INFO("%s Disable AN", __func__);
 	}
 	tc956x_xpcs_write(priv->xpcsaddr, XGMAC_SR_MII_CTRL, reg_value);
-
 }
 #endif
