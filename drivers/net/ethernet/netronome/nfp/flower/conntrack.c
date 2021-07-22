@@ -813,6 +813,11 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 	if (err)
 		goto ct_release_offload_meta_err;
 
+	err = nfp_flower_xmit_flow(priv->app, flow_pay,
+				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
+	if (err)
+		goto ct_remove_rhash_err;
+
 	m_entry->tc_flower_cookie = flow_pay->tc_flower_cookie;
 	m_entry->flow_pay = flow_pay;
 
@@ -821,6 +826,10 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 
 	return err;
 
+ct_remove_rhash_err:
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &flow_pay->fl_node,
+					    nfp_flower_table_params));
 ct_release_offload_meta_err:
 	nfp_modify_flow_metadata(priv->app, flow_pay);
 ct_offload_err:
@@ -864,6 +873,9 @@ static int nfp_fl_ct_del_offload(struct nfp_app *app, unsigned long cookie,
 		err = 0;
 		goto err_free_merge_flow;
 	}
+
+	err = nfp_flower_xmit_flow(app, flow_pay,
+				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
 
 err_free_merge_flow:
 	nfp_flower_del_linked_merge_flows(app, flow_pay);

@@ -563,4 +563,7 @@ int nfp_flower_calculate_key_layers(struct nfp_app *app,
 void
 nfp_flower_del_linked_merge_flows(struct nfp_app *app,
 				  struct nfp_fl_payload *sub_flow);
+int
+nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
+		     u8 mtype);
 #endif

@@ -91,7 +91,7 @@ struct nfp_flower_merge_check {
 	};
 };
 
-static int
+int
 nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 		     u8 mtype)
 {
